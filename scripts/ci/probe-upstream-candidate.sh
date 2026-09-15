@@ -165,9 +165,12 @@ case "$dependency" in
       vendor/btls/patches/delegated-credentials.patch \
       "$candidate_dir/patches/"
 
-    replace_exact Cargo.toml \
-      "git = \"$btls_current_repository\", rev = \"$btls_current\"" \
-      "git = \"$candidate_cargo_repository\", rev = \"$candidate\"" 2
+    replace_exact_line Cargo.toml \
+      "btls = { git = \"$btls_current_repository\", rev = \"$btls_current\", default-features = false }" \
+      "btls = { git = \"$candidate_cargo_repository\", rev = \"$candidate\", default-features = false }" 1
+    replace_exact_line Cargo.toml \
+      "tokio-btls = { git = \"$btls_current_repository\", rev = \"$btls_current\", default-features = false }" \
+      "tokio-btls = { git = \"$candidate_cargo_repository\", rev = \"$candidate\", default-features = false }" 1
     replace_exact_line Cargo.toml \
       "[patch.\"$btls_current_repository\"]" \
       "[patch.\"$candidate_cargo_repository\"]" 1
