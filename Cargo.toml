@@ -17,6 +17,8 @@ version = "0.1.0"
 [workspace.dependencies]
 btls = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
 btls-sys = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
+bytes = "=1.12.1"
+quinn-proto = { version = "=0.11.18", default-features = false }
 tokio-btls = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
 zeroize = "=1.9.0"
 

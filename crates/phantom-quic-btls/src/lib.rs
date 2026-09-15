@@ -15,6 +15,7 @@ mod error;
 mod header;
 mod initial;
 mod packet;
+mod quinn;
 mod retry;
 mod secret;
 
