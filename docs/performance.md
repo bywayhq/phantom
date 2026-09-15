@@ -67,9 +67,10 @@ First build the optimized benchmark with symbols:
 cargo +1.98.0 bench --locked -p phantom-net --bench transport --no-run
 ```
 
-Cargo prints the benchmark executable path. Substitute it for `<bench-bin>` in
-the commands below. Criterion's profile mode repeatedly exercises one workload
-without performing its statistical analysis.
+Cargo prints the benchmark executable path. Assign that path to `bench_bin` in
+the commands below. A benchmark executable invoked directly needs `--bench` to
+select Criterion's benchmark mode. `--profile-time` then repeatedly exercises
+one exact workload without performing statistical analysis.
 
 Create the output directory once before capturing a profile:
 
@@ -77,19 +78,31 @@ Create the output directory once before capturing a profile:
 mkdir -p target/profiles
 ```
 
-On macOS, capture CPU time or allocations with Instruments:
+On macOS, start the benchmark normally and attach Instruments by PID. Keeping
+launch and recording separate avoids Instruments changing Criterion's launch
+environment. Use a longer Criterion duration than the trace window so the
+process remains alive while Instruments attaches:
 
 ```sh
-xcrun xctrace record --template 'Time Profiler' --output target/profiles/http1.trace --launch -- <bench-bin> 'http1/content_length/65536' --profile-time 20 --noplot
-xcrun xctrace record --template 'Allocations' --output target/profiles/http1-allocations.trace --launch -- <bench-bin> 'http1/content_length/65536' --profile-time 20 --noplot
+bench_bin='target/release/deps/transport-<hash>'
+profile_workload=http2/response_head/12_ordered_headers
+"$bench_bin" --bench "$profile_workload" --exact --profile-time 30 --noplot &
+profile_pid=$!
+xcrun xctrace record --quiet --no-prompt --template 'Time Profiler' \
+  --time-limit 10s --output target/profiles/http2-response-head.trace \
+  --attach "$profile_pid"
+wait "$profile_pid"
 ```
 
-On Linux, capture CPU samples with `perf` or allocations with Heaptrack:
+For an allocation trace, repeat the same start-and-attach sequence with the
+`Allocations` template and a distinct output path. On Linux, capture CPU samples
+with `perf` or allocations with Heaptrack:
 
 ```sh
-perf record -g --call-graph dwarf -o target/profiles/http1.data -- <bench-bin> 'http1/content_length/65536' --profile-time 20 --noplot
-perf report -i target/profiles/http1.data
-heaptrack <bench-bin> 'http1/content_length/65536' --profile-time 20 --noplot
+perf record -g --call-graph dwarf -o target/profiles/http2-response-head.data \
+  -- "$bench_bin" --bench "$profile_workload" --exact --profile-time 20 --noplot
+perf report -i target/profiles/http2-response-head.data
+heaptrack "$bench_bin" --bench "$profile_workload" --exact --profile-time 20 --noplot
 heaptrack --analyze <heaptrack-output>
 ```
 
@@ -97,3 +110,32 @@ Optimize only a repeatable hotspot, then rerun the identical workload before
 and after the change. TLS-handshake and network end-to-end benchmarks remain
 deferred until they have controlled trust roots and a reproducible server and
 network setup.
+
+## Phase 3 local profile
+
+The Phase 3 closing pass ran on 2026-09-15 at commit `0d2f733` on an Apple M4
+running macOS 15.5 (24F74), Rust 1.98.0, AC power, and low-power mode disabled.
+These numbers are local evidence, not portable thresholds.
+
+The first response-head Time Profiler trace contained 9,993 samples, 99.9% of
+which were under benchmark-only subscriber construction. Criterion excludes
+batched setup from its timing, but an external sampler observes the whole
+process. Reusing one subscriber while retaining a distinct completion signal
+for every driver span removed that artifact. The corrected trace contained
+8,017 samples and exposed request preparation, HTTP/2 framing and HPACK, and
+connection teardown rather than callsite-cache rebuilding.
+
+The corrected response-head baseline was 9.1728–9.2014 microseconds. Reusing
+the validated origin-form path/query instead of formatting and reparsing it,
+and retaining one ordered header vector instead of a redundant semantic copy,
+reduced the identical workload to 8.9322–8.9582 microseconds, a 2.63% change at
+the interval midpoints. Request preparation fell from 20.64% to 18.59% of
+inclusive CPU samples in matched 8,017- and 8,014-sample traces.
+
+The 64 KiB streaming workload remained unchanged within noise: 11.210–11.283
+microseconds before and 11.152–11.205 microseconds after. In its 7,223-sample
+CPU trace, `memmove` accounted for 48.27% of leaf samples and
+`http_body_util::Collected::to_bytes` for 33.22% of inclusive samples. The
+benchmark consumer combines four yielded chunks into one contiguous buffer;
+that is not a Phantom body-copy path, so the pass made no transport change for
+it.
