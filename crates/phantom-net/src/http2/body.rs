@@ -10,7 +10,6 @@ use std::{
 
 use ::http2::{Reason, RecvStream, SendStream, client};
 use bytes::Bytes;
-use futures_timer::Delay;
 use http_body::{Body, Frame, SizeHint};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
@@ -22,7 +21,7 @@ use tracing::{
     warn,
 };
 
-use super::Http2Error;
+use super::{Http2Error, shutdown_timer};
 
 pub(super) const DRIVER_SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 
@@ -76,10 +75,9 @@ impl Http2Body {
             self.finished = true;
             self.driver.shutdown();
             self.trace.finish("protocol_error");
-            return Poll::Ready(Some(Err(::http2::Error::from(
+            return Poll::Ready(Some(Err(Http2Error::protocol(::http2::Error::from(
                 ::http2::Reason::INTERNAL_ERROR,
-            )
-            .into())));
+            )))));
         };
         match incoming.poll_data(context) {
             Poll::Ready(Some(Ok(data))) => {
@@ -101,7 +99,7 @@ impl Http2Body {
                 self.reset.take();
                 self.driver.shutdown();
                 self.trace.finish("protocol_error");
-                Poll::Ready(Some(Err(error.into())))
+                Poll::Ready(Some(Err(Http2Error::protocol(error))))
             }
             Poll::Ready(None) => match incoming.poll_trailers(context) {
                 Poll::Ready(Ok(Some(trailers))) => {
@@ -126,7 +124,7 @@ impl Http2Body {
                     self.reset.take();
                     self.driver.shutdown();
                     self.trace.finish("protocol_error");
-                    Poll::Ready(Some(Err(error.into())))
+                    Poll::Ready(Some(Err(Http2Error::protocol(error))))
                 }
                 Poll::Pending => Poll::Pending,
             },
@@ -318,6 +316,12 @@ impl DriverTask {
                         outcome.finish("timeout");
                         warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
                     }
+                    DriverShutdown::TimerFailed => {
+                        driver.abort();
+                        let _ = driver.handle_mut().await;
+                        outcome.finish("task_error");
+                        warn!(parent: &span, "HTTP/2 shutdown timer service failed");
+                    }
                 }
             }
             .with_subscriber(dispatch),
@@ -330,16 +334,21 @@ type DriverResult = Result<Result<(), ::http2::Error>, JoinError>;
 enum DriverShutdown {
     Finished(DriverResult),
     TimedOut,
+    TimerFailed,
 }
 
 async fn wait_for_driver(driver: &mut AbortDriver) -> DriverShutdown {
-    let mut deadline = std::pin::pin!(Delay::new(DRIVER_SHUTDOWN_GRACE));
+    let Ok(mut deadline) = shutdown_timer::after(DRIVER_SHUTDOWN_GRACE) else {
+        return DriverShutdown::TimerFailed;
+    };
     poll_fn(|context| {
         if let Poll::Ready(result) = Pin::new(driver.handle_mut()).poll(context) {
             return Poll::Ready(DriverShutdown::Finished(result));
         }
-        if deadline.as_mut().poll(context).is_ready() {
-            return Poll::Ready(DriverShutdown::TimedOut);
+        match Pin::new(&mut deadline).poll(context) {
+            Poll::Ready(Ok(())) => return Poll::Ready(DriverShutdown::TimedOut),
+            Poll::Ready(Err(_)) => return Poll::Ready(DriverShutdown::TimerFailed),
+            Poll::Pending => {}
         }
         Poll::Pending
     })

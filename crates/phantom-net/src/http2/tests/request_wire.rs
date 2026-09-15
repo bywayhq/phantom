@@ -12,15 +12,18 @@ use tokio::{
     io::{AsyncReadExt, DuplexStream, duplex},
     time::Instant,
 };
-use tracing::{Dispatch, instrument::WithSubscriber};
+use tracing::instrument::WithSubscriber;
 
-use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test, headers, target};
-use crate::http2::{Http2Error, Http2ProtocolErrorKind, OriginForm, send_get};
+use super::{
+    PEER_TEST_TIMEOUT, TestResult, bounded_peer_test, headers, prime_request_trace_callsites,
+    target,
+};
+use crate::http2::{Http2Error, Http2ProtocolErrorKind, OriginForm, RequestHeader, send_get};
 use crate::tracing_test::OutcomeSubscriber;
 
 #[test]
 fn protocol_errors_expose_stable_metadata_and_retain_backend_source() {
-    let error = Http2Error::from(::http2::Error::from(::http2::Reason::PROTOCOL_ERROR));
+    let error = Http2Error::protocol(::http2::Error::from(::http2::Reason::PROTOCOL_ERROR));
     let Http2Error::Protocol(protocol) = &error else {
         panic!("backend protocol error used the wrong public variant");
     };
@@ -33,6 +36,7 @@ fn protocol_errors_expose_stable_metadata_and_retain_backend_source() {
 #[tokio::test]
 async fn protocol_failure_has_specific_response_head_outcome() -> TestResult<()> {
     bounded_peer_test(async {
+        prime_request_trace_callsites().await?;
         let subscriber = OutcomeSubscriber::default();
         let (client, server) = duplex(64 * 1024);
         let server_task = tokio::spawn(async move {
@@ -51,7 +55,7 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult<()>
             target()?,
             Vec::new(),
         )
-        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .with_subscriber(subscriber.dispatch())
         .await;
         assert!(matches!(result, Err(Http2Error::Protocol(_))));
         assert_eq!(
@@ -226,6 +230,61 @@ async fn headers_carry_chrome_priority_and_pseudo_order() -> TestResult<()> {
                 0x7f, 0x00, 0x83, 0x8c, 0xa9, 0x1f, // x-repeat: beta
                 0x40, 0x82, 0x49, 0x7f, 0x86, 0x4d, 0x83, 0x35, 0x05, 0xb1,
                 0x1f, // te: trailers
+            ]
+        );
+
+        drop(server);
+        assert!(transaction.await?.is_err());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn content_length_zero_is_emitted_in_declared_wire_order() -> TestResult<()> {
+    bounded_peer_test(async {
+        let settings = v152_macos_http2();
+        let request_target = OriginForm::parse("/")?;
+        let (client, mut server) = duplex(64 * 1024);
+        let transaction = tokio::spawn(async move {
+            send_get(
+                client,
+                &settings,
+                "example.test",
+                request_target,
+                vec![
+                    RequestHeader::new("x-before", "a"),
+                    RequestHeader::new("content-length", "0"),
+                    RequestHeader::new("x-after", "b"),
+                ],
+            )
+            .await
+        });
+
+        let mut preface = [0_u8; 24];
+        server.read_exact(&mut preface).await?;
+        assert_eq!(&preface, CLIENT_CONNECTION_PREFACE);
+        let headers = loop {
+            let frame = read_raw_frame(&mut server).await?;
+            if frame.frame_type == 1 {
+                break frame;
+            }
+        };
+        assert_eq!(headers.stream_id, 1);
+        assert_eq!(headers.flags, 0x25);
+        assert_eq!(&headers.payload[..4], &0x8000_0000_u32.to_be_bytes());
+        assert_eq!(headers.payload[4], 255);
+        assert_eq!(
+            &headers.payload[5..],
+            &[
+                0x82, // :method GET
+                0x41, 0x89, 0x2f, 0x91, 0xd3, 0x5d, 0x05, 0x5d, 0x25, 0x42,
+                0x7f, // :authority
+                0x87, // :scheme https
+                0x84, // :path /
+                0x40, 0x86, 0xf2, 0xb4, 0x65, 0x94, 0xf6, 0x17, 0x81, 0x1f, // x-before: a
+                0x0f, 0x0d, 0x81, 0x07, // content-length: 0
+                0x40, 0x85, 0xf2, 0xb0, 0xe5, 0x49, 0x6c, 0x81, 0x8f, // x-after: b
             ]
         );
 

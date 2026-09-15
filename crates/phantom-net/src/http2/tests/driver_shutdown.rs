@@ -10,7 +10,6 @@ use std::{
     time::Duration,
 };
 
-use futures_timer::Delay;
 use http::Response;
 use http_body::Body as _;
 use phantom_profile::chromium::v152_macos_http2;
@@ -22,9 +21,8 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
-use super::driver_lifecycle::reset_observing_server;
-use super::{TestResult, bounded_peer_test, next_nonempty_data, target};
-use crate::http2::{body::DRIVER_SHUTDOWN_GRACE, send_get};
+use super::{TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, target};
+use crate::http2::{body::DRIVER_SHUTDOWN_GRACE, send_get, shutdown_timer};
 use crate::tracing_test::OutcomeSubscriber;
 
 #[test]
@@ -85,19 +83,8 @@ fn body_shutdown_completes_without_a_tokio_time_driver() -> TestResult<()> {
             let body = response.into_body();
             assert!(body.is_end_stream());
             drop(body);
-            server_task.await??;
-
-            for _ in 0..10_000 {
-                if subscriber.outcomes_for("http2.connection_driver") == ["complete"] {
-                    break;
-                }
-                tokio::task::yield_now().await;
-            }
-            assert_eq!(
-                subscriber.outcomes_for("http2.connection_driver"),
-                ["complete"]
-            );
-            assert_eq!(subscriber.connection_driver_events(), 1);
+            before_deadline(server_task, Duration::from_secs(2)).await???;
+            wait_for_driver_observation(&subscriber, "complete").await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
         .with_subscriber(subscriber.clone()),
@@ -129,37 +116,11 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
 
             control.blocked.store(true, Ordering::SeqCst);
             drop(body);
-            let mut dropped = std::pin::pin!(control.dropped_notify.notified());
-            let mut deadline =
-                std::pin::pin!(Delay::new(DRIVER_SHUTDOWN_GRACE + Duration::from_secs(1),));
-            let dropped_before_deadline = poll_fn(|context| {
-                if control.dropped.load(Ordering::SeqCst)
-                    || dropped.as_mut().poll(context).is_ready()
-                {
-                    return Poll::Ready(true);
-                }
-                if deadline.as_mut().poll(context).is_ready() {
-                    return Poll::Ready(false);
-                }
-                Poll::Pending
-            })
-            .await;
-            assert!(
-                dropped_before_deadline,
-                "stalled HTTP/2 transport was not dropped after grace"
-            );
-
-            for _ in 0..10_000 {
-                if subscriber.outcomes_for("http2.connection_driver") == ["timeout"] {
-                    break;
-                }
-                tokio::task::yield_now().await;
+            let dropped = control.dropped_notify.notified();
+            if !control.dropped.load(Ordering::SeqCst) {
+                before_deadline(dropped, DRIVER_SHUTDOWN_GRACE + Duration::from_secs(1)).await?;
             }
-            assert_eq!(
-                subscriber.outcomes_for("http2.connection_driver"),
-                ["timeout"]
-            );
-            assert_eq!(subscriber.connection_driver_events(), 1);
+            wait_for_driver_observation(&subscriber, "timeout").await?;
 
             server_task.abort();
             let _ = server_task.await;
@@ -249,6 +210,44 @@ async fn terminal_response_server(stream: DuplexStream) -> TestResult<()> {
     drop(respond);
     poll_fn(|context| connection.poll_closed(context)).await?;
     Ok(())
+}
+
+async fn wait_for_driver_observation(
+    subscriber: &OutcomeSubscriber,
+    expected_outcome: &str,
+) -> TestResult<()> {
+    let event = subscriber.connection_driver_event();
+    if subscriber.outcomes_for("http2.connection_driver") != [expected_outcome]
+        || subscriber.connection_driver_events() != 1
+    {
+        before_deadline(event, Duration::from_secs(2)).await?;
+    }
+    assert_eq!(
+        subscriber.outcomes_for("http2.connection_driver"),
+        [expected_outcome]
+    );
+    assert_eq!(subscriber.connection_driver_events(), 1);
+    Ok(())
+}
+
+async fn before_deadline<F>(future: F, duration: Duration) -> TestResult<F::Output>
+where
+    F: Future,
+{
+    let mut future = Box::pin(future);
+    let mut deadline = shutdown_timer::after(duration)
+        .map_err(|_| "HTTP/2 shutdown timer service was unavailable")?;
+    poll_fn(|context| {
+        if let Poll::Ready(output) = future.as_mut().poll(context) {
+            return Poll::Ready(Ok(output));
+        }
+        match Pin::new(&mut deadline).poll(context) {
+            Poll::Ready(Ok(())) => Poll::Ready(Err("operation exceeded its deadline".into())),
+            Poll::Ready(Err(_)) => Poll::Ready(Err("HTTP/2 shutdown timer service stopped".into())),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
 }
 
 #[derive(Clone, Default)]

@@ -2,22 +2,27 @@ use std::{
     collections::HashMap,
     future::Future,
     sync::{
-        Arc, Mutex, MutexGuard,
+        Arc, Mutex, MutexGuard, OnceLock,
         atomic::{AtomicU64, Ordering},
     },
     task::Poll,
 };
 
+use tokio::sync::{Notify, futures::Notified};
 use tracing::{
     Dispatch, Event, Metadata, Subscriber, dispatcher,
     field::{Field, Visit},
     span::{Attributes, Id, Record},
+    subscriber::Interest,
 };
+
+static DYNAMIC_CALLSITE_FALLBACK: OnceLock<()> = OnceLock::new();
 
 #[derive(Clone, Default)]
 pub(crate) struct OutcomeSubscriber {
     next_span_id: Arc<AtomicU64>,
     state: Arc<Mutex<CaptureState>>,
+    connection_driver_notify: Arc<Notify>,
 }
 
 #[derive(Default)]
@@ -31,6 +36,12 @@ struct CaptureState {
 }
 
 impl OutcomeSubscriber {
+    pub(crate) fn install_dynamic_callsite_fallback() {
+        DYNAMIC_CALLSITE_FALLBACK.get_or_init(|| {
+            let _ = tracing::subscriber::set_global_default(DynamicCallsiteFallback);
+        });
+    }
+
     pub(crate) fn outcomes_for(&self, span_name: &str) -> Vec<String> {
         self.state()
             .outcomes
@@ -57,8 +68,18 @@ impl OutcomeSubscriber {
         self.state().connection_driver_events
     }
 
+    pub(crate) fn connection_driver_event(&self) -> Notified<'_> {
+        self.connection_driver_notify.notified()
+    }
+
     pub(crate) fn response_body_polls_on_origin_dispatch(&self) -> usize {
         self.state().response_body_polls_on_origin_dispatch
+    }
+
+    pub(crate) fn dispatch(&self) -> Dispatch {
+        let dispatch = Dispatch::new(self.clone());
+        tracing::callsite::rebuild_interest_cache();
+        dispatch
     }
 
     fn state(&self) -> MutexGuard<'_, CaptureState> {
@@ -67,6 +88,32 @@ impl OutcomeSubscriber {
             Err(poisoned) => poisoned.into_inner(),
         }
     }
+}
+
+struct DynamicCallsiteFallback;
+
+impl Subscriber for DynamicCallsiteFallback {
+    fn register_callsite(&self, _metadata: &'static Metadata<'static>) -> Interest {
+        Interest::sometimes()
+    }
+
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+        false
+    }
+
+    fn new_span(&self, _attributes: &Attributes<'_>) -> Id {
+        Id::from_u64(1)
+    }
+
+    fn record(&self, _span: &Id, _values: &Record<'_>) {}
+
+    fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
+
+    fn event(&self, _event: &Event<'_>) {}
+
+    fn enter(&self, _span: &Id) {}
+
+    fn exit(&self, _span: &Id) {}
 }
 
 pub(crate) async fn poll_once_then_drop<F>(future: F, subscriber: OutcomeSubscriber) -> bool
@@ -86,6 +133,10 @@ where
 }
 
 impl Subscriber for OutcomeSubscriber {
+    fn register_callsite(&self, _metadata: &'static Metadata<'static>) -> Interest {
+        Interest::sometimes()
+    }
+
     fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
         true
     }
@@ -127,6 +178,7 @@ impl Subscriber for OutcomeSubscriber {
             Some("http1.connection_driver" | "http2.connection_driver")
         ) {
             self.state().connection_driver_events += 1;
+            self.connection_driver_notify.notify_one();
             return;
         }
         if !matches!(

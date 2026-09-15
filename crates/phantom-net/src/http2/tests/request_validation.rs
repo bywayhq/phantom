@@ -9,9 +9,9 @@ use std::{
 
 use phantom_profile::chromium::v152_macos_http2;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex};
-use tracing::{Dispatch, instrument::WithSubscriber};
+use tracing::instrument::WithSubscriber;
 
-use super::{TestResult, target};
+use super::{TestResult, prime_request_trace_callsites, target};
 use crate::http2::{
     Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader, send_get,
 };
@@ -214,6 +214,7 @@ async fn nonzero_or_malformed_content_length_is_rejected_before_io() -> TestResu
 
 #[tokio::test]
 async fn invalid_request_is_traced_before_stream_io() -> TestResult<()> {
+    prime_request_trace_callsites().await?;
     let subscriber = OutcomeSubscriber::default();
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
@@ -227,7 +228,7 @@ async fn invalid_request_is_traced_before_stream_io() -> TestResult<()> {
         target()?,
         Vec::new(),
     )
-    .with_subscriber(Dispatch::new(subscriber.clone()))
+    .with_subscriber(subscriber.dispatch())
     .await;
 
     assert!(matches!(result, Err(Http2Error::AuthorityContainsUserinfo)));

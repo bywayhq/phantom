@@ -1,22 +1,15 @@
 use std::{
     error::Error,
-    future::poll_fn,
     task::{Context, Waker},
     time::Duration,
 };
 
-use bytes::Bytes;
-use http::Response;
 use http_body::Body as _;
 use phantom_profile::chromium::v152_macos_http2;
-use tokio::{
-    io::{DuplexStream, duplex},
-    runtime::Builder,
-    time::timeout,
-};
+use tokio::{io::duplex, runtime::Builder, time::timeout};
 use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
-use super::{TestResult, bounded_peer_test, next_nonempty_data, target};
+use super::{TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, target};
 use crate::http2::send_get;
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
@@ -178,31 +171,4 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult<()> {
         ["cancelled"]
     );
     Ok(())
-}
-
-pub(super) async fn reset_observing_server(
-    stream: DuplexStream,
-) -> TestResult<(::http2::Reason, bool)> {
-    let mut connection = ::http2::server::handshake(stream).await?;
-    let (_request, mut respond) = connection
-        .accept()
-        .await
-        .ok_or("connection closed before request")??;
-    let response = Response::builder().status(200).body(())?;
-    let mut send = respond.send_response(response, false)?;
-    send.send_data(Bytes::from_static(b"partial"), false)?;
-
-    let reason = tokio::select! {
-        biased;
-        result = poll_fn(|context| send.poll_reset(context)) => result?,
-        incoming = connection.accept() => {
-            if incoming.is_none() {
-                return Err("connection closed without an observable stream reset".into());
-            }
-            return Err("one-shot client sent an unexpected second request".into());
-        }
-    };
-    drop(send);
-    poll_fn(|context| connection.poll_closed(context)).await?;
-    Ok((reason, true))
 }

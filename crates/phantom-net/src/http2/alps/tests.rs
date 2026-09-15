@@ -52,7 +52,7 @@ fn multiple_frames_and_duplicates_are_final_wins() {
 
 #[test]
 fn setting_transition_rules_apply_between_frames_after_same_frame_final_wins() {
-    let mut same_frame = frame(4, 0, 0, &settings(&[(8, 1), (8, 0), (9, 1), (9, 0)]));
+    let mut same_frame = frame(4, 0, 0, &settings(&[(8, 0), (8, 1), (9, 1), (9, 0)]));
     same_frame.extend(frame(4, 0, 0, &settings(&[(8, 1), (9, 0)])));
     let decoded = negotiated_settings(&same_frame);
     assert_eq!(decoded.is_extended_connect_protocol_enabled(), Some(true));
@@ -62,9 +62,21 @@ fn setting_transition_rules_apply_between_frames_after_same_frame_final_wins() {
     connect_downgrade.extend(frame(4, 0, 0, &settings(&[(8, 0)])));
     assert_kind(&connect_downgrade, DecodeErrorKind::SettingTransition);
 
+    assert_kind(
+        &frame(4, 0, 0, &settings(&[(8, 1), (8, 0)])),
+        DecodeErrorKind::SettingTransition,
+    );
+
     let mut priorities_change = frame(4, 0, 0, &settings(&[(9, 0)]));
     priorities_change.extend(frame(4, 0, 0, &settings(&[(9, 1)])));
     assert_kind(&priorities_change, DecodeErrorKind::SettingTransition);
+
+    let mut priorities_change_then_revert = frame(4, 0, 0, &settings(&[(9, 0)]));
+    priorities_change_then_revert.extend(frame(4, 0, 0, &settings(&[(9, 1), (9, 0)])));
+    assert_kind(
+        &priorities_change_then_revert,
+        DecodeErrorKind::SettingTransition,
+    );
 
     let mut priorities_change_after_omission = frame(4, 0, 0, &[]);
     priorities_change_after_omission.extend(frame(4, 0, 0, &settings(&[(9, 1)])));

@@ -177,8 +177,12 @@ fn apply_settings(
         return Err(error(frame_index, offset, DecodeErrorKind::SettingsLength));
     }
 
-    let mut enable_connect_protocol = None;
-    let mut no_rfc7540_priorities = None;
+    let mut enable_connect_protocol = settings
+        .is_extended_connect_protocol_enabled()
+        .unwrap_or(false);
+    let mut saw_enable_connect_protocol = false;
+    let mut no_rfc7540_priorities = settings.is_no_rfc7540_priorities().unwrap_or(false);
+    let mut saw_no_rfc7540_priorities = false;
     for setting in payload.chunks_exact(6) {
         let id = u16::from_be_bytes([setting[0], setting[1]]);
         let value = u32::from_be_bytes([setting[2], setting[3], setting[4], setting[5]]);
@@ -194,39 +198,41 @@ fn apply_settings(
             }
             0x5 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
             0x6 => settings.set_max_header_list_size(Some(value)),
-            0x8 if value <= 1 => enable_connect_protocol = Some(value),
+            0x8 if value <= 1 => {
+                let value = value == 1;
+                if enable_connect_protocol && !value {
+                    return Err(error(
+                        frame_index,
+                        offset,
+                        DecodeErrorKind::SettingTransition,
+                    ));
+                }
+                enable_connect_protocol = value;
+                saw_enable_connect_protocol = true;
+            }
             0x8 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
-            0x9 if value <= 1 => no_rfc7540_priorities = Some(value == 1),
+            0x9 if value <= 1 => {
+                let value = value == 1;
+                if !is_initial && value != no_rfc7540_priorities {
+                    return Err(error(
+                        frame_index,
+                        offset,
+                        DecodeErrorKind::SettingTransition,
+                    ));
+                }
+                no_rfc7540_priorities = value;
+                saw_no_rfc7540_priorities = true;
+            }
             0x9 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
             _ => {}
         }
     }
 
-    if settings.is_extended_connect_protocol_enabled() == Some(true)
-        && enable_connect_protocol == Some(0)
-    {
-        return Err(error(
-            frame_index,
-            offset,
-            DecodeErrorKind::SettingTransition,
-        ));
+    if saw_enable_connect_protocol {
+        settings.set_enable_connect_protocol(Some(u32::from(enable_connect_protocol)));
     }
-    if !is_initial
-        && no_rfc7540_priorities
-            .is_some_and(|value| value != settings.is_no_rfc7540_priorities().unwrap_or(false))
-    {
-        return Err(error(
-            frame_index,
-            offset,
-            DecodeErrorKind::SettingTransition,
-        ));
-    }
-
-    if let Some(value) = enable_connect_protocol {
-        settings.set_enable_connect_protocol(Some(value));
-    }
-    if let Some(value) = no_rfc7540_priorities {
-        settings.set_no_rfc7540_priorities(value);
+    if saw_no_rfc7540_priorities {
+        settings.set_no_rfc7540_priorities(no_rfc7540_priorities);
     }
     Ok(())
 }

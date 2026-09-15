@@ -222,13 +222,11 @@ impl StdError for Http2Error {
     }
 }
 
-impl From<::http2::Error> for Http2Error {
-    fn from(error: ::http2::Error) -> Self {
+impl Http2Error {
+    fn protocol(error: ::http2::Error) -> Self {
         Self::Protocol(Http2ProtocolError::new(error))
     }
-}
 
-impl Http2Error {
     fn trace_kind(&self) -> &'static str {
         match self {
             Self::InvalidSettings(_) => "invalid_settings",
@@ -328,12 +326,20 @@ where
     let outcome = OperationOutcome::new(&span);
     let result = async {
         debug!("HTTP/2 transaction started");
-        let (sender, connection) = prepared.client.handshake(stream).await?;
+        let (sender, connection) = prepared
+            .client
+            .handshake(stream)
+            .await
+            .map_err(Http2Error::protocol)?;
         let mut driver = DriverTask::spawn(connection, sender);
 
-        driver.ready().await?;
-        let (response, send_stream) = driver.sender_mut()?.send_request(prepared.request, true)?;
-        let response = response.await?;
+        driver.ready().await.map_err(Http2Error::protocol)?;
+        let (response, send_stream) = driver
+            .sender_mut()
+            .map_err(Http2Error::protocol)?
+            .send_request(prepared.request, true)
+            .map_err(Http2Error::protocol)?;
+        let response = response.await.map_err(Http2Error::protocol)?;
 
         span.record("status", response.status().as_u16());
         debug!("HTTP/2 response headers received");
@@ -464,6 +470,7 @@ fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2
 
 mod body;
 mod request;
+mod shutdown_timer;
 mod tls;
 
 pub use tls::{Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
