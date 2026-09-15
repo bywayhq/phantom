@@ -12,8 +12,11 @@ use quinn_proto::crypto;
 
 use crate::{HeaderProtectionKey, PacketProtectionKey};
 
-const AES_CONFIDENTIALITY_LIMIT: u64 = 1 << 28;
-const AES_INTEGRITY_LIMIT: u64 = 1 << 57;
+// RFC 9001 section 6.6 applies these conservative limits to QUIC packets
+// protected with AEAD_AES_128_GCM or AEAD_AES_256_GCM:
+// https://www.rfc-editor.org/rfc/rfc9001.html#section-6.6
+const AES_CONFIDENTIALITY_LIMIT: u64 = 1 << 23;
+const AES_INTEGRITY_LIMIT: u64 = 1 << 52;
 
 impl crypto::HeaderKey for HeaderProtectionKey {
     fn decrypt(&self, packet_number_offset: usize, packet: &mut [u8]) {
@@ -173,8 +176,8 @@ mod tests {
         let keys = derive_initial_keys(QuicVersion::V1, &[1; 8], EndpointSide::Client)
             .unwrap_or_else(|error| panic!("test key derivation failed: {error}"));
         assert_eq!(keys.local().packet().tag_len(), 16);
-        assert_eq!(keys.local().packet().confidentiality_limit(), 1 << 28);
-        assert_eq!(keys.local().packet().integrity_limit(), 1 << 57);
+        assert_eq!(keys.local().packet().confidentiality_limit(), 1 << 23);
+        assert_eq!(keys.local().packet().integrity_limit(), 1 << 52);
     }
 
     fn hex<const N: usize>(input: &str) -> [u8; N] {
