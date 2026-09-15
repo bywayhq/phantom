@@ -53,13 +53,16 @@ impl Http2TlsConnector {
 
     /// Sends one empty-body HTTP/2 GET after an exact `h2` TLS negotiation.
     ///
-    /// Request preparation completes before the supplied stream is touched.
-    /// Missing ALPN and every selected protocol other than exact `h2` are
-    /// rejected before the HTTP/2 connection preface is written.
+    /// `server_name` controls certificate verification and SNI; `authority`
+    /// becomes the HTTP `:authority` value and may include a port. Request
+    /// preparation completes before the supplied stream is touched. Missing
+    /// ALPN and every selected protocol other than exact `h2` are rejected
+    /// before the HTTP/2 connection preface is written.
     pub async fn send_get<S>(
         &self,
         stream: S,
         server_name: &str,
+        authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http2Body>, Http2TlsError>
@@ -76,7 +79,7 @@ impl Http2TlsConnector {
         );
         let outcome_guard = ResponseHeadOutcome::new(&span);
         let result = async {
-            let prepared = PreparedGet::new(&self.http2, server_name, target, headers)?;
+            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
             debug!("HTTP/2 request prepared");
 
             let stream = self.tls.connect(server_name, stream).await?;

@@ -19,6 +19,9 @@ pub(super) fn prepare_get(
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<Request<()>, Http2Error> {
+    if authority.as_bytes().contains(&b'@') {
+        return Err(Http2Error::AuthorityContainsUserinfo);
+    }
     let authority = authority
         .parse::<Authority>()
         .map_err(Http2Error::InvalidAuthority)?;

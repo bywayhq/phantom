@@ -4,7 +4,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     task::{Context, Poll},
     time::Duration,
@@ -21,12 +21,13 @@ use phantom_testkit::http2::{
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, DuplexStream, ReadBuf, duplex},
-    sync::oneshot,
+    sync::{Notify, oneshot},
     time::{Instant, timeout},
 };
 use tracing::instrument::WithSubscriber;
 
 use super::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm, RequestHeader, send_get};
+use crate::http2::body::DRIVER_SHUTDOWN_GRACE;
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -61,10 +62,18 @@ fn headers() -> Vec<RequestHeader> {
 async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
     let mut invalid_settings = v152_macos_http2();
     invalid_settings.initial_connection_window_size = 65_534;
+    let mut self_dependent = v152_macos_http2();
+    self_dependent
+        .headers_priority
+        .as_mut()
+        .ok_or("Chrome profile unexpectedly lacks HEADERS priority")?
+        .dependency_stream_id = 1;
 
     let mut cases = vec![
         (invalid_settings, "example.test", vec![]),
+        (self_dependent, "example.test", vec![]),
         (v152_macos_http2(), "bad authority/", vec![]),
+        (v152_macos_http2(), "user@example.test", vec![]),
         (
             v152_macos_http2(),
             "example.test",
@@ -133,6 +142,62 @@ async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
         assert!(result.is_err());
         assert_eq!(touches.load(Ordering::SeqCst), 0);
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn self_dependency_and_userinfo_report_specific_errors_before_io() -> TestResult<()> {
+    let mut settings = v152_macos_http2();
+    settings
+        .headers_priority
+        .as_mut()
+        .ok_or("Chrome profile unexpectedly lacks HEADERS priority")?
+        .dependency_stream_id = 1;
+    let touches = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let result = send_get(
+        TouchCountingStream {
+            inner: client,
+            touches: Arc::clone(&touches),
+        },
+        &settings,
+        "example.test",
+        target()?,
+        vec![],
+    )
+    .await;
+    let error = match result {
+        Ok(_) => return Err("self-dependent request priority was accepted".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        error,
+        super::Http2Error::InvalidPriorityDependency { stream_id: 1 }
+    ));
+    assert_eq!(touches.load(Ordering::SeqCst), 0);
+
+    let touches = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let result = send_get(
+        TouchCountingStream {
+            inner: client,
+            touches: Arc::clone(&touches),
+        },
+        &v152_macos_http2(),
+        "user@example.test",
+        target()?,
+        vec![],
+    )
+    .await;
+    let error = match result {
+        Ok(_) => return Err("authority user information was accepted".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        error,
+        super::Http2Error::AuthorityContainsUserinfo
+    ));
+    assert_eq!(touches.load(Ordering::SeqCst), 0);
     Ok(())
 }
 
@@ -372,6 +437,27 @@ async fn streams_data_then_trailers_without_buffering_later_data() -> TestResult
 }
 
 #[tokio::test]
+async fn accepts_bracketed_ipv6_authority_with_port() -> TestResult<()> {
+    bounded_peer_test(async {
+        let (client, server) = duplex(64 * 1024);
+        let server = tokio::spawn(uri_observing_server(server));
+        let response = send_get(
+            client,
+            &v152_macos_http2(),
+            "[2001:db8::1]:8443",
+            OriginForm::parse("/ipv6")?,
+            vec![],
+        )
+        .await?;
+        assert_eq!(response.status(), 204);
+        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+        assert_eq!(server.await??, "https://[2001:db8::1]:8443/ipv6");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn terminal_data_completes_without_an_extra_body_poll() -> TestResult<()> {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
@@ -440,6 +526,57 @@ async fn incomplete_body_drop_flushes_reset_and_driver_closes() -> TestResult<()
             subscriber.response_body_events(),
             [(7, "dropped".to_owned())]
         );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResult<()> {
+    bounded_peer_test(async {
+        let control = WriteControl::default();
+        let subscriber = OutcomeSubscriber::default();
+        let (client, server) = duplex(64 * 1024);
+        let server_task = tokio::spawn(reset_observing_server(server));
+
+        async {
+            let response = send_get(
+                BlockingWrites {
+                    inner: client,
+                    control: control.clone(),
+                },
+                &v152_macos_http2(),
+                "example.test",
+                target()?,
+                vec![],
+            )
+            .await?;
+            let mut body = response.into_body();
+            assert_eq!(next_nonempty_data(&mut body).await?, "partial");
+
+            control.blocked.store(true, Ordering::SeqCst);
+            drop(body);
+            let dropped = control.dropped_notify.notified();
+            if !control.dropped.load(Ordering::SeqCst) {
+                timeout(DRIVER_SHUTDOWN_GRACE + Duration::from_secs(1), dropped)
+                    .await
+                    .map_err(|_| "stalled HTTP/2 transport was not dropped after grace")?;
+            }
+            timeout(Duration::from_secs(1), async {
+                while subscriber.outcomes_for("http2.connection_driver") != ["timeout"] {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .map_err(|_| "driver timeout outcome was not recorded")?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .with_subscriber(subscriber.clone())
+        .await?;
+
+        server_task.abort();
+        let _ = server_task.await;
+        assert!(control.dropped.load(Ordering::SeqCst));
         Ok(())
     })
     .await
@@ -567,6 +704,20 @@ async fn terminal_data_server(stream: DuplexStream) -> TestResult<bool> {
     Ok(reset)
 }
 
+async fn uri_observing_server(stream: DuplexStream) -> TestResult<http::Uri> {
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let (request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("connection closed before request")??;
+    let uri = request.uri().clone();
+    respond.send_response(Response::builder().status(204).body(())?, true)?;
+    drop(request);
+    drop(respond);
+    poll_fn(|context| connection.poll_closed(context)).await?;
+    Ok(uri)
+}
+
 async fn next_nonempty_data(body: &mut super::Http2Body) -> TestResult<Bytes> {
     loop {
         let frame = body
@@ -643,5 +794,70 @@ impl AsyncWrite for TouchCountingStream {
     ) -> Poll<Result<(), std::io::Error>> {
         self.touches.fetch_add(1, Ordering::SeqCst);
         Pin::new(&mut self.inner).poll_shutdown(context)
+    }
+}
+
+#[derive(Clone, Default)]
+struct WriteControl {
+    blocked: Arc<AtomicBool>,
+    dropped: Arc<AtomicBool>,
+    dropped_notify: Arc<Notify>,
+}
+
+struct BlockingWrites {
+    inner: DuplexStream,
+    control: WriteControl,
+}
+
+impl AsyncRead for BlockingWrites {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.inner).poll_read(context, buffer)
+    }
+}
+
+impl AsyncWrite for BlockingWrites {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        if self.control.blocked.load(Ordering::SeqCst) {
+            Poll::Pending
+        } else {
+            Pin::new(&mut self.inner).poll_write(context, buffer)
+        }
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        if self.control.blocked.load(Ordering::SeqCst) {
+            Poll::Pending
+        } else {
+            Pin::new(&mut self.inner).poll_flush(context)
+        }
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        if self.control.blocked.load(Ordering::SeqCst) {
+            Poll::Pending
+        } else {
+            Pin::new(&mut self.inner).poll_shutdown(context)
+        }
+    }
+}
+
+impl Drop for BlockingWrites {
+    fn drop(&mut self) {
+        self.control.dropped.store(true, Ordering::SeqCst);
+        self.control.dropped_notify.notify_one();
     }
 }

@@ -30,8 +30,15 @@ pub enum Http2Error {
     InvalidSettings(InvalidHttp2Settings),
     /// The profile contains a setting this transport version cannot translate.
     UnsupportedSetting,
+    /// The request stream was configured to depend on itself.
+    InvalidPriorityDependency {
+        /// Stream ID used by this one-shot transport.
+        stream_id: u32,
+    },
     /// The request authority is not a valid URI authority.
     InvalidAuthority(http::uri::InvalidUri),
+    /// The request authority included forbidden URI user information.
+    AuthorityContainsUserinfo,
     /// The internally composed HTTPS request URI was rejected.
     InvalidRequestUri(http::Error),
     /// The request contained more headers than the fixed safety bound.
@@ -80,7 +87,14 @@ impl fmt::Display for Http2Error {
             Self::UnsupportedSetting => formatter.write_str(
                 "HTTP/2 profile contains a setting unsupported by this transport version",
             ),
+            Self::InvalidPriorityDependency { stream_id } => write!(
+                formatter,
+                "HTTP/2 request stream {stream_id} cannot depend on itself"
+            ),
             Self::InvalidAuthority(_) => formatter.write_str("request authority is invalid"),
+            Self::AuthorityContainsUserinfo => {
+                formatter.write_str("request authority must not contain URI user information")
+            }
             Self::InvalidRequestUri(_) => {
                 formatter.write_str("failed to compose the absolute HTTPS request URI")
             }
@@ -241,6 +255,13 @@ impl Drop for ResponseHeadOutcome {
 }
 
 fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2Error> {
+    if settings
+        .headers_priority
+        .is_some_and(|priority| priority.dependency_stream_id == 1)
+    {
+        return Err(Http2Error::InvalidPriorityDependency { stream_id: 1 });
+    }
+
     let mut client = client::Builder::new();
     client.initial_connection_window_size(settings.initial_connection_window_size);
     let mut order = SettingsOrder::builder();

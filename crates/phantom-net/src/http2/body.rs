@@ -4,6 +4,7 @@ use std::{
     fmt,
     pin::Pin,
     task::{Context, Poll},
+    time::Duration,
 };
 
 use ::http2::{Reason, RecvStream, SendStream, client};
@@ -12,10 +13,13 @@ use http_body::{Body, Frame, SizeHint};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     task::JoinHandle,
+    time::timeout,
 };
-use tracing::{Span, debug, debug_span};
+use tracing::{Instrument, Span, debug, debug_span, field, warn};
 
 use super::Http2Error;
+
+pub(super) const DRIVER_SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 
 /// Streaming response body for a one-shot HTTP/2 transaction.
 ///
@@ -200,9 +204,9 @@ impl BodyTrace {
 
 /// Owns the HTTP/2 connection driver and the last request sender.
 ///
-/// Dropping the sender asks the connection task to shut down. Its join handle
-/// is deliberately detached rather than aborted so the task can flush a reset
-/// produced by an incomplete response-body drop.
+/// Dropping the sender asks the connection task to shut down. A supervisor
+/// gives the task a fixed grace period to flush pending protocol frames, then
+/// aborts a permanently stalled driver.
 pub(super) struct DriverTask {
     sender: Option<client::SendRequest<Bytes>>,
     handle: Option<JoinHandle<Result<(), ::http2::Error>>>,
@@ -239,13 +243,46 @@ impl DriverTask {
 
     pub(super) fn shutdown(&mut self) {
         self.sender.take();
+        let Some(mut handle) = self.handle.take() else {
+            return;
+        };
+        let span = debug_span!("http2.connection_driver", outcome = field::Empty);
+        let instrument = span.clone();
+        tokio::spawn(
+            async move {
+                match timeout(DRIVER_SHUTDOWN_GRACE, &mut handle).await {
+                    Ok(Ok(Ok(()))) => {
+                        span.record("outcome", "complete");
+                        debug!(parent: &span, "HTTP/2 connection driver stopped");
+                    }
+                    Ok(Ok(Err(error))) => {
+                        span.record("outcome", "protocol_error");
+                        warn!(
+                            parent: &span,
+                            reason = ?error.reason(),
+                            io_error = error.is_io(),
+                            "HTTP/2 connection driver failed"
+                        );
+                    }
+                    Ok(Err(_)) => {
+                        span.record("outcome", "task_error");
+                        warn!(parent: &span, "HTTP/2 connection driver task failed");
+                    }
+                    Err(_) => {
+                        handle.abort();
+                        let _ = handle.await;
+                        span.record("outcome", "timeout");
+                        warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
+                    }
+                }
+            }
+            .instrument(instrument),
+        );
     }
 }
 
 impl Drop for DriverTask {
     fn drop(&mut self) {
         self.shutdown();
-        // Dropping a Tokio JoinHandle detaches without cancelling the task.
-        self.handle.take();
     }
 }

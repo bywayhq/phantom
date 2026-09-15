@@ -41,6 +41,7 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const TEST_SERVER_NAME: &str = "server.phantom.test";
+const TEST_AUTHORITY: &str = "server.phantom.test:8443";
 const HTTP1_ALPN_WIRE: &[u8] = b"\x08http/1.1";
 const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 
@@ -87,6 +88,7 @@ async fn streams_http2_over_certificate_verified_tls() -> TestResult<()> {
             .send_get(
                 tcp,
                 TEST_SERVER_NAME,
+                TEST_AUTHORITY,
                 OriginForm::parse("/secure?item=1")?,
                 vec![RequestHeader::new("accept", "*/*")],
             )
@@ -114,7 +116,7 @@ async fn streams_http2_over_certificate_verified_tls() -> TestResult<()> {
 
         let (sni, uri) = server.await??;
         assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
-        assert_eq!(uri, "https://server.phantom.test/secure?item=1");
+        assert_eq!(uri, "https://server.phantom.test:8443/secure?item=1");
         Ok(())
     })
     .await
@@ -141,7 +143,13 @@ async fn rejects_missing_and_http1_alpn_without_http2_bytes() -> TestResult<()> 
             let connector = test_connector(&identity)?;
             let tcp = TcpStream::connect(address).await?;
             let result = connector
-                .send_get(tcp, TEST_SERVER_NAME, OriginForm::parse("/")?, vec![])
+                .send_get(
+                    tcp,
+                    TEST_SERVER_NAME,
+                    TEST_AUTHORITY,
+                    OriginForm::parse("/")?,
+                    vec![],
+                )
                 .await;
             match selected {
                 ServerAlpn::None => {
@@ -177,11 +185,32 @@ async fn invalid_request_does_not_touch_tls_stream() -> TestResult<()> {
                 touches: Arc::clone(&touches),
             },
             TEST_SERVER_NAME,
+            TEST_AUTHORITY,
             OriginForm::parse("/")?,
             vec![RequestHeader::new("host", TEST_SERVER_NAME)],
         )
         .await;
     assert!(matches!(result, Err(Http2TlsError::Http2(_))));
+    assert_eq!(touches.load(Ordering::SeqCst), 0);
+
+    let touches = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let result = connector
+        .send_get(
+            TouchCountingStream {
+                inner: client,
+                touches: Arc::clone(&touches),
+            },
+            TEST_SERVER_NAME,
+            "user@example.test",
+            OriginForm::parse("/")?,
+            vec![],
+        )
+        .await;
+    assert!(matches!(
+        result,
+        Err(Http2TlsError::Http2(Http2Error::AuthorityContainsUserinfo))
+    ));
     assert_eq!(touches.load(Ordering::SeqCst), 0);
     Ok(())
 }
