@@ -2,7 +2,7 @@
 
 Phantom is an experimental Rust HTTP client focused on observable browser-compatible wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 
-The project is at the foundation stage. It does not yet make compatibility or impersonation claims.
+The project is building its first complete TLS and HTTP/1.1 transport slice. It does not yet make compatibility or impersonation claims.
 
 ## Principles
 
@@ -16,9 +16,8 @@ The project is at the foundation stage. It does not yet make compatibility or im
 
 - `phantom`: the future public client facade
 - `phantom-profile`: browser-neutral profile identity and metadata
-- `phantom-testkit`: bounded, exact TLS ClientHello capture for deterministic tests
-
-The production networking crate will be added with its first working transport rather than as an empty placeholder.
+- `phantom-net`: concrete protocol transports; currently streaming HTTP/1.1 and a private BoringSSL TLS adapter
+- `phantom-testkit`: bounded TLS ClientHello capture and strict semantic decoding for deterministic tests
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md), and [validation model](docs/validation.md).
 

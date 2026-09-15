@@ -21,13 +21,20 @@ Non-goals:
 
 ## Phase 1: local wire testkit — complete
 
-The first testkit slice captures one TLS ClientHello from any asynchronous reader. It preserves exact record boundaries, legacy versions, and the reassembled handshake while bounding time, memory, record size, and record count. Fragmented records and a real ephemeral loopback connection are covered by deterministic tests.
+The testkit captures one TLS ClientHello from any asynchronous reader. It preserves exact record boundaries, legacy versions, and the reassembled handshake while bounding time, memory, record size, and record count. Its strict semantic decoder preserves the ordered cipher suites, extensions, supported groups, point formats, signature algorithms, ALPN protocols, supported versions, and key-share groups needed by current differential tests. Fragmented records, malformed nested lengths, duplicate extensions, and a real ephemeral loopback connection are covered by deterministic tests.
 
-Semantic ClientHello decoding, normalization, fixture serialization, pcap, and a completed server handshake are deferred until a transport test requires them.
+Fixture serialization, pcap ingestion, and broader normalization remain deferred until a transport test requires them.
 
 ## Phase 2: TLS and streaming HTTP/1.1
 
 Send a streaming request with one pinned Chromium profile and verify its observable TLS and HTTP behavior.
+
+Acceptance:
+
+- Browser-neutral TLS settings produce an asserted ClientHello through the private BoringSSL adapter.
+- A completed, certificate-verified TLS handshake composes with the streaming HTTP/1.1 transaction.
+- Negotiated ALPN is routed explicitly; unsupported protocols never silently downgrade to HTTP/1.1.
+- Ordered HTTP/1.1 request fields and response streaming are proven over the completed TLS connection.
 
 ## Phase 3: HTTP/2
 
