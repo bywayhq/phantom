@@ -179,6 +179,24 @@ EOF
 chmod +x "$mock_bin/cargo" "$mock_bin/rustup"
 chmod +x "$mock_bin/curl"
 
+linux_bin="$test_root/linux-bin"
+darwin_bin="$test_root/darwin-bin"
+cp -R "$mock_bin" "$linux_bin"
+cp -R "$mock_bin" "$darwin_bin"
+cat > "$linux_bin/uname" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 1 && $1 == -s ]]
+printf 'Linux\n'
+EOF
+cat > "$darwin_bin/uname" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 1 && $1 == -s ]]
+printf 'Darwin\n'
+EOF
+chmod +x "$linux_bin/uname" "$darwin_bin/uname"
+
 command_log="$test_root/commands.log"
 current_revision=129887582a538b8f4dcf371d15c953335312ca37
 probe_tmp="$test_root/probe-tmp"
@@ -219,13 +237,12 @@ mkdir -p "$darwin_tmp"
 
 (
   cd "$probe_checkout"
-  PATH="$mock_bin:$PATH" \
+  PATH="$linux_bin:$PATH" \
     TMPDIR="$probe_tmp" \
     COMMAND_LOG="$command_log" \
     MOCK_CURRENT_REVISION="$current_revision" \
     MOCK_CANDIDATE_REVISION="$candidate_revision" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
-    PHANTOM_BTLS_PROBE_PLATFORM=Linux \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
 )
@@ -243,13 +260,12 @@ grep -F -q 'chrome_client_hello' "$command_log"
 
 (
   cd "$darwin_checkout"
-  PATH="$mock_bin:$PATH" \
+  PATH="$darwin_bin:$PATH" \
     TMPDIR="$darwin_tmp" \
     COMMAND_LOG="$darwin_command_log" \
     MOCK_CURRENT_REVISION="$current_revision" \
     MOCK_CANDIDATE_REVISION="$candidate_revision" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
-    PHANTOM_BTLS_PROBE_PLATFORM=Darwin \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
 )

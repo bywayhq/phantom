@@ -146,8 +146,7 @@ case "$dependency" in
 
     cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
     btls_prefix_symbols=true
-    btls_platform=${PHANTOM_BTLS_PROBE_PLATFORM:-$(uname -s)}
-    case "$btls_platform" in
+    case $(uname -s) in
       Darwin | MINGW* | MSYS* | CYGWIN*) btls_prefix_symbols=false ;;
     esac
     if [[ "$btls_prefix_symbols" == false ]]; then
