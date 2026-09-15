@@ -1,8 +1,9 @@
 //! A one-shot HTTP/1.1 client transaction.
 //!
 //! This module deliberately owns no connection pool or TLS setup. Callers
-//! supply an already-connected byte stream, and the stream is closed after
-//! the response body completes or is dropped.
+//! supply an already-connected byte stream. Completing or dropping the body
+//! schedules cancellation of the protocol task; destruction of the underlying
+//! stream is eventual.
 
 use std::{
     error::Error as StdError,
@@ -165,7 +166,7 @@ impl fmt::Display for Http1Error {
                 "{name} is not allowed on this empty-body GET request"
             ),
             Self::AmbiguousResponseFraming => formatter.write_str(
-                "response contains both Transfer-Encoding and Content-Length; connection closed",
+                "response contains both Transfer-Encoding and Content-Length; connection discarded",
             ),
             Self::Protocol(error) => write!(formatter, "HTTP/1.1 protocol error: {error}"),
         }
@@ -189,7 +190,9 @@ impl From<wreq_proto::Error> for Http1Error {
 
 /// Streaming response body for a one-shot HTTP/1.1 transaction.
 ///
-/// Dropping this body cancels the protocol driver and closes its byte stream.
+/// Dropping this body schedules cancellation of the protocol driver. Once the
+/// runtime observes that cancellation, dropping the driver tears down its byte
+/// stream. `Drop` does not wait for teardown to finish.
 #[must_use = "response bodies must be read or deliberately dropped"]
 pub struct Http1Body {
     incoming: Incoming,
@@ -222,18 +225,18 @@ impl Body for Http1Body {
             Poll::Ready(Some(Ok(frame))) => {
                 if self.incoming.is_end_stream() {
                     self.finished = true;
-                    self.driver.close();
+                    self.driver.cancel();
                 }
                 Poll::Ready(Some(Ok(frame)))
             }
             Poll::Ready(Some(Err(error))) => {
                 self.finished = true;
-                self.driver.close();
+                self.driver.cancel();
                 Poll::Ready(Some(Err(Http1Error::Protocol(error))))
             }
             Poll::Ready(None) => {
                 self.finished = true;
-                self.driver.close();
+                self.driver.cancel();
                 Poll::Ready(None)
             }
             Poll::Pending => Poll::Pending,
@@ -252,9 +255,10 @@ impl Body for Http1Body {
 /// Sends one empty-body HTTP/1.1 GET over an already-connected stream.
 ///
 /// Header spelling, ordering, and duplicates are emitted exactly as supplied.
-/// The stream is intentionally one-shot: it closes when the returned body is
-/// completed, dropped, or encounters an error. Dropping this future after the
-/// driver starts also closes the stream.
+/// The stream is intentionally one-shot: completing or dropping the returned
+/// body schedules its teardown, as does a body error. Dropping this future
+/// after the driver starts also schedules cancellation. In both cases stream
+/// teardown is eventual rather than synchronously complete when `Drop` returns.
 pub async fn send_get<T>(
     stream: T,
     target: OriginForm,
@@ -296,7 +300,7 @@ where
     let finished = incoming.is_end_stream();
     let mut driver = driver;
     if finished {
-        driver.close();
+        driver.cancel();
     }
     Ok(Response::from_parts(
         parts,
@@ -388,6 +392,11 @@ impl ValidatedHeaders {
     }
 }
 
+// This Vec is the sole authority for wire order and spelling. `semantic` in
+// `ValidatedHeaders` must contain the same fields and values so wreq-proto sees
+// accurate HTTP semantics while this callback controls serialization. Request
+// bodies or middleware must add a regression proving that the two views remain
+// aligned before extending this seam.
 #[derive(Clone)]
 struct OrderedHeaders(Vec<(Box<[u8]>, HeaderValue)>);
 
@@ -405,11 +414,18 @@ impl OnPreserveHeaderCallback for OrderedHeaders {
     }
 }
 
+/// Owns the connection driver and schedules its cancellation when dropped.
+///
+/// Cancellation is observed asynchronously by Tokio. Only then is the
+/// connection future, and therefore its underlying stream, dropped.
 struct DriverTask {
     handle: Option<JoinHandle<Result<(), wreq_proto::Error>>>,
 }
 
 impl DriverTask {
+    // Aborting the task only schedules cancellation. The runtime later drops
+    // the connection future and its stream; callers must not infer synchronous
+    // transport teardown from this guard's `Drop`.
     fn spawn<T>(connection: http1::Connection<T, Empty<Bytes>>) -> Self
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -419,7 +435,7 @@ impl DriverTask {
         }
     }
 
-    fn close(&mut self) {
+    fn cancel(&mut self) {
         if let Some(handle) = self.handle.take() {
             handle.abort();
         }
@@ -428,13 +444,14 @@ impl DriverTask {
 
 impl Drop for DriverTask {
     fn drop(&mut self) {
-        self.close();
+        self.cancel();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::{
+        future::Future,
         pin::Pin,
         sync::{
             Arc,
@@ -455,6 +472,20 @@ mod tests {
         Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm, RequestHeader,
         send_get,
     };
+
+    const PEER_TEST_TIMEOUT: Duration = Duration::from_secs(2);
+
+    async fn bounded_peer_test<F>(future: F) -> Result<(), Box<dyn std::error::Error>>
+    where
+        F: Future<Output = Result<(), Box<dyn std::error::Error>>>,
+    {
+        // One deadline covers all peer I/O and task joins; making progress does
+        // not restart it and therefore cannot extend a hung test indefinitely.
+        match timeout(PEER_TEST_TIMEOUT, future).await {
+            Ok(result) => result,
+            Err(_) => Err("HTTP/1 peer test exceeded its absolute deadline".into()),
+        }
+    }
 
     fn target() -> Result<OriginForm, Http1Error> {
         OriginForm::parse("/resource?item=1")
@@ -489,275 +520,318 @@ mod tests {
 
     #[tokio::test]
     async fn writes_exact_order_casing_and_duplicates() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_get(
-            client,
-            target()?,
-            vec![
-                host(),
-                RequestHeader::new("X-First", "one"),
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("X-Repeat", "beta"),
-            ],
-        ));
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let transaction = tokio::spawn(send_get(
+                client,
+                target()?,
+                vec![
+                    host(),
+                    RequestHeader::new("X-First", "one"),
+                    RequestHeader::new("x-repeat", "alpha"),
+                    RequestHeader::new("X-Repeat", "beta"),
+                ],
+            ));
 
-        let request = read_head(&mut server).await?;
-        assert_eq!(
-            request,
-            b"GET /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\n\r\n"
-        );
+            let request = read_head(&mut server).await?;
+            assert_eq!(
+                request,
+                b"GET /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\n\r\n"
+            );
 
-        server
-            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
-            .await?;
-        let response = transaction.await??;
-        response.into_body().collect().await?;
-        Ok(())
+            server
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            let response = transaction.await??;
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn streams_first_data_before_later_data_exists() -> Result<(), Box<dyn std::error::Error>>
     {
-        let (client, mut server) = duplex(4096);
-        let (release_tx, release_rx) = oneshot::channel();
-        let server_task = tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
-                .await?;
-            release_rx.await.map_err(std::io::Error::other)?;
-            server.write_all(b"later").await
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let (release_tx, release_rx) = oneshot::channel();
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
+                    .await?;
+                release_rx.await.map_err(std::io::Error::other)?;
+                server.write_all(b"later").await
+            });
 
-        let response = send_get(client, target()?, vec![host()]).await?;
-        let mut body = response.into_body();
-        let first = timeout(Duration::from_secs(1), body.frame())
-            .await?
-            .ok_or("body ended before first data")??
-            .into_data()
-            .map_err(|_| "expected data frame")?;
-        assert_eq!(first, "first");
+            let response = send_get(client, target()?, vec![host()]).await?;
+            let mut body = response.into_body();
+            let first = body
+                .frame()
+                .await
+                .ok_or("body ended before first data")??
+                .into_data()
+                .map_err(|_| "expected data frame")?;
+            assert_eq!(first, "first");
 
-        let _ = release_tx.send(());
-        let rest = body.collect().await?.to_bytes();
-        assert_eq!(rest, "later");
-        server_task.await??;
-        Ok(())
+            let _ = release_tx.send(());
+            let rest = body.collect().await?.to_bytes();
+            assert_eq!(rest, "later");
+            server_task.await??;
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn content_length_ends_without_socket_eof() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
-                .await?;
-            let mut byte = [0_u8; 1];
-            let count = timeout(Duration::from_secs(1), server.read(&mut byte)).await??;
-            Ok::<_, std::io::Error>(count)
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
+                    .await?;
+                let mut byte = [0_u8; 1];
+                server.read(&mut byte).await
+            });
 
-        let body = send_get(client, target()?, vec![host()]).await?.into_body();
-        let collected = timeout(Duration::from_secs(1), body.collect()).await??;
-        assert_eq!(collected.to_bytes(), "hello");
-        assert_eq!(server_task.await??, 0);
-        Ok(())
+            let body = send_get(client, target()?, vec![host()]).await?.into_body();
+            let collected = body.collect().await?;
+            assert_eq!(collected.to_bytes(), "hello");
+            assert_eq!(server_task.await??, 0);
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn decodes_chunked_data_and_trailers() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Final\r\n\r\n5\r\nhello\r\n0\r\nX-Final: yes\r\n\r\n",
-                )
-                .await
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Final\r\n\r\n5\r\nhello\r\n0\r\nX-Final: yes\r\n\r\n",
+                    )
+                    .await
+            });
 
-        let mut body = send_get(client, target()?, vec![host()]).await?.into_body();
-        let data = body
-            .frame()
-            .await
-            .ok_or("missing data frame")??
-            .into_data()
-            .map_err(|_| "expected data frame")?;
-        assert_eq!(data, "hello");
-        let trailers = body
-            .frame()
-            .await
-            .ok_or("missing trailers frame")??
-            .into_trailers()
-            .map_err(|_| "expected trailers frame")?;
-        assert_eq!(trailers.get("x-final"), Some(&"yes".parse()?));
-        assert!(body.frame().await.is_none());
-        Ok(())
+            let mut body = send_get(client, target()?, vec![host()]).await?.into_body();
+            let data = body
+                .frame()
+                .await
+                .ok_or("missing data frame")??
+                .into_data()
+                .map_err(|_| "expected data frame")?;
+            assert_eq!(data, "hello");
+            let trailers = body
+                .frame()
+                .await
+                .ok_or("missing trailers frame")??
+                .into_trailers()
+                .map_err(|_| "expected trailers frame")?;
+            assert_eq!(trailers.get("x-final"), Some(&"yes".parse()?));
+            assert!(body.frame().await.is_none());
+            server_task.await??;
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn reads_close_delimited_body() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nclose body")
-                .await?;
-            server.shutdown().await
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nclose body")
+                    .await?;
+                server.shutdown().await
+            });
 
-        let body = send_get(client, target()?, vec![host()]).await?.into_body();
-        assert_eq!(body.collect().await?.to_bytes(), "close body");
-        Ok(())
+            let body = send_get(client, target()?, vec![host()]).await?.into_body();
+            assert_eq!(body.collect().await?.to_bytes(), "close body");
+            server_task.await??;
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn reports_truncated_content_length() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nshort")
-                .await?;
-            server.shutdown().await
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nshort")
+                    .await?;
+                server.shutdown().await
+            });
 
-        let body = send_get(client, target()?, vec![host()]).await?.into_body();
-        let error = match body.collect().await {
-            Ok(_) => return Err("truncated body accepted".into()),
-            Err(error) => error,
-        };
-        assert!(matches!(error, Http1Error::Protocol(_)), "{error:?}");
-        Ok(())
+            let body = send_get(client, target()?, vec![host()]).await?.into_body();
+            let error = match body.collect().await {
+                Ok(_) => return Err("truncated body accepted".into()),
+                Err(error) => error,
+            };
+            assert!(matches!(error, Http1Error::Protocol(_)), "{error:?}");
+            server_task.await??;
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn rejects_ambiguous_response_framing() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n",
-                )
-                .await
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n",
+                    )
+                    .await
+            });
 
-        let result = send_get(client, target()?, vec![host()]).await;
-        assert!(matches!(result, Err(Http1Error::AmbiguousResponseFraming)));
-        Ok(())
+            let result = send_get(client, target()?, vec![host()]).await;
+            assert!(matches!(result, Err(Http1Error::AmbiguousResponseFraming)));
+            server_task.await??;
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn status_204_has_no_body_without_socket_eof() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 99\r\n\r\n")
-                .await?;
-            let mut byte = [0_u8; 1];
-            timeout(Duration::from_secs(1), server.read(&mut byte)).await?
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 99\r\n\r\n")
+                    .await?;
+                let mut byte = [0_u8; 1];
+                server.read(&mut byte).await
+            });
 
-        let response = send_get(client, target()?, vec![host()]).await?;
-        assert_eq!(response.status(), 204);
-        let body = timeout(Duration::from_secs(1), response.into_body().collect()).await??;
-        assert!(body.to_bytes().is_empty());
-        assert_eq!(server_task.await??, 0);
-        Ok(())
+            let response = send_get(client, target()?, vec![host()]).await?;
+            assert_eq!(response.status(), 204);
+            let body = response.into_body().collect().await?;
+            assert!(body.to_bytes().is_empty());
+            assert_eq!(server_task.await??, 0);
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn invalid_headers_never_touch_the_stream() -> Result<(), Box<dyn std::error::Error>> {
-        let mut cases = vec![
-            vec![],
-            vec![host(), host()],
-            vec![host(), RequestHeader::new("Content-Length", "0")],
-            vec![host(), RequestHeader::new("Transfer-Encoding", "chunked")],
-            vec![host(), RequestHeader::new("bad name", "value")],
-            vec![host(), RequestHeader::new("X-Bad", b"ok\r\nInjected: yes")],
-        ];
-        let mut too_many = Vec::with_capacity(MAX_REQUEST_HEADERS + 1);
-        too_many.push(host());
-        for index in 0..MAX_REQUEST_HEADERS {
-            too_many.push(RequestHeader::new(format!("x-{index}"), "value"));
-        }
-        cases.push(too_many);
-        cases.push(vec![
-            host(),
-            RequestHeader::new("X-Large", vec![b'a'; MAX_REQUEST_HEADER_BYTES]),
-        ]);
+        bounded_peer_test(async {
+            let mut cases = vec![
+                vec![],
+                vec![host(), host()],
+                vec![host(), RequestHeader::new("Content-Length", "0")],
+                vec![host(), RequestHeader::new("Transfer-Encoding", "chunked")],
+                vec![host(), RequestHeader::new("bad name", "value")],
+                vec![host(), RequestHeader::new("X-Bad", b"ok\r\nInjected: yes")],
+            ];
+            let mut too_many = Vec::with_capacity(MAX_REQUEST_HEADERS + 1);
+            too_many.push(host());
+            for index in 0..MAX_REQUEST_HEADERS {
+                too_many.push(RequestHeader::new(format!("x-{index}"), "value"));
+            }
+            cases.push(too_many);
+            cases.push(vec![
+                host(),
+                RequestHeader::new("X-Large", vec![b'a'; MAX_REQUEST_HEADER_BYTES]),
+            ]);
 
-        for headers in cases {
-            let writes = Arc::new(AtomicUsize::new(0));
-            let (client, _server) = duplex(128);
-            let stream = WriteCountingStream {
-                inner: client,
-                writes: Arc::clone(&writes),
-            };
-            let result = send_get(stream, target()?, headers).await;
-            assert!(result.is_err());
-            assert_eq!(writes.load(Ordering::SeqCst), 0);
-        }
-        Ok(())
+            for headers in cases {
+                let writes = Arc::new(AtomicUsize::new(0));
+                let (client, _server) = duplex(128);
+                let stream = WriteCountingStream {
+                    inner: client,
+                    writes: Arc::clone(&writes),
+                };
+                let result = send_get(stream, target()?, headers).await;
+                assert!(result.is_err());
+                assert_eq!(writes.load(Ordering::SeqCst), 0);
+            }
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn canceling_request_closes_stream() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_get(client, target()?, vec![host()]));
-        read_head(&mut server).await?;
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let transaction = tokio::spawn(send_get(client, target()?, vec![host()]));
+            read_head(&mut server).await?;
 
-        transaction.abort();
-        let mut byte = [0_u8; 1];
-        let count = timeout(Duration::from_secs(1), server.read(&mut byte)).await??;
-        assert_eq!(count, 0);
-        Ok(())
+            transaction.abort();
+            let join_error = match transaction.await {
+                Ok(_) => return Err("request task completed after cancellation".into()),
+                Err(error) => error,
+            };
+            assert!(join_error.is_cancelled());
+            let mut byte = [0_u8; 1];
+            let count = server.read(&mut byte).await?;
+            assert_eq!(count, 0);
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn dropping_body_closes_stream() -> Result<(), Box<dyn std::error::Error>> {
-        let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nfirst")
-                .await?;
-            let mut byte = [0_u8; 1];
-            timeout(Duration::from_secs(1), server.read(&mut byte)).await?
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nfirst")
+                    .await?;
+                let mut byte = [0_u8; 1];
+                server.read(&mut byte).await
+            });
 
-        let response = send_get(client, target()?, vec![host()]).await?;
-        drop(response);
-        assert_eq!(server_task.await??, 0);
-        Ok(())
+            let response = send_get(client, target()?, vec![host()]).await?;
+            drop(response);
+            assert_eq!(server_task.await??, 0);
+            Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn completed_body_deliberately_prevents_reuse() -> Result<(), Box<dyn std::error::Error>>
     {
-        let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
-            read_head(&mut server).await?;
-            server
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-            let mut remaining = Vec::new();
-            timeout(Duration::from_secs(1), server.read_to_end(&mut remaining))
-                .await
-                .map_err(std::io::Error::other)??;
-            Ok::<_, std::io::Error>(remaining)
-        });
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = tokio::spawn(async move {
+                read_head(&mut server).await?;
+                server
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+                    .await?;
+                let mut remaining = Vec::new();
+                server.read_to_end(&mut remaining).await?;
+                Ok::<_, std::io::Error>(remaining)
+            });
 
-        send_get(client, target()?, vec![host()])
-            .await?
-            .into_body()
-            .collect()
-            .await?;
-        assert!(server_task.await??.is_empty());
-        Ok(())
+            send_get(client, target()?, vec![host()])
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+            assert!(server_task.await??.is_empty());
+            Ok(())
+        })
+        .await
     }
 
     struct WriteCountingStream {
