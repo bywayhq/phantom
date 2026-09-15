@@ -45,9 +45,11 @@ impl CertificateCompressor for BrotliCertificateCompression {
     where
         W: Write,
     {
-        let mut parameters = brotli::enc::BrotliEncoderParams::default();
-        parameters.quality = 11;
-        parameters.lgwin = 22;
+        let parameters = brotli::enc::BrotliEncoderParams {
+            quality: 11,
+            lgwin: 22,
+            ..Default::default()
+        };
         brotli::BrotliCompress(&mut io::Cursor::new(input), output, &parameters)?;
         Ok(())
     }
