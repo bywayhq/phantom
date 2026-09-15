@@ -88,7 +88,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "816d064699a399f8e670412ac0224486b53da581" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "bae797095de5b65e784f9cd82684e50a79b09ef4" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
@@ -155,7 +155,7 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
-grep -F -q 'rev = "816d064699a399f8e670412ac0224486b53da581"' \
+grep -F -q 'rev = "bae797095de5b65e784f9cd82684e50a79b09ef4"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_ech_grease_payload_length' \
@@ -165,7 +165,7 @@ assert_non_fips_item "$staged_wrapper/src/ssl/mod.rs" \
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
   'use std::sync::{Arc, Mutex};'
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
-  'use crate::ssl::ExtensionType;'
+  'use crate::ssl::{ExtensionType, Ssl, SslContext, SslMethod};'
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
   'fn ech_grease_payload_length() {'
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
@@ -334,7 +334,7 @@ mkdir -p "$darwin_tmp"
   "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
 grep -F -q "rev = \"$candidate_revision\"" \
   "$probe_checkout/Cargo.toml"
-grep -F -q 'rev = "816d064699a399f8e670412ac0224486b53da581"' \
+grep -F -q 'rev = "bae797095de5b65e784f9cd82684e50a79b09ef4"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \

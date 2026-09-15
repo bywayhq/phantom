@@ -12,7 +12,7 @@ the exact BoringSSL submodule revision while applying the native ECH patch.
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
 - Reviewed dependency fork: <https://github.com/0xARYA/btls>
-- Reviewed dependency commit: `816d064699a399f8e670412ac0224486b53da581`
+- Reviewed dependency commit: `bae797095de5b65e784f9cd82684e50a79b09ef4`
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
 
