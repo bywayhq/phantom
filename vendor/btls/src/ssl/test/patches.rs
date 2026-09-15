@@ -11,8 +11,8 @@ use foreign_types::ForeignTypeRef;
 use super::server::Server;
 use crate::ffi;
 use crate::ssl::{
-    ExtensionType, SslConnector, SslMethod, SslOptions, SslSession, SslSessionCacheMode,
-    SslSignatureAlgorithm, SslVersion,
+    ExtensionType, SslConnector, SslContextBuilder, SslMethod, SslOptions, SslSession,
+    SslSessionCacheMode, SslSignatureAlgorithm, SslVersion,
 };
 
 fn u16_list(bytes: &[u8]) -> Vec<u16> {
@@ -406,7 +406,10 @@ fn boringssl_patch_clienthello_extensions_are_sent() {
     client.ctx().set_record_size_limit(1200).unwrap();
     client
         .ctx()
-        .set_delegated_credentials("rsa_pss_rsae_sha256:ecdsa_secp256r1_sha256")
+        .set_delegated_credentials(
+            "ecdsa_secp256r1_sha256:ecdsa_secp384r1_sha384:\
+             ecdsa_secp521r1_sha512:ecdsa_sha1",
+        )
         .unwrap();
 
     client.connect();
@@ -417,8 +420,16 @@ fn boringssl_patch_clienthello_extensions_are_sent() {
     );
     assert_eq!(
         delegated_credential.lock().unwrap().as_deref(),
-        Some(&[0x00, 0x04, 0x08, 0x04, 0x04, 0x03][..]),
+        Some(&[0x00, 0x08, 0x04, 0x03, 0x05, 0x03, 0x06, 0x03, 0x02, 0x03][..]),
     );
+}
+
+#[test]
+fn delegated_credentials_reject_rsae() {
+    let mut context = SslContextBuilder::new(SslMethod::tls()).unwrap();
+    assert!(context
+        .set_delegated_credentials("rsa_pss_rsae_sha256")
+        .is_err());
 }
 
 #[test]

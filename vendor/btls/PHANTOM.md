@@ -4,8 +4,8 @@ This directory is the `btls` wrapper package from the exact upstream commit
 recorded below plus the canonical wrapper patches recorded here. It deliberately
 does not vendor the `btls-sys` package or BoringSSL submodule. Those resolve from
 the reviewed dependency-fork commit, which retains the upstream wrapper base and
-the exact BoringSSL submodule revision while applying the native ECH and record
-size limit patches.
+the exact BoringSSL submodule revision while applying the native ECH, record
+size limit, and delegated-credential patches.
 
 - Upstream commit: `129887582a538b8f4dcf371d15c953335312ca37`
 - Upstream repository: <https://github.com/0x676e67/btls>
@@ -13,7 +13,7 @@ size limit patches.
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
 - Reviewed dependency fork: <https://github.com/0xARYA/btls>
-- Reviewed dependency commit: `f2881672ffc80b5397f6c7bec6c79ef0c017feb4`
+- Reviewed dependency commit: `78b8c24a3388973d1d33c523995d311d766a1026`
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
 
@@ -36,6 +36,16 @@ application data, and rejects oversized incoming records. TLS 1.3 first-flight
 handling defers the decision until EncryptedExtensions establishes whether the
 extension was negotiated, preserving the legal non-echo path.
 
+The upstream delegated-credential patch advertised extension 34 but did not
+verify a credential received from a TLS 1.3 server. It also inherited a test-
+runner field-order bug that could make two non-standard implementations agree.
+The dependency fork implements RFC 9345 client verification after ordinary
+certificate and hostname verification, checks certificate authorization and
+lifetime, keeps the issuer and delegated signature-scheme namespaces separate,
+uses the delegated key for CertificateVerify, and clamps session lifetime to
+the credential expiry. A fixed-byte oracle independently proves the RFC signing
+order.
+
 The patches are additive:
 
 - `SslRef::add_application_settings_with_payload` passes both byte strings to
@@ -56,14 +66,22 @@ The patches are additive:
   `SslRef::set_record_size_limit` expose checked, fallible RFC 8449 controls.
 - `src/ssl/test/patches.rs` proves range validation and bidirectional
   fragmentation for TLS 1.2 and TLS 1.3.
+- `SslContextBuilder::set_delegated_credentials` preserves the ordered wire
+  advertisement, including Firefox's legacy ECDSA-SHA1 entry, while received
+  credentials remain subject to the stricter TLS 1.3 algorithm check. RSAE
+  schemes are rejected.
+- Native runner tests prove positive and adversarial RFC 9345 client
+  verification; wrapper tests preserve exact extension bytes and invalid-
+  algorithm rejection.
 
 The canonical machine-applicable wrapper changes are
 `patches/alps-settings.patch`, `patches/ech-grease-payload-length.patch`, and
-`patches/record-size-limit.patch`. They contain only wrapper APIs and upstream-
-style tests; packaging changes remain separate. The dependency commit stores
-the native BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series:
-patch 0005 implements RFC 8449, and patch 0011 controls the ECH GREASE payload
-length.
+`patches/record-size-limit.patch`, and `patches/delegated-credentials.patch`.
+They contain only wrapper APIs, documentation, and upstream-style tests;
+packaging changes remain separate. The dependency commit stores the native
+BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series: patch 0005
+implements RFC 8449, patch 0006 implements RFC 9345 client verification, and
+patch 0011 controls the ECH GREASE payload length.
 
 The existing one-argument `add_application_settings` remains compatible and
 delegates to the new method with an empty payload.
@@ -97,9 +115,9 @@ machine.
    On Linux, use `sha256sum` when `shasum` is unavailable.
 
 2. Compare `candidate` with `vendor/btls`. Expected differences are
-   the three files under `patches/`, the standalone manifest values, the
+   the four files under `patches/`, the standalone manifest values, the
    materialized `README.md`, and this file. The checked-in wrapper sources and
-   tests should exactly equal the candidate plus all three canonical patches.
+   tests should exactly equal the candidate plus all four canonical patches.
 
    The scheduled candidate probe performs this staging from an exact detached
    git revision. It copies only the upstream `btls` wrapper, materializes the
@@ -132,6 +150,7 @@ cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features pre
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols record_size_limit
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols delegated_credentials
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols
 ```
 
@@ -149,5 +168,6 @@ cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml record_size_limit
+cargo test --manifest-path vendor/btls/Cargo.toml delegated_credentials
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets
 ```

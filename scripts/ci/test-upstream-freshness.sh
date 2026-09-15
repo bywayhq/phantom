@@ -61,6 +61,8 @@ make_btls_candidate() {
   cp -R vendor/btls "$destination/btls"
   cp vendor/btls/README.md "$destination/README.md"
   git -C "$destination/btls" apply --reverse \
+    "$repo_root/vendor/btls/patches/delegated-credentials.patch"
+  git -C "$destination/btls" apply --reverse \
     "$repo_root/vendor/btls/patches/record-size-limit.patch"
   git -C "$destination/btls" apply --reverse \
     "$repo_root/vendor/btls/patches/ech-grease-payload-length.patch"
@@ -90,7 +92,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "f2881672ffc80b5397f6c7bec6c79ef0c017feb4" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
@@ -139,6 +141,12 @@ EOF
         "$destination/btls/src/ssl/mod.rs"
       rm "$destination/btls/src/ssl/mod.rs.bak"
       ;;
+    delegated_credentials)
+      sed -i.bak \
+        's/pub fn set_delegated_credentials/pub fn drifted_set_delegated_credentials/' \
+        "$destination/btls/src/ssl/mod.rs"
+      rm "$destination/btls/src/ssl/mod.rs.bak"
+      ;;
     *)
       echo "unsupported btls drift fixture: $drift" >&2
       exit 1
@@ -163,12 +171,14 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
-grep -F -q 'rev = "f2881672ffc80b5397f6c7bec6c79ef0c017feb4"' \
+grep -F -q 'rev = "78b8c24a3388973d1d33c523995d311d766a1026"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_ech_grease_payload_length' \
   "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_record_size_limit' "$staged_wrapper/src/ssl/mod.rs"
+grep -F -q 'pub fn set_delegated_credentials' \
+  "$staged_wrapper/src/ssl/mod.rs"
 assert_non_fips_item "$staged_wrapper/src/ssl/mod.rs" \
   'pub fn set_record_size_limit(&mut self, limit: u16) -> Result<(), ErrorStack> {'
 assert_non_fips_item "$staged_wrapper/src/ssl/mod.rs" \
@@ -187,6 +197,21 @@ assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
   'fn capture_ech_grease_extension(payload_length: Option<usize>) -> Vec<u8> {'
 [[ ! -L "$staged_wrapper/README.md" ]]
 [[ $(git -C "$candidate_repo" status --porcelain) == "$candidate_status_before" ]]
+[[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
+
+dc_drift_repo="$test_root/dc-drift"
+make_btls_candidate "$dc_drift_repo" delegated_credentials
+dc_drift_revision=$(git -C "$dc_drift_repo" rev-parse HEAD)
+if TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$dc_drift_repo" \
+  scripts/ci/stage-btls-candidate.sh \
+    "$dc_drift_revision" "$test_root/dc-drifted-wrapper" \
+    >"$test_root/dc-drift.stdout" 2>"$test_root/dc-drift.stderr"; then
+  echo "DC-drifted btls candidate unexpectedly accepted the canonical patch" >&2
+  exit 1
+fi
+grep -F -q 'wrapper patch delegated-credentials.patch does not apply' \
+  "$test_root/dc-drift.stderr"
+[[ -z $(git -C "$dc_drift_repo" status --porcelain) ]]
 [[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
 
 rsl_drift_repo="$test_root/rsl-drift"
@@ -360,7 +385,7 @@ mkdir -p "$darwin_tmp"
   "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
 grep -F -q "rev = \"$candidate_revision\"" \
   "$probe_checkout/Cargo.toml"
-grep -F -q 'rev = "f2881672ffc80b5397f6c7bec6c79ef0c017feb4"' \
+grep -F -q 'rev = "78b8c24a3388973d1d33c523995d311d766a1026"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \
@@ -370,6 +395,9 @@ grep -F -x -q \
   "$command_log"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols record_size_limit' \
+  "$command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols delegated_credentials' \
   "$command_log"
 grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
 grep -F -q 'phantom-net --all-features --locked exact_ech_grease_payload' \
@@ -397,6 +425,9 @@ grep -F -x -q \
   "$darwin_command_log"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml record_size_limit' \
+  "$darwin_command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml delegated_credentials' \
   "$darwin_command_log"
 if grep -F -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols' \

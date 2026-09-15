@@ -128,7 +128,8 @@ case "$dependency" in
     [[ -d vendor/btls \
       && -f vendor/btls/patches/alps-settings.patch \
       && -f vendor/btls/patches/ech-grease-payload-length.patch \
-      && -f vendor/btls/patches/record-size-limit.patch ]] \
+      && -f vendor/btls/patches/record-size-limit.patch \
+      && -f vendor/btls/patches/delegated-credentials.patch ]] \
       || die "vendored btls and all canonical wrapper patches are required"
     btls_sources=$(sed -nE \
       's/^(btls|tokio-btls) = .*git = "([^"]+)".*rev = "([0-9a-f]{40})".*/\2\t\3/p' \
@@ -145,7 +146,7 @@ case "$dependency" in
     candidate_repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
     candidate_cargo_repository=${candidate_repository%.git}
     btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
-    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-f2881672ffc80b5397f6c7bec6c79ef0c017feb4}
+    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-78b8c24a3388973d1d33c523995d311d766a1026}
     [[ "$btls_sys_revision" =~ ^[0-9a-f]{40}$ ]] \
       || die "PHANTOM_BTLS_SYS_REVISION must be an exact git revision"
 
@@ -160,6 +161,7 @@ case "$dependency" in
     cp vendor/btls/patches/alps-settings.patch \
       vendor/btls/patches/ech-grease-payload-length.patch \
       vendor/btls/patches/record-size-limit.patch \
+      vendor/btls/patches/delegated-credentials.patch \
       "$candidate_dir/patches/"
 
     replace_exact Cargo.toml \
@@ -194,6 +196,7 @@ case "$dependency" in
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech
       cargo test --manifest-path vendor/btls/Cargo.toml record_size_limit
+      cargo test --manifest-path vendor/btls/Cargo.toml delegated_credentials
     else
       cargo clippy --manifest-path vendor/btls/Cargo.toml \
         --all-targets --features prefix-symbols -- -D warnings
@@ -203,6 +206,8 @@ case "$dependency" in
         --features prefix-symbols ssl::test::ech
       cargo test --manifest-path vendor/btls/Cargo.toml \
         --features prefix-symbols record_size_limit
+      cargo test --manifest-path vendor/btls/Cargo.toml \
+        --features prefix-symbols delegated_credentials
     fi
 
     msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)
