@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, error::Error, io, net::SocketAddr, pin::Pin, time::Duration};
+use std::{error::Error, io, net::SocketAddr, pin::Pin, time::Duration};
 
 use btls::{
     pkey::PKey,
@@ -9,7 +9,7 @@ use phantom_profile::{
     AlpsSettings, CertificateCompression, CipherSuite, NamedGroup, SignatureScheme, TlsSettings,
     TlsVersion,
 };
-use phantom_testkit::tls::{CaptureLimits, capture_client_hello, is_grease};
+use phantom_testkit::tls::{CaptureLimits, capture_client_hello};
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
     KeyUsagePurpose,
@@ -17,13 +17,22 @@ use rcgen::{
 use tokio::{net::TcpListener, task::JoinHandle, time::Instant};
 use tokio_btls::SslStream as BoringStream;
 
-use super::{TlsConnector, TlsErrorKind, require_supported};
+use super::{TlsConnector, TlsErrorKind, encode_trust_anchor_ids, require_supported};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const TEST_SERVER_NAME: &str = "server.phantom.test";
 const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+
+mod chrome;
+
+#[test]
+fn trust_anchor_ids_are_length_prefixed_for_boringssl() {
+    let ids = [Box::from(&b"a"[..]), Box::from(&b"bc"[..])];
+
+    assert_eq!(encode_trust_anchor_ids(&ids).as_ref(), b"\x01a\x02bc");
+}
 
 fn chromium_152_macos_reference() -> TlsSettings {
     TlsSettings {
@@ -72,7 +81,7 @@ fn chromium_152_macos_reference() -> TlsSettings {
             use_new_codepoint: true,
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
-        requested_trust_anchors: Some(Vec::new()),
+        requested_trust_anchor_ids: Some(Vec::new()),
         grease: true,
         grease_signature_algorithms: true,
         permute_extensions: true,
@@ -81,93 +90,6 @@ fn chromium_152_macos_reference() -> TlsSettings {
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
     }
-}
-
-#[tokio::test]
-async fn emits_chromium_152_macos_reference_client_hello() -> TestResult<()> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let address = listener.local_addr()?;
-    let capture_task = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await?;
-        capture_client_hello(
-            &mut stream,
-            Instant::now() + TEST_TIMEOUT,
-            CaptureLimits::new(32 * 1024, 40 * 1024, 4),
-        )
-        .await
-        .map_err(io::Error::other)
-    });
-
-    let connector = TlsConnector::new(&chromium_152_macos_reference())?;
-    let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
-    let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect("example.test", tcp));
-    let handshake_error = match handshake.await? {
-        Ok(_) => return Err("capture peer unexpectedly completed TLS".into()),
-        Err(error) => error,
-    };
-    assert_eq!(handshake_error.kind(), TlsErrorKind::Handshake);
-
-    let capture = tokio::time::timeout(TEST_TIMEOUT, capture_task).await???;
-    let summary = capture.summary()?;
-
-    assert_eq!(summary.legacy_version(), 0x0303);
-    assert_eq!(
-        without_grease(summary.cipher_suites()),
-        vec![
-            0x1301, 0x1302, 0x1303, 0xc02b, 0xc02f, 0xc02c, 0xc030, 0xcca9, 0xcca8, 0xc013, 0xc014,
-            0x009c, 0x009d, 0x002f, 0x0035,
-        ]
-    );
-    assert_eq!(
-        without_grease(summary.supported_groups()),
-        vec![0x11ec, 0x001d, 0x0017, 0x0018]
-    );
-    assert_eq!(
-        without_grease(summary.signature_algorithms()),
-        vec![
-            0x0904, 0x0905, 0x0906, 0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601
-        ]
-    );
-    assert_eq!(
-        summary.alpn_protocols(),
-        &[b"h2".to_vec(), b"http/1.1".to_vec()]
-    );
-    assert_eq!(
-        without_grease(summary.supported_versions()),
-        vec![0x0304, 0x0303]
-    );
-    assert_eq!(
-        without_grease(summary.key_share_groups()),
-        vec![0x11ec, 0x001d]
-    );
-
-    assert!(summary.cipher_suites().iter().copied().any(is_grease));
-    assert!(summary.supported_groups().iter().copied().any(is_grease));
-    assert!(
-        summary
-            .signature_algorithms()
-            .iter()
-            .copied()
-            .any(is_grease)
-    );
-    assert!(summary.supported_versions().iter().copied().any(is_grease));
-    assert!(summary.key_share_groups().iter().copied().any(is_grease));
-    assert!(summary.extension_types().iter().copied().any(is_grease));
-
-    // Extension permutation is intentionally randomized. This reference recipe
-    // asserts the exact stable membership, not retained browser parity or order.
-    let actual_extensions = summary
-        .extension_types()
-        .iter()
-        .copied()
-        .filter(|extension| !is_grease(*extension))
-        .collect::<BTreeSet<_>>();
-    let expected_extensions = BTreeSet::from([
-        0, 5, 10, 11, 13, 16, 18, 23, 27, 35, 43, 45, 51, 0xca34, 17613, 0xfe0d, 0xff01,
-    ]);
-    assert_eq!(actual_extensions, expected_extensions);
-
-    Ok(())
 }
 
 #[tokio::test]
@@ -190,7 +112,7 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
     settings.alps = None;
     settings.key_shares.clear();
     settings.ech_grease = false;
-    settings.requested_trust_anchors = None;
+    settings.requested_trust_anchor_ids = None;
     let connector = TlsConnector::new(&settings)?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
     let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect("example.test", tcp));
@@ -376,12 +298,4 @@ async fn connect_local(
         .await
         .map_err(Box::<dyn Error + Send + Sync>::from)??;
     Ok(tokio::time::timeout(TEST_TIMEOUT, connector.connect(server_name, tcp)).await?)
-}
-
-fn without_grease(values: &[u16]) -> Vec<u16> {
-    values
-        .iter()
-        .copied()
-        .filter(|value| !is_grease(*value))
-        .collect()
 }

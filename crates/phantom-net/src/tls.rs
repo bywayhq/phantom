@@ -219,10 +219,10 @@ impl TlsConnector {
             }
         }
 
-        if let Some(ids) = &settings.requested_trust_anchors {
+        if let Some(ids) = &settings.requested_trust_anchor_ids {
             builder
                 .set_requested_trust_anchors(&encode_trust_anchor_ids(ids))
-                .map_err(|error| TlsError::backend("requested_trust_anchors", error))?;
+                .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
         }
 
         let alpn_wire = encode_alpn(&settings.alpn_protocols)?;

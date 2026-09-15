@@ -134,7 +134,7 @@ pub struct TlsSettings {
     /// `trust_anchors` extension, while `Some(Vec::new())` emits the extension
     /// with an empty ID list. This setting does not change certificate
     /// verification.
-    pub requested_trust_anchors: Option<Vec<Box<[u8]>>>,
+    pub requested_trust_anchor_ids: Option<Vec<Box<[u8]>>>,
     /// Whether ordinary TLS GREASE is enabled.
     pub grease: bool,
     /// Whether signature-algorithm GREASE is enabled.
@@ -185,9 +185,9 @@ impl TlsSettings {
                     "ECH GREASE requires TLS 1.3 to be enabled",
                 ));
             }
-            if self.requested_trust_anchors.is_some() {
+            if self.requested_trust_anchor_ids.is_some() {
                 return Err(InvalidTlsSettings::new(
-                    "requested_trust_anchors",
+                    "requested_trust_anchor_ids",
                     "requested trust anchors require TLS 1.3 to be enabled",
                 ));
             }
@@ -243,7 +243,7 @@ impl TlsSettings {
             ));
         }
 
-        if let Some(ids) = &self.requested_trust_anchors {
+        if let Some(ids) = &self.requested_trust_anchor_ids {
             validate_trust_anchor_ids(ids)?;
         }
 
@@ -314,19 +314,19 @@ fn validate_trust_anchor_ids(ids: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings
     let encoded_length = ids.iter().try_fold(0usize, |length, id| {
         if id.is_empty() || id.len() > u8::MAX as usize {
             return Err(InvalidTlsSettings::new(
-                "requested_trust_anchors",
+                "requested_trust_anchor_ids",
                 "each trust anchor ID must contain 1..=255 bytes",
             ));
         }
         length.checked_add(1 + id.len()).ok_or_else(|| {
-            InvalidTlsSettings::new("requested_trust_anchors", "encoded ID list is too large")
+            InvalidTlsSettings::new("requested_trust_anchor_ids", "encoded ID list is too large")
         })
     })?;
 
     // The ID vector has its own u16 length inside the extension's u16-sized body.
     if encoded_length > u16::MAX as usize - size_of::<u16>() {
         return Err(InvalidTlsSettings::new(
-            "requested_trust_anchors",
+            "requested_trust_anchor_ids",
             "encoded trust anchor ID list exceeds 65533 bytes",
         ));
     }
@@ -335,142 +335,4 @@ fn validate_trust_anchor_ids(ids: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn minimal_settings() -> TlsSettings {
-        TlsSettings {
-            min_version: TlsVersion::Tls12,
-            max_version: TlsVersion::Tls13,
-            cipher_suites: vec![CipherSuite::Aes128GcmSha256],
-            groups: vec![NamedGroup::X25519],
-            key_shares: vec![NamedGroup::X25519],
-            signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
-            alpn_protocols: vec![Box::from(&b"http/1.1"[..])],
-            alps: None,
-            certificate_compression: Vec::new(),
-            requested_trust_anchors: None,
-            grease: false,
-            grease_signature_algorithms: false,
-            permute_extensions: false,
-            ech_grease: false,
-            request_ocsp_staple: false,
-            request_signed_certificate_timestamps: false,
-            aes_hardware: true,
-        }
-    }
-
-    #[test]
-    fn tls_12_does_not_require_key_shares() -> Result<(), Box<dyn Error>> {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-        settings.key_shares.clear();
-
-        settings.validate()?;
-        Ok(())
-    }
-
-    #[test]
-    fn tls_12_rejects_key_shares() {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-
-        let error = settings.validate().err();
-        assert_eq!(
-            error.as_ref().map(InvalidTlsSettings::field),
-            Some("key_shares")
-        );
-    }
-
-    #[test]
-    fn tls_12_rejects_ech_grease() {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-        settings.key_shares.clear();
-        settings.ech_grease = true;
-
-        let error = settings.validate().err();
-        assert_eq!(
-            error.as_ref().map(InvalidTlsSettings::field),
-            Some("ech_grease")
-        );
-    }
-
-    #[test]
-    fn tls_12_rejects_alps() {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-        settings.key_shares.clear();
-        settings.alps = Some(AlpsSettings {
-            protocol: Box::from(&b"http/1.1"[..]),
-            use_new_codepoint: true,
-        });
-
-        let error = settings.validate().err();
-        assert_eq!(error.as_ref().map(InvalidTlsSettings::field), Some("alps"));
-    }
-
-    #[test]
-    fn tls_12_rejects_requested_trust_anchors() {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-        settings.key_shares.clear();
-        settings.requested_trust_anchors = Some(Vec::new());
-
-        let error = settings.validate().err();
-        assert_eq!(
-            error.as_ref().map(InvalidTlsSettings::field),
-            Some("requested_trust_anchors")
-        );
-    }
-
-    #[test]
-    fn trust_anchor_ids_may_be_omitted_or_explicitly_empty() -> Result<(), Box<dyn Error>> {
-        let mut settings = minimal_settings();
-        settings.requested_trust_anchors = Some(Vec::new());
-
-        settings.validate()?;
-        settings.requested_trust_anchors = None;
-        settings.validate()?;
-        Ok(())
-    }
-
-    #[test]
-    fn trust_anchor_ids_must_be_nonempty_and_fit_one_byte_lengths() {
-        let invalid_ids = [Box::default(), vec![0; 256].into_boxed_slice()];
-
-        for id in invalid_ids {
-            let mut settings = minimal_settings();
-            settings.requested_trust_anchors = Some(vec![id]);
-            let error = settings.validate().err();
-            assert_eq!(
-                error.as_ref().map(InvalidTlsSettings::field),
-                Some("requested_trust_anchors")
-            );
-        }
-    }
-
-    #[test]
-    fn trust_anchor_id_list_must_fit_the_extension_body() -> Result<(), Box<dyn Error>> {
-        let mut settings = minimal_settings();
-        let mut ids = (0..u8::MAX)
-            .map(|_| vec![0; u8::MAX as usize].into_boxed_slice())
-            .collect::<Vec<_>>();
-        ids.push(vec![0; 252].into_boxed_slice());
-        settings.requested_trust_anchors = Some(ids);
-
-        settings.validate()?;
-        settings
-            .requested_trust_anchors
-            .as_mut()
-            .expect("test configured IDs")
-            .push(Box::from(&b"x"[..]));
-
-        let error = settings.validate().err();
-        assert_eq!(
-            error.as_ref().map(InvalidTlsSettings::field),
-            Some("requested_trust_anchors")
-        );
-        Ok(())
-    }
-}
+mod tests;
