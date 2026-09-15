@@ -33,6 +33,7 @@ use tokio_btls::SslStream as BoringStream;
 
 use super::{Http1TlsConnector, Http1TlsError};
 use crate::http1::{OriginForm, RequestHeader};
+use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -49,6 +50,34 @@ where
         Ok(result) => result,
         Err(_) => Err("HTTP/1-over-TLS test exceeded its absolute deadline".into()),
     }
+}
+
+#[tokio::test]
+async fn dropping_tls_response_head_future_records_cancelled_once() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let subscriber = OutcomeSubscriber::default();
+    let (client, _server) = duplex(64 * 1024);
+    let pending = poll_once_then_drop(
+        connector.send_get(
+            client,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+        ),
+        subscriber.clone(),
+    )
+    .await;
+    if !pending {
+        return Err("HTTP/1-over-TLS response-head future completed before cancellation".into());
+    }
+
+    assert_eq!(
+        subscriber.outcomes_for("http1.tls.response_head"),
+        ["cancelled"]
+    );
+    assert_eq!(subscriber.outcomes_for("tls.handshake"), ["cancelled"]);
+    Ok(())
 }
 
 #[tokio::test]

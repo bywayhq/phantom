@@ -6,30 +6,24 @@
 //! cancellation of the protocol task; destruction of the underlying stream is
 //! eventual.
 
-use std::{
-    error::Error as StdError,
-    fmt,
-    pin::Pin,
-    task::{Context, Poll},
-};
+use std::{error::Error as StdError, fmt};
 
 use bytes::Bytes;
 use http::{
     HeaderMap, HeaderValue, Method, Request, Response, Uri, Version,
     header::{CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
 };
-use http_body::{Body, Frame, SizeHint};
 use http_body_util::Empty;
-use tokio::{
-    io::{AsyncRead, AsyncWrite},
-    task::JoinHandle,
-};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 use wreq_proto::{
-    body::Incoming,
     conn::http1,
     ext::{OnPreserveHeaderCallback, on_preserve_header},
 };
+
+use body::DriverTask;
+
+pub use body::Http1Body;
 
 const MAX_REQUEST_HEADERS: usize = 100;
 const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -190,70 +184,6 @@ impl From<wreq_proto::Error> for Http1Error {
     }
 }
 
-/// Streaming response body for a one-shot HTTP/1.1 transaction.
-///
-/// Dropping this body schedules cancellation of the protocol driver. Once the
-/// runtime observes that cancellation, dropping the driver tears down its byte
-/// stream. `Drop` does not wait for teardown to finish.
-#[must_use = "response bodies must be read or deliberately dropped"]
-pub struct Http1Body {
-    incoming: Incoming,
-    driver: DriverTask,
-    finished: bool,
-}
-
-impl fmt::Debug for Http1Body {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("Http1Body")
-            .field("finished", &self.finished)
-            .finish_non_exhaustive()
-    }
-}
-
-impl Body for Http1Body {
-    type Data = Bytes;
-    type Error = Http1Error;
-
-    fn poll_frame(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-        if self.finished {
-            return Poll::Ready(None);
-        }
-
-        match Pin::new(&mut self.incoming).poll_frame(context) {
-            Poll::Ready(Some(Ok(frame))) => {
-                if self.incoming.is_end_stream() {
-                    self.finished = true;
-                    self.driver.cancel();
-                }
-                Poll::Ready(Some(Ok(frame)))
-            }
-            Poll::Ready(Some(Err(error))) => {
-                self.finished = true;
-                self.driver.cancel();
-                Poll::Ready(Some(Err(Http1Error::Protocol(error))))
-            }
-            Poll::Ready(None) => {
-                self.finished = true;
-                self.driver.cancel();
-                Poll::Ready(None)
-            }
-            Poll::Pending => Poll::Pending,
-        }
-    }
-
-    fn is_end_stream(&self) -> bool {
-        self.finished || self.incoming.is_end_stream()
-    }
-
-    fn size_hint(&self) -> SizeHint {
-        self.incoming.size_hint()
-    }
-}
-
 /// Sends one empty-body HTTP/1.1 GET over an already-connected stream.
 ///
 /// Header spelling, ordering, and duplicates are emitted exactly as supplied.
@@ -301,12 +231,14 @@ where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let span = debug_span!(
-        "http1.send",
+        "http1.response_head",
         method = "GET",
         protocol = "http/1.1",
         status = field::Empty,
+        outcome = field::Empty,
     );
-    async {
+    let outcome = ResponseHeadOutcome::new(&span);
+    let result = async {
         debug!("HTTP/1 transaction started");
         let (mut sender, connection) = http1::Builder::default()
             .handshake::<_, Empty<Bytes>>(stream)
@@ -329,22 +261,42 @@ where
 
         debug!("HTTP/1 response headers received");
         let (parts, incoming) = response.into_parts();
-        let finished = incoming.is_end_stream();
-        let mut driver = driver;
-        if finished {
-            driver.cancel();
-        }
         Ok(Response::from_parts(
             parts,
-            Http1Body {
-                incoming,
-                driver,
-                finished,
-            },
+            Http1Body::new(incoming, driver),
         ))
     }
-    .instrument(span)
-    .await
+    .instrument(span.clone())
+    .await;
+    outcome.finish(if result.is_ok() { "ok" } else { "error" });
+    result
+}
+
+pub(super) struct ResponseHeadOutcome {
+    span: Span,
+    recorded: bool,
+}
+
+impl ResponseHeadOutcome {
+    fn new(span: &Span) -> Self {
+        Self {
+            span: span.clone(),
+            recorded: false,
+        }
+    }
+
+    pub(super) fn finish(mut self, outcome: &'static str) {
+        self.span.record("outcome", outcome);
+        self.recorded = true;
+    }
+}
+
+impl Drop for ResponseHeadOutcome {
+    fn drop(&mut self) {
+        if !self.recorded {
+            self.span.record("outcome", "cancelled");
+        }
+    }
 }
 
 struct ValidatedHeaders {
@@ -449,43 +401,10 @@ impl OnPreserveHeaderCallback for OrderedHeaders {
     }
 }
 
-/// Owns the connection driver and schedules its cancellation when dropped.
-///
-/// Cancellation is observed asynchronously by Tokio. Only then is the
-/// connection future, and therefore its underlying stream, dropped.
-struct DriverTask {
-    handle: Option<JoinHandle<Result<(), wreq_proto::Error>>>,
-}
-
-impl DriverTask {
-    // Aborting the task only schedules cancellation. The runtime later drops
-    // the connection future and its stream; callers must not infer synchronous
-    // transport teardown from this guard's `Drop`.
-    fn spawn<T>(connection: http1::Connection<T, Empty<Bytes>>) -> Self
-    where
-        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        Self {
-            handle: Some(tokio::spawn(connection)),
-        }
-    }
-
-    fn cancel(&mut self) {
-        if let Some(handle) = self.handle.take() {
-            handle.abort();
-        }
-    }
-}
-
-impl Drop for DriverTask {
-    fn drop(&mut self) {
-        self.cancel();
-    }
-}
-
 #[cfg(test)]
 mod tests;
 
+mod body;
 mod tls;
 
 pub use tls::{Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};

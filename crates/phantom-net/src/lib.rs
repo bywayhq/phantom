@@ -2,3 +2,6 @@
 
 pub mod http1;
 pub(crate) mod tls;
+
+#[cfg(test)]
+mod tracing_test;

@@ -7,8 +7,11 @@ use phantom_profile::TlsSettings;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
-use super::{Http1Body, Http1Error, OriginForm, PreparedGet, RequestHeader, send_prepared_get};
-use crate::tls::TlsConnector;
+use super::{
+    Http1Body, Http1Error, OriginForm, PreparedGet, RequestHeader, ResponseHeadOutcome,
+    send_prepared_get,
+};
+use crate::tls::{TlsConnector, trace_alpn};
 
 pub use crate::tls::{TlsError, TlsErrorKind};
 
@@ -56,19 +59,21 @@ impl Http1TlsConnector {
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let span = debug_span!(
-            "http1.tls.send",
+            "http1.tls.response_head",
             method = "GET",
             transport = "tls",
-            alpn = field::Empty,
+            negotiated_alpn = field::Empty,
             status = field::Empty,
+            outcome = field::Empty,
         );
-        async {
+        let outcome_guard = ResponseHeadOutcome::new(&span);
+        let result = async {
             let prepared = PreparedGet::new(target, headers)?;
             debug!("HTTP/1 request prepared");
 
             let stream = self.tls.connect(server_name, stream).await?;
             let negotiated_alpn = stream.negotiated_alpn();
-            Span::current().record("alpn", trace_alpn(negotiated_alpn));
+            Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
             if let Some(selected) = negotiated_alpn {
                 if selected != b"http/1.1" {
                     debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
@@ -82,8 +87,15 @@ impl Http1TlsConnector {
             Span::current().record("status", response.status().as_u16());
             Ok(response)
         }
-        .instrument(span)
-        .await
+        .instrument(span.clone())
+        .await;
+        let outcome = match &result {
+            Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
+            Ok(_) => "ok",
+            Err(_) => "error",
+        };
+        outcome_guard.finish(outcome);
+        result
     }
 }
 
@@ -149,16 +161,6 @@ fn require_http1_alpn(settings: &TlsSettings) -> Result<(), Http1TlsError> {
         .any(|protocol| protocol.as_ref() == b"http/1.1")
         .then_some(())
         .ok_or(Http1TlsError::MissingHttp1Alpn)
-}
-
-fn trace_alpn(protocol: Option<&[u8]>) -> &'static str {
-    match protocol {
-        None => "none",
-        Some(b"http/1.1") => "http/1.1",
-        Some(b"h2") => "h2",
-        Some(b"h3") => "h3",
-        Some(_) => "other",
-    }
 }
 
 #[cfg(test)]

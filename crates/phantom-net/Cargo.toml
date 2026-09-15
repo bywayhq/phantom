@@ -29,9 +29,14 @@ btls = { workspace = true, features = ["prefix-symbols"] }
 tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 
 [dev-dependencies]
+criterion = { version = "=0.7.0", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
 phantom-testkit = { path = "../phantom-testkit" }
 rcgen = "=0.14.5"
 tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+
+[[bench]]
+name = "transport"
+harness = false
 
 [lints]
 workspace = true
