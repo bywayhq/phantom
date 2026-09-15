@@ -121,11 +121,13 @@ connection lifecycle without exposing Quinn or `h3` types publicly.
 
 Stock QUIC stacks expose many transport-parameter values but do not expose all
 the ordering and encoding choices visible in browser captures. Phantom will
-carry narrow, default-preserving patches only for an explicit outbound QUIC
-transport-parameter sequence and an explicit outbound H3 SETTINGS sequence.
-Profiles remain browser-neutral data: neither fork branches on Chromium,
-Firefox, or Safari. Packetization, ACK, connection-ID, pacing, and QPACK knobs
-are added only after a retained capture proves that they are required.
+use Quinn's provider seam to apply a capture-backed transport-parameter
+permutation and GREASE policy; no Quinn fork is needed for that boundary. A
+narrow, default-preserving `h3` patch supplies the explicit outbound SETTINGS
+sequence that upstream does not expose. Profiles remain browser-neutral data:
+neither adapter nor fork branches on Chromium, Firefox, or Safari.
+Packetization, ACK, connection-ID, pacing, and QPACK knobs are added only after
+a retained capture proves that they are required.
 
 ## Configuration seam
 

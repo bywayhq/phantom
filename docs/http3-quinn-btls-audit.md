@@ -127,7 +127,7 @@ For outbound transport parameters, the adapter should:
 4. Check every profile-declared standard value against Quinn's serialized
    value. Configuration which lies about the live transport fails before I/O.
 5. Emit captured standard fields, supported opaque fields, and generated
-   GREASE in profile order.
+   GREASE using the profile-owned permutation policy and supplied entropy.
 6. Feed only those final bytes to `SSL_set_quic_transport_params`.
 
 Keep this encoder private and initially support only the encodings proven by a
@@ -135,6 +135,13 @@ retained capture. The provider boundary owns the final bytes, so later evidence
 can add a non-canonical varint-width control without changing Quinn or the
 facade. Unknown parameters must not be injected until their peer-visible
 semantics are understood.
+
+The subsequent Chrome 152 capture found that QUIC transport-parameter order is
+randomized across fresh connections. Consequently, one captured order is an
+exact seeded fixture, not a canonical browser order. The adapter needs both an
+exact deterministic seed path for regression tests and a normal entropy source
+for production; multi-seed tests assert the stable parameter set, supported
+widths, one GREASE entry, and non-constant order. See `docs/http3-capture.md`.
 
 ## Unsafe-code audit boundary
 
