@@ -231,12 +231,13 @@ where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let span = debug_span!(
-        "http1.send",
+        "http1.response_head",
         method = "GET",
         protocol = "http/1.1",
         status = field::Empty,
+        outcome = field::Empty,
     );
-    async {
+    let result = async {
         debug!("HTTP/1 transaction started");
         let (mut sender, connection) = http1::Builder::default()
             .handshake::<_, Empty<Bytes>>(stream)
@@ -264,8 +265,10 @@ where
             Http1Body::new(incoming, driver),
         ))
     }
-    .instrument(span)
-    .await
+    .instrument(span.clone())
+    .await;
+    span.record("outcome", if result.is_ok() { "ok" } else { "error" });
+    result
 }
 
 struct ValidatedHeaders {

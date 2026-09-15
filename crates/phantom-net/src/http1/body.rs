@@ -13,6 +13,7 @@ use tokio::{
     io::{AsyncRead, AsyncWrite},
     task::JoinHandle,
 };
+use tracing::{Span, debug, debug_span};
 use wreq_proto::{body::Incoming, conn::http1};
 
 use super::Http1Error;
@@ -27,18 +28,22 @@ pub struct Http1Body {
     incoming: Incoming,
     driver: DriverTask,
     finished: bool,
+    trace: BodyTrace,
 }
 
 impl Http1Body {
     pub(super) fn new(incoming: Incoming, mut driver: DriverTask) -> Self {
         let finished = incoming.is_end_stream();
+        let mut trace = BodyTrace::new();
         if finished {
             driver.cancel();
+            trace.finish("complete");
         }
         Self {
             incoming,
             driver,
             finished,
+            trace,
         }
     }
 }
@@ -48,6 +53,7 @@ impl fmt::Debug for Http1Body {
         formatter
             .debug_struct("Http1Body")
             .field("finished", &self.finished)
+            .field("received_bytes", &self.trace.received_bytes)
             .finish_non_exhaustive()
     }
 }
@@ -66,20 +72,26 @@ impl Body for Http1Body {
 
         match Pin::new(&mut self.incoming).poll_frame(context) {
             Poll::Ready(Some(Ok(frame))) => {
+                if let Some(data) = frame.data_ref() {
+                    self.trace.add_bytes(data.len());
+                }
                 if self.incoming.is_end_stream() {
                     self.finished = true;
                     self.driver.cancel();
+                    self.trace.finish("complete");
                 }
                 Poll::Ready(Some(Ok(frame)))
             }
             Poll::Ready(Some(Err(error))) => {
                 self.finished = true;
                 self.driver.cancel();
+                self.trace.finish("protocol_error");
                 Poll::Ready(Some(Err(Http1Error::Protocol(error))))
             }
             Poll::Ready(None) => {
                 self.finished = true;
                 self.driver.cancel();
+                self.trace.finish("complete");
                 Poll::Ready(None)
             }
             Poll::Pending => Poll::Pending,
@@ -92,6 +104,48 @@ impl Body for Http1Body {
 
     fn size_hint(&self) -> SizeHint {
         self.incoming.size_hint()
+    }
+}
+
+impl Drop for Http1Body {
+    fn drop(&mut self) {
+        if !self.finished {
+            self.trace.finish("dropped");
+        }
+    }
+}
+
+struct BodyTrace {
+    span: Span,
+    received_bytes: u64,
+    finished: bool,
+}
+
+impl BodyTrace {
+    fn new() -> Self {
+        Self {
+            span: debug_span!("http1.response_body"),
+            received_bytes: 0,
+            finished: false,
+        }
+    }
+
+    fn add_bytes(&mut self, bytes: usize) {
+        let bytes = u64::try_from(bytes).unwrap_or(u64::MAX);
+        self.received_bytes = self.received_bytes.saturating_add(bytes);
+    }
+
+    fn finish(&mut self, outcome: &'static str) {
+        if self.finished {
+            return;
+        }
+        self.finished = true;
+        debug!(
+            parent: &self.span,
+            body_bytes = self.received_bytes,
+            outcome,
+            "HTTP/1 response body finished"
+        );
     }
 }
 

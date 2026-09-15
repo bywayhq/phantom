@@ -26,7 +26,7 @@ use phantom_profile::{
 };
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
-use tracing::{Instrument, debug, debug_span};
+use tracing::{Instrument, Span, debug, debug_span, field};
 
 fn boring_version(field: &'static str, version: TlsVersion) -> Result<SslVersion, TlsError> {
     let mapped = match version {
@@ -252,8 +252,11 @@ impl TlsConnector {
         let span = debug_span!(
             "tls.handshake",
             alpn_protocol_count = count_alpn(&self.alpn_wire),
+            negotiated_alpn = field::Empty,
+            tls_version = field::Empty,
+            outcome = field::Empty,
         );
-        async {
+        let result = async {
             debug!("TLS handshake started");
 
             let mut configuration = self
@@ -296,11 +299,11 @@ impl TlsConnector {
             })?;
 
             let negotiated_alpn = stream.ssl().selected_alpn_protocol().map(Box::from);
+            Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
+            Span::current().record("tls_version", stream.ssl().version_str());
             debug!(
-                negotiated_alpn = negotiated_alpn
-                    .as_deref()
-                    .and_then(recognized_alpn_name)
-                    .unwrap_or("other-or-none"),
+                negotiated_alpn = trace_alpn(negotiated_alpn.as_deref()),
+                tls_version = stream.ssl().version_str(),
                 "TLS handshake completed"
             );
             Ok(TlsStream {
@@ -308,8 +311,10 @@ impl TlsConnector {
                 negotiated_alpn,
             })
         }
-        .instrument(span)
-        .await
+        .instrument(span.clone())
+        .await;
+        span.record("outcome", if result.is_ok() { "ok" } else { "error" });
+        result
     }
 }
 
@@ -577,6 +582,16 @@ fn recognized_alpn_name(protocol: &[u8]) -> Option<&'static str> {
         b"h2" => Some("h2"),
         b"h3" => Some("h3"),
         _ => None,
+    }
+}
+
+pub(crate) fn trace_alpn(protocol: Option<&[u8]>) -> &'static str {
+    match protocol {
+        None => "none",
+        Some(b"http/1.1") => "http/1.1",
+        Some(b"h2") => "h2",
+        Some(b"h3") => "h3",
+        Some(_) => "other",
     }
 }
 
