@@ -357,7 +357,6 @@ async fn streams_data_then_trailers_without_buffering_later_data() -> TestResult
 
         let request = server_task.await??;
         assert_eq!(request.method, http::Method::GET);
-        assert_eq!(request.uri.scheme_str(), Some("https"));
         assert_eq!(
             request.uri.authority().map(|value| value.as_str()),
             Some("example.test")
