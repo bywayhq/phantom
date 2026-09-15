@@ -335,7 +335,7 @@ jq -n \
         candidate_archive: $h3_archive_url,
         provenance: "vendored",
         candidate_probe_supported: true,
-        candidate_probe_note: "enabled from an exact revision using the canonical ordered SETTINGS patch",
+        candidate_probe_note: "enabled from an exact revision using the canonical ordered SETTINGS and QPACK codec patches",
         drift: $h3_drift,
         source: "https://github.com/hyperium/h3"
       }
@@ -376,7 +376,7 @@ workflow never rewrites profiles or fixtures.
 
 btls candidate probe: $btls_probe_note.
 H3 candidate archives are checksum-bound in the report before the disposable
-probe reapplies the canonical patch.
+probe reapplies the canonical patches.
 EOF
 
 write_output wreq_latest "$wreq_latest"

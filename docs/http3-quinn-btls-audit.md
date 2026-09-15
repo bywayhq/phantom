@@ -59,9 +59,9 @@ sources.
 | `quinn` | `0.11.12` | `default-features = false`, `runtime-tokio`; enable `qlog` only when the feature is exposed by Phantom |
 | `quinn-proto` | `0.11.18` | Stock, `default-features = false` |
 | `quinn-udp` | `0.5.15` | Stock version selected by Quinn 0.11 |
-| `h3` | crate version `0.0.8`, fork base `hyperium/h3@1f3d5295833ad454343f25d55633fb6bee1027b2` | Pin the Phantom fork commit containing only the SETTINGS patch and reviewed upstream fixes |
+| `h3` | crate version `0.0.8`, fork base `hyperium/h3@1f3d5295833ad454343f25d55633fb6bee1027b2` | Use the provenance-tracked SETTINGS and dormant QPACK-codec patches; do not select the runtime until its QPACK guard is complete |
 | `h3-quinn` | crate version `0.0.10`, same repository revision as `h3` | Keep unchanged unless dependency unification requires its manifest to point at the forked sibling |
-| `btls`, `btls-sys`, `tokio-btls` | `0xARYA/btls@78b8c24a3388973d1d33c523995d311d766a1026` | One BoringSSL lineage; use `prefix-symbols` consistently |
+| `btls`, `btls-sys`, `tokio-btls` | `0xARYA/btls@78b8c24a3388973d1d33c523995d311d766a1026` | One BoringSSL lineage; prefix symbols on Linux, and use the reviewed unprefixed build on Apple/Windows until native prefixing supports Mach-O/COFF |
 | adapter reference | `quinn-rs/quinn-boring@8aeaa43a82ffa75cb4621a7fb1211c10f047d02e` (`0.2.0`, unreleased) | Copy/adapt reviewed client-side code; do not depend on it unchanged |
 
 `quinn-boring`'s published `0.1.0` is too old, while its current source uses

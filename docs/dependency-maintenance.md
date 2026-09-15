@@ -26,12 +26,12 @@ open review work; they do not silently rewrite a wire profile or vendor tree.
 
 The current `btls`, `http2`, and H3 copies follow this contract. The H3 source
 is staged groundwork: its disposable probe checksum-binds an exact Hyperium
-revision, reapplies the ordered-SETTINGS patch, and runs only the focused H3
-and `h3-quinn` gates. It deliberately does not select the fork in the root
-workspace. `vendor/h3/PHANTOM.md` blocks runtime selection until the dynamic
-QPACK and WebTransport enforcement gaps recorded there are resolved. Quinn
-remains stock unless a retained packet differential proves that its provider
-and socket seams cannot express a required behavior.
+revision, reapplies the ordered-SETTINGS and QPACK-codec patches, and runs only
+the focused H3 and `h3-quinn` gates. It deliberately does not select the fork
+in the root workspace. `vendor/h3/PHANTOM.md` blocks runtime selection until
+the dynamic QPACK and WebTransport enforcement gaps recorded there are
+resolved. Quinn remains stock unless a retained packet differential proves
+that its provider and socket seams cannot express a required behavior.
 
 ## Cross-platform gate
 
@@ -48,6 +48,14 @@ targets. The pinned `btls` revision cannot rewrite its archive consistently on
 Apple and Windows, so those targets intentionally use the unprefixed build.
 This platform choice is declared in each direct BoringSSL consumer and exercised
 by the matrix; it is not selected at runtime.
+
+Until the native build can prefix Mach-O and COFF symbols, Apple and Windows
+builds require one OpenSSL/BoringSSL lineage in the final process. Publishing
+bindings or embedding Phantom beside a second provider is blocked on a native
+prefix implementation plus a link test containing both providers. The platform
+matrix checks native prerequisites, debug workspace tests, a release-mode QUIC
+crypto link, and focused MSRV compilation; a configured workflow is not treated
+as a successful platform run until its remote job is green.
 
 GitHub Actions are pinned by commit, jobs have finite timeouts and read-only
 repository permissions, and cross-platform jobs do not repeat Linux-only lint

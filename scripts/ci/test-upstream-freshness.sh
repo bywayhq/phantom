@@ -518,6 +518,8 @@ h3_source_root="$test_root/h3-source"
 mkdir -p "$h3_source_root"
 cp -R vendor/h3 "$h3_source_root/h3-$h3_revision"
 git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/qpack-codec.patch"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
   "$repo_root/vendor/h3/patches/ordered-settings.patch"
 rm -rf "$h3_source_root/h3-$h3_revision/patches"
 rm "$h3_source_root/h3-$h3_revision/PHANTOM.md"
@@ -536,6 +538,20 @@ rm "$h3_drift_root/h3-$h3_revision/h3/src/proto/frame.rs.bak"
 h3_drift_archive="$test_root/h3-drift-$h3_revision.tar.gz"
 tar -czf "$h3_drift_archive" -C "$h3_drift_root" "h3-$h3_revision"
 h3_drift_checksum=$(shasum -a 256 "$h3_drift_archive" | awk '{print $1}')
+
+h3_qpack_drift_root="$test_root/h3-qpack-drift-source"
+mkdir -p "$h3_qpack_drift_root"
+cp -R "$h3_source_root/h3-$h3_revision" \
+  "$h3_qpack_drift_root/h3-$h3_revision"
+sed -i.bak \
+  's/track_blocks: HashMap/drift_track_blocks: HashMap/' \
+  "$h3_qpack_drift_root/h3-$h3_revision/h3/src/qpack/dynamic.rs"
+rm "$h3_qpack_drift_root/h3-$h3_revision/h3/src/qpack/dynamic.rs.bak"
+h3_qpack_drift_archive="$test_root/h3-qpack-drift-$h3_revision.tar.gz"
+tar -czf "$h3_qpack_drift_archive" -C "$h3_qpack_drift_root" \
+  "h3-$h3_revision"
+h3_qpack_drift_checksum=$(shasum -a 256 "$h3_qpack_drift_archive" \
+  | awk '{print $1}')
 
 h3_checkout="$test_root/h3-checkout"
 mkdir -p "$h3_checkout/scripts/ci" "$h3_checkout/vendor"
@@ -612,6 +628,24 @@ grep -F -q 'ordered SETTINGS patch does not apply' \
 [[ -z $(git -C "$h3_checkout" status --porcelain) ]]
 [[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
 
+if (
+  cd "$h3_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$h3_tmp" \
+    MOCK_H3_ARCHIVE="$h3_qpack_drift_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh h3 "$h3_revision" \
+      "$h3_qpack_drift_checksum"
+) >"$test_root/h3-qpack-drift.stdout" \
+  2>"$test_root/h3-qpack-drift.stderr"; then
+  echo "QPACK-drifted h3 probe unexpectedly accepted the canonical patches" >&2
+  exit 1
+fi
+grep -F -q 'QPACK codec patch does not apply' \
+  "$test_root/h3-qpack-drift.stderr"
+[[ -z $(git -C "$h3_checkout" status --porcelain) ]]
+[[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
+
 h3_command_log="$test_root/h3-commands.log"
 (
   cd "$h3_checkout"
@@ -632,6 +666,12 @@ grep -F -x -q \
   'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests' \
   "$h3_command_log"
 grep -F -x -q \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::' \
+  "$h3_command_log"
+grep -F -x -q \
+  'cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 --lib --all-features -- -D warnings' \
+  "$h3_command_log"
+grep -F -x -q \
   'cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn --all-features' \
   "$h3_command_log"
 if grep -F -q 'cargo tree -i h3' "$h3_command_log" \
@@ -639,6 +679,10 @@ if grep -F -q 'cargo tree -i h3' "$h3_command_log" \
   echo "unselected h3 probe unexpectedly ran root workspace gates" >&2
   exit 1
 fi
+git -C "$h3_checkout/vendor/h3" apply --reverse --check \
+  patches/qpack-codec.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  patches/qpack-codec.patch
 git -C "$h3_checkout/vendor/h3" apply --reverse --check \
   patches/ordered-settings.patch
 grep -F -q 'h3_latest: ${{ steps.freshness.outputs.h3_latest }}' \

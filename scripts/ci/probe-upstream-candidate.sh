@@ -256,8 +256,9 @@ case "$dependency" in
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid h3 revision '$candidate'"
     [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid h3 archive checksum"
     [[ -f vendor/h3/PHANTOM.md \
-      && -f vendor/h3/patches/ordered-settings.patch ]] \
-      || die "vendored h3 provenance and canonical patch are required"
+      && -f vendor/h3/patches/ordered-settings.patch \
+      && -f vendor/h3/patches/qpack-codec.patch ]] \
+      || die "vendored h3 provenance and canonical patches are required"
 
     probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-h3-candidate.XXXXXX")
     archive="$probe_staging/h3-$candidate.tar.gz"
@@ -271,15 +272,20 @@ case "$dependency" in
       && -f "$candidate_dir/h3-quinn/Cargo.toml" ]] \
       || die "h3 candidate archive has an unexpected layout"
 
-    patch_file="$repo_root/vendor/h3/patches/ordered-settings.patch"
-    if ! git -C "$candidate_dir" apply --check "$patch_file"; then
+    settings_patch="$repo_root/vendor/h3/patches/ordered-settings.patch"
+    qpack_patch="$repo_root/vendor/h3/patches/qpack-codec.patch"
+    if ! git -C "$candidate_dir" apply --check "$settings_patch"; then
       die "ordered SETTINGS patch does not apply to h3 candidate $candidate"
     fi
-    git -C "$candidate_dir" apply "$patch_file"
+    git -C "$candidate_dir" apply "$settings_patch"
+    if ! git -C "$candidate_dir" apply --check "$qpack_patch"; then
+      die "QPACK codec patch does not apply to h3 candidate $candidate"
+    fi
+    git -C "$candidate_dir" apply "$qpack_patch"
 
     cp vendor/h3/PHANTOM.md "$candidate_dir/PHANTOM.md"
     mkdir -p "$candidate_dir/patches"
-    cp "$patch_file" "$candidate_dir/patches/ordered-settings.patch"
+    cp "$settings_patch" "$qpack_patch" "$candidate_dir/patches/"
     mv vendor/h3 "$probe_staging/h3.previous"
     mv "$candidate_dir" vendor/h3
 
@@ -288,6 +294,9 @@ case "$dependency" in
       client::builder::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
       proto::frame::tests
+    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::
+    cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 \
+      --lib --all-features -- -D warnings
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn \
       --all-features
 

@@ -30,6 +30,12 @@ jobs:
       - name: Install project toolchain
         run: rustc --version
 
+      - name: Check native build prerequisites
+        run: |
+          for tool in git cmake clang c++ nm objcopy; do
+            command -v "$tool"
+          done
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -50,7 +56,7 @@ jobs:
   platform:
     name: Platform (${{ matrix.name }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -68,8 +74,46 @@ jobs:
       - name: Install project toolchain
         run: rustc --version
 
+      - name: Check native build prerequisites on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          for tool in git cmake clang c++ xcrun; do
+            command -v "$tool"
+          done
+          xcrun --find clang
+
+      - name: Check native build prerequisites on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          "git", "cmake", "clang" | ForEach-Object {
+            Get-Command $_ -ErrorAction Stop | Select-Object -ExpandProperty Source
+          }
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+            throw "Visual Studio installer discovery tool was not found"
+          }
+          $installation = & $vswhere -latest `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          if (-not $installation) {
+            throw "Visual C++ build tools were not found"
+          }
+          $installation
+
       - name: Test workspace
         run: cargo test --workspace --all-targets --all-features --locked
+
+      - name: Test native QUIC crypto release link
+        run: cargo test --release -p phantom-quic-btls --lib --locked
+
+      - name: Install minimum supported Rust
+        run: rustup toolchain install 1.85.0 --profile minimal
+
+      - name: Check native clients on minimum supported Rust
+        run: cargo +1.85.0 check -p phantom-net -p phantom-quic-btls --all-targets --locked
 
   msrv:
     name: MSRV
