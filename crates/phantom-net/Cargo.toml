@@ -1,0 +1,21 @@
+[package]
+name = "phantom-net"
+description = "Protocol transports for Phantom"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+bytes = "1.11.1"
+http = "1.4.0"
+http-body = "1.0.1"
+http-body-util = "0.1.3"
+tokio = { version = "1.53.1", features = ["rt"] }
+wreq-proto = "=0.2.5"
+
+[dev-dependencies]
+tokio = { version = "1.53.1", features = ["io-util", "macros", "rt", "sync", "time"] }
+
+[lints]
+workspace = true

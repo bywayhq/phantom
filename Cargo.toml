@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/phantom",
+    "crates/phantom-net",
     "crates/phantom-profile",
     "crates/phantom-testkit",
 ]
