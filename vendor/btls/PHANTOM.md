@@ -12,7 +12,7 @@ the exact BoringSSL submodule revision while applying the native ECH patch.
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
 - Reviewed dependency fork: <https://github.com/0xARYA/btls>
-- Reviewed dependency commit: `19ea8507826e519cb8a72ee7e9d0d1f159cce574`
+- Reviewed dependency commit: `816d064699a399f8e670412ac0224486b53da581`
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
 
@@ -39,7 +39,8 @@ The patches are additive:
 - `src/ssl/test/alps.rs` proves absent, negotiated-empty, and nonempty
   bidirectional values over TLS 1.3 with ALPN `h2`.
 - `SslRef::set_ech_grease_payload_length` exposes the fork's checked native
-  setter without enabling ECH GREASE implicitly.
+  setter without enabling ECH GREASE implicitly. The API and its tests are
+  excluded from FIPS builds because that build does not apply the native patch.
 - `src/ssl/test/ech.rs` proves 239 payload bytes produce a 281-byte extension
   body, the unset path retains BoringSSL's allowed randomized sizes, and an
   empty or oversized payload is rejected with a populated error stack.

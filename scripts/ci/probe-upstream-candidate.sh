@@ -144,7 +144,7 @@ case "$dependency" in
     candidate_repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
     candidate_cargo_repository=${candidate_repository%.git}
     btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
-    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-19ea8507826e519cb8a72ee7e9d0d1f159cce574}
+    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-816d064699a399f8e670412ac0224486b53da581}
     [[ "$btls_sys_revision" =~ ^[0-9a-f]{40}$ ]] \
       || die "PHANTOM_BTLS_SYS_REVISION must be an exact git revision"
 

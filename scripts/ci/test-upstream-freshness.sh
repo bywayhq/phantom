@@ -36,6 +36,25 @@ replace_fixture_line() {
   rm "$file.bak"
 }
 
+assert_non_fips_item() {
+  local file=$1 item=$2
+  awk -v item="$item" '
+    {
+      line = $0
+      sub(/^[[:space:]]*/, "", line)
+      sub(/[[:space:]]*$/, "", line)
+    }
+    line == "#[cfg(not(feature = \"fips\"))]" { guarded = 1; next }
+    guarded && line ~ /^#\[/ { next }
+    line == item { found = 1; if (!guarded) { invalid = 1 } }
+    line != "" { guarded = 0 }
+    END { exit !(found && !invalid) }
+  ' "$file" || {
+    echo "item is not excluded from FIPS selection in $file: $item" >&2
+    exit 1
+  }
+}
+
 make_btls_candidate() {
   local destination=$1 drift=${2:-none}
   mkdir -p "$destination"
@@ -69,7 +88,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "816d064699a399f8e670412ac0224486b53da581" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
@@ -136,11 +155,25 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
-grep -F -q 'rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574"' \
+grep -F -q 'rev = "816d064699a399f8e670412ac0224486b53da581"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_ech_grease_payload_length' \
   "$staged_wrapper/src/ssl/mod.rs"
+assert_non_fips_item "$staged_wrapper/src/ssl/mod.rs" \
+  'pub fn set_ech_grease_payload_length('
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'use std::sync::{Arc, Mutex};'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'use crate::ssl::ExtensionType;'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn ech_grease_payload_length() {'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn ech_grease_default_payload_length_remains_randomized() {'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn ech_grease_payload_must_be_nonempty_and_fit_the_extension_body() {'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn capture_ech_grease_extension(payload_length: Option<usize>) -> Vec<u8> {'
 [[ ! -L "$staged_wrapper/README.md" ]]
 [[ $(git -C "$candidate_repo" status --porcelain) == "$candidate_status_before" ]]
 [[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
@@ -301,7 +334,7 @@ mkdir -p "$darwin_tmp"
   "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
 grep -F -q "rev = \"$candidate_revision\"" \
   "$probe_checkout/Cargo.toml"
-grep -F -q 'rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574"' \
+grep -F -q 'rev = "816d064699a399f8e670412ac0224486b53da581"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \

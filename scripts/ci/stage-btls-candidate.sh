@@ -6,7 +6,7 @@ candidate=${1:-}
 destination=${2:-}
 repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
 btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
-btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-19ea8507826e519cb8a72ee7e9d0d1f159cce574}
+btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-816d064699a399f8e670412ac0224486b53da581}
 
 die() {
   echo "stage-btls-candidate: $*" >&2

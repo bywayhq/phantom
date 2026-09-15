@@ -14,8 +14,8 @@ rust-version = "1.85"
 version = "0.1.0"
 
 [workspace.dependencies]
-btls = { git = "https://github.com/0xARYA/btls", rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574", default-features = false }
-tokio-btls = { git = "https://github.com/0xARYA/btls", rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574", default-features = false }
+btls = { git = "https://github.com/0xARYA/btls", rev = "816d064699a399f8e670412ac0224486b53da581", default-features = false }
+tokio-btls = { git = "https://github.com/0xARYA/btls", rev = "816d064699a399f8e670412ac0224486b53da581", default-features = false }
 
 [patch.crates-io]
 http2 = { path = "vendor/http2" }

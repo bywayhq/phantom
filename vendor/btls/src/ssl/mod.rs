@@ -4156,6 +4156,7 @@ impl SslRef {
     /// This does not enable ECH GREASE. Without calling this method, BoringSSL
     /// retains its default randomized payload-length policy. The payload must
     /// be non-empty and leave room for the ECHClientHelloOuter framing.
+    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_ech_grease_payload_length)]
     pub fn set_ech_grease_payload_length(
         &mut self,
