@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 mod alps;
-use body::DriverTask;
+use driver::DriverTask;
 use request::prepare_get;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
@@ -469,6 +469,7 @@ fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2
 }
 
 mod body;
+mod driver;
 mod request;
 mod shutdown_timer;
 mod tls;

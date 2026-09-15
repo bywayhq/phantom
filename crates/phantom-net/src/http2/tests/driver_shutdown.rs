@@ -22,7 +22,7 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use super::{TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, target};
-use crate::http2::{body::DRIVER_SHUTDOWN_GRACE, send_get, shutdown_timer};
+use crate::http2::{driver::DRIVER_SHUTDOWN_GRACE, send_get, shutdown_timer};
 use crate::tracing_test::OutcomeSubscriber;
 
 #[test]

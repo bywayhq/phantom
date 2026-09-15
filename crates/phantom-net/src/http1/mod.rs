@@ -18,7 +18,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 use wreq_proto::conn::http1;
 
-use body::DriverTask;
+use driver::DriverTask;
 use request::PreparedGet;
 
 #[cfg(test)]
@@ -271,6 +271,7 @@ impl Drop for OperationOutcome {
 mod tests;
 
 mod body;
+mod driver;
 mod request;
 mod tls;
 
