@@ -1,4 +1,11 @@
 //! Captures one bounded browser HTTP/2 startup sequence over loopback TLS.
+//!
+//! This vendor-neutral command targets the measured startup shape used by the
+//! retained fixtures: initial SETTINGS followed by a connection WINDOW_UPDATE.
+//! It times out when that connection WINDOW_UPDATE is absent.
+
+#[path = "capture_http2_tls/fixture.rs"]
+mod fixture;
 
 use std::{
     env,
@@ -14,9 +21,8 @@ use btls::{
     ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslMethod, SslVersion, select_next_proto},
     x509::X509,
 };
-use phantom_testkit::http2::{
-    CaptureCompletion, CaptureLimits, ClientFrameCapture, Setting, capture_client_frames,
-};
+use fixture::{Fixture, FrameSummary, hex, write_fixture};
+use phantom_testkit::http2::{CaptureCompletion, CaptureLimits, capture_client_frames};
 use rcgen::{CertificateParams, ExtendedKeyUsagePurpose, KeyPair, KeyUsagePurpose};
 use tokio::{net::TcpListener, time::timeout_at};
 use tokio_btls::SslStream;
@@ -44,7 +50,9 @@ async fn main() -> CaptureResult<()> {
     let listen_address = listener.local_addr()?;
     require_loopback(listen_address, "listener")?;
 
-    eprintln!("listening on {listen_address} for one browser HTTP/2 connection");
+    eprintln!(
+        "listening on {listen_address}; capture requires initial SETTINGS and a connection WINDOW_UPDATE"
+    );
     let accept_deadline = tokio::time::Instant::now() + ACCEPT_TIMEOUT;
     let (tcp, peer_address) = timeout_at(accept_deadline, listener.accept())
         .await
@@ -87,6 +95,7 @@ async fn main() -> CaptureResult<()> {
     let peer_alps = tls.ssl().peer_application_settings().map(ToOwned::to_owned);
 
     let frame_deadline = tokio::time::Instant::now() + FRAME_TIMEOUT;
+    // Retained startup fixtures deliberately require this measured frame shape.
     let frames = capture_client_frames(
         &mut tls,
         frame_deadline,
@@ -129,7 +138,8 @@ impl Arguments {
     fn parse(mut values: impl Iterator<Item = String>) -> CaptureResult<Self> {
         let usage = concat!(
             "usage: capture_http2_tls <loopback-address:port> <browser> ",
-            "<browser-version> <operating-system> <launch-mode> <launch-arguments>"
+            "<browser-version> <operating-system> <launch-mode> <launch-arguments>\n",
+            "capture requires initial SETTINGS and a connection WINDOW_UPDATE"
         );
         let listen_address = values.next().ok_or(usage)?.parse()?;
         let browser = values.next().ok_or(usage)?;
@@ -140,11 +150,11 @@ impl Arguments {
         if values.next().is_some() {
             return Err(usage.into());
         }
-        validate_metadata("browser", &browser)?;
-        validate_metadata("browser-version", &browser_version)?;
-        validate_metadata("operating-system", &operating_system)?;
-        validate_metadata("launch-mode", &launch_mode)?;
-        validate_metadata("launch-arguments", &launch_arguments)?;
+        validate_required_metadata("browser", &browser)?;
+        validate_required_metadata("browser-version", &browser_version)?;
+        validate_required_metadata("operating-system", &operating_system)?;
+        validate_required_metadata("launch-mode", &launch_mode)?;
+        validate_single_line("launch-arguments", &launch_arguments)?;
         Ok(Self {
             listen_address,
             browser,
@@ -156,9 +166,17 @@ impl Arguments {
     }
 }
 
-fn validate_metadata(name: &str, value: &str) -> CaptureResult<()> {
-    if value.is_empty() || value.contains(['\r', '\n']) {
+fn validate_required_metadata(name: &str, value: &str) -> CaptureResult<()> {
+    validate_single_line(name, value)?;
+    if value.is_empty() {
         return Err(format!("{name} must be nonempty and fit on one fixture line").into());
+    }
+    Ok(())
+}
+
+fn validate_single_line(name: &str, value: &str) -> CaptureResult<()> {
+    if value.contains(['\r', '\n']) {
+        return Err(format!("{name} must fit on one fixture line").into());
     }
     Ok(())
 }
@@ -202,139 +220,12 @@ fn invalid_data(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.into())
 }
 
-struct FrameSummary {
-    initial_settings: String,
-    connection_window_update: u32,
-}
-
-impl FrameSummary {
-    fn from_capture(capture: &ClientFrameCapture) -> CaptureResult<Self> {
-        let first = capture
-            .frames()
-            .first()
-            .ok_or_else(|| invalid_data("HTTP/2 capture contained no frames"))?;
-        let settings = first
-            .settings()?
-            .ok_or_else(|| invalid_data("HTTP/2 capture did not begin with SETTINGS"))?;
-        let initial_settings = settings
-            .entries()
-            .iter()
-            .map(format_setting)
-            .collect::<Vec<_>>()
-            .join(",");
-
-        let mut connection_window_update = None;
-        for frame in capture.frames() {
-            if frame.header().stream_id() != 0 {
-                continue;
-            }
-            if let Some(update) = frame.window_update()? {
-                connection_window_update = Some(update.increment());
-                break;
-            }
-        }
-        let connection_window_update = connection_window_update
-            .ok_or_else(|| invalid_data("HTTP/2 capture omitted a connection WINDOW_UPDATE"))?;
-        Ok(Self {
-            initial_settings,
-            connection_window_update,
-        })
-    }
-}
-
-fn format_setting(setting: &Setting) -> String {
-    format!("{:#06x}:{}", setting.identifier(), setting.value())
-}
-
-struct Fixture<'a> {
-    browser: &'a str,
-    browser_version: &'a str,
-    operating_system: &'a str,
-    launch_mode: &'a str,
-    launch_arguments: &'a str,
-    captured_at_unix: u64,
-    listen_address: SocketAddr,
-    selected_alpn: &'a [u8],
-    peer_alps: Option<&'a [u8]>,
-    frames: &'a ClientFrameCapture,
-    summary: FrameSummary,
-}
-
-fn write_fixture(output: &mut impl io::Write, fixture: &Fixture<'_>) -> io::Result<()> {
-    let (alps_state, alps_bytes) = alps_fields(fixture.peer_alps);
-
-    writeln!(output, "format=phantom-http2-tls-v2")?;
-    writeln!(output, "captured_at_unix={}", fixture.captured_at_unix)?;
-    writeln!(output, "browser={}", fixture.browser)?;
-    writeln!(output, "browser_version={}", fixture.browser_version)?;
-    writeln!(output, "operating_system={}", fixture.operating_system)?;
-    writeln!(output, "hostname={HOSTNAME}")?;
-    writeln!(output, "listen_address={}", fixture.listen_address)?;
-    writeln!(output, "listener_loopback=true")?;
-    writeln!(output, "peer_loopback=true")?;
-    writeln!(output, "connection_limit=1")?;
-    writeln!(output, "launch_mode={}", fixture.launch_mode)?;
-    writeln!(output, "launch_arguments={}", fixture.launch_arguments)?;
-    writeln!(output, "accept_timeout_ms={}", ACCEPT_TIMEOUT.as_millis())?;
-    writeln!(
-        output,
-        "handshake_timeout_ms={}",
-        HANDSHAKE_TIMEOUT.as_millis()
-    )?;
-    writeln!(output, "frame_timeout_ms={}", FRAME_TIMEOUT.as_millis())?;
-    writeln!(output, "max_frame_payload_bytes={FRAME_MAX_PAYLOAD_BYTES}")?;
-    writeln!(output, "max_total_frame_bytes={FRAME_MAX_TOTAL_BYTES}")?;
-    writeln!(output, "max_frames={FRAME_MAX_COUNT}")?;
-    writeln!(output, "selected_alpn_hex={}", hex(fixture.selected_alpn))?;
-    writeln!(output, "peer_alps_state={alps_state}")?;
-    writeln!(output, "peer_alps_length={}", alps_bytes.len())?;
-    writeln!(output, "peer_alps_hex={}", hex(alps_bytes))?;
-    writeln!(
-        output,
-        "preface_hex={}",
-        hex(fixture.frames.preface_bytes())
-    )?;
-    writeln!(output, "frame_count={}", fixture.frames.frames().len())?;
-    for (index, frame) in fixture.frames.frames().iter().enumerate() {
-        writeln!(output, "frame_{index}_hex={}", hex(frame.wire_bytes()))?;
-    }
-    writeln!(
-        output,
-        "initial_settings={}",
-        fixture.summary.initial_settings
-    )?;
-    writeln!(
-        output,
-        "connection_window_update={}",
-        fixture.summary.connection_window_update
-    )
-}
-
-fn alps_fields(settings: Option<&[u8]>) -> (&'static str, &[u8]) {
-    match settings {
-        None => ("absent", &[][..]),
-        Some([]) => ("empty", &[][..]),
-        Some(bytes) => ("nonempty", bytes),
-    }
-}
-
-fn hex(bytes: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-
-    let mut output = String::with_capacity(bytes.len().saturating_mul(2));
-    for &byte in bytes {
-        output.push(char::from(DIGITS[usize::from(byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(byte & 0x0f)]));
-    }
-    output
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Arguments, H2, alps_fields, hex};
+    use super::Arguments;
 
     #[test]
-    fn arguments_require_explicit_single_line_metadata() {
+    fn arguments_require_single_line_metadata_and_allow_no_launch_arguments() {
         let valid = Arguments::parse(
             [
                 "127.0.0.1:9443",
@@ -348,6 +239,20 @@ mod tests {
             .map(str::to_owned),
         );
         assert!(valid.is_ok());
+
+        let no_launch_arguments = Arguments::parse(
+            [
+                "127.0.0.1:9443",
+                "Example Browser",
+                "1.2.3",
+                "Example OS",
+                "application",
+                "",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        );
+        assert!(no_launch_arguments.is_ok());
 
         for values in [
             vec![
@@ -366,24 +271,16 @@ mod tests {
                 "command-line",
                 "--isolated-profile=<temporary-directory>",
             ],
+            vec![
+                "127.0.0.1:9443",
+                "Example Browser",
+                "1.2.3",
+                "Example OS",
+                "application",
+                "argument\rbreak",
+            ],
         ] {
             assert!(Arguments::parse(values.into_iter().map(str::to_owned)).is_err());
         }
-    }
-
-    #[test]
-    fn byte_values_use_unambiguous_lowercase_hex() {
-        assert_eq!(hex(H2), "6832");
-        assert_eq!(hex(&[0, 0xaf, 0xff]), "00afff");
-    }
-
-    #[test]
-    fn alps_metadata_distinguishes_absent_empty_and_nonempty() {
-        assert_eq!(alps_fields(None), ("absent", &[][..]));
-        assert_eq!(alps_fields(Some(&[])), ("empty", &[][..]));
-        assert_eq!(
-            alps_fields(Some(b"settings")),
-            ("nonempty", &b"settings"[..])
-        );
     }
 }

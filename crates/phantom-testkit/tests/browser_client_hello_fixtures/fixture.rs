@@ -12,9 +12,8 @@ const HEADER_FIELDS: &[&str] = &[
     "launch_arguments",
     "record_count",
 ];
-const SUMMARY_FIELDS: &[&str] = &[
-    "legacy_version",
-    "cipher_suites",
+const REQUIRED_SUMMARY_FIELDS: &[&str] = &["legacy_version", "cipher_suites"];
+const OPTIONAL_SUMMARY_FIELDS: &[&str] = &[
     "extension_types",
     "supported_groups",
     "ec_point_formats",
@@ -36,7 +35,10 @@ impl<'a> Fixture<'a> {
         let mut fields = BTreeMap::new();
         for &field in HEADER_FIELDS {
             let value = lines.value(field)?;
-            require_nonempty(field, value)?;
+            require_single_line(field, value)?;
+            if field != "launch_arguments" {
+                require_nonempty(field, value)?;
+            }
             fields.insert(field, value);
         }
         if fields["format"] != "phantom-client-hello-v2" {
@@ -65,9 +67,15 @@ impl<'a> Fixture<'a> {
             require_nonempty(&field, value)?;
             records.push(parse_hex(value, &field)?);
         }
-        for &field in SUMMARY_FIELDS {
+        for &field in REQUIRED_SUMMARY_FIELDS {
             let value = lines.value(field)?;
+            require_single_line(field, value)?;
             require_nonempty(field, value)?;
+            fields.insert(field, value);
+        }
+        for &field in OPTIONAL_SUMMARY_FIELDS {
+            let value = lines.value(field)?;
+            require_single_line(field, value)?;
             fields.insert(field, value);
         }
         lines.finish()?;
@@ -129,6 +137,15 @@ impl<'a> FixtureLines<'a> {
 fn require_nonempty(field: &str, value: &str) -> Result<(), io::Error> {
     if value.is_empty() {
         return Err(invalid_fixture(format!("empty fixture field {field}")));
+    }
+    Ok(())
+}
+
+fn require_single_line(field: &str, value: &str) -> Result<(), io::Error> {
+    if value.contains(['\r', '\n']) {
+        return Err(invalid_fixture(format!(
+            "fixture field {field} must fit on one line"
+        )));
     }
     Ok(())
 }
@@ -197,7 +214,7 @@ pub(super) fn invalid_fixture(message: impl Into<String>) -> io::Error {
 
 #[cfg(test)]
 mod tests {
-    use super::Fixture;
+    use super::{Fixture, OPTIONAL_SUMMARY_FIELDS};
 
     const VALID: &str = crate::FIXTURE_TEXT;
 
@@ -225,6 +242,25 @@ mod tests {
     }
 
     #[test]
+    fn allows_empty_launch_arguments_and_optional_semantic_vectors() {
+        let without_launch_arguments = replace_value(VALID, "launch_arguments", "");
+        assert!(Fixture::parse(&without_launch_arguments).is_ok());
+
+        for &field in OPTIONAL_SUMMARY_FIELDS {
+            let empty = replace_value(VALID, field, "");
+            assert!(Fixture::parse(&empty).is_ok(), "field {field} was rejected");
+        }
+    }
+
+    #[test]
+    fn rejects_multiline_launch_arguments() {
+        for separator in ['\r', '\n'] {
+            let multiline = replace_value(VALID, "launch_arguments", &format!("a{separator}b"));
+            assert!(Fixture::parse(&multiline).is_err());
+        }
+    }
+
+    #[test]
     fn rejects_unknown_fields_and_record_count_mismatch() {
         let unknown = format!("{VALID}unknown=value\n");
         assert!(Fixture::parse(&unknown).is_err());
@@ -240,5 +276,17 @@ mod tests {
 
         let malformed_hex = VALID.replacen("record_0_hex=16", "record_0_hex=1z", 1);
         assert!(Fixture::parse(&malformed_hex).is_err());
+    }
+
+    fn replace_value(input: &str, field: &str, replacement: &str) -> String {
+        let prefix = format!("{field}=");
+        input
+            .lines()
+            .map(|line| {
+                line.strip_prefix(&prefix)
+                    .map_or_else(|| line.to_owned(), |_| format!("{prefix}{replacement}"))
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }

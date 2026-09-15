@@ -33,7 +33,9 @@ in lowercase hexadecimal, the semantic decoder output, and the browser,
 operating system, hostname, listener, and browser-neutral launch metadata. The
 version 2 schema stores fields in a fixed order and records the launch as
 `launch_mode` plus a single-line `launch_arguments` value, so the same schema
-can describe command-line and application-driven captures.
+can describe command-line and application-driven captures. The
+`launch_arguments` field remains present but may be empty when the browser was
+launched without arguments, as with a normal Safari application launch.
 
 The recorded environment was Google Chrome `152.0.7977.83` on macOS `15.5`
 (`24F74`). Confirm those values before comparing a new capture:
@@ -93,8 +95,9 @@ after the fixture prints, then remove only the temporary profile directory named
 by `capture_profile_dir`.
 
 When retaining a new fixture, copy the complete example output without editing
-random or cryptographic bytes. Record exact launch arguments, using a clear
-placeholder only for an ephemeral profile path. The fixture regression strictly
+random or cryptographic bytes. Record exact launch arguments or an empty value
+when there were none, using a clear placeholder only for an ephemeral profile
+path. The fixture regression strictly
 parses every key in order and requires every metadata, record, and semantic
 field. It regenerates the stored semantic summary from the raw record, including
 the controlled SNI hostname.
@@ -147,6 +150,14 @@ and HTTP/2 frame capture separate absolute deadlines. Frame payload, total byte,
 and frame-count limits are included in the output. Private-key material is never
 printed.
 
+The command is browser-vendor-neutral, but its completion shape is deliberately
+narrow: it requires initial SETTINGS and then a connection WINDOW_UPDATE. It
+times out if that connection WINDOW_UPDATE is absent. This exactly matches the
+measured startup shape retained here; it is not a general HTTP/2 frame capture
+mode. A future browser observation with a different startup shape should add an
+explicitly designed capture mode and schema rather than weakening or fabricating
+this evidence.
+
 In a second terminal, start Chrome with an isolated temporary profile:
 
 ```sh
@@ -176,7 +187,8 @@ in `capture_profile_dir`.
 
 The version 2 fixture output is ordered `key=value` text. Browser identity,
 version, operating system, launch mode, and launch arguments are separate
-fields. Binary values are lowercase hexadecimal. Its browser-fixture regression
+fields; `launch_arguments` may be empty but must remain a single line. Binary
+values are lowercase hexadecimal. Its browser-fixture regression
 reconstructs the exact connection preface and frame bytes, reparses them through
 `phantom-testkit`, and verifies the ordered SETTINGS and connection
 WINDOW_UPDATE summary. A second bounded regression sends a fresh request

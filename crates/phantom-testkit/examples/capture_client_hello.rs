@@ -92,12 +92,10 @@ impl Arguments {
             ("browser-version", &browser_version),
             ("operating-system", &operating_system),
             ("launch-mode", &launch_mode),
-            ("launch-arguments", &launch_arguments),
         ] {
-            if value.is_empty() || value.contains(['\r', '\n']) {
-                return Err(format!("{name} must be nonempty and fit on one fixture line").into());
-            }
+            validate_required_metadata(name, value)?;
         }
+        validate_single_line("launch-arguments", &launch_arguments)?;
         Ok(Self {
             listen_address,
             browser,
@@ -107,6 +105,21 @@ impl Arguments {
             launch_arguments,
         })
     }
+}
+
+fn validate_required_metadata(name: &str, value: &str) -> Result<(), Box<dyn Error>> {
+    validate_single_line(name, value)?;
+    if value.is_empty() {
+        return Err(format!("{name} must be nonempty").into());
+    }
+    Ok(())
+}
+
+fn validate_single_line(name: &str, value: &str) -> Result<(), Box<dyn Error>> {
+    if value.contains(['\r', '\n']) {
+        return Err(format!("{name} must fit on one fixture line").into());
+    }
+    Ok(())
 }
 
 fn write_summary(output: &mut impl io::Write, summary: &ClientHelloSummary) -> io::Result<()> {
@@ -185,4 +198,35 @@ fn hex(bytes: &[u8]) -> String {
         output.push(char::from(DIGITS[usize::from(byte & 0x0f)]));
     }
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Arguments;
+
+    fn arguments(launch_arguments: &str) -> impl Iterator<Item = String> {
+        [
+            "127.0.0.1:9443",
+            "Example Browser",
+            "1.2.3",
+            "Example OS",
+            "application",
+            launch_arguments,
+        ]
+        .into_iter()
+        .map(str::to_owned)
+    }
+
+    #[test]
+    fn launch_arguments_may_be_empty() {
+        let parsed = Arguments::parse(arguments(""));
+        assert!(parsed.is_ok());
+    }
+
+    #[test]
+    fn launch_arguments_must_fit_on_one_line() {
+        for value in ["argument\rbreak", "argument\nbreak"] {
+            assert!(Arguments::parse(arguments(value)).is_err());
+        }
+    }
 }

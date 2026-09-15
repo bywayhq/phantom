@@ -113,6 +113,33 @@ fn fixture_schema_rejects_unknown_duplicate_misordered_missing_and_misnumbered_k
     }
 }
 
+#[test]
+fn fixture_schema_allows_no_launch_arguments_but_rejects_multiline_values() {
+    let without_arguments = replace_fixture_value(CHROME_152, "launch_arguments", "");
+    assert!(Fixture::parse(&without_arguments).is_ok());
+
+    for separator in ['\r', '\n'] {
+        let multiline = replace_fixture_value(
+            CHROME_152,
+            "launch_arguments",
+            &format!("first{separator}second"),
+        );
+        assert!(Fixture::parse(&multiline).is_err());
+    }
+}
+
+fn replace_fixture_value(input: &str, field: &str, replacement: &str) -> String {
+    let prefix = format!("{field}=");
+    input
+        .lines()
+        .map(|line| {
+            line.strip_prefix(&prefix)
+                .map_or_else(|| line.to_owned(), |_| format!("{prefix}{replacement}"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn assert_chrome_152_metadata(fixture: &Fixture<'_>) -> TestResult<()> {
     assert_eq!(fixture.browser, "Google Chrome");
     assert_eq!(fixture.browser_version, "152.0.7977.83");

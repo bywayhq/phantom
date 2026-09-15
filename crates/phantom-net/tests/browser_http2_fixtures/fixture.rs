@@ -41,7 +41,7 @@ impl<'a> Fixture<'a> {
         lines.exact("peer_loopback", "true")?;
         lines.exact("connection_limit", "1")?;
         let launch_mode = lines.nonempty("launch_mode")?;
-        let launch_arguments = lines.nonempty("launch_arguments")?;
+        let launch_arguments = lines.single_line("launch_arguments")?;
         lines.exact("accept_timeout_ms", "30000")?;
         lines.exact("handshake_timeout_ms", "10000")?;
         lines.exact("frame_timeout_ms", "10000")?;
@@ -136,9 +136,17 @@ impl<'a> FixtureLines<'a> {
     }
 
     fn nonempty(&mut self, key: &str) -> FixtureResult<&'a str> {
-        let value = self.value(key)?;
+        let value = self.single_line(key)?;
         if value.is_empty() {
             return Err(format!("fixture key {key:?} must be nonempty").into());
+        }
+        Ok(value)
+    }
+
+    fn single_line(&mut self, key: &str) -> FixtureResult<&'a str> {
+        let value = self.value(key)?;
+        if value.contains(['\r', '\n']) {
+            return Err(format!("fixture key {key:?} must fit on one line").into());
         }
         Ok(value)
     }
