@@ -1,0 +1,70 @@
+# Dependency and platform maintenance
+
+Phantom reuses mature protocol engines and carries a patch only when retained
+wire evidence proves that an upstream seam is insufficient. A fork is a small,
+reviewable compatibility delta, not a second upstream project.
+
+## Patch contract
+
+Every patched dependency has one source of truth for each of these items:
+
+1. Exact upstream repository and commit or registry version and checksum.
+2. The reason the stock behavior cannot satisfy a retained differential.
+3. A canonical machine-applicable patch, kept separate from packaging changes.
+4. Focused tests for the changed behavior and proof that stock defaults remain
+   unchanged when Phantom's option is not selected.
+5. A `PHANTOM.md` provenance and refresh procedure beside a vendored source, or
+   equivalent provenance in the dependency fork.
+6. A scheduled freshness report and a disposable candidate probe which fails
+   closed when the patch no longer applies cleanly.
+
+Patches are never applied with fuzzy or rejected hunks. Updating a pin means
+staging pristine upstream source, checking and applying the canonical patch,
+running its focused tests, then running the workspace gates. The reviewed pin
+changes only after that evidence is available. Automated dependency updates may
+open review work; they do not silently rewrite a wire profile or vendor tree.
+
+The current `btls` and `http2` copies follow this contract. The planned H3
+SETTINGS change must use the same structure: exact hyperium revision, one
+default-preserving patch, encoder regressions, and an upstream-drift probe.
+Quinn remains stock unless a retained packet differential proves that its
+provider and socket seams cannot express a required behavior.
+
+## Cross-platform gate
+
+Every pull request and `main` push run:
+
+| Runner | Gate |
+| --- | --- |
+| Linux | formatting, Clippy with warnings denied, all workspace tests, rustdoc warnings denied, patch-tooling regressions, and the declared MSRV |
+| macOS | all workspace targets, features, and tests with the locked dependency graph |
+| Windows | all workspace targets, features, and tests with the locked dependency graph |
+
+The BoringSSL symbol-prefix feature is selected only on non-Apple, non-Windows
+targets. The pinned `btls` revision cannot rewrite its archive consistently on
+Apple and Windows, so those targets intentionally use the unprefixed build.
+This platform choice is declared in each direct BoringSSL consumer and exercised
+by the matrix; it is not selected at runtime.
+
+GitHub Actions are pinned by commit, jobs have finite timeouts and read-only
+repository permissions, and cross-platform jobs do not repeat Linux-only lint
+or documentation work. Additional Rust targets remain best-effort until a CI
+runner and a focused platform test justify adding them to the maintained
+matrix.
+
+## Release check
+
+Before a release or a patched-dependency refresh:
+
+```sh
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-targets --all-features --locked
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
+cargo +1.85.0 check --workspace --all-targets --locked
+scripts/ci/test-upstream-freshness.sh
+```
+
+The scheduled upstream-freshness workflow supplements this gate by testing
+candidate revisions in a disposable checkout. It reports drift for human
+review; it never mutates the source checkout or publishes a replacement pin.

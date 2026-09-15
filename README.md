@@ -34,7 +34,9 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),
 [adversarial testing](docs/adversarial-testing.md),
 [ecosystem lessons](docs/ecosystem-review.md), and
-[performance guide](docs/performance.md).
+[performance guide](docs/performance.md). Dependency forks and the Linux,
+macOS, and Windows gates are described in
+[dependency maintenance](docs/dependency-maintenance.md).
 
 ## Development
 
