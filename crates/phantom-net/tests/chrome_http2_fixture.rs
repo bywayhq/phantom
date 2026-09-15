@@ -2,7 +2,7 @@
 
 use std::{error::Error, io, net::SocketAddr, time::Duration};
 
-use phantom_net::http2::{OriginForm, send_get};
+use phantom_net::http2::{Http2Error, OriginForm, send_get};
 use phantom_profile::chromium::v152_macos_http2;
 use phantom_testkit::http2::{
     CLIENT_CONNECTION_PREFACE, CaptureCompletion, CaptureLimits, capture_client_frames,
@@ -72,12 +72,13 @@ async fn phantom_chrome_startup_matches_retained_browser_frames_exactly() -> Tes
         assert_eq!(actual.wire_bytes(), expected);
     }
 
+    assert!(
+        !transaction.is_finished(),
+        "client completed before the captured peer was closed"
+    );
     drop(server);
     let client_result = timeout(TEST_TIMEOUT, transaction).await??;
-    assert!(
-        client_result.is_err(),
-        "client unexpectedly received an HTTP/2 response"
-    );
+    assert!(matches!(client_result, Err(Http2Error::Protocol(_))));
     Ok(())
 }
 
