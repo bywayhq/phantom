@@ -1,0 +1,29 @@
+[package]
+name = "phantom-quic-btls"
+description = "Private BoringSSL packet cryptography for Phantom QUIC"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+zeroize.workspace = true
+
+# This btls revision skips archive rewriting on Apple/Windows but still
+# rewrites generated link names, causing unresolved build-script symbols.
+[target.'cfg(any(target_vendor = "apple", target_os = "windows"))'.dependencies]
+btls-sys.workspace = true
+
+[target.'cfg(not(any(target_vendor = "apple", target_os = "windows")))'.dependencies]
+btls-sys = { workspace = true, features = ["prefix-symbols"] }
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "allow"
+
+[lints.clippy]
+dbg_macro = "deny"
+expect_used = "warn"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "warn"

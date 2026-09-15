@@ -3,6 +3,7 @@ members = [
     "crates/phantom",
     "crates/phantom-net",
     "crates/phantom-profile",
+    "crates/phantom-quic-btls",
     "crates/phantom-testkit",
 ]
 exclude = ["vendor/btls", "vendor/http2"]
@@ -15,7 +16,9 @@ version = "0.1.0"
 
 [workspace.dependencies]
 btls = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
+btls-sys = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
 tokio-btls = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
+zeroize = "=1.9.0"
 
 [patch.crates-io]
 http2 = { path = "vendor/http2" }

@@ -691,6 +691,14 @@ name = "phantom-profile"
 version = "0.1.0"
 
 [[package]]
+name = "phantom-quic-btls"
+version = "0.1.0"
+dependencies = [
+ "btls-sys",
+ "zeroize",
+]
+
+[[package]]
 name = "phantom-testkit"
 version = "0.1.0"
 dependencies = [
