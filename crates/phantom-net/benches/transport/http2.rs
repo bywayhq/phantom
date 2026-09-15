@@ -7,7 +7,10 @@ use phantom_net::http2::{OriginForm, RequestHeader, send_get};
 use phantom_profile::{Http2Settings, chromium::v152_macos_http2};
 use tokio::runtime::Builder;
 
-use super::{BODY_BYTES, replay_stream::ReplayStream};
+use super::{
+    BODY_BYTES,
+    replay_stream::{ReplayCompletion, ReplayStream},
+};
 
 const FRAME_PAYLOAD_BYTES: usize = 16 * 1024;
 const CONNECTION_PREFACE_BYTES: usize = 24;
@@ -30,8 +33,10 @@ fn response_head(criterion: &mut Criterion) {
     criterion.bench_function("http2/response_head/12_ordered_headers", |bencher| {
         bencher.to_async(&runtime).iter_batched(
             || {
+                let (stream, completion) = replay_after_request(response.clone(), &settings);
                 (
-                    replay_after_request(response.clone(), &settings),
+                    stream,
+                    completion,
                     settings.clone(),
                     target.clone(),
                     headers.clone(),
@@ -53,8 +58,10 @@ fn streaming_body(criterion: &mut Criterion) {
     group.bench_function(BODY_BYTES.to_string(), |bencher| {
         bencher.to_async(&runtime).iter_batched(
             || {
+                let (stream, completion) = replay_after_request(response.clone(), &settings);
                 (
-                    replay_after_request(response.clone(), &settings),
+                    stream,
+                    completion,
                     settings.clone(),
                     target.clone(),
                     Vec::new(),
@@ -68,8 +75,9 @@ fn streaming_body(criterion: &mut Criterion) {
 }
 
 async fn complete_response(
-    (stream, settings, target, headers): (
+    (stream, completion, settings, target, headers): (
         ReplayStream,
+        ReplayCompletion,
         Http2Settings,
         OriginForm,
         Vec<RequestHeader>,
@@ -88,9 +96,7 @@ async fn complete_response(
     };
     assert_eq!(body.len(), expected_body_bytes);
 
-    // Completing the body starts the one-shot connection shutdown task. Give
-    // that already-ready task a turn so iterations do not accumulate drivers.
-    tokio::task::yield_now().await;
+    completion.wait().await;
     black_box(body)
 }
 
@@ -108,7 +114,10 @@ fn runtime() -> tokio::runtime::Runtime {
     }
 }
 
-fn replay_after_request(response: Bytes, settings: &Http2Settings) -> ReplayStream {
+fn replay_after_request(
+    response: Bytes,
+    settings: &Http2Settings,
+) -> (ReplayStream, ReplayCompletion) {
     // Hold the server replay until the write containing the first request byte;
     // each ReplayStream write accepts the complete supplied buffer.
     let initial_settings_bytes =
@@ -117,7 +126,7 @@ fn replay_after_request(response: Bytes, settings: &Http2Settings) -> ReplayStre
         * (FRAME_HEADER_BYTES + WINDOW_UPDATE_PAYLOAD_BYTES);
     let startup_bytes = CONNECTION_PREFACE_BYTES + initial_settings_bytes + connection_window_bytes;
 
-    ReplayStream::after_written_bytes(response, startup_bytes + 1)
+    ReplayStream::with_completion_after_written_bytes(response, startup_bytes + 1)
 }
 
 fn twelve_ordered_headers() -> Vec<RequestHeader> {

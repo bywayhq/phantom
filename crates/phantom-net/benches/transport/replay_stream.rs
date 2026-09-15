@@ -5,29 +5,62 @@ use std::{
 };
 
 use bytes::Bytes;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::{
+    io::{AsyncRead, AsyncWrite, ReadBuf},
+    sync::oneshot,
+};
+
+pub(super) struct ReplayCompletion(oneshot::Receiver<()>);
+
+impl ReplayCompletion {
+    pub(super) async fn wait(self) {
+        if self.0.await.is_err() {
+            panic!("replay stream dropped without reporting driver completion");
+        }
+    }
+}
 
 pub(super) struct ReplayStream {
     response: Bytes,
     read_offset: usize,
     written_bytes: usize,
     response_after_written_bytes: usize,
+    completion: Option<oneshot::Sender<()>>,
 }
 
 impl ReplayStream {
     pub(super) fn new(response: Bytes) -> Self {
-        Self::after_written_bytes(response, 1)
-    }
-
-    pub(super) fn after_written_bytes(
-        response: Bytes,
-        response_after_written_bytes: usize,
-    ) -> Self {
         Self {
             response,
             read_offset: 0,
             written_bytes: 0,
-            response_after_written_bytes,
+            response_after_written_bytes: 1,
+            completion: None,
+        }
+    }
+
+    pub(super) fn with_completion_after_written_bytes(
+        response: Bytes,
+        response_after_written_bytes: usize,
+    ) -> (Self, ReplayCompletion) {
+        let (completion, receiver) = oneshot::channel();
+        (
+            Self {
+                response,
+                read_offset: 0,
+                written_bytes: 0,
+                response_after_written_bytes,
+                completion: Some(completion),
+            },
+            ReplayCompletion(receiver),
+        )
+    }
+}
+
+impl Drop for ReplayStream {
+    fn drop(&mut self) {
+        if let Some(completion) = self.completion.take() {
+            let _ = completion.send(());
         }
     }
 }
