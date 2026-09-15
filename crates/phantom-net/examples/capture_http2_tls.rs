@@ -1,4 +1,4 @@
-//! Captures one bounded HTTP/2 startup sequence from Chrome over loopback TLS.
+//! Captures one bounded browser HTTP/2 startup sequence over loopback TLS.
 
 use std::{
     env,
@@ -35,8 +35,6 @@ const FRAME_LIMITS: CaptureLimits = CaptureLimits::new(
     FRAME_MAX_TOTAL_BYTES,
     FRAME_MAX_COUNT,
 );
-const CHROME_FLAGS: &str = "--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom";
-
 type CaptureResult<T> = Result<T, Box<dyn Error>>;
 
 #[tokio::main(flavor = "current_thread")]
@@ -46,7 +44,7 @@ async fn main() -> CaptureResult<()> {
     let listen_address = listener.local_addr()?;
     require_loopback(listen_address, "listener")?;
 
-    eprintln!("listening on {listen_address} for one Chrome HTTP/2 connection");
+    eprintln!("listening on {listen_address} for one browser HTTP/2 connection");
     let accept_deadline = tokio::time::Instant::now() + ACCEPT_TIMEOUT;
     let (tcp, peer_address) = timeout_at(accept_deadline, listener.accept())
         .await
@@ -68,10 +66,10 @@ async fn main() -> CaptureResult<()> {
         .ssl()
         .selected_alpn_protocol()
         .map(ToOwned::to_owned)
-        .ok_or_else(|| invalid_data("Chrome did not negotiate an ALPN protocol"))?;
+        .ok_or_else(|| invalid_data("browser did not negotiate an ALPN protocol"))?;
     if selected_alpn != H2 {
         return Err(invalid_data(format!(
-            "Chrome negotiated ALPN {}, expected h2",
+            "browser negotiated ALPN {}, expected h2",
             hex(&selected_alpn)
         ))
         .into());
@@ -79,10 +77,10 @@ async fn main() -> CaptureResult<()> {
     let server_name = tls
         .ssl()
         .servername(NameType::HOST_NAME)
-        .ok_or_else(|| invalid_data("Chrome did not send an SNI hostname"))?;
+        .ok_or_else(|| invalid_data("browser did not send an SNI hostname"))?;
     if server_name != HOSTNAME {
         return Err(invalid_data(format!(
-            "Chrome sent SNI {server_name:?}, expected {HOSTNAME:?}"
+            "browser sent SNI {server_name:?}, expected {HOSTNAME:?}"
         ))
         .into());
     }
@@ -101,7 +99,10 @@ async fn main() -> CaptureResult<()> {
 
     let fixture = Fixture {
         browser: &arguments.browser,
+        browser_version: &arguments.browser_version,
         operating_system: &arguments.operating_system,
+        launch_mode: &arguments.launch_mode,
+        launch_arguments: &arguments.launch_arguments,
         captured_at_unix,
         listen_address,
         selected_alpn: &selected_alpn,
@@ -118,24 +119,39 @@ async fn main() -> CaptureResult<()> {
 struct Arguments {
     listen_address: SocketAddr,
     browser: String,
+    browser_version: String,
     operating_system: String,
+    launch_mode: String,
+    launch_arguments: String,
 }
 
 impl Arguments {
     fn parse(mut values: impl Iterator<Item = String>) -> CaptureResult<Self> {
-        let usage = "usage: capture_http2_tls <loopback-address:port> <browser> <operating-system>";
+        let usage = concat!(
+            "usage: capture_http2_tls <loopback-address:port> <browser> ",
+            "<browser-version> <operating-system> <launch-mode> <launch-arguments>"
+        );
         let listen_address = values.next().ok_or(usage)?.parse()?;
         let browser = values.next().ok_or(usage)?;
+        let browser_version = values.next().ok_or(usage)?;
         let operating_system = values.next().ok_or(usage)?;
+        let launch_mode = values.next().ok_or(usage)?;
+        let launch_arguments = values.next().ok_or(usage)?;
         if values.next().is_some() {
             return Err(usage.into());
         }
         validate_metadata("browser", &browser)?;
+        validate_metadata("browser-version", &browser_version)?;
         validate_metadata("operating-system", &operating_system)?;
+        validate_metadata("launch-mode", &launch_mode)?;
+        validate_metadata("launch-arguments", &launch_arguments)?;
         Ok(Self {
             listen_address,
             browser,
+            browser_version,
             operating_system,
+            launch_mode,
+            launch_arguments,
         })
     }
 }
@@ -232,7 +248,10 @@ fn format_setting(setting: &Setting) -> String {
 
 struct Fixture<'a> {
     browser: &'a str,
+    browser_version: &'a str,
     operating_system: &'a str,
+    launch_mode: &'a str,
+    launch_arguments: &'a str,
     captured_at_unix: u64,
     listen_address: SocketAddr,
     selected_alpn: &'a [u8],
@@ -244,16 +263,18 @@ struct Fixture<'a> {
 fn write_fixture(output: &mut impl io::Write, fixture: &Fixture<'_>) -> io::Result<()> {
     let (alps_state, alps_bytes) = alps_fields(fixture.peer_alps);
 
-    writeln!(output, "format=phantom-http2-tls-v1")?;
+    writeln!(output, "format=phantom-http2-tls-v2")?;
     writeln!(output, "captured_at_unix={}", fixture.captured_at_unix)?;
     writeln!(output, "browser={}", fixture.browser)?;
+    writeln!(output, "browser_version={}", fixture.browser_version)?;
     writeln!(output, "operating_system={}", fixture.operating_system)?;
     writeln!(output, "hostname={HOSTNAME}")?;
     writeln!(output, "listen_address={}", fixture.listen_address)?;
     writeln!(output, "listener_loopback=true")?;
     writeln!(output, "peer_loopback=true")?;
     writeln!(output, "connection_limit=1")?;
-    writeln!(output, "chrome_flags={CHROME_FLAGS}")?;
+    writeln!(output, "launch_mode={}", fixture.launch_mode)?;
+    writeln!(output, "launch_arguments={}", fixture.launch_arguments)?;
     writeln!(output, "accept_timeout_ms={}", ACCEPT_TIMEOUT.as_millis())?;
     writeln!(
         output,
@@ -315,15 +336,36 @@ mod tests {
     #[test]
     fn arguments_require_explicit_single_line_metadata() {
         let valid = Arguments::parse(
-            ["127.0.0.1:9443", "chrome-152", "macos-15.5"]
-                .into_iter()
-                .map(str::to_owned),
+            [
+                "127.0.0.1:9443",
+                "Example Browser",
+                "1.2.3",
+                "Example OS",
+                "command-line",
+                "--isolated-profile=<temporary-directory>",
+            ]
+            .into_iter()
+            .map(str::to_owned),
         );
         assert!(valid.is_ok());
 
         for values in [
-            vec!["127.0.0.1:9443", "", "macos-15.5"],
-            vec!["127.0.0.1:9443", "chrome-152", "macos\n15.5"],
+            vec![
+                "127.0.0.1:9443",
+                "",
+                "1.2.3",
+                "Example OS",
+                "command-line",
+                "--isolated-profile=<temporary-directory>",
+            ],
+            vec![
+                "127.0.0.1:9443",
+                "Example Browser",
+                "1.2.3",
+                "Example\nOS",
+                "command-line",
+                "--isolated-profile=<temporary-directory>",
+            ],
         ] {
             assert!(Arguments::parse(values.into_iter().map(str::to_owned)).is_err());
         }

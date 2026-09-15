@@ -1,13 +1,15 @@
-format=phantom-http2-tls-v1
+format=phantom-http2-tls-v2
 captured_at_unix=1789486120
-browser=Google Chrome 152.0.7977.83
+browser=Google Chrome
+browser_version=152.0.7977.83
 operating_system=macOS 15.5 (24F74)
 hostname=server.phantom.test
 listen_address=127.0.0.1:9444
 listener_loopback=true
 peer_loopback=true
 connection_limit=1
-chrome_flags=--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom
+launch_mode=command-line
+launch_arguments=--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom
 accept_timeout_ms=30000
 handshake_timeout_ms=10000
 frame_timeout_ms=10000

@@ -1,15 +1,18 @@
 use std::{collections::BTreeMap, io, net::SocketAddr};
 
-const FIXED_FIELDS: &[&str] = &[
+const HEADER_FIELDS: &[&str] = &[
     "format",
     "captured_at_unix",
     "browser",
     "browser_version",
-    "os",
+    "operating_system",
     "hostname",
     "listen_address",
-    "chrome_flags",
+    "launch_mode",
+    "launch_arguments",
     "record_count",
+];
+const SUMMARY_FIELDS: &[&str] = &[
     "legacy_version",
     "cipher_suites",
     "extension_types",
@@ -29,34 +32,15 @@ pub(super) struct Fixture<'a> {
 
 impl<'a> Fixture<'a> {
     pub(super) fn parse(text: &'a str) -> Result<Self, io::Error> {
+        let mut lines = FixtureLines::new(text);
         let mut fields = BTreeMap::new();
-        for (line_index, line) in text.lines().enumerate() {
-            let (key, value) = line.split_once('=').ok_or_else(|| {
-                invalid_fixture(format!("line {} is not key=value", line_index + 1))
-            })?;
-            if key.is_empty()
-                || !key
-                    .bytes()
-                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
-            {
-                return Err(invalid_fixture(format!(
-                    "line {} has invalid key {key:?}",
-                    line_index + 1
-                )));
-            }
-            if fields.insert(key, value).is_some() {
-                return Err(invalid_fixture(format!("duplicate fixture field {key}")));
-            }
+        for &field in HEADER_FIELDS {
+            let value = lines.value(field)?;
+            require_nonempty(field, value)?;
+            fields.insert(field, value);
         }
-
-        for field in FIXED_FIELDS {
-            match fields.get(field) {
-                None => return Err(invalid_fixture(format!("missing fixture field {field}"))),
-                Some(&"") => {
-                    return Err(invalid_fixture(format!("empty fixture field {field}")));
-                }
-                Some(_) => {}
-            }
+        if fields["format"] != "phantom-client-hello-v2" {
+            return Err(invalid_fixture("unexpected ClientHello fixture format"));
         }
 
         let captured_at = parse_number::<u64>(&fields, "captured_at_unix")?;
@@ -74,29 +58,19 @@ impl<'a> Fixture<'a> {
         if !(1..=16).contains(&record_count) {
             return Err(invalid_fixture("record_count must be in 1..=16"));
         }
-        let mut expected_fields = FIXED_FIELDS
-            .iter()
-            .map(|field| (*field).to_owned())
-            .collect::<Vec<_>>();
         let mut records = Vec::with_capacity(record_count);
         for index in 0..record_count {
             let field = format!("record_{index}_hex");
-            let value = fields
-                .get(field.as_str())
-                .ok_or_else(|| invalid_fixture(format!("missing fixture field {field}")))?;
+            let value = lines.value(&field)?;
+            require_nonempty(&field, value)?;
             records.push(parse_hex(value, &field)?);
-            expected_fields.push(field);
         }
-        if fields.len() != expected_fields.len() {
-            let unexpected = fields
-                .keys()
-                .find(|key| !expected_fields.iter().any(|expected| expected == **key))
-                .copied()
-                .unwrap_or("unknown");
-            return Err(invalid_fixture(format!(
-                "unexpected fixture field {unexpected}"
-            )));
+        for &field in SUMMARY_FIELDS {
+            let value = lines.value(field)?;
+            require_nonempty(field, value)?;
+            fields.insert(field, value);
         }
+        lines.finish()?;
 
         Ok(Self { fields, records })
     }
@@ -111,6 +85,52 @@ impl<'a> Fixture<'a> {
     pub(super) fn records(&self) -> &[Vec<u8>] {
         &self.records
     }
+}
+
+struct FixtureLines<'a> {
+    lines: std::iter::Enumerate<std::str::Lines<'a>>,
+}
+
+impl<'a> FixtureLines<'a> {
+    fn new(input: &'a str) -> Self {
+        Self {
+            lines: input.lines().enumerate(),
+        }
+    }
+
+    fn value(&mut self, expected_key: &str) -> Result<&'a str, io::Error> {
+        let (index, line) = self
+            .lines
+            .next()
+            .ok_or_else(|| invalid_fixture(format!("missing fixture field {expected_key}")))?;
+        let (actual_key, value) = line
+            .split_once('=')
+            .ok_or_else(|| invalid_fixture(format!("line {} is not key=value", index + 1)))?;
+        if actual_key != expected_key {
+            return Err(invalid_fixture(format!(
+                "line {} has key {actual_key:?}; expected {expected_key:?}",
+                index + 1
+            )));
+        }
+        Ok(value)
+    }
+
+    fn finish(mut self) -> Result<(), io::Error> {
+        if let Some((index, line)) = self.lines.next() {
+            return Err(invalid_fixture(format!(
+                "unexpected fixture line {}: {line:?}",
+                index + 1
+            )));
+        }
+        Ok(())
+    }
+}
+
+fn require_nonempty(field: &str, value: &str) -> Result<(), io::Error> {
+    if value.is_empty() {
+        return Err(invalid_fixture(format!("empty fixture field {field}")));
+    }
+    Ok(())
 }
 
 fn parse_number<T>(fields: &BTreeMap<&str, &str>, field: &str) -> Result<T, io::Error>
@@ -182,9 +202,13 @@ mod tests {
     const VALID: &str = crate::FIXTURE_TEXT;
 
     #[test]
-    fn rejects_duplicate_fields() {
+    fn rejects_duplicate_and_misordered_fields() {
         let malformed = format!("{VALID}browser=duplicate\n");
         assert!(Fixture::parse(&malformed).is_err());
+
+        let mut lines = VALID.lines().collect::<Vec<_>>();
+        lines.swap(1, 2);
+        assert!(Fixture::parse(&lines.join("\n")).is_err());
     }
 
     #[test]

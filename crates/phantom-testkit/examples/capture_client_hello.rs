@@ -16,10 +16,8 @@ const CAPTURE_LIMITS: CaptureLimits = CaptureLimits::new(128 * 1024, 128 * 1024,
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let address = env::args()
-        .nth(1)
-        .ok_or("usage: capture_client_hello <loopback-address:port>")?;
-    let listener = TcpListener::bind(&address).await?;
+    let arguments = Arguments::parse(env::args().skip(1))?;
+    let listener = TcpListener::bind(arguments.listen_address).await?;
     let local_address = listener.local_addr()?;
     if !local_address.ip().is_loopback() {
         return Err("capture listener must bind to a loopback address".into());
@@ -40,12 +38,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .await?;
     let summary = capture.summary()?;
+    let hostname = summary
+        .server_name()
+        .ok_or("captured ClientHello did not include an SNI hostname")?;
+    let hostname = std::str::from_utf8(hostname)?;
     let captured_at = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
     let mut output = io::BufWriter::new(io::stdout().lock());
-    writeln!(output, "format=phantom-client-hello-v1")?;
+    writeln!(output, "format=phantom-client-hello-v2")?;
     writeln!(output, "captured_at_unix={captured_at}")?;
+    writeln!(output, "browser={}", arguments.browser)?;
+    writeln!(output, "browser_version={}", arguments.browser_version)?;
+    writeln!(output, "operating_system={}", arguments.operating_system)?;
+    writeln!(output, "hostname={hostname}")?;
     writeln!(output, "listen_address={local_address}")?;
+    writeln!(output, "launch_mode={}", arguments.launch_mode)?;
+    writeln!(output, "launch_arguments={}", arguments.launch_arguments)?;
     writeln!(output, "record_count={}", capture.records().len())?;
     for (index, record) in capture.records().iter().enumerate() {
         writeln!(output, "record_{index}_hex={}", hex(record.wire_bytes()))?;
@@ -53,6 +61,52 @@ async fn main() -> Result<(), Box<dyn Error>> {
     write_summary(&mut output, &summary)?;
     output.flush()?;
     Ok(())
+}
+
+struct Arguments {
+    listen_address: String,
+    browser: String,
+    browser_version: String,
+    operating_system: String,
+    launch_mode: String,
+    launch_arguments: String,
+}
+
+impl Arguments {
+    fn parse(mut values: impl Iterator<Item = String>) -> Result<Self, Box<dyn Error>> {
+        let usage = concat!(
+            "usage: capture_client_hello <loopback-address:port> <browser> ",
+            "<browser-version> <operating-system> <launch-mode> <launch-arguments>"
+        );
+        let listen_address = values.next().ok_or(usage)?;
+        let browser = values.next().ok_or(usage)?;
+        let browser_version = values.next().ok_or(usage)?;
+        let operating_system = values.next().ok_or(usage)?;
+        let launch_mode = values.next().ok_or(usage)?;
+        let launch_arguments = values.next().ok_or(usage)?;
+        if values.next().is_some() {
+            return Err(usage.into());
+        }
+        for (name, value) in [
+            ("browser", &browser),
+            ("browser-version", &browser_version),
+            ("operating-system", &operating_system),
+            ("launch-mode", &launch_mode),
+            ("launch-arguments", &launch_arguments),
+        ] {
+            if value.is_empty() || value.contains(['\r', '\n']) {
+                return Err(format!("{name} must be nonempty and fit on one fixture line").into());
+            }
+        }
+        Ok(Self {
+            listen_address,
+            browser,
+            browser_version,
+            operating_system,
+            launch_mode,
+            launch_arguments,
+        })
+    }
 }
 
 fn write_summary(output: &mut impl io::Write, summary: &ClientHelloSummary) -> io::Result<()> {

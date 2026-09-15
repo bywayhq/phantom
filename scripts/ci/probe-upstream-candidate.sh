@@ -83,7 +83,7 @@ workspace_gates() {
   cargo test -p phantom-net --all-features --locked \
     chromium_152_macos_matches_retained_client_hello
   cargo test -p phantom-testkit --all-features --locked \
-    --test chrome_client_hello
+    --test browser_client_hello_fixtures
   cargo test --workspace --all-targets --all-features --locked
   RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 

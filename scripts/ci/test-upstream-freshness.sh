@@ -254,7 +254,7 @@ grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \
   "$command_log"
 grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
-grep -F -q 'chrome_client_hello' "$command_log"
+grep -F -q 'browser_client_hello_fixtures' "$command_log"
 [[ -z $(git -C "$candidate_repo" status --porcelain) ]]
 [[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
 

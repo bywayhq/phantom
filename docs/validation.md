@@ -22,13 +22,18 @@ Claims about browser wire behavior must cite the exact capture and differential
 fixture that supports them. A successful response or summary fingerprint alone
 does not establish the same wire behavior.
 
-## Reproducing the Chrome TCP ClientHello fixture
+## Browser ClientHello fixture workflow
+
+### Retained Chrome capture
 
 The retained Chrome fixture is
 `fixtures/tls/chrome/152.0.7977.83/macos-15.5/client-hello.txt`.
 It is one reference measurement. The fixture contains the complete TLS record
 in lowercase hexadecimal, the semantic decoder output, and the browser,
-operating system, hostname, listener, and flag metadata.
+operating system, hostname, listener, and browser-neutral launch metadata. The
+version 2 schema stores fields in a fixed order and records the launch as
+`launch_mode` plus a single-line `launch_arguments` value, so the same schema
+can describe command-line and application-driven captures.
 
 The recorded environment was Google Chrome `152.0.7977.83` on macOS `15.5`
 (`24F74`). Confirm those values before comparing a new capture:
@@ -41,15 +46,23 @@ sw_vers
 In the repository, start the bounded one-connection listener in one terminal:
 
 ```sh
-cargo run -p phantom-testkit --example capture_client_hello -- 127.0.0.1:9443
+launch_arguments='--headless=new --user-data-dir=<temporary-directory> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom'
+cargo run -p phantom-testkit --example capture_client_hello -- \
+  127.0.0.1:9443 \
+  "Google Chrome" \
+  "152.0.7977.83" \
+  "macOS 15.5 (24F74)" \
+  "command-line" \
+  "$launch_arguments"
 ```
 
 The example accepts only a loopback listener and loopback peer, waits at most 30
 seconds for the connection, gives the ClientHello 10 seconds to complete, and
 limits the capture to 128 KiB and 16 TLS records. It prints one exact record hex
-line followed by an ordered semantic summary. Byte strings such as ALPN protocol
-identifiers and SNI are lowercase hexadecimal, so every value remains
-unambiguous even when it is not UTF-8 or contains delimiters.
+line within a complete ordered fixture, followed by the semantic summary. Byte
+strings such as ALPN protocol identifiers and SNI are lowercase hexadecimal, so
+every value remains unambiguous even when it is not UTF-8 or contains
+delimiters.
 
 In a second terminal, create an isolated profile and start Chrome with the
 recorded flags:
@@ -79,11 +92,18 @@ expected to show a connection error and may retry until stopped. Stop Chrome
 after the fixture prints, then remove only the temporary profile directory named
 by `capture_profile_dir`.
 
-When retaining a new fixture, copy the example output without editing random or
-cryptographic bytes and record the full metadata above. The fixture regression
-strictly parses every key and requires every metadata, record, and semantic
+When retaining a new fixture, copy the complete example output without editing
+random or cryptographic bytes. Record exact launch arguments, using a clear
+placeholder only for an ephemeral profile path. The fixture regression strictly
+parses every key in order and requires every metadata, record, and semantic
 field. It regenerates the stored semantic summary from the raw record, including
 the controlled SNI hostname.
+
+Run the browser-fixture regression directly with:
+
+```sh
+cargo test -p phantom-testkit --test browser_client_hello_fixtures
+```
 
 For ordered vectors, the regression replaces each selected GREASE codepoint with
 one sentinel without deleting it. This preserves the number and position of
@@ -94,7 +114,9 @@ differential compares exact extension membership and stable payload lengths
 without claiming that one permutation is canonical. The built-in recipe used by
 that differential is `phantom_profile::chromium::v152_macos_tls()`.
 
-## Reproducing the Chrome HTTP/2 startup fixture
+## Browser HTTP/2 fixture workflow
+
+### Retained Chrome capture
 
 The retained local fixture is
 `fixtures/http2/chrome/152.0.7977.83/macos-15.5/client-startup.txt`.
@@ -103,14 +125,19 @@ WINDOW_UPDATE. It is raw local evidence and is not derived from the retained
 Pingly output. That output is stored separately and is never used as the oracle
 for this regression.
 
-Confirm Chrome and macOS versions as described above. In one terminal, run the
-bounded TLS listener with explicit fixture metadata:
+Confirm Chrome and macOS versions as described above. Record the normalized
+single-line launch arguments, then run the bounded TLS listener with explicit
+browser-neutral fixture metadata:
 
 ```sh
+launch_arguments='--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom'
 cargo run -p phantom-net --example capture_http2_tls -- \
   127.0.0.1:9444 \
-  "Google Chrome 152.0.7977.83" \
-  "macOS 15.5 (24F74)"
+  "Google Chrome" \
+  "152.0.7977.83" \
+  "macOS 15.5 (24F74)" \
+  "command-line" \
+  "$launch_arguments"
 ```
 
 The example accepts one loopback peer, creates an ephemeral certificate for
@@ -147,13 +174,20 @@ zero-length value, which the fixture distinguishes from absent ALPS. Stop any
 remaining Chrome process before removing only the temporary directory printed
 in `capture_profile_dir`.
 
-The fixture output is ordered `key=value` text. Binary values are lowercase
-hexadecimal. Its regression reconstructs the exact connection preface and frame
-bytes, reparses them through `phantom-testkit`, and verifies the ordered SETTINGS
-and connection WINDOW_UPDATE summary. A second bounded regression sends a fresh
-request through Phantom's public HTTP/2 transaction using
-`v152_macos_http2()` and requires its exact startup bytes to match the retained
-Chrome frames.
+The version 2 fixture output is ordered `key=value` text. Browser identity,
+version, operating system, launch mode, and launch arguments are separate
+fields. Binary values are lowercase hexadecimal. Its browser-fixture regression
+reconstructs the exact connection preface and frame bytes, reparses them through
+`phantom-testkit`, and verifies the ordered SETTINGS and connection
+WINDOW_UPDATE summary. A second bounded regression sends a fresh request
+through Phantom's public HTTP/2 transaction using `v152_macos_http2()` and
+requires its exact startup bytes to match the retained Chrome frames.
+
+Run both retained HTTP/2 fixture checks directly with:
+
+```sh
+cargo test -p phantom-net --test browser_http2_fixtures
+```
 
 ## Current HTTP/2 protocol coverage
 

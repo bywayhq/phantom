@@ -1,6 +1,6 @@
-//! Integrity and semantic assertions for the retained Chrome ClientHello fixture.
+//! Browser ClientHello fixture integrity and semantic assertions.
 
-#[path = "chrome_client_hello/fixture.rs"]
+#[path = "browser_client_hello_fixtures/fixture.rs"]
 mod fixture;
 
 use std::{error::Error, io, time::Duration};
@@ -12,7 +12,7 @@ use tokio::io::{AsyncWriteExt, duplex};
 const FIXTURE_TEXT: &str =
     include_str!("../../../fixtures/tls/chrome/152.0.7977.83/macos-15.5/client-hello.txt");
 const GREASE_SENTINEL: u16 = 0x0a0a;
-const EXPECTED_CHROME_FLAGS: &str = concat!(
+const EXPECTED_LAUNCH_ARGUMENTS: &str = concat!(
     "--headless=new --user-data-dir=<temporary-directory> --no-first-run ",
     "--no-default-browser-check --disable-background-networking ",
     "--disable-component-update --disable-default-apps --disable-quic ",
@@ -23,11 +23,15 @@ const EXPECTED_CHROME_FLAGS: &str = concat!(
 #[tokio::test]
 async fn chrome_152_fixture_matches_raw_client_hello() -> Result<(), Box<dyn Error>> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
-    assert_eq!(fixture.value("format")?, "phantom-client-hello-v1");
+    assert_eq!(fixture.value("format")?, "phantom-client-hello-v2");
     assert_eq!(fixture.value("browser")?, "Google Chrome");
     assert_eq!(fixture.value("browser_version")?, "152.0.7977.83");
-    assert_eq!(fixture.value("os")?, "macOS 15.5 (24F74)");
-    assert_eq!(fixture.value("chrome_flags")?, EXPECTED_CHROME_FLAGS);
+    assert_eq!(fixture.value("operating_system")?, "macOS 15.5 (24F74)");
+    assert_eq!(fixture.value("launch_mode")?, "command-line");
+    assert_eq!(
+        fixture.value("launch_arguments")?,
+        EXPECTED_LAUNCH_ARGUMENTS
+    );
 
     let wire = fixture.records().concat();
     assert_eq!(wire.len(), 2_043);

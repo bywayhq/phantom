@@ -193,11 +193,11 @@ http2_fixture="fixtures/http2/chrome/$chrome_recipe_version/$chrome_platform/pin
 [[ -f "$http2_fixture" ]] || die "missing exact Chrome HTTP/2 fixture $http2_fixture"
 
 chrome_os_version=${chrome_platform#macos-}
-[[ $(fixture_field "$tls_fixture" format) == phantom-client-hello-v1 ]] \
+[[ $(fixture_field "$tls_fixture" format) == phantom-client-hello-v2 ]] \
   || die "$tls_fixture has an unexpected format"
 [[ $(fixture_field "$tls_fixture" browser_version) == "$chrome_recipe_version" ]] \
   || die "$tls_fixture does not match the built-in Chrome version"
-tls_os=$(fixture_field "$tls_fixture" os)
+tls_os=$(fixture_field "$tls_fixture" operating_system)
 [[ "${tls_os%% (*}" == "macOS $chrome_os_version" ]] \
   || die "$tls_fixture does not match the built-in Chrome platform"
 [[ $(fixture_field "$http2_fixture" format) == phantom-pingly-http2-v1 ]] \
