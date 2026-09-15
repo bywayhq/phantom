@@ -26,12 +26,8 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md), and [v
 
 ```sh
 cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-targets
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-targets --all-features --locked
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
+cargo +1.85.0 check --workspace --all-targets --locked
 ```
-
-## License
-
-No license has been selected yet. Until one is added, all rights are reserved.
-External contributions are not currently accepted.
