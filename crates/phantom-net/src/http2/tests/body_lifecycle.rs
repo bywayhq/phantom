@@ -12,10 +12,12 @@ use std::{
 
 use bytes::Bytes;
 use http::{HeaderMap, Response};
+use http_body::Body as _;
 use http_body_util::BodyExt;
 use phantom_profile::chromium::v152_macos_http2;
 use tokio::{
     io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex},
+    runtime::Builder,
     sync::{Notify, oneshot},
     time::timeout,
 };
@@ -203,6 +205,45 @@ async fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
     .await
 }
 
+#[test]
+fn body_drop_after_originating_runtime_shutdown_records_driver_outcome() -> TestResult<()> {
+    let subscriber = OutcomeSubscriber::default();
+    let runtime = Builder::new_current_thread().enable_time().build()?;
+    let body = runtime.block_on(
+        async {
+            // Keep the stream terminal so this isolates supervisor cancellation
+            // from the vendored codec's cleanup of abandoned live streams.
+            let control = WriteControl::default();
+            let (client, server) = duplex(64 * 1024);
+            let _server_task = tokio::spawn(terminal_headers_server(server, control.clone()));
+            let response = send_get(
+                BlockingWrites {
+                    inner: client,
+                    control,
+                },
+                &v152_macos_http2(),
+                "example.test",
+                target()?,
+                vec![],
+            )
+            .await?;
+            let body = response.into_body();
+            assert!(body.is_end_stream());
+            Ok::<_, Box<dyn Error + Send + Sync>>(body)
+        }
+        .with_subscriber(subscriber.clone()),
+    )?;
+
+    drop(runtime);
+    drop(body);
+
+    assert_eq!(
+        subscriber.outcomes_for("http2.connection_driver"),
+        ["runtime_shutdown"]
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResult<()> {
     bounded_peer_test(async {
@@ -374,6 +415,24 @@ async fn terminal_data_server(stream: DuplexStream) -> TestResult<bool> {
     };
     drop(send);
     Ok(reset)
+}
+
+async fn terminal_headers_server(stream: DuplexStream, control: WriteControl) -> TestResult<()> {
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let (request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("connection closed before request")??;
+    let response = Response::builder().status(204).body(())?;
+    respond.send_response(response, true)?;
+    control.blocked.store(true, Ordering::SeqCst);
+    drop(request);
+    drop(respond);
+
+    if connection.accept().await.is_some() {
+        return Err("one-shot client sent an unexpected second request".into());
+    }
+    Ok(())
 }
 
 async fn next_nonempty_data(body: &mut Http2Body) -> TestResult<Bytes> {

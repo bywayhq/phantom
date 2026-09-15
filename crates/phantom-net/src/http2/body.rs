@@ -79,6 +79,11 @@ impl Body for Http2Body {
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        // The body may be polled on a different thread from the request. The
+        // retained span preserves both its original parent and dispatcher.
+        let span = self.trace.span.clone();
+        let _entered = span.enter();
+
         if self.finished {
             return Poll::Ready(None);
         }
@@ -227,7 +232,7 @@ impl DriverTask {
         let span = debug_span!("http2.connection_driver", outcome = field::Empty);
         Self {
             sender: Some(sender),
-            handle: Some(runtime.spawn(connection)),
+            handle: Some(runtime.spawn(connection.instrument(span.clone()))),
             runtime,
             span,
         }
@@ -255,43 +260,66 @@ impl DriverTask {
         };
         let mut driver = AbortDriver::new(handle);
         let span = self.span.clone();
-        let instrument = span.clone();
-        self.runtime.spawn(
-            async move {
-                match timeout(DRIVER_SHUTDOWN_GRACE, driver.handle_mut()).await {
-                    Ok(Ok(Ok(()))) => {
-                        span.record("outcome", "complete");
-                        debug!(parent: &span, "HTTP/2 connection driver stopped");
-                    }
-                    Ok(Ok(Err(error))) => {
-                        span.record("outcome", "protocol_error");
-                        warn!(
-                            parent: &span,
-                            reason = ?error.reason(),
-                            io_error = error.is_io(),
-                            "HTTP/2 connection driver failed"
-                        );
-                    }
-                    Ok(Err(error)) => {
-                        span.record("outcome", "task_error");
-                        warn!(
-                            parent: &span,
-                            task_id = %error.id(),
-                            cancelled = error.is_cancelled(),
-                            panicked = error.is_panic(),
-                            "HTTP/2 connection driver task failed"
-                        );
-                    }
-                    Err(_) => {
-                        driver.abort();
-                        let _ = driver.handle_mut().await;
-                        span.record("outcome", "timeout");
-                        warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
-                    }
+        let outcome = DriverOutcome::new(&span);
+        self.runtime.spawn(async move {
+            match timeout(DRIVER_SHUTDOWN_GRACE, driver.handle_mut()).await {
+                Ok(Ok(Ok(()))) => {
+                    outcome.finish("complete");
+                    debug!(parent: &span, "HTTP/2 connection driver stopped");
+                }
+                Ok(Ok(Err(error))) => {
+                    outcome.finish("protocol_error");
+                    warn!(
+                        parent: &span,
+                        reason = ?error.reason(),
+                        io_error = error.is_io(),
+                        "HTTP/2 connection driver failed"
+                    );
+                }
+                Ok(Err(error)) => {
+                    outcome.finish("task_error");
+                    warn!(
+                        parent: &span,
+                        cancelled = error.is_cancelled(),
+                        panicked = error.is_panic(),
+                        "HTTP/2 connection driver task failed"
+                    );
+                }
+                Err(_) => {
+                    driver.abort();
+                    let _ = driver.handle_mut().await;
+                    outcome.finish("timeout");
+                    warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
                 }
             }
-            .instrument(instrument),
-        );
+        });
+    }
+}
+
+struct DriverOutcome {
+    span: Span,
+    recorded: bool,
+}
+
+impl DriverOutcome {
+    fn new(span: &Span) -> Self {
+        Self {
+            span: span.clone(),
+            recorded: false,
+        }
+    }
+
+    fn finish(mut self, outcome: &'static str) {
+        self.span.record("outcome", outcome);
+        self.recorded = true;
+    }
+}
+
+impl Drop for DriverOutcome {
+    fn drop(&mut self) {
+        if !self.recorded {
+            self.span.record("outcome", "runtime_shutdown");
+        }
     }
 }
 
