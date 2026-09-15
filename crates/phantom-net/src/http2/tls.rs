@@ -8,7 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, debug, debug_span, field};
 
 use super::{
-    Http2Body, Http2Error, OriginForm, PreparedGet, RequestHeader, ResponseHeadOutcome,
+    Http2Body, Http2Error, OriginForm, PreparedGet, RequestHeader, ResponseHeadOutcome, alps,
     send_prepared_get, translate_settings,
 };
 use crate::tls::{TlsConnector, trace_alpn};
@@ -79,7 +79,7 @@ impl Http2TlsConnector {
         );
         let outcome_guard = ResponseHeadOutcome::new(&span);
         let result = async {
-            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+            let mut prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
             debug!("HTTP/2 request prepared");
 
             let stream = self.tls.connect(server_name, stream).await?;
@@ -97,6 +97,28 @@ impl Http2TlsConnector {
                         selected: selected.into(),
                     });
                 }
+            }
+
+            let peer_settings =
+                alps::decode(stream.peer_application_settings()).map_err(|error| {
+                    debug!(
+                        frame_index = error.frame_index,
+                        offset = error.offset,
+                        reason = error.reason(),
+                        "TLS peer supplied invalid HTTP/2 application settings"
+                    );
+                    Http2TlsError::InvalidPeerApplicationSettings {
+                        frame_index: error.frame_index,
+                        offset: error.offset,
+                        reason: error.reason(),
+                    }
+                })?;
+            debug!(
+                alps_frame_count = peer_settings.frame_count(),
+                "HTTP/2 peer application settings decoded"
+            );
+            if let Some(settings) = peer_settings.into_initial_settings() {
+                prepared.apply_initial_peer_settings(settings);
             }
 
             let response = send_prepared_get(stream, prepared).await?;
@@ -132,6 +154,15 @@ pub enum Http2TlsError {
         /// Exact ALPN protocol bytes selected by the peer.
         selected: Box<[u8]>,
     },
+    /// The peer's negotiated HTTP/2 ALPS value was malformed or invalid.
+    InvalidPeerApplicationSettings {
+        /// Zero-based frame position at which decoding failed.
+        frame_index: usize,
+        /// Byte offset of that frame within the ALPS value.
+        offset: usize,
+        /// Protocol reason without including any peer-supplied bytes.
+        reason: &'static str,
+    },
     /// The TLS settings cannot offer exact `h2`.
     MissingHttp2Alpn,
 }
@@ -149,6 +180,14 @@ impl fmt::Display for Http2TlsError {
                 "TLS selected {} ALPN, which is unsupported by the HTTP/2 transport",
                 trace_alpn(Some(selected))
             ),
+            Self::InvalidPeerApplicationSettings {
+                frame_index,
+                offset,
+                reason,
+            } => write!(
+                formatter,
+                "invalid HTTP/2 peer application settings at frame {frame_index}, byte {offset}: {reason}"
+            ),
             Self::MissingHttp2Alpn => {
                 formatter.write_str("HTTP/2 TLS settings must include the exact `h2` ALPN protocol")
             }
@@ -161,9 +200,10 @@ impl StdError for Http2TlsError {
         match self {
             Self::Tls(error) => Some(error),
             Self::Http2(error) => Some(error),
-            Self::MissingNegotiatedAlpn | Self::UnsupportedAlpn { .. } | Self::MissingHttp2Alpn => {
-                None
-            }
+            Self::MissingNegotiatedAlpn
+            | Self::UnsupportedAlpn { .. }
+            | Self::InvalidPeerApplicationSettings { .. }
+            | Self::MissingHttp2Alpn => None,
         }
     }
 }

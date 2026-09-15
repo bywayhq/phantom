@@ -14,6 +14,7 @@ use phantom_profile::{Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHtt
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
+mod alps;
 use body::DriverTask;
 use request::prepare_get;
 #[cfg(test)]
@@ -186,6 +187,10 @@ impl PreparedGet {
         let request = prepare_get(authority, target, headers)?;
 
         Ok(Self { request, client })
+    }
+
+    fn apply_initial_peer_settings(&mut self, settings: ::http2::frame::Settings) {
+        self.client.initial_peer_settings(settings);
     }
 }
 
