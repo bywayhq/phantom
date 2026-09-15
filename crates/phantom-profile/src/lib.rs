@@ -103,19 +103,6 @@ pub enum Platform {
     Other(Box<str>),
 }
 
-/// Strength of evidence supporting a profile's compatibility claims.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum VerificationLevel {
-    /// The profile has not been compared with a browser capture.
-    #[default]
-    Experimental,
-    /// Deterministic local protocol assertions cover the profile.
-    LocallyVerified,
-    /// A normalized differential matches a pinned browser capture.
-    DifferentiallyVerified,
-}
-
 /// Identity and provenance shared by every browser profile.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProfileMetadata {
@@ -123,12 +110,11 @@ pub struct ProfileMetadata {
     family: BrowserFamily,
     version: Box<str>,
     platform: Platform,
-    verification: VerificationLevel,
 }
 
 impl ProfileMetadata {
-    /// Creates metadata for an experimental profile.
-    pub fn experimental(
+    /// Creates browser-profile metadata.
+    pub fn new(
         id: ProfileId,
         family: BrowserFamily,
         version: impl Into<Box<str>>,
@@ -144,7 +130,6 @@ impl ProfileMetadata {
             family,
             version,
             platform,
-            verification: VerificationLevel::Experimental,
         })
     }
 
@@ -171,12 +156,6 @@ impl ProfileMetadata {
     pub fn platform(&self) -> &Platform {
         &self.platform
     }
-
-    /// Returns the profile's current evidence level.
-    #[must_use]
-    pub fn verification(&self) -> VerificationLevel {
-        self.verification
-    }
 }
 
 /// Error returned when browser-version metadata is empty.
@@ -193,16 +172,14 @@ impl Error for EmptyBrowserVersion {}
 
 #[cfg(test)]
 mod tests {
-    use super::{BrowserFamily, Platform, ProfileId, ProfileMetadata, VerificationLevel};
+    use super::{BrowserFamily, Platform, ProfileId, ProfileMetadata};
 
     #[test]
     fn accepts_builtin_and_custom_profile_identity() -> Result<(), Box<dyn std::error::Error>> {
         let id = ProfileId::new("safari/26.0/macos-26")?;
-        let metadata =
-            ProfileMetadata::experimental(id, BrowserFamily::Safari, "26.0", Platform::MacOs)?;
+        let metadata = ProfileMetadata::new(id, BrowserFamily::Safari, "26.0", Platform::MacOs)?;
 
         assert_eq!(metadata.id().as_str(), "safari/26.0/macos-26");
-        assert_eq!(metadata.verification(), VerificationLevel::Experimental);
 
         let custom = BrowserFamily::Other("ladybird".into());
         assert_eq!(custom, BrowserFamily::Other("ladybird".into()));
@@ -228,7 +205,7 @@ mod tests {
     #[test]
     fn rejects_empty_browser_versions() -> Result<(), Box<dyn std::error::Error>> {
         let id = ProfileId::new("custom/development/linux")?;
-        let result = ProfileMetadata::experimental(
+        let result = ProfileMetadata::new(
             id,
             BrowserFamily::Other("custom".into()),
             "  ",

@@ -12,10 +12,4 @@ Normalization may remove values that are intentionally nondeterministic, such as
 
 The initial TLS testkit preserves complete TLS record bytes and the exact reassembled ClientHello handshake. It intentionally does not interpret the handshake yet. Semantic fields and normalization will be added alongside the first TLS transport so each decoded field has an immediate assertion.
 
-Every built-in profile will eventually report one of these evidence levels:
-
-- Experimental: accepted by the implementation but not proven against a browser capture
-- Locally verified: covered by deterministic protocol evidence
-- Differentially verified: compared against a pinned browser capture
-
-A profile cannot be promoted based only on a successful response or a single summary fingerprint.
+Compatibility claims must cite the exact browser capture and differential fixture that supports them. A successful response or summary fingerprint alone is not evidence of parity.
