@@ -1,8 +1,12 @@
 //! Browser-neutral profile identity, provenance, and wire settings.
 
 pub mod chromium;
+pub mod http2;
 pub mod tls;
 
+pub use http2::{
+    Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,
+};
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, InvalidTlsSettings, NamedGroup,
     SignatureScheme, TlsSettings, TlsVersion,

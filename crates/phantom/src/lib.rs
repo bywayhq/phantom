@@ -1,8 +1,8 @@
 //! Public facade for Phantom.
 //!
-//! Networking APIs will be introduced with the first complete transport slice.
-//! Profile identity is available now so browser-family assumptions can be tested
-//! before transport APIs stabilize.
+//! Current TLS, HTTP/1.1, and HTTP/2 request APIs live in `phantom-net`. This
+//! crate currently re-exports profile identity; the client facade, reusable
+//! sessions, and protocol routing are planned.
 
 /// Browser-profile types used to configure observable wire behavior.
 pub mod profile {

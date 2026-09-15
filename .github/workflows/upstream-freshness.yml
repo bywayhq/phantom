@@ -1,0 +1,128 @@
+name: Upstream freshness
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 8 * * 2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-freshness-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  report:
+    name: Detect upstream drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      wreq_latest: ${{ steps.freshness.outputs.wreq_latest }}
+      wreq_checksum: ${{ steps.freshness.outputs.wreq_checksum }}
+      wreq_drift: ${{ steps.freshness.outputs.wreq_drift }}
+      http2_latest: ${{ steps.freshness.outputs.http2_latest }}
+      http2_checksum: ${{ steps.freshness.outputs.http2_checksum }}
+      http2_drift: ${{ steps.freshness.outputs.http2_drift }}
+      btls_latest: ${{ steps.freshness.outputs.btls_latest }}
+      btls_drift: ${{ steps.freshness.outputs.btls_drift }}
+      chrome_drift: ${{ steps.freshness.outputs.chrome_drift }}
+      any_drift: ${{ steps.freshness.outputs.any_drift }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Detect current upstream state
+        id: freshness
+        run: |
+          scripts/ci/test-upstream-freshness.sh
+          scripts/ci/report-upstream-freshness.sh
+
+      - name: Publish job summary
+        if: always() && hashFiles('target/upstream-freshness/summary.md') != ''
+        run: cat target/upstream-freshness/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload freshness report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: upstream-freshness-${{ github.sha }}
+          path: target/upstream-freshness
+          if-no-files-found: warn
+          retention-days: 30
+
+  probe:
+    name: Probe ${{ matrix.dependency }} candidate
+    needs: report
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        dependency: [wreq-proto, btls, http2]
+    steps:
+      - name: Check out disposable repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Probe candidate in disposable checkout
+        if: >-
+          (matrix.dependency == 'wreq-proto' && needs.report.outputs.wreq_drift == 'true') ||
+          (matrix.dependency == 'btls' && needs.report.outputs.btls_drift == 'true') ||
+          (matrix.dependency == 'http2' && needs.report.outputs.http2_drift == 'true')
+        env:
+          PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT: "1"
+          WREQ_LATEST: ${{ needs.report.outputs.wreq_latest }}
+          WREQ_CHECKSUM: ${{ needs.report.outputs.wreq_checksum }}
+          BTLS_LATEST: ${{ needs.report.outputs.btls_latest }}
+          HTTP2_LATEST: ${{ needs.report.outputs.http2_latest }}
+          HTTP2_CHECKSUM: ${{ needs.report.outputs.http2_checksum }}
+        run: |
+          case "${{ matrix.dependency }}" in
+            wreq-proto)
+              candidate=$WREQ_LATEST
+              checksum=$WREQ_CHECKSUM
+              ;;
+            btls)
+              candidate=$BTLS_LATEST
+              checksum=
+              ;;
+            http2)
+              candidate=$HTTP2_LATEST
+              checksum=$HTTP2_CHECKSUM
+              ;;
+          esac
+          scripts/ci/probe-upstream-candidate.sh \
+            "${{ matrix.dependency }}" "$candidate" "$checksum"
+
+  review:
+    name: Review upstream drift
+    if: always() && needs.report.result == 'success'
+    needs: [report, probe]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Surface drift for human review
+        env:
+          ANY_DRIFT: ${{ needs.report.outputs.any_drift }}
+          PROBE_RESULT: ${{ needs.probe.result }}
+        run: |
+          if [[ "$ANY_DRIFT" == true ]]; then
+            echo "::warning::Upstream drift requires review; see the report and candidate probes."
+            exit 1
+          fi
+          if [[ "$PROBE_RESULT" != success ]]; then
+            echo "Candidate probe infrastructure did not complete successfully." >&2
+            exit 1
+          fi
+          echo "Tracked dependencies and Chrome fixtures match their upstream signals."

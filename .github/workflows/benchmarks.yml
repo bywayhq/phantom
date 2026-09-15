@@ -24,11 +24,11 @@ jobs:
           persist-credentials: false
 
       - name: Install project toolchain
-        run: rustup toolchain install 1.98.0 --profile minimal
+        run: rustc --version
 
       - name: Record environment
         run: |
-          rustc +1.98.0 -Vv
+          rustc -Vv
           uname -a
           lscpu
 
@@ -36,7 +36,7 @@ jobs:
         run: |
           mkdir -p target/benchmark-report
           set -o pipefail
-          cargo +1.98.0 bench --locked -p phantom-net --bench transport -- --noplot 2>&1 | tee target/benchmark-report/output.txt
+          cargo bench --locked -p phantom-net --bench transport -- --noplot 2>&1 | tee target/benchmark-report/output.txt
 
       - name: Upload benchmark report
         if: always()

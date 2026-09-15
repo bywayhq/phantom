@@ -1,0 +1,251 @@
+use crate::codec::UserError;
+use crate::error::Reason;
+use crate::proto::*;
+use crate::tracing;
+use std::task::{Context, Poll};
+
+#[derive(Debug)]
+pub(crate) struct Settings {
+    /// Our local SETTINGS sync state with the remote.
+    local: Local,
+    /// Received SETTINGS frame pending processing. The ACK must be written to
+    /// the socket first then the settings applied **before** receiving any
+    /// further frames.
+    remote: Option<frame::Settings>,
+    /// Whether the connection has received the initial SETTINGS frame from the
+    /// remote peer.
+    has_received_remote_initial_settings: bool,
+    /// Sticky remote state required by RFC 8441.
+    remote_extended_connect_protocol_enabled: bool,
+    /// The RFC 9218 value established by the remote peer's initial settings.
+    remote_no_rfc7540_priorities: bool,
+}
+
+#[derive(Debug)]
+enum Local {
+    /// We want to send these SETTINGS to the remote when the socket is ready.
+    ToSend(frame::Settings),
+    /// We have sent these SETTINGS and are waiting for the remote to ACK
+    /// before we apply them.
+    WaitingAck(frame::Settings),
+    /// Our local settings are in sync with the remote.
+    Synced,
+}
+
+impl Settings {
+    pub(crate) fn new(local: frame::Settings) -> Self {
+        Settings {
+            // We assume the initial local SETTINGS were flushed during
+            // the handshake process.
+            local: Local::WaitingAck(local),
+            remote: None,
+            has_received_remote_initial_settings: false,
+            remote_extended_connect_protocol_enabled: false,
+            remote_no_rfc7540_priorities: false,
+        }
+    }
+
+    pub(crate) fn recv_settings<T, B, C, P>(
+        &mut self,
+        frame: frame::Settings,
+        codec: &mut Codec<T, B>,
+        streams: &mut Streams<C, P>,
+    ) -> Result<(), Error>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+        C: Buf,
+        P: Peer,
+    {
+        if frame.is_ack() {
+            match &self.local {
+                Local::WaitingAck(local) => {
+                    tracing::debug!("received settings ACK; applying {:?}", local);
+
+                    if let Some(max) = local.max_frame_size() {
+                        codec.set_max_recv_frame_size(max as usize);
+                    }
+
+                    if let Some(max) = local.max_header_list_size() {
+                        codec.set_max_recv_header_list_size(max as usize);
+                    }
+
+                    if let Some(val) = local.header_table_size() {
+                        codec.set_recv_header_table_size(val as usize);
+                    }
+
+                    streams.apply_local_settings(local)?;
+                    self.local = Local::Synced;
+                    Ok(())
+                }
+                Local::ToSend(..) | Local::Synced => {
+                    // We haven't sent any SETTINGS frames to be ACKed, so
+                    // this is very bizarre! Remote is either buggy or malicious.
+                    proto_err!(conn: "received unexpected settings ack");
+                    Err(Error::library_go_away(Reason::PROTOCOL_ERROR))
+                }
+            }
+        } else {
+            // We always ACK before reading more frames, so `remote` should
+            // always be none!
+            assert!(self.remote.is_none());
+            let is_initial = !self.has_received_remote_initial_settings;
+            self.validate_remote_settings::<P>(&frame, is_initial)?;
+            self.remote = Some(frame);
+            Ok(())
+        }
+    }
+
+    pub(crate) fn send_settings(&mut self, frame: frame::Settings) -> Result<(), UserError> {
+        assert!(!frame.is_ack());
+        match &self.local {
+            Local::ToSend(..) | Local::WaitingAck(..) => Err(UserError::SendSettingsWhilePending),
+            Local::Synced => {
+                tracing::trace!("queue to send local settings: {:?}", frame);
+                self.local = Local::ToSend(frame);
+                Ok(())
+            }
+        }
+    }
+
+    pub(crate) fn apply_initial_peer_settings<T, B, C, P>(
+        &mut self,
+        frame: frame::Settings,
+        codec: &mut Codec<T, B>,
+        streams: &mut Streams<C, P>,
+    ) -> Result<(), Error>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+        C: Buf,
+        P: Peer,
+    {
+        if frame.is_ack() || self.has_received_remote_initial_settings {
+            proto_err!(conn: "invalid initial peer settings seed");
+            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        self.validate_remote_settings::<P>(&frame, true)?;
+        Self::apply_remote_settings(&frame, codec, streams, true)?;
+        self.record_remote_settings(&frame, true);
+        self.has_received_remote_initial_settings = true;
+        Ok(())
+    }
+
+    pub(crate) fn requires_remote_initial_settings(&self) -> bool {
+        !self.has_received_remote_initial_settings
+    }
+
+    pub(crate) fn poll_send<T, B, C, P>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, B>,
+        streams: &mut Streams<C, P>,
+    ) -> Poll<Result<(), Error>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+        C: Buf,
+        P: Peer,
+    {
+        if let Some(settings) = self.remote.clone() {
+            if !dst.poll_ready(cx)?.is_ready() {
+                return Poll::Pending;
+            }
+
+            // Create an ACK settings frame
+            let frame = frame::Settings::ack();
+
+            // Buffer the settings frame
+            dst.buffer(frame.into()).expect("invalid settings frame");
+
+            tracing::trace!("ACK sent; applying settings");
+
+            let is_initial = !self.has_received_remote_initial_settings;
+            Self::apply_remote_settings(&settings, dst, streams, is_initial)?;
+            self.record_remote_settings(&settings, is_initial);
+            self.has_received_remote_initial_settings = true;
+        }
+
+        self.remote = None;
+
+        match &self.local {
+            Local::ToSend(settings) => {
+                if !dst.poll_ready(cx)?.is_ready() {
+                    return Poll::Pending;
+                }
+
+                // Buffer the settings frame
+                dst.buffer(settings.clone().into())
+                    .expect("invalid settings frame");
+                tracing::trace!("local settings sent; waiting for ack: {:?}", settings);
+
+                self.local = Local::WaitingAck(settings.clone());
+            }
+            Local::WaitingAck(..) | Local::Synced => {}
+        }
+
+        Poll::Ready(Ok(()))
+    }
+
+    fn apply_remote_settings<T, B, C, P>(
+        settings: &frame::Settings,
+        codec: &mut Codec<T, B>,
+        streams: &mut Streams<C, P>,
+        is_initial: bool,
+    ) -> Result<(), Error>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+        C: Buf,
+        P: Peer,
+    {
+        streams.apply_remote_settings(settings, is_initial)?;
+
+        if let Some(value) = settings.header_table_size() {
+            codec.set_send_header_table_size(value as usize);
+        }
+        if let Some(value) = settings.max_frame_size() {
+            codec.set_max_send_frame_size(value as usize);
+        }
+        Ok(())
+    }
+
+    fn validate_remote_settings<P: Peer>(
+        &self,
+        settings: &frame::Settings,
+        is_initial: bool,
+    ) -> Result<(), Error> {
+        if !P::r#dyn().is_server() && settings.is_push_enabled() == Some(true) {
+            proto_err!(conn: "client received SETTINGS_ENABLE_PUSH = 1");
+            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        if self.remote_extended_connect_protocol_enabled
+            && settings.is_extended_connect_protocol_enabled() == Some(false)
+        {
+            proto_err!(conn: "peer disabled extended CONNECT after enabling it");
+            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        match (is_initial, settings.is_no_rfc7540_priorities()) {
+            (false, Some(value)) if value != self.remote_no_rfc7540_priorities => {
+                proto_err!(conn: "peer changed SETTINGS_NO_RFC7540_PRIORITIES");
+                return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn record_remote_settings(&mut self, settings: &frame::Settings, is_initial: bool) {
+        if let Some(value) = settings.is_extended_connect_protocol_enabled() {
+            self.remote_extended_connect_protocol_enabled = value;
+        }
+        if is_initial {
+            self.remote_no_rfc7540_priorities =
+                settings.is_no_rfc7540_priorities().unwrap_or(false);
+        }
+    }
+}

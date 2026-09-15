@@ -8,7 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http1Body, Http1Error, OriginForm, PreparedGet, RequestHeader, ResponseHeadOutcome,
+    Http1Body, Http1Error, OperationOutcome, OriginForm, PreparedGet, RequestHeader,
     send_prepared_get,
 };
 use crate::tls::{TlsConnector, trace_alpn};
@@ -66,7 +66,7 @@ impl Http1TlsConnector {
             status = field::Empty,
             outcome = field::Empty,
         );
-        let outcome_guard = ResponseHeadOutcome::new(&span);
+        let outcome_guard = OperationOutcome::new(&span);
         let result = async {
             let prepared = PreparedGet::new(target, headers)?;
             debug!("HTTP/1 request prepared");
@@ -90,9 +90,13 @@ impl Http1TlsConnector {
         .instrument(span.clone())
         .await;
         let outcome = match &result {
-            Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
             Ok(_) => "ok",
-            Err(_) => "error",
+            Err(Http1TlsError::Tls(_)) => "tls_error",
+            Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
+            Err(Http1TlsError::Http1(Http1Error::AmbiguousResponseFraming)) => "invalid_response",
+            Err(Http1TlsError::Http1(_)) => "http_preparation_error",
+            Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
+            Err(Http1TlsError::MissingHttp1Alpn) => "invalid_configuration",
         };
         outcome_guard.finish(outcome);
         result

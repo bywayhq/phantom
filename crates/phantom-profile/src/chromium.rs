@@ -1,8 +1,11 @@
-//! TLS settings retained from Chromium-family browser captures.
+//! Wire settings retained from Chromium-family browser observations.
 
-use crate::tls::{
-    AlpsSettings, CertificateCompression, CipherSuite, NamedGroup, SignatureScheme, TlsSettings,
-    TlsVersion,
+use crate::{
+    http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
+    tls::{
+        AlpsSettings, CertificateCompression, CipherSuite, NamedGroup, SignatureScheme,
+        TlsSettings, TlsVersion,
+    },
 };
 
 const V152_MACOS_TRUST_ANCHOR_IDS: &[&[u8]] = &[
@@ -90,6 +93,7 @@ pub fn v152_macos_tls() -> TlsSettings {
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: Some(AlpsSettings {
             protocol: Box::from(&b"h2"[..]),
+            settings: Box::default(),
             use_new_codepoint: true,
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
@@ -109,13 +113,36 @@ pub fn v152_macos_tls() -> TlsSettings {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::v152_macos_tls;
-
-    #[test]
-    fn chrome_152_macos_tls_settings_are_valid() -> Result<(), Box<dyn std::error::Error>> {
-        v152_macos_tls().validate()?;
-        Ok(())
+/// Returns HTTP/2 settings observed from Chrome 152.0.7977.83 on macOS 15.5.
+///
+/// The initial SETTINGS and connection window are checked against a retained
+/// raw startup-frame capture. Pseudo-header order and request priority come
+/// from a supplemental Pingly observation. The returned value is an ordinary
+/// owned [`Http2Settings`], so callers can customize it before constructing a
+/// transport.
+#[must_use]
+pub fn v152_macos_http2() -> Http2Settings {
+    Http2Settings {
+        initial_settings: vec![
+            Http2Setting::HeaderTableSize(65_536),
+            Http2Setting::EnablePush(false),
+            Http2Setting::InitialWindowSize(6_291_456),
+            Http2Setting::MaxHeaderListSize(262_144),
+        ],
+        initial_connection_window_size: 15_728_640,
+        pseudo_header_order: vec![
+            Http2PseudoHeader::Method,
+            Http2PseudoHeader::Authority,
+            Http2PseudoHeader::Scheme,
+            Http2PseudoHeader::Path,
+        ],
+        headers_priority: Some(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 256,
+            exclusive: true,
+        }),
     }
 }
+
+#[cfg(test)]
+mod tests;

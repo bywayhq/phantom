@@ -103,6 +103,8 @@ pub enum CertificateCompression {
 pub struct AlpsSettings {
     /// ALPN protocol identifier receiving application settings.
     pub protocol: Box<[u8]>,
+    /// Opaque application settings sent when ALPS is negotiated.
+    pub settings: Box<[u8]>,
     /// Whether to use the final ALPS extension codepoint.
     pub use_new_codepoint: bool,
 }
@@ -232,6 +234,12 @@ impl TlsSettings {
                 return Err(InvalidTlsSettings::new(
                     "alps.protocol",
                     "ALPS protocol is absent from the ALPN protocol list",
+                ));
+            }
+            if alps.settings.len() > u16::MAX as usize {
+                return Err(InvalidTlsSettings::new(
+                    "alps.settings",
+                    "ALPS application settings exceed the TLS vector limit",
                 ));
             }
         }

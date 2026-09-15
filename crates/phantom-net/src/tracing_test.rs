@@ -2,32 +2,46 @@ use std::{
     collections::HashMap,
     future::Future,
     sync::{
-        Arc, Mutex, MutexGuard,
+        Arc, Mutex, MutexGuard, OnceLock,
         atomic::{AtomicU64, Ordering},
     },
     task::Poll,
 };
 
+use tokio::sync::{Notify, futures::Notified};
 use tracing::{
     Dispatch, Event, Metadata, Subscriber, dispatcher,
     field::{Field, Visit},
     span::{Attributes, Id, Record},
+    subscriber::Interest,
 };
+
+static DYNAMIC_CALLSITE_FALLBACK: OnceLock<()> = OnceLock::new();
 
 #[derive(Clone, Default)]
 pub(crate) struct OutcomeSubscriber {
     next_span_id: Arc<AtomicU64>,
     state: Arc<Mutex<CaptureState>>,
+    connection_driver_notify: Arc<Notify>,
 }
 
 #[derive(Default)]
 struct CaptureState {
     span_names: HashMap<u64, &'static str>,
     outcomes: Vec<(&'static str, String)>,
+    error_kinds: Vec<(&'static str, String)>,
     response_body_events: Vec<(u64, String)>,
+    connection_driver_events: usize,
+    response_body_polls_on_origin_dispatch: usize,
 }
 
 impl OutcomeSubscriber {
+    pub(crate) fn install_dynamic_callsite_fallback() {
+        DYNAMIC_CALLSITE_FALLBACK.get_or_init(|| {
+            let _ = tracing::subscriber::set_global_default(DynamicCallsiteFallback);
+        });
+    }
+
     pub(crate) fn outcomes_for(&self, span_name: &str) -> Vec<String> {
         self.state()
             .outcomes
@@ -37,8 +51,35 @@ impl OutcomeSubscriber {
             .collect()
     }
 
+    pub(crate) fn error_kinds_for(&self, span_name: &str) -> Vec<String> {
+        self.state()
+            .error_kinds
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, error_kind)| error_kind.clone())
+            .collect()
+    }
+
     pub(crate) fn response_body_events(&self) -> Vec<(u64, String)> {
         self.state().response_body_events.clone()
+    }
+
+    pub(crate) fn connection_driver_events(&self) -> usize {
+        self.state().connection_driver_events
+    }
+
+    pub(crate) fn connection_driver_event(&self) -> Notified<'_> {
+        self.connection_driver_notify.notified()
+    }
+
+    pub(crate) fn response_body_polls_on_origin_dispatch(&self) -> usize {
+        self.state().response_body_polls_on_origin_dispatch
+    }
+
+    pub(crate) fn dispatch(&self) -> Dispatch {
+        let dispatch = Dispatch::new(self.clone());
+        tracing::callsite::rebuild_interest_cache();
+        dispatch
     }
 
     fn state(&self) -> MutexGuard<'_, CaptureState> {
@@ -47,6 +88,32 @@ impl OutcomeSubscriber {
             Err(poisoned) => poisoned.into_inner(),
         }
     }
+}
+
+struct DynamicCallsiteFallback;
+
+impl Subscriber for DynamicCallsiteFallback {
+    fn register_callsite(&self, _metadata: &'static Metadata<'static>) -> Interest {
+        Interest::sometimes()
+    }
+
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+        false
+    }
+
+    fn new_span(&self, _attributes: &Attributes<'_>) -> Id {
+        Id::from_u64(1)
+    }
+
+    fn record(&self, _span: &Id, _values: &Record<'_>) {}
+
+    fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
+
+    fn event(&self, _event: &Event<'_>) {}
+
+    fn enter(&self, _span: &Id) {}
+
+    fn exit(&self, _span: &Id) {}
 }
 
 pub(crate) async fn poll_once_then_drop<F>(future: F, subscriber: OutcomeSubscriber) -> bool
@@ -66,6 +133,10 @@ where
 }
 
 impl Subscriber for OutcomeSubscriber {
+    fn register_callsite(&self, _metadata: &'static Metadata<'static>) -> Interest {
+        Interest::sometimes()
+    }
+
     fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
         true
     }
@@ -81,13 +152,17 @@ impl Subscriber for OutcomeSubscriber {
     fn record(&self, span: &Id, values: &Record<'_>) {
         let mut visitor = OutcomeVisitor::default();
         values.record(&mut visitor);
-        let Some(outcome) = visitor.outcome else {
+        if visitor.outcome.is_none() && visitor.error_kind.is_none() {
             return;
-        };
-
+        }
         let mut state = self.state();
         if let Some(name) = state.span_names.get(&span.into_u64()).copied() {
-            state.outcomes.push((name, outcome));
+            if let Some(outcome) = visitor.outcome {
+                state.outcomes.push((name, outcome));
+            }
+            if let Some(error_kind) = visitor.error_kind {
+                state.error_kinds.push((name, error_kind));
+            }
         }
     }
 
@@ -97,7 +172,19 @@ impl Subscriber for OutcomeSubscriber {
         let Some(parent) = event.parent() else {
             return;
         };
-        if self.state().span_names.get(&parent.into_u64()).copied() != Some("http1.response_body") {
+        let span_name = self.state().span_names.get(&parent.into_u64()).copied();
+        if matches!(
+            span_name,
+            Some("http1.connection_driver" | "http2.connection_driver")
+        ) {
+            self.state().connection_driver_events += 1;
+            self.connection_driver_notify.notify_one();
+            return;
+        }
+        if !matches!(
+            span_name,
+            Some("http1.response_body" | "http2.response_body")
+        ) {
             return;
         }
 
@@ -110,7 +197,24 @@ impl Subscriber for OutcomeSubscriber {
         }
     }
 
-    fn enter(&self, _span: &Id) {}
+    fn enter(&self, span: &Id) {
+        let span_name = self.state().span_names.get(&span.into_u64()).copied();
+        if !matches!(
+            span_name,
+            Some("http1.response_body" | "http2.response_body")
+        ) {
+            return;
+        }
+
+        let uses_origin = dispatcher::get_default(|dispatch| {
+            dispatch
+                .downcast_ref::<Self>()
+                .is_some_and(|subscriber| Arc::ptr_eq(&subscriber.state, &self.state))
+        });
+        if uses_origin {
+            self.state().response_body_polls_on_origin_dispatch += 1;
+        }
+    }
 
     fn exit(&self, _span: &Id) {}
 }
@@ -118,14 +222,17 @@ impl Subscriber for OutcomeSubscriber {
 #[derive(Default)]
 struct OutcomeVisitor {
     outcome: Option<String>,
+    error_kind: Option<String>,
 }
 
 impl Visit for OutcomeVisitor {
     fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
 
     fn record_str(&mut self, field: &Field, value: &str) {
-        if field.name() == "outcome" {
-            self.outcome = Some(value.to_owned());
+        match field.name() {
+            "outcome" => self.outcome = Some(value.to_owned()),
+            "error_kind" => self.error_kind = Some(value.to_owned()),
+            _ => {}
         }
     }
 }

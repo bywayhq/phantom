@@ -2,45 +2,30 @@ use std::{
     error::Error,
     future::Future,
     io,
-    net::SocketAddr,
-    pin::Pin,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    task::{Context, Poll},
-    time::Duration,
 };
 
-use btls::{
-    pkey::PKey,
-    ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslMethod, select_next_proto},
-    x509::X509,
-};
 use http_body_util::BodyExt;
 use phantom_profile::{CipherSuite, NamedGroup, SignatureScheme, TlsSettings, TlsVersion};
-use rcgen::{
-    BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
-    KeyUsagePurpose,
-};
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, duplex},
-    net::{TcpListener, TcpStream},
+    io::{AsyncReadExt, AsyncWriteExt, duplex},
+    net::TcpStream,
     sync::oneshot,
     time::timeout,
 };
 use tokio_btls::SslStream as BoringStream;
+use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{Http1TlsConnector, Http1TlsError};
 use crate::http1::{OriginForm, RequestHeader};
+use crate::tls::test_support::{
+    TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, TouchCountingStream,
+    accept_tls, loopback_listener,
+};
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
-
-type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
-
-const TEST_TIMEOUT: Duration = Duration::from_secs(5);
-const TEST_SERVER_NAME: &str = "server.phantom.test";
-const HTTP1_ALPN_WIRE: &[u8] = b"\x08http/1.1";
-const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 
 async fn bounded_tls_test<F>(future: F) -> TestResult<()>
 where
@@ -85,7 +70,7 @@ async fn streams_ordered_http1_over_trusted_tls() -> TestResult<()> {
     bounded_tls_test(async {
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
-        let acceptor = server_acceptor(&identity, ServerAlpn::Http1)?;
+        let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
         let (release_later, wait_for_release) = oneshot::channel();
         let server_task = tokio::spawn(async move {
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
@@ -154,7 +139,7 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
     bounded_tls_test(async {
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
-        let acceptor = server_acceptor(&identity, ServerAlpn::H2)?;
+        let acceptor = identity.acceptor(TestServerAlpn::H2)?;
         let server_task = tokio::spawn(async move {
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
             let mut plaintext = Vec::new();
@@ -168,6 +153,7 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
 
         let connector = test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
+        let subscriber = OutcomeSubscriber::default();
         let result = connector
             .send_get(
                 tcp,
@@ -175,6 +161,7 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
                 OriginForm::parse("/")?,
                 vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
             )
+            .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
         let error = match result {
             Ok(_) => return Err("h2 selection unexpectedly entered HTTP/1".into()),
@@ -184,6 +171,10 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
             error,
             Http1TlsError::UnsupportedAlpn { ref selected } if selected.as_ref() == b"h2"
         ));
+        assert_eq!(
+            subscriber.outcomes_for("http1.tls.response_head"),
+            ["unsupported_alpn"]
+        );
 
         let (sni, plaintext) = server_task.await??;
         assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
@@ -198,7 +189,7 @@ async fn no_negotiated_alpn_proceeds_as_http1() -> TestResult<()> {
     bounded_tls_test(async {
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
-        let acceptor = server_acceptor(&identity, ServerAlpn::None)?;
+        let acceptor = identity.acceptor(TestServerAlpn::None)?;
         let server_task = tokio::spawn(async move {
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
@@ -238,10 +229,8 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
         let connector = test_connector(&identity)?;
         let touches = Arc::new(AtomicUsize::new(0));
         let (client, _server) = duplex(128);
-        let stream = TouchCountingStream {
-            inner: client,
-            touches: Arc::clone(&touches),
-        };
+        let stream = TouchCountingStream::new(client, Arc::clone(&touches));
+        let subscriber = OutcomeSubscriber::default();
 
         let result = connector
             .send_get(
@@ -250,12 +239,42 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
                 OriginForm::parse("/")?,
                 Vec::new(),
             )
+            .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
         assert!(matches!(result, Err(Http1TlsError::Http1(_))));
         assert_eq!(touches.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            subscriber.outcomes_for("http1.tls.response_head"),
+            ["http_preparation_error"]
+        );
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn handshake_failure_has_tls_wrapper_outcome() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let (client, server) = duplex(4096);
+    drop(server);
+    let subscriber = OutcomeSubscriber::default();
+
+    let result = connector
+        .send_get(
+            client,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+        )
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
+    assert!(matches!(result, Err(Http1TlsError::Tls(_))));
+    assert_eq!(
+        subscriber.outcomes_for("http1.tls.response_head"),
+        ["tls_error"]
+    );
+    Ok(())
 }
 
 #[test]
@@ -309,88 +328,8 @@ fn tls_settings() -> TlsSettings {
 fn test_connector(identity: &TestIdentity) -> TestResult<Http1TlsConnector> {
     Ok(Http1TlsConnector::new_with_roots(
         &tls_settings(),
-        [identity.root_der.as_slice()],
+        [identity.root_der()],
     )?)
-}
-
-struct TestIdentity {
-    root_der: Vec<u8>,
-    leaf_der: Vec<u8>,
-    private_key_der: Vec<u8>,
-}
-
-impl TestIdentity {
-    fn generate() -> TestResult<Self> {
-        let mut root_params = CertificateParams::new(Vec::<String>::new())?;
-        root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-        root_params.key_usages = vec![
-            KeyUsagePurpose::DigitalSignature,
-            KeyUsagePurpose::KeyCertSign,
-            KeyUsagePurpose::CrlSign,
-        ];
-        let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
-
-        let mut leaf_params = CertificateParams::new(vec![TEST_SERVER_NAME.to_owned()])?;
-        leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-        leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
-        leaf_params.use_authority_key_identifier_extension = true;
-        let leaf_key = KeyPair::generate()?;
-        let leaf = leaf_params.signed_by(&leaf_key, &root)?;
-
-        Ok(Self {
-            root_der: root.der().to_vec(),
-            leaf_der: leaf.der().to_vec(),
-            private_key_der: leaf_key.serialize_der(),
-        })
-    }
-}
-
-#[derive(Clone, Copy)]
-enum ServerAlpn {
-    None,
-    Http1,
-    H2,
-}
-
-fn server_acceptor(identity: &TestIdentity, alpn: ServerAlpn) -> TestResult<SslAcceptor> {
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
-    let leaf = X509::from_der(&identity.leaf_der)?;
-    let root = X509::from_der(&identity.root_der)?;
-    let private_key = PKey::private_key_from_pkcs8(&identity.private_key_der)?;
-    acceptor.set_certificate(&leaf)?;
-    acceptor.set_private_key(&private_key)?;
-    acceptor.add_extra_chain_cert(root)?;
-    acceptor.check_private_key()?;
-    match alpn {
-        ServerAlpn::None => {}
-        ServerAlpn::Http1 => acceptor.set_alpn_select_callback(|_, offered| {
-            select_next_proto(HTTP1_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
-        }),
-        ServerAlpn::H2 => acceptor.set_alpn_select_callback(|_, offered| {
-            select_next_proto(H2_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
-        }),
-    }
-    Ok(acceptor.build())
-}
-
-async fn loopback_listener() -> TestResult<(SocketAddr, TcpListener)> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    Ok((listener.local_addr()?, listener))
-}
-
-async fn accept_tls(
-    listener: TcpListener,
-    acceptor: SslAcceptor,
-) -> TestResult<(BoringStream<TcpStream>, Option<String>)> {
-    let (tcp, _) = listener.accept().await?;
-    let ssl = Ssl::new(acceptor.context())?;
-    let mut stream = BoringStream::new(ssl, tcp)?;
-    Pin::new(&mut stream).accept().await?;
-    let sni = stream
-        .ssl()
-        .servername(NameType::HOST_NAME)
-        .map(str::to_owned);
-    Ok((stream, sni))
 }
 
 async fn read_head(stream: &mut BoringStream<TcpStream>) -> io::Result<Vec<u8>> {
@@ -401,60 +340,4 @@ async fn read_head(stream: &mut BoringStream<TcpStream>) -> io::Result<Vec<u8>> 
         bytes.push(byte[0]);
     }
     Ok(bytes)
-}
-
-struct TouchCountingStream {
-    inner: DuplexStream,
-    touches: Arc<AtomicUsize>,
-}
-
-impl TouchCountingStream {
-    fn touched(&self) {
-        self.touches.fetch_add(1, Ordering::SeqCst);
-    }
-}
-
-impl AsyncRead for TouchCountingStream {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_read(context, buffer)
-    }
-}
-
-impl AsyncWrite for TouchCountingStream {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_write(context, buffer)
-    }
-
-    fn poll_write_vectored(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffers: &[io::IoSlice<'_>],
-    ) -> Poll<io::Result<usize>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_write_vectored(context, buffers)
-    }
-
-    fn is_write_vectored(&self) -> bool {
-        self.inner.is_write_vectored()
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_flush(context)
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_shutdown(context)
-    }
 }

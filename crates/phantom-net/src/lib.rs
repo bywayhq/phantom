@@ -1,6 +1,8 @@
 //! Network protocol implementations for Phantom.
 
 pub mod http1;
+pub mod http2;
+pub mod request;
 pub(crate) mod tls;
 
 #[cfg(test)]

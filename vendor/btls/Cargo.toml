@@ -1,0 +1,73 @@
+[package]
+name = "btls"
+version = "0.5.6"
+authors = ["0x676e67 <gngppz@gmail.com>", "Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
+license = "Apache-2.0"
+description = "BoringSSL bindings"
+repository = "https://github.com/0x676e67/btls"
+documentation = "https://docs.rs/btls"
+readme = "README.md"
+keywords = ["tls", "ssl", "dtls", "post-quantum", "fips"]
+categories = ["cryptography", "api-bindings"]
+edition = "2021"
+rust-version = "1.85"
+
+[package.metadata.docs.rs]
+features = ["rpk", "underscore-wildcards", "mlkem", "mldsa"]
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+# Use a FIPS-validated version of BoringSSL.
+fips = ["btls-sys/fips"]
+
+# **DO NOT USE** This will be removed without warning in future releases.
+legacy-compat-deprecated = []
+
+# Interface for ML-KEM (FIPS 203) post-quantum key encapsulation. Does not affect ciphers used in TLS.
+mlkem = []
+# ML-DSA (FIPS 204) post-quantum digital signature.
+mldsa = []
+
+# Expose internal `tls1_prf`
+prf = []
+
+# SslCredential API
+credential = []
+
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+# This feature is necessary in order to compile the bindings for the
+# default branch of BoringSSL. Alternatively, a version of BoringSSL that
+# implements the same feature set can be provided by setting
+# `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
+rpk = ["credential", "btls-sys/rpk"]
+
+# Applies a patch to enable `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. This
+# feature is necessary in order to compile the bindings for the default branch
+# of boringSSL. Alternatively, a version of boringSSL that implements the same
+# feature set can be provided by setting `BORING_BSSL{,_FIPS}_SOURCE_PATH` and
+# `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
+underscore-wildcards = ["btls-sys/underscore-wildcards"]
+
+# Add a prefix to all symbols in libcrypto and libssl to prevent conflicts
+# with OpenSSL versions that might be linked in the same process.
+prefix-symbols = ["btls-sys/prefix-symbols"]
+
+# Restores the historical pre-TLS 1.3 client behaviour for RSA keyUsage mismatches.
+relax-cert-validation = ["btls-sys/relax-cert-validation"]
+
+# **DO NOT USE** This will be removed without warning in future releases.
+# Alias for 'fips', only for backwards compatibility.
+fips-precompiled = ["fips"]
+
+[dependencies]
+bitflags = "2.11.1"
+foreign-types = "0.5"
+openssl-macros = "0.1.1"
+libc = "0.2.185"
+btls-sys = { version = "0.5.6", git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37" }
+
+[dev-dependencies]
+hex = "0.4"
+brotli = "8.0.2"
