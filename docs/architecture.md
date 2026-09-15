@@ -53,8 +53,8 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Profile,H1,TLS current
-    class Client,Session,Plan,H2,H3,QUIC,SSE,WS planned
+    class Profile,H1,H2,TLS current
+    class Client,Session,Plan,H3,QUIC,SSE,WS planned
 ```
 
 SSE is a response-body consumer, not another transport. WebSocket owns its
