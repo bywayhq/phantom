@@ -155,12 +155,14 @@ impl BodyTrace {
             return;
         }
         self.finished = true;
-        debug!(
-            parent: &self.span,
-            body_bytes = self.received_bytes,
-            outcome,
-            "HTTP/1 response body finished"
-        );
+        dispatcher::with_default(&self.dispatch, || {
+            debug!(
+                parent: &self.span,
+                body_bytes = self.received_bytes,
+                outcome,
+                "HTTP/1 response body finished"
+            );
+        });
     }
 }
 
@@ -183,11 +185,13 @@ impl DriverTask {
         let handle = runtime.spawn(
             connection
                 .instrument(span.clone())
-                .with_subscriber(dispatch),
+                .with_subscriber(dispatch.clone()),
         );
         let (terminal, terminal_signal) = oneshot::channel();
         let outcome = DriverOutcome::new(span);
-        drop(runtime.spawn(supervise_driver(handle, terminal_signal, outcome)));
+        let supervisor = runtime
+            .spawn(supervise_driver(handle, terminal_signal, outcome).with_subscriber(dispatch));
+        drop(supervisor);
 
         Self {
             terminal: Some(terminal),
@@ -243,7 +247,7 @@ async fn supervise_driver(
         DriverEvent::Task(result) => match result {
             Ok(Ok(())) => {
                 let signal = terminal.await.unwrap_or(DriverSignal::Cancelled);
-                outcome.finish(signal.outcome());
+                outcome.record_signal(signal);
             }
             result => outcome.record_failure(result),
         },
@@ -290,12 +294,15 @@ impl DriverOutcome {
             Ok(Err(_error)) => self.protocol_error(),
             Err(error) if error.is_panic() => self.task_error(&error),
             Ok(Ok(())) | Err(_) => {
-                self.finish(signal.outcome());
-                if matches!(signal, DriverSignal::Cancelled) {
-                    debug!(parent: &self.span, "HTTP/1 connection driver cancelled");
-                }
+                self.record_signal(signal);
             }
         }
+    }
+
+    fn record_signal(&mut self, signal: DriverSignal) {
+        let outcome = signal.outcome();
+        self.finish(outcome);
+        debug!(parent: &self.span, outcome, "HTTP/1 connection driver stopped");
     }
 
     fn protocol_error(&mut self) {

@@ -25,6 +25,7 @@ struct CaptureState {
     span_names: HashMap<u64, &'static str>,
     outcomes: Vec<(&'static str, String)>,
     response_body_events: Vec<(u64, String)>,
+    connection_driver_events: usize,
     response_body_polls_on_origin_dispatch: usize,
 }
 
@@ -40,6 +41,10 @@ impl OutcomeSubscriber {
 
     pub(crate) fn response_body_events(&self) -> Vec<(u64, String)> {
         self.state().response_body_events.clone()
+    }
+
+    pub(crate) fn connection_driver_events(&self) -> usize {
+        self.state().connection_driver_events
     }
 
     pub(crate) fn response_body_polls_on_origin_dispatch(&self) -> usize {
@@ -103,6 +108,13 @@ impl Subscriber for OutcomeSubscriber {
             return;
         };
         let span_name = self.state().span_names.get(&parent.into_u64()).copied();
+        if matches!(
+            span_name,
+            Some("http1.connection_driver" | "http2.connection_driver")
+        ) {
+            self.state().connection_driver_events += 1;
+            return;
+        }
         if !matches!(
             span_name,
             Some("http1.response_body" | "http2.response_body")

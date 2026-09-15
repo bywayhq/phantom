@@ -14,7 +14,7 @@ use tokio::{
     sync::oneshot,
     time::timeout,
 };
-use tracing::instrument::WithSubscriber;
+use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
@@ -281,6 +281,7 @@ async fn dropping_body_closes_stream() -> TestResult {
 async fn response_body_may_be_dropped_on_plain_thread() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
+        let other_subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
         let server_task = tokio::spawn(async move {
             read_head(&mut server).await?;
@@ -306,11 +307,22 @@ async fn response_body_may_be_dropped_on_plain_thread() -> TestResult {
         .with_subscriber(subscriber.clone())
         .await?;
 
-        std::thread::spawn(move || drop(body))
-            .join()
-            .map_err(|_| "dropping HTTP/1 body outside its runtime panicked")?;
+        let thread_subscriber = other_subscriber.clone();
+        std::thread::spawn(move || {
+            let dispatch = Dispatch::new(thread_subscriber);
+            dispatcher::with_default(&dispatch, || drop(body));
+        })
+        .join()
+        .map_err(|_| "dropping HTTP/1 body outside its runtime panicked")?;
+        assert_eq!(
+            subscriber.response_body_events(),
+            [(5, "dropped".to_owned())]
+        );
+        assert!(other_subscriber.response_body_events().is_empty());
         assert_eq!(server_task.await??, 0);
         wait_for_driver_outcome(&subscriber, "cancelled").await?;
+        assert_eq!(subscriber.connection_driver_events(), 1);
+        assert_eq!(other_subscriber.connection_driver_events(), 0);
         Ok(())
     })
     .await
