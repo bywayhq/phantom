@@ -49,8 +49,9 @@ results across runner images.
 ## Runtime tracing
 
 The library emits `debug` spans and events but never installs a subscriber.
-TLS handshake and HTTP response-head spans expose bounded protocol outcomes;
-the streaming body emits one terminal event with its DATA byte count and a
+TLS connector-build and handshake spans expose bounded outcomes and static
+error classes; HTTP response-head spans expose bounded protocol outcomes. The
+streaming body emits one terminal event with its DATA byte count and a
 `complete`, `protocol_error`, or `dropped` outcome. Endpoint names, request
 targets, headers, bodies, and certificates are not recorded.
 

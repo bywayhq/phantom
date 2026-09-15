@@ -115,10 +115,19 @@ pub(crate) struct TlsConnector {
 
 impl fmt::Debug for TlsConnector {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let alps_protocol = self
+            .alps
+            .as_ref()
+            .map(|alps| trace_alpn(Some(&alps.protocol)));
+        let alps_settings_len = self.alps.as_ref().map(|alps| alps.settings.len());
+        let alps_use_new_codepoint = self.alps.as_ref().map(|alps| alps.use_new_codepoint);
+
         formatter
             .debug_struct("TlsConnector")
             .field("alpn_protocol_count", &count_alpn(&self.alpn_wire))
-            .field("alps", &self.alps)
+            .field("alps_protocol", &alps_protocol)
+            .field("alps_settings_len", &alps_settings_len)
+            .field("alps_use_new_codepoint", &alps_use_new_codepoint)
             .field("tls13_key_shares", &self.tls13_key_shares)
             .field("ech_grease", &self.ech_grease)
             .finish_non_exhaustive()
@@ -140,10 +149,6 @@ impl TlsConnector {
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, TlsError> {
-        settings
-            .validate()
-            .map_err(TlsError::invalid_configuration)?;
-
         let span = debug_span!(
             "tls.connector.build",
             cipher_suite_count = settings.cipher_suites.len(),
@@ -154,8 +159,23 @@ impl TlsConnector {
             grease = settings.grease,
             permute_extensions = settings.permute_extensions,
             ech_grease = settings.ech_grease,
+            outcome = field::Empty,
+            error_kind = field::Empty,
         );
         let _entered = span.enter();
+        let result = Self::build_connector(settings, roots);
+        record_tls_result(&span, &result);
+        result
+    }
+
+    fn build_connector<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+    ) -> Result<Self, TlsError> {
+        settings
+            .validate()
+            .map_err(TlsError::invalid_configuration)?;
+
         debug!("building TLS connector");
 
         let mut root_store =
@@ -263,6 +283,7 @@ impl TlsConnector {
             peer_application_settings_len = field::Empty,
             tls_version = field::Empty,
             outcome = field::Empty,
+            error_kind = field::Empty,
         );
         let outcome = HandshakeOutcome::new(&span);
         let result = async {
@@ -328,8 +349,20 @@ impl TlsConnector {
         }
         .instrument(span.clone())
         .await;
-        outcome.finish(if result.is_ok() { "ok" } else { "error" });
+        outcome.finish(&result);
         result
+    }
+}
+
+fn record_tls_result<T>(span: &Span, result: &Result<T, TlsError>) {
+    match result {
+        Ok(_) => {
+            span.record("outcome", "ok");
+        }
+        Err(error) => {
+            span.record("outcome", "error");
+            span.record("error_kind", error.kind().trace_name());
+        }
     }
 }
 
@@ -346,8 +379,8 @@ impl HandshakeOutcome {
         }
     }
 
-    fn finish(mut self, outcome: &'static str) {
-        self.span.record("outcome", outcome);
+    fn finish<T>(mut self, result: &Result<T, TlsError>) {
+        record_tls_result(&self.span, result);
         self.recorded = true;
     }
 }
@@ -460,6 +493,17 @@ pub enum TlsErrorKind {
     UnsupportedSetting,
     /// The TLS handshake failed.
     Handshake,
+}
+
+impl TlsErrorKind {
+    fn trace_name(self) -> &'static str {
+        match self {
+            Self::InvalidConfiguration => "invalid_configuration",
+            Self::BackendConfiguration => "backend_configuration",
+            Self::UnsupportedSetting => "unsupported_setting",
+            Self::Handshake => "handshake",
+        }
+    }
 }
 
 /// Error returned while constructing or using the TLS connector.

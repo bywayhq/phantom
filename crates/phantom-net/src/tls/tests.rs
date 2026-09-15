@@ -14,6 +14,7 @@ use super::{
 
 mod alps;
 mod chrome;
+mod tracing;
 
 #[test]
 fn trust_anchor_ids_are_length_prefixed_for_boringssl() {
@@ -79,6 +80,29 @@ fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
     };
     assert_eq!(error.kind(), TlsErrorKind::InvalidConfiguration);
     assert!(error.to_string().contains("alpn_protocols"));
+    Ok(())
+}
+
+#[test]
+fn connector_debug_reports_alps_metadata_without_payload() -> TestResult<()> {
+    const OPAQUE_ALPS_PAYLOAD: &[u8] = b"opaque-alps-marker-7f3c";
+
+    let mut settings = v152_macos_tls();
+    settings
+        .alps
+        .as_mut()
+        .ok_or("Chrome profile omitted ALPS")?
+        .settings = OPAQUE_ALPS_PAYLOAD.into();
+    let connector = TlsConnector::new_with_roots(&settings, std::iter::empty::<&[u8]>())?;
+
+    let debug = format!("{connector:?}");
+    assert_eq!(
+        debug,
+        "TlsConnector { alpn_protocol_count: 2, alps_protocol: Some(\"h2\"), \
+         alps_settings_len: Some(23), alps_use_new_codepoint: Some(true), \
+         tls13_key_shares: Some([X25519MlKem768, X25519]), ech_grease: true, .. }"
+    );
+    assert!(!debug.contains("opaque-alps-marker-7f3c"));
     Ok(())
 }
 

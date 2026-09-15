@@ -24,6 +24,7 @@ pub(crate) struct OutcomeSubscriber {
 struct CaptureState {
     span_names: HashMap<u64, &'static str>,
     outcomes: Vec<(&'static str, String)>,
+    error_kinds: Vec<(&'static str, String)>,
     response_body_events: Vec<(u64, String)>,
     connection_driver_events: usize,
     response_body_polls_on_origin_dispatch: usize,
@@ -36,6 +37,15 @@ impl OutcomeSubscriber {
             .iter()
             .filter(|(name, _)| *name == span_name)
             .map(|(_, outcome)| outcome.clone())
+            .collect()
+    }
+
+    pub(crate) fn error_kinds_for(&self, span_name: &str) -> Vec<String> {
+        self.state()
+            .error_kinds
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, error_kind)| error_kind.clone())
             .collect()
     }
 
@@ -91,13 +101,17 @@ impl Subscriber for OutcomeSubscriber {
     fn record(&self, span: &Id, values: &Record<'_>) {
         let mut visitor = OutcomeVisitor::default();
         values.record(&mut visitor);
-        let Some(outcome) = visitor.outcome else {
+        if visitor.outcome.is_none() && visitor.error_kind.is_none() {
             return;
-        };
-
+        }
         let mut state = self.state();
         if let Some(name) = state.span_names.get(&span.into_u64()).copied() {
-            state.outcomes.push((name, outcome));
+            if let Some(outcome) = visitor.outcome {
+                state.outcomes.push((name, outcome));
+            }
+            if let Some(error_kind) = visitor.error_kind {
+                state.error_kinds.push((name, error_kind));
+            }
         }
     }
 
@@ -156,14 +170,17 @@ impl Subscriber for OutcomeSubscriber {
 #[derive(Default)]
 struct OutcomeVisitor {
     outcome: Option<String>,
+    error_kind: Option<String>,
 }
 
 impl Visit for OutcomeVisitor {
     fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
 
     fn record_str(&mut self, field: &Field, value: &str) {
-        if field.name() == "outcome" {
-            self.outcome = Some(value.to_owned());
+        match field.name() {
+            "outcome" => self.outcome = Some(value.to_owned()),
+            "error_kind" => self.error_kind = Some(value.to_owned()),
+            _ => {}
         }
     }
 }
