@@ -211,6 +211,12 @@ grep -F -q 'ALPS wrapper patch does not apply' \
 [[ -z $(git -C "$probe_checkout" status --porcelain) ]]
 [[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
 
+darwin_checkout="$test_root/darwin-checkout"
+cp -R "$probe_checkout" "$darwin_checkout"
+darwin_command_log="$test_root/darwin-commands.log"
+darwin_tmp="$test_root/darwin-tmp"
+mkdir -p "$darwin_tmp"
+
 (
   cd "$probe_checkout"
   PATH="$mock_bin:$PATH" \
@@ -219,6 +225,7 @@ grep -F -q 'ALPS wrapper patch does not apply' \
     MOCK_CURRENT_REVISION="$current_revision" \
     MOCK_CANDIDATE_REVISION="$candidate_revision" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    PHANTOM_BTLS_PROBE_PLATFORM=Linux \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
 )
@@ -226,11 +233,36 @@ grep -F -q 'ALPS wrapper patch does not apply' \
   "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
 grep -F -q "rev = \"$candidate_revision\"" \
   "$probe_checkout/vendor/btls/Cargo.toml"
-grep -F -q 'ssl::test::alps' "$command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \
+  "$command_log"
 grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
 grep -F -q 'chrome_client_hello' "$command_log"
 [[ -z $(git -C "$candidate_repo" status --porcelain) ]]
 [[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
+
+(
+  cd "$darwin_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$darwin_tmp" \
+    COMMAND_LOG="$darwin_command_log" \
+    MOCK_CURRENT_REVISION="$current_revision" \
+    MOCK_CANDIDATE_REVISION="$candidate_revision" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    PHANTOM_BTLS_PROBE_PLATFORM=Darwin \
+    PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
+    scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
+)
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps' \
+  "$darwin_command_log"
+if grep -F -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols' \
+  "$darwin_command_log"; then
+  echo "Darwin btls ALPS gate unexpectedly enabled prefixed symbols" >&2
+  exit 1
+fi
+[[ -z $(find "$darwin_tmp" -mindepth 1 -print -quit) ]]
 
 http2_source_root="$test_root/http2-source"
 mkdir -p "$http2_source_root"
