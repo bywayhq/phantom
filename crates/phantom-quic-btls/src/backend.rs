@@ -1,6 +1,6 @@
-//! The complete FFI boundary for packet cryptography.
+//! The complete FFI boundary for QUIC cryptography primitives.
 
-use std::ffi::c_uint;
+use std::ffi::{c_uint, c_void};
 use std::fmt;
 use std::ptr::NonNull;
 
@@ -11,6 +11,45 @@ use crate::{CryptoError, Result};
 
 const AES_BLOCK_LEN: usize = 16;
 const AES_GCM_TAG_LEN: usize = 16;
+
+pub(crate) fn random_bytes(output: &mut [u8]) -> Result<()> {
+    ffi::init();
+    // SAFETY: `output` is writable for exactly `output.len()` bytes and remains
+    // exclusively borrowed for the duration of the call. BoringSSL's default
+    // CSPRNG obtains its entropy from the operating system.
+    let status = unsafe { ffi::RAND_bytes(output.as_mut_ptr(), output.len()) };
+    if status != 1 {
+        drain_error_queue();
+        output.fill(0);
+        return Err(CryptoError::BackendFailure("random key generation"));
+    }
+    Ok(())
+}
+
+pub(crate) fn hmac_sha256(key: &[u8], data: &[u8], output: &mut [u8; SHA256_LEN]) -> Result<()> {
+    ffi::init();
+    let mut written = 0;
+    // SAFETY: key and data point to readable storage for their stated lengths;
+    // output is a distinct writable SHA-256-sized array. BoringSSL documents
+    // that `HMAC` writes at most the selected digest's output size.
+    let result = unsafe {
+        ffi::HMAC(
+            ffi::EVP_sha256(),
+            key.as_ptr().cast::<c_void>(),
+            key.len(),
+            data.as_ptr(),
+            data.len(),
+            output.as_mut_ptr(),
+            &mut written,
+        )
+    };
+    if result != output.as_mut_ptr() || written != SHA256_LEN as c_uint {
+        drain_error_queue();
+        output.fill(0);
+        return Err(CryptoError::BackendFailure("HMAC-SHA-256 signing"));
+    }
+    Ok(())
+}
 
 pub(crate) fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
     if left.len() != right.len() {

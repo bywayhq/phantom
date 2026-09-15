@@ -28,6 +28,13 @@ pub enum CryptoError {
         /// Required length.
         expected: usize,
     },
+    /// A message authentication signature has the wrong length.
+    InvalidSignatureLength {
+        /// Length supplied by the caller.
+        actual: usize,
+        /// Required length.
+        expected: usize,
+    },
     /// A header-protection sample is not fully present.
     InvalidSampleBounds {
         /// Offset at which the sample was expected to start.
@@ -53,6 +60,8 @@ pub enum CryptoError {
     },
     /// Packet authentication failed.
     AuthenticationFailed,
+    /// A message authentication signature does not match.
+    SignatureMismatch,
     /// The backend rejected an otherwise well-formed operation.
     BackendFailure(&'static str),
     /// Temporary memory for a bounded protocol operation could not be reserved.
@@ -71,6 +80,12 @@ impl fmt::Display for CryptoError {
             Self::InvalidNonceLength { actual, expected } => {
                 write!(formatter, "nonce length {actual} does not match {expected}")
             }
+            Self::InvalidSignatureLength { actual, expected } => {
+                write!(
+                    formatter,
+                    "signature length {actual} does not match {expected}"
+                )
+            }
             Self::InvalidSampleBounds {
                 offset,
                 required,
@@ -88,6 +103,7 @@ impl fmt::Display for CryptoError {
                 "packet output capacity {actual} is smaller than required {required}"
             ),
             Self::AuthenticationFailed => formatter.write_str("packet authentication failed"),
+            Self::SignatureMismatch => formatter.write_str("signature verification failed"),
             Self::BackendFailure(operation) => {
                 write!(formatter, "cryptographic backend failed during {operation}")
             }

@@ -1,6 +1,6 @@
 [package]
 name = "phantom-quic-btls"
-description = "Private BoringSSL packet cryptography for Phantom QUIC"
+description = "Private BoringSSL cryptography primitives for Phantom QUIC"
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true

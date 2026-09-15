@@ -1,9 +1,9 @@
-//! BoringSSL-backed QUIC packet cryptography for Phantom.
+//! BoringSSL-backed QUIC cryptography primitives for Phantom.
 //!
 //! This crate is an internal adapter, not a general-purpose cryptography API.
 //! Its checked concrete types are deliberately separate from Quinn's
-//! infallible packet and header key traits. The full QUIC session provider can
-//! adapt them once it owns the protocol invariants required by those traits.
+//! infallible Quinn traits. The full QUIC session provider can adapt them once
+//! it owns the protocol invariants required by those traits.
 
 #![deny(unsafe_code)]
 
@@ -16,6 +16,7 @@ mod header;
 mod initial;
 mod packet;
 mod quinn;
+mod reset;
 mod retry;
 mod secret;
 
@@ -26,6 +27,7 @@ pub use error::{CryptoError, Result};
 pub use header::HeaderProtectionKey;
 pub use initial::{DirectionKeys, EndpointSide, InitialKeys, derive_initial_keys};
 pub use packet::PacketProtectionKey;
+pub use reset::StatelessResetKey;
 pub use retry::{retry_integrity_tag, verify_retry_integrity};
 
 /// The QUIC protocol version understood by this packet-crypto slice.
