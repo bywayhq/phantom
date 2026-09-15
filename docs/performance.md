@@ -27,6 +27,9 @@ close with a `complete` outcome. The final span close follows the bounded
 shutdown supervisor, so neither transport nor supervisor work can overlap the
 next sample. Criterion's batched setup constructs the cloned inputs, replay
 state, and completion observers outside the timed routine.
+The timed HTTP/2 routine includes default-dispatch switching and the minimal
+mutex-backed driver-span lifecycle observation used to prove clean supervisor
+completion, so these are not tracing-disabled transport measurements.
 
 All HTTP/1 and HTTP/2 response microbenchmarks use a deterministic in-memory
 replay stream, so they include neither TCP nor TLS costs. HTTP/1 releases its
