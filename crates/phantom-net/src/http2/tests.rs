@@ -50,5 +50,7 @@ async fn next_nonempty_data(body: &mut Http2Body) -> TestResult<Bytes> {
 }
 
 mod driver_lifecycle;
+mod driver_shutdown;
+mod request_validation;
 mod request_wire;
 mod response_body;
