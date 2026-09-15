@@ -10,16 +10,20 @@ use phantom_profile::{
 use super::capture_client_hello_from;
 use crate::tls::test_support::TestResult;
 
+const CERTIFICATE_COMPRESSION_EXTENSION: u16 = 27;
 const DELEGATED_CREDENTIAL_EXTENSION: u16 = 34;
 const RECORD_SIZE_LIMIT_EXTENSION: u16 = 28;
-const CERTIFICATE_COMPRESSION_EXTENSION: u16 = 27;
+const SESSION_TICKET_EXTENSION: u16 = 35;
 
 #[tokio::test]
 async fn configured_capabilities_are_emitted_in_fixed_wire_order() -> TestResult<()> {
     let capture = capture_client_hello_from(&capability_settings()).await?;
     let summary = capture.summary()?;
 
-    assert_eq!(summary.cipher_suites(), &[0x1301, 0xc008, 0xc012, 0x000a]);
+    assert_eq!(
+        summary.cipher_suites(),
+        &[0x1301, 0xc009, 0xc00a, 0xc008, 0xc012, 0x000a]
+    );
     assert_eq!(
         summary.supported_groups(),
         &[0x0019, 0x0100, 0x0101, 0x001d]
@@ -33,25 +37,45 @@ async fn configured_capabilities_are_emitted_in_fixed_wire_order() -> TestResult
         summary.supported_versions(),
         &[0x0304, 0x0303, 0x0302, 0x0301]
     );
+    assert!(
+        summary
+            .extension_types()
+            .contains(&SESSION_TICKET_EXTENSION)
+    );
     assert_eq!(
         summary.extension_types(),
         &[
-            0x0000, 0x0017, 0xff01, 0x000a, 0x000b, 0x0023, 0x0010, 0x0005, 0x0022, 0x0012, 0x0033,
-            0x002b, 0x000d, 0x002d, 0x001c, 0x001b, 0x0015,
+            0x0000, 0x0017, 0xff01, 0x000a, 0x000b, 0x0023, 0x0010, 0x0005, 0x0012, 0x0033, 0x002b,
+            0x000d, 0x002d, 0x001b, 0x0015,
         ]
     );
-
-    assert_eq!(
-        extension_payload(capture.handshake_bytes(), DELEGATED_CREDENTIAL_EXTENSION)?,
-        &[0x00, 0x08, 0x04, 0x03, 0x05, 0x03, 0x06, 0x03, 0x02, 0x03]
+    assert!(
+        !summary
+            .extension_types()
+            .contains(&DELEGATED_CREDENTIAL_EXTENSION)
     );
-    assert_eq!(
-        extension_payload(capture.handshake_bytes(), RECORD_SIZE_LIMIT_EXTENSION)?,
-        &[0x40, 0x01]
+    assert!(
+        !summary
+            .extension_types()
+            .contains(&RECORD_SIZE_LIMIT_EXTENSION)
     );
     assert_eq!(
         extension_payload(capture.handshake_bytes(), CERTIFICATE_COMPRESSION_EXTENSION)?,
         &[0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn disabled_session_tickets_omit_the_client_hello_extension() -> TestResult<()> {
+    let mut settings = capability_settings();
+    settings.session_tickets = false;
+
+    let summary = capture_client_hello_from(&settings).await?.summary()?;
+    assert!(
+        !summary
+            .extension_types()
+            .contains(&SESSION_TICKET_EXTENSION)
     );
     Ok(())
 }
@@ -62,6 +86,8 @@ fn capability_settings() -> TlsSettings {
         max_version: TlsVersion::Tls13,
         cipher_suites: vec![
             CipherSuite::Aes128GcmSha256,
+            CipherSuite::EcdheEcdsaAes128CbcSha,
+            CipherSuite::EcdheEcdsaAes256CbcSha,
             CipherSuite::EcdheEcdsa3DesEdeCbcSha,
             CipherSuite::EcdheRsa3DesEdeCbcSha,
             CipherSuite::Rsa3DesEdeCbcSha,
@@ -80,12 +106,6 @@ fn capability_settings() -> TlsSettings {
             SignatureScheme::EcdsaSha1,
             SignatureScheme::RsaPkcs1Sha1,
         ],
-        delegated_credential_signature_schemes: vec![
-            SignatureScheme::EcdsaSecp256r1Sha256,
-            SignatureScheme::EcdsaSecp384r1Sha384,
-            SignatureScheme::EcdsaSecp521r1Sha512,
-            SignatureScheme::EcdsaSha1,
-        ],
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: vec![
@@ -93,7 +113,7 @@ fn capability_settings() -> TlsSettings {
             CertificateCompression::Brotli,
             CertificateCompression::Zstd,
         ],
-        record_size_limit: Some(0x4001),
+        session_tickets: true,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,
@@ -106,15 +126,12 @@ fn capability_settings() -> TlsSettings {
             ClientHelloExtension::SessionTicket,
             ClientHelloExtension::Alpn,
             ClientHelloExtension::StatusRequest,
-            ClientHelloExtension::DelegatedCredential,
             ClientHelloExtension::SignedCertificateTimestamp,
             ClientHelloExtension::KeyShare,
             ClientHelloExtension::SupportedVersions,
             ClientHelloExtension::SignatureAlgorithms,
             ClientHelloExtension::PskKeyExchangeModes,
-            ClientHelloExtension::RecordSizeLimit,
             ClientHelloExtension::CertificateCompression,
-            ClientHelloExtension::Padding,
         ]),
         ech_grease: false,
         request_ocsp_staple: true,

@@ -42,6 +42,10 @@ pub enum CipherSuite {
     EcdheRsaAes128CbcSha,
     /// TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA.
     EcdheRsaAes256CbcSha,
+    /// TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA.
+    EcdheEcdsaAes128CbcSha,
+    /// TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA.
+    EcdheEcdsaAes256CbcSha,
     /// TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA.
     EcdheEcdsa3DesEdeCbcSha,
     /// TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA.
@@ -144,8 +148,6 @@ pub enum ClientHelloExtension {
     Alpn,
     /// Certificate status request.
     StatusRequest,
-    /// Delegated credential signature algorithms.
-    DelegatedCredential,
     /// Signed certificate timestamps.
     SignedCertificateTimestamp,
     /// TLS 1.3 key shares.
@@ -156,8 +158,6 @@ pub enum ClientHelloExtension {
     SignatureAlgorithms,
     /// TLS 1.3 pre-shared-key exchange modes.
     PskKeyExchangeModes,
-    /// Record size limit.
-    RecordSizeLimit,
     /// Certificate compression algorithms.
     CertificateCompression,
     /// Requested trust anchors.
@@ -168,8 +168,6 @@ pub enum ClientHelloExtension {
     ApplicationSettingsLegacy,
     /// Encrypted ClientHello or ECH GREASE.
     EncryptedClientHello,
-    /// ClientHello padding.
-    Padding,
 }
 
 /// Controls the ordering of known ClientHello extensions.
@@ -182,9 +180,10 @@ pub enum ClientHelloExtensionOrder {
     Permuted,
     /// Keep listed extensions in this order before any unlisted extensions.
     ///
-    /// The backend appends unlisted known extensions in random order. Profiles
-    /// that require a fully fixed sequence should list every extension they
-    /// enable or expect the backend to emit.
+    /// The backend appends unlisted configurable extensions in random order;
+    /// backend-managed extensions may follow them. Profiles should list every
+    /// configurable extension whose relative position belongs to the captured
+    /// fingerprint.
     Fixed(Vec<ClientHelloExtension>),
 }
 
@@ -214,20 +213,17 @@ pub struct TlsSettings {
     pub key_shares: Vec<NamedGroup>,
     /// Signature schemes in preference order.
     pub signature_schemes: Vec<SignatureScheme>,
-    /// Signature schemes accepted for delegated credentials, in wire order.
-    ///
-    /// An empty list omits the `delegated_credential` extension.
-    pub delegated_credential_signature_schemes: Vec<SignatureScheme>,
     /// ALPN protocol identifiers in preference order.
     pub alpn_protocols: Vec<Box<[u8]>>,
     /// Optional ALPS advertisement.
     pub alps: Option<AlpsSettings>,
     /// Certificate compression algorithms in preference order.
     pub certificate_compression: Vec<CertificateCompression>,
-    /// Largest protected TLS record accepted from the peer.
+    /// Whether session-ticket support is enabled.
     ///
-    /// `None` omits the `record_size_limit` extension.
-    pub record_size_limit: Option<u16>,
+    /// Disabling this omits the TLS 1.2 `session_ticket` ClientHello extension
+    /// and disables ticket resumption supported by the TLS backend.
+    pub session_tickets: bool,
     /// Optional trust anchor IDs advertised to guide server certificate selection.
     ///
     /// Each ID is an opaque, non-empty byte string. `None` omits the TLS
@@ -291,12 +287,6 @@ impl TlsSettings {
                     "requested trust anchors require TLS 1.3 to be enabled",
                 ));
             }
-            if !self.delegated_credential_signature_schemes.is_empty() {
-                return Err(InvalidTlsSettings::new(
-                    "delegated_credential_signature_schemes",
-                    "delegated credentials require TLS 1.3 to be enabled",
-                ));
-            }
             if !self.certificate_compression.is_empty() {
                 return Err(InvalidTlsSettings::new(
                     "certificate_compression",
@@ -325,12 +315,6 @@ impl TlsSettings {
             return Err(InvalidTlsSettings::new(
                 "signature_schemes",
                 "at least one signature scheme is required",
-            ));
-        }
-        if self.delegated_credential_signature_schemes.len() > u16::MAX as usize / 2 {
-            return Err(InvalidTlsSettings::new(
-                "delegated_credential_signature_schemes",
-                "encoded delegated-credential signature list exceeds 65534 bytes",
             ));
         }
         validate_alpn(&self.alpn_protocols)?;
@@ -365,20 +349,6 @@ impl TlsSettings {
                 return Err(InvalidTlsSettings::new(
                     "certificate_compression",
                     "certificate compression algorithms must not repeat",
-                ));
-            }
-        }
-
-        if let Some(limit) = self.record_size_limit {
-            let maximum = if self.max_version == TlsVersion::Tls13 {
-                16_385
-            } else {
-                16_384
-            };
-            if !(64..=maximum).contains(&limit) {
-                return Err(InvalidTlsSettings::new(
-                    "record_size_limit",
-                    format!("record size limit must be between 64 and {maximum}"),
                 ));
             }
         }

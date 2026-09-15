@@ -45,9 +45,11 @@ impl CertificateCompressor for BrotliCertificateCompression {
     where
         W: Write,
     {
-        let mut encoder = brotli::CompressorWriter::new(output, 4_096, 11, 22);
-        encoder.write_all(input)?;
-        encoder.flush()
+        let mut parameters = brotli::enc::BrotliEncoderParams::default();
+        parameters.quality = 11;
+        parameters.lgwin = 22;
+        brotli::BrotliCompress(&mut io::Cursor::new(input), output, &parameters)?;
+        Ok(())
     }
 
     fn decompress<W>(&self, input: &[u8], output: &mut W) -> io::Result<()>
@@ -98,6 +100,27 @@ mod tests {
         assert_round_trip(ZlibCertificateCompression)?;
         assert_round_trip(BrotliCertificateCompression)?;
         assert_round_trip(ZstdCertificateCompression)
+    }
+
+    #[test]
+    fn brotli_finalization_propagates_output_errors() {
+        let error = BrotliCertificateCompression.compress(&[], &mut RejectWrites);
+        assert_eq!(
+            error.err().map(|error| error.kind()),
+            Some(io::ErrorKind::Other)
+        );
+    }
+
+    struct RejectWrites;
+
+    impl Write for RejectWrites {
+        fn write(&mut self, _buffer: &[u8]) -> io::Result<usize> {
+            Err(io::Error::other("rejected compressed output"))
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
     }
 
     fn assert_round_trip<C>(compressor: C) -> io::Result<()>

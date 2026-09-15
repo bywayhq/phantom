@@ -81,9 +81,7 @@ impl TlsConnector {
             signature_scheme_count = settings.signature_schemes.len(),
             alpn_protocol_count = settings.alpn_protocols.len(),
             certificate_compression_count = settings.certificate_compression.len(),
-            delegated_credential_signature_scheme_count =
-                settings.delegated_credential_signature_schemes.len(),
-            record_size_limit = field::debug(settings.record_size_limit),
+            session_tickets = settings.session_tickets,
             grease = settings.grease,
             extension_order = extension_order_trace_name(&settings.extension_order),
             ech_grease = settings.ech_grease,
