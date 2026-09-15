@@ -33,21 +33,44 @@ reference. The connection now polls the open state before starting its idle
 close so that queued reset is flushed. A duplex client/server regression proves
 the peer observes the reset before connection shutdown.
 
-The ordered-header production diff is intentionally limited to:
-
-- `src/ext.rs`: owned public extension value and semantic agreement check.
-- `src/client.rs`: remove, validate, and attach the order to the initial frame.
-- `src/frame/headers.rs`: select the exact iterator only when present.
-- `src/proto/streams/streams.rs`: retain the ordered extension across request
-  extension cleanup.
-
 The same patch contains the complete idle-close correction discovered by the
-real-connection regressions. `src/client.rs` polls the open connection before
-requesting idle close, `src/proto/connection.rs` makes that transition
-one-shot, and test-only codec hooks model a full write buffer. This preserves a
+real-connection regressions. The client polls the open connection before
+requesting idle close, and the transition becomes one-shot. This preserves a
 queued final reset and avoids a repeated self-wake when GOAWAY cannot yet be
-buffered. The patch also enables Tokio's test-only `time` feature in both Cargo
-manifests.
+buffered.
+
+The `unstable` client builder also accepts peer HTTP/2 SETTINGS learned through
+a transport parameter, such as TLS ALPS, before any HTTP/2 bytes are received.
+The seed is applied before the first request can be opened and counts as the
+peer's initial SETTINGS, but it is not acknowledged on the HTTP/2 wire. Without
+a seed, the first peer frame must remain a non-ACK SETTINGS frame. Seeded and
+wire SETTINGS share the same validation and application path: client-side
+`SETTINGS_ENABLE_PUSH = 1` is rejected, extended CONNECT cannot be disabled
+after it becomes enabled, and `SETTINGS_NO_RFC7540_PRIORITIES` cannot change
+after the peer's initial settings. A peer that disables RFC 7540 priorities
+suppresses both PRIORITY frames and the priority fields on HEADERS from the
+first request onward.
+
+The canonical patch changes these files:
+
+- `.cargo-ok`: preserves the marker in the active Cargo-vendored snapshot.
+- `Cargo.toml` and `Cargo.toml.orig`: enable Tokio's test-only `time` feature.
+- `src/ext.rs`: define the owned ordered-header extension and semantic check.
+- `src/client.rs`: configure initial peer settings, preserve ordered headers,
+  and start idle close only after polling the open connection.
+- `src/client/tests.rs`: contain the 13 focused semantic, wire, and lifecycle
+  regressions for ordered headers, idle close, and peer SETTINGS transitions.
+- `src/codec/framed_write.rs` and `src/codec/mod.rs`: provide test-only hooks
+  that model a full codec write buffer.
+- `src/frame/headers.rs`: select the exact ordinary-header iterator when set.
+- `src/frame/settings.rs`: expose the parsed no-RFC-7540-priorities value.
+- `src/proto/connection.rs`: make idle close one-shot, seed peer settings, and
+  enforce the first-frame SETTINGS rule when no seed is present.
+- `src/proto/settings.rs`: validate and apply seeded and wire peer settings
+  through the same transition rules without ACKing a seed.
+- `src/proto/streams/streams.rs`: retain ordered headers across extension
+  cleanup, apply seeded limits before stream 1, and suppress RFC 7540 priority
+  output when directed by the peer.
 
 The canonical source, manifest, and test delta is stored in
 `patches/ordered-headers.patch`. It is deliberately separate from the complete
@@ -72,7 +95,7 @@ the patch can remain enabled throughout the refresh.
 
    curl --fail --location \
      --output "$archive" \
-     "https://crates.io/api/v1/crates/http2/$http2_version/download"
+     "https://static.crates.io/crates/http2/http2-$http2_version.crate"
 
    if command -v shasum >/dev/null 2>&1; then
      actual_checksum=$(shasum -a 256 "$archive" | awk '{print $1}')

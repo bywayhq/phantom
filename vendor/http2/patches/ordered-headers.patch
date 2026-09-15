@@ -1,3 +1,11 @@
+diff --git a/.cargo-ok b/.cargo-ok
+new file mode 100644
+index 0000000000000000000000000000000000000000..5f8b795830acbab5961c1a28c76a7916c9631493
+--- /dev/null
++++ b/.cargo-ok
+@@ -0,0 +1 @@
++{"v":1}
+\ No newline at end of file
 diff --git a/Cargo.toml b/Cargo.toml
 index 6657482ff182ae90b9dd6746a619a448687af506..50ce3b9ae1f714ac4f76e972c009a8b980043ed4 100644
 --- a/Cargo.toml
@@ -23,7 +31,7 @@ index 2fa7548b189570d0f01524851565f84f584ea3bc..2f13e18cbbd135d1063a976862f757f6
  env_logger = { version = "0.10", default-features = false }
  
 diff --git a/src/client.rs b/src/client.rs
-index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..53ad3a799b643773cda648eff31150b7c98b9e17 100644
+index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..a4c945742276c37bcdc923507318a8764c481c31 100644
 --- a/src/client.rs
 +++ b/src/client.rs
 @@ -136,7 +136,7 @@
@@ -35,7 +43,74 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..53ad3a799b643773cda648eff31150b7
  #[cfg(feature = "unstable")]
  use crate::frame::ExperimentalSettings;
  use crate::frame::{
-@@ -1536,16 +1536,14 @@ where
+@@ -340,6 +340,10 @@ pub struct Builder {
+     /// Initial `Settings` frame to send as part of the handshake.
+     settings: Settings,
+ 
++    /// Settings received through a transport parameter before HTTP/2 starts.
++    #[cfg(feature = "unstable")]
++    initial_peer_settings: Option<Settings>,
++
+     /// The stream ID of the first (lowest) stream. Subsequent streams will use
+     /// monotonically increasing stream IDs.
+     stream_id: StreamId,
+@@ -676,6 +680,8 @@ impl Builder {
+             initial_target_connection_window_size: None,
+             initial_max_send_streams: usize::MAX,
+             settings: Default::default(),
++            #[cfg(feature = "unstable")]
++            initial_peer_settings: None,
+             stream_id: 1.into(),
+             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
+             headers_pseudo_order: None,
+@@ -1177,6 +1183,17 @@ impl Builder {
+         self
+     }
+ 
++    /// Seeds settings learned from the peer before HTTP/2 application data.
++    ///
++    /// The settings are applied before the returned [`SendRequest`] is
++    /// exposed. They satisfy the peer's initial SETTINGS requirement and are
++    /// not acknowledged on the HTTP/2 wire.
++    #[cfg(feature = "unstable")]
++    pub fn initial_peer_settings(&mut self, settings: Settings) -> &mut Self {
++        self.initial_peer_settings = Some(settings);
++        self
++    }
++
+     /// Configures custom experimental HTTP/2 setting.
+     ///
+     /// This setting is reserved for future use or experimental purposes.
+@@ -1403,6 +1420,8 @@ where
+         mut io: T,
+         builder: Builder,
+     ) -> Result<(SendRequest<B>, Connection<T, B>), crate::Error> {
++        #[cfg(feature = "unstable")]
++        let initial_peer_settings = builder.initial_peer_settings.clone();
+         bind_connection(&mut io).await?;
+ 
+         // Create the codec
+@@ -1421,7 +1440,7 @@ where
+             .buffer((builder.settings.clone()).into())
+             .expect("invalid SETTINGS frame");
+ 
+-        let inner = proto::Connection::new(
++        let mut inner = proto::Connection::new(
+             codec,
+             proto::Config {
+                 next_stream_id: builder.stream_id,
+@@ -1437,6 +1456,10 @@ where
+                 settings: builder.settings,
+             },
+         );
++        #[cfg(feature = "unstable")]
++        if let Some(settings) = initial_peer_settings {
++            inner.apply_initial_peer_settings(settings)?;
++        }
+         let send_request = SendRequest {
+             inner: inner.streams().clone(),
+             pending: None,
+@@ -1536,16 +1559,14 @@ where
      type Output = Result<(), crate::Error>;
  
      fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -59,7 +134,7 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..53ad3a799b643773cda648eff31150b7
              cx.waker().wake_by_ref();
          }
          result
-@@ -1717,11 +1715,20 @@ impl Peer {
+@@ -1717,11 +1738,20 @@ impl Peer {
                  uri,
                  headers,
                  version,
@@ -80,7 +155,7 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..53ad3a799b643773cda648eff31150b7
          let is_connect = method == Method::CONNECT;
  
          // Build the set pseudo header set. All requests will include `method`
-@@ -1763,6 +1770,9 @@ impl Peer {
+@@ -1763,6 +1793,9 @@ impl Peer {
  
          // Create the HEADERS frame
          let mut headers_frame = Headers::new(id, pseudo, headers);
@@ -90,7 +165,7 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..53ad3a799b643773cda648eff31150b7
          if let Some(stream_dep) = headers_stream_dependency {
              headers_frame.set_stream_dependency(stream_dep);
          }
-@@ -1775,6 +1785,9 @@ impl Peer {
+@@ -1775,6 +1808,9 @@ impl Peer {
      }
  }
  
@@ -102,10 +177,10 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..53ad3a799b643773cda648eff31150b7
  
 diff --git a/src/client/tests.rs b/src/client/tests.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..38e234e8a4e9a6fb6393bdd9bed82175d0b95e1a
+index 0000000000000000000000000000000000000000..b4cf86069c00017435a07ebb253b57e869c1f559
 --- /dev/null
 +++ b/src/client/tests.rs
-@@ -0,0 +1,435 @@
+@@ -0,0 +1,752 @@
 +use std::{
 +    future::{poll_fn, Future},
 +    io::Cursor,
@@ -122,7 +197,7 @@ index 0000000000000000000000000000000000000000..38e234e8a4e9a6fb6393bdd9bed82175
 +use bytes::{BufMut, Bytes, BytesMut};
 +use http::{HeaderName, HeaderValue, Method, Request, Response, Version};
 +use tokio::{
-+    io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf},
++    io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf},
 +    time::timeout,
 +};
 +
@@ -130,7 +205,7 @@ index 0000000000000000000000000000000000000000..38e234e8a4e9a6fb6393bdd9bed82175
 +use crate::{
 +    codec::{SendError, UserError},
 +    ext::OrderedHeaders,
-+    frame::{Headers, StreamId},
++    frame::{Headers, Settings, StreamDependency, StreamId},
 +    hpack::{Decoder, Encoder, Header},
 +};
 +
@@ -397,6 +472,323 @@ index 0000000000000000000000000000000000000000..38e234e8a4e9a6fb6393bdd9bed82175
 +
 +    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
 +    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
++}
++
++#[tokio::test]
++async fn seeded_peer_limits_apply_to_the_first_request() {
++    let (client_io, _peer_io) = duplex(16 * 1024);
++    let mut peer_settings = Settings::default();
++    peer_settings.set_max_concurrent_streams(Some(0));
++    let mut builder = super::Builder::new();
++    builder.initial_peer_settings(peer_settings);
++    let (mut sender, _connection) = builder
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let (_response, send) = sender
++        .send_request(request_with_headers(), true)
++        .expect("request was rejected");
++    drop(send);
++    let pending = poll_fn(|context| Poll::Ready(sender.poll_ready(context).is_pending())).await;
++    assert!(pending, "seeded concurrency limit was not applied");
++
++    let (client_io, _peer_io) = duplex(16 * 1024);
++    let mut peer_settings = Settings::default();
++    peer_settings.set_initial_window_size(Some(0));
++    let mut builder = super::Builder::new();
++    builder.initial_peer_settings(peer_settings);
++    let (mut sender, mut connection) = builder
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let (_response, mut send) = sender
++        .send_request(request_with_headers(), false)
++        .expect("request was rejected");
++    send.reserve_capacity(1);
++    let wake_count = Arc::new(AtomicUsize::new(0));
++    let waker = Waker::from(Arc::new(CountWake(wake_count)));
++    let mut context = Context::from_waker(&waker);
++    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
++    assert_eq!(send.capacity(), 0, "seeded stream window was not applied");
++}
++
++#[tokio::test]
++async fn seeded_peer_settings_change_first_headers_without_an_ack() {
++    timeout(Duration::from_secs(2), async {
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let mut peer_settings = Settings::default();
++        peer_settings.set_header_table_size(Some(0));
++        peer_settings.set_no_rfc7540_priorities(true);
++        let mut builder = super::Builder::new();
++        builder
++            .headers_stream_dependency(StreamDependency::new(StreamId::zero(), 255, true))
++            .initial_peer_settings(peer_settings);
++        let (mut sender, connection) = builder
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        sender = sender.ready().await.expect("sender never became ready");
++        let (_response, send) = sender
++            .send_request(request_with_headers(), true)
++            .expect("request was rejected");
++        drop(send);
++
++        read_client_preface(&mut peer_io).await;
++        let mut settings_acks = 0;
++        let headers = loop {
++            let frame = read_raw_frame(&mut peer_io).await;
++            if frame.kind == 4 && frame.flags & 1 != 0 {
++                settings_acks += 1;
++            }
++            assert_ne!(frame.kind, 2, "peer-disabled PRIORITY frame was sent");
++            if frame.kind == 1 {
++                break frame;
++            }
++        };
++        assert_eq!(settings_acks, 0, "seeded settings were acknowledged");
++        assert_eq!(
++            headers.flags & 0x20,
++            0,
++            "HEADERS retained RFC 7540 priority"
++        );
++        assert_eq!(
++            headers.payload.first(),
++            Some(&0x20),
++            "seeded header-table limit was not applied to HPACK"
++        );
++
++        write_raw_frame(&mut peer_io, 4, 0, 0, &[]).await;
++        let ack = read_raw_frame(&mut peer_io).await;
++        assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
++        assert!(ack.payload.is_empty());
++        driver.abort();
++    })
++    .await
++    .expect("seeded-settings wire test timed out");
++}
++
++#[tokio::test]
++async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
++    timeout(Duration::from_secs(2), async {
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let (_sender, connection) = super::handshake(client_io)
++            .await
++            .expect("client handshake failed");
++        read_client_preface(&mut peer_io).await;
++        write_raw_frame(&mut peer_io, 6, 0, 0, &[0; 8]).await;
++        let error = connection
++            .await
++            .expect_err("non-SETTINGS first peer frame was accepted without a seed");
++        assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
++
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let mut builder = super::Builder::new();
++        builder.initial_peer_settings(Settings::default());
++        let (_sender, connection) = builder
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        read_client_preface(&mut peer_io).await;
++        let client_settings = read_raw_frame(&mut peer_io).await;
++        assert_eq!(
++            (client_settings.kind, client_settings.flags),
++            (4, 0),
++            "client preface omitted its initial SETTINGS"
++        );
++        write_raw_frame(&mut peer_io, 6, 0, 0, &[0; 8]).await;
++        let pong = read_raw_frame(&mut peer_io).await;
++        assert_eq!((pong.kind, pong.flags, pong.stream_id), (6, 1, 0));
++        assert_eq!(pong.payload, [0; 8]);
++        driver.abort();
++    })
++    .await
++    .expect("initial peer frame test timed out");
++}
++
++#[tokio::test]
++async fn seeded_sticky_settings_reject_later_disable() {
++    timeout(Duration::from_secs(2), async {
++        for setting_id in [8, 9] {
++            let (client_io, mut peer_io) = duplex(16 * 1024);
++            let mut peer_settings = Settings::default();
++            if setting_id == 8 {
++                peer_settings.set_enable_connect_protocol(Some(1));
++            } else {
++                peer_settings.set_no_rfc7540_priorities(true);
++            }
++            let mut builder = super::Builder::new();
++            builder.initial_peer_settings(peer_settings);
++            let (sender, connection) = builder
++                .handshake::<_, Bytes>(client_io)
++                .await
++                .expect("client handshake failed");
++            let driver = tokio::spawn(connection);
++            read_client_preface(&mut peer_io).await;
++            let initial = read_raw_frame(&mut peer_io).await;
++            assert_eq!((initial.kind, initial.flags), (4, 0));
++            if setting_id == 8 {
++                assert!(sender.is_extended_connect_protocol_enabled());
++            }
++
++            write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(setting_id, 1)])).await;
++            let ack = read_raw_frame(&mut peer_io).await;
++            assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
++
++            write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(setting_id, 0)])).await;
++            let error = driver
++                .await
++                .expect("client driver task panicked")
++                .expect_err("peer disabled a sticky seeded setting");
++            assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
++        }
++    })
++    .await
++    .expect("seeded sticky-settings test timed out");
++}
++
++#[tokio::test]
++async fn wire_settings_transitions_remain_sticky() {
++    timeout(Duration::from_secs(2), async {
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let (sender, connection) = super::handshake(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        read_client_preface(&mut peer_io).await;
++        let initial = read_raw_frame(&mut peer_io).await;
++        assert_eq!((initial.kind, initial.flags), (4, 0));
++
++        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(8, 0), (9, 0)])).await;
++        assert_eq!(read_raw_frame(&mut peer_io).await.flags, 1);
++        assert!(!sender.is_extended_connect_protocol_enabled());
++
++        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(8, 1), (9, 0)])).await;
++        assert_eq!(read_raw_frame(&mut peer_io).await.flags, 1);
++        assert!(sender.is_extended_connect_protocol_enabled());
++
++        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(8, 0)])).await;
++        let error = driver
++            .await
++            .expect("client driver task panicked")
++            .expect_err("peer disabled extended CONNECT after enabling it");
++        assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
++
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let (_sender, connection) = super::handshake(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        read_client_preface(&mut peer_io).await;
++        let _initial = read_raw_frame(&mut peer_io).await;
++        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(9, 0)])).await;
++        assert_eq!(read_raw_frame(&mut peer_io).await.flags, 1);
++        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(9, 1)])).await;
++        let error = driver
++            .await
++            .expect("client driver task panicked")
++            .expect_err("peer changed SETTINGS_NO_RFC7540_PRIORITIES");
++        assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
++    })
++    .await
++    .expect("wire sticky-settings test timed out");
++}
++
++#[tokio::test]
++async fn client_rejects_server_enable_push_one_but_accepts_zero() {
++    timeout(Duration::from_secs(2), async {
++        for (value, accepted) in [(0, true), (1, false)] {
++            let (client_io, mut peer_io) = duplex(16 * 1024);
++            let (_sender, connection) = super::handshake(client_io)
++                .await
++                .expect("client handshake failed");
++            let driver = tokio::spawn(connection);
++            read_client_preface(&mut peer_io).await;
++            let _initial = read_raw_frame(&mut peer_io).await;
++            write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(2, value)])).await;
++
++            if accepted {
++                let ack = read_raw_frame(&mut peer_io).await;
++                assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
++                driver.abort();
++            } else {
++                let error = driver
++                    .await
++                    .expect("client driver task panicked")
++                    .expect_err("server SETTINGS_ENABLE_PUSH = 1 was accepted");
++                assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
++            }
++        }
++    })
++    .await
++    .expect("server ENABLE_PUSH settings test timed out");
++}
++
++struct RawFrame {
++    kind: u8,
++    flags: u8,
++    stream_id: u32,
++    payload: Vec<u8>,
++}
++
++async fn read_client_preface(peer: &mut DuplexStream) {
++    let mut preface = [0_u8; 24];
++    peer.read_exact(&mut preface)
++        .await
++        .expect("client preface was truncated");
++    assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
++}
++
++async fn read_raw_frame(peer: &mut DuplexStream) -> RawFrame {
++    let mut head = [0_u8; 9];
++    peer.read_exact(&mut head)
++        .await
++        .expect("frame header was truncated");
++    let length = (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
++    let mut payload = vec![0_u8; length];
++    peer.read_exact(&mut payload)
++        .await
++        .expect("frame payload was truncated");
++    RawFrame {
++        kind: head[3],
++        flags: head[4],
++        stream_id: u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff,
++        payload,
++    }
++}
++
++async fn write_raw_frame(
++    peer: &mut DuplexStream,
++    kind: u8,
++    flags: u8,
++    stream_id: u32,
++    payload: &[u8],
++) {
++    let length = payload.len();
++    assert!(length <= 0x00ff_ffff);
++    let mut head = [0_u8; 9];
++    head[0] = ((length >> 16) & 0xff) as u8;
++    head[1] = ((length >> 8) & 0xff) as u8;
++    head[2] = (length & 0xff) as u8;
++    head[3] = kind;
++    head[4] = flags;
++    head[5..].copy_from_slice(&(stream_id & 0x7fff_ffff).to_be_bytes());
++    peer.write_all(&head)
++        .await
++        .expect("frame head write failed");
++    peer.write_all(payload)
++        .await
++        .expect("frame payload write failed");
++}
++
++fn settings_payload(settings: &[(u16, u32)]) -> Vec<u8> {
++    let mut payload = Vec::with_capacity(settings.len() * 6);
++    for (id, value) in settings {
++        payload.extend_from_slice(&id.to_be_bytes());
++        payload.extend_from_slice(&value.to_be_bytes());
++    }
++    payload
 +}
 +
 +fn request_with_headers() -> Request<()> {
@@ -742,8 +1134,23 @@ index 43ec9cceab3b8773b9f329342fd01847e9c935be..971a94871c3ce91d343a94180c5d3028
          };
  
          encoder.encode(headers, &mut hpack);
+diff --git a/src/frame/settings.rs b/src/frame/settings.rs
+index c415da96d11ee0ac622a7a73436fbbaaa2562f5d..71df47e793d9d9e850cbf236972ff47d33868d4f 100644
+--- a/src/frame/settings.rs
++++ b/src/frame/settings.rs
+@@ -346,6 +346,10 @@ impl Settings {
+         self.no_rfc7540_priorities = Some(enable as u32);
+     }
+ 
++    pub fn is_no_rfc7540_priorities(&self) -> Option<bool> {
++        self.no_rfc7540_priorities.map(|value| value != 0)
++    }
++
+     #[cfg(feature = "unstable")]
+     pub fn set_experimental_settings(&mut self, experimental_settings: ExperimentalSettings) {
+         self.experimental_settings = Some(experimental_settings)
 diff --git a/src/proto/connection.rs b/src/proto/connection.rs
-index 89ec584ae610570941abce3ffa604db731dba860..bb09c0f243e9aecb134e854b946afee417aa810d 100644
+index 89ec584ae610570941abce3ffa604db731dba860..c3976f63c0c0b8b665a46e66ee049a5bcf772440 100644
 --- a/src/proto/connection.rs
 +++ b/src/proto/connection.rs
 @@ -24,6 +24,9 @@ where
@@ -790,7 +1197,7 @@ index 89ec584ae610570941abce3ffa604db731dba860..bb09c0f243e9aecb134e854b946afee4
          }
      }
  
-@@ -259,17 +269,15 @@ where
+@@ -259,17 +269,27 @@ where
          self.inner.streams.has_streams()
      }
  
@@ -805,6 +1212,18 @@ index 89ec584ae610570941abce3ffa604db731dba860..bb09c0f243e9aecb134e854b946afee4
          self.inner.ping_pong.take_user_pings()
      }
  
++    #[cfg(feature = "unstable")]
++    pub(crate) fn apply_initial_peer_settings(
++        &mut self,
++        settings: frame::Settings,
++    ) -> Result<(), Error> {
++        self.inner.settings.apply_initial_peer_settings(
++            settings,
++            &mut self.codec,
++            &mut self.inner.streams,
++        )
++    }
++
 +    #[cfg(test)]
 +    pub(crate) fn fill_write_capacity_for_test(&mut self) {
 +        self.codec.fill_write_capacity_for_test();
@@ -813,8 +1232,187 @@ index 89ec584ae610570941abce3ffa604db731dba860..bb09c0f243e9aecb134e854b946afee4
      /// Advances the internal state of the connection.
      pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), Error>> {
          // XXX(eliza): cloning the span is unfortunately necessary here in
+@@ -355,11 +375,15 @@ where
+             }
+             ready!(self.poll_ready(cx))?;
+ 
+-            match self
+-                .inner
+-                .as_dyn()
+-                .recv_frame(ready!(Pin::new(&mut self.codec).poll_next(cx)?))?
++            let frame = ready!(Pin::new(&mut self.codec).poll_next(cx)?);
++            if self.inner.settings.requires_remote_initial_settings()
++                && !matches!(&frame, Some(Frame::Settings(settings)) if !settings.is_ack())
+             {
++                proto_err!(conn: "first peer frame was not a non-ACK SETTINGS frame");
++                return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
++            }
++
++            match self.inner.as_dyn().recv_frame(frame)? {
+                 ReceivedFrame::Settings(frame) => {
+                     self.inner.settings.recv_settings(
+                         frame,
+diff --git a/src/proto/settings.rs b/src/proto/settings.rs
+index 3ed4574d6c47e33ae751ed759c37382f22965af0..c8a28890aacca163457b2f362a7d633e84662c6d 100644
+--- a/src/proto/settings.rs
++++ b/src/proto/settings.rs
+@@ -15,6 +15,10 @@ pub(crate) struct Settings {
+     /// Whether the connection has received the initial SETTINGS frame from the
+     /// remote peer.
+     has_received_remote_initial_settings: bool,
++    /// Sticky remote state required by RFC 8441.
++    remote_extended_connect_protocol_enabled: bool,
++    /// The RFC 9218 value established by the remote peer's initial settings.
++    remote_no_rfc7540_priorities: bool,
+ }
+ 
+ #[derive(Debug)]
+@@ -36,6 +40,8 @@ impl Settings {
+             local: Local::WaitingAck(local),
+             remote: None,
+             has_received_remote_initial_settings: false,
++            remote_extended_connect_protocol_enabled: false,
++            remote_no_rfc7540_priorities: false,
+         }
+     }
+ 
+@@ -83,6 +89,8 @@ impl Settings {
+             // We always ACK before reading more frames, so `remote` should
+             // always be none!
+             assert!(self.remote.is_none());
++            let is_initial = !self.has_received_remote_initial_settings;
++            self.validate_remote_settings::<P>(&frame, is_initial)?;
+             self.remote = Some(frame);
+             Ok(())
+         }
+@@ -100,13 +108,32 @@ impl Settings {
+         }
+     }
+ 
+-    /// Sets `true` to `self.has_received_remote_initial_settings`.
+-    /// Returns `true` if this method is called for the first time.
+-    /// (i.e. it is the initial SETTINGS frame from the remote peer)
+-    fn mark_remote_initial_settings_as_received(&mut self) -> bool {
+-        let has_received = self.has_received_remote_initial_settings;
++    pub(crate) fn apply_initial_peer_settings<T, B, C, P>(
++        &mut self,
++        frame: frame::Settings,
++        codec: &mut Codec<T, B>,
++        streams: &mut Streams<C, P>,
++    ) -> Result<(), Error>
++    where
++        T: AsyncWrite + Unpin,
++        B: Buf,
++        C: Buf,
++        P: Peer,
++    {
++        if frame.is_ack() || self.has_received_remote_initial_settings {
++            proto_err!(conn: "invalid initial peer settings seed");
++            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
++        }
++
++        self.validate_remote_settings::<P>(&frame, true)?;
++        Self::apply_remote_settings(&frame, codec, streams, true)?;
++        self.record_remote_settings(&frame, true);
+         self.has_received_remote_initial_settings = true;
+-        !has_received
++        Ok(())
++    }
++
++    pub(crate) fn requires_remote_initial_settings(&self) -> bool {
++        !self.has_received_remote_initial_settings
+     }
+ 
+     pub(crate) fn poll_send<T, B, C, P>(
+@@ -134,16 +161,10 @@ impl Settings {
+ 
+             tracing::trace!("ACK sent; applying settings");
+ 
+-            let is_initial = self.mark_remote_initial_settings_as_received();
+-            streams.apply_remote_settings(&settings, is_initial)?;
+-
+-            if let Some(val) = settings.header_table_size() {
+-                dst.set_send_header_table_size(val as usize);
+-            }
+-
+-            if let Some(val) = settings.max_frame_size() {
+-                dst.set_max_send_frame_size(val as usize);
+-            }
++            let is_initial = !self.has_received_remote_initial_settings;
++            Self::apply_remote_settings(&settings, dst, streams, is_initial)?;
++            self.record_remote_settings(&settings, is_initial);
++            self.has_received_remote_initial_settings = true;
+         }
+ 
+         self.remote = None;
+@@ -166,4 +187,65 @@ impl Settings {
+ 
+         Poll::Ready(Ok(()))
+     }
++
++    fn apply_remote_settings<T, B, C, P>(
++        settings: &frame::Settings,
++        codec: &mut Codec<T, B>,
++        streams: &mut Streams<C, P>,
++        is_initial: bool,
++    ) -> Result<(), Error>
++    where
++        T: AsyncWrite + Unpin,
++        B: Buf,
++        C: Buf,
++        P: Peer,
++    {
++        streams.apply_remote_settings(settings, is_initial)?;
++
++        if let Some(value) = settings.header_table_size() {
++            codec.set_send_header_table_size(value as usize);
++        }
++        if let Some(value) = settings.max_frame_size() {
++            codec.set_max_send_frame_size(value as usize);
++        }
++        Ok(())
++    }
++
++    fn validate_remote_settings<P: Peer>(
++        &self,
++        settings: &frame::Settings,
++        is_initial: bool,
++    ) -> Result<(), Error> {
++        if !P::r#dyn().is_server() && settings.is_push_enabled() == Some(true) {
++            proto_err!(conn: "client received SETTINGS_ENABLE_PUSH = 1");
++            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
++        }
++
++        if self.remote_extended_connect_protocol_enabled
++            && settings.is_extended_connect_protocol_enabled() == Some(false)
++        {
++            proto_err!(conn: "peer disabled extended CONNECT after enabling it");
++            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
++        }
++
++        match (is_initial, settings.is_no_rfc7540_priorities()) {
++            (false, Some(value)) if value != self.remote_no_rfc7540_priorities => {
++                proto_err!(conn: "peer changed SETTINGS_NO_RFC7540_PRIORITIES");
++                return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
++            }
++            _ => {}
++        }
++
++        Ok(())
++    }
++
++    fn record_remote_settings(&mut self, settings: &frame::Settings, is_initial: bool) {
++        if let Some(value) = settings.is_extended_connect_protocol_enabled() {
++            self.remote_extended_connect_protocol_enabled = value;
++        }
++        if is_initial {
++            self.remote_no_rfc7540_priorities =
++                settings.is_no_rfc7540_priorities().unwrap_or(false);
++        }
++    }
+ }
 diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
-index 4f4b69eb5a695812bc61f5b5bc075982dbff99f2..ffb3d5c6740592eeba02973c0ae26f5f566c9024 100644
+index 4f4b69eb5a695812bc61f5b5bc075982dbff99f2..ce137cf726fb209a45cc5678290c83ccef424f4b 100644
 --- a/src/proto/streams/streams.rs
 +++ b/src/proto/streams/streams.rs
 @@ -18,7 +18,7 @@ use super::{
@@ -826,7 +1424,28 @@ index 4f4b69eb5a695812bc61f5b5bc075982dbff99f2..ffb3d5c6740592eeba02973c0ae26f5f
      frame::{self, Frame, Reason},
      proto,
      proto::{peer, Error, Initiator, Open, Peer, WindowSize},
-@@ -246,9 +246,13 @@ where
+@@ -97,6 +97,9 @@ struct Inner {
+ 
+     /// Priority of the headers stream
+     priorities: Option<Priorities>,
++
++    /// Whether the peer declared that it ignores RFC 7540 priority signals.
++    peer_ignores_rfc7540_priorities: bool,
+ }
+ 
+ #[derive(Debug)]
+@@ -219,6 +222,10 @@ where
+ 
+         me.counts.apply_remote_settings(frame, is_initial);
+ 
++        if let Some(value) = frame.is_no_rfc7540_priorities() {
++            me.peer_ignores_rfc7540_priorities = value;
++        }
++
+         me.actions.send.apply_remote_settings(
+             frame,
+             send_buffer,
+@@ -246,9 +253,13 @@ where
          use super::stream::ContentLength;
  
          let protocol = request.extensions_mut().remove::<Protocol>();
@@ -840,3 +1459,64 @@ index 4f4b69eb5a695812bc61f5b5bc075982dbff99f2..ffb3d5c6740592eeba02973c0ae26f5f
  
          // TODO: There is a hazard with assigning a stream ID before the
          // prioritize layer. If prioritization reorders new streams, this
+@@ -294,31 +305,42 @@ where
+         }
+ 
+         // Priorities frame check before sending the request.
+-        if let Some(priorities) = &me.priorities {
+-            let next_id = priorities
+-                .max_stream_id()
+-                .next_id()
+-                .map_err(|_| SendError::User(UserError::OverflowedStreamId))?;
+-
+-            if next_id > stream_id {
+-                return Err(SendError::User(UserError::OverflowedStreamId));
++        if !me.peer_ignores_rfc7540_priorities {
++            if let Some(priorities) = &me.priorities {
++                let next_id = priorities
++                    .max_stream_id()
++                    .next_id()
++                    .map_err(|_| SendError::User(UserError::OverflowedStreamId))?;
++
++                if next_id > stream_id {
++                    return Err(SendError::User(UserError::OverflowedStreamId));
++                }
+             }
+         }
+ 
+         // Convert the message
++        let send_rfc7540_priorities = !me.peer_ignores_rfc7540_priorities;
+         let headers = client::Peer::convert_send_message(
+             stream_id,
+             request,
+             protocol,
+             end_of_stream,
+             me.headers_pseudo_order.clone(),
+-            me.headers_stream_dependency,
++            if send_rfc7540_priorities {
++                me.headers_stream_dependency
++            } else {
++                None
++            },
+         )?;
+ 
+         let mut stream = me.store.insert(stream.id, stream);
+ 
+         let sent = me.actions.send.send_priority_and_headers(
+-            me.priorities.clone(),
++            if send_rfc7540_priorities {
++                me.priorities.clone()
++            } else {
++                None
++            },
+             headers,
+             send_buffer,
+             &mut stream,
+@@ -457,6 +479,7 @@ impl Inner {
+             headers_stream_dependency: config.headers_stream_dependency,
+             headers_pseudo_order: config.headers_pseudo_order,
+             priorities: config.priorities,
++            peer_ignores_rfc7540_priorities: false,
+         }))
+     }
+ 

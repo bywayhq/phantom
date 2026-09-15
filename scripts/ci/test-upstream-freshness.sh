@@ -286,8 +286,8 @@ cp -R vendor/http2 "$http2_source_root/http2-0.5.20"
 git -C "$http2_source_root/http2-0.5.20" apply --reverse \
   "$repo_root/vendor/http2/patches/ordered-headers.patch"
 rm -rf "$http2_source_root/http2-0.5.20/patches"
-rm "$http2_source_root/http2-0.5.20/PHANTOM.md" \
-  "$http2_source_root/http2-0.5.20/.cargo-ok"
+rm "$http2_source_root/http2-0.5.20/PHANTOM.md"
+[[ ! -e "$http2_source_root/http2-0.5.20/.cargo-ok" ]]
 http2_archive="$test_root/http2-0.5.20.crate"
 tar -czf "$http2_archive" -C "$http2_source_root" http2-0.5.20
 http2_checksum=$(shasum -a 256 "$http2_archive" | awk '{print $1}')
