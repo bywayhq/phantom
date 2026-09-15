@@ -6,6 +6,7 @@ use crate::{CryptoError, Result};
 
 pub(crate) const SHA256_LEN: usize = 32;
 pub(crate) const AES_128_KEY_LEN: usize = 16;
+pub(crate) const CHACHA20_KEY_LEN: usize = 32;
 pub(crate) const QUIC_NONCE_LEN: usize = 12;
 
 pub(crate) struct Secret<const N: usize>([u8; N]);

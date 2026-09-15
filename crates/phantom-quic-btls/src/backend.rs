@@ -6,7 +6,7 @@ use std::ptr::NonNull;
 
 use btls_sys as ffi;
 
-use crate::secret::{AES_128_KEY_LEN, QUIC_NONCE_LEN, SHA256_LEN};
+use crate::secret::{AES_128_KEY_LEN, CHACHA20_KEY_LEN, QUIC_NONCE_LEN, SHA256_LEN, Secret};
 use crate::{CryptoError, Result};
 
 const AES_BLOCK_LEN: usize = 16;
@@ -19,6 +19,21 @@ pub(crate) fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
     // SAFETY: both pointers reference readable slices of the same checked
     // length for the duration of the call. `CRYPTO_memcmp` does not write.
     unsafe { ffi::CRYPTO_memcmp(left.as_ptr().cast(), right.as_ptr().cast(), left.len()) == 0 }
+}
+
+fn drain_error_queue() {
+    // SAFETY: `ERR_clear_error` only clears BoringSSL's current-thread error
+    // queue and accepts no pointers. Queue contents are intentionally ignored.
+    unsafe {
+        ffi::ERR_clear_error();
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn error_queue_is_empty() -> bool {
+    // SAFETY: `ERR_peek_error` reads the current thread's queue without
+    // removing entries and accepts no pointers.
+    unsafe { ffi::ERR_peek_error() == 0 }
 }
 
 pub(crate) fn hkdf_extract_sha256(salt: &[u8], ikm: &[u8], output: &mut [u8]) -> Result<()> {
@@ -45,6 +60,7 @@ pub(crate) fn hkdf_extract_sha256(salt: &[u8], ikm: &[u8], output: &mut [u8]) ->
         )
     };
     if status != 1 || written != SHA256_LEN {
+        drain_error_queue();
         output.fill(0);
         return Err(CryptoError::BackendFailure("HKDF extract"));
     }
@@ -67,6 +83,7 @@ pub(crate) fn hkdf_expand_sha256(prk: &[u8], info: &[u8], output: &mut [u8]) -> 
         )
     };
     if status != 1 {
+        drain_error_queue();
         output.fill(0);
         return Err(CryptoError::BackendFailure("HKDF expand"));
     }
@@ -96,6 +113,7 @@ impl AesHeaderCipher {
             )
         };
         if status != 0 {
+            drain_error_queue();
             return Err(CryptoError::BackendFailure("AES key expansion"));
         }
 
@@ -144,6 +162,46 @@ unsafe impl Send for AesHeaderCipher {}
 // write to caller-owned, non-overlapping output arrays.
 unsafe impl Sync for AesHeaderCipher {}
 
+pub(crate) struct ChaChaHeaderCipher {
+    key: Secret<CHACHA20_KEY_LEN>,
+}
+
+impl ChaChaHeaderCipher {
+    pub(crate) fn new(key: &[u8]) -> Result<Self> {
+        Ok(Self {
+            key: Secret::copy_from_slice(key)?,
+        })
+    }
+
+    pub(crate) fn mask(&self, sample: &[u8; AES_BLOCK_LEN]) -> [u8; 5] {
+        let mut counter_bytes = [0; 4];
+        counter_bytes.copy_from_slice(&sample[..4]);
+        let counter = u32::from_le_bytes(counter_bytes);
+        let nonce = &sample[4..];
+        let zeros = [0; 5];
+        let mut mask = [0; 5];
+        // SAFETY: output and input are distinct five-byte arrays, the key is
+        // exactly 32 bytes, and the sample suffix is exactly a 12-byte nonce.
+        unsafe {
+            ffi::CRYPTO_chacha_20(
+                mask.as_mut_ptr(),
+                zeros.as_ptr(),
+                zeros.len(),
+                self.key.as_slice().as_ptr(),
+                nonce.as_ptr(),
+                counter,
+            );
+        }
+        mask
+    }
+}
+
+impl fmt::Debug for ChaChaHeaderCipher {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ChaChaHeaderCipher([REDACTED])")
+    }
+}
+
 pub(crate) struct Aes128GcmContext(NonNull<ffi::EVP_AEAD_CTX>);
 
 impl Aes128GcmContext {
@@ -167,9 +225,13 @@ impl Aes128GcmContext {
                 AES_GCM_TAG_LEN,
             )
         };
-        NonNull::new(pointer)
-            .map(Self)
-            .ok_or(CryptoError::BackendFailure("AES-128-GCM initialization"))
+        match NonNull::new(pointer) {
+            Some(pointer) => Ok(Self(pointer)),
+            None => {
+                drain_error_queue();
+                Err(CryptoError::BackendFailure("AES-128-GCM initialization"))
+            }
+        }
     }
 
     pub(crate) fn seal(
@@ -212,6 +274,7 @@ impl Aes128GcmContext {
             )
         };
         if status != 1 || written != required {
+            drain_error_queue();
             buffer.fill(0);
             return Err(CryptoError::BackendFailure("packet sealing"));
         }
@@ -251,6 +314,7 @@ impl Aes128GcmContext {
             )
         };
         if status != 1 {
+            drain_error_queue();
             buffer.fill(0);
             return Err(CryptoError::AuthenticationFailed);
         }

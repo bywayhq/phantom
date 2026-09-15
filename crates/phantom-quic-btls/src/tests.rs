@@ -41,10 +41,8 @@ fn rfc_9001_client_initial_packet_and_header_protection_are_exact() {
         .header()
         .protect(18, &mut packet)
         .unwrap_or_else(|error| panic!("RFC header protection failed: {error}"));
-    assert_eq!(
-        &packet[..header.len()],
-        &hex::<22>("c000000001088394c8f03e5157080000449e7b9aec34")
-    );
+    let expected = hex_vec(include_str!("../testdata/rfc9001-client-initial.hex"));
+    assert_eq!(packet, expected);
 
     let server = derive_initial_keys(
         QuicVersion::V1,
@@ -52,6 +50,24 @@ fn rfc_9001_client_initial_packet_and_header_protection_are_exact() {
         EndpointSide::Server,
     )
     .unwrap_or_else(|error| panic!("RFC server derivation failed: {error}"));
+
+    let mut aad_mismatch = packet.clone();
+    server
+        .remote()
+        .header()
+        .unprotect(18, &mut aad_mismatch)
+        .unwrap_or_else(|error| panic!("RFC header removal failed: {error}"));
+    let (mismatched_header, protected_payload) = aad_mismatch.split_at_mut(header.len());
+    mismatched_header[1] ^= 1;
+    assert_eq!(
+        server
+            .remote()
+            .packet()
+            .open(2, mismatched_header, protected_payload),
+        Err(CryptoError::AuthenticationFailed)
+    );
+    assert!(crate::backend::error_queue_is_empty());
+
     server
         .remote()
         .header()
@@ -71,6 +87,112 @@ fn rfc_9001_client_initial_packet_and_header_protection_are_exact() {
             .iter()
             .all(|byte| *byte == 0)
     );
+}
+
+#[test]
+fn rfc_9001_server_initial_packet_and_header_protection_are_exact() {
+    let destination_connection_id = hex::<8>("8394c8f03e515708");
+    let server = derive_initial_keys(
+        QuicVersion::V1,
+        &destination_connection_id,
+        EndpointSide::Server,
+    )
+    .unwrap_or_else(|error| panic!("RFC server derivation failed: {error}"));
+    let client = derive_initial_keys(
+        QuicVersion::V1,
+        &destination_connection_id,
+        EndpointSide::Client,
+    )
+    .unwrap_or_else(|error| panic!("RFC client derivation failed: {error}"));
+
+    let header = hex::<20>("c1000000010008f067a5502a4262b50040750001");
+    let payload = hex::<99>(
+        "02000000000600405a020000560303eefce7f7b37ba1d1632e96677825ddf739\
+         88cfc79825df566dc5430b9a045a1200130100002e00330024001d00209d3c94\
+         0d89690b84d08a60993c144eca684d1081287c834d5311bcf32bb9da1a002b00\
+         020304",
+    );
+    let mut packet = vec![0; header.len() + payload.len() + server.local().packet().tag_len()];
+    packet[..header.len()].copy_from_slice(&header);
+    packet[header.len()..header.len() + payload.len()].copy_from_slice(&payload);
+
+    server
+        .local()
+        .packet()
+        .seal(1, &mut packet, header.len())
+        .unwrap_or_else(|error| panic!("RFC server packet protection failed: {error}"));
+    assert_eq!(
+        &packet[header.len() + 2..header.len() + 18],
+        &hex::<16>("2cd0991cd25b0aac406a5816b6394100")
+    );
+    server
+        .local()
+        .header()
+        .protect(18, &mut packet)
+        .unwrap_or_else(|error| panic!("RFC server header protection failed: {error}"));
+    let expected = hex_vec(include_str!("../testdata/rfc9001-server-initial.hex"));
+    assert_eq!(packet, expected);
+
+    client
+        .remote()
+        .header()
+        .unprotect(18, &mut packet)
+        .unwrap_or_else(|error| panic!("RFC server header removal failed: {error}"));
+    assert_eq!(&packet[..header.len()], &header);
+    let (opened_header, protected_payload) = packet.split_at_mut(header.len());
+    let plaintext_len = client
+        .remote()
+        .packet()
+        .open(1, opened_header, protected_payload)
+        .unwrap_or_else(|error| panic!("RFC server packet opening failed: {error}"));
+    assert_eq!(plaintext_len, payload.len());
+    assert_eq!(&protected_payload[..plaintext_len], &payload);
+}
+
+#[test]
+fn rfc_9001_chacha_short_header_and_three_byte_packet_number_are_exact() {
+    let header_key = HeaderProtectionKey::chacha20(&hex::<32>(
+        "25a282b9e82f06f21f488917a4fc8f1b73573685608597d0efcb076b0ab7a7a4",
+    ))
+    .unwrap_or_else(|error| panic!("RFC ChaCha header key failed: {error}"));
+    let protected = hex::<21>("4cfe4189655e5cd55c41f69080575d7999c25a5bfb");
+    let mut packet = protected;
+
+    header_key
+        .unprotect(1, &mut packet)
+        .unwrap_or_else(|error| panic!("RFC short-header removal failed: {error}"));
+    assert_eq!(&packet[..4], &hex::<4>("4200bff4"));
+    header_key
+        .protect(1, &mut packet)
+        .unwrap_or_else(|error| panic!("RFC short-header protection failed: {error}"));
+    assert_eq!(packet, protected);
+}
+
+#[test]
+fn rfc_9001_known_mask_covers_one_and_two_byte_packet_numbers() {
+    let header_key = HeaderProtectionKey::chacha20(&hex::<32>(
+        "25a282b9e82f06f21f488917a4fc8f1b73573685608597d0efcb076b0ab7a7a4",
+    ))
+    .unwrap_or_else(|error| panic!("RFC ChaCha header key failed: {error}"));
+    let sample = hex::<16>("5e5cd55c41f69080575d7999c25a5bfb");
+
+    let mut one_byte = vec![0x40, 0x12, 0xaa, 0xbb, 0xcc];
+    one_byte.extend_from_slice(&sample);
+    header_key
+        .protect(1, &mut one_byte)
+        .unwrap_or_else(|error| panic!("one-byte packet number protection failed: {error}"));
+    let mut expected_one = vec![0x4e, 0xec, 0xaa, 0xbb, 0xcc];
+    expected_one.extend_from_slice(&sample);
+    assert_eq!(one_byte, expected_one);
+
+    let mut two_byte = vec![0x41, 0x12, 0x34, 0xbb, 0xcc];
+    two_byte.extend_from_slice(&sample);
+    header_key
+        .protect(1, &mut two_byte)
+        .unwrap_or_else(|error| panic!("two-byte packet number protection failed: {error}"));
+    let mut expected_two = vec![0x4f, 0xec, 0xca, 0xbb, 0xcc];
+    expected_two.extend_from_slice(&sample);
+    assert_eq!(two_byte, expected_two);
 }
 
 #[test]
@@ -116,6 +238,13 @@ fn malformed_key_nonce_sample_and_output_bounds_are_typed_errors() {
         Err(CryptoError::InvalidKeyLength {
             actual: 15,
             expected: 16
+        })
+    ));
+    assert!(matches!(
+        HeaderProtectionKey::chacha20(&[0; 31]),
+        Err(CryptoError::InvalidKeyLength {
+            actual: 31,
+            expected: 32
         })
     ));
     assert!(matches!(
@@ -207,4 +336,26 @@ fn hex<const N: usize>(input: &str) -> [u8; N] {
         };
     }
     output
+}
+
+fn hex_vec(input: &str) -> Vec<u8> {
+    let compact: String = input
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    assert_eq!(compact.len() % 2, 0, "fixture has odd encoded length");
+    compact
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|encoded| {
+            let encoded = match std::str::from_utf8(encoded) {
+                Ok(encoded) => encoded,
+                Err(error) => panic!("fixture is not UTF-8: {error}"),
+            };
+            match u8::from_str_radix(encoded, 16) {
+                Ok(value) => value,
+                Err(error) => panic!("fixture is not hexadecimal: {error}"),
+            }
+        })
+        .collect()
 }

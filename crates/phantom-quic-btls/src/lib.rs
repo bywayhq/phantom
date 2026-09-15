@@ -5,6 +5,11 @@
 //! infallible packet and header key traits. The full QUIC session provider can
 //! adapt them once it owns the protocol invariants required by those traits.
 
+#![deny(unsafe_code)]
+
+// Raw BoringSSL access is isolated here so safe protocol code cannot grow new
+// unsafe operations without crossing an explicit, reviewable module boundary.
+#[allow(unsafe_code)]
 mod backend;
 mod error;
 mod header;

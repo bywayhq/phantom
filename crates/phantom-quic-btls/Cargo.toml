@@ -19,7 +19,7 @@ btls-sys = { workspace = true, features = ["prefix-symbols"] }
 
 [lints.rust]
 missing_docs = "warn"
-unsafe_code = "allow"
+unsafe_code = "deny"
 
 [lints.clippy]
 dbg_macro = "deny"
