@@ -1,7 +1,7 @@
 use super::{
     ALPN_EXTENSION, ClientHelloDecodeError, ClientHelloSummary, EC_POINT_FORMATS_EXTENSION,
     KEY_SHARE_EXTENSION, SERVER_NAME_EXTENSION, SIGNATURE_ALGORITHMS_EXTENSION,
-    SUPPORTED_GROUPS_EXTENSION, SUPPORTED_VERSIONS_EXTENSION, is_grease,
+    SUPPORTED_GROUPS_EXTENSION, SUPPORTED_VERSIONS_EXTENSION, TRUST_ANCHORS_EXTENSION, is_grease,
 };
 
 fn extension(extension_type: u16, data: &[u8]) -> Vec<u8> {
@@ -72,6 +72,10 @@ fn decodes_ordered_fingerprint_fields() -> Result<(), ClientHelloDecodeError> {
         KEY_SHARE_EXTENSION,
         &[0, 11, 0, 29, 0, 2, 1, 2, 0x4a, 0x4a, 0, 1, 3],
     ));
+    extensions.extend_from_slice(&extension(
+        TRUST_ANCHORS_EXTENSION,
+        &[0, 5, 1, b'a', 2, b'b', b'c'],
+    ));
 
     let summary = decode_body(&body(
         &[0x13, 0x02, 0x0a, 0x0a, 0x13, 0x01],
@@ -82,7 +86,21 @@ fn decodes_ordered_fingerprint_fields() -> Result<(), ClientHelloDecodeError> {
     assert_eq!(summary.cipher_suites(), &[0x1302, 0x0a0a, 0x1301]);
     assert_eq!(
         summary.extension_types(),
-        &[0x3a3a, 0, 10, 11, 13, 16, 43, 51]
+        &[0x3a3a, 0, 10, 11, 13, 16, 43, 51, 0xca34]
+    );
+    assert_eq!(
+        summary.extension_layout().collect::<Vec<_>>(),
+        [
+            (0x3a3a, 3),
+            (0, 24),
+            (10, 6),
+            (11, 4),
+            (13, 6),
+            (16, 7),
+            (43, 5),
+            (51, 13),
+            (0xca34, 7),
+        ]
     );
     assert_eq!(
         summary.server_name(),
@@ -94,6 +112,10 @@ fn decodes_ordered_fingerprint_fields() -> Result<(), ClientHelloDecodeError> {
     assert_eq!(summary.alpn_protocols(), &[b"h2".to_vec(), vec![0xff]]);
     assert_eq!(summary.supported_versions(), &[0x0304, 0x7a7a]);
     assert_eq!(summary.key_share_groups(), &[29, 0x4a4a]);
+    assert_eq!(
+        summary.requested_trust_anchor_ids(),
+        Some([b"a".to_vec(), b"bc".to_vec()].as_slice())
+    );
     Ok(())
 }
 
@@ -112,6 +134,7 @@ fn accepts_absent_optional_extensions() -> Result<(), ClientHelloDecodeError> {
     let summary = decode_body(&body(&[0x13, 0x01], None))?;
 
     assert!(summary.extension_types().is_empty());
+    assert_eq!(summary.extension_layout().count(), 0);
     assert_eq!(summary.server_name(), None);
     assert!(summary.supported_groups().is_empty());
     assert!(summary.ec_point_formats().is_empty());
@@ -119,6 +142,7 @@ fn accepts_absent_optional_extensions() -> Result<(), ClientHelloDecodeError> {
     assert!(summary.alpn_protocols().is_empty());
     assert!(summary.supported_versions().is_empty());
     assert!(summary.key_share_groups().is_empty());
+    assert_eq!(summary.requested_trust_anchor_ids(), None);
     Ok(())
 }
 
@@ -179,6 +203,7 @@ fn rejects_malformed_nested_lengths() {
         (ALPN_EXTENSION, vec![0, 3, 2, b'h']),
         (SUPPORTED_VERSIONS_EXTENSION, vec![4, 3, 4]),
         (KEY_SHARE_EXTENSION, vec![0, 6, 0, 29, 0, 4, 1]),
+        (TRUST_ANCHORS_EXTENSION, vec![0, 2, 2, b'a']),
     ] {
         let extensions = extension(extension_type, &data);
         assert!(matches!(
@@ -196,6 +221,30 @@ fn accepts_empty_key_share_list() -> Result<(), ClientHelloDecodeError> {
 
     assert!(summary.key_share_groups().is_empty());
     Ok(())
+}
+
+#[test]
+fn distinguishes_empty_trust_anchor_list_from_absence() -> Result<(), ClientHelloDecodeError> {
+    let extensions = extension(TRUST_ANCHORS_EXTENSION, &[0, 0]);
+
+    let summary = decode_body(&body(&[0x13, 0x01], Some(&extensions)))?;
+
+    assert_eq!(summary.requested_trust_anchor_ids(), Some(&[][..]));
+    Ok(())
+}
+
+#[test]
+fn rejects_empty_trust_anchor_id() {
+    let extensions = extension(TRUST_ANCHORS_EXTENSION, &[0, 1, 0]);
+
+    assert!(matches!(
+        decode_body(&body(&[0x13, 0x01], Some(&extensions))),
+        Err(ClientHelloDecodeError::LengthOutOfRange {
+            field: "trust anchor ID",
+            length: 0,
+            ..
+        })
+    ));
 }
 
 #[test]
@@ -271,6 +320,7 @@ fn rejects_duplicate_extensions() {
         (ALPN_EXTENSION, vec![0, 3, 2, b'h', b'2']),
         (SUPPORTED_VERSIONS_EXTENSION, vec![2, 3, 4]),
         (KEY_SHARE_EXTENSION, vec![0, 5, 0, 29, 0, 1, 1]),
+        (TRUST_ANCHORS_EXTENSION, vec![0, 2, 1, b'a']),
         (0xfe0d, vec![0]),
         (0xbeef, vec![1]),
     ] {
@@ -316,6 +366,7 @@ fn rejects_trailing_bytes_inside_decoded_extensions() {
         (ALPN_EXTENSION, vec![0, 3, 2, b'h', b'2', 0]),
         (SUPPORTED_VERSIONS_EXTENSION, vec![2, 3, 4, 0]),
         (KEY_SHARE_EXTENSION, vec![0, 5, 0, 29, 0, 1, 1, 0]),
+        (TRUST_ANCHORS_EXTENSION, vec![0, 2, 1, b'a', 0]),
     ];
 
     for (extension_type, data) in cases {
