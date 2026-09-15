@@ -1,0 +1,318 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index 5ae628d73e2c243e57bcf25c76f09d527c5858f0..5147d536b71a0da47af0ca9a09881ea0ede4aee4 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -11,6 +11,7 @@ use crate::{
+     config::Config,
+     connection::ConnectionInner,
+     error::ConnectionError,
++    proto::frame::{self, SettingsError},
+     quic::{self},
+     shared_state::SharedState,
+ };
+@@ -97,6 +98,23 @@ impl Builder {
+         self
+     }
+ 
++    /// Replaces the generated SETTINGS frame with the supplied entries.
++    ///
++    /// Identifier and value pairs are emitted in slice order using the
++    /// shortest QUIC variable-length integer encoding. Automatic GREASE and
++    /// the other setting builder methods do not alter an explicit list, so
++    /// call this after configuring those options.
++    ///
++    /// The list is rejected if it contains duplicate or forbidden
++    /// identifiers, values outside the QUIC variable-length integer range, or
++    /// invalid values for settings with constrained domains.
++    pub fn ordered_settings(&mut self, entries: &[(u64, u64)]) -> Result<&mut Self, SettingsError> {
++        let settings = frame::Settings::from_ordered(entries)?;
++        self.config.settings = (&settings).into();
++        self.config.ordered_settings = Some(settings);
++        Ok(self)
++    }
++
+     /// Indicates that the client supports HTTP/3 datagrams
+     ///
+     /// See: <https://www.rfc-editor.org/rfc/rfc9297#section-2.1.1>
+@@ -146,3 +164,121 @@ impl Builder {
+         ))
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::{
++        proto::{coding::Encode, frame::Settings},
++        stream::UniStreamHeader,
++    };
++
++    const CHROME_SETTINGS: [(u64, u64); 5] = [
++        (0x1, 65_536),
++        (0x6, 262_144),
++        (0x7, 100),
++        (0x33, 1),
++        (47_398_610_487, 289_824_385),
++    ];
++
++    fn configured_settings(builder: &Builder) -> Settings {
++        Settings::try_from(builder.config).expect("builder settings must be valid")
++    }
++
++    fn settings_frame_bytes(builder: &Builder) -> Vec<u8> {
++        let settings = configured_settings(builder);
++        let mut bytes = Vec::new();
++        settings.encode(&mut bytes);
++        bytes
++    }
++
++    #[test]
++    fn generated_settings_bytes_are_unchanged_without_override() {
++        let mut builder = Builder::new();
++        builder.send_grease(false);
++
++        assert_eq!(
++            settings_frame_bytes(&builder),
++            [
++                0x04, 0x17, 0x06, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x08, 0x00, 0xab,
++                0x60, 0x37, 0x42, 0x00, 0x33, 0x00, 0xab, 0x60, 0x37, 0x43, 0x00,
++            ]
++        );
++        assert!(builder.config.ordered_settings.is_none());
++    }
++
++    #[test]
++    fn retained_chrome_settings_keep_entry_order_and_varint_widths() {
++        let mut builder = Builder::new();
++        builder
++            .ordered_settings(&CHROME_SETTINGS)
++            .expect("retained Chrome settings must be valid");
++
++        let settings = configured_settings(&builder);
++        let mut bytes = Vec::new();
++        UniStreamHeader::Control(settings).encode(&mut bytes);
++
++        assert_eq!(
++            bytes,
++            [
++                0x00, 0x04, 0x1b, 0x01, 0x80, 0x01, 0x00, 0x00, 0x06, 0x80, 0x04, 0x00, 0x00, 0x07,
++                0x40, 0x64, 0x33, 0x01, 0xc0, 0x00, 0x00, 0x0b, 0x09, 0x2d, 0x66, 0x37, 0x91, 0x46,
++                0x5e, 0x81,
++            ]
++        );
++    }
++
++    #[test]
++    fn ordered_settings_reject_duplicates_and_forbidden_identifiers() {
++        let mut builder = Builder::new();
++        assert_eq!(
++            builder.ordered_settings(&[(0x1, 0), (0x1, 1)]).err(),
++            Some(SettingsError::Repeated(0x1))
++        );
++
++        for identifier in [0x0, 0x2, 0x3, 0x4, 0x5] {
++            assert_eq!(
++                builder.ordered_settings(&[(identifier, 0)]).err(),
++                Some(SettingsError::InvalidSettingId(identifier))
++            );
++        }
++    }
++
++    #[test]
++    fn ordered_settings_reject_out_of_range_and_constrained_values() {
++        let mut builder = Builder::new();
++        let out_of_range = 1 << 62;
++
++        assert_eq!(
++            builder.ordered_settings(&[(out_of_range, 0)]).err(),
++            Some(SettingsError::InvalidSettingId(out_of_range))
++        );
++        assert_eq!(
++            builder.ordered_settings(&[(0x1, out_of_range)]).err(),
++            Some(SettingsError::InvalidSettingValue(0x1, out_of_range))
++        );
++
++        for identifier in [0x8, 0x33, 0x2b60_3742, 0xffd277] {
++            assert_eq!(
++                builder.ordered_settings(&[(identifier, 2)]).err(),
++                Some(SettingsError::InvalidSettingValue(identifier, 2))
++            );
++        }
++
++        let too_many = [
++            (0x21, 0),
++            (0x40, 0),
++            (0x5f, 0),
++            (0x7e, 0),
++            (0x9d, 0),
++            (0xbc, 0),
++            (0xdb, 0),
++            (0xfa, 0),
++            (0x119, 0),
++        ];
++        assert_eq!(
++            builder.ordered_settings(&too_many).err(),
++            Some(SettingsError::Exceeded)
++        );
++    }
++}
+diff --git a/h3/src/client/mod.rs b/h3/src/client/mod.rs
+index 2435a4c37dd0f61405c2f3d8f29f70dc10704d7b..9fba5467d2e34eb1708fd7c756f290507ca22a52 100644
+--- a/h3/src/client/mod.rs
++++ b/h3/src/client/mod.rs
+@@ -5,6 +5,7 @@ mod stream;
+ 
+ mod builder;
+ 
++pub use crate::proto::frame::SettingsError;
+ pub use builder::builder;
+ pub use builder::new;
+ pub use builder::Builder;
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index c2a6fe64746b51f27303b7af961d8b6674aaa8b1..bfac0e819792f99af11c5e9ec3dbb98c2671e4ff 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -17,6 +17,9 @@ pub struct Config {
+ 
+     /// HTTP/3 Settings
+     pub settings: Settings,
++
++    /// An exact, caller-supplied SETTINGS frame.
++    pub(crate) ordered_settings: Option<frame::Settings>,
+ }
+ 
+ /// HTTP/3 Settings
+@@ -72,6 +75,10 @@ impl From<&frame::Settings> for Settings {
+ impl TryFrom<Config> for frame::Settings {
+     type Error = frame::SettingsError;
+     fn try_from(value: Config) -> Result<Self, Self::Error> {
++        if let Some(settings) = value.ordered_settings {
++            return Ok(settings);
++        }
++
+         let mut settings = frame::Settings::default();
+ 
+         let Config {
+@@ -86,6 +93,7 @@ impl TryFrom<Config> for frame::Settings {
+                     enable_datagram,
+                     max_webtransport_sessions,
+                 },
++            ordered_settings: _,
+         } = value;
+ 
+         if send_grease {
+@@ -174,6 +182,7 @@ impl Default for Config {
+             #[cfg(test)]
+             send_settings: true,
+             settings: Default::default(),
++            ordered_settings: None,
+         }
+     }
+ }
+diff --git a/h3/src/proto/frame.rs b/h3/src/proto/frame.rs
+index a09520bb5d15e9b9ec1d168747abce33cc5d4d51..6bebc3d138d43d2c512fc125229ebf318e625649 100644
+--- a/h3/src/proto/frame.rs
++++ b/h3/src/proto/frame.rs
+@@ -424,6 +424,16 @@ impl SettingId {
+         )
+     }
+ 
++    fn has_boolean_value(self) -> bool {
++        matches!(
++            self,
++            SettingId::ENABLE_CONNECT_PROTOCOL
++                | SettingId::H3_DATAGRAM
++                | SettingId::ENABLE_WEBTRANSPORT
++                | SettingId::H3_SETTING_ENABLE_DATAGRAM_CHROME_SPECIFIC
++        )
++    }
++
+     fn decode<B: Buf>(buf: &mut B) -> Result<Self, UnexpectedEnd> {
+         Ok(SettingId(buf.get_var()?))
+     }
+@@ -459,7 +469,7 @@ setting_identifiers! {
+ 
+ const SETTINGS_LEN: usize = 8;
+ 
+-#[derive(Debug, PartialEq)]
++#[derive(Clone, Copy, Debug, PartialEq)]
+ pub struct Settings {
+     entries: [(SettingId, u64); SETTINGS_LEN],
+     len: usize,
+@@ -487,15 +497,22 @@ impl Settings {
+     pub const MAX_ENCODED_SIZE: usize = SETTINGS_LEN * 2 * VarInt::MAX_SIZE;
+ 
+     pub fn insert(&mut self, id: SettingId, value: u64) -> Result<(), SettingsError> {
+-        if self.len >= self.entries.len() {
+-            return Err(SettingsError::Exceeded);
++        if VarInt::from_u64(id.0).is_err() || id.is_forbidden() {
++            return Err(SettingsError::InvalidSettingId(id.0));
++        }
++        if VarInt::from_u64(value).is_err() || (id.has_boolean_value() && value > 1) {
++            return Err(SettingsError::InvalidSettingValue(id.0, value));
+         }
+ 
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4
+         //# The same setting identifier MUST NOT occur more than once in the
+         //# SETTINGS frame.
+         if self.entries[..self.len].iter().any(|(i, _)| *i == id) {
+-            return Err(SettingsError::Repeated(id));
++            return Err(SettingsError::Repeated(id.0));
++        }
++
++        if self.len >= self.entries.len() {
++            return Err(SettingsError::Exceeded);
+         }
+ 
+         self.entries[self.len] = (id, value);
+@@ -503,6 +520,14 @@ impl Settings {
+         Ok(())
+     }
+ 
++    pub(crate) fn from_ordered(entries: &[(u64, u64)]) -> Result<Self, SettingsError> {
++        let mut settings = Self::default();
++        for &(identifier, value) in entries {
++            settings.insert(SettingId(identifier), value)?;
++        }
++        Ok(settings)
++    }
++
+     pub fn get(&self, id: SettingId) -> Option<u64> {
+         for (entry_id, value) in self.entries.iter() {
+             if id == *entry_id {
+@@ -561,13 +586,19 @@ impl Settings {
+     }
+ }
+ 
+-#[derive(Debug, PartialEq)]
++/// Error returned when an HTTP/3 SETTINGS frame is malformed or invalid.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+ pub enum SettingsError {
++    /// The implementation's maximum number of SETTINGS entries was exceeded.
+     Exceeded,
++    /// An incoming SETTINGS payload was not a complete sequence of pairs.
+     Malformed,
+-    Repeated(SettingId),
++    /// A setting identifier appeared more than once.
++    Repeated(u64),
++    /// A setting identifier is forbidden or outside the QUIC varint range.
+     InvalidSettingId(u64),
+-    InvalidSettingValue(SettingId, u64),
++    /// A setting value violates its defined domain or the QUIC varint range.
++    InvalidSettingValue(u64, u64),
+ }
+ 
+ impl std::error::Error for SettingsError {}
+@@ -580,10 +611,10 @@ impl fmt::Display for SettingsError {
+                 "max settings number exceeded, check for duplicate entries"
+             ),
+             SettingsError::Malformed => write!(f, "malformed settings frame"),
+-            SettingsError::Repeated(id) => write!(f, "got setting 0x{:x} twice", id.0),
++            SettingsError::Repeated(id) => write!(f, "got setting 0x{:x} twice", id),
+             SettingsError::InvalidSettingId(id) => write!(f, "setting id 0x{:x} is invalid", id),
+             SettingsError::InvalidSettingValue(id, val) => {
+-                write!(f, "setting 0x{:x} has invalid value {}", id.0, val)
++                write!(f, "setting 0x{:x} has invalid value {}", id, val)
+             }
+         }
+     }
