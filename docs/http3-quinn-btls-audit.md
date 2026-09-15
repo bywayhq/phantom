@@ -1,0 +1,247 @@
+# HTTP/3 Quinn/BoringSSL architecture audit
+
+This note records the evidence and implementation boundary for the first
+forced-HTTP/3 client slice. It is not a new public API proposal.
+
+## Decision
+
+Use Quinn's existing crypto-provider interface with a private,
+client-only `phantom-quic-btls` adapter. Adapt and harden the official
+`quinn-rs/quinn-boring` implementation rather than implementing QUIC crypto
+from scratch or introducing a second BoringSSL build.
+
+Do not fork `quinn-proto` for the first slice. The provider receives Quinn's
+semantic `TransportParameters` before BoringSSL constructs ClientHello, and
+`TransportParameters::write` is public. The adapter can serialize the values,
+parse the resulting QUIC varint TLVs, remove Quinn's generated reserved
+parameter, validate the semantic fields, and re-encode the final ordered bytes
+with profile-owned GREASE and supported opaque parameters. This preserves
+Quinn's state-machine semantics while putting the observable TLS extension
+bytes at the correct boundary.
+
+Carry one narrow, default-preserving `h3` patch now. Both the published release
+and current upstream construct outbound SETTINGS in library-defined order,
+always include several zero-valued settings, and cannot configure QPACK table
+capacity or blocked streams. The patch should accept a concrete ordered list
+of `(identifier, value)` pairs, validate it, and have the existing frame
+encoder preserve that order. It must not branch on a browser family.
+
+This produces the smallest useful vertical slice:
+
+1. Direct UDP only; forced H3 with no TCP or protocol fallback.
+2. BoringSSL TLS 1.3 through Quinn's provider seam.
+3. One capture-backed QUIC TLS/transport/H3 profile.
+4. Request headers, an optional streaming request body, streaming response
+   body, trailers, cancellation, and bounded shutdown.
+5. Exact differential fixtures for ClientHello, QUIC transport parameters,
+   and the first H3 control-stream SETTINGS frame.
+
+Connection racing, Alt-Svc discovery, pooling, 0-RTT, migration, WebTransport,
+and proxied UDP are deliberately outside this slice.
+
+## Dependency baseline
+
+Pin exact identities in the lockfile; do not use version ranges for the forked
+sources.
+
+| Component | Audited identity | Use |
+| --- | --- | --- |
+| `quinn` | `0.11.12` | `default-features = false`, `runtime-tokio`; enable `qlog` only when the feature is exposed by Phantom |
+| `quinn-proto` | `0.11.18` | Stock, `default-features = false` |
+| `quinn-udp` | `0.5.15` | Stock version selected by Quinn 0.11 |
+| `h3` | crate version `0.0.8`, fork base `hyperium/h3@1f3d5295833ad454343f25d55633fb6bee1027b2` | Pin the Phantom fork commit containing only the SETTINGS patch and reviewed upstream fixes |
+| `h3-quinn` | crate version `0.0.10`, same repository revision as `h3` | Keep unchanged unless dependency unification requires its manifest to point at the forked sibling |
+| `btls`, `btls-sys`, `tokio-btls` | `0xARYA/btls@78b8c24a3388973d1d33c523995d311d766a1026` | One BoringSSL lineage; use `prefix-symbols` consistently |
+| adapter reference | `quinn-rs/quinn-boring@8aeaa43a82ffa75cb4621a7fb1211c10f047d02e` (`0.2.0`, unreleased) | Copy/adapt reviewed client-side code; do not depend on it unchanged |
+
+`quinn-boring`'s published `0.1.0` is too old, while its current source uses
+Cloudflare's `boring`/`boring-sys` crates and a different foreign-types
+generation. A Cargo package alias is therefore not a safe substitution for an
+adapter against Phantom's pinned `btls` lineage. The current reference also
+contains client-path panics and an unimplemented `peer_identity`; those must
+not be copied as-is.
+
+The `quinn-proto 0.11.18` pin also avoids older 0.11 patch levels affected by
+the 2026 remote-memory-exhaustion advisory and includes the bounded
+`TooManyChunks` handling from Quinn's current 0.11 line.
+
+## Existing seams are sufficient
+
+`quinn-proto 0.11.18` exposes these provider contracts:
+
+- `crypto::ClientConfig::start_session(version, server_name, params)`;
+- `crypto::Session` for handshake I/O, negotiated parameters, key epochs,
+  Retry integrity, peer identity, and exporters;
+- `HeaderKey`, `PacketKey`, `HmacKey`, and `HandshakeTokenKey`.
+
+Quinn can be built without rustls. `EndpointConfig::default` is not available
+without a built-in crypto feature, so `phantom-quic-btls` must supply the
+BoringSSL-backed HMAC key to `EndpointConfig::new`. Quinn also exposes
+`Endpoint::new_with_abstract_socket` and `AsyncUdpSocket`; those are adequate
+future seams for SOCKS5 UDP ASSOCIATE and CONNECT-UDP/MASQUE. The direct slice
+should use Quinn's normal UDP socket and should not introduce a Phantom socket
+trait.
+
+The pinned BoringSSL headers already provide the complete legacy QUIC API:
+
+- `SSL_QUIC_METHOD` read-secret, write-secret, handshake-data, flush, and alert
+  callbacks;
+- `SSL_set_quic_method`/`SSL_CTX_set_quic_method`;
+- `SSL_set_quic_transport_params` and
+  `SSL_get_peer_quic_transport_params`;
+- `SSL_provide_quic_data`, `SSL_process_quic_post_handshake`, encryption-level
+  queries, handshake-flight limits, early-data context, and the legacy
+  transport-parameter codepoint switch.
+
+`btls-sys` generates bindings for these symbols. No BoringSSL C/C++ patch is
+required. The missing work is a Rust wrapper in the isolated adapter crate.
+
+## Adapter boundary and required additions
+
+`phantom-quic-btls` should be an explicitly audited FFI crate and expose only a
+concrete Quinn client configuration to `phantom-net`. Keep all backend types
+private to the backend.
+
+Add private wrappers for:
+
+- installing the context/session QUIC callback table;
+- setting and copying local/peer transport-parameter bytes;
+- providing handshake bytes and processing post-handshake records;
+- querying read/write encryption levels and flight limits;
+- configuring early-data context and the legacy parameter codepoint;
+- QUIC v1 initial secrets, HKDF expansion, packet AEAD, header protection,
+  Retry integrity, key updates, and endpoint HMAC.
+
+Reuse the existing Phantom TLS profile-to-BoringSSL translation. Its builder
+entry point currently takes `SslConnectorBuilder`; factor the translation at
+the underlying `SslContextBuilder` level so TCP and QUIC cannot drift. QUIC
+must have an explicit TLS 1.3 profile and ALPN `h3`; TCP-only settings must fail
+validation instead of being silently ignored. Add the standard QUIC transport
+parameters extension (57) to the profile extension vocabulary.
+
+For outbound transport parameters, the adapter should:
+
+1. Call stock `TransportParameters::write`.
+2. Parse the complete TLV sequence with strict length and duplicate checks.
+3. Remove Quinn's reserved GREASE entry.
+4. Check every profile-declared standard value against Quinn's serialized
+   value. Configuration which lies about the live transport fails before I/O.
+5. Emit captured standard fields, supported opaque fields, and generated
+   GREASE in profile order.
+6. Feed only those final bytes to `SSL_set_quic_transport_params`.
+
+Keep this encoder private and initially support only the encodings proven by a
+retained capture. The provider boundary owns the final bytes, so later evidence
+can add a non-canonical varint-width control without changing Quinn or the
+facade. Unknown parameters must not be injected until their peer-visible
+semantics are understood.
+
+## Unsafe-code audit boundary
+
+All new unsafe code belongs in `phantom-quic-btls`; `phantom-net` and profile
+crates remain safe Rust. Each unsafe block needs the local invariant it relies
+on. The review must cover:
+
+- A pinned `Box<SessionState>` stored in SSL ex-data, with documented callback
+  lifetime, serialization, and teardown ordering.
+- Callback pointers and lengths, including null-plus-zero inputs. Copy secrets,
+  handshake data, peer parameters, and certificate material before the
+  callback or SSL borrow ends.
+- No unwinding across C. Callback failures become BoringSSL failure returns and
+  a stored terminal handshake error.
+- Raw `SSL*`, `SSL_CTX*`, `EVP_AEAD_CTX`, HKDF, AES, and ChaCha calls, including
+  the basis for all `Send`/`Sync` implementations.
+- Cipher pointers being valid only for the callback and accepted only for
+  supported QUIC TLS 1.3 suites.
+- Packet-number, nonce, tag-length, sample-length, and output-capacity bounds.
+- Key updates and zeroization; tracing, qlog, and error formatting must never
+  contain key material.
+
+Replace reference-code `unwrap`, `panic`, and `todo` sites on runtime paths.
+Some Quinn provider methods are infallible, so validate version and algorithm
+support in `start_session`; store any later callback failure and surface it via
+the next fallible handshake operation rather than panicking.
+
+## H3 patch and request lifecycle
+
+Base the fork on the exact `hyperium/h3` revision above, not crates.io `0.0.8`
+alone. The published release predates later request-cancellation and receive
+path fixes. Open or recently fixed upstream reports also show the regression
+surface: dropped request streams, a connection error arriving with already
+buffered bytes, and transport errors collapsed to `io::ErrorKind::Other`.
+
+The fork should make one behavior change: a validated ordered SETTINGS source
+used by the existing encoder. Defaults stay byte-for-byte upstream. Validate
+unique identifiers, QUIC-varint bounds, forbidden HTTP/2-only identifiers, and
+values constrained by RFC 9114. Do not expose a generic frame injection API.
+
+The direct request path owns the Quinn connection driver, H3 driver, and
+endpoint lifetime. Require negotiated ALPN `h3`. Dropping or cancelling a
+response body must stop the receive stream and reset the send stream with
+`H3_REQUEST_CANCELLED`; driver and endpoint shutdown are bounded. A forced-H3
+error is returned as H3/QUIC context and never causes an H2/H1 attempt.
+
+## Verification gates
+
+Before integration, require focused tests for:
+
+- RFC 9001 initial-secret, packet-protection, header-protection, Retry, and key
+  update vectors;
+- transport-parameter parsing/reordering, malformed lengths, duplicates,
+  GREASE replacement, semantic mismatch, and exact fixture bytes;
+- ordered H3 SETTINGS, forbidden/duplicate identifiers, and default-preserving
+  behavior when no ordered settings are supplied;
+- a local forced-H3 request with streaming body, response, and trailers;
+- cancellation/reset, flow-control backpressure, fragmented frames/varints,
+  oversized headers, stalled peers, invalid peer parameters, Retry, version
+  negotiation, and a connection error in the same read batch as valid bytes;
+- proof that all direct-H3 failures make zero TCP connection attempts;
+- normalized packet differential against the retained browser capture, plus
+  the existing external observers.
+
+Add spans for DNS, UDP/QUIC connect, TLS handshake, negotiated ALPN, peer
+parameters, H3 SETTINGS, request time-to-first-byte, body completion,
+cancellation, and shutdown. qlog and NSS key logging are explicit diagnostic
+options with bounded writers. Normal logs contain neither payloads, header
+values, proxy credentials, nor secrets.
+
+No Cargo command was run for this audit because the repository build slot was
+occupied. Static source inspection and revision checks were used. The
+integration owner should run the normal workspace gates after the dependency
+pins and implementation land.
+
+## Fork trigger
+
+Do not create a `quinn-proto` fork until a retained differential proves a
+required observable which the crypto provider cannot control: packetization,
+ACK timing/encoding, connection-ID lifecycle, congestion control, pacing, or a
+transport parameter whose value must diverge from Quinn's live semantics. At
+that point patch only the proven boundary and retain stock defaults. Exact
+transport-parameter ordering, GREASE, and supported opaque entries alone are
+not sufficient reasons to fork Quinn.
+
+## Sources inspected
+
+- Quinn 0.11 provider and transport-parameter sources:
+  <https://github.com/quinn-rs/quinn/tree/0.11.12>
+- Official BoringSSL provider reference:
+  <https://github.com/quinn-rs/quinn-boring/tree/8aeaa43a82ffa75cb4621a7fb1211c10f047d02e>
+- Hyperium H3 audited base:
+  <https://github.com/hyperium/h3/tree/1f3d5295833ad454343f25d55633fb6bee1027b2>
+- H3 lifecycle/error reports inspected:
+  [#262](https://github.com/hyperium/h3/issues/262),
+  [#330](https://github.com/hyperium/h3/issues/330),
+  [#338](https://github.com/hyperium/h3/issues/338),
+  [#351](https://github.com/hyperium/h3/issues/351), and
+  [#353](https://github.com/hyperium/h3/issues/353)
+- Quinn 0.11 resource-limit fixes inspected:
+  [#2785](https://github.com/quinn-rs/quinn/issues/2785) and
+  [#2809](https://github.com/quinn-rs/quinn/issues/2809)
+- `httpcloak` QUIC/H3 profile and regression history:
+  <https://github.com/sardanioss/httpcloak>
+- BrowserOxide stock-Quinn H3 path:
+  <https://github.com/yfedoseev/browser_oxide>
+- hello.js QUIC/H3 implementation:
+  <https://github.com/unreleased/hellojs>
+- wreq protocol support and dependency layout:
+  <https://github.com/0x676e67/wreq>
