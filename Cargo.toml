@@ -2,6 +2,7 @@
 members = [
     "crates/phantom",
     "crates/phantom-profile",
+    "crates/phantom-testkit",
 ]
 resolver = "3"
 
