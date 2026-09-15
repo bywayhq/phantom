@@ -12,6 +12,7 @@ use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
+    runtime::Handle,
     task::JoinHandle,
     time::timeout,
 };
@@ -210,6 +211,8 @@ impl BodyTrace {
 pub(super) struct DriverTask {
     sender: Option<client::SendRequest<Bytes>>,
     handle: Option<JoinHandle<Result<(), ::http2::Error>>>,
+    runtime: Handle,
+    span: Span,
 }
 
 impl DriverTask {
@@ -220,9 +223,13 @@ impl DriverTask {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        let runtime = Handle::current();
+        let span = debug_span!("http2.connection_driver", outcome = field::Empty);
         Self {
             sender: Some(sender),
-            handle: Some(tokio::spawn(connection)),
+            handle: Some(runtime.spawn(connection)),
+            runtime,
+            span,
         }
     }
 
@@ -243,14 +250,15 @@ impl DriverTask {
 
     pub(super) fn shutdown(&mut self) {
         self.sender.take();
-        let Some(mut handle) = self.handle.take() else {
+        let Some(handle) = self.handle.take() else {
             return;
         };
-        let span = debug_span!("http2.connection_driver", outcome = field::Empty);
+        let mut driver = AbortDriver::new(handle);
+        let span = self.span.clone();
         let instrument = span.clone();
-        tokio::spawn(
+        self.runtime.spawn(
             async move {
-                match timeout(DRIVER_SHUTDOWN_GRACE, &mut handle).await {
+                match timeout(DRIVER_SHUTDOWN_GRACE, driver.handle_mut()).await {
                     Ok(Ok(Ok(()))) => {
                         span.record("outcome", "complete");
                         debug!(parent: &span, "HTTP/2 connection driver stopped");
@@ -264,13 +272,19 @@ impl DriverTask {
                             "HTTP/2 connection driver failed"
                         );
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(error)) => {
                         span.record("outcome", "task_error");
-                        warn!(parent: &span, "HTTP/2 connection driver task failed");
+                        warn!(
+                            parent: &span,
+                            task_id = %error.id(),
+                            cancelled = error.is_cancelled(),
+                            panicked = error.is_panic(),
+                            "HTTP/2 connection driver task failed"
+                        );
                     }
                     Err(_) => {
-                        handle.abort();
-                        let _ = handle.await;
+                        driver.abort();
+                        let _ = driver.handle_mut().await;
                         span.record("outcome", "timeout");
                         warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
                     }
@@ -278,6 +292,30 @@ impl DriverTask {
             }
             .instrument(instrument),
         );
+    }
+}
+
+struct AbortDriver {
+    handle: JoinHandle<Result<(), ::http2::Error>>,
+}
+
+impl AbortDriver {
+    fn new(handle: JoinHandle<Result<(), ::http2::Error>>) -> Self {
+        Self { handle }
+    }
+
+    fn handle_mut(&mut self) -> &mut JoinHandle<Result<(), ::http2::Error>> {
+        &mut self.handle
+    }
+
+    fn abort(&self) {
+        self.handle.abort();
+    }
+}
+
+impl Drop for AbortDriver {
+    fn drop(&mut self) {
+        self.abort();
     }
 }
 
