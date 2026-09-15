@@ -33,7 +33,7 @@ reference. The connection now polls the open state before starting its idle
 close so that queued reset is flushed. A duplex client/server regression proves
 the peer observes the reset before connection shutdown.
 
-The production diff is intentionally limited to:
+The ordered-header production diff is intentionally limited to:
 
 - `src/ext.rs`: owned public extension value and semantic agreement check.
 - `src/client.rs`: remove, validate, and attach the order to the initial frame.
@@ -41,11 +41,15 @@ The production diff is intentionally limited to:
 - `src/proto/streams/streams.rs`: retain the ordered extension across request
   extension cleanup.
 
-The patch also changes `src/client.rs` to preserve a final queued reset, adds
-the required real-connection regressions in `src/client/tests.rs`, and enables
-Tokio's test-only `time` feature in both Cargo manifests.
+The same patch contains the complete idle-close correction discovered by the
+real-connection regressions. `src/client.rs` polls the open connection before
+requesting idle close, `src/proto/connection.rs` makes that transition
+one-shot, and test-only codec hooks model a full write buffer. This preserves a
+queued final reset and avoids a repeated self-wake when GOAWAY cannot yet be
+buffered. The patch also enables Tokio's test-only `time` feature in both Cargo
+manifests.
 
-The canonical source and test delta is stored in
+The canonical source, manifest, and test delta is stored in
 `patches/ordered-headers.patch`. It is deliberately separate from the complete
 vendor snapshot so a candidate release can be tested without reconstructing
 the changes by hand.

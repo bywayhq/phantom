@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 6657482..50ce3b9 100644
+index 6657482ff182ae90b9dd6746a619a448687af506..50ce3b9ae1f714ac4f76e972c009a8b980043ed4 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -157,6 +157,7 @@ features = [
@@ -11,7 +11,7 @@ index 6657482..50ce3b9 100644
  
  [dev-dependencies.tokio-rustls]
 diff --git a/Cargo.toml.orig b/Cargo.toml.orig
-index 2fa7548..2f13e18 100644
+index 2fa7548b189570d0f01524851565f84f584ea3bc..2f13e18cbbd135d1063a976862f757f624cd5082 100644
 --- a/Cargo.toml.orig
 +++ b/Cargo.toml.orig
 @@ -82,6 +82,7 @@ tokio = { version = "1", features = [
@@ -22,18 +22,107 @@ index 2fa7548..2f13e18 100644
  ] }
  env_logger = { version = "0.10", default-features = false }
  
+diff --git a/src/client.rs b/src/client.rs
+index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..53ad3a799b643773cda648eff31150b7c98b9e17 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -136,7 +136,7 @@
+ //! [`Error`]: ../struct.Error.html
+ 
+ use crate::codec::{Codec, SendError, UserError};
+-use crate::ext::Protocol;
++use crate::ext::{OrderedHeaders, Protocol};
+ #[cfg(feature = "unstable")]
+ use crate::frame::ExperimentalSettings;
+ use crate::frame::{
+@@ -1536,16 +1536,14 @@ where
+     type Output = Result<(), crate::Error>;
+ 
+     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+-        self.inner.maybe_close_connection_if_no_streams();
+-        let had_streams_or_refs = self.inner.has_streams_or_other_references();
+         let result = self.inner.poll(cx).map_err(Into::into);
+-        // if we had streams/refs, and don't anymore, wake up one more time to
+-        // ensure proper shutdown
+-        if result.is_pending()
+-            && had_streams_or_refs
+-            && !self.inner.has_streams_or_other_references()
+-        {
+-            tracing::trace!("last stream closed during poll, wake again");
++
++        // Poll the open connection before initiating its idle close. Dropping
++        // the last stream can queue an implicit RST_STREAM at the same time as
++        // it removes the final reference. Closing first would bypass the open
++        // state's `poll_complete`, losing that queued frame.
++        if result.is_pending() && self.inner.maybe_close_connection_if_no_streams() {
++            tracing::trace!("last stream closed, wake once more to shut down");
+             cx.waker().wake_by_ref();
+         }
+         result
+@@ -1717,11 +1715,20 @@ impl Peer {
+                 uri,
+                 headers,
+                 version,
++                mut extensions,
+                 ..
+             },
+             _,
+         ) = request.into_parts();
+ 
++        let ordered_headers = extensions.remove::<OrderedHeaders>();
++        if matches!(
++            ordered_headers.as_ref(),
++            Some(ordered) if !ordered.agrees_with(&headers)
++        ) {
++            return Err(UserError::MalformedHeaders.into());
++        }
++
+         let is_connect = method == Method::CONNECT;
+ 
+         // Build the set pseudo header set. All requests will include `method`
+@@ -1763,6 +1770,9 @@ impl Peer {
+ 
+         // Create the HEADERS frame
+         let mut headers_frame = Headers::new(id, pseudo, headers);
++        if let Some(ordered) = ordered_headers {
++            headers_frame.set_ordered_fields(ordered.into_inner());
++        }
+         if let Some(stream_dep) = headers_stream_dependency {
+             headers_frame.set_stream_dependency(stream_dep);
+         }
+@@ -1775,6 +1785,9 @@ impl Peer {
+     }
+ }
+ 
++#[cfg(test)]
++mod tests;
++
+ impl proto::Peer for Peer {
+     type Poll = Response<()>;
+ 
 diff --git a/src/client/tests.rs b/src/client/tests.rs
 new file mode 100644
-index 0000000..d347215
+index 0000000000000000000000000000000000000000..38e234e8a4e9a6fb6393bdd9bed82175d0b95e1a
 --- /dev/null
 +++ b/src/client/tests.rs
-@@ -0,0 +1,286 @@
-+use std::{future::poll_fn, io::Cursor, ops::ControlFlow, time::Duration};
+@@ -0,0 +1,435 @@
++use std::{
++    future::{poll_fn, Future},
++    io::Cursor,
++    ops::ControlFlow,
++    pin::Pin,
++    sync::{
++        atomic::{AtomicUsize, Ordering},
++        Arc,
++    },
++    task::{Context, Poll, Wake, Waker},
++    time::Duration,
++};
 +
 +use bytes::{BufMut, Bytes, BytesMut};
 +use http::{HeaderName, HeaderValue, Method, Request, Response, Version};
 +use tokio::{
-+    io::{duplex, AsyncReadExt},
++    io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf},
 +    time::timeout,
 +};
 +
@@ -255,6 +344,61 @@ index 0000000..d347215
 +    .expect("reset-and-close handshake test timed out");
 +}
 +
++#[tokio::test]
++async fn pending_shutdown_is_not_self_woken_after_idle_close_transition() {
++    let shutdown_polls = Arc::new(AtomicUsize::new(0));
++    let (sender, mut connection) = super::handshake(PendingShutdownIo {
++        shutdown_polls: Arc::clone(&shutdown_polls),
++    })
++    .await
++    .expect("client handshake failed");
++    drop(sender);
++
++    let wake_count = Arc::new(AtomicUsize::new(0));
++    let waker = Waker::from(Arc::new(CountWake(Arc::clone(&wake_count))));
++    let mut context = Context::from_waker(&waker);
++
++    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
++    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
++    assert_eq!(shutdown_polls.load(Ordering::SeqCst), 0);
++
++    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
++    assert_eq!(shutdown_polls.load(Ordering::SeqCst), 1);
++    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
++
++    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
++    assert_eq!(shutdown_polls.load(Ordering::SeqCst), 2);
++    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
++}
++
++#[tokio::test]
++async fn full_codec_does_not_repeat_idle_close_self_wake() {
++    let write_polls = Arc::new(AtomicUsize::new(0));
++    let (sender, mut connection) = super::handshake(PendingWriteIo {
++        write_polls: Arc::clone(&write_polls),
++        preface_written: false,
++    })
++    .await
++    .expect("client handshake failed");
++    connection.inner.fill_write_capacity_for_test();
++    drop(sender);
++
++    let wake_count = Arc::new(AtomicUsize::new(0));
++    let waker = Waker::from(Arc::new(CountWake(Arc::clone(&wake_count))));
++    let mut context = Context::from_waker(&waker);
++
++    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
++    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
++    let after_transition = write_polls.load(Ordering::SeqCst);
++
++    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
++    assert!(write_polls.load(Ordering::SeqCst) > after_transition);
++    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
++
++    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
++    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
++}
++
 +fn request_with_headers() -> Request<()> {
 +    let mut request = Request::new(());
 +    *request.method_mut() = Method::GET;
@@ -314,87 +458,124 @@ index 0000000..d347215
 +        .expect("encoded header block must decode");
 +    fields
 +}
-diff --git a/src/client.rs b/src/client.rs
-index 40f7279..11649a7 100644
---- a/src/client.rs
-+++ b/src/client.rs
-@@ -136,7 +136,7 @@
- //! [`Error`]: ../struct.Error.html
- 
- use crate::codec::{Codec, SendError, UserError};
--use crate::ext::Protocol;
-+use crate::ext::{OrderedHeaders, Protocol};
- #[cfg(feature = "unstable")]
- use crate::frame::ExperimentalSettings;
- use crate::frame::{
-@@ -1536,16 +1536,15 @@ where
-     type Output = Result<(), crate::Error>;
- 
-     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
--        self.inner.maybe_close_connection_if_no_streams();
--        let had_streams_or_refs = self.inner.has_streams_or_other_references();
-         let result = self.inner.poll(cx).map_err(Into::into);
--        // if we had streams/refs, and don't anymore, wake up one more time to
--        // ensure proper shutdown
--        if result.is_pending()
--            && had_streams_or_refs
--            && !self.inner.has_streams_or_other_references()
--        {
--            tracing::trace!("last stream closed during poll, wake again");
 +
-+        // Poll the open connection before initiating its idle close. Dropping
-+        // the last stream can queue an implicit RST_STREAM at the same time as
-+        // it removes the final reference. Closing first would bypass the open
-+        // state's `poll_complete`, losing that queued frame.
-+        if result.is_pending() && !self.inner.has_streams_or_other_references() {
-+            self.inner.maybe_close_connection_if_no_streams();
-+            tracing::trace!("last stream closed, wake once more to shut down");
-             cx.waker().wake_by_ref();
-         }
-         result
-@@ -1717,11 +1716,20 @@ impl Peer {
-                 uri,
-                 headers,
-                 version,
-+                mut extensions,
-                 ..
-             },
-             _,
-         ) = request.into_parts();
- 
-+        let ordered_headers = extensions.remove::<OrderedHeaders>();
-+        if matches!(
-+            ordered_headers.as_ref(),
-+            Some(ordered) if !ordered.agrees_with(&headers)
-+        ) {
-+            return Err(UserError::MalformedHeaders.into());
-+        }
++struct PendingShutdownIo {
++    shutdown_polls: Arc<AtomicUsize>,
++}
 +
-         let is_connect = method == Method::CONNECT;
- 
-         // Build the set pseudo header set. All requests will include `method`
-@@ -1763,6 +1771,9 @@ impl Peer {
- 
-         // Create the HEADERS frame
-         let mut headers_frame = Headers::new(id, pseudo, headers);
-+        if let Some(ordered) = ordered_headers {
-+            headers_frame.set_ordered_fields(ordered.into_inner());
++struct PendingWriteIo {
++    write_polls: Arc<AtomicUsize>,
++    preface_written: bool,
++}
++
++impl AsyncRead for PendingWriteIo {
++    fn poll_read(
++        self: Pin<&mut Self>,
++        _cx: &mut Context<'_>,
++        _buf: &mut ReadBuf<'_>,
++    ) -> Poll<std::io::Result<()>> {
++        Poll::Pending
++    }
++}
++
++impl AsyncWrite for PendingWriteIo {
++    fn poll_write(
++        mut self: Pin<&mut Self>,
++        _cx: &mut Context<'_>,
++        buf: &[u8],
++    ) -> Poll<std::io::Result<usize>> {
++        if !self.preface_written {
++            self.preface_written = true;
++            return Poll::Ready(Ok(buf.len()));
 +        }
-         if let Some(stream_dep) = headers_stream_dependency {
-             headers_frame.set_stream_dependency(stream_dep);
-         }
-@@ -1775,6 +1786,9 @@ impl Peer {
++        self.write_polls.fetch_add(1, Ordering::SeqCst);
++        Poll::Pending
++    }
++
++    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
++        Poll::Ready(Ok(()))
++    }
++
++    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
++        Poll::Pending
++    }
++}
++
++impl AsyncRead for PendingShutdownIo {
++    fn poll_read(
++        self: Pin<&mut Self>,
++        _cx: &mut Context<'_>,
++        _buf: &mut ReadBuf<'_>,
++    ) -> Poll<std::io::Result<()>> {
++        Poll::Pending
++    }
++}
++
++impl AsyncWrite for PendingShutdownIo {
++    fn poll_write(
++        self: Pin<&mut Self>,
++        _cx: &mut Context<'_>,
++        buf: &[u8],
++    ) -> Poll<std::io::Result<usize>> {
++        Poll::Ready(Ok(buf.len()))
++    }
++
++    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
++        Poll::Ready(Ok(()))
++    }
++
++    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
++        self.shutdown_polls.fetch_add(1, Ordering::SeqCst);
++        Poll::Pending
++    }
++}
++
++struct CountWake(Arc<AtomicUsize>);
++
++impl Wake for CountWake {
++    fn wake(self: Arc<Self>) {
++        self.0.fetch_add(1, Ordering::SeqCst);
++    }
++
++    fn wake_by_ref(self: &Arc<Self>) {
++        self.0.fetch_add(1, Ordering::SeqCst);
++    }
++}
+diff --git a/src/codec/framed_write.rs b/src/codec/framed_write.rs
+index 387702dc1d7b80edf296e49924acdeeb21b20d67..9bb8e136bd383289c8671f3103ca8f7c09e623c5 100644
+--- a/src/codec/framed_write.rs
++++ b/src/codec/framed_write.rs
+@@ -340,6 +340,12 @@ impl<T, B> FramedWrite<T, B> {
+     pub fn get_mut(&mut self) -> &mut T {
+         &mut self.inner
      }
++
++    #[cfg(test)]
++    pub(crate) fn fill_write_capacity_for_test(&mut self) {
++        let capacity = self.encoder.buf.get_ref().capacity();
++        self.encoder.buf.get_mut().resize(capacity, 0);
++    }
  }
  
-+#[cfg(test)]
-+mod tests;
+ impl<T: AsyncRead + Unpin, B> AsyncRead for FramedWrite<T, B> {
+diff --git a/src/codec/mod.rs b/src/codec/mod.rs
+index 6cbdc1e189073759fc798324e01128b07e0ac24a..5513f11d8b9de26294c5b4d786c60cb27d27153b 100644
+--- a/src/codec/mod.rs
++++ b/src/codec/mod.rs
+@@ -124,6 +124,11 @@ impl<T, B> Codec<T, B> {
+     fn framed_write(&mut self) -> &mut FramedWrite<T, B> {
+         self.inner.get_mut()
+     }
 +
- impl proto::Peer for Peer {
-     type Poll = Response<()>;
++    #[cfg(test)]
++    pub(crate) fn fill_write_capacity_for_test(&mut self) {
++        self.framed_write().fill_write_capacity_for_test();
++    }
+ }
  
+ impl<T, B> Codec<T, B>
 diff --git a/src/ext.rs b/src/ext.rs
-index cf383a4..b97fd06 100644
+index cf383a4950c7eeb171f833009e53965e6705c386..b97fd0654f34d7a7dbebe900c2d5da4659d03e49 100644
 --- a/src/ext.rs
 +++ b/src/ext.rs
 @@ -3,8 +3,50 @@
@@ -449,7 +630,7 @@ index cf383a4..b97fd06 100644
  /// the [Extended CONNECT Protocol].
  ///
 diff --git a/src/frame/headers.rs b/src/frame/headers.rs
-index 43ec9cc..971a948 100644
+index 43ec9cceab3b8773b9f329342fd01847e9c935be..971a94871c3ce91d343a94180c5d3028c1a3efd6 100644
 --- a/src/frame/headers.rs
 +++ b/src/frame/headers.rs
 @@ -188,7 +188,13 @@ pub struct Iter {
@@ -561,8 +742,79 @@ index 43ec9cc..971a948 100644
          };
  
          encoder.encode(headers, &mut hpack);
+diff --git a/src/proto/connection.rs b/src/proto/connection.rs
+index 89ec584ae610570941abce3ffa604db731dba860..bb09c0f243e9aecb134e854b946afee417aa810d 100644
+--- a/src/proto/connection.rs
++++ b/src/proto/connection.rs
+@@ -24,6 +24,9 @@ where
+     codec: Codec<T, Prioritized<B>>,
+ 
+     inner: ConnectionInner<P, B>,
++
++    /// Prevents repeated self-wakes while an idle GOAWAY awaits codec capacity.
++    idle_close_requested: bool,
+ }
+ 
+ // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
+@@ -139,6 +142,7 @@ where
+         span.follows_from(::tracing::Span::current());
+         Connection {
+             codec,
++            idle_close_requested: false,
+             inner: ConnectionInner {
+                 state: State::Open,
+                 error: None,
+@@ -244,13 +248,19 @@ where
+         }
+     }
+ 
+-    /// Closes the connection by transitioning to a GOAWAY state
+-    /// iff there are no streams or references
+-    pub fn maybe_close_connection_if_no_streams(&mut self) {
+-        // If we poll() and realize that there are no streams or references
+-        // then we can close the connection by transitioning to GOAWAY
+-        if !self.inner.streams.has_streams_or_other_references() {
++    /// Transitions an open connection to GOAWAY when no references remain.
++    ///
++    /// Returns whether this call initiated the transition.
++    pub fn maybe_close_connection_if_no_streams(&mut self) -> bool {
++        if !self.idle_close_requested
++            && matches!(self.inner.state, State::Open)
++            && !self.inner.streams.has_streams_or_other_references()
++        {
++            self.idle_close_requested = true;
+             self.inner.as_dyn().go_away_now(Reason::NO_ERROR);
++            true
++        } else {
++            false
+         }
+     }
+ 
+@@ -259,17 +269,15 @@ where
+         self.inner.streams.has_streams()
+     }
+ 
+-    /// Checks if there are any streams or references left
+-    pub fn has_streams_or_other_references(&self) -> bool {
+-        // If we poll() and realize that there are no streams or references
+-        // then we can close the connection by transitioning to GOAWAY
+-        self.inner.streams.has_streams_or_other_references()
+-    }
+-
+     pub(crate) fn take_user_pings(&mut self) -> Option<UserPings> {
+         self.inner.ping_pong.take_user_pings()
+     }
+ 
++    #[cfg(test)]
++    pub(crate) fn fill_write_capacity_for_test(&mut self) {
++        self.codec.fill_write_capacity_for_test();
++    }
++
+     /// Advances the internal state of the connection.
+     pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), Error>> {
+         // XXX(eliza): cloning the span is unfortunately necessary here in
 diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
-index 4f4b69e..ffb3d5c 100644
+index 4f4b69eb5a695812bc61f5b5bc075982dbff99f2..ffb3d5c6740592eeba02973c0ae26f5f566c9024 100644
 --- a/src/proto/streams/streams.rs
 +++ b/src/proto/streams/streams.rs
 @@ -18,7 +18,7 @@ use super::{
