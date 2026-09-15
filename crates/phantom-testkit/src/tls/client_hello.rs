@@ -6,6 +6,7 @@ const CLIENT_HELLO_HANDSHAKE_TYPE: u8 = 1;
 const RANDOM_LENGTH: usize = 32;
 
 const SUPPORTED_GROUPS_EXTENSION: u16 = 10;
+const EC_POINT_FORMATS_EXTENSION: u16 = 11;
 const SIGNATURE_ALGORITHMS_EXTENSION: u16 = 13;
 const ALPN_EXTENSION: u16 = 16;
 const SUPPORTED_VERSIONS_EXTENSION: u16 = 43;
@@ -14,9 +15,11 @@ const KEY_SHARE_EXTENSION: u16 = 51;
 /// The ordered fingerprint-relevant fields decoded from a TLS ClientHello.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClientHelloSummary {
+    legacy_version: u16,
     cipher_suites: Vec<u16>,
     extension_types: Vec<u16>,
     supported_groups: Vec<u16>,
+    ec_point_formats: Vec<u8>,
     signature_algorithms: Vec<u16>,
     alpn_protocols: Vec<Vec<u8>>,
     supported_versions: Vec<u16>,
@@ -40,7 +43,7 @@ impl ClientHelloSummary {
         }
 
         let mut body = Cursor::new(body_bytes);
-        body.take(2, "legacy version")?;
+        let legacy_version = body.read_u16("legacy version")?;
         body.take(RANDOM_LENGTH, "random")?;
 
         let session_id_length = usize::from(body.read_u8("session ID length")?);
@@ -73,9 +76,11 @@ impl ClientHelloSummary {
         body.take(compression_methods_length, "compression methods")?;
 
         let mut summary = Self {
+            legacy_version,
             cipher_suites,
             extension_types: Vec::new(),
             supported_groups: Vec::new(),
+            ec_point_formats: Vec::new(),
             signature_algorithms: Vec::new(),
             alpn_protocols: Vec::new(),
             supported_versions: Vec::new(),
@@ -95,19 +100,16 @@ impl ClientHelloSummary {
         }
 
         let mut extensions = Cursor::new(extensions_bytes);
-        let mut decoded_extensions = Vec::new();
+        let mut seen_extensions = Vec::new();
         while extensions.remaining() != 0 {
             let extension_type = extensions.read_u16("extension type")?;
             let extension_length = usize::from(extensions.read_u16("extension length")?);
             let extension_data = extensions.take(extension_length, "extension data")?;
-            summary.extension_types.push(extension_type);
-
-            if is_decoded_extension(extension_type) {
-                if decoded_extensions.contains(&extension_type) {
-                    return Err(ClientHelloDecodeError::DuplicateExtension { extension_type });
-                }
-                decoded_extensions.push(extension_type);
+            if seen_extensions.contains(&extension_type) {
+                return Err(ClientHelloDecodeError::DuplicateExtension { extension_type });
             }
+            seen_extensions.push(extension_type);
+            summary.extension_types.push(extension_type);
 
             match extension_type {
                 SUPPORTED_GROUPS_EXTENSION => {
@@ -116,6 +118,10 @@ impl ClientHelloSummary {
                         "supported groups",
                         extension_type,
                     )?;
+                }
+                EC_POINT_FORMATS_EXTENSION => {
+                    summary.ec_point_formats =
+                        parse_ec_point_formats(extension_data, extension_type)?;
                 }
                 SIGNATURE_ALGORITHMS_EXTENSION => {
                     summary.signature_algorithms = parse_u16_length_prefixed(
@@ -142,6 +148,12 @@ impl ClientHelloSummary {
         Ok(summary)
     }
 
+    /// Returns the ClientHello legacy version without normalization.
+    #[must_use]
+    pub fn legacy_version(&self) -> u16 {
+        self.legacy_version
+    }
+
     /// Returns cipher suites in their exact wire order.
     #[must_use]
     pub fn cipher_suites(&self) -> &[u16] {
@@ -158,6 +170,12 @@ impl ClientHelloSummary {
     #[must_use]
     pub fn supported_groups(&self) -> &[u16] {
         &self.supported_groups
+    }
+
+    /// Returns EC point formats in their exact wire order.
+    #[must_use]
+    pub fn ec_point_formats(&self) -> &[u8] {
+        &self.ec_point_formats
     }
 
     /// Returns signature algorithms in their exact wire order.
@@ -320,17 +338,6 @@ pub const fn is_grease(value: u16) -> bool {
     high == low && low & 0x0f == 0x0a
 }
 
-fn is_decoded_extension(extension_type: u16) -> bool {
-    matches!(
-        extension_type,
-        SUPPORTED_GROUPS_EXTENSION
-            | SIGNATURE_ALGORITHMS_EXTENSION
-            | ALPN_EXTENSION
-            | SUPPORTED_VERSIONS_EXTENSION
-            | KEY_SHARE_EXTENSION
-    )
-}
-
 fn require_nonempty_even(
     field: &'static str,
     length: usize,
@@ -352,6 +359,25 @@ fn require_nonempty_even(
         });
     }
     Ok(())
+}
+
+fn parse_ec_point_formats(
+    data: &[u8],
+    extension_type: u16,
+) -> Result<Vec<u8>, ClientHelloDecodeError> {
+    let mut extension = Cursor::new(data);
+    let length = usize::from(extension.read_u8("EC point formats")?);
+    if length == 0 {
+        return Err(ClientHelloDecodeError::LengthOutOfRange {
+            field: "EC point formats",
+            length: 0,
+            minimum: 1,
+            maximum: u8::MAX as usize,
+        });
+    }
+    let values = extension.take(length, "EC point formats")?.to_vec();
+    require_exhausted(&extension, extension_type)?;
+    Ok(values)
 }
 
 fn parse_u16_values(bytes: &[u8], field: &'static str) -> Result<Vec<u16>, ClientHelloDecodeError> {
@@ -509,9 +535,9 @@ impl<'a> Cursor<'a> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ALPN_EXTENSION, ClientHelloDecodeError, ClientHelloSummary, KEY_SHARE_EXTENSION,
-        SIGNATURE_ALGORITHMS_EXTENSION, SUPPORTED_GROUPS_EXTENSION, SUPPORTED_VERSIONS_EXTENSION,
-        is_grease,
+        ALPN_EXTENSION, ClientHelloDecodeError, ClientHelloSummary, EC_POINT_FORMATS_EXTENSION,
+        KEY_SHARE_EXTENSION, SIGNATURE_ALGORITHMS_EXTENSION, SUPPORTED_GROUPS_EXTENSION,
+        SUPPORTED_VERSIONS_EXTENSION, is_grease,
     };
 
     fn extension(extension_type: u16, data: &[u8]) -> Vec<u8> {
@@ -565,6 +591,7 @@ mod tests {
             SUPPORTED_GROUPS_EXTENSION,
             &[0, 4, 0, 29, 0x2a, 0x2a],
         ));
+        extensions.extend_from_slice(&extension(EC_POINT_FORMATS_EXTENSION, &[3, 0, 2, 1]));
         extensions.extend_from_slice(&extension(
             SIGNATURE_ALGORITHMS_EXTENSION,
             &[0, 4, 0x08, 0x04, 0x04, 0x03],
@@ -584,9 +611,11 @@ mod tests {
             Some(&extensions),
         ))?;
 
+        assert_eq!(summary.legacy_version(), 0x0303);
         assert_eq!(summary.cipher_suites(), &[0x1302, 0x0a0a, 0x1301]);
-        assert_eq!(summary.extension_types(), &[0x3a3a, 10, 13, 16, 43, 51]);
+        assert_eq!(summary.extension_types(), &[0x3a3a, 10, 11, 13, 16, 43, 51]);
         assert_eq!(summary.supported_groups(), &[29, 0x2a2a]);
+        assert_eq!(summary.ec_point_formats(), &[0, 2, 1]);
         assert_eq!(summary.signature_algorithms(), &[0x0804, 0x0403]);
         assert_eq!(summary.alpn_protocols(), &[b"h2".to_vec(), vec![0xff]]);
         assert_eq!(summary.supported_versions(), &[0x0304, 0x7a7a]);
@@ -610,6 +639,7 @@ mod tests {
 
         assert!(summary.extension_types().is_empty());
         assert!(summary.supported_groups().is_empty());
+        assert!(summary.ec_point_formats().is_empty());
         assert!(summary.signature_algorithms().is_empty());
         assert!(summary.alpn_protocols().is_empty());
         assert!(summary.supported_versions().is_empty());
@@ -668,6 +698,7 @@ mod tests {
     fn rejects_malformed_nested_lengths() {
         for (extension_type, data) in [
             (SUPPORTED_GROUPS_EXTENSION, vec![0, 4, 0, 29]),
+            (EC_POINT_FORMATS_EXTENSION, vec![2, 0]),
             (SIGNATURE_ALGORITHMS_EXTENSION, vec![0, 4, 8, 4]),
             (ALPN_EXTENSION, vec![0, 3, 2, b'h']),
             (SUPPORTED_VERSIONS_EXTENSION, vec![4, 3, 4]),
@@ -692,6 +723,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_empty_ec_point_formats() {
+        let extensions = extension(EC_POINT_FORMATS_EXTENSION, &[0]);
+
+        assert!(matches!(
+            decode_body(&body(&[0x13, 0x01], Some(&extensions))),
+            Err(ClientHelloDecodeError::LengthOutOfRange {
+                field: "EC point formats",
+                length: 0,
+                ..
+            })
+        ));
+    }
+
+    #[test]
     fn rejects_empty_key_exchange() {
         let extensions = extension(KEY_SHARE_EXTENSION, &[0, 4, 0, 29, 0, 0]);
 
@@ -706,13 +751,17 @@ mod tests {
     }
 
     #[test]
-    fn rejects_duplicate_decoded_singleton_extensions() {
+    fn rejects_duplicate_extensions() {
         for (extension_type, data) in [
+            (0, vec![0, 0]),
             (SUPPORTED_GROUPS_EXTENSION, vec![0, 2, 0, 29]),
+            (EC_POINT_FORMATS_EXTENSION, vec![1, 0]),
             (SIGNATURE_ALGORITHMS_EXTENSION, vec![0, 2, 8, 4]),
             (ALPN_EXTENSION, vec![0, 3, 2, b'h', b'2']),
             (SUPPORTED_VERSIONS_EXTENSION, vec![2, 3, 4]),
             (KEY_SHARE_EXTENSION, vec![0, 5, 0, 29, 0, 1, 1]),
+            (0xfe0d, vec![0]),
+            (0xbeef, vec![1]),
         ] {
             let mut extensions = extension(extension_type, &data);
             extensions.extend_from_slice(&extension(extension_type, &data));
@@ -750,6 +799,7 @@ mod tests {
     fn rejects_trailing_bytes_inside_decoded_extensions() {
         let cases = [
             (SUPPORTED_GROUPS_EXTENSION, vec![0, 2, 0, 29, 0]),
+            (EC_POINT_FORMATS_EXTENSION, vec![1, 0, 0]),
             (SIGNATURE_ALGORITHMS_EXTENSION, vec![0, 2, 8, 4, 0]),
             (ALPN_EXTENSION, vec![0, 3, 2, b'h', b'2', 0]),
             (SUPPORTED_VERSIONS_EXTENSION, vec![2, 3, 4, 0]),
@@ -769,13 +819,15 @@ mod tests {
     }
 
     #[test]
-    fn preserves_duplicate_unknown_extensions() -> Result<(), ClientHelloDecodeError> {
+    fn rejects_duplicate_unknown_extensions() {
         let mut extensions = extension(0xbeef, &[1]);
         extensions.extend_from_slice(&extension(0xbeef, &[2]));
 
-        let summary = decode_body(&body(&[0x13, 0x01], Some(&extensions)))?;
-
-        assert_eq!(summary.extension_types(), &[0xbeef, 0xbeef]);
-        Ok(())
+        assert_eq!(
+            decode_body(&body(&[0x13, 0x01], Some(&extensions))),
+            Err(ClientHelloDecodeError::DuplicateExtension {
+                extension_type: 0xbeef,
+            })
+        );
     }
 }

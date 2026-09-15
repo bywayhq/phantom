@@ -444,6 +444,7 @@ mod tests {
 
         let summary = captured.summary()?;
 
+        assert_eq!(summary.legacy_version(), 0x0303);
         assert_eq!(summary.cipher_suites(), &[0x1301]);
         assert_eq!(summary.extension_types(), &[43]);
         assert_eq!(summary.supported_versions(), &[0x0304]);
