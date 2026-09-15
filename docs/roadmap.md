@@ -91,10 +91,30 @@ add HTTP/3, sessions, SSE, or WebSocket.
 
 ## Phase 5: forced HTTP/3 — planned
 
-Establish one explicitly selected QUIC and HTTP/3 path with bounded qlog and
-packet differentials. Unsupported H3 behavior must fail explicitly; protocol
-negotiation, fallback, session reuse, SSE, and WebSocket remain outside this
-phase.
+Establish one explicitly selected QUIC and HTTP/3 path using Quinn, hyperium
+`h3`, and an isolated `btls` crypto adapter. Carry narrow, default-preserving
+forks only where retained captures require explicit outbound QUIC transport-
+parameter or H3 SETTINGS order. Start with one Chromium desktop profile;
+Firefox and Safari follow from their own captures rather than assumptions about
+shared engine behavior.
+
+Acceptance:
+
+- A forced H3 request and streaming response complete without automatic TCP or
+  protocol fallback.
+- A retained capture and fresh Phantom connection match exact ordered QUIC
+  transport-parameter bytes after normalizing only required entropy.
+- The first H3 control stream and SETTINGS bytes match exactly, including order
+  and any captured GREASE entries.
+- Bounded qlog plus key-log-assisted packet decryption make failures
+  diagnosable without logging application payloads or credentials.
+- The dedicated crypto-adapter crate documents every unsafe invariant and does
+  not expose BoringSSL, Quinn, or `h3` types through Phantom's public API.
+- Unsupported profile controls fail validation instead of silently using an
+  upstream default.
+
+Protocol negotiation, fallback, session reuse, SSE, and WebSocket remain
+outside this phase.
 
 ## Later phases
 

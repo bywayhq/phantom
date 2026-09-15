@@ -24,14 +24,14 @@ flowchart TB
     User[Application]
     Client["phantom::Client<br/>small public facade"]
     Session["Session state<br/>cookies · cache hints · tickets"]
-    Profile["Browser profile<br/>TLS · H2 settings"]
+    Profile["Browser profile<br/>TLS · H2 · QUIC · H3 settings"]
     Request["Current request APIs<br/>one-shot GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
     H2["HTTP/2<br/>ordered headers · flow control"]
     H3["HTTP/3<br/>QUIC · QPACK · qlog"]
     TLS["BoringSSL adapter<br/>TLS + ALPS"]
-    QUIC["QUIC backend"]
+    QUIC["Quinn transport<br/>btls crypto adapter"]
     SSE["SSE decoder<br/>over response body"]
     WS["WebSocket<br/>handshake + frames"]
 
@@ -65,6 +65,20 @@ H3 gets a separate QUIC path because forcing TCP and QUIC through one transport
 trait would hide protocol-specific lifecycle, telemetry, and fingerprint
 controls.
 
+The planned H3 path uses Quinn for QUIC and hyperium's `h3` engine. A small
+`phantom-quic-btls` crate will implement Quinn's existing crypto-provider seam
+with the same patched BoringSSL lineage used by Phantom's TCP TLS path. The FFI
+and key-schedule boundary stays isolated there; `phantom-net` owns request and
+connection lifecycle without exposing Quinn or `h3` types publicly.
+
+Stock QUIC stacks expose many transport-parameter values but do not expose all
+the ordering and encoding choices visible in browser captures. Phantom will
+carry narrow, default-preserving patches only for an explicit outbound QUIC
+transport-parameter sequence and an explicit outbound H3 SETTINGS sequence.
+Profiles remain browser-neutral data: neither fork branches on Chromium,
+Firefox, or Safari. Packetization, ACK, connection-ID, pacing, and QPACK knobs
+are added only after a retained capture proves that they are required.
+
 ## Configuration seam
 
 Browser names are metadata, not transport switches. Built-in profiles and user
@@ -79,10 +93,12 @@ flowchart LR
     Override --> Validate["Cross-field validation"]
     Validate --> TLS["TlsSettings"]
     Validate --> H2["Http2Settings"]
+    Validate -.-> QUIC["QuicSettings"]
     Validate -.-> H3["Http3Settings"]
 
     TLS --> Backend["private backend translation"]
     H2 --> Backend
+    QUIC -.-> Backend
     H3 -.-> Backend
 ```
 
@@ -98,6 +114,7 @@ crates/
 ├── phantom/          # eventual public Client and session facade
 ├── phantom-profile/  # browser-neutral identity and typed wire settings
 ├── phantom-net/      # concrete TLS, H1, H2, and later H3 mechanisms
+├── phantom-quic-btls/ # planned, isolated Quinn/BoringSSL crypto boundary
 └── phantom-testkit/  # bounded capture and deterministic differential tools
 
 fixtures/             # raw retained browser evidence plus exact metadata
