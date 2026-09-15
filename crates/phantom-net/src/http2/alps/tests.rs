@@ -7,10 +7,14 @@ fn preserves_absent_empty_and_empty_settings_frame() {
 
     let empty = decode_ok(Some(&[]));
     assert_eq!(empty.frame_count(), Some(0));
+    assert_eq!(empty.settings_frame_count(), Some(0));
+    assert!(empty.into_initial_settings().is_none());
 
     let empty_frame = frame(4, 0, 0, &[]);
     let empty_frame = decode_ok(Some(&empty_frame));
     assert_eq!(empty_frame.frame_count(), Some(1));
+    assert_eq!(empty_frame.settings_frame_count(), Some(1));
+    assert!(empty_frame.into_initial_settings().is_some());
 }
 
 #[test]
@@ -52,6 +56,13 @@ fn ignores_unknown_settings_frames_and_unused_flags() {
     encoded.extend(frame(4, 0x80, 0x8000_0000, &settings(&[(0, 9), (10, 11)])));
     let decoded = decode_ok(Some(&encoded));
     assert_eq!(decoded.frame_count(), Some(2));
+    assert_eq!(decoded.settings_frame_count(), Some(1));
+
+    let extension_only = frame(0x10, 0, 0, &[]);
+    let decoded = decode_ok(Some(&extension_only));
+    assert_eq!(decoded.frame_count(), Some(1));
+    assert_eq!(decoded.settings_frame_count(), Some(0));
+    assert!(decoded.into_initial_settings().is_none());
 }
 
 #[test]

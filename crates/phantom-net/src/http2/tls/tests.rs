@@ -160,13 +160,15 @@ async fn rejects_missing_and_http1_alpn_without_http2_bytes() -> TestResult<()> 
 }
 
 #[tokio::test]
-async fn negotiated_empty_alps_allows_response_before_wire_settings() -> TestResult<()> {
+async fn alps_settings_frame_allows_response_before_wire_settings() -> TestResult<()> {
     bounded_tls_test(async {
+        const EMPTY_SETTINGS_FRAME: &[u8] = &[0, 0, 0, 4, 0, 0, 0, 0, 0];
+
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
         let acceptor = alps_acceptor(&identity)?;
         let server = tokio::spawn(async move {
-            let mut stream = accept_alps(listener, acceptor, &[]).await?;
+            let mut stream = accept_alps(listener, acceptor, EMPTY_SETTINGS_FRAME).await?;
             let mut preface = [0_u8; 24];
             stream.read_exact(&mut preface).await?;
             assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
@@ -200,6 +202,56 @@ async fn negotiated_empty_alps_allows_response_before_wire_settings() -> TestRes
         assert_eq!(response.status(), 204);
         assert!(response.into_body().collect().await?.to_bytes().is_empty());
         assert_eq!(server.await??, 1);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn alps_without_a_settings_frame_still_requires_wire_settings() -> TestResult<()> {
+    bounded_tls_test(async {
+        const NEGOTIATED_EMPTY: &[u8] = &[];
+        const UNKNOWN_EXTENSION_FRAME: &[u8] = &[0, 0, 0, 0x10, 0, 0, 0, 0, 0];
+
+        for application_settings in [NEGOTIATED_EMPTY, UNKNOWN_EXTENSION_FRAME] {
+            let identity = TestIdentity::generate()?;
+            let (address, listener) = loopback_listener().await?;
+            let acceptor = alps_acceptor(&identity)?;
+            let server = tokio::spawn(async move {
+                let mut stream = accept_alps(listener, acceptor, application_settings).await?;
+                let mut preface = [0_u8; 24];
+                stream.read_exact(&mut preface).await?;
+                assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
+
+                loop {
+                    let request = read_raw_frame(&mut stream).await?;
+                    if request.kind == 1 {
+                        assert_eq!(request.stream_id, 1);
+                        break;
+                    }
+                }
+                write_raw_frame(&mut stream, 1, 0x5, 1, &[0x89]).await?;
+                Ok::<_, Box<dyn Error + Send + Sync>>(())
+            });
+
+            let connector = alps_test_connector(&identity)?;
+            let tcp = TcpStream::connect(address).await?;
+            let result = connector
+                .send_get(
+                    tcp,
+                    TEST_SERVER_NAME,
+                    TEST_AUTHORITY,
+                    OriginForm::parse("/alps")?,
+                    vec![],
+                )
+                .await;
+            assert!(matches!(
+                result,
+                Err(Http2TlsError::Http2(Http2Error::Protocol(ref error)))
+                    if error.reason() == Some(::http2::Reason::PROTOCOL_ERROR)
+            ));
+            server.await??;
+        }
         Ok(())
     })
     .await

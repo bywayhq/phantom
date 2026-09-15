@@ -12,6 +12,7 @@ pub(super) enum PeerApplicationSettings {
     Negotiated {
         settings: Box<Settings>,
         frame_count: usize,
+        settings_frame_count: usize,
     },
 }
 
@@ -19,7 +20,12 @@ impl PeerApplicationSettings {
     pub(super) fn into_initial_settings(self) -> Option<Settings> {
         match self {
             Self::Absent => None,
-            Self::Negotiated { settings, .. } => Some(*settings),
+            Self::Negotiated {
+                settings,
+                settings_frame_count,
+                ..
+            } if settings_frame_count != 0 => Some(*settings),
+            Self::Negotiated { .. } => None,
         }
     }
 
@@ -27,6 +33,17 @@ impl PeerApplicationSettings {
         match self {
             Self::Absent => None,
             Self::Negotiated { frame_count, .. } => Some(*frame_count),
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn settings_frame_count(&self) -> Option<usize> {
+        match self {
+            Self::Absent => None,
+            Self::Negotiated {
+                settings_frame_count,
+                ..
+            } => Some(*settings_frame_count),
         }
     }
 }
@@ -84,6 +101,7 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
     let mut settings = Settings::default();
     let mut offset = 0;
     let mut frame_index = 0;
+    let mut settings_frame_count = 0;
     while offset < encoded.len() {
         let remaining = encoded.len() - offset;
         if remaining < FRAME_HEADER_LEN {
@@ -122,6 +140,7 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
                 return Err(error(frame_index, offset, DecodeErrorKind::SettingsAck));
             }
             apply_settings(payload, &mut settings, frame_index, offset)?;
+            settings_frame_count += 1;
         } else if frame_type <= 0x9 {
             return Err(error(frame_index, offset, DecodeErrorKind::CoreFrameType));
         }
@@ -133,6 +152,7 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
     Ok(PeerApplicationSettings::Negotiated {
         settings: Box::new(settings),
         frame_count: frame_index,
+        settings_frame_count,
     })
 }
 
