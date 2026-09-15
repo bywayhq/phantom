@@ -1,4 +1,15 @@
-use std::{error::Error, net::SocketAddr, pin::Pin, time::Duration};
+use std::{
+    error::Error,
+    io,
+    net::SocketAddr,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    task::{Context, Poll},
+    time::Duration,
+};
 
 use btls::{
     pkey::PKey,
@@ -11,7 +22,10 @@ use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
     KeyUsagePurpose,
 };
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf},
+    net::{TcpListener, TcpStream},
+};
 use tokio_btls::SslStream as BoringStream;
 
 use super::{TlsConnector, TlsError, TlsStream};
@@ -119,4 +133,64 @@ pub(crate) async fn connect_local(
 ) -> TestResult<Result<TlsStream<TcpStream>, TlsError>> {
     let tcp = tokio::time::timeout(TEST_TIMEOUT, TcpStream::connect(address)).await??;
     Ok(tokio::time::timeout(TEST_TIMEOUT, connector.connect(server_name, tcp)).await?)
+}
+
+pub(crate) struct TouchCountingStream {
+    inner: DuplexStream,
+    touches: Arc<AtomicUsize>,
+}
+
+impl TouchCountingStream {
+    pub(crate) fn new(inner: DuplexStream, touches: Arc<AtomicUsize>) -> Self {
+        Self { inner, touches }
+    }
+
+    fn touched(&self) {
+        self.touches.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+impl AsyncRead for TouchCountingStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        self.touched();
+        Pin::new(&mut self.inner).poll_read(context, buffer)
+    }
+}
+
+impl AsyncWrite for TouchCountingStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        self.touched();
+        Pin::new(&mut self.inner).poll_write(context, buffer)
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffers: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        self.touched();
+        Pin::new(&mut self.inner).poll_write_vectored(context, buffers)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.inner.is_write_vectored()
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.touched();
+        Pin::new(&mut self.inner).poll_flush(context)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.touched();
+        Pin::new(&mut self.inner).poll_shutdown(context)
+    }
 }

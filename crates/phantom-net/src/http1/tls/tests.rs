@@ -2,18 +2,16 @@ use std::{
     error::Error,
     future::Future,
     io,
-    pin::Pin,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    task::{Context, Poll},
 };
 
 use http_body_util::BodyExt;
 use phantom_profile::{CipherSuite, NamedGroup, SignatureScheme, TlsSettings, TlsVersion};
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, duplex},
+    io::{AsyncReadExt, AsyncWriteExt, duplex},
     net::TcpStream,
     sync::oneshot,
     time::timeout,
@@ -23,8 +21,8 @@ use tokio_btls::SslStream as BoringStream;
 use super::{Http1TlsConnector, Http1TlsError};
 use crate::http1::{OriginForm, RequestHeader};
 use crate::tls::test_support::{
-    TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, accept_tls,
-    loopback_listener,
+    TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, TouchCountingStream,
+    accept_tls, loopback_listener,
 };
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
@@ -224,10 +222,7 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
         let connector = test_connector(&identity)?;
         let touches = Arc::new(AtomicUsize::new(0));
         let (client, _server) = duplex(128);
-        let stream = TouchCountingStream {
-            inner: client,
-            touches: Arc::clone(&touches),
-        };
+        let stream = TouchCountingStream::new(client, Arc::clone(&touches));
 
         let result = connector
             .send_get(
@@ -307,60 +302,4 @@ async fn read_head(stream: &mut BoringStream<TcpStream>) -> io::Result<Vec<u8>> 
         bytes.push(byte[0]);
     }
     Ok(bytes)
-}
-
-struct TouchCountingStream {
-    inner: DuplexStream,
-    touches: Arc<AtomicUsize>,
-}
-
-impl TouchCountingStream {
-    fn touched(&self) {
-        self.touches.fetch_add(1, Ordering::SeqCst);
-    }
-}
-
-impl AsyncRead for TouchCountingStream {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_read(context, buffer)
-    }
-}
-
-impl AsyncWrite for TouchCountingStream {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_write(context, buffer)
-    }
-
-    fn poll_write_vectored(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffers: &[io::IoSlice<'_>],
-    ) -> Poll<io::Result<usize>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_write_vectored(context, buffers)
-    }
-
-    fn is_write_vectored(&self) -> bool {
-        self.inner.is_write_vectored()
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_flush(context)
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.touched();
-        Pin::new(&mut self.inner).poll_shutdown(context)
-    }
 }
