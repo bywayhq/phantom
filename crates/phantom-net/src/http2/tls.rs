@@ -8,7 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, debug, debug_span, field};
 
 use super::{
-    Http2Body, Http2Error, OriginForm, PreparedGet, RequestHeader, ResponseHeadOutcome, alps,
+    Http2Body, Http2Error, OperationOutcome, OriginForm, PreparedGet, RequestHeader, alps,
     send_prepared_get, translate_settings,
 };
 use crate::tls::{TlsConnector, trace_alpn};
@@ -77,7 +77,7 @@ impl Http2TlsConnector {
             status = field::Empty,
             outcome = field::Empty,
         );
-        let outcome_guard = ResponseHeadOutcome::new(&span);
+        let outcome_guard = OperationOutcome::new(&span);
         let result = async {
             let mut prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
             debug!("HTTP/2 request prepared");

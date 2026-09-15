@@ -24,7 +24,8 @@ use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test, headers, target};
 use crate::http2::{
-    Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm, RequestHeader, send_get,
+    Http2Error, Http2ProtocolErrorKind, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm,
+    RequestHeader, send_get,
 };
 use crate::tracing_test::OutcomeSubscriber;
 
@@ -166,6 +167,73 @@ async fn self_dependency_and_userinfo_report_specific_errors_before_io() -> Test
     assert!(matches!(error, Http2Error::AuthorityContainsUserinfo));
     assert_eq!(touches.load(Ordering::SeqCst), 0);
     Ok(())
+}
+
+#[test]
+fn exact_zero_content_length_is_preserved_in_declared_order() -> TestResult<()> {
+    let request = crate::http2::request::prepare_get(
+        "example.test",
+        target()?,
+        vec![
+            RequestHeader::new("x-before", "a"),
+            RequestHeader::new("content-length", "0"),
+            RequestHeader::new("x-after", "b"),
+        ],
+    )?;
+    let ordered = request
+        .extensions()
+        .get::<::http2::ext::OrderedHeaders>()
+        .ok_or("prepared request omitted ordered headers")?;
+    assert_eq!(
+        ordered
+            .as_slice()
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_bytes()))
+            .collect::<Vec<_>>(),
+        [
+            ("x-before", b"a".as_slice()),
+            ("content-length", b"0".as_slice()),
+            ("x-after", b"b".as_slice()),
+        ]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn nonzero_or_malformed_content_length_is_rejected_before_io() -> TestResult<()> {
+    for value in [b"1".as_slice(), b"00", b"", b"not-a-number"] {
+        let touches = Arc::new(AtomicUsize::new(0));
+        let (client, _server) = duplex(128);
+        let result = send_get(
+            TouchCountingStream {
+                inner: client,
+                touches: Arc::clone(&touches),
+            },
+            &v152_macos_http2(),
+            "example.test",
+            target()?,
+            vec![RequestHeader::new("content-length", value)],
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(Http2Error::InvalidContentLength { index: 0 })
+        ));
+        assert_eq!(touches.load(Ordering::SeqCst), 0);
+    }
+    Ok(())
+}
+
+#[test]
+fn protocol_errors_expose_stable_metadata_and_retain_backend_source() {
+    let error = Http2Error::from(::http2::Error::from(::http2::Reason::PROTOCOL_ERROR));
+    let Http2Error::Protocol(protocol) = &error else {
+        panic!("backend protocol error used the wrong public variant");
+    };
+    assert_eq!(protocol.kind(), Http2ProtocolErrorKind::Protocol);
+    assert_eq!(protocol.reason_code(), Some(1));
+    assert!(std::error::Error::source(protocol).is_some());
+    assert!(std::error::Error::source(&error).is_some());
 }
 
 #[tokio::test]

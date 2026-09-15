@@ -90,6 +90,10 @@ impl ValidatedHeaders {
                 if value.as_bytes() != b"trailers" {
                     return Err(Http2Error::InvalidTe);
                 }
+            } else if name == CONTENT_LENGTH {
+                if value.as_bytes() != b"0" {
+                    return Err(Http2Error::InvalidContentLength { index });
+                }
             } else if is_forbidden_header(&name) {
                 return Err(Http2Error::ForbiddenHeader {
                     name: header.name().into(),
@@ -115,7 +119,6 @@ impl ValidatedHeaders {
 fn is_forbidden_header(name: &HeaderName) -> bool {
     name == HOST
         || name == CONNECTION
-        || name == CONTENT_LENGTH
         || name == TRANSFER_ENCODING
         || name == UPGRADE
         || name == TRAILER

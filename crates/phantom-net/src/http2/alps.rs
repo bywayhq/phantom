@@ -72,6 +72,7 @@ enum DecodeErrorKind {
     SettingsAck,
     SettingsLength,
     SettingValue,
+    SettingTransition,
 }
 
 impl DecodeErrorKind {
@@ -86,6 +87,9 @@ impl DecodeErrorKind {
             Self::SettingsAck => "ALPS SETTINGS frame has the ACK flag",
             Self::SettingsLength => "ALPS SETTINGS payload length is not divisible by six",
             Self::SettingValue => "ALPS SETTINGS contains an invalid known value",
+            Self::SettingTransition => {
+                "ALPS SETTINGS contains a forbidden setting value transition"
+            }
         }
     }
 }
@@ -139,7 +143,13 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
             if flags & SETTINGS_ACK != 0 {
                 return Err(error(frame_index, offset, DecodeErrorKind::SettingsAck));
             }
-            apply_settings(payload, &mut settings, frame_index, offset)?;
+            apply_settings(
+                payload,
+                &mut settings,
+                settings_frame_count == 0,
+                frame_index,
+                offset,
+            )?;
             settings_frame_count += 1;
         } else if frame_type <= 0x9 {
             return Err(error(frame_index, offset, DecodeErrorKind::CoreFrameType));
@@ -159,6 +169,7 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
 fn apply_settings(
     payload: &[u8],
     settings: &mut Settings,
+    is_initial: bool,
     frame_index: usize,
     offset: usize,
 ) -> Result<(), DecodeError> {
@@ -166,6 +177,8 @@ fn apply_settings(
         return Err(error(frame_index, offset, DecodeErrorKind::SettingsLength));
     }
 
+    let mut enable_connect_protocol = None;
+    let mut no_rfc7540_priorities = None;
     for setting in payload.chunks_exact(6) {
         let id = u16::from_be_bytes([setting[0], setting[1]]);
         let value = u32::from_be_bytes([setting[2], setting[3], setting[4], setting[5]]);
@@ -181,12 +194,39 @@ fn apply_settings(
             }
             0x5 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
             0x6 => settings.set_max_header_list_size(Some(value)),
-            0x8 if value <= 1 => settings.set_enable_connect_protocol(Some(value)),
+            0x8 if value <= 1 => enable_connect_protocol = Some(value),
             0x8 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
-            0x9 if value <= 1 => settings.set_no_rfc7540_priorities(value == 1),
+            0x9 if value <= 1 => no_rfc7540_priorities = Some(value == 1),
             0x9 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
             _ => {}
         }
+    }
+
+    if settings.is_extended_connect_protocol_enabled() == Some(true)
+        && enable_connect_protocol == Some(0)
+    {
+        return Err(error(
+            frame_index,
+            offset,
+            DecodeErrorKind::SettingTransition,
+        ));
+    }
+    if !is_initial
+        && no_rfc7540_priorities
+            .is_some_and(|value| value != settings.is_no_rfc7540_priorities().unwrap_or(false))
+    {
+        return Err(error(
+            frame_index,
+            offset,
+            DecodeErrorKind::SettingTransition,
+        ));
+    }
+
+    if let Some(value) = enable_connect_protocol {
+        settings.set_enable_connect_protocol(Some(value));
+    }
+    if let Some(value) = no_rfc7540_priorities {
+        settings.set_no_rfc7540_priorities(value);
     }
     Ok(())
 }

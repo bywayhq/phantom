@@ -2,6 +2,7 @@
 
 use std::{
     fmt,
+    future::{Future, poll_fn},
     pin::Pin,
     task::{Context, Poll},
     time::Duration,
@@ -9,12 +10,12 @@ use std::{
 
 use ::http2::{Reason, RecvStream, SendStream, client};
 use bytes::Bytes;
+use futures_timer::Delay;
 use http_body::{Body, Frame, SizeHint};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     runtime::Handle,
-    task::JoinHandle,
-    time::timeout,
+    task::{JoinError, JoinHandle},
 };
 use tracing::{
     Dispatch, Instrument, Span, debug, debug_span, dispatcher, field, instrument::WithSubscriber,
@@ -75,9 +76,10 @@ impl Http2Body {
             self.finished = true;
             self.driver.shutdown();
             self.trace.finish("protocol_error");
-            return Poll::Ready(Some(Err(Http2Error::Protocol(
-                ::http2::Reason::INTERNAL_ERROR.into(),
-            ))));
+            return Poll::Ready(Some(Err(::http2::Error::from(
+                ::http2::Reason::INTERNAL_ERROR,
+            )
+            .into())));
         };
         match incoming.poll_data(context) {
             Poll::Ready(Some(Ok(data))) => {
@@ -99,7 +101,7 @@ impl Http2Body {
                 self.reset.take();
                 self.driver.shutdown();
                 self.trace.finish("protocol_error");
-                Poll::Ready(Some(Err(Http2Error::Protocol(error))))
+                Poll::Ready(Some(Err(error.into())))
             }
             Poll::Ready(None) => match incoming.poll_trailers(context) {
                 Poll::Ready(Ok(Some(trailers))) => {
@@ -124,7 +126,7 @@ impl Http2Body {
                     self.reset.take();
                     self.driver.shutdown();
                     self.trace.finish("protocol_error");
-                    Poll::Ready(Some(Err(Http2Error::Protocol(error))))
+                    Poll::Ready(Some(Err(error.into())))
                 }
                 Poll::Pending => Poll::Pending,
             },
@@ -286,12 +288,13 @@ impl DriverTask {
         let dispatch = self.dispatch.clone();
         self.runtime.spawn(
             async move {
-                match timeout(DRIVER_SHUTDOWN_GRACE, driver.handle_mut()).await {
-                    Ok(Ok(Ok(()))) => {
+                let result = wait_for_driver(&mut driver).await;
+                match result {
+                    DriverShutdown::Finished(Ok(Ok(()))) => {
                         outcome.finish("complete");
                         debug!(parent: &span, "HTTP/2 connection driver stopped");
                     }
-                    Ok(Ok(Err(error))) => {
+                    DriverShutdown::Finished(Ok(Err(error))) => {
                         outcome.finish("protocol_error");
                         warn!(
                             parent: &span,
@@ -300,7 +303,7 @@ impl DriverTask {
                             "HTTP/2 connection driver failed"
                         );
                     }
-                    Ok(Err(error)) => {
+                    DriverShutdown::Finished(Err(error)) => {
                         outcome.finish("task_error");
                         warn!(
                             parent: &span,
@@ -309,7 +312,7 @@ impl DriverTask {
                             "HTTP/2 connection driver task failed"
                         );
                     }
-                    Err(_) => {
+                    DriverShutdown::TimedOut => {
                         driver.abort();
                         let _ = driver.handle_mut().await;
                         outcome.finish("timeout");
@@ -320,6 +323,27 @@ impl DriverTask {
             .with_subscriber(dispatch),
         );
     }
+}
+
+type DriverResult = Result<Result<(), ::http2::Error>, JoinError>;
+
+enum DriverShutdown {
+    Finished(DriverResult),
+    TimedOut,
+}
+
+async fn wait_for_driver(driver: &mut AbortDriver) -> DriverShutdown {
+    let mut deadline = std::pin::pin!(Delay::new(DRIVER_SHUTDOWN_GRACE));
+    poll_fn(|context| {
+        if let Poll::Ready(result) = Pin::new(driver.handle_mut()).poll(context) {
+            return Poll::Ready(DriverShutdown::Finished(result));
+        }
+        if deadline.as_mut().poll(context).is_ready() {
+            return Poll::Ready(DriverShutdown::TimedOut);
+        }
+        Poll::Pending
+    })
+    .await
 }
 
 struct DriverOutcome {

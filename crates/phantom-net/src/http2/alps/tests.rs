@@ -51,6 +51,30 @@ fn multiple_frames_and_duplicates_are_final_wins() {
 }
 
 #[test]
+fn setting_transition_rules_apply_between_frames_after_same_frame_final_wins() {
+    let mut same_frame = frame(4, 0, 0, &settings(&[(8, 1), (8, 0), (9, 1), (9, 0)]));
+    same_frame.extend(frame(4, 0, 0, &settings(&[(8, 1), (9, 0)])));
+    let decoded = negotiated_settings(&same_frame);
+    assert_eq!(decoded.is_extended_connect_protocol_enabled(), Some(true));
+    assert_eq!(decoded.is_no_rfc7540_priorities(), Some(false));
+
+    let mut connect_downgrade = frame(4, 0, 0, &settings(&[(8, 1)]));
+    connect_downgrade.extend(frame(4, 0, 0, &settings(&[(8, 0)])));
+    assert_kind(&connect_downgrade, DecodeErrorKind::SettingTransition);
+
+    let mut priorities_change = frame(4, 0, 0, &settings(&[(9, 0)]));
+    priorities_change.extend(frame(4, 0, 0, &settings(&[(9, 1)])));
+    assert_kind(&priorities_change, DecodeErrorKind::SettingTransition);
+
+    let mut priorities_change_after_omission = frame(4, 0, 0, &[]);
+    priorities_change_after_omission.extend(frame(4, 0, 0, &settings(&[(9, 1)])));
+    assert_kind(
+        &priorities_change_after_omission,
+        DecodeErrorKind::SettingTransition,
+    );
+}
+
+#[test]
 fn ignores_unknown_settings_frames_and_unused_flags() {
     let mut encoded = frame(0x10, 0xff, 17, b"extension");
     encoded.extend(frame(4, 0x80, 0x8000_0000, &settings(&[(0, 9), (10, 11)])));

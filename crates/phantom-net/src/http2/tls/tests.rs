@@ -258,7 +258,7 @@ async fn alps_without_a_settings_frame_still_requires_wire_settings() -> TestRes
             assert!(matches!(
                 result,
                 Err(Http2TlsError::Http2(Http2Error::Protocol(ref error)))
-                    if error.reason() == Some(::http2::Reason::PROTOCOL_ERROR)
+                    if error.reason_code() == Some(1)
             ));
             assert_eq!(
                 subscriber.outcomes_for("http2.tls.response_head"),

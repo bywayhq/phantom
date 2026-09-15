@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 brotli = "8.0.4"
 bytes = "1.12.1"
+futures-timer = "=3.0.4"
 http = "1.4.0"
 http2 = { version = "=0.5.20", features = ["unstable"] }
 http-body = "1.0.1"

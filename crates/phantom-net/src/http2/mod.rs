@@ -23,6 +23,76 @@ use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http2Body;
 
+/// Stable classification of an HTTP/2 protocol-driver failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2ProtocolErrorKind {
+    /// The underlying byte transport failed.
+    Transport,
+    /// An HTTP/2 stream was reset.
+    StreamReset,
+    /// The HTTP/2 connection was closed with `GOAWAY`.
+    ConnectionError,
+    /// A protocol error code was produced without a stream reset or `GOAWAY`.
+    Protocol,
+    /// The backend rejected a local operation.
+    Local,
+}
+
+/// HTTP/2 protocol-driver failure without exposing the backend error type.
+#[derive(Debug)]
+pub struct Http2ProtocolError {
+    kind: Http2ProtocolErrorKind,
+    reason_code: Option<u32>,
+    source: ::http2::Error,
+}
+
+impl Http2ProtocolError {
+    fn new(source: ::http2::Error) -> Self {
+        let kind = if source.is_io() {
+            Http2ProtocolErrorKind::Transport
+        } else if source.is_reset() {
+            Http2ProtocolErrorKind::StreamReset
+        } else if source.is_go_away() {
+            Http2ProtocolErrorKind::ConnectionError
+        } else if source.reason().is_some() {
+            Http2ProtocolErrorKind::Protocol
+        } else {
+            Http2ProtocolErrorKind::Local
+        };
+        let reason_code = source.reason().map(u32::from);
+        Self {
+            kind,
+            reason_code,
+            source,
+        }
+    }
+
+    /// Returns the stable failure classification.
+    #[must_use]
+    pub fn kind(&self) -> Http2ProtocolErrorKind {
+        self.kind
+    }
+
+    /// Returns the HTTP/2 error code when the failure carried one.
+    #[must_use]
+    pub fn reason_code(&self) -> Option<u32> {
+        self.reason_code
+    }
+}
+
+impl fmt::Display for Http2ProtocolError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.source.fmt(formatter)
+    }
+}
+
+impl StdError for Http2ProtocolError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.source)
+    }
+}
+
 /// Error returned by a one-shot HTTP/2 transaction.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -75,10 +145,15 @@ pub enum Http2Error {
     },
     /// `TE` had a value other than the exact token `trailers`.
     InvalidTe,
+    /// `Content-Length` was not the exact decimal value `0` for the empty GET.
+    InvalidContentLength {
+        /// Position in the ordered header list.
+        index: usize,
+    },
     /// The validated fields could not fit in the semantic header map.
     HeaderMapCapacity,
     /// The HTTP protocol driver failed.
-    Protocol(::http2::Error),
+    Protocol(Http2ProtocolError),
 }
 
 impl fmt::Display for Http2Error {
@@ -123,6 +198,10 @@ impl fmt::Display for Http2Error {
             Self::InvalidTe => {
                 formatter.write_str("HTTP/2 TE must have the exact value `trailers`")
             }
+            Self::InvalidContentLength { index } => write!(
+                formatter,
+                "request content-length at index {index} must be the exact value `0` for an empty GET"
+            ),
             Self::HeaderMapCapacity => {
                 formatter.write_str("request fields exceed the semantic header-map capacity")
             }
@@ -145,7 +224,7 @@ impl StdError for Http2Error {
 
 impl From<::http2::Error> for Http2Error {
     fn from(error: ::http2::Error) -> Self {
-        Self::Protocol(error)
+        Self::Protocol(Http2ProtocolError::new(error))
     }
 }
 
@@ -164,6 +243,7 @@ impl Http2Error {
             Self::InvalidHeaderValue { .. } => "invalid_header_value",
             Self::ForbiddenHeader { .. } => "forbidden_header",
             Self::InvalidTe => "invalid_te",
+            Self::InvalidContentLength { .. } => "invalid_content_length",
             Self::HeaderMapCapacity => "header_map_capacity",
             Self::Protocol(_) => "protocol",
         }
@@ -194,7 +274,7 @@ where
         outcome = field::Empty,
         error_kind = field::Empty,
     );
-    let outcome = ResponseHeadOutcome::new(&span);
+    let outcome = OperationOutcome::new(&span);
     let prepared = {
         let _entered = span.enter();
         PreparedGet::new(settings, authority, target, headers)
@@ -245,7 +325,7 @@ where
         status = field::Empty,
         outcome = field::Empty,
     );
-    let outcome = ResponseHeadOutcome::new(&span);
+    let outcome = OperationOutcome::new(&span);
     let result = async {
         debug!("HTTP/2 transaction started");
         let (sender, connection) = prepared.client.handshake(stream).await?;
@@ -274,12 +354,12 @@ where
     result
 }
 
-struct ResponseHeadOutcome {
+struct OperationOutcome {
     span: Span,
     recorded: bool,
 }
 
-impl ResponseHeadOutcome {
+impl OperationOutcome {
     fn new(span: &Span) -> Self {
         Self {
             span: span.clone(),
@@ -299,7 +379,7 @@ impl ResponseHeadOutcome {
     }
 }
 
-impl Drop for ResponseHeadOutcome {
+impl Drop for OperationOutcome {
     fn drop(&mut self) {
         if !self.recorded {
             self.span.record("outcome", "cancelled");
