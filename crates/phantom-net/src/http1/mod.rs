@@ -10,7 +10,7 @@ use std::{error::Error as StdError, fmt};
 
 use bytes::Bytes;
 use http::{
-    HeaderMap, HeaderValue, Method, Request, Response, Uri, Version,
+    HeaderMap, HeaderValue, Method, Request, Response, Version,
     header::{CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
 };
 use http_body_util::Empty;
@@ -23,75 +23,16 @@ use wreq_proto::{
 
 use body::DriverTask;
 
+pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http1Body;
 
 const MAX_REQUEST_HEADERS: usize = 100;
 const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
-/// An HTTP origin-form request target such as `/search?q=rust`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OriginForm(Uri);
-
-impl OriginForm {
-    /// Parses an origin-form request target.
-    pub fn parse(value: &str) -> Result<Self, Http1Error> {
-        let uri = value
-            .parse::<Uri>()
-            .map_err(|_| Http1Error::InvalidOriginForm)?;
-        let is_origin_form = value.starts_with('/')
-            && uri.scheme().is_none()
-            && uri.authority().is_none()
-            && uri
-                .path_and_query()
-                .is_some_and(|path_and_query| path_and_query.as_str() == value);
-
-        if is_origin_form {
-            Ok(Self(uri))
-        } else {
-            Err(Http1Error::InvalidOriginForm)
-        }
-    }
-}
-
-/// A request header whose spelling and position are preserved on the wire.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RequestHeader {
-    name: Box<str>,
-    value: Box<[u8]>,
-}
-
-impl RequestHeader {
-    /// Creates a header to be validated when the request is sent.
-    ///
-    /// Construction is intentionally infallible so validation of the complete
-    /// ordered header list happens once, before the supplied stream is touched.
-    #[must_use]
-    pub fn new(name: impl Into<Box<str>>, value: impl AsRef<[u8]>) -> Self {
-        Self {
-            name: name.into(),
-            value: value.as_ref().into(),
-        }
-    }
-
-    /// Returns the exact field-name spelling that will be written.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Returns the field value bytes.
-    #[must_use]
-    pub fn value(&self) -> &[u8] {
-        &self.value
-    }
-}
-
 /// Error returned by a one-shot HTTP/1.1 transaction.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Http1Error {
-    /// The request target was not valid HTTP origin-form.
-    InvalidOriginForm,
     /// The request contained more headers than the fixed safety bound.
     TooManyHeaders {
         /// Number of supplied headers.
@@ -136,24 +77,29 @@ pub enum Http1Error {
 impl fmt::Display for Http1Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidOriginForm => formatter.write_str(
-                "request target must be HTTP origin-form beginning with `/` and contain no authority or fragment",
-            ),
             Self::TooManyHeaders { count, maximum } => {
-                write!(formatter, "request has {count} headers; maximum is {maximum}")
+                write!(
+                    formatter,
+                    "request has {count} headers; maximum is {maximum}"
+                )
             }
             Self::HeadersTooLarge { bytes, maximum } => write!(
                 formatter,
                 "request field names and values total {bytes} bytes; maximum is {maximum}"
             ),
             Self::InvalidHeaderName { index } => {
-                write!(formatter, "request header at index {index} has an invalid field name")
+                write!(
+                    formatter,
+                    "request header at index {index} has an invalid field name"
+                )
             }
             Self::InvalidHeaderValue { index, name } => write!(
                 formatter,
                 "request header {name:?} at index {index} has an invalid field value"
             ),
-            Self::MissingHost => formatter.write_str("request must contain exactly one Host header"),
+            Self::MissingHost => {
+                formatter.write_str("request must contain exactly one Host header")
+            }
             Self::MultipleHost => {
                 formatter.write_str("request must not contain more than one Host header")
             }
@@ -210,12 +156,10 @@ struct PreparedGet {
 impl PreparedGet {
     fn new(target: OriginForm, headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
         let headers = ValidatedHeaders::new(headers)?;
-        let mut request = Request::builder()
-            .method(Method::GET)
-            .uri(target.0)
-            .version(Version::HTTP_11)
-            .body(Empty::<Bytes>::new())
-            .map_err(|_| Http1Error::InvalidOriginForm)?;
+        let mut request = Request::new(Empty::<Bytes>::new());
+        *request.method_mut() = Method::GET;
+        *request.uri_mut() = target.into_uri();
+        *request.version_mut() = Version::HTTP_11;
 
         headers.populate(request.headers_mut());
         on_preserve_header(&mut request, headers.order);
@@ -320,8 +264,8 @@ impl ValidatedHeaders {
 
         for (index, header) in headers.into_iter().enumerate() {
             total_bytes = total_bytes
-                .checked_add(header.name.len())
-                .and_then(|size| size.checked_add(header.value.len()))
+                .checked_add(header.name().len())
+                .and_then(|size| size.checked_add(header.value().len()))
                 .ok_or(Http1Error::HeadersTooLarge {
                     bytes: usize::MAX,
                     maximum: MAX_REQUEST_HEADER_BYTES,
@@ -333,19 +277,19 @@ impl ValidatedHeaders {
                 });
             }
 
-            let name = HeaderName::from_bytes(header.name.as_bytes())
+            let name = HeaderName::from_bytes(header.name().as_bytes())
                 .map_err(|_| Http1Error::InvalidHeaderName { index })?;
             if !header
-                .name
+                .name()
                 .as_bytes()
                 .eq_ignore_ascii_case(name.as_str().as_bytes())
             {
                 return Err(Http1Error::InvalidHeaderName { index });
             }
-            let value = HeaderValue::from_bytes(&header.value).map_err(|_| {
+            let value = HeaderValue::from_bytes(header.value()).map_err(|_| {
                 Http1Error::InvalidHeaderValue {
                     index,
-                    name: header.name.clone(),
+                    name: header.name().into(),
                 }
             })?;
 
@@ -355,10 +299,12 @@ impl ValidatedHeaders {
                     return Err(Http1Error::MultipleHost);
                 }
             } else if name == CONTENT_LENGTH || name == TRANSFER_ENCODING {
-                return Err(Http1Error::RequestFramingHeader { name: header.name });
+                return Err(Http1Error::RequestFramingHeader {
+                    name: header.name().into(),
+                });
             }
 
-            ordered.push((header.name.as_bytes().into(), value.clone()));
+            ordered.push((header.name().as_bytes().into(), value.clone()));
             semantic.push((name, value));
         }
 
