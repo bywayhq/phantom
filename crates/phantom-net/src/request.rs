@@ -2,11 +2,11 @@
 
 use std::{error::Error as StdError, fmt};
 
-use http::Uri;
+use http::{Uri, uri::PathAndQuery};
 
 /// An HTTP origin-form request target such as `/search?q=rust`.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OriginForm(Uri);
+pub struct OriginForm(PathAndQuery);
 
 impl OriginForm {
     /// Parses an origin-form request target.
@@ -19,14 +19,21 @@ impl OriginForm {
                 .path_and_query()
                 .is_some_and(|path_and_query| path_and_query.as_str() == value);
 
-        if is_origin_form {
-            Ok(Self(uri))
-        } else {
-            Err(InvalidOriginForm)
+        if !is_origin_form {
+            return Err(InvalidOriginForm);
+        }
+
+        match uri.into_parts().path_and_query {
+            Some(path_and_query) => Ok(Self(path_and_query)),
+            None => Err(InvalidOriginForm),
         }
     }
 
     pub(crate) fn into_uri(self) -> Uri {
+        self.0.into()
+    }
+
+    pub(crate) fn into_path_and_query(self) -> PathAndQuery {
         self.0
     }
 }
@@ -89,10 +96,7 @@ mod tests {
     #[test]
     fn accepts_only_origin_form_targets() -> Result<(), InvalidOriginForm> {
         let target = OriginForm::parse("/path?query=yes")?;
-        assert_eq!(
-            target.0.path_and_query().map(|value| value.as_str()),
-            Some("/path?query=yes")
-        );
+        assert_eq!(target.0.as_str(), "/path?query=yes");
 
         for value in ["", "*", "example.test/path", "https://example.test/path"] {
             assert!(OriginForm::parse(value).is_err(), "accepted {value:?}");

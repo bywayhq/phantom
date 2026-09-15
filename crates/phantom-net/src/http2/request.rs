@@ -28,7 +28,7 @@ pub(super) fn prepare_get(
     let uri = Uri::builder()
         .scheme("https")
         .authority(authority)
-        .path_and_query(target.into_uri().to_string())
+        .path_and_query(target.into_path_and_query())
         .build()
         .map_err(Http2Error::InvalidRequestUri)?;
     let headers = ValidatedHeaders::new(headers)?;
@@ -45,7 +45,6 @@ pub(super) fn prepare_get(
 }
 
 struct ValidatedHeaders {
-    semantic: Vec<(HeaderName, HeaderValue)>,
     ordered: Vec<(HeaderName, HeaderValue)>,
 }
 
@@ -59,7 +58,6 @@ impl ValidatedHeaders {
         }
 
         let mut total_bytes = 0usize;
-        let mut semantic = Vec::with_capacity(headers.len());
         let mut ordered = Vec::with_capacity(headers.len());
         for (index, header) in headers.into_iter().enumerate() {
             total_bytes = total_bytes
@@ -98,15 +96,14 @@ impl ValidatedHeaders {
                 });
             }
 
-            semantic.push((name.clone(), value.clone()));
             ordered.push((name, value));
         }
 
-        Ok(Self { semantic, ordered })
+        Ok(Self { ordered })
     }
 
     fn populate(&self, target: &mut HeaderMap) -> Result<(), Http2Error> {
-        for (name, value) in &self.semantic {
+        for (name, value) in &self.ordered {
             target
                 .try_append(name, value.clone())
                 .map_err(|_| Http2Error::HeaderMapCapacity)?;
