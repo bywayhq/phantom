@@ -17,7 +17,7 @@ use rcgen::{
 use tokio::{net::TcpListener, task::JoinHandle, time::Instant};
 use tokio_btls::SslStream as BoringStream;
 
-use super::{TlsConnector, TlsErrorKind};
+use super::{TlsConnector, TlsErrorKind, require_supported};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const TEST_SERVER_NAME: &str = "server.phantom.test";
@@ -163,7 +163,7 @@ async fn emits_chromium_150_reference_client_hello() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn tls_12_does_not_apply_key_shares() -> TestResult<()> {
+async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let address = listener.local_addr()?;
     let capture_task = tokio::spawn(async move {
@@ -180,7 +180,8 @@ async fn tls_12_does_not_apply_key_shares() -> TestResult<()> {
     let mut settings = chromium_150_windows_reference();
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
-    settings.key_shares = vec![NamedGroup::Secp384r1];
+    settings.key_shares.clear();
+    settings.ech_grease = false;
     let connector = TlsConnector::new(&settings)?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
     let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect("example.test", tcp));
@@ -190,6 +191,19 @@ async fn tls_12_does_not_apply_key_shares() -> TestResult<()> {
     let summary = capture.summary()?;
     assert!(summary.key_share_groups().is_empty());
     assert!(!summary.extension_types().contains(&51));
+    Ok(())
+}
+
+#[test]
+fn unmapped_backend_setting_is_actionable() -> TestResult<()> {
+    let error = match require_supported("cipher_suites", "future cipher", None::<&'static str>) {
+        Ok(_) => return Err("unmapped backend setting unexpectedly succeeded".into()),
+        Err(error) => error,
+    };
+
+    assert_eq!(error.kind(), TlsErrorKind::UnsupportedSetting);
+    assert!(error.to_string().contains("future cipher"));
+    assert!(error.to_string().contains("BoringSSL adapter"));
     Ok(())
 }
 

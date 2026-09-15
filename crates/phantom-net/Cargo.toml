@@ -18,11 +18,13 @@ tracing = "0.1.41"
 webpki-root-certs = "1.0.9"
 wreq-proto = "=0.2.5"
 
-[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "windows"))'.dependencies]
+# This btls revision skips archive rewriting on Apple/Windows but still rewrites
+# generated link names, causing unresolved `build_script_main_*` symbols.
+[target.'cfg(any(target_vendor = "apple", target_os = "windows"))'.dependencies]
 btls.workspace = true
 tokio-btls.workspace = true
 
-[target.'cfg(not(any(target_os = "macos", target_os = "ios", target_os = "windows")))'.dependencies]
+[target.'cfg(not(any(target_vendor = "apple", target_os = "windows")))'.dependencies]
 btls = { workspace = true, features = ["prefix-symbols"] }
 tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 

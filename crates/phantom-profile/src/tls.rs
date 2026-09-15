@@ -4,6 +4,7 @@ use std::{error::Error, fmt};
 
 /// A TLS protocol version accepted by a transport.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
 pub enum TlsVersion {
     /// TLS 1.2.
     Tls12,
@@ -13,6 +14,7 @@ pub enum TlsVersion {
 
 /// A TLS cipher suite in wire preference order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum CipherSuite {
     /// TLS_AES_128_GCM_SHA256.
     Aes128GcmSha256,
@@ -48,6 +50,7 @@ pub enum CipherSuite {
 
 /// A TLS supported group.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum NamedGroup {
     /// Hybrid X25519 and ML-KEM-768.
     X25519MlKem768,
@@ -61,6 +64,7 @@ pub enum NamedGroup {
 
 /// A TLS signature scheme in wire preference order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum SignatureScheme {
     /// ML-DSA-44.
     MlDsa44,
@@ -88,6 +92,7 @@ pub enum SignatureScheme {
 
 /// A certificate compression algorithm advertised by the TLS client.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum CertificateCompression {
     /// Brotli certificate compression.
     Brotli,
@@ -160,7 +165,20 @@ impl TlsSettings {
                 "at least one supported group is required",
             ));
         }
-        if self.max_version >= TlsVersion::Tls13 {
+        if self.max_version == TlsVersion::Tls12 {
+            if !self.key_shares.is_empty() {
+                return Err(InvalidTlsSettings::new(
+                    "key_shares",
+                    "initial key shares require TLS 1.3 to be enabled",
+                ));
+            }
+            if self.ech_grease {
+                return Err(InvalidTlsSettings::new(
+                    "ech_grease",
+                    "ECH GREASE requires TLS 1.3 to be enabled",
+                ));
+            }
+        } else {
             if self.key_shares.is_empty() {
                 return Err(InvalidTlsSettings::new(
                     "key_shares",
@@ -187,7 +205,7 @@ impl TlsSettings {
         validate_alpn(&self.alpn_protocols)?;
 
         if let Some(alps) = &self.alps {
-            if self.max_version < TlsVersion::Tls13 {
+            if self.max_version == TlsVersion::Tls12 {
                 return Err(InvalidTlsSettings::new(
                     "alps",
                     "ALPS requires TLS 1.3 to be enabled",
@@ -311,9 +329,36 @@ mod tests {
     }
 
     #[test]
+    fn tls_12_rejects_key_shares() {
+        let mut settings = minimal_settings();
+        settings.max_version = TlsVersion::Tls12;
+
+        let error = settings.validate().err();
+        assert_eq!(
+            error.as_ref().map(InvalidTlsSettings::field),
+            Some("key_shares")
+        );
+    }
+
+    #[test]
+    fn tls_12_rejects_ech_grease() {
+        let mut settings = minimal_settings();
+        settings.max_version = TlsVersion::Tls12;
+        settings.key_shares.clear();
+        settings.ech_grease = true;
+
+        let error = settings.validate().err();
+        assert_eq!(
+            error.as_ref().map(InvalidTlsSettings::field),
+            Some("ech_grease")
+        );
+    }
+
+    #[test]
     fn tls_12_rejects_alps() {
         let mut settings = minimal_settings();
         settings.max_version = TlsVersion::Tls12;
+        settings.key_shares.clear();
         settings.alps = Some(AlpsSettings {
             protocol: Box::from(&b"http/1.1"[..]),
             use_new_codepoint: true,

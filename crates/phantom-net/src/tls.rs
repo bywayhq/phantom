@@ -35,11 +35,13 @@ use tracing::{Instrument, debug, debug_span};
         reason = "used by the pending TLS and HTTP/1 composition slice"
     )
 )]
-fn boring_version(version: TlsVersion) -> SslVersion {
-    match version {
-        TlsVersion::Tls12 => SslVersion::TLS1_2,
-        TlsVersion::Tls13 => SslVersion::TLS1_3,
-    }
+fn boring_version(field: &'static str, version: TlsVersion) -> Result<SslVersion, TlsError> {
+    let mapped = match version {
+        TlsVersion::Tls12 => Some(SslVersion::TLS1_2),
+        TlsVersion::Tls13 => Some(SslVersion::TLS1_3),
+        _ => None,
+    };
+    require_supported(field, version, mapped)
 }
 
 #[cfg_attr(
@@ -49,28 +51,30 @@ fn boring_version(version: TlsVersion) -> SslVersion {
         reason = "used by the pending TLS and HTTP/1 composition slice"
     )
 )]
-fn cipher_name(cipher: CipherSuite) -> &'static str {
-    match cipher {
-        CipherSuite::Aes128GcmSha256 => "TLS_AES_128_GCM_SHA256",
-        CipherSuite::Aes256GcmSha384 => "TLS_AES_256_GCM_SHA384",
-        CipherSuite::Chacha20Poly1305Sha256 => "TLS_CHACHA20_POLY1305_SHA256",
-        CipherSuite::EcdheEcdsaAes128GcmSha256 => "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-        CipherSuite::EcdheRsaAes128GcmSha256 => "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-        CipherSuite::EcdheEcdsaAes256GcmSha384 => "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-        CipherSuite::EcdheRsaAes256GcmSha384 => "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+fn cipher_name(cipher: CipherSuite) -> Result<&'static str, TlsError> {
+    let mapped = match cipher {
+        CipherSuite::Aes128GcmSha256 => Some("TLS_AES_128_GCM_SHA256"),
+        CipherSuite::Aes256GcmSha384 => Some("TLS_AES_256_GCM_SHA384"),
+        CipherSuite::Chacha20Poly1305Sha256 => Some("TLS_CHACHA20_POLY1305_SHA256"),
+        CipherSuite::EcdheEcdsaAes128GcmSha256 => Some("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"),
+        CipherSuite::EcdheRsaAes128GcmSha256 => Some("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"),
+        CipherSuite::EcdheEcdsaAes256GcmSha384 => Some("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"),
+        CipherSuite::EcdheRsaAes256GcmSha384 => Some("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"),
         CipherSuite::EcdheEcdsaChacha20Poly1305Sha256 => {
-            "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256"
+            Some("TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256")
         }
         CipherSuite::EcdheRsaChacha20Poly1305Sha256 => {
-            "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+            Some("TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256")
         }
-        CipherSuite::EcdheRsaAes128CbcSha => "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-        CipherSuite::EcdheRsaAes256CbcSha => "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-        CipherSuite::RsaAes128GcmSha256 => "TLS_RSA_WITH_AES_128_GCM_SHA256",
-        CipherSuite::RsaAes256GcmSha384 => "TLS_RSA_WITH_AES_256_GCM_SHA384",
-        CipherSuite::RsaAes128CbcSha => "TLS_RSA_WITH_AES_128_CBC_SHA",
-        CipherSuite::RsaAes256CbcSha => "TLS_RSA_WITH_AES_256_CBC_SHA",
-    }
+        CipherSuite::EcdheRsaAes128CbcSha => Some("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"),
+        CipherSuite::EcdheRsaAes256CbcSha => Some("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"),
+        CipherSuite::RsaAes128GcmSha256 => Some("TLS_RSA_WITH_AES_128_GCM_SHA256"),
+        CipherSuite::RsaAes256GcmSha384 => Some("TLS_RSA_WITH_AES_256_GCM_SHA384"),
+        CipherSuite::RsaAes128CbcSha => Some("TLS_RSA_WITH_AES_128_CBC_SHA"),
+        CipherSuite::RsaAes256CbcSha => Some("TLS_RSA_WITH_AES_256_CBC_SHA"),
+        _ => None,
+    };
+    require_supported("cipher_suites", cipher, mapped)
 }
 
 #[cfg_attr(
@@ -80,13 +84,15 @@ fn cipher_name(cipher: CipherSuite) -> &'static str {
         reason = "used by the pending TLS and HTTP/1 composition slice"
     )
 )]
-fn group_name(group: NamedGroup) -> &'static str {
-    match group {
-        NamedGroup::X25519MlKem768 => "X25519MLKEM768",
-        NamedGroup::X25519 => "X25519",
-        NamedGroup::Secp256r1 => "P-256",
-        NamedGroup::Secp384r1 => "P-384",
-    }
+fn group_name(group: NamedGroup) -> Result<&'static str, TlsError> {
+    let mapped = match group {
+        NamedGroup::X25519MlKem768 => Some("X25519MLKEM768"),
+        NamedGroup::X25519 => Some("X25519"),
+        NamedGroup::Secp256r1 => Some("P-256"),
+        NamedGroup::Secp384r1 => Some("P-384"),
+        _ => None,
+    };
+    require_supported("groups", group, mapped)
 }
 
 #[cfg_attr(
@@ -96,13 +102,15 @@ fn group_name(group: NamedGroup) -> &'static str {
         reason = "used by the pending TLS and HTTP/1 composition slice"
     )
 )]
-fn boring_key_share(group: NamedGroup) -> KeyShare {
-    match group {
-        NamedGroup::X25519MlKem768 => KeyShare::X25519_MLKEM768,
-        NamedGroup::X25519 => KeyShare::X25519,
-        NamedGroup::Secp256r1 => KeyShare::P256,
-        NamedGroup::Secp384r1 => KeyShare::P384,
-    }
+fn boring_key_share(group: NamedGroup) -> Result<KeyShare, TlsError> {
+    let mapped = match group {
+        NamedGroup::X25519MlKem768 => Some(KeyShare::X25519_MLKEM768),
+        NamedGroup::X25519 => Some(KeyShare::X25519),
+        NamedGroup::Secp256r1 => Some(KeyShare::P256),
+        NamedGroup::Secp384r1 => Some(KeyShare::P384),
+        _ => None,
+    };
+    require_supported("key_shares", group, mapped)
 }
 
 #[cfg_attr(
@@ -112,20 +120,22 @@ fn boring_key_share(group: NamedGroup) -> KeyShare {
         reason = "used by the pending TLS and HTTP/1 composition slice"
     )
 )]
-fn signature_name(scheme: SignatureScheme) -> &'static str {
-    match scheme {
-        SignatureScheme::MlDsa44 => "mldsa44",
-        SignatureScheme::MlDsa65 => "mldsa65",
-        SignatureScheme::MlDsa87 => "mldsa87",
-        SignatureScheme::EcdsaSecp256r1Sha256 => "ecdsa_secp256r1_sha256",
-        SignatureScheme::RsaPssRsaeSha256 => "rsa_pss_rsae_sha256",
-        SignatureScheme::RsaPkcs1Sha256 => "rsa_pkcs1_sha256",
-        SignatureScheme::EcdsaSecp384r1Sha384 => "ecdsa_secp384r1_sha384",
-        SignatureScheme::RsaPssRsaeSha384 => "rsa_pss_rsae_sha384",
-        SignatureScheme::RsaPkcs1Sha384 => "rsa_pkcs1_sha384",
-        SignatureScheme::RsaPssRsaeSha512 => "rsa_pss_rsae_sha512",
-        SignatureScheme::RsaPkcs1Sha512 => "rsa_pkcs1_sha512",
-    }
+fn signature_name(scheme: SignatureScheme) -> Result<&'static str, TlsError> {
+    let mapped = match scheme {
+        SignatureScheme::MlDsa44 => Some("mldsa44"),
+        SignatureScheme::MlDsa65 => Some("mldsa65"),
+        SignatureScheme::MlDsa87 => Some("mldsa87"),
+        SignatureScheme::EcdsaSecp256r1Sha256 => Some("ecdsa_secp256r1_sha256"),
+        SignatureScheme::RsaPssRsaeSha256 => Some("rsa_pss_rsae_sha256"),
+        SignatureScheme::RsaPkcs1Sha256 => Some("rsa_pkcs1_sha256"),
+        SignatureScheme::EcdsaSecp384r1Sha384 => Some("ecdsa_secp384r1_sha384"),
+        SignatureScheme::RsaPssRsaeSha384 => Some("rsa_pss_rsae_sha384"),
+        SignatureScheme::RsaPkcs1Sha384 => Some("rsa_pkcs1_sha384"),
+        SignatureScheme::RsaPssRsaeSha512 => Some("rsa_pss_rsae_sha512"),
+        SignatureScheme::RsaPkcs1Sha512 => Some("rsa_pkcs1_sha512"),
+        _ => None,
+    };
+    require_supported("signature_schemes", scheme, mapped)
 }
 
 /// A reusable TLS connector with a validated immutable configuration.
@@ -212,10 +222,10 @@ impl TlsConnector {
         builder.set_cert_store_builder(root_store);
         builder.set_verify(SslVerifyMode::PEER);
         builder
-            .set_min_proto_version(Some(boring_version(settings.min_version)))
+            .set_min_proto_version(Some(boring_version("min_version", settings.min_version)?))
             .map_err(|error| TlsError::backend("min_version", error))?;
         builder
-            .set_max_proto_version(Some(boring_version(settings.max_version)))
+            .set_max_proto_version(Some(boring_version("max_version", settings.max_version)?))
             .map_err(|error| TlsError::backend("max_version", error))?;
 
         builder.set_grease_enabled(settings.grease);
@@ -231,17 +241,17 @@ impl TlsConnector {
             builder.enable_signed_cert_timestamps();
         }
 
-        let groups = join_names(&settings.groups, group_name);
+        let groups = join_names(&settings.groups, group_name)?;
         builder
             .set_curves_list(&groups)
             .map_err(|error| TlsError::backend("groups", error))?;
 
-        let signature_schemes = join_names(&settings.signature_schemes, signature_name);
+        let signature_schemes = join_names(&settings.signature_schemes, signature_name)?;
         builder
             .set_sigalgs_list(&signature_schemes)
             .map_err(|error| TlsError::backend("signature_schemes", error))?;
 
-        let cipher_suites = join_names(&settings.cipher_suites, cipher_name);
+        let cipher_suites = join_names(&settings.cipher_suites, cipher_name)?;
         builder.set_preserve_tls13_cipher_list(true);
         builder
             .set_cipher_list(&cipher_suites)
@@ -252,6 +262,9 @@ impl TlsConnector {
                 CertificateCompression::Brotli => builder
                     .add_certificate_compression_algorithm(BrotliCertificateCompression)
                     .map_err(|error| TlsError::backend("certificate_compression", error))?,
+                _ => {
+                    return Err(TlsError::unsupported("certificate_compression", algorithm));
+                }
             }
         }
 
@@ -262,7 +275,7 @@ impl TlsConnector {
             backend: builder.build(),
             alpn_wire,
             alps: settings.alps.clone(),
-            tls13_key_shares: (settings.max_version >= TlsVersion::Tls13)
+            tls13_key_shares: (settings.max_version == TlsVersion::Tls13)
                 .then(|| settings.key_shares.clone().into_boxed_slice()),
             ech_grease: settings.ech_grease,
         })
@@ -307,7 +320,7 @@ impl TlsConnector {
                     .iter()
                     .copied()
                     .map(boring_key_share)
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, _>>()?;
                 configuration
                     .set_client_key_shares(&key_shares)
                     .map_err(|error| TlsError::backend("key_shares", error))?;
@@ -443,6 +456,8 @@ pub(crate) enum TlsErrorKind {
     InvalidConfiguration,
     /// The configured TLS backend rejected a setting.
     BackendConfiguration,
+    /// The profile contains a setting this backend version cannot translate.
+    UnsupportedSetting,
     /// The TLS handshake failed.
     Handshake,
 }
@@ -495,6 +510,15 @@ impl TlsError {
             field: Some(field),
             message: "BoringSSL rejected the configured value".into(),
             source: Some(Box::new(source)),
+        }
+    }
+
+    fn unsupported(field: &'static str, value: impl fmt::Debug) -> Self {
+        Self {
+            kind: TlsErrorKind::UnsupportedSetting,
+            field: Some(field),
+            message: format!("setting {value:?} is not supported by the BoringSSL adapter").into(),
+            source: None,
         }
     }
 
@@ -571,7 +595,10 @@ impl CertificateCompressor for BrotliCertificateCompression {
         reason = "used by the pending TLS and HTTP/1 composition slice"
     )
 )]
-fn join_names<T>(values: &[T], name: impl Fn(T) -> &'static str) -> String
+fn join_names<T>(
+    values: &[T],
+    name: impl Fn(T) -> Result<&'static str, TlsError>,
+) -> Result<String, TlsError>
 where
     T: Copy,
 {
@@ -579,8 +606,22 @@ where
         .iter()
         .copied()
         .map(name)
-        .collect::<Vec<_>>()
-        .join(":")
+        .collect::<Result<Vec<_>, _>>()
+        .map(|names| names.join(":"))
+}
+
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
+fn require_supported<T, U>(field: &'static str, value: T, mapped: Option<U>) -> Result<U, TlsError>
+where
+    T: fmt::Debug,
+{
+    mapped.ok_or_else(|| TlsError::unsupported(field, value))
 }
 
 #[cfg_attr(
