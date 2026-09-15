@@ -20,11 +20,13 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, DuplexStream, ReadBuf, duplex},
     time::Instant,
 };
+use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test, headers, target};
 use crate::http2::{
     Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm, RequestHeader, send_get,
 };
+use crate::tracing_test::OutcomeSubscriber;
 
 #[tokio::test]
 async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
@@ -164,6 +166,69 @@ async fn self_dependency_and_userinfo_report_specific_errors_before_io() -> Test
     assert!(matches!(error, Http2Error::AuthorityContainsUserinfo));
     assert_eq!(touches.load(Ordering::SeqCst), 0);
     Ok(())
+}
+
+#[tokio::test]
+async fn invalid_request_is_traced_before_stream_io() -> TestResult<()> {
+    let subscriber = OutcomeSubscriber::default();
+    let touches = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let result = send_get(
+        TouchCountingStream {
+            inner: client,
+            touches: Arc::clone(&touches),
+        },
+        &v152_macos_http2(),
+        "user@example.test",
+        target()?,
+        Vec::new(),
+    )
+    .with_subscriber(Dispatch::new(subscriber.clone()))
+    .await;
+
+    assert!(matches!(result, Err(Http2Error::AuthorityContainsUserinfo)));
+    assert_eq!(touches.load(Ordering::SeqCst), 0);
+    assert_eq!(subscriber.outcomes_for("http2.request.prepare"), ["error"]);
+    assert_eq!(
+        subscriber.error_kinds_for("http2.request.prepare"),
+        ["authority_contains_userinfo"]
+    );
+    assert!(subscriber.outcomes_for("http2.response_head").is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn protocol_failure_has_specific_response_head_outcome() -> TestResult<()> {
+    bounded_peer_test(async {
+        let subscriber = OutcomeSubscriber::default();
+        let (client, server) = duplex(64 * 1024);
+        let server_task = tokio::spawn(async move {
+            let mut connection = ::http2::server::handshake(server).await?;
+            let (_request, _respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before request")??;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let result = send_get(
+            client,
+            &v152_macos_http2(),
+            "example.test",
+            target()?,
+            Vec::new(),
+        )
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
+        assert!(matches!(result, Err(Http2Error::Protocol(_))));
+        assert_eq!(
+            subscriber.outcomes_for("http2.response_head"),
+            ["protocol_error"]
+        );
+        server_task.await??;
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test]

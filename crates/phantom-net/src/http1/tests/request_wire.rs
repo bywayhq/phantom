@@ -11,6 +11,7 @@ use http_body_util::BodyExt;
 use tokio::io::{
     AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, duplex,
 };
+use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
@@ -72,6 +73,7 @@ async fn writes_exact_order_casing_and_duplicates() -> TestResult {
 #[tokio::test]
 async fn rejects_ambiguous_response_framing() -> TestResult {
     bounded_peer_test(async {
+        let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
         let server_task = tokio::spawn(async move {
             read_head(&mut server).await?;
@@ -82,12 +84,70 @@ async fn rejects_ambiguous_response_framing() -> TestResult {
                 .await
         });
 
-        let result = send_get(client, target()?, vec![host()]).await;
+        let result = send_get(client, target()?, vec![host()])
+            .with_subscriber(Dispatch::new(subscriber.clone()))
+            .await;
         assert!(matches!(result, Err(Http1Error::AmbiguousResponseFraming)));
+        assert_eq!(
+            subscriber.outcomes_for("http1.response_head"),
+            ["invalid_response"]
+        );
         server_task.await??;
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
+    bounded_peer_test(async {
+        let subscriber = OutcomeSubscriber::default();
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            server.write_all(b"not an HTTP response\r\n\r\n").await?;
+            server.shutdown().await
+        });
+
+        let result = send_get(client, target()?, vec![host()])
+            .with_subscriber(Dispatch::new(subscriber.clone()))
+            .await;
+        assert!(matches!(result, Err(Http1Error::Protocol(_))));
+        assert_eq!(
+            subscriber.outcomes_for("http1.response_head"),
+            ["protocol_error"]
+        );
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn invalid_request_is_traced_before_stream_io() -> TestResult {
+    let subscriber = OutcomeSubscriber::default();
+    let writes = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let result = send_get(
+        WriteCountingStream {
+            inner: client,
+            writes: Arc::clone(&writes),
+        },
+        target()?,
+        Vec::new(),
+    )
+    .with_subscriber(Dispatch::new(subscriber.clone()))
+    .await;
+
+    assert!(matches!(result, Err(Http1Error::MissingHost)));
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    assert_eq!(subscriber.outcomes_for("http1.request.prepare"), ["error"]);
+    assert_eq!(
+        subscriber.error_kinds_for("http1.request.prepare"),
+        ["missing_host"]
+    );
+    assert!(subscriber.outcomes_for("http1.response_head").is_empty());
+    Ok(())
 }
 
 #[tokio::test]

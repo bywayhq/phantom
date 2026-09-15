@@ -130,6 +130,22 @@ impl From<wreq_proto::Error> for Http1Error {
     }
 }
 
+impl Http1Error {
+    fn trace_kind(&self) -> &'static str {
+        match self {
+            Self::TooManyHeaders { .. } => "too_many_headers",
+            Self::HeadersTooLarge { .. } => "headers_too_large",
+            Self::InvalidHeaderName { .. } => "invalid_header_name",
+            Self::InvalidHeaderValue { .. } => "invalid_header_value",
+            Self::MissingHost => "missing_host",
+            Self::MultipleHost => "multiple_host",
+            Self::RequestFramingHeader { .. } => "request_framing_header",
+            Self::AmbiguousResponseFraming => "invalid_response_framing",
+            Self::Protocol(_) => "protocol",
+        }
+    }
+}
+
 /// Sends one empty-body HTTP/1.1 GET over an already-connected stream.
 ///
 /// Header spelling, ordering, and duplicates are emitted exactly as supplied.
@@ -145,7 +161,23 @@ pub async fn send_get<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let prepared = PreparedGet::new(target, headers)?;
+    let span = debug_span!(
+        "http1.request.prepare",
+        method = "GET",
+        protocol = "http/1.1",
+        outcome = field::Empty,
+        error_kind = field::Empty,
+    );
+    let outcome = ResponseHeadOutcome::new(&span);
+    let prepared = {
+        let _entered = span.enter();
+        PreparedGet::new(target, headers)
+    };
+    match &prepared {
+        Ok(_) => outcome.finish("ok"),
+        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
+    }
+    let prepared = prepared?;
     send_prepared_get(stream, prepared).await
 }
 
@@ -212,7 +244,13 @@ where
     }
     .instrument(span.clone())
     .await;
-    outcome.finish(if result.is_ok() { "ok" } else { "error" });
+    let terminal_outcome = match &result {
+        Ok(_) => "ok",
+        Err(Http1Error::AmbiguousResponseFraming) => "invalid_response",
+        Err(Http1Error::Protocol(_)) => "protocol_error",
+        Err(_) => "request_error",
+    };
+    outcome.finish(terminal_outcome);
     result
 }
 
@@ -231,6 +269,12 @@ impl ResponseHeadOutcome {
 
     pub(super) fn finish(mut self, outcome: &'static str) {
         self.span.record("outcome", outcome);
+        self.recorded = true;
+    }
+
+    fn finish_with_error_kind(mut self, outcome: &'static str, error_kind: &'static str) {
+        self.span.record("outcome", outcome);
+        self.span.record("error_kind", error_kind);
         self.recorded = true;
     }
 }

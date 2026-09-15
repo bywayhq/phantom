@@ -22,6 +22,7 @@ use tokio::{
     time::timeout,
 };
 use tokio_btls::SslStream as BoringStream;
+use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{Http2TlsConnector, Http2TlsError};
 use crate::http2::{Http2Error, OriginForm, RequestHeader};
@@ -29,6 +30,7 @@ use crate::tls::test_support::{
     H2_ALPN_WIRE, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn,
     TouchCountingStream, accept_tls, loopback_listener,
 };
+use crate::tracing_test::OutcomeSubscriber;
 
 const TEST_AUTHORITY: &str = "server.phantom.test:8443";
 
@@ -129,6 +131,7 @@ async fn rejects_missing_and_http1_alpn_without_http2_bytes() -> TestResult<()> 
 
             let connector = test_connector(&identity)?;
             let tcp = TcpStream::connect(address).await?;
+            let subscriber = OutcomeSubscriber::default();
             let result = connector
                 .send_get(
                     tcp,
@@ -137,6 +140,7 @@ async fn rejects_missing_and_http1_alpn_without_http2_bytes() -> TestResult<()> 
                     OriginForm::parse("/")?,
                     vec![],
                 )
+                .with_subscriber(Dispatch::new(subscriber.clone()))
                 .await;
             match selected {
                 TestServerAlpn::None => {
@@ -149,6 +153,10 @@ async fn rejects_missing_and_http1_alpn_without_http2_bytes() -> TestResult<()> 
                 )),
                 TestServerAlpn::H2 => unreachable!("test cases exclude h2"),
             }
+            assert_eq!(
+                subscriber.outcomes_for("http2.tls.response_head"),
+                ["unsupported_alpn"]
+            );
             assert!(
                 server.await??.is_empty(),
                 "HTTP/2 bytes followed rejected ALPN"
@@ -236,6 +244,7 @@ async fn alps_without_a_settings_frame_still_requires_wire_settings() -> TestRes
 
             let connector = alps_test_connector(&identity)?;
             let tcp = TcpStream::connect(address).await?;
+            let subscriber = OutcomeSubscriber::default();
             let result = connector
                 .send_get(
                     tcp,
@@ -244,12 +253,17 @@ async fn alps_without_a_settings_frame_still_requires_wire_settings() -> TestRes
                     OriginForm::parse("/alps")?,
                     vec![],
                 )
+                .with_subscriber(Dispatch::new(subscriber.clone()))
                 .await;
             assert!(matches!(
                 result,
                 Err(Http2TlsError::Http2(Http2Error::Protocol(ref error)))
                     if error.reason() == Some(::http2::Reason::PROTOCOL_ERROR)
             ));
+            assert_eq!(
+                subscriber.outcomes_for("http2.tls.response_head"),
+                ["http_protocol_error"]
+            );
             server.await??;
         }
         Ok(())
@@ -278,6 +292,7 @@ async fn malformed_peer_alps_fails_before_http2_plaintext() -> TestResult<()> {
 
         let connector = alps_test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
+        let subscriber = OutcomeSubscriber::default();
         let result = connector
             .send_get(
                 tcp,
@@ -286,6 +301,7 @@ async fn malformed_peer_alps_fails_before_http2_plaintext() -> TestResult<()> {
                 OriginForm::parse("/")?,
                 vec![],
             )
+            .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
         let error = match result {
             Ok(_) => return Err("malformed peer ALPS was accepted".into()),
@@ -299,6 +315,10 @@ async fn malformed_peer_alps_fails_before_http2_plaintext() -> TestResult<()> {
                 ..
             }
         ));
+        assert_eq!(
+            subscriber.outcomes_for("http2.tls.response_head"),
+            ["invalid_peer_alps"]
+        );
         assert!(
             server.await??.is_empty(),
             "HTTP/2 plaintext followed malformed ALPS"
@@ -314,6 +334,7 @@ async fn invalid_request_does_not_touch_tls_stream() -> TestResult<()> {
     let connector = test_connector(&identity)?;
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
+    let subscriber = OutcomeSubscriber::default();
     let result = connector
         .send_get(
             TouchCountingStream::new(client, Arc::clone(&touches)),
@@ -322,9 +343,14 @@ async fn invalid_request_does_not_touch_tls_stream() -> TestResult<()> {
             OriginForm::parse("/")?,
             vec![RequestHeader::new("host", TEST_SERVER_NAME)],
         )
+        .with_subscriber(Dispatch::new(subscriber.clone()))
         .await;
     assert!(matches!(result, Err(Http2TlsError::Http2(_))));
     assert_eq!(touches.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        subscriber.outcomes_for("http2.tls.response_head"),
+        ["http_preparation_error"]
+    );
 
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
@@ -342,6 +368,32 @@ async fn invalid_request_does_not_touch_tls_stream() -> TestResult<()> {
         Err(Http2TlsError::Http2(Http2Error::AuthorityContainsUserinfo))
     ));
     assert_eq!(touches.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn handshake_failure_has_tls_wrapper_outcome() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let (client, server) = duplex(4096);
+    drop(server);
+    let subscriber = OutcomeSubscriber::default();
+
+    let result = connector
+        .send_get(
+            client,
+            TEST_SERVER_NAME,
+            TEST_AUTHORITY,
+            OriginForm::parse("/")?,
+            Vec::new(),
+        )
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
+    assert!(matches!(result, Err(Http2TlsError::Tls(_))));
+    assert_eq!(
+        subscriber.outcomes_for("http2.tls.response_head"),
+        ["tls_error"]
+    );
     Ok(())
 }
 

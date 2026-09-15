@@ -17,6 +17,7 @@ use tokio::{
     time::timeout,
 };
 use tokio_btls::SslStream as BoringStream;
+use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{Http1TlsConnector, Http1TlsError};
 use crate::http1::{OriginForm, RequestHeader};
@@ -152,6 +153,7 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
 
         let connector = test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
+        let subscriber = OutcomeSubscriber::default();
         let result = connector
             .send_get(
                 tcp,
@@ -159,6 +161,7 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
                 OriginForm::parse("/")?,
                 vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
             )
+            .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
         let error = match result {
             Ok(_) => return Err("h2 selection unexpectedly entered HTTP/1".into()),
@@ -168,6 +171,10 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
             error,
             Http1TlsError::UnsupportedAlpn { ref selected } if selected.as_ref() == b"h2"
         ));
+        assert_eq!(
+            subscriber.outcomes_for("http1.tls.response_head"),
+            ["unsupported_alpn"]
+        );
 
         let (sni, plaintext) = server_task.await??;
         assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
@@ -223,6 +230,7 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
         let touches = Arc::new(AtomicUsize::new(0));
         let (client, _server) = duplex(128);
         let stream = TouchCountingStream::new(client, Arc::clone(&touches));
+        let subscriber = OutcomeSubscriber::default();
 
         let result = connector
             .send_get(
@@ -231,12 +239,42 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
                 OriginForm::parse("/")?,
                 Vec::new(),
             )
+            .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
         assert!(matches!(result, Err(Http1TlsError::Http1(_))));
         assert_eq!(touches.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            subscriber.outcomes_for("http1.tls.response_head"),
+            ["http_preparation_error"]
+        );
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn handshake_failure_has_tls_wrapper_outcome() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let (client, server) = duplex(4096);
+    drop(server);
+    let subscriber = OutcomeSubscriber::default();
+
+    let result = connector
+        .send_get(
+            client,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+        )
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
+    assert!(matches!(result, Err(Http1TlsError::Tls(_))));
+    assert_eq!(
+        subscriber.outcomes_for("http1.tls.response_head"),
+        ["tls_error"]
+    );
+    Ok(())
 }
 
 #[test]
