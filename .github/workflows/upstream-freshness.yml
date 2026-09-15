@@ -30,6 +30,7 @@ jobs:
       http2_drift: ${{ steps.freshness.outputs.http2_drift }}
       btls_latest: ${{ steps.freshness.outputs.btls_latest }}
       btls_drift: ${{ steps.freshness.outputs.btls_drift }}
+      btls_probe_supported: ${{ steps.freshness.outputs.btls_probe_supported }}
       chrome_drift: ${{ steps.freshness.outputs.chrome_drift }}
       any_drift: ${{ steps.freshness.outputs.any_drift }}
     steps:
@@ -40,7 +41,9 @@ jobs:
 
       - name: Detect current upstream state
         id: freshness
-        run: scripts/ci/report-upstream-freshness.sh
+        run: |
+          scripts/ci/test-upstream-freshness.sh
+          scripts/ci/report-upstream-freshness.sh
 
       - name: Publish job summary
         if: always() && hashFiles('target/upstream-freshness/summary.md') != ''
@@ -73,10 +76,18 @@ jobs:
       - name: Install project toolchain
         run: rustc --version
 
+      - name: Record unsupported vendored btls probe
+        if: >-
+          matrix.dependency == 'btls' && needs.report.outputs.btls_drift == 'true' &&
+          needs.report.outputs.btls_probe_supported != 'true'
+        run: >-
+          echo "::notice::btls drift was detected but not probed; vendored patch staging is not integrated."
+
       - name: Probe candidate in disposable checkout
         if: >-
           (matrix.dependency == 'wreq-proto' && needs.report.outputs.wreq_drift == 'true') ||
-          (matrix.dependency == 'btls' && needs.report.outputs.btls_drift == 'true') ||
+          (matrix.dependency == 'btls' && needs.report.outputs.btls_drift == 'true' &&
+            needs.report.outputs.btls_probe_supported == 'true') ||
           (matrix.dependency == 'http2' && needs.report.outputs.http2_drift == 'true')
         env:
           WREQ_LATEST: ${{ needs.report.outputs.wreq_latest }}
