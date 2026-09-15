@@ -6,6 +6,10 @@ use std::{error::Error, fmt};
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum TlsVersion {
+    /// TLS 1.0.
+    Tls10,
+    /// TLS 1.1.
+    Tls11,
     /// TLS 1.2.
     Tls12,
     /// TLS 1.3.
@@ -38,6 +42,10 @@ pub enum CipherSuite {
     EcdheRsaAes128CbcSha,
     /// TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA.
     EcdheRsaAes256CbcSha,
+    /// TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA.
+    EcdheEcdsa3DesEdeCbcSha,
+    /// TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA.
+    EcdheRsa3DesEdeCbcSha,
     /// TLS_RSA_WITH_AES_128_GCM_SHA256.
     RsaAes128GcmSha256,
     /// TLS_RSA_WITH_AES_256_GCM_SHA384.
@@ -46,6 +54,8 @@ pub enum CipherSuite {
     RsaAes128CbcSha,
     /// TLS_RSA_WITH_AES_256_CBC_SHA.
     RsaAes256CbcSha,
+    /// TLS_RSA_WITH_3DES_EDE_CBC_SHA.
+    Rsa3DesEdeCbcSha,
 }
 
 /// A TLS supported group.
@@ -60,6 +70,12 @@ pub enum NamedGroup {
     Secp256r1,
     /// NIST P-384.
     Secp384r1,
+    /// NIST P-521.
+    Secp521r1,
+    /// RFC 7919 finite-field group with a 2048-bit modulus.
+    Ffdhe2048,
+    /// RFC 7919 finite-field group with a 3072-bit modulus.
+    Ffdhe3072,
 }
 
 /// A TLS signature scheme in wire preference order.
@@ -80,6 +96,8 @@ pub enum SignatureScheme {
     RsaPkcs1Sha256,
     /// ECDSA P-384 with SHA-384.
     EcdsaSecp384r1Sha384,
+    /// ECDSA P-521 with SHA-512.
+    EcdsaSecp521r1Sha512,
     /// RSA-PSS with an RSAE key and SHA-384.
     RsaPssRsaeSha384,
     /// RSA PKCS#1 v1.5 with SHA-384.
@@ -88,14 +106,86 @@ pub enum SignatureScheme {
     RsaPssRsaeSha512,
     /// RSA PKCS#1 v1.5 with SHA-512.
     RsaPkcs1Sha512,
+    /// Legacy ECDSA with SHA-1.
+    EcdsaSha1,
+    /// Legacy RSA PKCS#1 v1.5 with SHA-1.
+    RsaPkcs1Sha1,
 }
 
 /// A certificate compression algorithm advertised by the TLS client.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CertificateCompression {
+    /// Zlib certificate compression.
+    Zlib,
     /// Brotli certificate compression.
     Brotli,
+    /// Zstandard certificate compression.
+    Zstd,
+}
+
+/// A known ClientHello extension whose relative wire position can be fixed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ClientHelloExtension {
+    /// Server Name Indication.
+    ServerName,
+    /// Extended Master Secret.
+    ExtendedMasterSecret,
+    /// Secure renegotiation indication.
+    RenegotiationInfo,
+    /// Supported groups.
+    SupportedGroups,
+    /// Elliptic-curve point formats.
+    EcPointFormats,
+    /// Session ticket.
+    SessionTicket,
+    /// Application-Layer Protocol Negotiation.
+    Alpn,
+    /// Certificate status request.
+    StatusRequest,
+    /// Delegated credential signature algorithms.
+    DelegatedCredential,
+    /// Signed certificate timestamps.
+    SignedCertificateTimestamp,
+    /// TLS 1.3 key shares.
+    KeyShare,
+    /// Supported TLS versions.
+    SupportedVersions,
+    /// Handshake signature algorithms.
+    SignatureAlgorithms,
+    /// TLS 1.3 pre-shared-key exchange modes.
+    PskKeyExchangeModes,
+    /// Record size limit.
+    RecordSizeLimit,
+    /// Certificate compression algorithms.
+    CertificateCompression,
+    /// Requested trust anchors.
+    TrustAnchors,
+    /// Final-codepoint Application-Layer Protocol Settings.
+    ApplicationSettings,
+    /// Legacy-codepoint Application-Layer Protocol Settings.
+    ApplicationSettingsLegacy,
+    /// Encrypted ClientHello or ECH GREASE.
+    EncryptedClientHello,
+    /// ClientHello padding.
+    Padding,
+}
+
+/// Controls the ordering of known ClientHello extensions.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ClientHelloExtensionOrder {
+    /// Keep the TLS backend's deterministic default order.
+    BackendDefault,
+    /// Randomize eligible extensions for each connection.
+    Permuted,
+    /// Keep listed extensions in this order before any unlisted extensions.
+    ///
+    /// The backend appends unlisted known extensions in random order. Profiles
+    /// that require a fully fixed sequence should list every extension they
+    /// enable or expect the backend to emit.
+    Fixed(Vec<ClientHelloExtension>),
 }
 
 /// ALPS configuration for one ALPN protocol.
@@ -124,12 +214,20 @@ pub struct TlsSettings {
     pub key_shares: Vec<NamedGroup>,
     /// Signature schemes in preference order.
     pub signature_schemes: Vec<SignatureScheme>,
+    /// Signature schemes accepted for delegated credentials, in wire order.
+    ///
+    /// An empty list omits the `delegated_credential` extension.
+    pub delegated_credential_signature_schemes: Vec<SignatureScheme>,
     /// ALPN protocol identifiers in preference order.
     pub alpn_protocols: Vec<Box<[u8]>>,
     /// Optional ALPS advertisement.
     pub alps: Option<AlpsSettings>,
     /// Certificate compression algorithms in preference order.
     pub certificate_compression: Vec<CertificateCompression>,
+    /// Largest protected TLS record accepted from the peer.
+    ///
+    /// `None` omits the `record_size_limit` extension.
+    pub record_size_limit: Option<u16>,
     /// Optional trust anchor IDs advertised to guide server certificate selection.
     ///
     /// Each ID is an opaque, non-empty byte string. `None` omits the TLS
@@ -141,8 +239,8 @@ pub struct TlsSettings {
     pub grease: bool,
     /// Whether signature-algorithm GREASE is enabled.
     pub grease_signature_algorithms: bool,
-    /// Whether eligible ClientHello extensions are randomized.
-    pub permute_extensions: bool,
+    /// Ordering policy for known ClientHello extensions.
+    pub extension_order: ClientHelloExtensionOrder,
     /// Whether to emit a GREASE ECH extension without an ECH configuration.
     pub ech_grease: bool,
     /// Whether to request an OCSP staple.
@@ -174,7 +272,7 @@ impl TlsSettings {
                 "at least one supported group is required",
             ));
         }
-        if self.max_version == TlsVersion::Tls12 {
+        if self.max_version < TlsVersion::Tls13 {
             if !self.key_shares.is_empty() {
                 return Err(InvalidTlsSettings::new(
                     "key_shares",
@@ -191,6 +289,18 @@ impl TlsSettings {
                 return Err(InvalidTlsSettings::new(
                     "requested_trust_anchor_ids",
                     "requested trust anchors require TLS 1.3 to be enabled",
+                ));
+            }
+            if !self.delegated_credential_signature_schemes.is_empty() {
+                return Err(InvalidTlsSettings::new(
+                    "delegated_credential_signature_schemes",
+                    "delegated credentials require TLS 1.3 to be enabled",
+                ));
+            }
+            if !self.certificate_compression.is_empty() {
+                return Err(InvalidTlsSettings::new(
+                    "certificate_compression",
+                    "certificate compression requires TLS 1.3 to be enabled",
                 ));
             }
         } else {
@@ -217,10 +327,16 @@ impl TlsSettings {
                 "at least one signature scheme is required",
             ));
         }
+        if self.delegated_credential_signature_schemes.len() > u16::MAX as usize / 2 {
+            return Err(InvalidTlsSettings::new(
+                "delegated_credential_signature_schemes",
+                "encoded delegated-credential signature list exceeds 65534 bytes",
+            ));
+        }
         validate_alpn(&self.alpn_protocols)?;
 
         if let Some(alps) = &self.alps {
-            if self.max_version == TlsVersion::Tls12 {
+            if self.max_version < TlsVersion::Tls13 {
                 return Err(InvalidTlsSettings::new(
                     "alps",
                     "ALPS requires TLS 1.3 to be enabled",
@@ -244,11 +360,44 @@ impl TlsSettings {
             }
         }
 
-        if self.certificate_compression.len() > 1 {
-            return Err(InvalidTlsSettings::new(
-                "certificate_compression",
-                "Brotli certificate compression must not repeat",
-            ));
+        for (index, algorithm) in self.certificate_compression.iter().enumerate() {
+            if self.certificate_compression[..index].contains(algorithm) {
+                return Err(InvalidTlsSettings::new(
+                    "certificate_compression",
+                    "certificate compression algorithms must not repeat",
+                ));
+            }
+        }
+
+        if let Some(limit) = self.record_size_limit {
+            let maximum = if self.max_version == TlsVersion::Tls13 {
+                16_385
+            } else {
+                16_384
+            };
+            if !(64..=maximum).contains(&limit) {
+                return Err(InvalidTlsSettings::new(
+                    "record_size_limit",
+                    format!("record size limit must be between 64 and {maximum}"),
+                ));
+            }
+        }
+
+        if let ClientHelloExtensionOrder::Fixed(extensions) = &self.extension_order {
+            if extensions.is_empty() {
+                return Err(InvalidTlsSettings::new(
+                    "extension_order",
+                    "fixed extension order must contain at least one extension",
+                ));
+            }
+            for (index, extension) in extensions.iter().enumerate() {
+                if extensions[..index].contains(extension) {
+                    return Err(InvalidTlsSettings::new(
+                        "extension_order",
+                        "fixed extension order must not contain duplicates",
+                    ));
+                }
+            }
         }
 
         if let Some(ids) = &self.requested_trust_anchor_ids {

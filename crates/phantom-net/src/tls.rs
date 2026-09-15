@@ -13,95 +13,20 @@ use std::{
 
 use btls::{
     error::ErrorStack,
-    ssl::{
-        CertificateCompressionAlgorithm as BoringCertificateCompressionAlgorithm,
-        CertificateCompressor, KeyShare, SslConnector as BoringConnector, SslMethod, SslOptions,
-        SslVerifyMode, SslVersion,
-    },
+    ssl::{SslConnector as BoringConnector, SslMethod, SslVerifyMode},
     x509::{X509, store::X509StoreBuilder},
 };
-use phantom_profile::{
-    AlpsSettings, CertificateCompression, CipherSuite, InvalidTlsSettings, NamedGroup,
-    SignatureScheme, TlsSettings, TlsVersion,
-};
+use phantom_profile::{AlpsSettings, InvalidTlsSettings, NamedGroup, TlsSettings, TlsVersion};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
 use tracing::{Instrument, Span, debug, debug_span, field};
 
-fn boring_version(field: &'static str, version: TlsVersion) -> Result<SslVersion, TlsError> {
-    let mapped = match version {
-        TlsVersion::Tls12 => Some(SslVersion::TLS1_2),
-        TlsVersion::Tls13 => Some(SslVersion::TLS1_3),
-        _ => None,
-    };
-    require_supported(field, version, mapped)
-}
+use self::configuration::extension_order_trace_name;
+#[cfg(test)]
+use self::configuration::require_supported;
 
-fn cipher_name(cipher: CipherSuite) -> Result<&'static str, TlsError> {
-    let mapped = match cipher {
-        CipherSuite::Aes128GcmSha256 => Some("TLS_AES_128_GCM_SHA256"),
-        CipherSuite::Aes256GcmSha384 => Some("TLS_AES_256_GCM_SHA384"),
-        CipherSuite::Chacha20Poly1305Sha256 => Some("TLS_CHACHA20_POLY1305_SHA256"),
-        CipherSuite::EcdheEcdsaAes128GcmSha256 => Some("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"),
-        CipherSuite::EcdheRsaAes128GcmSha256 => Some("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"),
-        CipherSuite::EcdheEcdsaAes256GcmSha384 => Some("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"),
-        CipherSuite::EcdheRsaAes256GcmSha384 => Some("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"),
-        CipherSuite::EcdheEcdsaChacha20Poly1305Sha256 => {
-            Some("TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256")
-        }
-        CipherSuite::EcdheRsaChacha20Poly1305Sha256 => {
-            Some("TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256")
-        }
-        CipherSuite::EcdheRsaAes128CbcSha => Some("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"),
-        CipherSuite::EcdheRsaAes256CbcSha => Some("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"),
-        CipherSuite::RsaAes128GcmSha256 => Some("TLS_RSA_WITH_AES_128_GCM_SHA256"),
-        CipherSuite::RsaAes256GcmSha384 => Some("TLS_RSA_WITH_AES_256_GCM_SHA384"),
-        CipherSuite::RsaAes128CbcSha => Some("TLS_RSA_WITH_AES_128_CBC_SHA"),
-        CipherSuite::RsaAes256CbcSha => Some("TLS_RSA_WITH_AES_256_CBC_SHA"),
-        _ => None,
-    };
-    require_supported("cipher_suites", cipher, mapped)
-}
-
-fn group_name(group: NamedGroup) -> Result<&'static str, TlsError> {
-    let mapped = match group {
-        NamedGroup::X25519MlKem768 => Some("X25519MLKEM768"),
-        NamedGroup::X25519 => Some("X25519"),
-        NamedGroup::Secp256r1 => Some("P-256"),
-        NamedGroup::Secp384r1 => Some("P-384"),
-        _ => None,
-    };
-    require_supported("groups", group, mapped)
-}
-
-fn boring_key_share(group: NamedGroup) -> Result<KeyShare, TlsError> {
-    let mapped = match group {
-        NamedGroup::X25519MlKem768 => Some(KeyShare::X25519_MLKEM768),
-        NamedGroup::X25519 => Some(KeyShare::X25519),
-        NamedGroup::Secp256r1 => Some(KeyShare::P256),
-        NamedGroup::Secp384r1 => Some(KeyShare::P384),
-        _ => None,
-    };
-    require_supported("key_shares", group, mapped)
-}
-
-fn signature_name(scheme: SignatureScheme) -> Result<&'static str, TlsError> {
-    let mapped = match scheme {
-        SignatureScheme::MlDsa44 => Some("mldsa44"),
-        SignatureScheme::MlDsa65 => Some("mldsa65"),
-        SignatureScheme::MlDsa87 => Some("mldsa87"),
-        SignatureScheme::EcdsaSecp256r1Sha256 => Some("ecdsa_secp256r1_sha256"),
-        SignatureScheme::RsaPssRsaeSha256 => Some("rsa_pss_rsae_sha256"),
-        SignatureScheme::RsaPkcs1Sha256 => Some("rsa_pkcs1_sha256"),
-        SignatureScheme::EcdsaSecp384r1Sha384 => Some("ecdsa_secp384r1_sha384"),
-        SignatureScheme::RsaPssRsaeSha384 => Some("rsa_pss_rsae_sha384"),
-        SignatureScheme::RsaPkcs1Sha384 => Some("rsa_pkcs1_sha384"),
-        SignatureScheme::RsaPssRsaeSha512 => Some("rsa_pss_rsae_sha512"),
-        SignatureScheme::RsaPkcs1Sha512 => Some("rsa_pkcs1_sha512"),
-        _ => None,
-    };
-    require_supported("signature_schemes", scheme, mapped)
-}
+mod compression;
+mod configuration;
 
 /// A reusable TLS connector with a validated immutable configuration.
 #[derive(Clone)]
@@ -156,8 +81,11 @@ impl TlsConnector {
             signature_scheme_count = settings.signature_schemes.len(),
             alpn_protocol_count = settings.alpn_protocols.len(),
             certificate_compression_count = settings.certificate_compression.len(),
+            delegated_credential_signature_scheme_count =
+                settings.delegated_credential_signature_schemes.len(),
+            record_size_limit = field::debug(settings.record_size_limit),
             grease = settings.grease,
-            permute_extensions = settings.permute_extensions,
+            extension_order = extension_order_trace_name(&settings.extension_order),
             ech_grease = settings.ech_grease,
             outcome = field::Empty,
             error_kind = field::Empty,
@@ -192,52 +120,7 @@ impl TlsConnector {
             .map_err(|error| TlsError::backend("connector", error))?;
         builder.set_cert_store_builder(root_store);
         builder.set_verify(SslVerifyMode::PEER);
-        builder
-            .set_min_proto_version(Some(boring_version("min_version", settings.min_version)?))
-            .map_err(|error| TlsError::backend("min_version", error))?;
-        builder
-            .set_max_proto_version(Some(boring_version("max_version", settings.max_version)?))
-            .map_err(|error| TlsError::backend("max_version", error))?;
-
-        builder.set_grease_enabled(settings.grease);
-        builder.set_grease_sigalgs_enabled(settings.grease_signature_algorithms);
-        builder.set_permute_extensions(settings.permute_extensions);
-        builder.set_aes_hw_override(settings.aes_hardware);
-        builder.clear_options(SslOptions::NO_TICKET);
-
-        if settings.request_ocsp_staple {
-            builder.enable_ocsp_stapling();
-        }
-        if settings.request_signed_certificate_timestamps {
-            builder.enable_signed_cert_timestamps();
-        }
-
-        let groups = join_names(&settings.groups, group_name)?;
-        builder
-            .set_curves_list(&groups)
-            .map_err(|error| TlsError::backend("groups", error))?;
-
-        let signature_schemes = join_names(&settings.signature_schemes, signature_name)?;
-        builder
-            .set_sigalgs_list(&signature_schemes)
-            .map_err(|error| TlsError::backend("signature_schemes", error))?;
-
-        let cipher_suites = join_names(&settings.cipher_suites, cipher_name)?;
-        builder.set_preserve_tls13_cipher_list(true);
-        builder
-            .set_cipher_list(&cipher_suites)
-            .map_err(|error| TlsError::backend("cipher_suites", error))?;
-
-        for algorithm in &settings.certificate_compression {
-            match algorithm {
-                CertificateCompression::Brotli => builder
-                    .add_certificate_compression_algorithm(BrotliCertificateCompression)
-                    .map_err(|error| TlsError::backend("certificate_compression", error))?,
-                _ => {
-                    return Err(TlsError::unsupported("certificate_compression", algorithm));
-                }
-            }
-        }
+        configuration::apply(&mut builder, settings)?;
 
         if let Some(ids) = &settings.requested_trust_anchor_ids {
             builder
@@ -311,7 +194,7 @@ impl TlsConnector {
                 let key_shares = key_shares
                     .iter()
                     .copied()
-                    .map(boring_key_share)
+                    .map(configuration::key_share)
                     .collect::<Result<Vec<_>, _>>()?;
                 configuration
                     .set_client_key_shares(&key_shares)
@@ -592,45 +475,6 @@ impl StdError for TlsError {
             .as_deref()
             .map(|source| source as &(dyn StdError + 'static))
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct BrotliCertificateCompression;
-
-impl CertificateCompressor for BrotliCertificateCompression {
-    const ALGORITHM: BoringCertificateCompressionAlgorithm =
-        BoringCertificateCompressionAlgorithm::BROTLI;
-    const CAN_COMPRESS: bool = false;
-    const CAN_DECOMPRESS: bool = true;
-
-    fn decompress<W>(&self, input: &[u8], output: &mut W) -> io::Result<()>
-    where
-        W: io::Write,
-    {
-        brotli::BrotliDecompress(&mut io::Cursor::new(input), output)
-    }
-}
-
-fn join_names<T>(
-    values: &[T],
-    name: impl Fn(T) -> Result<&'static str, TlsError>,
-) -> Result<String, TlsError>
-where
-    T: Copy,
-{
-    values
-        .iter()
-        .copied()
-        .map(name)
-        .collect::<Result<Vec<_>, _>>()
-        .map(|names| names.join(":"))
-}
-
-fn require_supported<T, U>(field: &'static str, value: T, mapped: Option<U>) -> Result<U, TlsError>
-where
-    T: fmt::Debug,
-{
-    mapped.ok_or_else(|| TlsError::unsupported(field, value))
 }
 
 fn encode_alpn(protocols: &[Box<[u8]>]) -> Result<Box<[u8]>, TlsError> {

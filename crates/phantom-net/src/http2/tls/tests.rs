@@ -13,8 +13,8 @@ use bytes::Bytes;
 use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
 use phantom_profile::{
-    AlpsSettings, CipherSuite, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
-    chromium::v152_macos_http2,
+    AlpsSettings, CipherSuite, ClientHelloExtensionOrder, NamedGroup, SignatureScheme, TlsSettings,
+    TlsVersion, chromium::v152_macos_http2,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, duplex},
@@ -423,13 +423,15 @@ fn tls_settings() -> TlsSettings {
         groups: vec![NamedGroup::X25519, NamedGroup::Secp256r1],
         key_shares: Vec::new(),
         signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
+        delegated_credential_signature_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),
+        record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,
-        permute_extensions: false,
+        extension_order: ClientHelloExtensionOrder::BackendDefault,
         ech_grease: false,
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,

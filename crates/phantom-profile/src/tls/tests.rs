@@ -10,13 +10,15 @@ fn minimal_settings() -> TlsSettings {
         groups: vec![NamedGroup::X25519],
         key_shares: vec![NamedGroup::X25519],
         signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
+        delegated_credential_signature_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),
+        record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,
-        permute_extensions: false,
+        extension_order: ClientHelloExtensionOrder::BackendDefault,
         ech_grease: false,
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
@@ -111,6 +113,114 @@ fn tls_12_rejects_requested_trust_anchors() {
     assert_eq!(
         error.as_ref().map(InvalidTlsSettings::field),
         Some("requested_trust_anchor_ids")
+    );
+}
+
+#[test]
+fn tls_12_rejects_delegated_credentials() {
+    let mut settings = minimal_settings();
+    settings.max_version = TlsVersion::Tls12;
+    settings.key_shares.clear();
+    settings.delegated_credential_signature_schemes = vec![SignatureScheme::EcdsaSecp256r1Sha256];
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("delegated_credential_signature_schemes")
+    );
+}
+
+#[test]
+fn tls_12_rejects_certificate_compression() {
+    let mut settings = minimal_settings();
+    settings.max_version = TlsVersion::Tls12;
+    settings.key_shares.clear();
+    settings.certificate_compression = vec![CertificateCompression::Zlib];
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("certificate_compression")
+    );
+}
+
+#[test]
+fn record_size_limit_uses_protocol_bounds() -> Result<(), Box<dyn Error>> {
+    let mut settings = minimal_settings();
+    settings.record_size_limit = Some(16_385);
+    settings.validate()?;
+
+    for invalid in [0, 63, 16_386, u16::MAX] {
+        settings.record_size_limit = Some(invalid);
+        let error = settings.validate().err();
+        assert_eq!(
+            error.as_ref().map(InvalidTlsSettings::field),
+            Some("record_size_limit")
+        );
+    }
+
+    settings.max_version = TlsVersion::Tls12;
+    settings.key_shares.clear();
+    settings.record_size_limit = Some(16_385);
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("record_size_limit")
+    );
+    Ok(())
+}
+
+#[test]
+fn certificate_compression_accepts_unique_order_and_rejects_duplicates()
+-> Result<(), Box<dyn Error>> {
+    let mut settings = minimal_settings();
+    settings.certificate_compression = vec![
+        CertificateCompression::Zlib,
+        CertificateCompression::Brotli,
+        CertificateCompression::Zstd,
+    ];
+    settings.validate()?;
+
+    settings
+        .certificate_compression
+        .push(CertificateCompression::Zlib);
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("certificate_compression")
+    );
+    Ok(())
+}
+
+#[test]
+fn fixed_extension_order_must_be_nonempty_and_unique() {
+    for extensions in [
+        Vec::new(),
+        vec![
+            ClientHelloExtension::ServerName,
+            ClientHelloExtension::ServerName,
+        ],
+    ] {
+        let mut settings = minimal_settings();
+        settings.extension_order = ClientHelloExtensionOrder::Fixed(extensions);
+        let error = settings.validate().err();
+        assert_eq!(
+            error.as_ref().map(InvalidTlsSettings::field),
+            Some("extension_order")
+        );
+    }
+}
+
+#[test]
+fn delegated_credential_signature_list_must_fit_the_extension() {
+    let mut settings = minimal_settings();
+    settings.delegated_credential_signature_schemes =
+        vec![SignatureScheme::EcdsaSecp256r1Sha256; u16::MAX as usize / 2 + 1];
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("delegated_credential_signature_schemes")
     );
 }
 

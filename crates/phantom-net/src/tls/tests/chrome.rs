@@ -2,13 +2,13 @@
 
 use std::io;
 
-use phantom_profile::{TlsSettings, chromium::v152_macos_tls};
+use phantom_profile::chromium::v152_macos_tls;
 use phantom_testkit::tls::{
     CaptureLimits, ClientHelloCapture, ClientHelloSummary, capture_client_hello, is_grease,
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, time::Instant};
+use tokio::{io::AsyncWriteExt, time::Instant};
 
-use super::TlsConnector;
+use super::capture_client_hello_from;
 use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestResult};
 
 const CHROME_FIXTURE: &str = include_str!(concat!(
@@ -100,30 +100,6 @@ async fn omitted_trust_anchor_ids_omit_the_extension() -> TestResult<()> {
     let summary = capture_client_hello_from(&settings).await?.summary()?;
     assert!(!summary.extension_types().contains(&TRUST_ANCHORS_EXTENSION));
     Ok(())
-}
-
-async fn capture_client_hello_from(settings: &TlsSettings) -> TestResult<ClientHelloCapture> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let address = listener.local_addr()?;
-    let capture_task = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await?;
-        capture_client_hello(
-            &mut stream,
-            Instant::now() + TEST_TIMEOUT,
-            CaptureLimits::new(32 * 1024, 40 * 1024, 4),
-        )
-        .await
-        .map_err(io::Error::other)
-    });
-
-    let connector = TlsConnector::new(settings)?;
-    let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
-    let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect(TEST_SERVER_NAME, tcp));
-    if handshake.await?.is_ok() {
-        return Err("capture peer unexpectedly completed TLS".into());
-    }
-
-    Ok(tokio::time::timeout(TEST_TIMEOUT, capture_task).await???)
 }
 
 async fn fixture_capture() -> TestResult<ClientHelloCapture> {

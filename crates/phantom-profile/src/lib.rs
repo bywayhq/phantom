@@ -8,8 +8,9 @@ pub use http2::{
     Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,
 };
 pub use tls::{
-    AlpsSettings, CertificateCompression, CipherSuite, InvalidTlsSettings, NamedGroup,
-    SignatureScheme, TlsSettings, TlsVersion,
+    AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
+    ClientHelloExtensionOrder, InvalidTlsSettings, NamedGroup, SignatureScheme, TlsSettings,
+    TlsVersion,
 };
 
 use std::{error::Error, fmt, str::FromStr};

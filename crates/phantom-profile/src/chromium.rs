@@ -3,8 +3,8 @@
 use crate::{
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
     tls::{
-        AlpsSettings, CertificateCompression, CipherSuite, NamedGroup, SignatureScheme,
-        TlsSettings, TlsVersion,
+        AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
+        SignatureScheme, TlsSettings, TlsVersion,
     },
 };
 
@@ -90,6 +90,7 @@ pub fn v152_macos_tls() -> TlsSettings {
             SignatureScheme::RsaPssRsaeSha512,
             SignatureScheme::RsaPkcs1Sha512,
         ],
+        delegated_credential_signature_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: Some(AlpsSettings {
             protocol: Box::from(&b"h2"[..]),
@@ -97,6 +98,7 @@ pub fn v152_macos_tls() -> TlsSettings {
             use_new_codepoint: true,
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
+        record_size_limit: None,
         requested_trust_anchor_ids: Some(
             V152_MACOS_TRUST_ANCHOR_IDS
                 .iter()
@@ -105,7 +107,7 @@ pub fn v152_macos_tls() -> TlsSettings {
         ),
         grease: true,
         grease_signature_algorithms: true,
-        permute_extensions: true,
+        extension_order: ClientHelloExtensionOrder::Permuted,
         ech_grease: true,
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,

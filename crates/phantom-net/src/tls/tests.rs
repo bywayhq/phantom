@@ -1,7 +1,7 @@
 use std::{io, net::SocketAddr};
 
-use phantom_profile::{TlsVersion, chromium::v152_macos_tls};
-use phantom_testkit::tls::{CaptureLimits, capture_client_hello};
+use phantom_profile::{TlsSettings, TlsVersion, chromium::v152_macos_tls};
+use phantom_testkit::tls::{CaptureLimits, ClientHelloCapture, capture_client_hello};
 use tokio::{net::TcpListener, task::JoinHandle, time::Instant};
 
 use super::{
@@ -13,6 +13,7 @@ use super::{
 };
 
 mod alps;
+mod capabilities;
 mod chrome;
 mod tracing;
 
@@ -42,6 +43,7 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
     settings.key_shares.clear();
+    settings.certificate_compression.clear();
     settings.ech_grease = false;
     settings.requested_trust_anchor_ids = None;
     let connector = TlsConnector::new(&settings)?;
@@ -67,6 +69,30 @@ fn unmapped_backend_setting_is_actionable() -> TestResult<()> {
     assert!(error.to_string().contains("future cipher"));
     assert!(error.to_string().contains("BoringSSL adapter"));
     Ok(())
+}
+
+async fn capture_client_hello_from(settings: &TlsSettings) -> TestResult<ClientHelloCapture> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let capture_task = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await?;
+        capture_client_hello(
+            &mut stream,
+            Instant::now() + TEST_TIMEOUT,
+            CaptureLimits::new(32 * 1024, 40 * 1024, 4),
+        )
+        .await
+        .map_err(io::Error::other)
+    });
+
+    let connector = TlsConnector::new(settings)?;
+    let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
+    let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect(TEST_SERVER_NAME, tcp));
+    if handshake.await?.is_ok() {
+        return Err("capture peer unexpectedly completed TLS".into());
+    }
+
+    Ok(tokio::time::timeout(TEST_TIMEOUT, capture_task).await???)
 }
 
 #[test]
