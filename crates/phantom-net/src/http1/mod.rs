@@ -10,24 +10,22 @@ use std::{error::Error as StdError, fmt};
 
 use bytes::Bytes;
 use http::{
-    HeaderMap, HeaderValue, Method, Request, Response, Version,
-    header::{CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
+    Response,
+    header::{CONTENT_LENGTH, TRANSFER_ENCODING},
 };
 use http_body_util::Empty;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
-use wreq_proto::{
-    conn::http1,
-    ext::{OnPreserveHeaderCallback, on_preserve_header},
-};
+use wreq_proto::conn::http1;
 
 use body::DriverTask;
+use request::PreparedGet;
+
+#[cfg(test)]
+use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http1Body;
-
-const MAX_REQUEST_HEADERS: usize = 100;
-const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
 /// Error returned by a one-shot HTTP/1.1 transaction.
 #[derive(Debug)]
@@ -168,7 +166,7 @@ where
         outcome = field::Empty,
         error_kind = field::Empty,
     );
-    let outcome = ResponseHeadOutcome::new(&span);
+    let outcome = OperationOutcome::new(&span);
     let prepared = {
         let _entered = span.enter();
         PreparedGet::new(target, headers)
@@ -179,24 +177,6 @@ where
     }
     let prepared = prepared?;
     send_prepared_get(stream, prepared).await
-}
-
-struct PreparedGet {
-    request: Request<Empty<Bytes>>,
-}
-
-impl PreparedGet {
-    fn new(target: OriginForm, headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
-        let headers = ValidatedHeaders::new(headers)?;
-        let mut request = Request::new(Empty::<Bytes>::new());
-        *request.method_mut() = Method::GET;
-        *request.uri_mut() = target.into_uri();
-        *request.version_mut() = Version::HTTP_11;
-
-        headers.populate(request.headers_mut());
-        on_preserve_header(&mut request, headers.order);
-        Ok(Self { request })
-    }
 }
 
 async fn send_prepared_get<T>(
@@ -213,7 +193,7 @@ where
         status = field::Empty,
         outcome = field::Empty,
     );
-    let outcome = ResponseHeadOutcome::new(&span);
+    let outcome = OperationOutcome::new(&span);
     let result = async {
         debug!("HTTP/1 transaction started");
         let (mut sender, connection) = http1::Builder::default()
@@ -223,7 +203,7 @@ where
 
         sender.ready().await?;
         let response = sender
-            .try_send_request(prepared.request)
+            .try_send_request(prepared.into_request())
             .await
             .map_err(|error| Http1Error::Protocol(error.into_error()))?;
         drop(sender);
@@ -254,12 +234,12 @@ where
     result
 }
 
-pub(super) struct ResponseHeadOutcome {
+struct OperationOutcome {
     span: Span,
     recorded: bool,
 }
 
-impl ResponseHeadOutcome {
+impl OperationOutcome {
     fn new(span: &Span) -> Self {
         Self {
             span: span.clone(),
@@ -267,7 +247,7 @@ impl ResponseHeadOutcome {
         }
     }
 
-    pub(super) fn finish(mut self, outcome: &'static str) {
+    fn finish(mut self, outcome: &'static str) {
         self.span.record("outcome", outcome);
         self.recorded = true;
     }
@@ -279,114 +259,10 @@ impl ResponseHeadOutcome {
     }
 }
 
-impl Drop for ResponseHeadOutcome {
+impl Drop for OperationOutcome {
     fn drop(&mut self) {
         if !self.recorded {
             self.span.record("outcome", "cancelled");
-        }
-    }
-}
-
-struct ValidatedHeaders {
-    semantic: Vec<(HeaderName, HeaderValue)>,
-    order: OrderedHeaders,
-}
-
-impl ValidatedHeaders {
-    fn new(headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
-        if headers.len() > MAX_REQUEST_HEADERS {
-            return Err(Http1Error::TooManyHeaders {
-                count: headers.len(),
-                maximum: MAX_REQUEST_HEADERS,
-            });
-        }
-
-        let mut total_bytes = 0usize;
-        let mut host_count = 0usize;
-        let mut semantic = Vec::with_capacity(headers.len());
-        let mut ordered = Vec::with_capacity(headers.len());
-
-        for (index, header) in headers.into_iter().enumerate() {
-            total_bytes = total_bytes
-                .checked_add(header.name().len())
-                .and_then(|size| size.checked_add(header.value().len()))
-                .ok_or(Http1Error::HeadersTooLarge {
-                    bytes: usize::MAX,
-                    maximum: MAX_REQUEST_HEADER_BYTES,
-                })?;
-            if total_bytes > MAX_REQUEST_HEADER_BYTES {
-                return Err(Http1Error::HeadersTooLarge {
-                    bytes: total_bytes,
-                    maximum: MAX_REQUEST_HEADER_BYTES,
-                });
-            }
-
-            let name = HeaderName::from_bytes(header.name().as_bytes())
-                .map_err(|_| Http1Error::InvalidHeaderName { index })?;
-            if !header
-                .name()
-                .as_bytes()
-                .eq_ignore_ascii_case(name.as_str().as_bytes())
-            {
-                return Err(Http1Error::InvalidHeaderName { index });
-            }
-            let value = HeaderValue::from_bytes(header.value()).map_err(|_| {
-                Http1Error::InvalidHeaderValue {
-                    index,
-                    name: header.name().into(),
-                }
-            })?;
-
-            if name == HOST {
-                host_count += 1;
-                if host_count > 1 {
-                    return Err(Http1Error::MultipleHost);
-                }
-            } else if name == CONTENT_LENGTH || name == TRANSFER_ENCODING {
-                return Err(Http1Error::RequestFramingHeader {
-                    name: header.name().into(),
-                });
-            }
-
-            ordered.push((header.name().as_bytes().into(), value.clone()));
-            semantic.push((name, value));
-        }
-
-        if host_count == 0 {
-            return Err(Http1Error::MissingHost);
-        }
-
-        Ok(Self {
-            semantic,
-            order: OrderedHeaders(ordered),
-        })
-    }
-
-    fn populate(&self, target: &mut HeaderMap) {
-        for (name, value) in &self.semantic {
-            target.append(name, value.clone());
-        }
-    }
-}
-
-// This Vec is the sole authority for wire order and spelling. `semantic` in
-// `ValidatedHeaders` must contain the same fields and values so wreq-proto sees
-// accurate HTTP semantics while this callback controls serialization. Request
-// bodies or middleware must add a regression proving that the two views remain
-// aligned before extending this seam.
-#[derive(Clone)]
-struct OrderedHeaders(Vec<(Box<[u8]>, HeaderValue)>);
-
-impl OnPreserveHeaderCallback for OrderedHeaders {
-    fn call(&self, _headers: &mut HeaderMap) {}
-
-    fn call_visit(
-        &self,
-        _headers: &mut HeaderMap,
-        destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue),
-    ) {
-        for (name, value) in &self.0 {
-            destination(name, value);
         }
     }
 }
@@ -395,6 +271,7 @@ impl OnPreserveHeaderCallback for OrderedHeaders {
 mod tests;
 
 mod body;
+mod request;
 mod tls;
 
 pub use tls::{Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};

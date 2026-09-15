@@ -115,9 +115,10 @@ pub fn v152_macos_tls() -> TlsSettings {
 
 /// Returns HTTP/2 settings observed from Chrome 152.0.7977.83 on macOS 15.5.
 ///
-/// The source is a retained supplemental Pingly observation, not a raw-frame
-/// packet-parity claim. The returned value is an ordinary owned
-/// [`Http2Settings`], so callers can customize it before constructing a
+/// The initial SETTINGS and connection window are checked against a retained
+/// raw startup-frame capture. Pseudo-header order and request priority come
+/// from a supplemental Pingly observation. The returned value is an ordinary
+/// owned [`Http2Settings`], so callers can customize it before constructing a
 /// transport.
 #[must_use]
 pub fn v152_macos_http2() -> Http2Settings {
