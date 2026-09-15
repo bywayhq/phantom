@@ -8,7 +8,8 @@ use phantom_testkit::tls::{
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::Instant};
 
-use super::{TEST_SERVER_NAME, TEST_TIMEOUT, TestResult, TlsConnector};
+use super::TlsConnector;
+use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestResult};
 
 const CHROME_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome/152.0.7977.83/",

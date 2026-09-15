@@ -7,13 +7,9 @@ use std::{
     },
 };
 
-use btls::{
-    pkey::PKey,
-    ssl::{AlpnError, Ssl, SslAcceptor, SslMethod, SslVersion, select_next_proto},
-    x509::X509,
-};
+use btls::ssl::{AlpnError, Ssl, SslVersion, select_next_proto};
 use phantom_profile::chromium::v152_macos_tls;
-use tokio::{net::TcpListener, task::JoinHandle};
+use tokio::task::JoinHandle;
 use tokio_btls::SslStream as BoringStream;
 use tracing::{
     Dispatch, Event, Metadata, Subscriber, dispatcher,
@@ -23,10 +19,13 @@ use tracing::{
     subscriber::Interest,
 };
 
-use super::{
-    H2_ALPN_WIRE, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, connect_local,
+use crate::tls::{
+    TlsConnector, TlsErrorKind, record_alps_negotiation,
+    test_support::{
+        H2_ALPN_WIRE, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, connect_local,
+        loopback_listener,
+    },
 };
-use crate::tls::{TlsConnector, TlsErrorKind, record_alps_negotiation};
 
 const H2: &[u8] = b"h2";
 
@@ -34,8 +33,7 @@ const H2: &[u8] = b"h2";
 async fn absent_alps_is_distinct_from_negotiated_empty_settings() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_alps_server(&identity, None).await?;
-    let connector =
-        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
+    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(H2));
@@ -111,7 +109,7 @@ async fn round_trip(
         .as_mut()
         .ok_or("Chrome profile omitted ALPS")?
         .settings = client_settings.into();
-    let connector = TlsConnector::new_with_roots(&settings, [identity.root_der.as_slice()])?;
+    let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(H2));
@@ -126,22 +124,15 @@ async fn start_alps_server(
     identity: &TestIdentity,
     application_settings: Option<&'static [u8]>,
 ) -> TestResult<(SocketAddr, JoinHandle<TestResult<Option<Vec<u8>>>>)> {
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
+    let mut acceptor = identity.acceptor_builder()?;
     acceptor.set_min_proto_version(Some(SslVersion::TLS1_3))?;
     acceptor.set_max_proto_version(Some(SslVersion::TLS1_3))?;
-    let leaf = X509::from_der(&identity.leaf_der)?;
-    let private_key = PKey::private_key_from_pkcs8(&identity.private_key_der)?;
-    acceptor.set_certificate(&leaf)?;
-    acceptor.set_private_key(&private_key)?;
-    acceptor.add_extra_chain_cert(X509::from_der(&identity.root_der)?)?;
-    acceptor.check_private_key()?;
     acceptor.set_alpn_select_callback(|_, offered| {
         select_next_proto(H2_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
     });
     let acceptor = acceptor.build();
 
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let address = listener.local_addr()?;
+    let (address, listener) = loopback_listener().await?;
     let task = tokio::spawn(async move {
         let (tcp, _) = listener.accept().await?;
         let mut ssl = Ssl::new(acceptor.context())?;

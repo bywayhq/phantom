@@ -2,30 +2,19 @@ use std::{
     error::Error,
     future::Future,
     io,
-    net::SocketAddr,
     pin::Pin,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
     task::{Context, Poll},
-    time::Duration,
 };
 
-use btls::{
-    pkey::PKey,
-    ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslMethod, select_next_proto},
-    x509::X509,
-};
 use http_body_util::BodyExt;
 use phantom_profile::{CipherSuite, NamedGroup, SignatureScheme, TlsSettings, TlsVersion};
-use rcgen::{
-    BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
-    KeyUsagePurpose,
-};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, duplex},
-    net::{TcpListener, TcpStream},
+    net::TcpStream,
     sync::oneshot,
     time::timeout,
 };
@@ -33,14 +22,11 @@ use tokio_btls::SslStream as BoringStream;
 
 use super::{Http1TlsConnector, Http1TlsError};
 use crate::http1::{OriginForm, RequestHeader};
+use crate::tls::test_support::{
+    TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, accept_tls,
+    loopback_listener,
+};
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
-
-type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
-
-const TEST_TIMEOUT: Duration = Duration::from_secs(5);
-const TEST_SERVER_NAME: &str = "server.phantom.test";
-const HTTP1_ALPN_WIRE: &[u8] = b"\x08http/1.1";
-const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 
 async fn bounded_tls_test<F>(future: F) -> TestResult<()>
 where
@@ -85,7 +71,7 @@ async fn streams_ordered_http1_over_trusted_tls() -> TestResult<()> {
     bounded_tls_test(async {
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
-        let acceptor = server_acceptor(&identity, ServerAlpn::Http1)?;
+        let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
         let (release_later, wait_for_release) = oneshot::channel();
         let server_task = tokio::spawn(async move {
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
@@ -154,7 +140,7 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
     bounded_tls_test(async {
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
-        let acceptor = server_acceptor(&identity, ServerAlpn::H2)?;
+        let acceptor = identity.acceptor(TestServerAlpn::H2)?;
         let server_task = tokio::spawn(async move {
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
             let mut plaintext = Vec::new();
@@ -198,7 +184,7 @@ async fn no_negotiated_alpn_proceeds_as_http1() -> TestResult<()> {
     bounded_tls_test(async {
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
-        let acceptor = server_acceptor(&identity, ServerAlpn::None)?;
+        let acceptor = identity.acceptor(TestServerAlpn::None)?;
         let server_task = tokio::spawn(async move {
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
@@ -309,88 +295,8 @@ fn tls_settings() -> TlsSettings {
 fn test_connector(identity: &TestIdentity) -> TestResult<Http1TlsConnector> {
     Ok(Http1TlsConnector::new_with_roots(
         &tls_settings(),
-        [identity.root_der.as_slice()],
+        [identity.root_der()],
     )?)
-}
-
-struct TestIdentity {
-    root_der: Vec<u8>,
-    leaf_der: Vec<u8>,
-    private_key_der: Vec<u8>,
-}
-
-impl TestIdentity {
-    fn generate() -> TestResult<Self> {
-        let mut root_params = CertificateParams::new(Vec::<String>::new())?;
-        root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-        root_params.key_usages = vec![
-            KeyUsagePurpose::DigitalSignature,
-            KeyUsagePurpose::KeyCertSign,
-            KeyUsagePurpose::CrlSign,
-        ];
-        let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
-
-        let mut leaf_params = CertificateParams::new(vec![TEST_SERVER_NAME.to_owned()])?;
-        leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-        leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
-        leaf_params.use_authority_key_identifier_extension = true;
-        let leaf_key = KeyPair::generate()?;
-        let leaf = leaf_params.signed_by(&leaf_key, &root)?;
-
-        Ok(Self {
-            root_der: root.der().to_vec(),
-            leaf_der: leaf.der().to_vec(),
-            private_key_der: leaf_key.serialize_der(),
-        })
-    }
-}
-
-#[derive(Clone, Copy)]
-enum ServerAlpn {
-    None,
-    Http1,
-    H2,
-}
-
-fn server_acceptor(identity: &TestIdentity, alpn: ServerAlpn) -> TestResult<SslAcceptor> {
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
-    let leaf = X509::from_der(&identity.leaf_der)?;
-    let root = X509::from_der(&identity.root_der)?;
-    let private_key = PKey::private_key_from_pkcs8(&identity.private_key_der)?;
-    acceptor.set_certificate(&leaf)?;
-    acceptor.set_private_key(&private_key)?;
-    acceptor.add_extra_chain_cert(root)?;
-    acceptor.check_private_key()?;
-    match alpn {
-        ServerAlpn::None => {}
-        ServerAlpn::Http1 => acceptor.set_alpn_select_callback(|_, offered| {
-            select_next_proto(HTTP1_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
-        }),
-        ServerAlpn::H2 => acceptor.set_alpn_select_callback(|_, offered| {
-            select_next_proto(H2_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
-        }),
-    }
-    Ok(acceptor.build())
-}
-
-async fn loopback_listener() -> TestResult<(SocketAddr, TcpListener)> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    Ok((listener.local_addr()?, listener))
-}
-
-async fn accept_tls(
-    listener: TcpListener,
-    acceptor: SslAcceptor,
-) -> TestResult<(BoringStream<TcpStream>, Option<String>)> {
-    let (tcp, _) = listener.accept().await?;
-    let ssl = Ssl::new(acceptor.context())?;
-    let mut stream = BoringStream::new(ssl, tcp)?;
-    Pin::new(&mut stream).accept().await?;
-    let sni = stream
-        .ssl()
-        .servername(NameType::HOST_NAME)
-        .map(str::to_owned);
-    Ok((stream, sni))
 }
 
 async fn read_head(stream: &mut BoringStream<TcpStream>) -> io::Result<Vec<u8>> {

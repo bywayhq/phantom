@@ -670,4 +670,7 @@ fn record_alps_negotiation(span: &Span, peer_application_settings: Option<&[u8]>
 }
 
 #[cfg(test)]
+pub(crate) mod test_support;
+
+#[cfg(test)]
 mod tests;

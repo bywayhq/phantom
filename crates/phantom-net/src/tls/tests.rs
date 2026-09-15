@@ -1,26 +1,16 @@
-use std::{error::Error, io, net::SocketAddr, pin::Pin, time::Duration};
+use std::{io, net::SocketAddr};
 
-use btls::{
-    pkey::PKey,
-    ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslMethod, select_next_proto},
-    x509::X509,
-};
 use phantom_profile::{TlsVersion, chromium::v152_macos_tls};
 use phantom_testkit::tls::{CaptureLimits, capture_client_hello};
-use rcgen::{
-    BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
-    KeyUsagePurpose,
-};
 use tokio::{net::TcpListener, task::JoinHandle, time::Instant};
-use tokio_btls::SslStream as BoringStream;
 
-use super::{TlsConnector, TlsErrorKind, encode_trust_anchor_ids, require_supported};
-
-const TEST_TIMEOUT: Duration = Duration::from_secs(5);
-const TEST_SERVER_NAME: &str = "server.phantom.test";
-const H2_ALPN_WIRE: &[u8] = b"\x02h2";
-
-type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+use super::{
+    TlsConnector, TlsErrorKind, encode_trust_anchor_ids, require_supported,
+    test_support::{
+        TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, accept_tls,
+        connect_local, loopback_listener,
+    },
+};
 
 mod alps;
 mod chrome;
@@ -96,8 +86,7 @@ fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
 async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector =
-        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
+    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(&b"h2"[..]));
@@ -111,8 +100,7 @@ async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
 async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, false).await?;
-    let connector =
-        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
+    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), None);
@@ -125,8 +113,7 @@ async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
 async fn wrong_hostname_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector =
-        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
+    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der()])?;
 
     let result = connect_local(&connector, address, "wrong.phantom.test").await?;
     assert_eq!(
@@ -156,79 +143,20 @@ async fn untrusted_root_fails() -> TestResult<()> {
     Ok(())
 }
 
-struct TestIdentity {
-    root_der: Vec<u8>,
-    leaf_der: Vec<u8>,
-    private_key_der: Vec<u8>,
-}
-
-impl TestIdentity {
-    fn generate() -> TestResult<Self> {
-        let mut root_params = CertificateParams::new(Vec::<String>::new())?;
-        root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-        root_params.key_usages = vec![
-            KeyUsagePurpose::DigitalSignature,
-            KeyUsagePurpose::KeyCertSign,
-            KeyUsagePurpose::CrlSign,
-        ];
-        let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
-
-        let mut leaf_params = CertificateParams::new(vec![TEST_SERVER_NAME.to_owned()])?;
-        leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-        leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
-        leaf_params.use_authority_key_identifier_extension = true;
-        let leaf_key = KeyPair::generate()?;
-        let leaf = leaf_params.signed_by(&leaf_key, &root)?;
-
-        Ok(Self {
-            root_der: root.der().to_vec(),
-            leaf_der: leaf.der().to_vec(),
-            private_key_der: leaf_key.serialize_der(),
-        })
-    }
-}
-
 async fn start_server(
     identity: &TestIdentity,
     select_h2: bool,
 ) -> TestResult<(SocketAddr, JoinHandle<TestResult<Option<String>>>)> {
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
-    let leaf = X509::from_der(&identity.leaf_der)?;
-    let root = X509::from_der(&identity.root_der)?;
-    let private_key = PKey::private_key_from_pkcs8(&identity.private_key_der)?;
-    acceptor.set_certificate(&leaf)?;
-    acceptor.set_private_key(&private_key)?;
-    acceptor.add_extra_chain_cert(root)?;
-    acceptor.check_private_key()?;
-    if select_h2 {
-        acceptor.set_alpn_select_callback(|_, offered| {
-            select_next_proto(H2_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
-        });
-    }
-    let acceptor = acceptor.build();
-
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let address = listener.local_addr()?;
+    let alpn = if select_h2 {
+        TestServerAlpn::H2
+    } else {
+        TestServerAlpn::None
+    };
+    let acceptor = identity.acceptor(alpn)?;
+    let (address, listener) = loopback_listener().await?;
     let task = tokio::spawn(async move {
-        let (tcp, _) = listener.accept().await?;
-        let ssl = Ssl::new(acceptor.context())?;
-        let mut stream = BoringStream::new(ssl, tcp)?;
-        Pin::new(&mut stream).accept().await?;
-        Ok(stream
-            .ssl()
-            .servername(NameType::HOST_NAME)
-            .map(str::to_owned))
+        let (_stream, sni) = accept_tls(listener, acceptor).await?;
+        Ok(sni)
     });
     Ok((address, task))
-}
-
-async fn connect_local(
-    connector: &TlsConnector,
-    address: SocketAddr,
-    server_name: &str,
-) -> TestResult<Result<super::TlsStream<tokio::net::TcpStream>, super::TlsError>> {
-    let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address))
-        .await
-        .map_err(Box::<dyn Error + Send + Sync>::from)??;
-    Ok(tokio::time::timeout(TEST_TIMEOUT, connector.connect(server_name, tcp)).await?)
 }
