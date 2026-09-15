@@ -1,9 +1,20 @@
-use std::{future::poll_fn, io::Cursor, ops::ControlFlow, time::Duration};
+use std::{
+    future::{poll_fn, Future},
+    io::Cursor,
+    ops::ControlFlow,
+    pin::Pin,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    task::{Context, Poll, Wake, Waker},
+    time::Duration,
+};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use http::{HeaderName, HeaderValue, Method, Request, Response, Version};
 use tokio::{
-    io::{duplex, AsyncReadExt},
+    io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf},
     time::timeout,
 };
 
@@ -225,6 +236,33 @@ async fn dropping_final_client_stream_flushes_reset_before_close() {
     .expect("reset-and-close handshake test timed out");
 }
 
+#[tokio::test]
+async fn pending_shutdown_is_not_self_woken_after_idle_close_transition() {
+    let shutdown_polls = Arc::new(AtomicUsize::new(0));
+    let (sender, mut connection) = super::handshake(PendingShutdownIo {
+        shutdown_polls: Arc::clone(&shutdown_polls),
+    })
+    .await
+    .expect("client handshake failed");
+    drop(sender);
+
+    let wake_count = Arc::new(AtomicUsize::new(0));
+    let waker = Waker::from(Arc::new(CountWake(Arc::clone(&wake_count))));
+    let mut context = Context::from_waker(&waker);
+
+    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
+    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+    assert_eq!(shutdown_polls.load(Ordering::SeqCst), 0);
+
+    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
+    assert_eq!(shutdown_polls.load(Ordering::SeqCst), 1);
+    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+
+    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
+    assert_eq!(shutdown_polls.load(Ordering::SeqCst), 2);
+    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+}
+
 fn request_with_headers() -> Request<()> {
     let mut request = Request::new(());
     *request.method_mut() = Method::GET;
@@ -283,4 +321,49 @@ fn decode_header_block(encoded: &[u8]) -> Vec<(HeaderName, HeaderValue)> {
         })
         .expect("encoded header block must decode");
     fields
+}
+
+struct PendingShutdownIo {
+    shutdown_polls: Arc<AtomicUsize>,
+}
+
+impl AsyncRead for PendingShutdownIo {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Poll::Pending
+    }
+}
+
+impl AsyncWrite for PendingShutdownIo {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Poll::Ready(Ok(buf.len()))
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        self.shutdown_polls.fetch_add(1, Ordering::SeqCst);
+        Poll::Pending
+    }
+}
+
+struct CountWake(Arc<AtomicUsize>);
+
+impl Wake for CountWake {
+    fn wake(self: Arc<Self>) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+    }
 }

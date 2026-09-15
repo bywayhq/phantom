@@ -1542,8 +1542,7 @@ where
         // the last stream can queue an implicit RST_STREAM at the same time as
         // it removes the final reference. Closing first would bypass the open
         // state's `poll_complete`, losing that queued frame.
-        if result.is_pending() && !self.inner.has_streams_or_other_references() {
-            self.inner.maybe_close_connection_if_no_streams();
+        if result.is_pending() && self.inner.maybe_close_connection_if_no_streams() {
             tracing::trace!("last stream closed, wake once more to shut down");
             cx.waker().wake_by_ref();
         }

@@ -244,26 +244,23 @@ where
         }
     }
 
-    /// Closes the connection by transitioning to a GOAWAY state
-    /// iff there are no streams or references
-    pub fn maybe_close_connection_if_no_streams(&mut self) {
-        // If we poll() and realize that there are no streams or references
-        // then we can close the connection by transitioning to GOAWAY
-        if !self.inner.streams.has_streams_or_other_references() {
+    /// Transitions an open connection to GOAWAY when no references remain.
+    ///
+    /// Returns whether this call initiated the transition.
+    pub fn maybe_close_connection_if_no_streams(&mut self) -> bool {
+        if matches!(self.inner.state, State::Open)
+            && !self.inner.streams.has_streams_or_other_references()
+        {
             self.inner.as_dyn().go_away_now(Reason::NO_ERROR);
+            true
+        } else {
+            false
         }
     }
 
     /// Checks if there are any streams
     pub fn has_streams(&self) -> bool {
         self.inner.streams.has_streams()
-    }
-
-    /// Checks if there are any streams or references left
-    pub fn has_streams_or_other_references(&self) -> bool {
-        // If we poll() and realize that there are no streams or references
-        // then we can close the connection by transitioning to GOAWAY
-        self.inner.streams.has_streams_or_other_references()
     }
 
     pub(crate) fn take_user_pings(&mut self) -> Option<UserPings> {
