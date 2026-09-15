@@ -89,7 +89,15 @@ impl Body for Http2Body {
         match incoming.poll_data(context) {
             Poll::Ready(Some(Ok(data))) => {
                 let _ = incoming.flow_control().release_capacity(data.len());
+                let end_stream = incoming.is_end_stream();
                 self.trace.add_bytes(data.len());
+                if end_stream {
+                    self.finished = true;
+                    self.incoming.take();
+                    self.reset.take();
+                    self.driver.shutdown();
+                    self.trace.finish("complete");
+                }
                 Poll::Ready(Some(Ok(Frame::data(data))))
             }
             Poll::Ready(Some(Err(error))) => {
@@ -190,11 +198,11 @@ impl BodyTrace {
     }
 }
 
-/// Owns the outer protocol driver and the last request sender.
+/// Owns the HTTP/2 connection driver and the last request sender.
 ///
-/// Dropping the sender asks the outer connection task to shut down. Its join
-/// handle is deliberately detached rather than aborted so the inner HTTP/2
-/// task can flush a reset produced by an incomplete response-body drop.
+/// Dropping the sender asks the connection task to shut down. Its join handle
+/// is deliberately detached rather than aborted so the task can flush a reset
+/// produced by an incomplete response-body drop.
 pub(super) struct DriverTask {
     sender: Option<client::SendRequest<Bytes>>,
     handle: Option<JoinHandle<Result<(), ::http2::Error>>>,

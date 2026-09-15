@@ -373,6 +373,44 @@ async fn streams_data_then_trailers_without_buffering_later_data() -> TestResult
 }
 
 #[tokio::test]
+async fn terminal_data_completes_without_an_extra_body_poll() -> TestResult<()> {
+    bounded_peer_test(async {
+        let subscriber = OutcomeSubscriber::default();
+        let (client, server) = duplex(64 * 1024);
+        let server_task = tokio::spawn(terminal_data_server(server));
+
+        async {
+            let response = send_get(
+                client,
+                &v152_macos_http2(),
+                "example.test",
+                target()?,
+                vec![],
+            )
+            .await?;
+            let mut body = response.into_body();
+            let frame = body
+                .frame()
+                .await
+                .ok_or("response ended before terminal DATA")??;
+            assert_eq!(frame.into_data().map_err(|_| "expected DATA")?, "terminal");
+            drop(body);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .with_subscriber(subscriber.clone())
+        .await?;
+
+        assert!(!server_task.await??, "terminal DATA was followed by CANCEL");
+        assert_eq!(
+            subscriber.response_body_events(),
+            [(8, "complete".to_owned())]
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn incomplete_body_drop_flushes_reset_and_driver_closes() -> TestResult<()> {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
@@ -499,6 +537,35 @@ async fn reset_observing_server(stream: DuplexStream) -> TestResult<(::http2::Re
     drop(send);
     poll_fn(|context| connection.poll_closed(context)).await?;
     Ok((reason, true))
+}
+
+async fn terminal_data_server(stream: DuplexStream) -> TestResult<bool> {
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let (request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("connection closed before request")??;
+    let response = Response::builder().status(200).body(())?;
+    let mut send = respond.send_response(response, false)?;
+    send.send_data(Bytes::from_static(b"terminal"), true)?;
+    drop(request);
+    drop(respond);
+
+    let reset = tokio::select! {
+        biased;
+        result = poll_fn(|context| send.poll_reset(context)) => {
+            result?;
+            true
+        }
+        incoming = connection.accept() => {
+            if incoming.is_some() {
+                return Err("one-shot client sent an unexpected second request".into());
+            }
+            false
+        }
+    };
+    drop(send);
+    Ok(reset)
 }
 
 async fn next_nonempty_data(body: &mut super::Http2Body) -> TestResult<Bytes> {
