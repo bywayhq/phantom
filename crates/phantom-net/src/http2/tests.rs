@@ -1,8 +1,11 @@
 use std::{error::Error, future::Future, time::Duration};
 
+use bytes::Bytes;
+use http_body_util::BodyExt;
 use tokio::time::timeout;
 
 use super::{OriginForm, RequestHeader};
+use crate::http2::Http2Body;
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -32,5 +35,20 @@ fn headers() -> Vec<RequestHeader> {
     ]
 }
 
-mod body_lifecycle;
+async fn next_nonempty_data(body: &mut Http2Body) -> TestResult<Bytes> {
+    loop {
+        let frame = body
+            .frame()
+            .await
+            .ok_or("response ended before non-empty DATA")??;
+        if let Ok(data) = frame.into_data() {
+            if !data.is_empty() {
+                return Ok(data);
+            }
+        }
+    }
+}
+
+mod driver_lifecycle;
 mod request_wire;
+mod response_body;
