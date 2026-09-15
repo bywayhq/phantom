@@ -18,11 +18,13 @@ TLS / HTTP / QUIC transport
 
 `phantom-profile` owns browser-neutral profile identity and metadata. It must not depend on sockets, an async runtime, or a particular TLS implementation.
 
+`phantom-net` owns concrete protocol transports. Browser-neutral settings enter at its boundary; BoringSSL and protocol-engine types remain private.
+
 `phantom-testkit` owns deterministic, bounded wire observations used by tests. Runtime crates must never depend on it.
 
 ## Planned seams
 
-The networking crate will consume validated protocol configuration. It must not branch on browser family. Backend-specific types stay private.
+The networking crate consumes validated protocol configuration. It does not branch on browser family. Backend-specific types stay private.
 
 We will add a backend trait only when a second real backend requires interchangeability. Until then, connection construction remains a concrete internal boundary.
 

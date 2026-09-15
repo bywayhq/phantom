@@ -2,7 +2,10 @@
 
 Phantom is an experimental Rust HTTP client focused on observable browser-compatible wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 
-The project is at the foundation stage. It does not yet make compatibility or impersonation claims.
+The first complete TLS and streaming HTTP/1.1 transport slice is implemented.
+Its Chrome 152 macOS TLS recipe is checked against a retained local
+ClientHello; HTTP/2, HTTP/3, WebSocket, SSE, Firefox, and Safari remain planned.
+The project does not yet make broad compatibility or impersonation claims.
 
 ## Principles
 
@@ -15,10 +18,12 @@ The project is at the foundation stage. It does not yet make compatibility or im
 ## Current workspace
 
 - `phantom`: the future public client facade
-- `phantom-profile`: browser-neutral profile identity and metadata
-- `phantom-testkit`: bounded, exact TLS ClientHello capture for deterministic tests
-
-The production networking crate will be added with its first working transport rather than as an empty placeholder.
+- `phantom-profile`: browser-neutral profile identity, typed TLS settings, and
+  the evidence-backed Chrome 152 macOS TLS recipe
+- `phantom-net`: concrete protocol transports; currently streaming HTTP/1.1
+  over a private BoringSSL TLS adapter
+- `phantom-testkit`: bounded TLS ClientHello capture and strict semantic
+  decoding for deterministic differentials
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md), and [validation model](docs/validation.md).
 
@@ -26,12 +31,8 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md), and [v
 
 ```sh
 cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-targets
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-targets --all-features --locked
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
+cargo +1.85.0 check --workspace --all-targets --locked
 ```
-
-## License
-
-No license has been selected yet. Until one is added, all rights are reserved.
-External contributions are not currently accepted.

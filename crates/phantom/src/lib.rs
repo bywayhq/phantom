@@ -8,6 +8,5 @@
 pub mod profile {
     pub use phantom_profile::{
         BrowserFamily, EmptyBrowserVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
-        VerificationLevel,
     };
 }

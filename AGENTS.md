@@ -23,6 +23,14 @@ The integration owner retains shared manifests and central public API files unle
 - Runtime library code must not panic for recoverable input or network failures.
 - Unsafe code is forbidden unless a future FFI crate explicitly documents and audits it.
 
+## Module organization
+
+- Name modules after protocol or domain concepts. Do not create catch-all `common`, `helpers`, or `utils` modules.
+- Keep private helpers beside the type or operation that owns them. Extract a module when it gains a distinct responsibility, not merely to shorten a file.
+- Keep the public module tree shallow. Backend-specific types and translation code remain private to their backend module.
+- Move substantial tests into a sibling `tests.rs` or `tests/` module once they obscure the implementation. Test names describe observable behavior.
+- Before extending a large module, decide whether the new behavior belongs to an existing responsibility or deserves a clearly named sibling module. Avoid both monolithic files and one-function files.
+
 ## Local checks
 
 Run these before handing work back to the integration owner:

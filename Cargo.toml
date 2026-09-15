@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/phantom",
+    "crates/phantom-net",
     "crates/phantom-profile",
     "crates/phantom-testkit",
 ]
@@ -10,6 +11,10 @@ resolver = "3"
 edition = "2024"
 rust-version = "1.85"
 version = "0.1.0"
+
+[workspace.dependencies]
+btls = { git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37", default-features = false }
+tokio-btls = { git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37", default-features = false }
 
 [workspace.lints.rust]
 missing_docs = "warn"
@@ -21,3 +26,6 @@ expect_used = "warn"
 todo = "deny"
 unimplemented = "deny"
 unwrap_used = "warn"
+
+[profile.bench]
+debug = 1
