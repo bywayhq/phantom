@@ -6,7 +6,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
     time::Duration,
 };
 
@@ -21,7 +21,7 @@ use tokio::{
     sync::{Notify, oneshot},
     time::timeout,
 };
-use tracing::instrument::WithSubscriber;
+use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
 use super::{TestResult, bounded_peer_test, headers, target};
 use crate::http2::{Http2Body, body::DRIVER_SHUTDOWN_GRACE, send_get};
@@ -200,6 +200,55 @@ async fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
         .map_err(
             |_| "cross-thread driver outcome was not recorded on its originating subscriber",
         )?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn cross_thread_body_poll_uses_originating_dispatcher() -> TestResult<()> {
+    bounded_peer_test(async {
+        let origin = OutcomeSubscriber::default();
+        let other = OutcomeSubscriber::default();
+        let (client, server) = duplex(64 * 1024);
+        let server_task = tokio::spawn(reset_observing_server(server));
+        let body = async {
+            let response = send_get(
+                client,
+                &v152_macos_http2(),
+                "example.test",
+                target()?,
+                vec![],
+            )
+            .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(response.into_body())
+        }
+        .with_subscriber(origin.clone())
+        .await?;
+
+        let origin_before = origin.response_body_polls_on_origin_dispatch();
+        let other_before = other.response_body_polls_on_origin_dispatch();
+        let thread_subscriber = other.clone();
+        std::thread::spawn(move || {
+            let dispatch = Dispatch::new(thread_subscriber);
+            dispatcher::with_default(&dispatch, || {
+                let mut body = Box::pin(body);
+                let mut context = Context::from_waker(Waker::noop());
+                let _ = body.as_mut().poll_frame(&mut context);
+            });
+        })
+        .join()
+        .map_err(|_| "cross-thread HTTP/2 body poll panicked")?;
+
+        assert_eq!(
+            origin.response_body_polls_on_origin_dispatch(),
+            origin_before + 1,
+            "body poll did not restore its origin tracing dispatcher"
+        );
+        assert_eq!(other.response_body_polls_on_origin_dispatch(), other_before);
+        let (reason, connection_closed) = server_task.await??;
+        assert_eq!(reason, ::http2::Reason::CANCEL);
+        assert!(connection_closed);
         Ok(())
     })
     .await

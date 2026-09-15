@@ -16,7 +16,10 @@ use tokio::{
     task::JoinHandle,
     time::timeout,
 };
-use tracing::{Instrument, Span, debug, debug_span, field, warn};
+use tracing::{
+    Dispatch, Instrument, Span, debug, debug_span, dispatcher, field, instrument::WithSubscriber,
+    warn,
+};
 
 use super::Http2Error;
 
@@ -59,31 +62,11 @@ impl Http2Body {
             trace,
         }
     }
-}
 
-impl fmt::Debug for Http2Body {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("Http2Body")
-            .field("finished", &self.finished)
-            .field("received_bytes", &self.trace.received_bytes)
-            .finish_non_exhaustive()
-    }
-}
-
-impl Body for Http2Body {
-    type Data = Bytes;
-    type Error = Http2Error;
-
-    fn poll_frame(
+    fn poll_frame_inner(
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
-    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-        // The body may be polled on a different thread from the request. The
-        // retained span preserves both its original parent and dispatcher.
-        let span = self.trace.span.clone();
-        let _entered = span.enter();
-
+    ) -> Poll<Option<Result<Frame<Bytes>, Http2Error>>> {
         if self.finished {
             return Poll::Ready(None);
         }
@@ -148,6 +131,33 @@ impl Body for Http2Body {
             Poll::Pending => Poll::Pending,
         }
     }
+}
+
+impl fmt::Debug for Http2Body {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Http2Body")
+            .field("finished", &self.finished)
+            .field("received_bytes", &self.trace.received_bytes)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Body for Http2Body {
+    type Data = Bytes;
+    type Error = Http2Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        let span = self.trace.span.clone();
+        let dispatch = self.trace.dispatch.clone();
+        dispatcher::with_default(&dispatch, || {
+            let _entered = span.enter();
+            self.as_mut().poll_frame_inner(context)
+        })
+    }
 
     fn is_end_stream(&self) -> bool {
         self.finished
@@ -175,6 +185,7 @@ impl Drop for Http2Body {
 }
 
 struct BodyTrace {
+    dispatch: Dispatch,
     span: Span,
     received_bytes: u64,
     finished: bool,
@@ -183,6 +194,7 @@ struct BodyTrace {
 impl BodyTrace {
     fn new() -> Self {
         Self {
+            dispatch: dispatcher::get_default(Clone::clone),
             span: debug_span!("http2.response_body"),
             received_bytes: 0,
             finished: false,
@@ -229,10 +241,16 @@ impl DriverTask {
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let runtime = Handle::current();
+        let dispatch = dispatcher::get_default(Clone::clone);
         let span = debug_span!("http2.connection_driver", outcome = field::Empty);
+        let handle = runtime.spawn(
+            connection
+                .instrument(span.clone())
+                .with_subscriber(dispatch),
+        );
         Self {
             sender: Some(sender),
-            handle: Some(runtime.spawn(connection.instrument(span.clone()))),
+            handle: Some(handle),
             runtime,
             span,
         }
