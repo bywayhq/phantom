@@ -78,6 +78,31 @@ async fn content_length_ends_without_socket_eof() -> TestResult {
 }
 
 #[tokio::test]
+async fn content_length_does_not_expose_surplus_bytes() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            server
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhellosurplus")
+                .await?;
+            let mut byte = [0_u8; 1];
+            server.read(&mut byte).await
+        });
+
+        let body = send_get(client, target()?, vec![host()])
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+        assert_eq!(body.to_bytes(), "hello");
+        assert_eq!(server_task.await??, 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn decodes_chunked_data_and_trailers() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);

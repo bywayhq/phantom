@@ -99,6 +99,32 @@ async fn rejects_ambiguous_response_framing() -> TestResult {
 }
 
 #[tokio::test]
+async fn accepts_interim_response_across_one_byte_reads() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            server
+                .write_all(
+                    b"HTTP/1.1 100 Continue\r\nX-Interim: ignored\r\n\r\n\
+                      HTTP/1.1 200 OK\r\nX-Final: kept\r\nContent-Length: 5\r\n\r\nhello",
+                )
+                .await
+        });
+
+        let response =
+            send_get(OneByteReadStream { inner: client }, target()?, vec![host()]).await?;
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.headers().get("x-final"), Some(&"kept".parse()?));
+        assert!(response.headers().get("x-interim").is_none());
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "hello");
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
@@ -212,6 +238,57 @@ async fn canceling_request_closes_stream() -> TestResult {
 struct WriteCountingStream {
     inner: DuplexStream,
     writes: Arc<AtomicUsize>,
+}
+
+struct OneByteReadStream {
+    inner: DuplexStream,
+}
+
+impl AsyncRead for OneByteReadStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        if buffer.remaining() == 0 {
+            return Poll::Ready(Ok(()));
+        }
+
+        let mut byte = [0_u8; 1];
+        let mut limited = ReadBuf::new(&mut byte);
+        match Pin::new(&mut self.inner).poll_read(context, &mut limited) {
+            Poll::Ready(Ok(())) => {
+                buffer.put_slice(limited.filled());
+                Poll::Ready(Ok(()))
+            }
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl AsyncWrite for OneByteReadStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut self.inner).poll_write(context, buffer)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.inner).poll_flush(context)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.inner).poll_shutdown(context)
+    }
 }
 
 impl AsyncRead for WriteCountingStream {

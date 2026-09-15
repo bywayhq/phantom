@@ -9,7 +9,7 @@ use phantom_testkit::http2::{
     CLIENT_CONNECTION_PREFACE, CaptureCompletion, CaptureLimits, capture_client_frames,
 };
 use tokio::{
-    io::{AsyncReadExt, DuplexStream, duplex},
+    io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     time::Instant,
 };
 use tracing::instrument::WithSubscriber;
@@ -61,6 +61,108 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult<()>
         assert_eq!(
             subscriber.outcomes_for("http2.response_head"),
             ["protocol_error"]
+        );
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn peer_reset_preserves_stream_error_classification() -> TestResult<()> {
+    bounded_peer_test(async {
+        let (client, server) = duplex(64 * 1024);
+        let server_task = tokio::spawn(async move {
+            let mut connection = ::http2::server::handshake(server).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before request")??;
+            respond.send_reset(::http2::Reason::REFUSED_STREAM);
+            drop(request);
+            drop(respond);
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let result = send_get(
+            client,
+            &v152_macos_http2(),
+            "example.test",
+            target()?,
+            Vec::new(),
+        )
+        .await;
+        let error = match result {
+            Ok(_) => return Err("peer RST_STREAM was accepted as a response".into()),
+            Err(error) => error,
+        };
+        let Http2Error::Protocol(protocol) = error else {
+            return Err("peer RST_STREAM used a non-protocol error variant".into());
+        };
+        assert_eq!(protocol.kind(), Http2ProtocolErrorKind::StreamReset);
+        assert_eq!(
+            protocol.reason_code(),
+            Some(u32::from(::http2::Reason::REFUSED_STREAM))
+        );
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn peer_goaway_preserves_connection_error_classification() -> TestResult<()> {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(64 * 1024);
+        let server_task = tokio::spawn(async move {
+            let mut preface = [0_u8; CLIENT_CONNECTION_PREFACE.len()];
+            server.read_exact(&mut preface).await?;
+            if &preface != CLIENT_CONNECTION_PREFACE {
+                return Err("client sent an invalid connection preface".into());
+            }
+            server.write_all(&[0, 0, 0, 4, 0, 0, 0, 0, 0]).await?;
+            loop {
+                let frame = read_raw_frame(&mut server).await?;
+                if frame.frame_type == 1 && frame.stream_id == 1 {
+                    break;
+                }
+            }
+            server
+                .write_all(&[
+                    0, 0, 8, 7, 0, 0, 0, 0, 0, // GOAWAY frame header
+                    0, 0, 0, 0, // last processed stream ID
+                    0, 0, 0, 11, // ENHANCE_YOUR_CALM
+                ])
+                .await?;
+            let mut remaining = Vec::new();
+            server.read_to_end(&mut remaining).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let result = send_get(
+            client,
+            &v152_macos_http2(),
+            "example.test",
+            target()?,
+            Vec::new(),
+        )
+        .await;
+        let error = match result {
+            Ok(_) => return Err("peer GOAWAY was accepted as a response".into()),
+            Err(error) => error,
+        };
+        let Http2Error::Protocol(protocol) = error else {
+            return Err("peer GOAWAY used a non-protocol error variant".into());
+        };
+        assert_eq!(
+            protocol.kind(),
+            Http2ProtocolErrorKind::ConnectionError,
+            "{protocol:?}"
+        );
+        assert_eq!(
+            protocol.reason_code(),
+            Some(u32::from(::http2::Reason::ENHANCE_YOUR_CALM))
         );
         server_task.await??;
         Ok(())
