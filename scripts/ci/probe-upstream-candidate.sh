@@ -9,6 +9,7 @@ dependency=${1:-}
 candidate=${2:-}
 checksum=${3:-}
 probe_staging=
+run_workspace_gates=true
 
 die() {
   echo "probe-upstream-candidate: $*" >&2
@@ -248,10 +249,55 @@ case "$dependency" in
     cargo test --manifest-path vendor/http2/Cargo.toml --all-features --lib \
       -- --skip hpack::test::fixture
     ;;
+  h3)
+    [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid h3 revision '$candidate'"
+    [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid h3 archive checksum"
+    [[ -f vendor/h3/PHANTOM.md \
+      && -f vendor/h3/patches/ordered-settings.patch ]] \
+      || die "vendored h3 provenance and canonical patch are required"
+
+    probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-h3-candidate.XXXXXX")
+    archive="$probe_staging/h3-$candidate.tar.gz"
+    fetch "https://codeload.github.com/hyperium/h3/tar.gz/$candidate" > "$archive"
+    actual=$(sha256 "$archive")
+    [[ "$actual" == "$checksum" ]] \
+      || die "h3 $candidate checksum mismatch: expected $checksum, found $actual"
+    tar -xzf "$archive" -C "$probe_staging"
+    candidate_dir="$probe_staging/h3-$candidate"
+    [[ -f "$candidate_dir/h3/Cargo.toml" \
+      && -f "$candidate_dir/h3-quinn/Cargo.toml" ]] \
+      || die "h3 candidate archive has an unexpected layout"
+
+    patch_file="$repo_root/vendor/h3/patches/ordered-settings.patch"
+    if ! git -C "$candidate_dir" apply --check "$patch_file"; then
+      die "ordered SETTINGS patch does not apply to h3 candidate $candidate"
+    fi
+    git -C "$candidate_dir" apply "$patch_file"
+
+    cp vendor/h3/PHANTOM.md "$candidate_dir/PHANTOM.md"
+    mkdir -p "$candidate_dir/patches"
+    cp "$patch_file" "$candidate_dir/patches/ordered-settings.patch"
+    mv vendor/h3 "$probe_staging/h3.previous"
+    mv "$candidate_dir" vendor/h3
+
+    cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
+    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
+      client::builder::tests
+    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
+      proto::frame::tests
+    cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn \
+      --all-features
+
+    # The fork is staged groundwork and is deliberately not selected by the
+    # root workspace until the dynamic-QPACK integration guard is resolved.
+    run_workspace_gates=false
+    ;;
   *)
-    die "usage: $0 {wreq-proto|btls|http2} CANDIDATE [CHECKSUM]"
+    die "usage: $0 {wreq-proto|btls|http2|h3} CANDIDATE [CHECKSUM]"
     ;;
 esac
 
-cargo tree -i "$dependency" --locked
-workspace_gates
+if [[ "$run_workspace_gates" == true ]]; then
+  cargo tree -i "$dependency" --locked
+  workspace_gates
+fi

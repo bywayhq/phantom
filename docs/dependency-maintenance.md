@@ -24,12 +24,14 @@ running its focused tests, then running the workspace gates. The reviewed pin
 changes only after that evidence is available. Automated dependency updates may
 open review work; they do not silently rewrite a wire profile or vendor tree.
 
-The current `btls`, `http2`, and dormant `h3` copies follow this contract. The
-H3 SETTINGS copy records an exact hyperium revision and archive checksum, one
-default-preserving patch, encoder regressions, and an upstream-drift probe. It
-is not selected by the root workspace until its documented QPACK integration
-guard is satisfied. Quinn remains stock unless a retained packet differential
-proves that its provider and socket seams cannot express a required behavior.
+The current `btls`, `http2`, and H3 copies follow this contract. The H3 source
+is staged groundwork: its disposable probe checksum-binds an exact Hyperium
+revision, reapplies the ordered-SETTINGS patch, and runs only the focused H3
+and `h3-quinn` gates. It deliberately does not select the fork in the root
+workspace. `vendor/h3/PHANTOM.md` blocks runtime selection until the dynamic
+QPACK and WebTransport enforcement gaps recorded there are resolved. Quinn
+remains stock unless a retained packet differential proves that its provider
+and socket seams cannot express a required behavior.
 
 ## Cross-platform gate
 

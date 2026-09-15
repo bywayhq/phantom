@@ -15,6 +15,16 @@ fetch() {
     --user-agent "phantom-upstream-freshness/1" "$1"
 }
 
+sha256_stream() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print $1}'
+  else
+    die "neither shasum nor sha256sum is available"
+  fi
+}
+
 package_version() {
   awk '
     /^\[package\]$/ { package = 1; next }
@@ -117,6 +127,22 @@ fi
 http2_current=$(package_version vendor/http2/Cargo.toml)
 [[ -n "$http2_current" ]] || die "could not derive the vendored http2 version"
 
+[[ -f vendor/h3/PHANTOM.md ]] \
+  || die "vendored h3 is missing PHANTOM.md provenance"
+h3_revisions=$(sed -nE \
+  's/.*[Uu]pstream (revision|commit):? `?([0-9a-f]{40})`?.*/\2/p' \
+  vendor/h3/PHANTOM.md | sort -u)
+[[ $(printf '%s\n' "$h3_revisions" | sed '/^$/d' | wc -l | tr -d ' ') == 1 ]] \
+  || die "vendored h3 PHANTOM.md must name one exact upstream revision"
+h3_current=$h3_revisions
+[[ "$h3_current" =~ ^[0-9a-f]{40}$ ]] \
+  || die "vendored h3 revision is not an exact 40-hex commit"
+h3_source_checksums=$(sed -nE 's/.*`([0-9a-f]{64})`.*/\1/p' \
+  vendor/h3/PHANTOM.md | sort -u)
+[[ $(printf '%s\n' "$h3_source_checksums" | sed '/^$/d' | wc -l | tr -d ' ') == 1 ]] \
+  || die "vendored h3 PHANTOM.md must name one source archive checksum"
+h3_source_checksum=$h3_source_checksums
+
 if [[ -d vendor/btls ]]; then
   [[ -f vendor/btls/PHANTOM.md ]] \
     || die "vendored btls is missing PHANTOM.md provenance"
@@ -167,6 +193,14 @@ btls_latest=$(git ls-remote https://github.com/0x676e67/btls.git HEAD \
   | awk '$2 == "HEAD" { print $1 }')
 [[ "$btls_latest" =~ ^[0-9a-f]{40}$ ]] || die "could not resolve the btls HEAD"
 
+h3_latest=$(git ls-remote https://github.com/hyperium/h3.git HEAD \
+  | awk '$2 == "HEAD" { print $1 }')
+[[ "$h3_latest" =~ ^[0-9a-f]{40}$ ]] || die "could not resolve the h3 HEAD"
+h3_archive_url="https://codeload.github.com/hyperium/h3/tar.gz/$h3_latest"
+h3_checksum=$(fetch "$h3_archive_url" | sha256_stream)
+[[ "$h3_checksum" =~ ^[0-9a-f]{64}$ ]] \
+  || die "could not checksum the h3 candidate archive"
+
 chrome_record=$(fetch \
   https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json)
 chrome_latest=$(jq -r .channels.Stable.version <<<"$chrome_record")
@@ -215,13 +249,15 @@ else
 fi
 [[ "$http2_current" == "$http2_latest" ]] && http2_drift=false || http2_drift=true
 [[ "$btls_current" == "$btls_latest" ]] && btls_drift=false || btls_drift=true
+[[ "$h3_current" == "$h3_latest" ]] && h3_drift=false || h3_drift=true
 if [[ "$chrome_recipe_version" == "$chrome_latest" ]]; then
   chrome_drift=false
 else
   chrome_drift=true
 fi
 if [[ "$wreq_drift" == true || "$http2_drift" == true \
-  || "$btls_drift" == true || "$chrome_drift" == true ]]; then
+  || "$btls_drift" == true || "$h3_drift" == true \
+  || "$chrome_drift" == true ]]; then
   any_drift=true
 else
   any_drift=false
@@ -248,6 +284,12 @@ jq -n \
   --arg btls_probe_note "$btls_probe_note" \
   --argjson btls_probe_supported "$btls_probe_supported" \
   --argjson btls_drift "$btls_drift" \
+  --arg h3_current "$h3_current" \
+  --arg h3_source_checksum "$h3_source_checksum" \
+  --arg h3_latest "$h3_latest" \
+  --arg h3_checksum "$h3_checksum" \
+  --arg h3_archive_url "$h3_archive_url" \
+  --argjson h3_drift "$h3_drift" \
   --arg chrome_latest "$chrome_latest" \
   --arg chrome_revision "$chrome_revision" \
   --argjson chrome_drift "$chrome_drift" \
@@ -284,6 +326,18 @@ jq -n \
         candidate_probe_note: $btls_probe_note,
         drift: $btls_drift,
         source: "https://github.com/0x676e67/btls"
+      },
+      h3: {
+        current: $h3_current,
+        current_source_archive_checksum: $h3_source_checksum,
+        upstream_head: $h3_latest,
+        candidate_archive_checksum: $h3_checksum,
+        candidate_archive: $h3_archive_url,
+        provenance: "vendored",
+        candidate_probe_supported: true,
+        candidate_probe_note: "enabled from an exact revision using the canonical ordered SETTINGS patch",
+        drift: $h3_drift,
+        source: "https://github.com/hyperium/h3"
       }
     },
     browser_fixtures: {
@@ -313,6 +367,7 @@ change a dependency or browser fingerprint.
 | wreq-proto | \`$wreq_display\` | $wreq_upstream_display | $wreq_drift |
 | vendored http2 | \`$http2_current\` | \`$http2_latest\` (MSRV \`${http2_rust_version:-unspecified}\`) | $http2_drift |
 | btls ($btls_provenance) | \`$btls_current\` | \`$btls_latest\` | $btls_drift |
+| vendored h3 | \`$h3_current\` | \`$h3_latest\` | $h3_drift |
 | Chrome $chrome_platform | recipe + exact TLS/H2 fixtures \`$chrome_recipe_version\` | stable \`$chrome_latest\` (revision \`$chrome_revision\`) | $chrome_drift |
 
 Registry checksums and exact fixture paths are in \`report.json\`.
@@ -320,6 +375,8 @@ Browser drift requires a reviewed browser capture and packet differential; this
 workflow never rewrites profiles or fixtures.
 
 btls candidate probe: $btls_probe_note.
+H3 candidate archives are checksum-bound in the report before the disposable
+probe reapplies the canonical patch.
 EOF
 
 write_output wreq_latest "$wreq_latest"
@@ -331,6 +388,9 @@ write_output http2_drift "$http2_drift"
 write_output btls_latest "$btls_latest"
 write_output btls_drift "$btls_drift"
 write_output btls_probe_supported "$btls_probe_supported"
+write_output h3_latest "$h3_latest"
+write_output h3_checksum "$h3_checksum"
+write_output h3_drift "$h3_drift"
 write_output chrome_drift "$chrome_drift"
 write_output any_drift "$any_drift"
 

@@ -310,7 +310,22 @@ EOF
 cat > "$mock_bin/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-command cat "$MOCK_HTTP2_ARCHIVE"
+url=
+for argument in "$@"; do
+  url=$argument
+done
+case "$url" in
+  https://codeload.github.com/hyperium/h3/tar.gz/*)
+    command cat "${MOCK_H3_ARCHIVE:?}"
+    ;;
+  https://static.crates.io/crates/http2/*)
+    command cat "${MOCK_HTTP2_ARCHIVE:?}"
+    ;;
+  *)
+    echo "unexpected mocked curl URL: $url" >&2
+    exit 1
+    ;;
+esac
 EOF
 chmod +x "$mock_bin/cargo" "$mock_bin/rustup"
 chmod +x "$mock_bin/curl"
@@ -494,3 +509,142 @@ grep -F -q 'checksum mismatch' "$test_root/http2-failure.stderr"
     scripts/ci/probe-upstream-candidate.sh http2 0.5.20 "$http2_checksum"
 )
 [[ -z $(find "$http2_tmp" -mindepth 1 -print -quit) ]]
+
+h3_revision=$(sed -nE \
+  's/.*[Uu]pstream (revision|commit):? `?([0-9a-f]{40})`?.*/\2/p' \
+  vendor/h3/PHANTOM.md)
+[[ "$h3_revision" =~ ^[0-9a-f]{40}$ ]]
+h3_source_root="$test_root/h3-source"
+mkdir -p "$h3_source_root"
+cp -R vendor/h3 "$h3_source_root/h3-$h3_revision"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/ordered-settings.patch"
+rm -rf "$h3_source_root/h3-$h3_revision/patches"
+rm "$h3_source_root/h3-$h3_revision/PHANTOM.md"
+h3_archive="$test_root/h3-$h3_revision.tar.gz"
+tar -czf "$h3_archive" -C "$h3_source_root" "h3-$h3_revision"
+h3_checksum=$(shasum -a 256 "$h3_archive" | awk '{print $1}')
+
+h3_drift_root="$test_root/h3-drift-source"
+mkdir -p "$h3_drift_root"
+cp -R "$h3_source_root/h3-$h3_revision" \
+  "$h3_drift_root/h3-$h3_revision"
+sed -i.bak \
+  's/#\[derive(Debug, PartialEq)\]/#[derive(Debug, PartialEq, Eq)]/g' \
+  "$h3_drift_root/h3-$h3_revision/h3/src/proto/frame.rs"
+rm "$h3_drift_root/h3-$h3_revision/h3/src/proto/frame.rs.bak"
+h3_drift_archive="$test_root/h3-drift-$h3_revision.tar.gz"
+tar -czf "$h3_drift_archive" -C "$h3_drift_root" "h3-$h3_revision"
+h3_drift_checksum=$(shasum -a 256 "$h3_drift_archive" | awk '{print $1}')
+
+h3_checkout="$test_root/h3-checkout"
+mkdir -p "$h3_checkout/scripts/ci" "$h3_checkout/vendor"
+cp -R vendor/h3 "$h3_checkout/vendor/h3"
+cp scripts/ci/probe-upstream-candidate.sh \
+  "$h3_checkout/scripts/ci/probe-upstream-candidate.sh"
+git -C "$h3_checkout" init --quiet
+git -C "$h3_checkout" config user.name 'Phantom CI'
+git -C "$h3_checkout" config user.email 'ci@invalid.example'
+git -C "$h3_checkout" add .
+git -C "$h3_checkout" commit --quiet -m fixture
+
+h3_tmp="$test_root/h3-tmp"
+mkdir -p "$h3_tmp"
+if (
+  cd "$h3_checkout"
+  TMPDIR="$h3_tmp" \
+    MOCK_H3_ARCHIVE="$h3_archive" \
+    scripts/ci/probe-upstream-candidate.sh h3 "$h3_revision" "$h3_checksum"
+) >"$test_root/h3-refusal.stdout" 2>"$test_root/h3-refusal.stderr"; then
+  echo "h3 probe unexpectedly mutated a checkout without disposable opt-in" >&2
+  exit 1
+fi
+grep -F -q 'PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1' \
+  "$test_root/h3-refusal.stderr"
+[[ -z $(git -C "$h3_checkout" status --porcelain) ]]
+[[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
+
+if (
+  cd "$h3_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$h3_tmp" \
+    MOCK_H3_ARCHIVE="$h3_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh h3 deadbeef "$h3_checksum"
+) >"$test_root/h3-revision.stdout" 2>"$test_root/h3-revision.stderr"; then
+  echo "h3 probe unexpectedly accepted a short revision" >&2
+  exit 1
+fi
+grep -F -q "invalid h3 revision 'deadbeef'" "$test_root/h3-revision.stderr"
+[[ -z $(git -C "$h3_checkout" status --porcelain) ]]
+[[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
+
+if (
+  cd "$h3_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$h3_tmp" \
+    MOCK_H3_ARCHIVE="$h3_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh h3 "$h3_revision" \
+      0000000000000000000000000000000000000000000000000000000000000000
+) >"$test_root/h3-checksum.stdout" 2>"$test_root/h3-checksum.stderr"; then
+  echo "h3 probe unexpectedly accepted the wrong archive checksum" >&2
+  exit 1
+fi
+grep -F -q 'checksum mismatch' "$test_root/h3-checksum.stderr"
+[[ -z $(git -C "$h3_checkout" status --porcelain) ]]
+[[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
+
+if (
+  cd "$h3_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$h3_tmp" \
+    MOCK_H3_ARCHIVE="$h3_drift_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh h3 "$h3_revision" \
+      "$h3_drift_checksum"
+) >"$test_root/h3-drift.stdout" 2>"$test_root/h3-drift.stderr"; then
+  echo "drifted h3 probe unexpectedly accepted the canonical patch" >&2
+  exit 1
+fi
+grep -F -q 'ordered SETTINGS patch does not apply' \
+  "$test_root/h3-drift.stderr"
+[[ -z $(git -C "$h3_checkout" status --porcelain) ]]
+[[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
+
+h3_command_log="$test_root/h3-commands.log"
+(
+  cd "$h3_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$h3_tmp" \
+    COMMAND_LOG="$h3_command_log" \
+    MOCK_H3_ARCHIVE="$h3_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh h3 "$h3_revision" "$h3_checksum"
+)
+grep -F -x -q \
+  'cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check' \
+  "$h3_command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests' \
+  "$h3_command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests' \
+  "$h3_command_log"
+grep -F -x -q \
+  'cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn --all-features' \
+  "$h3_command_log"
+if grep -F -q 'cargo tree -i h3' "$h3_command_log" \
+  || grep -F -q 'cargo clippy --workspace' "$h3_command_log"; then
+  echo "unselected h3 probe unexpectedly ran root workspace gates" >&2
+  exit 1
+fi
+git -C "$h3_checkout/vendor/h3" apply --reverse --check \
+  patches/ordered-settings.patch
+grep -F -q 'h3_latest: ${{ steps.freshness.outputs.h3_latest }}' \
+  .github/workflows/upstream-freshness.yml
+grep -F -q 'h3_checksum: ${{ steps.freshness.outputs.h3_checksum }}' \
+  .github/workflows/upstream-freshness.yml
+grep -F -q 'dependency: [wreq-proto, btls, http2, h3]' \
+  .github/workflows/upstream-freshness.yml
+[[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]

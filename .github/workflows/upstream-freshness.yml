@@ -30,6 +30,9 @@ jobs:
       http2_drift: ${{ steps.freshness.outputs.http2_drift }}
       btls_latest: ${{ steps.freshness.outputs.btls_latest }}
       btls_drift: ${{ steps.freshness.outputs.btls_drift }}
+      h3_latest: ${{ steps.freshness.outputs.h3_latest }}
+      h3_checksum: ${{ steps.freshness.outputs.h3_checksum }}
+      h3_drift: ${{ steps.freshness.outputs.h3_drift }}
       chrome_drift: ${{ steps.freshness.outputs.chrome_drift }}
       any_drift: ${{ steps.freshness.outputs.any_drift }}
     steps:
@@ -65,7 +68,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dependency: [wreq-proto, btls, http2]
+        dependency: [wreq-proto, btls, http2, h3]
     steps:
       - name: Check out disposable repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -79,7 +82,8 @@ jobs:
         if: >-
           (matrix.dependency == 'wreq-proto' && needs.report.outputs.wreq_drift == 'true') ||
           (matrix.dependency == 'btls' && needs.report.outputs.btls_drift == 'true') ||
-          (matrix.dependency == 'http2' && needs.report.outputs.http2_drift == 'true')
+          (matrix.dependency == 'http2' && needs.report.outputs.http2_drift == 'true') ||
+          (matrix.dependency == 'h3' && needs.report.outputs.h3_drift == 'true')
         env:
           PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT: "1"
           WREQ_LATEST: ${{ needs.report.outputs.wreq_latest }}
@@ -87,6 +91,8 @@ jobs:
           BTLS_LATEST: ${{ needs.report.outputs.btls_latest }}
           HTTP2_LATEST: ${{ needs.report.outputs.http2_latest }}
           HTTP2_CHECKSUM: ${{ needs.report.outputs.http2_checksum }}
+          H3_LATEST: ${{ needs.report.outputs.h3_latest }}
+          H3_CHECKSUM: ${{ needs.report.outputs.h3_checksum }}
         run: |
           case "${{ matrix.dependency }}" in
             wreq-proto)
@@ -100,6 +106,10 @@ jobs:
             http2)
               candidate=$HTTP2_LATEST
               checksum=$HTTP2_CHECKSUM
+              ;;
+            h3)
+              candidate=$H3_LATEST
+              checksum=$H3_CHECKSUM
               ;;
           esac
           scripts/ci/probe-upstream-candidate.sh \
