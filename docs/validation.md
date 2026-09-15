@@ -418,3 +418,37 @@ fields in `firefox::v154_macos_http2()`, but does not yet have a direct Phantom
 wire differential. Retained Pingly and Peet results supply only that recipe's
 pseudo-header order and priority and remain supplemental observations, not
 substitutes for local bytes. No H3 or Safari HTTP/2 wire fixture exists yet.
+
+## Active adversarial differentials
+
+Passive wire equality does not establish how a client reacts when a peer probes
+it. Phantom's local test peers will therefore run deterministic challenge
+scripts and retain the client's observable response: alert or error class,
+frames written, retry count, connection reuse, cancellation, and bounded timing
+outcome. Browser-specific response quirks require a retained browser oracle;
+otherwise Phantom uses the protocol-correct bounded behavior.
+
+The corpus covers:
+
+- TLS record and handshake fragmentation, HelloRetryRequest, compatibility
+  ChangeCipherSpec, unexpected extensions, alerts, tickets, and truncated or
+  inconsistent vectors.
+- H1 interim responses, chunk extensions and trailers, close-delimited bodies,
+  conflicting framing, partial writes, slow peers, half-close, and surplus
+  bytes around upgrade and CONNECT.
+- H2 SETTINGS/ACK order, unknown frames, CONTINUATION splits, HPACK table churn,
+  flow-control starvation and overflow, RST_STREAM, GOAWAY, and early body drop.
+- QUIC Retry and version negotiation, transport-parameter edge cases, 0-RTT
+  rejection, H3 control-stream failure, duplicate SETTINGS, blocked QPACK, and
+  GOAWAY once H3 exists.
+- HTTP 407 sequences, ordered CONNECT headers, SOCKS reply codes, local versus
+  remote DNS, UDP ASSOCIATE, proxy rotation, and proof that no attempt escaped
+  directly.
+- SSE partial UTF-8, multiline data, comments, retry fields, idle periods, and
+  reconnect; WebSocket fragmentation, interleaved control frames, masking,
+  compression, and close races.
+
+Minimized failures become ordinary regression fixtures. Coverage-guided fuzzing
+uses the same bounded decoders and seeds in scheduled CI; native adapters also
+run under applicable sanitizers. Large slow-reader and soak workloads verify
+memory, flow-control accounting, and task cleanup separately from packet parity.

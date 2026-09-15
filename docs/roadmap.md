@@ -119,10 +119,55 @@ Acceptance:
 Protocol negotiation, fallback, session reuse, SSE, and WebSocket remain
 outside this phase.
 
-## Later phases
+## Cross-cutting adversarial validation
 
-A public client facade, reusable sessions, protocol routing, SSE, WebSocket,
-proxies, and workload-driven performance optimization follow only after their
-transport prerequisites exist. Evidence-backed non-browser client stacks reuse
-the same typed settings and differential harness after the initial
-browser-family and transport work is complete.
+Every transport phase gains a scripted hostile-peer suite after its happy path
+works. Tests cover fragmented, delayed, duplicated, malformed, and abruptly
+closed traffic; flow-control exhaustion; cancellation at every lifecycle
+boundary; and proof that proxy failures do not leak into direct retries.
+Observable reactions are compared with a retained real-client run when
+emulation matters. Minimized deterministic cases gate pull requests, while
+coverage-guided fuzzing, native sanitizers, and long-running soak tests run on a
+schedule.
+
+## Phase 6: client, sessions, routing, and proxies — planned
+
+Build the small public `Client` facade and connection pool around explicit
+protocol and route policies. Support direct, HTTP forwarding and CONNECT,
+HTTPS-proxy CONNECT, SOCKS5 local DNS, and SOCKS5 remote DNS. Route identity,
+auth identity, DNS ownership, origin, profile, protocol, and local binding are
+all pool-key inputs. Per-request rotation is an owned route override, not a
+global mutable callback.
+
+Acceptance:
+
+- Forced H1, H2, and H3 never silently negotiate or retry another protocol.
+- Proxy failures never fall back direct; local fixtures observe every egress
+  leg and assert the selected proxy was used.
+- Ordered CONNECT headers, authentication challenges, IPv4, bracketed IPv6,
+  IDNA, local/remote DNS, half-close, cancellation, and rotation are covered.
+- H3 over SOCKS5 UDP ASSOCIATE is packet-tested before exposure; CONNECT-UDP
+  and MASQUE follow as separate proven capabilities.
+- Pooling never crosses a route, profile, origin/SNI, protocol, or session-state
+  boundary, and client shutdown drains with a deadline.
+
+## Phase 7: SSE and WebSocket — planned
+
+SSE remains a zero-buffering parser/reconnect policy over the ordinary response
+body. WebSocket starts with H1 Upgrade and shares route, TLS, ordered headers,
+pool ownership, cancellation, and tracing with normal requests. RFC 8441 and H3
+WebSocket support follow only with retained wire evidence.
+
+## Phase 8: production hardening and profiling — planned
+
+Run cross-platform debug/release CI, dependency-update isolation, native patch
+replay, sanitizers, fuzzing, long soaks, and workload benchmarks. Profile
+allocations, CPU, contention, and syscall behavior across direct and proxy
+routes, cold/warm pools, multiplexed concurrency, large slow bodies, SSE, and
+WebSocket. Optimize measured bottlenecks without changing packet fixtures.
+
+## Later profile work
+
+Evidence-backed non-browser client stacks reuse the same typed settings,
+routing, and differential harness. New recipes remain data plus fixtures; they
+do not introduce family-name branches in transports.

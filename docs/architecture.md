@@ -25,6 +25,7 @@ flowchart TB
     Client["phantom::Client<br/>small public facade"]
     Session["Session state<br/>cookies · cache hints · tickets"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
+    Route["Route plan<br/>direct · HTTP(S) · SOCKS5"]
     Request["Current request APIs<br/>one-shot GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
@@ -46,6 +47,8 @@ flowchart TB
     H1 --> TLS
     H2 --> TLS
     H3 -.-> QUIC
+    TLS -.-> Route
+    QUIC -.-> Route
     H1 -.-> SSE
     H2 -.-> SSE
     H3 -.-> SSE
@@ -56,7 +59,7 @@ flowchart TB
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
     class Profile,Request,H1,H2,TLS current
-    class Client,Session,H3,QUIC,SSE,WS planned
+    class Client,Session,Route,H3,QUIC,SSE,WS planned
 ```
 
 SSE is a response-body consumer, not another transport. WebSocket owns its
@@ -64,6 +67,51 @@ handshake and frame state machine while reusing the selected HTTP connection.
 H3 gets a separate QUIC path because forcing TCP and QUIC through one transport
 trait would hide protocol-specific lifecycle, telemetry, and fingerprint
 controls.
+
+## Routing and proxy seam
+
+Route selection is a peer of profile selection, not a request-header trick. A
+route is resolved before a connection is selected or pooled, and every racing
+or retry attempt remains on that route. Failure of a proxy never causes a
+direct-network fallback.
+
+```mermaid
+flowchart LR
+    Input["request · profile · route"] --> Route["validated route"]
+    Route --> Direct["direct TCP or UDP"]
+    Route --> Http["HTTP proxy<br/>forward or CONNECT"]
+    Route --> Https["HTTPS proxy<br/>proxy TLS · CONNECT"]
+    Route --> Socks["SOCKS5<br/>local DNS · remote DNS"]
+    Direct --> Tcp["TCP byte stream"]
+    Http --> Tcp
+    Https --> Tcp
+    Socks --> Tcp
+    Direct --> Udp["UDP path"]
+    Socks -.-> Udp
+    Tcp --> OriginTls["origin TLS"]
+    OriginTls --> H1H2["H1 · H2 · WS · SSE"]
+    Udp --> Quic["QUIC · H3"]
+    Masque["CONNECT-UDP / MASQUE"] -.-> Udp
+```
+
+The first proxy slice will cover plaintext HTTP forwarding, CONNECT for TLS,
+TLS-to-proxy CONNECT, and SOCKS5 with distinct local- and proxy-DNS modes.
+Authentication and CONNECT headers remain ordered typed inputs; credentials do
+not live in endpoint strings or tracing fields. Hostnames, IPv4, bracketed
+IPv6, IDNA, half-close, 407 challenges, and surplus bytes after CONNECT all get
+local fixture coverage.
+
+H3 is capability-checked separately. A TCP CONNECT proxy cannot carry QUIC.
+SOCKS5 UDP ASSOCIATE is the first UDP proxy target, followed by CONNECT-UDP and
+MASQUE; until one is implemented, forced H3 over that route returns an explicit
+unsupported-route error. Protocol racing must never send its H3 leg directly
+when the configured proxy lacks UDP support.
+
+Connection reuse keys include the physical route, origin and SNI, negotiated
+protocol, complete wire profile identity, proxy scheme and endpoint, auth
+identity, DNS mode, and local bind settings. Rotation therefore cannot reuse a
+connection opened through another proxy. Cookies, tickets, DNS/Alt-Svc state,
+and mutable request defaults remain session-scoped rather than process-global.
 
 The planned H3 path uses Quinn for QUIC and hyperium's `h3` engine. A small
 `phantom-quic-btls` crate will implement Quinn's existing crypto-provider seam
@@ -159,6 +207,14 @@ GREASE values; it must preserve ordering, presence, and negotiated behavior.
 Live fingerprint services are useful corroboration, but a matching summary is
 not a substitute for a local packet or frame differential.
 
+Passive capture is complemented by active differential testing. Scripted TLS,
+HTTP, QUIC, and proxy peers vary fragmentation, challenge sequences, flow
+control, shutdown, and malformed input, then record the client's alerts,
+frames, retries, timing class, and connection reuse. Phantom first proves safe,
+bounded behavior; a browser-specific quirk is reproduced only when a retained
+browser run establishes it. Coverage-guided fuzzing grows from these corpora,
+while deterministic minimized cases stay in the ordinary test suite.
+
 ## Operational seams
 
 - One request operation owns its tracing span, connection driver, body, and
@@ -183,3 +239,5 @@ not a substitute for a local packet or frame differential.
 - Observable wire ordering uses ordered representations end to end.
 - Every public option must be implemented, validated, and observable in a test.
 - Certificate and hostname verification remain concrete transport behavior.
+- A route failure never retries directly, and every pool lookup includes route
+  identity and DNS ownership.

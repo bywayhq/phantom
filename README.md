@@ -6,11 +6,10 @@ profile-driven wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 The current vertical slices implement certificate- and hostname-checked TLS,
 ordered streaming HTTP/1.1, and one-shot HTTP/2 over an exact `h2` TLS
 negotiation. Chrome 152 macOS has TLS and HTTP/2 recipes with direct retained
-fixture differentials. Safari 18.5 macOS has a retained TLS-vector recipe, and
-Firefox 154 macOS has a retained HTTP/2 startup recipe; the complementary
-Safari HTTP/2 and Firefox TLS recipes remain deferred. HTTP/3, reusable
-sessions, SSE, and WebSocket also remain planned. The project does not make
-broad browser-compatibility claims.
+fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
+recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
+uncaptured. HTTP/3, reusable sessions, typed proxy routing, SSE, and WebSocket
+remain planned. The project does not make broad client-compatibility claims.
 
 ## Principles
 
@@ -31,7 +30,8 @@ broad browser-compatibility claims.
   strict decoding for deterministic differentials
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
-[validation model](docs/validation.md), and [performance guide](docs/performance.md).
+[validation model](docs/validation.md), [ecosystem lessons](docs/ecosystem-review.md),
+and [performance guide](docs/performance.md).
 
 ## Development
 
