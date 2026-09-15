@@ -4,6 +4,7 @@ use std::{error::Error, fmt};
 
 const MAX_WINDOW_SIZE: u32 = (1 << 31) - 1;
 const MAX_STREAM_ID: u32 = (1 << 31) - 1;
+const INITIAL_CONNECTION_WINDOW_SIZE: u32 = 65_535;
 const MIN_FRAME_SIZE: u32 = 1 << 14;
 const MAX_FRAME_SIZE: u32 = (1 << 24) - 1;
 
@@ -94,8 +95,9 @@ pub struct Http2Settings {
     pub initial_settings: Vec<Http2Setting>,
     /// Target connection receive window after the initial WINDOW_UPDATE.
     ///
-    /// HTTP/2 connections begin with 65,535 bytes. A larger target emits an
-    /// initial WINDOW_UPDATE containing the difference.
+    /// HTTP/2 connections begin with 65,535 bytes, so this value must be in
+    /// 65,535..=2,147,483,647. A larger target emits an initial WINDOW_UPDATE
+    /// containing the difference.
     pub initial_connection_window_size: u32,
     /// Wire order of `:method`, `:authority`, `:scheme`, and `:path`.
     pub pseudo_header_order: Vec<Http2PseudoHeader>,
@@ -108,10 +110,12 @@ impl Http2Settings {
     pub fn validate(&self) -> Result<(), InvalidHttp2Settings> {
         validate_initial_settings(&self.initial_settings)?;
 
-        if self.initial_connection_window_size > MAX_WINDOW_SIZE {
+        if !(INITIAL_CONNECTION_WINDOW_SIZE..=MAX_WINDOW_SIZE)
+            .contains(&self.initial_connection_window_size)
+        {
             return Err(InvalidHttp2Settings::new(
                 "initial_connection_window_size",
-                "connection window must not exceed 2147483647 bytes",
+                "connection window must be in 65535..=2147483647 bytes",
             ));
         }
 

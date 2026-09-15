@@ -52,14 +52,31 @@ fn requires_one_initial_stream_window() {
 }
 
 #[test]
-fn rejects_stream_and_connection_window_overflow() {
+fn rejects_stream_window_overflow() {
     let mut stream = settings();
     stream.initial_settings[1] = Http2Setting::InitialWindowSize(1 << 31);
     assert_field(stream.validate(), "initial_settings.initial_window_size");
+}
 
-    let mut connection = settings();
-    connection.initial_connection_window_size = 1 << 31;
-    assert_field(connection.validate(), "initial_connection_window_size");
+#[test]
+fn validates_connection_window_range() -> Result<(), Box<dyn std::error::Error>> {
+    let mut below_minimum = settings();
+    below_minimum.initial_connection_window_size = 65_534;
+    assert_field(below_minimum.validate(), "initial_connection_window_size");
+
+    let mut minimum = settings();
+    minimum.initial_connection_window_size = 65_535;
+    minimum.validate()?;
+
+    let mut maximum = settings();
+    maximum.initial_connection_window_size = (1 << 31) - 1;
+    maximum.validate()?;
+
+    let mut above_maximum = settings();
+    above_maximum.initial_connection_window_size = 1 << 31;
+    assert_field(above_maximum.validate(), "initial_connection_window_size");
+
+    Ok(())
 }
 
 #[test]
