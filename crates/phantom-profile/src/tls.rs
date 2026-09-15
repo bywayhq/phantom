@@ -128,6 +128,13 @@ pub struct TlsSettings {
     pub alps: Option<AlpsSettings>,
     /// Certificate compression algorithms in preference order.
     pub certificate_compression: Vec<CertificateCompression>,
+    /// Optional trust anchor IDs advertised to guide server certificate selection.
+    ///
+    /// Each ID is an opaque, non-empty byte string. `None` omits the TLS
+    /// `trust_anchors` extension, while `Some(Vec::new())` emits the extension
+    /// with an empty ID list. This setting does not change certificate
+    /// verification.
+    pub requested_trust_anchor_ids: Option<Vec<Box<[u8]>>>,
     /// Whether ordinary TLS GREASE is enabled.
     pub grease: bool,
     /// Whether signature-algorithm GREASE is enabled.
@@ -176,6 +183,12 @@ impl TlsSettings {
                 return Err(InvalidTlsSettings::new(
                     "ech_grease",
                     "ECH GREASE requires TLS 1.3 to be enabled",
+                ));
+            }
+            if self.requested_trust_anchor_ids.is_some() {
+                return Err(InvalidTlsSettings::new(
+                    "requested_trust_anchor_ids",
+                    "requested trust anchors require TLS 1.3 to be enabled",
                 ));
             }
         } else {
@@ -228,6 +241,10 @@ impl TlsSettings {
                 "certificate_compression",
                 "Brotli certificate compression must not repeat",
             ));
+        }
+
+        if let Some(ids) = &self.requested_trust_anchor_ids {
+            validate_trust_anchor_ids(ids)?;
         }
 
         Ok(())
@@ -293,78 +310,29 @@ fn validate_alpn(protocols: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn minimal_settings() -> TlsSettings {
-        TlsSettings {
-            min_version: TlsVersion::Tls12,
-            max_version: TlsVersion::Tls13,
-            cipher_suites: vec![CipherSuite::Aes128GcmSha256],
-            groups: vec![NamedGroup::X25519],
-            key_shares: vec![NamedGroup::X25519],
-            signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
-            alpn_protocols: vec![Box::from(&b"http/1.1"[..])],
-            alps: None,
-            certificate_compression: Vec::new(),
-            grease: false,
-            grease_signature_algorithms: false,
-            permute_extensions: false,
-            ech_grease: false,
-            request_ocsp_staple: false,
-            request_signed_certificate_timestamps: false,
-            aes_hardware: true,
+fn validate_trust_anchor_ids(ids: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings> {
+    let encoded_length = ids.iter().try_fold(0usize, |length, id| {
+        if id.is_empty() || id.len() > u8::MAX as usize {
+            return Err(InvalidTlsSettings::new(
+                "requested_trust_anchor_ids",
+                "each trust anchor ID must contain 1..=255 bytes",
+            ));
         }
+        length.checked_add(1 + id.len()).ok_or_else(|| {
+            InvalidTlsSettings::new("requested_trust_anchor_ids", "encoded ID list is too large")
+        })
+    })?;
+
+    // The ID vector has its own u16 length inside the extension's u16-sized body.
+    if encoded_length > u16::MAX as usize - size_of::<u16>() {
+        return Err(InvalidTlsSettings::new(
+            "requested_trust_anchor_ids",
+            "encoded trust anchor ID list exceeds 65533 bytes",
+        ));
     }
 
-    #[test]
-    fn tls_12_does_not_require_key_shares() -> Result<(), Box<dyn Error>> {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-        settings.key_shares.clear();
-
-        settings.validate()?;
-        Ok(())
-    }
-
-    #[test]
-    fn tls_12_rejects_key_shares() {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-
-        let error = settings.validate().err();
-        assert_eq!(
-            error.as_ref().map(InvalidTlsSettings::field),
-            Some("key_shares")
-        );
-    }
-
-    #[test]
-    fn tls_12_rejects_ech_grease() {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-        settings.key_shares.clear();
-        settings.ech_grease = true;
-
-        let error = settings.validate().err();
-        assert_eq!(
-            error.as_ref().map(InvalidTlsSettings::field),
-            Some("ech_grease")
-        );
-    }
-
-    #[test]
-    fn tls_12_rejects_alps() {
-        let mut settings = minimal_settings();
-        settings.max_version = TlsVersion::Tls12;
-        settings.key_shares.clear();
-        settings.alps = Some(AlpsSettings {
-            protocol: Box::from(&b"http/1.1"[..]),
-            use_new_codepoint: true,
-        });
-
-        let error = settings.validate().err();
-        assert_eq!(error.as_ref().map(InvalidTlsSettings::field), Some("alps"));
-    }
+    Ok(())
 }
+
+#[cfg(test)]
+mod tests;

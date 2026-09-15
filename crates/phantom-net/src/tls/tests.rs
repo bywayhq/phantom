@@ -1,15 +1,12 @@
-use std::{collections::BTreeSet, error::Error, io, net::SocketAddr, pin::Pin, time::Duration};
+use std::{error::Error, io, net::SocketAddr, pin::Pin, time::Duration};
 
 use btls::{
     pkey::PKey,
     ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslMethod, select_next_proto},
     x509::X509,
 };
-use phantom_profile::{
-    AlpsSettings, CertificateCompression, CipherSuite, NamedGroup, SignatureScheme, TlsSettings,
-    TlsVersion,
-};
-use phantom_testkit::tls::{CaptureLimits, capture_client_hello, is_grease};
+use phantom_profile::{TlsVersion, chromium::v152_macos_tls};
+use phantom_testkit::tls::{CaptureLimits, capture_client_hello};
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
     KeyUsagePurpose,
@@ -17,7 +14,7 @@ use rcgen::{
 use tokio::{net::TcpListener, task::JoinHandle, time::Instant};
 use tokio_btls::SslStream as BoringStream;
 
-use super::{TlsConnector, TlsErrorKind, require_supported};
+use super::{TlsConnector, TlsErrorKind, encode_trust_anchor_ids, require_supported};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const TEST_SERVER_NAME: &str = "server.phantom.test";
@@ -25,141 +22,13 @@ const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
-fn chromium_150_windows_reference() -> TlsSettings {
-    TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls13,
-        cipher_suites: vec![
-            CipherSuite::Aes128GcmSha256,
-            CipherSuite::Aes256GcmSha384,
-            CipherSuite::Chacha20Poly1305Sha256,
-            CipherSuite::EcdheEcdsaAes128GcmSha256,
-            CipherSuite::EcdheRsaAes128GcmSha256,
-            CipherSuite::EcdheEcdsaAes256GcmSha384,
-            CipherSuite::EcdheRsaAes256GcmSha384,
-            CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaAes128CbcSha,
-            CipherSuite::EcdheRsaAes256CbcSha,
-            CipherSuite::RsaAes128GcmSha256,
-            CipherSuite::RsaAes256GcmSha384,
-            CipherSuite::RsaAes128CbcSha,
-            CipherSuite::RsaAes256CbcSha,
-        ],
-        groups: vec![
-            NamedGroup::X25519MlKem768,
-            NamedGroup::X25519,
-            NamedGroup::Secp256r1,
-            NamedGroup::Secp384r1,
-        ],
-        key_shares: vec![NamedGroup::X25519MlKem768, NamedGroup::X25519],
-        signature_schemes: vec![
-            SignatureScheme::MlDsa44,
-            SignatureScheme::MlDsa65,
-            SignatureScheme::MlDsa87,
-            SignatureScheme::EcdsaSecp256r1Sha256,
-            SignatureScheme::RsaPssRsaeSha256,
-            SignatureScheme::RsaPkcs1Sha256,
-            SignatureScheme::EcdsaSecp384r1Sha384,
-            SignatureScheme::RsaPssRsaeSha384,
-            SignatureScheme::RsaPkcs1Sha384,
-            SignatureScheme::RsaPssRsaeSha512,
-            SignatureScheme::RsaPkcs1Sha512,
-        ],
-        alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
-        alps: Some(AlpsSettings {
-            protocol: Box::from(&b"h2"[..]),
-            use_new_codepoint: true,
-        }),
-        certificate_compression: vec![CertificateCompression::Brotli],
-        grease: true,
-        grease_signature_algorithms: false,
-        permute_extensions: true,
-        ech_grease: true,
-        request_ocsp_staple: true,
-        request_signed_certificate_timestamps: true,
-        aes_hardware: true,
-    }
-}
+mod chrome;
 
-#[tokio::test]
-async fn emits_chromium_150_reference_client_hello() -> TestResult<()> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let address = listener.local_addr()?;
-    let capture_task = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await?;
-        capture_client_hello(
-            &mut stream,
-            Instant::now() + TEST_TIMEOUT,
-            CaptureLimits::new(32 * 1024, 40 * 1024, 4),
-        )
-        .await
-        .map_err(io::Error::other)
-    });
+#[test]
+fn trust_anchor_ids_are_length_prefixed_for_boringssl() {
+    let ids = [Box::from(&b"a"[..]), Box::from(&b"bc"[..])];
 
-    let connector = TlsConnector::new(&chromium_150_windows_reference())?;
-    let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
-    let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect("example.test", tcp));
-    let handshake_error = match handshake.await? {
-        Ok(_) => return Err("capture peer unexpectedly completed TLS".into()),
-        Err(error) => error,
-    };
-    assert_eq!(handshake_error.kind(), TlsErrorKind::Handshake);
-
-    let capture = tokio::time::timeout(TEST_TIMEOUT, capture_task).await???;
-    let summary = capture.summary()?;
-
-    assert_eq!(summary.legacy_version(), 0x0303);
-    assert_eq!(
-        without_grease(summary.cipher_suites()),
-        vec![
-            0x1301, 0x1302, 0x1303, 0xc02b, 0xc02f, 0xc02c, 0xc030, 0xcca9, 0xcca8, 0xc013, 0xc014,
-            0x009c, 0x009d, 0x002f, 0x0035,
-        ]
-    );
-    assert_eq!(
-        without_grease(summary.supported_groups()),
-        vec![0x11ec, 0x001d, 0x0017, 0x0018]
-    );
-    assert_eq!(
-        summary.signature_algorithms(),
-        &[
-            0x0904, 0x0905, 0x0906, 0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601
-        ]
-    );
-    assert_eq!(
-        summary.alpn_protocols(),
-        &[b"h2".to_vec(), b"http/1.1".to_vec()]
-    );
-    assert_eq!(
-        without_grease(summary.supported_versions()),
-        vec![0x0304, 0x0303]
-    );
-    assert_eq!(
-        without_grease(summary.key_share_groups()),
-        vec![0x11ec, 0x001d]
-    );
-
-    assert!(summary.cipher_suites().iter().copied().any(is_grease));
-    assert!(summary.supported_groups().iter().copied().any(is_grease));
-    assert!(summary.supported_versions().iter().copied().any(is_grease));
-    assert!(summary.key_share_groups().iter().copied().any(is_grease));
-    assert!(summary.extension_types().iter().copied().any(is_grease));
-
-    // Extension permutation is intentionally randomized. This reference recipe
-    // asserts the exact stable membership, not retained browser parity or order.
-    let actual_extensions = summary
-        .extension_types()
-        .iter()
-        .copied()
-        .filter(|extension| !is_grease(*extension))
-        .collect::<BTreeSet<_>>();
-    let expected_extensions = BTreeSet::from([
-        0, 5, 10, 11, 13, 16, 18, 23, 27, 35, 43, 45, 51, 17613, 0xfe0d, 0xff01,
-    ]);
-    assert_eq!(actual_extensions, expected_extensions);
-
-    Ok(())
+    assert_eq!(encode_trust_anchor_ids(&ids).as_ref(), b"\x01a\x02bc");
 }
 
 #[tokio::test]
@@ -177,11 +46,12 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
         .map_err(io::Error::other)
     });
 
-    let mut settings = chromium_150_windows_reference();
+    let mut settings = v152_macos_tls();
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
     settings.key_shares.clear();
     settings.ech_grease = false;
+    settings.requested_trust_anchor_ids = None;
     let connector = TlsConnector::new(&settings)?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
     let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect("example.test", tcp));
@@ -209,7 +79,7 @@ fn unmapped_backend_setting_is_actionable() -> TestResult<()> {
 
 #[test]
 fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
-    let mut settings = chromium_150_windows_reference();
+    let mut settings = v152_macos_tls();
     settings.alpn_protocols = vec![Box::default()];
 
     let error = match TlsConnector::new(&settings) {
@@ -225,10 +95,8 @@ fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
 async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(
-        &chromium_150_windows_reference(),
-        [identity.root_der.as_slice()],
-    )?;
+    let connector =
+        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(&b"h2"[..]));
@@ -242,10 +110,8 @@ async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
 async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, false).await?;
-    let connector = TlsConnector::new_with_roots(
-        &chromium_150_windows_reference(),
-        [identity.root_der.as_slice()],
-    )?;
+    let connector =
+        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), None);
@@ -258,10 +124,8 @@ async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
 async fn wrong_hostname_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(
-        &chromium_150_windows_reference(),
-        [identity.root_der.as_slice()],
-    )?;
+    let connector =
+        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
 
     let result = connect_local(&connector, address, "wrong.phantom.test").await?;
     assert_eq!(
@@ -278,8 +142,7 @@ async fn wrong_hostname_fails() -> TestResult<()> {
 async fn untrusted_root_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector =
-        TlsConnector::new_with_roots(&chromium_150_windows_reference(), std::iter::empty())?;
+    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), std::iter::empty())?;
 
     let result = connect_local(&connector, address, TEST_SERVER_NAME).await?;
     assert_eq!(
@@ -367,12 +230,4 @@ async fn connect_local(
         .await
         .map_err(Box::<dyn Error + Send + Sync>::from)??;
     Ok(tokio::time::timeout(TEST_TIMEOUT, connector.connect(server_name, tcp)).await?)
-}
-
-fn without_grease(values: &[u16]) -> Vec<u16> {
-    values
-        .iter()
-        .copied()
-        .filter(|value| !is_grease(*value))
-        .collect()
 }

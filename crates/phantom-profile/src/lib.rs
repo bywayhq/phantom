@@ -1,5 +1,6 @@
 //! Browser-neutral profile identity, provenance, and wire settings.
 
+pub mod chromium;
 pub mod tls;
 
 pub use tls::{

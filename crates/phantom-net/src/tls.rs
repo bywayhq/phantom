@@ -219,6 +219,12 @@ impl TlsConnector {
             }
         }
 
+        if let Some(ids) = &settings.requested_trust_anchor_ids {
+            builder
+                .set_requested_trust_anchors(&encode_trust_anchor_ids(ids))
+                .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
+        }
+
         let alpn_wire = encode_alpn(&settings.alpn_protocols)?;
         debug!("TLS connector built");
 
@@ -593,6 +599,16 @@ fn encode_alpn(protocols: &[Box<[u8]>]) -> Result<Box<[u8]>, TlsError> {
         encoded.extend_from_slice(protocol);
     }
     Ok(encoded.into_boxed_slice())
+}
+
+fn encode_trust_anchor_ids(ids: &[Box<[u8]>]) -> Box<[u8]> {
+    let capacity = ids.iter().map(|id| 1 + id.len()).sum();
+    let mut encoded = Vec::with_capacity(capacity);
+    for id in ids {
+        encoded.push(id.len() as u8);
+        encoded.extend_from_slice(id);
+    }
+    encoded.into_boxed_slice()
 }
 
 fn count_alpn(mut encoded: &[u8]) -> usize {

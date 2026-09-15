@@ -12,6 +12,7 @@ const SIGNATURE_ALGORITHMS_EXTENSION: u16 = 13;
 const ALPN_EXTENSION: u16 = 16;
 const SUPPORTED_VERSIONS_EXTENSION: u16 = 43;
 const KEY_SHARE_EXTENSION: u16 = 51;
+const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
 
 /// The ordered fingerprint-relevant fields decoded from a TLS ClientHello.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -19,6 +20,7 @@ pub struct ClientHelloSummary {
     legacy_version: u16,
     cipher_suites: Vec<u16>,
     extension_types: Vec<u16>,
+    extension_payload_lengths: Vec<usize>,
     server_name: Option<Vec<u8>>,
     supported_groups: Vec<u16>,
     ec_point_formats: Vec<u8>,
@@ -26,6 +28,7 @@ pub struct ClientHelloSummary {
     alpn_protocols: Vec<Vec<u8>>,
     supported_versions: Vec<u16>,
     key_share_groups: Vec<u16>,
+    requested_trust_anchor_ids: Option<Vec<Vec<u8>>>,
 }
 
 impl ClientHelloSummary {
@@ -81,6 +84,7 @@ impl ClientHelloSummary {
             legacy_version,
             cipher_suites,
             extension_types: Vec::new(),
+            extension_payload_lengths: Vec::new(),
             server_name: None,
             supported_groups: Vec::new(),
             ec_point_formats: Vec::new(),
@@ -88,6 +92,7 @@ impl ClientHelloSummary {
             alpn_protocols: Vec::new(),
             supported_versions: Vec::new(),
             key_share_groups: Vec::new(),
+            requested_trust_anchor_ids: None,
         };
 
         if body.remaining() == 0 {
@@ -113,6 +118,7 @@ impl ClientHelloSummary {
             }
             seen_extensions.push(extension_type);
             summary.extension_types.push(extension_type);
+            summary.extension_payload_lengths.push(extension_length);
 
             match extension_type {
                 SERVER_NAME_EXTENSION => {
@@ -147,6 +153,10 @@ impl ClientHelloSummary {
                     summary.key_share_groups =
                         parse_key_share_groups(extension_data, extension_type)?;
                 }
+                TRUST_ANCHORS_EXTENSION => {
+                    summary.requested_trust_anchor_ids =
+                        Some(parse_trust_anchor_ids(extension_data, extension_type)?);
+                }
                 _ => {}
             }
         }
@@ -170,6 +180,14 @@ impl ClientHelloSummary {
     #[must_use]
     pub fn extension_types(&self) -> &[u16] {
         &self.extension_types
+    }
+
+    /// Returns extension types and payload lengths in their exact wire order.
+    pub fn extension_layout(&self) -> impl Iterator<Item = (u16, usize)> + '_ {
+        self.extension_types
+            .iter()
+            .copied()
+            .zip(self.extension_payload_lengths.iter().copied())
     }
 
     /// Returns the host name from the SNI extension as its exact wire bytes.
@@ -212,6 +230,15 @@ impl ClientHelloSummary {
     #[must_use]
     pub fn key_share_groups(&self) -> &[u16] {
         &self.key_share_groups
+    }
+
+    /// Returns requested trust anchor IDs as their exact wire bytes.
+    ///
+    /// `None` means the extension was absent. `Some(&[])` means the extension
+    /// was present with an explicitly empty ID list.
+    #[must_use]
+    pub fn requested_trust_anchor_ids(&self) -> Option<&[Vec<u8>]> {
+        self.requested_trust_anchor_ids.as_deref()
     }
 }
 
@@ -543,6 +570,31 @@ fn parse_key_share_groups(
         entries.take(key_exchange_length, "key exchange")?;
     }
     Ok(groups)
+}
+
+fn parse_trust_anchor_ids(
+    data: &[u8],
+    extension_type: u16,
+) -> Result<Vec<Vec<u8>>, ClientHelloDecodeError> {
+    let mut extension = Cursor::new(data);
+    let list_length = usize::from(extension.read_u16("trust anchor ID list")?);
+    let mut ids = Cursor::new(extension.take(list_length, "trust anchor ID list")?);
+    require_exhausted(&extension, extension_type)?;
+
+    let mut values = Vec::new();
+    while ids.remaining() != 0 {
+        let length = usize::from(ids.read_u8("trust anchor ID length")?);
+        if length == 0 {
+            return Err(ClientHelloDecodeError::LengthOutOfRange {
+                field: "trust anchor ID",
+                length: 0,
+                minimum: 1,
+                maximum: u8::MAX as usize,
+            });
+        }
+        values.push(ids.take(length, "trust anchor ID")?.to_vec());
+    }
+    Ok(values)
 }
 
 fn require_exhausted(

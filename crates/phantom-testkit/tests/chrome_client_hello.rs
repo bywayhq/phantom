@@ -166,6 +166,10 @@ fn assert_browser_relevant_fields(summary: &ClientHelloSummary) {
         normalize_grease(summary.key_share_groups()),
         [GREASE_SENTINEL, 0x11ec, 0x001d]
     );
+    assert_eq!(
+        summary.requested_trust_anchor_ids().map(<[_]>::len),
+        Some(32)
+    );
 
     for required_extension in [0, 10, 11, 13, 16, 43, 45, 51, 0xfe0d] {
         assert!(summary.extension_types().contains(&required_extension));
