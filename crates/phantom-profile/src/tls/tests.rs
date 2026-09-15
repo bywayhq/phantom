@@ -67,11 +67,37 @@ fn tls_12_rejects_alps() {
     settings.key_shares.clear();
     settings.alps = Some(AlpsSettings {
         protocol: Box::from(&b"http/1.1"[..]),
+        settings: Box::default(),
         use_new_codepoint: true,
     });
 
     let error = settings.validate().err();
     assert_eq!(error.as_ref().map(InvalidTlsSettings::field), Some("alps"));
+}
+
+#[test]
+fn alps_settings_must_fit_the_tls_vector() -> Result<(), Box<dyn Error>> {
+    let mut settings = minimal_settings();
+    settings.alpn_protocols = vec![Box::from(&b"h2"[..])];
+    settings.alps = Some(AlpsSettings {
+        protocol: Box::from(&b"h2"[..]),
+        settings: vec![0; u16::MAX as usize].into_boxed_slice(),
+        use_new_codepoint: true,
+    });
+
+    settings.validate()?;
+    settings
+        .alps
+        .as_mut()
+        .ok_or("test profile omitted ALPS")?
+        .settings = vec![0; u16::MAX as usize + 1].into_boxed_slice();
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("alps.settings")
+    );
+    Ok(())
 }
 
 #[test]

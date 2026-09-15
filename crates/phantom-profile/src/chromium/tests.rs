@@ -11,7 +11,12 @@ const INITIAL_CONNECTION_WINDOW: u32 = 65_535;
 
 #[test]
 fn chrome_152_macos_tls_settings_are_valid() -> Result<(), Box<dyn std::error::Error>> {
-    v152_macos_tls().validate()?;
+    let settings = v152_macos_tls();
+    settings.validate()?;
+    let alps = settings.alps.ok_or("Chrome TLS profile omitted ALPS")?;
+    assert_eq!(alps.protocol.as_ref(), b"h2");
+    assert!(alps.settings.is_empty());
+    assert!(alps.use_new_codepoint);
     Ok(())
 }
 

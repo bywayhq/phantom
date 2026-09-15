@@ -259,6 +259,8 @@ impl TlsConnector {
             "tls.handshake",
             alpn_protocol_count = count_alpn(&self.alpn_wire),
             negotiated_alpn = field::Empty,
+            alps_negotiated = field::Empty,
+            peer_application_settings_len = field::Empty,
             tls_version = field::Empty,
             outcome = field::Empty,
         );
@@ -279,8 +281,8 @@ impl TlsConnector {
 
             if let Some(alps) = &self.alps {
                 configuration
-                    .add_application_settings(&alps.protocol)
-                    .map_err(|error| TlsError::backend("alps.protocol", error))?;
+                    .add_application_settings_with_payload(&alps.protocol, &alps.settings)
+                    .map_err(|error| TlsError::backend("alps", error))?;
                 configuration.set_alps_use_new_codepoint(alps.use_new_codepoint);
             }
 
@@ -306,16 +308,22 @@ impl TlsConnector {
             })?;
 
             let negotiated_alpn = stream.ssl().selected_alpn_protocol().map(Box::from);
-            Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
-            Span::current().record("tls_version", stream.ssl().version_str());
+            let peer_application_settings = stream.ssl().peer_application_settings().map(Box::from);
+            span.record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
+            record_alps_negotiation(&span, peer_application_settings.as_deref());
+            span.record("tls_version", stream.ssl().version_str());
             debug!(
                 negotiated_alpn = trace_alpn(negotiated_alpn.as_deref()),
+                alps_negotiated = peer_application_settings.is_some(),
+                peer_application_settings_len =
+                    peer_application_settings.as_deref().map_or(0, <[u8]>::len),
                 tls_version = stream.ssl().version_str(),
                 "TLS handshake completed"
             );
             Ok(TlsStream {
                 inner: stream,
                 negotiated_alpn,
+                peer_application_settings,
             })
         }
         .instrument(span.clone())
@@ -356,12 +364,18 @@ impl Drop for HandshakeOutcome {
 pub(crate) struct TlsStream<S> {
     inner: BoringStream<S>,
     negotiated_alpn: Option<Box<[u8]>>,
+    peer_application_settings: Option<Box<[u8]>>,
 }
 
 impl<S> TlsStream<S> {
     /// Returns the ALPN protocol selected by the server, if any.
     pub(crate) fn negotiated_alpn(&self) -> Option<&[u8]> {
         self.negotiated_alpn.as_deref()
+    }
+
+    /// Returns the peer's ALPS value, preserving negotiated-empty settings.
+    pub(crate) fn peer_application_settings(&self) -> Option<&[u8]> {
+        self.peer_application_settings.as_deref()
     }
 }
 
@@ -375,6 +389,14 @@ impl<S> fmt::Debug for TlsStream<S> {
                     .negotiated_alpn
                     .as_deref()
                     .and_then(recognized_alpn_name),
+            )
+            .field(
+                "alps_negotiated",
+                &self.peer_application_settings().is_some(),
+            )
+            .field(
+                "peer_application_settings_len",
+                &self.peer_application_settings().map_or(0, <[u8]>::len),
             )
             .finish_non_exhaustive()
     }
@@ -637,6 +659,14 @@ pub(crate) fn trace_alpn(protocol: Option<&[u8]>) -> &'static str {
         Some(b"h3") => "h3",
         Some(_) => "other",
     }
+}
+
+fn record_alps_negotiation(span: &Span, peer_application_settings: Option<&[u8]>) {
+    span.record("alps_negotiated", peer_application_settings.is_some());
+    span.record(
+        "peer_application_settings_len",
+        peer_application_settings.map_or(0, <[u8]>::len),
+    );
 }
 
 #[cfg(test)]

@@ -22,6 +22,7 @@ const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
+mod alps;
 mod chrome;
 
 #[test]

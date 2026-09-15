@@ -1,0 +1,205 @@
+diff --git a/src/ssl/mod.rs b/src/ssl/mod.rs
+index 9dc61a5..0bfdd78 100644
+--- a/src/ssl/mod.rs
++++ b/src/ssl/mod.rs
+@@ -3623,6 +3623,33 @@ impl SslRef {
+         }
+     }
+
++    /// Returns the application settings received from the peer through ALPS.
++    ///
++    /// `None` means ALPS was not negotiated. `Some(&[])` means it was negotiated
++    /// and the peer sent an empty settings value.
++    #[corresponds(SSL_get0_peer_application_settings)]
++    #[must_use]
++    pub fn peer_application_settings(&self) -> Option<&[u8]> {
++        unsafe {
++            if ffi::SSL_has_application_settings(self.as_ptr()) == 0 {
++                return None;
++            }
++
++            let mut data: *const c_uchar = ptr::null();
++            let mut len = 0;
++            ffi::SSL_get0_peer_application_settings(self.as_ptr(), &mut data, &mut len);
++
++            if len == 0 {
++                Some(&[])
++            } else if data.is_null() {
++                None
++            } else {
++                // BoringSSL guarantees a live `len`-byte buffer when `len` is nonzero.
++                Some(slice::from_raw_parts(data, len))
++            }
++        }
++    }
++
+     /// Enables the DTLS extension "use_srtp" as defined in RFC5764.
+     #[corresponds(SSL_set_tlsext_use_srtp)]
+     pub fn set_tlsext_use_srtp(&mut self, protocols: &str) -> Result<(), ErrorStack> {
+@@ -4254,16 +4281,26 @@ impl SslRef {
+         }
+     }
+
+-    /// Sets application settings flag for ALPS (Application-Layer Protocol Negotiation).
++    /// Enables ALPS for an ALPN protocol with an empty application settings value.
+     #[corresponds(SSL_add_application_settings)]
+-    pub fn add_application_settings(&mut self, alps: &[u8]) -> Result<(), ErrorStack> {
++    pub fn add_application_settings(&mut self, protocol: &[u8]) -> Result<(), ErrorStack> {
++        self.add_application_settings_with_payload(protocol, &[])
++    }
++
++    /// Enables ALPS for an ALPN protocol with the supplied application settings value.
++    #[corresponds(SSL_add_application_settings)]
++    pub fn add_application_settings_with_payload(
++        &mut self,
++        protocol: &[u8],
++        settings: &[u8],
++    ) -> Result<(), ErrorStack> {
+         unsafe {
+             cvt(ffi::SSL_add_application_settings(
+                 self.as_ptr(),
+-                alps.as_ptr(),
+-                alps.len(),
+-                std::ptr::null(),
+-                0,
++                protocol.as_ptr(),
++                protocol.len(),
++                settings.as_ptr(),
++                settings.len(),
+             ))
+             .map(|_| ())
+         }
+diff --git a/src/ssl/test/alps.rs b/src/ssl/test/alps.rs
+new file mode 100644
+index 0000000..a5dfe1f
+--- /dev/null
++++ b/src/ssl/test/alps.rs
+@@ -0,0 +1,116 @@
++use std::sync::{Arc, Mutex};
++
++use crate::ssl::{select_next_proto, AlpnError, SslVersion};
++
++use super::server::Server;
++
++const H2: &[u8] = b"h2";
++const H2_WIRE: &[u8] = b"\x02h2";
++
++#[test]
++fn absent_application_settings_are_distinct_from_empty_settings() {
++    let mut server = tls13_h2_server();
++    let observed = Arc::new(Mutex::new(None));
++    server.io_cb({
++        let observed = Arc::clone(&observed);
++        move |stream| {
++            *observed.lock().unwrap() = Some(
++                stream
++                    .ssl()
++                    .peer_application_settings()
++                    .map(ToOwned::to_owned),
++            );
++        }
++    });
++    let server = server.build();
++
++    let client = tls13_h2_client(&server);
++    let stream = client.connect();
++    assert_eq!(stream.ssl().peer_application_settings(), None);
++    drop(stream);
++    drop(server);
++
++    assert_eq!(*observed.lock().unwrap(), Some(None));
++}
++
++#[test]
++fn negotiated_empty_application_settings_are_present() {
++    assert_round_trip(&[], &[]);
++}
++
++#[test]
++fn nonempty_application_settings_round_trip_exactly() {
++    assert_round_trip(b"client settings", b"server settings");
++}
++
++fn assert_round_trip(client_settings: &'static [u8], server_settings: &'static [u8]) {
++    let mut server = tls13_h2_server();
++    server.ssl_cb(move |ssl| {
++        ssl.add_application_settings_with_payload(H2, server_settings)
++            .unwrap();
++        ssl.set_alps_use_new_codepoint(true);
++    });
++    let observed = Arc::new(Mutex::new(None));
++    server.io_cb({
++        let observed = Arc::clone(&observed);
++        move |stream| {
++            *observed.lock().unwrap() = Some(
++                stream
++                    .ssl()
++                    .peer_application_settings()
++                    .map(ToOwned::to_owned),
++            );
++        }
++    });
++    let server = server.build();
++
++    let client = tls13_h2_client(&server);
++    let mut connection = client.build().builder();
++    connection
++        .ssl()
++        .add_application_settings_with_payload(H2, client_settings)
++        .unwrap();
++    connection.ssl().set_alps_use_new_codepoint(true);
++    let stream = connection.connect();
++    assert_eq!(
++        stream.ssl().peer_application_settings(),
++        Some(server_settings)
++    );
++    drop(stream);
++    drop(server);
++
++    assert_eq!(
++        *observed.lock().unwrap(),
++        Some(Some(client_settings.to_vec()))
++    );
++}
++
++fn tls13_h2_server() -> super::server::Builder {
++    let mut server = Server::builder();
++    server
++        .ctx()
++        .set_min_proto_version(Some(SslVersion::TLS1_3))
++        .unwrap();
++    server
++        .ctx()
++        .set_max_proto_version(Some(SslVersion::TLS1_3))
++        .unwrap();
++    server.ctx().set_alpn_select_callback(|_, offered| {
++        select_next_proto(H2_WIRE, offered).ok_or(AlpnError::NOACK)
++    });
++    server
++}
++
++fn tls13_h2_client(server: &Server) -> super::server::ClientBuilder {
++    let mut client = server.client_with_root_ca();
++    client
++        .ctx()
++        .set_min_proto_version(Some(SslVersion::TLS1_3))
++        .unwrap();
++    client
++        .ctx()
++        .set_max_proto_version(Some(SslVersion::TLS1_3))
++        .unwrap();
++    client.ctx().set_alpn_protos(H2_WIRE).unwrap();
++    client
++}
+diff --git a/src/ssl/test/mod.rs b/src/ssl/test/mod.rs
+index 2148f26..391bb6c 100644
+--- a/src/ssl/test/mod.rs
++++ b/src/ssl/test/mod.rs
+@@ -24,6 +24,7 @@ use crate::x509::{X509Name, X509};
+
+ use super::CompliancePolicy;
+
++mod alps;
+ mod cert_compressor;
+ mod cert_verify;
+ mod custom_verify;

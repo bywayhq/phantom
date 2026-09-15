@@ -5,7 +5,7 @@ members = [
     "crates/phantom-profile",
     "crates/phantom-testkit",
 ]
-exclude = ["vendor/http2"]
+exclude = ["vendor/btls", "vendor/http2"]
 resolver = "3"
 
 [workspace.package]
@@ -19,6 +19,9 @@ tokio-btls = { git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f
 
 [patch.crates-io]
 http2 = { path = "vendor/http2" }
+
+[patch."https://github.com/0x676e67/btls"]
+btls = { path = "vendor/btls" }
 
 [workspace.lints.rust]
 missing_docs = "warn"

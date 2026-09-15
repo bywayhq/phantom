@@ -93,6 +93,7 @@ pub fn v152_macos_tls() -> TlsSettings {
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: Some(AlpsSettings {
             protocol: Box::from(&b"h2"[..]),
+            settings: Box::default(),
             use_new_codepoint: true,
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
