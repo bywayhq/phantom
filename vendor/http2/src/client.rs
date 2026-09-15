@@ -1724,10 +1724,10 @@ impl Peer {
         ) = request.into_parts();
 
         let ordered_headers = extensions.remove::<OrderedHeaders>();
-        if ordered_headers
-            .as_ref()
-            .is_some_and(|ordered| !ordered.agrees_with(&headers))
-        {
+        if matches!(
+            ordered_headers.as_ref(),
+            Some(ordered) if !ordered.agrees_with(&headers)
+        ) {
             return Err(UserError::MalformedHeaders.into());
         }
 
