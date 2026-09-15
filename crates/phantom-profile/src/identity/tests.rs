@@ -1,14 +1,25 @@
-use super::{BrowserFamily, Platform, ProfileId, ProfileMetadata};
+use super::{ClientFamily, Platform, ProfileId, ProfileMetadata};
 
 #[test]
 fn accepts_builtin_and_custom_profile_identity() -> Result<(), Box<dyn std::error::Error>> {
     let id = ProfileId::new("safari/26.0/macos-26")?;
-    let metadata = ProfileMetadata::new(id, BrowserFamily::Safari, "26.0", Platform::MacOs)?;
+    let metadata = ProfileMetadata::new(id, ClientFamily::Safari, "26.0", Platform::MacOs)?;
 
     assert_eq!(metadata.id().as_str(), "safari/26.0/macos-26");
 
-    let custom = BrowserFamily::Other("ladybird".into());
-    assert_eq!(custom, BrowserFamily::Other("ladybird".into()));
+    let custom = ClientFamily::Other("ladybird".into());
+    assert_eq!(custom, ClientFamily::Other("ladybird".into()));
+
+    let native_stack = ProfileMetadata::new(
+        ProfileId::new("native-http/5.3/android")?,
+        ClientFamily::Other("native-http".into()),
+        "5.3",
+        Platform::Android,
+    )?;
+    assert_eq!(
+        native_stack.family(),
+        &ClientFamily::Other("native-http".into())
+    );
 
     Ok(())
 }
@@ -29,11 +40,11 @@ fn rejects_noncanonical_profile_ids() {
 }
 
 #[test]
-fn rejects_empty_browser_versions() -> Result<(), Box<dyn std::error::Error>> {
+fn rejects_empty_client_versions() -> Result<(), Box<dyn std::error::Error>> {
     let id = ProfileId::new("custom/development/linux")?;
     let result = ProfileMetadata::new(
         id,
-        BrowserFamily::Other("custom".into()),
+        ClientFamily::Other("custom".into()),
         "  ",
         Platform::Linux,
     );

@@ -8,7 +8,8 @@ Acceptance:
 
 - The Rust 2024 workspace builds on the pinned development toolchain and declared MSRV.
 - Formatting, linting, tests, and documentation are enforced in CI.
-- Browser-neutral profile identity supports Chromium, Firefox, Safari, and custom families.
+- Client-neutral profile identity supports Chromium, Firefox, Safari, and
+  arbitrary custom client families without transport branches.
 - Agent ownership and integration rules are documented.
 
 Non-goals:
@@ -120,4 +121,6 @@ outside this phase.
 
 A public client facade, reusable sessions, protocol routing, SSE, WebSocket,
 proxies, and workload-driven performance optimization follow only after their
-transport prerequisites exist.
+transport prerequisites exist. Evidence-backed non-browser client stacks reuse
+the same typed settings and differential harness after the initial
+browser-family and transport work is complete.

@@ -1,8 +1,8 @@
-//! Browser profile identity and provenance.
+//! Client profile identity and provenance.
 
 use std::{error::Error, fmt, str::FromStr};
 
-/// Stable identifier for a built-in or user-defined browser profile.
+/// Stable identifier for a built-in or user-defined client profile.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ProfileId(Box<str>);
 
@@ -65,20 +65,20 @@ impl fmt::Display for InvalidProfileId {
 
 impl Error for InvalidProfileId {}
 
-/// Browser engine family represented by a profile.
+/// Client implementation family represented by a profile.
 ///
 /// This value is descriptive. Transports must consume protocol fields rather
-/// than branching on the browser family.
+/// than branching on the client family.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum BrowserFamily {
+pub enum ClientFamily {
     /// A Chromium-family browser.
     Chromium,
     /// Mozilla Firefox.
     Firefox,
     /// Apple Safari.
     Safari,
-    /// A browser family not built into Phantom.
+    /// A client family not built into Phantom.
     Other(Box<str>),
 }
 
@@ -100,26 +100,26 @@ pub enum Platform {
     Other(Box<str>),
 }
 
-/// Identity and provenance shared by every browser profile.
+/// Identity and provenance shared by every client profile.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProfileMetadata {
     id: ProfileId,
-    family: BrowserFamily,
+    family: ClientFamily,
     version: Box<str>,
     platform: Platform,
 }
 
 impl ProfileMetadata {
-    /// Creates browser-profile metadata.
+    /// Creates client-profile metadata.
     pub fn new(
         id: ProfileId,
-        family: BrowserFamily,
+        family: ClientFamily,
         version: impl Into<Box<str>>,
         platform: Platform,
-    ) -> Result<Self, EmptyBrowserVersion> {
+    ) -> Result<Self, EmptyClientVersion> {
         let version = version.into();
         if version.trim().is_empty() {
-            return Err(EmptyBrowserVersion);
+            return Err(EmptyClientVersion);
         }
 
         Ok(Self {
@@ -136,13 +136,13 @@ impl ProfileMetadata {
         &self.id
     }
 
-    /// Returns the browser family.
+    /// Returns the client family.
     #[must_use]
-    pub fn family(&self) -> &BrowserFamily {
+    pub fn family(&self) -> &ClientFamily {
         &self.family
     }
 
-    /// Returns the browser version as captured by the profile source.
+    /// Returns the client version as captured by the profile source.
     #[must_use]
     pub fn version(&self) -> &str {
         &self.version
@@ -155,17 +155,17 @@ impl ProfileMetadata {
     }
 }
 
-/// Error returned when browser-version metadata is empty.
+/// Error returned when client-version metadata is empty.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct EmptyBrowserVersion;
+pub struct EmptyClientVersion;
 
-impl fmt::Display for EmptyBrowserVersion {
+impl fmt::Display for EmptyClientVersion {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("browser version must not be empty")
+        formatter.write_str("client version must not be empty")
     }
 }
 
-impl Error for EmptyBrowserVersion {}
+impl Error for EmptyClientVersion {}
 
 #[cfg(test)]
 mod tests;

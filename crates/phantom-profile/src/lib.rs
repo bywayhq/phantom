@@ -1,4 +1,4 @@
-//! Browser-neutral profile identity, provenance, and wire settings.
+//! Client-neutral profile identity, provenance, and wire settings.
 
 pub mod chromium;
 pub mod firefox;
@@ -12,7 +12,7 @@ pub use http2::{
     Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,
 };
 pub use identity::{
-    BrowserFamily, EmptyBrowserVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
+    ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
 };
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,

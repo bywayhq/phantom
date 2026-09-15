@@ -27,7 +27,7 @@ artifacts do not accumulate.
 - Implement the smallest complete vertical slice.
 - Prefer concrete Rust types and functions over speculative traits or frameworks.
 - Do not expose configuration that is not applied and verified.
-- Keep browser identity in profiles, never in transport conditionals.
+- Keep client-family identity in profiles, never in transport conditionals.
 - Preserve observable ordering when it is part of the wire fingerprint.
 - Do not silently fall back to a different protocol or fingerprint.
 - Runtime library code must not panic for recoverable input or network failures.

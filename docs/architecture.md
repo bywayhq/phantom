@@ -1,11 +1,11 @@
 # Architecture
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
-validated browser profile. The current workspace owns profiles, concrete
+validated client profile. The current workspace owns profiles, concrete
 request paths, and the validation harness. A later facade will own protocol
 routing and session behavior. Phantom carries narrow, documented patches to
 upstream protocol engines only where their public APIs cannot preserve a
-measured browser behavior.
+measured client behavior.
 
 That is the deliberate middle ground between wrapping curl and writing every
 protocol from scratch. curl and curl-impersonate remain valuable reference
@@ -24,7 +24,7 @@ flowchart TB
     User[Application]
     Client["phantom::Client<br/>small public facade"]
     Session["Session state<br/>cookies · cache hints · tickets"]
-    Profile["Browser profile<br/>TLS · H2 · QUIC · H3 settings"]
+    Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Request["Current request APIs<br/>one-shot GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
@@ -81,13 +81,13 @@ are added only after a retained capture proves that they are required.
 
 ## Configuration seam
 
-Browser names are metadata, not transport switches. Built-in profiles and user
+Client-family names are metadata, not transport switches. Built-in profiles and user
 customization produce the same owned settings types; validation happens before
 network I/O.
 
 ```mermaid
 flowchart LR
-    Capture["Retained browser capture"] --> BuiltIn["Built-in profile"]
+    Capture["Retained client capture"] --> BuiltIn["Built-in profile"]
     Custom["User-authored profile"] --> Validate
     BuiltIn --> Override["Explicit typed overrides"]
     Override --> Validate["Cross-field validation"]
@@ -107,12 +107,22 @@ trait only after a second real implementation proves that interchangeability
 is useful. Unsupported combinations fail explicitly; the client never silently
 downgrades to a different protocol or fingerprint.
 
+Profiles are not limited to graphical browsers. Any captured HTTP client stack
+uses the same client-neutral metadata, ordered TLS and HTTP settings,
+validation, and differential harness. Custom families are represented without
+adding a public enum variant for every library or SDK. A built-in recipe is
+added only after retaining traffic from that exact stack, version, and
+platform; transport code still receives settings rather than branching on its
+family name. If a future stack requires a second concrete backend, that
+implementation first proves the seam and only then motivates extracting a
+backend trait.
+
 ## Workspace ownership
 
 ```text
 crates/
 ├── phantom/          # eventual public Client and session facade
-├── phantom-profile/  # browser-neutral identity and typed wire settings
+├── phantom-profile/  # client-neutral identity and typed wire settings
 ├── phantom-net/      # concrete TLS, H1, H2, and later H3 mechanisms
 ├── phantom-quic-btls/ # planned, isolated Quinn/BoringSSL crypto boundary
 └── phantom-testkit/  # bounded capture and deterministic differential tools
@@ -133,7 +143,7 @@ private so the public module tree remains shallow.
 
 ```mermaid
 flowchart LR
-    Browser["Pinned browser + OS"] --> Capture["bounded local capture<br/>TLS · frames"]
+    Client["Pinned client + platform"] --> Capture["bounded local capture<br/>TLS · frames"]
     Capture --> Fixture["raw fixture + metadata"]
     Fixture --> Decode["strict semantic decoder"]
     Phantom["fresh Phantom connection"] --> Decode
