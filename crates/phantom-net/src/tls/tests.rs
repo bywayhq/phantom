@@ -5,10 +5,7 @@ use btls::{
     ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslMethod, select_next_proto},
     x509::X509,
 };
-use phantom_profile::{
-    AlpsSettings, CertificateCompression, CipherSuite, NamedGroup, SignatureScheme, TlsSettings,
-    TlsVersion,
-};
+use phantom_profile::{TlsVersion, chromium::v152_macos_tls};
 use phantom_testkit::tls::{CaptureLimits, capture_client_hello};
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
@@ -34,64 +31,6 @@ fn trust_anchor_ids_are_length_prefixed_for_boringssl() {
     assert_eq!(encode_trust_anchor_ids(&ids).as_ref(), b"\x01a\x02bc");
 }
 
-fn chromium_152_macos_reference() -> TlsSettings {
-    TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls13,
-        cipher_suites: vec![
-            CipherSuite::Aes128GcmSha256,
-            CipherSuite::Aes256GcmSha384,
-            CipherSuite::Chacha20Poly1305Sha256,
-            CipherSuite::EcdheEcdsaAes128GcmSha256,
-            CipherSuite::EcdheRsaAes128GcmSha256,
-            CipherSuite::EcdheEcdsaAes256GcmSha384,
-            CipherSuite::EcdheRsaAes256GcmSha384,
-            CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaAes128CbcSha,
-            CipherSuite::EcdheRsaAes256CbcSha,
-            CipherSuite::RsaAes128GcmSha256,
-            CipherSuite::RsaAes256GcmSha384,
-            CipherSuite::RsaAes128CbcSha,
-            CipherSuite::RsaAes256CbcSha,
-        ],
-        groups: vec![
-            NamedGroup::X25519MlKem768,
-            NamedGroup::X25519,
-            NamedGroup::Secp256r1,
-            NamedGroup::Secp384r1,
-        ],
-        key_shares: vec![NamedGroup::X25519MlKem768, NamedGroup::X25519],
-        signature_schemes: vec![
-            SignatureScheme::MlDsa44,
-            SignatureScheme::MlDsa65,
-            SignatureScheme::MlDsa87,
-            SignatureScheme::EcdsaSecp256r1Sha256,
-            SignatureScheme::RsaPssRsaeSha256,
-            SignatureScheme::RsaPkcs1Sha256,
-            SignatureScheme::EcdsaSecp384r1Sha384,
-            SignatureScheme::RsaPssRsaeSha384,
-            SignatureScheme::RsaPkcs1Sha384,
-            SignatureScheme::RsaPssRsaeSha512,
-            SignatureScheme::RsaPkcs1Sha512,
-        ],
-        alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
-        alps: Some(AlpsSettings {
-            protocol: Box::from(&b"h2"[..]),
-            use_new_codepoint: true,
-        }),
-        certificate_compression: vec![CertificateCompression::Brotli],
-        requested_trust_anchor_ids: Some(Vec::new()),
-        grease: true,
-        grease_signature_algorithms: true,
-        permute_extensions: true,
-        ech_grease: true,
-        request_ocsp_staple: true,
-        request_signed_certificate_timestamps: true,
-        aes_hardware: true,
-    }
-}
-
 #[tokio::test]
 async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -107,7 +46,7 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
         .map_err(io::Error::other)
     });
 
-    let mut settings = chromium_152_macos_reference();
+    let mut settings = v152_macos_tls();
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
     settings.key_shares.clear();
@@ -140,7 +79,7 @@ fn unmapped_backend_setting_is_actionable() -> TestResult<()> {
 
 #[test]
 fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
-    let mut settings = chromium_152_macos_reference();
+    let mut settings = v152_macos_tls();
     settings.alpn_protocols = vec![Box::default()];
 
     let error = match TlsConnector::new(&settings) {
@@ -156,10 +95,8 @@ fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
 async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(
-        &chromium_152_macos_reference(),
-        [identity.root_der.as_slice()],
-    )?;
+    let connector =
+        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(&b"h2"[..]));
@@ -173,10 +110,8 @@ async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
 async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, false).await?;
-    let connector = TlsConnector::new_with_roots(
-        &chromium_152_macos_reference(),
-        [identity.root_der.as_slice()],
-    )?;
+    let connector =
+        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), None);
@@ -189,10 +124,8 @@ async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
 async fn wrong_hostname_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(
-        &chromium_152_macos_reference(),
-        [identity.root_der.as_slice()],
-    )?;
+    let connector =
+        TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der.as_slice()])?;
 
     let result = connect_local(&connector, address, "wrong.phantom.test").await?;
     assert_eq!(
@@ -209,8 +142,7 @@ async fn wrong_hostname_fails() -> TestResult<()> {
 async fn untrusted_root_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector =
-        TlsConnector::new_with_roots(&chromium_152_macos_reference(), std::iter::empty())?;
+    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), std::iter::empty())?;
 
     let result = connect_local(&connector, address, TEST_SERVER_NAME).await?;
     assert_eq!(

@@ -2,15 +2,13 @@
 
 use std::io;
 
-use phantom_profile::TlsSettings;
+use phantom_profile::{TlsSettings, chromium::v152_macos_tls};
 use phantom_testkit::tls::{
     CaptureLimits, ClientHelloCapture, ClientHelloSummary, capture_client_hello, is_grease,
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::Instant};
 
-use super::{
-    TEST_SERVER_NAME, TEST_TIMEOUT, TestResult, TlsConnector, chromium_152_macos_reference,
-};
+use super::{TEST_SERVER_NAME, TEST_TIMEOUT, TestResult, TlsConnector};
 
 const CHROME_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome/152.0.7977.83/",
@@ -21,8 +19,21 @@ const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
 
 #[tokio::test]
 async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
-    let expected = fixture_summary().await?;
-    let actual = capture_summary(&chromium_152_macos_reference()).await?;
+    let expected_capture = fixture_capture().await?;
+    let actual_capture = capture_client_hello_from(&v152_macos_tls()).await?;
+
+    assert_eq!(
+        actual_capture.records().len(),
+        expected_capture.records().len()
+    );
+
+    let expected = expected_capture.summary()?;
+    let actual = actual_capture.summary()?;
+    assert_eq!(actual_capture.records().len(), 1);
+    assert_eq!(
+        record_length_without_ech(&actual_capture, &actual)?,
+        record_length_without_ech(&expected_capture, &expected)?
+    );
 
     assert_eq!(actual.legacy_version(), expected.legacy_version());
     assert_eq!(
@@ -49,6 +60,14 @@ async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
     );
     assert_eq!(actual.server_name(), expected.server_name());
     assert_eq!(actual.server_name(), Some(TEST_SERVER_NAME.as_bytes()));
+    assert_eq!(
+        actual.requested_trust_anchor_ids(),
+        expected.requested_trust_anchor_ids()
+    );
+    assert_eq!(
+        actual.requested_trust_anchor_ids().map(<[_]>::len),
+        Some(32)
+    );
 
     // Chrome permutes eligible extensions on each connection. Sorting only this
     // vector compares exact membership and count without inventing a stable order.
@@ -64,21 +83,25 @@ async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
         normalized_extensions(actual.extension_types()),
         normalized_extensions(expected.extension_types())
     );
+    assert_eq!(
+        stable_extension_layout(&actual),
+        stable_extension_layout(&expected)
+    );
     assert!(actual.extension_types().contains(&TRUST_ANCHORS_EXTENSION));
     Ok(())
 }
 
 #[tokio::test]
 async fn omitted_trust_anchor_ids_omit_the_extension() -> TestResult<()> {
-    let mut settings = chromium_152_macos_reference();
+    let mut settings = v152_macos_tls();
     settings.requested_trust_anchor_ids = None;
 
-    let summary = capture_summary(&settings).await?;
+    let summary = capture_client_hello_from(&settings).await?.summary()?;
     assert!(!summary.extension_types().contains(&TRUST_ANCHORS_EXTENSION));
     Ok(())
 }
 
-async fn capture_summary(settings: &TlsSettings) -> TestResult<ClientHelloSummary> {
+async fn capture_client_hello_from(settings: &TlsSettings) -> TestResult<ClientHelloCapture> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let address = listener.local_addr()?;
     let capture_task = tokio::spawn(async move {
@@ -99,11 +122,10 @@ async fn capture_summary(settings: &TlsSettings) -> TestResult<ClientHelloSummar
         return Err("capture peer unexpectedly completed TLS".into());
     }
 
-    let capture = tokio::time::timeout(TEST_TIMEOUT, capture_task).await???;
-    Ok(capture.summary()?)
+    Ok(tokio::time::timeout(TEST_TIMEOUT, capture_task).await???)
 }
 
-async fn fixture_summary() -> TestResult<ClientHelloSummary> {
+async fn fixture_capture() -> TestResult<ClientHelloCapture> {
     let record_count = fixture_value("record_count")?.parse::<usize>()?;
     let records = (0..record_count)
         .map(|index| decode_hex(fixture_value(&format!("record_{index}_hex"))?))
@@ -113,13 +135,12 @@ async fn fixture_summary() -> TestResult<ClientHelloSummary> {
     writer.write_all(&wire).await?;
     drop(writer);
 
-    let capture: ClientHelloCapture = capture_client_hello(
+    Ok(capture_client_hello(
         &mut reader,
         Instant::now() + TEST_TIMEOUT,
         CaptureLimits::new(32 * 1024, 40 * 1024, 4),
     )
-    .await?;
-    Ok(capture.summary()?)
+    .await?)
 }
 
 fn fixture_value(field: &str) -> Result<&'static str, io::Error> {
@@ -176,4 +197,48 @@ fn normalized_extensions(values: &[u16]) -> Vec<u16> {
 
 fn grease_count(values: &[u16]) -> usize {
     values.iter().filter(|&&value| is_grease(value)).count()
+}
+
+fn stable_extension_layout(summary: &ClientHelloSummary) -> Vec<(u16, usize)> {
+    let mut layout = summary
+        .extension_layout()
+        .filter(|(extension_type, _)| *extension_type != 0xfe0d)
+        .map(|(extension_type, payload_length)| {
+            (
+                if is_grease(extension_type) {
+                    GREASE_SENTINEL
+                } else {
+                    extension_type
+                },
+                payload_length,
+            )
+        })
+        .collect::<Vec<_>>();
+    layout.sort_unstable();
+    layout
+}
+
+fn record_length_without_ech(
+    capture: &ClientHelloCapture,
+    summary: &ClientHelloSummary,
+) -> TestResult<usize> {
+    let ech_payload_length = summary
+        .extension_layout()
+        .find_map(|(extension_type, payload_length)| {
+            (extension_type == 0xfe0d).then_some(payload_length)
+        })
+        .ok_or("ClientHello has no ECH GREASE extension")?;
+    let record = capture
+        .records()
+        .first()
+        .ok_or("ClientHello capture has no TLS record")?;
+
+    // Pinned BoringSSL deliberately chooses the ECH GREASE payload estimate at
+    // random in 32-byte increments. Only that payload length is normalized;
+    // every other extension payload length is compared exactly above.
+    record
+        .fragment()
+        .len()
+        .checked_sub(ech_payload_length)
+        .ok_or_else(|| "ECH payload is larger than its TLS record".into())
 }
