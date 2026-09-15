@@ -2,7 +2,10 @@
 
 mod frame;
 
-pub use frame::{CapturedFrame, FrameHeader, Setting, SettingsDecodeError, SettingsFrame};
+pub use frame::{
+    CapturedFrame, FrameHeader, Setting, SettingsDecodeError, SettingsFrame,
+    WindowUpdateDecodeError, WindowUpdateFrame,
+};
 
 use std::{error::Error, fmt, io};
 
@@ -92,6 +95,11 @@ pub enum CaptureError {
     },
     /// The input ended partway through a frame header.
     TruncatedFrameHeader,
+    /// The input ended cleanly before the requested completion event occurred.
+    InputEndedBeforeCompletion {
+        /// Completion event that was still required.
+        completion: CaptureCompletion,
+    },
     /// The input ended partway through a frame payload.
     TruncatedFramePayload {
         /// Payload length declared by the frame header.
@@ -120,6 +128,15 @@ pub enum CaptureError {
     },
     /// A SETTINGS frame required for completion was malformed.
     InvalidSettings(SettingsDecodeError),
+    /// The first frame was not SETTINGS, as required by HTTP/2 clients.
+    InitialFrameNotSettings {
+        /// Type of the unexpected first frame.
+        frame_type: u8,
+    },
+    /// The first frame acknowledged settings instead of advertising client settings.
+    InitialSettingsAcknowledgement,
+    /// A WINDOW_UPDATE frame was malformed.
+    InvalidWindowUpdate(WindowUpdateDecodeError),
 }
 
 impl fmt::Display for CaptureError {
@@ -140,6 +157,10 @@ impl fmt::Display for CaptureError {
             Self::TruncatedFrameHeader => {
                 formatter.write_str("input ended partway through an HTTP/2 frame header")
             }
+            Self::InputEndedBeforeCompletion { completion } => write!(
+                formatter,
+                "HTTP/2 input ended before capture completion {completion:?}"
+            ),
             Self::TruncatedFramePayload { expected } => write!(
                 formatter,
                 "input ended before the declared {expected}-byte HTTP/2 frame payload completed"
@@ -160,6 +181,16 @@ impl fmt::Display for CaptureError {
                 "HTTP/2 capture would use {attempted} bytes; maximum is {maximum}"
             ),
             Self::InvalidSettings(error) => write!(formatter, "invalid SETTINGS frame: {error}"),
+            Self::InitialFrameNotSettings { frame_type } => write!(
+                formatter,
+                "initial HTTP/2 client frame has type {frame_type:#04x}, not SETTINGS"
+            ),
+            Self::InitialSettingsAcknowledgement => formatter.write_str(
+                "initial HTTP/2 client SETTINGS frame is an acknowledgement, not an advertisement",
+            ),
+            Self::InvalidWindowUpdate(error) => {
+                write!(formatter, "invalid WINDOW_UPDATE frame: {error}")
+            }
         }
     }
 }
@@ -169,6 +200,7 @@ impl Error for CaptureError {
         match self {
             Self::Io(error) => Some(error),
             Self::InvalidSettings(error) => Some(error),
+            Self::InvalidWindowUpdate(error) => Some(error),
             _ => None,
         }
     }
@@ -242,7 +274,7 @@ where
 
         checked_total(total_bytes, FRAME_HEADER_LENGTH, limits)?;
         let mut header_bytes = [0u8; FRAME_HEADER_LENGTH];
-        read_exact(reader, &mut header_bytes, CaptureStage::FrameHeader).await?;
+        read_frame_header(reader, &mut header_bytes, completion).await?;
         let header = FrameHeader::decode(header_bytes);
 
         if header.payload_length() > limits.max_frame_payload_bytes {
@@ -271,10 +303,27 @@ where
         .await?;
 
         let frame = CapturedFrame { header, wire };
-        if let Some(settings) = frame.settings().map_err(CaptureError::InvalidSettings)? {
-            saw_initial_settings |= !settings.is_acknowledgement();
+        let settings = frame.settings().map_err(CaptureError::InvalidSettings)?;
+        if frames.is_empty() {
+            match settings {
+                Some(settings) if !settings.is_acknowledgement() => {
+                    saw_initial_settings = true;
+                }
+                Some(_) => return Err(CaptureError::InitialSettingsAcknowledgement),
+                None => {
+                    return Err(CaptureError::InitialFrameNotSettings {
+                        frame_type: frame.header().frame_type(),
+                    });
+                }
+            }
         }
-        saw_connection_window_update |= frame.is_connection_window_update();
+        if let Some(window_update) = frame
+            .window_update()
+            .map_err(CaptureError::InvalidWindowUpdate)?
+        {
+            saw_connection_window_update |=
+                frame.header().stream_id() == 0 && window_update.increment() != 0;
+        }
         frames.push(frame);
         total_bytes = next_total;
 
@@ -314,8 +363,29 @@ fn checked_total(
 #[derive(Clone, Copy)]
 enum CaptureStage {
     Preface,
-    FrameHeader,
     FramePayload { expected: usize },
+}
+
+async fn read_frame_header<R>(
+    reader: &mut R,
+    bytes: &mut [u8; FRAME_HEADER_LENGTH],
+    completion: CaptureCompletion,
+) -> Result<(), CaptureError>
+where
+    R: AsyncRead + Unpin,
+{
+    let mut filled = 0;
+    while filled < bytes.len() {
+        match reader.read(&mut bytes[filled..]).await {
+            Ok(0) if filled == 0 => {
+                return Err(CaptureError::InputEndedBeforeCompletion { completion });
+            }
+            Ok(0) => return Err(CaptureError::TruncatedFrameHeader),
+            Ok(read) => filled += read,
+            Err(error) => return Err(CaptureError::Io(error)),
+        }
+    }
+    Ok(())
 }
 
 async fn read_exact<R>(
@@ -333,7 +403,6 @@ where
 
         match stage {
             CaptureStage::Preface => CaptureError::TruncatedPreface,
-            CaptureStage::FrameHeader => CaptureError::TruncatedFrameHeader,
             CaptureStage::FramePayload { expected } => {
                 CaptureError::TruncatedFramePayload { expected }
             }

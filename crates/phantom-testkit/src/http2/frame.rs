@@ -7,6 +7,13 @@ pub(super) const SETTINGS_FRAME_TYPE: u8 = 0x04;
 pub(super) const WINDOW_UPDATE_FRAME_TYPE: u8 = 0x08;
 const SETTINGS_ACK_FLAG: u8 = 0x01;
 const SETTING_LENGTH: usize = 6;
+const SETTINGS_ENABLE_PUSH: u16 = 0x02;
+const SETTINGS_INITIAL_WINDOW_SIZE: u16 = 0x04;
+const SETTINGS_MAX_FRAME_SIZE: u16 = 0x05;
+const MAX_FLOW_CONTROL_WINDOW: u32 = 0x7fff_ffff;
+const MIN_MAX_FRAME_SIZE: u32 = 16_384;
+const MAX_MAX_FRAME_SIZE: u32 = 0x00ff_ffff;
+const WINDOW_UPDATE_PAYLOAD_LENGTH: usize = 4;
 
 /// The decoded nine-byte HTTP/2 frame header.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -132,13 +139,60 @@ impl CapturedFrame {
                 identifier: u16::from_be_bytes([entry[0], entry[1]]),
                 value: u32::from_be_bytes([entry[2], entry[3], entry[4], entry[5]]),
             })
-            .collect();
+            .collect::<Vec<_>>();
+        for entry in &entries {
+            validate_setting(*entry)?;
+        }
 
         Ok(Some(SettingsFrame { ack, entries }))
     }
 
-    pub(super) fn is_connection_window_update(&self) -> bool {
-        self.header.frame_type == WINDOW_UPDATE_FRAME_TYPE && self.header.stream_id == 0
+    /// Decodes this frame as WINDOW_UPDATE, or returns `Ok(None)` for another type.
+    pub fn window_update(&self) -> Result<Option<WindowUpdateFrame>, WindowUpdateDecodeError> {
+        if self.header.frame_type != WINDOW_UPDATE_FRAME_TYPE {
+            return Ok(None);
+        }
+        let payload = self.payload();
+        if payload.len() != WINDOW_UPDATE_PAYLOAD_LENGTH {
+            return Err(WindowUpdateDecodeError::InvalidPayloadLength {
+                length: payload.len(),
+            });
+        }
+
+        let raw_increment = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+        let increment = raw_increment & MAX_FLOW_CONTROL_WINDOW;
+        if increment == 0 {
+            return Err(WindowUpdateDecodeError::ZeroIncrement);
+        }
+
+        Ok(Some(WindowUpdateFrame {
+            reserved: raw_increment & (1 << 31) != 0,
+            increment,
+        }))
+    }
+}
+
+fn validate_setting(setting: Setting) -> Result<(), SettingsDecodeError> {
+    match setting.identifier {
+        SETTINGS_ENABLE_PUSH if setting.value > 1 => Err(SettingsDecodeError::InvalidEnablePush {
+            value: setting.value,
+        }),
+        SETTINGS_INITIAL_WINDOW_SIZE if setting.value > MAX_FLOW_CONTROL_WINDOW => {
+            Err(SettingsDecodeError::InitialWindowSizeTooLarge {
+                value: setting.value,
+                maximum: MAX_FLOW_CONTROL_WINDOW,
+            })
+        }
+        SETTINGS_MAX_FRAME_SIZE
+            if !(MIN_MAX_FRAME_SIZE..=MAX_MAX_FRAME_SIZE).contains(&setting.value) =>
+        {
+            Err(SettingsDecodeError::InvalidMaxFrameSize {
+                value: setting.value,
+                minimum: MIN_MAX_FRAME_SIZE,
+                maximum: MAX_MAX_FRAME_SIZE,
+            })
+        }
+        _ => Ok(()),
     }
 }
 
@@ -203,6 +257,27 @@ pub enum SettingsDecodeError {
         /// Invalid payload length.
         length: usize,
     },
+    /// SETTINGS_ENABLE_PUSH used a value other than zero or one.
+    InvalidEnablePush {
+        /// Invalid setting value.
+        value: u32,
+    },
+    /// SETTINGS_INITIAL_WINDOW_SIZE exceeded the maximum flow-control window.
+    InitialWindowSizeTooLarge {
+        /// Invalid setting value.
+        value: u32,
+        /// Largest valid setting value.
+        maximum: u32,
+    },
+    /// SETTINGS_MAX_FRAME_SIZE was outside its permitted inclusive range.
+    InvalidMaxFrameSize {
+        /// Invalid setting value.
+        value: u32,
+        /// Smallest valid setting value.
+        minimum: u32,
+        /// Largest valid setting value.
+        maximum: u32,
+    },
 }
 
 impl fmt::Display for SettingsDecodeError {
@@ -222,8 +297,74 @@ impl fmt::Display for SettingsDecodeError {
                 formatter,
                 "SETTINGS payload is {length} bytes, not a multiple of 6"
             ),
+            Self::InvalidEnablePush { value } => write!(
+                formatter,
+                "SETTINGS_ENABLE_PUSH value is {value}, not 0 or 1"
+            ),
+            Self::InitialWindowSizeTooLarge { value, maximum } => write!(
+                formatter,
+                "SETTINGS_INITIAL_WINDOW_SIZE value is {value}; maximum is {maximum}"
+            ),
+            Self::InvalidMaxFrameSize {
+                value,
+                minimum,
+                maximum,
+            } => write!(
+                formatter,
+                "SETTINGS_MAX_FRAME_SIZE value is {value}; valid range is {minimum}..={maximum}"
+            ),
         }
     }
 }
 
 impl Error for SettingsDecodeError {}
+
+/// A semantically decoded HTTP/2 WINDOW_UPDATE frame.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct WindowUpdateFrame {
+    reserved: bool,
+    increment: u32,
+}
+
+impl WindowUpdateFrame {
+    /// Reports whether the reserved payload bit was set on the wire.
+    #[must_use]
+    pub const fn reserved_bit(&self) -> bool {
+        self.reserved
+    }
+
+    /// Returns the normalized 31-bit flow-control window increment.
+    #[must_use]
+    pub const fn increment(&self) -> u32 {
+        self.increment
+    }
+}
+
+/// Failure returned while semantically decoding a WINDOW_UPDATE frame.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum WindowUpdateDecodeError {
+    /// A WINDOW_UPDATE payload was not exactly four bytes.
+    InvalidPayloadLength {
+        /// Invalid payload length.
+        length: usize,
+    },
+    /// The normalized 31-bit window increment was zero.
+    ZeroIncrement,
+}
+
+impl fmt::Display for WindowUpdateDecodeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPayloadLength { length } => write!(
+                formatter,
+                "WINDOW_UPDATE payload is {length} bytes, not 4 bytes"
+            ),
+            Self::ZeroIncrement => {
+                formatter.write_str("WINDOW_UPDATE flow-control increment is zero")
+            }
+        }
+    }
+}
+
+impl Error for WindowUpdateDecodeError {}
