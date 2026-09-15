@@ -36,6 +36,7 @@ pub(crate) struct TlsConnector {
     alps: Option<AlpsSettings>,
     tls13_key_shares: Option<Box<[NamedGroup]>>,
     ech_grease: bool,
+    ech_grease_payload_length: Option<u16>,
 }
 
 impl fmt::Debug for TlsConnector {
@@ -55,6 +56,7 @@ impl fmt::Debug for TlsConnector {
             .field("alps_use_new_codepoint", &alps_use_new_codepoint)
             .field("tls13_key_shares", &self.tls13_key_shares)
             .field("ech_grease", &self.ech_grease)
+            .field("ech_grease_payload_length", &self.ech_grease_payload_length)
             .finish_non_exhaustive()
     }
 }
@@ -85,6 +87,7 @@ impl TlsConnector {
             grease = settings.grease,
             extension_order = extension_order_trace_name(&settings.extension_order),
             ech_grease = settings.ech_grease,
+            ech_grease_payload_length_configured = settings.ech_grease_payload_length.is_some(),
             outcome = field::Empty,
             error_kind = field::Empty,
         );
@@ -136,6 +139,7 @@ impl TlsConnector {
             tls13_key_shares: (settings.max_version == TlsVersion::Tls13)
                 .then(|| settings.key_shares.clone().into_boxed_slice()),
             ech_grease: settings.ech_grease,
+            ech_grease_payload_length: settings.ech_grease_payload_length,
         })
     }
 
@@ -177,6 +181,11 @@ impl TlsConnector {
             configuration.set_use_server_name_indication(true);
             configuration.set_verify_hostname(true);
             configuration.set_enable_ech_grease(self.ech_grease);
+            if let Some(payload_length) = self.ech_grease_payload_length {
+                configuration
+                    .set_ech_grease_payload_length(usize::from(payload_length))
+                    .map_err(|error| TlsError::backend("ech_grease_payload_length", error))?;
+            }
             configuration
                 .set_alpn_protos(&self.alpn_wire)
                 .map_err(|error| TlsError::backend("alpn_protocols", error))?;

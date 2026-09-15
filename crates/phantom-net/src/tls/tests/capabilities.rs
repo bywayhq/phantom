@@ -135,6 +135,7 @@ fn capability_settings() -> TlsSettings {
             ClientHelloExtension::CertificateCompression,
         ]),
         ech_grease: false,
+        ech_grease_payload_length: None,
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,

@@ -128,7 +128,7 @@ if [[ -d vendor/btls ]]; then
   btls_current=$btls_revs
   btls_provenance=vendored
   btls_probe_supported=true
-  btls_probe_note="enabled from an exact git revision using the canonical wrapper patch"
+  btls_probe_note="enabled from an exact upstream revision using canonical wrapper patches and the reviewed native-patch fork"
 else
   btls_revs=$(sed -nE \
     's/^(btls|tokio-btls) = .*rev = "([0-9a-f]{40})".*/\2/p' Cargo.toml)

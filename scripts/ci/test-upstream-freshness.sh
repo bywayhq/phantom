@@ -42,6 +42,8 @@ make_btls_candidate() {
   cp -R vendor/btls "$destination/btls"
   cp vendor/btls/README.md "$destination/README.md"
   git -C "$destination/btls" apply --reverse \
+    "$repo_root/vendor/btls/patches/ech-grease-payload-length.patch"
+  git -C "$destination/btls" apply --reverse \
     "$repo_root/vendor/btls/patches/alps-settings.patch"
   rm -rf "$destination/btls/patches"
   rm "$destination/btls/PHANTOM.md" "$destination/btls/README.md"
@@ -67,7 +69,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "53001190246565593255c378e4b73c5be2d9a068" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
@@ -119,8 +121,11 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
-grep -F -q "rev = \"$candidate_revision\"" "$staged_wrapper/Cargo.toml"
+grep -F -q 'rev = "53001190246565593255c378e4b73c5be2d9a068"' \
+  "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
+grep -F -q 'pub fn set_ech_grease_payload_length' \
+  "$staged_wrapper/src/ssl/mod.rs"
 [[ ! -L "$staged_wrapper/README.md" ]]
 [[ $(git -C "$candidate_repo" status --porcelain) == "$candidate_status_before" ]]
 [[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
@@ -135,7 +140,8 @@ if TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$drift_repo" \
   echo "drifted btls candidate unexpectedly accepted the canonical patch" >&2
   exit 1
 fi
-grep -F -q 'ALPS wrapper patch does not apply' "$test_root/drift.stderr"
+grep -F -q 'wrapper patch alps-settings.patch does not apply' \
+  "$test_root/drift.stderr"
 [[ -z $(git -C "$drift_repo" status --porcelain) ]]
 [[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
 
@@ -161,9 +167,24 @@ cat > "$mock_bin/cargo" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'cargo %s\n' "$*" >> "$COMMAND_LOG"
-if [[ " $* " == *' update '* ]]; then
-  sed -i.bak "s|$MOCK_CURRENT_REVISION|$MOCK_CANDIDATE_REVISION|g" Cargo.lock
-  rm Cargo.lock.bak
+if [[ " $* " == *' update '* && -n ${MOCK_CANDIDATE_REPOSITORY:-} ]]; then
+  awk -v repository="$MOCK_CANDIDATE_REPOSITORY" \
+      -v revision="$MOCK_CANDIDATE_REVISION" '
+    /^\[\[package\]\]$/ { in_package = 1; name = ""; print; next }
+    in_package && /^name = / {
+      name = $0
+      sub(/^[^"]*"/, "", name)
+      sub(/".*/, "", name)
+      print
+      next
+    }
+    in_package && name == "tokio-btls" && /^source = / {
+      print "source = \"git+" repository "?rev=" revision "#" revision "\""
+      next
+    }
+    { print }
+  ' Cargo.lock > Cargo.lock.next
+  mv Cargo.lock.next Cargo.lock
 fi
 EOF
 cat > "$mock_bin/rustup" <<'EOF'
@@ -198,7 +219,6 @@ EOF
 chmod +x "$linux_bin/uname" "$darwin_bin/uname"
 
 command_log="$test_root/commands.log"
-current_revision=129887582a538b8f4dcf371d15c953335312ca37
 probe_tmp="$test_root/probe-tmp"
 mkdir -p "$probe_tmp"
 if (
@@ -224,7 +244,7 @@ if (
   echo "drifted btls probe unexpectedly succeeded" >&2
   exit 1
 fi
-grep -F -q 'ALPS wrapper patch does not apply' \
+grep -F -q 'wrapper patch alps-settings.patch does not apply' \
   "$test_root/probe-drift.stderr"
 [[ -z $(git -C "$probe_checkout" status --porcelain) ]]
 [[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
@@ -240,8 +260,8 @@ mkdir -p "$darwin_tmp"
   PATH="$linux_bin:$PATH" \
     TMPDIR="$probe_tmp" \
     COMMAND_LOG="$command_log" \
-    MOCK_CURRENT_REVISION="$current_revision" \
     MOCK_CANDIDATE_REVISION="$candidate_revision" \
+    MOCK_CANDIDATE_REPOSITORY="$candidate_repo" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
@@ -249,11 +269,18 @@ mkdir -p "$darwin_tmp"
 [[ $(grep -F -o "rev = \"$candidate_revision\"" \
   "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
 grep -F -q "rev = \"$candidate_revision\"" \
+  "$probe_checkout/Cargo.toml"
+grep -F -q 'rev = "53001190246565593255c378e4b73c5be2d9a068"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \
   "$command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::ech' \
+  "$command_log"
 grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
+grep -F -q 'phantom-net --all-features --locked exact_ech_grease_payload' \
+  "$command_log"
 grep -F -q 'browser_client_hello_fixtures' "$command_log"
 [[ -z $(git -C "$candidate_repo" status --porcelain) ]]
 [[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
@@ -263,8 +290,8 @@ grep -F -q 'browser_client_hello_fixtures' "$command_log"
   PATH="$darwin_bin:$PATH" \
     TMPDIR="$darwin_tmp" \
     COMMAND_LOG="$darwin_command_log" \
-    MOCK_CURRENT_REVISION="$current_revision" \
     MOCK_CANDIDATE_REVISION="$candidate_revision" \
+    MOCK_CANDIDATE_REPOSITORY="$candidate_repo" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
@@ -272,10 +299,13 @@ grep -F -q 'browser_client_hello_fixtures' "$command_log"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps' \
   "$darwin_command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech' \
+  "$darwin_command_log"
 if grep -F -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols' \
   "$darwin_command_log"; then
-  echo "Darwin btls ALPS gate unexpectedly enabled prefixed symbols" >&2
+  echo "Darwin btls wrapper gate unexpectedly enabled prefixed symbols" >&2
   exit 1
 fi
 [[ -z $(find "$darwin_tmp" -mindepth 1 -print -quit) ]]
@@ -331,7 +361,6 @@ grep -F -q 'checksum mismatch' "$test_root/http2-failure.stderr"
   PATH="$mock_bin:$PATH" \
     TMPDIR="$http2_tmp" \
     COMMAND_LOG="$command_log" \
-    MOCK_CURRENT_REVISION="$current_revision" \
     MOCK_CANDIDATE_REVISION="$candidate_revision" \
     MOCK_HTTP2_ARCHIVE="$http2_archive" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \

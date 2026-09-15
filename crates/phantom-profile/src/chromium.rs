@@ -108,6 +108,7 @@ pub fn v152_macos_tls() -> TlsSettings {
         grease_signature_algorithms: true,
         extension_order: ClientHelloExtensionOrder::Permuted,
         ech_grease: true,
+        ech_grease_payload_length: None,
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,

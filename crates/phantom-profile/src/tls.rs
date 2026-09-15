@@ -2,6 +2,9 @@
 
 use std::{error::Error, fmt};
 
+const ECH_GREASE_EXTENSION_OVERHEAD: u16 = 42;
+const MAX_ECH_GREASE_PAYLOAD_LENGTH: u16 = u16::MAX - ECH_GREASE_EXTENSION_OVERHEAD;
+
 /// A TLS protocol version accepted by a transport.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
@@ -239,6 +242,12 @@ pub struct TlsSettings {
     pub extension_order: ClientHelloExtensionOrder,
     /// Whether to emit a GREASE ECH extension without an ECH configuration.
     pub ech_grease: bool,
+    /// Optional exact byte length for the random GREASE ECH payload.
+    ///
+    /// `None` retains the TLS backend's randomized payload-length policy. A
+    /// configured length requires [`Self::ech_grease`] and must leave room for
+    /// the ECHClientHelloOuter framing in the TLS extension body.
+    pub ech_grease_payload_length: Option<u16>,
     /// Whether to request an OCSP staple.
     pub request_ocsp_staple: bool,
     /// Whether to request signed certificate timestamps.
@@ -266,6 +275,21 @@ impl TlsSettings {
             return Err(InvalidTlsSettings::new(
                 "groups",
                 "at least one supported group is required",
+            ));
+        }
+        if self.ech_grease_payload_length.is_some() && !self.ech_grease {
+            return Err(InvalidTlsSettings::new(
+                "ech_grease_payload_length",
+                "an exact ECH GREASE payload length requires ECH GREASE to be enabled",
+            ));
+        }
+        if self
+            .ech_grease_payload_length
+            .is_some_and(|length| length > MAX_ECH_GREASE_PAYLOAD_LENGTH)
+        {
+            return Err(InvalidTlsSettings::new(
+                "ech_grease_payload_length",
+                "ECH GREASE payload and framing exceed the TLS extension body limit",
             ));
         }
         if self.max_version < TlsVersion::Tls13 {

@@ -5,6 +5,8 @@ set -euo pipefail
 candidate=${1:-}
 destination=${2:-}
 repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
+btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
+btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-53001190246565593255c378e4b73c5be2d9a068}
 
 die() {
   echo "stage-btls-candidate: $*" >&2
@@ -56,7 +58,7 @@ workspace_dependency_version() {
 }
 
 materialize_wrapper_manifest() {
-  local upstream_manifest=$1 wrapper_manifest=$2 revision=$3
+  local upstream_manifest=$1 wrapper_manifest=$2
   local version repository_url edition rust_version dependency dependency_version
 
   version=$(workspace_package_value "$upstream_manifest" version)
@@ -91,7 +93,7 @@ materialize_wrapper_manifest() {
   [[ -n "$dependency_version" ]] \
     || die "candidate workspace dependency 'btls-sys' has no version"
   replace_exact "$wrapper_manifest" 'btls-sys = { workspace = true }' \
-    "btls-sys = { version = \"$dependency_version\", git = \"https://github.com/0x676e67/btls\", rev = \"$revision\" }" 1
+    "btls-sys = { version = \"$dependency_version\", git = \"$btls_sys_repository\", rev = \"$btls_sys_revision\" }" 1
 
   if grep -F -q 'workspace = true' "$wrapper_manifest"; then
     die "candidate wrapper gained unsupported workspace-inherited packaging fields"
@@ -100,6 +102,8 @@ materialize_wrapper_manifest() {
 
 [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] \
   || die "usage: $0 CANDIDATE_REVISION DESTINATION"
+[[ "$btls_sys_revision" =~ ^[0-9a-f]{40}$ ]] \
+  || die "PHANTOM_BTLS_SYS_REVISION must be an exact git revision"
 [[ -n "$destination" ]] || die "usage: $0 CANDIDATE_REVISION DESTINATION"
 [[ ! -e "$destination" ]] || die "destination already exists: $destination"
 
@@ -130,13 +134,17 @@ if [[ -L "$destination/README.md" ]]; then
 fi
 
 # Packaging materialization is intentionally separate from the source patch.
-# It resolves workspace fields and pins btls-sys to the same exact revision.
+# It resolves workspace fields and pins btls-sys to the reviewed native-patch
+# fork independently from the upstream wrapper candidate.
 materialize_wrapper_manifest \
-  "$staging/Cargo.toml" "$destination/Cargo.toml" "$candidate"
+  "$staging/Cargo.toml" "$destination/Cargo.toml"
 
-patch_file=$(cd "$(dirname "$0")/../.." && pwd)/vendor/btls/patches/alps-settings.patch
-[[ -f "$patch_file" ]] || die "canonical ALPS wrapper patch is missing"
-if ! git -C "$destination" apply --check "$patch_file"; then
-  die "ALPS wrapper patch does not apply to btls $candidate; review upstream drift"
-fi
-git -C "$destination" apply "$patch_file"
+patch_dir=$(cd "$(dirname "$0")/../.." && pwd)/vendor/btls/patches
+for patch_name in alps-settings.patch ech-grease-payload-length.patch; do
+  patch_file="$patch_dir/$patch_name"
+  [[ -f "$patch_file" ]] || die "canonical wrapper patch is missing: $patch_name"
+  if ! git -C "$destination" apply --check "$patch_file"; then
+    die "wrapper patch $patch_name does not apply to btls $candidate; review upstream drift"
+  fi
+  git -C "$destination" apply "$patch_file"
+done

@@ -4151,6 +4151,21 @@ impl SslRef {
         }
     }
 
+    /// Sets the exact payload length of a GREASE ECH extension.
+    ///
+    /// This does not enable ECH GREASE. Without calling this method, BoringSSL
+    /// retains its default randomized payload-length policy.
+    #[corresponds(SSL_set_ech_grease_payload_length)]
+    pub fn set_ech_grease_payload_length(&self, payload_length: usize) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set_ech_grease_payload_length(
+                self.as_ptr(),
+                payload_length,
+            ))
+            .map(|_| ())
+        }
+    }
+
     /// Sets the compliance policy on `SSL`.
     #[corresponds(SSL_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {

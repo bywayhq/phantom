@@ -19,6 +19,7 @@ fn minimal_settings() -> TlsSettings {
         grease_signature_algorithms: false,
         extension_order: ClientHelloExtensionOrder::BackendDefault,
         ech_grease: false,
+        ech_grease_payload_length: None,
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
@@ -58,6 +59,31 @@ fn tls_12_rejects_ech_grease() {
     assert_eq!(
         error.as_ref().map(InvalidTlsSettings::field),
         Some("ech_grease")
+    );
+}
+
+#[test]
+fn exact_ech_grease_payload_length_requires_ech_grease() {
+    let mut settings = minimal_settings();
+    settings.ech_grease_payload_length = Some(239);
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("ech_grease_payload_length")
+    );
+}
+
+#[test]
+fn exact_ech_grease_payload_and_framing_must_fit_the_extension_body() {
+    let mut settings = minimal_settings();
+    settings.ech_grease = true;
+    settings.ech_grease_payload_length = Some(MAX_ECH_GREASE_PAYLOAD_LENGTH + 1);
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("ech_grease_payload_length")
     );
 }
 

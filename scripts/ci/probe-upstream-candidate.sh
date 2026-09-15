@@ -48,6 +48,18 @@ replace_exact() {
   rm "$file.bak"
 }
 
+replace_exact_line() {
+  local file=$1 old=$2 new=$3 expected=$4
+  local count
+  count=$(awk -v old="$old" '$0 == old { count++ } END { print count + 0 }' "$file")
+  [[ "$count" == "$expected" ]] \
+    || die "expected $expected lines equal to '$old' in $file, found $count"
+  awk -v old="$old" -v replacement="$new" \
+    '{ print ($0 == old ? replacement : $0) }' "$file" \
+    > "$file.next"
+  mv "$file.next" "$file"
+}
+
 locked_git_source() {
   local package=$1
   awk -v package="$package" '
@@ -80,6 +92,7 @@ ensure_msrv() {
 workspace_gates() {
   cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
   cargo test -p phantom-net --all-features --locked alps
+  cargo test -p phantom-net --all-features --locked exact_ech_grease_payload
   cargo test -p phantom-net --all-features --locked \
     chromium_152_macos_matches_retained_client_hello
   cargo test -p phantom-testkit --all-features --locked \
@@ -112,15 +125,28 @@ case "$dependency" in
     ;;
   btls)
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid btls revision '$candidate'"
-    [[ -d vendor/btls && -f vendor/btls/patches/alps-settings.patch ]] \
-      || die "vendored btls and its canonical ALPS patch are required"
-    btls_revs=$(sed -nE \
-      's/^(btls|tokio-btls) = .*rev = "([0-9a-f]{40})".*/\2/p' Cargo.toml)
+    [[ -d vendor/btls \
+      && -f vendor/btls/patches/alps-settings.patch \
+      && -f vendor/btls/patches/ech-grease-payload-length.patch ]] \
+      || die "vendored btls and both canonical wrapper patches are required"
+    btls_sources=$(sed -nE \
+      's/^(btls|tokio-btls) = .*git = "([^"]+)".*rev = "([0-9a-f]{40})".*/\2\t\3/p' \
+      Cargo.toml)
+    btls_revs=$(printf '%s\n' "$btls_sources" | cut -f2)
     [[ $(printf '%s\n' "$btls_revs" | sed '/^$/d' | wc -l | tr -d ' ') == 2 ]] \
       || die "btls and tokio-btls must each use an exact revision"
     [[ $(printf '%s\n' "$btls_revs" | sort -u | wc -l | tr -d ' ') == 1 ]] \
       || die "btls and tokio-btls must use the same revision"
     btls_current=$(printf '%s\n' "$btls_revs" | head -1)
+    btls_current_repository=$(printf '%s\n' "$btls_sources" | cut -f1 | sort -u)
+    [[ $(printf '%s\n' "$btls_current_repository" | sed '/^$/d' | wc -l | tr -d ' ') == 1 ]] \
+      || die "btls and tokio-btls must use the same git repository"
+    candidate_repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
+    candidate_cargo_repository=${candidate_repository%.git}
+    btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
+    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-53001190246565593255c378e4b73c5be2d9a068}
+    [[ "$btls_sys_revision" =~ ^[0-9a-f]{40}$ ]] \
+      || die "PHANTOM_BTLS_SYS_REVISION must be an exact git revision"
 
     probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-btls-candidate.XXXXXX")
     candidate_dir="$probe_staging/btls"
@@ -130,19 +156,28 @@ case "$dependency" in
     # source and manifest came from the exact candidate staged above.
     cp vendor/btls/PHANTOM.md "$candidate_dir/PHANTOM.md"
     mkdir -p "$candidate_dir/patches"
-    cp vendor/btls/patches/alps-settings.patch "$candidate_dir/patches/"
+    cp vendor/btls/patches/alps-settings.patch \
+      vendor/btls/patches/ech-grease-payload-length.patch \
+      "$candidate_dir/patches/"
 
-    replace_exact Cargo.toml "rev = \"$btls_current\"" "rev = \"$candidate\"" 2
+    replace_exact Cargo.toml \
+      "git = \"$btls_current_repository\", rev = \"$btls_current\"" \
+      "git = \"$candidate_cargo_repository\", rev = \"$candidate\"" 2
+    replace_exact_line Cargo.toml \
+      "[patch.\"$btls_current_repository\"]" \
+      "[patch.\"$candidate_cargo_repository\"]" 1
     mv vendor/btls "$probe_staging/btls.previous"
     mv "$candidate_dir" vendor/btls
     cargo update -p btls-sys -p tokio-btls
 
-    expected_source="git+https://github.com/0x676e67/btls?rev=$candidate#$candidate"
-    for package in btls-sys tokio-btls; do
-      actual_source=$(locked_git_source "$package")
-      [[ "$actual_source" == "$expected_source" ]] \
-        || die "$package lock source is '$actual_source', expected exact candidate $candidate"
-    done
+    expected_source="git+$candidate_cargo_repository?rev=$candidate#$candidate"
+    actual_source=$(locked_git_source tokio-btls)
+    [[ "$actual_source" == "$expected_source" ]] \
+      || die "tokio-btls lock source is '$actual_source', expected exact candidate $candidate"
+    expected_source="git+$btls_sys_repository?rev=$btls_sys_revision#$btls_sys_revision"
+    actual_source=$(locked_git_source btls-sys)
+    [[ "$actual_source" == "$expected_source" ]] \
+      || die "btls-sys lock source is '$actual_source', expected reviewed native patch $btls_sys_revision"
 
     cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
     btls_prefix_symbols=true
@@ -155,11 +190,14 @@ case "$dependency" in
       cargo clippy --manifest-path vendor/btls/Cargo.toml \
         --all-targets -- -D warnings
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
+      cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech
     else
       cargo clippy --manifest-path vendor/btls/Cargo.toml \
         --all-targets --features prefix-symbols -- -D warnings
       cargo test --manifest-path vendor/btls/Cargo.toml \
         --features prefix-symbols ssl::test::alps
+      cargo test --manifest-path vendor/btls/Cargo.toml \
+        --features prefix-symbols ssl::test::ech
     fi
 
     msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)
