@@ -161,6 +161,8 @@ pub enum ClientHelloExtension {
     SupportedVersions,
     /// Handshake signature algorithms.
     SignatureAlgorithms,
+    /// RFC 9345 delegated-credential signature algorithms.
+    DelegatedCredential,
     /// TLS 1.3 pre-shared-key exchange modes.
     PskKeyExchangeModes,
     /// Certificate compression algorithms.
@@ -218,6 +220,14 @@ pub struct TlsSettings {
     pub key_shares: Vec<NamedGroup>,
     /// Signature schemes in preference order.
     pub signature_schemes: Vec<SignatureScheme>,
+    /// Signature schemes advertised for server delegated credentials.
+    ///
+    /// An empty vector omits RFC 9345 extension 34. This ordered list controls
+    /// only the ClientHello advertisement; it does not weaken certificate,
+    /// hostname, delegated-credential authorization, or CertificateVerify
+    /// checks. Legacy ECDSA-SHA1 may be advertised to reproduce an observed
+    /// wire image, but it cannot be selected for TLS 1.3 authentication.
+    pub delegated_credential_schemes: Vec<SignatureScheme>,
     /// ALPN protocol identifiers in preference order.
     pub alpn_protocols: Vec<Box<[u8]>>,
     /// Optional ALPS advertisement.
@@ -339,6 +349,12 @@ impl TlsSettings {
                     "certificate compression requires TLS 1.3 to be enabled",
                 ));
             }
+            if !self.delegated_credential_schemes.is_empty() {
+                return Err(InvalidTlsSettings::new(
+                    "delegated_credential_schemes",
+                    "delegated credentials require TLS 1.3 to be enabled",
+                ));
+            }
         } else {
             if self.key_shares.is_empty() {
                 return Err(InvalidTlsSettings::new(
@@ -361,6 +377,17 @@ impl TlsSettings {
             return Err(InvalidTlsSettings::new(
                 "signature_schemes",
                 "at least one signature scheme is required",
+            ));
+        }
+        if self
+            .delegated_credential_schemes
+            .iter()
+            .copied()
+            .any(|scheme| !can_advertise_for_delegated_credentials(scheme))
+        {
+            return Err(InvalidTlsSettings::new(
+                "delegated_credential_schemes",
+                "delegated credential advertisement contains an unsupported or RSAE scheme",
             ));
         }
         validate_alpn(&self.alpn_protocols)?;
@@ -422,6 +449,19 @@ impl TlsSettings {
 
         Ok(())
     }
+}
+
+fn can_advertise_for_delegated_credentials(scheme: SignatureScheme) -> bool {
+    matches!(
+        scheme,
+        SignatureScheme::MlDsa44
+            | SignatureScheme::MlDsa65
+            | SignatureScheme::MlDsa87
+            | SignatureScheme::EcdsaSecp256r1Sha256
+            | SignatureScheme::EcdsaSecp384r1Sha384
+            | SignatureScheme::EcdsaSecp521r1Sha512
+            | SignatureScheme::EcdsaSha1
+    )
 }
 
 /// Error returned when TLS profile settings are internally inconsistent.

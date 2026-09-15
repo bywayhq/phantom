@@ -17,6 +17,7 @@ mod capabilities;
 mod chrome;
 mod client_hello_fixture;
 mod ech;
+mod firefox;
 mod record_size_limit;
 mod safari;
 mod tracing;

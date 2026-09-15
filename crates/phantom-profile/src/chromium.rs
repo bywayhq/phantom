@@ -90,6 +90,7 @@ pub fn v152_macos_tls() -> TlsSettings {
             SignatureScheme::RsaPssRsaeSha512,
             SignatureScheme::RsaPkcs1Sha512,
         ],
+        delegated_credential_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: Some(AlpsSettings {
             protocol: Box::from(&b"h2"[..]),

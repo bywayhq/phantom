@@ -10,6 +10,7 @@ fn minimal_settings() -> TlsSettings {
         groups: vec![NamedGroup::X25519],
         key_shares: vec![NamedGroup::X25519],
         signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
+        delegated_credential_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),
@@ -25,6 +26,47 @@ fn minimal_settings() -> TlsSettings {
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
     }
+}
+
+#[test]
+fn delegated_credential_advertisement_accepts_ordered_ecdsa_schemes() -> Result<(), Box<dyn Error>>
+{
+    let mut settings = minimal_settings();
+    settings.delegated_credential_schemes = vec![
+        SignatureScheme::EcdsaSecp256r1Sha256,
+        SignatureScheme::EcdsaSecp384r1Sha384,
+        SignatureScheme::EcdsaSecp521r1Sha512,
+        SignatureScheme::EcdsaSha1,
+    ];
+
+    settings.validate()?;
+    Ok(())
+}
+
+#[test]
+fn delegated_credential_advertisement_requires_tls_13() {
+    let mut settings = minimal_settings();
+    settings.max_version = TlsVersion::Tls12;
+    settings.key_shares.clear();
+    settings.delegated_credential_schemes = vec![SignatureScheme::EcdsaSecp256r1Sha256];
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("delegated_credential_schemes")
+    );
+}
+
+#[test]
+fn delegated_credential_advertisement_rejects_rsae_schemes() {
+    let mut settings = minimal_settings();
+    settings.delegated_credential_schemes = vec![SignatureScheme::RsaPssRsaeSha256];
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("delegated_credential_schemes")
+    );
 }
 
 #[test]

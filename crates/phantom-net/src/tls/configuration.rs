@@ -54,6 +54,14 @@ pub(super) fn apply(
     builder
         .set_sigalgs_list(&join_names(&settings.signature_schemes, signature_name)?)
         .map_err(|error| TlsError::backend("signature_schemes", error))?;
+    if !settings.delegated_credential_schemes.is_empty() {
+        builder
+            .set_delegated_credentials(&join_names(
+                &settings.delegated_credential_schemes,
+                delegated_credential_signature_name,
+            )?)
+            .map_err(|error| TlsError::backend("delegated_credential_schemes", error))?;
+    }
 
     builder.set_preserve_tls13_cipher_list(true);
     builder
@@ -178,6 +186,20 @@ fn signature_name(scheme: SignatureScheme) -> Result<&'static str, TlsError> {
     require_supported("signature_schemes", scheme, mapped)
 }
 
+fn delegated_credential_signature_name(scheme: SignatureScheme) -> Result<&'static str, TlsError> {
+    let mapped = match scheme {
+        SignatureScheme::MlDsa44 => Some("mldsa44"),
+        SignatureScheme::MlDsa65 => Some("mldsa65"),
+        SignatureScheme::MlDsa87 => Some("mldsa87"),
+        SignatureScheme::EcdsaSecp256r1Sha256 => Some("ecdsa_secp256r1_sha256"),
+        SignatureScheme::EcdsaSecp384r1Sha384 => Some("ecdsa_secp384r1_sha384"),
+        SignatureScheme::EcdsaSecp521r1Sha512 => Some("ecdsa_secp521r1_sha512"),
+        SignatureScheme::EcdsaSha1 => Some("ecdsa_sha1"),
+        _ => None,
+    };
+    require_supported("delegated_credential_schemes", scheme, mapped)
+}
+
 fn apply_extension_order(
     builder: &mut SslConnectorBuilder,
     order: &ClientHelloExtensionOrder,
@@ -218,6 +240,7 @@ fn extension_type(extension: ClientHelloExtension) -> Result<ExtensionType, TlsE
         ClientHelloExtension::KeyShare => Some(ExtensionType::KEY_SHARE),
         ClientHelloExtension::SupportedVersions => Some(ExtensionType::SUPPORTED_VERSIONS),
         ClientHelloExtension::SignatureAlgorithms => Some(ExtensionType::SIGNATURE_ALGORITHMS),
+        ClientHelloExtension::DelegatedCredential => Some(ExtensionType::DELEGATED_CREDENTIAL),
         ClientHelloExtension::PskKeyExchangeModes => Some(ExtensionType::PSK_KEY_EXCHANGE_MODES),
         ClientHelloExtension::CertificateCompression => Some(ExtensionType::CERT_COMPRESSION),
         ClientHelloExtension::TrustAnchors => Some(ExtensionType::TRUST_ANCHORS),

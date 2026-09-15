@@ -81,6 +81,8 @@ impl TlsConnector {
             cipher_suite_count = settings.cipher_suites.len(),
             group_count = settings.groups.len(),
             signature_scheme_count = settings.signature_schemes.len(),
+            delegated_credential_signature_scheme_count =
+                settings.delegated_credential_schemes.len(),
             alpn_protocol_count = settings.alpn_protocols.len(),
             certificate_compression_count = settings.certificate_compression.len(),
             session_tickets = settings.session_tickets,

@@ -81,14 +81,16 @@ Acceptance:
 
 ## Phase 4: browser-family checks — in progress
 
-Retained captures now support a Safari 18.5 macOS TLS recipe and a Firefox 154
-macOS HTTP/2 recipe through the existing typed settings. The Safari recipe
-retains the observed TLS vector; the Firefox recipe takes startup SETTINGS and
-connection flow control from local raw frames, while its request pseudo-header
-order and priority are explicitly supplemental observations. Firefox TLS and
-Safari HTTP/2 recipes remain deferred until their currently unsupported or
-uncaptured wire behavior can be proved without fallback. This phase does not
-add HTTP/3, sessions, SSE, or WebSocket.
+Retained captures now support Safari 18.5 and Firefox 154 macOS TLS recipes and
+a Firefox 154 macOS HTTP/2 recipe through the existing typed settings. The
+Firefox TLS differential retains its fixed extension layout, exact delegated-
+credential advertisement, record-size limit, certificate compression vector,
+and ECH GREASE length while excluding only fresh cryptographic entropy. Its
+HTTP/2 recipe takes startup SETTINGS and connection flow control from local raw
+frames, while request pseudo-header order and priority are explicitly
+supplemental observations. Safari HTTP/2 remains deferred until its uncaptured
+wire behavior can be proved without fallback. This phase does not add HTTP/3,
+sessions, SSE, or WebSocket.
 
 ## Phase 5: forced HTTP/3 — planned
 

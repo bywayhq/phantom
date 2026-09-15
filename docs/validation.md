@@ -142,6 +142,15 @@ place while retaining every payload length and the exact extension order.
 Firefox supplied no GREASE codepoints in these observations, so the regression
 does not invent a GREASE normalization for this fixture.
 
+The `firefox::v154_macos_tls()` recipe retains the captured ordered vectors,
+fixed extension layout, record boundary, record-size limit, certificate-
+compression list, and exact ECH GREASE payload length. Its delegated-
+credential advertisement is exactly `0008 0403 0503 0603 0203`; the trailing
+legacy ECDSA-SHA1 value is retained as an advertisement-only wire observation
+and cannot be selected for TLS 1.3 authentication. The direct differential
+excludes only freshly generated client-random, session-ID, key-share, and ECH
+payload bytes.
+
 Confirm the installed versions, then capture on the loopback listener:
 
 ```sh

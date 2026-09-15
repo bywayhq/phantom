@@ -57,6 +57,7 @@ pub fn v18_5_macos_tls() -> TlsSettings {
             SignatureScheme::RsaPkcs1Sha512,
             SignatureScheme::RsaPkcs1Sha1,
         ],
+        delegated_credential_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: vec![CertificateCompression::Zlib],

@@ -423,6 +423,7 @@ fn tls_settings() -> TlsSettings {
         groups: vec![NamedGroup::X25519, NamedGroup::Secp256r1],
         key_shares: Vec::new(),
         signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
+        delegated_credential_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),

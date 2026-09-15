@@ -107,6 +107,7 @@ fn capability_settings() -> TlsSettings {
             SignatureScheme::EcdsaSha1,
             SignatureScheme::RsaPkcs1Sha1,
         ],
+        delegated_credential_schemes: Vec::new(),
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: vec![

@@ -1,5 +1,9 @@
-use super::v154_macos_http2;
+use super::{v154_macos_http2, v154_macos_tls};
 use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting};
+use crate::tls::{
+    CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
+    NamedGroup, SignatureScheme, TlsVersion,
+};
 
 const LOCAL_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -13,6 +17,132 @@ const PINGLY_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http2/firefox/154.0/macos-15.5/pingly-api-all.txt"
 ));
+
+#[test]
+fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::error::Error>>
+{
+    let settings = v154_macos_tls();
+    settings.validate()?;
+
+    assert_eq!(settings.min_version, TlsVersion::Tls12);
+    assert_eq!(settings.max_version, TlsVersion::Tls13);
+    assert_eq!(
+        settings.cipher_suites,
+        [
+            CipherSuite::Aes128GcmSha256,
+            CipherSuite::Chacha20Poly1305Sha256,
+            CipherSuite::Aes256GcmSha384,
+            CipherSuite::EcdheEcdsaAes128GcmSha256,
+            CipherSuite::EcdheRsaAes128GcmSha256,
+            CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
+            CipherSuite::EcdheRsaChacha20Poly1305Sha256,
+            CipherSuite::EcdheEcdsaAes256GcmSha384,
+            CipherSuite::EcdheRsaAes256GcmSha384,
+            CipherSuite::EcdheRsaAes128CbcSha,
+            CipherSuite::EcdheRsaAes256CbcSha,
+            CipherSuite::RsaAes128GcmSha256,
+            CipherSuite::RsaAes256GcmSha384,
+            CipherSuite::RsaAes128CbcSha,
+            CipherSuite::RsaAes256CbcSha,
+        ]
+    );
+    assert_eq!(
+        settings.groups,
+        [
+            NamedGroup::X25519MlKem768,
+            NamedGroup::X25519,
+            NamedGroup::Secp256r1,
+            NamedGroup::Secp384r1,
+            NamedGroup::Secp521r1,
+            NamedGroup::Ffdhe2048,
+            NamedGroup::Ffdhe3072,
+        ]
+    );
+    assert_eq!(
+        settings.key_shares,
+        [
+            NamedGroup::X25519MlKem768,
+            NamedGroup::X25519,
+            NamedGroup::Secp256r1,
+        ]
+    );
+    assert_eq!(
+        settings.signature_schemes,
+        [
+            SignatureScheme::EcdsaSecp256r1Sha256,
+            SignatureScheme::EcdsaSecp384r1Sha384,
+            SignatureScheme::EcdsaSecp521r1Sha512,
+            SignatureScheme::RsaPssRsaeSha256,
+            SignatureScheme::RsaPssRsaeSha384,
+            SignatureScheme::RsaPssRsaeSha512,
+            SignatureScheme::RsaPkcs1Sha256,
+            SignatureScheme::RsaPkcs1Sha384,
+            SignatureScheme::RsaPkcs1Sha512,
+            SignatureScheme::EcdsaSha1,
+            SignatureScheme::RsaPkcs1Sha1,
+        ]
+    );
+    assert_eq!(
+        settings.delegated_credential_schemes,
+        [
+            SignatureScheme::EcdsaSecp256r1Sha256,
+            SignatureScheme::EcdsaSecp384r1Sha384,
+            SignatureScheme::EcdsaSecp521r1Sha512,
+            SignatureScheme::EcdsaSha1,
+        ]
+    );
+    assert_eq!(
+        settings
+            .alpn_protocols
+            .iter()
+            .map(|protocol| protocol.as_ref())
+            .collect::<Vec<&[u8]>>(),
+        [b"h2".as_slice(), b"http/1.1".as_slice()]
+    );
+    assert!(settings.alps.is_none());
+    assert_eq!(
+        settings.certificate_compression,
+        [
+            CertificateCompression::Zlib,
+            CertificateCompression::Brotli,
+            CertificateCompression::Zstd,
+        ]
+    );
+    assert!(settings.session_tickets);
+    assert_eq!(settings.record_size_limit, Some(16_385));
+    assert!(settings.requested_trust_anchor_ids.is_none());
+    assert!(!settings.grease);
+    assert!(!settings.grease_signature_algorithms);
+    assert_eq!(
+        settings.extension_order,
+        ClientHelloExtensionOrder::Fixed(vec![
+            ClientHelloExtension::ServerName,
+            ClientHelloExtension::ExtendedMasterSecret,
+            ClientHelloExtension::RenegotiationInfo,
+            ClientHelloExtension::SupportedGroups,
+            ClientHelloExtension::EcPointFormats,
+            ClientHelloExtension::SessionTicket,
+            ClientHelloExtension::Alpn,
+            ClientHelloExtension::StatusRequest,
+            ClientHelloExtension::DelegatedCredential,
+            ClientHelloExtension::SignedCertificateTimestamp,
+            ClientHelloExtension::KeyShare,
+            ClientHelloExtension::SupportedVersions,
+            ClientHelloExtension::SignatureAlgorithms,
+            ClientHelloExtension::PskKeyExchangeModes,
+            ClientHelloExtension::RecordSizeLimit,
+            ClientHelloExtension::CertificateCompression,
+            ClientHelloExtension::EncryptedClientHello,
+        ])
+    );
+    assert!(settings.ech_grease);
+    assert_eq!(settings.ech_grease_payload_length, Some(239));
+    assert!(settings.request_ocsp_staple);
+    assert!(settings.request_signed_certificate_timestamps);
+    assert!(settings.aes_hardware);
+
+    Ok(())
+}
 
 #[test]
 fn firefox_154_macos_http2_startup_matches_local_capture() -> Result<(), Box<dyn std::error::Error>>
