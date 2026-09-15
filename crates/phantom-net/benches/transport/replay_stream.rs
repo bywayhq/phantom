@@ -5,27 +5,12 @@ use std::{
 };
 
 use bytes::Bytes;
-use tokio::{
-    io::{AsyncRead, AsyncWrite, ReadBuf},
-    sync::oneshot,
-};
-
-pub(super) struct ReplayTransportDropped(oneshot::Receiver<()>);
-
-impl ReplayTransportDropped {
-    pub(super) async fn wait(self) {
-        if self.0.await.is_err() {
-            panic!("replay transport dropped without signaling completion");
-        }
-    }
-}
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 pub(super) struct ReplayStream {
     response: Bytes,
     read_offset: usize,
-    written_bytes: usize,
-    response_after_written_bytes: usize,
-    completion: Option<oneshot::Sender<()>>,
+    request_started: bool,
 }
 
 impl ReplayStream {
@@ -33,34 +18,7 @@ impl ReplayStream {
         Self {
             response,
             read_offset: 0,
-            written_bytes: 0,
-            response_after_written_bytes: 1,
-            completion: None,
-        }
-    }
-
-    pub(super) fn with_completion_after_written_bytes(
-        response: Bytes,
-        response_after_written_bytes: usize,
-    ) -> (Self, ReplayTransportDropped) {
-        let (completion, receiver) = oneshot::channel();
-        (
-            Self {
-                response,
-                read_offset: 0,
-                written_bytes: 0,
-                response_after_written_bytes,
-                completion: Some(completion),
-            },
-            ReplayTransportDropped(receiver),
-        )
-    }
-}
-
-impl Drop for ReplayStream {
-    fn drop(&mut self) {
-        if let Some(completion) = self.completion.take() {
-            let _ = completion.send(());
+            request_started: false,
         }
     }
 }
@@ -71,7 +29,7 @@ impl AsyncRead for ReplayStream {
         _context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
-        if self.written_bytes < self.response_after_written_bytes {
+        if !self.request_started {
             return Poll::Pending;
         }
         let remaining = &self.response[self.read_offset..];
@@ -88,7 +46,7 @@ impl AsyncWrite for ReplayStream {
         context: &mut Context<'_>,
         buffer: &[u8],
     ) -> Poll<io::Result<usize>> {
-        self.written_bytes = self.written_bytes.saturating_add(buffer.len());
+        self.request_started = true;
         context.waker().wake_by_ref();
         Poll::Ready(Ok(buffer.len()))
     }
@@ -98,10 +56,9 @@ impl AsyncWrite for ReplayStream {
         context: &mut Context<'_>,
         buffers: &[io::IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
-        let length = buffers.iter().map(|buffer| buffer.len()).sum();
-        self.written_bytes = self.written_bytes.saturating_add(length);
+        self.request_started = true;
         context.waker().wake_by_ref();
-        Poll::Ready(Ok(length))
+        Poll::Ready(Ok(buffers.iter().map(|buffer| buffer.len()).sum()))
     }
 
     fn is_write_vectored(&self) -> bool {

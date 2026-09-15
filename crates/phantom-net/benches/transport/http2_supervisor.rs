@@ -11,6 +11,7 @@ use std::{
 use tokio::sync::oneshot;
 use tracing::{
     Dispatch, Event, Metadata, Subscriber,
+    field::{Field, Visit},
     metadata::LevelFilter,
     span::{Attributes, Id, Record},
     subscriber::Interest,
@@ -18,12 +19,17 @@ use tracing::{
 
 const DRIVER_SPAN: &str = "http2.connection_driver";
 
-pub(super) struct DriverSupervisorFinished(oneshot::Receiver<()>);
+pub(super) struct DriverSupervisorFinished(oneshot::Receiver<Option<DriverOutcome>>);
 
 impl DriverSupervisorFinished {
     pub(super) async fn wait(self) {
-        if self.0.await.is_err() {
-            panic!("HTTP/2 driver supervisor ended without closing its span");
+        match self.0.await {
+            Ok(Some(DriverOutcome::Complete)) => {}
+            Ok(Some(outcome)) => {
+                panic!("HTTP/2 driver supervisor recorded non-complete outcome: {outcome:?}")
+            }
+            Ok(None) => panic!("HTTP/2 driver supervisor closed without recording an outcome"),
+            Err(_) => panic!("HTTP/2 driver supervisor ended without closing its span"),
         }
     }
 }
@@ -64,12 +70,51 @@ pub(super) fn observe_driver_supervisor() -> (Dispatch, DriverSupervisorFinished
 
 struct ObserverState {
     spans: HashMap<u64, ObservedSpan>,
-    finished: Option<oneshot::Sender<()>>,
+    finished: Option<oneshot::Sender<Option<DriverOutcome>>>,
 }
 
 struct ObservedSpan {
     references: usize,
     is_driver: bool,
+    outcome: Option<DriverOutcome>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DriverOutcome {
+    Complete,
+    ProtocolError,
+    TaskError,
+    Timeout,
+    RuntimeShutdown,
+    Other,
+}
+
+impl DriverOutcome {
+    fn from_str(value: &str) -> Self {
+        match value {
+            "complete" => Self::Complete,
+            "protocol_error" => Self::ProtocolError,
+            "task_error" => Self::TaskError,
+            "timeout" => Self::Timeout,
+            "runtime_shutdown" => Self::RuntimeShutdown,
+            _ => Self::Other,
+        }
+    }
+}
+
+#[derive(Default)]
+struct OutcomeVisitor {
+    outcome: Option<DriverOutcome>,
+}
+
+impl Visit for OutcomeVisitor {
+    fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
+
+    fn record_str(&mut self, field: &Field, value: &str) {
+        if field.name() == "outcome" {
+            self.outcome = Some(DriverOutcome::from_str(value));
+        }
+    }
 }
 
 impl Subscriber for DriverSupervisorObserver {
@@ -96,12 +141,22 @@ impl Subscriber for DriverSupervisorObserver {
             ObservedSpan {
                 references: 1,
                 is_driver: attributes.metadata().name() == DRIVER_SPAN,
+                outcome: None,
             },
         );
         Id::from_u64(id)
     }
 
-    fn record(&self, _span: &Id, _values: &Record<'_>) {}
+    fn record(&self, span: &Id, values: &Record<'_>) {
+        let mut visitor = OutcomeVisitor::default();
+        values.record(&mut visitor);
+        let Some(outcome) = visitor.outcome else {
+            return;
+        };
+        if let Some(span) = self.state().spans.get_mut(&span.into_u64()) {
+            span.outcome = Some(outcome);
+        }
+    }
 
     fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
 
@@ -130,6 +185,7 @@ impl Subscriber for DriverSupervisorObserver {
         }
 
         let is_driver = span.is_driver;
+        let outcome = span.outcome;
         state.spans.remove(&id);
         // The supervisor future owns the final driver-span handle. On the
         // benchmark's current-thread runtime, its close therefore follows all
@@ -138,7 +194,7 @@ impl Subscriber for DriverSupervisorObserver {
             return true;
         }
         if let Some(finished) = state.finished.take() {
-            let _ = finished.send(());
+            let _ = finished.send(outcome);
         }
         true
     }

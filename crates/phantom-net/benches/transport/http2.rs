@@ -10,8 +10,8 @@ use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{
     BODY_BYTES,
+    http2_replay::{Http2ReplayStream, Http2TransportDropped},
     http2_supervisor::{DriverSupervisorFinished, observe_driver_supervisor},
-    replay_stream::{ReplayStream, ReplayTransportDropped},
 };
 
 const FRAME_PAYLOAD_BYTES: usize = 16 * 1024;
@@ -83,8 +83,8 @@ fn streaming_body(criterion: &mut Criterion) {
 }
 
 struct Http2Iteration {
-    stream: ReplayStream,
-    transport_dropped: ReplayTransportDropped,
+    stream: Http2ReplayStream,
+    transport_dropped: Http2TransportDropped,
     supervisor_dispatch: Dispatch,
     supervisor_finished: DriverSupervisorFinished,
     settings: Http2Settings,
@@ -143,7 +143,7 @@ fn runtime() -> tokio::runtime::Runtime {
 fn replay_after_request(
     response: Bytes,
     settings: &Http2Settings,
-) -> (ReplayStream, ReplayTransportDropped) {
+) -> (Http2ReplayStream, Http2TransportDropped) {
     // Hold the server replay until the write containing the first request byte;
     // each ReplayStream write accepts the complete supplied buffer.
     let initial_settings_bytes =
@@ -152,7 +152,7 @@ fn replay_after_request(
         * (FRAME_HEADER_BYTES + WINDOW_UPDATE_PAYLOAD_BYTES);
     let startup_bytes = CONNECTION_PREFACE_BYTES + initial_settings_bytes + connection_window_bytes;
 
-    ReplayStream::with_completion_after_written_bytes(response, startup_bytes + 1)
+    Http2ReplayStream::new(response, startup_bytes + 1)
 }
 
 fn twelve_ordered_headers() -> Vec<RequestHeader> {

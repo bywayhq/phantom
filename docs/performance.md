@@ -22,13 +22,16 @@ ordered request-header encoding, the HTTP/2 handshake, response HPACK decoding,
 and one-shot connection shutdown. The body benchmark additionally streams four
 16 KiB DATA frames through the public response body and reports throughput for
 the 64 KiB payload. Each HTTP/2 iteration separately waits for the connection
-driver to drop its replay transport and for the shutdown supervisor to finish,
-so neither can overlap the next sample. Criterion's batched setup constructs
-the cloned inputs, replay state, and completion observers outside the timed
-routine.
+driver to drop its dedicated replay transport and for the final driver span to
+close with a `complete` outcome. The final span close follows the bounded
+shutdown supervisor, so neither transport nor supervisor work can overlap the
+next sample. Criterion's batched setup constructs the cloned inputs, replay
+state, and completion observers outside the timed routine.
 
 All HTTP/1 and HTTP/2 response microbenchmarks use a deterministic in-memory
-replay stream, so they include neither TCP nor TLS costs. The TLS connector
+replay stream, so they include neither TCP nor TLS costs. HTTP/1 releases its
+response after the first request write; HTTP/2 waits through the connection
+preface and startup frames until the first request byte. The TLS connector
 benchmark measures connector construction, not a TLS handshake.
 
 Record the OS, CPU, Rust version, power mode, and commit with any result. Compare
