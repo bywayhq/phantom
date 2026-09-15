@@ -91,3 +91,61 @@ does not establish Chrome's extension-permutation behavior, so the direct
 differential compares exact extension membership and stable payload lengths
 without claiming that one permutation is canonical. The built-in recipe used by
 that differential is `phantom_profile::chromium::v152_macos_tls()`.
+
+## Reproducing the Chrome HTTP/2 startup fixture
+
+The retained local fixture is
+`fixtures/http2/chrome/152.0.7977.83/macos-15.5/client-startup.txt`.
+It records one Chrome connection through the initial SETTINGS and connection
+WINDOW_UPDATE. It is raw local evidence, not a Pingly capture and not a parity
+claim. The existing Pingly output is retained separately and is never used as
+the oracle for this regression.
+
+Confirm Chrome and macOS versions as described above. In one terminal, run the
+bounded TLS listener with explicit fixture metadata:
+
+```sh
+cargo run -p phantom-net --example capture_http2_tls -- \
+  127.0.0.1:9444 \
+  "Google Chrome 152.0.7977.83" \
+  "macOS 15.5 (24F74)"
+```
+
+The example accepts one loopback peer, creates an ephemeral certificate for
+`server.phantom.test`, selects only `h2`, and advertises ALPS using its new TLS
+extension codepoint with an empty server payload. It gives accept, handshake,
+and HTTP/2 frame capture separate absolute deadlines. Frame payload, total byte,
+and frame-count limits are included in the output. Private-key material is never
+printed.
+
+In a second terminal, start Chrome with an isolated temporary profile:
+
+```sh
+capture_profile_dir="$(mktemp -d /tmp/phantom-chrome-h2.XXXXXX)"
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new \
+  --user-data-dir="$capture_profile_dir" \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-background-networking \
+  --disable-component-update \
+  --disable-default-apps \
+  --disable-quic \
+  --no-proxy-server \
+  --host-resolver-rules="MAP server.phantom.test 127.0.0.1, EXCLUDE localhost" \
+  --ignore-certificate-errors \
+  --dump-dom \
+  https://server.phantom.test:9444/
+```
+
+Chrome is expected to report a reset after the bounded listener exits. The
+retained capture completed on the first connection without a retry. Its peer
+ALPS state was `empty`: Chrome negotiated new-codepoint ALPS and supplied a
+zero-length value, which the fixture distinguishes from absent ALPS. Stop any
+remaining Chrome process before removing only the temporary directory printed
+in `capture_profile_dir`.
+
+The fixture output is ordered `key=value` text. Binary values are lowercase
+hexadecimal. Its regression reconstructs the exact connection preface and frame
+bytes, reparses them through `phantom-testkit`, and verifies the ordered SETTINGS
+and connection WINDOW_UPDATE summary.
