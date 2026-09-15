@@ -312,13 +312,11 @@ impl DriverTask {
                     }
                     DriverShutdown::TimedOut => {
                         driver.abort();
-                        let _ = driver.handle_mut().await;
                         outcome.finish("timeout");
                         warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
                     }
                     DriverShutdown::TimerFailed => {
                         driver.abort();
-                        let _ = driver.handle_mut().await;
                         outcome.finish("task_error");
                         warn!(parent: &span, "HTTP/2 shutdown timer service failed");
                     }

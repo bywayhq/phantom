@@ -68,7 +68,7 @@ fn body_drop_after_originating_runtime_shutdown_records_driver_outcome() -> Test
 fn body_shutdown_completes_without_a_tokio_time_driver() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     let runtime = Builder::new_current_thread().build()?;
-    runtime.block_on(
+    runtime.block_on(before_deadline(
         async {
             let (client, server) = duplex(64 * 1024);
             let server_task = tokio::spawn(terminal_response_server(server));
@@ -83,19 +83,20 @@ fn body_shutdown_completes_without_a_tokio_time_driver() -> TestResult<()> {
             let body = response.into_body();
             assert!(body.is_end_stream());
             drop(body);
-            before_deadline(server_task, Duration::from_secs(2)).await???;
+            server_task.await??;
             wait_for_driver_observation(&subscriber, "complete").await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
         .with_subscriber(subscriber.clone()),
-    )
+        Duration::from_secs(5),
+    ))?
 }
 
 #[test]
 fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     let runtime = Builder::new_current_thread().build()?;
-    runtime.block_on(
+    runtime.block_on(before_deadline(
         async {
             let control = WriteControl::default();
             let (client, server) = duplex(64 * 1024);
@@ -118,8 +119,9 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
             drop(body);
             let dropped = control.dropped_notify.notified();
             if !control.dropped.load(Ordering::SeqCst) {
-                before_deadline(dropped, DRIVER_SHUTDOWN_GRACE + Duration::from_secs(1)).await?;
+                dropped.await;
             }
+            assert!(control.dropped.load(Ordering::SeqCst));
             wait_for_driver_observation(&subscriber, "timeout").await?;
 
             server_task.abort();
@@ -127,7 +129,8 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
         .with_subscriber(subscriber.clone()),
-    )
+        Duration::from_secs(5),
+    ))?
 }
 
 #[tokio::test]
@@ -220,7 +223,7 @@ async fn wait_for_driver_observation(
     if subscriber.outcomes_for("http2.connection_driver") != [expected_outcome]
         || subscriber.connection_driver_events() != 1
     {
-        before_deadline(event, Duration::from_secs(2)).await?;
+        event.await;
     }
     assert_eq!(
         subscriber.outcomes_for("http2.connection_driver"),
