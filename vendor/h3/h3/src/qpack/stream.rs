@@ -263,19 +263,12 @@ impl DecoderInstruction {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct InsertCountIncrement(pub u8);
+pub struct InsertCountIncrement(pub u64);
 
 impl InsertCountIncrement {
     pub fn decode<R: Buf>(buf: &mut R) -> Result<Option<Self>, ParseError> {
         let insert_count = match prefix_int::decode(6, buf) {
-            Ok((0b00, x)) => {
-                if x > 64 {
-                    return Err(ParseError::Integer(
-                        crate::qpack::prefix_int::Error::Overflow,
-                    ));
-                }
-                x as u8
-            }
+            Ok((0b00, x)) => x,
             Ok((f, _)) => return Err(ParseError::InvalidPrefix(f)),
             Err(IntError::UnexpectedEnd) => return Ok(None),
             Err(e) => return Err(e.into()),
@@ -284,7 +277,7 @@ impl InsertCountIncrement {
     }
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) {
-        prefix_int::encode(6, 0b00, self.0 as u64, buf);
+        prefix_int::encode(6, 0b00, self.0, buf);
     }
 }
 
@@ -375,14 +368,16 @@ mod test {
 
     #[test]
     fn insert_count_increment() {
-        let instruction = InsertCountIncrement(42);
-        let mut buf = vec![];
-        instruction.encode(&mut buf);
-        let mut read = Cursor::new(&buf);
-        assert_eq!(
-            InsertCountIncrement::decode(&mut read),
-            Ok(Some(instruction))
-        );
+        for value in [42, 64, 65_535, u64::MAX] {
+            let instruction = InsertCountIncrement(value);
+            let mut buf = vec![];
+            instruction.encode(&mut buf);
+            let mut read = Cursor::new(&buf);
+            assert_eq!(
+                InsertCountIncrement::decode(&mut read),
+                Ok(Some(instruction))
+            );
+        }
     }
 
     #[test]

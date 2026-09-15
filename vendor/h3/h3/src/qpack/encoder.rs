@@ -1,6 +1,6 @@
 use std::{cmp, io::Cursor};
 
-use bytes::{Buf, BufMut};
+use bytes::{Buf, BufMut, BytesMut};
 
 use super::{
     block::{
@@ -47,6 +47,7 @@ impl std::fmt::Display for EncoderError {
 
 pub struct Encoder {
     table: DynamicTable,
+    decoder_stream: BytesMut,
 }
 
 impl Encoder {
@@ -89,19 +90,23 @@ impl Encoder {
     }
 
     pub fn on_decoder_recv<R: Buf>(&mut self, read: &mut R) -> Result<(), EncoderError> {
-        while let Some(instruction) = Action::parse(read)? {
+        self.decoder_stream.put(read);
+
+        loop {
+            let (instruction, consumed) = {
+                let mut buffered = Cursor::new(self.decoder_stream.as_ref());
+                let Some(instruction) = Action::parse(&mut buffered)? else {
+                    break;
+                };
+                (instruction, buffered.position() as usize)
+            };
+            self.decoder_stream.advance(consumed);
+
             match instruction {
-                Action::Untrack(stream_id) => self.table.untrack_block(stream_id)?,
-                Action::StreamCancel(stream_id) => {
-                    // Untrack block twice, as this stream might have a trailer in addition to
-                    // the header. Failures are ignored as blocks might have been acked before
-                    // cancellation.
-                    if self.table.untrack_block(stream_id).is_ok() {
-                        let _ = self.table.untrack_block(stream_id);
-                    }
-                }
+                Action::HeaderAck(stream_id) => self.table.acknowledge_block(stream_id)?,
+                Action::StreamCancel(stream_id) => self.table.cancel_stream(stream_id)?,
                 Action::ReceivedRefIncrement(increment) => {
-                    self.table.update_largest_received(increment)
+                    self.table.update_largest_received(increment)?
                 }
             }
         }
@@ -185,6 +190,7 @@ impl Default for Encoder {
     fn default() -> Self {
         Self {
             table: DynamicTable::new(),
+            decoder_stream: BytesMut::new(),
         }
     }
 }
@@ -217,15 +223,18 @@ where
 #[cfg(test)]
 impl From<DynamicTable> for Encoder {
     fn from(table: DynamicTable) -> Encoder {
-        Encoder { table }
+        Encoder {
+            table,
+            decoder_stream: BytesMut::new(),
+        }
     }
 }
 
 // Action to apply to the encoder table, given an instruction received from the decoder.
 #[derive(Debug, PartialEq)]
 enum Action {
-    ReceivedRefIncrement(usize),
-    Untrack(u64),
+    ReceivedRefIncrement(u64),
+    HeaderAck(u64),
     StreamCancel(u64),
 }
 
@@ -241,10 +250,11 @@ impl Action {
             DecoderInstruction::Unknown => {
                 return Err(EncoderError::UnknownDecoderInstruction(first))
             }
-            DecoderInstruction::InsertCountIncrement => InsertCountIncrement::decode(&mut buf)?
-                .map(|x| Action::ReceivedRefIncrement(x.0 as usize)),
+            DecoderInstruction::InsertCountIncrement => {
+                InsertCountIncrement::decode(&mut buf)?.map(|x| Action::ReceivedRefIncrement(x.0))
+            }
             DecoderInstruction::HeaderAck => {
-                HeaderAck::decode(&mut buf)?.map(|x| Action::Untrack(x.0))
+                HeaderAck::decode(&mut buf)?.map(|x| Action::HeaderAck(x.0))
             }
             DecoderInstruction::StreamCancel => {
                 StreamCancel::decode(&mut buf)?.map(|x| Action::StreamCancel(x.0))
@@ -297,7 +307,12 @@ impl From<ParseError> for EncoderError {
 mod tests {
     use super::*;
 
-    use crate::qpack::tests::helpers::{build_table, TABLE_SIZE};
+    use bytes::Bytes;
+
+    use crate::{
+        buf::BufList,
+        qpack::tests::helpers::{build_table, build_table_with_size, TABLE_SIZE},
+    };
 
     #[allow(clippy::type_complexity)]
     fn check_encode_field(
@@ -560,7 +575,7 @@ mod tests {
 
         HeaderAck(2).encode(&mut buf);
         let mut cur = Cursor::new(&buf);
-        assert_eq!(Action::parse(&mut cur), Ok(Some(Action::Untrack(2))));
+        assert_eq!(Action::parse(&mut cur), Ok(Some(Action::HeaderAck(2))));
 
         let mut cur = Cursor::new(&buf);
         assert_eq!(encoder.on_decoder_recv(&mut cur), Ok(()),);
@@ -575,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn decoder_stream_cacnceled() {
+    fn decoder_stream_canceled() {
         let mut table = build_table();
 
         let field = HeaderField::new("foo", "bar");
@@ -645,11 +660,65 @@ mod tests {
             Ok(Some(Action::ReceivedRefIncrement(4)))
         );
 
-        let mut encoder = Encoder {
-            table: build_table(),
-        };
+        let mut encoder = Encoder::from(build_table_with_size(4));
 
         let mut cur = Cursor::new(&buf);
         assert_eq!(encoder.on_decoder_recv(&mut cur), Ok(()));
+    }
+
+    #[test]
+    fn decoder_instruction_accepts_one_byte_buf_chunks() {
+        let stream_id = 2321;
+        let mut encoder = Encoder::from(build_table());
+        encoder
+            .encode(
+                stream_id,
+                &mut Vec::new(),
+                &mut Vec::new(),
+                &[HeaderField::new("foo", "bar")],
+            )
+            .unwrap();
+
+        let mut wire = Vec::new();
+        HeaderAck(stream_id).encode(&mut wire);
+        let mut fragmented = BufList::new();
+        for byte in wire {
+            fragmented.push(Bytes::copy_from_slice(&[byte]));
+        }
+
+        assert_eq!(encoder.on_decoder_recv(&mut fragmented), Ok(()));
+        assert!(!fragmented.has_remaining());
+    }
+
+    #[test]
+    fn invalid_insert_count_increments_are_rejected() {
+        for increment in [0, 2] {
+            let mut encoder = Encoder::from(build_table_with_size(1));
+            let mut wire = Vec::new();
+            InsertCountIncrement(increment).encode(&mut wire);
+            assert_eq!(
+                encoder.on_decoder_recv(&mut Cursor::new(wire)),
+                Err(EncoderError::Insertion(
+                    DynamicTableError::InvalidInsertCountIncrement {
+                        increment,
+                        known_received: 0,
+                        total_inserted: 1,
+                    }
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn overflowing_insert_count_increment_is_rejected() {
+        let mut encoder = Encoder::default();
+        let wire = [
+            0x3f, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x02,
+        ];
+
+        assert_eq!(
+            encoder.on_decoder_recv(&mut Cursor::new(wire)),
+            Err(EncoderError::InvalidInteger(IntError::Overflow))
+        );
     }
 }

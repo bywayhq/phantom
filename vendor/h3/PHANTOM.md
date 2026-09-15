@@ -62,6 +62,16 @@ following together:
 - adversarial tests for blocked streams, invalid instructions, cancellation,
   and memory/resource ceilings.
 
+The dormant stateful codec is hardened by `patches/qpack-codec.patch`. It
+counts blocked streams by distinct stream ID, releases all tracked sections on
+cancellation, validates decoder feedback and peer capacity updates, enforces
+decoded field-section limits, and preserves fragmented critical-stream
+instructions across input buffers. It remains deliberately disconnected from
+the HTTP/3 connection driver. The explicit encoded-byte ceiling for parked
+blocked HEADERS belongs to the future runtime registry that owns those bytes;
+the codec does not retain blocked field sections and therefore cannot enforce
+that aggregate limit honestly.
+
 A static-table-only integration must advertise both QPACK settings as zero and
 must not claim Chrome wire parity. The exact Chrome regression in this patch is
 an encoder proof, not an assertion that the rest of the captured QPACK behavior
@@ -77,9 +87,10 @@ The retained Chrome 152 fixture is recorded at
 Phantom repository. A unit regression fixes its complete control-stream prefix,
 including setting order and the concrete GREASE identifier/value widths.
 
-The canonical source and test delta is stored in
-`patches/ordered-settings.patch`. `PHANTOM.md` and the patch file are packaging
-metadata and are deliberately excluded from that patch.
+The canonical source and test deltas are stored in
+`patches/ordered-settings.patch` and `patches/qpack-codec.patch`. `PHANTOM.md`
+and the patch files are packaging metadata and are deliberately excluded from
+those patches.
 
 ## Refreshing the vendor copy
 
@@ -105,19 +116,23 @@ metadata and are deliberately excluded from that patch.
    candidate="$refresh_dir/h3-$h3_revision"
    ```
 
-2. Dry-apply the canonical patch to the pristine source. A failure means the
-   upstream SETTINGS boundary changed and needs review; do not accept fuzz or
-   rejected hunks.
+2. Dry-apply the canonical patches to the pristine source. A failure means an
+   upstream boundary changed and needs review; do not accept fuzz or rejected
+   hunks.
 
    ```sh
    git -C "$candidate" apply --check \
      "$PWD/vendor/h3/patches/ordered-settings.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/ordered-settings.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/qpack-codec.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/qpack-codec.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the
-   canonical patch into it, then swap it with `vendor/h3` while retaining the
+   canonical patches into it, then swap it with `vendor/h3` while retaining the
    previous directory until all checks pass. Update the commit, archive URL,
    checksum, and package versions above.
 
@@ -131,6 +146,8 @@ metadata and are deliberately excluded from that patch.
 cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests
+cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::
+cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 --lib --all-features -- -D warnings
 cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn --all-features
 ```
 

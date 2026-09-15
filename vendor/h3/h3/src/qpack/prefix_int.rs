@@ -38,13 +38,17 @@ pub fn decode<B: Buf>(size: u8, buf: &mut B) -> Result<(u8, u64), Error> {
     let mut power = 0usize;
     loop {
         let byte = buf.get::<u8>()? as u64;
-        value += (byte & 127) << power;
-        power += 7;
+        let multiplier = 1u64.checked_shl(power as u32).ok_or(Error::Overflow)?;
+        let part = (byte & 127)
+            .checked_mul(multiplier)
+            .ok_or(Error::Overflow)?;
+        value = value.checked_add(part).ok_or(Error::Overflow)?;
 
         if byte & 128 == 0 {
             break;
         }
 
+        power += 7;
         if power >= MAX_POWER {
             return Err(Error::Overflow);
         }
@@ -77,7 +81,7 @@ pub fn encode<B: BufMut>(size: u8, flags: u8, value: u64, buf: &mut B) {
     buf.write(remaining as u8);
 }
 
-const MAX_POWER: usize = 9 * 7;
+const MAX_POWER: usize = u64::BITS as usize;
 
 impl From<coding::UnexpectedEnd> for Error {
     fn from(_: coding::UnexpectedEnd) -> Self {

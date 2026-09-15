@@ -23,6 +23,17 @@ pub enum Error {
     UnknownStreamId(u64),
     NoTrackingData,
     InvalidTrackingCount,
+    InvalidInsertCountIncrement {
+        increment: u64,
+        known_received: usize,
+        total_inserted: usize,
+    },
+}
+
+#[derive(Clone)]
+struct TrackedBlock {
+    refs: HashMap<usize, usize>,
+    required_ref: usize,
 }
 
 pub struct DynamicTableDecoder<'a> {
@@ -61,9 +72,7 @@ impl<'a> Drop for DynamicTableEncoder<'a> {
         if !self.commited {
             // TODO maybe possible to replace and not clone here?
             // HOW Err should be handled?
-            self.table
-                .track_cancel(self.block_refs.iter().map(|(x, y)| (*x, *y)))
-                .ok();
+            self.table.track_cancel(&self.block_refs).ok();
         }
     }
 }
@@ -82,9 +91,10 @@ impl<'a> DynamicTableEncoder<'a> {
     }
 
     pub(super) fn commit(&mut self, largest_ref: usize) {
-        self.table
-            .track_block(self.stream_id, self.block_refs.clone());
-        self.table.register_blocked(largest_ref);
+        if largest_ref != 0 {
+            self.table
+                .track_block(self.stream_id, self.block_refs.clone(), largest_ref);
+        }
         self.commited = true;
     }
 
@@ -93,6 +103,14 @@ impl<'a> DynamicTableEncoder<'a> {
     }
 
     fn lookup_result(&mut self, absolute: Option<usize>) -> DynamicLookupResult {
+        let reference_would_block = absolute.is_some_and(|reference| {
+            reference > self.table.largest_known_received
+                && self.table.would_exceed_blocked_limit(self.stream_id)
+        });
+        if reference_would_block {
+            return DynamicLookupResult::NotFound;
+        }
+
         match absolute {
             Some(absolute) if absolute <= self.base => {
                 self.track_ref(absolute);
@@ -113,7 +131,7 @@ impl<'a> DynamicTableEncoder<'a> {
     }
 
     pub(super) fn insert(&mut self, field: &HeaderField) -> Result<DynamicInsertionResult, Error> {
-        if self.table.blocked_count >= self.table.blocked_max {
+        if self.table.would_exceed_blocked_limit(self.stream_id) {
             return Ok(DynamicInsertionResult::NotInserted(
                 self.find_name(&field.name),
             ));
@@ -246,11 +264,11 @@ pub struct DynamicTable {
     field_map: HashMap<HeaderField, usize>,
     name_map: HashMap<Cow<'static, [u8]>, usize>,
     track_map: BTreeMap<usize, usize>,
-    track_blocks: HashMap<u64, VecDeque<HashMap<usize, usize>>>,
+    track_blocks: HashMap<u64, VecDeque<TrackedBlock>>,
     largest_known_received: usize,
     blocked_max: usize,
     blocked_count: usize,
-    blocked_streams: BTreeMap<usize, usize>, // <required_ref, blocked_count>
+    blocked_streams: HashMap<u64, usize>, // <stream_id, largest required_ref>
 }
 
 impl DynamicTable {
@@ -281,7 +299,7 @@ impl DynamicTable {
 
     pub fn set_max_blocked(&mut self, max: usize) -> Result<(), Error> {
         // TODO handle existing data
-        if max >= SETTINGS_MAX_BLOCKED_STREAMS_MAX {
+        if max > SETTINGS_MAX_BLOCKED_STREAMS_MAX {
             return Err(Error::MaxBlockedStreamsTooLarge);
         }
         self.blocked_max = max;
@@ -341,19 +359,49 @@ impl DynamicTable {
         self.vas.total_inserted()
     }
 
-    pub(super) fn untrack_block(&mut self, stream_id: u64) -> Result<(), Error> {
-        let mut entry = self.track_blocks.entry(stream_id);
-        let block = match entry {
-            Entry::Occupied(ref mut blocks) if blocks.get().len() > 1 => {
-                blocks.get_mut().pop_front()
-            }
-            Entry::Occupied(blocks) => blocks.remove().pop_front(),
-            Entry::Vacant { .. } => return Err(Error::UnknownStreamId(stream_id)),
-        };
+    pub(super) fn acknowledge_block(&mut self, stream_id: u64) -> Result<(), Error> {
+        let block = self
+            .track_blocks
+            .get(&stream_id)
+            .and_then(|blocks| blocks.front())
+            .cloned()
+            .ok_or(Error::UnknownStreamId(stream_id))?;
 
-        if let Some(b) = block {
-            self.track_cancel(b.iter().map(|(x, y)| (*x, *y)))?;
+        self.track_cancel(&block.refs)?;
+        let remove_stream = {
+            let blocks = self
+                .track_blocks
+                .get_mut(&stream_id)
+                .ok_or(Error::UnknownStreamId(stream_id))?;
+            blocks.pop_front();
+            blocks.is_empty()
+        };
+        if remove_stream {
+            self.track_blocks.remove(&stream_id);
         }
+        self.largest_known_received = self.largest_known_received.max(block.required_ref);
+        self.refresh_blocked_streams();
+        Ok(())
+    }
+
+    pub(super) fn cancel_stream(&mut self, stream_id: u64) -> Result<(), Error> {
+        let blocks = self
+            .track_blocks
+            .get(&stream_id)
+            .ok_or(Error::UnknownStreamId(stream_id))?;
+        let mut refs = HashMap::new();
+        for block in blocks {
+            for (&reference, &count) in &block.refs {
+                let tracked = refs.entry(reference).or_insert(0usize);
+                *tracked = tracked
+                    .checked_add(count)
+                    .ok_or(Error::InvalidTrackingCount)?;
+            }
+        }
+
+        self.track_cancel(&refs)?;
+        self.track_blocks.remove(&stream_id);
+        self.refresh_blocked_streams();
         Ok(())
     }
 
@@ -443,24 +491,30 @@ impl DynamicTable {
         matches!(self.track_map.get(&reference), Some(count) if *count > 0)
     }
 
-    fn track_block(&mut self, stream_id: u64, refs: HashMap<usize, usize>) {
+    fn track_block(&mut self, stream_id: u64, refs: HashMap<usize, usize>, required_ref: usize) {
+        let block = TrackedBlock { refs, required_ref };
         match self.track_blocks.entry(stream_id) {
             Entry::Occupied(mut e) => {
-                e.get_mut().push_back(refs);
+                e.get_mut().push_back(block);
             }
             Entry::Vacant(e) => {
                 let mut blocks = VecDeque::with_capacity(2);
-                blocks.push_back(refs);
+                blocks.push_back(block);
                 e.insert(blocks);
             }
         }
+        self.refresh_blocked_streams();
     }
 
-    fn track_cancel<T>(&mut self, refs: T) -> Result<(), Error>
-    where
-        T: IntoIterator<Item = (usize, usize)>,
-    {
-        for (reference, count) in refs {
+    fn track_cancel(&mut self, refs: &HashMap<usize, usize>) -> Result<(), Error> {
+        for (&reference, &count) in refs {
+            match self.track_map.get(&reference) {
+                Some(tracked) if *tracked >= count => {}
+                _ => return Err(Error::InvalidTrackingCount),
+            }
+        }
+
+        for (&reference, &count) in refs {
             match self.track_map.entry(reference) {
                 BTEntry::Occupied(mut e) => {
                     use std::cmp::Ordering;
@@ -480,40 +534,47 @@ impl DynamicTable {
         Ok(())
     }
 
-    fn register_blocked(&mut self, largest: usize) {
-        if largest <= self.largest_known_received {
-            return;
-        }
-
-        self.blocked_count += 1;
-
-        match self.blocked_streams.entry(largest) {
-            BTEntry::Occupied(mut e) => {
-                let entry = e.get_mut();
-                *entry += 1;
-            }
-            BTEntry::Vacant(e) => {
-                e.insert(1);
-            }
-        }
+    fn would_exceed_blocked_limit(&self, stream_id: u64) -> bool {
+        self.blocked_count >= self.blocked_max && !self.blocked_streams.contains_key(&stream_id)
     }
 
-    pub fn update_largest_received(&mut self, increment: usize) {
-        self.largest_known_received += increment;
-
-        if self.blocked_count == 0 {
-            return;
+    pub fn update_largest_received(&mut self, increment: u64) -> Result<(), Error> {
+        let next = usize::try_from(increment)
+            .ok()
+            .and_then(|increment| self.largest_known_received.checked_add(increment));
+        let Some(next) = next.filter(|next| *next <= self.total_inserted()) else {
+            return Err(Error::InvalidInsertCountIncrement {
+                increment,
+                known_received: self.largest_known_received,
+                total_inserted: self.total_inserted(),
+            });
+        };
+        if increment == 0 {
+            return Err(Error::InvalidInsertCountIncrement {
+                increment,
+                known_received: self.largest_known_received,
+                total_inserted: self.total_inserted(),
+            });
         }
 
-        let blocked = self
-            .blocked_streams
-            .split_off(&(self.largest_known_received + 1));
-        let acked = std::mem::replace(&mut self.blocked_streams, blocked);
+        self.largest_known_received = next;
+        self.refresh_blocked_streams();
+        Ok(())
+    }
 
-        if !acked.is_empty() {
-            let total_acked = acked.iter().fold(0usize, |t, (_, v)| t + v);
-            self.blocked_count -= total_acked;
+    fn refresh_blocked_streams(&mut self) {
+        self.blocked_streams.clear();
+        for (stream_id, blocks) in &self.track_blocks {
+            if let Some(required_ref) = blocks
+                .iter()
+                .map(|block| block.required_ref)
+                .filter(|required_ref| *required_ref > self.largest_known_received)
+                .max()
+            {
+                self.blocked_streams.insert(*stream_id, required_ref);
+            }
         }
+        self.blocked_count = self.blocked_streams.len();
     }
 
     pub(super) fn max_mem_size(&self) -> usize {
@@ -970,7 +1031,7 @@ mod tests {
             );
             encoder.commit(1);
         }
-        table.untrack_block(4).unwrap();
+        table.acknowledge_block(4).unwrap();
 
         {
             let mut encoder = table.encoder(4);
@@ -1043,9 +1104,9 @@ mod tests {
         }
         let track_blocks = table.track_blocks;
         let block = track_blocks.get(&stream_id).unwrap().front().unwrap();
-        assert_eq!(block.get(&1), Some(&1));
-        assert_eq!(block.get(&2), Some(&1));
-        assert_eq!(block.get(&3), Some(&1));
+        assert_eq!(block.refs.get(&1), Some(&1));
+        assert_eq!(block.refs.get(&2), Some(&1));
+        assert_eq!(block.refs.get(&3), Some(&1));
     }
 
     #[test]
@@ -1161,39 +1222,47 @@ mod tests {
     }
 
     #[test]
-    fn untrack_block() {
+    fn acknowledge_block_releases_references() {
         let mut table = tracked_table(42);
         assert_eq!(table.track_map.len(), 3);
         assert_eq!(table.track_blocks.len(), 1);
-        table.untrack_block(42).unwrap();
+        table.acknowledge_block(42).unwrap();
         assert_eq!(table.track_map.len(), 0);
         assert_eq!(table.track_blocks.len(), 0);
     }
 
     #[test]
-    fn untrack_block_not_in_map() {
+    fn acknowledge_block_with_missing_reference_is_atomic() {
         let mut table = tracked_table(42);
         table.track_map.remove(&2);
-        assert_eq!(table.untrack_block(42), Err(Error::InvalidTrackingCount));
+        assert_eq!(
+            table.acknowledge_block(42),
+            Err(Error::InvalidTrackingCount)
+        );
+        assert_eq!(table.track_blocks.len(), 1);
     }
 
     #[test]
-    fn untrack_block_wrong_count() {
+    fn acknowledge_block_with_wrong_count_is_atomic() {
         let mut table = tracked_table(42);
         table.track_blocks.entry(42).and_modify(|x| {
-            x.get_mut(0).unwrap().entry(2).and_modify(|c| *c += 1);
+            x.get_mut(0).unwrap().refs.entry(2).and_modify(|c| *c += 1);
         });
-        assert_eq!(table.untrack_block(42), Err(Error::InvalidTrackingCount));
+        assert_eq!(
+            table.acknowledge_block(42),
+            Err(Error::InvalidTrackingCount)
+        );
+        assert_eq!(table.track_blocks.len(), 1);
     }
 
     #[test]
-    fn untrack_bloc_wrong_stream() {
+    fn acknowledge_block_for_unknown_stream() {
         let mut table = tracked_table(41);
-        assert_eq!(table.untrack_block(42), Err(Error::UnknownStreamId(42)));
+        assert_eq!(table.acknowledge_block(42), Err(Error::UnknownStreamId(42)));
     }
 
     #[test]
-    fn untrack_trailers() {
+    fn acknowledge_blocks_in_stream_order() {
         const STREAM_ID: u64 = 42;
         let mut table = tracked_table(STREAM_ID);
         {
@@ -1207,15 +1276,74 @@ mod tests {
             assert_eq!(encoder.block_refs.len(), 6);
             encoder.commit(6);
         }
-        assert_eq!(table.untrack_block(STREAM_ID), Ok(()));
+        assert_eq!(table.acknowledge_block(STREAM_ID), Ok(()));
         assert!(!table.is_tracked(3));
         assert!(table.is_tracked(5));
-        assert_eq!(table.untrack_block(STREAM_ID), Ok(()));
+        assert_eq!(table.acknowledge_block(STREAM_ID), Ok(()));
         assert!(!table.is_tracked(6));
         assert_eq!(
-            table.untrack_block(STREAM_ID),
+            table.acknowledge_block(STREAM_ID),
             Err(Error::UnknownStreamId(STREAM_ID))
         );
+    }
+
+    #[test]
+    fn header_ack_advances_known_received_and_unblocks_streams() {
+        let mut table = tracked_table(42);
+        table.set_max_blocked(100).unwrap();
+        table.encoder(44).commit(2);
+        assert_eq!(table.blocked_count, 2);
+
+        table.acknowledge_block(42).unwrap();
+
+        assert_eq!(table.largest_known_received, 3);
+        assert_eq!(table.blocked_count, 0);
+        assert!(table.blocked_streams.is_empty());
+    }
+
+    #[test]
+    fn stream_cancellation_releases_every_outstanding_block() {
+        let mut table = tracked_table(42);
+        table.encoder(42).commit(2);
+        assert_eq!(table.track_blocks[&42].len(), 2);
+
+        table.cancel_stream(42).unwrap();
+
+        assert!(table.track_map.is_empty());
+        assert!(table.track_blocks.is_empty());
+        assert!(table.blocked_streams.is_empty());
+        assert_eq!(table.blocked_count, 0);
+    }
+
+    #[test]
+    fn insert_count_increment_must_be_positive_and_not_exceed_insert_count() {
+        let mut table = tracked_table(42);
+
+        assert_eq!(
+            table.update_largest_received(0),
+            Err(Error::InvalidInsertCountIncrement {
+                increment: 0,
+                known_received: 0,
+                total_inserted: 3,
+            })
+        );
+        assert_eq!(
+            table.update_largest_received(4),
+            Err(Error::InvalidInsertCountIncrement {
+                increment: 4,
+                known_received: 0,
+                total_inserted: 3,
+            })
+        );
+        assert_eq!(
+            table.update_largest_received(u64::MAX),
+            Err(Error::InvalidInsertCountIncrement {
+                increment: u64::MAX,
+                known_received: 0,
+                total_inserted: 3,
+            })
+        );
+        assert_eq!(table.largest_known_received, 0);
     }
 
     #[test]
@@ -1242,7 +1370,7 @@ mod tests {
         table.set_max_blocked(100).unwrap();
 
         assert_eq!(table.blocked_count, 1);
-        assert_eq!(table.blocked_streams.get(&3), Some(&1usize))
+        assert_eq!(table.blocked_streams.get(&42), Some(&3))
     }
 
     #[test]
@@ -1257,7 +1385,7 @@ mod tests {
         // encoder dropped without commit
 
         assert_eq!(table.blocked_count, 1);
-        assert_eq!(table.blocked_streams.get(&5), None);
+        assert_eq!(table.blocked_streams.get(&44), None);
     }
 
     #[test]
@@ -1280,7 +1408,12 @@ mod tests {
         }
 
         assert_eq!(table.blocked_count, 2);
-        assert_eq!(table.blocked_streams.get(&3), Some(&2));
+        assert_eq!(table.blocked_streams.get(&42), Some(&3));
+        assert_eq!(table.blocked_streams.get(&44), Some(&3));
+
+        table.encoder(42).commit(2);
+        assert_eq!(table.blocked_count, 2);
+        assert_eq!(table.blocked_streams.get(&42), Some(&3));
     }
 
     #[test]
@@ -1294,7 +1427,7 @@ mod tests {
         }
 
         assert_eq!(table.blocked_count, 2);
-        assert_eq!(table.blocked_streams.get(&2), Some(&1));
+        assert_eq!(table.blocked_streams.get(&44), Some(&2));
     }
 
     #[test]
@@ -1308,7 +1441,7 @@ mod tests {
         }
 
         assert_eq!(table.blocked_count, 2);
-        assert_eq!(table.blocked_streams.get(&5), Some(&1));
+        assert_eq!(table.blocked_streams.get(&44), Some(&5));
     }
 
     #[test]
@@ -1322,13 +1455,13 @@ mod tests {
         }
 
         assert_eq!(table.blocked_count, 2);
-        assert_eq!(table.blocked_streams.get(&2), Some(&1));
+        assert_eq!(table.blocked_streams.get(&44), Some(&2));
 
-        table.update_largest_received(2);
+        table.update_largest_received(2).unwrap();
 
         assert_eq!(table.blocked_count, 1);
-        assert_eq!(table.blocked_streams.get(&2), None);
-        assert_eq!(table.blocked_streams.get(&3), Some(&1));
+        assert_eq!(table.blocked_streams.get(&44), None);
+        assert_eq!(table.blocked_streams.get(&42), Some(&3));
     }
 
     #[test]
@@ -1337,29 +1470,30 @@ mod tests {
         table.set_max_blocked(100).unwrap();
 
         table.encoder(44).commit(2);
-        table.encoder(46).commit(5);
+        table.encoder(46).commit(3);
 
         assert_eq!(table.blocked_count, 3);
-        assert_eq!(table.blocked_streams.get(&2), Some(&1));
-        assert_eq!(table.blocked_streams.get(&3), Some(&1));
+        assert_eq!(table.blocked_streams.get(&42), Some(&3));
+        assert_eq!(table.blocked_streams.get(&44), Some(&2));
+        assert_eq!(table.blocked_streams.get(&46), Some(&3));
 
-        table.update_largest_received(5);
+        table.update_largest_received(3).unwrap();
 
         assert_eq!(table.blocked_count, 0);
         assert_eq!(table.blocked_streams.len(), 0);
     }
 
     #[test]
-    fn unblock_stream_decrement() {
+    fn multiple_blocked_sections_on_one_stream_count_once() {
         let mut table = tracked_table(42);
         table.set_max_blocked(100).unwrap();
 
-        table.encoder(44).commit(3);
+        table.encoder(42).commit(2);
 
-        assert_eq!(table.blocked_count, 2);
-        assert_eq!(table.blocked_streams.get(&3), Some(&2));
+        assert_eq!(table.blocked_count, 1);
+        assert_eq!(table.blocked_streams.get(&42), Some(&3));
 
-        table.update_largest_received(5);
+        table.update_largest_received(3).unwrap();
 
         assert_eq!(table.blocked_count, 0);
         assert_eq!(table.blocked_streams.len(), 0);
@@ -1424,7 +1558,7 @@ mod tests {
             encoder.commit(0);
         }
 
-        table.update_largest_received(3);
+        table.update_largest_received(3).unwrap();
         assert_eq!(table.blocked_count, 0);
 
         let mut encoder = table.encoder(46);

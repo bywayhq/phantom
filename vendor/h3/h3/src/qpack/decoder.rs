@@ -1,5 +1,5 @@
-use bytes::{Buf, BufMut};
-use std::{convert::TryInto, fmt, io::Cursor, num::TryFromIntError};
+use bytes::{Buf, BufMut, BytesMut};
+use std::{fmt, io::Cursor, num::TryFromIntError};
 
 #[cfg(feature = "tracing")]
 use tracing::trace;
@@ -80,9 +80,27 @@ pub struct Decoded {
 
 pub struct Decoder {
     table: DynamicTable,
+    max_table_capacity: usize,
+    max_field_section_size: u64,
+    encoder_stream: BytesMut,
 }
 
 impl Decoder {
+    pub(super) fn new(
+        max_table_capacity: usize,
+        max_field_section_size: u64,
+    ) -> Result<Self, DecoderError> {
+        let mut table = DynamicTable::new();
+        table.set_max_size(max_table_capacity)?;
+        table.set_max_size(0)?;
+        Ok(Self {
+            table,
+            max_table_capacity,
+            max_field_section_size,
+            encoder_stream: BytesMut::new(),
+        })
+    }
+
     // Decode field lines received on Request of Push stream.
     // https://www.rfc-editor.org/rfc/rfc9204.html#name-field-line-representations
     pub fn decode_header<T: Buf>(&self, buf: &mut T) -> Result<Decoded, DecoderError> {
@@ -95,11 +113,14 @@ impl Decoder {
 
         let decoder_table = self.table.decoder(base);
 
-        let mut mem_size = 0;
+        let mut mem_size: u64 = 0;
         let mut fields = Vec::new();
         while buf.has_remaining() {
             let field = Self::parse_header_field(&decoder_table, buf)?;
-            mem_size += field.mem_size() as u64;
+            mem_size = mem_size.saturating_add(field.mem_size() as u64);
+            if mem_size > self.max_field_section_size {
+                return Err(DecoderError::HeaderTooLong(mem_size));
+            }
             fields.push(field);
         }
 
@@ -116,22 +137,37 @@ impl Decoder {
         read: &mut R,
         write: &mut W,
     ) -> Result<usize, DecoderError> {
+        self.encoder_stream.put(read);
         let inserted_on_start = self.table.total_inserted();
 
-        while let Some(instruction) = self.parse_instruction(read)? {
+        loop {
+            let (instruction, consumed) = {
+                let mut buffered = Cursor::new(self.encoder_stream.as_ref());
+                let Some(instruction) = self.parse_instruction(&mut buffered)? else {
+                    break;
+                };
+                (instruction, buffered.position() as usize)
+            };
+            self.encoder_stream.advance(consumed);
+
             #[cfg(feature = "tracing")]
             trace!("instruction {:?}", instruction);
 
             match instruction {
                 Instruction::Insert(field) => self.table.put(field)?,
                 Instruction::TableSizeUpdate(size) => {
+                    if size > self.max_table_capacity {
+                        return Err(DecoderError::DynamicTable(
+                            DynamicTableError::MaximumTableSizeTooLarge,
+                        ));
+                    }
                     self.table.set_max_size(size)?;
                 }
             }
         }
 
         if self.table.total_inserted() != inserted_on_start {
-            InsertCountIncrement((self.table.total_inserted() - inserted_on_start).try_into()?)
+            InsertCountIncrement((self.table.total_inserted() - inserted_on_start) as u64)
                 .encode(write);
         }
 
@@ -264,7 +300,13 @@ pub fn decode_stateless<T: Buf>(buf: &mut T, max_size: u64) -> Result<Decoded, D
 #[cfg(test)]
 impl From<DynamicTable> for Decoder {
     fn from(table: DynamicTable) -> Self {
-        Self { table }
+        let max_table_capacity = table.max_mem_size();
+        Self {
+            table,
+            max_table_capacity,
+            max_field_section_size: u64::MAX,
+            encoder_stream: BytesMut::new(),
+        }
     }
 }
 
@@ -343,7 +385,12 @@ impl From<TryFromIntError> for DecoderError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::qpack::tests::helpers::{build_table_with_size, TABLE_SIZE};
+    use bytes::Bytes;
+
+    use crate::{
+        buf::BufList,
+        qpack::tests::helpers::{build_table_with_size, TABLE_SIZE},
+    };
 
     #[test]
     fn test_header_too_long() {
@@ -510,6 +557,45 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_table_size_update_cannot_exceed_configured_capacity() {
+        let mut buf = vec![];
+        DynamicTableSizeUpdate(26).encode(&mut buf);
+        let mut decoder = Decoder::new(25, u64::MAX).unwrap();
+
+        assert_eq!(
+            decoder.on_encoder_recv(&mut Cursor::new(buf), &mut Vec::new()),
+            Err(DecoderError::DynamicTable(
+                DynamicTableError::MaximumTableSizeTooLarge
+            ))
+        );
+        assert_eq!(decoder.table.max_mem_size(), 0);
+    }
+
+    #[test]
+    fn encoder_instruction_accepts_one_byte_buf_chunks() {
+        let mut wire = Vec::new();
+        InsertWithoutNameRef::new("keyfoobarbaz", "value")
+            .encode(&mut wire)
+            .unwrap();
+        let mut fragmented = BufList::new();
+        for byte in wire {
+            fragmented.push(Bytes::copy_from_slice(&[byte]));
+        }
+        let mut decoder = Decoder::from(build_table_with_size(0));
+        let mut feedback = Vec::new();
+
+        assert_eq!(
+            decoder.on_encoder_recv(&mut fragmented, &mut feedback),
+            Ok(1)
+        );
+        assert!(!fragmented.has_remaining());
+        assert_eq!(
+            InsertCountIncrement::decode(&mut Cursor::new(feedback)),
+            Ok(Some(InsertCountIncrement(1)))
+        );
+    }
+
+    #[test]
     fn enc_recv_buf_too_short() {
         let decoder = Decoder::from(build_table_with_size(0));
         let mut buf = vec![];
@@ -530,34 +616,22 @@ mod tests {
             .encode(&mut buf)
             .unwrap();
 
-        let mut decoder = Decoder::from(build_table_with_size(0));
-        // cut in middle of the first int
-        let mut enc = Cursor::new(&buf[..2]);
-        let mut dec = vec![];
-        assert!(decoder.on_encoder_recv(&mut enc, &mut dec).is_ok());
-        assert_eq!(enc.position(), 0);
+        for split in 0..buf.len() {
+            let mut decoder = Decoder::from(build_table_with_size(0));
+            let mut feedback = vec![];
+            let mut first = Cursor::new(&buf[..split]);
+            assert_eq!(decoder.on_encoder_recv(&mut first, &mut feedback), Ok(0));
+            assert_eq!(first.position(), split as u64);
+            assert!(feedback.is_empty());
 
-        // cut the last byte of the 2nd string
-        let mut enc = Cursor::new(&buf[..buf.len() - 1]);
-        let mut dec = vec![];
-        assert!(decoder.on_encoder_recv(&mut enc, &mut dec).is_ok());
-        assert_eq!(enc.position(), 0);
-
-        InsertWithoutNameRef::new("keyfoobarbaz2", "value")
-            .encode(&mut buf)
-            .unwrap();
-
-        // the first valid field is inserted and buf is left at the first byte of incomplete string
-        let mut enc = Cursor::new(&buf[..buf.len() - 1]);
-        let mut dec = vec![];
-        assert!(decoder.on_encoder_recv(&mut enc, &mut dec).is_ok());
-        assert_eq!(enc.position(), 15);
-
-        let mut dec_cursor = Cursor::new(&dec);
-        assert_eq!(
-            InsertCountIncrement::decode(&mut dec_cursor),
-            Ok(Some(InsertCountIncrement(1)))
-        );
+            let mut second = Cursor::new(&buf[split..]);
+            assert_eq!(decoder.on_encoder_recv(&mut second, &mut feedback), Ok(1));
+            assert_eq!(second.position(), (buf.len() - split) as u64);
+            assert_eq!(
+                InsertCountIncrement::decode(&mut Cursor::new(&feedback)),
+                Ok(Some(InsertCountIncrement(1)))
+            );
+        }
     }
 
     #[test]
@@ -605,6 +679,21 @@ mod tests {
             fields,
             &[field(2), field(1), StaticTable::get(18).unwrap().clone()]
         )
+    }
+
+    #[test]
+    fn dynamic_decode_enforces_max_field_section_size() {
+        let expected_size = field(1).mem_size() as u64;
+        let mut buf = vec![];
+        HeaderPrefix::new(1, 1, 1, TABLE_SIZE).encode(&mut buf);
+        Indexed::Dynamic(0).encode(&mut buf);
+        let mut decoder = Decoder::from(build_table_with_size(1));
+        decoder.max_field_section_size = expected_size - 1;
+
+        assert_eq!(
+            decoder.decode_header(&mut Cursor::new(buf)),
+            Err(DecoderError::HeaderTooLong(expected_size))
+        );
     }
 
     //      Largest Reference
