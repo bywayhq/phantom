@@ -1,8 +1,8 @@
 # Validation model
 
-Successful connectivity is not proof of browser-compatible behavior.
+Successful connectivity does not establish browser wire behavior.
 
-Wire-sensitive changes will be checked at three levels:
+Wire-sensitive changes are checked at three levels:
 
 1. Deterministic local protocol assertions
 2. Normalized packet, frame, or qlog differentials against a pinned fixture
@@ -18,15 +18,17 @@ browser capture. It normalizes GREASE codepoint values and the measured random
 ECH GREASE payload length while retaining record count, vector positions,
 extension membership, and every other extension payload length.
 
-Compatibility claims must cite the exact browser capture and differential fixture that supports them. A successful response or summary fingerprint alone is not evidence of parity.
+Claims about browser wire behavior must cite the exact capture and differential
+fixture that supports them. A successful response or summary fingerprint alone
+does not establish the same wire behavior.
 
 ## Reproducing the Chrome TCP ClientHello fixture
 
 The retained Chrome fixture is
 `fixtures/tls/chrome/152.0.7977.83/macos-15.5/client-hello.txt`.
-It is a reference measurement, not a browser-compatibility claim. The fixture
-contains the complete TLS record in lowercase hexadecimal, the semantic decoder
-output, and the browser, operating system, hostname, listener, and flag metadata.
+It is one reference measurement. The fixture contains the complete TLS record
+in lowercase hexadecimal, the semantic decoder output, and the browser,
+operating system, hostname, listener, and flag metadata.
 
 The recorded environment was Google Chrome `152.0.7977.83` on macOS `15.5`
 (`24F74`). Confirm those values before comparing a new capture:
@@ -97,9 +99,9 @@ that differential is `phantom_profile::chromium::v152_macos_tls()`.
 The retained local fixture is
 `fixtures/http2/chrome/152.0.7977.83/macos-15.5/client-startup.txt`.
 It records one Chrome connection through the initial SETTINGS and connection
-WINDOW_UPDATE. It is raw local evidence, not a Pingly capture and not a parity
-claim. The existing Pingly output is retained separately and is never used as
-the oracle for this regression.
+WINDOW_UPDATE. It is raw local evidence and is not derived from the retained
+Pingly output. That output is stored separately and is never used as the oracle
+for this regression.
 
 Confirm Chrome and macOS versions as described above. In one terminal, run the
 bounded TLS listener with explicit fixture metadata:
@@ -152,3 +154,25 @@ and connection WINDOW_UPDATE summary. A second bounded regression sends a fresh
 request through Phantom's public HTTP/2 transaction using
 `v152_macos_http2()` and requires its exact startup bytes to match the retained
 Chrome frames.
+
+## Current HTTP/2 protocol coverage
+
+Deterministic local tests also cover behavior beyond the retained startup
+fixture: declared pseudo-header and ordinary-header order, request validation
+before I/O, response flow control, streaming DATA and trailers, incomplete-body
+`CANCEL`, reset flushing, and bounded connection-driver shutdown.
+
+The exact-`h2` TLS path distinguishes absent ALPS from a negotiated empty value.
+A negotiated value is parsed as bounded HTTP/2 frames: known non-SETTINGS core
+frames, ACK SETTINGS, invalid known values, and truncated or oversized input
+are rejected before the HTTP/2 preface. `ENABLE_PUSH` accepts only zero;
+unknown setting identifiers and extension-frame types are ignored. Duplicate
+known settings apply in order. Only a complete SETTINGS frame seeds peer state;
+negotiated-empty ALPS does not. Seeded settings affect the first request without
+producing a SETTINGS ACK, because no peer SETTINGS frame was received on the
+HTTP/2 wire.
+
+The raw fixture and direct differential establish only the captured Chrome 152
+macOS startup behavior. The retained Pingly result and live Peet or Pingly
+checks are supplemental observations, not substitutes for local bytes. No H3,
+Firefox, or Safari wire fixture exists yet.

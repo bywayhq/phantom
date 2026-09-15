@@ -1,11 +1,14 @@
 # Phantom
 
-Phantom is an experimental Rust HTTP client focused on observable browser-compatible wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
+Phantom is an experimental Rust HTTP client focused on observable,
+profile-driven wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 
-The first complete TLS and streaming HTTP/1.1 transport slice is implemented.
-Its Chrome 152 macOS TLS recipe is checked against a retained local
-ClientHello; HTTP/2, HTTP/3, WebSocket, SSE, Firefox, and Safari remain planned.
-The project does not yet make broad compatibility or impersonation claims.
+The current vertical slices implement certificate- and hostname-checked TLS,
+ordered streaming HTTP/1.1, and one-shot HTTP/2 over an exact `h2` TLS
+negotiation. The Chrome 152 macOS TLS and HTTP/2 recipes have retained local
+ClientHello and raw startup-frame fixtures with direct differentials. HTTP/3,
+Firefox and Safari recipes, reusable sessions, SSE, and WebSocket remain
+planned. The project does not make broad browser-compatibility claims.
 
 ## Principles
 
@@ -18,14 +21,15 @@ The project does not yet make broad compatibility or impersonation claims.
 ## Current workspace
 
 - `phantom`: the future public client facade
-- `phantom-profile`: browser-neutral profile identity, typed TLS settings, and
-  the evidence-backed Chrome 152 macOS TLS recipe
-- `phantom-net`: concrete protocol transports; currently streaming HTTP/1.1
-  over a private BoringSSL TLS adapter
-- `phantom-testkit`: bounded TLS ClientHello capture and strict semantic
-  decoding for deterministic differentials
+- `phantom-profile`: browser-neutral profile identity, typed TLS and HTTP/2
+  settings, and the fixture-backed Chrome 152 macOS recipes
+- `phantom-net`: the private BoringSSL adapter plus ordered streaming HTTP/1.1
+  and one-shot HTTP/2 request paths, including exact-`h2` TLS and ALPS handling
+- `phantom-testkit`: bounded TLS ClientHello and HTTP/2 frame capture with
+  strict decoding for deterministic differentials
 
-See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md), and [validation model](docs/validation.md).
+See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
+[validation model](docs/validation.md), and [performance guide](docs/performance.md).
 
 ## Development
 

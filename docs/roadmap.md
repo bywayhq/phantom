@@ -30,9 +30,9 @@ Fixture serialization, pcap ingestion, and broader normalization remain deferred
 The public `chromium::v152_macos_tls()` recipe reproduces the stable,
 observable fields retained from Chrome 152.0.7977.83 on macOS 15.5 and returns
 the same owned `TlsSettings` type used for customization. The private BoringSSL
-adapter composes a certificate-verified handshake with an ordered, streaming
-HTTP/1.1 request. ALPN routing rejects incompatible negotiation before HTTP/1
-bytes are written.
+adapter performs certificate and hostname verification during the handshake
+and composes the resulting stream with an ordered, streaming HTTP/1.1 request.
+ALPN routing rejects incompatible negotiation before HTTP/1 bytes are written.
 
 The differential compares exact ordered semantic vectors, SNI, ALPN, requested
 trust-anchor IDs, extension membership, every stable extension payload length,
@@ -42,25 +42,58 @@ GREASE codepoint values are normalized.
 Acceptance:
 
 - Browser-neutral TLS settings produce an asserted ClientHello through the private BoringSSL adapter.
-- A completed, certificate-verified TLS handshake composes with the streaming HTTP/1.1 transaction.
+- A completed TLS handshake with certificate and hostname verification composes with the streaming HTTP/1.1 transaction.
 - Negotiated ALPN is routed explicitly; unsupported protocols never silently downgrade to HTTP/1.1.
 - Ordered HTTP/1.1 request fields and response streaming are proven over the completed TLS connection.
 
-## Phase 3: HTTP/2
+## Phase 3: HTTP/2 — complete
 
-Add bounded frame capture first, then explicit settings ordering, pseudo-header
-ordering, ordered ordinary headers, flow control, response streaming, and a
-completed TLS/ALPN path. Patch only the narrow upstream seam that wire evidence
-proves cannot preserve ordinary header order.
+Phase 3 adds a one-shot HTTP/2 request path without introducing a general client
+or session abstraction. The Chrome 152 macOS profile controls initial SETTINGS,
+connection flow control, pseudo-header order, and HEADERS priority; the request
+API preserves caller-declared ordinary-header order. The TLS path requires
+exact `h2` ALPN and decodes negotiated peer application settings before any
+HTTP/2 bytes are written.
 
-## Phase 4: browser-family checks
+Acceptance:
 
-Exercise the profile and transport seams with Firefox and Safari captures before they become expensive to change.
+- Bounded capture preserves the exact client connection preface and ordered
+  startup frames, including SETTINGS and connection WINDOW_UPDATE.
+- A direct differential requires a fresh public HTTP/2 request to reproduce the
+  retained Chrome 152 macOS startup bytes.
+- Request validation, pseudo-headers, ordinary headers, SETTINGS, and priority
+  are emitted in declared order; invalid input fails before transport I/O.
+- Response DATA and trailers stream with flow-control capacity returned as they
+  are consumed. Dropping an incomplete body sends `CANCEL`, flushes the reset,
+  and bounds shutdown of a stalled driver.
+- The HTTP/2 TLS connector starts the protocol only after exact `h2`
+  negotiation. ALPS distinguishes absent, negotiated-empty, and nonempty
+  values; valid peer SETTINGS seed the connection without a wire ACK, while
+  malformed input is rejected before the HTTP/2 preface.
+- Vendored BoringSSL-wrapper and HTTP/2 changes have exact provenance,
+  reproducible canonical patches, focused tests, and disposable candidate
+  probes in the scheduled upstream-freshness workflow.
+- Deterministic public-path HTTP/1.1 and HTTP/2 replay benchmarks run locally
+  and in a report-only scheduled workflow. Runtime tracing and platform
+  profiling procedures are documented without claiming TLS-handshake or
+  network end-to-end measurements.
 
-## Phase 5: forced HTTP/3
+## Phase 4: browser-family checks — planned
 
-Establish one explicit QUIC and HTTP/3 path, with qlog and packet differentials, before adding negotiation or fallback.
+Add retained Firefox and Safari captures and concrete typed recipes through the
+existing TLS, HTTP/1.1, and HTTP/2 seams. This phase tests whether current
+configuration remains browser-neutral; it does not add HTTP/3, sessions, SSE,
+or WebSocket.
+
+## Phase 5: forced HTTP/3 — planned
+
+Establish one explicitly selected QUIC and HTTP/3 path with bounded qlog and
+packet differentials. Unsupported H3 behavior must fail explicitly; protocol
+negotiation, fallback, session reuse, SSE, and WebSocket remain outside this
+phase.
 
 ## Later phases
 
-Session state, protocol routing, SSE, WebSocket, proxies, automated profile freshness, and performance hardening follow only after their transport prerequisites are verified.
+A public client facade, reusable sessions, protocol routing, SSE, WebSocket,
+proxies, and workload-driven performance optimization follow only after their
+transport prerequisites exist.

@@ -1,7 +1,10 @@
 # Performance work
 
-Phantom benchmarks complete public transport paths. They do not expose private
-parser or TLS-backend functions solely to make microbenchmarks easier.
+Phantom benchmarks TLS connector construction and public HTTP/1.1 and HTTP/2
+request paths over deterministic in-memory replay transports. They do not
+expose private parser or TLS-backend functions solely to make microbenchmarks
+easier, and they do not currently measure a TLS handshake or network
+end-to-end request.
 
 Run the deterministic local suite with the pinned development toolchain:
 
@@ -18,8 +21,9 @@ cargo +1.98.0 bench --locked -p phantom-net --bench transport -- 'http2/streamin
 ```
 
 The response-head benchmark includes validation, Chromium-profile translation,
-ordered request-header encoding, the HTTP/2 handshake, response HPACK decoding,
-and one-shot connection shutdown. The body benchmark additionally streams four
+ordered request-header encoding, HTTP/2 protocol setup (the connection preface
+and startup frames over the replay transport), response HPACK decoding, and
+one-shot connection shutdown. The body benchmark additionally streams four
 16 KiB DATA frames through the public response body and reports throughput for
 the 64 KiB payload. Each HTTP/2 iteration separately waits for the connection
 driver to drop its dedicated replay transport and for the final driver span to
@@ -90,5 +94,6 @@ heaptrack --analyze <heaptrack-output>
 ```
 
 Optimize only a repeatable hotspot, then rerun the identical workload before
-and after the change. TLS handshake measurement is deferred until Phantom has a
-production trust-policy seam suitable for a deterministic local server.
+and after the change. TLS-handshake and network end-to-end benchmarks remain
+deferred until they have controlled trust roots and a reproducible server and
+network setup.

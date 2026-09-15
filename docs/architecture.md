@@ -1,8 +1,9 @@
 # Architecture
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
-validated browser profile. The project owns the API, profiles, routing, session
-behavior, and validation harness. It carries narrow, documented patches to
+validated browser profile. The current workspace owns profiles, concrete
+request paths, and the validation harness. A later facade will own protocol
+routing and session behavior. Phantom carries narrow, documented patches to
 upstream protocol engines only where their public APIs cannot preserve a
 measured browser behavior.
 
@@ -23,24 +24,25 @@ flowchart TB
     User[Application]
     Client["phantom::Client<br/>small public facade"]
     Session["Session state<br/>cookies · cache hints · tickets"]
-    Plan["Validated request plan<br/>origin · protocol · ordered fields"]
-    Profile["Browser profile<br/>TLS · H1 · H2 · H3 settings"]
+    Profile["Browser profile<br/>TLS · H2 settings"]
+    Request["Current request APIs<br/>one-shot GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
-    H2["HTTP/2<br/>ordered HPACK · flow control"]
+    H2["HTTP/2<br/>ordered headers · flow control"]
     H3["HTTP/3<br/>QUIC · QPACK · qlog"]
     TLS["BoringSSL adapter<br/>TLS + ALPS"]
     QUIC["QUIC backend"]
     SSE["SSE decoder<br/>over response body"]
     WS["WebSocket<br/>handshake + frames"]
 
-    User --> Client
+    User --> Request
+    Profile --> Request
+    Request --> H1
+    Request --> H2
+    User -.-> Client
     Client -.-> Session
-    Client -.-> Plan
-    Profile --> Plan
-    Plan --> H1
-    Plan --> H2
-    Plan -.-> H3
+    Client -.-> Request
+    Request -.-> H3
     H1 --> TLS
     H2 --> TLS
     H3 -.-> QUIC
@@ -53,8 +55,8 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Profile,H1,H2,TLS current
-    class Client,Session,Plan,H3,QUIC,SSE,WS planned
+    class Profile,Request,H1,H2,TLS current
+    class Client,Session,H3,QUIC,SSE,WS planned
 ```
 
 SSE is a response-body consumer, not another transport. WebSocket owns its
@@ -76,12 +78,10 @@ flowchart LR
     BuiltIn --> Override["Explicit typed overrides"]
     Override --> Validate["Cross-field validation"]
     Validate --> TLS["TlsSettings"]
-    Validate --> H1["Http1Settings"]
     Validate --> H2["Http2Settings"]
     Validate -.-> H3["Http3Settings"]
 
     TLS --> Backend["private backend translation"]
-    H1 --> Backend
     H2 --> Backend
     H3 -.-> Backend
 ```
@@ -116,7 +116,7 @@ private so the public module tree remains shallow.
 
 ```mermaid
 flowchart LR
-    Browser["Pinned browser + OS"] --> Capture["bounded local capture<br/>pcap · TLS · frames · qlog"]
+    Browser["Pinned browser + OS"] --> Capture["bounded local capture<br/>TLS · frames"]
     Capture --> Fixture["raw fixture + metadata"]
     Fixture --> Decode["strict semantic decoder"]
     Phantom["fresh Phantom connection"] --> Decode
@@ -136,14 +136,17 @@ not a substitute for a local packet or frame differential.
 
 - One request operation owns its tracing span, connection driver, body, and
   cancellation path. Dropping a body cannot orphan a task indefinitely.
-- Traces record protocol choices, durations, sizes, negotiated state, and error
-  classes. They do not record headers, cookies, payloads, or raw ALPS bytes.
-- Benchmarks separate profile preparation, handshake, request encoding,
-  response streaming, and end-to-end throughput so regressions remain
-  attributable.
+- Traces expose bounded outcomes, sizes, negotiated state, and static error
+  classes. They do not record endpoint names, headers, cookies, payloads,
+  certificates, or raw ALPS bytes.
+- Benchmarks currently measure TLS connector construction and deterministic
+  public HTTP/1.1 and HTTP/2 requests over in-memory replay transports. TLS
+  handshakes, network I/O, and end-to-end throughput remain unmeasured.
 - Vendored changes carry provenance, a canonical patch, focused regressions,
-  and an upstream-candidate probe. Normal dependency and toolchain updates stay
-  automated.
+  and disposable upstream-candidate probes. A scheduled report checks pinned
+  protocol dependencies and Chrome fixture metadata without rewriting the
+  source checkout. Dependabot covers Cargo, GitHub Actions, and Rust toolchain
+  updates.
 
 ## Dependency rules
 
@@ -152,5 +155,4 @@ not a substitute for a local packet or frame differential.
 - Profiles never contain mutable session state such as cookies.
 - Observable wire ordering uses ordered representations end to end.
 - Every public option must be implemented, validated, and observable in a test.
-- Security defaults such as certificate and hostname verification remain real
-  behavior, not labels or status badges.
+- Certificate and hostname verification remain concrete transport behavior.
