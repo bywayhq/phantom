@@ -79,7 +79,7 @@ Acceptance:
   profiling procedures are documented without claiming TLS-handshake or
   network end-to-end measurements.
 
-## Phase 4: browser-family checks — in progress
+## Phase 4: browser-family checks — complete
 
 Retained captures now support Safari 18.5 and Firefox 154 macOS TLS recipes and
 a Firefox 154 macOS HTTP/2 recipe through the existing typed settings. The
