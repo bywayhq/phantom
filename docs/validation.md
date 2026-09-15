@@ -10,7 +10,13 @@ Wire-sensitive changes will be checked at three levels:
 
 Normalization may remove values that are intentionally nondeterministic, such as random bytes, connection identifiers, packet numbers, timestamps, and cryptographic key material. It must not erase ordering, presence, negotiated values, or other behavior the profile claims to control.
 
-The TLS testkit preserves complete TLS record bytes and the exact reassembled ClientHello handshake. Its strict decoder exposes the ordered semantic fields asserted by the current TLS transport tests. Broader normalization will be added only when a retained browser fixture requires it, so each normalized field has an immediate differential assertion.
+The TLS testkit preserves complete TLS record bytes and the exact reassembled
+ClientHello handshake. Its strict decoder exposes ordered semantic fields,
+requested trust-anchor IDs, and extension payload lengths. The Chrome 152
+differential compares a fresh Phantom ClientHello directly with the retained
+browser capture. It normalizes GREASE codepoint values and the measured random
+ECH GREASE payload length while retaining record count, vector positions,
+extension membership, and every other extension payload length.
 
 Compatibility claims must cite the exact browser capture and differential fixture that supports them. A successful response or summary fingerprint alone is not evidence of parity.
 
@@ -81,6 +87,7 @@ For ordered vectors, the regression replaces each selected GREASE codepoint with
 one sentinel without deleting it. This preserves the number and position of
 cipher suites, supported versions, groups, signature algorithms, and key shares.
 The raw fixture also preserves the exact extension order; this single capture
-does not establish Chrome's extension-permutation behavior, so the regression
-asserts required extension presence rather than a compatibility model that the
-evidence does not yet support.
+does not establish Chrome's extension-permutation behavior, so the direct
+differential compares exact extension membership and stable payload lengths
+without claiming that one permutation is canonical. The built-in recipe used by
+that differential is `phantom_profile::chromium::v152_macos_tls()`.

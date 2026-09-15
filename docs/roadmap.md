@@ -25,9 +25,19 @@ The testkit captures one TLS ClientHello from any asynchronous reader. It preser
 
 Fixture serialization, pcap ingestion, and broader normalization remain deferred until a transport test requires them.
 
-## Phase 2: TLS and streaming HTTP/1.1
+## Phase 2: TLS and streaming HTTP/1.1 — complete
 
-Send a streaming request with one pinned Chromium profile and verify its observable TLS and HTTP behavior.
+The public `chromium::v152_macos_tls()` recipe reproduces the stable,
+observable fields retained from Chrome 152.0.7977.83 on macOS 15.5 and returns
+the same owned `TlsSettings` type used for customization. The private BoringSSL
+adapter composes a certificate-verified handshake with an ordered, streaming
+HTTP/1.1 request. ALPN routing rejects incompatible negotiation before HTTP/1
+bytes are written.
+
+The differential compares exact ordered semantic vectors, SNI, ALPN, requested
+trust-anchor IDs, extension membership, every stable extension payload length,
+and TLS record count. Only the measured random ECH GREASE payload length and
+GREASE codepoint values are normalized.
 
 Acceptance:
 
@@ -38,7 +48,10 @@ Acceptance:
 
 ## Phase 3: HTTP/2
 
-Add explicit settings ordering, pseudo-header ordering, flow control, and frame-level fixtures.
+Add bounded frame capture first, then explicit settings ordering, pseudo-header
+ordering, ordered ordinary headers, flow control, response streaming, and a
+completed TLS/ALPN path. Patch only the narrow upstream seam that wire evidence
+proves cannot preserve ordinary header order.
 
 ## Phase 4: browser-family checks
 
