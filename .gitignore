@@ -1,0 +1,6 @@
+/target/
+/.worktrees/
+.DS_Store
+*.pcap
+*.pcapng
+*.qlog

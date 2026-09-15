@@ -1,0 +1,13 @@
+[package]
+name = "phantom"
+description = "A wire-evidenced browser-compatible HTTP client"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+phantom-profile = { path = "../phantom-profile" }
+
+[lints]
+workspace = true

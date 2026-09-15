@@ -1,0 +1,22 @@
+[workspace]
+members = [
+    "crates/phantom",
+    "crates/phantom-profile",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+version = "0.1.0"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+expect_used = "warn"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "warn"
