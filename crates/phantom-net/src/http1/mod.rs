@@ -1,9 +1,10 @@
 //! A one-shot HTTP/1.1 client transaction.
 //!
-//! This module deliberately owns no connection pool or TLS setup. Callers
-//! supply an already-connected byte stream. Completing or dropping the body
-//! schedules cancellation of the protocol task; destruction of the underlying
-//! stream is eventual.
+//! The core transaction accepts an already-connected byte stream, while
+//! [`Http1TlsConnector`] composes it with the crate's TLS transport. This
+//! module owns no connection pool. Completing or dropping the body schedules
+//! cancellation of the protocol task; destruction of the underlying stream is
+//! eventual.
 
 use std::{
     error::Error as StdError,
@@ -23,6 +24,7 @@ use tokio::{
     io::{AsyncRead, AsyncWrite},
     task::JoinHandle,
 };
+use tracing::{Instrument, Span, debug, debug_span, field};
 use wreq_proto::{
     body::Incoming,
     conn::http1,
@@ -267,49 +269,82 @@ pub async fn send_get<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let headers = ValidatedHeaders::new(headers)?;
-    let mut request = Request::builder()
-        .method(Method::GET)
-        .uri(target.0)
-        .version(Version::HTTP_11)
-        .body(Empty::<Bytes>::new())
-        .map_err(|_| Http1Error::InvalidOriginForm)?;
+    let prepared = PreparedGet::new(target, headers)?;
+    send_prepared_get(stream, prepared).await
+}
 
-    headers.populate(request.headers_mut());
-    on_preserve_header(&mut request, headers.order);
+struct PreparedGet {
+    request: Request<Empty<Bytes>>,
+}
 
-    let (mut sender, connection) = http1::Builder::default()
-        .handshake::<_, Empty<Bytes>>(stream)
-        .await?;
-    let driver = DriverTask::spawn(connection);
+impl PreparedGet {
+    fn new(target: OriginForm, headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
+        let headers = ValidatedHeaders::new(headers)?;
+        let mut request = Request::builder()
+            .method(Method::GET)
+            .uri(target.0)
+            .version(Version::HTTP_11)
+            .body(Empty::<Bytes>::new())
+            .map_err(|_| Http1Error::InvalidOriginForm)?;
 
-    sender.ready().await?;
-    let response = sender
-        .try_send_request(request)
-        .await
-        .map_err(|error| Http1Error::Protocol(error.into_error()))?;
-    drop(sender);
-
-    if response.headers().contains_key(TRANSFER_ENCODING)
-        && response.headers().contains_key(CONTENT_LENGTH)
-    {
-        return Err(Http1Error::AmbiguousResponseFraming);
+        headers.populate(request.headers_mut());
+        on_preserve_header(&mut request, headers.order);
+        Ok(Self { request })
     }
+}
 
-    let (parts, incoming) = response.into_parts();
-    let finished = incoming.is_end_stream();
-    let mut driver = driver;
-    if finished {
-        driver.cancel();
+async fn send_prepared_get<T>(
+    stream: T,
+    prepared: PreparedGet,
+) -> Result<Response<Http1Body>, Http1Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let span = debug_span!(
+        "http1.send",
+        method = "GET",
+        protocol = "http/1.1",
+        status = field::Empty,
+    );
+    async {
+        debug!("HTTP/1 transaction started");
+        let (mut sender, connection) = http1::Builder::default()
+            .handshake::<_, Empty<Bytes>>(stream)
+            .await?;
+        let driver = DriverTask::spawn(connection);
+
+        sender.ready().await?;
+        let response = sender
+            .try_send_request(prepared.request)
+            .await
+            .map_err(|error| Http1Error::Protocol(error.into_error()))?;
+        drop(sender);
+
+        Span::current().record("status", response.status().as_u16());
+        if response.headers().contains_key(TRANSFER_ENCODING)
+            && response.headers().contains_key(CONTENT_LENGTH)
+        {
+            return Err(Http1Error::AmbiguousResponseFraming);
+        }
+
+        debug!("HTTP/1 response headers received");
+        let (parts, incoming) = response.into_parts();
+        let finished = incoming.is_end_stream();
+        let mut driver = driver;
+        if finished {
+            driver.cancel();
+        }
+        Ok(Response::from_parts(
+            parts,
+            Http1Body {
+                incoming,
+                driver,
+                finished,
+            },
+        ))
     }
-    Ok(Response::from_parts(
-        parts,
-        Http1Body {
-            incoming,
-            driver,
-            finished,
-        },
-    ))
+    .instrument(span)
+    .await
 }
 
 struct ValidatedHeaders {
@@ -450,3 +485,7 @@ impl Drop for DriverTask {
 
 #[cfg(test)]
 mod tests;
+
+mod tls;
+
+pub use tls::{Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};
