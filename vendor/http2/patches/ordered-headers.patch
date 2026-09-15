@@ -1,0 +1,590 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 6657482..50ce3b9 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -157,6 +157,7 @@ features = [
+     "macros",
+     "sync",
+     "net",
++    "time",
+ ]
+ 
+ [dev-dependencies.tokio-rustls]
+diff --git a/Cargo.toml.orig b/Cargo.toml.orig
+index 2fa7548..2f13e18 100644
+--- a/Cargo.toml.orig
++++ b/Cargo.toml.orig
+@@ -82,6 +82,7 @@ tokio = { version = "1", features = [
+     "macros",
+     "sync",
+     "net",
++    "time",
+ ] }
+ env_logger = { version = "0.10", default-features = false }
+ 
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+new file mode 100644
+index 0000000..d347215
+--- /dev/null
++++ b/src/client/tests.rs
+@@ -0,0 +1,286 @@
++use std::{future::poll_fn, io::Cursor, ops::ControlFlow, time::Duration};
++
++use bytes::{BufMut, Bytes, BytesMut};
++use http::{HeaderName, HeaderValue, Method, Request, Response, Version};
++use tokio::{
++    io::{duplex, AsyncReadExt},
++    time::timeout,
++};
++
++use super::Peer;
++use crate::{
++    codec::{SendError, UserError},
++    ext::OrderedHeaders,
++    frame::{Headers, StreamId},
++    hpack::{Decoder, Encoder, Header},
++};
++
++const A: HeaderName = HeaderName::from_static("x-a");
++const B: HeaderName = HeaderName::from_static("x-b");
++
++#[test]
++fn ordered_headers_encode_interleaved_duplicates_exactly() {
++    let mut request = request_with_headers();
++    request.extensions_mut().insert(OrderedHeaders::new(vec![
++        (A, HeaderValue::from_static("a1")),
++        (B, HeaderValue::from_static("b1")),
++        (A, HeaderValue::from_static("a2")),
++    ]));
++
++    let frame = convert(request).expect("matching ordered headers were rejected");
++    assert_eq!(
++        decode_ordinary_fields(frame),
++        vec![
++            (A, HeaderValue::from_static("a1")),
++            (B, HeaderValue::from_static("b1")),
++            (A, HeaderValue::from_static("a2")),
++        ]
++    );
++}
++
++#[test]
++fn ordered_headers_reject_semantic_mismatch() {
++    let mismatches = [
++        vec![
++            (A, HeaderValue::from_static("a1")),
++            (B, HeaderValue::from_static("b1")),
++        ],
++        vec![
++            (A, HeaderValue::from_static("a1")),
++            (B, HeaderValue::from_static("b1")),
++            (A, HeaderValue::from_static("a2")),
++            (B, HeaderValue::from_static("extra")),
++        ],
++        vec![
++            (A, HeaderValue::from_static("a1")),
++            (B, HeaderValue::from_static("b1")),
++            (A, HeaderValue::from_static("different")),
++        ],
++        vec![
++            (A, HeaderValue::from_static("a2")),
++            (B, HeaderValue::from_static("b1")),
++            (A, HeaderValue::from_static("a1")),
++        ],
++    ];
++
++    for ordered in mismatches {
++        let mut request = request_with_headers();
++        request
++            .extensions_mut()
++            .insert(OrderedHeaders::new(ordered));
++
++        let error = match convert(request) {
++            Ok(_) => panic!("mismatched ordered headers were accepted"),
++            Err(error) => error,
++        };
++        assert!(matches!(
++            error,
++            SendError::User(UserError::MalformedHeaders)
++        ));
++        assert_eq!(error.to_string(), "malformed headers");
++    }
++}
++
++#[test]
++fn absent_ordered_headers_use_header_map_iteration() {
++    let request = request_with_headers();
++    let expected = request
++        .headers()
++        .iter()
++        .map(|(name, value)| (name.clone(), value.clone()))
++        .collect::<Vec<_>>();
++
++    let frame = convert(request).expect("ordinary request was rejected");
++    assert_eq!(decode_ordinary_fields(frame), expected);
++}
++
++#[tokio::test]
++async fn handshake_preserves_interleaved_ordered_headers() {
++    timeout(Duration::from_secs(2), async {
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let (sender, connection) = super::handshake(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++
++        let mut request = request_with_headers();
++        request.extensions_mut().insert(OrderedHeaders::new(vec![
++            (A, HeaderValue::from_static("a1")),
++            (B, HeaderValue::from_static("b1")),
++            (A, HeaderValue::from_static("a2")),
++        ]));
++        let mut sender = sender.ready().await.expect("sender never became ready");
++        let (_response, send) = sender
++            .send_request(request, true)
++            .expect("request was rejected");
++        drop(send);
++
++        let mut preface = [0_u8; 24];
++        peer_io
++            .read_exact(&mut preface)
++            .await
++            .expect("client preface was truncated");
++        assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
++
++        let header_block = loop {
++            let mut head = [0_u8; 9];
++            peer_io
++                .read_exact(&mut head)
++                .await
++                .expect("frame header was truncated");
++            let length =
++                (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
++            let mut payload = vec![0_u8; length];
++            peer_io
++                .read_exact(&mut payload)
++                .await
++                .expect("frame payload was truncated");
++            if head[3] == 1 {
++                break payload;
++            }
++        };
++
++        assert_eq!(
++            decode_header_block(&header_block),
++            vec![
++                (A, HeaderValue::from_static("a1")),
++                (B, HeaderValue::from_static("b1")),
++                (A, HeaderValue::from_static("a2")),
++            ]
++        );
++        driver.abort();
++    })
++    .await
++    .expect("ordered-header handshake test timed out");
++}
++
++#[tokio::test]
++async fn dropping_final_client_stream_flushes_reset_before_close() {
++    timeout(Duration::from_secs(2), async {
++        let (client_io, server_io) = duplex(16 * 1024);
++        let server = tokio::spawn(async move {
++            let mut connection = crate::server::handshake(server_io)
++                .await
++                .expect("server handshake failed");
++            let (request, mut respond) = connection
++                .accept()
++                .await
++                .expect("connection closed before request")
++                .expect("request failed");
++            let mut send = respond
++                .send_response(Response::new(()), false)
++                .expect("response headers failed");
++            send.send_data(Bytes::from_static(b"partial"), false)
++                .expect("response DATA failed");
++
++            let reason = tokio::select! {
++                biased;
++                result = poll_fn(|cx| send.poll_reset(cx)) => {
++                    result.expect("client reset was not observable")
++                }
++                incoming = connection.accept() => {
++                    assert!(incoming.is_some(), "connection closed without a reset");
++                    panic!("client sent an unexpected second request");
++                }
++            };
++            assert_eq!(reason, crate::Reason::CANCEL);
++            drop(request);
++            drop(send);
++            drop(respond);
++            poll_fn(|cx| connection.poll_closed(cx))
++                .await
++                .expect("connection did not close after reset");
++        });
++
++        let (sender, connection) = super::handshake(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        let mut sender = sender.ready().await.expect("sender never became ready");
++        let (response, mut send) = sender
++            .send_request(request_with_headers(), true)
++            .expect("request was rejected");
++        let response = response.await.expect("response headers failed");
++        let mut incoming = response.into_body();
++        assert_eq!(
++            incoming
++                .data()
++                .await
++                .expect("response ended before DATA")
++                .expect("response DATA failed"),
++            "partial"
++        );
++
++        send.send_reset(crate::Reason::CANCEL);
++        drop(incoming);
++        drop(send);
++        drop(sender);
++        server.await.expect("server task panicked");
++        driver
++            .await
++            .expect("client driver task panicked")
++            .expect("client driver failed");
++    })
++    .await
++    .expect("reset-and-close handshake test timed out");
++}
++
++fn request_with_headers() -> Request<()> {
++    let mut request = Request::new(());
++    *request.method_mut() = Method::GET;
++    *request.uri_mut() = "https://example.test/resource"
++        .parse()
++        .expect("static request URI must parse");
++    *request.version_mut() = Version::HTTP_2;
++    request
++        .headers_mut()
++        .append(A, HeaderValue::from_static("a1"));
++    request
++        .headers_mut()
++        .append(B, HeaderValue::from_static("b1"));
++    request
++        .headers_mut()
++        .append(A, HeaderValue::from_static("a2"));
++    request
++}
++
++fn convert(request: Request<()>) -> Result<Headers, SendError> {
++    Peer::convert_send_message(StreamId::from(1), request, None, true, None, None)
++}
++
++fn decode_ordinary_fields(headers: Headers) -> Vec<(HeaderName, HeaderValue)> {
++    let mut encoder = Encoder::default();
++    let mut encoded = BytesMut::new();
++    let continuation = headers.encode(&mut encoder, &mut (&mut encoded).limit(16 * 1024));
++    assert!(continuation.is_none(), "test header block was fragmented");
++
++    let mut payload = BytesMut::from(&encoded[9..]);
++    let mut cursor = Cursor::new(&mut payload);
++    let mut decoder = Decoder::new(4096);
++    let mut fields = Vec::new();
++    decoder
++        .decode(&mut cursor, |header| {
++            if let Header::Field { name, value } = header {
++                fields.push((name, value));
++            }
++            ControlFlow::Continue(())
++        })
++        .expect("encoded header block must decode");
++    fields
++}
++
++fn decode_header_block(encoded: &[u8]) -> Vec<(HeaderName, HeaderValue)> {
++    let mut payload = BytesMut::from(encoded);
++    let mut cursor = Cursor::new(&mut payload);
++    let mut decoder = Decoder::new(4096);
++    let mut fields = Vec::new();
++    decoder
++        .decode(&mut cursor, |header| {
++            if let Header::Field { name, value } = header {
++                fields.push((name, value));
++            }
++            ControlFlow::Continue(())
++        })
++        .expect("encoded header block must decode");
++    fields
++}
+diff --git a/src/client.rs b/src/client.rs
+index 40f7279..11649a7 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -136,7 +136,7 @@
+ //! [`Error`]: ../struct.Error.html
+ 
+ use crate::codec::{Codec, SendError, UserError};
+-use crate::ext::Protocol;
++use crate::ext::{OrderedHeaders, Protocol};
+ #[cfg(feature = "unstable")]
+ use crate::frame::ExperimentalSettings;
+ use crate::frame::{
+@@ -1536,16 +1536,15 @@ where
+     type Output = Result<(), crate::Error>;
+ 
+     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+-        self.inner.maybe_close_connection_if_no_streams();
+-        let had_streams_or_refs = self.inner.has_streams_or_other_references();
+         let result = self.inner.poll(cx).map_err(Into::into);
+-        // if we had streams/refs, and don't anymore, wake up one more time to
+-        // ensure proper shutdown
+-        if result.is_pending()
+-            && had_streams_or_refs
+-            && !self.inner.has_streams_or_other_references()
+-        {
+-            tracing::trace!("last stream closed during poll, wake again");
++
++        // Poll the open connection before initiating its idle close. Dropping
++        // the last stream can queue an implicit RST_STREAM at the same time as
++        // it removes the final reference. Closing first would bypass the open
++        // state's `poll_complete`, losing that queued frame.
++        if result.is_pending() && !self.inner.has_streams_or_other_references() {
++            self.inner.maybe_close_connection_if_no_streams();
++            tracing::trace!("last stream closed, wake once more to shut down");
+             cx.waker().wake_by_ref();
+         }
+         result
+@@ -1717,11 +1716,20 @@ impl Peer {
+                 uri,
+                 headers,
+                 version,
++                mut extensions,
+                 ..
+             },
+             _,
+         ) = request.into_parts();
+ 
++        let ordered_headers = extensions.remove::<OrderedHeaders>();
++        if matches!(
++            ordered_headers.as_ref(),
++            Some(ordered) if !ordered.agrees_with(&headers)
++        ) {
++            return Err(UserError::MalformedHeaders.into());
++        }
++
+         let is_connect = method == Method::CONNECT;
+ 
+         // Build the set pseudo header set. All requests will include `method`
+@@ -1763,6 +1771,9 @@ impl Peer {
+ 
+         // Create the HEADERS frame
+         let mut headers_frame = Headers::new(id, pseudo, headers);
++        if let Some(ordered) = ordered_headers {
++            headers_frame.set_ordered_fields(ordered.into_inner());
++        }
+         if let Some(stream_dep) = headers_stream_dependency {
+             headers_frame.set_stream_dependency(stream_dep);
+         }
+@@ -1775,6 +1786,9 @@ impl Peer {
+     }
+ }
+ 
++#[cfg(test)]
++mod tests;
++
+ impl proto::Peer for Peer {
+     type Poll = Response<()>;
+ 
+diff --git a/src/ext.rs b/src/ext.rs
+index cf383a4..b97fd06 100644
+--- a/src/ext.rs
++++ b/src/ext.rs
+@@ -3,8 +3,50 @@
+ use crate::hpack::BytesStr;
+ 
+ use bytes::Bytes;
++use http::{HeaderMap, HeaderName, HeaderValue};
+ use std::fmt;
+ 
++/// Exact wire order for the ordinary fields of an outgoing request.
++///
++/// Store this value in a request's extensions before sending it. Pseudo-header
++/// order is configured separately. The ordered fields must describe the same
++/// semantic multimap as the request's [`HeaderMap`], including duplicate
++/// values and their per-name order, or the request is rejected as malformed.
++/// Global field-name order is intentionally ignored during that comparison
++/// because `HeaderMap` does not preserve it.
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub struct OrderedHeaders {
++    headers: Vec<(HeaderName, HeaderValue)>,
++}
++
++impl OrderedHeaders {
++    /// Creates an owned ordinary-header order.
++    #[must_use]
++    pub fn new(headers: Vec<(HeaderName, HeaderValue)>) -> Self {
++        Self { headers }
++    }
++
++    /// Returns the ordered ordinary fields.
++    #[must_use]
++    pub fn as_slice(&self) -> &[(HeaderName, HeaderValue)] {
++        &self.headers
++    }
++
++    pub(crate) fn agrees_with(&self, semantic: &HeaderMap) -> bool {
++        let mut reconstructed = HeaderMap::new();
++        for (name, value) in &self.headers {
++            if reconstructed.try_append(name, value.clone()).is_err() {
++                return false;
++            }
++        }
++        reconstructed.eq(semantic)
++    }
++
++    pub(crate) fn into_inner(self) -> Vec<(HeaderName, HeaderValue)> {
++        self.headers
++    }
++}
++
+ /// Represents the `:protocol` pseudo-header used by
+ /// the [Extended CONNECT Protocol].
+ ///
+diff --git a/src/frame/headers.rs b/src/frame/headers.rs
+index 43ec9cc..971a948 100644
+--- a/src/frame/headers.rs
++++ b/src/frame/headers.rs
+@@ -188,7 +188,13 @@ pub struct Iter {
+     pseudo: Option<Pseudo>,
+ 
+     /// Header fields
+-    fields: header::IntoIter<HeaderValue>,
++    fields: FieldIter,
++}
++
++#[derive(Debug)]
++enum FieldIter {
++    Map(header::IntoIter<HeaderValue>),
++    Ordered(std::vec::IntoIter<(HeaderName, HeaderValue)>),
+ }
+ 
+ #[derive(Debug, PartialEq, Eq)]
+@@ -196,6 +202,9 @@ struct HeaderBlock {
+     /// The decoded header fields
+     fields: HeaderMap,
+ 
++    /// Exact ordinary-header order for an outgoing request.
++    ordered_fields: Option<Vec<(HeaderName, HeaderValue)>>,
++
+     /// Precomputed size of all of our header fields, for perf reasons
+     field_size: usize,
+ 
+@@ -229,6 +238,7 @@ impl Headers {
+             header_block: HeaderBlock {
+                 field_size: calculate_headermap_size(&fields),
+                 fields,
++                ordered_fields: None,
+                 is_over_size: false,
+                 pseudo,
+             },
+@@ -246,6 +256,7 @@ impl Headers {
+             header_block: HeaderBlock {
+                 field_size: calculate_headermap_size(&fields),
+                 fields,
++                ordered_fields: None,
+                 is_over_size: false,
+                 pseudo: Pseudo::default(),
+             },
+@@ -310,6 +321,7 @@ impl Headers {
+             stream_dep,
+             header_block: HeaderBlock {
+                 fields: HeaderMap::new(),
++                ordered_fields: None,
+                 field_size: 0,
+                 is_over_size: false,
+                 pseudo: Pseudo::default(),
+@@ -372,6 +384,10 @@ impl Headers {
+         self.stream_dep = Some(stream_dep);
+     }
+ 
++    pub(crate) fn set_ordered_fields(&mut self, fields: Vec<(HeaderName, HeaderValue)>) {
++        self.header_block.ordered_fields = Some(fields);
++    }
++
+     /// Whether it has status 1xx
+     pub(crate) fn is_informational(&self) -> bool {
+         self.header_block.pseudo.is_informational()
+@@ -482,6 +498,7 @@ impl PushPromise {
+             header_block: HeaderBlock {
+                 field_size: calculate_headermap_size(&fields),
+                 fields,
++                ordered_fields: None,
+                 is_over_size: false,
+                 pseudo,
+             },
+@@ -572,6 +589,7 @@ impl PushPromise {
+             flags,
+             header_block: HeaderBlock {
+                 fields: HeaderMap::new(),
++                ordered_fields: None,
+                 field_size: 0,
+                 is_over_size: false,
+                 pseudo: Pseudo::default(),
+@@ -871,6 +889,17 @@ impl Iterator for Iter {
+     }
+ }
+ 
++impl Iterator for FieldIter {
++    type Item = (Option<HeaderName>, HeaderValue);
++
++    fn next(&mut self) -> Option<Self::Item> {
++        match self {
++            Self::Map(fields) => fields.next(),
++            Self::Ordered(fields) => fields.next().map(|(name, value)| (Some(name), value)),
++        }
++    }
++}
++
+ // ===== impl HeadersFlag =====
+ 
+ impl HeadersFlag {
+@@ -1112,9 +1141,13 @@ impl HeaderBlock {
+ 
+     fn into_encoding(self, encoder: &mut hpack::Encoder) -> EncodingHeaderBlock {
+         let mut hpack = BytesMut::new();
++        let fields = match self.ordered_fields {
++            Some(fields) => FieldIter::Ordered(fields.into_iter()),
++            None => FieldIter::Map(self.fields.into_iter()),
++        };
+         let headers = Iter {
+             pseudo: Some(self.pseudo),
+-            fields: self.fields.into_iter(),
++            fields,
+         };
+ 
+         encoder.encode(headers, &mut hpack);
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+index 4f4b69e..ffb3d5c 100644
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -18,7 +18,7 @@ use super::{
+ use crate::{
+     client,
+     codec::{Codec, SendError, UserError},
+-    ext::Protocol,
++    ext::{OrderedHeaders, Protocol},
+     frame::{self, Frame, Reason},
+     proto,
+     proto::{peer, Error, Initiator, Open, Peer, WindowSize},
+@@ -246,9 +246,13 @@ where
+         use super::stream::ContentLength;
+ 
+         let protocol = request.extensions_mut().remove::<Protocol>();
++        let ordered_headers = request.extensions_mut().remove::<OrderedHeaders>();
+ 
+         // Clear before taking lock, incase extensions contain a StreamRef.
+         request.extensions_mut().clear();
++        if let Some(ordered_headers) = ordered_headers {
++            request.extensions_mut().insert(ordered_headers);
++        }
+ 
+         // TODO: There is a hazard with assigning a stream ID before the
+         // prioritize layer. If prioritization reorders new streams, this

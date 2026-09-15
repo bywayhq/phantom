@@ -22,13 +22,33 @@ ignoring global name order that `HeaderMap` cannot represent. A mismatch uses
 the existing `UserError::MalformedHeaders` path. Requests without the extension
 and all trailer frames retain the upstream `HeaderMap` iterator.
 
+The ordinary `SendRequest` path clears request extensions before converting
+the request into a frame. It now retains `OrderedHeaders` across that cleanup;
+the real client-handshake regression proves the public sender preserves the
+interleaved order on the wire, rather than testing only the lower conversion.
+
+The real-client regression also exposed an upstream idle-close race: dropping
+the final stream can queue an implicit reset while removing the last stream
+reference. The connection now polls the open state before starting its idle
+close so that queued reset is flushed. A duplex client/server regression proves
+the peer observes the reset before connection shutdown.
+
 The production diff is intentionally limited to:
 
 - `src/ext.rs`: owned public extension value and semantic agreement check.
 - `src/client.rs`: remove, validate, and attach the order to the initial frame.
 - `src/frame/headers.rs`: select the exact iterator only when present.
+- `src/proto/streams/streams.rs`: retain the ordered extension across request
+  extension cleanup.
 
-Patch-specific regression tests live in `src/client/tests.rs`.
+The patch also changes `src/client.rs` to preserve a final queued reset, adds
+the required real-connection regressions in `src/client/tests.rs`, and enables
+Tokio's test-only `time` feature in both Cargo manifests.
+
+The canonical source and test delta is stored in
+`patches/ordered-headers.patch`. It is deliberately separate from the complete
+vendor snapshot so a candidate release can be tested without reconstructing
+the changes by hand.
 
 ## Refreshing the vendor copy
 
@@ -64,24 +84,30 @@ the patch can remain enabled throughout the refresh.
    `shasum` covers macOS and `sha256sum` covers typical Linux environments.
    Stop if neither command exists or if the checksum comparison fails.
 
-2. Compare the pristine candidate with the current vendor directory. The
-   expected differences are exactly the production files listed above,
-   `src/client/tests.rs`, and this file:
+2. Check the canonical patch against the pristine candidate, then apply it in
+   the staging directory:
 
    ```sh
-   diff -ru \
-     --exclude target \
-     vendor/http2 "$candidate"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/http2/patches/ordered-headers.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/http2/patches/ordered-headers.patch"
    ```
 
-3. Copy the pristine candidate to `vendor/http2.next`, reapply only those
-   reviewed changes, and update the version and checksum in this file. Keep the
-   current directory as a rollback copy while testing:
+   A failed dry application is expected evidence that the upstream source
+   changed around the patch. Review and regenerate the patch; do not apply it
+   with rejected hunks or fuzz.
+
+3. Copy the patched candidate to `vendor/http2.next`, and update the version
+   and checksum in this file. Keep the current directory as a rollback copy
+   while testing:
 
    ```sh
    test ! -e vendor/http2.next
    cp -R "$candidate" vendor/http2.next
-   # Reapply the documented production diff, focused tests, and PHANTOM.md.
+   cp vendor/http2/PHANTOM.md vendor/http2.next/PHANTOM.md
+   mkdir -p vendor/http2.next/patches
+   cp vendor/http2/patches/ordered-headers.patch vendor/http2.next/patches/
    mv vendor/http2 "$refresh_dir/http2.previous"
    mv vendor/http2.next vendor/http2
    ```
