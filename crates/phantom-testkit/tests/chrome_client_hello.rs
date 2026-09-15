@@ -12,6 +12,13 @@ use tokio::io::{AsyncWriteExt, duplex};
 const FIXTURE_TEXT: &str =
     include_str!("../../../fixtures/tls/chrome/152.0.7977.83/macos-15.5/client-hello.txt");
 const GREASE_SENTINEL: u16 = 0x0a0a;
+const EXPECTED_CHROME_FLAGS: &str = concat!(
+    "--headless=new --user-data-dir=<temporary-directory> --no-first-run ",
+    "--no-default-browser-check --disable-background-networking ",
+    "--disable-component-update --disable-default-apps --disable-quic ",
+    "--no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, ",
+    "EXCLUDE localhost --ignore-certificate-errors --dump-dom",
+);
 
 #[tokio::test]
 async fn chrome_152_fixture_matches_raw_client_hello() -> Result<(), Box<dyn Error>> {
@@ -20,6 +27,7 @@ async fn chrome_152_fixture_matches_raw_client_hello() -> Result<(), Box<dyn Err
     assert_eq!(fixture.value("browser")?, "Google Chrome");
     assert_eq!(fixture.value("browser_version")?, "152.0.7977.83");
     assert_eq!(fixture.value("os")?, "macOS 15.5 (24F74)");
+    assert_eq!(fixture.value("chrome_flags")?, EXPECTED_CHROME_FLAGS);
 
     let wire = fixture.records().concat();
     assert_eq!(wire.len(), 2_043);
