@@ -20,11 +20,21 @@ Quinn's state-machine semantics while putting the observable TLS extension
 bytes at the correct boundary.
 
 Carry one narrow, default-preserving `h3` patch now. Both the published release
-and current upstream construct outbound SETTINGS in library-defined order,
-always include several zero-valued settings, and cannot configure QPACK table
-capacity or blocked streams. The patch should accept a concrete ordered list
-of `(identifier, value)` pairs, validate it, and have the existing frame
-encoder preserve that order. It must not branch on a browser family.
+and audited upstream revision construct outbound SETTINGS in library-defined
+order, always include several zero-valued settings, and cannot configure QPACK
+table capacity or blocked streams. The patch accepts a concrete ordered list
+of `(identifier, value)` pairs, validates it, and has the existing frame
+encoder preserve that order. It does not branch on a browser family. The exact
+source, archive checksum, canonical patch, refresh procedure, and focused tests
+live in `vendor/h3/PHANTOM.md`.
+
+That serialization patch is deliberately not selected by the root workspace
+yet. The audited revision's response path still calls `qpack::decode_stateless`.
+Advertising Chrome's captured nonzero QPACK capacity and blocked-stream count
+before wiring the encoder stream, bounded blocked-section state, decoder
+acknowledgements, insert-count feedback, and stream cancellation would promise
+behavior the client cannot honor. A static-only integration must advertise
+QPACK `0/0` and cannot satisfy the Chrome H3 acceptance gate.
 
 This produces the smallest useful vertical slice:
 
@@ -182,6 +192,14 @@ used by the existing encoder. Defaults stay byte-for-byte upstream. Validate
 unique identifiers, QUIC-varint bounds, forbidden HTTP/2-only identifiers, and
 values constrained by RFC 9114. Do not expose a generic frame injection API.
 
+Runtime selection additionally requires dynamic QPACK receive support as one
+coherent capability: consume encoder-stream instructions, cap memory and
+blocked field sections by the advertised limits, resume newly decodable
+sections, and send acknowledgements, insert-count increments, and cancellation
+on the decoder stream. Tests must cover invalid instructions, critical-stream
+failure, cancellation races, and resource ceilings. Do not expose a partial
+combination of nonzero QPACK settings and stateless decoding.
+
 The direct request path owns the Quinn connection driver, H3 driver, and
 endpoint lifetime. Require negotiated ALPN `h3`. Dropping or cancelling a
 response body must stop the receive stream and reset the send stream with
@@ -198,6 +216,9 @@ Before integration, require focused tests for:
   GREASE replacement, semantic mismatch, and exact fixture bytes;
 - ordered H3 SETTINGS, forbidden/duplicate identifiers, and default-preserving
   behavior when no ordered settings are supplied;
+- QPACK encoder-stream processing, bounded blocked sections, decoder feedback,
+  cancellation, invalid instructions, and memory/resource ceilings before any
+  nonzero QPACK capability is advertised;
 - a local forced-H3 request with streaming body, response, and trailers;
 - cancellation/reset, flow-control backpressure, fragmented frames/varints,
   oversized headers, stalled peers, invalid peer parameters, Retry, version

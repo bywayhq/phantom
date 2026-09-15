@@ -111,6 +111,11 @@ Acceptance:
 - The first H3 control stream reproduces the captured fixed SETTINGS prefix;
   seeded tests reproduce GREASE exactly and policy tests cover its measured
   variability without sorting or removing it.
+- Nonzero QPACK table capacity and blocked-stream limits are enabled only with
+  encoder-stream processing, bounded blocked-section accounting, decoder
+  acknowledgements and cancellations, and adversarial resource-limit tests.
+  Until that complete path exists, static-only H3 advertises QPACK `0/0` and
+  is not treated as Chrome parity.
 - Bounded qlog plus key-log-assisted packet decryption make failures
   diagnosable without logging application payloads or credentials.
 - The dedicated crypto-adapter crate documents every unsafe invariant and does

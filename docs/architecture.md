@@ -126,8 +126,12 @@ permutation and GREASE policy; no Quinn fork is needed for that boundary. A
 narrow, default-preserving `h3` patch supplies the explicit outbound SETTINGS
 sequence that upstream does not expose. Profiles remain browser-neutral data:
 neither adapter nor fork branches on Chromium, Firefox, or Safari.
-Packetization, ACK, connection-ID, pacing, and QPACK knobs are added only after
-a retained capture proves that they are required.
+The patch is retained groundwork rather than a selected runtime dependency:
+Chrome's nonzero QPACK settings cannot be enabled until the H3 receive path
+processes the encoder stream, bounds blocked sections, and emits decoder
+feedback and cancellation. A static-only path must advertise QPACK `0/0` and
+cannot claim Chrome parity. Packetization, ACK, connection-ID, and pacing knobs
+are added only after a retained capture proves that they are required.
 
 ## Configuration seam
 

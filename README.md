@@ -32,6 +32,10 @@ remain planned. The project does not make broad client-compatibility claims.
 - `phantom-testkit`: bounded TLS ClientHello and HTTP/2 frame capture with
   strict decoding for deterministic differentials
 
+The vendored H3 SETTINGS patch is provenance-tracked groundwork, not an active
+runtime dependency. Chrome H3 remains gated on complete, bounded dynamic QPACK
+receive support rather than advertising capabilities the engine cannot honor.
+
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),
 [adversarial testing](docs/adversarial-testing.md),
