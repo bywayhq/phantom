@@ -1,9 +1,8 @@
-use phantom_net::http2::{Http2Error, OriginForm, send_get};
 use phantom_profile::chromium::v152_macos_http2;
-use phantom_testkit::http2::{CaptureCompletion, capture_client_frames};
-use tokio::{io::duplex, time::timeout};
 
-use super::{TEST_TIMEOUT, TestResult, assert_raw_startup, fixture::Fixture};
+use super::{
+    TestResult, assert_public_startup_matches_fixture, assert_raw_startup, fixture::Fixture,
+};
 
 pub(super) const FIXTURE_TEXT: &str = include_str!(concat!(
     "../../../../fixtures/http2/chrome/152.0.7977.83/",
@@ -38,34 +37,5 @@ async fn chrome_fixture_retains_exact_metadata_and_startup_bytes() -> TestResult
 #[tokio::test]
 async fn phantom_chrome_startup_matches_retained_browser_frames_exactly() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
-    let settings = v152_macos_http2();
-    let target = OriginForm::parse("/")?;
-    let (client, mut server) = duplex(64 * 1024);
-    let transaction = tokio::spawn(async move {
-        send_get(client, &settings, "server.phantom.test", target, vec![])
-            .await
-            .map(drop)
-    });
-
-    let capture = capture_client_frames(
-        &mut server,
-        tokio::time::Instant::now() + TEST_TIMEOUT,
-        fixture.limits,
-        CaptureCompletion::InitialSettingsAndConnectionWindowUpdate,
-    )
-    .await?;
-    assert_eq!(capture.preface_bytes(), &fixture.preface);
-    assert_eq!(capture.frames().len(), fixture.frames.len());
-    for (actual, expected) in capture.frames().iter().zip(&fixture.frames) {
-        assert_eq!(actual.wire_bytes(), expected);
-    }
-
-    assert!(
-        !transaction.is_finished(),
-        "client completed before the captured peer was closed"
-    );
-    drop(server);
-    let client_result = timeout(TEST_TIMEOUT, transaction).await??;
-    assert!(matches!(client_result, Err(Http2Error::Protocol(_))));
-    Ok(())
+    assert_public_startup_matches_fixture(&fixture, v152_macos_http2()).await
 }

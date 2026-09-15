@@ -10,7 +10,10 @@ mod fixture;
 use std::{error::Error, time::Duration};
 
 use fixture::Fixture;
+use phantom_net::http2::{Http2Error, OriginForm, send_get};
+use phantom_profile::Http2Settings;
 use phantom_testkit::http2::{CaptureCompletion, ClientFrameCapture, capture_client_frames};
+use tokio::{io::duplex, time::timeout};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(2);
 type TestResult<T> = Result<T, Box<dyn Error>>;
@@ -58,6 +61,41 @@ async fn assert_raw_startup(fixture: &Fixture<'_>) -> TestResult<()> {
         .transpose()?
         .ok_or("retained frames omit a WINDOW_UPDATE")?;
     assert_eq!(window_update.increment(), fixture.connection_window_update);
+    Ok(())
+}
+
+async fn assert_public_startup_matches_fixture(
+    fixture: &Fixture<'_>,
+    settings: Http2Settings,
+) -> TestResult<()> {
+    let target = OriginForm::parse("/")?;
+    let (client, mut server) = duplex(64 * 1024);
+    let transaction = tokio::spawn(async move {
+        send_get(client, &settings, "server.phantom.test", target, vec![])
+            .await
+            .map(drop)
+    });
+
+    let capture = capture_client_frames(
+        &mut server,
+        tokio::time::Instant::now() + TEST_TIMEOUT,
+        fixture.limits,
+        CaptureCompletion::InitialSettingsAndConnectionWindowUpdate,
+    )
+    .await?;
+    assert_eq!(capture.preface_bytes(), &fixture.preface);
+    assert_eq!(capture.frames().len(), fixture.frames.len());
+    for (actual, expected) in capture.frames().iter().zip(&fixture.frames) {
+        assert_eq!(actual.wire_bytes(), expected);
+    }
+
+    assert!(
+        !transaction.is_finished(),
+        "client completed before the captured peer was closed"
+    );
+    drop(server);
+    let client_result = timeout(TEST_TIMEOUT, transaction).await??;
+    assert!(matches!(client_result, Err(Http2Error::Protocol(_))));
     Ok(())
 }
 

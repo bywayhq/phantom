@@ -1,4 +1,8 @@
-use super::{TestResult, assert_raw_startup, fixture::Fixture};
+use phantom_profile::firefox::v154_macos_http2;
+
+use super::{
+    TestResult, assert_public_startup_matches_fixture, assert_raw_startup, fixture::Fixture,
+};
 
 const FIXTURE_TEXT: &str = include_str!(concat!(
     "../../../../fixtures/http2/firefox/154.0/",
@@ -27,4 +31,13 @@ async fn firefox_154_fixture_retains_exact_metadata_and_startup_bytes() -> TestR
     );
     assert_eq!(fixture.connection_window_update, 12_517_377);
     assert_raw_startup(&fixture).await
+}
+
+#[tokio::test]
+async fn phantom_firefox_startup_matches_retained_browser_frames_exactly() -> TestResult<()> {
+    let fixture = Fixture::parse(FIXTURE_TEXT)?;
+
+    // The local fixture ends before request HEADERS. Firefox pseudo-header
+    // order and priority remain separate, supplemental profile evidence.
+    assert_public_startup_matches_fixture(&fixture, v154_macos_http2()).await
 }
