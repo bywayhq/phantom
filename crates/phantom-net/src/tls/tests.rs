@@ -25,7 +25,7 @@ const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
-fn chromium_150_windows_reference() -> TlsSettings {
+fn chromium_152_macos_reference() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,
         max_version: TlsVersion::Tls13,
@@ -72,8 +72,9 @@ fn chromium_150_windows_reference() -> TlsSettings {
             use_new_codepoint: true,
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
+        requested_trust_anchors: Some(Vec::new()),
         grease: true,
-        grease_signature_algorithms: false,
+        grease_signature_algorithms: true,
         permute_extensions: true,
         ech_grease: true,
         request_ocsp_staple: true,
@@ -83,7 +84,7 @@ fn chromium_150_windows_reference() -> TlsSettings {
 }
 
 #[tokio::test]
-async fn emits_chromium_150_reference_client_hello() -> TestResult<()> {
+async fn emits_chromium_152_macos_reference_client_hello() -> TestResult<()> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let address = listener.local_addr()?;
     let capture_task = tokio::spawn(async move {
@@ -97,7 +98,7 @@ async fn emits_chromium_150_reference_client_hello() -> TestResult<()> {
         .map_err(io::Error::other)
     });
 
-    let connector = TlsConnector::new(&chromium_150_windows_reference())?;
+    let connector = TlsConnector::new(&chromium_152_macos_reference())?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
     let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect("example.test", tcp));
     let handshake_error = match handshake.await? {
@@ -122,8 +123,8 @@ async fn emits_chromium_150_reference_client_hello() -> TestResult<()> {
         vec![0x11ec, 0x001d, 0x0017, 0x0018]
     );
     assert_eq!(
-        summary.signature_algorithms(),
-        &[
+        without_grease(summary.signature_algorithms()),
+        vec![
             0x0904, 0x0905, 0x0906, 0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601
         ]
     );
@@ -142,6 +143,13 @@ async fn emits_chromium_150_reference_client_hello() -> TestResult<()> {
 
     assert!(summary.cipher_suites().iter().copied().any(is_grease));
     assert!(summary.supported_groups().iter().copied().any(is_grease));
+    assert!(
+        summary
+            .signature_algorithms()
+            .iter()
+            .copied()
+            .any(is_grease)
+    );
     assert!(summary.supported_versions().iter().copied().any(is_grease));
     assert!(summary.key_share_groups().iter().copied().any(is_grease));
     assert!(summary.extension_types().iter().copied().any(is_grease));
@@ -155,7 +163,7 @@ async fn emits_chromium_150_reference_client_hello() -> TestResult<()> {
         .filter(|extension| !is_grease(*extension))
         .collect::<BTreeSet<_>>();
     let expected_extensions = BTreeSet::from([
-        0, 5, 10, 11, 13, 16, 18, 23, 27, 35, 43, 45, 51, 17613, 0xfe0d, 0xff01,
+        0, 5, 10, 11, 13, 16, 18, 23, 27, 35, 43, 45, 51, 0xca34, 17613, 0xfe0d, 0xff01,
     ]);
     assert_eq!(actual_extensions, expected_extensions);
 
@@ -177,11 +185,12 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
         .map_err(io::Error::other)
     });
 
-    let mut settings = chromium_150_windows_reference();
+    let mut settings = chromium_152_macos_reference();
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
     settings.key_shares.clear();
     settings.ech_grease = false;
+    settings.requested_trust_anchors = None;
     let connector = TlsConnector::new(&settings)?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
     let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect("example.test", tcp));
@@ -209,7 +218,7 @@ fn unmapped_backend_setting_is_actionable() -> TestResult<()> {
 
 #[test]
 fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
-    let mut settings = chromium_150_windows_reference();
+    let mut settings = chromium_152_macos_reference();
     settings.alpn_protocols = vec![Box::default()];
 
     let error = match TlsConnector::new(&settings) {
@@ -226,7 +235,7 @@ async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
     let connector = TlsConnector::new_with_roots(
-        &chromium_150_windows_reference(),
+        &chromium_152_macos_reference(),
         [identity.root_der.as_slice()],
     )?;
 
@@ -243,7 +252,7 @@ async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, false).await?;
     let connector = TlsConnector::new_with_roots(
-        &chromium_150_windows_reference(),
+        &chromium_152_macos_reference(),
         [identity.root_der.as_slice()],
     )?;
 
@@ -259,7 +268,7 @@ async fn wrong_hostname_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
     let connector = TlsConnector::new_with_roots(
-        &chromium_150_windows_reference(),
+        &chromium_152_macos_reference(),
         [identity.root_der.as_slice()],
     )?;
 
@@ -279,7 +288,7 @@ async fn untrusted_root_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
     let connector =
-        TlsConnector::new_with_roots(&chromium_150_windows_reference(), std::iter::empty())?;
+        TlsConnector::new_with_roots(&chromium_152_macos_reference(), std::iter::empty())?;
 
     let result = connect_local(&connector, address, TEST_SERVER_NAME).await?;
     assert_eq!(

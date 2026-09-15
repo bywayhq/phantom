@@ -266,6 +266,7 @@ fn tls_settings() -> TlsSettings {
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),
+        requested_trust_anchors: None,
         grease: false,
         grease_signature_algorithms: false,
         permute_extensions: false,
