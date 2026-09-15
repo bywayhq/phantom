@@ -93,7 +93,7 @@ the exact repository-level file targeted by upstream's package symlink. The
 ```sh
 cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
 cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols -- -D warnings
-cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols
 ```
 
@@ -103,3 +103,11 @@ by Phantom on Linux. Omit it on Apple platforms, matching Phantom's
 target-specific dependency selection; upstream currently skips the archive
 rewrite needed to link prefixed symbols there. The scheduled probe runs on
 Linux and therefore uses `prefix-symbols`.
+
+On macOS and Windows, use the corresponding omission variant:
+
+```sh
+cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
+cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets
+```

@@ -115,17 +115,20 @@ candidate_revision=$(git -C "$candidate_repo" rev-parse HEAD)
 candidate_status_before=$(git -C "$candidate_repo" status --porcelain)
 
 staged_wrapper="$test_root/staged/btls"
-PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
+stage_tmp="$test_root/stage-tmp"
+mkdir -p "$stage_tmp"
+TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
 grep -F -q "rev = \"$candidate_revision\"" "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 [[ ! -L "$staged_wrapper/README.md" ]]
 [[ $(git -C "$candidate_repo" status --porcelain) == "$candidate_status_before" ]]
+[[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
 
 drift_repo="$test_root/drift"
 make_btls_candidate "$drift_repo" true
 drift_revision=$(git -C "$drift_repo" rev-parse HEAD)
-if PHANTOM_BTLS_REPOSITORY="$drift_repo" \
+if TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$drift_repo" \
   scripts/ci/stage-btls-candidate.sh \
     "$drift_revision" "$test_root/drifted-wrapper" \
     >"$test_root/drift.stdout" 2>"$test_root/drift.stderr"; then
@@ -134,6 +137,7 @@ if PHANTOM_BTLS_REPOSITORY="$drift_repo" \
 fi
 grep -F -q 'ALPS wrapper patch does not apply' "$test_root/drift.stderr"
 [[ -z $(git -C "$drift_repo" status --porcelain) ]]
+[[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
 
 probe_checkout="$test_root/probe-checkout"
 mkdir -p \
@@ -167,13 +171,36 @@ cat > "$mock_bin/rustup" <<'EOF'
 set -euo pipefail
 printf 'rustup %s\n' "$*" >> "$COMMAND_LOG"
 EOF
+cat > "$mock_bin/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+command cat "$MOCK_HTTP2_ARCHIVE"
+EOF
 chmod +x "$mock_bin/cargo" "$mock_bin/rustup"
+chmod +x "$mock_bin/curl"
 
 command_log="$test_root/commands.log"
 current_revision=129887582a538b8f4dcf371d15c953335312ca37
+probe_tmp="$test_root/probe-tmp"
+mkdir -p "$probe_tmp"
 if (
   cd "$probe_checkout"
-  PHANTOM_BTLS_REPOSITORY="$drift_repo" \
+  TMPDIR="$probe_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
+    scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
+) >"$test_root/refusal.stdout" 2>"$test_root/refusal.stderr"; then
+  echo "btls probe unexpectedly mutated a checkout without disposable opt-in" >&2
+  exit 1
+fi
+grep -F -q 'PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1' \
+  "$test_root/refusal.stderr"
+[[ -z $(git -C "$probe_checkout" status --porcelain) ]]
+[[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
+
+if (
+  cd "$probe_checkout"
+  TMPDIR="$probe_tmp" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    PHANTOM_BTLS_REPOSITORY="$drift_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$drift_revision"
 ) >"$test_root/probe-drift.stdout" 2>"$test_root/probe-drift.stderr"; then
   echo "drifted btls probe unexpectedly succeeded" >&2
@@ -182,13 +209,16 @@ fi
 grep -F -q 'ALPS wrapper patch does not apply' \
   "$test_root/probe-drift.stderr"
 [[ -z $(git -C "$probe_checkout" status --porcelain) ]]
+[[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
 
 (
   cd "$probe_checkout"
   PATH="$mock_bin:$PATH" \
+    TMPDIR="$probe_tmp" \
     COMMAND_LOG="$command_log" \
     MOCK_CURRENT_REVISION="$current_revision" \
     MOCK_CANDIDATE_REVISION="$candidate_revision" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
 )
@@ -200,3 +230,63 @@ grep -F -q 'ssl::test::alps' "$command_log"
 grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
 grep -F -q 'chrome_client_hello' "$command_log"
 [[ -z $(git -C "$candidate_repo" status --porcelain) ]]
+[[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]
+
+http2_source_root="$test_root/http2-source"
+mkdir -p "$http2_source_root"
+cp -R vendor/http2 "$http2_source_root/http2-0.5.20"
+git -C "$http2_source_root/http2-0.5.20" apply --reverse \
+  "$repo_root/vendor/http2/patches/ordered-headers.patch"
+rm -rf "$http2_source_root/http2-0.5.20/patches"
+rm "$http2_source_root/http2-0.5.20/PHANTOM.md" \
+  "$http2_source_root/http2-0.5.20/.cargo-ok"
+http2_archive="$test_root/http2-0.5.20.crate"
+tar -czf "$http2_archive" -C "$http2_source_root" http2-0.5.20
+http2_checksum=$(shasum -a 256 "$http2_archive" | awk '{print $1}')
+
+http2_checkout="$test_root/http2-checkout"
+mkdir -p \
+  "$http2_checkout/scripts/ci" \
+  "$http2_checkout/vendor" \
+  "$http2_checkout/crates/phantom-net"
+cp Cargo.toml Cargo.lock "$http2_checkout/"
+cp crates/phantom-net/Cargo.toml "$http2_checkout/crates/phantom-net/"
+cp -R vendor/http2 "$http2_checkout/vendor/http2"
+cp scripts/ci/probe-upstream-candidate.sh \
+  scripts/ci/stage-btls-candidate.sh "$http2_checkout/scripts/ci/"
+git -C "$http2_checkout" init --quiet
+git -C "$http2_checkout" config user.name 'Phantom CI'
+git -C "$http2_checkout" config user.email 'ci@invalid.example'
+git -C "$http2_checkout" add .
+git -C "$http2_checkout" commit --quiet -m fixture
+
+http2_tmp="$test_root/http2-tmp"
+mkdir -p "$http2_tmp"
+if (
+  cd "$http2_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$http2_tmp" \
+    MOCK_HTTP2_ARCHIVE="$http2_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh http2 0.5.20 \
+      0000000000000000000000000000000000000000000000000000000000000000
+) >"$test_root/http2-failure.stdout" 2>"$test_root/http2-failure.stderr"; then
+  echo "HTTP/2 probe unexpectedly accepted the wrong archive checksum" >&2
+  exit 1
+fi
+grep -F -q 'checksum mismatch' "$test_root/http2-failure.stderr"
+[[ -z $(git -C "$http2_checkout" status --porcelain) ]]
+[[ -z $(find "$http2_tmp" -mindepth 1 -print -quit) ]]
+
+(
+  cd "$http2_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$http2_tmp" \
+    COMMAND_LOG="$command_log" \
+    MOCK_CURRENT_REVISION="$current_revision" \
+    MOCK_CANDIDATE_REVISION="$candidate_revision" \
+    MOCK_HTTP2_ARCHIVE="$http2_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh http2 0.5.20 "$http2_checksum"
+)
+[[ -z $(find "$http2_tmp" -mindepth 1 -print -quit) ]]

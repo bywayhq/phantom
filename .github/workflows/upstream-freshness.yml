@@ -81,6 +81,7 @@ jobs:
           (matrix.dependency == 'btls' && needs.report.outputs.btls_drift == 'true') ||
           (matrix.dependency == 'http2' && needs.report.outputs.http2_drift == 'true')
         env:
+          PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT: "1"
           WREQ_LATEST: ${{ needs.report.outputs.wreq_latest }}
           WREQ_CHECKSUM: ${{ needs.report.outputs.wreq_checksum }}
           BTLS_LATEST: ${{ needs.report.outputs.btls_latest }}

@@ -8,11 +8,20 @@ cd "$repo_root"
 dependency=${1:-}
 candidate=${2:-}
 checksum=${3:-}
+probe_staging=
 
 die() {
   echo "probe-upstream-candidate: $*" >&2
   exit 1
 }
+
+cleanup() {
+  if [[ -n "$probe_staging" && -d "$probe_staging" ]]; then
+    rm -rf "$probe_staging"
+  fi
+}
+
+trap cleanup EXIT
 
 fetch() {
   curl --fail --location --silent --show-error --retry 3 \
@@ -85,6 +94,8 @@ workspace_gates() {
   cargo "+$msrv" check --workspace --all-targets --locked
 }
 
+[[ "${PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT:-}" == 1 ]] \
+  || die "refusing to mutate this checkout; set PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 only in a disposable checkout"
 [[ -z $(git status --porcelain) ]] \
   || die "candidate probes require a clean disposable checkout"
 
@@ -111,8 +122,8 @@ case "$dependency" in
       || die "btls and tokio-btls must use the same revision"
     btls_current=$(printf '%s\n' "$btls_revs" | head -1)
 
-    staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-btls-candidate.XXXXXX")
-    candidate_dir="$staging/btls"
+    probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-btls-candidate.XXXXXX")
+    candidate_dir="$probe_staging/btls"
     "$script_dir/stage-btls-candidate.sh" "$candidate" "$candidate_dir"
 
     # Retain provenance material only for the disposable checkout. The wrapper
@@ -122,7 +133,7 @@ case "$dependency" in
     cp vendor/btls/patches/alps-settings.patch "$candidate_dir/patches/"
 
     replace_exact Cargo.toml "rev = \"$btls_current\"" "rev = \"$candidate\"" 2
-    mv vendor/btls "$staging/btls.previous"
+    mv vendor/btls "$probe_staging/btls.previous"
     mv "$candidate_dir" vendor/btls
     cargo update -p btls-sys -p tokio-btls
 
@@ -134,8 +145,12 @@ case "$dependency" in
     done
 
     cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
-    if [[ $(uname -s) == Darwin ]]; then
-      # Upstream does not rewrite prefixed archive symbols on Apple platforms;
+    btls_prefix_symbols=true
+    case $(uname -s) in
+      Darwin | MINGW* | MSYS* | CYGWIN*) btls_prefix_symbols=false ;;
+    esac
+    if [[ "$btls_prefix_symbols" == false ]]; then
+      # Upstream does not rewrite prefixed archive symbols on Apple or Windows;
       # match Phantom's target-specific dependency selection there.
       cargo clippy --manifest-path vendor/btls/Cargo.toml \
         --all-targets -- -D warnings
@@ -150,7 +165,7 @@ case "$dependency" in
     msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)
     [[ -n "$msrv" ]] || die "could not derive the workspace MSRV"
     ensure_msrv "$msrv"
-    if [[ $(uname -s) == Darwin ]]; then
+    if [[ "$btls_prefix_symbols" == false ]]; then
       cargo "+$msrv" check --manifest-path vendor/btls/Cargo.toml --all-targets
     else
       cargo "+$msrv" check --manifest-path vendor/btls/Cargo.toml \
@@ -162,20 +177,20 @@ case "$dependency" in
       || die "invalid http2 candidate '$candidate'"
     [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid http2 checksum"
 
-    staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-http2-candidate.XXXXXX")
-    archive="$staging/http2-$candidate.crate"
+    probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-http2-candidate.XXXXXX")
+    archive="$probe_staging/http2-$candidate.crate"
     fetch "https://static.crates.io/crates/http2/http2-$candidate.crate" > "$archive"
     actual=$(sha256 "$archive")
     [[ "$actual" == "$checksum" ]] \
       || die "http2 $candidate checksum mismatch: expected $checksum, found $actual"
-    tar -xzf "$archive" -C "$staging"
-    candidate_dir="$staging/http2-$candidate"
+    tar -xzf "$archive" -C "$probe_staging"
+    candidate_dir="$probe_staging/http2-$candidate"
 
     # Apply while the canonical patch is still in the checked-out vendor tree.
     patch_file="$repo_root/vendor/http2/patches/ordered-headers.patch"
     git -C "$candidate_dir" apply --check "$patch_file"
     git -C "$candidate_dir" apply "$patch_file"
-    mv vendor/http2 "$staging/http2.previous"
+    mv vendor/http2 "$probe_staging/http2.previous"
     mv "$candidate_dir" vendor/http2
     cargo update -p http2 --precise "$candidate"
 
