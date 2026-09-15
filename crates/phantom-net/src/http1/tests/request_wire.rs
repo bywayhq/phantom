@@ -125,6 +125,32 @@ async fn accepts_interim_response_across_one_byte_reads() -> TestResult {
 }
 
 #[tokio::test]
+async fn accepts_multiple_distinct_interim_responses() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            server
+                .write_all(
+                    b"HTTP/1.1 103 Early Hints\r\nLink: </style.css>; rel=preload\r\n\r\n\
+                      HTTP/1.1 100 Continue\r\n\r\n\
+                      HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok",
+                )
+                .await
+        });
+
+        let response =
+            send_get(OneByteReadStream { inner: client }, target()?, vec![host()]).await?;
+        assert_eq!(response.status(), 200);
+        assert!(response.headers().get("link").is_none());
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
