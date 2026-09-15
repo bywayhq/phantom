@@ -18,7 +18,7 @@ use super::{
 use crate::{
     client,
     codec::{Codec, SendError, UserError},
-    ext::Protocol,
+    ext::{OrderedHeaders, Protocol},
     frame::{self, Frame, Reason},
     proto,
     proto::{peer, Error, Initiator, Open, Peer, WindowSize},
@@ -246,9 +246,13 @@ where
         use super::stream::ContentLength;
 
         let protocol = request.extensions_mut().remove::<Protocol>();
+        let ordered_headers = request.extensions_mut().remove::<OrderedHeaders>();
 
         // Clear before taking lock, incase extensions contain a StreamRef.
         request.extensions_mut().clear();
+        if let Some(ordered_headers) = ordered_headers {
+            request.extensions_mut().insert(ordered_headers);
+        }
 
         // TODO: There is a hazard with assigning a stream ID before the
         // prioritize layer. If prioritization reorders new streams, this

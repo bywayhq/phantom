@@ -1536,16 +1536,15 @@ where
     type Output = Result<(), crate::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.inner.maybe_close_connection_if_no_streams();
-        let had_streams_or_refs = self.inner.has_streams_or_other_references();
         let result = self.inner.poll(cx).map_err(Into::into);
-        // if we had streams/refs, and don't anymore, wake up one more time to
-        // ensure proper shutdown
-        if result.is_pending()
-            && had_streams_or_refs
-            && !self.inner.has_streams_or_other_references()
-        {
-            tracing::trace!("last stream closed during poll, wake again");
+
+        // Poll the open connection before initiating its idle close. Dropping
+        // the last stream can queue an implicit RST_STREAM at the same time as
+        // it removes the final reference. Closing first would bypass the open
+        // state's `poll_complete`, losing that queued frame.
+        if result.is_pending() && !self.inner.has_streams_or_other_references() {
+            self.inner.maybe_close_connection_if_no_streams();
+            tracing::trace!("last stream closed, wake once more to shut down");
             cx.waker().wake_by_ref();
         }
         result

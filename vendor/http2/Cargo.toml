@@ -157,6 +157,7 @@ features = [
     "macros",
     "sync",
     "net",
+    "time",
 ]
 
 [dev-dependencies.tokio-rustls]

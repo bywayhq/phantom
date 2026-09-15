@@ -1,7 +1,11 @@
-use std::{io::Cursor, ops::ControlFlow};
+use std::{future::poll_fn, io::Cursor, ops::ControlFlow, time::Duration};
 
-use bytes::{BufMut, BytesMut};
-use http::{HeaderName, HeaderValue, Method, Request, Version};
+use bytes::{BufMut, Bytes, BytesMut};
+use http::{HeaderName, HeaderValue, Method, Request, Response, Version};
+use tokio::{
+    io::{duplex, AsyncReadExt},
+    time::timeout,
+};
 
 use super::Peer;
 use crate::{
@@ -90,6 +94,137 @@ fn absent_ordered_headers_use_header_map_iteration() {
     assert_eq!(decode_ordinary_fields(frame), expected);
 }
 
+#[tokio::test]
+async fn handshake_preserves_interleaved_ordered_headers() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+
+        let mut request = request_with_headers();
+        request.extensions_mut().insert(OrderedHeaders::new(vec![
+            (A, HeaderValue::from_static("a1")),
+            (B, HeaderValue::from_static("b1")),
+            (A, HeaderValue::from_static("a2")),
+        ]));
+        let mut sender = sender.ready().await.expect("sender never became ready");
+        let (_response, send) = sender
+            .send_request(request, true)
+            .expect("request was rejected");
+        drop(send);
+
+        let mut preface = [0_u8; 24];
+        peer_io
+            .read_exact(&mut preface)
+            .await
+            .expect("client preface was truncated");
+        assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
+
+        let header_block = loop {
+            let mut head = [0_u8; 9];
+            peer_io
+                .read_exact(&mut head)
+                .await
+                .expect("frame header was truncated");
+            let length =
+                (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+            let mut payload = vec![0_u8; length];
+            peer_io
+                .read_exact(&mut payload)
+                .await
+                .expect("frame payload was truncated");
+            if head[3] == 1 {
+                break payload;
+            }
+        };
+
+        assert_eq!(
+            decode_header_block(&header_block),
+            vec![
+                (A, HeaderValue::from_static("a1")),
+                (B, HeaderValue::from_static("b1")),
+                (A, HeaderValue::from_static("a2")),
+            ]
+        );
+        driver.abort();
+    })
+    .await
+    .expect("ordered-header handshake test timed out");
+}
+
+#[tokio::test]
+async fn dropping_final_client_stream_flushes_reset_before_close() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, server_io) = duplex(16 * 1024);
+        let server = tokio::spawn(async move {
+            let mut connection = crate::server::handshake(server_io)
+                .await
+                .expect("server handshake failed");
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .expect("connection closed before request")
+                .expect("request failed");
+            let mut send = respond
+                .send_response(Response::new(()), false)
+                .expect("response headers failed");
+            send.send_data(Bytes::from_static(b"partial"), false)
+                .expect("response DATA failed");
+
+            let reason = tokio::select! {
+                biased;
+                result = poll_fn(|cx| send.poll_reset(cx)) => {
+                    result.expect("client reset was not observable")
+                }
+                incoming = connection.accept() => {
+                    assert!(incoming.is_some(), "connection closed without a reset");
+                    panic!("client sent an unexpected second request");
+                }
+            };
+            assert_eq!(reason, crate::Reason::CANCEL);
+            drop(request);
+            drop(send);
+            drop(respond);
+            poll_fn(|cx| connection.poll_closed(cx))
+                .await
+                .expect("connection did not close after reset");
+        });
+
+        let (sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        let mut sender = sender.ready().await.expect("sender never became ready");
+        let (response, mut send) = sender
+            .send_request(request_with_headers(), true)
+            .expect("request was rejected");
+        let response = response.await.expect("response headers failed");
+        let mut incoming = response.into_body();
+        assert_eq!(
+            incoming
+                .data()
+                .await
+                .expect("response ended before DATA")
+                .expect("response DATA failed"),
+            "partial"
+        );
+
+        send.send_reset(crate::Reason::CANCEL);
+        drop(incoming);
+        drop(send);
+        drop(sender);
+        server.await.expect("server task panicked");
+        driver
+            .await
+            .expect("client driver task panicked")
+            .expect("client driver failed");
+    })
+    .await
+    .expect("reset-and-close handshake test timed out");
+}
+
 fn request_with_headers() -> Request<()> {
     let mut request = Request::new(());
     *request.method_mut() = Method::GET;
@@ -120,6 +255,22 @@ fn decode_ordinary_fields(headers: Headers) -> Vec<(HeaderName, HeaderValue)> {
     assert!(continuation.is_none(), "test header block was fragmented");
 
     let mut payload = BytesMut::from(&encoded[9..]);
+    let mut cursor = Cursor::new(&mut payload);
+    let mut decoder = Decoder::new(4096);
+    let mut fields = Vec::new();
+    decoder
+        .decode(&mut cursor, |header| {
+            if let Header::Field { name, value } = header {
+                fields.push((name, value));
+            }
+            ControlFlow::Continue(())
+        })
+        .expect("encoded header block must decode");
+    fields
+}
+
+fn decode_header_block(encoded: &[u8]) -> Vec<(HeaderName, HeaderValue)> {
+    let mut payload = BytesMut::from(encoded);
     let mut cursor = Cursor::new(&mut payload);
     let mut decoder = Decoder::new(4096);
     let mut fields = Vec::new();
