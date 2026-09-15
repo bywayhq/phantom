@@ -124,6 +124,11 @@ impl<T, B> Codec<T, B> {
     fn framed_write(&mut self) -> &mut FramedWrite<T, B> {
         self.inner.get_mut()
     }
+
+    #[cfg(test)]
+    pub(crate) fn fill_write_capacity_for_test(&mut self) {
+        self.framed_write().fill_write_capacity_for_test();
+    }
 }
 
 impl<T, B> Codec<T, B>

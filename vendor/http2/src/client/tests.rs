@@ -263,6 +263,34 @@ async fn pending_shutdown_is_not_self_woken_after_idle_close_transition() {
     assert_eq!(wake_count.load(Ordering::SeqCst), 1);
 }
 
+#[tokio::test]
+async fn full_codec_does_not_repeat_idle_close_self_wake() {
+    let write_polls = Arc::new(AtomicUsize::new(0));
+    let (sender, mut connection) = super::handshake(PendingWriteIo {
+        write_polls: Arc::clone(&write_polls),
+        preface_written: false,
+    })
+    .await
+    .expect("client handshake failed");
+    connection.inner.fill_write_capacity_for_test();
+    drop(sender);
+
+    let wake_count = Arc::new(AtomicUsize::new(0));
+    let waker = Waker::from(Arc::new(CountWake(Arc::clone(&wake_count))));
+    let mut context = Context::from_waker(&waker);
+
+    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
+    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+    let after_transition = write_polls.load(Ordering::SeqCst);
+
+    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
+    assert!(write_polls.load(Ordering::SeqCst) > after_transition);
+    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+
+    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
+    assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+}
+
 fn request_with_headers() -> Request<()> {
     let mut request = Request::new(());
     *request.method_mut() = Method::GET;
@@ -325,6 +353,44 @@ fn decode_header_block(encoded: &[u8]) -> Vec<(HeaderName, HeaderValue)> {
 
 struct PendingShutdownIo {
     shutdown_polls: Arc<AtomicUsize>,
+}
+
+struct PendingWriteIo {
+    write_polls: Arc<AtomicUsize>,
+    preface_written: bool,
+}
+
+impl AsyncRead for PendingWriteIo {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Poll::Pending
+    }
+}
+
+impl AsyncWrite for PendingWriteIo {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        if !self.preface_written {
+            self.preface_written = true;
+            return Poll::Ready(Ok(buf.len()));
+        }
+        self.write_polls.fetch_add(1, Ordering::SeqCst);
+        Poll::Pending
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Poll::Pending
+    }
 }
 
 impl AsyncRead for PendingShutdownIo {

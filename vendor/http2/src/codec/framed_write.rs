@@ -340,6 +340,12 @@ impl<T, B> FramedWrite<T, B> {
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.inner
     }
+
+    #[cfg(test)]
+    pub(crate) fn fill_write_capacity_for_test(&mut self) {
+        let capacity = self.encoder.buf.get_ref().capacity();
+        self.encoder.buf.get_mut().resize(capacity, 0);
+    }
 }
 
 impl<T: AsyncRead + Unpin, B> AsyncRead for FramedWrite<T, B> {

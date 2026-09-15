@@ -24,6 +24,9 @@ where
     codec: Codec<T, Prioritized<B>>,
 
     inner: ConnectionInner<P, B>,
+
+    /// Prevents repeated self-wakes while an idle GOAWAY awaits codec capacity.
+    idle_close_requested: bool,
 }
 
 // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
@@ -139,6 +142,7 @@ where
         span.follows_from(::tracing::Span::current());
         Connection {
             codec,
+            idle_close_requested: false,
             inner: ConnectionInner {
                 state: State::Open,
                 error: None,
@@ -248,9 +252,11 @@ where
     ///
     /// Returns whether this call initiated the transition.
     pub fn maybe_close_connection_if_no_streams(&mut self) -> bool {
-        if matches!(self.inner.state, State::Open)
+        if !self.idle_close_requested
+            && matches!(self.inner.state, State::Open)
             && !self.inner.streams.has_streams_or_other_references()
         {
+            self.idle_close_requested = true;
             self.inner.as_dyn().go_away_now(Reason::NO_ERROR);
             true
         } else {
@@ -265,6 +271,11 @@ where
 
     pub(crate) fn take_user_pings(&mut self) -> Option<UserPings> {
         self.inner.ping_pong.take_user_pings()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fill_write_capacity_for_test(&mut self) {
+        self.codec.fill_write_capacity_for_test();
     }
 
     /// Advances the internal state of the connection.
