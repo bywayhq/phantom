@@ -211,6 +211,8 @@ impl Error for CaptureError {
 ///
 /// `deadline` bounds the entire operation rather than each individual read.
 /// Records are accepted only while the first handshake message is incomplete.
+/// After any error, the reader may be partially consumed and must be discarded
+/// or reset to a known boundary before it is reused.
 pub async fn capture_client_hello<R>(
     reader: &mut R,
     deadline: Instant,
@@ -361,6 +363,10 @@ mod tests {
     use std::{
         io::Cursor,
         pin::Pin,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
         task::{Context, Poll},
         time::Duration,
     };
@@ -599,6 +605,35 @@ mod tests {
         )
         .await;
 
+        assert!(matches!(result, Err(CaptureError::DeadlineExceeded)));
+    }
+
+    #[tokio::test]
+    async fn deadline_does_not_restart_when_reads_keep_making_progress() {
+        let (mut reader, mut writer) = tokio::io::duplex(16);
+        let wire = record(22, 0x0303, &handshake(&[1, 2, 3, 4]));
+        let writes = Arc::new(AtomicUsize::new(0));
+        let observed_writes = Arc::clone(&writes);
+        let writer_task = tokio::spawn(async move {
+            for byte in wire {
+                if writer.write_all(&[byte]).await.is_err() {
+                    break;
+                }
+                observed_writes.fetch_add(1, Ordering::SeqCst);
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        });
+
+        let result = capture_client_hello(
+            &mut reader,
+            tokio::time::Instant::now() + Duration::from_millis(55),
+            GENEROUS_LIMITS,
+        )
+        .await;
+        writer_task.abort();
+        let _ = writer_task.await;
+
+        assert!(writes.load(Ordering::SeqCst) > 1);
         assert!(matches!(result, Err(CaptureError::DeadlineExceeded)));
     }
 
