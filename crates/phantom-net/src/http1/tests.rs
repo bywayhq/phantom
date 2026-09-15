@@ -19,6 +19,7 @@ use tokio::{
 use super::{
     Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm, RequestHeader, send_get,
 };
+use crate::tracing_test::OutcomeSubscriber;
 
 const PEER_TEST_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -40,6 +41,28 @@ fn target() -> Result<OriginForm, Http1Error> {
 
 fn host() -> RequestHeader {
     RequestHeader::new("Host", "example.test")
+}
+
+#[tokio::test]
+async fn cancelled_response_head_records_outcome_once() -> Result<(), Box<dyn std::error::Error>> {
+    let subscriber = OutcomeSubscriber::default();
+    let _default = tracing::subscriber::set_default(subscriber.clone());
+    let (client, _server) = duplex(4096);
+    let mut request = Box::pin(send_get(client, target()?, vec![host()]));
+
+    let pending =
+        std::future::poll_fn(|context| Poll::Ready(request.as_mut().poll(context).is_pending()))
+            .await;
+    if !pending {
+        return Err("HTTP/1 response-head future completed before cancellation".into());
+    }
+    drop(request);
+
+    assert_eq!(
+        subscriber.outcomes_for("http1.response_head"),
+        ["cancelled"]
+    );
+    Ok(())
 }
 
 #[test]

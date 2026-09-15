@@ -256,6 +256,7 @@ impl TlsConnector {
             tls_version = field::Empty,
             outcome = field::Empty,
         );
+        let outcome = HandshakeOutcome::new(&span);
         let result = async {
             debug!("TLS handshake started");
 
@@ -313,8 +314,35 @@ impl TlsConnector {
         }
         .instrument(span.clone())
         .await;
-        span.record("outcome", if result.is_ok() { "ok" } else { "error" });
+        outcome.finish(if result.is_ok() { "ok" } else { "error" });
         result
+    }
+}
+
+struct HandshakeOutcome {
+    span: Span,
+    recorded: bool,
+}
+
+impl HandshakeOutcome {
+    fn new(span: &Span) -> Self {
+        Self {
+            span: span.clone(),
+            recorded: false,
+        }
+    }
+
+    fn finish(mut self, outcome: &'static str) {
+        self.span.record("outcome", outcome);
+        self.recorded = true;
+    }
+}
+
+impl Drop for HandshakeOutcome {
+    fn drop(&mut self) {
+        if !self.recorded {
+            self.span.record("outcome", "cancelled");
+        }
     }
 }
 

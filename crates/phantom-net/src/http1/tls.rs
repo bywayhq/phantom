@@ -7,7 +7,10 @@ use phantom_profile::TlsSettings;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
-use super::{Http1Body, Http1Error, OriginForm, PreparedGet, RequestHeader, send_prepared_get};
+use super::{
+    Http1Body, Http1Error, OriginForm, PreparedGet, RequestHeader, ResponseHeadOutcome,
+    send_prepared_get,
+};
 use crate::tls::{TlsConnector, trace_alpn};
 
 pub use crate::tls::{TlsError, TlsErrorKind};
@@ -63,6 +66,7 @@ impl Http1TlsConnector {
             status = field::Empty,
             outcome = field::Empty,
         );
+        let outcome_guard = ResponseHeadOutcome::new(&span);
         let result = async {
             let prepared = PreparedGet::new(target, headers)?;
             debug!("HTTP/1 request prepared");
@@ -90,7 +94,7 @@ impl Http1TlsConnector {
             Ok(_) => "ok",
             Err(_) => "error",
         };
-        span.record("outcome", outcome);
+        outcome_guard.finish(outcome);
         result
     }
 }

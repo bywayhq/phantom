@@ -38,6 +38,12 @@ Cargo prints the benchmark executable path. Substitute it for `<bench-bin>` in
 the commands below. Criterion's profile mode repeatedly exercises one workload
 without performing its statistical analysis.
 
+Create the output directory once before capturing a profile:
+
+```sh
+mkdir -p target/profiles
+```
+
 On macOS, capture CPU time or allocations with Instruments:
 
 ```sh

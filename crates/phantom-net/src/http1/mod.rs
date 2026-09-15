@@ -237,6 +237,7 @@ where
         status = field::Empty,
         outcome = field::Empty,
     );
+    let outcome = ResponseHeadOutcome::new(&span);
     let result = async {
         debug!("HTTP/1 transaction started");
         let (mut sender, connection) = http1::Builder::default()
@@ -267,8 +268,35 @@ where
     }
     .instrument(span.clone())
     .await;
-    span.record("outcome", if result.is_ok() { "ok" } else { "error" });
+    outcome.finish(if result.is_ok() { "ok" } else { "error" });
     result
+}
+
+pub(super) struct ResponseHeadOutcome {
+    span: Span,
+    recorded: bool,
+}
+
+impl ResponseHeadOutcome {
+    fn new(span: &Span) -> Self {
+        Self {
+            span: span.clone(),
+            recorded: false,
+        }
+    }
+
+    pub(super) fn finish(mut self, outcome: &'static str) {
+        self.span.record("outcome", outcome);
+        self.recorded = true;
+    }
+}
+
+impl Drop for ResponseHeadOutcome {
+    fn drop(&mut self) {
+        if !self.recorded {
+            self.span.record("outcome", "cancelled");
+        }
+    }
 }
 
 struct ValidatedHeaders {
