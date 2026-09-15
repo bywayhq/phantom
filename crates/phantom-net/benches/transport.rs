@@ -11,10 +11,7 @@ use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput, criterion_group, criterion_main};
 use http_body_util::BodyExt;
 use phantom_net::http1::{Http1TlsConnector, OriginForm, RequestHeader, send_get};
-use phantom_profile::{
-    AlpsSettings, CertificateCompression, CipherSuite, NamedGroup, SignatureScheme, TlsSettings,
-    TlsVersion,
-};
+use phantom_profile::chromium::v152_macos_tls;
 use tokio::runtime::Builder;
 
 #[path = "transport/replay_stream.rs"]
@@ -32,7 +29,7 @@ fn transport_benchmarks(criterion: &mut Criterion) {
 }
 
 fn tls_connector(criterion: &mut Criterion) {
-    let settings = chromium_reference_settings();
+    let settings = v152_macos_tls();
     criterion.bench_function("tls_connector/chromium_reference", |bencher| {
         bencher.iter(|| match Http1TlsConnector::new(black_box(&settings)) {
             Ok(connector) => black_box(connector),
@@ -178,63 +175,6 @@ fn chunked_response() -> Bytes {
     }
     response.extend_from_slice(b"0\r\nX-Final: yes\r\n\r\n");
     response.into()
-}
-
-fn chromium_reference_settings() -> TlsSettings {
-    TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls13,
-        cipher_suites: vec![
-            CipherSuite::Aes128GcmSha256,
-            CipherSuite::Aes256GcmSha384,
-            CipherSuite::Chacha20Poly1305Sha256,
-            CipherSuite::EcdheEcdsaAes128GcmSha256,
-            CipherSuite::EcdheRsaAes128GcmSha256,
-            CipherSuite::EcdheEcdsaAes256GcmSha384,
-            CipherSuite::EcdheRsaAes256GcmSha384,
-            CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaAes128CbcSha,
-            CipherSuite::EcdheRsaAes256CbcSha,
-            CipherSuite::RsaAes128GcmSha256,
-            CipherSuite::RsaAes256GcmSha384,
-            CipherSuite::RsaAes128CbcSha,
-            CipherSuite::RsaAes256CbcSha,
-        ],
-        groups: vec![
-            NamedGroup::X25519MlKem768,
-            NamedGroup::X25519,
-            NamedGroup::Secp256r1,
-            NamedGroup::Secp384r1,
-        ],
-        key_shares: vec![NamedGroup::X25519MlKem768, NamedGroup::X25519],
-        signature_schemes: vec![
-            SignatureScheme::MlDsa44,
-            SignatureScheme::MlDsa65,
-            SignatureScheme::MlDsa87,
-            SignatureScheme::EcdsaSecp256r1Sha256,
-            SignatureScheme::RsaPssRsaeSha256,
-            SignatureScheme::RsaPkcs1Sha256,
-            SignatureScheme::EcdsaSecp384r1Sha384,
-            SignatureScheme::RsaPssRsaeSha384,
-            SignatureScheme::RsaPkcs1Sha384,
-            SignatureScheme::RsaPssRsaeSha512,
-            SignatureScheme::RsaPkcs1Sha512,
-        ],
-        alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
-        alps: Some(AlpsSettings {
-            protocol: Box::from(&b"h2"[..]),
-            use_new_codepoint: true,
-        }),
-        certificate_compression: vec![CertificateCompression::Brotli],
-        grease: true,
-        grease_signature_algorithms: false,
-        permute_extensions: true,
-        ech_grease: true,
-        request_ocsp_staple: true,
-        request_signed_certificate_timestamps: true,
-        aes_hardware: true,
-    }
 }
 
 criterion_group!(benches, transport_benchmarks);
