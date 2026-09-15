@@ -1,6 +1,8 @@
 /target/
 /.worktrees/
 .DS_Store
+__pycache__/
+*.py[cod]
 *.pcap
 *.pcapng
 *.qlog
