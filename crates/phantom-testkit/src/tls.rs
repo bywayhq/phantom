@@ -1,5 +1,9 @@
 //! TLS wire-capture helpers.
 
+mod client_hello;
+
+pub use client_hello::{ClientHelloDecodeError, ClientHelloSummary, is_grease};
+
 use std::{error::Error, fmt, io};
 
 use tokio::{
@@ -92,6 +96,11 @@ impl ClientHelloCapture {
     #[must_use]
     pub fn handshake_bytes(&self) -> &[u8] {
         &self.handshake
+    }
+
+    /// Decodes the ordered fingerprint-relevant fields in this ClientHello.
+    pub fn summary(&self) -> Result<ClientHelloSummary, ClientHelloDecodeError> {
+        ClientHelloSummary::decode(&self.handshake)
     }
 }
 
@@ -420,6 +429,24 @@ mod tests {
         assert_eq!(captured.records()[0].wire_bytes(), wire);
         assert_eq!(captured.records()[0].content_type(), 22);
         assert_eq!(captured.records()[0].fragment(), hello);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn summarizes_captured_client_hello() -> Result<(), Box<dyn std::error::Error>> {
+        let mut body = vec![0x03, 0x03];
+        body.extend_from_slice(&[0x42; 32]);
+        body.extend_from_slice(&[0]);
+        body.extend_from_slice(&[0, 2, 0x13, 0x01]);
+        body.extend_from_slice(&[1, 0]);
+        body.extend_from_slice(&[0, 7, 0, 43, 0, 3, 2, 0x03, 0x04]);
+        let captured = capture(record(22, 0x0301, &handshake(&body))).await?;
+
+        let summary = captured.summary()?;
+
+        assert_eq!(summary.cipher_suites(), &[0x1301]);
+        assert_eq!(summary.extension_types(), &[43]);
+        assert_eq!(summary.supported_versions(), &[0x0304]);
         Ok(())
     }
 
