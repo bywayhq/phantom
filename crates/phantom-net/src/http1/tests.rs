@@ -20,6 +20,7 @@ use tracing::instrument::WithSubscriber;
 use super::{
     Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm, RequestHeader, send_get,
 };
+use crate::request::InvalidOriginForm;
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
 const PEER_TEST_TIMEOUT: Duration = Duration::from_secs(2);
@@ -36,7 +37,7 @@ where
     }
 }
 
-fn target() -> Result<OriginForm, Http1Error> {
+fn target() -> Result<OriginForm, InvalidOriginForm> {
     OriginForm::parse("/resource?item=1")
 }
 
@@ -61,19 +62,6 @@ async fn cancelled_response_head_records_outcome_once() -> Result<(), Box<dyn st
         subscriber.outcomes_for("http1.response_head"),
         ["cancelled"]
     );
-    Ok(())
-}
-
-#[test]
-fn accepts_only_origin_form_targets() -> Result<(), Box<dyn std::error::Error>> {
-    let target = OriginForm::parse("/path?query=yes")?;
-    assert_eq!(
-        target.0.path_and_query().map(|value| value.as_str()),
-        Some("/path?query=yes")
-    );
-    for value in ["", "*", "example.test/path", "https://example.test/path"] {
-        assert!(OriginForm::parse(value).is_err(), "accepted {value:?}");
-    }
     Ok(())
 }
 
@@ -164,9 +152,10 @@ async fn content_length_ends_without_socket_eof() -> Result<(), Box<dyn std::err
             let mut byte = [0_u8; 1];
             server.read(&mut byte).await
         });
+        let target = target()?;
 
         let collected = async {
-            let body = send_get(client, target()?, vec![host()]).await?.into_body();
+            let body = send_get(client, target, vec![host()]).await?.into_body();
             body.collect().await
         }
         .with_subscriber(subscriber.clone())
@@ -249,9 +238,10 @@ async fn reports_truncated_content_length() -> Result<(), Box<dyn std::error::Er
                 .await?;
             server.shutdown().await
         });
+        let target = target()?;
 
         let collected = async {
-            let body = send_get(client, target()?, vec![host()]).await?.into_body();
+            let body = send_get(client, target, vec![host()]).await?.into_body();
             body.collect().await
         }
         .with_subscriber(subscriber.clone())
