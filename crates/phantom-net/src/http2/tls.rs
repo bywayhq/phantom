@@ -132,12 +132,11 @@ impl Http2TlsConnector {
             Err(Http2TlsError::Tls(_)) => "tls_error",
             Err(Http2TlsError::Http2(Http2Error::Protocol(_))) => "http_protocol_error",
             Err(Http2TlsError::Http2(_)) => "http_preparation_error",
-            Err(
-                Http2TlsError::MissingNegotiatedAlpn
-                | Http2TlsError::UnsupportedAlpn { .. }
-                | Http2TlsError::MissingHttp2Alpn,
-            ) => "unsupported_alpn",
+            Err(Http2TlsError::MissingNegotiatedAlpn | Http2TlsError::UnsupportedAlpn { .. }) => {
+                "unsupported_alpn"
+            }
             Err(Http2TlsError::InvalidPeerApplicationSettings { .. }) => "invalid_peer_alps",
+            Err(Http2TlsError::MissingHttp2Alpn) => "invalid_configuration",
         };
         outcome_guard.finish(outcome);
         result

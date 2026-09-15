@@ -95,9 +95,8 @@ impl Http1TlsConnector {
             Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
             Err(Http1TlsError::Http1(Http1Error::AmbiguousResponseFraming)) => "invalid_response",
             Err(Http1TlsError::Http1(_)) => "http_preparation_error",
-            Err(Http1TlsError::UnsupportedAlpn { .. } | Http1TlsError::MissingHttp1Alpn) => {
-                "unsupported_alpn"
-            }
+            Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
+            Err(Http1TlsError::MissingHttp1Alpn) => "invalid_configuration",
         };
         outcome_guard.finish(outcome);
         result
