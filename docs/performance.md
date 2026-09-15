@@ -21,8 +21,11 @@ The response-head benchmark includes validation, Chromium-profile translation,
 ordered request-header encoding, the HTTP/2 handshake, response HPACK decoding,
 and one-shot connection shutdown. The body benchmark additionally streams four
 16 KiB DATA frames through the public response body and reports throughput for
-the 64 KiB payload. Each HTTP/2 iteration waits until its connection driver has
-dropped the replay transport, so shutdown work cannot overlap the next sample.
+the 64 KiB payload. Each HTTP/2 iteration separately waits for the connection
+driver to drop its replay transport and for the shutdown supervisor to finish,
+so neither can overlap the next sample. Criterion's batched setup constructs
+the cloned inputs, replay state, and completion observers outside the timed
+routine.
 
 All HTTP/1 and HTTP/2 response microbenchmarks use a deterministic in-memory
 replay stream, so they include neither TCP nor TLS costs. The TLS connector

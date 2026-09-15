@@ -10,12 +10,12 @@ use tokio::{
     sync::oneshot,
 };
 
-pub(super) struct ReplayCompletion(oneshot::Receiver<()>);
+pub(super) struct ReplayTransportDropped(oneshot::Receiver<()>);
 
-impl ReplayCompletion {
+impl ReplayTransportDropped {
     pub(super) async fn wait(self) {
         if self.0.await.is_err() {
-            panic!("replay stream dropped without reporting driver completion");
+            panic!("replay transport dropped without signaling completion");
         }
     }
 }
@@ -42,7 +42,7 @@ impl ReplayStream {
     pub(super) fn with_completion_after_written_bytes(
         response: Bytes,
         response_after_written_bytes: usize,
-    ) -> (Self, ReplayCompletion) {
+    ) -> (Self, ReplayTransportDropped) {
         let (completion, receiver) = oneshot::channel();
         (
             Self {
@@ -52,7 +52,7 @@ impl ReplayStream {
                 response_after_written_bytes,
                 completion: Some(completion),
             },
-            ReplayCompletion(receiver),
+            ReplayTransportDropped(receiver),
         )
     }
 }

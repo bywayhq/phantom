@@ -12,6 +12,8 @@ use tokio::runtime::Builder;
 mod http1;
 #[path = "transport/http2.rs"]
 mod http2;
+#[path = "transport/http2_supervisor.rs"]
+mod http2_supervisor;
 #[path = "transport/replay_stream.rs"]
 mod replay_stream;
 

@@ -6,10 +6,12 @@ use http_body_util::BodyExt;
 use phantom_net::http2::{OriginForm, RequestHeader, send_get};
 use phantom_profile::{Http2Settings, chromium::v152_macos_http2};
 use tokio::runtime::Builder;
+use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{
     BODY_BYTES,
-    replay_stream::{ReplayCompletion, ReplayStream},
+    http2_supervisor::{DriverSupervisorFinished, observe_driver_supervisor},
+    replay_stream::{ReplayStream, ReplayTransportDropped},
 };
 
 const FRAME_PAYLOAD_BYTES: usize = 16 * 1024;
@@ -33,14 +35,17 @@ fn response_head(criterion: &mut Criterion) {
     criterion.bench_function("http2/response_head/12_ordered_headers", |bencher| {
         bencher.to_async(&runtime).iter_batched(
             || {
-                let (stream, completion) = replay_after_request(response.clone(), &settings);
-                (
+                let (stream, transport_dropped) = replay_after_request(response.clone(), &settings);
+                let (supervisor_dispatch, supervisor_finished) = observe_driver_supervisor();
+                Http2Iteration {
                     stream,
-                    completion,
-                    settings.clone(),
-                    target.clone(),
-                    headers.clone(),
-                )
+                    transport_dropped,
+                    supervisor_dispatch,
+                    supervisor_finished,
+                    settings: settings.clone(),
+                    target: target.clone(),
+                    headers: headers.clone(),
+                }
             },
             |input| complete_response(input, 204, 0),
             BatchSize::SmallInput,
@@ -58,14 +63,17 @@ fn streaming_body(criterion: &mut Criterion) {
     group.bench_function(BODY_BYTES.to_string(), |bencher| {
         bencher.to_async(&runtime).iter_batched(
             || {
-                let (stream, completion) = replay_after_request(response.clone(), &settings);
-                (
+                let (stream, transport_dropped) = replay_after_request(response.clone(), &settings);
+                let (supervisor_dispatch, supervisor_finished) = observe_driver_supervisor();
+                Http2Iteration {
                     stream,
-                    completion,
-                    settings.clone(),
-                    target.clone(),
-                    Vec::new(),
-                )
+                    transport_dropped,
+                    supervisor_dispatch,
+                    supervisor_finished,
+                    settings: settings.clone(),
+                    target: target.clone(),
+                    headers: Vec::new(),
+                }
             },
             |input| complete_response(input, 200, BODY_BYTES),
             BatchSize::SmallInput,
@@ -74,30 +82,48 @@ fn streaming_body(criterion: &mut Criterion) {
     group.finish();
 }
 
+struct Http2Iteration {
+    stream: ReplayStream,
+    transport_dropped: ReplayTransportDropped,
+    supervisor_dispatch: Dispatch,
+    supervisor_finished: DriverSupervisorFinished,
+    settings: Http2Settings,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+}
+
 async fn complete_response(
-    (stream, completion, settings, target, headers): (
-        ReplayStream,
-        ReplayCompletion,
-        Http2Settings,
-        OriginForm,
-        Vec<RequestHeader>,
-    ),
+    input: Http2Iteration,
     expected_status: u16,
     expected_body_bytes: usize,
 ) -> Bytes {
-    let response = match send_get(stream, &settings, "example.test", target, headers).await {
-        Ok(response) => response,
-        Err(error) => panic!("HTTP/2 benchmark failed before the body: {error}"),
-    };
-    assert_eq!(response.status().as_u16(), expected_status);
-    let body = match response.into_body().collect().await {
-        Ok(collected) => collected.to_bytes(),
-        Err(error) => panic!("HTTP/2 benchmark body failed: {error}"),
-    };
-    assert_eq!(body.len(), expected_body_bytes);
+    let Http2Iteration {
+        stream,
+        transport_dropped,
+        supervisor_dispatch,
+        supervisor_finished,
+        settings,
+        target,
+        headers,
+    } = input;
+    async move {
+        let response = match send_get(stream, &settings, "example.test", target, headers).await {
+            Ok(response) => response,
+            Err(error) => panic!("HTTP/2 benchmark failed before the body: {error}"),
+        };
+        assert_eq!(response.status().as_u16(), expected_status);
+        let body = match response.into_body().collect().await {
+            Ok(collected) => collected.to_bytes(),
+            Err(error) => panic!("HTTP/2 benchmark body failed: {error}"),
+        };
+        assert_eq!(body.len(), expected_body_bytes);
 
-    completion.wait().await;
-    black_box(body)
+        transport_dropped.wait().await;
+        supervisor_finished.wait().await;
+        black_box(body)
+    }
+    .with_subscriber(supervisor_dispatch)
+    .await
 }
 
 fn target() -> OriginForm {
@@ -117,7 +143,7 @@ fn runtime() -> tokio::runtime::Runtime {
 fn replay_after_request(
     response: Bytes,
     settings: &Http2Settings,
-) -> (ReplayStream, ReplayCompletion) {
+) -> (ReplayStream, ReplayTransportDropped) {
     // Hold the server replay until the write containing the first request byte;
     // each ReplayStream write accepts the complete supplied buffer.
     let initial_settings_bytes =
