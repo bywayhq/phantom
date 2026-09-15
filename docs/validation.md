@@ -134,11 +134,11 @@ lines are unchanged. The record SHA-256 before and after conversion is
 
 Two independent captures had source text SHA-256 values
 `ff5466a27d2bcff78756ebea35fc87cf100347d5dcdb84bdb3d1f72d414a14e0`
-and `80a527792b8f40cff97c1785db96fa3c97363a6f04afb28a0ba54956ca5bce0d2`.
+and `80a527792b8f40cff97c10473e6b05462306c476013981ec8d4657bc105bcfb6`.
 All three produced normalized SHA-256
 `f825dadb908340cd0e03defa05115e40edaa7c24018b7e985357411cd6475433`
-after removing only the client random, session ID, key-share bytes, and ECH
-payload bytes while retaining their lengths and the exact extension order.
+after zeroing the client-random, session-id, key-share, and ECH payload bytes in
+place while retaining every payload length and the exact extension order.
 Firefox supplied no GREASE codepoints in these observations, so the regression
 does not invent a GREASE normalization for this fixture.
 
@@ -193,8 +193,10 @@ Two independent source captures had text SHA-256 values
 and `b5358e3c535ef946fdec9b7a079f557ef499a3779bcd2273b40c39ef3cf99988`.
 All three produced normalized SHA-256
 `f4f43360e43d6e8069d883b4089e422565b5e1bd146ea185b3cee94939f77d29`
-when client random, session ID, key-share bytes, and GREASE values were narrowly
-normalized. Extension presence, order, and payload lengths were retained.
+after zeroing the client-random, session-id, key-share, and ECH payload bytes in
+place, then replacing each GREASE codepoint in cipher suites, extension IDs,
+supported groups, supported versions, and key-share group IDs with `0x0a0a`.
+Payload lengths and order were preserved throughout.
 
 Confirm Safari and macOS versions, then start the listener:
 
@@ -337,8 +339,10 @@ cargo run -p phantom-net --example capture_http2_tls -- \
   "--headless"
 ```
 
-With the listener waiting, create one WebDriver session using these exact
-capabilities and navigate it once to `https://server.phantom.test:9448/`:
+With the listener waiting, create one bounded WebDriver session whose request
+includes these capture-relevant capabilities, then navigate it once to
+`https://server.phantom.test:9448/`. Driver-generated defaults and temporary
+profile paths are omitted from this illustrative request:
 
 ```json
 {
@@ -348,6 +352,7 @@ capabilities and navigate it once to `https://server.phantom.test:9448/`:
       "browserName": "firefox",
       "moz:firefoxOptions": {
         "args": ["--headless"],
+        "binary": "/Applications/Firefox.app/Contents/MacOS/firefox",
         "prefs": {
           "browser.startup.page": 0,
           "network.dns.localDomains": "server.phantom.test"
@@ -367,10 +372,12 @@ Two concise live-service summaries sit beside the raw fixture:
 `6ea07fda8d1f22f986b12985236bd646cffca1858f54c1c43143fc0e7b3e5abb`,
 and `peet-api-all.txt` retains source JSON SHA-256
 `15dd2be6c48f7807c4834878cf1a9302469ed1fd4866fe1efd1d6e64164405fa`.
-Both reported the same Akamai fingerprint as the local frames. They also report
-pseudo-header order `method,path,authority,scheme`, dependency `0`, weight `42`,
-nonexclusive priority, plus matching JA3 and JA4 values. These are supplemental
-live observations, not regression oracles; service behavior and reports may
+Both live services reported initial SETTINGS and connection WINDOW_UPDATE
+components matching the local fixture. The local bounded capture ends there; it
+does not establish the full Akamai fingerprint, pseudo-header order, or stream
+priority. The reported pseudo-header order `method,path,authority,scheme`,
+dependency `0`, weight `42`, nonexclusive priority, JA3, and JA4 are live-only
+supplemental evidence, not regression oracles. Service behavior and reports may
 change independently of the browser.
 
 ## Current HTTP/2 protocol coverage
