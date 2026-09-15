@@ -45,7 +45,11 @@ impl fmt::Display for InvalidOriginForm {
 
 impl StdError for InvalidOriginForm {}
 
-/// A request header whose spelling and position are preserved on the wire.
+/// A request header retaining caller-supplied spelling, value, and position.
+///
+/// Each protocol validates this representation against its own wire rules.
+/// HTTP/1 preserves the supplied field-name spelling; HTTP/2 requires lowercase
+/// field names while preserving field order and duplicate positions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RequestHeader {
     name: Box<str>,
