@@ -1,7 +1,9 @@
 //! Browser-neutral profile identity, provenance, and wire settings.
 
 pub mod chromium;
+pub mod firefox;
 pub mod http2;
+pub mod safari;
 pub mod tls;
 
 pub use http2::{

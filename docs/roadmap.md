@@ -78,12 +78,16 @@ Acceptance:
   profiling procedures are documented without claiming TLS-handshake or
   network end-to-end measurements.
 
-## Phase 4: browser-family checks — planned
+## Phase 4: browser-family checks — in progress
 
-Add retained Firefox and Safari captures and concrete typed recipes through the
-existing TLS, HTTP/1.1, and HTTP/2 seams. This phase tests whether current
-configuration remains browser-neutral; it does not add HTTP/3, sessions, SSE,
-or WebSocket.
+Retained captures now support a Safari 18.5 macOS TLS recipe and a Firefox 154
+macOS HTTP/2 recipe through the existing typed settings. The Safari recipe
+retains the observed TLS vector; the Firefox recipe takes startup SETTINGS and
+connection flow control from local raw frames, while its request pseudo-header
+order and priority are explicitly supplemental observations. Firefox TLS and
+Safari HTTP/2 recipes remain deferred until their currently unsupported or
+uncaptured wire behavior can be proved without fallback. This phase does not
+add HTTP/3, sessions, SSE, or WebSocket.
 
 ## Phase 5: forced HTTP/3 — planned
 

@@ -183,6 +183,11 @@ already running as the normal application; the URL `https://localhost:9445/`
 was entered through the user interface. Accordingly, `launch_mode=application`
 and the required `launch_arguments` value is empty.
 
+The `safari::v18_5_macos_tls()` recipe retains the captured semantic TLS
+vector, including its duplicate RSA-PSS SHA-384 signature scheme and disabled
+session tickets. A direct Phantom ClientHello differential remains a separate
+integration gate; the fixture makes no Safari HTTP/2 claim.
+
 The primary version 1 source text SHA-256 was
 `b8b18c93662ed508d5246ba0041049719a840151a79f503cef6cba207f9e8d6e`.
 Only its schema metadata was converted. The TLS record SHA-256 before and after
@@ -364,8 +369,9 @@ profile paths are omitted from this illustrative request:
 ```
 
 The fixture regression reparses and verifies only these raw startup bytes and
-their ordered semantic summary. There is intentionally no Firefox Phantom
-recipe differential yet.
+their ordered semantic summary. The `firefox::v154_macos_http2()` recipe uses
+the captured SETTINGS order and connection window, but there is not yet a
+direct Phantom wire differential for the recipe.
 
 Two concise live-service summaries sit beside the raw fixture:
 `pingly-api-all.txt` retains source JSON SHA-256
@@ -398,7 +404,8 @@ producing a SETTINGS ACK, because no peer SETTINGS frame was received on the
 HTTP/2 wire.
 
 The raw Chrome fixture and direct differential establish the captured Chrome
-152 macOS startup behavior. The raw Firefox fixture establishes only Firefox
-154's captured startup shape; it has no Phantom recipe differential. Retained
-Pingly and Peet results are supplemental observations, not substitutes for
-local bytes. No H3 or Safari HTTP/2 wire fixture exists yet.
+152 macOS startup behavior. The raw Firefox fixture supplies the local startup
+fields in `firefox::v154_macos_http2()`, but does not yet have a direct Phantom
+wire differential. Retained Pingly and Peet results supply only that recipe's
+pseudo-header order and priority and remain supplemental observations, not
+substitutes for local bytes. No H3 or Safari HTTP/2 wire fixture exists yet.
