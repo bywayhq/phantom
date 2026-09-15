@@ -163,46 +163,59 @@ async fn incomplete_body_drop_flushes_reset_and_driver_closes() -> TestResult<()
     .await
 }
 
-#[tokio::test]
-async fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
-    bounded_peer_test(async {
-        let subscriber = OutcomeSubscriber::default();
-        let (client, server) = duplex(64 * 1024);
-        let server_task = tokio::spawn(reset_observing_server(server));
-        let body = async {
-            let response = send_get(
-                client,
-                &v152_macos_http2(),
-                "example.test",
-                target()?,
-                vec![],
-            )
+#[test]
+fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
+    let origin = OutcomeSubscriber::default();
+    let other = OutcomeSubscriber::default();
+    let runtime = Builder::new_current_thread().enable_all().build()?;
+    let other_dispatch = Dispatch::new(other.clone());
+    dispatcher::with_default(&other_dispatch, || {
+        runtime.block_on(bounded_peer_test(async {
+            let (client, server) = duplex(64 * 1024);
+            let server_task = tokio::spawn(reset_observing_server(server));
+            let body = async {
+                let response = send_get(
+                    client,
+                    &v152_macos_http2(),
+                    "example.test",
+                    target()?,
+                    vec![],
+                )
+                .await?;
+                let mut body = response.into_body();
+                assert_eq!(next_nonempty_data(&mut body).await?, "partial");
+                Ok::<_, Box<dyn Error + Send + Sync>>(body)
+            }
+            .with_subscriber(origin.clone())
             .await?;
-            let mut body = response.into_body();
-            assert_eq!(next_nonempty_data(&mut body).await?, "partial");
-            Ok::<_, Box<dyn Error + Send + Sync>>(body)
-        }
-        .with_subscriber(subscriber.clone())
-        .await?;
 
-        std::thread::spawn(move || drop(body))
+            let thread_subscriber = other.clone();
+            std::thread::spawn(move || {
+                let dispatch = Dispatch::new(thread_subscriber);
+                dispatcher::with_default(&dispatch, || drop(body));
+            })
             .join()
             .map_err(|_| "dropping HTTP/2 body outside its runtime panicked")?;
-        let (reason, connection_closed) = server_task.await??;
-        assert_eq!(reason, ::http2::Reason::CANCEL);
-        assert!(connection_closed);
-        timeout(Duration::from_secs(1), async {
-            while subscriber.outcomes_for("http2.connection_driver") != ["complete"] {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .map_err(
-            |_| "cross-thread driver outcome was not recorded on its originating subscriber",
-        )?;
-        Ok(())
+            assert_eq!(origin.response_body_events(), [(7, "dropped".to_owned())]);
+            assert!(other.response_body_events().is_empty());
+
+            let (reason, connection_closed) = server_task.await??;
+            assert_eq!(reason, ::http2::Reason::CANCEL);
+            assert!(connection_closed);
+            timeout(Duration::from_secs(1), async {
+                while origin.outcomes_for("http2.connection_driver") != ["complete"]
+                    || origin.connection_driver_events() != 1
+                {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .map_err(|_| "cross-thread driver terminal telemetry missed its origin subscriber")?;
+            assert_eq!(origin.connection_driver_events(), 1);
+            assert_eq!(other.connection_driver_events(), 0);
+            Ok(())
+        }))
     })
-    .await
 }
 
 #[tokio::test]

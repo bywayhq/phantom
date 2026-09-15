@@ -211,12 +211,14 @@ impl BodyTrace {
             return;
         }
         self.finished = true;
-        debug!(
-            parent: &self.span,
-            body_bytes = self.received_bytes,
-            outcome,
-            "HTTP/2 response body finished"
-        );
+        dispatcher::with_default(&self.dispatch, || {
+            debug!(
+                parent: &self.span,
+                body_bytes = self.received_bytes,
+                outcome,
+                "HTTP/2 response body finished"
+            );
+        });
     }
 }
 
@@ -229,6 +231,7 @@ pub(super) struct DriverTask {
     sender: Option<client::SendRequest<Bytes>>,
     handle: Option<JoinHandle<Result<(), ::http2::Error>>>,
     runtime: Handle,
+    dispatch: Dispatch,
     span: Span,
 }
 
@@ -246,12 +249,13 @@ impl DriverTask {
         let handle = runtime.spawn(
             connection
                 .instrument(span.clone())
-                .with_subscriber(dispatch),
+                .with_subscriber(dispatch.clone()),
         );
         Self {
             sender: Some(sender),
             handle: Some(handle),
             runtime,
+            dispatch,
             span,
         }
     }
@@ -279,38 +283,42 @@ impl DriverTask {
         let mut driver = AbortDriver::new(handle);
         let span = self.span.clone();
         let outcome = DriverOutcome::new(&span);
-        self.runtime.spawn(async move {
-            match timeout(DRIVER_SHUTDOWN_GRACE, driver.handle_mut()).await {
-                Ok(Ok(Ok(()))) => {
-                    outcome.finish("complete");
-                    debug!(parent: &span, "HTTP/2 connection driver stopped");
-                }
-                Ok(Ok(Err(error))) => {
-                    outcome.finish("protocol_error");
-                    warn!(
-                        parent: &span,
-                        reason = ?error.reason(),
-                        io_error = error.is_io(),
-                        "HTTP/2 connection driver failed"
-                    );
-                }
-                Ok(Err(error)) => {
-                    outcome.finish("task_error");
-                    warn!(
-                        parent: &span,
-                        cancelled = error.is_cancelled(),
-                        panicked = error.is_panic(),
-                        "HTTP/2 connection driver task failed"
-                    );
-                }
-                Err(_) => {
-                    driver.abort();
-                    let _ = driver.handle_mut().await;
-                    outcome.finish("timeout");
-                    warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
+        let dispatch = self.dispatch.clone();
+        self.runtime.spawn(
+            async move {
+                match timeout(DRIVER_SHUTDOWN_GRACE, driver.handle_mut()).await {
+                    Ok(Ok(Ok(()))) => {
+                        outcome.finish("complete");
+                        debug!(parent: &span, "HTTP/2 connection driver stopped");
+                    }
+                    Ok(Ok(Err(error))) => {
+                        outcome.finish("protocol_error");
+                        warn!(
+                            parent: &span,
+                            reason = ?error.reason(),
+                            io_error = error.is_io(),
+                            "HTTP/2 connection driver failed"
+                        );
+                    }
+                    Ok(Err(error)) => {
+                        outcome.finish("task_error");
+                        warn!(
+                            parent: &span,
+                            cancelled = error.is_cancelled(),
+                            panicked = error.is_panic(),
+                            "HTTP/2 connection driver task failed"
+                        );
+                    }
+                    Err(_) => {
+                        driver.abort();
+                        let _ = driver.handle_mut().await;
+                        outcome.finish("timeout");
+                        warn!(parent: &span, "HTTP/2 connection driver exceeded shutdown grace");
+                    }
                 }
             }
-        });
+            .with_subscriber(dispatch),
+        );
     }
 }
 
