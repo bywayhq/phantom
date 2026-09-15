@@ -117,6 +117,106 @@ differential compares exact extension membership and stable payload lengths
 without claiming that one permutation is canonical. The built-in recipe used by
 that differential is `phantom_profile::chromium::v152_macos_tls()`.
 
+### Retained Firefox capture
+
+The retained Firefox fixture is
+`fixtures/tls/firefox/154.0/macos-15.5/client-hello.txt`. It records Mozilla
+Firefox `154.0` (bundle build `15426.8.12`) on macOS `15.5` (`24F74`). Firefox
+was started directly with a new temporary profile and
+`--headless --no-remote --profile <temporary-profile>`, then navigated to
+`https://localhost:9446/`. No browser profile or executable is retained.
+
+The source capture used the version 1 output schema. Its complete text SHA-256
+was `07a482027d9687d81700876b39b305fe7cea4615a9e82eac490fb06e4d7285c1`.
+Only the metadata was converted to version 2; the TLS record and all semantic
+lines are unchanged. The record SHA-256 before and after conversion is
+`c9f0144a04876b66915974cdd845a4111a1613541847edf5d9b648ed48c91194`.
+
+Two independent captures had source text SHA-256 values
+`ff5466a27d2bcff78756ebea35fc87cf100347d5dcdb84bdb3d1f72d414a14e0`
+and `80a527792b8f40cff97c1785db96fa3c97363a6f04afb28a0ba54956ca5bce0d2`.
+All three produced normalized SHA-256
+`f825dadb908340cd0e03defa05115e40edaa7c24018b7e985357411cd6475433`
+after removing only the client random, session ID, key-share bytes, and ECH
+payload bytes while retaining their lengths and the exact extension order.
+Firefox supplied no GREASE codepoints in these observations, so the regression
+does not invent a GREASE normalization for this fixture.
+
+Confirm the installed versions, then capture on the loopback listener:
+
+```sh
+"/Applications/Firefox.app/Contents/MacOS/firefox" --version
+defaults read /Applications/Firefox.app/Contents/Info CFBundleVersion
+sw_vers
+
+launch_arguments='--headless --no-remote --profile <temporary-profile>'
+cargo run -p phantom-testkit --example capture_client_hello -- \
+  127.0.0.1:9446 \
+  "Mozilla Firefox" \
+  "154.0" \
+  "macOS 15.5 (24F74)" \
+  "command-line" \
+  "$launch_arguments"
+```
+
+In another terminal, create a fresh profile and navigate exactly once:
+
+```sh
+capture_profile_dir="$(mktemp -d /tmp/phantom-firefox-capture.XXXXXX)"
+"/Applications/Firefox.app/Contents/MacOS/firefox" \
+  --headless \
+  --no-remote \
+  --profile "$capture_profile_dir" \
+  https://localhost:9446/
+```
+
+The listener closes after the ClientHello, so a connection error is expected.
+Stop Firefox before removing only the temporary directory named by
+`capture_profile_dir`.
+
+### Retained Safari capture
+
+The retained Safari fixture is
+`fixtures/tls/safari/18.5/macos-15.5/client-hello.txt`. It records Safari
+`18.5` (bundle build `20621.2.5.11.8`) on macOS `15.5` (`24F74`). Safari was
+already running as the normal application; the URL `https://localhost:9445/`
+was entered through the user interface. Accordingly, `launch_mode=application`
+and the required `launch_arguments` value is empty.
+
+The primary version 1 source text SHA-256 was
+`b8b18c93662ed508d5246ba0041049719a840151a79f503cef6cba207f9e8d6e`.
+Only its schema metadata was converted. The TLS record SHA-256 before and after
+conversion is
+`0cdd41e3a4445365399c9ce0ed8b2bdd926f926405ac56070c48236e9756ba75`.
+Two independent source captures had text SHA-256 values
+`0d74de7da2d0209731e70dd4650bcfacd486607965a42f474a85c8045d8a3c46`
+and `b5358e3c535ef946fdec9b7a079f557ef499a3779bcd2273b40c39ef3cf99988`.
+All three produced normalized SHA-256
+`f4f43360e43d6e8069d883b4089e422565b5e1bd146ea185b3cee94939f77d29`
+when client random, session ID, key-share bytes, and GREASE values were narrowly
+normalized. Extension presence, order, and payload lengths were retained.
+
+Confirm Safari and macOS versions, then start the listener:
+
+```sh
+defaults read /Applications/Safari.app/Contents/Info CFBundleShortVersionString
+defaults read /Applications/Safari.app/Contents/Info CFBundleVersion
+sw_vers
+
+cargo run -p phantom-testkit --example capture_client_hello -- \
+  127.0.0.1:9445 \
+  "Safari" \
+  "18.5" \
+  "macOS 15.5 (24F74)" \
+  "application" \
+  ""
+```
+
+Navigate to `https://localhost:9445/` in Safari's user interface. Do not launch
+Safari with automation flags for this observation. The listener closes after
+the ClientHello, and the fixture makes no claim about Safari HTTP/2 startup:
+remote automation was disabled in the measured environment.
+
 ## Browser HTTP/2 fixture workflow
 
 ### Retained Chrome capture
@@ -201,6 +301,78 @@ Run both retained HTTP/2 fixture checks directly with:
 cargo test -p phantom-net --test browser_http2_fixtures
 ```
 
+### Retained Firefox capture
+
+The Firefox local oracle is
+`fixtures/http2/firefox/154.0/macos-15.5/client-startup.txt`. It records the
+exact connection preface, initial SETTINGS frame, and connection WINDOW_UPDATE
+from Mozilla Firefox `154.0` on macOS `15.5` (`24F74`). The connection selected
+`h2`; ALPS was absent. The ordered settings were
+`1:65536,2:0,4:131072,5:16384`, followed by connection window increment
+`12517377`.
+
+The original version 1 capture text SHA-256 was
+`78b13d84775538b293190f43e0ae647fea4c21ac25b08b38011117fad578118e`.
+Only schema metadata was converted to version 2. The concatenated preface and
+frame bytes have SHA-256
+`288bd22099e228f3845afd4682ecaf1277d71761909597c2d45a0e28a73ab234`
+both before and after conversion.
+
+The capture used official arm64 geckodriver `0.37.1`, whose downloaded archive
+had SHA-256
+`d02b3f7003f999caf90974a2ef5da0286c05d01cee19112c86846d759fdba4f5`.
+WebDriver created an isolated profile. Caller-supplied launch arguments were
+only `--headless`; generated driver arguments are deliberately not presented as
+caller arguments. The W3C capabilities set `acceptInsecureCerts=true`,
+`network.dns.localDomains=server.phantom.test`, and `browser.startup.page=0`.
+The bounded listener command was:
+
+```sh
+cargo run -p phantom-net --example capture_http2_tls -- \
+  127.0.0.1:9448 \
+  "Mozilla Firefox" \
+  "154.0" \
+  "macOS 15.5 (24F74)" \
+  "WebDriver" \
+  "--headless"
+```
+
+With the listener waiting, create one WebDriver session using these exact
+capabilities and navigate it once to `https://server.phantom.test:9448/`:
+
+```json
+{
+  "capabilities": {
+    "alwaysMatch": {
+      "acceptInsecureCerts": true,
+      "browserName": "firefox",
+      "moz:firefoxOptions": {
+        "args": ["--headless"],
+        "prefs": {
+          "browser.startup.page": 0,
+          "network.dns.localDomains": "server.phantom.test"
+        }
+      }
+    }
+  }
+}
+```
+
+The fixture regression reparses and verifies only these raw startup bytes and
+their ordered semantic summary. There is intentionally no Firefox Phantom
+recipe differential yet.
+
+Two concise live-service summaries sit beside the raw fixture:
+`pingly-api-all.txt` retains source JSON SHA-256
+`6ea07fda8d1f22f986b12985236bd646cffca1858f54c1c43143fc0e7b3e5abb`,
+and `peet-api-all.txt` retains source JSON SHA-256
+`15dd2be6c48f7807c4834878cf1a9302469ed1fd4866fe1efd1d6e64164405fa`.
+Both reported the same Akamai fingerprint as the local frames. They also report
+pseudo-header order `method,path,authority,scheme`, dependency `0`, weight `42`,
+nonexclusive priority, plus matching JA3 and JA4 values. These are supplemental
+live observations, not regression oracles; service behavior and reports may
+change independently of the browser.
+
 ## Current HTTP/2 protocol coverage
 
 Deterministic local tests also cover behavior beyond the retained startup
@@ -218,7 +390,8 @@ negotiated-empty ALPS does not. Seeded settings affect the first request without
 producing a SETTINGS ACK, because no peer SETTINGS frame was received on the
 HTTP/2 wire.
 
-The raw fixture and direct differential establish only the captured Chrome 152
-macOS startup behavior. The retained Pingly result and live Peet or Pingly
-checks are supplemental observations, not substitutes for local bytes. No H3,
-Firefox, or Safari wire fixture exists yet.
+The raw Chrome fixture and direct differential establish the captured Chrome
+152 macOS startup behavior. The raw Firefox fixture establishes only Firefox
+154's captured startup shape; it has no Phantom recipe differential. Retained
+Pingly and Peet results are supplemental observations, not substitutes for
+local bytes. No H3 or Safari HTTP/2 wire fixture exists yet.

@@ -5,6 +5,7 @@ use phantom_testkit::http2::{CLIENT_CONNECTION_PREFACE, CaptureLimits};
 type FixtureResult<T> = Result<T, Box<dyn Error>>;
 
 pub(super) struct Fixture<'a> {
+    pub(super) captured_at_unix: u64,
     pub(super) browser: &'a str,
     pub(super) browser_version: &'a str,
     pub(super) operating_system: &'a str,
@@ -90,6 +91,7 @@ impl<'a> Fixture<'a> {
         let connection_window_update = lines.value("connection_window_update")?.parse()?;
         lines.finish()?;
         Ok(Self {
+            captured_at_unix,
             browser,
             browser_version,
             operating_system,

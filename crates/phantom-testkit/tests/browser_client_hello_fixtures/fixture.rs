@@ -216,7 +216,7 @@ pub(super) fn invalid_fixture(message: impl Into<String>) -> io::Error {
 mod tests {
     use super::{Fixture, OPTIONAL_SUMMARY_FIELDS};
 
-    const VALID: &str = crate::FIXTURE_TEXT;
+    const VALID: &str = crate::chrome::FIXTURE_TEXT;
 
     #[test]
     fn rejects_duplicate_and_misordered_fields() {
