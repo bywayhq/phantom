@@ -1,10 +1,11 @@
 # Phantom patch notes
 
-This directory is the `btls` wrapper package from upstream commit
-`129887582a538b8f4dcf371d15c953335312ca37`. It deliberately does not vendor
-the `btls-sys` package or BoringSSL submodule; those remain pinned to the same
-upstream commit by the workspace lockfile.
+This directory is the `btls` wrapper package from the exact upstream commit
+recorded below. It deliberately does not vendor the `btls-sys` package or
+BoringSSL submodule; those remain pinned to the same upstream commit by the
+workspace lockfile.
 
+- Upstream commit: `129887582a538b8f4dcf371d15c953335312ca37`
 - Upstream repository: <https://github.com/0x676e67/btls>
 - Source archive: <https://codeload.github.com/0x676e67/btls/tar.gz/129887582a538b8f4dcf371d15c953335312ca37>
 - Complete source archive SHA-256:
@@ -61,10 +62,18 @@ the exact repository-level file targeted by upstream's package symlink. The
 
    On Linux, use `sha256sum` when `shasum` is unavailable.
 
-2. Compare `candidate` with `vendor/btls`. Expected differences are the two
-   canonical `patches/alps-settings.patch`, the standalone manifest values, the
+2. Compare `candidate` with `vendor/btls`. Expected differences are
+   `patches/alps-settings.patch`, the standalone manifest values, the
    materialized `README.md`, and this file. The checked-in wrapper sources and
    tests should exactly equal the candidate plus the canonical patch.
+
+   The scheduled candidate probe performs this staging from an exact detached
+   git revision. It copies only the upstream `btls` wrapper, materializes the
+   workspace-inherited manifest fields, replaces the wrapper README symlink
+   with its repository target, and pins the standalone `btls-sys` dependency
+   to that same revision. These packaging adaptations are separate from
+   `patches/alps-settings.patch`; failure to apply that patch is reported as
+   source drift requiring review.
 
 3. Replace the wrapper package only, reapply those reviewed changes, and update
    the revision and checksums here and in the root manifests. Do not copy the
@@ -90,4 +99,7 @@ cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets --featu
 
 Do not replace the feature selection with `--all-features`: upstream declares
 `fips` and `rpk` mutually exclusive. `prefix-symbols` is the configuration used
-by Phantom; the root workspace gates link and test that configuration.
+by Phantom on Linux. Omit it on Apple platforms, matching Phantom's
+target-specific dependency selection; upstream currently skips the archive
+rewrite needed to link prefixed symbols there. The scheduled probe runs on
+Linux and therefore uses `prefix-symbols`.

@@ -27,3 +27,176 @@ only_prereleases=$(
 EOF
 )
 [[ "$only_prereleases" == null ]]
+
+replace_fixture_line() {
+  local file=$1 old=$2 new=$3
+  grep -F -x -q "$old" "$file" \
+    || { echo "fixture line missing from $file: $old" >&2; exit 1; }
+  sed -i.bak "s|^$old$|$new|" "$file"
+  rm "$file.bak"
+}
+
+make_btls_candidate() {
+  local destination=$1 drift=${2:-false}
+  mkdir -p "$destination"
+  cp -R vendor/btls "$destination/btls"
+  cp vendor/btls/README.md "$destination/README.md"
+  git -C "$destination/btls" apply --reverse \
+    "$repo_root/vendor/btls/patches/alps-settings.patch"
+  rm -rf "$destination/btls/patches"
+  rm "$destination/btls/PHANTOM.md" "$destination/btls/README.md"
+  ln -s ../README.md "$destination/btls/README.md"
+
+  replace_fixture_line "$destination/btls/Cargo.toml" \
+    'rust-version = "1.85"' 'rust-version = { workspace = true }'
+  replace_fixture_line "$destination/btls/Cargo.toml" \
+    'version = "0.5.6"' 'version = { workspace = true }'
+  replace_fixture_line "$destination/btls/Cargo.toml" \
+    'repository = "https://github.com/0x676e67/btls"' \
+    'repository = { workspace = true }'
+  replace_fixture_line "$destination/btls/Cargo.toml" \
+    'edition = "2021"' 'edition = { workspace = true }'
+  for dependency in \
+    'bitflags = "2.11.1"' \
+    'foreign-types = "0.5"' \
+    'openssl-macros = "0.1.1"' \
+    'libc = "0.2.185"' \
+    'hex = "0.4"' \
+    'brotli = "8.0.2"'; do
+    replace_fixture_line "$destination/btls/Cargo.toml" "$dependency" \
+      "${dependency%% = *} = { workspace = true }"
+  done
+  replace_fixture_line "$destination/btls/Cargo.toml" \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37" }' \
+    'btls-sys = { workspace = true }'
+
+  cat > "$destination/Cargo.toml" <<'EOF'
+[workspace]
+members = ["btls"]
+resolver = "2"
+
+[workspace.package]
+version = "0.5.6"
+repository = "https://github.com/0x676e67/btls"
+edition = "2021"
+rust-version = "1.85"
+
+[workspace.dependencies]
+btls-sys = { version = "0.5.6", path = "btls-sys" }
+bitflags = "2.11.1"
+foreign-types = "0.5"
+openssl-macros = "0.1.1"
+libc = "0.2.185"
+hex = "0.4"
+brotli = "8.0.2"
+EOF
+
+  git -C "$destination" init --quiet
+  git -C "$destination" config user.name 'Phantom CI'
+  git -C "$destination" config user.email 'ci@invalid.example'
+  git -C "$destination" add .
+  git -C "$destination" commit --quiet -m upstream
+
+  if [[ "$drift" == true ]]; then
+    sed -i.bak 's/pub fn set_tlsext_use_srtp/pub fn drifted_set_tlsext_use_srtp/' \
+      "$destination/btls/src/ssl/mod.rs"
+    rm "$destination/btls/src/ssl/mod.rs.bak"
+    git -C "$destination" add btls/src/ssl/mod.rs
+    git -C "$destination" commit --quiet -m drift
+  fi
+}
+
+test_root=$(mktemp -d "${TMPDIR:-/tmp}/phantom-freshness-tests.XXXXXX")
+trap 'rm -rf "$test_root"' EXIT
+
+candidate_repo="$test_root/candidate"
+make_btls_candidate "$candidate_repo"
+candidate_revision=$(git -C "$candidate_repo" rev-parse HEAD)
+candidate_status_before=$(git -C "$candidate_repo" status --porcelain)
+
+staged_wrapper="$test_root/staged/btls"
+PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
+  scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
+grep -F -q "rev = \"$candidate_revision\"" "$staged_wrapper/Cargo.toml"
+grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
+[[ ! -L "$staged_wrapper/README.md" ]]
+[[ $(git -C "$candidate_repo" status --porcelain) == "$candidate_status_before" ]]
+
+drift_repo="$test_root/drift"
+make_btls_candidate "$drift_repo" true
+drift_revision=$(git -C "$drift_repo" rev-parse HEAD)
+if PHANTOM_BTLS_REPOSITORY="$drift_repo" \
+  scripts/ci/stage-btls-candidate.sh \
+    "$drift_revision" "$test_root/drifted-wrapper" \
+    >"$test_root/drift.stdout" 2>"$test_root/drift.stderr"; then
+  echo "drifted btls candidate unexpectedly accepted the canonical patch" >&2
+  exit 1
+fi
+grep -F -q 'ALPS wrapper patch does not apply' "$test_root/drift.stderr"
+[[ -z $(git -C "$drift_repo" status --porcelain) ]]
+
+probe_checkout="$test_root/probe-checkout"
+mkdir -p \
+  "$probe_checkout/scripts/ci" \
+  "$probe_checkout/vendor" \
+  "$probe_checkout/crates/phantom-net"
+cp Cargo.toml Cargo.lock "$probe_checkout/"
+cp crates/phantom-net/Cargo.toml "$probe_checkout/crates/phantom-net/"
+cp -R vendor/btls "$probe_checkout/vendor/btls"
+cp scripts/ci/probe-upstream-candidate.sh \
+  scripts/ci/stage-btls-candidate.sh "$probe_checkout/scripts/ci/"
+git -C "$probe_checkout" init --quiet
+git -C "$probe_checkout" config user.name 'Phantom CI'
+git -C "$probe_checkout" config user.email 'ci@invalid.example'
+git -C "$probe_checkout" add .
+git -C "$probe_checkout" commit --quiet -m fixture
+
+mock_bin="$test_root/mock-bin"
+mkdir -p "$mock_bin"
+cat > "$mock_bin/cargo" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'cargo %s\n' "$*" >> "$COMMAND_LOG"
+if [[ " $* " == *' update '* ]]; then
+  sed -i.bak "s|$MOCK_CURRENT_REVISION|$MOCK_CANDIDATE_REVISION|g" Cargo.lock
+  rm Cargo.lock.bak
+fi
+EOF
+cat > "$mock_bin/rustup" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'rustup %s\n' "$*" >> "$COMMAND_LOG"
+EOF
+chmod +x "$mock_bin/cargo" "$mock_bin/rustup"
+
+command_log="$test_root/commands.log"
+current_revision=129887582a538b8f4dcf371d15c953335312ca37
+if (
+  cd "$probe_checkout"
+  PHANTOM_BTLS_REPOSITORY="$drift_repo" \
+    scripts/ci/probe-upstream-candidate.sh btls "$drift_revision"
+) >"$test_root/probe-drift.stdout" 2>"$test_root/probe-drift.stderr"; then
+  echo "drifted btls probe unexpectedly succeeded" >&2
+  exit 1
+fi
+grep -F -q 'ALPS wrapper patch does not apply' \
+  "$test_root/probe-drift.stderr"
+[[ -z $(git -C "$probe_checkout" status --porcelain) ]]
+
+(
+  cd "$probe_checkout"
+  PATH="$mock_bin:$PATH" \
+    COMMAND_LOG="$command_log" \
+    MOCK_CURRENT_REVISION="$current_revision" \
+    MOCK_CANDIDATE_REVISION="$candidate_revision" \
+    PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
+    scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
+)
+[[ $(grep -F -o "rev = \"$candidate_revision\"" \
+  "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
+grep -F -q "rev = \"$candidate_revision\"" \
+  "$probe_checkout/vendor/btls/Cargo.toml"
+grep -F -q 'ssl::test::alps' "$command_log"
+grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
+grep -F -q 'chrome_client_hello' "$command_log"
+[[ -z $(git -C "$candidate_repo" status --porcelain) ]]

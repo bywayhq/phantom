@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-repo_root=$(git rev-parse --show-toplevel)
+script_dir=$(cd "$(dirname "$0")" && pwd)
+repo_root=$(cd "$script_dir/../.." && git rev-parse --show-toplevel)
 cd "$repo_root"
 dependency=${1:-}
 candidate=${2:-}
@@ -31,15 +32,45 @@ sha256() {
 replace_exact() {
   local file=$1 old=$2 new=$3 expected=$4
   local count
-  count=$(grep -F -o "$old" "$file" | wc -l | tr -d ' ')
+  count=$({ grep -F -o "$old" "$file" || true; } | wc -l | tr -d ' ')
   [[ "$count" == "$expected" ]] \
     || die "expected $expected occurrences of '$old' in $file, found $count"
   sed -i.bak "s|$old|$new|g" "$file"
   rm "$file.bak"
 }
 
+locked_git_source() {
+  local package=$1
+  awk -v package="$package" '
+    /^\[\[package\]\]$/ { in_package = 1; name = ""; next }
+    in_package && /^name = / {
+      name = $0
+      sub(/^[^"]*"/, "", name)
+      sub(/".*/, "", name)
+      next
+    }
+    in_package && name == package && /^source = / {
+      source = $0
+      sub(/^[^"]*"/, "", source)
+      sub(/".*/, "", source)
+      print source
+      exit
+    }
+  ' Cargo.lock
+}
+
+installed_msrv=
+ensure_msrv() {
+  local requested=$1
+  if [[ "$installed_msrv" != "$requested" ]]; then
+    rustup toolchain install "$requested" --profile minimal
+    installed_msrv=$requested
+  fi
+}
+
 workspace_gates() {
   cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+  cargo test -p phantom-net --all-features --locked alps
   cargo test -p phantom-net --all-features --locked \
     chromium_152_macos_matches_retained_client_hello
   cargo test -p phantom-testkit --all-features --locked \
@@ -50,7 +81,7 @@ workspace_gates() {
   local msrv
   msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)
   [[ -n "$msrv" ]] || die "could not derive the workspace MSRV"
-  rustup toolchain install "$msrv" --profile minimal
+  ensure_msrv "$msrv"
   cargo "+$msrv" check --workspace --all-targets --locked
 }
 
@@ -70,12 +101,61 @@ case "$dependency" in
     ;;
   btls)
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid btls revision '$candidate'"
-    [[ ! -d vendor/btls ]] \
-      || die "vendored btls needs its canonical patch applied before probing"
-    btls_current=$(sed -nE \
-      's/^btls = .*rev = "([0-9a-f]{40})".*/\1/p' Cargo.toml)
+    [[ -d vendor/btls && -f vendor/btls/patches/alps-settings.patch ]] \
+      || die "vendored btls and its canonical ALPS patch are required"
+    btls_revs=$(sed -nE \
+      's/^(btls|tokio-btls) = .*rev = "([0-9a-f]{40})".*/\2/p' Cargo.toml)
+    [[ $(printf '%s\n' "$btls_revs" | sed '/^$/d' | wc -l | tr -d ' ') == 2 ]] \
+      || die "btls and tokio-btls must each use an exact revision"
+    [[ $(printf '%s\n' "$btls_revs" | sort -u | wc -l | tr -d ' ') == 1 ]] \
+      || die "btls and tokio-btls must use the same revision"
+    btls_current=$(printf '%s\n' "$btls_revs" | head -1)
+
+    staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-btls-candidate.XXXXXX")
+    candidate_dir="$staging/btls"
+    "$script_dir/stage-btls-candidate.sh" "$candidate" "$candidate_dir"
+
+    # Retain provenance material only for the disposable checkout. The wrapper
+    # source and manifest came from the exact candidate staged above.
+    cp vendor/btls/PHANTOM.md "$candidate_dir/PHANTOM.md"
+    mkdir -p "$candidate_dir/patches"
+    cp vendor/btls/patches/alps-settings.patch "$candidate_dir/patches/"
+
     replace_exact Cargo.toml "rev = \"$btls_current\"" "rev = \"$candidate\"" 2
-    cargo update -p btls -p tokio-btls
+    mv vendor/btls "$staging/btls.previous"
+    mv "$candidate_dir" vendor/btls
+    cargo update -p btls-sys -p tokio-btls
+
+    expected_source="git+https://github.com/0x676e67/btls?rev=$candidate#$candidate"
+    for package in btls-sys tokio-btls; do
+      actual_source=$(locked_git_source "$package")
+      [[ "$actual_source" == "$expected_source" ]] \
+        || die "$package lock source is '$actual_source', expected exact candidate $candidate"
+    done
+
+    cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
+    if [[ $(uname -s) == Darwin ]]; then
+      # Upstream does not rewrite prefixed archive symbols on Apple platforms;
+      # match Phantom's target-specific dependency selection there.
+      cargo clippy --manifest-path vendor/btls/Cargo.toml \
+        --all-targets -- -D warnings
+      cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
+    else
+      cargo clippy --manifest-path vendor/btls/Cargo.toml \
+        --all-targets --features prefix-symbols -- -D warnings
+      cargo test --manifest-path vendor/btls/Cargo.toml \
+        --features prefix-symbols ssl::test::alps
+    fi
+
+    msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)
+    [[ -n "$msrv" ]] || die "could not derive the workspace MSRV"
+    ensure_msrv "$msrv"
+    if [[ $(uname -s) == Darwin ]]; then
+      cargo "+$msrv" check --manifest-path vendor/btls/Cargo.toml --all-targets
+    else
+      cargo "+$msrv" check --manifest-path vendor/btls/Cargo.toml \
+        --all-targets --features prefix-symbols
+    fi
     ;;
   http2)
     [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] \

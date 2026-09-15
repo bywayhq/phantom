@@ -127,8 +127,8 @@ if [[ -d vendor/btls ]]; then
     || die "vendored btls PHANTOM.md must name one exact upstream revision"
   btls_current=$btls_revs
   btls_provenance=vendored
-  btls_probe_supported=false
-  btls_probe_note="not run: vendored patch staging is not integrated"
+  btls_probe_supported=true
+  btls_probe_note="enabled from an exact git revision using the canonical wrapper patch"
 else
   btls_revs=$(sed -nE \
     's/^(btls|tokio-btls) = .*rev = "([0-9a-f]{40})".*/\2/p' Cargo.toml)

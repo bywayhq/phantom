@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+candidate=${1:-}
+destination=${2:-}
+repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
+
+die() {
+  echo "stage-btls-candidate: $*" >&2
+  exit 1
+}
+
+replace_exact() {
+  local file=$1 old=$2 new=$3 expected=$4
+  local count
+  count=$({ grep -F -o "$old" "$file" || true; } | wc -l | tr -d ' ')
+  [[ "$count" == "$expected" ]] \
+    || die "expected $expected occurrences of '$old' in $file, found $count"
+  sed -i.bak "s|$old|$new|g" "$file"
+  rm "$file.bak"
+}
+
+workspace_package_value() {
+  local manifest=$1 key=$2
+  awk -v key="$key" '
+    /^\[workspace\.package\]$/ { in_section = 1; next }
+    in_section && /^\[/ { exit }
+    in_section && index($0, key " = ") == 1 {
+      line = $0
+      sub(/^[^"]*"/, "", line)
+      sub(/".*/, "", line)
+      print line
+      exit
+    }
+  ' "$manifest"
+}
+
+workspace_dependency_version() {
+  local manifest=$1 dependency=$2
+  awk -v dependency="$dependency" '
+    /^\[workspace\.dependencies\]$/ { in_section = 1; next }
+    in_section && /^\[/ { exit }
+    in_section && index($0, dependency " = ") == 1 {
+      line = $0
+      if (line ~ /version[[:space:]]*=[[:space:]]*"/) {
+        sub(/^.*version[[:space:]]*=[[:space:]]*"/, "", line)
+      } else {
+        sub(/^[^"]*"/, "", line)
+      }
+      sub(/".*/, "", line)
+      print line
+      exit
+    }
+  ' "$manifest"
+}
+
+materialize_wrapper_manifest() {
+  local upstream_manifest=$1 wrapper_manifest=$2 revision=$3
+  local version repository_url edition rust_version dependency dependency_version
+
+  version=$(workspace_package_value "$upstream_manifest" version)
+  repository_url=$(workspace_package_value "$upstream_manifest" repository)
+  edition=$(workspace_package_value "$upstream_manifest" edition)
+  rust_version=$(workspace_package_value "$upstream_manifest" rust-version)
+  [[ -n "$version" && -n "$repository_url" && -n "$edition" && -n "$rust_version" ]] \
+    || die "candidate workspace package metadata cannot be materialized"
+
+  # Replace rust-version first because its suffix contains the package-version
+  # text as a fixed substring.
+  replace_exact "$wrapper_manifest" 'rust-version = { workspace = true }' \
+    "rust-version = \"$rust_version\"" 1
+  replace_exact "$wrapper_manifest" 'version = { workspace = true }' \
+    "version = \"$version\"" 1
+  replace_exact "$wrapper_manifest" 'repository = { workspace = true }' \
+    "repository = \"$repository_url\"" 1
+  replace_exact "$wrapper_manifest" 'edition = { workspace = true }' \
+    "edition = \"$edition\"" 1
+
+  for dependency in bitflags foreign-types openssl-macros libc hex brotli; do
+    dependency_version=$(workspace_dependency_version \
+      "$upstream_manifest" "$dependency")
+    [[ -n "$dependency_version" ]] \
+      || die "candidate workspace dependency '$dependency' has no version"
+    replace_exact "$wrapper_manifest" \
+      "$dependency = { workspace = true }" \
+      "$dependency = \"$dependency_version\"" 1
+  done
+
+  dependency_version=$(workspace_dependency_version "$upstream_manifest" btls-sys)
+  [[ -n "$dependency_version" ]] \
+    || die "candidate workspace dependency 'btls-sys' has no version"
+  replace_exact "$wrapper_manifest" 'btls-sys = { workspace = true }' \
+    "btls-sys = { version = \"$dependency_version\", git = \"https://github.com/0x676e67/btls\", rev = \"$revision\" }" 1
+
+  if grep -F -q 'workspace = true' "$wrapper_manifest"; then
+    die "candidate wrapper gained unsupported workspace-inherited packaging fields"
+  fi
+}
+
+[[ "$candidate" =~ ^[0-9a-f]{40}$ ]] \
+  || die "usage: $0 CANDIDATE_REVISION DESTINATION"
+[[ -n "$destination" ]] || die "usage: $0 CANDIDATE_REVISION DESTINATION"
+[[ ! -e "$destination" ]] || die "destination already exists: $destination"
+
+staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-btls-source.XXXXXX")
+trap 'rm -rf "$staging"' EXIT
+
+git -C "$staging" init --quiet
+git -C "$staging" remote add origin "$repository"
+git -C "$staging" fetch --quiet --depth=1 origin "$candidate" \
+  || die "could not fetch exact btls revision $candidate from $repository"
+git -C "$staging" checkout --quiet --detach FETCH_HEAD
+actual=$(git -C "$staging" rev-parse HEAD)
+[[ "$actual" == "$candidate" ]] \
+  || die "fetched btls revision $actual instead of requested $candidate"
+
+[[ -f "$staging/Cargo.toml" && -d "$staging/btls" ]] \
+  || die "candidate revision does not contain the expected btls workspace"
+mkdir -p "$(dirname "$destination")"
+cp -R "$staging/btls" "$destination"
+
+# Upstream's wrapper README is a workspace-relative symlink. A vendored package
+# must contain the referenced repository README as a regular file.
+if [[ -L "$destination/README.md" ]]; then
+  [[ $(readlink "$destination/README.md") == ../README.md ]] \
+    || die "candidate wrapper README symlink target changed"
+  rm "$destination/README.md"
+  cp "$staging/README.md" "$destination/README.md"
+fi
+
+# Packaging materialization is intentionally separate from the source patch.
+# It resolves workspace fields and pins btls-sys to the same exact revision.
+materialize_wrapper_manifest \
+  "$staging/Cargo.toml" "$destination/Cargo.toml" "$candidate"
+
+patch_file=$(cd "$(dirname "$0")/../.." && pwd)/vendor/btls/patches/alps-settings.patch
+[[ -f "$patch_file" ]] || die "canonical ALPS wrapper patch is missing"
+if ! git -C "$destination" apply --check "$patch_file"; then
+  die "ALPS wrapper patch does not apply to btls $candidate; review upstream drift"
+fi
+git -C "$destination" apply "$patch_file"
