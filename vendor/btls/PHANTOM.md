@@ -12,7 +12,7 @@ the exact BoringSSL submodule revision while applying the native ECH patch.
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
 - Reviewed dependency fork: <https://github.com/0xARYA/btls>
-- Reviewed dependency commit: `53001190246565593255c378e4b73c5be2d9a068`
+- Reviewed dependency commit: `19ea8507826e519cb8a72ee7e9d0d1f159cce574`
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
 
@@ -42,7 +42,7 @@ The patches are additive:
   setter without enabling ECH GREASE implicitly.
 - `src/ssl/test/ech.rs` proves 239 payload bytes produce a 281-byte extension
   body, the unset path retains BoringSSL's allowed randomized sizes, and an
-  oversized payload is rejected.
+  empty or oversized payload is rejected with a populated error stack.
 
 The canonical machine-applicable wrapper changes are
 `patches/alps-settings.patch` and

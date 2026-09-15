@@ -37,7 +37,7 @@ replace_fixture_line() {
 }
 
 make_btls_candidate() {
-  local destination=$1 drift=${2:-false}
+  local destination=$1 drift=${2:-none}
   mkdir -p "$destination"
   cp -R vendor/btls "$destination/btls"
   cp vendor/btls/README.md "$destination/README.md"
@@ -69,7 +69,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "53001190246565593255c378e4b73c5be2d9a068" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
@@ -99,12 +99,27 @@ EOF
   git -C "$destination" add .
   git -C "$destination" commit --quiet -m upstream
 
-  if [[ "$drift" == true ]]; then
-    sed -i.bak 's/pub fn set_tlsext_use_srtp/pub fn drifted_set_tlsext_use_srtp/' \
-      "$destination/btls/src/ssl/mod.rs"
-    rm "$destination/btls/src/ssl/mod.rs.bak"
-    git -C "$destination" add btls/src/ssl/mod.rs
-    git -C "$destination" commit --quiet -m drift
+  case "$drift" in
+    none) ;;
+    alps)
+      sed -i.bak 's/pub fn set_tlsext_use_srtp/pub fn drifted_set_tlsext_use_srtp/' \
+        "$destination/btls/src/ssl/mod.rs"
+      rm "$destination/btls/src/ssl/mod.rs.bak"
+      ;;
+    ech)
+      sed -i.bak \
+        's/assert!(!ssl_stream.ssl().ech_accepted());/assert_eq!(ssl_stream.ssl().ech_accepted(), false);/' \
+        "$destination/btls/src/ssl/test/ech.rs"
+      rm "$destination/btls/src/ssl/test/ech.rs.bak"
+      ;;
+    *)
+      echo "unsupported btls drift fixture: $drift" >&2
+      exit 1
+      ;;
+  esac
+  if [[ "$drift" != none ]]; then
+    git -C "$destination" add btls
+    git -C "$destination" commit --quiet -m "$drift drift"
   fi
 }
 
@@ -121,7 +136,7 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
-grep -F -q 'rev = "53001190246565593255c378e4b73c5be2d9a068"' \
+grep -F -q 'rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_ech_grease_payload_length' \
@@ -131,7 +146,7 @@ grep -F -q 'pub fn set_ech_grease_payload_length' \
 [[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
 
 drift_repo="$test_root/drift"
-make_btls_candidate "$drift_repo" true
+make_btls_candidate "$drift_repo" alps
 drift_revision=$(git -C "$drift_repo" rev-parse HEAD)
 if TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$drift_repo" \
   scripts/ci/stage-btls-candidate.sh \
@@ -143,6 +158,22 @@ fi
 grep -F -q 'wrapper patch alps-settings.patch does not apply' \
   "$test_root/drift.stderr"
 [[ -z $(git -C "$drift_repo" status --porcelain) ]]
+[[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
+
+ech_drift_repo="$test_root/ech-drift"
+make_btls_candidate "$ech_drift_repo" ech
+ech_drift_revision=$(git -C "$ech_drift_repo" rev-parse HEAD)
+if TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$ech_drift_repo" \
+  scripts/ci/stage-btls-candidate.sh \
+    "$ech_drift_revision" "$test_root/ech-drifted-wrapper" \
+    >"$test_root/ech-drift.stdout" 2>"$test_root/ech-drift.stderr"; then
+  echo "ECH-drifted btls candidate unexpectedly accepted the canonical patch" >&2
+  exit 1
+fi
+grep -F -q \
+  'wrapper patch ech-grease-payload-length.patch does not apply' \
+  "$test_root/ech-drift.stderr"
+[[ -z $(git -C "$ech_drift_repo" status --porcelain) ]]
 [[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
 
 probe_checkout="$test_root/probe-checkout"
@@ -270,7 +301,7 @@ mkdir -p "$darwin_tmp"
   "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
 grep -F -q "rev = \"$candidate_revision\"" \
   "$probe_checkout/Cargo.toml"
-grep -F -q 'rev = "53001190246565593255c378e4b73c5be2d9a068"' \
+grep -F -q 'rev = "19ea8507826e519cb8a72ee7e9d0d1f159cce574"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \

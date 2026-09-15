@@ -242,7 +242,7 @@ pub struct TlsSettings {
     pub extension_order: ClientHelloExtensionOrder,
     /// Whether to emit a GREASE ECH extension without an ECH configuration.
     pub ech_grease: bool,
-    /// Optional exact byte length for the random GREASE ECH payload.
+    /// Optional exact nonzero byte length for the random GREASE ECH payload.
     ///
     /// `None` retains the TLS backend's randomized payload-length policy. A
     /// configured length requires [`Self::ech_grease`] and must leave room for
@@ -281,6 +281,12 @@ impl TlsSettings {
             return Err(InvalidTlsSettings::new(
                 "ech_grease_payload_length",
                 "an exact ECH GREASE payload length requires ECH GREASE to be enabled",
+            ));
+        }
+        if self.ech_grease_payload_length == Some(0) {
+            return Err(InvalidTlsSettings::new(
+                "ech_grease_payload_length",
+                "an exact ECH GREASE payload length must be nonzero",
             ));
         }
         if self

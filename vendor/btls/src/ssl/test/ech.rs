@@ -91,14 +91,18 @@ fn ech_grease_default_payload_length_remains_randomized() {
 }
 
 #[test]
-fn ech_grease_payload_must_fit_the_extension_body() {
+fn ech_grease_payload_must_be_nonempty_and_fit_the_extension_body() {
     let server = Server::builder().build();
     let mut client = server.client_with_root_ca().build().builder();
 
-    assert!(client
+    let empty_payload = client.ssl().set_ech_grease_payload_length(0).unwrap_err();
+    assert!(!empty_payload.errors().is_empty());
+
+    let oversized_payload = client
         .ssl()
         .set_ech_grease_payload_length(usize::from(u16::MAX) - 42 + 1)
-        .is_err());
+        .unwrap_err();
+    assert!(!oversized_payload.errors().is_empty());
 }
 
 fn capture_ech_grease_extension(payload_length: Option<usize>) -> Vec<u8> {

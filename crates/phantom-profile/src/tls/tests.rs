@@ -75,6 +75,19 @@ fn exact_ech_grease_payload_length_requires_ech_grease() {
 }
 
 #[test]
+fn exact_ech_grease_payload_length_must_be_nonzero() {
+    let mut settings = minimal_settings();
+    settings.ech_grease = true;
+    settings.ech_grease_payload_length = Some(0);
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("ech_grease_payload_length")
+    );
+}
+
+#[test]
 fn exact_ech_grease_payload_and_framing_must_fit_the_extension_body() {
     let mut settings = minimal_settings();
     settings.ech_grease = true;
