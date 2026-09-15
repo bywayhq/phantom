@@ -25,6 +25,7 @@ struct CaptureState {
     span_names: HashMap<u64, &'static str>,
     outcomes: Vec<(&'static str, String)>,
     response_body_events: Vec<(u64, String)>,
+    response_body_polls_on_origin_dispatch: usize,
 }
 
 impl OutcomeSubscriber {
@@ -39,6 +40,10 @@ impl OutcomeSubscriber {
 
     pub(crate) fn response_body_events(&self) -> Vec<(u64, String)> {
         self.state().response_body_events.clone()
+    }
+
+    pub(crate) fn response_body_polls_on_origin_dispatch(&self) -> usize {
+        self.state().response_body_polls_on_origin_dispatch
     }
 
     fn state(&self) -> MutexGuard<'_, CaptureState> {
@@ -114,7 +119,24 @@ impl Subscriber for OutcomeSubscriber {
         }
     }
 
-    fn enter(&self, _span: &Id) {}
+    fn enter(&self, span: &Id) {
+        let span_name = self.state().span_names.get(&span.into_u64()).copied();
+        if !matches!(
+            span_name,
+            Some("http1.response_body" | "http2.response_body")
+        ) {
+            return;
+        }
+
+        let uses_origin = dispatcher::get_default(|dispatch| {
+            dispatch
+                .downcast_ref::<Self>()
+                .is_some_and(|subscriber| Arc::ptr_eq(&subscriber.state, &self.state))
+        });
+        if uses_origin {
+            self.state().response_body_polls_on_origin_dispatch += 1;
+        }
+    }
 
     fn exit(&self, _span: &Id) {}
 }
