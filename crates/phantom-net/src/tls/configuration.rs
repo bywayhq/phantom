@@ -28,6 +28,11 @@ pub(super) fn apply(
 
     builder.set_grease_enabled(settings.grease);
     builder.set_grease_sigalgs_enabled(settings.grease_signature_algorithms);
+    if let Some(limit) = settings.record_size_limit {
+        builder
+            .set_record_size_limit(limit)
+            .map_err(|error| TlsError::backend("record_size_limit", error))?;
+    }
     apply_extension_order(builder, &settings.extension_order)?;
     builder.set_aes_hw_override(settings.aes_hardware);
     if settings.session_tickets {
@@ -204,6 +209,7 @@ fn extension_type(extension: ClientHelloExtension) -> Result<ExtensionType, TlsE
         ClientHelloExtension::SupportedGroups => Some(ExtensionType::SUPPORTED_GROUPS),
         ClientHelloExtension::EcPointFormats => Some(ExtensionType::EC_POINT_FORMATS),
         ClientHelloExtension::SessionTicket => Some(ExtensionType::SESSION_TICKET),
+        ClientHelloExtension::RecordSizeLimit => Some(ExtensionType::RECORD_SIZE_LIMIT),
         ClientHelloExtension::Alpn => Some(ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION),
         ClientHelloExtension::StatusRequest => Some(ExtensionType::STATUS_REQUEST),
         ClientHelloExtension::SignedCertificateTimestamp => {

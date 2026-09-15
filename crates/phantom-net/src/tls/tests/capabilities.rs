@@ -115,6 +115,7 @@ fn capability_settings() -> TlsSettings {
             CertificateCompression::Zstd,
         ],
         session_tickets: true,
+        record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,

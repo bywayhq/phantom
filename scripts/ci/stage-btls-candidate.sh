@@ -6,7 +6,7 @@ candidate=${1:-}
 destination=${2:-}
 repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
 btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
-btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-bae797095de5b65e784f9cd82684e50a79b09ef4}
+btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-f2881672ffc80b5397f6c7bec6c79ef0c017feb4}
 
 die() {
   echo "stage-btls-candidate: $*" >&2
@@ -140,7 +140,10 @@ materialize_wrapper_manifest \
   "$staging/Cargo.toml" "$destination/Cargo.toml"
 
 patch_dir=$(cd "$(dirname "$0")/../.." && pwd)/vendor/btls/patches
-for patch_name in alps-settings.patch ech-grease-payload-length.patch; do
+for patch_name in \
+  alps-settings.patch \
+  ech-grease-payload-length.patch \
+  record-size-limit.patch; do
   patch_file="$patch_dir/$patch_name"
   [[ -f "$patch_file" ]] || die "canonical wrapper patch is missing: $patch_name"
   if ! git -C "$destination" apply --check "$patch_file"; then

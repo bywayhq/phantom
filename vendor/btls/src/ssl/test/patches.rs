@@ -378,6 +378,7 @@ fn boringssl_patch_clienthello_extensions_are_sent() {
     // ClientHello knobs. The expected bytes document patch-owned extension
     // encoding, not upstream BoringSSL's native extension surface.
     let mut server = Server::builder();
+    server.ctx().set_record_size_limit(2048).unwrap();
     server.ctx().set_select_certificate_callback({
         let record_size_limit = Arc::clone(&record_size_limit);
         let delegated_credential = Arc::clone(&delegated_credential);
@@ -402,7 +403,7 @@ fn boringssl_patch_clienthello_extensions_are_sent() {
         .ctx()
         .set_max_proto_version(Some(SslVersion::TLS1_3))
         .unwrap();
-    client.ctx().set_record_size_limit(1200);
+    client.ctx().set_record_size_limit(1200).unwrap();
     client
         .ctx()
         .set_delegated_credentials("rsa_pss_rsae_sha256:ecdsa_secp256r1_sha256")
@@ -418,6 +419,52 @@ fn boringssl_patch_clienthello_extensions_are_sent() {
         delegated_credential.lock().unwrap().as_deref(),
         Some(&[0x00, 0x04, 0x08, 0x04, 0x04, 0x03][..]),
     );
+}
+
+#[test]
+fn record_size_limit_validates_context_and_connection_values() {
+    let mut context = crate::ssl::SslContext::builder(SslMethod::tls()).unwrap();
+    assert!(context.set_record_size_limit(0).is_ok());
+    assert!(context.set_record_size_limit(64).is_ok());
+    assert!(context.set_record_size_limit(16_385).is_ok());
+    let error = context.set_record_size_limit(63).unwrap_err();
+    assert!(!error.errors().is_empty());
+    assert!(context.set_record_size_limit(16_386).is_err());
+
+    let context = context.build();
+    let mut ssl = crate::ssl::Ssl::new(&context).unwrap();
+    assert!(ssl.set_record_size_limit(512).is_ok());
+    assert!(ssl.set_record_size_limit(63).is_err());
+
+    let mut dtls = crate::ssl::SslContext::builder(SslMethod::dtls()).unwrap();
+    assert!(dtls.set_record_size_limit(512).is_err());
+}
+
+#[test]
+fn record_size_limit_transfers_fragmented_data_in_both_directions() {
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let mut server = Server::builder();
+        server.ctx().set_min_proto_version(Some(version)).unwrap();
+        server.ctx().set_max_proto_version(Some(version)).unwrap();
+        server.ctx().set_record_size_limit(512).unwrap();
+        server.io_cb(|mut stream| {
+            let mut from_client = [0; 700];
+            stream.read_exact(&mut from_client).unwrap();
+            assert_eq!(from_client, [0x5a; 700]);
+            stream.write_all(&[0xa5; 200]).unwrap();
+        });
+        let server = server.build();
+
+        let mut client = server.client();
+        client.ctx().set_min_proto_version(Some(version)).unwrap();
+        client.ctx().set_max_proto_version(Some(version)).unwrap();
+        client.ctx().set_record_size_limit(64).unwrap();
+        let mut stream = client.connect();
+        stream.write_all(&[0x5a; 700]).unwrap();
+        let mut from_server = [0; 200];
+        stream.read_exact(&mut from_server).unwrap();
+        assert_eq!(from_server, [0xa5; 200]);
+    }
 }
 
 #[test]

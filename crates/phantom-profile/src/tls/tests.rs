@@ -14,6 +14,7 @@ fn minimal_settings() -> TlsSettings {
         alps: None,
         certificate_compression: Vec::new(),
         session_tickets: true,
+        record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,
@@ -23,6 +24,29 @@ fn minimal_settings() -> TlsSettings {
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
+    }
+}
+
+#[test]
+fn record_size_limit_accepts_wire_boundaries() -> Result<(), Box<dyn Error>> {
+    for limit in [64, 16_385] {
+        let mut settings = minimal_settings();
+        settings.record_size_limit = Some(limit);
+        settings.validate()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn record_size_limit_rejects_values_outside_the_wire_range() {
+    for limit in [0, 63, 16_386] {
+        let mut settings = minimal_settings();
+        settings.record_size_limit = Some(limit);
+        let error = settings.validate().err();
+        assert_eq!(
+            error.as_ref().map(InvalidTlsSettings::field),
+            Some("record_size_limit")
+        );
     }
 }
 

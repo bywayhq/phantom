@@ -2102,11 +2102,22 @@ impl SslContextBuilder {
         unsafe { ffi::SSL_CTX_set_grease_sigalgs_enabled(self.as_ptr(), enabled as _) }
     }
 
-    /// Sets whether the context should enable record size limit.
+    /// Sets the maximum protected TLS record plaintext this endpoint accepts.
+    ///
+    /// A value of `0` disables [RFC 8449]. Other values must be in
+    /// `64..=16385`. DTLS, QUIC, and handoff connections are not supported.
+    ///
+    /// [RFC 8449]: https://www.rfc-editor.org/rfc/rfc8449.html
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_record_size_limit)]
-    pub fn set_record_size_limit(&mut self, limit: u16) {
-        unsafe { ffi::SSL_CTX_set_record_size_limit(self.as_ptr(), limit as _) }
+    pub fn set_record_size_limit(&mut self, limit: u16) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_CTX_set_record_size_limit(
+                self.as_ptr(),
+                limit as _,
+            ))
+            .map(drop)
+        }
     }
 
     /// Sets whether the context should enable delegated credentials.
@@ -3337,6 +3348,14 @@ impl SslRef {
     #[corresponds(SSL_set_permute_extensions)]
     pub fn set_permute_extensions(&mut self, enabled: bool) {
         unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
+    }
+
+    /// Like [`SslContextBuilder::set_record_size_limit`], but for this
+    /// connection only.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_record_size_limit)]
+    pub fn set_record_size_limit(&mut self, limit: u16) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_set_record_size_limit(self.as_ptr(), limit as _)).map(drop) }
     }
 
     /// Like [`SslContextBuilder::set_alpn_protos`].

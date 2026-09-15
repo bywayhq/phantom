@@ -98,6 +98,7 @@ pub fn v152_macos_tls() -> TlsSettings {
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
         session_tickets: true,
+        record_size_limit: None,
         requested_trust_anchor_ids: Some(
             V152_MACOS_TRUST_ANCHOR_IDS
                 .iter()

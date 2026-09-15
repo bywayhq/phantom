@@ -127,8 +127,9 @@ case "$dependency" in
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid btls revision '$candidate'"
     [[ -d vendor/btls \
       && -f vendor/btls/patches/alps-settings.patch \
-      && -f vendor/btls/patches/ech-grease-payload-length.patch ]] \
-      || die "vendored btls and both canonical wrapper patches are required"
+      && -f vendor/btls/patches/ech-grease-payload-length.patch \
+      && -f vendor/btls/patches/record-size-limit.patch ]] \
+      || die "vendored btls and all canonical wrapper patches are required"
     btls_sources=$(sed -nE \
       's/^(btls|tokio-btls) = .*git = "([^"]+)".*rev = "([0-9a-f]{40})".*/\2\t\3/p' \
       Cargo.toml)
@@ -144,7 +145,7 @@ case "$dependency" in
     candidate_repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
     candidate_cargo_repository=${candidate_repository%.git}
     btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
-    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-bae797095de5b65e784f9cd82684e50a79b09ef4}
+    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-f2881672ffc80b5397f6c7bec6c79ef0c017feb4}
     [[ "$btls_sys_revision" =~ ^[0-9a-f]{40}$ ]] \
       || die "PHANTOM_BTLS_SYS_REVISION must be an exact git revision"
 
@@ -158,6 +159,7 @@ case "$dependency" in
     mkdir -p "$candidate_dir/patches"
     cp vendor/btls/patches/alps-settings.patch \
       vendor/btls/patches/ech-grease-payload-length.patch \
+      vendor/btls/patches/record-size-limit.patch \
       "$candidate_dir/patches/"
 
     replace_exact Cargo.toml \
@@ -191,6 +193,7 @@ case "$dependency" in
         --all-targets -- -D warnings
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech
+      cargo test --manifest-path vendor/btls/Cargo.toml record_size_limit
     else
       cargo clippy --manifest-path vendor/btls/Cargo.toml \
         --all-targets --features prefix-symbols -- -D warnings
@@ -198,6 +201,8 @@ case "$dependency" in
         --features prefix-symbols ssl::test::alps
       cargo test --manifest-path vendor/btls/Cargo.toml \
         --features prefix-symbols ssl::test::ech
+      cargo test --manifest-path vendor/btls/Cargo.toml \
+        --features prefix-symbols record_size_limit
     fi
 
     msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)

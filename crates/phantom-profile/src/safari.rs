@@ -61,6 +61,7 @@ pub fn v18_5_macos_tls() -> TlsSettings {
         alps: None,
         certificate_compression: vec![CertificateCompression::Zlib],
         session_tickets: false,
+        record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: true,
         grease_signature_algorithms: false,

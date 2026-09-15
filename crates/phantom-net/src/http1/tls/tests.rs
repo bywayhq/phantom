@@ -317,6 +317,7 @@ fn tls_settings() -> TlsSettings {
         alps: None,
         certificate_compression: Vec::new(),
         session_tickets: true,
+        record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,

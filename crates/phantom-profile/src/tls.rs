@@ -147,6 +147,8 @@ pub enum ClientHelloExtension {
     EcPointFormats,
     /// Session ticket.
     SessionTicket,
+    /// RFC 8449 protected-record receive limit.
+    RecordSizeLimit,
     /// Application-Layer Protocol Negotiation.
     Alpn,
     /// Certificate status request.
@@ -227,6 +229,11 @@ pub struct TlsSettings {
     /// Disabling this omits the TLS 1.2 `session_ticket` ClientHello extension
     /// and disables ticket resumption supported by the TLS backend.
     pub session_tickets: bool,
+    /// Maximum protected TLS record plaintext the client accepts.
+    ///
+    /// `None` omits the RFC 8449 extension. Configured values use the wire
+    /// range `64..=16385`; TLS 1.2 applies its protocol maximum of 16384.
+    pub record_size_limit: Option<u16>,
     /// Optional trust anchor IDs advertised to guide server certificate selection.
     ///
     /// Each ID is an opaque, non-empty byte string. `None` omits the TLS
@@ -275,6 +282,15 @@ impl TlsSettings {
             return Err(InvalidTlsSettings::new(
                 "groups",
                 "at least one supported group is required",
+            ));
+        }
+        if self
+            .record_size_limit
+            .is_some_and(|limit| !(64..=16_385).contains(&limit))
+        {
+            return Err(InvalidTlsSettings::new(
+                "record_size_limit",
+                "record size limit must be between 64 and 16385 bytes",
             ));
         }
         if self.ech_grease_payload_length.is_some() && !self.ech_grease {

@@ -84,6 +84,7 @@ impl TlsConnector {
             alpn_protocol_count = settings.alpn_protocols.len(),
             certificate_compression_count = settings.certificate_compression.len(),
             session_tickets = settings.session_tickets,
+            record_size_limit_configured = settings.record_size_limit.is_some(),
             grease = settings.grease,
             extension_order = extension_order_trace_name(&settings.extension_order),
             ech_grease = settings.ech_grease,
