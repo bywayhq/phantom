@@ -29,9 +29,10 @@ Run these before handing work back to the integration owner:
 
 ```sh
 cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-targets
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-targets --all-features --locked
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
+cargo +1.85.0 check --workspace --all-targets --locked
 ```
 
 Record the commands actually run, relevant evidence, and unresolved uncertainty in the handoff. Do not include unrelated cleanup.

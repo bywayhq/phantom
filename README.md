@@ -16,8 +16,9 @@ The project is at the foundation stage. It does not yet make compatibility or im
 
 - `phantom`: the future public client facade
 - `phantom-profile`: browser-neutral profile identity and metadata
+- `phantom-testkit`: bounded, exact TLS ClientHello capture for deterministic tests
 
-Networking and capture crates will be added with their first working implementations rather than as empty placeholders.
+The production networking crate will be added with its first working transport rather than as an empty placeholder.
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md), and [validation model](docs/validation.md).
 

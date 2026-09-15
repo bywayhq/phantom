@@ -10,6 +10,8 @@ Wire-sensitive changes will be checked at three levels:
 
 Normalization may remove values that are intentionally nondeterministic, such as random bytes, connection identifiers, packet numbers, timestamps, and cryptographic key material. It must not erase ordering, presence, negotiated values, or other behavior the profile claims to control.
 
+The initial TLS testkit preserves complete TLS record bytes and the exact reassembled ClientHello handshake. It intentionally does not interpret the handshake yet. Semantic fields and normalization will be added alongside the first TLS transport so each decoded field has an immediate assertion.
+
 Every built-in profile will eventually report one of these evidence levels:
 
 - Experimental: accepted by the implementation but not proven against a browser capture

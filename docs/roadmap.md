@@ -2,7 +2,7 @@
 
 Each phase ends when its observable acceptance criteria pass. Later work does not expand the active phase.
 
-## Phase 0: foundation
+## Phase 0: foundation — complete
 
 Acceptance:
 
@@ -19,9 +19,11 @@ Non-goals:
 - Protocol backend traits
 - Performance tuning
 
-## Phase 1: local wire testkit
+## Phase 1: local wire testkit — complete
 
-Build a deterministic local endpoint and capture format for the first TLS and HTTP/1.1 vertical slice.
+The first testkit slice captures one TLS ClientHello from any asynchronous reader. It preserves exact record boundaries, legacy versions, and the reassembled handshake while bounding time, memory, record size, and record count. Fragmented records and a real ephemeral loopback connection are covered by deterministic tests.
+
+Semantic ClientHello decoding, normalization, fixture serialization, pcap, and a completed server handshake are deferred until a transport test requires them.
 
 ## Phase 2: TLS and streaming HTTP/1.1
 
