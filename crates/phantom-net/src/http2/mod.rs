@@ -199,7 +199,7 @@ where
         let (response, send_stream) = driver.sender_mut()?.send_request(prepared.request, true)?;
         let response = response.await?;
 
-        Span::current().record("status", response.status().as_u16());
+        span.record("status", response.status().as_u16());
         debug!("HTTP/2 response headers received");
         let (parts, incoming) = response.into_parts();
         Ok(Response::from_parts(
@@ -310,6 +310,9 @@ fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2
 
 mod body;
 mod request;
+mod tls;
+
+pub use tls::{Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
 
 #[cfg(test)]
 mod tests;
