@@ -9,6 +9,24 @@ Run the deterministic local suite with the pinned development toolchain:
 cargo +1.98.0 bench --locked -p phantom-net --bench transport -- --noplot
 ```
 
+Run only the HTTP/2 response-head or streaming-body workload with Criterion's
+name filter:
+
+```sh
+cargo +1.98.0 bench --locked -p phantom-net --bench transport -- 'http2/response_head' --noplot
+cargo +1.98.0 bench --locked -p phantom-net --bench transport -- 'http2/streaming_body/65536' --noplot
+```
+
+The response-head benchmark includes validation, Chromium-profile translation,
+ordered request-header encoding, the HTTP/2 handshake, response HPACK decoding,
+and one-shot connection shutdown. The body benchmark additionally streams four
+16 KiB DATA frames through the public response body and reports throughput for
+the 64 KiB payload.
+
+All HTTP/1 and HTTP/2 response microbenchmarks use a deterministic in-memory
+replay stream, so they include neither TCP nor TLS costs. The TLS connector
+benchmark measures connector construction, not a TLS handshake.
+
 Record the OS, CPU, Rust version, power mode, and commit with any result. Compare
 only runs from the same quiet machine. Criterion stores local samples under
 `target/criterion`; a local before-and-after comparison can use

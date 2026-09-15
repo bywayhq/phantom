@@ -10,15 +10,24 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 pub(super) struct ReplayStream {
     response: Bytes,
     read_offset: usize,
-    request_started: bool,
+    written_bytes: usize,
+    response_after_written_bytes: usize,
 }
 
 impl ReplayStream {
     pub(super) fn new(response: Bytes) -> Self {
+        Self::after_written_bytes(response, 1)
+    }
+
+    pub(super) fn after_written_bytes(
+        response: Bytes,
+        response_after_written_bytes: usize,
+    ) -> Self {
         Self {
             response,
             read_offset: 0,
-            request_started: false,
+            written_bytes: 0,
+            response_after_written_bytes,
         }
     }
 }
@@ -29,7 +38,7 @@ impl AsyncRead for ReplayStream {
         _context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
-        if !self.request_started {
+        if self.written_bytes < self.response_after_written_bytes {
             return Poll::Pending;
         }
         let remaining = &self.response[self.read_offset..];
@@ -46,7 +55,7 @@ impl AsyncWrite for ReplayStream {
         context: &mut Context<'_>,
         buffer: &[u8],
     ) -> Poll<io::Result<usize>> {
-        self.request_started = true;
+        self.written_bytes = self.written_bytes.saturating_add(buffer.len());
         context.waker().wake_by_ref();
         Poll::Ready(Ok(buffer.len()))
     }
@@ -56,9 +65,10 @@ impl AsyncWrite for ReplayStream {
         context: &mut Context<'_>,
         buffers: &[io::IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
-        self.request_started = true;
+        let length = buffers.iter().map(|buffer| buffer.len()).sum();
+        self.written_bytes = self.written_bytes.saturating_add(length);
         context.waker().wake_by_ref();
-        Poll::Ready(Ok(buffers.iter().map(|buffer| buffer.len()).sum()))
+        Poll::Ready(Ok(length))
     }
 
     fn is_write_vectored(&self) -> bool {
