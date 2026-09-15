@@ -89,18 +89,25 @@ async fn streams_ordered_http1_over_trusted_tls() -> TestResult<()> {
         assert_eq!(response.status(), 200);
 
         let mut body = response.into_body();
-        let first = body
-            .frame()
-            .await
-            .ok_or("body ended before its first data frame")??
-            .into_data()
-            .map_err(|_| "expected a data frame")?;
-        assert_eq!(first, "first");
+        let visible = loop {
+            let data = body
+                .frame()
+                .await
+                .ok_or("body ended before any data was observable")??
+                .into_data()
+                .map_err(|_| "expected a data frame")?;
+            if !data.is_empty() {
+                break data;
+            }
+        };
 
         release_later
             .send(())
             .map_err(|_| "server stopped before later body release")?;
-        assert_eq!(body.collect().await?.to_bytes(), "later");
+        let remaining = body.collect().await?.to_bytes();
+        let mut complete = visible.to_vec();
+        complete.extend_from_slice(&remaining);
+        assert_eq!(complete, b"firstlater");
 
         let (sni, request) = server_task.await??;
         assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
@@ -220,6 +227,32 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+#[test]
+fn rejects_h2_h3_only_settings_before_stream_io() -> TestResult<()> {
+    let mut settings = tls_settings();
+    settings.alpn_protocols = vec![Box::from(&b"h2"[..]), Box::from(&b"h3"[..])];
+
+    let bundled_roots_error = match Http1TlsConnector::new(&settings) {
+        Ok(_) => return Err("h2/h3-only settings built with bundled roots".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        bundled_roots_error,
+        Http1TlsError::MissingHttp1Alpn
+    ));
+
+    let explicit_roots_error =
+        match Http1TlsConnector::new_with_roots(&settings, std::iter::empty::<&[u8]>()) {
+            Ok(_) => return Err("h2/h3-only settings built with explicit roots".into()),
+            Err(error) => error,
+        };
+    assert!(matches!(
+        explicit_roots_error,
+        Http1TlsError::MissingHttp1Alpn
+    ));
+    Ok(())
 }
 
 fn tls_settings() -> TlsSettings {

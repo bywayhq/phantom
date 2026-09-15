@@ -20,16 +20,22 @@ pub struct Http1TlsConnector {
 
 impl Http1TlsConnector {
     /// Builds a connector from validated TLS settings and bundled public roots.
-    pub fn new(settings: &TlsSettings) -> Result<Self, TlsError> {
-        TlsConnector::new(settings).map(|tls| Self { tls })
+    pub fn new(settings: &TlsSettings) -> Result<Self, Http1TlsError> {
+        require_http1_alpn(settings)?;
+        TlsConnector::new(settings)
+            .map(|tls| Self { tls })
+            .map_err(Into::into)
     }
 
     #[cfg(test)]
     fn new_with_roots<'a>(
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
-    ) -> Result<Self, TlsError> {
-        TlsConnector::new_with_roots(settings, roots).map(|tls| Self { tls })
+    ) -> Result<Self, Http1TlsError> {
+        require_http1_alpn(settings)?;
+        TlsConnector::new_with_roots(settings, roots)
+            .map(|tls| Self { tls })
+            .map_err(Into::into)
     }
 
     /// Sends one empty-body HTTP/1.1 GET over a connected byte stream.
@@ -74,7 +80,6 @@ impl Http1TlsConnector {
 
             let response = send_prepared_get(stream, prepared).await?;
             Span::current().record("status", response.status().as_u16());
-            debug!("HTTP/1 response headers received");
             Ok(response)
         }
         .instrument(span)
@@ -95,6 +100,8 @@ pub enum Http1TlsError {
         /// Exact ALPN protocol bytes selected by the peer.
         selected: Box<[u8]>,
     },
+    /// The TLS settings cannot negotiate HTTP/1.1.
+    MissingHttp1Alpn,
 }
 
 impl fmt::Display for Http1TlsError {
@@ -107,6 +114,8 @@ impl fmt::Display for Http1TlsError {
                 "TLS selected {} ALPN, which is unsupported by the HTTP/1 transport",
                 trace_alpn(Some(selected))
             ),
+            Self::MissingHttp1Alpn => formatter
+                .write_str("HTTP/1 TLS settings must include the exact `http/1.1` ALPN protocol"),
         }
     }
 }
@@ -116,7 +125,7 @@ impl StdError for Http1TlsError {
         match self {
             Self::Tls(error) => Some(error),
             Self::Http1(error) => Some(error),
-            Self::UnsupportedAlpn { .. } => None,
+            Self::UnsupportedAlpn { .. } | Self::MissingHttp1Alpn => None,
         }
     }
 }
@@ -131,6 +140,15 @@ impl From<Http1Error> for Http1TlsError {
     fn from(error: Http1Error) -> Self {
         Self::Http1(error)
     }
+}
+
+fn require_http1_alpn(settings: &TlsSettings) -> Result<(), Http1TlsError> {
+    settings
+        .alpn_protocols
+        .iter()
+        .any(|protocol| protocol.as_ref() == b"http/1.1")
+        .then_some(())
+        .ok_or(Http1TlsError::MissingHttp1Alpn)
 }
 
 fn trace_alpn(protocol: Option<&[u8]>) -> &'static str {
