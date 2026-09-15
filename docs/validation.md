@@ -452,3 +452,10 @@ Minimized failures become ordinary regression fixtures. Coverage-guided fuzzing
 uses the same bounded decoders and seeds in scheduled CI; native adapters also
 run under applicable sanitizers. Large slow-reader and soak workloads verify
 memory, flow-control accounting, and task cleanup separately from packet parity.
+
+The first committed response-side cases cover an H1 `100 Continue` followed by
+a final response under one-byte reads, H1 surplus bytes after a declared
+content length, H2 `RST_STREAM`, and H2 `GOAWAY`. These are baseline protocol
+regressions rather than claims about a browser-specific quirk; retained browser
+challenge runs will be added only where their externally observable reaction
+matters to emulation.

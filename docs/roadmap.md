@@ -92,7 +92,7 @@ supplemental observations. Safari HTTP/2 remains deferred until its uncaptured
 wire behavior can be proved without fallback. This phase does not add HTTP/3,
 sessions, SSE, or WebSocket.
 
-## Phase 5: forced HTTP/3 — planned
+## Phase 5: forced HTTP/3 — in progress
 
 Establish one explicitly selected QUIC and HTTP/3 path using Quinn, hyperium
 `h3`, and an isolated `btls` crypto adapter. Carry narrow, default-preserving
