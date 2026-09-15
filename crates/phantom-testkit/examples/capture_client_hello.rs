@@ -72,7 +72,11 @@ fn write_summary(output: &mut impl io::Write, summary: &ClientHelloSummary) -> i
         "supported_groups={}",
         u16_list(summary.supported_groups())
     )?;
-    writeln!(output, "ec_point_formats={:?}", summary.ec_point_formats())?;
+    writeln!(
+        output,
+        "ec_point_formats={}",
+        u8_list(summary.ec_point_formats())
+    )?;
     writeln!(
         output,
         "signature_algorithms={}",
@@ -81,10 +85,10 @@ fn write_summary(output: &mut impl io::Write, summary: &ClientHelloSummary) -> i
     let alpn = summary
         .alpn_protocols()
         .iter()
-        .map(|protocol| String::from_utf8_lossy(protocol))
+        .map(|protocol| hex(protocol))
         .collect::<Vec<_>>()
         .join(",");
-    writeln!(output, "alpn_protocols={alpn}")?;
+    writeln!(output, "alpn_protocols_hex={alpn}")?;
     writeln!(
         output,
         "supported_versions={}",
@@ -94,6 +98,11 @@ fn write_summary(output: &mut impl io::Write, summary: &ClientHelloSummary) -> i
         output,
         "key_share_groups={}",
         u16_list(summary.key_share_groups())
+    )?;
+    writeln!(
+        output,
+        "server_name_hex={}",
+        summary.server_name().map(hex).unwrap_or_default()
     )
 }
 
@@ -101,6 +110,14 @@ fn u16_list(values: &[u16]) -> String {
     values
         .iter()
         .map(|value| format!("{value:#06x}"))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn u8_list(values: &[u8]) -> String {
+    values
+        .iter()
+        .map(|value| format!("{value:#04x}"))
         .collect::<Vec<_>>()
         .join(",")
 }

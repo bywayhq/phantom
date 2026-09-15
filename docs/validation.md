@@ -17,7 +17,7 @@ Compatibility claims must cite the exact browser capture and differential fixtur
 ## Reproducing the Chrome TCP ClientHello fixture
 
 The retained Chrome fixture is
-`crates/phantom-testkit/tests/fixtures/chrome-152.0.7977.83-macos-15.5-client-hello.txt`.
+`fixtures/tls/chrome/152.0.7977.83/macos-15.5/client-hello.txt`.
 It is a reference measurement, not a browser-compatibility claim. The fixture
 contains the complete TLS record in lowercase hexadecimal, the semantic decoder
 output, and the browser, operating system, hostname, listener, and flag metadata.
@@ -39,7 +39,9 @@ cargo run -p phantom-testkit --example capture_client_hello -- 127.0.0.1:9443
 The example accepts only a loopback listener and loopback peer, waits at most 30
 seconds for the connection, gives the ClientHello 10 seconds to complete, and
 limits the capture to 128 KiB and 16 TLS records. It prints one exact record hex
-line followed by an ordered semantic summary.
+line followed by an ordered semantic summary. Byte strings such as ALPN protocol
+identifiers and SNI are lowercase hexadecimal, so every value remains
+unambiguous even when it is not UTF-8 or contains delimiters.
 
 In a second terminal, create an isolated profile and start Chrome with the
 recorded flags:
@@ -71,9 +73,14 @@ by `capture_profile_dir`.
 
 When retaining a new fixture, copy the example output without editing random or
 cryptographic bytes and record the full metadata above. The fixture regression
-test treats only the selected GREASE codepoints as variable in its ordered value
-assertions. It checks ALPN, supported versions, cipher, group, signature, and
-key-share ordering. The raw fixture preserves the exact extension order; this
-single capture does not establish Chrome's extension-permutation behavior, so
-the regression asserts required extension presence rather than a compatibility
-model that the evidence does not yet support.
+strictly parses every key and requires every metadata, record, and semantic
+field. It regenerates the stored semantic summary from the raw record, including
+the controlled SNI hostname.
+
+For ordered vectors, the regression replaces each selected GREASE codepoint with
+one sentinel without deleting it. This preserves the number and position of
+cipher suites, supported versions, groups, signature algorithms, and key shares.
+The raw fixture also preserves the exact extension order; this single capture
+does not establish Chrome's extension-permutation behavior, so the regression
+asserts required extension presence rather than a compatibility model that the
+evidence does not yet support.
