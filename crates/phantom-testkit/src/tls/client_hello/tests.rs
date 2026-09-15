@@ -1,7 +1,7 @@
 use super::{
     ALPN_EXTENSION, ClientHelloDecodeError, ClientHelloSummary, EC_POINT_FORMATS_EXTENSION,
-    KEY_SHARE_EXTENSION, SIGNATURE_ALGORITHMS_EXTENSION, SUPPORTED_GROUPS_EXTENSION,
-    SUPPORTED_VERSIONS_EXTENSION, is_grease,
+    KEY_SHARE_EXTENSION, SERVER_NAME_EXTENSION, SIGNATURE_ALGORITHMS_EXTENSION,
+    SUPPORTED_GROUPS_EXTENSION, SUPPORTED_VERSIONS_EXTENSION, is_grease,
 };
 
 fn extension(extension_type: u16, data: &[u8]) -> Vec<u8> {
@@ -51,6 +51,10 @@ fn decode_body(body: &[u8]) -> Result<ClientHelloSummary, ClientHelloDecodeError
 fn decodes_ordered_fingerprint_fields() -> Result<(), ClientHelloDecodeError> {
     let mut extensions = extension(0x3a3a, &[1, 2, 3]);
     extensions.extend_from_slice(&extension(
+        SERVER_NAME_EXTENSION,
+        b"\x00\x16\x00\x00\x13server.phantom.test",
+    ));
+    extensions.extend_from_slice(&extension(
         SUPPORTED_GROUPS_EXTENSION,
         &[0, 4, 0, 29, 0x2a, 0x2a],
     ));
@@ -76,7 +80,14 @@ fn decodes_ordered_fingerprint_fields() -> Result<(), ClientHelloDecodeError> {
 
     assert_eq!(summary.legacy_version(), 0x0303);
     assert_eq!(summary.cipher_suites(), &[0x1302, 0x0a0a, 0x1301]);
-    assert_eq!(summary.extension_types(), &[0x3a3a, 10, 11, 13, 16, 43, 51]);
+    assert_eq!(
+        summary.extension_types(),
+        &[0x3a3a, 0, 10, 11, 13, 16, 43, 51]
+    );
+    assert_eq!(
+        summary.server_name(),
+        Some(b"server.phantom.test".as_slice())
+    );
     assert_eq!(summary.supported_groups(), &[29, 0x2a2a]);
     assert_eq!(summary.ec_point_formats(), &[0, 2, 1]);
     assert_eq!(summary.signature_algorithms(), &[0x0804, 0x0403]);
@@ -101,6 +112,7 @@ fn accepts_absent_optional_extensions() -> Result<(), ClientHelloDecodeError> {
     let summary = decode_body(&body(&[0x13, 0x01], None))?;
 
     assert!(summary.extension_types().is_empty());
+    assert_eq!(summary.server_name(), None);
     assert!(summary.supported_groups().is_empty());
     assert!(summary.ec_point_formats().is_empty());
     assert!(summary.signature_algorithms().is_empty());
@@ -160,6 +172,7 @@ fn rejects_odd_u16_vector_lengths() {
 #[test]
 fn rejects_malformed_nested_lengths() {
     for (extension_type, data) in [
+        (SERVER_NAME_EXTENSION, vec![0, 4, 0, 0, 2, b'a']),
         (SUPPORTED_GROUPS_EXTENSION, vec![0, 4, 0, 29]),
         (EC_POINT_FORMATS_EXTENSION, vec![2, 0]),
         (SIGNATURE_ALGORITHMS_EXTENSION, vec![0, 4, 8, 4]),
@@ -214,9 +227,44 @@ fn rejects_empty_key_exchange() {
 }
 
 #[test]
+fn rejects_empty_server_name_list_and_value() {
+    for (data, expected) in [
+        (
+            vec![0, 0],
+            ClientHelloDecodeError::LengthOutOfRange {
+                field: "server name list",
+                length: 0,
+                minimum: 1,
+                maximum: u16::MAX as usize,
+            },
+        ),
+        (
+            vec![0, 3, 0, 0, 0],
+            ClientHelloDecodeError::EmptyServerName { name_type: 0 },
+        ),
+    ] {
+        let extensions = extension(SERVER_NAME_EXTENSION, &data);
+        assert_eq!(
+            decode_body(&body(&[0x13, 0x01], Some(&extensions))),
+            Err(expected)
+        );
+    }
+}
+
+#[test]
+fn rejects_duplicate_server_name_types() {
+    let extensions = extension(SERVER_NAME_EXTENSION, &[0, 8, 0, 0, 1, b'a', 0, 0, 1, b'b']);
+
+    assert_eq!(
+        decode_body(&body(&[0x13, 0x01], Some(&extensions))),
+        Err(ClientHelloDecodeError::DuplicateServerNameType { name_type: 0 })
+    );
+}
+
+#[test]
 fn rejects_duplicate_extensions() {
     for (extension_type, data) in [
-        (0, vec![0, 0]),
+        (SERVER_NAME_EXTENSION, vec![0, 4, 0, 0, 1, b'a']),
         (SUPPORTED_GROUPS_EXTENSION, vec![0, 2, 0, 29]),
         (EC_POINT_FORMATS_EXTENSION, vec![1, 0]),
         (SIGNATURE_ALGORITHMS_EXTENSION, vec![0, 2, 8, 4]),
@@ -261,6 +309,7 @@ fn rejects_bytes_after_declared_handshake_body() {
 #[test]
 fn rejects_trailing_bytes_inside_decoded_extensions() {
     let cases = [
+        (SERVER_NAME_EXTENSION, vec![0, 4, 0, 0, 1, b'a', 0]),
         (SUPPORTED_GROUPS_EXTENSION, vec![0, 2, 0, 29, 0]),
         (EC_POINT_FORMATS_EXTENSION, vec![1, 0, 0]),
         (SIGNATURE_ALGORITHMS_EXTENSION, vec![0, 2, 8, 4, 0]),

@@ -5,6 +5,7 @@ use std::{error::Error, fmt};
 const CLIENT_HELLO_HANDSHAKE_TYPE: u8 = 1;
 const RANDOM_LENGTH: usize = 32;
 
+const SERVER_NAME_EXTENSION: u16 = 0;
 const SUPPORTED_GROUPS_EXTENSION: u16 = 10;
 const EC_POINT_FORMATS_EXTENSION: u16 = 11;
 const SIGNATURE_ALGORITHMS_EXTENSION: u16 = 13;
@@ -18,6 +19,7 @@ pub struct ClientHelloSummary {
     legacy_version: u16,
     cipher_suites: Vec<u16>,
     extension_types: Vec<u16>,
+    server_name: Option<Vec<u8>>,
     supported_groups: Vec<u16>,
     ec_point_formats: Vec<u8>,
     signature_algorithms: Vec<u16>,
@@ -79,6 +81,7 @@ impl ClientHelloSummary {
             legacy_version,
             cipher_suites,
             extension_types: Vec::new(),
+            server_name: None,
             supported_groups: Vec::new(),
             ec_point_formats: Vec::new(),
             signature_algorithms: Vec::new(),
@@ -112,6 +115,9 @@ impl ClientHelloSummary {
             summary.extension_types.push(extension_type);
 
             match extension_type {
+                SERVER_NAME_EXTENSION => {
+                    summary.server_name = parse_server_name(extension_data, extension_type)?;
+                }
                 SUPPORTED_GROUPS_EXTENSION => {
                     summary.supported_groups = parse_u16_length_prefixed(
                         extension_data,
@@ -164,6 +170,12 @@ impl ClientHelloSummary {
     #[must_use]
     pub fn extension_types(&self) -> &[u16] {
         &self.extension_types
+    }
+
+    /// Returns the host name from the SNI extension as its exact wire bytes.
+    #[must_use]
+    pub fn server_name(&self) -> Option<&[u8]> {
+        self.server_name.as_deref()
     }
 
     /// Returns supported groups in their exact wire order.
@@ -265,6 +277,16 @@ pub enum ClientHelloDecodeError {
     },
     /// ALPN contained an empty protocol identifier.
     EmptyAlpnProtocol,
+    /// An SNI name contained an empty value.
+    EmptyServerName {
+        /// SNI name type whose value was empty.
+        name_type: u8,
+    },
+    /// An SNI list contained the same name type more than once.
+    DuplicateServerNameType {
+        /// Repeated SNI name type.
+        name_type: u8,
+    },
 }
 
 impl fmt::Display for ClientHelloDecodeError {
@@ -325,6 +347,18 @@ impl fmt::Display for ClientHelloDecodeError {
                 "TLS extension {extension_type} contains {count} trailing bytes"
             ),
             Self::EmptyAlpnProtocol => formatter.write_str("ALPN contains an empty protocol name"),
+            Self::EmptyServerName { name_type } => {
+                write!(
+                    formatter,
+                    "SNI name type {name_type} contains an empty value"
+                )
+            }
+            Self::DuplicateServerNameType { name_type } => {
+                write!(
+                    formatter,
+                    "SNI name type {name_type} appears more than once"
+                )
+            }
         }
     }
 }
@@ -378,6 +412,44 @@ fn parse_ec_point_formats(
     let values = extension.take(length, "EC point formats")?.to_vec();
     require_exhausted(&extension, extension_type)?;
     Ok(values)
+}
+
+fn parse_server_name(
+    data: &[u8],
+    extension_type: u16,
+) -> Result<Option<Vec<u8>>, ClientHelloDecodeError> {
+    let mut extension = Cursor::new(data);
+    let list_length = usize::from(extension.read_u16("server name list")?);
+    if list_length == 0 {
+        return Err(ClientHelloDecodeError::LengthOutOfRange {
+            field: "server name list",
+            length: 0,
+            minimum: 1,
+            maximum: u16::MAX as usize,
+        });
+    }
+    let mut names = Cursor::new(extension.take(list_length, "server name list")?);
+    require_exhausted(&extension, extension_type)?;
+
+    let mut seen_types = [false; 256];
+    let mut host_name = None;
+    while names.remaining() != 0 {
+        let name_type = names.read_u8("server name type")?;
+        if seen_types[usize::from(name_type)] {
+            return Err(ClientHelloDecodeError::DuplicateServerNameType { name_type });
+        }
+        seen_types[usize::from(name_type)] = true;
+
+        let name_length = usize::from(names.read_u16("server name length")?);
+        if name_length == 0 {
+            return Err(ClientHelloDecodeError::EmptyServerName { name_type });
+        }
+        let name = names.take(name_length, "server name")?;
+        if name_type == 0 {
+            host_name = Some(name.to_vec());
+        }
+    }
+    Ok(host_name)
 }
 
 fn parse_u16_values(bytes: &[u8], field: &'static str) -> Result<Vec<u16>, ClientHelloDecodeError> {
