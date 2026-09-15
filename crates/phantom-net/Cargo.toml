@@ -7,19 +7,28 @@ version.workspace = true
 publish = false
 
 [dependencies]
-btls.workspace = true
 brotli = "8.0.4"
 bytes = "1.12.1"
 http = "1.4.0"
 http-body = "1.0.1"
 http-body-util = "0.1.3"
+phantom-profile = { path = "../phantom-profile" }
 tokio = { version = "1.53.1", features = ["rt"] }
-tokio-btls.workspace = true
 tracing = "0.1.41"
+webpki-root-certs = "1.0.9"
 wreq-proto = "=0.2.5"
+
+[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "windows"))'.dependencies]
+btls.workspace = true
+tokio-btls.workspace = true
+
+[target.'cfg(not(any(target_os = "macos", target_os = "ios", target_os = "windows")))'.dependencies]
+btls = { workspace = true, features = ["prefix-symbols"] }
+tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 
 [dev-dependencies]
 phantom-testkit = { path = "../phantom-testkit" }
+rcgen = "=0.14.5"
 tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 
 [lints]

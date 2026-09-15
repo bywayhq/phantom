@@ -1,0 +1,325 @@
+//! Backend-neutral TLS profile settings.
+
+use std::{error::Error, fmt};
+
+/// A TLS protocol version accepted by a transport.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum TlsVersion {
+    /// TLS 1.2.
+    Tls12,
+    /// TLS 1.3.
+    Tls13,
+}
+
+/// A TLS cipher suite in wire preference order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CipherSuite {
+    /// TLS_AES_128_GCM_SHA256.
+    Aes128GcmSha256,
+    /// TLS_AES_256_GCM_SHA384.
+    Aes256GcmSha384,
+    /// TLS_CHACHA20_POLY1305_SHA256.
+    Chacha20Poly1305Sha256,
+    /// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.
+    EcdheEcdsaAes128GcmSha256,
+    /// TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.
+    EcdheRsaAes128GcmSha256,
+    /// TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384.
+    EcdheEcdsaAes256GcmSha384,
+    /// TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
+    EcdheRsaAes256GcmSha384,
+    /// TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256.
+    EcdheEcdsaChacha20Poly1305Sha256,
+    /// TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256.
+    EcdheRsaChacha20Poly1305Sha256,
+    /// TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA.
+    EcdheRsaAes128CbcSha,
+    /// TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA.
+    EcdheRsaAes256CbcSha,
+    /// TLS_RSA_WITH_AES_128_GCM_SHA256.
+    RsaAes128GcmSha256,
+    /// TLS_RSA_WITH_AES_256_GCM_SHA384.
+    RsaAes256GcmSha384,
+    /// TLS_RSA_WITH_AES_128_CBC_SHA.
+    RsaAes128CbcSha,
+    /// TLS_RSA_WITH_AES_256_CBC_SHA.
+    RsaAes256CbcSha,
+}
+
+/// A TLS supported group.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NamedGroup {
+    /// Hybrid X25519 and ML-KEM-768.
+    X25519MlKem768,
+    /// X25519.
+    X25519,
+    /// NIST P-256.
+    Secp256r1,
+    /// NIST P-384.
+    Secp384r1,
+}
+
+/// A TLS signature scheme in wire preference order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SignatureScheme {
+    /// ML-DSA-44.
+    MlDsa44,
+    /// ML-DSA-65.
+    MlDsa65,
+    /// ML-DSA-87.
+    MlDsa87,
+    /// ECDSA P-256 with SHA-256.
+    EcdsaSecp256r1Sha256,
+    /// RSA-PSS with an RSAE key and SHA-256.
+    RsaPssRsaeSha256,
+    /// RSA PKCS#1 v1.5 with SHA-256.
+    RsaPkcs1Sha256,
+    /// ECDSA P-384 with SHA-384.
+    EcdsaSecp384r1Sha384,
+    /// RSA-PSS with an RSAE key and SHA-384.
+    RsaPssRsaeSha384,
+    /// RSA PKCS#1 v1.5 with SHA-384.
+    RsaPkcs1Sha384,
+    /// RSA-PSS with an RSAE key and SHA-512.
+    RsaPssRsaeSha512,
+    /// RSA PKCS#1 v1.5 with SHA-512.
+    RsaPkcs1Sha512,
+}
+
+/// A certificate compression algorithm advertised by the TLS client.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CertificateCompression {
+    /// Brotli certificate compression.
+    Brotli,
+}
+
+/// ALPS configuration for one ALPN protocol.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AlpsSettings {
+    /// ALPN protocol identifier receiving application settings.
+    pub protocol: Box<[u8]>,
+    /// Whether to use the final ALPS extension codepoint.
+    pub use_new_codepoint: bool,
+}
+
+/// Ordered TLS settings independent of the concrete TLS backend.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TlsSettings {
+    /// Smallest accepted TLS version.
+    pub min_version: TlsVersion,
+    /// Largest accepted TLS version.
+    pub max_version: TlsVersion,
+    /// Cipher suites in preference order.
+    pub cipher_suites: Vec<CipherSuite>,
+    /// Supported groups in preference order.
+    pub groups: Vec<NamedGroup>,
+    /// Initial TLS 1.3 key shares in wire order.
+    pub key_shares: Vec<NamedGroup>,
+    /// Signature schemes in preference order.
+    pub signature_schemes: Vec<SignatureScheme>,
+    /// ALPN protocol identifiers in preference order.
+    pub alpn_protocols: Vec<Box<[u8]>>,
+    /// Optional ALPS advertisement.
+    pub alps: Option<AlpsSettings>,
+    /// Certificate compression algorithms in preference order.
+    pub certificate_compression: Vec<CertificateCompression>,
+    /// Whether ordinary TLS GREASE is enabled.
+    pub grease: bool,
+    /// Whether signature-algorithm GREASE is enabled.
+    pub grease_signature_algorithms: bool,
+    /// Whether eligible ClientHello extensions are randomized.
+    pub permute_extensions: bool,
+    /// Whether to emit a GREASE ECH extension without an ECH configuration.
+    pub ech_grease: bool,
+    /// Whether to request an OCSP staple.
+    pub request_ocsp_staple: bool,
+    /// Whether to request signed certificate timestamps.
+    pub request_signed_certificate_timestamps: bool,
+    /// Whether the client should be treated as having AES hardware.
+    pub aes_hardware: bool,
+}
+
+impl TlsSettings {
+    /// Validates settings that are independent of a particular TLS backend.
+    pub fn validate(&self) -> Result<(), InvalidTlsSettings> {
+        if self.min_version > self.max_version {
+            return Err(InvalidTlsSettings::new(
+                "version range",
+                "minimum TLS version exceeds maximum TLS version",
+            ));
+        }
+        if self.cipher_suites.is_empty() {
+            return Err(InvalidTlsSettings::new(
+                "cipher_suites",
+                "at least one cipher suite is required",
+            ));
+        }
+        if self.groups.is_empty() {
+            return Err(InvalidTlsSettings::new(
+                "groups",
+                "at least one supported group is required",
+            ));
+        }
+        if self.max_version >= TlsVersion::Tls13 {
+            if self.key_shares.is_empty() {
+                return Err(InvalidTlsSettings::new(
+                    "key_shares",
+                    "at least one initial key share is required when TLS 1.3 is enabled",
+                ));
+            }
+            if let Some(group) = self
+                .key_shares
+                .iter()
+                .find(|group| !self.groups.contains(group))
+            {
+                return Err(InvalidTlsSettings::new(
+                    "key_shares",
+                    format!("key share {group:?} is absent from supported groups"),
+                ));
+            }
+        }
+        if self.signature_schemes.is_empty() {
+            return Err(InvalidTlsSettings::new(
+                "signature_schemes",
+                "at least one signature scheme is required",
+            ));
+        }
+        validate_alpn(&self.alpn_protocols)?;
+
+        if let Some(alps) = &self.alps {
+            if self.max_version < TlsVersion::Tls13 {
+                return Err(InvalidTlsSettings::new(
+                    "alps",
+                    "ALPS requires TLS 1.3 to be enabled",
+                ));
+            }
+            if !self
+                .alpn_protocols
+                .iter()
+                .any(|protocol| protocol.as_ref() == alps.protocol.as_ref())
+            {
+                return Err(InvalidTlsSettings::new(
+                    "alps.protocol",
+                    "ALPS protocol is absent from the ALPN protocol list",
+                ));
+            }
+        }
+
+        if self.certificate_compression.len() > 1 {
+            return Err(InvalidTlsSettings::new(
+                "certificate_compression",
+                "Brotli certificate compression must not repeat",
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+/// Error returned when TLS profile settings are internally inconsistent.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvalidTlsSettings {
+    field: &'static str,
+    message: Box<str>,
+}
+
+impl InvalidTlsSettings {
+    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+        Self {
+            field,
+            message: message.into(),
+        }
+    }
+
+    /// Returns the invalid setting's field name.
+    #[must_use]
+    pub fn field(&self) -> &'static str {
+        self.field
+    }
+}
+
+impl fmt::Display for InvalidTlsSettings {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid TLS {}: {}", self.field, self.message)
+    }
+}
+
+impl Error for InvalidTlsSettings {}
+
+fn validate_alpn(protocols: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings> {
+    if protocols.is_empty() {
+        return Err(InvalidTlsSettings::new(
+            "alpn_protocols",
+            "at least one ALPN protocol is required",
+        ));
+    }
+
+    let encoded_length = protocols.iter().try_fold(0usize, |length, protocol| {
+        if protocol.is_empty() || protocol.len() > u8::MAX as usize {
+            return Err(InvalidTlsSettings::new(
+                "alpn_protocols",
+                "each ALPN protocol must contain 1..=255 bytes",
+            ));
+        }
+        length
+            .checked_add(1 + protocol.len())
+            .ok_or_else(|| InvalidTlsSettings::new("alpn_protocols", "encoded list is too large"))
+    })?;
+    if encoded_length > u16::MAX as usize {
+        return Err(InvalidTlsSettings::new(
+            "alpn_protocols",
+            "encoded ALPN protocol list exceeds 65535 bytes",
+        ));
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn minimal_settings() -> TlsSettings {
+        TlsSettings {
+            min_version: TlsVersion::Tls12,
+            max_version: TlsVersion::Tls13,
+            cipher_suites: vec![CipherSuite::Aes128GcmSha256],
+            groups: vec![NamedGroup::X25519],
+            key_shares: vec![NamedGroup::X25519],
+            signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
+            alpn_protocols: vec![Box::from(&b"http/1.1"[..])],
+            alps: None,
+            certificate_compression: Vec::new(),
+            grease: false,
+            grease_signature_algorithms: false,
+            permute_extensions: false,
+            ech_grease: false,
+            request_ocsp_staple: false,
+            request_signed_certificate_timestamps: false,
+            aes_hardware: true,
+        }
+    }
+
+    #[test]
+    fn tls_12_does_not_require_key_shares() -> Result<(), Box<dyn Error>> {
+        let mut settings = minimal_settings();
+        settings.max_version = TlsVersion::Tls12;
+        settings.key_shares.clear();
+
+        settings.validate()?;
+        Ok(())
+    }
+
+    #[test]
+    fn tls_12_rejects_alps() {
+        let mut settings = minimal_settings();
+        settings.max_version = TlsVersion::Tls12;
+        settings.alps = Some(AlpsSettings {
+            protocol: Box::from(&b"http/1.1"[..]),
+            use_new_codepoint: true,
+        });
+
+        let error = settings.validate().err();
+        assert_eq!(error.as_ref().map(InvalidTlsSettings::field), Some("alps"));
+    }
+}

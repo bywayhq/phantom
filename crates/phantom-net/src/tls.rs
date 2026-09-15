@@ -18,294 +18,130 @@ use btls::{
         CertificateCompressor, KeyShare, SslConnector as BoringConnector, SslMethod, SslOptions,
         SslVerifyMode, SslVersion,
     },
+    x509::{X509, store::X509StoreBuilder},
+};
+use phantom_profile::{
+    AlpsSettings, CertificateCompression, CipherSuite, InvalidTlsSettings, NamedGroup,
+    SignatureScheme, TlsSettings, TlsVersion,
 };
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
 use tracing::{Instrument, debug, debug_span};
 
-/// A TLS protocol version accepted by the connector.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) enum TlsVersion {
-    /// TLS 1.2.
-    Tls12,
-    /// TLS 1.3.
-    Tls13,
-}
-
-impl TlsVersion {
-    fn boring(self) -> SslVersion {
-        match self {
-            Self::Tls12 => SslVersion::TLS1_2,
-            Self::Tls13 => SslVersion::TLS1_3,
-        }
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
+fn boring_version(version: TlsVersion) -> SslVersion {
+    match version {
+        TlsVersion::Tls12 => SslVersion::TLS1_2,
+        TlsVersion::Tls13 => SslVersion::TLS1_3,
     }
 }
 
-/// A TLS cipher suite in wire preference order.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CipherSuite {
-    /// TLS_AES_128_GCM_SHA256.
-    Aes128GcmSha256,
-    /// TLS_AES_256_GCM_SHA384.
-    Aes256GcmSha384,
-    /// TLS_CHACHA20_POLY1305_SHA256.
-    Chacha20Poly1305Sha256,
-    /// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.
-    EcdheEcdsaAes128GcmSha256,
-    /// TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.
-    EcdheRsaAes128GcmSha256,
-    /// TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384.
-    EcdheEcdsaAes256GcmSha384,
-    /// TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
-    EcdheRsaAes256GcmSha384,
-    /// TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256.
-    EcdheEcdsaChacha20Poly1305Sha256,
-    /// TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256.
-    EcdheRsaChacha20Poly1305Sha256,
-    /// TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA.
-    EcdheRsaAes128CbcSha,
-    /// TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA.
-    EcdheRsaAes256CbcSha,
-    /// TLS_RSA_WITH_AES_128_GCM_SHA256.
-    RsaAes128GcmSha256,
-    /// TLS_RSA_WITH_AES_256_GCM_SHA384.
-    RsaAes256GcmSha384,
-    /// TLS_RSA_WITH_AES_128_CBC_SHA.
-    RsaAes128CbcSha,
-    /// TLS_RSA_WITH_AES_256_CBC_SHA.
-    RsaAes256CbcSha,
-}
-
-impl CipherSuite {
-    fn boring_name(self) -> &'static str {
-        match self {
-            Self::Aes128GcmSha256 => "TLS_AES_128_GCM_SHA256",
-            Self::Aes256GcmSha384 => "TLS_AES_256_GCM_SHA384",
-            Self::Chacha20Poly1305Sha256 => "TLS_CHACHA20_POLY1305_SHA256",
-            Self::EcdheEcdsaAes128GcmSha256 => "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-            Self::EcdheRsaAes128GcmSha256 => "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-            Self::EcdheEcdsaAes256GcmSha384 => "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-            Self::EcdheRsaAes256GcmSha384 => "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-            Self::EcdheEcdsaChacha20Poly1305Sha256 => {
-                "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256"
-            }
-            Self::EcdheRsaChacha20Poly1305Sha256 => "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
-            Self::EcdheRsaAes128CbcSha => "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-            Self::EcdheRsaAes256CbcSha => "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-            Self::RsaAes128GcmSha256 => "TLS_RSA_WITH_AES_128_GCM_SHA256",
-            Self::RsaAes256GcmSha384 => "TLS_RSA_WITH_AES_256_GCM_SHA384",
-            Self::RsaAes128CbcSha => "TLS_RSA_WITH_AES_128_CBC_SHA",
-            Self::RsaAes256CbcSha => "TLS_RSA_WITH_AES_256_CBC_SHA",
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
+fn cipher_name(cipher: CipherSuite) -> &'static str {
+    match cipher {
+        CipherSuite::Aes128GcmSha256 => "TLS_AES_128_GCM_SHA256",
+        CipherSuite::Aes256GcmSha384 => "TLS_AES_256_GCM_SHA384",
+        CipherSuite::Chacha20Poly1305Sha256 => "TLS_CHACHA20_POLY1305_SHA256",
+        CipherSuite::EcdheEcdsaAes128GcmSha256 => "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+        CipherSuite::EcdheRsaAes128GcmSha256 => "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        CipherSuite::EcdheEcdsaAes256GcmSha384 => "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+        CipherSuite::EcdheRsaAes256GcmSha384 => "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        CipherSuite::EcdheEcdsaChacha20Poly1305Sha256 => {
+            "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256"
         }
+        CipherSuite::EcdheRsaChacha20Poly1305Sha256 => {
+            "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+        }
+        CipherSuite::EcdheRsaAes128CbcSha => "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+        CipherSuite::EcdheRsaAes256CbcSha => "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+        CipherSuite::RsaAes128GcmSha256 => "TLS_RSA_WITH_AES_128_GCM_SHA256",
+        CipherSuite::RsaAes256GcmSha384 => "TLS_RSA_WITH_AES_256_GCM_SHA384",
+        CipherSuite::RsaAes128CbcSha => "TLS_RSA_WITH_AES_128_CBC_SHA",
+        CipherSuite::RsaAes256CbcSha => "TLS_RSA_WITH_AES_256_CBC_SHA",
     }
 }
 
-/// A TLS supported group.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum NamedGroup {
-    /// Hybrid X25519 and ML-KEM-768.
-    X25519MlKem768,
-    /// X25519.
-    X25519,
-    /// NIST P-256.
-    Secp256r1,
-    /// NIST P-384.
-    Secp384r1,
-}
-
-impl NamedGroup {
-    fn boring_name(self) -> &'static str {
-        match self {
-            Self::X25519MlKem768 => "X25519MLKEM768",
-            Self::X25519 => "X25519",
-            Self::Secp256r1 => "P-256",
-            Self::Secp384r1 => "P-384",
-        }
-    }
-
-    fn boring_key_share(self) -> KeyShare {
-        match self {
-            Self::X25519MlKem768 => KeyShare::X25519_MLKEM768,
-            Self::X25519 => KeyShare::X25519,
-            Self::Secp256r1 => KeyShare::P256,
-            Self::Secp384r1 => KeyShare::P384,
-        }
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
+fn group_name(group: NamedGroup) -> &'static str {
+    match group {
+        NamedGroup::X25519MlKem768 => "X25519MLKEM768",
+        NamedGroup::X25519 => "X25519",
+        NamedGroup::Secp256r1 => "P-256",
+        NamedGroup::Secp384r1 => "P-384",
     }
 }
 
-/// A TLS signature scheme in wire preference order.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum SignatureScheme {
-    /// ML-DSA-44.
-    MlDsa44,
-    /// ML-DSA-65.
-    MlDsa65,
-    /// ML-DSA-87.
-    MlDsa87,
-    /// ECDSA P-256 with SHA-256.
-    EcdsaSecp256r1Sha256,
-    /// RSA-PSS with an RSAE key and SHA-256.
-    RsaPssRsaeSha256,
-    /// RSA PKCS#1 v1.5 with SHA-256.
-    RsaPkcs1Sha256,
-    /// ECDSA P-384 with SHA-384.
-    EcdsaSecp384r1Sha384,
-    /// RSA-PSS with an RSAE key and SHA-384.
-    RsaPssRsaeSha384,
-    /// RSA PKCS#1 v1.5 with SHA-384.
-    RsaPkcs1Sha384,
-    /// RSA-PSS with an RSAE key and SHA-512.
-    RsaPssRsaeSha512,
-    /// RSA PKCS#1 v1.5 with SHA-512.
-    RsaPkcs1Sha512,
-}
-
-impl SignatureScheme {
-    fn boring_name(self) -> &'static str {
-        match self {
-            Self::MlDsa44 => "mldsa44",
-            Self::MlDsa65 => "mldsa65",
-            Self::MlDsa87 => "mldsa87",
-            Self::EcdsaSecp256r1Sha256 => "ecdsa_secp256r1_sha256",
-            Self::RsaPssRsaeSha256 => "rsa_pss_rsae_sha256",
-            Self::RsaPkcs1Sha256 => "rsa_pkcs1_sha256",
-            Self::EcdsaSecp384r1Sha384 => "ecdsa_secp384r1_sha384",
-            Self::RsaPssRsaeSha384 => "rsa_pss_rsae_sha384",
-            Self::RsaPkcs1Sha384 => "rsa_pkcs1_sha384",
-            Self::RsaPssRsaeSha512 => "rsa_pss_rsae_sha512",
-            Self::RsaPkcs1Sha512 => "rsa_pkcs1_sha512",
-        }
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
+fn boring_key_share(group: NamedGroup) -> KeyShare {
+    match group {
+        NamedGroup::X25519MlKem768 => KeyShare::X25519_MLKEM768,
+        NamedGroup::X25519 => KeyShare::X25519,
+        NamedGroup::Secp256r1 => KeyShare::P256,
+        NamedGroup::Secp384r1 => KeyShare::P384,
     }
 }
 
-/// A certificate compression algorithm advertised by the TLS client.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CertificateCompression {
-    /// Brotli certificate compression.
-    Brotli,
-}
-
-/// ALPS configuration for one ALPN protocol.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct AlpsSettings {
-    /// ALPN protocol identifier receiving application settings.
-    pub(crate) protocol: Box<[u8]>,
-    /// Whether to use the final ALPS extension codepoint.
-    pub(crate) use_new_codepoint: bool,
-}
-
-/// Ordered TLS settings independent of the concrete TLS backend.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct TlsSettings {
-    /// Smallest accepted TLS version.
-    pub(crate) min_version: TlsVersion,
-    /// Largest accepted TLS version.
-    pub(crate) max_version: TlsVersion,
-    /// Cipher suites in preference order.
-    pub(crate) cipher_suites: Vec<CipherSuite>,
-    /// Supported groups in preference order.
-    pub(crate) groups: Vec<NamedGroup>,
-    /// Initial key shares in wire order.
-    pub(crate) key_shares: Vec<NamedGroup>,
-    /// Signature schemes in preference order.
-    pub(crate) signature_schemes: Vec<SignatureScheme>,
-    /// ALPN protocol identifiers in preference order.
-    pub(crate) alpn_protocols: Vec<Box<[u8]>>,
-    /// Optional ALPS advertisement.
-    pub(crate) alps: Option<AlpsSettings>,
-    /// Certificate compression algorithms in preference order.
-    pub(crate) certificate_compression: Vec<CertificateCompression>,
-    /// Whether ordinary TLS GREASE is enabled.
-    pub(crate) grease: bool,
-    /// Whether signature-algorithm GREASE is enabled.
-    pub(crate) grease_signature_algorithms: bool,
-    /// Whether eligible ClientHello extensions are randomized.
-    pub(crate) permute_extensions: bool,
-    /// Whether to emit a GREASE ECH extension without an ECH configuration.
-    pub(crate) ech_grease: bool,
-    /// Whether to request an OCSP staple.
-    pub(crate) request_ocsp_staple: bool,
-    /// Whether to request signed certificate timestamps.
-    pub(crate) request_signed_certificate_timestamps: bool,
-    /// Whether the client should be treated as having AES hardware.
-    pub(crate) aes_hardware: bool,
-}
-
-impl TlsSettings {
-    fn validate(&self) -> Result<(), TlsError> {
-        if self.min_version > self.max_version {
-            return Err(TlsError::configuration(
-                "version range",
-                "minimum TLS version exceeds maximum TLS version",
-            ));
-        }
-        if self.cipher_suites.is_empty() {
-            return Err(TlsError::configuration(
-                "cipher_suites",
-                "at least one cipher suite is required",
-            ));
-        }
-        if self.groups.is_empty() {
-            return Err(TlsError::configuration(
-                "groups",
-                "at least one supported group is required",
-            ));
-        }
-        if self.key_shares.is_empty() {
-            return Err(TlsError::configuration(
-                "key_shares",
-                "at least one initial key share is required",
-            ));
-        }
-        if let Some(group) = self
-            .key_shares
-            .iter()
-            .find(|group| !self.groups.contains(group))
-        {
-            return Err(TlsError::configuration(
-                "key_shares",
-                format!("key share {group:?} is absent from supported groups"),
-            ));
-        }
-        if self.signature_schemes.is_empty() {
-            return Err(TlsError::configuration(
-                "signature_schemes",
-                "at least one signature scheme is required",
-            ));
-        }
-        encode_alpn(&self.alpn_protocols)?;
-
-        if let Some(alps) = &self.alps {
-            if !self
-                .alpn_protocols
-                .iter()
-                .any(|protocol| protocol.as_ref() == alps.protocol.as_ref())
-            {
-                return Err(TlsError::configuration(
-                    "alps.protocol",
-                    "ALPS protocol is absent from the ALPN protocol list",
-                ));
-            }
-        }
-
-        if self.certificate_compression.len() > 1 {
-            return Err(TlsError::configuration(
-                "certificate_compression",
-                "Brotli certificate compression must not repeat",
-            ));
-        }
-
-        Ok(())
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
+fn signature_name(scheme: SignatureScheme) -> &'static str {
+    match scheme {
+        SignatureScheme::MlDsa44 => "mldsa44",
+        SignatureScheme::MlDsa65 => "mldsa65",
+        SignatureScheme::MlDsa87 => "mldsa87",
+        SignatureScheme::EcdsaSecp256r1Sha256 => "ecdsa_secp256r1_sha256",
+        SignatureScheme::RsaPssRsaeSha256 => "rsa_pss_rsae_sha256",
+        SignatureScheme::RsaPkcs1Sha256 => "rsa_pkcs1_sha256",
+        SignatureScheme::EcdsaSecp384r1Sha384 => "ecdsa_secp384r1_sha384",
+        SignatureScheme::RsaPssRsaeSha384 => "rsa_pss_rsae_sha384",
+        SignatureScheme::RsaPkcs1Sha384 => "rsa_pkcs1_sha384",
+        SignatureScheme::RsaPssRsaeSha512 => "rsa_pss_rsae_sha512",
+        SignatureScheme::RsaPkcs1Sha512 => "rsa_pkcs1_sha512",
     }
 }
 
 /// A reusable TLS connector with a validated immutable configuration.
 #[derive(Clone)]
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 pub(crate) struct TlsConnector {
     backend: BoringConnector,
     alpn_wire: Box<[u8]>,
     alps: Option<AlpsSettings>,
-    key_shares: Box<[NamedGroup]>,
+    tls13_key_shares: Option<Box<[NamedGroup]>>,
     ech_grease: bool,
 }
 
@@ -315,16 +151,37 @@ impl fmt::Debug for TlsConnector {
             .debug_struct("TlsConnector")
             .field("alpn_protocol_count", &count_alpn(&self.alpn_wire))
             .field("alps", &self.alps)
-            .field("key_shares", &self.key_shares)
+            .field("tls13_key_shares", &self.tls13_key_shares)
             .field("ech_grease", &self.ech_grease)
             .finish_non_exhaustive()
     }
 }
 
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 impl TlsConnector {
     /// Builds a connector, rejecting invalid or unsupported settings immediately.
     pub(crate) fn new(settings: &TlsSettings) -> Result<Self, TlsError> {
-        settings.validate()?;
+        Self::new_with_roots(
+            settings,
+            webpki_root_certs::TLS_SERVER_ROOT_CERTS
+                .iter()
+                .map(AsRef::as_ref),
+        )
+    }
+
+    fn new_with_roots<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+    ) -> Result<Self, TlsError> {
+        settings
+            .validate()
+            .map_err(TlsError::invalid_configuration)?;
 
         let span = debug_span!(
             "tls.connector.build",
@@ -340,14 +197,25 @@ impl TlsConnector {
         let _entered = span.enter();
         debug!("building TLS connector");
 
-        let mut builder = BoringConnector::builder(SslMethod::tls())
-            .map_err(|error| TlsError::backend("trust store", error))?;
+        let mut root_store =
+            X509StoreBuilder::new().map_err(|error| TlsError::backend("trust store", error))?;
+        for (index, der) in roots.into_iter().enumerate() {
+            let certificate =
+                X509::from_der(der).map_err(|error| TlsError::root_certificate(index, error))?;
+            root_store
+                .add_cert(certificate)
+                .map_err(|error| TlsError::root_certificate(index, error))?;
+        }
+
+        let mut builder = BoringConnector::bare_builder(SslMethod::tls())
+            .map_err(|error| TlsError::backend("connector", error))?;
+        builder.set_cert_store_builder(root_store);
         builder.set_verify(SslVerifyMode::PEER);
         builder
-            .set_min_proto_version(Some(settings.min_version.boring()))
+            .set_min_proto_version(Some(boring_version(settings.min_version)))
             .map_err(|error| TlsError::backend("min_version", error))?;
         builder
-            .set_max_proto_version(Some(settings.max_version.boring()))
+            .set_max_proto_version(Some(boring_version(settings.max_version)))
             .map_err(|error| TlsError::backend("max_version", error))?;
 
         builder.set_grease_enabled(settings.grease);
@@ -363,18 +231,17 @@ impl TlsConnector {
             builder.enable_signed_cert_timestamps();
         }
 
-        let groups = join_names(&settings.groups, NamedGroup::boring_name);
+        let groups = join_names(&settings.groups, group_name);
         builder
             .set_curves_list(&groups)
             .map_err(|error| TlsError::backend("groups", error))?;
 
-        let signature_schemes =
-            join_names(&settings.signature_schemes, SignatureScheme::boring_name);
+        let signature_schemes = join_names(&settings.signature_schemes, signature_name);
         builder
             .set_sigalgs_list(&signature_schemes)
             .map_err(|error| TlsError::backend("signature_schemes", error))?;
 
-        let cipher_suites = join_names(&settings.cipher_suites, CipherSuite::boring_name);
+        let cipher_suites = join_names(&settings.cipher_suites, cipher_name);
         builder.set_preserve_tls13_cipher_list(true);
         builder
             .set_cipher_list(&cipher_suites)
@@ -395,7 +262,8 @@ impl TlsConnector {
             backend: builder.build(),
             alpn_wire,
             alps: settings.alps.clone(),
-            key_shares: settings.key_shares.clone().into_boxed_slice(),
+            tls13_key_shares: (settings.max_version >= TlsVersion::Tls13)
+                .then(|| settings.key_shares.clone().into_boxed_slice()),
             ech_grease: settings.ech_grease,
         })
     }
@@ -405,14 +273,12 @@ impl TlsConnector {
         &self,
         server_name: &str,
         stream: S,
-        required_alpn: &[u8],
     ) -> Result<TlsStream<S>, TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
         let span = debug_span!(
             "tls.handshake",
-            server_name = server_name,
             alpn_protocol_count = count_alpn(&self.alpn_wire),
         );
         async {
@@ -436,15 +302,16 @@ impl TlsConnector {
                 configuration.set_alps_use_new_codepoint(alps.use_new_codepoint);
             }
 
-            let key_shares = self
-                .key_shares
-                .iter()
-                .copied()
-                .map(NamedGroup::boring_key_share)
-                .collect::<Vec<_>>();
-            configuration
-                .set_client_key_shares(&key_shares)
-                .map_err(|error| TlsError::backend("key_shares", error))?;
+            if let Some(key_shares) = &self.tls13_key_shares {
+                let key_shares = key_shares
+                    .iter()
+                    .copied()
+                    .map(boring_key_share)
+                    .collect::<Vec<_>>();
+                configuration
+                    .set_client_key_shares(&key_shares)
+                    .map_err(|error| TlsError::backend("key_shares", error))?;
+            }
 
             let ssl = configuration
                 .into_ssl(server_name)
@@ -457,9 +324,6 @@ impl TlsConnector {
             })?;
 
             let negotiated_alpn = stream.ssl().selected_alpn_protocol().map(Box::from);
-            ensure_alpn(negotiated_alpn.as_deref(), required_alpn).inspect_err(|_| {
-                debug!("TLS handshake negotiated an unexpected ALPN protocol");
-            })?;
             debug!(
                 negotiated_alpn = negotiated_alpn
                     .as_deref()
@@ -478,9 +342,30 @@ impl TlsConnector {
 }
 
 /// A connected TLS stream that hides its BoringSSL representation.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 pub(crate) struct TlsStream<S> {
     inner: BoringStream<S>,
     negotiated_alpn: Option<Box<[u8]>>,
+}
+
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
+impl<S> TlsStream<S> {
+    /// Returns the ALPN protocol selected by the server, if any.
+    pub(crate) fn negotiated_alpn(&self) -> Option<&[u8]> {
+        self.negotiated_alpn.as_deref()
+    }
 }
 
 impl<S> fmt::Debug for TlsStream<S> {
@@ -523,6 +408,18 @@ where
         Pin::new(&mut self.inner).poll_write(context, buffer)
     }
 
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffers: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write_vectored(context, buffers)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.inner.is_write_vectored()
+    }
+
     fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.inner).poll_flush(context)
     }
@@ -534,6 +431,13 @@ where
 
 /// Category of a TLS connection failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 pub(crate) enum TlsErrorKind {
     /// Settings were internally inconsistent or incomplete.
     InvalidConfiguration,
@@ -541,12 +445,17 @@ pub(crate) enum TlsErrorKind {
     BackendConfiguration,
     /// The TLS handshake failed.
     Handshake,
-    /// The server selected a different application protocol.
-    AlpnMismatch,
 }
 
 /// Error returned while constructing or using the TLS connector.
 #[derive(Debug)]
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 pub(crate) struct TlsError {
     kind: TlsErrorKind,
     field: Option<&'static str>,
@@ -554,7 +463,23 @@ pub(crate) struct TlsError {
     source: Option<Box<dyn StdError + Send + Sync>>,
 }
 
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 impl TlsError {
+    fn invalid_configuration(source: InvalidTlsSettings) -> Self {
+        Self {
+            kind: TlsErrorKind::InvalidConfiguration,
+            field: None,
+            message: source.to_string().into(),
+            source: Some(Box::new(source)),
+        }
+    }
+
     fn configuration(field: &'static str, message: impl Into<Box<str>>) -> Self {
         Self {
             kind: TlsErrorKind::InvalidConfiguration,
@@ -573,23 +498,21 @@ impl TlsError {
         }
     }
 
+    fn root_certificate(index: usize, source: ErrorStack) -> Self {
+        Self {
+            kind: TlsErrorKind::BackendConfiguration,
+            field: Some("trust store"),
+            message: format!("root certificate at index {index} is invalid").into(),
+            source: Some(Box::new(source)),
+        }
+    }
+
     fn handshake(source: btls::ssl::Error) -> Self {
         Self {
             kind: TlsErrorKind::Handshake,
             field: None,
             message: "TLS handshake failed".into(),
             source: Some(Box::new(source)),
-        }
-    }
-
-    fn alpn_mismatch(required: &[u8], negotiated: Option<&[u8]>) -> Self {
-        let required = display_alpn(required);
-        let negotiated = negotiated.map_or_else(|| "none".to_owned(), display_alpn);
-        Self {
-            kind: TlsErrorKind::AlpnMismatch,
-            field: Some("alpn_protocols"),
-            message: format!("required ALPN {required}, but server negotiated {negotiated}").into(),
-            source: None,
         }
     }
 
@@ -618,6 +541,13 @@ impl StdError for TlsError {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 struct BrotliCertificateCompression;
 
 impl CertificateCompressor for BrotliCertificateCompression {
@@ -634,6 +564,13 @@ impl CertificateCompressor for BrotliCertificateCompression {
     }
 }
 
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 fn join_names<T>(values: &[T], name: impl Fn(T) -> &'static str) -> String
 where
     T: Copy,
@@ -646,6 +583,13 @@ where
         .join(":")
 }
 
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 fn encode_alpn(protocols: &[Box<[u8]>]) -> Result<Box<[u8]>, TlsError> {
     if protocols.is_empty() {
         return Err(TlsError::configuration(
@@ -680,6 +624,13 @@ fn encode_alpn(protocols: &[Box<[u8]>]) -> Result<Box<[u8]>, TlsError> {
     Ok(encoded.into_boxed_slice())
 }
 
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 fn count_alpn(mut encoded: &[u8]) -> usize {
     let mut count = 0;
     while let Some((&length, rest)) = encoded.split_first() {
@@ -689,6 +640,13 @@ fn count_alpn(mut encoded: &[u8]) -> usize {
     count
 }
 
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "used by the pending TLS and HTTP/1 composition slice"
+    )
+)]
 fn recognized_alpn_name(protocol: &[u8]) -> Option<&'static str> {
     match protocol {
         b"http/1.1" => Some("http/1.1"),
@@ -698,211 +656,5 @@ fn recognized_alpn_name(protocol: &[u8]) -> Option<&'static str> {
     }
 }
 
-fn display_alpn(protocol: &[u8]) -> String {
-    recognized_alpn_name(protocol)
-        .map(str::to_owned)
-        .unwrap_or_else(|| {
-            format!(
-                "0x{}",
-                protocol
-                    .iter()
-                    .map(|b| format!("{b:02x}"))
-                    .collect::<String>()
-            )
-        })
-}
-
-fn ensure_alpn(negotiated: Option<&[u8]>, required: &[u8]) -> Result<(), TlsError> {
-    if negotiated == Some(required) {
-        Ok(())
-    } else {
-        Err(TlsError::alpn_mismatch(required, negotiated))
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use std::{collections::BTreeSet, error::Error, time::Duration};
-
-    use phantom_testkit::tls::{CaptureLimits, capture_client_hello, is_grease};
-    use tokio::{net::TcpListener, time::Instant};
-
-    use super::*;
-
-    const TEST_TIMEOUT: Duration = Duration::from_secs(5);
-
-    fn chromium_150_windows() -> TlsSettings {
-        TlsSettings {
-            min_version: TlsVersion::Tls12,
-            max_version: TlsVersion::Tls13,
-            cipher_suites: vec![
-                CipherSuite::Aes128GcmSha256,
-                CipherSuite::Aes256GcmSha384,
-                CipherSuite::Chacha20Poly1305Sha256,
-                CipherSuite::EcdheEcdsaAes128GcmSha256,
-                CipherSuite::EcdheRsaAes128GcmSha256,
-                CipherSuite::EcdheEcdsaAes256GcmSha384,
-                CipherSuite::EcdheRsaAes256GcmSha384,
-                CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
-                CipherSuite::EcdheRsaChacha20Poly1305Sha256,
-                CipherSuite::EcdheRsaAes128CbcSha,
-                CipherSuite::EcdheRsaAes256CbcSha,
-                CipherSuite::RsaAes128GcmSha256,
-                CipherSuite::RsaAes256GcmSha384,
-                CipherSuite::RsaAes128CbcSha,
-                CipherSuite::RsaAes256CbcSha,
-            ],
-            groups: vec![
-                NamedGroup::X25519MlKem768,
-                NamedGroup::X25519,
-                NamedGroup::Secp256r1,
-                NamedGroup::Secp384r1,
-            ],
-            key_shares: vec![NamedGroup::X25519MlKem768, NamedGroup::X25519],
-            signature_schemes: vec![
-                SignatureScheme::MlDsa44,
-                SignatureScheme::MlDsa65,
-                SignatureScheme::MlDsa87,
-                SignatureScheme::EcdsaSecp256r1Sha256,
-                SignatureScheme::RsaPssRsaeSha256,
-                SignatureScheme::RsaPkcs1Sha256,
-                SignatureScheme::EcdsaSecp384r1Sha384,
-                SignatureScheme::RsaPssRsaeSha384,
-                SignatureScheme::RsaPkcs1Sha384,
-                SignatureScheme::RsaPssRsaeSha512,
-                SignatureScheme::RsaPkcs1Sha512,
-            ],
-            alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
-            alps: Some(AlpsSettings {
-                protocol: Box::from(&b"h2"[..]),
-                use_new_codepoint: true,
-            }),
-            certificate_compression: vec![CertificateCompression::Brotli],
-            grease: true,
-            grease_signature_algorithms: false,
-            permute_extensions: true,
-            ech_grease: true,
-            request_ocsp_staple: true,
-            request_signed_certificate_timestamps: true,
-            aes_hardware: true,
-        }
-    }
-
-    #[tokio::test]
-    async fn emits_the_configured_client_hello() -> Result<(), Box<dyn Error>> {
-        let listener = TcpListener::bind("127.0.0.1:0").await?;
-        let address = listener.local_addr()?;
-        let capture_task = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await?;
-            capture_client_hello(
-                &mut stream,
-                Instant::now() + TEST_TIMEOUT,
-                CaptureLimits::new(32 * 1024, 40 * 1024, 4),
-            )
-            .await
-            .map_err(io::Error::other)
-        });
-
-        let connector = TlsConnector::new(&chromium_150_windows())?;
-        let tcp =
-            tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
-        let handshake = tokio::time::timeout(
-            TEST_TIMEOUT,
-            connector.connect("example.test", tcp, b"http/1.1"),
-        );
-        let handshake_error = match handshake.await? {
-            Ok(_) => return Err("capture peer unexpectedly completed TLS".into()),
-            Err(error) => error,
-        };
-        assert_eq!(handshake_error.kind(), TlsErrorKind::Handshake);
-
-        let capture = tokio::time::timeout(TEST_TIMEOUT, capture_task).await???;
-        let summary = capture.summary()?;
-
-        assert_eq!(summary.legacy_version(), 0x0303);
-        assert_eq!(
-            without_grease(summary.cipher_suites()),
-            vec![
-                0x1301, 0x1302, 0x1303, 0xc02b, 0xc02f, 0xc02c, 0xc030, 0xcca9, 0xcca8, 0xc013,
-                0xc014, 0x009c, 0x009d, 0x002f, 0x0035,
-            ]
-        );
-        assert_eq!(
-            without_grease(summary.supported_groups()),
-            vec![0x11ec, 0x001d, 0x0017, 0x0018]
-        );
-        assert_eq!(
-            summary.signature_algorithms(),
-            &[
-                0x0904, 0x0905, 0x0906, 0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806,
-                0x0601
-            ]
-        );
-        assert_eq!(
-            summary.alpn_protocols(),
-            &[b"h2".to_vec(), b"http/1.1".to_vec()]
-        );
-        assert_eq!(
-            without_grease(summary.supported_versions()),
-            vec![0x0304, 0x0303]
-        );
-        assert_eq!(
-            without_grease(summary.key_share_groups()),
-            vec![0x11ec, 0x001d]
-        );
-
-        assert!(summary.cipher_suites().iter().copied().any(is_grease));
-        assert!(summary.supported_groups().iter().copied().any(is_grease));
-        assert!(summary.supported_versions().iter().copied().any(is_grease));
-        assert!(summary.key_share_groups().iter().copied().any(is_grease));
-        assert!(summary.extension_types().iter().copied().any(is_grease));
-
-        // Extension permutation is intentionally randomized. Assert membership,
-        // uniqueness, and the exact stable set rather than a fictitious order.
-        let actual_extensions = summary
-            .extension_types()
-            .iter()
-            .copied()
-            .filter(|extension| !is_grease(*extension))
-            .collect::<BTreeSet<_>>();
-        let expected_extensions = BTreeSet::from([
-            0, 5, 10, 11, 13, 16, 18, 23, 27, 35, 43, 45, 51, 17613, 0xfe0d, 0xff01,
-        ]);
-        assert_eq!(actual_extensions, expected_extensions);
-
-        Ok(())
-    }
-
-    #[test]
-    fn invalid_settings_fail_before_stream_io() -> Result<(), Box<dyn Error>> {
-        let mut settings = chromium_150_windows();
-        settings.alpn_protocols = vec![Box::default()];
-
-        let error = match TlsConnector::new(&settings) {
-            Ok(_) => return Err("empty ALPN unexpectedly built a connector".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), TlsErrorKind::InvalidConfiguration);
-        assert!(error.to_string().contains("alpn_protocols"));
-        Ok(())
-    }
-
-    #[test]
-    fn alpn_mismatch_distinguishes_http2_from_http1() -> Result<(), Box<dyn Error>> {
-        let error = match ensure_alpn(Some(b"h2"), b"http/1.1") {
-            Ok(()) => return Err("HTTP/2 unexpectedly satisfied an HTTP/1.1 requirement".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), TlsErrorKind::AlpnMismatch);
-        assert!(error.to_string().contains("h2"));
-        Ok(())
-    }
-
-    fn without_grease(values: &[u16]) -> Vec<u16> {
-        values
-            .iter()
-            .copied()
-            .filter(|value| !is_grease(*value))
-            .collect()
-    }
-}
+mod tests;
