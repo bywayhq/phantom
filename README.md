@@ -8,7 +8,8 @@ ordered streaming HTTP/1.1, and one-shot HTTP/2 over an exact `h2` TLS
 negotiation. Chrome 152 macOS has TLS and HTTP/2 recipes with direct retained
 fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
 recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
-uncaptured. HTTP/3, reusable sessions, typed proxy routing, SSE, and WebSocket
+uncaptured. Forced HTTP/3 implementation is in progress from a retained Chrome
+QUIC/H3 capture; reusable sessions, typed proxy routing, SSE, and WebSocket
 remain planned. The project does not make broad client-compatibility claims.
 
 ## Principles
@@ -30,8 +31,10 @@ remain planned. The project does not make broad client-compatibility claims.
   strict decoding for deterministic differentials
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
-[validation model](docs/validation.md), [ecosystem lessons](docs/ecosystem-review.md),
-and [performance guide](docs/performance.md).
+[validation model](docs/validation.md),
+[adversarial testing](docs/adversarial-testing.md),
+[ecosystem lessons](docs/ecosystem-review.md), and
+[performance guide](docs/performance.md).
 
 ## Development
 
