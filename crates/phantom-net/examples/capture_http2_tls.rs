@@ -27,7 +27,14 @@ const H2_ALPN_WIRE: &[u8] = b"\x02h2";
 const ACCEPT_TIMEOUT: Duration = Duration::from_secs(30);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const FRAME_TIMEOUT: Duration = Duration::from_secs(10);
-const FRAME_LIMITS: CaptureLimits = CaptureLimits::new(64 * 1024, 128 * 1024, 16);
+const FRAME_MAX_PAYLOAD_BYTES: usize = 64 * 1024;
+const FRAME_MAX_TOTAL_BYTES: usize = 128 * 1024;
+const FRAME_MAX_COUNT: usize = 16;
+const FRAME_LIMITS: CaptureLimits = CaptureLimits::new(
+    FRAME_MAX_PAYLOAD_BYTES,
+    FRAME_MAX_TOTAL_BYTES,
+    FRAME_MAX_COUNT,
+);
 const CHROME_FLAGS: &str = "--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom";
 
 type CaptureResult<T> = Result<T, Box<dyn Error>>;
@@ -254,9 +261,9 @@ fn write_fixture(output: &mut impl io::Write, fixture: &Fixture<'_>) -> io::Resu
         HANDSHAKE_TIMEOUT.as_millis()
     )?;
     writeln!(output, "frame_timeout_ms={}", FRAME_TIMEOUT.as_millis())?;
-    writeln!(output, "max_frame_payload_bytes={}", 64 * 1024)?;
-    writeln!(output, "max_total_frame_bytes={}", 128 * 1024)?;
-    writeln!(output, "max_frames=16")?;
+    writeln!(output, "max_frame_payload_bytes={FRAME_MAX_PAYLOAD_BYTES}")?;
+    writeln!(output, "max_total_frame_bytes={FRAME_MAX_TOTAL_BYTES}")?;
+    writeln!(output, "max_frames={FRAME_MAX_COUNT}")?;
     writeln!(output, "selected_alpn_hex={}", hex(fixture.selected_alpn))?;
     writeln!(output, "peer_alps_state={alps_state}")?;
     writeln!(output, "peer_alps_length={}", alps_bytes.len())?;

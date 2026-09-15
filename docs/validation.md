@@ -148,4 +148,7 @@ in `capture_profile_dir`.
 The fixture output is ordered `key=value` text. Binary values are lowercase
 hexadecimal. Its regression reconstructs the exact connection preface and frame
 bytes, reparses them through `phantom-testkit`, and verifies the ordered SETTINGS
-and connection WINDOW_UPDATE summary.
+and connection WINDOW_UPDATE summary. A second bounded regression sends a fresh
+request through Phantom's public HTTP/2 transaction using
+`v152_macos_http2()` and requires its exact startup bytes to match the retained
+Chrome frames.
