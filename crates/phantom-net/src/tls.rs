@@ -28,13 +28,6 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
 use tracing::{Instrument, debug, debug_span};
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn boring_version(field: &'static str, version: TlsVersion) -> Result<SslVersion, TlsError> {
     let mapped = match version {
         TlsVersion::Tls12 => Some(SslVersion::TLS1_2),
@@ -44,13 +37,6 @@ fn boring_version(field: &'static str, version: TlsVersion) -> Result<SslVersion
     require_supported(field, version, mapped)
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn cipher_name(cipher: CipherSuite) -> Result<&'static str, TlsError> {
     let mapped = match cipher {
         CipherSuite::Aes128GcmSha256 => Some("TLS_AES_128_GCM_SHA256"),
@@ -77,13 +63,6 @@ fn cipher_name(cipher: CipherSuite) -> Result<&'static str, TlsError> {
     require_supported("cipher_suites", cipher, mapped)
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn group_name(group: NamedGroup) -> Result<&'static str, TlsError> {
     let mapped = match group {
         NamedGroup::X25519MlKem768 => Some("X25519MLKEM768"),
@@ -95,13 +74,6 @@ fn group_name(group: NamedGroup) -> Result<&'static str, TlsError> {
     require_supported("groups", group, mapped)
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn boring_key_share(group: NamedGroup) -> Result<KeyShare, TlsError> {
     let mapped = match group {
         NamedGroup::X25519MlKem768 => Some(KeyShare::X25519_MLKEM768),
@@ -113,13 +85,6 @@ fn boring_key_share(group: NamedGroup) -> Result<KeyShare, TlsError> {
     require_supported("key_shares", group, mapped)
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn signature_name(scheme: SignatureScheme) -> Result<&'static str, TlsError> {
     let mapped = match scheme {
         SignatureScheme::MlDsa44 => Some("mldsa44"),
@@ -140,13 +105,6 @@ fn signature_name(scheme: SignatureScheme) -> Result<&'static str, TlsError> {
 
 /// A reusable TLS connector with a validated immutable configuration.
 #[derive(Clone)]
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 pub(crate) struct TlsConnector {
     backend: BoringConnector,
     alpn_wire: Box<[u8]>,
@@ -167,17 +125,10 @@ impl fmt::Debug for TlsConnector {
     }
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 impl TlsConnector {
     /// Builds a connector, rejecting invalid or unsupported settings immediately.
     pub(crate) fn new(settings: &TlsSettings) -> Result<Self, TlsError> {
-        Self::new_with_roots(
+        Self::build_with_roots(
             settings,
             webpki_root_certs::TLS_SERVER_ROOT_CERTS
                 .iter()
@@ -185,7 +136,7 @@ impl TlsConnector {
         )
     }
 
-    fn new_with_roots<'a>(
+    fn build_with_roots<'a>(
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, TlsError> {
@@ -281,6 +232,14 @@ impl TlsConnector {
         })
     }
 
+    #[cfg(test)]
+    pub(crate) fn new_with_roots<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+    ) -> Result<Self, TlsError> {
+        Self::build_with_roots(settings, roots)
+    }
+
     /// Performs a TLS client handshake over an already-connected byte stream.
     pub(crate) async fn connect<S>(
         &self,
@@ -355,25 +314,11 @@ impl TlsConnector {
 }
 
 /// A connected TLS stream that hides its BoringSSL representation.
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 pub(crate) struct TlsStream<S> {
     inner: BoringStream<S>,
     negotiated_alpn: Option<Box<[u8]>>,
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 impl<S> TlsStream<S> {
     /// Returns the ALPN protocol selected by the server, if any.
     pub(crate) fn negotiated_alpn(&self) -> Option<&[u8]> {
@@ -444,14 +389,8 @@ where
 
 /// Category of a TLS connection failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
-pub(crate) enum TlsErrorKind {
+#[non_exhaustive]
+pub enum TlsErrorKind {
     /// Settings were internally inconsistent or incomplete.
     InvalidConfiguration,
     /// The configured TLS backend rejected a setting.
@@ -464,27 +403,13 @@ pub(crate) enum TlsErrorKind {
 
 /// Error returned while constructing or using the TLS connector.
 #[derive(Debug)]
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
-pub(crate) struct TlsError {
+pub struct TlsError {
     kind: TlsErrorKind,
     field: Option<&'static str>,
     message: Box<str>,
     source: Option<Box<dyn StdError + Send + Sync>>,
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 impl TlsError {
     fn invalid_configuration(source: InvalidTlsSettings) -> Self {
         Self {
@@ -541,7 +466,7 @@ impl TlsError {
     }
 
     /// Returns the broad failure category without exposing backend types.
-    pub(crate) fn kind(&self) -> TlsErrorKind {
+    pub fn kind(&self) -> TlsErrorKind {
         self.kind
     }
 }
@@ -565,13 +490,6 @@ impl StdError for TlsError {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 struct BrotliCertificateCompression;
 
 impl CertificateCompressor for BrotliCertificateCompression {
@@ -588,13 +506,6 @@ impl CertificateCompressor for BrotliCertificateCompression {
     }
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn join_names<T>(
     values: &[T],
     name: impl Fn(T) -> Result<&'static str, TlsError>,
@@ -610,13 +521,6 @@ where
         .map(|names| names.join(":"))
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn require_supported<T, U>(field: &'static str, value: T, mapped: Option<U>) -> Result<U, TlsError>
 where
     T: fmt::Debug,
@@ -624,13 +528,6 @@ where
     mapped.ok_or_else(|| TlsError::unsupported(field, value))
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn encode_alpn(protocols: &[Box<[u8]>]) -> Result<Box<[u8]>, TlsError> {
     if protocols.is_empty() {
         return Err(TlsError::configuration(
@@ -665,13 +562,6 @@ fn encode_alpn(protocols: &[Box<[u8]>]) -> Result<Box<[u8]>, TlsError> {
     Ok(encoded.into_boxed_slice())
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn count_alpn(mut encoded: &[u8]) -> usize {
     let mut count = 0;
     while let Some((&length, rest)) = encoded.split_first() {
@@ -681,13 +571,6 @@ fn count_alpn(mut encoded: &[u8]) -> usize {
     count
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "used by the pending TLS and HTTP/1 composition slice"
-    )
-)]
 fn recognized_alpn_name(protocol: &[u8]) -> Option<&'static str> {
     match protocol {
         b"http/1.1" => Some("http/1.1"),
