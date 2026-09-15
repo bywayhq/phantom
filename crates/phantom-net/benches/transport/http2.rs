@@ -11,7 +11,7 @@ use tracing::{Dispatch, instrument::WithSubscriber};
 use super::{
     BODY_BYTES,
     http2_replay::{Http2ReplayStream, Http2TransportDropped},
-    http2_supervisor::{DriverSupervisorFinished, observe_driver_supervisor},
+    http2_supervisor::{DriverSupervisor, DriverSupervisorFinished},
 };
 
 const FRAME_PAYLOAD_BYTES: usize = 16 * 1024;
@@ -31,12 +31,13 @@ fn response_head(criterion: &mut Criterion) {
     let settings = v152_macos_http2();
     let target = target();
     let headers = twelve_ordered_headers();
+    let supervisor = DriverSupervisor::new();
 
     criterion.bench_function("http2/response_head/12_ordered_headers", |bencher| {
         bencher.to_async(&runtime).iter_batched(
             || {
                 let (stream, transport_dropped) = replay_after_request(response.clone(), &settings);
-                let (supervisor_dispatch, supervisor_finished) = observe_driver_supervisor();
+                let (supervisor_dispatch, supervisor_finished) = supervisor.observe_next();
                 Http2Iteration {
                     stream,
                     transport_dropped,
@@ -58,13 +59,14 @@ fn streaming_body(criterion: &mut Criterion) {
     let response = streaming_body_replay();
     let settings = v152_macos_http2();
     let target = target();
+    let supervisor = DriverSupervisor::new();
     let mut group = criterion.benchmark_group("http2/streaming_body");
     group.throughput(Throughput::Bytes(BODY_BYTES as u64));
     group.bench_function(BODY_BYTES.to_string(), |bencher| {
         bencher.to_async(&runtime).iter_batched(
             || {
                 let (stream, transport_dropped) = replay_after_request(response.clone(), &settings);
-                let (supervisor_dispatch, supervisor_finished) = observe_driver_supervisor();
+                let (supervisor_dispatch, supervisor_finished) = supervisor.observe_next();
                 Http2Iteration {
                     stream,
                     transport_dropped,

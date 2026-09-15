@@ -1,7 +1,7 @@
 //! Benchmark-only observation of HTTP/2 driver-supervisor completion.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     sync::{
         Arc, Mutex, MutexGuard,
         atomic::{AtomicU64, Ordering},
@@ -18,6 +18,23 @@ use tracing::{
 };
 
 const DRIVER_SPAN: &str = "http2.connection_driver";
+
+pub(super) struct DriverSupervisor {
+    dispatch: Dispatch,
+    observer: DriverSupervisorObserver,
+}
+
+impl DriverSupervisor {
+    pub(super) fn new() -> Self {
+        let observer = DriverSupervisorObserver::new();
+        let dispatch = Dispatch::new(observer.clone());
+        Self { dispatch, observer }
+    }
+
+    pub(super) fn observe_next(&self) -> (Dispatch, DriverSupervisorFinished) {
+        (self.dispatch.clone(), self.observer.observe_next_finish())
+    }
+}
 
 pub(super) struct DriverSupervisorFinished(oneshot::Receiver<Option<DriverOutcome>>);
 
@@ -41,18 +58,20 @@ struct DriverSupervisorObserver {
 }
 
 impl DriverSupervisorObserver {
-    fn new() -> (Self, DriverSupervisorFinished) {
+    fn new() -> Self {
+        Self {
+            next_span_id: Arc::new(AtomicU64::new(0)),
+            state: Arc::new(Mutex::new(ObserverState {
+                spans: HashMap::new(),
+                pending_finishes: VecDeque::new(),
+            })),
+        }
+    }
+
+    fn observe_next_finish(&self) -> DriverSupervisorFinished {
         let (finished, receiver) = oneshot::channel();
-        (
-            Self {
-                next_span_id: Arc::new(AtomicU64::new(0)),
-                state: Arc::new(Mutex::new(ObserverState {
-                    spans: HashMap::new(),
-                    finished: Some(finished),
-                })),
-            },
-            DriverSupervisorFinished(receiver),
-        )
+        self.state().pending_finishes.push_back(finished);
+        DriverSupervisorFinished(receiver)
     }
 
     fn state(&self) -> MutexGuard<'_, ObserverState> {
@@ -63,20 +82,16 @@ impl DriverSupervisorObserver {
     }
 }
 
-pub(super) fn observe_driver_supervisor() -> (Dispatch, DriverSupervisorFinished) {
-    let (observer, finished) = DriverSupervisorObserver::new();
-    (Dispatch::new(observer), finished)
-}
-
 struct ObserverState {
     spans: HashMap<u64, ObservedSpan>,
-    finished: Option<oneshot::Sender<Option<DriverOutcome>>>,
+    pending_finishes: VecDeque<oneshot::Sender<Option<DriverOutcome>>>,
 }
 
 struct ObservedSpan {
     references: usize,
     is_driver: bool,
     outcome: Option<DriverOutcome>,
+    finished: Option<oneshot::Sender<Option<DriverOutcome>>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -136,12 +151,25 @@ impl Subscriber for DriverSupervisorObserver {
 
     fn new_span(&self, attributes: &Attributes<'_>) -> Id {
         let id = self.next_span_id.fetch_add(1, Ordering::Relaxed) + 1;
-        self.state().spans.insert(
+        let is_driver = attributes.metadata().name() == DRIVER_SPAN;
+        let mut state = self.state();
+        if is_driver {
+            assert!(
+                state.spans.values().all(|span| !span.is_driver),
+                "HTTP/2 benchmark driver spans must run sequentially"
+            );
+        }
+        let finished = is_driver.then(|| match state.pending_finishes.pop_front() {
+            Some(finished) => finished,
+            None => panic!("HTTP/2 benchmark driver span has no completion observer"),
+        });
+        state.spans.insert(
             id,
             ObservedSpan {
                 references: 1,
-                is_driver: attributes.metadata().name() == DRIVER_SPAN,
+                is_driver,
                 outcome: None,
+                finished,
             },
         );
         Id::from_u64(id)
@@ -184,16 +212,21 @@ impl Subscriber for DriverSupervisorObserver {
             return false;
         }
 
+        let span = match state.spans.remove(&id) {
+            Some(span) => span,
+            None => panic!("checked HTTP/2 benchmark span must remain registered"),
+        };
         let is_driver = span.is_driver;
         let outcome = span.outcome;
-        state.spans.remove(&id);
+        let finished = span.finished;
+        drop(state);
         // The supervisor future owns the final driver-span handle. On the
         // benchmark's current-thread runtime, its close therefore follows all
         // supervisor work and cannot race the awakened benchmark iteration.
         if !is_driver {
             return true;
         }
-        if let Some(finished) = state.finished.take() {
+        if let Some(finished) = finished {
             let _ = finished.send(outcome);
         }
         true
