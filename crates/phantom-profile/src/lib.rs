@@ -1,7 +1,11 @@
-//! Browser-neutral profile identity and provenance.
-//!
-//! Protocol-specific profile fields will be added alongside the first transport
-//! that consumes and verifies them.
+//! Browser-neutral profile identity, provenance, and wire settings.
+
+pub mod tls;
+
+pub use tls::{
+    AlpsSettings, CertificateCompression, CipherSuite, InvalidTlsSettings, NamedGroup,
+    SignatureScheme, TlsSettings, TlsVersion,
+};
 
 use std::{error::Error, fmt, str::FromStr};
 
