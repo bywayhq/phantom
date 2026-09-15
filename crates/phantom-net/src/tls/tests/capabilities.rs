@@ -1,13 +1,11 @@
 //! Wire tests for browser-neutral TLS capabilities.
 
-use std::io;
-
 use phantom_profile::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
     NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
 };
 
-use super::capture_client_hello_from;
+use super::{capture_client_hello_from, client_hello_fixture};
 use crate::tls::test_support::TestResult;
 
 const CERTIFICATE_COMPRESSION_EXTENSION: u16 = 27;
@@ -60,7 +58,10 @@ async fn configured_capabilities_are_emitted_in_fixed_wire_order() -> TestResult
             .contains(&RECORD_SIZE_LIMIT_EXTENSION)
     );
     assert_eq!(
-        extension_payload(capture.handshake_bytes(), CERTIFICATE_COMPRESSION_EXTENSION)?,
+        client_hello_fixture::extension_payload(
+            capture.handshake_bytes(),
+            CERTIFICATE_COMPRESSION_EXTENSION
+        )?,
         &[0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03]
     );
     Ok(())
@@ -138,51 +139,4 @@ fn capability_settings() -> TlsSettings {
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
     }
-}
-
-fn extension_payload(handshake: &[u8], expected_type: u16) -> io::Result<&[u8]> {
-    let mut offset = 0;
-    take(handshake, &mut offset, 4)?;
-    take(handshake, &mut offset, 2 + 32)?;
-    let session_id_length = usize::from(read_u8(handshake, &mut offset)?);
-    take(handshake, &mut offset, session_id_length)?;
-    let cipher_suites_length = usize::from(read_u16(handshake, &mut offset)?);
-    take(handshake, &mut offset, cipher_suites_length)?;
-    let compression_methods_length = usize::from(read_u8(handshake, &mut offset)?);
-    take(handshake, &mut offset, compression_methods_length)?;
-    let extensions_length = usize::from(read_u16(handshake, &mut offset)?);
-    let extensions = take(handshake, &mut offset, extensions_length)?;
-
-    let mut extension_offset = 0;
-    while extension_offset < extensions.len() {
-        let extension_type = read_u16(extensions, &mut extension_offset)?;
-        let payload_length = usize::from(read_u16(extensions, &mut extension_offset)?);
-        let payload = take(extensions, &mut extension_offset, payload_length)?;
-        if extension_type == expected_type {
-            return Ok(payload);
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("ClientHello omitted extension 0x{expected_type:04x}"),
-    ))
-}
-
-fn read_u8(bytes: &[u8], offset: &mut usize) -> io::Result<u8> {
-    Ok(take(bytes, offset, 1)?[0])
-}
-
-fn read_u16(bytes: &[u8], offset: &mut usize) -> io::Result<u16> {
-    let bytes = take(bytes, offset, 2)?;
-    Ok(u16::from_be_bytes([bytes[0], bytes[1]]))
-}
-
-fn take<'a>(bytes: &'a [u8], offset: &mut usize, length: usize) -> io::Result<&'a [u8]> {
-    let end = offset
-        .checked_add(length)
-        .filter(|&end| end <= bytes.len())
-        .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "truncated ClientHello"))?;
-    let value = &bytes[*offset..end];
-    *offset = end;
-    Ok(value)
 }

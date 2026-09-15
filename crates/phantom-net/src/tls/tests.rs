@@ -15,6 +15,8 @@ use super::{
 mod alps;
 mod capabilities;
 mod chrome;
+mod client_hello_fixture;
+mod safari;
 mod tracing;
 
 #[test]
@@ -72,6 +74,13 @@ fn unmapped_backend_setting_is_actionable() -> TestResult<()> {
 }
 
 async fn capture_client_hello_from(settings: &TlsSettings) -> TestResult<ClientHelloCapture> {
+    capture_client_hello_from_server_name(settings, TEST_SERVER_NAME).await
+}
+
+async fn capture_client_hello_from_server_name(
+    settings: &TlsSettings,
+    server_name: &str,
+) -> TestResult<ClientHelloCapture> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let address = listener.local_addr()?;
     let capture_task = tokio::spawn(async move {
@@ -87,7 +96,7 @@ async fn capture_client_hello_from(settings: &TlsSettings) -> TestResult<ClientH
 
     let connector = TlsConnector::new(settings)?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
-    let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect(TEST_SERVER_NAME, tcp));
+    let handshake = tokio::time::timeout(TEST_TIMEOUT, connector.connect(server_name, tcp));
     if handshake.await?.is_ok() {
         return Err("capture peer unexpectedly completed TLS".into());
     }

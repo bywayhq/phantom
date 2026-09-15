@@ -1,15 +1,10 @@
 //! Chrome-specific TLS differential tests.
 
-use std::io;
-
 use phantom_profile::chromium::v152_macos_tls;
-use phantom_testkit::tls::{
-    CaptureLimits, ClientHelloCapture, ClientHelloSummary, capture_client_hello, is_grease,
-};
-use tokio::{io::AsyncWriteExt, time::Instant};
+use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
-use super::capture_client_hello_from;
-use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestResult};
+use super::{capture_client_hello_from, client_hello_fixture};
+use crate::tls::test_support::{TEST_SERVER_NAME, TestResult};
 
 const CHROME_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome/152.0.7977.83/",
@@ -20,7 +15,7 @@ const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
 
 #[tokio::test]
 async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
-    let expected_capture = fixture_capture().await?;
+    let expected_capture = client_hello_fixture::capture(CHROME_FIXTURE).await?;
     let actual_capture = capture_client_hello_from(&v152_macos_tls()).await?;
 
     assert_eq!(
@@ -100,57 +95,6 @@ async fn omitted_trust_anchor_ids_omit_the_extension() -> TestResult<()> {
     let summary = capture_client_hello_from(&settings).await?.summary()?;
     assert!(!summary.extension_types().contains(&TRUST_ANCHORS_EXTENSION));
     Ok(())
-}
-
-async fn fixture_capture() -> TestResult<ClientHelloCapture> {
-    let record_count = fixture_value("record_count")?.parse::<usize>()?;
-    let records = (0..record_count)
-        .map(|index| decode_hex(fixture_value(&format!("record_{index}_hex"))?))
-        .collect::<Result<Vec<_>, _>>()?;
-    let wire = records.concat();
-    let (mut writer, mut reader) = tokio::io::duplex(wire.len());
-    writer.write_all(&wire).await?;
-    drop(writer);
-
-    Ok(capture_client_hello(
-        &mut reader,
-        Instant::now() + TEST_TIMEOUT,
-        CaptureLimits::new(32 * 1024, 40 * 1024, 4),
-    )
-    .await?)
-}
-
-fn fixture_value(field: &str) -> Result<&'static str, io::Error> {
-    let prefix = format!("{field}=");
-    CHROME_FIXTURE
-        .lines()
-        .find_map(|line| line.strip_prefix(&prefix))
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, format!("missing {field}")))
-}
-
-fn decode_hex(value: &str) -> Result<Vec<u8>, io::Error> {
-    if value.len() % 2 != 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "fixture contains odd-length hex",
-        ));
-    }
-    value
-        .as_bytes()
-        .chunks_exact(2)
-        .map(|pair| Ok((hex_nibble(pair[0])? << 4) | hex_nibble(pair[1])?))
-        .collect()
-}
-
-fn hex_nibble(byte: u8) -> Result<u8, io::Error> {
-    match byte {
-        b'0'..=b'9' => Ok(byte - b'0'),
-        b'a'..=b'f' => Ok(byte - b'a' + 10),
-        _ => Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "fixture contains non-lowercase hex",
-        )),
-    }
 }
 
 fn normalize_grease(values: &[u16]) -> Vec<u16> {
