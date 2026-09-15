@@ -12,6 +12,13 @@ Use sibling worktrees under `/Users/arya/Desktop/phantom-worktrees/` only when i
 
 The integration owner retains shared manifests and central public API files unless ownership is explicitly delegated. Review and test changes after integration; a green agent branch is not phase completion.
 
+All worktrees reuse the integration checkout's build cache by setting
+`CARGO_TARGET_DIR=/Users/arya/Desktop/phantom/target`. Cargo commands are
+serialized: request the build slot from the integration owner before running
+one, and release it with the exact command and result. Run focused checks on an
+agent branch; run broad workspace gates after integration unless the task
+explicitly assigns them earlier.
+
 ## Engineering constraints
 
 - Implement the smallest complete vertical slice.
