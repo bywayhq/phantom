@@ -15,6 +15,10 @@ pub(crate) struct Settings {
     /// Whether the connection has received the initial SETTINGS frame from the
     /// remote peer.
     has_received_remote_initial_settings: bool,
+    /// Sticky remote state required by RFC 8441.
+    remote_extended_connect_protocol_enabled: bool,
+    /// The RFC 9218 value established by the remote peer's initial settings.
+    remote_no_rfc7540_priorities: bool,
 }
 
 #[derive(Debug)]
@@ -36,6 +40,8 @@ impl Settings {
             local: Local::WaitingAck(local),
             remote: None,
             has_received_remote_initial_settings: false,
+            remote_extended_connect_protocol_enabled: false,
+            remote_no_rfc7540_priorities: false,
         }
     }
 
@@ -83,6 +89,8 @@ impl Settings {
             // We always ACK before reading more frames, so `remote` should
             // always be none!
             assert!(self.remote.is_none());
+            let is_initial = !self.has_received_remote_initial_settings;
+            self.validate_remote_settings::<P>(&frame, is_initial)?;
             self.remote = Some(frame);
             Ok(())
         }
@@ -117,21 +125,15 @@ impl Settings {
             return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
+        self.validate_remote_settings::<P>(&frame, true)?;
+        Self::apply_remote_settings(&frame, codec, streams, true)?;
+        self.record_remote_settings(&frame, true);
         self.has_received_remote_initial_settings = true;
-        Self::apply_remote_settings(&frame, codec, streams, true)
+        Ok(())
     }
 
     pub(crate) fn requires_remote_initial_settings(&self) -> bool {
         !self.has_received_remote_initial_settings
-    }
-
-    /// Sets `true` to `self.has_received_remote_initial_settings`.
-    /// Returns `true` if this method is called for the first time.
-    /// (i.e. it is the initial SETTINGS frame from the remote peer)
-    fn mark_remote_initial_settings_as_received(&mut self) -> bool {
-        let has_received = self.has_received_remote_initial_settings;
-        self.has_received_remote_initial_settings = true;
-        !has_received
     }
 
     pub(crate) fn poll_send<T, B, C, P>(
@@ -159,8 +161,10 @@ impl Settings {
 
             tracing::trace!("ACK sent; applying settings");
 
-            let is_initial = self.mark_remote_initial_settings_as_received();
+            let is_initial = !self.has_received_remote_initial_settings;
             Self::apply_remote_settings(&settings, dst, streams, is_initial)?;
+            self.record_remote_settings(&settings, is_initial);
+            self.has_received_remote_initial_settings = true;
         }
 
         self.remote = None;
@@ -205,5 +209,43 @@ impl Settings {
             codec.set_max_send_frame_size(value as usize);
         }
         Ok(())
+    }
+
+    fn validate_remote_settings<P: Peer>(
+        &self,
+        settings: &frame::Settings,
+        is_initial: bool,
+    ) -> Result<(), Error> {
+        if !P::r#dyn().is_server() && settings.is_push_enabled() == Some(true) {
+            proto_err!(conn: "client received SETTINGS_ENABLE_PUSH = 1");
+            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        if self.remote_extended_connect_protocol_enabled
+            && settings.is_extended_connect_protocol_enabled() == Some(false)
+        {
+            proto_err!(conn: "peer disabled extended CONNECT after enabling it");
+            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        match (is_initial, settings.is_no_rfc7540_priorities()) {
+            (false, Some(value)) if value != self.remote_no_rfc7540_priorities => {
+                proto_err!(conn: "peer changed SETTINGS_NO_RFC7540_PRIORITIES");
+                return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn record_remote_settings(&mut self, settings: &frame::Settings, is_initial: bool) {
+        if let Some(value) = settings.is_extended_connect_protocol_enabled() {
+            self.remote_extended_connect_protocol_enabled = value;
+        }
+        if is_initial {
+            self.remote_no_rfc7540_priorities =
+                settings.is_no_rfc7540_priorities().unwrap_or(false);
+        }
     }
 }

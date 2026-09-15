@@ -424,6 +424,124 @@ async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
     .expect("initial peer frame test timed out");
 }
 
+#[tokio::test]
+async fn seeded_sticky_settings_reject_later_disable() {
+    timeout(Duration::from_secs(2), async {
+        for setting_id in [8, 9] {
+            let (client_io, mut peer_io) = duplex(16 * 1024);
+            let mut peer_settings = Settings::default();
+            if setting_id == 8 {
+                peer_settings.set_enable_connect_protocol(Some(1));
+            } else {
+                peer_settings.set_no_rfc7540_priorities(true);
+            }
+            let mut builder = super::Builder::new();
+            builder.initial_peer_settings(peer_settings);
+            let (sender, connection) = builder
+                .handshake::<_, Bytes>(client_io)
+                .await
+                .expect("client handshake failed");
+            let driver = tokio::spawn(connection);
+            read_client_preface(&mut peer_io).await;
+            let initial = read_raw_frame(&mut peer_io).await;
+            assert_eq!((initial.kind, initial.flags), (4, 0));
+            if setting_id == 8 {
+                assert!(sender.is_extended_connect_protocol_enabled());
+            }
+
+            write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(setting_id, 1)])).await;
+            let ack = read_raw_frame(&mut peer_io).await;
+            assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
+
+            write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(setting_id, 0)])).await;
+            let error = driver
+                .await
+                .expect("client driver task panicked")
+                .expect_err("peer disabled a sticky seeded setting");
+            assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
+        }
+    })
+    .await
+    .expect("seeded sticky-settings test timed out");
+}
+
+#[tokio::test]
+async fn wire_settings_transitions_remain_sticky() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer_io).await;
+        let initial = read_raw_frame(&mut peer_io).await;
+        assert_eq!((initial.kind, initial.flags), (4, 0));
+
+        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(8, 0), (9, 0)])).await;
+        assert_eq!(read_raw_frame(&mut peer_io).await.flags, 1);
+        assert!(!sender.is_extended_connect_protocol_enabled());
+
+        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(8, 1), (9, 0)])).await;
+        assert_eq!(read_raw_frame(&mut peer_io).await.flags, 1);
+        assert!(sender.is_extended_connect_protocol_enabled());
+
+        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(8, 0)])).await;
+        let error = driver
+            .await
+            .expect("client driver task panicked")
+            .expect_err("peer disabled extended CONNECT after enabling it");
+        assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
+
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (_sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer_io).await;
+        let _initial = read_raw_frame(&mut peer_io).await;
+        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(9, 0)])).await;
+        assert_eq!(read_raw_frame(&mut peer_io).await.flags, 1);
+        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(9, 1)])).await;
+        let error = driver
+            .await
+            .expect("client driver task panicked")
+            .expect_err("peer changed SETTINGS_NO_RFC7540_PRIORITIES");
+        assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
+    })
+    .await
+    .expect("wire sticky-settings test timed out");
+}
+
+#[tokio::test]
+async fn client_rejects_server_enable_push_one_but_accepts_zero() {
+    timeout(Duration::from_secs(2), async {
+        for (value, accepted) in [(0, true), (1, false)] {
+            let (client_io, mut peer_io) = duplex(16 * 1024);
+            let (_sender, connection) = super::handshake(client_io)
+                .await
+                .expect("client handshake failed");
+            let driver = tokio::spawn(connection);
+            read_client_preface(&mut peer_io).await;
+            let _initial = read_raw_frame(&mut peer_io).await;
+            write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(2, value)])).await;
+
+            if accepted {
+                let ack = read_raw_frame(&mut peer_io).await;
+                assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
+                driver.abort();
+            } else {
+                let error = driver
+                    .await
+                    .expect("client driver task panicked")
+                    .expect_err("server SETTINGS_ENABLE_PUSH = 1 was accepted");
+                assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
+            }
+        }
+    })
+    .await
+    .expect("server ENABLE_PUSH settings test timed out");
+}
+
 struct RawFrame {
     kind: u8,
     flags: u8,
@@ -479,6 +597,15 @@ async fn write_raw_frame(
     peer.write_all(payload)
         .await
         .expect("frame payload write failed");
+}
+
+fn settings_payload(settings: &[(u16, u32)]) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(settings.len() * 6);
+    for (id, value) in settings {
+        payload.extend_from_slice(&id.to_be_bytes());
+        payload.extend_from_slice(&value.to_be_bytes());
+    }
+    payload
 }
 
 fn request_with_headers() -> Request<()> {
