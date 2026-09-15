@@ -273,6 +273,18 @@ where
         self.inner.ping_pong.take_user_pings()
     }
 
+    #[cfg(feature = "unstable")]
+    pub(crate) fn apply_initial_peer_settings(
+        &mut self,
+        settings: frame::Settings,
+    ) -> Result<(), Error> {
+        self.inner.settings.apply_initial_peer_settings(
+            settings,
+            &mut self.codec,
+            &mut self.inner.streams,
+        )
+    }
+
     #[cfg(test)]
     pub(crate) fn fill_write_capacity_for_test(&mut self) {
         self.codec.fill_write_capacity_for_test();
@@ -363,11 +375,15 @@ where
             }
             ready!(self.poll_ready(cx))?;
 
-            match self
-                .inner
-                .as_dyn()
-                .recv_frame(ready!(Pin::new(&mut self.codec).poll_next(cx)?))?
+            let frame = ready!(Pin::new(&mut self.codec).poll_next(cx)?);
+            if self.inner.settings.requires_remote_initial_settings()
+                && !matches!(&frame, Some(Frame::Settings(settings)) if !settings.is_ack())
             {
+                proto_err!(conn: "first peer frame was not a non-ACK SETTINGS frame");
+                return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
+            }
+
+            match self.inner.as_dyn().recv_frame(frame)? {
                 ReceivedFrame::Settings(frame) => {
                     self.inner.settings.recv_settings(
                         frame,

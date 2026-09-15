@@ -100,6 +100,31 @@ impl Settings {
         }
     }
 
+    pub(crate) fn apply_initial_peer_settings<T, B, C, P>(
+        &mut self,
+        frame: frame::Settings,
+        codec: &mut Codec<T, B>,
+        streams: &mut Streams<C, P>,
+    ) -> Result<(), Error>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+        C: Buf,
+        P: Peer,
+    {
+        if frame.is_ack() || self.has_received_remote_initial_settings {
+            proto_err!(conn: "invalid initial peer settings seed");
+            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        self.has_received_remote_initial_settings = true;
+        Self::apply_remote_settings(&frame, codec, streams, true)
+    }
+
+    pub(crate) fn requires_remote_initial_settings(&self) -> bool {
+        !self.has_received_remote_initial_settings
+    }
+
     /// Sets `true` to `self.has_received_remote_initial_settings`.
     /// Returns `true` if this method is called for the first time.
     /// (i.e. it is the initial SETTINGS frame from the remote peer)
@@ -135,15 +160,7 @@ impl Settings {
             tracing::trace!("ACK sent; applying settings");
 
             let is_initial = self.mark_remote_initial_settings_as_received();
-            streams.apply_remote_settings(&settings, is_initial)?;
-
-            if let Some(val) = settings.header_table_size() {
-                dst.set_send_header_table_size(val as usize);
-            }
-
-            if let Some(val) = settings.max_frame_size() {
-                dst.set_max_send_frame_size(val as usize);
-            }
+            Self::apply_remote_settings(&settings, dst, streams, is_initial)?;
         }
 
         self.remote = None;
@@ -165,5 +182,28 @@ impl Settings {
         }
 
         Poll::Ready(Ok(()))
+    }
+
+    fn apply_remote_settings<T, B, C, P>(
+        settings: &frame::Settings,
+        codec: &mut Codec<T, B>,
+        streams: &mut Streams<C, P>,
+        is_initial: bool,
+    ) -> Result<(), Error>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+        C: Buf,
+        P: Peer,
+    {
+        streams.apply_remote_settings(settings, is_initial)?;
+
+        if let Some(value) = settings.header_table_size() {
+            codec.set_send_header_table_size(value as usize);
+        }
+        if let Some(value) = settings.max_frame_size() {
+            codec.set_max_send_frame_size(value as usize);
+        }
+        Ok(())
     }
 }

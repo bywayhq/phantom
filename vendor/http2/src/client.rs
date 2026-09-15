@@ -340,6 +340,10 @@ pub struct Builder {
     /// Initial `Settings` frame to send as part of the handshake.
     settings: Settings,
 
+    /// Settings received through a transport parameter before HTTP/2 starts.
+    #[cfg(feature = "unstable")]
+    initial_peer_settings: Option<Settings>,
+
     /// The stream ID of the first (lowest) stream. Subsequent streams will use
     /// monotonically increasing stream IDs.
     stream_id: StreamId,
@@ -676,6 +680,8 @@ impl Builder {
             initial_target_connection_window_size: None,
             initial_max_send_streams: usize::MAX,
             settings: Default::default(),
+            #[cfg(feature = "unstable")]
+            initial_peer_settings: None,
             stream_id: 1.into(),
             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
             headers_pseudo_order: None,
@@ -1177,6 +1183,17 @@ impl Builder {
         self
     }
 
+    /// Seeds settings learned from the peer before HTTP/2 application data.
+    ///
+    /// The settings are applied before the returned [`SendRequest`] is
+    /// exposed. They satisfy the peer's initial SETTINGS requirement and are
+    /// not acknowledged on the HTTP/2 wire.
+    #[cfg(feature = "unstable")]
+    pub fn initial_peer_settings(&mut self, settings: Settings) -> &mut Self {
+        self.initial_peer_settings = Some(settings);
+        self
+    }
+
     /// Configures custom experimental HTTP/2 setting.
     ///
     /// This setting is reserved for future use or experimental purposes.
@@ -1403,6 +1420,8 @@ where
         mut io: T,
         builder: Builder,
     ) -> Result<(SendRequest<B>, Connection<T, B>), crate::Error> {
+        #[cfg(feature = "unstable")]
+        let initial_peer_settings = builder.initial_peer_settings.clone();
         bind_connection(&mut io).await?;
 
         // Create the codec
@@ -1421,7 +1440,7 @@ where
             .buffer((builder.settings.clone()).into())
             .expect("invalid SETTINGS frame");
 
-        let inner = proto::Connection::new(
+        let mut inner = proto::Connection::new(
             codec,
             proto::Config {
                 next_stream_id: builder.stream_id,
@@ -1437,6 +1456,10 @@ where
                 settings: builder.settings,
             },
         );
+        #[cfg(feature = "unstable")]
+        if let Some(settings) = initial_peer_settings {
+            inner.apply_initial_peer_settings(settings)?;
+        }
         let send_request = SendRequest {
             inner: inner.streams().clone(),
             pending: None,

@@ -14,7 +14,7 @@ use std::{
 use bytes::{BufMut, Bytes, BytesMut};
 use http::{HeaderName, HeaderValue, Method, Request, Response, Version};
 use tokio::{
-    io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf},
+    io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf},
     time::timeout,
 };
 
@@ -22,7 +22,7 @@ use super::Peer;
 use crate::{
     codec::{SendError, UserError},
     ext::OrderedHeaders,
-    frame::{Headers, StreamId},
+    frame::{Headers, Settings, StreamDependency, StreamId},
     hpack::{Decoder, Encoder, Header},
 };
 
@@ -289,6 +289,196 @@ async fn full_codec_does_not_repeat_idle_close_self_wake() {
 
     assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
     assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn seeded_peer_limits_apply_to_the_first_request() {
+    let (client_io, _peer_io) = duplex(16 * 1024);
+    let mut peer_settings = Settings::default();
+    peer_settings.set_max_concurrent_streams(Some(0));
+    let mut builder = super::Builder::new();
+    builder.initial_peer_settings(peer_settings);
+    let (mut sender, _connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let (_response, send) = sender
+        .send_request(request_with_headers(), true)
+        .expect("request was rejected");
+    drop(send);
+    let pending = poll_fn(|context| Poll::Ready(sender.poll_ready(context).is_pending())).await;
+    assert!(pending, "seeded concurrency limit was not applied");
+
+    let (client_io, _peer_io) = duplex(16 * 1024);
+    let mut peer_settings = Settings::default();
+    peer_settings.set_initial_window_size(Some(0));
+    let mut builder = super::Builder::new();
+    builder.initial_peer_settings(peer_settings);
+    let (mut sender, mut connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let (_response, mut send) = sender
+        .send_request(request_with_headers(), false)
+        .expect("request was rejected");
+    send.reserve_capacity(1);
+    let wake_count = Arc::new(AtomicUsize::new(0));
+    let waker = Waker::from(Arc::new(CountWake(wake_count)));
+    let mut context = Context::from_waker(&waker);
+    assert!(Pin::new(&mut connection).poll(&mut context).is_pending());
+    assert_eq!(send.capacity(), 0, "seeded stream window was not applied");
+}
+
+#[tokio::test]
+async fn seeded_peer_settings_change_first_headers_without_an_ack() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let mut peer_settings = Settings::default();
+        peer_settings.set_header_table_size(Some(0));
+        peer_settings.set_no_rfc7540_priorities(true);
+        let mut builder = super::Builder::new();
+        builder
+            .headers_stream_dependency(StreamDependency::new(StreamId::zero(), 255, true))
+            .initial_peer_settings(peer_settings);
+        let (mut sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        sender = sender.ready().await.expect("sender never became ready");
+        let (_response, send) = sender
+            .send_request(request_with_headers(), true)
+            .expect("request was rejected");
+        drop(send);
+
+        read_client_preface(&mut peer_io).await;
+        let mut settings_acks = 0;
+        let headers = loop {
+            let frame = read_raw_frame(&mut peer_io).await;
+            if frame.kind == 4 && frame.flags & 1 != 0 {
+                settings_acks += 1;
+            }
+            assert_ne!(frame.kind, 2, "peer-disabled PRIORITY frame was sent");
+            if frame.kind == 1 {
+                break frame;
+            }
+        };
+        assert_eq!(settings_acks, 0, "seeded settings were acknowledged");
+        assert_eq!(
+            headers.flags & 0x20,
+            0,
+            "HEADERS retained RFC 7540 priority"
+        );
+        assert_eq!(
+            headers.payload.first(),
+            Some(&0x20),
+            "seeded header-table limit was not applied to HPACK"
+        );
+
+        write_raw_frame(&mut peer_io, 4, 0, 0, &[]).await;
+        let ack = read_raw_frame(&mut peer_io).await;
+        assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
+        assert!(ack.payload.is_empty());
+        driver.abort();
+    })
+    .await
+    .expect("seeded-settings wire test timed out");
+}
+
+#[tokio::test]
+async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (_sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        read_client_preface(&mut peer_io).await;
+        write_raw_frame(&mut peer_io, 6, 0, 0, &[0; 8]).await;
+        let error = connection
+            .await
+            .expect_err("non-SETTINGS first peer frame was accepted without a seed");
+        assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
+
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let mut builder = super::Builder::new();
+        builder.initial_peer_settings(Settings::default());
+        let (_sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer_io).await;
+        let client_settings = read_raw_frame(&mut peer_io).await;
+        assert_eq!(
+            (client_settings.kind, client_settings.flags),
+            (4, 0),
+            "client preface omitted its initial SETTINGS"
+        );
+        write_raw_frame(&mut peer_io, 6, 0, 0, &[0; 8]).await;
+        let pong = read_raw_frame(&mut peer_io).await;
+        assert_eq!((pong.kind, pong.flags, pong.stream_id), (6, 1, 0));
+        assert_eq!(pong.payload, [0; 8]);
+        driver.abort();
+    })
+    .await
+    .expect("initial peer frame test timed out");
+}
+
+struct RawFrame {
+    kind: u8,
+    flags: u8,
+    stream_id: u32,
+    payload: Vec<u8>,
+}
+
+async fn read_client_preface(peer: &mut DuplexStream) {
+    let mut preface = [0_u8; 24];
+    peer.read_exact(&mut preface)
+        .await
+        .expect("client preface was truncated");
+    assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
+}
+
+async fn read_raw_frame(peer: &mut DuplexStream) -> RawFrame {
+    let mut head = [0_u8; 9];
+    peer.read_exact(&mut head)
+        .await
+        .expect("frame header was truncated");
+    let length = (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+    let mut payload = vec![0_u8; length];
+    peer.read_exact(&mut payload)
+        .await
+        .expect("frame payload was truncated");
+    RawFrame {
+        kind: head[3],
+        flags: head[4],
+        stream_id: u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff,
+        payload,
+    }
+}
+
+async fn write_raw_frame(
+    peer: &mut DuplexStream,
+    kind: u8,
+    flags: u8,
+    stream_id: u32,
+    payload: &[u8],
+) {
+    let length = payload.len();
+    assert!(length <= 0x00ff_ffff);
+    let mut head = [0_u8; 9];
+    head[0] = ((length >> 16) & 0xff) as u8;
+    head[1] = ((length >> 8) & 0xff) as u8;
+    head[2] = (length & 0xff) as u8;
+    head[3] = kind;
+    head[4] = flags;
+    head[5..].copy_from_slice(&(stream_id & 0x7fff_ffff).to_be_bytes());
+    peer.write_all(&head)
+        .await
+        .expect("frame head write failed");
+    peer.write_all(payload)
+        .await
+        .expect("frame payload write failed");
 }
 
 fn request_with_headers() -> Request<()> {

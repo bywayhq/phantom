@@ -346,6 +346,10 @@ impl Settings {
         self.no_rfc7540_priorities = Some(enable as u32);
     }
 
+    pub fn is_no_rfc7540_priorities(&self) -> Option<bool> {
+        self.no_rfc7540_priorities.map(|value| value != 0)
+    }
+
     #[cfg(feature = "unstable")]
     pub fn set_experimental_settings(&mut self, experimental_settings: ExperimentalSettings) {
         self.experimental_settings = Some(experimental_settings)

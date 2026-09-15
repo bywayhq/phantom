@@ -97,6 +97,9 @@ struct Inner {
 
     /// Priority of the headers stream
     priorities: Option<Priorities>,
+
+    /// Whether the peer declared that it ignores RFC 7540 priority signals.
+    peer_ignores_rfc7540_priorities: bool,
 }
 
 #[derive(Debug)]
@@ -219,6 +222,10 @@ where
 
         me.counts.apply_remote_settings(frame, is_initial);
 
+        if let Some(value) = frame.is_no_rfc7540_priorities() {
+            me.peer_ignores_rfc7540_priorities = value;
+        }
+
         me.actions.send.apply_remote_settings(
             frame,
             send_buffer,
@@ -298,31 +305,42 @@ where
         }
 
         // Priorities frame check before sending the request.
-        if let Some(priorities) = &me.priorities {
-            let next_id = priorities
-                .max_stream_id()
-                .next_id()
-                .map_err(|_| SendError::User(UserError::OverflowedStreamId))?;
+        if !me.peer_ignores_rfc7540_priorities {
+            if let Some(priorities) = &me.priorities {
+                let next_id = priorities
+                    .max_stream_id()
+                    .next_id()
+                    .map_err(|_| SendError::User(UserError::OverflowedStreamId))?;
 
-            if next_id > stream_id {
-                return Err(SendError::User(UserError::OverflowedStreamId));
+                if next_id > stream_id {
+                    return Err(SendError::User(UserError::OverflowedStreamId));
+                }
             }
         }
 
         // Convert the message
+        let send_rfc7540_priorities = !me.peer_ignores_rfc7540_priorities;
         let headers = client::Peer::convert_send_message(
             stream_id,
             request,
             protocol,
             end_of_stream,
             me.headers_pseudo_order.clone(),
-            me.headers_stream_dependency,
+            if send_rfc7540_priorities {
+                me.headers_stream_dependency
+            } else {
+                None
+            },
         )?;
 
         let mut stream = me.store.insert(stream.id, stream);
 
         let sent = me.actions.send.send_priority_and_headers(
-            me.priorities.clone(),
+            if send_rfc7540_priorities {
+                me.priorities.clone()
+            } else {
+                None
+            },
             headers,
             send_buffer,
             &mut stream,
@@ -461,6 +479,7 @@ impl Inner {
             headers_stream_dependency: config.headers_stream_dependency,
             headers_pseudo_order: config.headers_pseudo_order,
             priorities: config.priorities,
+            peer_ignores_rfc7540_priorities: false,
         }))
     }
 
