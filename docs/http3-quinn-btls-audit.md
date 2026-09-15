@@ -199,6 +199,8 @@ sections, and send acknowledgements, insert-count increments, and cancellation
 on the decoder stream. Tests must cover invalid instructions, critical-stream
 failure, cancellation races, and resource ceilings. Do not expose a partial
 combination of nonzero QPACK settings and stateless decoding.
+The concrete ownership, limits, and staged integration are recorded in
+[`qpack-design.md`](qpack-design.md).
 
 The direct request path owns the Quinn connection driver, H3 driver, and
 endpoint lifetime. Require negotiated ALPN `h3`. Dropping or cancelling a

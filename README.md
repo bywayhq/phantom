@@ -39,6 +39,7 @@ receive support rather than advertising capabilities the engine cannot honor.
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),
 [adversarial testing](docs/adversarial-testing.md),
+[dynamic QPACK design](docs/qpack-design.md),
 [ecosystem lessons](docs/ecosystem-review.md), and
 [performance guide](docs/performance.md). Dependency forks and the Linux,
 macOS, and Windows gates are described in
