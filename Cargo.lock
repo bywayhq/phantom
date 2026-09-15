@@ -614,6 +614,7 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
+ "http2",
  "phantom-profile",
  "phantom-testkit",
  "rcgen",

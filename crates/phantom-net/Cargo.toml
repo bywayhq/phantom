@@ -10,6 +10,7 @@ publish = false
 brotli = "8.0.4"
 bytes = "1.12.1"
 http = "1.4.0"
+http2 = "=0.5.20"
 http-body = "1.0.1"
 http-body-util = "0.1.3"
 phantom-profile = { path = "../phantom-profile" }

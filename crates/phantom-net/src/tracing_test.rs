@@ -97,7 +97,11 @@ impl Subscriber for OutcomeSubscriber {
         let Some(parent) = event.parent() else {
             return;
         };
-        if self.state().span_names.get(&parent.into_u64()).copied() != Some("http1.response_body") {
+        let span_name = self.state().span_names.get(&parent.into_u64()).copied();
+        if !matches!(
+            span_name,
+            Some("http1.response_body" | "http2.response_body")
+        ) {
             return;
         }
 
