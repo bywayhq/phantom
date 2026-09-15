@@ -1,13 +1,15 @@
 use std::{
     collections::HashMap,
+    future::Future,
     sync::{
         Arc, Mutex, MutexGuard,
         atomic::{AtomicU64, Ordering},
     },
+    task::Poll,
 };
 
 use tracing::{
-    Event, Metadata, Subscriber,
+    Dispatch, Event, Metadata, Subscriber, dispatcher,
     field::{Field, Visit},
     span::{Attributes, Id, Record},
 };
@@ -22,6 +24,7 @@ pub(crate) struct OutcomeSubscriber {
 struct CaptureState {
     span_names: HashMap<u64, &'static str>,
     outcomes: Vec<(&'static str, String)>,
+    response_body_events: Vec<(u64, String)>,
 }
 
 impl OutcomeSubscriber {
@@ -34,12 +37,32 @@ impl OutcomeSubscriber {
             .collect()
     }
 
+    pub(crate) fn response_body_events(&self) -> Vec<(u64, String)> {
+        self.state().response_body_events.clone()
+    }
+
     fn state(&self) -> MutexGuard<'_, CaptureState> {
         match self.state.lock() {
             Ok(state) => state,
             Err(poisoned) => poisoned.into_inner(),
         }
     }
+}
+
+pub(crate) async fn poll_once_then_drop<F>(future: F, subscriber: OutcomeSubscriber) -> bool
+where
+    F: Future,
+{
+    let dispatch = Dispatch::new(subscriber);
+    let mut future = Box::pin(future);
+    let pending = std::future::poll_fn(|context| {
+        dispatcher::with_default(&dispatch, || {
+            Poll::Ready(future.as_mut().poll(context).is_pending())
+        })
+    })
+    .await;
+    dispatcher::with_default(&dispatch, || drop(future));
+    pending
 }
 
 impl Subscriber for OutcomeSubscriber {
@@ -70,7 +93,22 @@ impl Subscriber for OutcomeSubscriber {
 
     fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
 
-    fn event(&self, _event: &Event<'_>) {}
+    fn event(&self, event: &Event<'_>) {
+        let Some(parent) = event.parent() else {
+            return;
+        };
+        if self.state().span_names.get(&parent.into_u64()).copied() != Some("http1.response_body") {
+            return;
+        }
+
+        let mut visitor = ResponseBodyVisitor::default();
+        event.record(&mut visitor);
+        if let (Some(body_bytes), Some(outcome)) = (visitor.body_bytes, visitor.outcome) {
+            self.state()
+                .response_body_events
+                .push((body_bytes, outcome));
+        }
+    }
 
     fn enter(&self, _span: &Id) {}
 
@@ -84,6 +122,28 @@ struct OutcomeVisitor {
 
 impl Visit for OutcomeVisitor {
     fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
+
+    fn record_str(&mut self, field: &Field, value: &str) {
+        if field.name() == "outcome" {
+            self.outcome = Some(value.to_owned());
+        }
+    }
+}
+
+#[derive(Default)]
+struct ResponseBodyVisitor {
+    body_bytes: Option<u64>,
+    outcome: Option<String>,
+}
+
+impl Visit for ResponseBodyVisitor {
+    fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        if field.name() == "body_bytes" {
+            self.body_bytes = Some(value);
+        }
+    }
 
     fn record_str(&mut self, field: &Field, value: &str) {
         if field.name() == "outcome" {

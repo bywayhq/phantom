@@ -33,7 +33,7 @@ use tokio_btls::SslStream as BoringStream;
 
 use super::{Http1TlsConnector, Http1TlsError};
 use crate::http1::{OriginForm, RequestHeader};
-use crate::tracing_test::OutcomeSubscriber;
+use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -57,22 +57,20 @@ async fn dropping_tls_response_head_future_records_cancelled_once() -> TestResul
     let identity = TestIdentity::generate()?;
     let connector = test_connector(&identity)?;
     let subscriber = OutcomeSubscriber::default();
-    let _default = tracing::subscriber::set_default(subscriber.clone());
     let (client, _server) = duplex(64 * 1024);
-    let mut request = Box::pin(connector.send_get(
-        client,
-        TEST_SERVER_NAME,
-        OriginForm::parse("/")?,
-        vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
-    ));
-
-    let pending =
-        std::future::poll_fn(|context| Poll::Ready(request.as_mut().poll(context).is_pending()))
-            .await;
+    let pending = poll_once_then_drop(
+        connector.send_get(
+            client,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+        ),
+        subscriber.clone(),
+    )
+    .await;
     if !pending {
         return Err("HTTP/1-over-TLS response-head future completed before cancellation".into());
     }
-    drop(request);
 
     assert_eq!(
         subscriber.outcomes_for("http1.tls.response_head"),

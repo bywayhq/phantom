@@ -15,11 +15,12 @@ use tokio::{
     sync::oneshot,
     time::timeout,
 };
+use tracing::instrument::WithSubscriber;
 
 use super::{
     Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, OriginForm, RequestHeader, send_get,
 };
-use crate::tracing_test::OutcomeSubscriber;
+use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
 const PEER_TEST_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -46,17 +47,15 @@ fn host() -> RequestHeader {
 #[tokio::test]
 async fn cancelled_response_head_records_outcome_once() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = OutcomeSubscriber::default();
-    let _default = tracing::subscriber::set_default(subscriber.clone());
     let (client, _server) = duplex(4096);
-    let mut request = Box::pin(send_get(client, target()?, vec![host()]));
-
-    let pending =
-        std::future::poll_fn(|context| Poll::Ready(request.as_mut().poll(context).is_pending()))
-            .await;
+    let pending = poll_once_then_drop(
+        send_get(client, target()?, vec![host()]),
+        subscriber.clone(),
+    )
+    .await;
     if !pending {
         return Err("HTTP/1 response-head future completed before cancellation".into());
     }
-    drop(request);
 
     assert_eq!(
         subscriber.outcomes_for("http1.response_head"),
@@ -155,6 +154,7 @@ async fn streams_first_data_before_later_data_exists() -> Result<(), Box<dyn std
 #[tokio::test]
 async fn content_length_ends_without_socket_eof() -> Result<(), Box<dyn std::error::Error>> {
     bounded_peer_test(async {
+        let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
         let server_task = tokio::spawn(async move {
             read_head(&mut server).await?;
@@ -165,9 +165,17 @@ async fn content_length_ends_without_socket_eof() -> Result<(), Box<dyn std::err
             server.read(&mut byte).await
         });
 
-        let body = send_get(client, target()?, vec![host()]).await?.into_body();
-        let collected = body.collect().await?;
+        let collected = async {
+            let body = send_get(client, target()?, vec![host()]).await?.into_body();
+            body.collect().await
+        }
+        .with_subscriber(subscriber.clone())
+        .await?;
         assert_eq!(collected.to_bytes(), "hello");
+        assert_eq!(
+            subscriber.response_body_events(),
+            [(5, "complete".to_owned())]
+        );
         assert_eq!(server_task.await??, 0);
         Ok(())
     })
@@ -232,6 +240,7 @@ async fn reads_close_delimited_body() -> Result<(), Box<dyn std::error::Error>> 
 #[tokio::test]
 async fn reports_truncated_content_length() -> Result<(), Box<dyn std::error::Error>> {
     bounded_peer_test(async {
+        let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
         let server_task = tokio::spawn(async move {
             read_head(&mut server).await?;
@@ -241,12 +250,21 @@ async fn reports_truncated_content_length() -> Result<(), Box<dyn std::error::Er
             server.shutdown().await
         });
 
-        let body = send_get(client, target()?, vec![host()]).await?.into_body();
-        let error = match body.collect().await {
+        let collected = async {
+            let body = send_get(client, target()?, vec![host()]).await?.into_body();
+            body.collect().await
+        }
+        .with_subscriber(subscriber.clone())
+        .await;
+        let error = match collected {
             Ok(_) => return Err("truncated body accepted".into()),
             Err(error) => error,
         };
         assert!(matches!(error, Http1Error::Protocol(_)), "{error:?}");
+        assert_eq!(
+            subscriber.response_body_events(),
+            [(5, "protocol_error".to_owned())]
+        );
         server_task.await??;
         Ok(())
     })
@@ -359,6 +377,7 @@ async fn canceling_request_closes_stream() -> Result<(), Box<dyn std::error::Err
 #[tokio::test]
 async fn dropping_body_closes_stream() -> Result<(), Box<dyn std::error::Error>> {
     bounded_peer_test(async {
+        let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
         let server_task = tokio::spawn(async move {
             read_head(&mut server).await?;
@@ -369,8 +388,25 @@ async fn dropping_body_closes_stream() -> Result<(), Box<dyn std::error::Error>>
             server.read(&mut byte).await
         });
 
-        let response = send_get(client, target()?, vec![host()]).await?;
-        drop(response);
+        async {
+            let response = send_get(client, target()?, vec![host()]).await?;
+            let mut body = response.into_body();
+            let data = body
+                .frame()
+                .await
+                .ok_or("body ended before partial data")??
+                .into_data()
+                .map_err(|_| "expected a data frame")?;
+            assert_eq!(data, "first");
+            drop(body);
+            Ok::<_, Box<dyn std::error::Error>>(())
+        }
+        .with_subscriber(subscriber.clone())
+        .await?;
+        assert_eq!(
+            subscriber.response_body_events(),
+            [(5, "dropped".to_owned())]
+        );
         assert_eq!(server_task.await??, 0);
         Ok(())
     })
