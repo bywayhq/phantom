@@ -140,7 +140,7 @@ pub(crate) async fn poll_once_then_drop<F>(future: F, subscriber: OutcomeSubscri
 where
     F: Future,
 {
-    let dispatch = Dispatch::new(subscriber);
+    let dispatch = subscriber.dispatch();
     let mut future = Box::pin(future);
     let pending = std::future::poll_fn(|context| {
         dispatcher::with_default(&dispatch, || {

@@ -59,7 +59,7 @@ The intended vocabulary is:
 | Body adapters | `stream` | Adds ecosystem adapters only; core backpressured bodies remain available. |
 | Session policy | `cookies` | Adds a cookie store integration; client-hint state stays separately controlled because it has different rules. |
 | Content decoding | `gzip`, `brotli`, `deflate`, `zstd` | Response `Content-Encoding`; distinct from TLS certificate compression. |
-| Routes | Later `masque`, possibly `system-proxy` | Direct, HTTP CONNECT, and remote-DNS SOCKS5 TCP routes are core. Heavier UDP or discovery integrations may be additive features; none enables fallback by itself. |
+| Routes | Later `masque`, possibly `system-proxy` | Direct, HTTP CONNECT, and local-/remote-DNS SOCKS5 TCP routes are core. Heavier UDP or discovery integrations may be additive features; none enables fallback by itself. |
 | Higher protocols | `sse`, `websocket` | `sse` adds the bounded pull decoder. `websocket` adds ordered H1 Upgrade plus bounded `Stream`/`Sink` message I/O. |
 | Diagnostics | `qlog`, `keylog` | Compiles support; emission still requires an explicit bounded runtime sink. |
 | Convenience | `full` | Enables all stable public optional capabilities, excluding tests and unstable experiments. |

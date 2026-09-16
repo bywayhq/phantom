@@ -51,8 +51,9 @@ The current deterministic baseline includes HTTP CONNECT fragmentation,
 informational-response bounds, arbitrary final 2xx, non-2xx rejection,
 coalesced tunnel-byte preservation, oversized-head rejection, cancellation,
 and proof that proxy failure does not open a direct socket. SOCKS5 coverage
-includes exact remote-DNS `DOMAIN` bytes, fragmented IPv4/IPv6/domain replies,
-malformed and rejected replies, cancellation, missing-runtime behavior,
+includes exact remote-DNS `DOMAIN` and local-DNS `IPV4`/`IPV6` targets,
+ordered address fallback, fragmented IPv4/IPv6/domain replies, malformed and
+rejected replies, cancellation, missing-runtime behavior,
 route-aware H2 tunnel reuse, WSS routing, and the same no-direct-fallback
 proof. It also includes
 H1 `100 Continue`, chained `103`/`100`, declared-length surplus isolation, H2
@@ -74,7 +75,7 @@ universal peer framework.
 - Compression tests fragment gzip, deflate, Brotli, and zstd input while a slow
   consumer verifies incremental output, ratio limits, and one timeout budget.
 - Proxy peers still need browser-differential 407 challenge/retry behavior,
-  half-close coverage, HTTPS proxying, SOCKS5 local DNS/authentication, and UDP
+  half-close coverage, HTTPS proxying, SOCKS5 authentication, and UDP
   route variants.
 - SSE covers BOM and line-ending variants, split UTF-8, comments, `id`,
   `retry`, reconnect, `Last-Event-ID`, and 204 termination.

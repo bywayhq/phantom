@@ -174,17 +174,30 @@ impl PoolEntry {
                     )
                     .await?
             }
-            Route::Socks5(proxy) => {
-                connector
-                    .connect_socks5_remote(
-                        proxy.host(),
-                        proxy.port(),
-                        endpoint.host(),
-                        endpoint.port(),
-                        endpoint.host(),
-                    )
-                    .await?
-            }
+            Route::Socks5(proxy) => match proxy.dns_mode() {
+                crate::Socks5DnsMode::Local => {
+                    connector
+                        .connect_socks5_local(
+                            proxy.host(),
+                            proxy.port(),
+                            endpoint.host(),
+                            endpoint.port(),
+                            endpoint.host(),
+                        )
+                        .await?
+                }
+                crate::Socks5DnsMode::Remote => {
+                    connector
+                        .connect_socks5_remote(
+                            proxy.host(),
+                            proxy.port(),
+                            endpoint.host(),
+                            endpoint.port(),
+                            endpoint.host(),
+                        )
+                        .await?
+                }
+            },
         };
         let slot = ConnectionSlot {
             connection,

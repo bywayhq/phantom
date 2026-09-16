@@ -234,19 +234,34 @@ impl RequestBuilder {
                                     )
                                     .await
                             }
-                            Route::Socks5(proxy) => {
-                                connector
-                                    .send_get_socks5_remote(
-                                        proxy.host(),
-                                        proxy.port(),
-                                        endpoint.host(),
-                                        endpoint.port(),
-                                        endpoint.host(),
-                                        target,
-                                        headers,
-                                    )
-                                    .await
-                            }
+                            Route::Socks5(proxy) => match proxy.dns_mode() {
+                                crate::Socks5DnsMode::Local => {
+                                    connector
+                                        .send_get_socks5_local(
+                                            proxy.host(),
+                                            proxy.port(),
+                                            endpoint.host(),
+                                            endpoint.port(),
+                                            endpoint.host(),
+                                            target,
+                                            headers,
+                                        )
+                                        .await
+                                }
+                                crate::Socks5DnsMode::Remote => {
+                                    connector
+                                        .send_get_socks5_remote(
+                                            proxy.host(),
+                                            proxy.port(),
+                                            endpoint.host(),
+                                            endpoint.port(),
+                                            endpoint.host(),
+                                            target,
+                                            headers,
+                                        )
+                                        .await
+                                }
+                            },
                         }
                         .map_err(RequestError::http1)?;
                         let (parts, body) = response.into_parts();
@@ -300,20 +315,36 @@ impl RequestBuilder {
                                     )
                                     .await
                             }
-                            Route::Socks5(proxy) => {
-                                connector
-                                    .send_get_socks5_remote(
-                                        proxy.host(),
-                                        proxy.port(),
-                                        endpoint.host(),
-                                        endpoint.port(),
-                                        endpoint.host(),
-                                        endpoint.authority().as_str(),
-                                        target,
-                                        request_headers,
-                                    )
-                                    .await
-                            }
+                            Route::Socks5(proxy) => match proxy.dns_mode() {
+                                crate::Socks5DnsMode::Local => {
+                                    connector
+                                        .send_get_socks5_local(
+                                            proxy.host(),
+                                            proxy.port(),
+                                            endpoint.host(),
+                                            endpoint.port(),
+                                            endpoint.host(),
+                                            endpoint.authority().as_str(),
+                                            target,
+                                            request_headers,
+                                        )
+                                        .await
+                                }
+                                crate::Socks5DnsMode::Remote => {
+                                    connector
+                                        .send_get_socks5_remote(
+                                            proxy.host(),
+                                            proxy.port(),
+                                            endpoint.host(),
+                                            endpoint.port(),
+                                            endpoint.host(),
+                                            endpoint.authority().as_str(),
+                                            target,
+                                            request_headers,
+                                        )
+                                        .await
+                                }
+                            },
                         }
                         .map_err(RequestError::http2)?;
                         let (parts, body) = response.into_parts();

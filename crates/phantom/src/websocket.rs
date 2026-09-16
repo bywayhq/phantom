@@ -189,19 +189,34 @@ impl WebSocketRequestBuilder {
                     )
                     .await
             }
-            Route::Socks5(proxy) => {
-                connector
-                    .upgrade_get_socks5_remote(
-                        proxy.host(),
-                        proxy.port(),
-                        request.endpoint.host(),
-                        request.endpoint.port(),
-                        request.endpoint.host(),
-                        request.target,
-                        prepared.headers,
-                    )
-                    .await
-            }
+            Route::Socks5(proxy) => match proxy.dns_mode() {
+                crate::Socks5DnsMode::Local => {
+                    connector
+                        .upgrade_get_socks5_local(
+                            proxy.host(),
+                            proxy.port(),
+                            request.endpoint.host(),
+                            request.endpoint.port(),
+                            request.endpoint.host(),
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                }
+                crate::Socks5DnsMode::Remote => {
+                    connector
+                        .upgrade_get_socks5_remote(
+                            proxy.host(),
+                            proxy.port(),
+                            request.endpoint.host(),
+                            request.endpoint.port(),
+                            request.endpoint.host(),
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                }
+            },
         }
         .map_err(RequestError::http1)
         .map_err(WebSocketError::request)?;

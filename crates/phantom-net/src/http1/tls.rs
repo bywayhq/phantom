@@ -13,7 +13,10 @@ use super::{
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
-    proxy::{HttpConnectHeader, connect_http_tunnel_direct, connect_socks5_tunnel_direct},
+    proxy::{
+        HttpConnectHeader, connect_http_tunnel_direct, connect_socks5_tunnel_direct,
+        connect_socks5_tunnel_local,
+    },
     tls::{TlsConnector, trace_alpn},
 };
 
@@ -178,6 +181,32 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Sends one empty-body GET through a SOCKS5 proxy using local DNS.
+    ///
+    /// The origin request is validated before DNS or proxy I/O. Proxy failure
+    /// never falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_get_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        self.trace_response_head(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream =
+                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_get(&connection, prepared).await
+        })
+        .await
+    }
+
     /// Establishes HTTP/1.1 over TLS on an already-connected byte stream.
     ///
     /// # Errors
@@ -268,6 +297,29 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Opens one local-DNS SOCKS5 tunnel and establishes HTTP/1.1 over TLS.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when target resolution, proxy negotiation,
+    /// TLS negotiation, ALPN selection, or the HTTP/1.1 handshake fails.
+    pub async fn connect_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_connect(async {
+            let stream =
+                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            self.connect_prepared(stream, server_name).await
+        })
+        .await
+    }
+
     /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS connection.
     ///
     /// A `101 Switching Protocols` response yields the upgraded byte stream.
@@ -342,6 +394,32 @@ impl Http1TlsConnector {
             let prepared = PreparedGet::new(target, headers)?;
             let stream =
                 connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            self.send_prepared_upgrade(stream, server_name, prepared)
+                .await
+        })
+        .await
+    }
+
+    /// Sends one HTTP/1.1 Upgrade GET through a local-DNS SOCKS5 proxy.
+    ///
+    /// The origin request is validated before DNS or proxy I/O. Proxy failure
+    /// never falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream =
+                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
                     .await?;
             self.send_prepared_upgrade(stream, server_name, prepared)
                 .await

@@ -31,14 +31,15 @@ println!("{}", response.status());
 - `Route::Direct` opens the origin TCP or UDP path directly.
 - `Route::HttpConnect` opens a plaintext connection to an HTTP proxy and sends
   an ordered CONNECT request before origin TLS.
-- `Route::Socks5` accepts only `socks5h://` endpoints. Domain origins are sent
-  to the proxy as SOCKS5 `DOMAIN` targets; IP literals use their native address
-  form. The proxy endpoint itself is resolved locally.
+- `Route::Socks5` uses `socks5://` for locally resolved origin names and
+  `socks5h://` for proxy-resolved origin names. Local DNS sends an ordered IP
+  candidate as a SOCKS address; remote DNS sends the original domain. The
+  proxy endpoint itself is always resolved locally.
 
 The SOCKS5 slice is no-auth and TCP CONNECT only. It supports H1, H2,
-session-owned H1/H2 reuse, and H1 WSS. It does not currently support local origin
-DNS, credentials, UDP ASSOCIATE, or H3. Those are separate route capabilities,
-not flags that silently change the meaning of `socks5h`.
+session-owned H1/H2 reuse, and H1 WSS. It does not currently support
+credentials, custom resolvers, UDP ASSOCIATE, or H3. DNS ownership is part of
+the route value and therefore part of connection-pool identity.
 
 ## Failure and observability
 

@@ -152,7 +152,7 @@ pub enum RequestErrorKind {
     UnsupportedRoute,
     /// The URI target cannot be represented as origin-form.
     InvalidTarget,
-    /// Resolving the direct origin address failed.
+    /// Resolving the origin address failed.
     Resolve,
     /// Establishing the direct network connection failed.
     Connect,
@@ -269,6 +269,11 @@ impl RequestError {
             {
                 RequestErrorKind::RuntimeUnavailable
             }
+            Http1TlsError::Socks5Proxy(error)
+                if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
+            {
+                RequestErrorKind::Resolve
+            }
             Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
             Http1TlsError::Tls(_) => RequestErrorKind::Tls,
             _ => RequestErrorKind::Http1,
@@ -294,6 +299,11 @@ impl RequestError {
                 if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
             {
                 RequestErrorKind::RuntimeUnavailable
+            }
+            Http2TlsError::Socks5Proxy(error)
+                if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
+            {
+                RequestErrorKind::Resolve
             }
             Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
             Http2TlsError::Tls(_) => RequestErrorKind::Tls,

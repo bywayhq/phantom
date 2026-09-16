@@ -106,7 +106,7 @@ The issue histories show proxy correctness is cross-cutting:
 - `wreq` replaced serialization-derived pool IDs with owned configuration IDs
   after [issue 1086](https://github.com/0x676e67/wreq/issues/1086).
 
-Phantom makes direct, plaintext HTTP CONNECT, and remote-DNS SOCKS5 owned,
+Phantom makes direct, plaintext HTTP CONNECT, and local-/remote-DNS SOCKS5 owned,
 typed choices at the client or request boundary. CONNECT fields are ordered,
 request validation occurs before opening the proxy socket, and proxy failure
 never falls back to a direct connection. The HTTP tunnel wrapper also
@@ -119,8 +119,8 @@ and
 HttpCloak's buffered handoff is a useful positive reference
 ([source](https://github.com/sardanioss/httpcloak/blob/30379124605d212efe5240aacd60bd4b9ab7c6cf/transport/http1_transport.go#L1020-L1067)).
 
-Later route slices add HTTP forwarding, HTTPS proxies, SOCKS5 local DNS and
-authentication, rotation, and local binding as explicit policy. H3 requires a separately
+Later route slices add HTTP forwarding, HTTPS proxies, SOCKS5 authentication,
+rotation, and local binding as explicit policy. H3 requires a separately
 proven UDP route—SOCKS5 UDP ASSOCIATE, then CONNECT-UDP/MASQUE—not ordinary
 CONNECT.
 

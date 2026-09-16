@@ -1,10 +1,12 @@
 use std::{error::Error as StdError, fmt, future::Future};
 
+use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncWrite};
+
 use tokio_socks::{IntoTargetAddr, TargetAddr, tcp::Socks5Stream};
 use tracing::{Instrument, Span, debug_span, field};
 
-use crate::direct::{DirectConnectError, connect_tcp};
+use crate::direct::{DirectConnectError, connect_tcp, poll_tokio_io};
 
 /// Stable category of SOCKS5 tunnel failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -16,6 +18,8 @@ pub enum Socks5ErrorKind {
     RuntimeUnavailable,
     /// Connecting to the proxy failed.
     Connect,
+    /// Resolving the target locally failed or returned no addresses.
+    Resolve,
     /// SOCKS5 method selection or response parsing failed.
     Negotiation,
     /// The proxy returned a SOCKS5 CONNECT failure reply.
@@ -53,6 +57,13 @@ impl Socks5Error {
         }
     }
 
+    fn resolve(source: std::io::Error) -> Self {
+        Self {
+            kind: Socks5ErrorKind::Resolve,
+            source: Some(Socks5ErrorSource::Io(source)),
+        }
+    }
+
     fn invalid_target(source: tokio_socks::Error) -> Self {
         Self {
             kind: Socks5ErrorKind::InvalidTarget,
@@ -86,6 +97,7 @@ impl fmt::Display for Socks5Error {
             Socks5ErrorKind::InvalidTarget => "invalid SOCKS5 target",
             Socks5ErrorKind::RuntimeUnavailable => "SOCKS5 proxy requires a Tokio runtime",
             Socks5ErrorKind::Connect => "SOCKS5 proxy TCP connection failed",
+            Socks5ErrorKind::Resolve => "SOCKS5 target DNS resolution failed",
             Socks5ErrorKind::Negotiation => "SOCKS5 negotiation failed",
             Socks5ErrorKind::Rejected => "SOCKS5 proxy rejected CONNECT",
         })
@@ -107,6 +119,7 @@ impl Socks5ErrorKind {
             Self::InvalidTarget => "invalid_target",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Connect => "connect_error",
+            Self::Resolve => "resolve_error",
             Self::Negotiation => "negotiation_error",
             Self::Rejected => "rejected",
         }
@@ -130,17 +143,47 @@ pub async fn connect_socks5_tunnel_direct(
     target_host: &str,
     target_port: u16,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    trace_connect(async {
+    trace_connect("remote", async {
         let target = prepare_target(target_host, target_port)?;
-        let stream = connect_tcp(proxy_host, proxy_port)
-            .await
-            .map_err(|error| match error {
-                DirectConnectError::RuntimeUnavailable => {
-                    Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable)
-                }
-                DirectConnectError::Connect(error) => Socks5Error::connect(error),
-            })?;
+        let stream = connect_proxy(proxy_host, proxy_port).await?;
         establish(stream, target).await
+    })
+    .await
+}
+
+/// Establishes a no-auth SOCKS5 CONNECT tunnel with locally resolved target DNS.
+///
+/// The target is resolved before connecting to the proxy, and the selected IP
+/// address is sent as a SOCKS5 `IPV4` or `IPV6` target. Proxy failure never
+/// opens a direct target connection.
+///
+/// # Errors
+///
+/// Returns [`Socks5Error`] for a missing Tokio runtime, target DNS failure,
+/// proxy TCP failure, malformed negotiation, or a rejected CONNECT request.
+pub async fn connect_socks5_tunnel_local(
+    proxy_host: &str,
+    proxy_port: u16,
+    target_host: &str,
+    target_port: u16,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
+    trace_connect("local", async {
+        if target_host.is_empty() {
+            return Err(Socks5Error::without_source(Socks5ErrorKind::InvalidTarget));
+        }
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?;
+        let mut targets = poll_tokio_io(|| tokio::net::lookup_host((target_host, target_port)))
+            .await
+            .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?
+            .map_err(Socks5Error::resolve)?;
+        let mut ordered = Vec::new();
+        for target in targets.by_ref() {
+            if !ordered.contains(&target) {
+                ordered.push(target);
+            }
+        }
+        connect_local_to_addresses(proxy_host, proxy_port, ordered).await
     })
     .await
 }
@@ -154,7 +197,7 @@ pub(super) async fn connect_socks5_tunnel<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    trace_connect(async {
+    trace_connect("remote", async {
         let target = prepare_target(target_host, target_port)?;
         establish(stream, target).await
     })
@@ -180,14 +223,62 @@ where
         .map_err(Socks5Error::negotiation)
 }
 
-async fn trace_connect<F, S>(operation: F) -> Result<S, Socks5Error>
+pub(super) async fn connect_local_to_addresses(
+    proxy_host: &str,
+    proxy_port: u16,
+    targets: impl IntoIterator<Item = SocketAddr>,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
+    let mut last_rejection = None;
+    for target in targets {
+        let stream = connect_proxy(proxy_host, proxy_port).await?;
+        match establish(stream, TargetAddr::Ip(target)).await {
+            Ok(stream) => return Ok(stream),
+            Err(error) if error.is_target_specific_rejection() => {
+                last_rejection = Some(error);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Err(last_rejection.unwrap_or_else(|| Socks5Error::without_source(Socks5ErrorKind::Resolve)))
+}
+
+impl Socks5Error {
+    fn is_target_specific_rejection(&self) -> bool {
+        matches!(
+            self.source,
+            Some(Socks5ErrorSource::Protocol(
+                tokio_socks::Error::NetworkUnreachable
+                    | tokio_socks::Error::HostUnreachable
+                    | tokio_socks::Error::ConnectionRefused
+                    | tokio_socks::Error::TtlExpired
+                    | tokio_socks::Error::AddressTypeNotSupported
+            ))
+        )
+    }
+}
+
+async fn connect_proxy(
+    proxy_host: &str,
+    proxy_port: u16,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
+    connect_tcp(proxy_host, proxy_port)
+        .await
+        .map_err(|error| match error {
+            DirectConnectError::RuntimeUnavailable => {
+                Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable)
+            }
+            DirectConnectError::Connect(error) => Socks5Error::connect(error),
+        })
+}
+
+async fn trace_connect<F, S>(dns: &'static str, operation: F) -> Result<S, Socks5Error>
 where
     F: Future<Output = Result<S, Socks5Error>>,
 {
     let span = debug_span!(
         "proxy.socks5",
         proxy_scheme = "socks5",
-        dns = "remote",
+        dns,
         outcome = field::Empty,
         error_kind = field::Empty,
     );

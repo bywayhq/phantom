@@ -7,7 +7,7 @@ use crate::authority::Endpoint;
 
 mod socks5;
 
-pub use socks5::{Socks5Proxy, Socks5ProxyConfigError, Socks5ProxyConfigErrorKind};
+pub use socks5::{Socks5DnsMode, Socks5Proxy, Socks5ProxyConfigError, Socks5ProxyConfigErrorKind};
 
 /// Route used to establish one origin connection.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -18,7 +18,7 @@ pub enum Route {
     Direct,
     /// Tunnel TCP through a plaintext HTTP proxy using CONNECT.
     HttpConnect(HttpProxy),
-    /// Tunnel TCP through a SOCKS5 proxy with proxy-owned DNS resolution.
+    /// Tunnel TCP through a SOCKS5 proxy with explicit DNS ownership.
     Socks5(Socks5Proxy),
 }
 
@@ -35,7 +35,7 @@ impl Route {
         Self::HttpConnect(proxy)
     }
 
-    /// Returns a SOCKS5 route with proxy-owned origin DNS resolution.
+    /// Returns a SOCKS5 route using the proxy's configured DNS mode.
     #[must_use]
     pub fn socks5(proxy: Socks5Proxy) -> Self {
         Self::Socks5(proxy)
@@ -45,7 +45,10 @@ impl Route {
         match self {
             Self::Direct => "direct",
             Self::HttpConnect(_) => "http_connect",
-            Self::Socks5(_) => "socks5_remote_dns",
+            Self::Socks5(proxy) => match proxy.dns_mode() {
+                Socks5DnsMode::Local => "socks5_local_dns",
+                Socks5DnsMode::Remote => "socks5_remote_dns",
+            },
         }
     }
 }

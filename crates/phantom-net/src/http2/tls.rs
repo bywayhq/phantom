@@ -15,7 +15,7 @@ use crate::{
     direct::{DirectConnectError, connect_tcp},
     proxy::{
         HttpConnectError, HttpConnectHeader, Socks5Error, connect_http_tunnel_direct,
-        connect_socks5_tunnel_direct,
+        connect_socks5_tunnel_direct, connect_socks5_tunnel_local,
     },
     tls::{TlsConnector, trace_alpn},
 };
@@ -182,6 +182,28 @@ impl Http2TlsConnector {
         .await
     }
 
+    /// Establishes HTTP/2 through a SOCKS5 proxy using local DNS.
+    ///
+    /// Proxy failure never falls back to a direct connection or another HTTP
+    /// protocol.
+    pub async fn connect_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            let stream =
+                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            self.connect_prepared(stream, server_name, client).await
+        })
+        .await
+    }
+
     /// Sends one empty-body HTTP/2 GET after an exact `h2` TLS negotiation.
     ///
     /// `server_name` controls certificate verification and SNI; `authority`
@@ -294,6 +316,32 @@ impl Http2TlsConnector {
             let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
             let stream =
                 connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            self.send_prepared_get(stream, server_name, prepared).await
+        })
+        .await
+    }
+
+    /// Sends one empty-body GET through a SOCKS5 proxy using local DNS.
+    ///
+    /// Origin request validation completes before target DNS or proxy I/O.
+    /// Proxy failure never falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_get_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        self.trace_response_head(async {
+            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+            let stream =
+                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
                     .await?;
             self.send_prepared_get(stream, server_name, prepared).await
         })

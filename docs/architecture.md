@@ -26,8 +26,8 @@ flowchart TB
     Client["phantom::Client<br/>small public facade"]
     Session["Session<br/>H1 · H2 · H3 pools · optional cookies"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
-    Route["Current route<br/>direct · HTTP CONNECT · SOCKS5h"]
-    FutureRoute["Later routes<br/>HTTPS proxy · local-DNS/auth SOCKS5 · UDP"]
+    Route["Current route<br/>direct · HTTP CONNECT · SOCKS5"]
+    FutureRoute["Later routes<br/>HTTPS proxy · authenticated SOCKS5 · UDP"]
     FacadeRequest["Facade request<br/>exact H1/H2/H3 GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
@@ -96,7 +96,7 @@ flowchart LR
     Route --> Direct["direct TCP or UDP"]
     Route --> Http["HTTP proxy<br/>CONNECT"]
     Route --> Https["HTTPS proxy<br/>proxy TLS · CONNECT"]
-    Route --> Socks["SOCKS5<br/>remote DNS"]
+    Route --> Socks["SOCKS5<br/>local or remote DNS"]
     Direct --> Tcp["TCP byte stream"]
     Http --> Tcp
     Https --> Tcp
@@ -109,8 +109,8 @@ flowchart LR
     Masque["CONNECT-UDP / MASQUE"] -.-> Udp
 ```
 
-The current proxy slices cover plaintext HTTP CONNECT and no-auth remote-DNS
-SOCKS5 for H1/H2 origin TLS and H1 WebSocket; direct H3 uses UDP. Selecting H3
+The current proxy slices cover plaintext HTTP CONNECT and no-auth local- or
+remote-DNS SOCKS5 for H1/H2 origin TLS and H1 WebSocket; direct H3 uses UDP. Selecting H3
 with either TCP-only proxy route fails before proxy or origin I/O because those
 routes have no UDP capability. The client or request owns the route, and the
 HTTP CONNECT field sequence contains
@@ -119,14 +119,15 @@ I/O. Negotiation is bounded, accepts a final 2xx after bounded informational
 responses, preserves bytes read beyond the response head, and never retries
 direct. Hostnames, IPv4, and bracketed IPv6 endpoints have local coverage.
 
-The SOCKS5 route accepts only `socks5h://`: domain targets cross the tunnel as
-SOCKS `DOMAIN` addresses, while the proxy endpoint is resolved locally. Its
-configuration rejects credentials, paths, queries, and ambiguous `socks5://`
-local-DNS semantics. Negotiation uses a maintained protocol engine; Phantom
-owns route validation, error categories, tracing, and fallback policy. See
+The SOCKS5 route uses `socks5://` for local origin DNS and `socks5h://` for
+proxy-owned origin DNS. Local resolution preserves resolver order, opens a
+fresh proxy connection for each eligible address attempt, and never opens a
+direct origin connection. Its configuration rejects credentials, paths, and
+queries. Negotiation uses a maintained protocol engine; Phantom owns route
+validation, error categories, tracing, and fallback policy. See
 [proxy routing](proxy-routing.md).
 
-HTTP forwarding, TLS-to-proxy CONNECT, SOCKS5 local DNS and authentication,
+HTTP forwarding, TLS-to-proxy CONNECT, SOCKS5 authentication,
 authentication challenge negotiation, IDNA normalization, and half-close
 behavior remain later slices. Credentials do not live in endpoint strings or
 tracing fields.
