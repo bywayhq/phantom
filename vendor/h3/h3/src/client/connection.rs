@@ -113,6 +113,7 @@ where
 {
     pub(super) open: T,
     pub(super) conn_state: Arc<SharedState>,
+    pub(super) qpack_decoder: Arc<qpack::DecoderState>,
     pub(super) max_field_section_size: u64, // maximum size for a header we receive
     // counts instances of SendRequest to close the connection when the last is dropped.
     pub(super) sender_count: Arc<AtomicUsize>,
@@ -214,13 +215,26 @@ where
             .await
             .map_err(|e| self.handle_quic_stream_error(e))?;
 
+        let frame_stream = FrameStream::new_request(
+            BufRecvStream::new(stream),
+            Arc::clone(&self.qpack_decoder),
+            &self.conn_state,
+        )
+        .map_err(|error| {
+            self.handle_connection_error_on_stream(InternalConnectionError::new(
+                Code::H3_EXCESSIVE_LOAD,
+                error.to_string(),
+            ))
+        })?;
+
         let request_stream = RequestStream {
             inner: connection::RequestStream::new(
-                FrameStream::new(BufRecvStream::new(stream)),
+                frame_stream,
                 self.max_field_section_size,
                 self.conn_state.clone(),
                 self.send_grease_frame,
             ),
+            response_headers: None,
         };
         // send the grease frame only once
         self.send_grease_frame = false;
@@ -239,6 +253,7 @@ where
 
         Self {
             conn_state: self.conn_state.clone(),
+            qpack_decoder: Arc::clone(&self.qpack_decoder),
             open: self.open.clone(),
             max_field_section_size: self.max_field_section_size,
             sender_count: self.sender_count.clone(),

@@ -21,6 +21,7 @@ pub enum FrameError {
     UnsupportedFrame(u64), // Known frames that should generate an error
     UnknownFrame(u64),     // Unknown frames that should be ignored
     InvalidFrameValue,
+    ExcessiveLoad(u64),
     Incomplete(usize),
     Settings(SettingsError),
     InvalidStreamId(InvalidStreamId),
@@ -36,6 +37,9 @@ impl fmt::Display for FrameError {
             FrameError::UnsupportedFrame(c) => write!(f, "frame 0x{:x} is not allowed h3", c),
             FrameError::UnknownFrame(c) => write!(f, "frame 0x{:x} ignored", c),
             FrameError::InvalidFrameValue => write!(f, "frame value is invalid"),
+            FrameError::ExcessiveLoad(size) => {
+                write!(f, "frame payload length {size} exceeds local limits")
+            }
             FrameError::Incomplete(x) => write!(f, "internal error: frame incomplete {}", x),
             FrameError::Settings(x) => write!(f, "invalid settings: {}", x),
             FrameError::InvalidStreamId(x) => write!(f, "{}", x),
@@ -96,22 +100,26 @@ impl Frame<PayloadLen> {
         let len = buf
             .get_var()
             .map_err(|_| FrameError::Incomplete(remaining + 1))?;
+        let payload_len = usize::try_from(len).map_err(|_| FrameError::ExcessiveLoad(len))?;
 
         if ty == FrameType::DATA {
-            return Ok(Frame::Data((len as usize).into()));
+            return Ok(Frame::Data(payload_len.into()));
         }
 
-        if buf.remaining() < len as usize {
-            return Err(FrameError::Incomplete(2 + len as usize));
+        if buf.remaining() < payload_len {
+            let minimum = payload_len
+                .checked_add(2)
+                .ok_or(FrameError::ExcessiveLoad(len))?;
+            return Err(FrameError::Incomplete(minimum));
         }
 
-        let mut payload = buf.take(len as usize);
+        let mut payload = buf.take(payload_len);
 
         #[cfg(feature = "tracing")]
         trace!("frame ty: {:?}", ty);
 
         let frame = match ty {
-            FrameType::HEADERS => Ok(Frame::Headers(payload.copy_to_bytes(len as usize))),
+            FrameType::HEADERS => Ok(Frame::Headers(payload.copy_to_bytes(payload_len))),
             FrameType::SETTINGS => Ok(Frame::Settings(Settings::decode(&mut payload)?)),
             FrameType::CANCEL_PUSH => Ok(Frame::CancelPush(payload.get_var()?.try_into()?)),
             FrameType::PUSH_PROMISE => Ok(Frame::PushPromise(PushPromise::decode(&mut payload)?)),
@@ -127,7 +135,7 @@ impl Frame<PayloadLen> {
             | FrameType::H2_CONTINUATION => Err(FrameError::UnsupportedFrame(ty.0)),
             FrameType::WEBTRANSPORT_BI_STREAM | FrameType::DATA => unreachable!(),
             _ => {
-                buf.advance(len as usize);
+                buf.advance(payload_len);
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
                 //# Endpoints MUST
                 //# NOT consider these frames to have any meaning upon receipt.
@@ -145,6 +153,19 @@ impl Frame<PayloadLen> {
             );
         }
         frame
+    }
+
+    pub(crate) fn headers_payload_len<T: Buf>(buf: &mut T) -> Result<Option<usize>, FrameError> {
+        let remaining = buf.remaining();
+        let ty = FrameType::decode(buf).map_err(|_| FrameError::Incomplete(remaining + 1))?;
+        if ty == FrameType::WEBTRANSPORT_BI_STREAM {
+            return Ok(None);
+        }
+        let len = buf
+            .get_var()
+            .map_err(|_| FrameError::Incomplete(remaining + 1))?;
+        let len = usize::try_from(len).map_err(|_| FrameError::ExcessiveLoad(len))?;
+        Ok((ty == FrameType::HEADERS).then_some(len))
     }
 }
 

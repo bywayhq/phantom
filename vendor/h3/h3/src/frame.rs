@@ -1,4 +1,7 @@
-use std::task::{Context, Poll};
+use std::{
+    sync::{Arc, Weak},
+    task::{Context, Poll},
+};
 
 use bytes::Buf;
 
@@ -8,8 +11,13 @@ use tracing::trace;
 use crate::error::Code;
 use crate::proto::frame::SettingsError;
 use crate::proto::push::InvalidPushId;
+use crate::qpack::{
+    DecoderState, ReadAheadLease as QpackReadAheadLease, RequestGuard as QpackRequestGuard,
+    RuntimeError as QpackRuntimeError, Section as QpackSection,
+};
 use crate::quic::{InvalidStreamId, StreamErrorIncoming};
-use crate::stream::{BufRecvStream, WriteBuf};
+use crate::shared_state::SharedState;
+use crate::stream::{BoundedRead, BufRecvStream, WriteBuf};
 use crate::{
     buf::BufList,
     proto::{
@@ -25,7 +33,17 @@ pub struct FrameStream<S, B> {
     // Already read data from the stream
     decoder: FrameDecoder,
     remaining_data: usize,
+    qpack_decoder: Option<Arc<DecoderState>>,
+    shared: Weak<SharedState>,
+    header_section: Option<QpackSection>,
+    request_guard: Option<QpackRequestGuard>,
+    read_ahead: Option<QpackReadAheadLease>,
 }
+
+const MAX_BUFFERED_WHILE_QPACK_BLOCKED: usize = 64 * 1024;
+const MAX_QPACK_BLOCKED_READ_BYTES_PER_POLL: usize = 64 * 1024;
+const MAX_REQUEST_FRAME_CHUNK_BYTES: usize =
+    crate::qpack::MAX_ENCODED_FIELD_SECTION_BYTES + MAX_BUFFERED_WHILE_QPACK_BLOCKED + 16;
 
 impl<S, B> FrameStream<S, B> {
     pub fn new(stream: BufRecvStream<S, B>) -> Self {
@@ -33,7 +51,34 @@ impl<S, B> FrameStream<S, B> {
             stream,
             decoder: FrameDecoder::default(),
             remaining_data: 0,
+            qpack_decoder: None,
+            shared: Weak::new(),
+            header_section: None,
+            request_guard: None,
+            read_ahead: None,
         }
+    }
+
+    pub(crate) fn new_request(
+        stream: BufRecvStream<S, B>,
+        qpack_decoder: Arc<DecoderState>,
+        shared: &Arc<SharedState>,
+    ) -> Result<Self, QpackRuntimeError>
+    where
+        S: RecvStream,
+    {
+        let request_guard =
+            qpack_decoder.begin_request(Arc::downgrade(shared), stream.recv_id().into_inner())?;
+        Ok(Self {
+            stream,
+            decoder: FrameDecoder::default(),
+            remaining_data: 0,
+            qpack_decoder: Some(qpack_decoder),
+            shared: Arc::downgrade(shared),
+            header_section: None,
+            request_guard: Some(request_guard),
+            read_ahead: None,
+        })
     }
 
     /// Unwraps the Framed streamer and returns the underlying stream **without** data loss for
@@ -64,12 +109,42 @@ where
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Option<Frame<PayloadLen>>, FrameStreamError>> {
+        self.release_drained_read_ahead();
         assert!(
             self.remaining_data == 0,
             "There is still data to read, please call poll_data() until it returns None."
         );
 
         loop {
+            if self.header_section.is_none() {
+                if let Some(qpack_decoder) = self.qpack_decoder.as_ref() {
+                    let header_len = {
+                        let mut cursor = self.stream.buf_mut().cursor();
+                        Frame::headers_payload_len(&mut cursor)
+                    };
+                    match header_len {
+                        Ok(Some(encoded_bytes)) => {
+                            self.header_section = Some(
+                                qpack_decoder
+                                    .reserve(
+                                        self.shared.clone(),
+                                        self.stream.recv_id().into_inner(),
+                                        encoded_bytes,
+                                    )
+                                    .map_err(qpack_resource_error)?,
+                            );
+                        }
+                        Ok(None) | Err(frame::FrameError::Incomplete(_)) => {}
+                        Err(frame::FrameError::ExcessiveLoad(size)) => {
+                            return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(format!(
+                                "frame payload length {size} is not representable"
+                            ))));
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
+
             match self.decoder.decode(self.stream.buf_mut())? {
                 Some(Frame::Data(PayloadLen(len))) => {
                     self.remaining_data = len;
@@ -83,7 +158,11 @@ where
                 None => {}
             }
 
-            match self.try_recv(cx)? {
+            if self.decoder.expected.is_none() && self.stream.buf().has_remaining() {
+                continue;
+            }
+
+            match self.try_recv_frame(cx)? {
                 // Received a chunk but the frame is incomplete, poll until we get `Pending`.
                 Poll::Ready(false) => continue,
                 Poll::Pending => return Poll::Pending,
@@ -118,6 +197,7 @@ where
             Poll::Pending => false,
         };
         let data = self.stream.buf_mut().take_chunk(self.remaining_data);
+        self.release_drained_read_ahead();
 
         match (data, end) {
             (None, true) => Poll::Ready(Ok(None)),
@@ -138,6 +218,7 @@ where
     /// Stops the underlying stream with the provided error code
     pub(crate) fn stop_sending(&mut self, error_code: Code) {
         self.stream.stop_sending(error_code.into());
+        self.cancel_request();
     }
 
     pub(crate) fn has_data(&self) -> bool {
@@ -148,6 +229,94 @@ where
         self.stream.is_eos() && !self.stream.buf().has_remaining()
     }
 
+    pub(crate) fn take_header_section(&mut self) -> Option<QpackSection> {
+        self.header_section.take()
+    }
+
+    pub(crate) fn put_header_section(&mut self, section: QpackSection) {
+        debug_assert!(self.header_section.is_none());
+        self.header_section = Some(section);
+    }
+
+    pub(crate) fn cancel_header_section(&mut self) {
+        if let Some(mut section) = self.header_section.take() {
+            section.cancel();
+        }
+    }
+
+    pub(crate) fn cancel_request(&mut self) {
+        self.cancel_header_section();
+        if let Some(mut guard) = self.request_guard.take() {
+            guard.cancel();
+        }
+        self.release_drained_read_ahead();
+    }
+
+    pub(crate) fn complete_request(&mut self) {
+        self.cancel_header_section();
+        if let Some(mut guard) = self.request_guard.take() {
+            guard.complete();
+        }
+        self.read_ahead = None;
+    }
+
+    pub(crate) fn poll_while_qpack_blocked(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), FrameStreamError>> {
+        if self.header_section.is_none() {
+            return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
+                "blocked QPACK section lost its reservation".to_string(),
+            )));
+        }
+        if self.read_ahead.is_none() {
+            let decoder = self.qpack_decoder.as_ref().ok_or_else(|| {
+                FrameStreamError::ExcessiveLoad(
+                    "blocked QPACK section lost its decoder state".to_string(),
+                )
+            })?;
+            self.read_ahead = Some(
+                decoder
+                    .reserve_read_ahead(MAX_BUFFERED_WHILE_QPACK_BLOCKED)
+                    .map_err(qpack_resource_error)?,
+            );
+        }
+
+        let mut received: usize = 0;
+        loop {
+            if self.stream.buf_mut().remaining() > MAX_BUFFERED_WHILE_QPACK_BLOCKED {
+                return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
+                    "buffered response bytes exceeded the blocked QPACK limit".to_string(),
+                )));
+            }
+            if self.stream.is_eos() {
+                return Poll::Pending;
+            }
+
+            let before = self.stream.buf_mut().remaining();
+            match self
+                .stream
+                .poll_read_bounded(cx, MAX_BUFFERED_WHILE_QPACK_BLOCKED)
+            {
+                Poll::Ready(Err(error)) => return Poll::Ready(Err(FrameStreamError::Quic(error))),
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Ok(BoundedRead::End)) => return Poll::Pending,
+                Poll::Ready(Ok(BoundedRead::Read)) => {}
+                Poll::Ready(Ok(BoundedRead::LimitExceeded)) => {
+                    return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
+                        "buffered response bytes exceeded the blocked QPACK limit".to_string(),
+                    )))
+                }
+            }
+            let after = self.stream.buf_mut().remaining();
+            received = received.saturating_add(after.saturating_sub(before));
+            if received >= MAX_QPACK_BLOCKED_READ_BYTES_PER_POLL {
+                cx.waker().wake_by_ref();
+                return Poll::Pending;
+            }
+        }
+    }
+
     fn try_recv(&mut self, cx: &mut Context<'_>) -> Poll<Result<bool, FrameStreamError>> {
         if self.stream.is_eos() {
             return Poll::Ready(Ok(true));
@@ -156,6 +325,35 @@ where
             Poll::Ready(Err(e)) => Poll::Ready(Err(FrameStreamError::Quic(e))),
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(eos)) => Poll::Ready(Ok(eos)),
+        }
+    }
+
+    fn release_drained_read_ahead(&mut self) {
+        if !self.stream.buf().has_remaining() {
+            self.read_ahead = None;
+        }
+    }
+
+    fn try_recv_frame(&mut self, cx: &mut Context<'_>) -> Poll<Result<bool, FrameStreamError>> {
+        if self.qpack_decoder.is_none() {
+            return self.try_recv(cx);
+        }
+        if self.stream.is_eos() {
+            return Poll::Ready(Ok(true));
+        }
+        match self
+            .stream
+            .poll_read_bounded(cx, MAX_REQUEST_FRAME_CHUNK_BYTES)
+        {
+            Poll::Ready(Err(error)) => Poll::Ready(Err(FrameStreamError::Quic(error))),
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(BoundedRead::End)) => Poll::Ready(Ok(true)),
+            Poll::Ready(Ok(BoundedRead::Read)) => Poll::Ready(Ok(false)),
+            Poll::Ready(Ok(BoundedRead::LimitExceeded)) => {
+                Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
+                    "request-stream transport chunk exceeded the frame buffer limit".to_string(),
+                )))
+            }
         }
     }
 
@@ -202,11 +400,21 @@ where
                 stream: send,
                 decoder: FrameDecoder::default(),
                 remaining_data: 0,
+                qpack_decoder: None,
+                shared: Weak::new(),
+                header_section: None,
+                request_guard: None,
+                read_ahead: None,
             },
             FrameStream {
                 stream: recv,
                 decoder: self.decoder,
                 remaining_data: self.remaining_data,
+                qpack_decoder: self.qpack_decoder,
+                shared: self.shared,
+                header_section: self.header_section,
+                request_guard: self.request_guard,
+                read_ahead: self.read_ahead,
             },
         )
     }
@@ -222,77 +430,70 @@ impl FrameDecoder {
         &mut self,
         src: &mut BufList<B>,
     ) -> Result<Option<Frame<PayloadLen>>, FrameStreamError> {
-        // Decode in a loop since we ignore unknown frames, and there may be
-        // other frames already in our BufList.
-        loop {
-            if !src.has_remaining() {
+        // Unknown frames return control to `FrameStream` so it can reserve a
+        // following HEADERS section before decoding it.
+        if !src.has_remaining() {
+            return Ok(None);
+        }
+
+        if let Some(min) = self.expected {
+            if src.remaining() < min {
                 return Ok(None);
             }
+        }
 
-            if let Some(min) = self.expected {
-                if src.remaining() < min {
-                    return Ok(None);
-                }
+        let (pos, decoded) = {
+            let mut cur = src.cursor();
+            let decoded = Frame::decode(&mut cur);
+            (cur.position(), decoded)
+        };
+
+        match decoded {
+            Err(frame::FrameError::UnknownFrame(_ty)) => {
+                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+                //# Frames of unknown types (Section 9), including reserved frames
+                //# (Section 7.2.8) MAY be sent on a request or push stream before,
+                //# after, or interleaved with other frames described in this section.
+                //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
+                //# Endpoints MUST
+                //# NOT consider these frames to have any meaning upon receipt.
+                #[cfg(feature = "tracing")]
+                trace!("ignore unknown frame type {:#x}", _ty);
+
+                src.advance(pos);
+                self.expected = None;
+                Ok(None)
             }
-
-            let (pos, decoded) = {
-                let mut cur = src.cursor();
-                let decoded = Frame::decode(&mut cur);
-                (cur.position(), decoded)
-            };
-
-            match decoded {
-                Err(frame::FrameError::UnknownFrame(_ty)) => {
-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
-                    //# Frames of unknown types (Section 9), including reserved frames
-                    //# (Section 7.2.8) MAY be sent on a request or push stream before,
-                    //# after, or interleaved with other frames described in this section.
-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
-                    //# Endpoints MUST
-                    //# NOT consider these frames to have any meaning upon receipt.
-                    #[cfg(feature = "tracing")]
-                    trace!("ignore unknown frame type {:#x}", _ty);
-
-                    src.advance(pos);
-                    self.expected = None;
-                    continue;
-                }
-                Err(frame::FrameError::Incomplete(min)) => {
-                    self.expected = Some(min);
-                    return Ok(None);
-                }
-                Ok(frame) => {
-                    src.advance(pos);
-                    self.expected = None;
-                    return Ok(Some(frame));
-                }
-                // -------------- Map the error Values --------------
-                Err(frame::FrameError::InvalidStreamId(e)) => {
-                    return Err(FrameStreamError::Proto(
-                        FrameProtocolError::InvalidStreamId(e),
-                    ));
-                }
-                Err(frame::FrameError::InvalidPushId(e)) => {
-                    return Err(FrameStreamError::Proto(FrameProtocolError::InvalidPushId(
-                        e,
-                    )));
-                }
-                Err(frame::FrameError::Settings(e)) => {
-                    return Err(FrameStreamError::Proto(FrameProtocolError::Settings(e)));
-                }
-                Err(frame::FrameError::UnsupportedFrame(ty)) => {
-                    return Err(FrameStreamError::Proto(FrameProtocolError::ForbiddenFrame(
-                        ty,
-                    )));
-                }
-                Err(frame::FrameError::InvalidFrameValue) => {
-                    return Err(FrameStreamError::Proto(
-                        FrameProtocolError::InvalidFrameValue,
-                    ));
-                }
-                Err(frame::FrameError::Malformed) => {
-                    return Err(FrameStreamError::Proto(FrameProtocolError::Malformed));
-                }
+            Err(frame::FrameError::Incomplete(min)) => {
+                self.expected = Some(min);
+                Ok(None)
+            }
+            Ok(frame) => {
+                src.advance(pos);
+                self.expected = None;
+                Ok(Some(frame))
+            }
+            // -------------- Map the error Values --------------
+            Err(frame::FrameError::InvalidStreamId(e)) => Err(FrameStreamError::Proto(
+                FrameProtocolError::InvalidStreamId(e),
+            )),
+            Err(frame::FrameError::InvalidPushId(e)) => Err(FrameStreamError::Proto(
+                FrameProtocolError::InvalidPushId(e),
+            )),
+            Err(frame::FrameError::Settings(e)) => {
+                Err(FrameStreamError::Proto(FrameProtocolError::Settings(e)))
+            }
+            Err(frame::FrameError::UnsupportedFrame(ty)) => Err(FrameStreamError::Proto(
+                FrameProtocolError::ForbiddenFrame(ty),
+            )),
+            Err(frame::FrameError::InvalidFrameValue) => Err(FrameStreamError::Proto(
+                FrameProtocolError::InvalidFrameValue,
+            )),
+            Err(frame::FrameError::ExcessiveLoad(size)) => Err(FrameStreamError::ExcessiveLoad(
+                format!("frame payload length {size} is not representable"),
+            )),
+            Err(frame::FrameError::Malformed) => {
+                Err(FrameStreamError::Proto(FrameProtocolError::Malformed))
             }
         }
     }
@@ -304,6 +505,7 @@ pub enum FrameStreamError {
     Proto(FrameProtocolError),
     Quic(StreamErrorIncoming),
     UnexpectedEnd,
+    ExcessiveLoad(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -317,13 +519,17 @@ pub enum FrameProtocolError {
     InvalidPushId(InvalidPushId),
 }
 
+fn qpack_resource_error(error: QpackRuntimeError) -> FrameStreamError {
+    FrameStreamError::ExcessiveLoad(error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use assert_matches::assert_matches;
     use bytes::{BufMut, Bytes, BytesMut};
-    use futures_util::future::poll_fn;
+    use futures_util::{future::poll_fn, task::noop_waker_ref};
     use std::{cell::Cell, collections::VecDeque, rc::Rc};
 
     use crate::proto::{coding::Encode, frame::FrameType, varint::VarInt};
@@ -478,6 +684,67 @@ mod tests {
             CHUNK_COUNT.div_ceil(FRAMES_PER_CHUNK),
             "transport was polled while complete frames were still buffered"
         );
+    }
+
+    #[tokio::test]
+    async fn oversized_headers_are_rejected_from_declared_length() {
+        let mut recv = FakeRecv::default();
+        let mut buf = BytesMut::new();
+        FrameType::HEADERS.encode(&mut buf);
+        VarInt::try_from((crate::qpack::MAX_ENCODED_FIELD_SECTION_BYTES + 1) as u64)
+            .unwrap()
+            .encode(&mut buf);
+        recv.chunk(buf.freeze());
+
+        let decoder = DecoderState::new(64, u64::MAX, 1).unwrap();
+        let shared = Arc::new(SharedState::default());
+        let mut stream: FrameStream<_, ()> =
+            FrameStream::new_request(BufRecvStream::new(recv), decoder, &shared).unwrap();
+
+        assert_poll_matches!(
+            |cx| stream.poll_next(cx),
+            Err(FrameStreamError::ExcessiveLoad(reason))
+                if reason.contains("encoded field section")
+        );
+    }
+
+    #[tokio::test]
+    async fn cancellation_releases_empty_read_ahead_while_stream_is_retained() {
+        let encoded = Bytes::from_static(&[0x02, 0x80, 0xd9, 0x10]);
+        let mut wire = BytesMut::new();
+        let mut frame: Frame<Bytes> = Frame::Headers(encoded.clone());
+        frame.encode_with_payload(&mut wire);
+        let mut recv = FakeRecv::default();
+        recv.chunk(wire.freeze());
+
+        let decoder = DecoderState::new(64, u64::MAX, 1).unwrap();
+        let shared = Arc::new(SharedState::default());
+        let mut stream: FrameStream<_, ()> =
+            FrameStream::new_request(BufRecvStream::new(recv), Arc::clone(&decoder), &shared)
+                .unwrap();
+        assert_poll_matches!(|cx| stream.poll_next(cx), Ok(Some(Frame::Headers(_))));
+
+        let mut section = stream.take_header_section().unwrap();
+        let cx = Context::from_waker(noop_waker_ref());
+        assert!(matches!(
+            section.poll_decode(&encoded, &cx),
+            Ok(crate::qpack::DecodeStatus::Blocked)
+        ));
+        stream.put_header_section(section);
+        let mut cx = Context::from_waker(noop_waker_ref());
+        assert!(stream.poll_while_qpack_blocked(&mut cx).is_pending());
+        assert_eq!(
+            decoder.reserved_bytes(),
+            encoded.len() + MAX_BUFFERED_WHILE_QPACK_BLOCKED
+        );
+
+        stream.cancel_request();
+        assert_eq!(decoder.reserved_bytes(), 0);
+        assert_eq!(decoder.take_feedback(), &b"\x40"[..]);
+
+        // The stream remains alive, proving release is tied to the empty
+        // buffer rather than handle destruction.
+        assert!(stream.request_guard.is_none());
     }
 
     #[tokio::test]
@@ -665,7 +932,7 @@ mod tests {
         }
 
         fn recv_id(&self) -> StreamId {
-            unimplemented!()
+            StreamId(0)
         }
     }
 

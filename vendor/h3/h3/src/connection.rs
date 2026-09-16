@@ -10,7 +10,6 @@ use futures_util::{future, ready};
 use http::HeaderMap;
 use stream::WriteBuf;
 
-const MAX_PENDING_QPACK_FEEDBACK_BYTES: usize = 64 * 1024;
 const MAX_QPACK_STREAM_BYTES_PER_POLL: usize = 64 * 1024;
 
 #[cfg(feature = "tracing")]
@@ -72,9 +71,9 @@ where
     encoder_send: Option<C::SendStream>,
     encoder_recv: Option<BufRecvStream<C::RecvStream, B>>,
     encoder_pending: Option<Bytes>,
-    decoder: qpack::Decoder,
+    decoder: Arc<qpack::DecoderState>,
     encoder: qpack::Encoder,
-    decoder_instructions: BytesMut,
+    decoder_sending: BytesMut,
 }
 
 fn poll_send_qpack_feedback<S, B>(
@@ -346,6 +345,18 @@ where
         let qpack_decoder =
             Self::opened_critical_stream(&mut conn, "QPACK decoder", qpack_decoder)?;
 
+        let decoder = qpack::DecoderState::new(
+            config.settings.qpack_max_table_capacity,
+            config.settings.max_field_section_size,
+            config.settings.qpack_blocked_streams,
+        )
+        .map_err(|error| {
+            conn.close_raw_connection_with_h3_error(InternalConnectionError::new(
+                Code::H3_SETTINGS_ERROR,
+                format!("invalid QPACK decoder configuration: {error}"),
+            ))
+        })?;
+
         let qpack_streams = QpackStreams {
             decoder_send: Some(qpack_decoder),
             decoder_recv: None,
@@ -353,18 +364,9 @@ where
             encoder_send: Some(qpack_encoder),
             encoder_recv: None,
             encoder_pending: None,
-            decoder: qpack::Decoder::new(
-                config.settings.qpack_max_table_capacity,
-                config.settings.max_field_section_size,
-            )
-            .map_err(|error| {
-                conn.close_raw_connection_with_h3_error(InternalConnectionError::new(
-                    Code::H3_SETTINGS_ERROR,
-                    format!("invalid QPACK decoder configuration: {error}"),
-                ))
-            })?,
+            decoder,
             encoder: qpack::Encoder::default(),
-            decoder_instructions: BytesMut::new(),
+            decoder_sending: BytesMut::new(),
         };
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
@@ -392,6 +394,16 @@ where
         conn_inner.send_control_stream_headers().await?;
 
         Ok(conn_inner)
+    }
+
+    pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
+        Arc::clone(&self.qpack_streams.decoder)
+    }
+
+    pub(crate) fn abort_qpack(&self) {
+        for waker in self.qpack_streams.decoder.abort() {
+            waker.wake();
+        }
     }
 
     fn opened_critical_stream(
@@ -629,17 +641,25 @@ where
             let allowed =
                 (MAX_QPACK_STREAM_BYTES_PER_POLL - encoder_processed).min(bytes.remaining());
             let mut limited = bytes.take(allowed);
-            if let Err(error) = self
-                .qpack_streams
-                .decoder
-                .on_encoder_recv(&mut limited, &mut self.qpack_streams.decoder_instructions)
-            {
-                return Poll::Ready(Err(self.handle_connection_error(
-                    InternalConnectionError::new(
-                        Code::QPACK_ENCODER_STREAM_ERROR,
-                        format!("invalid QPACK encoder instruction: {error}"),
-                    ),
-                )));
+            match self.qpack_streams.decoder.on_encoder_recv(&mut limited) {
+                Ok(wakers) => {
+                    for waker in wakers {
+                        waker.wake();
+                    }
+                }
+                Err(qpack::RuntimeError::Codec(error)) => {
+                    return Poll::Ready(Err(self.handle_connection_error(
+                        InternalConnectionError::new(
+                            Code::QPACK_ENCODER_STREAM_ERROR,
+                            format!("invalid QPACK encoder instruction: {error}"),
+                        ),
+                    )));
+                }
+                Err(error) => {
+                    return Poll::Ready(Err(self.handle_connection_error(
+                        InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, error.to_string()),
+                    )));
+                }
             }
             encoder_processed += allowed;
             if !self
@@ -650,14 +670,6 @@ where
                 .has_remaining()
             {
                 self.qpack_streams.encoder_pending = None;
-            }
-            if self.qpack_streams.decoder_instructions.len() > MAX_PENDING_QPACK_FEEDBACK_BYTES {
-                return Poll::Ready(Err(self.handle_connection_error(
-                    InternalConnectionError::new(
-                        Code::H3_EXCESSIVE_LOAD,
-                        "QPACK decoder feedback exceeded its connection limit".to_string(),
-                    ),
-                )));
             }
         }
 
@@ -710,12 +722,21 @@ where
             cx.waker().wake_by_ref();
         }
 
-        if !self.qpack_streams.decoder_instructions.is_empty() {
+        if self.qpack_streams.decoder_sending.is_empty() {
+            self.qpack_streams.decoder_sending = self.qpack_streams.decoder.take_feedback();
+        }
+        if !self.qpack_streams.decoder_sending.is_empty() {
             let Some(send) = self.qpack_streams.decoder_send.as_mut() else {
                 return Poll::Ready(Err(self.closed_qpack_stream("decoder")));
             };
 
-            match poll_send_qpack_feedback(send, &mut self.qpack_streams.decoder_instructions, cx) {
+            let before = self.qpack_streams.decoder_sending.len();
+            let result =
+                poll_send_qpack_feedback(send, &mut self.qpack_streams.decoder_sending, cx);
+            self.qpack_streams
+                .decoder
+                .feedback_sent(before - self.qpack_streams.decoder_sending.len());
+            match result {
                 Poll::Ready(Err(error)) => {
                     return Poll::Ready(Err(self.handle_qpack_stream_error("decoder", error)));
                 }
@@ -858,6 +879,11 @@ where
                         Code::H3_FRAME_ERROR,
                         "received incomplete frame".to_string(),
                     ),
+                )));
+            }
+            Err(FrameStreamError::ExcessiveLoad(reason)) => {
+                return Poll::Ready(Err(self.handle_connection_error(
+                    InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, reason),
                 )));
             }
             Err(FrameStreamError::Proto(frame_error)) => {
@@ -1144,6 +1170,64 @@ impl<S, B> RequestStream<S, B>
 where
     S: quic::RecvStream,
 {
+    pub(crate) fn poll_decode_header_section(
+        &mut self,
+        encoded: &Bytes,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<qpack::Decoded, StreamError>> {
+        if let Some(error) = self.existing_connection_error() {
+            self.stream.cancel_request();
+            return Poll::Ready(Err(error));
+        }
+        let Some(mut section) = self.stream.take_header_section() else {
+            return Poll::Ready(
+                qpack::decode_stateless(&mut encoded.clone(), self.max_field_section_size)
+                    .map_err(|error| self.map_qpack_decode_error(error, "field section")),
+            );
+        };
+
+        match section.poll_decode(encoded, cx) {
+            Ok(qpack::DecodeStatus::Decoded(decoded)) => Poll::Ready(Ok(decoded)),
+            Ok(qpack::DecodeStatus::Blocked) => {
+                self.stream.put_header_section(section);
+                match self.stream.poll_while_qpack_blocked(cx) {
+                    Poll::Ready(Err(error)) => {
+                        self.stream.cancel_request();
+                        Poll::Ready(Err(self.handle_frame_stream_error_on_request_stream(error)))
+                    }
+                    Poll::Ready(Ok(())) | Poll::Pending => Poll::Pending,
+                }
+            }
+            Err(qpack::RuntimeError::Codec(error)) => {
+                if matches!(error, qpack::DecoderError::HeaderTooLong(_)) {
+                    self.stream.cancel_request();
+                }
+                Poll::Ready(Err(self.map_qpack_decode_error(error, "field section")))
+            }
+            Err(qpack::RuntimeError::TooManyBlockedStreams) => Poll::Ready(Err(self
+                .handle_connection_error_on_stream(InternalConnectionError::new(
+                    Code::QPACK_DECOMPRESSION_FAILED,
+                    "QPACK blocked-stream limit exceeded".to_string(),
+                )))),
+            Err(error) => Poll::Ready(Err(self.handle_connection_error_on_stream(
+                InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, error.to_string()),
+            ))),
+        }
+    }
+
+    fn map_qpack_decode_error(&mut self, error: qpack::DecoderError, context: &str) -> StreamError {
+        match error {
+            qpack::DecoderError::HeaderTooLong(actual_size) => StreamError::HeaderTooBig {
+                actual_size,
+                max_size: self.max_field_section_size,
+            },
+            error => self.handle_connection_error_on_stream(InternalConnectionError::new(
+                Code::QPACK_DECOMPRESSION_FAILED,
+                format!("failed to decode {context}: {error}"),
+            )),
+        }
+    }
+
     /// Receive some of the request/response body.
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub fn poll_recv_data(
@@ -1153,11 +1237,15 @@ where
         if !self.stream.has_data() {
             match ready!(self.stream.poll_next(cx)) {
                 Err(frame_stream_error) => {
+                    self.stream.cancel_request();
                     return Poll::Ready(Err(
                         self.handle_frame_stream_error_on_request_stream(frame_stream_error)
-                    ))
+                    ));
                 }
-                Ok(None) => return Poll::Ready(Ok(None)),
+                Ok(None) => {
+                    self.stream.complete_request();
+                    return Poll::Ready(Ok(None));
+                }
                 Ok(Some(Frame::Headers(encoded))) => {
                     self.trailers = Some(encoded);
                     // Received trailers, no more data expected
@@ -1198,9 +1286,11 @@ where
             };
         }
 
-        self.stream
-            .poll_data(cx)
-            .map_err(|error| self.handle_frame_stream_error_on_request_stream(error))
+        let result = self.stream.poll_data(cx);
+        if matches!(&result, Poll::Ready(Err(_))) {
+            self.stream.cancel_request();
+        }
+        result.map_err(|error| self.handle_frame_stream_error_on_request_stream(error))
     }
 
     /// Poll receive trailers.
@@ -1209,16 +1299,20 @@ where
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Option<HeaderMap>, StreamError>> {
-        let mut trailers = if let Some(encoded) = self.trailers.take() {
+        let trailers = if let Some(encoded) = self.trailers.take() {
             encoded
         } else {
             match ready!(self.stream.poll_next(cx)) {
                 Err(frame_stream_error) => {
+                    self.stream.cancel_request();
                     return Poll::Ready(Err(
                         self.handle_frame_stream_error_on_request_stream(frame_stream_error)
-                    ))
+                    ));
                 }
-                Ok(None) => return Poll::Ready(Ok(None)),
+                Ok(None) => {
+                    self.stream.complete_request();
+                    return Poll::Ready(Ok(None));
+                }
                 Ok(Some(Frame::Headers(encoded))) => encoded,
                 Ok(Some(other_frame)) => {
                     //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
@@ -1262,9 +1356,10 @@ where
 
             match self.stream.poll_next(cx) {
                 Poll::Ready(Err(frame_stream_error)) => {
+                    self.stream.cancel_request();
                     return Poll::Ready(Err(
                         self.handle_frame_stream_error_on_request_stream(frame_stream_error)
-                    ))
+                    ));
                 }
                 Poll::Ready(Ok(Some(trailing_frame))) => {
                     // Received a known frame after trailers -> fail.
@@ -1285,45 +1380,32 @@ where
             }
         }
 
-        let qpack::Decoded { fields, .. } =
-            match qpack::decode_stateless(&mut trailers, self.max_field_section_size) {
-                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
-                //# An HTTP/3 implementation MAY impose a limit on the maximum size of
-                //# the message header it will accept on an individual HTTP message.
-                Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
-                    return Poll::Ready(Err(StreamError::HeaderTooBig {
-                        actual_size: cancel_size,
-                        max_size: self.max_field_section_size,
-                    }));
-                }
-                Ok(decoded) => decoded,
-                Err(_e) => {
-                    return Poll::Ready(Err(self.handle_connection_error_on_stream(
-                        InternalConnectionError {
-                            code: Code::QPACK_DECOMPRESSION_FAILED,
-                            message: "Failed to decode trailers".to_string(),
-                        },
-                    )))
-                }
-            };
+        let qpack::Decoded { fields, .. } = match self.poll_decode_header_section(&trailers, cx) {
+            Poll::Ready(Ok(decoded)) => decoded,
+            Poll::Ready(Err(error)) => return Poll::Ready(Err(error)),
+            Poll::Pending => {
+                self.trailers = Some(trailers);
+                return Poll::Pending;
+            }
+        };
 
-        Poll::Ready(Ok(Some(
-            Header::try_from(fields)
-                .map_err(|_e| {
-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
-                    //# Malformed requests or responses that are
-                    //# detected MUST be treated as a stream error of type H3_MESSAGE_ERROR.
-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
-                    //# Clients MUST NOT
-                    //# accept a malformed response.
-                    self.stop_sending(Code::H3_MESSAGE_ERROR);
-                    StreamError::StreamError {
-                        code: Code::H3_MESSAGE_ERROR,
-                        reason: "malformed request".to_string(),
-                    }
-                })?
-                .into_fields(),
-        )))
+        let trailers = Header::try_from(fields)
+            .map_err(|_e| {
+                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+                //# Malformed requests or responses that are
+                //# detected MUST be treated as a stream error of type H3_MESSAGE_ERROR.
+                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+                //# Clients MUST NOT
+                //# accept a malformed response.
+                self.stop_sending(Code::H3_MESSAGE_ERROR);
+                StreamError::StreamError {
+                    code: Code::H3_MESSAGE_ERROR,
+                    reason: "malformed request".to_string(),
+                }
+            })?
+            .into_fields();
+        self.stream.complete_request();
+        Poll::Ready(Ok(Some(trailers)))
     }
 
     #[allow(missing_docs)]

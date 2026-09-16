@@ -152,9 +152,11 @@ impl Builder {
         let conn_state = Arc::new(shared);
 
         let inner = ConnectionInner::new(quic, conn_state.clone(), self.config).await?;
+        let qpack_decoder = inner.qpack_decoder();
         let send_request = SendRequest {
             open,
             conn_state,
+            qpack_decoder,
             max_field_section_size: self.config.settings.max_field_section_size,
             sender_count: Arc::new(AtomicUsize::new(1)),
             send_grease_frame: self.config.send_grease,

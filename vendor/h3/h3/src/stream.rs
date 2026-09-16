@@ -465,6 +465,30 @@ impl<B, S: RecvStream> BufRecvStream<S, B> {
         }
     }
 
+    /// Reads one transport chunk only if retaining it stays within `limit`.
+    pub(crate) fn poll_read_bounded(
+        &mut self,
+        cx: &mut Context<'_>,
+        limit: usize,
+    ) -> Poll<Result<BoundedRead, StreamErrorIncoming>> {
+        let buffered = self.buf.remaining();
+        if buffered > limit {
+            return Poll::Ready(Ok(BoundedRead::LimitExceeded));
+        }
+
+        let data = ready!(self.stream.poll_data(cx))?;
+        let Some(mut data) = data else {
+            self.eos = true;
+            return Poll::Ready(Ok(BoundedRead::End));
+        };
+        if data.remaining() > limit - buffered {
+            return Poll::Ready(Ok(BoundedRead::LimitExceeded));
+        }
+
+        self.buf.push_bytes(&mut data);
+        Poll::Ready(Ok(BoundedRead::Read))
+    }
+
     /// Returns the currently buffered data, allowing it to be partially read
     #[inline]
     pub(crate) fn buf_mut(&mut self) -> &mut BufList<Bytes> {
@@ -491,6 +515,12 @@ impl<B, S: RecvStream> BufRecvStream<S, B> {
     pub fn is_eos(&self) -> bool {
         self.eos
     }
+}
+
+pub(crate) enum BoundedRead {
+    Read,
+    End,
+    LimitExceeded,
 }
 
 impl<S: RecvStream, B> RecvStream for BufRecvStream<S, B> {
@@ -729,8 +759,41 @@ fn convert_to_std_io_error(error: StreamErrorIncoming) -> std::io::Error {
 #[cfg(test)]
 mod tests {
     use crate::proto::coding::BufExt;
+    use crate::quic::StreamId;
+    use futures_util::future::poll_fn;
 
     use super::*;
+
+    struct FakeRecv(Option<Bytes>);
+
+    impl RecvStream for FakeRecv {
+        type Buf = Bytes;
+
+        fn poll_data(
+            &mut self,
+            _: &mut Context<'_>,
+        ) -> Poll<Result<Option<Self::Buf>, StreamErrorIncoming>> {
+            Poll::Ready(Ok(self.0.take()))
+        }
+
+        fn stop_sending(&mut self, _: u64) {}
+
+        fn recv_id(&self) -> StreamId {
+            StreamId(0)
+        }
+    }
+
+    #[tokio::test]
+    async fn bounded_read_rejects_transport_chunk_without_buffering_it() {
+        let mut recv: BufRecvStream<_, Bytes> =
+            BufRecvStream::new(FakeRecv(Some(Bytes::from(vec![0; 9]))));
+
+        assert!(matches!(
+            poll_fn(|cx| recv.poll_read_bounded(cx, 8)).await,
+            Ok(BoundedRead::LimitExceeded)
+        ));
+        assert_eq!(recv.buf().remaining(), 0);
+    }
 
     #[test]
     fn write_wt_uni_header() {

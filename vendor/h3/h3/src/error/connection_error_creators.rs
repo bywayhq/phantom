@@ -32,6 +32,7 @@ where
         }
 
         let err = self.set_conn_error(error.into());
+        self.abort_qpack();
         let err = self.close_if_needed(err);
         // err might be a different error so match again
         self.convert_to_connection_error(err)
@@ -76,6 +77,7 @@ where
 
         // Check if the connection is in error state
         if let Some(err) = self.get_conn_error() {
+            self.abort_qpack();
             let err = self.close_if_needed(err);
             // err might be a different error so match again
             return Poll::Ready(Err(self.convert_to_connection_error(err)));
@@ -106,6 +108,13 @@ fn convert_to_connection_error(error: ErrorOrigin) -> ConnectionError {
 
 /// This trait is implemented for all types which can close a stream
 pub trait CloseStream: ConnectionState {
+    /// Returns a connection error already reported by another connection task.
+    fn existing_connection_error(&self) -> Option<StreamError> {
+        self.get_conn_error()
+            .map(convert_to_connection_error)
+            .map(StreamError::ConnectionError)
+    }
+
     /// Handles a connection error on a stream
     fn handle_connection_error_on_stream(
         &mut self,
@@ -203,6 +212,9 @@ where
                     "received incomplete frame".to_string(),
                 ))
             }
+            FrameStreamError::ExcessiveLoad(reason) => self.handle_connection_error_on_stream(
+                InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, reason),
+            ),
         }
     }
 }

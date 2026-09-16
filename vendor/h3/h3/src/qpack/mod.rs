@@ -4,12 +4,20 @@ pub use self::{
     field::HeaderField,
 };
 
-pub(crate) use self::{decoder::Decoder, encoder::Encoder};
+pub(crate) use self::{
+    decoder::Decoder,
+    encoder::Encoder,
+    state::{
+        DecodeStatus, DecoderState, ReadAheadLease, RequestGuard, RuntimeError, Section,
+        MAX_ENCODED_FIELD_SECTION_BYTES,
+    },
+};
 
 mod block;
 mod dynamic;
 mod field;
 mod parse_error;
+mod state;
 mod static_;
 mod stream;
 mod vas;

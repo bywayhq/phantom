@@ -335,7 +335,7 @@ jq -n \
         candidate_archive: $h3_archive_url,
         provenance: "vendored",
         candidate_probe_supported: true,
-        candidate_probe_note: "enabled from an exact revision using the canonical ordered SETTINGS and QPACK codec patches",
+        candidate_probe_note: "enabled from an exact revision using all canonical H3 patches",
         drift: $h3_drift,
         source: "https://github.com/hyperium/h3"
       }

@@ -1,11 +1,10 @@
 # Dynamic QPACK integration
 
-Phantom's pinned Hyperium H3 revision contains a stateful QPACK codec, but its
-HTTP/3 client path still uses stateless encoding and decoding. The ordered
-SETTINGS patch can reproduce Chrome's control-stream bytes; it does not make
-the advertised nonzero QPACK capacity or blocked-stream count true. Phantom
-therefore advertises QPACK `0/0` until the complete client-side loop below is
-implemented and bounded.
+Phantom's pinned Hyperium H3 revision now connects its stateful QPACK decoder
+to client response headers and trailers. The engine can advertise nonzero
+decoder capacity and blocked-stream limits honestly. Phantom profiles still
+advertise QPACK `0/0` until the captured Chrome settings complete packet
+differentials; this is a profile-validation gate, not an engine limitation.
 
 ## Ownership
 
@@ -21,11 +20,15 @@ by the bounded queue before the corresponding HEADERS bytes can be published.
 If that cannot be guaranteed, the request uses a literal/static encoding that
 has no unpublished dependency.
 
-Inbound sections with missing dynamic references retain their complete
-encoded HEADERS bytes by request stream and required insert count. They are
-retried when encoder-stream inserts advance. Limits apply to distinct blocked
-streams and retained encoded bytes, not merely to the number of field
-sections.
+Each request reserves one cancellation instruction for its receive lifetime.
+Inbound HEADERS separately reserve encoded-byte and acknowledgement capacity
+as soon as the declared frame length is available, before the payload is fully
+buffered. One active section is owned by each request stream. Sections with
+missing dynamic references retain their encoded bytes and latest task waker;
+they are retried when encoder-stream inserts advance. Dropping a receive
+future preserves that state, while dropping, resetting, or stopping the stream
+queues exactly one cancellation instruction. Clean receive completion releases
+the request reservation without sending cancellation.
 
 The driver continuously:
 
@@ -51,9 +54,14 @@ Every negotiated value is also a local resource ceiling:
   outstanding required insert count;
 - blocked stream count never exceeds the advertised
   `SETTINGS_QPACK_BLOCKED_STREAMS`;
-- retained encoded HEADERS bytes have a separate connection-wide ceiling;
+- encoded HEADERS are limited to 1 MiB each; encoded sections and reserved
+  blocked read-ahead share an 8 MiB connection ceiling;
+- at most 64 KiB of later response bytes are retained while a section is
+  blocked, with oversized transport chunks rejected before buffering; that
+  reservation remains until the buffered bytes are consumed or the stream is
+  dropped; and
 - decoded field sections obey `SETTINGS_MAX_FIELD_SECTION_SIZE`; and
-- pending encoder and decoder instruction queues have finite byte limits.
+- queued, reserved, and in-flight decoder feedback share a 64 KiB ceiling.
 
 Insert-count increments use the complete QPACK prefixed-integer domain. Zero,
 overflow, or advancement beyond the number of inserted entries is a protocol
@@ -70,12 +78,10 @@ block and repair blocked-stream accounting.
    with the runtime limits.
 3. Drive critical streams while HEADERS remain stateless. Prove bounded codec
    buffers and feedback, fragmentation, malformed instructions, and FIN error
-   mapping. The current implementation completes this engine prerequisite;
-   partial writes and STOP_SENDING are covered, while reset and duplicate-stream
-   adversarial cases remain part of the next runtime slice.
+   mapping. Complete.
 4. Enable client inbound dynamic decoding for response headers and trailers.
    Prove park/unblock, acknowledgement, cancellation, count and byte ceilings,
-   and no hangs under reset races.
+   dropped-future persistence, and no hangs under reset races. Complete.
 5. Enable client outbound dynamic encoding. Prove queue-before-HEADERS ordering,
    shared state across cloned senders, safe literal fallback, concurrency, and
    capture differentials. This is not required to advertise inbound decoder

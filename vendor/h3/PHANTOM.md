@@ -47,50 +47,39 @@ and blocked-stream settings and defaults both to zero when omitted. Blocked
 streams preserve every HTTP/3 QUIC variable-length integer. Locally advertised
 table capacity is validated against the engine's `2^30 - 1` implementation
 limit before runtime construction; peer settings retain the full QUIC varint
-range. This state is bootstrap for the runtime integration described below; it
-does not by itself add dynamic HEADERS or WebTransport enforcement.
+range. WebTransport enforcement remains separate from QPACK runtime support.
 
-## Integration guard: dynamic HEADERS are not wired
+## Dynamic HEADERS runtime
 
-Do **not** select this vendor dependency for Phantom's Chrome runtime path only
-because the retained SETTINGS prefix can be reproduced. At this revision, the
-response path still uses `qpack::decode_stateless`; advertising Chrome's
-nonzero `SETTINGS_QPACK_MAX_TABLE_CAPACITY` (`0x1 = 65536`) and
-`SETTINGS_QPACK_BLOCKED_STREAMS` (`0x7 = 100`) can therefore promise peer
-behavior the engine does not yet honor.
+The client response and trailer paths share the decoder owned by the connection
+driver. Dynamic sections park until encoder-stream inserts satisfy their
+required insert count. A dropped receive future preserves its section; stream
+drop, reset, and `stop_sending` queue one cancellation instruction. Successful
+dynamic decoding queues a header acknowledgement. The request-lifetime
+cancellation reservation remains active after response headers, covering
+abandonment before unseen trailers.
 
-The client driver now actively consumes both peer QPACK streams, validates
-their instructions with the hardened codec, emits insert-count feedback with
-backpressure, bounds fragmented instruction and pending-feedback buffers, and
-fails closed when critical-stream setup or processing fails. The response and
-trailer paths still use the stateless decoder. Nonzero advertised settings are
-therefore blocked until the remaining runtime implements and bounds all of the
-following together:
+Resource ownership is explicit:
 
-- blocked-section tracking and limits;
-- decoder acknowledgements and stream cancellation; and
-- adversarial tests for blocked streams, invalid instructions, cancellation,
-  and memory/resource ceilings.
+- declared HEADERS lengths reserve capacity before payload buffering;
+- individual encoded sections are limited to 1 MiB; sections and reserved
+  blocked read-ahead share an 8 MiB connection ceiling;
+- later response bytes buffered while blocked are limited to 64 KiB per
+  stream, including a pre-buffer check for oversized transport chunks; the
+  reservation follows those buffered bytes until consumption or stream drop;
+  and
+- queued, reserved, and in-flight decoder feedback share a 64 KiB ceiling.
 
-The dormant stateful codec and its semantic SETTINGS bootstrap are hardened by
-`patches/qpack-codec.patch`. The codec counts blocked streams by distinct
-stream ID, releases all tracked sections on cancellation, validates decoder
-feedback and peer capacity updates, enforces decoded field-section limits, and
-preserves fragmented critical-stream instructions across input buffers. The
-SETTINGS layer retains peer and local QPACK values, including values from an
-exact ordered SETTINGS frame. It does not reinterpret protocol-valid wire
-values as allocation policy; resource ceilings belong where the future runtime
-allocates table and blocked-section state. The critical-stream codec is
-connected to the client driver, but it does not yet share its decoder with
-request streams. The explicit encoded-byte ceiling for parked blocked HEADERS
-belongs to the future runtime registry that owns those bytes; the codec does
-not retain blocked field sections and therefore cannot enforce that aggregate
-limit honestly.
+The codec reconstructs required insert counts from the locally advertised
+maximum capacity, even before the peer's capacity update arrives. Distinct
+blocked streams obey `SETTINGS_QPACK_BLOCKED_STREAMS`; fragmented instructions,
+partial feedback writes, invalid instructions, critical-stream closure, future
+cancellation, and reset wakeups have focused regressions.
 
-A static-table-only integration must advertise both QPACK settings as zero and
-must not claim Chrome wire parity. The exact Chrome regression in this patch is
-an encoder proof, not an assertion that the rest of the captured QPACK behavior
-is implemented.
+Phantom profiles continue to use QPACK `0/0` until their nonzero values pass
+packet differentials. That is a profile-validation gate rather than a missing
+engine capability. Outbound request encoding remains stateless; QPACK settings
+are directional, so this does not weaken the inbound decoder contract.
 
 Likewise, do not advertise a nonzero `WEBTRANSPORT_MAX_SESSIONS` until the
 connection path enforces that limit and has bounded lifecycle tests. Exact
@@ -104,7 +93,8 @@ including setting order and the concrete GREASE identifier/value widths.
 
 The canonical source and test deltas are stored in
 `patches/ordered-settings.patch`, `patches/qpack-codec.patch`, and
-`patches/qpack-critical-streams.patch`. `PHANTOM.md` and the patch files are
+`patches/qpack-critical-streams.patch`, and
+`patches/qpack-dynamic-client.patch`. `PHANTOM.md` and the patch files are
 packaging metadata and are deliberately excluded from those patches.
 
 ## Refreshing the vendor copy
@@ -148,6 +138,10 @@ packaging metadata and are deliberately excluded from those patches.
      "$PWD/vendor/h3/patches/qpack-critical-streams.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/qpack-critical-streams.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/qpack-dynamic-client.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/qpack-dynamic-client.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the

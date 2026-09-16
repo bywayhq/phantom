@@ -524,6 +524,10 @@ h3_source_root="$test_root/h3-source"
 mkdir -p "$h3_source_root"
 copy_vendor_fixture vendor/h3 "$h3_source_root/h3-$h3_revision"
 git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/qpack-dynamic-client.patch"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/qpack-critical-streams.patch"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
   "$repo_root/vendor/h3/patches/qpack-codec.patch"
 git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
   "$repo_root/vendor/h3/patches/ordered-settings.patch"
@@ -672,7 +676,7 @@ grep -F -x -q \
   'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests' \
   "$h3_command_log"
 grep -F -x -q \
-  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::' \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack' \
   "$h3_command_log"
 grep -F -x -q \
   'cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 --lib --all-features -- -D warnings' \
@@ -685,8 +689,16 @@ if grep -F -q 'cargo tree -i h3' "$h3_command_log" \
   echo "unselected h3 probe unexpectedly ran root workspace gates" >&2
   exit 1
 fi
-git -C "$h3_checkout/vendor/h3" apply --reverse --check \
-  patches/qpack-codec.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  --check patches/qpack-dynamic-client.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  patches/qpack-dynamic-client.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  --check patches/qpack-critical-streams.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  patches/qpack-critical-streams.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  --check patches/qpack-codec.patch
 git -C "$h3_checkout/vendor/h3" apply --reverse \
   patches/qpack-codec.patch
 git -C "$h3_checkout/vendor/h3" apply --reverse --check \

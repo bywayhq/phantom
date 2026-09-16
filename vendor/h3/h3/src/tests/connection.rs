@@ -536,6 +536,572 @@ async fn qpack_encoder_insert_emits_decoder_feedback() {
 }
 
 #[tokio::test]
+async fn dynamic_qpack_response_survives_recv_future_cancellation() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+    let (headers_sent, headers_received) = oneshot::channel();
+    let (send_insert, insert_requested) = oneshot::channel();
+    let (feedback_seen, feedback_received) = oneshot::channel();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder
+            .ordered_settings(&[(0x01, 64), (0x06, 65_536), (0x07, 1)])
+            .unwrap();
+        let (mut driver, mut client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            let mut stream = client
+                .send_request(Request::get("https://localhost/").body(()).unwrap())
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+
+            headers_received.await.unwrap();
+            assert!(
+                tokio::time::timeout(Duration::from_millis(50), stream.recv_response())
+                    .await
+                    .is_err(),
+                "response completed before its dynamic-table insert arrived"
+            );
+            send_insert.send(()).unwrap();
+
+            let response = stream.recv_response().await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers().get("x").unwrap(), "y");
+            feedback_received.await.unwrap();
+        };
+
+        let ((), driver_result) = tokio::join!(request, drive);
+        assert_matches!(
+            driver_result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
+                | ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_NO_ERROR,
+                        ..
+                    }
+                }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
+
+        let (mut response, _request) = connection.accept_bi().await.unwrap();
+        response
+            .write_all(&[
+                0x21, 0x00, // Unknown frame before response headers.
+                0x01, 0x04, // HEADERS frame, four-byte payload.
+                0x02, 0x80, 0xd9, 0x10, // :status 200 and dynamic x: y.
+            ])
+            .await
+            .unwrap();
+        headers_sent.send(()).unwrap();
+        insert_requested.await.unwrap();
+
+        let mut encoder = connection.open_uni().await.unwrap();
+        encoder
+            .write_all(&[
+                0x02, // Encoder stream type.
+                0x3f, 0x21, // Dynamic table capacity: 64.
+                0x41, b'x', 0x01, b'y', // Insert literal name and value.
+            ])
+            .await
+            .unwrap();
+
+        let mut client_streams = Vec::new();
+        let mut decoder_index = None;
+        for _ in 0..3 {
+            let mut stream = connection.accept_uni().await.unwrap();
+            let mut stream_type = [0];
+            stream.read_exact(&mut stream_type).await.unwrap();
+            if stream_type[0] == 0x03 {
+                decoder_index = Some(client_streams.len());
+            }
+            client_streams.push(stream);
+        }
+
+        let mut feedback = [0; 2];
+        client_streams[decoder_index.unwrap()]
+            .read_exact(&mut feedback)
+            .await
+            .unwrap();
+        assert_eq!(feedback, [0x01, 0x80]);
+        feedback_seen.send(()).unwrap();
+
+        connection.close(0_u32.into(), b"test complete");
+        drop((control, encoder));
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn dynamic_qpack_trailers_survive_recv_future_cancellation() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+    let (trailers_sent, trailers_received) = oneshot::channel();
+    let (send_insert, insert_requested) = oneshot::channel();
+    let (feedback_seen, feedback_received) = oneshot::channel();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder
+            .ordered_settings(&[(0x01, 64), (0x06, 65_536), (0x07, 1)])
+            .unwrap();
+        let (mut driver, mut client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            let mut stream = client
+                .send_request(Request::get("https://localhost/").body(()).unwrap())
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+
+            let response = stream.recv_response().await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            assert!(stream.recv_data().await.unwrap().is_none());
+
+            trailers_received.await.unwrap();
+            assert!(
+                tokio::time::timeout(Duration::from_millis(50), stream.recv_trailers())
+                    .await
+                    .is_err(),
+                "trailers completed before their dynamic-table insert arrived"
+            );
+            send_insert.send(()).unwrap();
+
+            let trailers = stream.recv_trailers().await.unwrap().unwrap();
+            assert_eq!(trailers.get("x").unwrap(), "y");
+            feedback_received.await.unwrap();
+        };
+
+        let ((), driver_result) = tokio::join!(request, drive);
+        assert_matches!(
+            driver_result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
+                | ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_NO_ERROR,
+                        ..
+                    }
+                }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
+
+        let (mut response, _request) = connection.accept_bi().await.unwrap();
+        response
+            .write_all(&[
+                0x01, 0x03, 0x00, 0x00, 0xd9, // Static :status 200 response.
+                0x01, 0x03, 0x02, 0x80, 0x10, // Dynamic x: y trailers.
+            ])
+            .await
+            .unwrap();
+        response.finish().unwrap();
+        trailers_sent.send(()).unwrap();
+        insert_requested.await.unwrap();
+
+        let mut encoder = connection.open_uni().await.unwrap();
+        encoder
+            .write_all(&[
+                0x02, // Encoder stream type.
+                0x3f, 0x21, // Dynamic table capacity: 64.
+                0x41, b'x', 0x01, b'y', // Insert literal name and value.
+            ])
+            .await
+            .unwrap();
+
+        let mut client_streams = Vec::new();
+        let mut decoder_index = None;
+        for _ in 0..3 {
+            let mut stream = connection.accept_uni().await.unwrap();
+            let mut stream_type = [0];
+            stream.read_exact(&mut stream_type).await.unwrap();
+            if stream_type[0] == 0x03 {
+                decoder_index = Some(client_streams.len());
+            }
+            client_streams.push(stream);
+        }
+
+        let mut feedback = [0; 2];
+        client_streams[decoder_index.unwrap()]
+            .read_exact(&mut feedback)
+            .await
+            .unwrap();
+        assert_eq!(feedback, [0x01, 0x80]);
+        feedback_seen.send(()).unwrap();
+
+        connection.close(0_u32.into(), b"test complete");
+        drop((control, encoder));
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn request_drop_and_stop_before_response_emit_qpack_cancellation() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+    let (feedback_seen, feedback_received) = oneshot::channel();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder.ordered_settings(&[(0x01, 64)]).unwrap();
+        let (mut driver, mut client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let requests = async move {
+            let mut dropped = client
+                .send_request(Request::get("https://localhost/drop").body(()).unwrap())
+                .await
+                .unwrap();
+            dropped.finish().await.unwrap();
+            drop(dropped);
+
+            let mut stopped = client
+                .send_request(Request::get("https://localhost/stop").body(()).unwrap())
+                .await
+                .unwrap();
+            stopped.finish().await.unwrap();
+            stopped.stop_sending(Code::H3_REQUEST_CANCELLED);
+
+            feedback_received.await.unwrap();
+        };
+
+        let ((), driver_result) = tokio::join!(requests, drive);
+        assert_matches!(
+            driver_result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
+                | ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_NO_ERROR,
+                        ..
+                    }
+                }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
+
+        let (_first_response, _first_request) = connection.accept_bi().await.unwrap();
+        let (_second_response, _second_request) = connection.accept_bi().await.unwrap();
+
+        let mut client_streams = Vec::new();
+        let mut decoder_index = None;
+        for _ in 0..3 {
+            let mut stream = connection.accept_uni().await.unwrap();
+            let mut stream_type = [0];
+            stream.read_exact(&mut stream_type).await.unwrap();
+            if stream_type[0] == 0x03 {
+                decoder_index = Some(client_streams.len());
+            }
+            client_streams.push(stream);
+        }
+
+        let mut feedback = [0; 2];
+        client_streams[decoder_index.unwrap()]
+            .read_exact(&mut feedback)
+            .await
+            .unwrap();
+        assert_eq!(feedback, [0x40, 0x44]);
+        feedback_seen.send(()).unwrap();
+
+        connection.close(0_u32.into(), b"test complete");
+        drop(control);
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn request_drop_after_response_headers_emits_qpack_cancellation() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+    let (headers_sent, headers_received) = oneshot::channel();
+    let (feedback_seen, feedback_received) = oneshot::channel();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder.ordered_settings(&[(0x01, 64)]).unwrap();
+        let (mut driver, mut client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            let mut stream = client
+                .send_request(Request::get("https://localhost/").body(()).unwrap())
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+            headers_received.await.unwrap();
+
+            let response = stream.recv_response().await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            drop(stream);
+
+            feedback_received.await.unwrap();
+        };
+
+        let ((), driver_result) = tokio::join!(request, drive);
+        assert_matches!(
+            driver_result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
+                | ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_NO_ERROR,
+                        ..
+                    }
+                }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
+
+        let (mut response, _request) = connection.accept_bi().await.unwrap();
+        response
+            .write_all(&[0x01, 0x03, 0x00, 0x00, 0xd9])
+            .await
+            .unwrap();
+        headers_sent.send(()).unwrap();
+
+        let mut client_streams = Vec::new();
+        let mut decoder_index = None;
+        for _ in 0..3 {
+            let mut stream = connection.accept_uni().await.unwrap();
+            let mut stream_type = [0];
+            stream.read_exact(&mut stream_type).await.unwrap();
+            if stream_type[0] == 0x03 {
+                decoder_index = Some(client_streams.len());
+            }
+            client_streams.push(stream);
+        }
+
+        let mut feedback = [0];
+        client_streams[decoder_index.unwrap()]
+            .read_exact(&mut feedback)
+            .await
+            .unwrap();
+        assert_eq!(feedback, [0x40]);
+        feedback_seen.send(()).unwrap();
+
+        connection.close(0_u32.into(), b"test complete");
+        drop((control, response));
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn malformed_response_emits_one_qpack_cancellation() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+    let (feedback_seen, feedback_received) = oneshot::channel();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder.ordered_settings(&[(0x01, 64)]).unwrap();
+        let (mut driver, mut client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            let mut stream = client
+                .send_request(Request::get("https://localhost/").body(()).unwrap())
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+
+            assert_matches!(
+                stream.recv_response().await,
+                Err(StreamError::StreamError {
+                    code: Code::H3_MESSAGE_ERROR,
+                    ..
+                })
+            );
+            feedback_received.await.unwrap();
+        };
+
+        let ((), driver_result) = tokio::join!(request, drive);
+        assert_matches!(
+            driver_result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
+                | ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_NO_ERROR,
+                        ..
+                    }
+                }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
+
+        let (mut response, _request) = connection.accept_bi().await.unwrap();
+        response
+            .write_all(&[
+                0x01, 0x04, // HEADERS frame, four-byte payload.
+                0x00, 0x00, 0xc4, 0xd9, // content-length before :status.
+            ])
+            .await
+            .unwrap();
+
+        let mut client_streams = Vec::new();
+        let mut decoder_index = None;
+        for _ in 0..3 {
+            let mut stream = connection.accept_uni().await.unwrap();
+            let mut stream_type = [0];
+            stream.read_exact(&mut stream_type).await.unwrap();
+            if stream_type[0] == 0x03 {
+                decoder_index = Some(client_streams.len());
+            }
+            client_streams.push(stream);
+        }
+
+        let mut feedback = [0];
+        client_streams[decoder_index.unwrap()]
+            .read_exact(&mut feedback)
+            .await
+            .unwrap();
+        assert_eq!(feedback, [0x40]);
+        feedback_seen.send(()).unwrap();
+
+        connection.close(0_u32.into(), b"test complete");
+        drop((control, response));
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn qpack_reset_while_trailers_await_eos_cancels_reserved_section() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+    let (headers_sent, headers_received) = oneshot::channel();
+    let (reset_response, reset_requested) = oneshot::channel();
+    let (cancellation_seen, cancellation_received) = oneshot::channel();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder
+            .ordered_settings(&[(0x01, 64), (0x06, 65_536), (0x07, 1)])
+            .unwrap();
+        let (mut driver, mut client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            let mut stream = client
+                .send_request(Request::get("https://localhost/").body(()).unwrap())
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+
+            headers_received.await.unwrap();
+            let response = stream.recv_response().await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            assert!(stream.recv_data().await.unwrap().is_none());
+            assert!(
+                tokio::time::timeout(Duration::from_millis(50), stream.recv_trailers())
+                    .await
+                    .is_err()
+            );
+            reset_response.send(()).unwrap();
+
+            let result = tokio::time::timeout(Duration::from_secs(1), stream.recv_trailers())
+                .await
+                .expect("reset did not wake the pending trailers");
+            assert!(result.is_err());
+            cancellation_received.await.unwrap();
+        };
+
+        let ((), driver_result) = tokio::join!(request, drive);
+        assert_matches!(
+            driver_result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
+                | ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_NO_ERROR,
+                        ..
+                    }
+                }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
+
+        let (mut response, _request) = connection.accept_bi().await.unwrap();
+        response
+            .write_all(&[
+                0x01, 0x03, 0x00, 0x00, 0xd9, // Static :status 200 response.
+                0x01, 0x03, 0x02, 0x80, 0x10, // Reserved dynamic trailers.
+            ])
+            .await
+            .unwrap();
+        headers_sent.send(()).unwrap();
+        reset_requested.await.unwrap();
+        response
+            .reset(h3_quinn::quinn::VarInt::try_from(Code::H3_REQUEST_CANCELLED.value()).unwrap())
+            .unwrap();
+
+        let mut client_streams = Vec::new();
+        let mut decoder_index = None;
+        for _ in 0..3 {
+            let mut stream = connection.accept_uni().await.unwrap();
+            let mut stream_type = [0];
+            stream.read_exact(&mut stream_type).await.unwrap();
+            if stream_type[0] == 0x03 {
+                decoder_index = Some(client_streams.len());
+            }
+            client_streams.push(stream);
+        }
+
+        let mut feedback = [0];
+        client_streams[decoder_index.unwrap()]
+            .read_exact(&mut feedback)
+            .await
+            .unwrap();
+        assert_eq!(feedback, [0x40]);
+        cancellation_seen.send(()).unwrap();
+
+        connection.close(0_u32.into(), b"test complete");
+        drop(control);
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
 async fn invalid_qpack_decoder_ack_has_specific_error() {
     let mut pair = Pair::default();
     let server = pair.server();

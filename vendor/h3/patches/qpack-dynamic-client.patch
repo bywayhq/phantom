@@ -1,0 +1,3020 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index 96a5610..3b78711 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -152,9 +152,11 @@ impl Builder {
+         let conn_state = Arc::new(shared);
+ 
+         let inner = ConnectionInner::new(quic, conn_state.clone(), self.config).await?;
++        let qpack_decoder = inner.qpack_decoder();
+         let send_request = SendRequest {
+             open,
+             conn_state,
++            qpack_decoder,
+             max_field_section_size: self.config.settings.max_field_section_size,
+             sender_count: Arc::new(AtomicUsize::new(1)),
+             send_grease_frame: self.config.send_grease,
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 362a61d..542dd9e 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -113,6 +113,7 @@ where
+ {
+     pub(super) open: T,
+     pub(super) conn_state: Arc<SharedState>,
++    pub(super) qpack_decoder: Arc<qpack::DecoderState>,
+     pub(super) max_field_section_size: u64, // maximum size for a header we receive
+     // counts instances of SendRequest to close the connection when the last is dropped.
+     pub(super) sender_count: Arc<AtomicUsize>,
+@@ -214,13 +215,26 @@ where
+             .await
+             .map_err(|e| self.handle_quic_stream_error(e))?;
+ 
++        let frame_stream = FrameStream::new_request(
++            BufRecvStream::new(stream),
++            Arc::clone(&self.qpack_decoder),
++            &self.conn_state,
++        )
++        .map_err(|error| {
++            self.handle_connection_error_on_stream(InternalConnectionError::new(
++                Code::H3_EXCESSIVE_LOAD,
++                error.to_string(),
++            ))
++        })?;
++
+         let request_stream = RequestStream {
+             inner: connection::RequestStream::new(
+-                FrameStream::new(BufRecvStream::new(stream)),
++                frame_stream,
+                 self.max_field_section_size,
+                 self.conn_state.clone(),
+                 self.send_grease_frame,
+             ),
++            response_headers: None,
+         };
+         // send the grease frame only once
+         self.send_grease_frame = false;
+@@ -239,6 +253,7 @@ where
+ 
+         Self {
+             conn_state: self.conn_state.clone(),
++            qpack_decoder: Arc::clone(&self.qpack_decoder),
+             open: self.open.clone(),
+             max_field_section_size: self.max_field_section_size,
+             sender_count: self.sender_count.clone(),
+diff --git a/h3/src/client/stream.rs b/h3/src/client/stream.rs
+index b1a9641..ca58ce4 100644
+--- a/h3/src/client/stream.rs
++++ b/h3/src/client/stream.rs
+@@ -1,5 +1,5 @@
+-use bytes::Buf;
+-use futures_util::future;
++use bytes::{Buf, Bytes};
++use futures_util::{future, ready};
+ use http::{HeaderMap, Response};
+ use quic::StreamId;
+ #[cfg(feature = "tracing")]
+@@ -76,6 +76,7 @@ use std::{
+ /// [`stop_sending()`]: #method.stop_sending
+ pub struct RequestStream<S, B> {
+     pub(super) inner: connection::RequestStream<S, B>,
++    pub(super) response_headers: Option<Bytes>,
+ }
+ 
+ impl<S, B> ConnectionState for RequestStream<S, B> {
+@@ -97,18 +98,42 @@ where
+     /// [`recv_data()`]: #method.recv_data
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub async fn recv_response(&mut self) -> Result<Response<()>, StreamError> {
+-        let mut frame = future::poll_fn(|cx| self.inner.stream.poll_next(cx))
+-            .await
+-            .map_err(|e| self.handle_frame_stream_error_on_request_stream(e))?
+-            .ok_or_else(|| {
+-                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+-                //# Receipt of an invalid sequence of frames MUST be treated as a
+-                //# connection error of type H3_FRAME_UNEXPECTED.
+-                self.handle_connection_error_on_stream(InternalConnectionError::new(
+-                    Code::H3_FRAME_UNEXPECTED,
+-                    "Stream finished without receiving response headers".to_string(),
+-                ))
+-            })?;
++        future::poll_fn(|cx| self.poll_recv_response(cx)).await
++    }
++
++    fn poll_recv_response(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Response<()>, StreamError>> {
++        if self.response_headers.is_none() {
++            let frame = match ready!(self.inner.stream.poll_next(cx)) {
++                Ok(Some(frame)) => frame,
++                Ok(None) => {
++                    return Poll::Ready(Err(self.handle_connection_error_on_stream(
++                        InternalConnectionError::new(
++                            Code::H3_FRAME_UNEXPECTED,
++                            "Stream finished without receiving response headers".to_string(),
++                        ),
++                    )))
++                }
++                Err(error) => {
++                    self.inner.stream.cancel_request();
++                    return Poll::Ready(Err(
++                        self.handle_frame_stream_error_on_request_stream(error)
++                    ));
++                }
++            };
++
++            let Frame::Headers(encoded) = frame else {
++                return Poll::Ready(Err(self.handle_connection_error_on_stream(
++                    InternalConnectionError::new(
++                        Code::H3_FRAME_UNEXPECTED,
++                        "First response frame is not headers".to_string(),
++                    ),
++                )));
++            };
++            self.response_headers = Some(encoded);
++        }
+ 
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.5
+         //= type=TODO
+@@ -123,40 +148,20 @@ where
+         //# mismatch, it MUST respond with a connection error of type
+         //# H3_GENERAL_PROTOCOL_ERROR.
+ 
+-        let decoded = if let Frame::Headers(ref mut encoded) = frame {
+-            match qpack::decode_stateless(encoded, self.inner.max_field_section_size) {
+-                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+-                //# An HTTP/3 implementation MAY impose a limit on the maximum size of
+-                //# the message header it will accept on an individual HTTP message.
+-                Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
+-                    self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
+-                    return Err(StreamError::HeaderTooBig {
+-                        actual_size: cancel_size,
+-                        max_size: self.inner.max_field_section_size,
+-                    });
+-                }
+-                Ok(decoded) => decoded,
+-                Err(_e) => {
+-                    return Err(
+-                        self.handle_connection_error_on_stream(InternalConnectionError {
+-                            code: Code::QPACK_DECOMPRESSION_FAILED,
+-                            message: "Failed to decode headers".to_string(),
+-                        }),
+-                    )
+-                }
++        let encoded = self.response_headers.as_ref().unwrap().clone();
++        let decoded = match ready!(self.inner.poll_decode_header_section(&encoded, cx)) {
++            Ok(decoded) => decoded,
++            Err(error @ StreamError::HeaderTooBig { .. }) => {
++                self.response_headers = None;
++                self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
++                return Poll::Ready(Err(error));
++            }
++            Err(error) => {
++                self.response_headers = None;
++                return Poll::Ready(Err(error));
+             }
+-        } else {
+-            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+-            //# Receipt of an invalid sequence of frames MUST be treated as a
+-            //# connection error of type H3_FRAME_UNEXPECTED.
+-
+-            return Err(
+-                self.handle_connection_error_on_stream(InternalConnectionError::new(
+-                    Code::H3_FRAME_UNEXPECTED,
+-                    "First response frame is not headers".to_string(),
+-                )),
+-            );
+         };
++        self.response_headers = None;
+ 
+         let qpack::Decoded { fields, .. } = decoded;
+ 
+@@ -166,28 +171,32 @@ where
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+         //# Clients MUST NOT
+         //# accept a malformed response.
+-        let (status, headers) = Header::try_from(fields)
+-            .map_err(|_e| {
+-                self.inner.stream.stop_sending(Code::H3_REQUEST_CANCELLED);
+-                StreamError::StreamError {
+-                    code: Code::H3_MESSAGE_ERROR,
+-                    reason: "Received malformed header".to_string(),
+-                }
+-            })?
+-            .into_response_parts()
++        let (status, headers) = match Header::try_from(fields)
+             .map_err(|_e| {
+-                self.inner.stream.stop_sending(Code::H3_REQUEST_CANCELLED);
++                self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
+                 StreamError::StreamError {
+                     code: Code::H3_MESSAGE_ERROR,
+                     reason: "Received malformed header".to_string(),
+                 }
+-            })?;
++            })
++            .and_then(|header| {
++                header.into_response_parts().map_err(|_e| {
++                    self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
++                    StreamError::StreamError {
++                        code: Code::H3_MESSAGE_ERROR,
++                        reason: "Received malformed header".to_string(),
++                    }
++                })
++            }) {
++            Ok(parts) => parts,
++            Err(error) => return Poll::Ready(Err(error)),
++        };
+         let mut resp = Response::new(());
+         *resp.status_mut() = status;
+         *resp.headers_mut() = headers;
+         *resp.version_mut() = http::Version::HTTP_3;
+ 
+-        Ok(resp)
++        Poll::Ready(Ok(resp))
+     }
+ 
+     /// Receive some of the response body.
+@@ -233,7 +242,7 @@ where
+     pub fn stop_sending(&mut self, error_code: Code) {
+         // TODO take by value to prevent any further call as this request is cancelled
+         // rename `cancel()` ?
+-        self.inner.stream.stop_sending(error_code)
++        self.inner.stop_sending(error_code)
+     }
+ 
+     /// Returns the underlying stream id
+@@ -298,6 +307,15 @@ where
+         RequestStream<S::RecvStream, B>,
+     ) {
+         let (send, recv) = self.inner.split();
+-        (RequestStream { inner: send }, RequestStream { inner: recv })
++        (
++            RequestStream {
++                inner: send,
++                response_headers: None,
++            },
++            RequestStream {
++                inner: recv,
++                response_headers: self.response_headers,
++            },
++        )
+     }
+ }
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index f241da2..3352ad2 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -10,7 +10,6 @@ use futures_util::{future, ready};
+ use http::HeaderMap;
+ use stream::WriteBuf;
+ 
+-const MAX_PENDING_QPACK_FEEDBACK_BYTES: usize = 64 * 1024;
+ const MAX_QPACK_STREAM_BYTES_PER_POLL: usize = 64 * 1024;
+ 
+ #[cfg(feature = "tracing")]
+@@ -72,9 +71,9 @@ where
+     encoder_send: Option<C::SendStream>,
+     encoder_recv: Option<BufRecvStream<C::RecvStream, B>>,
+     encoder_pending: Option<Bytes>,
+-    decoder: qpack::Decoder,
++    decoder: Arc<qpack::DecoderState>,
+     encoder: qpack::Encoder,
+-    decoder_instructions: BytesMut,
++    decoder_sending: BytesMut,
+ }
+ 
+ fn poll_send_qpack_feedback<S, B>(
+@@ -346,6 +345,18 @@ where
+         let qpack_decoder =
+             Self::opened_critical_stream(&mut conn, "QPACK decoder", qpack_decoder)?;
+ 
++        let decoder = qpack::DecoderState::new(
++            config.settings.qpack_max_table_capacity,
++            config.settings.max_field_section_size,
++            config.settings.qpack_blocked_streams,
++        )
++        .map_err(|error| {
++            conn.close_raw_connection_with_h3_error(InternalConnectionError::new(
++                Code::H3_SETTINGS_ERROR,
++                format!("invalid QPACK decoder configuration: {error}"),
++            ))
++        })?;
++
+         let qpack_streams = QpackStreams {
+             decoder_send: Some(qpack_decoder),
+             decoder_recv: None,
+@@ -353,18 +364,9 @@ where
+             encoder_send: Some(qpack_encoder),
+             encoder_recv: None,
+             encoder_pending: None,
+-            decoder: qpack::Decoder::new(
+-                config.settings.qpack_max_table_capacity,
+-                config.settings.max_field_section_size,
+-            )
+-            .map_err(|error| {
+-                conn.close_raw_connection_with_h3_error(InternalConnectionError::new(
+-                    Code::H3_SETTINGS_ERROR,
+-                    format!("invalid QPACK decoder configuration: {error}"),
+-                ))
+-            })?,
++            decoder,
+             encoder: qpack::Encoder::default(),
+-            decoder_instructions: BytesMut::new(),
++            decoder_sending: BytesMut::new(),
+         };
+ 
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
+@@ -394,6 +396,16 @@ where
+         Ok(conn_inner)
+     }
+ 
++    pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
++        Arc::clone(&self.qpack_streams.decoder)
++    }
++
++    pub(crate) fn abort_qpack(&self) {
++        for waker in self.qpack_streams.decoder.abort() {
++            waker.wake();
++        }
++    }
++
+     fn opened_critical_stream(
+         conn: &mut C,
+         name: &str,
+@@ -629,17 +641,25 @@ where
+             let allowed =
+                 (MAX_QPACK_STREAM_BYTES_PER_POLL - encoder_processed).min(bytes.remaining());
+             let mut limited = bytes.take(allowed);
+-            if let Err(error) = self
+-                .qpack_streams
+-                .decoder
+-                .on_encoder_recv(&mut limited, &mut self.qpack_streams.decoder_instructions)
+-            {
+-                return Poll::Ready(Err(self.handle_connection_error(
+-                    InternalConnectionError::new(
+-                        Code::QPACK_ENCODER_STREAM_ERROR,
+-                        format!("invalid QPACK encoder instruction: {error}"),
+-                    ),
+-                )));
++            match self.qpack_streams.decoder.on_encoder_recv(&mut limited) {
++                Ok(wakers) => {
++                    for waker in wakers {
++                        waker.wake();
++                    }
++                }
++                Err(qpack::RuntimeError::Codec(error)) => {
++                    return Poll::Ready(Err(self.handle_connection_error(
++                        InternalConnectionError::new(
++                            Code::QPACK_ENCODER_STREAM_ERROR,
++                            format!("invalid QPACK encoder instruction: {error}"),
++                        ),
++                    )));
++                }
++                Err(error) => {
++                    return Poll::Ready(Err(self.handle_connection_error(
++                        InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, error.to_string()),
++                    )));
++                }
+             }
+             encoder_processed += allowed;
+             if !self
+@@ -651,14 +671,6 @@ where
+             {
+                 self.qpack_streams.encoder_pending = None;
+             }
+-            if self.qpack_streams.decoder_instructions.len() > MAX_PENDING_QPACK_FEEDBACK_BYTES {
+-                return Poll::Ready(Err(self.handle_connection_error(
+-                    InternalConnectionError::new(
+-                        Code::H3_EXCESSIVE_LOAD,
+-                        "QPACK decoder feedback exceeded its connection limit".to_string(),
+-                    ),
+-                )));
+-            }
+         }
+ 
+         let mut decoder_processed = 0;
+@@ -710,12 +722,21 @@ where
+             cx.waker().wake_by_ref();
+         }
+ 
+-        if !self.qpack_streams.decoder_instructions.is_empty() {
++        if self.qpack_streams.decoder_sending.is_empty() {
++            self.qpack_streams.decoder_sending = self.qpack_streams.decoder.take_feedback();
++        }
++        if !self.qpack_streams.decoder_sending.is_empty() {
+             let Some(send) = self.qpack_streams.decoder_send.as_mut() else {
+                 return Poll::Ready(Err(self.closed_qpack_stream("decoder")));
+             };
+ 
+-            match poll_send_qpack_feedback(send, &mut self.qpack_streams.decoder_instructions, cx) {
++            let before = self.qpack_streams.decoder_sending.len();
++            let result =
++                poll_send_qpack_feedback(send, &mut self.qpack_streams.decoder_sending, cx);
++            self.qpack_streams
++                .decoder
++                .feedback_sent(before - self.qpack_streams.decoder_sending.len());
++            match result {
+                 Poll::Ready(Err(error)) => {
+                     return Poll::Ready(Err(self.handle_qpack_stream_error("decoder", error)));
+                 }
+@@ -860,6 +881,11 @@ where
+                     ),
+                 )));
+             }
++            Err(FrameStreamError::ExcessiveLoad(reason)) => {
++                return Poll::Ready(Err(self.handle_connection_error(
++                    InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, reason),
++                )));
++            }
+             Err(FrameStreamError::Proto(frame_error)) => {
+                 return Poll::Ready(Err(self.handle_connection_error(
+                     InternalConnectionError::got_frame_error(frame_error),
+@@ -1144,6 +1170,64 @@ impl<S, B> RequestStream<S, B>
+ where
+     S: quic::RecvStream,
+ {
++    pub(crate) fn poll_decode_header_section(
++        &mut self,
++        encoded: &Bytes,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<qpack::Decoded, StreamError>> {
++        if let Some(error) = self.existing_connection_error() {
++            self.stream.cancel_request();
++            return Poll::Ready(Err(error));
++        }
++        let Some(mut section) = self.stream.take_header_section() else {
++            return Poll::Ready(
++                qpack::decode_stateless(&mut encoded.clone(), self.max_field_section_size)
++                    .map_err(|error| self.map_qpack_decode_error(error, "field section")),
++            );
++        };
++
++        match section.poll_decode(encoded, cx) {
++            Ok(qpack::DecodeStatus::Decoded(decoded)) => Poll::Ready(Ok(decoded)),
++            Ok(qpack::DecodeStatus::Blocked) => {
++                self.stream.put_header_section(section);
++                match self.stream.poll_while_qpack_blocked(cx) {
++                    Poll::Ready(Err(error)) => {
++                        self.stream.cancel_request();
++                        Poll::Ready(Err(self.handle_frame_stream_error_on_request_stream(error)))
++                    }
++                    Poll::Ready(Ok(())) | Poll::Pending => Poll::Pending,
++                }
++            }
++            Err(qpack::RuntimeError::Codec(error)) => {
++                if matches!(error, qpack::DecoderError::HeaderTooLong(_)) {
++                    self.stream.cancel_request();
++                }
++                Poll::Ready(Err(self.map_qpack_decode_error(error, "field section")))
++            }
++            Err(qpack::RuntimeError::TooManyBlockedStreams) => Poll::Ready(Err(self
++                .handle_connection_error_on_stream(InternalConnectionError::new(
++                    Code::QPACK_DECOMPRESSION_FAILED,
++                    "QPACK blocked-stream limit exceeded".to_string(),
++                )))),
++            Err(error) => Poll::Ready(Err(self.handle_connection_error_on_stream(
++                InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, error.to_string()),
++            ))),
++        }
++    }
++
++    fn map_qpack_decode_error(&mut self, error: qpack::DecoderError, context: &str) -> StreamError {
++        match error {
++            qpack::DecoderError::HeaderTooLong(actual_size) => StreamError::HeaderTooBig {
++                actual_size,
++                max_size: self.max_field_section_size,
++            },
++            error => self.handle_connection_error_on_stream(InternalConnectionError::new(
++                Code::QPACK_DECOMPRESSION_FAILED,
++                format!("failed to decode {context}: {error}"),
++            )),
++        }
++    }
++
+     /// Receive some of the request/response body.
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub fn poll_recv_data(
+@@ -1153,11 +1237,15 @@ where
+         if !self.stream.has_data() {
+             match ready!(self.stream.poll_next(cx)) {
+                 Err(frame_stream_error) => {
++                    self.stream.cancel_request();
+                     return Poll::Ready(Err(
+                         self.handle_frame_stream_error_on_request_stream(frame_stream_error)
+-                    ))
++                    ));
++                }
++                Ok(None) => {
++                    self.stream.complete_request();
++                    return Poll::Ready(Ok(None));
+                 }
+-                Ok(None) => return Poll::Ready(Ok(None)),
+                 Ok(Some(Frame::Headers(encoded))) => {
+                     self.trailers = Some(encoded);
+                     // Received trailers, no more data expected
+@@ -1198,9 +1286,11 @@ where
+             };
+         }
+ 
+-        self.stream
+-            .poll_data(cx)
+-            .map_err(|error| self.handle_frame_stream_error_on_request_stream(error))
++        let result = self.stream.poll_data(cx);
++        if matches!(&result, Poll::Ready(Err(_))) {
++            self.stream.cancel_request();
++        }
++        result.map_err(|error| self.handle_frame_stream_error_on_request_stream(error))
+     }
+ 
+     /// Poll receive trailers.
+@@ -1209,16 +1299,20 @@ where
+         &mut self,
+         cx: &mut Context<'_>,
+     ) -> Poll<Result<Option<HeaderMap>, StreamError>> {
+-        let mut trailers = if let Some(encoded) = self.trailers.take() {
++        let trailers = if let Some(encoded) = self.trailers.take() {
+             encoded
+         } else {
+             match ready!(self.stream.poll_next(cx)) {
+                 Err(frame_stream_error) => {
++                    self.stream.cancel_request();
+                     return Poll::Ready(Err(
+                         self.handle_frame_stream_error_on_request_stream(frame_stream_error)
+-                    ))
++                    ));
++                }
++                Ok(None) => {
++                    self.stream.complete_request();
++                    return Poll::Ready(Ok(None));
+                 }
+-                Ok(None) => return Poll::Ready(Ok(None)),
+                 Ok(Some(Frame::Headers(encoded))) => encoded,
+                 Ok(Some(other_frame)) => {
+                     //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+@@ -1262,9 +1356,10 @@ where
+ 
+             match self.stream.poll_next(cx) {
+                 Poll::Ready(Err(frame_stream_error)) => {
++                    self.stream.cancel_request();
+                     return Poll::Ready(Err(
+                         self.handle_frame_stream_error_on_request_stream(frame_stream_error)
+-                    ))
++                    ));
+                 }
+                 Poll::Ready(Ok(Some(trailing_frame))) => {
+                     // Received a known frame after trailers -> fail.
+@@ -1285,45 +1380,32 @@ where
+             }
+         }
+ 
+-        let qpack::Decoded { fields, .. } =
+-            match qpack::decode_stateless(&mut trailers, self.max_field_section_size) {
+-                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+-                //# An HTTP/3 implementation MAY impose a limit on the maximum size of
+-                //# the message header it will accept on an individual HTTP message.
+-                Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
+-                    return Poll::Ready(Err(StreamError::HeaderTooBig {
+-                        actual_size: cancel_size,
+-                        max_size: self.max_field_section_size,
+-                    }));
+-                }
+-                Ok(decoded) => decoded,
+-                Err(_e) => {
+-                    return Poll::Ready(Err(self.handle_connection_error_on_stream(
+-                        InternalConnectionError {
+-                            code: Code::QPACK_DECOMPRESSION_FAILED,
+-                            message: "Failed to decode trailers".to_string(),
+-                        },
+-                    )))
+-                }
+-            };
++        let qpack::Decoded { fields, .. } = match self.poll_decode_header_section(&trailers, cx) {
++            Poll::Ready(Ok(decoded)) => decoded,
++            Poll::Ready(Err(error)) => return Poll::Ready(Err(error)),
++            Poll::Pending => {
++                self.trailers = Some(trailers);
++                return Poll::Pending;
++            }
++        };
+ 
+-        Poll::Ready(Ok(Some(
+-            Header::try_from(fields)
+-                .map_err(|_e| {
+-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+-                    //# Malformed requests or responses that are
+-                    //# detected MUST be treated as a stream error of type H3_MESSAGE_ERROR.
+-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+-                    //# Clients MUST NOT
+-                    //# accept a malformed response.
+-                    self.stop_sending(Code::H3_MESSAGE_ERROR);
+-                    StreamError::StreamError {
+-                        code: Code::H3_MESSAGE_ERROR,
+-                        reason: "malformed request".to_string(),
+-                    }
+-                })?
+-                .into_fields(),
+-        )))
++        let trailers = Header::try_from(fields)
++            .map_err(|_e| {
++                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
++                //# Malformed requests or responses that are
++                //# detected MUST be treated as a stream error of type H3_MESSAGE_ERROR.
++                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
++                //# Clients MUST NOT
++                //# accept a malformed response.
++                self.stop_sending(Code::H3_MESSAGE_ERROR);
++                StreamError::StreamError {
++                    code: Code::H3_MESSAGE_ERROR,
++                    reason: "malformed request".to_string(),
++                }
++            })?
++            .into_fields();
++        self.stream.complete_request();
++        Poll::Ready(Ok(Some(trailers)))
+     }
+ 
+     #[allow(missing_docs)]
+diff --git a/h3/src/error/connection_error_creators.rs b/h3/src/error/connection_error_creators.rs
+index 93193e2..081a940 100644
+--- a/h3/src/error/connection_error_creators.rs
++++ b/h3/src/error/connection_error_creators.rs
+@@ -32,6 +32,7 @@ where
+         }
+ 
+         let err = self.set_conn_error(error.into());
++        self.abort_qpack();
+         let err = self.close_if_needed(err);
+         // err might be a different error so match again
+         self.convert_to_connection_error(err)
+@@ -76,6 +77,7 @@ where
+ 
+         // Check if the connection is in error state
+         if let Some(err) = self.get_conn_error() {
++            self.abort_qpack();
+             let err = self.close_if_needed(err);
+             // err might be a different error so match again
+             return Poll::Ready(Err(self.convert_to_connection_error(err)));
+@@ -106,6 +108,13 @@ fn convert_to_connection_error(error: ErrorOrigin) -> ConnectionError {
+ 
+ /// This trait is implemented for all types which can close a stream
+ pub trait CloseStream: ConnectionState {
++    /// Returns a connection error already reported by another connection task.
++    fn existing_connection_error(&self) -> Option<StreamError> {
++        self.get_conn_error()
++            .map(convert_to_connection_error)
++            .map(StreamError::ConnectionError)
++    }
++
+     /// Handles a connection error on a stream
+     fn handle_connection_error_on_stream(
+         &mut self,
+@@ -203,6 +212,9 @@ where
+                     "received incomplete frame".to_string(),
+                 ))
+             }
++            FrameStreamError::ExcessiveLoad(reason) => self.handle_connection_error_on_stream(
++                InternalConnectionError::new(Code::H3_EXCESSIVE_LOAD, reason),
++            ),
+         }
+     }
+ }
+diff --git a/h3/src/frame.rs b/h3/src/frame.rs
+index f9efc57..7b1bced 100644
+--- a/h3/src/frame.rs
++++ b/h3/src/frame.rs
+@@ -1,4 +1,7 @@
+-use std::task::{Context, Poll};
++use std::{
++    sync::{Arc, Weak},
++    task::{Context, Poll},
++};
+ 
+ use bytes::Buf;
+ 
+@@ -8,8 +11,13 @@ use tracing::trace;
+ use crate::error::Code;
+ use crate::proto::frame::SettingsError;
+ use crate::proto::push::InvalidPushId;
++use crate::qpack::{
++    DecoderState, ReadAheadLease as QpackReadAheadLease, RequestGuard as QpackRequestGuard,
++    RuntimeError as QpackRuntimeError, Section as QpackSection,
++};
+ use crate::quic::{InvalidStreamId, StreamErrorIncoming};
+-use crate::stream::{BufRecvStream, WriteBuf};
++use crate::shared_state::SharedState;
++use crate::stream::{BoundedRead, BufRecvStream, WriteBuf};
+ use crate::{
+     buf::BufList,
+     proto::{
+@@ -25,17 +33,54 @@ pub struct FrameStream<S, B> {
+     // Already read data from the stream
+     decoder: FrameDecoder,
+     remaining_data: usize,
++    qpack_decoder: Option<Arc<DecoderState>>,
++    shared: Weak<SharedState>,
++    header_section: Option<QpackSection>,
++    request_guard: Option<QpackRequestGuard>,
++    read_ahead: Option<QpackReadAheadLease>,
+ }
+ 
++const MAX_BUFFERED_WHILE_QPACK_BLOCKED: usize = 64 * 1024;
++const MAX_QPACK_BLOCKED_READ_BYTES_PER_POLL: usize = 64 * 1024;
++const MAX_REQUEST_FRAME_CHUNK_BYTES: usize =
++    crate::qpack::MAX_ENCODED_FIELD_SECTION_BYTES + MAX_BUFFERED_WHILE_QPACK_BLOCKED + 16;
++
+ impl<S, B> FrameStream<S, B> {
+     pub fn new(stream: BufRecvStream<S, B>) -> Self {
+         Self {
+             stream,
+             decoder: FrameDecoder::default(),
+             remaining_data: 0,
++            qpack_decoder: None,
++            shared: Weak::new(),
++            header_section: None,
++            request_guard: None,
++            read_ahead: None,
+         }
+     }
+ 
++    pub(crate) fn new_request(
++        stream: BufRecvStream<S, B>,
++        qpack_decoder: Arc<DecoderState>,
++        shared: &Arc<SharedState>,
++    ) -> Result<Self, QpackRuntimeError>
++    where
++        S: RecvStream,
++    {
++        let request_guard =
++            qpack_decoder.begin_request(Arc::downgrade(shared), stream.recv_id().into_inner())?;
++        Ok(Self {
++            stream,
++            decoder: FrameDecoder::default(),
++            remaining_data: 0,
++            qpack_decoder: Some(qpack_decoder),
++            shared: Arc::downgrade(shared),
++            header_section: None,
++            request_guard: Some(request_guard),
++            read_ahead: None,
++        })
++    }
++
+     /// Unwraps the Framed streamer and returns the underlying stream **without** data loss for
+     /// partially received/read frames.
+     pub fn into_inner(self) -> BufRecvStream<S, B> {
+@@ -64,12 +109,42 @@ where
+         &mut self,
+         cx: &mut Context<'_>,
+     ) -> Poll<Result<Option<Frame<PayloadLen>>, FrameStreamError>> {
++        self.release_drained_read_ahead();
+         assert!(
+             self.remaining_data == 0,
+             "There is still data to read, please call poll_data() until it returns None."
+         );
+ 
+         loop {
++            if self.header_section.is_none() {
++                if let Some(qpack_decoder) = self.qpack_decoder.as_ref() {
++                    let header_len = {
++                        let mut cursor = self.stream.buf_mut().cursor();
++                        Frame::headers_payload_len(&mut cursor)
++                    };
++                    match header_len {
++                        Ok(Some(encoded_bytes)) => {
++                            self.header_section = Some(
++                                qpack_decoder
++                                    .reserve(
++                                        self.shared.clone(),
++                                        self.stream.recv_id().into_inner(),
++                                        encoded_bytes,
++                                    )
++                                    .map_err(qpack_resource_error)?,
++                            );
++                        }
++                        Ok(None) | Err(frame::FrameError::Incomplete(_)) => {}
++                        Err(frame::FrameError::ExcessiveLoad(size)) => {
++                            return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(format!(
++                                "frame payload length {size} is not representable"
++                            ))));
++                        }
++                        Err(_) => {}
++                    }
++                }
++            }
++
+             match self.decoder.decode(self.stream.buf_mut())? {
+                 Some(Frame::Data(PayloadLen(len))) => {
+                     self.remaining_data = len;
+@@ -83,7 +158,11 @@ where
+                 None => {}
+             }
+ 
+-            match self.try_recv(cx)? {
++            if self.decoder.expected.is_none() && self.stream.buf().has_remaining() {
++                continue;
++            }
++
++            match self.try_recv_frame(cx)? {
+                 // Received a chunk but the frame is incomplete, poll until we get `Pending`.
+                 Poll::Ready(false) => continue,
+                 Poll::Pending => return Poll::Pending,
+@@ -118,6 +197,7 @@ where
+             Poll::Pending => false,
+         };
+         let data = self.stream.buf_mut().take_chunk(self.remaining_data);
++        self.release_drained_read_ahead();
+ 
+         match (data, end) {
+             (None, true) => Poll::Ready(Ok(None)),
+@@ -138,6 +218,7 @@ where
+     /// Stops the underlying stream with the provided error code
+     pub(crate) fn stop_sending(&mut self, error_code: Code) {
+         self.stream.stop_sending(error_code.into());
++        self.cancel_request();
+     }
+ 
+     pub(crate) fn has_data(&self) -> bool {
+@@ -148,6 +229,94 @@ where
+         self.stream.is_eos() && !self.stream.buf().has_remaining()
+     }
+ 
++    pub(crate) fn take_header_section(&mut self) -> Option<QpackSection> {
++        self.header_section.take()
++    }
++
++    pub(crate) fn put_header_section(&mut self, section: QpackSection) {
++        debug_assert!(self.header_section.is_none());
++        self.header_section = Some(section);
++    }
++
++    pub(crate) fn cancel_header_section(&mut self) {
++        if let Some(mut section) = self.header_section.take() {
++            section.cancel();
++        }
++    }
++
++    pub(crate) fn cancel_request(&mut self) {
++        self.cancel_header_section();
++        if let Some(mut guard) = self.request_guard.take() {
++            guard.cancel();
++        }
++        self.release_drained_read_ahead();
++    }
++
++    pub(crate) fn complete_request(&mut self) {
++        self.cancel_header_section();
++        if let Some(mut guard) = self.request_guard.take() {
++            guard.complete();
++        }
++        self.read_ahead = None;
++    }
++
++    pub(crate) fn poll_while_qpack_blocked(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<(), FrameStreamError>> {
++        if self.header_section.is_none() {
++            return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
++                "blocked QPACK section lost its reservation".to_string(),
++            )));
++        }
++        if self.read_ahead.is_none() {
++            let decoder = self.qpack_decoder.as_ref().ok_or_else(|| {
++                FrameStreamError::ExcessiveLoad(
++                    "blocked QPACK section lost its decoder state".to_string(),
++                )
++            })?;
++            self.read_ahead = Some(
++                decoder
++                    .reserve_read_ahead(MAX_BUFFERED_WHILE_QPACK_BLOCKED)
++                    .map_err(qpack_resource_error)?,
++            );
++        }
++
++        let mut received: usize = 0;
++        loop {
++            if self.stream.buf_mut().remaining() > MAX_BUFFERED_WHILE_QPACK_BLOCKED {
++                return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
++                    "buffered response bytes exceeded the blocked QPACK limit".to_string(),
++                )));
++            }
++            if self.stream.is_eos() {
++                return Poll::Pending;
++            }
++
++            let before = self.stream.buf_mut().remaining();
++            match self
++                .stream
++                .poll_read_bounded(cx, MAX_BUFFERED_WHILE_QPACK_BLOCKED)
++            {
++                Poll::Ready(Err(error)) => return Poll::Ready(Err(FrameStreamError::Quic(error))),
++                Poll::Pending => return Poll::Pending,
++                Poll::Ready(Ok(BoundedRead::End)) => return Poll::Pending,
++                Poll::Ready(Ok(BoundedRead::Read)) => {}
++                Poll::Ready(Ok(BoundedRead::LimitExceeded)) => {
++                    return Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
++                        "buffered response bytes exceeded the blocked QPACK limit".to_string(),
++                    )))
++                }
++            }
++            let after = self.stream.buf_mut().remaining();
++            received = received.saturating_add(after.saturating_sub(before));
++            if received >= MAX_QPACK_BLOCKED_READ_BYTES_PER_POLL {
++                cx.waker().wake_by_ref();
++                return Poll::Pending;
++            }
++        }
++    }
++
+     fn try_recv(&mut self, cx: &mut Context<'_>) -> Poll<Result<bool, FrameStreamError>> {
+         if self.stream.is_eos() {
+             return Poll::Ready(Ok(true));
+@@ -159,6 +328,35 @@ where
+         }
+     }
+ 
++    fn release_drained_read_ahead(&mut self) {
++        if !self.stream.buf().has_remaining() {
++            self.read_ahead = None;
++        }
++    }
++
++    fn try_recv_frame(&mut self, cx: &mut Context<'_>) -> Poll<Result<bool, FrameStreamError>> {
++        if self.qpack_decoder.is_none() {
++            return self.try_recv(cx);
++        }
++        if self.stream.is_eos() {
++            return Poll::Ready(Ok(true));
++        }
++        match self
++            .stream
++            .poll_read_bounded(cx, MAX_REQUEST_FRAME_CHUNK_BYTES)
++        {
++            Poll::Ready(Err(error)) => Poll::Ready(Err(FrameStreamError::Quic(error))),
++            Poll::Pending => Poll::Pending,
++            Poll::Ready(Ok(BoundedRead::End)) => Poll::Ready(Ok(true)),
++            Poll::Ready(Ok(BoundedRead::Read)) => Poll::Ready(Ok(false)),
++            Poll::Ready(Ok(BoundedRead::LimitExceeded)) => {
++                Poll::Ready(Err(FrameStreamError::ExcessiveLoad(
++                    "request-stream transport chunk exceeded the frame buffer limit".to_string(),
++                )))
++            }
++        }
++    }
++
+     pub fn id(&self) -> StreamId {
+         self.stream.recv_id()
+     }
+@@ -202,11 +400,21 @@ where
+                 stream: send,
+                 decoder: FrameDecoder::default(),
+                 remaining_data: 0,
++                qpack_decoder: None,
++                shared: Weak::new(),
++                header_section: None,
++                request_guard: None,
++                read_ahead: None,
+             },
+             FrameStream {
+                 stream: recv,
+                 decoder: self.decoder,
+                 remaining_data: self.remaining_data,
++                qpack_decoder: self.qpack_decoder,
++                shared: self.shared,
++                header_section: self.header_section,
++                request_guard: self.request_guard,
++                read_ahead: self.read_ahead,
+             },
+         )
+     }
+@@ -222,77 +430,70 @@ impl FrameDecoder {
+         &mut self,
+         src: &mut BufList<B>,
+     ) -> Result<Option<Frame<PayloadLen>>, FrameStreamError> {
+-        // Decode in a loop since we ignore unknown frames, and there may be
+-        // other frames already in our BufList.
+-        loop {
+-            if !src.has_remaining() {
++        // Unknown frames return control to `FrameStream` so it can reserve a
++        // following HEADERS section before decoding it.
++        if !src.has_remaining() {
++            return Ok(None);
++        }
++
++        if let Some(min) = self.expected {
++            if src.remaining() < min {
+                 return Ok(None);
+             }
++        }
+ 
+-            if let Some(min) = self.expected {
+-                if src.remaining() < min {
+-                    return Ok(None);
+-                }
+-            }
++        let (pos, decoded) = {
++            let mut cur = src.cursor();
++            let decoded = Frame::decode(&mut cur);
++            (cur.position(), decoded)
++        };
+ 
+-            let (pos, decoded) = {
+-                let mut cur = src.cursor();
+-                let decoded = Frame::decode(&mut cur);
+-                (cur.position(), decoded)
+-            };
+-
+-            match decoded {
+-                Err(frame::FrameError::UnknownFrame(_ty)) => {
+-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+-                    //# Frames of unknown types (Section 9), including reserved frames
+-                    //# (Section 7.2.8) MAY be sent on a request or push stream before,
+-                    //# after, or interleaved with other frames described in this section.
+-                    //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
+-                    //# Endpoints MUST
+-                    //# NOT consider these frames to have any meaning upon receipt.
+-                    #[cfg(feature = "tracing")]
+-                    trace!("ignore unknown frame type {:#x}", _ty);
+-
+-                    src.advance(pos);
+-                    self.expected = None;
+-                    continue;
+-                }
+-                Err(frame::FrameError::Incomplete(min)) => {
+-                    self.expected = Some(min);
+-                    return Ok(None);
+-                }
+-                Ok(frame) => {
+-                    src.advance(pos);
+-                    self.expected = None;
+-                    return Ok(Some(frame));
+-                }
+-                // -------------- Map the error Values --------------
+-                Err(frame::FrameError::InvalidStreamId(e)) => {
+-                    return Err(FrameStreamError::Proto(
+-                        FrameProtocolError::InvalidStreamId(e),
+-                    ));
+-                }
+-                Err(frame::FrameError::InvalidPushId(e)) => {
+-                    return Err(FrameStreamError::Proto(FrameProtocolError::InvalidPushId(
+-                        e,
+-                    )));
+-                }
+-                Err(frame::FrameError::Settings(e)) => {
+-                    return Err(FrameStreamError::Proto(FrameProtocolError::Settings(e)));
+-                }
+-                Err(frame::FrameError::UnsupportedFrame(ty)) => {
+-                    return Err(FrameStreamError::Proto(FrameProtocolError::ForbiddenFrame(
+-                        ty,
+-                    )));
+-                }
+-                Err(frame::FrameError::InvalidFrameValue) => {
+-                    return Err(FrameStreamError::Proto(
+-                        FrameProtocolError::InvalidFrameValue,
+-                    ));
+-                }
+-                Err(frame::FrameError::Malformed) => {
+-                    return Err(FrameStreamError::Proto(FrameProtocolError::Malformed));
+-                }
++        match decoded {
++            Err(frame::FrameError::UnknownFrame(_ty)) => {
++                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
++                //# Frames of unknown types (Section 9), including reserved frames
++                //# (Section 7.2.8) MAY be sent on a request or push stream before,
++                //# after, or interleaved with other frames described in this section.
++                //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
++                //# Endpoints MUST
++                //# NOT consider these frames to have any meaning upon receipt.
++                #[cfg(feature = "tracing")]
++                trace!("ignore unknown frame type {:#x}", _ty);
++
++                src.advance(pos);
++                self.expected = None;
++                Ok(None)
++            }
++            Err(frame::FrameError::Incomplete(min)) => {
++                self.expected = Some(min);
++                Ok(None)
++            }
++            Ok(frame) => {
++                src.advance(pos);
++                self.expected = None;
++                Ok(Some(frame))
++            }
++            // -------------- Map the error Values --------------
++            Err(frame::FrameError::InvalidStreamId(e)) => Err(FrameStreamError::Proto(
++                FrameProtocolError::InvalidStreamId(e),
++            )),
++            Err(frame::FrameError::InvalidPushId(e)) => Err(FrameStreamError::Proto(
++                FrameProtocolError::InvalidPushId(e),
++            )),
++            Err(frame::FrameError::Settings(e)) => {
++                Err(FrameStreamError::Proto(FrameProtocolError::Settings(e)))
++            }
++            Err(frame::FrameError::UnsupportedFrame(ty)) => Err(FrameStreamError::Proto(
++                FrameProtocolError::ForbiddenFrame(ty),
++            )),
++            Err(frame::FrameError::InvalidFrameValue) => Err(FrameStreamError::Proto(
++                FrameProtocolError::InvalidFrameValue,
++            )),
++            Err(frame::FrameError::ExcessiveLoad(size)) => Err(FrameStreamError::ExcessiveLoad(
++                format!("frame payload length {size} is not representable"),
++            )),
++            Err(frame::FrameError::Malformed) => {
++                Err(FrameStreamError::Proto(FrameProtocolError::Malformed))
+             }
+         }
+     }
+@@ -304,6 +505,7 @@ pub enum FrameStreamError {
+     Proto(FrameProtocolError),
+     Quic(StreamErrorIncoming),
+     UnexpectedEnd,
++    ExcessiveLoad(String),
+ }
+ 
+ #[derive(Debug, PartialEq)]
+@@ -317,13 +519,17 @@ pub enum FrameProtocolError {
+     InvalidPushId(InvalidPushId),
+ }
+ 
++fn qpack_resource_error(error: QpackRuntimeError) -> FrameStreamError {
++    FrameStreamError::ExcessiveLoad(error.to_string())
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
+     use assert_matches::assert_matches;
+     use bytes::{BufMut, Bytes, BytesMut};
+-    use futures_util::future::poll_fn;
++    use futures_util::{future::poll_fn, task::noop_waker_ref};
+     use std::{cell::Cell, collections::VecDeque, rc::Rc};
+ 
+     use crate::proto::{coding::Encode, frame::FrameType, varint::VarInt};
+@@ -480,6 +686,67 @@ mod tests {
+         );
+     }
+ 
++    #[tokio::test]
++    async fn oversized_headers_are_rejected_from_declared_length() {
++        let mut recv = FakeRecv::default();
++        let mut buf = BytesMut::new();
++        FrameType::HEADERS.encode(&mut buf);
++        VarInt::try_from((crate::qpack::MAX_ENCODED_FIELD_SECTION_BYTES + 1) as u64)
++            .unwrap()
++            .encode(&mut buf);
++        recv.chunk(buf.freeze());
++
++        let decoder = DecoderState::new(64, u64::MAX, 1).unwrap();
++        let shared = Arc::new(SharedState::default());
++        let mut stream: FrameStream<_, ()> =
++            FrameStream::new_request(BufRecvStream::new(recv), decoder, &shared).unwrap();
++
++        assert_poll_matches!(
++            |cx| stream.poll_next(cx),
++            Err(FrameStreamError::ExcessiveLoad(reason))
++                if reason.contains("encoded field section")
++        );
++    }
++
++    #[tokio::test]
++    async fn cancellation_releases_empty_read_ahead_while_stream_is_retained() {
++        let encoded = Bytes::from_static(&[0x02, 0x80, 0xd9, 0x10]);
++        let mut wire = BytesMut::new();
++        let mut frame: Frame<Bytes> = Frame::Headers(encoded.clone());
++        frame.encode_with_payload(&mut wire);
++        let mut recv = FakeRecv::default();
++        recv.chunk(wire.freeze());
++
++        let decoder = DecoderState::new(64, u64::MAX, 1).unwrap();
++        let shared = Arc::new(SharedState::default());
++        let mut stream: FrameStream<_, ()> =
++            FrameStream::new_request(BufRecvStream::new(recv), Arc::clone(&decoder), &shared)
++                .unwrap();
++        assert_poll_matches!(|cx| stream.poll_next(cx), Ok(Some(Frame::Headers(_))));
++
++        let mut section = stream.take_header_section().unwrap();
++        let cx = Context::from_waker(noop_waker_ref());
++        assert!(matches!(
++            section.poll_decode(&encoded, &cx),
++            Ok(crate::qpack::DecodeStatus::Blocked)
++        ));
++        stream.put_header_section(section);
++        let mut cx = Context::from_waker(noop_waker_ref());
++        assert!(stream.poll_while_qpack_blocked(&mut cx).is_pending());
++        assert_eq!(
++            decoder.reserved_bytes(),
++            encoded.len() + MAX_BUFFERED_WHILE_QPACK_BLOCKED
++        );
++
++        stream.cancel_request();
++        assert_eq!(decoder.reserved_bytes(), 0);
++        assert_eq!(decoder.take_feedback(), &b"\x40"[..]);
++
++        // The stream remains alive, proving release is tied to the empty
++        // buffer rather than handle destruction.
++        assert!(stream.request_guard.is_none());
++    }
++
+     #[tokio::test]
+     async fn poll_next_incomplete_frame() {
+         let mut recv = FakeRecv::default();
+@@ -665,7 +932,7 @@ mod tests {
+         }
+ 
+         fn recv_id(&self) -> StreamId {
+-            unimplemented!()
++            StreamId(0)
+         }
+     }
+ 
+diff --git a/h3/src/proto/frame.rs b/h3/src/proto/frame.rs
+index 1679447..ddea75e 100644
+--- a/h3/src/proto/frame.rs
++++ b/h3/src/proto/frame.rs
+@@ -21,6 +21,7 @@ pub enum FrameError {
+     UnsupportedFrame(u64), // Known frames that should generate an error
+     UnknownFrame(u64),     // Unknown frames that should be ignored
+     InvalidFrameValue,
++    ExcessiveLoad(u64),
+     Incomplete(usize),
+     Settings(SettingsError),
+     InvalidStreamId(InvalidStreamId),
+@@ -36,6 +37,9 @@ impl fmt::Display for FrameError {
+             FrameError::UnsupportedFrame(c) => write!(f, "frame 0x{:x} is not allowed h3", c),
+             FrameError::UnknownFrame(c) => write!(f, "frame 0x{:x} ignored", c),
+             FrameError::InvalidFrameValue => write!(f, "frame value is invalid"),
++            FrameError::ExcessiveLoad(size) => {
++                write!(f, "frame payload length {size} exceeds local limits")
++            }
+             FrameError::Incomplete(x) => write!(f, "internal error: frame incomplete {}", x),
+             FrameError::Settings(x) => write!(f, "invalid settings: {}", x),
+             FrameError::InvalidStreamId(x) => write!(f, "{}", x),
+@@ -96,22 +100,26 @@ impl Frame<PayloadLen> {
+         let len = buf
+             .get_var()
+             .map_err(|_| FrameError::Incomplete(remaining + 1))?;
++        let payload_len = usize::try_from(len).map_err(|_| FrameError::ExcessiveLoad(len))?;
+ 
+         if ty == FrameType::DATA {
+-            return Ok(Frame::Data((len as usize).into()));
++            return Ok(Frame::Data(payload_len.into()));
+         }
+ 
+-        if buf.remaining() < len as usize {
+-            return Err(FrameError::Incomplete(2 + len as usize));
++        if buf.remaining() < payload_len {
++            let minimum = payload_len
++                .checked_add(2)
++                .ok_or(FrameError::ExcessiveLoad(len))?;
++            return Err(FrameError::Incomplete(minimum));
+         }
+ 
+-        let mut payload = buf.take(len as usize);
++        let mut payload = buf.take(payload_len);
+ 
+         #[cfg(feature = "tracing")]
+         trace!("frame ty: {:?}", ty);
+ 
+         let frame = match ty {
+-            FrameType::HEADERS => Ok(Frame::Headers(payload.copy_to_bytes(len as usize))),
++            FrameType::HEADERS => Ok(Frame::Headers(payload.copy_to_bytes(payload_len))),
+             FrameType::SETTINGS => Ok(Frame::Settings(Settings::decode(&mut payload)?)),
+             FrameType::CANCEL_PUSH => Ok(Frame::CancelPush(payload.get_var()?.try_into()?)),
+             FrameType::PUSH_PROMISE => Ok(Frame::PushPromise(PushPromise::decode(&mut payload)?)),
+@@ -127,7 +135,7 @@ impl Frame<PayloadLen> {
+             | FrameType::H2_CONTINUATION => Err(FrameError::UnsupportedFrame(ty.0)),
+             FrameType::WEBTRANSPORT_BI_STREAM | FrameType::DATA => unreachable!(),
+             _ => {
+-                buf.advance(len as usize);
++                buf.advance(payload_len);
+                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
+                 //# Endpoints MUST
+                 //# NOT consider these frames to have any meaning upon receipt.
+@@ -146,6 +154,19 @@ impl Frame<PayloadLen> {
+         }
+         frame
+     }
++
++    pub(crate) fn headers_payload_len<T: Buf>(buf: &mut T) -> Result<Option<usize>, FrameError> {
++        let remaining = buf.remaining();
++        let ty = FrameType::decode(buf).map_err(|_| FrameError::Incomplete(remaining + 1))?;
++        if ty == FrameType::WEBTRANSPORT_BI_STREAM {
++            return Ok(None);
++        }
++        let len = buf
++            .get_var()
++            .map_err(|_| FrameError::Incomplete(remaining + 1))?;
++        let len = usize::try_from(len).map_err(|_| FrameError::ExcessiveLoad(len))?;
++        Ok((ty == FrameType::HEADERS).then_some(len))
++    }
+ }
+ 
+ impl<B> Encode for Frame<B>
+diff --git a/h3/src/qpack/decoder.rs b/h3/src/qpack/decoder.rs
+index ee35704..78e6595 100644
+--- a/h3/src/qpack/decoder.rs
++++ b/h3/src/qpack/decoder.rs
+@@ -108,11 +108,15 @@ impl Decoder {
+         })
+     }
+ 
++    pub(crate) fn total_inserted(&self) -> usize {
++        self.table.total_inserted()
++    }
++
+     // Decode field lines received on Request of Push stream.
+     // https://www.rfc-editor.org/rfc/rfc9204.html#name-field-line-representations
+     pub fn decode_header<T: Buf>(&self, buf: &mut T) -> Result<Decoded, DecoderError> {
+-        let (required_ref, base) = HeaderPrefix::decode(buf)?
+-            .get(self.table.total_inserted(), self.table.max_mem_size())?;
++        let (required_ref, base) =
++            HeaderPrefix::decode(buf)?.get(self.table.total_inserted(), self.max_table_capacity)?;
+ 
+         if required_ref > self.table.total_inserted() {
+             return Err(DecoderError::MissingRefs(required_ref));
+diff --git a/h3/src/qpack/mod.rs b/h3/src/qpack/mod.rs
+index 9f83c10..be73446 100644
+--- a/h3/src/qpack/mod.rs
++++ b/h3/src/qpack/mod.rs
+@@ -4,12 +4,20 @@ pub use self::{
+     field::HeaderField,
+ };
+ 
+-pub(crate) use self::{decoder::Decoder, encoder::Encoder};
++pub(crate) use self::{
++    decoder::Decoder,
++    encoder::Encoder,
++    state::{
++        DecodeStatus, DecoderState, ReadAheadLease, RequestGuard, RuntimeError, Section,
++        MAX_ENCODED_FIELD_SECTION_BYTES,
++    },
++};
+ 
+ mod block;
+ mod dynamic;
+ mod field;
+ mod parse_error;
++mod state;
+ mod static_;
+ mod stream;
+ mod vas;
+diff --git a/h3/src/qpack/state.rs b/h3/src/qpack/state.rs
+new file mode 100644
+index 0000000..998ed02
+--- /dev/null
++++ b/h3/src/qpack/state.rs
+@@ -0,0 +1,584 @@
++use std::{
++    collections::HashMap,
++    sync::{Arc, Mutex, MutexGuard, Weak},
++    task::{Context, Waker},
++};
++
++use bytes::{Buf, Bytes, BytesMut};
++
++use crate::{
++    error::{internal_error::InternalConnectionError, Code},
++    shared_state::{ConnectionState, SharedState},
++};
++
++use super::{decoder, Decoded, Decoder, DecoderError};
++
++pub(crate) const MAX_ENCODED_FIELD_SECTION_BYTES: usize = 1024 * 1024;
++const MAX_RETAINED_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
++const MAX_PENDING_FEEDBACK_BYTES: usize = 64 * 1024;
++
++pub(crate) struct DecoderState {
++    inner: Mutex<Inner>,
++}
++
++struct Inner {
++    decoder: Decoder,
++    max_blocked_streams: u64,
++    max_retained_bytes: usize,
++    max_feedback_bytes: usize,
++    sections: HashMap<u64, SectionState>,
++    blocked_streams: u64,
++    reserved_bytes: usize,
++    reserved_feedback_bytes: usize,
++    feedback: BytesMut,
++    feedback_in_flight: usize,
++    closed: bool,
++}
++
++struct SectionState {
++    encoded_bytes: usize,
++    acknowledgement: Bytes,
++    blocked: Option<BlockedState>,
++}
++
++struct BlockedState {
++    required_insert_count: usize,
++    waker: Waker,
++}
++
++#[derive(Debug)]
++pub(crate) enum RuntimeError {
++    Codec(DecoderError),
++    TooManyBlockedStreams,
++    EncodedSectionTooLarge { size: usize, limit: usize },
++    BlockedBytesExceeded { size: usize, limit: usize },
++    FeedbackExceeded,
++    DuplicateSection(u64),
++    Closed,
++}
++
++impl std::fmt::Display for RuntimeError {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::Codec(error) => write!(f, "{error}"),
++            Self::TooManyBlockedStreams => write!(f, "QPACK blocked-stream limit exceeded"),
++            Self::EncodedSectionTooLarge { size, limit } => {
++                write!(f, "encoded field section is {size} bytes; limit is {limit}")
++            }
++            Self::BlockedBytesExceeded { size, limit } => {
++                write!(
++                    f,
++                    "retained field sections require {size} bytes; limit is {limit}"
++                )
++            }
++            Self::FeedbackExceeded => write!(f, "QPACK decoder feedback limit exceeded"),
++            Self::DuplicateSection(stream_id) => {
++                write!(f, "stream {stream_id} already owns a field section")
++            }
++            Self::Closed => write!(f, "QPACK decoder state is closed"),
++        }
++    }
++}
++
++impl std::error::Error for RuntimeError {}
++
++pub(crate) enum DecodeStatus {
++    Decoded(Decoded),
++    Blocked,
++}
++
++pub(crate) struct Section {
++    decoder: Arc<DecoderState>,
++    shared: Weak<SharedState>,
++    stream_id: u64,
++    active: bool,
++}
++
++pub(crate) struct RequestGuard {
++    decoder: Arc<DecoderState>,
++    shared: Weak<SharedState>,
++    cancellation: Bytes,
++    active: bool,
++}
++
++pub(crate) struct ReadAheadLease {
++    decoder: Arc<DecoderState>,
++    bytes: usize,
++    active: bool,
++}
++
++impl DecoderState {
++    pub(crate) fn new(
++        max_table_capacity: u64,
++        max_field_section_size: u64,
++        max_blocked_streams: u64,
++    ) -> Result<Arc<Self>, DecoderError> {
++        Self::with_limits(
++            max_table_capacity,
++            max_field_section_size,
++            max_blocked_streams,
++            MAX_RETAINED_RESPONSE_BYTES,
++            MAX_PENDING_FEEDBACK_BYTES,
++        )
++    }
++
++    fn with_limits(
++        max_table_capacity: u64,
++        max_field_section_size: u64,
++        max_blocked_streams: u64,
++        max_retained_bytes: usize,
++        max_feedback_bytes: usize,
++    ) -> Result<Arc<Self>, DecoderError> {
++        Ok(Arc::new(Self {
++            inner: Mutex::new(Inner {
++                decoder: Decoder::new(max_table_capacity, max_field_section_size)?,
++                max_blocked_streams,
++                max_retained_bytes,
++                max_feedback_bytes,
++                sections: HashMap::new(),
++                blocked_streams: 0,
++                reserved_bytes: 0,
++                reserved_feedback_bytes: 0,
++                feedback: BytesMut::new(),
++                feedback_in_flight: 0,
++                closed: false,
++            }),
++        }))
++    }
++
++    pub(crate) fn reserve(
++        self: &Arc<Self>,
++        shared: Weak<SharedState>,
++        stream_id: u64,
++        encoded_bytes: usize,
++    ) -> Result<Section, RuntimeError> {
++        let mut inner = self.lock();
++        if inner.closed {
++            return Err(RuntimeError::Closed);
++        }
++        if encoded_bytes > MAX_ENCODED_FIELD_SECTION_BYTES {
++            return Err(RuntimeError::EncodedSectionTooLarge {
++                size: encoded_bytes,
++                limit: MAX_ENCODED_FIELD_SECTION_BYTES,
++            });
++        }
++        if inner.sections.contains_key(&stream_id) {
++            return Err(RuntimeError::DuplicateSection(stream_id));
++        }
++        let reserved_bytes = inner.reserved_bytes.checked_add(encoded_bytes).ok_or(
++            RuntimeError::BlockedBytesExceeded {
++                size: usize::MAX,
++                limit: inner.max_retained_bytes,
++            },
++        )?;
++        if reserved_bytes > inner.max_retained_bytes {
++            return Err(RuntimeError::BlockedBytesExceeded {
++                size: reserved_bytes,
++                limit: inner.max_retained_bytes,
++            });
++        }
++
++        let mut acknowledgement = BytesMut::new();
++        decoder::ack_header(stream_id, &mut acknowledgement);
++        inner.reserve_feedback(acknowledgement.len())?;
++
++        inner.reserved_bytes = reserved_bytes;
++        inner.sections.insert(
++            stream_id,
++            SectionState {
++                encoded_bytes,
++                acknowledgement: acknowledgement.freeze(),
++                blocked: None,
++            },
++        );
++        drop(inner);
++
++        Ok(Section {
++            decoder: Arc::clone(self),
++            shared,
++            stream_id,
++            active: true,
++        })
++    }
++
++    pub(crate) fn begin_request(
++        self: &Arc<Self>,
++        shared: Weak<SharedState>,
++        stream_id: u64,
++    ) -> Result<RequestGuard, RuntimeError> {
++        let mut cancellation = BytesMut::new();
++        decoder::stream_canceled(stream_id, &mut cancellation);
++
++        let mut inner = self.lock();
++        if inner.closed {
++            return Err(RuntimeError::Closed);
++        }
++        inner.reserve_feedback(cancellation.len())?;
++        drop(inner);
++
++        Ok(RequestGuard {
++            decoder: Arc::clone(self),
++            shared,
++            cancellation: cancellation.freeze(),
++            active: true,
++        })
++    }
++
++    pub(crate) fn reserve_read_ahead(
++        self: &Arc<Self>,
++        bytes: usize,
++    ) -> Result<ReadAheadLease, RuntimeError> {
++        let mut inner = self.lock();
++        if inner.closed {
++            return Err(RuntimeError::Closed);
++        }
++        let reserved_bytes =
++            inner
++                .reserved_bytes
++                .checked_add(bytes)
++                .ok_or(RuntimeError::BlockedBytesExceeded {
++                    size: usize::MAX,
++                    limit: inner.max_retained_bytes,
++                })?;
++        if reserved_bytes > inner.max_retained_bytes {
++            return Err(RuntimeError::BlockedBytesExceeded {
++                size: reserved_bytes,
++                limit: inner.max_retained_bytes,
++            });
++        }
++        inner.reserved_bytes = reserved_bytes;
++        drop(inner);
++
++        Ok(ReadAheadLease {
++            decoder: Arc::clone(self),
++            bytes,
++            active: true,
++        })
++    }
++
++    pub(crate) fn on_encoder_recv<R: Buf>(&self, read: &mut R) -> Result<Vec<Waker>, RuntimeError> {
++        let mut inner = self.lock();
++        if inner.closed {
++            return Err(RuntimeError::Closed);
++        }
++
++        let mut feedback = BytesMut::new();
++        inner
++            .decoder
++            .on_encoder_recv(read, &mut feedback)
++            .map_err(RuntimeError::Codec)?;
++        inner.enqueue_feedback(&feedback)?;
++
++        let total_inserted = inner.decoder.total_inserted();
++        Ok(inner
++            .sections
++            .values()
++            .filter_map(|section| section.blocked.as_ref())
++            .filter(|blocked| blocked.required_insert_count <= total_inserted)
++            .map(|blocked| blocked.waker.clone())
++            .collect())
++    }
++
++    pub(crate) fn take_feedback(&self) -> BytesMut {
++        let mut inner = self.lock();
++        let feedback = std::mem::take(&mut inner.feedback);
++        inner.feedback_in_flight = inner.feedback_in_flight.saturating_add(feedback.len());
++        feedback
++    }
++
++    pub(crate) fn feedback_sent(&self, bytes: usize) {
++        let mut inner = self.lock();
++        inner.feedback_in_flight = inner.feedback_in_flight.saturating_sub(bytes);
++    }
++
++    pub(crate) fn abort(&self) -> Vec<Waker> {
++        let mut inner = self.lock();
++        inner.closed = true;
++        let wakers = inner
++            .sections
++            .values()
++            .filter_map(|section| section.blocked.as_ref())
++            .map(|blocked| blocked.waker.clone())
++            .collect();
++        inner.sections.clear();
++        inner.blocked_streams = 0;
++        inner.reserved_bytes = 0;
++        inner.reserved_feedback_bytes = 0;
++        wakers
++    }
++
++    fn poll_decode(
++        &self,
++        section: &mut Section,
++        encoded: &Bytes,
++        cx: &Context<'_>,
++    ) -> Result<DecodeStatus, RuntimeError> {
++        let mut inner = self.lock();
++        if inner.closed {
++            return Err(RuntimeError::Closed);
++        }
++        if !section.active || !inner.sections.contains_key(&section.stream_id) {
++            return Err(RuntimeError::Closed);
++        }
++
++        let mut cursor = encoded.clone();
++        match inner.decoder.decode_header(&mut cursor) {
++            Ok(decoded) => {
++                let state = inner.remove_section(section.stream_id).unwrap();
++                section.active = false;
++                if decoded.dyn_ref {
++                    inner.enqueue_reserved_feedback(
++                        &state.acknowledgement,
++                        state.acknowledgement.len(),
++                    )?;
++                } else {
++                    inner.release_feedback_reservation(&state);
++                }
++                Ok(DecodeStatus::Decoded(decoded))
++            }
++            Err(DecoderError::MissingRefs(required_insert_count)) => {
++                if inner
++                    .sections
++                    .get(&section.stream_id)
++                    .and_then(|state| state.blocked.as_ref())
++                    .is_none()
++                {
++                    if inner.blocked_streams >= inner.max_blocked_streams {
++                        if let Some(state) = inner.remove_section(section.stream_id) {
++                            inner.release_feedback_reservation(&state);
++                        }
++                        section.active = false;
++                        return Err(RuntimeError::TooManyBlockedStreams);
++                    }
++
++                    let state = inner.sections.get_mut(&section.stream_id).unwrap();
++                    state.blocked = Some(BlockedState {
++                        required_insert_count,
++                        waker: cx.waker().clone(),
++                    });
++                    inner.blocked_streams += 1;
++                } else {
++                    let blocked = inner
++                        .sections
++                        .get_mut(&section.stream_id)
++                        .unwrap()
++                        .blocked
++                        .as_mut()
++                        .unwrap();
++                    blocked.required_insert_count = required_insert_count;
++                    if !blocked.waker.will_wake(cx.waker()) {
++                        blocked.waker = cx.waker().clone();
++                    }
++                }
++                Ok(DecodeStatus::Blocked)
++            }
++            Err(error @ DecoderError::HeaderTooLong(_)) => {
++                let state = inner.remove_section(section.stream_id).unwrap();
++                section.active = false;
++                inner.release_feedback_reservation(&state);
++                Err(RuntimeError::Codec(error))
++            }
++            Err(error) => {
++                if let Some(state) = inner.remove_section(section.stream_id) {
++                    inner.release_feedback_reservation(&state);
++                }
++                section.active = false;
++                Err(RuntimeError::Codec(error))
++            }
++        }
++    }
++
++    fn abandon(&self, stream_id: u64) {
++        let mut inner = self.lock();
++        let Some(state) = inner.remove_section(stream_id) else {
++            return;
++        };
++        inner.release_feedback_reservation(&state);
++    }
++
++    fn cancel_request(&self, cancellation: &[u8]) -> Result<bool, RuntimeError> {
++        let mut inner = self.lock();
++        if inner.closed {
++            return Ok(false);
++        }
++        inner.enqueue_reserved_feedback(cancellation, cancellation.len())?;
++        Ok(true)
++    }
++
++    fn complete_request(&self, cancellation_bytes: usize) {
++        let mut inner = self.lock();
++        if !inner.closed {
++            inner.reserved_feedback_bytes = inner
++                .reserved_feedback_bytes
++                .saturating_sub(cancellation_bytes);
++        }
++    }
++
++    fn release_read_ahead(&self, bytes: usize) {
++        let mut inner = self.lock();
++        inner.reserved_bytes = inner.reserved_bytes.saturating_sub(bytes);
++    }
++
++    fn lock(&self) -> MutexGuard<'_, Inner> {
++        self.inner
++            .lock()
++            .unwrap_or_else(std::sync::PoisonError::into_inner)
++    }
++
++    #[cfg(test)]
++    pub(crate) fn reserved_bytes(&self) -> usize {
++        self.lock().reserved_bytes
++    }
++}
++
++impl Inner {
++    fn feedback_usage(&self) -> usize {
++        self.feedback
++            .len()
++            .saturating_add(self.feedback_in_flight)
++            .saturating_add(self.reserved_feedback_bytes)
++    }
++
++    fn reserve_feedback(&mut self, bytes: usize) -> Result<(), RuntimeError> {
++        if self.feedback_usage().saturating_add(bytes) > self.max_feedback_bytes {
++            return Err(RuntimeError::FeedbackExceeded);
++        }
++        self.reserved_feedback_bytes += bytes;
++        Ok(())
++    }
++
++    fn enqueue_feedback(&mut self, feedback: &[u8]) -> Result<(), RuntimeError> {
++        if self.feedback_usage().saturating_add(feedback.len()) > self.max_feedback_bytes {
++            return Err(RuntimeError::FeedbackExceeded);
++        }
++        self.feedback.extend_from_slice(feedback);
++        Ok(())
++    }
++
++    fn enqueue_reserved_feedback(
++        &mut self,
++        feedback: &[u8],
++        reserved_bytes: usize,
++    ) -> Result<(), RuntimeError> {
++        self.reserved_feedback_bytes = self.reserved_feedback_bytes.saturating_sub(reserved_bytes);
++        if self.feedback_usage().saturating_add(feedback.len()) > self.max_feedback_bytes {
++            return Err(RuntimeError::FeedbackExceeded);
++        }
++        self.feedback.extend_from_slice(feedback);
++        Ok(())
++    }
++
++    fn remove_section(&mut self, stream_id: u64) -> Option<SectionState> {
++        let state = self.sections.remove(&stream_id)?;
++        self.reserved_bytes = self.reserved_bytes.saturating_sub(state.encoded_bytes);
++        if state.blocked.is_some() {
++            self.blocked_streams = self.blocked_streams.saturating_sub(1);
++        }
++        Some(state)
++    }
++
++    fn release_feedback_reservation(&mut self, state: &SectionState) {
++        self.reserved_feedback_bytes = self
++            .reserved_feedback_bytes
++            .saturating_sub(state.acknowledgement.len());
++    }
++}
++
++impl Section {
++    pub(crate) fn poll_decode(
++        &mut self,
++        encoded: &Bytes,
++        cx: &Context<'_>,
++    ) -> Result<DecodeStatus, RuntimeError> {
++        let decoder = Arc::clone(&self.decoder);
++        let result = decoder.poll_decode(self, encoded, cx);
++        if matches!(&result, Ok(DecodeStatus::Decoded(decoded)) if decoded.dyn_ref)
++            || matches!(
++                result,
++                Err(RuntimeError::Codec(DecoderError::HeaderTooLong(_)))
++            )
++        {
++            self.wake_driver();
++        }
++        result
++    }
++
++    pub(crate) fn cancel(&mut self) {
++        if !self.active {
++            return;
++        }
++        self.active = false;
++        self.decoder.abandon(self.stream_id);
++    }
++
++    fn wake_driver(&self) {
++        if let Some(shared) = self.shared.upgrade() {
++            shared.waker().wake();
++        }
++    }
++}
++
++impl RequestGuard {
++    pub(crate) fn cancel(&mut self) {
++        if !self.active {
++            return;
++        }
++        self.active = false;
++        match self.decoder.cancel_request(&self.cancellation) {
++            Ok(feedback_queued) => {
++                if feedback_queued {
++                    self.wake_driver();
++                }
++            }
++            Err(error) => self.fail_connection(error),
++        }
++    }
++
++    pub(crate) fn complete(&mut self) {
++        if !self.active {
++            return;
++        }
++        self.active = false;
++        self.decoder.complete_request(self.cancellation.len());
++    }
++
++    fn wake_driver(&self) {
++        if let Some(shared) = self.shared.upgrade() {
++            shared.waker().wake();
++        }
++    }
++
++    fn fail_connection(&self, error: RuntimeError) {
++        if let Some(shared) = self.shared.upgrade() {
++            shared.set_conn_error_and_wake(InternalConnectionError::new(
++                Code::H3_EXCESSIVE_LOAD,
++                error.to_string(),
++            ));
++        }
++    }
++}
++
++impl Drop for RequestGuard {
++    fn drop(&mut self) {
++        self.cancel();
++    }
++}
++
++impl Drop for ReadAheadLease {
++    fn drop(&mut self) {
++        if self.active {
++            self.active = false;
++            self.decoder.release_read_ahead(self.bytes);
++        }
++    }
++}
++
++impl Drop for Section {
++    fn drop(&mut self) {
++        self.cancel();
++    }
++}
++
++#[cfg(test)]
++#[path = "state/tests.rs"]
++mod tests;
+diff --git a/h3/src/qpack/state/tests.rs b/h3/src/qpack/state/tests.rs
+new file mode 100644
+index 0000000..206d328
+--- /dev/null
++++ b/h3/src/qpack/state/tests.rs
+@@ -0,0 +1,394 @@
++use std::{
++    sync::{
++        atomic::{AtomicUsize, Ordering},
++        Arc,
++    },
++    task::Context,
++};
++
++use bytes::{Bytes, BytesMut};
++use futures_util::task::{waker, ArcWake};
++
++use crate::shared_state::SharedState;
++
++use super::super::{dynamic::DynamicTable, encoder::set_dynamic_table_size, Encoder, HeaderField};
++use super::{DecodeStatus, DecoderState, RuntimeError, Section};
++
++struct DynamicFixture {
++    block: Bytes,
++    encoder_instructions: Bytes,
++}
++
++fn dynamic_fixture() -> DynamicFixture {
++    let mut table = DynamicTable::new();
++    table.set_max_blocked(1).unwrap();
++
++    let mut encoder_instructions = Vec::new();
++    set_dynamic_table_size(&mut table, &mut encoder_instructions, 64).unwrap();
++    let mut encoder = Encoder::from(table);
++    let mut block = Vec::new();
++    encoder
++        .encode(
++            0,
++            &mut block,
++            &mut encoder_instructions,
++            [
++                HeaderField::new(":status", "200"),
++                HeaderField::new("x", "y"),
++            ],
++        )
++        .unwrap();
++
++    DynamicFixture {
++        block: block.into(),
++        encoder_instructions: encoder_instructions.into(),
++    }
++}
++
++struct CountWake(AtomicUsize);
++
++impl ArcWake for CountWake {
++    fn wake_by_ref(arc_self: &Arc<Self>) {
++        arc_self.0.fetch_add(1, Ordering::Relaxed);
++    }
++}
++
++fn poll_decode(
++    section: &mut Section,
++    counter: &Arc<CountWake>,
++    encoded: &Bytes,
++) -> Result<DecodeStatus, RuntimeError> {
++    let waker = waker(Arc::clone(counter));
++    let cx = Context::from_waker(&waker);
++    section.poll_decode(encoded, &cx)
++}
++
++fn decoder(max_blocked: u64) -> Arc<DecoderState> {
++    DecoderState::with_limits(64, u64::MAX, max_blocked, 1024, 1024).unwrap()
++}
++
++#[test]
++fn block_insert_unblock_orders_feedback_and_releases_accounting() {
++    let fixture = dynamic_fixture();
++    let decoder = decoder(1);
++    let shared = Arc::new(SharedState::default());
++    let mut section = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++    let wake = Arc::new(CountWake(AtomicUsize::new(0)));
++
++    assert!(matches!(
++        poll_decode(&mut section, &wake, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++    {
++        let inner = decoder.lock();
++        assert_eq!(inner.blocked_streams, 1);
++        assert_eq!(inner.reserved_bytes, fixture.block.len());
++    }
++
++    let wakers = decoder
++        .on_encoder_recv(&mut fixture.encoder_instructions.clone())
++        .unwrap();
++    for waker in wakers {
++        waker.wake();
++    }
++    assert_eq!(wake.0.load(Ordering::Relaxed), 1);
++
++    let decoded = poll_decode(&mut section, &wake, &fixture.block).unwrap();
++    let DecodeStatus::Decoded(decoded) = decoded else {
++        panic!("field section remained blocked");
++    };
++    assert_eq!(decoded.fields.len(), 2);
++    assert_eq!(decoded.fields[0].name.as_ref(), b":status");
++    assert_eq!(decoded.fields[0].value.as_ref(), b"200");
++    assert_eq!(decoded.fields[1].name.as_ref(), b"x");
++    assert_eq!(decoded.fields[1].value.as_ref(), b"y");
++
++    assert_eq!(decoder.take_feedback(), &b"\x01\x80"[..]);
++    let inner = decoder.lock();
++    assert_eq!(inner.blocked_streams, 0);
++    assert_eq!(inner.reserved_bytes, 0);
++}
++
++#[test]
++fn repeated_poll_replaces_waker_without_double_accounting() {
++    let fixture = dynamic_fixture();
++    let decoder = decoder(1);
++    let shared = Arc::new(SharedState::default());
++    let mut section = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++    let first = Arc::new(CountWake(AtomicUsize::new(0)));
++    let second = Arc::new(CountWake(AtomicUsize::new(0)));
++
++    assert!(matches!(
++        poll_decode(&mut section, &first, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++    assert!(matches!(
++        poll_decode(&mut section, &second, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++    {
++        let inner = decoder.lock();
++        assert_eq!(inner.blocked_streams, 1);
++        assert_eq!(inner.reserved_bytes, fixture.block.len());
++    }
++
++    for waker in decoder
++        .on_encoder_recv(&mut fixture.encoder_instructions.clone())
++        .unwrap()
++    {
++        waker.wake();
++    }
++    assert_eq!(first.0.load(Ordering::Relaxed), 0);
++    assert_eq!(second.0.load(Ordering::Relaxed), 1);
++}
++
++#[test]
++fn cancelling_blocked_section_queues_one_cancellation() {
++    let fixture = dynamic_fixture();
++    let decoder = decoder(1);
++    let shared = Arc::new(SharedState::default());
++    let mut request = decoder.begin_request(Arc::downgrade(&shared), 0).unwrap();
++    let mut section = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++    let wake = Arc::new(CountWake(AtomicUsize::new(0)));
++    assert!(matches!(
++        poll_decode(&mut section, &wake, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++
++    section.cancel();
++    section.cancel();
++    drop(section);
++    request.cancel();
++    request.cancel();
++    drop(request);
++
++    assert_eq!(decoder.take_feedback(), &b"\x40"[..]);
++    let inner = decoder.lock();
++    assert_eq!(inner.blocked_streams, 0);
++    assert_eq!(inner.reserved_bytes, 0);
++}
++
++#[test]
++fn cancelling_before_decode_still_releases_peer_references() {
++    let fixture = dynamic_fixture();
++    let decoder = decoder(1);
++    let shared = Arc::new(SharedState::default());
++    let request = decoder.begin_request(Arc::downgrade(&shared), 0).unwrap();
++    let section = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++
++    drop(section);
++    drop(request);
++
++    assert_eq!(decoder.take_feedback(), &b"\x40"[..]);
++    let inner = decoder.lock();
++    assert!(inner.sections.is_empty());
++    assert_eq!(inner.reserved_bytes, 0);
++    assert_eq!(inner.reserved_feedback_bytes, 0);
++}
++
++#[test]
++fn request_guard_cancels_before_any_section_is_received() {
++    let decoder = decoder(1);
++    let shared = Arc::new(SharedState::default());
++    let request = decoder.begin_request(Arc::downgrade(&shared), 0).unwrap();
++
++    drop(request);
++
++    assert_eq!(decoder.take_feedback(), &b"\x40"[..]);
++    assert_eq!(decoder.lock().reserved_feedback_bytes, 0);
++}
++
++#[test]
++fn request_guard_cancels_after_an_acknowledged_section() {
++    let fixture = dynamic_fixture();
++    let decoder = decoder(1);
++    let shared = Arc::new(SharedState::default());
++    let request = decoder.begin_request(Arc::downgrade(&shared), 0).unwrap();
++    decoder
++        .on_encoder_recv(&mut fixture.encoder_instructions.clone())
++        .unwrap();
++    let mut section = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++    let wake = Arc::new(CountWake(AtomicUsize::new(0)));
++
++    assert!(matches!(
++        poll_decode(&mut section, &wake, &fixture.block),
++        Ok(DecodeStatus::Decoded(_))
++    ));
++    drop(request);
++
++    assert_eq!(decoder.take_feedback(), &b"\x01\x80\x40"[..]);
++    assert_eq!(decoder.lock().reserved_feedback_bytes, 0);
++}
++
++#[test]
++fn cancelling_one_section_preserves_other_feedback_reservation() {
++    let fixture = dynamic_fixture();
++    let decoder = decoder(2);
++    let shared = Arc::new(SharedState::default());
++    let wake = Arc::new(CountWake(AtomicUsize::new(0)));
++    let mut first_request = decoder.begin_request(Arc::downgrade(&shared), 0).unwrap();
++    let mut second_request = decoder.begin_request(Arc::downgrade(&shared), 1).unwrap();
++    let mut first = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++    let mut second = decoder
++        .reserve(Arc::downgrade(&shared), 1, fixture.block.len())
++        .unwrap();
++
++    assert!(matches!(
++        poll_decode(&mut first, &wake, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++    assert!(matches!(
++        poll_decode(&mut second, &wake, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++
++    first.cancel();
++    first_request.cancel();
++    assert_eq!(decoder.lock().reserved_feedback_bytes, 2);
++    second.cancel();
++    second_request.cancel();
++    assert_eq!(decoder.lock().reserved_feedback_bytes, 0);
++    assert_eq!(decoder.take_feedback(), &b"\x40\x41"[..]);
++}
++
++#[test]
++fn acknowledgement_releases_cancellation_reservation_at_prefix_boundaries() {
++    let fixture = dynamic_fixture();
++    let shared = Arc::new(SharedState::default());
++    let wake = Arc::new(CountWake(AtomicUsize::new(0)));
++
++    for stream_id in [62, 63, 64, 126, 127, 128, 16_382, 16_383, 16_384] {
++        let decoder = decoder(1);
++        decoder
++            .on_encoder_recv(&mut fixture.encoder_instructions.clone())
++            .unwrap();
++        let feedback = decoder.take_feedback();
++        decoder.feedback_sent(feedback.len());
++        let mut request = decoder
++            .begin_request(Arc::downgrade(&shared), stream_id)
++            .unwrap();
++        let mut section = decoder
++            .reserve(Arc::downgrade(&shared), stream_id, fixture.block.len())
++            .unwrap();
++
++        assert!(matches!(
++            poll_decode(&mut section, &wake, &fixture.block),
++            Ok(DecodeStatus::Decoded(_))
++        ));
++        request.complete();
++        assert_eq!(decoder.lock().reserved_feedback_bytes, 0);
++    }
++}
++
++#[test]
++fn read_ahead_uses_the_connection_wide_byte_budget() {
++    let fixture = dynamic_fixture();
++    let shared = Arc::new(SharedState::default());
++    let decoder =
++        DecoderState::with_limits(64, u64::MAX, 1, fixture.block.len() + 8, 1024).unwrap();
++    let section = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++
++    let read_ahead = decoder.reserve_read_ahead(9);
++    assert!(matches!(
++        read_ahead,
++        Err(RuntimeError::BlockedBytesExceeded { .. })
++    ));
++    drop(section);
++    assert_eq!(decoder.lock().reserved_bytes, 0);
++}
++
++#[test]
++fn decoded_sections_retain_read_ahead_until_the_buffer_lease_drops() {
++    const READ_AHEAD: usize = 100;
++
++    let fixture = dynamic_fixture();
++    let shared = Arc::new(SharedState::default());
++    let retained_limit = fixture.block.len() * 2 + READ_AHEAD * 2;
++    let decoder = DecoderState::with_limits(64, u64::MAX, 2, retained_limit, 1024).unwrap();
++    let wake = Arc::new(CountWake(AtomicUsize::new(0)));
++    let mut first = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++    let mut second = decoder
++        .reserve(Arc::downgrade(&shared), 1, fixture.block.len())
++        .unwrap();
++
++    assert!(matches!(
++        poll_decode(&mut first, &wake, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++    let first_read_ahead = decoder.reserve_read_ahead(READ_AHEAD).unwrap();
++    assert!(matches!(
++        poll_decode(&mut second, &wake, &fixture.block),
++        Ok(DecodeStatus::Blocked)
++    ));
++    let second_read_ahead = decoder.reserve_read_ahead(READ_AHEAD).unwrap();
++    decoder
++        .on_encoder_recv(&mut fixture.encoder_instructions.clone())
++        .unwrap();
++
++    assert!(matches!(
++        poll_decode(&mut first, &wake, &fixture.block),
++        Ok(DecodeStatus::Decoded(_))
++    ));
++    assert!(matches!(
++        poll_decode(&mut second, &wake, &fixture.block),
++        Ok(DecodeStatus::Decoded(_))
++    ));
++    assert_eq!(decoder.lock().reserved_bytes, READ_AHEAD * 2);
++
++    drop(first_read_ahead);
++    assert_eq!(decoder.lock().reserved_bytes, READ_AHEAD);
++    drop(second_read_ahead);
++    assert_eq!(decoder.lock().reserved_bytes, 0);
++}
++
++#[test]
++fn blocked_stream_and_byte_limits_are_distinct() {
++    let fixture = dynamic_fixture();
++    let shared = Arc::new(SharedState::default());
++    let decoder = DecoderState::with_limits(64, u64::MAX, 0, 4, 1024).unwrap();
++    let mut section = decoder
++        .reserve(Arc::downgrade(&shared), 0, fixture.block.len())
++        .unwrap();
++    let wake = Arc::new(CountWake(AtomicUsize::new(0)));
++    assert!(matches!(
++        poll_decode(&mut section, &wake, &fixture.block),
++        Err(RuntimeError::TooManyBlockedStreams)
++    ));
++
++    let decoder = DecoderState::with_limits(64, u64::MAX, 1, 3, 1024).unwrap();
++    assert!(matches!(
++        decoder.reserve(Arc::downgrade(&shared), 0, fixture.block.len()),
++        Err(RuntimeError::BlockedBytesExceeded { .. })
++    ));
++}
++
++#[test]
++fn feedback_limit_fails_closed_without_leaking_section_bytes() {
++    let fixture = dynamic_fixture();
++    let shared = Arc::new(SharedState::default());
++    let decoder = DecoderState::with_limits(64, u64::MAX, 1, 1024, 0).unwrap();
++    assert!(matches!(
++        decoder.reserve(Arc::downgrade(&shared), 0, fixture.block.len()),
++        Err(RuntimeError::FeedbackExceeded)
++    ));
++    let inner = decoder.lock();
++    assert_eq!(inner.blocked_streams, 0);
++    assert_eq!(inner.reserved_bytes, 0);
++    assert_eq!(inner.feedback, BytesMut::new());
++}
+diff --git a/h3/src/stream.rs b/h3/src/stream.rs
+index b06d4a5..fe07cb0 100644
+--- a/h3/src/stream.rs
++++ b/h3/src/stream.rs
+@@ -465,6 +465,30 @@ impl<B, S: RecvStream> BufRecvStream<S, B> {
+         }
+     }
+ 
++    /// Reads one transport chunk only if retaining it stays within `limit`.
++    pub(crate) fn poll_read_bounded(
++        &mut self,
++        cx: &mut Context<'_>,
++        limit: usize,
++    ) -> Poll<Result<BoundedRead, StreamErrorIncoming>> {
++        let buffered = self.buf.remaining();
++        if buffered > limit {
++            return Poll::Ready(Ok(BoundedRead::LimitExceeded));
++        }
++
++        let data = ready!(self.stream.poll_data(cx))?;
++        let Some(mut data) = data else {
++            self.eos = true;
++            return Poll::Ready(Ok(BoundedRead::End));
++        };
++        if data.remaining() > limit - buffered {
++            return Poll::Ready(Ok(BoundedRead::LimitExceeded));
++        }
++
++        self.buf.push_bytes(&mut data);
++        Poll::Ready(Ok(BoundedRead::Read))
++    }
++
+     /// Returns the currently buffered data, allowing it to be partially read
+     #[inline]
+     pub(crate) fn buf_mut(&mut self) -> &mut BufList<Bytes> {
+@@ -493,6 +517,12 @@ impl<B, S: RecvStream> BufRecvStream<S, B> {
+     }
+ }
+ 
++pub(crate) enum BoundedRead {
++    Read,
++    End,
++    LimitExceeded,
++}
++
+ impl<S: RecvStream, B> RecvStream for BufRecvStream<S, B> {
+     type Buf = Bytes;
+ 
+@@ -729,9 +759,42 @@ fn convert_to_std_io_error(error: StreamErrorIncoming) -> std::io::Error {
+ #[cfg(test)]
+ mod tests {
+     use crate::proto::coding::BufExt;
++    use crate::quic::StreamId;
++    use futures_util::future::poll_fn;
+ 
+     use super::*;
+ 
++    struct FakeRecv(Option<Bytes>);
++
++    impl RecvStream for FakeRecv {
++        type Buf = Bytes;
++
++        fn poll_data(
++            &mut self,
++            _: &mut Context<'_>,
++        ) -> Poll<Result<Option<Self::Buf>, StreamErrorIncoming>> {
++            Poll::Ready(Ok(self.0.take()))
++        }
++
++        fn stop_sending(&mut self, _: u64) {}
++
++        fn recv_id(&self) -> StreamId {
++            StreamId(0)
++        }
++    }
++
++    #[tokio::test]
++    async fn bounded_read_rejects_transport_chunk_without_buffering_it() {
++        let mut recv: BufRecvStream<_, Bytes> =
++            BufRecvStream::new(FakeRecv(Some(Bytes::from(vec![0; 9]))));
++
++        assert!(matches!(
++            poll_fn(|cx| recv.poll_read_bounded(cx, 8)).await,
++            Ok(BoundedRead::LimitExceeded)
++        ));
++        assert_eq!(recv.buf().remaining(), 0);
++    }
++
+     #[test]
+     fn write_wt_uni_header() {
+         let mut w = WriteBuf::<Bytes>::from(UniStreamHeader::WebTransportUni(
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+index 6fb6d1c..c10d0fe 100644
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -535,6 +535,572 @@ async fn qpack_encoder_insert_emits_decoder_feedback() {
+     tokio::join!(client_fut, server_fut);
+ }
+ 
++#[tokio::test]
++async fn dynamic_qpack_response_survives_recv_future_cancellation() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++    let (headers_sent, headers_received) = oneshot::channel();
++    let (send_insert, insert_requested) = oneshot::channel();
++    let (feedback_seen, feedback_received) = oneshot::channel();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder
++            .ordered_settings(&[(0x01, 64), (0x06, 65_536), (0x07, 1)])
++            .unwrap();
++        let (mut driver, mut client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = client
++                .send_request(Request::get("https://localhost/").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++
++            headers_received.await.unwrap();
++            assert!(
++                tokio::time::timeout(Duration::from_millis(50), stream.recv_response())
++                    .await
++                    .is_err(),
++                "response completed before its dynamic-table insert arrived"
++            );
++            send_insert.send(()).unwrap();
++
++            let response = stream.recv_response().await.unwrap();
++            assert_eq!(response.status(), StatusCode::OK);
++            assert_eq!(response.headers().get("x").unwrap(), "y");
++            feedback_received.await.unwrap();
++        };
++
++        let ((), driver_result) = tokio::join!(request, drive);
++        assert_matches!(
++            driver_result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
++                | ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_NO_ERROR,
++                        ..
++                    }
++                }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
++
++        let (mut response, _request) = connection.accept_bi().await.unwrap();
++        response
++            .write_all(&[
++                0x21, 0x00, // Unknown frame before response headers.
++                0x01, 0x04, // HEADERS frame, four-byte payload.
++                0x02, 0x80, 0xd9, 0x10, // :status 200 and dynamic x: y.
++            ])
++            .await
++            .unwrap();
++        headers_sent.send(()).unwrap();
++        insert_requested.await.unwrap();
++
++        let mut encoder = connection.open_uni().await.unwrap();
++        encoder
++            .write_all(&[
++                0x02, // Encoder stream type.
++                0x3f, 0x21, // Dynamic table capacity: 64.
++                0x41, b'x', 0x01, b'y', // Insert literal name and value.
++            ])
++            .await
++            .unwrap();
++
++        let mut client_streams = Vec::new();
++        let mut decoder_index = None;
++        for _ in 0..3 {
++            let mut stream = connection.accept_uni().await.unwrap();
++            let mut stream_type = [0];
++            stream.read_exact(&mut stream_type).await.unwrap();
++            if stream_type[0] == 0x03 {
++                decoder_index = Some(client_streams.len());
++            }
++            client_streams.push(stream);
++        }
++
++        let mut feedback = [0; 2];
++        client_streams[decoder_index.unwrap()]
++            .read_exact(&mut feedback)
++            .await
++            .unwrap();
++        assert_eq!(feedback, [0x01, 0x80]);
++        feedback_seen.send(()).unwrap();
++
++        connection.close(0_u32.into(), b"test complete");
++        drop((control, encoder));
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn dynamic_qpack_trailers_survive_recv_future_cancellation() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++    let (trailers_sent, trailers_received) = oneshot::channel();
++    let (send_insert, insert_requested) = oneshot::channel();
++    let (feedback_seen, feedback_received) = oneshot::channel();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder
++            .ordered_settings(&[(0x01, 64), (0x06, 65_536), (0x07, 1)])
++            .unwrap();
++        let (mut driver, mut client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = client
++                .send_request(Request::get("https://localhost/").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++
++            let response = stream.recv_response().await.unwrap();
++            assert_eq!(response.status(), StatusCode::OK);
++            assert!(stream.recv_data().await.unwrap().is_none());
++
++            trailers_received.await.unwrap();
++            assert!(
++                tokio::time::timeout(Duration::from_millis(50), stream.recv_trailers())
++                    .await
++                    .is_err(),
++                "trailers completed before their dynamic-table insert arrived"
++            );
++            send_insert.send(()).unwrap();
++
++            let trailers = stream.recv_trailers().await.unwrap().unwrap();
++            assert_eq!(trailers.get("x").unwrap(), "y");
++            feedback_received.await.unwrap();
++        };
++
++        let ((), driver_result) = tokio::join!(request, drive);
++        assert_matches!(
++            driver_result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
++                | ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_NO_ERROR,
++                        ..
++                    }
++                }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
++
++        let (mut response, _request) = connection.accept_bi().await.unwrap();
++        response
++            .write_all(&[
++                0x01, 0x03, 0x00, 0x00, 0xd9, // Static :status 200 response.
++                0x01, 0x03, 0x02, 0x80, 0x10, // Dynamic x: y trailers.
++            ])
++            .await
++            .unwrap();
++        response.finish().unwrap();
++        trailers_sent.send(()).unwrap();
++        insert_requested.await.unwrap();
++
++        let mut encoder = connection.open_uni().await.unwrap();
++        encoder
++            .write_all(&[
++                0x02, // Encoder stream type.
++                0x3f, 0x21, // Dynamic table capacity: 64.
++                0x41, b'x', 0x01, b'y', // Insert literal name and value.
++            ])
++            .await
++            .unwrap();
++
++        let mut client_streams = Vec::new();
++        let mut decoder_index = None;
++        for _ in 0..3 {
++            let mut stream = connection.accept_uni().await.unwrap();
++            let mut stream_type = [0];
++            stream.read_exact(&mut stream_type).await.unwrap();
++            if stream_type[0] == 0x03 {
++                decoder_index = Some(client_streams.len());
++            }
++            client_streams.push(stream);
++        }
++
++        let mut feedback = [0; 2];
++        client_streams[decoder_index.unwrap()]
++            .read_exact(&mut feedback)
++            .await
++            .unwrap();
++        assert_eq!(feedback, [0x01, 0x80]);
++        feedback_seen.send(()).unwrap();
++
++        connection.close(0_u32.into(), b"test complete");
++        drop((control, encoder));
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn request_drop_and_stop_before_response_emit_qpack_cancellation() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++    let (feedback_seen, feedback_received) = oneshot::channel();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder.ordered_settings(&[(0x01, 64)]).unwrap();
++        let (mut driver, mut client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let requests = async move {
++            let mut dropped = client
++                .send_request(Request::get("https://localhost/drop").body(()).unwrap())
++                .await
++                .unwrap();
++            dropped.finish().await.unwrap();
++            drop(dropped);
++
++            let mut stopped = client
++                .send_request(Request::get("https://localhost/stop").body(()).unwrap())
++                .await
++                .unwrap();
++            stopped.finish().await.unwrap();
++            stopped.stop_sending(Code::H3_REQUEST_CANCELLED);
++
++            feedback_received.await.unwrap();
++        };
++
++        let ((), driver_result) = tokio::join!(requests, drive);
++        assert_matches!(
++            driver_result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
++                | ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_NO_ERROR,
++                        ..
++                    }
++                }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
++
++        let (_first_response, _first_request) = connection.accept_bi().await.unwrap();
++        let (_second_response, _second_request) = connection.accept_bi().await.unwrap();
++
++        let mut client_streams = Vec::new();
++        let mut decoder_index = None;
++        for _ in 0..3 {
++            let mut stream = connection.accept_uni().await.unwrap();
++            let mut stream_type = [0];
++            stream.read_exact(&mut stream_type).await.unwrap();
++            if stream_type[0] == 0x03 {
++                decoder_index = Some(client_streams.len());
++            }
++            client_streams.push(stream);
++        }
++
++        let mut feedback = [0; 2];
++        client_streams[decoder_index.unwrap()]
++            .read_exact(&mut feedback)
++            .await
++            .unwrap();
++        assert_eq!(feedback, [0x40, 0x44]);
++        feedback_seen.send(()).unwrap();
++
++        connection.close(0_u32.into(), b"test complete");
++        drop(control);
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn request_drop_after_response_headers_emits_qpack_cancellation() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++    let (headers_sent, headers_received) = oneshot::channel();
++    let (feedback_seen, feedback_received) = oneshot::channel();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder.ordered_settings(&[(0x01, 64)]).unwrap();
++        let (mut driver, mut client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = client
++                .send_request(Request::get("https://localhost/").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++            headers_received.await.unwrap();
++
++            let response = stream.recv_response().await.unwrap();
++            assert_eq!(response.status(), StatusCode::OK);
++            drop(stream);
++
++            feedback_received.await.unwrap();
++        };
++
++        let ((), driver_result) = tokio::join!(request, drive);
++        assert_matches!(
++            driver_result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
++                | ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_NO_ERROR,
++                        ..
++                    }
++                }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
++
++        let (mut response, _request) = connection.accept_bi().await.unwrap();
++        response
++            .write_all(&[0x01, 0x03, 0x00, 0x00, 0xd9])
++            .await
++            .unwrap();
++        headers_sent.send(()).unwrap();
++
++        let mut client_streams = Vec::new();
++        let mut decoder_index = None;
++        for _ in 0..3 {
++            let mut stream = connection.accept_uni().await.unwrap();
++            let mut stream_type = [0];
++            stream.read_exact(&mut stream_type).await.unwrap();
++            if stream_type[0] == 0x03 {
++                decoder_index = Some(client_streams.len());
++            }
++            client_streams.push(stream);
++        }
++
++        let mut feedback = [0];
++        client_streams[decoder_index.unwrap()]
++            .read_exact(&mut feedback)
++            .await
++            .unwrap();
++        assert_eq!(feedback, [0x40]);
++        feedback_seen.send(()).unwrap();
++
++        connection.close(0_u32.into(), b"test complete");
++        drop((control, response));
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn malformed_response_emits_one_qpack_cancellation() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++    let (feedback_seen, feedback_received) = oneshot::channel();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder.ordered_settings(&[(0x01, 64)]).unwrap();
++        let (mut driver, mut client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = client
++                .send_request(Request::get("https://localhost/").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++
++            assert_matches!(
++                stream.recv_response().await,
++                Err(StreamError::StreamError {
++                    code: Code::H3_MESSAGE_ERROR,
++                    ..
++                })
++            );
++            feedback_received.await.unwrap();
++        };
++
++        let ((), driver_result) = tokio::join!(request, drive);
++        assert_matches!(
++            driver_result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
++                | ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_NO_ERROR,
++                        ..
++                    }
++                }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
++
++        let (mut response, _request) = connection.accept_bi().await.unwrap();
++        response
++            .write_all(&[
++                0x01, 0x04, // HEADERS frame, four-byte payload.
++                0x00, 0x00, 0xc4, 0xd9, // content-length before :status.
++            ])
++            .await
++            .unwrap();
++
++        let mut client_streams = Vec::new();
++        let mut decoder_index = None;
++        for _ in 0..3 {
++            let mut stream = connection.accept_uni().await.unwrap();
++            let mut stream_type = [0];
++            stream.read_exact(&mut stream_type).await.unwrap();
++            if stream_type[0] == 0x03 {
++                decoder_index = Some(client_streams.len());
++            }
++            client_streams.push(stream);
++        }
++
++        let mut feedback = [0];
++        client_streams[decoder_index.unwrap()]
++            .read_exact(&mut feedback)
++            .await
++            .unwrap();
++        assert_eq!(feedback, [0x40]);
++        feedback_seen.send(()).unwrap();
++
++        connection.close(0_u32.into(), b"test complete");
++        drop((control, response));
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn qpack_reset_while_trailers_await_eos_cancels_reserved_section() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++    let (headers_sent, headers_received) = oneshot::channel();
++    let (reset_response, reset_requested) = oneshot::channel();
++    let (cancellation_seen, cancellation_received) = oneshot::channel();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder
++            .ordered_settings(&[(0x01, 64), (0x06, 65_536), (0x07, 1)])
++            .unwrap();
++        let (mut driver, mut client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = client
++                .send_request(Request::get("https://localhost/").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++
++            headers_received.await.unwrap();
++            let response = stream.recv_response().await.unwrap();
++            assert_eq!(response.status(), StatusCode::OK);
++            assert!(stream.recv_data().await.unwrap().is_none());
++            assert!(
++                tokio::time::timeout(Duration::from_millis(50), stream.recv_trailers())
++                    .await
++                    .is_err()
++            );
++            reset_response.send(()).unwrap();
++
++            let result = tokio::time::timeout(Duration::from_secs(1), stream.recv_trailers())
++                .await
++                .expect("reset did not wake the pending trailers");
++            assert!(result.is_err());
++            cancellation_received.await.unwrap();
++        };
++
++        let ((), driver_result) = tokio::join!(request, drive);
++        assert_matches!(
++            driver_result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
++                | ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_NO_ERROR,
++                        ..
++                    }
++                }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
++
++        let (mut response, _request) = connection.accept_bi().await.unwrap();
++        response
++            .write_all(&[
++                0x01, 0x03, 0x00, 0x00, 0xd9, // Static :status 200 response.
++                0x01, 0x03, 0x02, 0x80, 0x10, // Reserved dynamic trailers.
++            ])
++            .await
++            .unwrap();
++        headers_sent.send(()).unwrap();
++        reset_requested.await.unwrap();
++        response
++            .reset(h3_quinn::quinn::VarInt::try_from(Code::H3_REQUEST_CANCELLED.value()).unwrap())
++            .unwrap();
++
++        let mut client_streams = Vec::new();
++        let mut decoder_index = None;
++        for _ in 0..3 {
++            let mut stream = connection.accept_uni().await.unwrap();
++            let mut stream_type = [0];
++            stream.read_exact(&mut stream_type).await.unwrap();
++            if stream_type[0] == 0x03 {
++                decoder_index = Some(client_streams.len());
++            }
++            client_streams.push(stream);
++        }
++
++        let mut feedback = [0];
++        client_streams[decoder_index.unwrap()]
++            .read_exact(&mut feedback)
++            .await
++            .unwrap();
++        assert_eq!(feedback, [0x40]);
++        cancellation_seen.send(()).unwrap();
++
++        connection.close(0_u32.into(), b"test complete");
++        drop(control);
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
+ #[tokio::test]
+ async fn invalid_qpack_decoder_ack_has_specific_error() {
+     let mut pair = Pair::default();

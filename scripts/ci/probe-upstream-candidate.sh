@@ -257,7 +257,9 @@ case "$dependency" in
     [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid h3 archive checksum"
     [[ -f vendor/h3/PHANTOM.md \
       && -f vendor/h3/patches/ordered-settings.patch \
-      && -f vendor/h3/patches/qpack-codec.patch ]] \
+      && -f vendor/h3/patches/qpack-codec.patch \
+      && -f vendor/h3/patches/qpack-critical-streams.patch \
+      && -f vendor/h3/patches/qpack-dynamic-client.patch ]] \
       || die "vendored h3 provenance and canonical patches are required"
 
     probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-h3-candidate.XXXXXX")
@@ -274,6 +276,8 @@ case "$dependency" in
 
     settings_patch="$repo_root/vendor/h3/patches/ordered-settings.patch"
     qpack_patch="$repo_root/vendor/h3/patches/qpack-codec.patch"
+    critical_streams_patch="$repo_root/vendor/h3/patches/qpack-critical-streams.patch"
+    dynamic_client_patch="$repo_root/vendor/h3/patches/qpack-dynamic-client.patch"
     if ! git -C "$candidate_dir" apply --check "$settings_patch"; then
       die "ordered SETTINGS patch does not apply to h3 candidate $candidate"
     fi
@@ -282,10 +286,19 @@ case "$dependency" in
       die "QPACK codec patch does not apply to h3 candidate $candidate"
     fi
     git -C "$candidate_dir" apply "$qpack_patch"
+    if ! git -C "$candidate_dir" apply --check "$critical_streams_patch"; then
+      die "QPACK critical-stream patch does not apply to h3 candidate $candidate"
+    fi
+    git -C "$candidate_dir" apply "$critical_streams_patch"
+    if ! git -C "$candidate_dir" apply --check "$dynamic_client_patch"; then
+      die "QPACK dynamic-client patch does not apply to h3 candidate $candidate"
+    fi
+    git -C "$candidate_dir" apply "$dynamic_client_patch"
 
     cp vendor/h3/PHANTOM.md "$candidate_dir/PHANTOM.md"
     mkdir -p "$candidate_dir/patches"
-    cp "$settings_patch" "$qpack_patch" "$candidate_dir/patches/"
+    cp "$settings_patch" "$qpack_patch" "$critical_streams_patch" \
+      "$dynamic_client_patch" "$candidate_dir/patches/"
     mv vendor/h3 "$probe_staging/h3.previous"
     mv "$candidate_dir" vendor/h3
 
@@ -294,14 +307,13 @@ case "$dependency" in
       client::builder::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
       proto::frame::tests
-    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::
+    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack
     cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 \
       --lib --all-features -- -D warnings
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn \
       --all-features
 
-    # The fork is staged groundwork and is deliberately not selected by the
-    # root workspace until the dynamic-QPACK integration guard is resolved.
+    # Candidate validation stays isolated from unrelated workspace packages.
     run_workspace_gates=false
     ;;
   *)

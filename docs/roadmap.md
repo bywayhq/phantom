@@ -112,10 +112,11 @@ under deterministic entropy; production connections randomize its permitted
 order and GREASE. The H3 driver now opens and actively drives both QPACK
 critical streams, bounds fragmented instruction state and decoder feedback,
 and maps malformed instructions and closed streams to their protocol-specific
-connection errors. Response HEADERS still use the stateless decoder, so the
-runtime intentionally advertises QPACK `0/0`. This is working HTTP/3 transport
-substrate, not Chrome H3 parity; request ordering, dynamic response unblocking,
-and packet differentials remain acceptance work.
+connection errors. Response headers and trailers share a stateful decoder with
+bounded parked sections, acknowledgements, cancellations, reset wakeups, and
+receive-future persistence. Phantom profiles still advertise QPACK `0/0` until
+Chrome's nonzero settings pass packet differentials. Request ordering and those
+packet differentials remain acceptance work.
 
 Acceptance:
 
@@ -127,11 +128,11 @@ Acceptance:
 - The first H3 control stream reproduces the captured fixed SETTINGS prefix;
   seeded tests reproduce GREASE exactly and policy tests cover its measured
   variability without sorting or removing it.
-- Nonzero QPACK table capacity and blocked-stream limits are enabled only with
-  encoder-stream processing, bounded blocked-section accounting, decoder
-  acknowledgements and cancellations, and adversarial resource-limit tests.
-  Until that complete path exists, static-only H3 advertises QPACK `0/0` and
-  is not treated as Chrome parity.
+- Nonzero QPACK table capacity and blocked-stream limits are enabled in a
+  browser profile only after its packet differential passes. The engine path
+  already covers encoder-stream processing, bounded section accounting,
+  decoder acknowledgements and cancellations, dropped futures, reset races,
+  and resource ceilings; static-only profiles remain valid at QPACK `0/0`.
 - Bounded qlog plus key-log-assisted packet decryption make failures
   diagnosable without logging application payloads or credentials.
 - The dedicated crypto-adapter crate documents every unsafe invariant and does
