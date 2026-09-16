@@ -27,6 +27,7 @@ use crate::{
     },
     frame::{FrameStream, FrameStreamError},
     proto::{
+        coding::Encode,
         frame::{self, Frame, PayloadLen},
         headers::Header,
         stream::StreamType,
@@ -74,6 +75,7 @@ where
     encoder_pending: Option<Bytes>,
     decoder: Arc<qpack::DecoderState>,
     encoder: qpack::Encoder,
+    decoder_header_pending: BytesMut,
     decoder_sending: BytesMut,
     outbound: Option<outbound_qpack::Driver>,
     outbound_sender: Option<outbound_qpack::Sender>,
@@ -83,14 +85,17 @@ fn poll_send_qpack_feedback<S, B>(
     send: &mut S,
     feedback: &mut BytesMut,
     cx: &mut Context<'_>,
+    max_bytes: usize,
 ) -> Poll<Result<(), StreamErrorIncoming>>
 where
     S: SendStreamUnframed<B>,
     B: Buf,
 {
     let mut sent = 0;
-    while feedback.has_remaining() && sent < MAX_QPACK_STREAM_BYTES_PER_POLL {
-        match send.poll_send(cx, feedback) {
+    while feedback.has_remaining() && sent < max_bytes {
+        let allowed = (max_bytes - sent).min(feedback.remaining());
+        let mut limited = feedback.take(allowed);
+        match send.poll_send(cx, &mut limited) {
             Poll::Ready(Ok(0)) => {
                 return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
                     std::io::Error::new(
@@ -111,6 +116,32 @@ where
     } else {
         Poll::Ready(Ok(()))
     }
+}
+
+fn poll_send_qpack_decoder<S, B>(
+    send: &mut S,
+    header: &mut BytesMut,
+    feedback: &mut BytesMut,
+    cx: &mut Context<'_>,
+    max_bytes: usize,
+) -> (Poll<Result<(), StreamErrorIncoming>>, usize)
+where
+    S: SendStreamUnframed<B>,
+    B: Buf,
+{
+    let mut remaining = max_bytes;
+    if header.has_remaining() {
+        let before = header.len();
+        match poll_send_qpack_feedback(send, header, cx, remaining) {
+            Poll::Ready(Ok(())) => {}
+            result => return (result, 0),
+        }
+        remaining -= before - header.len();
+    }
+
+    let before = feedback.len();
+    let result = poll_send_qpack_feedback(send, feedback, cx, remaining);
+    (result, before - feedback.len())
 }
 
 #[allow(missing_docs)]
@@ -236,6 +267,7 @@ where
 
         let mut decoder_send = Option::take(&mut self.qpack_streams.decoder_send);
         let mut encoder_send = Option::take(&mut self.qpack_streams.encoder_send);
+        let defer_decoder_header = !self.qpack_streams.decoder_header_pending.is_empty();
 
         let (control, decoder, encoder) = future::join3(
             stream::write(
@@ -244,7 +276,11 @@ where
             ),
             async {
                 if let Some(stream) = &mut decoder_send {
-                    stream::write(stream, WriteBuf::from(UniStreamHeader::Decoder)).await
+                    if !defer_decoder_header {
+                        stream::write(stream, WriteBuf::from(UniStreamHeader::Decoder)).await
+                    } else {
+                        Ok(())
+                    }
                 } else {
                     Ok(())
                 }
@@ -366,6 +402,13 @@ where
         } else {
             (None, None)
         };
+        let decoder_header_pending = if config.defer_qpack_decoder_stream {
+            let mut header = BytesMut::new();
+            UniStreamHeader::Decoder.encode(&mut header);
+            header
+        } else {
+            BytesMut::new()
+        };
         let qpack_streams = QpackStreams {
             decoder_send: Some(qpack_decoder),
             decoder_recv: None,
@@ -375,6 +418,7 @@ where
             encoder_pending: None,
             decoder,
             encoder: qpack::Encoder::default(),
+            decoder_header_pending,
             decoder_sending: BytesMut::new(),
             outbound,
             outbound_sender,
@@ -745,12 +789,14 @@ where
                 return Poll::Ready(Err(self.closed_qpack_stream("decoder")));
             };
 
-            let before = self.qpack_streams.decoder_sending.len();
-            let result =
-                poll_send_qpack_feedback(send, &mut self.qpack_streams.decoder_sending, cx);
-            self.qpack_streams
-                .decoder
-                .feedback_sent(before - self.qpack_streams.decoder_sending.len());
+            let (result, feedback_sent) = poll_send_qpack_decoder(
+                send,
+                &mut self.qpack_streams.decoder_header_pending,
+                &mut self.qpack_streams.decoder_sending,
+                cx,
+                MAX_QPACK_STREAM_BYTES_PER_POLL,
+            );
+            self.qpack_streams.decoder.feedback_sent(feedback_sent);
             match result {
                 Poll::Ready(Err(error)) => {
                     return Poll::Ready(Err(self.handle_qpack_stream_error("decoder", error)));
@@ -1607,6 +1653,7 @@ mod qpack_runtime_tests {
     struct PartialSend {
         written: Vec<u8>,
         write_zero: bool,
+        write_all: bool,
     }
 
     impl SendStream<Bytes> for PartialSend {
@@ -1641,10 +1688,9 @@ mod qpack_runtime_tests {
             if self.write_zero {
                 return Poll::Ready(Ok(0));
             }
-            let byte = buf.chunk()[0];
-            self.written.push(byte);
-            buf.advance(1);
-            Poll::Ready(Ok(1))
+            let written = if self.write_all { buf.remaining() } else { 1 };
+            self.written.extend_from_slice(&buf.copy_to_bytes(written));
+            Poll::Ready(Ok(written))
         }
 
         fn poll_stopped(
@@ -1661,7 +1707,13 @@ mod qpack_runtime_tests {
         let mut feedback = BytesMut::from(&b"feedback"[..]);
         let mut cx = Context::from_waker(noop_waker_ref());
 
-        assert!(poll_send_qpack_feedback::<_, Bytes>(&mut send, &mut feedback, &mut cx).is_ready());
+        assert!(poll_send_qpack_feedback::<_, Bytes>(
+            &mut send,
+            &mut feedback,
+            &mut cx,
+            MAX_QPACK_STREAM_BYTES_PER_POLL,
+        )
+        .is_ready());
         assert!(feedback.is_empty());
         assert_eq!(send.written, b"feedback");
     }
@@ -1675,11 +1727,65 @@ mod qpack_runtime_tests {
         let mut feedback = BytesMut::from(&b"feedback"[..]);
         let mut cx = Context::from_waker(noop_waker_ref());
 
-        let result = poll_send_qpack_feedback::<_, Bytes>(&mut send, &mut feedback, &mut cx);
+        let result = poll_send_qpack_feedback::<_, Bytes>(
+            &mut send,
+            &mut feedback,
+            &mut cx,
+            MAX_QPACK_STREAM_BYTES_PER_POLL,
+        );
         assert!(matches!(
             result,
             Poll::Ready(Err(StreamErrorIncoming::Unknown(_)))
         ));
         assert_eq!(feedback, &b"feedback"[..]);
+    }
+
+    #[test]
+    fn deferred_decoder_header_precedes_feedback_without_affecting_accounting() {
+        let mut send = PartialSend::default();
+        let mut header = BytesMut::from(&b"\x03"[..]);
+        let mut feedback = BytesMut::from(&b"feedback"[..]);
+        let mut cx = Context::from_waker(noop_waker_ref());
+
+        let (result, feedback_sent) = poll_send_qpack_decoder::<_, Bytes>(
+            &mut send,
+            &mut header,
+            &mut feedback,
+            &mut cx,
+            MAX_QPACK_STREAM_BYTES_PER_POLL,
+        );
+
+        assert!(result.is_ready());
+        assert!(header.is_empty());
+        assert!(feedback.is_empty());
+        assert_eq!(feedback_sent, b"feedback".len());
+        assert_eq!(send.written, b"\x03feedback");
+    }
+
+    #[test]
+    fn deferred_decoder_header_shares_the_feedback_write_budget() {
+        let mut send = PartialSend {
+            write_all: true,
+            ..PartialSend::default()
+        };
+        let mut header = BytesMut::from(&b"\x03"[..]);
+        let mut feedback = BytesMut::from(&b"abcd"[..]);
+        let mut cx = Context::from_waker(noop_waker_ref());
+
+        let (first_result, first_feedback_sent) =
+            poll_send_qpack_decoder::<_, Bytes>(&mut send, &mut header, &mut feedback, &mut cx, 4);
+
+        assert!(first_result.is_pending());
+        assert!(header.is_empty());
+        assert_eq!(first_feedback_sent, 3);
+        assert_eq!(feedback.len(), 1);
+        assert_eq!(send.written, b"\x03abc");
+
+        let (second_result, second_feedback_sent) =
+            poll_send_qpack_decoder::<_, Bytes>(&mut send, &mut header, &mut feedback, &mut cx, 4);
+        assert!(second_result.is_ready());
+        assert_eq!(second_feedback_sent, 1);
+        assert!(feedback.is_empty());
+        assert_eq!(send.written, b"\x03abcd");
     }
 }

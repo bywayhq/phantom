@@ -125,12 +125,20 @@ instruction buffers, writes instructions before releasing dependent HEADERS,
 and uses a publication lease to cancel references only before HEADERS enqueue.
 Peer limits above local strategy ceilings are clamped rather than allocated.
 
+The local QPACK decoder stream has an opt-in deferred-visibility policy. The
+stream handle is still reserved during connection setup and retains the same
+critical-stream lifecycle, but its type byte is written only when decoder
+feedback exists. Header and feedback bytes share one bounded poll budget, and
+only feedback bytes advance QPACK accounting. The default remains upstream's
+eager stream type.
+
 The canonical source and test deltas are stored in
 `patches/ordered-settings.patch`, `patches/qpack-codec.patch`,
 `patches/qpack-critical-streams.patch`, `patches/qpack-dynamic-client.patch`,
 `patches/cancel-safe-recv.patch`, `patches/ordered-request-headers.patch`, and
 `patches/qpack-request-encoder.patch`, and
-`patches/qpack-live-request-runtime.patch`.
+`patches/qpack-live-request-runtime.patch`, and
+`patches/qpack-lazy-decoder-stream.patch`.
 `PHANTOM.md` and the patch files are
 packaging metadata and are deliberately excluded from those patches.
 
@@ -195,6 +203,10 @@ packaging metadata and are deliberately excluded from those patches.
      "$PWD/vendor/h3/patches/qpack-live-request-runtime.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/qpack-live-request-runtime.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/qpack-lazy-decoder-stream.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/qpack-lazy-decoder-stream.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the

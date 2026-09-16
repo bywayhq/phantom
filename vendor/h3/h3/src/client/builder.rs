@@ -145,6 +145,15 @@ impl Builder {
         self
     }
 
+    /// Defers the local QPACK decoder stream type until feedback is available.
+    ///
+    /// The stream is still reserved during connection setup, so its identifier
+    /// and critical-stream lifecycle remain unchanged.
+    pub fn defer_qpack_decoder_stream(&mut self, enabled: bool) -> &mut Self {
+        self.config.defer_qpack_decoder_stream = enabled;
+        self
+    }
+
     /// Create a new HTTP/3 client from a `quic` connection
     pub async fn build<C, O, B>(
         &mut self,
@@ -212,6 +221,14 @@ mod tests {
         assert!(!builder.config.dynamic_qpack);
         builder.enable_dynamic_qpack(true);
         assert!(builder.config.dynamic_qpack);
+    }
+
+    #[test]
+    fn qpack_decoder_stream_can_be_deferred() {
+        let mut builder = Builder::new();
+        assert!(!builder.config.defer_qpack_decoder_stream);
+        builder.defer_qpack_decoder_stream(true);
+        assert!(builder.config.defer_qpack_decoder_stream);
     }
 
     fn settings_frame_bytes(builder: &Builder) -> Vec<u8> {

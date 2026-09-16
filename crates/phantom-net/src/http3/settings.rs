@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use phantom_profile::{Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings};
+use phantom_profile::{
+    Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings,
+};
 use phantom_quic_btls::QuicClientConfig;
 
 use super::{Http3Error, Http3ErrorKind};
@@ -46,6 +48,18 @@ pub(super) fn builder(
             return Err(Http3Error::without_source(
                 Http3ErrorKind::Configuration,
                 "HTTP/3 profile contains an unsupported QPACK policy",
+            ));
+        }
+    }
+    match settings.qpack_decoder_stream {
+        Http3QpackDecoderStream::Eager => {}
+        Http3QpackDecoderStream::OnFeedback => {
+            builder.defer_qpack_decoder_stream(true);
+        }
+        _ => {
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Configuration,
+                "HTTP/3 profile contains an unsupported QPACK decoder stream policy",
             ));
         }
     }

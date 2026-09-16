@@ -64,6 +64,16 @@ pub enum Http3QpackEncoding {
     Dynamic,
 }
 
+/// Stream-type emission policy for the local QPACK decoder stream.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3QpackDecoderStream {
+    /// Write the decoder stream type when the HTTP/3 connection starts.
+    Eager,
+    /// Reserve the stream but write its type only when feedback is available.
+    OnFeedback,
+}
+
 /// A request pseudo-header in its QPACK field-section order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -87,6 +97,8 @@ pub struct Http3Settings {
     pub setting_order: Http3SettingOrder,
     /// QPACK policy for request field sections sent on this connection.
     pub qpack_encoding: Http3QpackEncoding,
+    /// Controls when the local QPACK decoder stream becomes visible on the wire.
+    pub qpack_decoder_stream: Http3QpackDecoderStream,
 }
 
 impl Http3Settings {

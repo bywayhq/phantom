@@ -1,4 +1,6 @@
-use crate::{Http3PseudoHeader, Http3QpackEncoding, Http3Setting, Http3SettingOrder};
+use crate::{
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder,
+};
 
 use super::{v152_macos_http3, v152_macos_http3_request};
 
@@ -10,6 +12,10 @@ fn v152_http3_settings_match_retained_control_stream() -> Result<(), Box<dyn std
     let profile = v152_macos_http3();
     assert_eq!(profile.setting_order, Http3SettingOrder::Ascending);
     assert_eq!(profile.qpack_encoding, Http3QpackEncoding::Dynamic);
+    assert_eq!(
+        profile.qpack_decoder_stream,
+        Http3QpackDecoderStream::OnFeedback
+    );
     assert_eq!(
         v152_macos_http3_request().pseudo_header_order,
         [

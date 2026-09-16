@@ -1,6 +1,7 @@
 use super::{
-    Http3PseudoHeader, Http3QpackEncoding, Http3RequestSettings, Http3Setting, Http3SettingOrder,
-    Http3Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings,
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
+    Http3Setting, Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings,
+    InvalidHttp3Settings,
 };
 
 fn settings() -> Http3Settings {
@@ -14,6 +15,7 @@ fn settings() -> Http3Settings {
         ],
         setting_order: Http3SettingOrder::Ascending,
         qpack_encoding: Http3QpackEncoding::Dynamic,
+        qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
     }
 }
 
@@ -45,10 +47,15 @@ fn accepts_owned_customizable_settings() -> Result<(), Box<dyn std::error::Error
     settings.initial_settings[1] = Http3Setting::MaxFieldSectionSize(65_536);
     settings.setting_order = Http3SettingOrder::Fixed;
     settings.qpack_encoding = Http3QpackEncoding::Stateless;
+    settings.qpack_decoder_stream = Http3QpackDecoderStream::Eager;
 
     settings.validate()?;
     assert!(settings.receives_datagrams());
     assert_eq!(settings.qpack_encoding, Http3QpackEncoding::Stateless);
+    assert_eq!(
+        settings.qpack_decoder_stream,
+        Http3QpackDecoderStream::Eager
+    );
     Ok(())
 }
 

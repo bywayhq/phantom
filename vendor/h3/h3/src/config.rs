@@ -29,6 +29,9 @@ pub struct Config {
     /// Use the peer's QPACK settings for stateful request-field encoding.
     pub(crate) dynamic_qpack: bool,
 
+    /// Delay the local QPACK decoder stream type until feedback is available.
+    pub(crate) defer_qpack_decoder_stream: bool,
+
     #[cfg(test)]
     pub(crate) send_settings: bool,
 
@@ -113,6 +116,7 @@ impl TryFrom<Config> for frame::Settings {
         let Config {
             send_grease,
             dynamic_qpack: _,
+            defer_qpack_decoder_stream: _,
             #[cfg(test)]
                 send_settings: _,
             settings:
@@ -228,6 +232,7 @@ impl Default for Config {
         Self {
             send_grease: true,
             dynamic_qpack: false,
+            defer_qpack_decoder_stream: false,
             #[cfg(test)]
             send_settings: true,
             settings: Default::default(),
@@ -251,6 +256,11 @@ mod tests {
     #[test]
     fn dynamic_qpack_is_disabled_by_default() {
         assert!(!Config::default().dynamic_qpack);
+    }
+
+    #[test]
+    fn qpack_decoder_stream_is_eager_by_default() {
+        assert!(!Config::default().defer_qpack_decoder_stream);
     }
 
     #[test]

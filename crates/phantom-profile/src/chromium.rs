@@ -3,8 +3,8 @@
 use crate::{
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
     http3::{
-        Http3PseudoHeader, Http3QpackEncoding, Http3RequestSettings, Http3Setting,
-        Http3SettingOrder, Http3Settings,
+        Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
+        Http3Setting, Http3SettingOrder, Http3Settings,
     },
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
@@ -175,6 +175,7 @@ pub fn v152_macos_http3() -> Http3Settings {
         ],
         setting_order: Http3SettingOrder::Ascending,
         qpack_encoding: Http3QpackEncoding::Dynamic,
+        qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
     }
 }
 

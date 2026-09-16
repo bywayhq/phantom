@@ -55,9 +55,13 @@ the payload-free result separately from the semantic fixture. A fresh Chrome
 152 run authenticated Initial, Handshake, and 1-RTT packets and located the
 control SETTINGS, 437-byte QPACK encoder prefix, and request HEADERS before the
 request boundary. The matching Phantom run reached the same three packet spaces
-and matched the 437-byte encoder prefix and 17 decoded headers. It also exposed
-a real boundary mismatch: Phantom had already written the one-byte QPACK
-decoder stream type while Chrome had written no decoder-stream bytes. Packet
+and matched the 437-byte encoder prefix and 17 decoded headers. The first run
+also exposed a real boundary mismatch: Phantom had already written the
+one-byte QPACK decoder stream type while Chrome had written no decoder-stream
+bytes. The Chrome profile now defers that type until decoder feedback exists;
+a fresh controlled rerun retained the same encoder prefix and headers with an
+empty decoder prefix. Unit tests additionally prove that later feedback starts
+with the stream type and shares the configured per-poll write budget. Packet
 fragmentation, ACK placement, and padding stay diagnostic telemetry rather
 than pass/fail evidence until repeated captures establish their stability.
 

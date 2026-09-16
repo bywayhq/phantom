@@ -81,6 +81,15 @@ settings synchronization, backpressure, and cancellation; callers do not
 receive low-level table controls. Stateless remains available for custom or
 uncaptured stacks and never silently replaces a requested dynamic mode.
 
+`Http3Settings::qpack_decoder_stream` independently controls when the local
+decoder stream becomes visible. `Eager` writes its stream type during
+connection startup. `OnFeedback` reserves the same critical stream but writes
+its type only when any decoder feedback exists, including insert-count
+increments, section acknowledgements, or stream cancellations. The Chrome 152
+macOS recipe selects `OnFeedback` because its request-boundary capture had no
+decoder-stream bytes; other profiles keep an explicit policy rather than
+inheriting Chrome behavior from the transport.
+
 ## Lessons from adjacent clients
 
 The projects below are references, not APIs to copy wholesale. Their useful

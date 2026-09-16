@@ -130,9 +130,12 @@ aioquic analyzer now proves authenticated Initial, Handshake, and 1-RTT packet
 normalization with deterministic encrypted vectors. Fresh controlled Chrome
 and Phantom runs now authenticate all three spaces through the first request
 and retain only payload-free summaries. They match the request and encoder
-markers while exposing Phantom's eager one-byte QPACK decoder prefix. Exact
-packet placement remains telemetry until repeated captures establish stable
-fields for a logical-flight comparator.
+markers. The first comparison exposed Phantom's eager one-byte QPACK decoder
+prefix; the Chrome profile now defers that stream type until feedback exists,
+and a fresh controlled rerun produced the captured empty decoder prefix. The
+engine default remains eager for profiles that do not request this behavior.
+Exact packet placement remains telemetry until repeated captures establish
+stable fields for a logical-flight comparator.
 
 Acceptance:
 

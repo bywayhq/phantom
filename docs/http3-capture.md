@@ -271,6 +271,12 @@ Three independent fresh-profile connections showed:
   decoder-stream prefix. The encoder prefix contains the stream type, capacity
   update, and the inserts needed to decode that request.
 
+The first Phantom packet comparison exposed an eager one-byte decoder-stream
+type at this boundary. The profile now models decoder-stream visibility
+explicitly: the Chrome recipe defers the type until feedback exists, while the
+engine default remains eager. A fresh controlled Phantom rerun matched the
+empty prefix without changing the encoder prefix or ordered request headers.
+
 QUICHE's own history describes transport-parameter serialization as
 randomized. Therefore a Chrome profile must model its permutation and GREASE
 policy; it must not hard-code one captured transport-parameter order and call

@@ -1,6 +1,7 @@
 use http::Request;
 use phantom_profile::{
-    Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings, chromium,
+    Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings,
+    chromium,
 };
 use tokio::time::timeout;
 
@@ -17,6 +18,7 @@ async fn rejects_invalid_profile_before_connecting() -> TestResult<()> {
         initial_settings: vec![Http3Setting::QpackMaxTableCapacity(1 << 30)],
         setting_order: Http3SettingOrder::Fixed,
         qpack_encoding: Http3QpackEncoding::Stateless,
+        qpack_decoder_stream: Http3QpackDecoderStream::Eager,
     };
     let result = super::super::send_request(
         "127.0.0.1:9".parse()?,
