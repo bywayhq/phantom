@@ -26,7 +26,7 @@ from scripts.capture.http3_wire import (
     pull_varint,
     push_varint,
 )
-from scripts.capture.quic_packet_diff import SymbolicSpan
+from scripts.capture.quic_summary import SymbolicSpan
 
 FIXTURE_PATH = Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt")
 FIXTURE_SHA256 = "c52cd57896f824fdefdcfdda77d40fe3bd928f2a97ef5093ebd888aa8fb18aaf"
@@ -135,14 +135,23 @@ class CaptureBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(capture.request_qpack_decoder_stream_prefix, b"")
 
-    def test_packet_spans_use_frozen_request_boundary(self) -> None:
+    def test_packet_spans_exclude_trailing_fixed_and_grease_settings(self) -> None:
         capture = Capture(complete=asyncio.Event(), metadata=argparse.Namespace())
+        stable_settings = b"\x01\x01\x06\x01\x07\x01"
+        fixed_setting = push_varint(0x33, 1) + push_varint(1, 1)
+        grease_setting = push_varint(64, 2) + push_varint(127, 2)
+        settings_payload = stable_settings + fixed_setting + grease_setting
+        settings_frame = (
+            push_varint(0x04, 1)
+            + push_varint(len(settings_payload), 1)
+            + settings_payload
+        )
         capture.streams = {
             0: bytearray(b"\x01\x02hh"),
             2: bytearray(bytes([QPACK_ENCODER_STREAM]) + b"encoder-at-request"),
-            6: bytearray(bytes([CONTROL_STREAM]) + b"\x04\x02ss"),
+            6: bytearray(bytes([CONTROL_STREAM]) + settings_frame),
         }
-        capture.settings_frame = b"\x04\x02ss"
+        capture.settings_frame = settings_frame
         capture.request_stream_id = 0
         capture.request_headers_frame = b"\x01\x02hh"
         capture.request_qpack_encoder_stream_prefix = b"\x02encoder-at-request"
@@ -153,7 +162,7 @@ class CaptureBoundaryTests(unittest.TestCase):
         self.assertEqual(
             capture.packet_spans(),
             (
-                SymbolicSpan("control_settings", 6, 1, 5),
+                SymbolicSpan("control_settings_prefix", 6, 3, 9),
                 SymbolicSpan("request_headers", 0, 0, 4),
                 SymbolicSpan("qpack_encoder_prefix", 2, 0, 19),
             ),

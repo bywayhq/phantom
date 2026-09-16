@@ -43,7 +43,9 @@ from .http3_wire import (
     unidirectional_stream,
     unidirectional_stream_id,
 )
-from .quic_packet_diff import PacketSummary, QuicPacketCapture, SymbolicSpan
+from .quic_flight import PacketSummary
+from .quic_packet_diff import QuicPacketCapture
+from .quic_summary import SymbolicSpan
 
 SUPPORTED_AIOQUIC = "1.3.0"
 MAX_STREAM_CAPTURE = 256 * 1024
@@ -232,12 +234,25 @@ class Capture:
         if control_type is None:
             raise RuntimeError("captured control stream has no stream type")
         control_start = control_type[1]
+        settings_frame = first_frame(self.settings_frame, has_stream_type=False)
+        if settings_frame is None or settings_frame[0] != SETTINGS_FRAME:
+            raise RuntimeError("captured SETTINGS frame is malformed")
+        _, frame_bytes, settings_payload = settings_frame
+        settings = parse_settings(settings_payload)
+        if [setting[0] for setting in settings[:3]] != [1, 6, 7]:
+            raise RuntimeError("captured SETTINGS omit the stable required prefix")
+        frame_header_length = len(frame_bytes) - len(settings_payload)
+        stable_settings_length = sum(
+            identifier_width + value_width
+            for _, identifier_width, _, value_width in settings[:3]
+        )
+        stable_settings_start = control_start + frame_header_length
         spans = [
             SymbolicSpan(
-                "control_settings",
+                "control_settings_prefix",
                 control_stream_id,
-                control_start,
-                control_start + len(self.settings_frame),
+                stable_settings_start,
+                stable_settings_start + stable_settings_length,
             ),
             SymbolicSpan(
                 "request_headers",

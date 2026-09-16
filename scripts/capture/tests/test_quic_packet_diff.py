@@ -10,10 +10,10 @@ from aioquic.quic.packet import (
 from aioquic.tls import CipherSuite
 
 from scripts.capture.http3_wire import push_varint
-from scripts.capture.quic_packet_diff import (
+from scripts.capture.quic_packet_diff import QuicPacketCapture
+from scripts.capture.quic_summary import (
     FrameKind,
     NormalizedPacket,
-    QuicPacketCapture,
     StreamFrame,
     SymbolicSpan,
 )
@@ -193,7 +193,7 @@ class QuicPacketDiffTests(unittest.TestCase):
             cipher_suite=CIPHER_SUITE,
             short_header_cid_length=len(DESTINATION_CID),
             spans=(
-                SymbolicSpan("control_settings", 2, 0, 4),
+                SymbolicSpan("control_settings_prefix", 2, 0, 4),
                 SymbolicSpan("request_headers", 0, 0, 4),
             ),
         )
@@ -209,7 +209,7 @@ class QuicPacketDiffTests(unittest.TestCase):
         self.assertEqual(
             summary.packets[2].frames,
             (
-                StreamFrame("stream", 2, 0, 10, False, ("control_settings",)),
+                StreamFrame("stream", 2, 0, 10, False, ("control_settings_prefix",)),
                 StreamFrame("stream", 0, 0, 4, True, ("request_headers",)),
                 FrameKind("ping"),
             ),

@@ -134,8 +134,12 @@ markers. The first comparison exposed Phantom's eager one-byte QPACK decoder
 prefix; the Chrome profile now defers that stream type until feedback exists,
 and a fresh controlled rerun produced the captured empty decoder prefix. The
 engine default remains eager for profiles that do not request this behavior.
-Exact packet placement remains telemetry until repeated captures establish
-stable fields for a logical-flight comparator.
+A logical-flight comparator now gates authenticated packet spaces and complete
+symbolic request markers without depending on fragmentation, ACK, padding, or
+retransmission placement. Exact packet placement remains telemetry until
+repeated captures establish which shape fields are stable. Its first fresh
+Chrome/Phantom run matched the stable SETTINGS and QPACK encoder markers and
+exposed Phantom's later request FIN as the next concrete boundary mismatch.
 
 Acceptance:
 

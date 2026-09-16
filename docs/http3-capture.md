@@ -171,11 +171,15 @@ override and is part of Chromium's documented local QUIC workflow.
 
 `--packet-summary` wires bounded client datagrams and the server's temporary
 NSS lines directly into `QuicPacketCapture`. It atomically writes only
-`PacketSummary.as_dict()` and never persists the analyzer inputs. The analyzer
-is intentionally not a pcap or general QUIC API: it accepts QUIC v1, rejects
-Retry, 0-RTT, key updates, and unknown frames, and clears its owned mutable
-capture after one summary attempt. Its deterministic encrypted-vector tests
-run in the ordinary Python gate.
+`PacketSummary.as_dict()` and never persists the analyzer inputs. Version 2 of
+that document contains packet telemetry plus a logical-flight projection. The
+projection merges symbolic stream coverage across packet cuts and ignores ACK,
+padding, fragmentation, and retransmission placement while retaining packet
+spaces, marker completeness, FIN-at-boundary state, and terminal frames. The
+analyzer is intentionally not a pcap or general QUIC API: it accepts QUIC v1,
+rejects Retry, 0-RTT, key updates, and unknown frames, and clears its owned
+mutable capture after one summary attempt. Its deterministic encrypted-vector
+tests run in the ordinary Python gate.
 
 A fresh Chrome 152 run exercised this path successfully and authenticated all
 three packet spaces through the first request. The result found the SETTINGS,
@@ -192,12 +196,36 @@ cargo run -p phantom-net --example capture_http3_request --locked -- \
 ```
 
 The first controlled Phantom run authenticated Initial, Handshake, and 1-RTT,
-matched Chrome's 437-byte encoder prefix and 17 decoded headers, and exposed a
-useful difference: Phantom had emitted the one-byte QPACK decoder stream type
-before the request was decoded, while Chrome's decoder prefix was empty. That
-is a semantic boundary difference worth correcting in the engine; the larger
-12-versus-7 packet count is telemetry until repeated runs establish which
-parts are stable.
+matched Chrome's 437-byte encoder prefix and 17 decoded headers, and exposed an
+eager one-byte QPACK decoder stream type that Chrome had not emitted. The
+Chrome profile now defers that byte until feedback exists, and the controlled
+rerun matched the empty request-boundary prefix. The larger 12-versus-7 packet
+count remains telemetry until repeated runs establish which shape fields are
+stable.
+
+Compare independently generated Chrome and Phantom summaries without treating
+their packet layouts as canonical:
+
+```sh
+uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+  python -m scripts.capture.compare_quic_flights \
+  chrome-h3-packets.json phantom-h3-packets.json
+```
+
+The command fails when either side omits Initial, Handshake, or 1-RTT; has an
+incomplete symbolic marker; differs in marker length, packet space, or FIN
+state; or contains a close/reset/stop frame. Exact retransmission, ACK, padding,
+and packet-boundary differences remain visible in the packet telemetry but do
+not fail the logical comparison.
+
+The SETTINGS marker covers the first three fixed entries (`0x01`, `0x06`, and
+`0x07`) rather than the whole frame, because the later reserved setting has a
+randomized identifier and encoded width. The semantic fixture continues to
+validate H3 DATAGRAM and the complete GREASE policy separately. A fresh
+Chrome/Phantom comparison matched that stable SETTINGS prefix and the complete
+QPACK encoder prefix, then correctly failed on one remaining boundary
+difference: Chrome carried request FIN at the end of HEADERS while Phantom had
+not exposed FIN when the server decoded the same HEADERS bytes.
 
 ## Fixture schema
 

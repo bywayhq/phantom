@@ -8,9 +8,6 @@ one analysis attempt and are never included in the returned summary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
 from aioquic.buffer import Buffer, BufferReadError
 from aioquic.quic.crypto import CryptoContext, CryptoError, CryptoPair
 from aioquic.quic.packet import (
@@ -21,6 +18,14 @@ from aioquic.quic.packet import (
     pull_quic_header,
 )
 from aioquic.tls import CipherSuite
+
+from .quic_flight import PacketSummary
+from .quic_summary import (
+    FrameKind,
+    NormalizedPacket,
+    StreamFrame,
+    SymbolicSpan,
+)
 
 DEFAULT_MAX_DATAGRAMS = 64
 DEFAULT_MAX_DATAGRAM_BYTES = 256 * 1024
@@ -33,94 +38,6 @@ _IGNORED_SERVER_SECRETS = {
     "SERVER_HANDSHAKE_TRAFFIC_SECRET",
     "SERVER_TRAFFIC_SECRET_0",
 }
-_FORBIDDEN_LABEL_PARTS = {
-    "authorization",
-    "ciphertext",
-    "cookie",
-    "keylog",
-    "payload",
-    "proxy_authorization",
-    "secret",
-}
-
-
-@dataclass(frozen=True)
-class SymbolicSpan:
-    """A semantic label for a half-open range on a QUIC stream."""
-
-    label: str
-    stream_id: int
-    start: int
-    end: int
-
-    def __post_init__(self) -> None:
-        if not self.label or not all(
-            character.islower() or character.isdigit() or character == "_"
-            for character in self.label
-        ):
-            raise ValueError("symbolic span labels must be lowercase identifiers")
-        parts = set(self.label.split("_"))
-        if parts & _FORBIDDEN_LABEL_PARTS:
-            raise ValueError("symbolic span label contains a forbidden term")
-        if self.stream_id < 0 or self.start < 0 or self.end <= self.start:
-            raise ValueError("symbolic span must describe a non-empty stream range")
-
-
-@dataclass(frozen=True)
-class FrameKind:
-    """A normalized non-STREAM QUIC frame."""
-
-    kind: str
-
-
-@dataclass(frozen=True)
-class StreamFrame:
-    """Payload-free metadata for one STREAM frame."""
-
-    kind: str
-    stream_id: int
-    offset: int
-    length: int
-    fin: bool
-    overlaps: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class NormalizedPacket:
-    """Payload-free metadata for one authenticated QUIC packet."""
-
-    space: str
-    frames: tuple[FrameKind | StreamFrame, ...]
-
-
-@dataclass(frozen=True)
-class PacketSummary:
-    """Normalized packets in observed wire order."""
-
-    packets: tuple[NormalizedPacket, ...]
-
-    def as_dict(self) -> dict[str, Any]:
-        """Returns a serialization containing only the documented safe fields."""
-
-        packets = []
-        for packet in self.packets:
-            frames = []
-            for frame in packet.frames:
-                if isinstance(frame, StreamFrame):
-                    frames.append(
-                        {
-                            "kind": frame.kind,
-                            "stream_id": frame.stream_id,
-                            "offset": frame.offset,
-                            "length": frame.length,
-                            "fin": frame.fin,
-                            "overlaps": list(frame.overlaps),
-                        }
-                    )
-                else:
-                    frames.append({"kind": frame.kind})
-            packets.append({"space": packet.space, "frames": frames})
-        return {"packets": packets}
 
 
 class QuicPacketCapture:
@@ -224,7 +141,6 @@ class QuicPacketCapture:
             if self._key_log_pending:
                 self._consume_key_log_line(self._key_log_pending)
                 self._key_log_pending = ""
-            _validate_spans(spans)
             return self._summarize(
                 cipher_suite=cipher_suite,
                 short_header_cid_length=short_header_cid_length,
@@ -339,7 +255,7 @@ class QuicPacketCapture:
                     )
                     payload = b""
                     packet = b""
-            return PacketSummary(tuple(packets))
+            return PacketSummary.build(tuple(packets), spans)
         except (BufferReadError, CryptoError) as error:
             raise ValueError(
                 "failed to authenticate or decode captured QUIC packet"
@@ -398,12 +314,6 @@ class QuicPacketCapture:
     def _require_open(self) -> None:
         if self._closed:
             raise RuntimeError("capture has already been cleared")
-
-
-def _validate_spans(spans: tuple[SymbolicSpan, ...]) -> None:
-    labels = [span.label for span in spans]
-    if len(labels) != len(set(labels)):
-        raise ValueError("symbolic span labels must be unique")
 
 
 def _packet_space(packet_type: QuicPacketType) -> str:

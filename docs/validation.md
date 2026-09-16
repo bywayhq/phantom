@@ -63,7 +63,13 @@ a fresh controlled rerun retained the same encoder prefix and headers with an
 empty decoder prefix. Unit tests additionally prove that later feedback starts
 with the stream type and shares the configured per-poll write budget. Packet
 fragmentation, ACK placement, and padding stay diagnostic telemetry rather
-than pass/fail evidence until repeated captures establish their stability.
+than pass/fail evidence until repeated captures establish their stability. A
+strict logical-flight projection now merges marker coverage across packet cuts
+and compares separate Chrome and Phantom summaries while preserving packet
+spaces, completeness, FIN-at-boundary state, and terminal frames. The first
+strict comparison matched the stable SETTINGS prefix and 437-byte QPACK
+encoder prefix and exposed a remaining request-boundary difference: Chrome's
+HEADERS coverage carried FIN, while Phantom's did not.
 
 ## Browser ClientHello fixture workflow
 
