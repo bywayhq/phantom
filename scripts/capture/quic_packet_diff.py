@@ -155,6 +155,7 @@ class QuicPacketCapture:
         self._key_log_pending = ""
         self._client_random: bytearray | None = None
         self._secrets: dict[str, bytearray] = {}
+        self._accept_datagrams = True
         self._closed = False
 
     @property
@@ -173,12 +174,20 @@ class QuicPacketCapture:
         """Copies one UDP payload into the bounded in-memory capture."""
 
         self._require_open()
+        if not self._accept_datagrams:
+            return
         if len(self._datagrams) >= self._max_datagrams:
             self._abort("datagram count exceeds the capture limit")
         if self._datagram_bytes + len(data) > self._max_datagram_bytes:
             self._abort("datagram bytes exceed the capture limit")
         self._datagrams.append(bytearray(data))
         self._datagram_bytes += len(data)
+
+    def finish_datagrams(self) -> None:
+        """Freezes the packet boundary while still accepting pending key-log lines."""
+
+        self._require_open()
+        self._accept_datagrams = False
 
     def write(self, data: str) -> int:
         """Consumes NSS key-log text, matching the TextIO interface aioquic uses."""
@@ -240,6 +249,7 @@ class QuicPacketCapture:
             secret[:] = bytes(len(secret))
         self._secrets.clear()
         self._key_log_pending = ""
+        self._accept_datagrams = False
         self._closed = True
 
     def _summarize(
@@ -255,7 +265,7 @@ class QuicPacketCapture:
             raise ValueError("capture contains no datagrams")
 
         expected_packet_number = {"initial": 0, "handshake": 0, "1rtt": 0}
-        initial_cryptos: dict[tuple[int, bytes], CryptoPair] = {}
+        initial_crypto: CryptoPair | None = None
         traffic_cryptos: dict[str, CryptoContext] = {}
         version: int | None = None
         packets = []
@@ -285,17 +295,14 @@ class QuicPacketCapture:
                         )
 
                     if space == "initial":
-                        key = (version, header.destination_cid)
-                        crypto_pair = initial_cryptos.get(key)
-                        if crypto_pair is None:
-                            crypto_pair = CryptoPair()
-                            crypto_pair.setup_initial(
+                        if initial_crypto is None:
+                            initial_crypto = CryptoPair()
+                            initial_crypto.setup_initial(
                                 cid=header.destination_cid,
                                 is_client=False,
                                 version=version,
                             )
-                            initial_cryptos[key] = crypto_pair
-                        crypto = crypto_pair.recv
+                        crypto = initial_crypto.recv
                     else:
                         crypto = traffic_cryptos.get(space)
                         if crypto is None:
@@ -338,8 +345,8 @@ class QuicPacketCapture:
                 "failed to authenticate or decode captured QUIC packet"
             ) from error
         finally:
-            for crypto_pair in initial_cryptos.values():
-                crypto_pair.teardown()
+            if initial_crypto is not None:
+                initial_crypto.teardown()
             for crypto in traffic_cryptos.values():
                 crypto.teardown()
 

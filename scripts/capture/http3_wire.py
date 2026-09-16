@@ -205,6 +205,21 @@ def unidirectional_stream(streams: dict[int, bytearray], stream_type: int) -> by
     return b""
 
 
+def unidirectional_stream_id(streams: dict[int, bytearray], stream_type: int) -> int:
+    matches = []
+    for stream_id, data in streams.items():
+        if stream_id % 4 != 2:
+            continue
+        parsed_type = pull_varint(data, 0)
+        if parsed_type is not None and parsed_type[0] == stream_type:
+            matches.append(stream_id)
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected one client stream of type {stream_type}, found {len(matches)}"
+        )
+    return matches[0]
+
+
 def capture_request_snapshot(
     streams: dict[int, bytearray], stream_id: int
 ) -> RequestSnapshot:

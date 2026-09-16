@@ -49,10 +49,17 @@ Its result retains only packet space, frame kinds, STREAM identifiers, ranges,
 FIN bits, and caller-declared symbolic range overlaps. It removes timestamps,
 addresses, connection IDs, packet numbers, ACK values, ciphertext, plaintext,
 headers, and secrets. Deterministic tests cover coalesced Initial/Handshake
-packets and a later 1-RTT request shape. This proves the analyzer and Phantom's
-key-log seam independently; it is not yet a Chrome packet differential. The
-retained Chrome H3 fixture did not keep a key log, so completing that evidence
-requires a fresh bounded browser capture.
+packets and a later 1-RTT request shape. The Chrome capture server can now feed
+the analyzer directly with its first accepted connection and atomically write
+the payload-free result separately from the semantic fixture. A fresh Chrome
+152 run authenticated Initial, Handshake, and 1-RTT packets and located the
+control SETTINGS, 437-byte QPACK encoder prefix, and request HEADERS before the
+request boundary. The matching Phantom run reached the same three packet spaces
+and matched the 437-byte encoder prefix and 17 decoded headers. It also exposed
+a real boundary mismatch: Phantom had already written the one-byte QPACK
+decoder stream type while Chrome had written no decoder-stream bytes. Packet
+fragmentation, ACK placement, and padding stay diagnostic telemetry rather
+than pass/fail evidence until repeated captures establish their stability.
 
 ## Browser ClientHello fixture workflow
 

@@ -52,13 +52,15 @@ def long_packet(
     payload: bytes,
     packet_number: int,
     crypto: CryptoContext,
+    *,
+    destination_cid: bytes = DESTINATION_CID,
 ) -> bytes:
     first_byte = encode_long_header_first_byte(VERSION, packet_type, 0)
     prefix = (
         bytes([first_byte])
         + int(VERSION).to_bytes(4, "big")
-        + bytes([len(DESTINATION_CID)])
-        + DESTINATION_CID
+        + bytes([len(destination_cid)])
+        + destination_cid
         + bytes([len(SOURCE_CID)])
         + SOURCE_CID
     )
@@ -117,6 +119,41 @@ class QuicPacketDiffTests(unittest.TestCase):
         )
         self.assertEqual(capture.buffered_datagram_count, 0)
         self.assertEqual(capture.buffered_secret_count, 0)
+
+    def test_reuses_original_initial_keys_after_destination_cid_changes(self) -> None:
+        crypto = client_initial_crypto()
+        try:
+            first = long_packet(
+                QuicPacketType.INITIAL,
+                crypto_frame(b"client hello"),
+                0,
+                crypto.send,
+            )
+            retransmission = long_packet(
+                QuicPacketType.INITIAL,
+                crypto_frame(b"client hello", offset=12),
+                1,
+                crypto.send,
+                destination_cid=bytes.fromhex("0102030405060708"),
+            )
+        finally:
+            crypto.teardown()
+
+        capture = QuicPacketCapture()
+        capture.add_datagram(first)
+        capture.add_datagram(retransmission)
+        summary = capture.summarize(
+            cipher_suite=CIPHER_SUITE,
+            short_header_cid_length=len(DESTINATION_CID),
+        )
+
+        self.assertEqual(
+            summary.packets,
+            (
+                NormalizedPacket("initial", (FrameKind("crypto"),)),
+                NormalizedPacket("initial", (FrameKind("crypto"),)),
+            ),
+        )
 
     def test_decrypts_coalesced_handshake_and_later_one_rtt_streams(self) -> None:
         initial = client_initial_crypto()
@@ -213,6 +250,30 @@ class QuicPacketDiffTests(unittest.TestCase):
         ):
             with self.subTest(label=label), self.assertRaises(ValueError):
                 SymbolicSpan(label, 0, 0, 1)
+
+    def test_finish_datagrams_freezes_boundary_without_closing_key_log(self) -> None:
+        crypto = client_initial_crypto()
+        try:
+            packet = long_packet(
+                QuicPacketType.INITIAL,
+                crypto_frame(b"client hello"),
+                0,
+                crypto.send,
+            )
+        finally:
+            crypto.teardown()
+
+        capture = QuicPacketCapture()
+        capture.add_datagram(packet)
+        capture.finish_datagrams()
+        capture.add_datagram(b"ignored after request boundary")
+        capture.write(key_log_line("CLIENT_HANDSHAKE_TRAFFIC_SECRET", HANDSHAKE_SECRET))
+        summary = capture.summarize(
+            cipher_suite=CIPHER_SUITE,
+            short_header_cid_length=len(DESTINATION_CID),
+        )
+
+        self.assertEqual(len(summary.packets), 1)
 
     def test_rejects_wrong_secret_and_clears_capture(self) -> None:
         initial = client_initial_crypto()

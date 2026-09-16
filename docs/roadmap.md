@@ -127,9 +127,12 @@ Diagnostics are default-off: a single forced connection can retain a bounded,
 complete-record qlog, while a separately enabled BoringSSL builder callback
 publishes NSS TLS 1.3 secrets through a bounded nonblocking queue. A payload-free
 aioquic analyzer now proves authenticated Initial, Handshake, and 1-RTT packet
-normalization with deterministic encrypted vectors. The retained Chrome fixture
-has no key log, so a fresh Chrome run is still required before the browser
-packet differential acceptance item is complete.
+normalization with deterministic encrypted vectors. Fresh controlled Chrome
+and Phantom runs now authenticate all three spaces through the first request
+and retain only payload-free summaries. They match the request and encoder
+markers while exposing Phantom's eager one-byte QPACK decoder prefix. Exact
+packet placement remains telemetry until repeated captures establish stable
+fields for a logical-flight comparator.
 
 Acceptance:
 

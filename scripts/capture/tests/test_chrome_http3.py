@@ -6,11 +6,15 @@ import unittest
 from pathlib import Path
 
 import pylsqpack
+from aioquic.quic.configuration import QuicConfiguration
+from aioquic.quic.connection import QuicConnection
 from aioquic.quic.events import StreamDataReceived
 
-from scripts.capture.chrome_http3 import Capture
+from scripts.capture.chrome_http3 import Capture, CaptureProtocol
 from scripts.capture.http3_wire import (
+    CONTROL_STREAM,
     HEADERS_FRAME,
+    QPACK_ENCODER_STREAM,
     SENSITIVE_REQUEST_HEADERS,
     first_frame,
     is_h3_grease,
@@ -22,6 +26,7 @@ from scripts.capture.http3_wire import (
     pull_varint,
     push_varint,
 )
+from scripts.capture.quic_packet_diff import SymbolicSpan
 
 FIXTURE_PATH = Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt")
 FIXTURE_SHA256 = "c52cd57896f824fdefdcfdda77d40fe3bd928f2a97ef5093ebd888aa8fb18aaf"
@@ -72,6 +77,18 @@ class VarintTests(unittest.TestCase):
 
 
 class CaptureBoundaryTests(unittest.TestCase):
+    def test_unclaimed_protocol_can_be_closed_without_a_network_path(self) -> None:
+        async def exercise() -> None:
+            capture = Capture(complete=asyncio.Event(), metadata=argparse.Namespace())
+            capture.connection_claimed = True
+            connection = QuicConnection(configuration=QuicConfiguration(is_client=True))
+            protocol = CaptureProtocol(connection, capture=capture)
+
+            self.assertFalse(protocol.active)
+            protocol.close()
+
+        asyncio.run(exercise())
+
     def test_first_request_snapshots_do_not_include_later_stream_bytes(self) -> None:
         capture = Capture(complete=asyncio.Event(), metadata=argparse.Namespace())
         capture.streams = {
@@ -117,6 +134,46 @@ class CaptureBoundaryTests(unittest.TestCase):
             b"\x02encoder-at-request",
         )
         self.assertEqual(capture.request_qpack_decoder_stream_prefix, b"")
+
+    def test_packet_spans_use_frozen_request_boundary(self) -> None:
+        capture = Capture(complete=asyncio.Event(), metadata=argparse.Namespace())
+        capture.streams = {
+            0: bytearray(b"\x01\x02hh"),
+            2: bytearray(bytes([QPACK_ENCODER_STREAM]) + b"encoder-at-request"),
+            6: bytearray(bytes([CONTROL_STREAM]) + b"\x04\x02ss"),
+        }
+        capture.settings_frame = b"\x04\x02ss"
+        capture.request_stream_id = 0
+        capture.request_headers_frame = b"\x01\x02hh"
+        capture.request_qpack_encoder_stream_prefix = b"\x02encoder-at-request"
+        capture.request_qpack_decoder_stream_prefix = b""
+
+        capture.streams[2].extend(b"later-encoder-bytes")
+
+        self.assertEqual(
+            capture.packet_spans(),
+            (
+                SymbolicSpan("control_settings", 6, 1, 5),
+                SymbolicSpan("request_headers", 0, 0, 4),
+                SymbolicSpan("qpack_encoder_prefix", 2, 0, 19),
+            ),
+        )
+
+    def test_packet_spans_reject_duplicate_critical_streams(self) -> None:
+        capture = Capture(complete=asyncio.Event(), metadata=argparse.Namespace())
+        capture.streams = {
+            0: bytearray(b"\x01\x00"),
+            2: bytearray(bytes([CONTROL_STREAM]) + b"\x04\x00"),
+            6: bytearray(bytes([CONTROL_STREAM]) + b"\x04\x00"),
+        }
+        capture.settings_frame = b"\x04\x00"
+        capture.request_stream_id = 0
+        capture.request_headers_frame = b"\x01\x00"
+        capture.request_qpack_encoder_stream_prefix = b""
+        capture.request_qpack_decoder_stream_prefix = b""
+
+        with self.assertRaisesRegex(ValueError, "expected one client stream"):
+            capture.packet_spans()
 
 
 class ChromeFixtureTests(unittest.TestCase):

@@ -5,7 +5,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import ipaddress
+import json
+import os
 import platform
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,10 +19,18 @@ from aioquic.h3.connection import H3_ALPN, H3Connection, Setting
 from aioquic.h3.events import HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
-from aioquic.quic.events import ProtocolNegotiated, QuicEvent, StreamDataReceived
+from aioquic.quic.events import (
+    HandshakeCompleted,
+    ProtocolNegotiated,
+    QuicEvent,
+    StreamDataReceived,
+)
+from aioquic.tls import CipherSuite
 
 from .http3_wire import (
     CONTROL_STREAM,
+    QPACK_DECODER_STREAM,
+    QPACK_ENCODER_STREAM,
     SENSITIVE_REQUEST_HEADERS,
     SETTINGS_FRAME,
     capture_request_snapshot,
@@ -30,7 +41,9 @@ from .http3_wire import (
     parse_settings,
     pull_varint,
     unidirectional_stream,
+    unidirectional_stream_id,
 )
+from .quic_packet_diff import PacketSummary, QuicPacketCapture, SymbolicSpan
 
 SUPPORTED_AIOQUIC = "1.3.0"
 MAX_STREAM_CAPTURE = 256 * 1024
@@ -54,7 +67,20 @@ class Capture:
     server_qpack_blocked_streams: int | None = None
     alpn: str | None = None
     quic_version: int | None = None
+    cipher_suite: CipherSuite | None = None
+    short_header_cid_length: int | None = None
+    packet_capture: QuicPacketCapture | None = None
+    failure: Exception | None = None
     connection_claimed: bool = False
+
+    def fail(self, error: Exception) -> None:
+        if self.failure is None:
+            self.failure = error
+        self.complete.set()
+
+    def raise_if_failed(self) -> None:
+        if self.failure is not None:
+            raise RuntimeError("HTTP/3 capture failed") from self.failure
 
     def stream_data(self, event: StreamDataReceived) -> None:
         data = self.streams.setdefault(event.stream_id, bytearray())
@@ -81,6 +107,8 @@ class Capture:
         self.request_qpack_encoder_stream_prefix = snapshot.qpack_encoder_stream_prefix
         self.request_qpack_decoder_stream_prefix = snapshot.qpack_decoder_stream_prefix
         self.headers = list(headers)
+        if self.packet_capture is not None:
+            self.packet_capture.finish_datagrams()
         self.maybe_complete()
 
     def maybe_complete(self) -> None:
@@ -188,6 +216,76 @@ class Capture:
         )
         return "\n".join(lines) + "\n"
 
+    def packet_spans(self) -> tuple[SymbolicSpan, ...]:
+        if (
+            self.settings_frame is None
+            or self.request_stream_id is None
+            or self.request_headers_frame is None
+            or self.request_qpack_encoder_stream_prefix is None
+            or self.request_qpack_decoder_stream_prefix is None
+        ):
+            raise RuntimeError("capture has no complete request boundary")
+
+        control_stream_id = unidirectional_stream_id(self.streams, CONTROL_STREAM)
+        control_stream = bytes(self.streams[control_stream_id])
+        control_type = pull_varint(control_stream, 0)
+        if control_type is None:
+            raise RuntimeError("captured control stream has no stream type")
+        control_start = control_type[1]
+        spans = [
+            SymbolicSpan(
+                "control_settings",
+                control_stream_id,
+                control_start,
+                control_start + len(self.settings_frame),
+            ),
+            SymbolicSpan(
+                "request_headers",
+                self.request_stream_id,
+                0,
+                len(self.request_headers_frame),
+            ),
+        ]
+        for label, stream_type, prefix in (
+            (
+                "qpack_encoder_prefix",
+                QPACK_ENCODER_STREAM,
+                self.request_qpack_encoder_stream_prefix,
+            ),
+            (
+                "qpack_decoder_prefix",
+                QPACK_DECODER_STREAM,
+                self.request_qpack_decoder_stream_prefix,
+            ),
+        ):
+            if prefix:
+                spans.append(
+                    SymbolicSpan(
+                        label,
+                        unidirectional_stream_id(self.streams, stream_type),
+                        0,
+                        len(prefix),
+                    )
+                )
+        return tuple(spans)
+
+    def packet_summary(self) -> PacketSummary | None:
+        if self.packet_capture is None:
+            return None
+        if self.cipher_suite is None or self.short_header_cid_length is None:
+            raise RuntimeError("capture completed without negotiated QUIC metadata")
+        return self.packet_capture.summarize(
+            cipher_suite=self.cipher_suite,
+            short_header_cid_length=self.short_header_cid_length,
+            spans=self.packet_spans(),
+        )
+
+
+@dataclass(frozen=True)
+class CaptureResult:
+    fixture: str
+    packet_summary: PacketSummary | None
+
 
 class CaptureProtocol(QuicConnectionProtocol):
     capture: Capture
@@ -199,7 +297,30 @@ class CaptureProtocol(QuicConnectionProtocol):
         capture.connection_claimed = True
         self.http: H3Connection | None = None
 
+    def close(self, error_code: int = 0, reason_phrase: str = "") -> None:
+        if not self.active:
+            return
+        super().close(error_code=error_code, reason_phrase=reason_phrase)
+
+    def datagram_received(self, data: bytes, addr) -> None:
+        if not self.active:
+            return
+        try:
+            if self.capture.packet_capture is not None:
+                self.capture.packet_capture.add_datagram(data)
+            super().datagram_received(data, addr)
+        except Exception as error:
+            self.capture.fail(error)
+
     def quic_event_received(self, event: QuicEvent) -> None:
+        if not self.active:
+            return
+        try:
+            self._handle_quic_event(event)
+        except Exception as error:
+            self.capture.fail(error)
+
+    def _handle_quic_event(self, event: QuicEvent) -> None:
         if not self.active:
             return
         if isinstance(event, ProtocolNegotiated):
@@ -217,6 +338,14 @@ class CaptureProtocol(QuicConnectionProtocol):
             )
             self.capture.server_qpack_blocked_streams = sent_settings.get(
                 Setting.QPACK_BLOCKED_STREAMS, 0
+            )
+        if isinstance(event, HandshakeCompleted):
+            key_schedule = self._quic.tls.key_schedule
+            if key_schedule is None:
+                raise RuntimeError("QUIC handshake completed without a key schedule")
+            self.capture.cipher_suite = key_schedule.cipher_suite
+            self.capture.short_header_cid_length = (
+                self._quic.configuration.connection_id_length
             )
         if isinstance(event, StreamDataReceived):
             self.capture.stream_data(event)
@@ -246,11 +375,20 @@ def patch_transport_parameter_capture() -> None:
     QuicConnection._parse_transport_parameters = capture
 
 
-async def run(args: argparse.Namespace) -> str:
+async def run(args: argparse.Namespace) -> CaptureResult:
     complete = asyncio.Event()
-    capture = Capture(complete=complete, metadata=args)
+    packet_capture = (
+        QuicPacketCapture() if getattr(args, "packet_summary", None) else None
+    )
+    capture = Capture(
+        complete=complete,
+        metadata=args,
+        packet_capture=packet_capture,
+    )
     configuration = QuicConfiguration(is_client=False, alpn_protocols=H3_ALPN)
     configuration.load_cert_chain(args.certificate, args.private_key)
+    if packet_capture is not None:
+        configuration.secrets_log_file = packet_capture
     server = await serve(
         str(ipaddress.ip_address(args.listen.rsplit(":", 1)[0])),
         int(args.listen.rsplit(":", 1)[1]),
@@ -261,10 +399,34 @@ async def run(args: argparse.Namespace) -> str:
     )
     try:
         await asyncio.wait_for(complete.wait(), timeout=args.timeout)
+        capture.raise_if_failed()
         await asyncio.sleep(0.2)
-        return capture.fixture()
+        capture.raise_if_failed()
+        server.close()
+        fixture = capture.fixture()
+        return CaptureResult(fixture, capture.packet_summary())
     finally:
         server.close()
+        if packet_capture is not None:
+            packet_capture.clear()
+
+
+def write_packet_summary(path: Path, summary: PacketSummary) -> None:
+    path = path.resolve()
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, delete=False
+        ) as output:
+            temporary_path = Path(output.name)
+            json.dump(summary.as_dict(), output, indent=2, sort_keys=True)
+            output.write("\n")
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def main() -> None:
@@ -278,6 +440,7 @@ def main() -> None:
     parser.add_argument("--operating-system", default=platform.platform())
     parser.add_argument("--launch-mode", default="command-line")
     parser.add_argument("--launch-arguments", required=True)
+    parser.add_argument("--packet-summary", type=Path)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     if aioquic.__version__ != SUPPORTED_AIOQUIC:
@@ -287,7 +450,12 @@ def main() -> None:
     if not ipaddress.ip_address(args.listen.rsplit(":", 1)[0]).is_loopback:
         parser.error("the capture listener must be a loopback address")
     patch_transport_parameter_capture()
-    print(asyncio.run(run(args)), end="")
+    result = asyncio.run(run(args))
+    if args.packet_summary is not None:
+        if result.packet_summary is None:
+            raise RuntimeError("packet summary was requested but not produced")
+        write_packet_summary(args.packet_summary, result.packet_summary)
+    print(result.fixture, end="")
 
 
 if __name__ == "__main__":

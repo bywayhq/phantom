@@ -12,7 +12,9 @@ fingerprint summary. It records:
   headers in order.
 
 It does not retain a certificate private key, TLS key log, browser profile,
-pcap, NetLog, or qlog. Those are temporary diagnostic inputs only.
+pcap, NetLog, or qlog. Those are temporary diagnostic inputs only. With
+`--packet-summary`, it may separately retain authenticated payload-free packet
+metadata; this never changes the semantic fixture written to standard output.
 
 The retained fixture is
 `fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt`, with
@@ -57,6 +59,13 @@ empty: in the retained capture Chrome had not opened its decoder stream at that
 boundary. Empty therefore means no bytes had been observed yet, rather than
 missing or post-processed evidence.
 
+When packet diagnostics are enabled, the active protocol copies bounded UDP
+datagrams before aioquic processes them and uses aioquic's server-side traffic
+secrets only in memory. Datagram collection freezes when the first request is
+decoded, while key-log input may finish. The analyzer then clears both packet
+bytes and secrets after one attempt. Later connections are ignored so they
+cannot contaminate the shared capture.
+
 The server reads its materialized local SETTINGS from aioquic and records
 `SETTINGS_QPACK_MAX_TABLE_CAPACITY` and `SETTINGS_QPACK_BLOCKED_STREAMS` as
 decimal values. They are server settings, and thus peer settings from Chrome's
@@ -81,6 +90,7 @@ directory:
 
 ```sh
 fixture_path="$PWD/chrome-h3-capture.txt"
+packet_summary_path="$PWD/chrome-h3-packets.json"
 capture_dir="$(mktemp -d /tmp/phantom-chrome-h3.XXXXXX)"
 
 cleanup_capture() {
@@ -122,6 +132,7 @@ tcpdump_pid=$!
   )" \
   --operating-system "macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion))" \
   --launch-arguments "$launch_arguments" \
+  --packet-summary "$packet_summary_path" \
   >"$capture_dir/fixture.txt" &
 server_pid=$!
 
@@ -158,16 +169,35 @@ repository or CI artifacts. The fixture contains no key material. The
 SPKI-scoped exception is preferable to a global certificate-verification
 override and is part of Chromium's documented local QUIC workflow.
 
-For a retained packet-shape differential, feed bounded client datagrams and the
-temporary NSS lines to `scripts.capture.quic_packet_diff.QuicPacketCapture`
-before cleanup. Supply symbolic stream ranges from the already-authenticated
-control, QPACK, and request snapshots. Persist only `PacketSummary.as_dict()`;
-never persist the analyzer inputs. The analyzer is intentionally not a pcap or
-general QUIC API: it accepts QUIC v1, rejects Retry, 0-RTT, key updates, and
-unknown frames, and clears its owned mutable capture after one summary attempt.
-Its deterministic encrypted-vector tests run in the ordinary Python gate. A
-fresh Chrome capture and a matching Phantom run are still needed to retain the
-first real cross-client packet summary.
+`--packet-summary` wires bounded client datagrams and the server's temporary
+NSS lines directly into `QuicPacketCapture`. It atomically writes only
+`PacketSummary.as_dict()` and never persists the analyzer inputs. The analyzer
+is intentionally not a pcap or general QUIC API: it accepts QUIC v1, rejects
+Retry, 0-RTT, key updates, and unknown frames, and clears its owned mutable
+capture after one summary attempt. Its deterministic encrypted-vector tests
+run in the ordinary Python gate.
+
+A fresh Chrome 152 run exercised this path successfully and authenticated all
+three packet spaces through the first request. The result found the SETTINGS,
+437-byte QPACK encoder, and request HEADERS spans. It is diagnostic evidence,
+not a literal packet-sequence oracle: exact packet boundaries, ACK placement,
+padding, and fragmentation are too timing-sensitive for direct equality.
+
+Run Phantom against a fresh instance of the same server with its generated
+certificate as the trust root:
+
+```sh
+cargo run -p phantom-net --example capture_http3_request --locked -- \
+  127.0.0.1:9447 server.phantom.test "$capture_dir/cert.pem"
+```
+
+The first controlled Phantom run authenticated Initial, Handshake, and 1-RTT,
+matched Chrome's 437-byte encoder prefix and 17 decoded headers, and exposed a
+useful difference: Phantom had emitted the one-byte QPACK decoder stream type
+before the request was decoded, while Chrome's decoder prefix was empty. That
+is a semantic boundary difference worth correcting in the engine; the larger
+12-versus-7 packet count is telemetry until repeated runs establish which
+parts are stable.
 
 ## Fixture schema
 
