@@ -734,6 +734,33 @@ mod tests {
     }
 
     #[test]
+    fn qpack_setting_values_are_preserved_while_parsing() {
+        for identifier in [
+            SettingId::QPACK_MAX_TABLE_CAPACITY,
+            SettingId::QPACK_MAX_BLOCKED_STREAMS,
+        ] {
+            for value in [0, 1 << 16, 1 << 30, VarInt::MAX.0] {
+                let mut payload = Vec::new();
+                identifier.encode(&mut payload);
+                payload.write_var(value);
+                let parsed = Settings::decode(&mut Cursor::new(payload)).unwrap();
+                assert_eq!(parsed.get(identifier), Some(value));
+
+                let semantic = crate::config::Settings::from(&parsed);
+                match identifier {
+                    SettingId::QPACK_MAX_TABLE_CAPACITY => {
+                        assert_eq!(semantic.qpack_max_table_capacity, value)
+                    }
+                    SettingId::QPACK_MAX_BLOCKED_STREAMS => {
+                        assert_eq!(semantic.qpack_blocked_streams, value)
+                    }
+                    _ => unreachable!("test only covers QPACK settings"),
+                }
+            }
+        }
+    }
+
+    #[test]
     fn data_frame() {
         codec_frame_check(
             Frame::Data(Bytes::from("1234567")),

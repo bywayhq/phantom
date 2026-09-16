@@ -214,6 +214,9 @@ mod tests {
             .ordered_settings(&CHROME_SETTINGS)
             .expect("retained Chrome settings must be valid");
 
+        assert_eq!(builder.config.settings.qpack_max_table_capacity, 65_536);
+        assert_eq!(builder.config.settings.qpack_blocked_streams, 100);
+
         let settings = configured_settings(&builder);
         let mut bytes = Vec::new();
         UniStreamHeader::Control(settings).encode(&mut bytes);
@@ -256,6 +259,10 @@ mod tests {
         assert_eq!(
             builder.ordered_settings(&[(0x1, out_of_range)]).err(),
             Some(SettingsError::InvalidSettingValue(0x1, out_of_range))
+        );
+        assert_eq!(
+            builder.ordered_settings(&[(0x7, out_of_range)]).err(),
+            Some(SettingsError::InvalidSettingValue(0x7, out_of_range))
         );
 
         for identifier in [0x8, 0x33, 0x2b60_3742, 0xffd277] {

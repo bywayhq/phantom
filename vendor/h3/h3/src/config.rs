@@ -25,6 +25,12 @@ pub struct Config {
 /// HTTP/3 Settings
 #[derive(Debug, Clone, Copy)]
 pub struct Settings {
+    /// Maximum dynamic table capacity this endpoint permits its peer to use.
+    pub(crate) qpack_max_table_capacity: u64,
+
+    /// Maximum number of request or push streams that may be QPACK-blocked.
+    pub(crate) qpack_blocked_streams: u64,
+
     /// The MAX_FIELD_SECTION_SIZE in HTTP/3 refers to the maximum size of the dynamic table used in HPACK compression.
     /// HPACK is the compression algorithm used in HTTP/3 to reduce the size of the header fields in HTTP requests and responses.
 
@@ -50,6 +56,12 @@ impl From<&frame::Settings> for Settings {
     fn from(settings: &frame::Settings) -> Self {
         let defaults: Self = Default::default();
         Self {
+            qpack_max_table_capacity: settings
+                .get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY)
+                .unwrap_or(defaults.qpack_max_table_capacity),
+            qpack_blocked_streams: settings
+                .get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS)
+                .unwrap_or(defaults.qpack_blocked_streams),
             max_field_section_size: settings
                 .get(frame::SettingId::MAX_HEADER_LIST_SIZE)
                 .unwrap_or(defaults.max_field_section_size),
@@ -87,6 +99,8 @@ impl TryFrom<Config> for frame::Settings {
                 send_settings: _,
             settings:
                 Settings {
+                    qpack_max_table_capacity,
+                    qpack_blocked_streams,
                     max_field_section_size,
                     enable_webtransport,
                     enable_extended_connect,
@@ -120,10 +134,23 @@ impl TryFrom<Config> for frame::Settings {
             }
         }
 
+        if qpack_max_table_capacity != 0 {
+            settings.insert(
+                frame::SettingId::QPACK_MAX_TABLE_CAPACITY,
+                qpack_max_table_capacity,
+            )?;
+        }
+
         settings.insert(
             frame::SettingId::MAX_HEADER_LIST_SIZE,
             max_field_section_size,
         )?;
+        if qpack_blocked_streams != 0 {
+            settings.insert(
+                frame::SettingId::QPACK_MAX_BLOCKED_STREAMS,
+                qpack_blocked_streams,
+            )?;
+        }
         settings.insert(
             frame::SettingId::ENABLE_CONNECT_PROTOCOL,
             enable_extended_connect as u64,
@@ -145,6 +172,8 @@ impl TryFrom<Config> for frame::Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            qpack_max_table_capacity: 0,
+            qpack_blocked_streams: 0,
             max_field_section_size: VarInt::MAX.0,
             enable_webtransport: false,
             enable_extended_connect: false,
@@ -184,5 +213,57 @@ impl Default for Config {
             settings: Default::default(),
             ordered_settings: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn qpack_settings_default_to_zero() {
+        let settings = Settings::default();
+
+        assert_eq!(settings.qpack_max_table_capacity, 0);
+        assert_eq!(settings.qpack_blocked_streams, 0);
+    }
+
+    #[test]
+    fn maximum_qpack_settings_round_trip_through_frame_view() {
+        let mut config = Config::default();
+        config.send_grease = false;
+        config.settings.qpack_max_table_capacity = VarInt::MAX.0;
+        config.settings.qpack_blocked_streams = VarInt::MAX.0;
+
+        let frame = frame::Settings::try_from(config).unwrap();
+        assert_eq!(
+            frame.get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY),
+            Some(VarInt::MAX.0)
+        );
+        assert_eq!(
+            frame.get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS),
+            Some(VarInt::MAX.0)
+        );
+
+        let settings = Settings::from(&frame);
+        assert_eq!(settings.qpack_max_table_capacity, VarInt::MAX.0);
+        assert_eq!(settings.qpack_blocked_streams, VarInt::MAX.0);
+    }
+
+    #[test]
+    fn qpack_settings_reject_values_outside_quic_varint_range() {
+        let mut config = Config::default();
+        config.settings.qpack_max_table_capacity = 1 << 62;
+        assert_eq!(
+            frame::Settings::try_from(config),
+            Err(frame::SettingsError::InvalidSettingValue(0x1, 1 << 62))
+        );
+
+        let mut config = Config::default();
+        config.settings.qpack_blocked_streams = 1 << 62;
+        assert_eq!(
+            frame::Settings::try_from(config),
+            Err(frame::SettingsError::InvalidSettingValue(0x7, 1 << 62))
+        );
     }
 }

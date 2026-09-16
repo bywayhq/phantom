@@ -41,7 +41,11 @@ Validation rejects:
 Supplied settings that already have a connection-level semantic field also
 update that existing view. This keeps header limits and extension flags
 consistent with the emitted frame without introducing browser-family policy
-into the engine. It does not add missing QPACK or WebTransport enforcement.
+into the engine. The semantic view now also retains the QPACK table-capacity
+and blocked-stream settings, defaults both to zero when omitted, and preserves
+every value representable by an HTTP/3 QUIC variable-length integer. This
+state is bootstrap for later runtime integration; it does not add QPACK or
+WebTransport enforcement.
 
 ## Integration guard: dynamic QPACK is not wired
 
@@ -62,15 +66,19 @@ following together:
 - adversarial tests for blocked streams, invalid instructions, cancellation,
   and memory/resource ceilings.
 
-The dormant stateful codec is hardened by `patches/qpack-codec.patch`. It
-counts blocked streams by distinct stream ID, releases all tracked sections on
-cancellation, validates decoder feedback and peer capacity updates, enforces
-decoded field-section limits, and preserves fragmented critical-stream
-instructions across input buffers. It remains deliberately disconnected from
-the HTTP/3 connection driver. The explicit encoded-byte ceiling for parked
-blocked HEADERS belongs to the future runtime registry that owns those bytes;
-the codec does not retain blocked field sections and therefore cannot enforce
-that aggregate limit honestly.
+The dormant stateful codec and its semantic SETTINGS bootstrap are hardened by
+`patches/qpack-codec.patch`. The codec counts blocked streams by distinct
+stream ID, releases all tracked sections on cancellation, validates decoder
+feedback and peer capacity updates, enforces decoded field-section limits, and
+preserves fragmented critical-stream instructions across input buffers. The
+SETTINGS layer retains peer and local QPACK values, including values from an
+exact ordered SETTINGS frame. It does not reinterpret protocol-valid wire
+values as allocation policy; resource ceilings belong where the future runtime
+allocates table and blocked-section state. Both remain deliberately
+disconnected from the HTTP/3 connection driver. The explicit encoded-byte
+ceiling for parked blocked HEADERS belongs to the future runtime registry that
+owns those bytes; the codec does not retain blocked field sections and
+therefore cannot enforce that aggregate limit honestly.
 
 A static-table-only integration must advertise both QPACK settings as zero and
 must not claim Chrome wire parity. The exact Chrome regression in this patch is
@@ -144,6 +152,7 @@ those patches.
 
 ```sh
 cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
+cargo test --manifest-path vendor/h3/Cargo.toml -p h3 config::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::
