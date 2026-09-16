@@ -528,4 +528,6 @@ async fn join_server(server: JoinHandle<TestResult<()>>) -> TestResult<()> {
 mod adversarial;
 mod datagram;
 mod profile;
+mod qpack;
+mod quic;
 mod request;

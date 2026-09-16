@@ -50,10 +50,13 @@ fixtures.
 The current deterministic baseline includes H1 `100 Continue`, chained
 `103`/`100`, declared-length surplus isolation, H2 `RST_STREAM`, H2 `GOAWAY`,
 and H3 missing or duplicate SETTINGS, forbidden control-stream frames,
-reserved streams and frames, chained informational responses through final
-DATA and trailers, rejection of HTTP/3 `101`, and peer-observed request-stream
-cancellation. The remaining H3 cases extend that focused loopback peer rather
-than introducing a speculative universal peer framework.
+reserved streams and frames, increasing GOAWAY rejection with `H3_ID_ERROR`,
+blocked inbound QPACK release and decoder acknowledgement, peer encoder-stream
+closure with `H3_CLOSED_CRITICAL_STREAM`, one valid QUIC Retry, chained
+informational responses through final DATA and trailers, rejection of HTTP/3
+`101`, and peer-observed request-stream cancellation. The remaining H3 cases
+extend that focused loopback peer rather than introducing a speculative
+universal peer framework.
 
 ## Later client and streaming corpus
 

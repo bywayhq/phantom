@@ -13,6 +13,7 @@ use super::{
 const CONTROL_STREAM: u8 = 0x00;
 const DATA_FRAME: u8 = 0x00;
 const SETTINGS_FRAME: u8 = 0x04;
+const GOAWAY_FRAME: u8 = 0x07;
 const RESERVED_TYPE: u8 = 0x21;
 
 #[tokio::test(flavor = "current_thread")]
@@ -47,6 +48,25 @@ async fn data_on_control_stream_closes_with_frame_unexpected() -> TestResult<()>
     assert_control_stream_error(
         &[CONTROL_STREAM, SETTINGS_FRAME, 0x00, DATA_FRAME, 0x00],
         h3::error::Code::H3_FRAME_UNEXPECTED,
+    )
+    .await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn increasing_goaway_closes_with_id_error() -> TestResult<()> {
+    assert_control_stream_error(
+        &[
+            CONTROL_STREAM,
+            SETTINGS_FRAME,
+            0x00,
+            GOAWAY_FRAME,
+            0x01,
+            0x04,
+            GOAWAY_FRAME,
+            0x01,
+            0x08,
+        ],
+        h3::error::Code::H3_ID_ERROR,
     )
     .await
 }
