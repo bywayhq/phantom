@@ -3,8 +3,9 @@
 use super::{
     AlpnError, CertificateCompressor, ClientHello, GetSessionPendingError, PrivateKeyMethod,
     PrivateKeyMethodError, SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef,
-    SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession,
-    SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
+    SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslMessage,
+    SslMessageContentType, SslMessageDirection, SslRef, SslSession, SslSessionRef,
+    SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
 };
 use crate::error::ErrorStack;
 use crate::ffi;
@@ -643,6 +644,49 @@ pub(super) unsafe extern "C" fn raw_info_callback<F>(
     };
 
     callback(ssl, SslInfoCallbackMode(mode), value);
+}
+
+pub(super) unsafe extern "C" fn raw_msg_callback<F>(
+    is_write: c_int,
+    version: c_int,
+    content_type: c_int,
+    data: *const c_void,
+    len: usize,
+    ssl: *mut ffi::SSL,
+    _arg: *mut c_void,
+) where
+    F: for<'a> Fn(&SslRef, SslMessage<'a>) + Send + Sync + 'static,
+{
+    // SAFETY: BoringSSL provides a valid SSL pointer for the callback duration.
+    let ssl = unsafe { SslRef::from_ptr(ssl) };
+    let data = if len == 0 {
+        &[]
+    } else {
+        if data.is_null() {
+            return;
+        }
+        // SAFETY: BoringSSL provides `len` initialized bytes for the callback duration.
+        unsafe { slice::from_raw_parts(data.cast::<u8>(), len) }
+    };
+    let callback = ssl
+        .ssl_context()
+        .ex_data(SslContext::cached_ex_index::<F>())
+        .expect("BUG: message callback missing");
+    let direction = if is_write == 0 {
+        SslMessageDirection::Read
+    } else {
+        SslMessageDirection::Write
+    };
+
+    callback(
+        ssl,
+        SslMessage {
+            direction,
+            version,
+            content_type: SslMessageContentType(content_type),
+            data,
+        },
+    );
 }
 
 pub(super) unsafe extern "C" fn raw_ssl_cert_compress<C>(

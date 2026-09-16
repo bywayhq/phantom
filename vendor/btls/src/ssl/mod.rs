@@ -945,6 +945,64 @@ pub enum SslInfoCallbackValue {
     Alert(SslInfoCallbackAlert),
 }
 
+/// The direction of a TLS protocol message observed by a message callback.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub enum SslMessageDirection {
+    /// A message received from the peer.
+    Read,
+    /// A message written to the peer.
+    Write,
+}
+
+/// A TLS protocol message observed by a message callback.
+#[derive(Debug, Clone, Copy)]
+pub struct SslMessage<'a> {
+    /// Whether the message was read or written.
+    pub direction: SslMessageDirection,
+    /// The protocol version reported by BoringSSL.
+    pub version: c_int,
+    /// The TLS record content type, or a BoringSSL pseudo content type.
+    pub content_type: SslMessageContentType,
+    /// The complete protocol message bytes reported by BoringSSL.
+    pub data: &'a [u8],
+}
+
+/// A TLS record content type, including the pseudo-types reported by BoringSSL.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub struct SslMessageContentType(c_int);
+
+impl SslMessageContentType {
+    /// A complete TLS handshake message.
+    pub const HANDSHAKE: Self = Self(ffi::SSL3_RT_HANDSHAKE);
+
+    /// A TLS record header.
+    pub const HEADER: Self = Self(ffi::SSL3_RT_HEADER);
+
+    /// Returns the raw BoringSSL content-type value.
+    #[must_use]
+    pub fn as_raw(self) -> c_int {
+        self.0
+    }
+}
+
+/// Whether a TLS 1.3 KeyUpdate asks the peer to update its sending keys too.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub enum SslKeyUpdateRequest {
+    /// Update only this connection's sending keys.
+    NotRequested,
+    /// Ask the peer to update its sending keys after processing this update.
+    Requested,
+}
+
+impl From<SslKeyUpdateRequest> for c_int {
+    fn from(request: SslKeyUpdateRequest) -> Self {
+        match request {
+            SslKeyUpdateRequest::NotRequested => ffi::SSL_KEY_UPDATE_NOT_REQUESTED,
+            SslKeyUpdateRequest::Requested => ffi::SSL_KEY_UPDATE_REQUESTED,
+        }
+    }
+}
+
 /// Ticket key callback status.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TicketKeyCallbackResult {
@@ -2284,6 +2342,23 @@ impl SslContextBuilder {
         }
     }
 
+    /// Sets the callback invoked for TLS protocol messages sent and received by connections.
+    ///
+    /// The callback receives low-level record headers and complete protocol messages, including
+    /// handshake, ChangeCipherSpec, alert, DTLS ACK, and ECH inner messages. It does not expose
+    /// encrypted application record bodies. Message bytes are borrowed for the callback duration
+    /// and must be copied to retain them. The callback must not panic.
+    #[corresponds(SSL_CTX_set_msg_callback)]
+    pub fn set_msg_callback<F>(&mut self, callback: F)
+    where
+        F: for<'a> Fn(&SslRef, SslMessage<'a>) + Send + Sync + 'static,
+    {
+        unsafe {
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            ffi::SSL_CTX_set_msg_callback(self.as_ptr(), Some(callbacks::raw_msg_callback::<F>));
+        }
+    }
+
     /// Registers a list of ECH keys on the context. This list should contain new and old
     /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
     /// is safe to call even after the `SSL_CTX` has been associated with connections on various
@@ -3223,6 +3298,15 @@ impl SslRef {
     /// Returns whether the TLS 1.3 HelloRetryRequest was used
     pub fn used_hello_retry_request(&self) -> bool {
         unsafe { ffi::SSL_used_hello_retry_request(self.as_ptr()) == 1 }
+    }
+
+    /// Schedules a TLS 1.3 KeyUpdate on this connection.
+    ///
+    /// The update is sent with the next write. This operation fails before TLS 1.3 negotiation is
+    /// complete. If an update is already pending, it succeeds without queueing another.
+    #[corresponds(SSL_key_update)]
+    pub fn key_update(&mut self, request: SslKeyUpdateRequest) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_key_update(self.as_ptr(), request.into())).map(|_| ()) }
     }
 
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.

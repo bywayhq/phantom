@@ -33,6 +33,8 @@ use crate::tls::test_support::{
 };
 use crate::tracing_test::OutcomeSubscriber;
 
+mod key_update;
+
 const TEST_AUTHORITY: &str = "server.phantom.test:8443";
 
 async fn bounded_tls_test<F>(future: F) -> TestResult<()>

@@ -62,20 +62,18 @@ copy_vendor_fixture() {
 }
 
 make_btls_candidate() {
-  local destination=$1 drift=${2:-none}
+  local destination=$1 drift=${2:-none} patch_name index
+  local patches=()
   mkdir -p "$destination"
   copy_vendor_fixture vendor/btls "$destination/btls"
   cp vendor/btls/README.md "$destination/README.md"
-  git -C "$destination/btls" apply --reverse \
-    "$repo_root/vendor/btls/patches/concurrent-aead.patch"
-  git -C "$destination/btls" apply --reverse \
-    "$repo_root/vendor/btls/patches/delegated-credentials.patch"
-  git -C "$destination/btls" apply --reverse \
-    "$repo_root/vendor/btls/patches/record-size-limit.patch"
-  git -C "$destination/btls" apply --reverse \
-    "$repo_root/vendor/btls/patches/ech-grease-payload-length.patch"
-  git -C "$destination/btls" apply --reverse \
-    "$repo_root/vendor/btls/patches/alps-settings.patch"
+  while IFS= read -r patch_name; do
+    patches+=("$patch_name")
+  done < "$repo_root/vendor/btls/patches/series"
+  for ((index=${#patches[@]} - 1; index >= 0; index--)); do
+    git -C "$destination/btls" apply --reverse \
+      "$repo_root/vendor/btls/patches/${patches[index]}"
+  done
   rm -rf "$destination/btls/patches"
   rm "$destination/btls/PHANTOM.md" "$destination/btls/README.md"
   ln -s ../README.md "$destination/btls/README.md"

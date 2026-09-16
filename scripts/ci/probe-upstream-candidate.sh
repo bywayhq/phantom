@@ -126,13 +126,13 @@ case "$dependency" in
     ;;
   btls)
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid btls revision '$candidate'"
-    [[ -d vendor/btls \
-      && -f vendor/btls/patches/alps-settings.patch \
-      && -f vendor/btls/patches/ech-grease-payload-length.patch \
-      && -f vendor/btls/patches/record-size-limit.patch \
-      && -f vendor/btls/patches/delegated-credentials.patch \
-      && -f vendor/btls/patches/concurrent-aead.patch ]] \
-      || die "vendored btls and all canonical wrapper patches are required"
+    [[ -d vendor/btls && -f vendor/btls/patches/series ]] \
+      || die "vendored btls and its canonical wrapper patch series are required"
+    listed_patches=$(LC_ALL=C sort vendor/btls/patches/series)
+    stored_patches=$(find vendor/btls/patches -maxdepth 1 -type f \
+      -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+    [[ "$listed_patches" == "$stored_patches" ]] \
+      || die "btls patch series does not list every canonical patch exactly once"
     btls_sources=$(sed -nE \
       's/^(btls|tokio-btls) = .*git = "([^"]+)".*rev = "([0-9a-f]{40})".*/\2\t\3/p' \
       Cargo.toml)
@@ -160,12 +160,10 @@ case "$dependency" in
     # source and manifest came from the exact candidate staged above.
     cp vendor/btls/PHANTOM.md "$candidate_dir/PHANTOM.md"
     mkdir -p "$candidate_dir/patches"
-    cp vendor/btls/patches/alps-settings.patch \
-      vendor/btls/patches/ech-grease-payload-length.patch \
-      vendor/btls/patches/record-size-limit.patch \
-      vendor/btls/patches/delegated-credentials.patch \
-      vendor/btls/patches/concurrent-aead.patch \
-      "$candidate_dir/patches/"
+    while IFS= read -r patch_name; do
+      cp "vendor/btls/patches/$patch_name" "$candidate_dir/patches/"
+    done < vendor/btls/patches/series
+    cp vendor/btls/patches/series "$candidate_dir/patches/series"
 
     replace_exact_line Cargo.toml \
       "btls = { git = \"$btls_current_repository\", rev = \"$btls_current\", default-features = false }" \
@@ -200,6 +198,7 @@ case "$dependency" in
       cargo clippy --manifest-path vendor/btls/Cargo.toml \
         --all-targets -- -D warnings
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
+      cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::key_update
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech
       cargo test --manifest-path vendor/btls/Cargo.toml record_size_limit
       cargo test --manifest-path vendor/btls/Cargo.toml delegated_credentials
@@ -210,6 +209,8 @@ case "$dependency" in
         --all-targets --features prefix-symbols -- -D warnings
       cargo test --manifest-path vendor/btls/Cargo.toml \
         --features prefix-symbols ssl::test::alps
+      cargo test --manifest-path vendor/btls/Cargo.toml \
+        --features prefix-symbols ssl::test::key_update
       cargo test --manifest-path vendor/btls/Cargo.toml \
         --features prefix-symbols ssl::test::ech
       cargo test --manifest-path vendor/btls/Cargo.toml \

@@ -140,16 +140,19 @@ materialize_wrapper_manifest \
   "$staging/Cargo.toml" "$destination/Cargo.toml"
 
 patch_dir=$(cd "$(dirname "$0")/../.." && pwd)/vendor/btls/patches
-for patch_name in \
-  alps-settings.patch \
-  ech-grease-payload-length.patch \
-  record-size-limit.patch \
-  delegated-credentials.patch \
-  concurrent-aead.patch; do
+series_file="$patch_dir/series"
+[[ -f "$series_file" ]] || die "canonical wrapper patch series is missing"
+listed_patches=$(LC_ALL=C sort "$series_file")
+stored_patches=$(find "$patch_dir" -maxdepth 1 -type f -name '*.patch' \
+  -exec basename {} \; | LC_ALL=C sort)
+[[ "$listed_patches" == "$stored_patches" ]] \
+  || die "wrapper patch series does not list every canonical patch exactly once"
+while IFS= read -r patch_name; do
+  [[ -n "$patch_name" ]] || die "wrapper patch series contains an empty entry"
   patch_file="$patch_dir/$patch_name"
   [[ -f "$patch_file" ]] || die "canonical wrapper patch is missing: $patch_name"
   if ! git -C "$destination" apply --check "$patch_file"; then
     die "wrapper patch $patch_name does not apply to btls $candidate; review upstream drift"
   fi
   git -C "$destination" apply "$patch_file"
-done
+done < "$series_file"

@@ -83,8 +83,11 @@ retained with exact `PROTOCOL_ERROR`, `FRAME_SIZE_ERROR`, and
 `COMPRESSION_ERROR` reactions. A TLS 1.3 P-384 peer authenticates
 HelloRetryRequest and retains both ClientHellos to check the permitted session,
 cipher, extension-order, and key-share delta. Requested `KeyUpdate` and the
-remaining H2 HPACK state transitions stay explicit regression work until their
-reactions are exercised through the public transport seam.
+client's exact non-requested response are authenticated through BoringSSL's
+message callback while an open response body crosses the key change and stream
+3 proves same-connection reuse. The remaining H2 HPACK state transitions stay
+explicit regression work until their reactions are exercised through the
+public transport seam.
 
 ## Later client and streaming corpus
 

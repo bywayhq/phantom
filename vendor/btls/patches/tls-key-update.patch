@@ -1,0 +1,260 @@
+diff --git a/src/ssl/callbacks.rs b/src/ssl/callbacks.rs
+index 798ce44..5729138 100644
+--- a/src/ssl/callbacks.rs
++++ b/src/ssl/callbacks.rs
+@@ -3,8 +3,9 @@
+ use super::{
+     AlpnError, CertificateCompressor, ClientHello, GetSessionPendingError, PrivateKeyMethod,
+     PrivateKeyMethodError, SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef,
+-    SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession,
+-    SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
++    SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslMessage,
++    SslMessageContentType, SslMessageDirection, SslRef, SslSession, SslSessionRef,
++    SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
+ };
+ use crate::error::ErrorStack;
+ use crate::ffi;
+@@ -645,6 +646,49 @@ pub(super) unsafe extern "C" fn raw_info_callback<F>(
+     callback(ssl, SslInfoCallbackMode(mode), value);
+ }
+ 
++pub(super) unsafe extern "C" fn raw_msg_callback<F>(
++    is_write: c_int,
++    version: c_int,
++    content_type: c_int,
++    data: *const c_void,
++    len: usize,
++    ssl: *mut ffi::SSL,
++    _arg: *mut c_void,
++) where
++    F: for<'a> Fn(&SslRef, SslMessage<'a>) + Send + Sync + 'static,
++{
++    // SAFETY: BoringSSL provides a valid SSL pointer for the callback duration.
++    let ssl = unsafe { SslRef::from_ptr(ssl) };
++    let data = if len == 0 {
++        &[]
++    } else {
++        if data.is_null() {
++            return;
++        }
++        // SAFETY: BoringSSL provides `len` initialized bytes for the callback duration.
++        unsafe { slice::from_raw_parts(data.cast::<u8>(), len) }
++    };
++    let callback = ssl
++        .ssl_context()
++        .ex_data(SslContext::cached_ex_index::<F>())
++        .expect("BUG: message callback missing");
++    let direction = if is_write == 0 {
++        SslMessageDirection::Read
++    } else {
++        SslMessageDirection::Write
++    };
++
++    callback(
++        ssl,
++        SslMessage {
++            direction,
++            version,
++            content_type: SslMessageContentType(content_type),
++            data,
++        },
++    );
++}
++
+ pub(super) unsafe extern "C" fn raw_ssl_cert_compress<C>(
+     ssl: *mut ffi::SSL,
+     out: *mut ffi::CBB,
+diff --git a/src/ssl/mod.rs b/src/ssl/mod.rs
+index 4bada91..c63c5b9 100644
+--- a/src/ssl/mod.rs
++++ b/src/ssl/mod.rs
+@@ -945,6 +945,64 @@ pub enum SslInfoCallbackValue {
+     Alert(SslInfoCallbackAlert),
+ }
+ 
++/// The direction of a TLS protocol message observed by a message callback.
++#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
++pub enum SslMessageDirection {
++    /// A message received from the peer.
++    Read,
++    /// A message written to the peer.
++    Write,
++}
++
++/// A TLS protocol message observed by a message callback.
++#[derive(Debug, Clone, Copy)]
++pub struct SslMessage<'a> {
++    /// Whether the message was read or written.
++    pub direction: SslMessageDirection,
++    /// The protocol version reported by BoringSSL.
++    pub version: c_int,
++    /// The TLS record content type, or a BoringSSL pseudo content type.
++    pub content_type: SslMessageContentType,
++    /// The complete protocol message bytes reported by BoringSSL.
++    pub data: &'a [u8],
++}
++
++/// A TLS record content type, including the pseudo-types reported by BoringSSL.
++#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
++pub struct SslMessageContentType(c_int);
++
++impl SslMessageContentType {
++    /// A complete TLS handshake message.
++    pub const HANDSHAKE: Self = Self(ffi::SSL3_RT_HANDSHAKE);
++
++    /// A TLS record header.
++    pub const HEADER: Self = Self(ffi::SSL3_RT_HEADER);
++
++    /// Returns the raw BoringSSL content-type value.
++    #[must_use]
++    pub fn as_raw(self) -> c_int {
++        self.0
++    }
++}
++
++/// Whether a TLS 1.3 KeyUpdate asks the peer to update its sending keys too.
++#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
++pub enum SslKeyUpdateRequest {
++    /// Update only this connection's sending keys.
++    NotRequested,
++    /// Ask the peer to update its sending keys after processing this update.
++    Requested,
++}
++
++impl From<SslKeyUpdateRequest> for c_int {
++    fn from(request: SslKeyUpdateRequest) -> Self {
++        match request {
++            SslKeyUpdateRequest::NotRequested => ffi::SSL_KEY_UPDATE_NOT_REQUESTED,
++            SslKeyUpdateRequest::Requested => ffi::SSL_KEY_UPDATE_REQUESTED,
++        }
++    }
++}
++
+ /// Ticket key callback status.
+ #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+ pub enum TicketKeyCallbackResult {
+@@ -2284,6 +2342,23 @@ impl SslContextBuilder {
+         }
+     }
+ 
++    /// Sets the callback invoked for TLS protocol messages sent and received by connections.
++    ///
++    /// The callback receives low-level record headers and complete protocol messages, including
++    /// handshake, ChangeCipherSpec, alert, DTLS ACK, and ECH inner messages. It does not expose
++    /// encrypted application record bodies. Message bytes are borrowed for the callback duration
++    /// and must be copied to retain them. The callback must not panic.
++    #[corresponds(SSL_CTX_set_msg_callback)]
++    pub fn set_msg_callback<F>(&mut self, callback: F)
++    where
++        F: for<'a> Fn(&SslRef, SslMessage<'a>) + Send + Sync + 'static,
++    {
++        unsafe {
++            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
++            ffi::SSL_CTX_set_msg_callback(self.as_ptr(), Some(callbacks::raw_msg_callback::<F>));
++        }
++    }
++
+     /// Registers a list of ECH keys on the context. This list should contain new and old
+     /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
+     /// is safe to call even after the `SSL_CTX` has been associated with connections on various
+@@ -3225,6 +3300,15 @@ impl SslRef {
+         unsafe { ffi::SSL_used_hello_retry_request(self.as_ptr()) == 1 }
+     }
+ 
++    /// Schedules a TLS 1.3 KeyUpdate on this connection.
++    ///
++    /// The update is sent with the next write. This operation fails before TLS 1.3 negotiation is
++    /// complete. If an update is already pending, it succeeds without queueing another.
++    #[corresponds(SSL_key_update)]
++    pub fn key_update(&mut self, request: SslKeyUpdateRequest) -> Result<(), ErrorStack> {
++        unsafe { cvt(ffi::SSL_key_update(self.as_ptr(), request.into())).map(|_| ()) }
++    }
++
+     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
+     #[corresponds(SSL_get_error)]
+     #[must_use]
+diff --git a/src/ssl/test/key_update.rs b/src/ssl/test/key_update.rs
+new file mode 100644
+index 0000000..bf8d3df
+--- /dev/null
++++ b/src/ssl/test/key_update.rs
+@@ -0,0 +1,67 @@
++use std::{
++    io::{Read, Write},
++    sync::{Arc, Mutex},
++};
++
++use crate::ssl::{SslKeyUpdateRequest, SslMessageContentType, SslMessageDirection, SslVersion};
++
++use super::server::Server;
++
++const REQUESTED_KEY_UPDATE: &[u8] = &[24, 0, 0, 1, 1];
++const NOT_REQUESTED_KEY_UPDATE: &[u8] = &[24, 0, 0, 1, 0];
++
++#[test]
++fn requested_key_update_is_observable_and_answered() {
++    let messages = Arc::new(Mutex::new(Vec::new()));
++    let mut server = Server::builder();
++    server
++        .ctx()
++        .set_min_proto_version(Some(SslVersion::TLS1_3))
++        .unwrap();
++    server
++        .ctx()
++        .set_max_proto_version(Some(SslVersion::TLS1_3))
++        .unwrap();
++    let observed = Arc::clone(&messages);
++    server.ctx().set_msg_callback(move |_, message| {
++        if message.content_type == SslMessageContentType::HANDSHAKE {
++            observed
++                .lock()
++                .unwrap_or_else(|poisoned| poisoned.into_inner())
++                .push((message.direction, message.data.to_vec()));
++        }
++    });
++    server.io_cb(|mut stream| {
++        stream
++            .ssl_mut()
++            .key_update(SslKeyUpdateRequest::Requested)
++            .unwrap();
++        stream.write_all(&[1]).unwrap();
++        stream.read_exact(&mut [0]).unwrap();
++    });
++    let server = server.build();
++
++    let mut client = server.client().connect();
++    client.read_exact(&mut [0]).unwrap();
++    client.write_all(&[2]).unwrap();
++    drop(client);
++    drop(server);
++
++    let messages = messages
++        .lock()
++        .unwrap_or_else(|poisoned| poisoned.into_inner());
++    let requested = messages
++        .iter()
++        .filter(|(direction, message)| {
++            *direction == SslMessageDirection::Write && message == REQUESTED_KEY_UPDATE
++        })
++        .count();
++    let answered = messages
++        .iter()
++        .filter(|(direction, message)| {
++            *direction == SslMessageDirection::Read && message == NOT_REQUESTED_KEY_UPDATE
++        })
++        .count();
++    assert_eq!(requested, 1);
++    assert_eq!(answered, 1);
++}
+diff --git a/src/ssl/test/mod.rs b/src/ssl/test/mod.rs
+index 391bb6c..40f942f 100644
+--- a/src/ssl/test/mod.rs
++++ b/src/ssl/test/mod.rs
+@@ -30,6 +30,7 @@ mod cert_verify;
+ mod custom_verify;
+ mod ech;
+ mod grease_sigalgs;
++mod key_update;
+ mod patch_ciphers;
+ mod patches;
+ mod private_key_method;

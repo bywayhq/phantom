@@ -151,6 +151,8 @@ case "${1:-}" in
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked ssl::test::alps
     cargo test --manifest-path vendor/btls/Cargo.toml \
+      "${btls_features[@]}" --locked ssl::test::key_update
+    cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked ssl::test::ech
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked record_size_limit

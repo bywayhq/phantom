@@ -28,6 +28,11 @@ it also accepts stateful TLS-specific algorithms. The pinned BoringSSL contract
 allows concurrent seal/open calls for generic AEAD contexts, so QUIC needs a
 separate safe wrapper that cannot be constructed with a TLS AEAD.
 
+The pinned BoringSSL API supports TLS 1.3 KeyUpdate and authenticated protocol
+message observation, but the upstream wrapper exposes neither. Phantom uses a
+small safe wrapper for deterministic post-handshake interoperability tests;
+runtime client configuration remains unchanged.
+
 The upstream ECH GREASE API enables the extension but leaves its payload length
 to BoringSSL's randomized policy. Firefox 154 on macOS 15.5 was captured with a
 239-byte GREASE payload, producing an `encrypted_client_hello` extension body of
@@ -82,11 +87,14 @@ The patches are additive:
   AES-128-GCM, AES-256-GCM, and ChaCha20-Poly1305. Its tests prove the type is
   `Send + Sync` and exercise concurrent seal/open calls with distinct nonces
   and buffers.
+- `SslRef::key_update` queues a typed TLS 1.3 KeyUpdate request, while
+  `SslContextBuilder::set_msg_callback` exposes borrowed, typed message
+  observations without leaking raw FFI into Phantom.
+- `src/ssl/test/key_update.rs` proves a requested update is emitted, answered
+  with a non-requested update, and followed by application traffic.
 
-The canonical machine-applicable wrapper changes are
-`patches/alps-settings.patch`, `patches/ech-grease-payload-length.patch`, and
-`patches/record-size-limit.patch`, `patches/delegated-credentials.patch`, and
-`patches/concurrent-aead.patch`.
+The canonical machine-applicable wrapper changes are listed in
+`patches/series`; the order is part of the reviewed source transformation.
 They contain only wrapper APIs, documentation, and upstream-style tests;
 packaging changes remain separate. The dependency commit stores the native
 BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series: patch 0005
@@ -125,9 +133,10 @@ machine.
    On Linux, use `sha256sum` when `shasum` is unavailable.
 
 2. Compare `candidate` with `vendor/btls`. Expected differences are
-   the five files under `patches/`, the standalone manifest values, the
+   the files under `patches/`, the standalone manifest values, the
    materialized `README.md`, and this file. The checked-in wrapper sources and
-   tests should exactly equal the candidate plus all five canonical patches.
+   tests should exactly equal the candidate plus every patch listed in the
+   canonical series.
 
    The scheduled candidate probe performs this staging from an exact detached
    git revision. It copies only the upstream `btls` wrapper, materializes the
@@ -161,6 +170,7 @@ dependency update.
 cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
 cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols --locked -- -D warnings
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::alps
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
@@ -180,6 +190,7 @@ On macOS and Windows, use the corresponding omission variant:
 ```sh
 cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::alps
+cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials
