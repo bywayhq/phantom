@@ -89,10 +89,21 @@ HelloRetryRequest and retains both ClientHellos to check the permitted session,
 cipher, extension-order, and key-share delta. Requested `KeyUpdate` and the
 client's exact non-requested response are authenticated through BoringSSL's
 message callback while an open response body crosses the key change and stream
-3 proves same-connection reuse. Reaper's zero-only and ordered `0 → 4096`
+3 proves same-connection reuse. Reaper's TLS 1.3 record-shaping recipe is
+retained with its 1024-byte rustls fragment bound: the fixture checks the
+derived 1036-byte ciphertext-payload ceiling, reconstructs the exact 8 KiB
+response, and proves stream 3 reuse. Reaper's zero-only and ordered `0 → 4096`
 header-table recipes are also retained as bounded raw peers. They require the
 SETTINGS and exact PING acknowledgements, reassemble HEADERS/CONTINUATION, prove
 streams 1 and 3 share a connection, and assert the required HPACK prefixes.
+
+Two current Reaper recipes remain explicit capability gates rather than
+synthetic transport tests. Its request flow-control matrix needs a streaming
+70,000-byte POST, while Phantom's current H2 request path is empty-body GET.
+Its TLS resumption recipe needs session-ticket retention and second-connection
+reuse, which Phantom intentionally does not expose yet. Those cases must land
+with the corresponding production capability so the fixture exercises
+Phantom's real path rather than only the underlying protocol engine.
 
 ## Later client and streaming corpus
 

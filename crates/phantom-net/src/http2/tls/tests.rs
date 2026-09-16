@@ -34,6 +34,7 @@ use crate::tls::test_support::{
 use crate::tracing_test::OutcomeSubscriber;
 
 mod key_update;
+mod record_shape;
 
 const TEST_AUTHORITY: &str = "server.phantom.test:8443";
 
