@@ -1,0 +1,2141 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index 3b78711..e461d5a 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -135,6 +135,16 @@ impl Builder {
+         self
+     }
+ 
++    /// Enables stateful QPACK encoding for request fields.
++    ///
++    /// When enabled, requests wait for the peer's SETTINGS frame and the
++    /// encoder stream before publishing a dependent HEADERS frame. The default
++    /// remains stateless request encoding.
++    pub fn enable_dynamic_qpack(&mut self, enabled: bool) -> &mut Self {
++        self.config.dynamic_qpack = enabled;
++        self
++    }
++
+     /// Create a new HTTP/3 client from a `quic` connection
+     pub async fn build<C, O, B>(
+         &mut self,
+@@ -151,8 +161,9 @@ impl Builder {
+ 
+         let conn_state = Arc::new(shared);
+ 
+-        let inner = ConnectionInner::new(quic, conn_state.clone(), self.config).await?;
++        let mut inner = ConnectionInner::new(quic, conn_state.clone(), self.config).await?;
+         let qpack_decoder = inner.qpack_decoder();
++        let outbound_qpack = inner.take_outbound_qpack_sender();
+         let send_request = SendRequest {
+             open,
+             conn_state,
+@@ -160,6 +171,7 @@ impl Builder {
+             max_field_section_size: self.config.settings.max_field_section_size,
+             sender_count: Arc::new(AtomicUsize::new(1)),
+             send_grease_frame: self.config.send_grease,
++            outbound_qpack,
+             _buf: PhantomData,
+         };
+ 
+@@ -194,6 +206,14 @@ mod tests {
+         Settings::try_from(builder.config).expect("builder settings must be valid")
+     }
+ 
++    #[test]
++    fn dynamic_qpack_is_explicitly_enabled() {
++        let mut builder = Builder::new();
++        assert!(!builder.config.dynamic_qpack);
++        builder.enable_dynamic_qpack(true);
++        assert!(builder.config.dynamic_qpack);
++    }
++
+     fn settings_frame_bytes(builder: &Builder) -> Vec<u8> {
+         let settings = configured_settings(builder);
+         let mut bytes = Vec::new();
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 90543fa..8659188 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -31,7 +31,7 @@ use crate::{
+     stream::{self, BufRecvStream},
+ };
+ 
+-use super::stream::RequestStream;
++use super::{outbound_qpack, stream::RequestStream};
+ 
+ /// HTTP/3 request sender
+ ///
+@@ -123,6 +123,7 @@ where
+     pub(super) sender_count: Arc<AtomicUsize>,
+     pub(super) _buf: PhantomData<fn(B)>,
+     pub(super) send_grease_frame: bool,
++    pub(super) outbound_qpack: Option<outbound_qpack::Sender>,
+ }
+ 
+ impl<T, B> ConnectionState for SendRequest<T, B>
+@@ -179,14 +180,6 @@ where
+             }
+         })?;
+ 
+-        //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+-        //= type=implication
+-        //# A
+-        //# client MUST send only a single request on a given stream.
+-        let mut stream = future::poll_fn(|cx| self.open.poll_open_bidi(cx))
+-            .await
+-            .map_err(|e| self.handle_quic_stream_error(e))?;
+-
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2
+         //= type=TODO
+         //# Characters in field names MUST be
+@@ -198,33 +191,99 @@ where
+         //# ([COOKIES]) MAY be split into separate field lines, each with one or
+         //# more cookie-pairs, before compression.
+ 
+-        let mut block = BytesMut::new();
+-        let mem_size = qpack::encode_stateless(&mut block, headers).map_err(|_e| {
+-            self.handle_connection_error_on_stream(InternalConnectionError {
+-                code: Code::H3_INTERNAL_ERROR,
+-                message: "Failed to encode headers".to_string(),
+-            })
+-        })?;
+-
+-        //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+-        //# An implementation that
+-        //# has received this parameter SHOULD NOT send an HTTP message header
+-        //# that exceeds the indicated size, as the peer will likely refuse to
+-        //# process it.
+-        //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
+-        //# An HTTP implementation MUST NOT send frames or requests that would be
+-        //# invalid based on its current understanding of the peer's settings.
+-        let peer_max_field_section_size = self.settings().max_field_section_size;
+-        if mem_size > peer_max_field_section_size {
+-            return Err(StreamError::HeaderTooBig {
+-                actual_size: mem_size,
+-                max_size: peer_max_field_section_size,
++        let stream = if let Some(mut outbound) = self.outbound_qpack.clone() {
++            let fields = headers.into_iter().collect::<Vec<_>>();
++            let mem_size = fields.iter().try_fold(0_u64, |size, field| {
++                u64::try_from(field.mem_size())
++                    .ok()
++                    .and_then(|field_size| size.checked_add(field_size))
+             });
+-        }
++            let Some(mem_size) = mem_size else {
++                return Err(StreamError::InvalidRequest(
++                    "request field-section size is not representable".to_string(),
++                ));
++            };
++
++            outbound
++                .wait_ready()
++                .await
++                .map_err(|_| self.outbound_qpack_closed())?;
++            if let Some(error) = self.check_peer_connection_closing() {
++                return Err(error);
++            }
++            let peer_max_field_section_size = self.settings().max_field_section_size;
++            if mem_size > peer_max_field_section_size {
++                return Err(StreamError::HeaderTooBig {
++                    actual_size: mem_size,
++                    max_size: peer_max_field_section_size,
++                });
++            }
+ 
+-        stream::write(&mut stream, Frame::Headers(block.freeze()))
+-            .await
+-            .map_err(|e| self.handle_quic_stream_error(e))?;
++            let permit = outbound
++                .reserve()
++                .await
++                .map_err(|_| self.outbound_qpack_closed())?;
++            if let Some(error) = self.check_peer_connection_closing() {
++                return Err(error);
++            }
++
++            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
++            //= type=implication
++            //# A client MUST send only a single request on a given stream.
++            let mut stream = future::poll_fn(|cx| self.open.poll_open_bidi(cx))
++                .await
++                .map_err(|error| self.handle_quic_stream_error(error))?;
++            let stream_id = quic::SendStream::send_id(&stream).into_inner();
++            let (command, encoded) = outbound_qpack::EncodeCommand::new(stream_id, fields);
++            let _ = permit.send(command);
++            let encoded = encoded
++                .await
++                .map_err(|_| self.outbound_qpack_closed())?
++                .map_err(|error| self.map_outbound_qpack_error(error))?;
++            let outbound_qpack::Encoded { block, publication } = encoded;
++            quic::SendStream::send_data(&mut stream, Frame::Headers(block))
++                .map_err(|error| self.handle_quic_stream_error(error))?;
++            publication.published();
++            future::poll_fn(|cx| quic::SendStream::poll_ready(&mut stream, cx))
++                .await
++                .map_err(|error| self.handle_quic_stream_error(error))?;
++            stream
++        } else {
++            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
++            //= type=implication
++            //# A client MUST send only a single request on a given stream.
++            let mut stream = future::poll_fn(|cx| self.open.poll_open_bidi(cx))
++                .await
++                .map_err(|error| self.handle_quic_stream_error(error))?;
++            let mut block = BytesMut::new();
++            let mem_size = qpack::encode_stateless(&mut block, headers).map_err(|_error| {
++                self.handle_connection_error_on_stream(InternalConnectionError {
++                    code: Code::H3_INTERNAL_ERROR,
++                    message: "Failed to encode headers".to_string(),
++                })
++            })?;
++
++            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
++            //# An implementation that
++            //# has received this parameter SHOULD NOT send an HTTP message header
++            //# that exceeds the indicated size, as the peer will likely refuse to
++            //# process it.
++            //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
++            //# An HTTP implementation MUST NOT send frames or requests that would be
++            //# invalid based on its current understanding of the peer's settings.
++            let peer_max_field_section_size = self.settings().max_field_section_size;
++            if mem_size > peer_max_field_section_size {
++                return Err(StreamError::HeaderTooBig {
++                    actual_size: mem_size,
++                    max_size: peer_max_field_section_size,
++                });
++            }
++
++            stream::write(&mut stream, Frame::Headers(block.freeze()))
++                .await
++                .map_err(|error| self.handle_quic_stream_error(error))?;
++            stream
++        };
+ 
+         let frame_stream = FrameStream::new_request(
+             BufRecvStream::new(stream),
+@@ -251,6 +310,30 @@ where
+         self.send_grease_frame = false;
+         Ok(request_stream)
+     }
++
++    fn outbound_qpack_closed(&mut self) -> StreamError {
++        self.existing_connection_error().unwrap_or_else(|| {
++            self.handle_connection_error_on_stream(InternalConnectionError::new(
++                Code::H3_INTERNAL_ERROR,
++                "outbound QPACK driver stopped".to_string(),
++            ))
++        })
++    }
++
++    fn map_outbound_qpack_error(&mut self, error: outbound_qpack::EncodeError) -> StreamError {
++        let message = error.to_string();
++        match error {
++            outbound_qpack::EncodeError::InstructionsTooLarge { .. } => {
++                StreamError::InvalidRequest(message)
++            }
++            outbound_qpack::EncodeError::Codec(_) => {
++                self.handle_connection_error_on_stream(InternalConnectionError::new(
++                    Code::H3_INTERNAL_ERROR,
++                    format!("failed to encode request fields with QPACK: {message}"),
++                ))
++            }
++        }
++    }
+ }
+ 
+ impl<T, B> Clone for SendRequest<T, B>
+@@ -270,6 +353,7 @@ where
+             sender_count: self.sender_count.clone(),
+             _buf: PhantomData,
+             send_grease_frame: self.send_grease_frame,
++            outbound_qpack: self.outbound_qpack.clone(),
+         }
+     }
+ }
+diff --git a/h3/src/client/mod.rs b/h3/src/client/mod.rs
+index 9fba546..3e98718 100644
+--- a/h3/src/client/mod.rs
++++ b/h3/src/client/mod.rs
+@@ -1,6 +1,7 @@
+ //! HTTP/3 client
+ 
+ mod connection;
++pub(crate) mod outbound_qpack;
+ mod stream;
+ 
+ mod builder;
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index 0ac48ad..07da7f0 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -26,6 +26,9 @@ pub struct Config {
+     /// and accommodate future changes without breaking existing implementations.
+     pub(crate) send_grease: bool,
+ 
++    /// Use the peer's QPACK settings for stateful request-field encoding.
++    pub(crate) dynamic_qpack: bool,
++
+     #[cfg(test)]
+     pub(crate) send_settings: bool,
+ 
+@@ -109,6 +112,7 @@ impl TryFrom<Config> for frame::Settings {
+ 
+         let Config {
+             send_grease,
++            dynamic_qpack: _,
+             #[cfg(test)]
+                 send_settings: _,
+             settings:
+@@ -223,6 +227,7 @@ impl Default for Config {
+     fn default() -> Self {
+         Self {
+             send_grease: true,
++            dynamic_qpack: false,
+             #[cfg(test)]
+             send_settings: true,
+             settings: Default::default(),
+@@ -243,6 +248,11 @@ mod tests {
+         assert_eq!(settings.qpack_blocked_streams, 0);
+     }
+ 
++    #[test]
++    fn dynamic_qpack_is_disabled_by_default() {
++        assert!(!Config::default().dynamic_qpack);
++    }
++
+     #[test]
+     fn maximum_qpack_settings_round_trip_through_frame_view() {
+         let mut config = Config {
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index 3352ad2..6491379 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -16,6 +16,7 @@ const MAX_QPACK_STREAM_BYTES_PER_POLL: usize = 64 * 1024;
+ use tracing::{instrument, warn};
+ 
+ use crate::{
++    client::outbound_qpack,
+     config::Config,
+     error::{
+         connection_error_creators::{
+@@ -74,6 +75,8 @@ where
+     decoder: Arc<qpack::DecoderState>,
+     encoder: qpack::Encoder,
+     decoder_sending: BytesMut,
++    outbound: Option<outbound_qpack::Driver>,
++    outbound_sender: Option<outbound_qpack::Sender>,
+ }
+ 
+ fn poll_send_qpack_feedback<S, B>(
+@@ -357,6 +360,12 @@ where
+             ))
+         })?;
+ 
++        let (outbound, outbound_sender) = if config.dynamic_qpack {
++            let (driver, sender) = outbound_qpack::channel();
++            (Some(driver), Some(sender))
++        } else {
++            (None, None)
++        };
+         let qpack_streams = QpackStreams {
+             decoder_send: Some(qpack_decoder),
+             decoder_recv: None,
+@@ -367,6 +376,8 @@ where
+             decoder,
+             encoder: qpack::Encoder::default(),
+             decoder_sending: BytesMut::new(),
++            outbound,
++            outbound_sender,
+         };
+ 
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
+@@ -400,6 +411,10 @@ where
+         Arc::clone(&self.qpack_streams.decoder)
+     }
+ 
++    pub(crate) fn take_outbound_qpack_sender(&mut self) -> Option<outbound_qpack::Sender> {
++        self.qpack_streams.outbound_sender.take()
++    }
++
+     pub(crate) fn abort_qpack(&self) {
+         for waker in self.qpack_streams.decoder.abort() {
+             waker.wake();
+@@ -744,6 +759,31 @@ where
+             }
+         }
+ 
++        if self.qpack_streams.outbound.is_some() && self.qpack_streams.encoder_send.is_none() {
++            return Poll::Ready(Err(self.closed_qpack_stream("encoder")));
++        }
++        let qpack = &mut self.qpack_streams;
++        let outbound_result = match (qpack.outbound.as_mut(), qpack.encoder_send.as_mut()) {
++            (Some(outbound), Some(send)) => outbound.poll(&mut qpack.encoder, send, cx),
++            (None, _) | (Some(_), None) => Poll::Pending,
++        };
++        if let Poll::Ready(Err(error)) = outbound_result {
++            let error = match error {
++                outbound_qpack::PollError::Stream(error) => {
++                    return Poll::Ready(Err(self.handle_qpack_stream_error("encoder", error)));
++                }
++                outbound_qpack::PollError::Codec(error) => InternalConnectionError::new(
++                    Code::H3_INTERNAL_ERROR,
++                    format!("outbound QPACK state failed: {error}"),
++                ),
++                outbound_qpack::PollError::WriteZero => InternalConnectionError::new(
++                    Code::H3_CLOSED_CRITICAL_STREAM,
++                    "QPACK encoder stream write made no progress".to_string(),
++                ),
++            };
++            return Poll::Ready(Err(self.handle_connection_error(error)));
++        }
++
+         let decoder_stopped = match self.qpack_streams.decoder_send.as_mut() {
+             Some(send) => send.poll_stopped(cx),
+             None => return Poll::Ready(Err(self.closed_qpack_stream("decoder"))),
+@@ -907,9 +947,31 @@ where
+             Ok(Some(Frame::Settings(settings))) => {
+                 if !self.got_peer_settings {
+                     // Received settings frame
+-
++                    let semantic_settings: crate::config::Settings = (&settings).into();
++                    let qpack = &mut self.qpack_streams;
++                    let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
++                        outbound.configure(
++                            &mut qpack.encoder,
++                            semantic_settings.qpack_max_table_capacity,
++                            semantic_settings.qpack_blocked_streams,
++                        )
++                    } else {
++                        Ok(())
++                    };
++                    if let Err(error) = configure_result {
++                        return Poll::Ready(Err(self.handle_connection_error(
++                            InternalConnectionError::new(
++                                Code::H3_SETTINGS_ERROR,
++                                format!("invalid peer QPACK settings: {error}"),
++                            ),
++                        )));
++                    }
+                     self.got_peer_settings = true;
+-                    self.set_settings((&settings).into());
++                    self.set_settings(semantic_settings);
++                    if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
++                        outbound.mark_ready();
++                        cx.waker().wake_by_ref();
++                    }
+ 
+                     Frame::Settings(settings)
+                 } else {
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+index 9aeaf1f..199f74a 100644
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -247,9 +247,10 @@ impl Iterator for HeaderIter {
+         self.pseudo = None;
+ 
+         if let Some(ordered) = self.ordered_fields.as_mut() {
+-            return ordered
+-                .next()
+-                .map(|(name, value)| (name.as_str(), value.as_bytes()).into());
++            return ordered.next().map(|(name, value)| {
++                let sensitive = value.is_sensitive();
++                HeaderField::from((name.as_str(), value.as_bytes())).with_sensitive(sensitive)
++            });
+         }
+ 
+         for (new_header_name, header_value) in self.fields.by_ref() {
+@@ -257,7 +258,10 @@ impl Iterator for HeaderIter {
+                 self.last_header_name = Some(new);
+             }
+             if let (Some(ref n), v) = (&self.last_header_name, header_value) {
+-                return Some((n.as_str(), v.as_bytes()).into());
++                let sensitive = v.is_sensitive();
++                return Some(
++                    HeaderField::from((n.as_str(), v.as_bytes())).with_sensitive(sensitive),
++                );
+             }
+         }
+ 
+@@ -273,7 +277,7 @@ impl TryFrom<Vec<HeaderField>> for Header {
+         let mut regular_field_seen = false;
+ 
+         for field in headers.into_iter() {
+-            let (name, value) = field.into_inner();
++            let (name, value, sensitive) = field.into_parts();
+             match Field::parse(name, value)? {
+                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3
+                 //# Any request or response that contains a
+@@ -309,8 +313,9 @@ impl TryFrom<Vec<HeaderField>> for Header {
+                     pseudo.status = Some(s);
+                     pseudo.len += 1;
+                 }
+-                Field::Header((n, v)) => {
++                Field::Header((n, mut v)) => {
+                     regular_field_seen = true;
++                    v.set_sensitive(sensitive);
+                     fields.append(n, v);
+                 }
+                 Field::Protocol(p) => {
+@@ -925,11 +930,13 @@ mod tests {
+             vec![
+                 HeaderField {
+                     name: std::borrow::Cow::Borrowed(b"set-cookie"),
+-                    value: std::borrow::Cow::Borrowed(b"foo=foo")
++                    value: std::borrow::Cow::Borrowed(b"foo=foo"),
++                    sensitive: false,
+                 },
+                 HeaderField {
+                     name: std::borrow::Cow::Borrowed(b"set-cookie"),
+-                    value: std::borrow::Cow::Borrowed(b"bar=bar")
++                    value: std::borrow::Cow::Borrowed(b"bar=bar"),
++                    sensitive: false,
+                 }
+             ]
+         );
+@@ -940,11 +947,59 @@ mod tests {
+                 .collect::<Vec<_>>(),
+             vec![HeaderField {
+                 name: std::borrow::Cow::Borrowed(b"other-header"),
+-                value: std::borrow::Cow::Borrowed(b"other-header-value")
++                value: std::borrow::Cow::Borrowed(b"other-header-value"),
++                sensitive: false,
+             },]
+         );
+     }
+ 
++    #[test]
++    fn preserves_sensitive_markers_in_both_directions() {
++        let mut value = HeaderValue::from_static("secret");
++        value.set_sensitive(true);
++
++        let mut fields = HeaderMap::new();
++        fields.insert("authorization", value.clone());
++        let header = Header::request(
++            Method::GET,
++            Uri::from_static("https://example.test/"),
++            fields,
++            Extensions::new(),
++        )
++        .unwrap();
++        let encoded = header
++            .into_iter()
++            .find(|field| field.name.as_ref() == b"authorization")
++            .unwrap();
++        assert!(encoded.sensitive);
++
++        let decoded = Header::try_from(vec![
++            HeaderField::new(":status", "200"),
++            HeaderField::new("authorization", "secret").with_sensitive(true),
++        ])
++        .unwrap();
++        assert!(decoded.into_fields()["authorization"].is_sensitive());
++
++        let mut fields = HeaderMap::new();
++        fields.insert("authorization", value.clone());
++        let mut extensions = Extensions::new();
++        extensions.insert(OrderedHeaders::new(vec![(
++            HeaderName::from_static("authorization"),
++            value,
++        )]));
++        let ordered = Header::request(
++            Method::GET,
++            Uri::from_static("https://example.test/"),
++            fields,
++            extensions,
++        )
++        .unwrap()
++        .into_iter()
++        .find(|field| field.name.as_ref() == b"authorization")
++        .unwrap();
++        assert!(ordered.sensitive);
++    }
++
+     #[test]
+     fn rejects_undefined_pseudo_header() {
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3
+diff --git a/h3/src/qpack/block.rs b/h3/src/qpack/block.rs
+index 1ba1630..4ea0e27 100644
+--- a/h3/src/qpack/block.rs
++++ b/h3/src/qpack/block.rs
+@@ -269,8 +269,16 @@ impl IndexedWithPostBase {
+ 
+ #[derive(Debug, PartialEq)]
+ pub enum LiteralWithNameRef {
+-    Static { index: usize, value: Vec<u8> },
+-    Dynamic { index: usize, value: Vec<u8> },
++    Static {
++        index: usize,
++        value: Vec<u8>,
++        sensitive: bool,
++    },
++    Dynamic {
++        index: usize,
++        value: Vec<u8>,
++        sensitive: bool,
++    },
+ }
+ 
+ impl LiteralWithNameRef {
+@@ -278,6 +286,7 @@ impl LiteralWithNameRef {
+         LiteralWithNameRef::Static {
+             index,
+             value: value.into(),
++            sensitive: false,
+         }
+     }
+ 
+@@ -285,9 +294,22 @@ impl LiteralWithNameRef {
+         LiteralWithNameRef::Dynamic {
+             index,
+             value: value.into(),
++            sensitive: false,
+         }
+     }
+ 
++    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
++        match &mut self {
++            Self::Static {
++                sensitive: marker, ..
++            }
++            | Self::Dynamic {
++                sensitive: marker, ..
++            } => *marker = sensitive,
++        }
++        self
++    }
++
+     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
+         match prefix_int::decode(4, buf)? {
+             (f, i) if f & 0b0101 == 0b0101 => {
+@@ -297,10 +319,10 @@ impl LiteralWithNameRef {
+                     ));
+                 }
+ 
+-                Ok(LiteralWithNameRef::new_static(
+-                    i as usize,
+-                    prefix_string::decode(8, buf)?,
+-                ))
++                Ok(
++                    LiteralWithNameRef::new_static(i as usize, prefix_string::decode(8, buf)?)
++                        .with_sensitive(f & 0b0010 != 0),
++                )
+             }
+             (f, i) if f & 0b0101 == 0b0100 => {
+                 if i > (usize::MAX as u64) {
+@@ -309,10 +331,10 @@ impl LiteralWithNameRef {
+                     ));
+                 }
+ 
+-                Ok(LiteralWithNameRef::new_dynamic(
+-                    i as usize,
+-                    prefix_string::decode(8, buf)?,
+-                ))
++                Ok(
++                    LiteralWithNameRef::new_dynamic(i as usize, prefix_string::decode(8, buf)?)
++                        .with_sensitive(f & 0b0010 != 0),
++                )
+             }
+             (f, _) => Err(ParseError::InvalidPrefix(f)),
+         }
+@@ -320,12 +342,30 @@ impl LiteralWithNameRef {
+ 
+     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
+         match self {
+-            LiteralWithNameRef::Static { index, value } => {
+-                prefix_int::encode(4, 0b0101, *index as u64, buf);
++            LiteralWithNameRef::Static {
++                index,
++                value,
++                sensitive,
++            } => {
++                prefix_int::encode(
++                    4,
++                    0b0101 | if *sensitive { 0b0010 } else { 0 },
++                    *index as u64,
++                    buf,
++                );
+                 prefix_string::encode(8, 0, value, buf)?;
+             }
+-            LiteralWithNameRef::Dynamic { index, value } => {
+-                prefix_int::encode(4, 0b0100, *index as u64, buf);
++            LiteralWithNameRef::Dynamic {
++                index,
++                value,
++                sensitive,
++            } => {
++                prefix_int::encode(
++                    4,
++                    0b0100 | if *sensitive { 0b0010 } else { 0 },
++                    *index as u64,
++                    buf,
++                );
+                 prefix_string::encode(8, 0, value, buf)?;
+             }
+         }
+@@ -337,6 +377,7 @@ impl LiteralWithNameRef {
+ pub struct LiteralWithPostBaseNameRef {
+     pub index: usize,
+     pub value: Vec<u8>,
++    pub sensitive: bool,
+ }
+ 
+ impl LiteralWithPostBaseNameRef {
+@@ -344,29 +385,40 @@ impl LiteralWithPostBaseNameRef {
+         LiteralWithPostBaseNameRef {
+             index,
+             value: value.into(),
++            sensitive: false,
+         }
+     }
+ 
++    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
++        self.sensitive = sensitive;
++        self
++    }
++
+     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
+         match prefix_int::decode(3, buf)? {
+-            (f, i) if f & 0b1111_0000 == 0 => {
++            (f, i) if f & 0b11110 == 0 => {
+                 if i > (usize::MAX as u64) {
+                     return Err(ParseError::Integer(
+                         crate::qpack::prefix_int::Error::Overflow,
+                     ));
+                 }
+ 
+-                Ok(LiteralWithPostBaseNameRef::new(
+-                    i as usize,
+-                    prefix_string::decode(8, buf)?,
+-                ))
++                Ok(
++                    LiteralWithPostBaseNameRef::new(i as usize, prefix_string::decode(8, buf)?)
++                        .with_sensitive(f & 0b00001 != 0),
++                )
+             }
+             (f, _) => Err(ParseError::InvalidPrefix(f)),
+         }
+     }
+ 
+     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
+-        prefix_int::encode(3, 0b0000, self.index as u64, buf);
++        prefix_int::encode(
++            3,
++            if self.sensitive { 0b00001 } else { 0 },
++            self.index as u64,
++            buf,
++        );
+         prefix_string::encode(8, 0, &self.value, buf)?;
+         Ok(())
+     }
+@@ -376,6 +428,7 @@ impl LiteralWithPostBaseNameRef {
+ pub struct Literal {
+     pub name: Vec<u8>,
+     pub value: Vec<u8>,
++    pub sensitive: bool,
+ }
+ 
+ impl Literal {
+@@ -383,23 +436,36 @@ impl Literal {
+         Literal {
+             name: name.into(),
+             value: value.into(),
++            sensitive: false,
+         }
+     }
+ 
++    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
++        self.sensitive = sensitive;
++        self
++    }
++
+     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
+         if buf.remaining() < 1 {
+             return Err(ParseError::Integer(prefix_int::Error::UnexpectedEnd));
+         } else if buf.chunk()[0] & 0b1110_0000 != 0b0010_0000 {
+             return Err(ParseError::InvalidPrefix(buf.chunk()[0]));
+         }
++        let sensitive = buf.chunk()[0] & 0b0001_0000 != 0;
+         Ok(Literal::new(
+             prefix_string::decode(4, buf)?,
+             prefix_string::decode(8, buf)?,
+-        ))
++        )
++        .with_sensitive(sensitive))
+     }
+ 
+     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
+-        prefix_string::encode(4, 0b0010, &self.name, buf)?;
++        prefix_string::encode(
++            4,
++            0b0010 | if self.sensitive { 0b0001 } else { 0 },
++            &self.name,
++            buf,
++        )?;
+         prefix_string::encode(8, 0, &self.value, buf)?;
+         Ok(())
+     }
+@@ -467,6 +533,41 @@ mod test {
+         assert_eq!(Literal::decode(&mut read), Ok(field));
+     }
+ 
++    #[test]
++    fn never_indexed_literals_set_n_and_round_trip() {
++        let fields = [
++            (
++                LiteralWithNameRef::new_static(42, "foo").with_sensitive(true),
++                0b0010_0000,
++            ),
++            (
++                LiteralWithNameRef::new_dynamic(42, "foo").with_sensitive(true),
++                0b0010_0000,
++            ),
++        ];
++        for (field, n_bit) in fields {
++            let mut buf = Vec::new();
++            field.encode(&mut buf).unwrap();
++            assert_ne!(buf[0] & n_bit, 0);
++            assert_eq!(LiteralWithNameRef::decode(&mut Cursor::new(buf)), Ok(field));
++        }
++
++        let postbase = LiteralWithPostBaseNameRef::new(42, "foo").with_sensitive(true);
++        let mut buf = Vec::new();
++        postbase.encode(&mut buf).unwrap();
++        assert_ne!(buf[0] & 0b0000_1000, 0);
++        assert_eq!(
++            LiteralWithPostBaseNameRef::decode(&mut Cursor::new(buf)),
++            Ok(postbase)
++        );
++
++        let literal = Literal::new("foo", "bar").with_sensitive(true);
++        let mut buf = Vec::new();
++        literal.encode(&mut buf).unwrap();
++        assert_ne!(buf[0] & 0b0001_0000, 0);
++        assert_eq!(Literal::decode(&mut Cursor::new(buf)), Ok(literal));
++    }
++
+     #[test]
+     fn header_prefix() {
+         let prefix = HeaderPrefix::new(10, 5, 12, TABLE_SIZE);
+diff --git a/h3/src/qpack/decoder.rs b/h3/src/qpack/decoder.rs
+index 78e6595..d7db5ce 100644
+--- a/h3/src/qpack/decoder.rs
++++ b/h3/src/qpack/decoder.rs
+@@ -266,20 +266,32 @@ impl Decoder {
+                 table.get_postbase(index)?.clone()
+             }
+             HeaderBlockField::LiteralWithNameRef => match LiteralWithNameRef::decode(buf)? {
+-                LiteralWithNameRef::Static { index, value } => {
+-                    StaticTable::get(index)?.with_value(value)
+-                }
+-                LiteralWithNameRef::Dynamic { index, value } => {
+-                    table.get_relative(index)?.with_value(value)
+-                }
++                LiteralWithNameRef::Static {
++                    index,
++                    value,
++                    sensitive,
++                } => StaticTable::get(index)?
++                    .with_value(value)
++                    .with_sensitive(sensitive),
++                LiteralWithNameRef::Dynamic {
++                    index,
++                    value,
++                    sensitive,
++                } => table
++                    .get_relative(index)?
++                    .with_value(value)
++                    .with_sensitive(sensitive),
+             },
+             HeaderBlockField::LiteralWithPostBaseNameRef => {
+                 let literal = LiteralWithPostBaseNameRef::decode(buf)?;
+-                table.get_postbase(literal.index)?.with_value(literal.value)
++                table
++                    .get_postbase(literal.index)?
++                    .with_value(literal.value)
++                    .with_sensitive(literal.sensitive)
+             }
+             HeaderBlockField::Literal => {
+                 let literal = Literal::decode(buf)?;
+-                HeaderField::new(literal.name, literal.value)
++                HeaderField::new(literal.name, literal.value).with_sensitive(literal.sensitive)
+             }
+             _ => return Err(DecoderError::UnknownPrefix(first)),
+         };
+@@ -310,13 +322,17 @@ pub fn decode_stateless<T: Buf>(buf: &mut T, max_size: u64) -> Result<Decoded, D
+             },
+             HeaderBlockField::LiteralWithNameRef => match LiteralWithNameRef::decode(buf)? {
+                 LiteralWithNameRef::Dynamic { .. } => return Err(DecoderError::MissingRefs(0)),
+-                LiteralWithNameRef::Static { index, value } => {
+-                    StaticTable::get(index)?.with_value(value)
+-                }
++                LiteralWithNameRef::Static {
++                    index,
++                    value,
++                    sensitive,
++                } => StaticTable::get(index)?
++                    .with_value(value)
++                    .with_sensitive(sensitive),
+             },
+             HeaderBlockField::Literal => {
+                 let literal = Literal::decode(buf)?;
+-                HeaderField::new(literal.name, literal.value)
++                HeaderField::new(literal.name, literal.value).with_sensitive(literal.sensitive)
+             }
+             _ => return Err(DecoderError::UnknownPrefix(buf.chunk()[0])),
+         };
+@@ -444,6 +460,29 @@ mod tests {
+         assert_eq!(result, Err(DecoderError::HeaderTooLong(44)));
+     }
+ 
++    #[test]
++    fn stateless_decoder_preserves_never_indexed_markers() {
++        let mut block = Vec::new();
++        HeaderPrefix::new(0, 0, 0, 0).encode(&mut block);
++        LiteralWithNameRef::new_static(84, "secret")
++            .with_sensitive(true)
++            .encode(&mut block)
++            .unwrap();
++        Literal::new("x-secret", "value")
++            .with_sensitive(true)
++            .encode(&mut block)
++            .unwrap();
++
++        let decoded = decode_stateless(&mut Cursor::new(block), u64::MAX).unwrap();
++        assert_eq!(
++            decoded.fields,
++            [
++                HeaderField::new("authorization", "secret").with_sensitive(true),
++                HeaderField::new("x-secret", "value").with_sensitive(true),
++            ]
++        );
++    }
++
+     /**
+      * https://www.rfc-editor.org/rfc/rfc9204.html#name-insert-with-name-reference
+      * 4.3.2.  Insert With Name Reference
+@@ -768,9 +807,11 @@ mod tests {
+         let mut buf = vec![];
+         HeaderPrefix::new(2, 2, 4, TABLE_SIZE).encode(&mut buf);
+         LiteralWithNameRef::new_dynamic(1, "new bar1")
++            .with_sensitive(true)
+             .encode(&mut buf)
+             .unwrap();
+         LiteralWithNameRef::new_static(18, "PUT")
++            .with_sensitive(true)
+             .encode(&mut buf)
+             .unwrap();
+ 
+@@ -783,8 +824,11 @@ mod tests {
+         assert_eq!(
+             fields,
+             &[
+-                field(1).with_value("new bar1"),
+-                StaticTable::get(18).unwrap().with_value("PUT")
++                field(1).with_value("new bar1").with_sensitive(true),
++                StaticTable::get(18)
++                    .unwrap()
++                    .with_value("PUT")
++                    .with_sensitive(true)
+             ]
+         )
+     }
+@@ -794,27 +838,34 @@ mod tests {
+         let mut buf = vec![];
+         HeaderPrefix::new(2, 2, 4, TABLE_SIZE).encode(&mut buf);
+         LiteralWithPostBaseNameRef::new(0, "new bar3")
++            .with_sensitive(true)
+             .encode(&mut buf)
+             .unwrap();
+ 
+         let mut read = Cursor::new(&buf);
+         let decoder = Decoder::from(build_table_with_size(4));
+         let Decoded { fields, .. } = decoder.decode_header(&mut read).unwrap();
+-        assert_eq!(fields, &[field(3).with_value("new bar3")]);
++        assert_eq!(
++            fields,
++            &[field(3).with_value("new bar3").with_sensitive(true)]
++        );
+     }
+ 
+     #[test]
+     fn decode_without_name_ref_header_field() {
+         let mut buf = vec![];
+         HeaderPrefix::new(0, 0, 0, TABLE_SIZE).encode(&mut buf);
+-        Literal::new("foo", "bar").encode(&mut buf).unwrap();
++        Literal::new("foo", "bar")
++            .with_sensitive(true)
++            .encode(&mut buf)
++            .unwrap();
+ 
+         let mut read = Cursor::new(&buf);
+         let decoder = Decoder::from(build_table_with_size(0));
+         let Decoded { fields, .. } = decoder.decode_header(&mut read).unwrap();
+         assert_eq!(
+             fields,
+-            &[HeaderField::new(b"foo".to_vec(), b"bar".to_vec())]
++            &[HeaderField::new(b"foo".to_vec(), b"bar".to_vec()).with_sensitive(true)]
+         );
+     }
+ 
+diff --git a/h3/src/qpack/dynamic.rs b/h3/src/qpack/dynamic.rs
+index f4a6943..210c236 100644
+--- a/h3/src/qpack/dynamic.rs
++++ b/h3/src/qpack/dynamic.rs
+@@ -255,7 +255,7 @@ pub enum DynamicInsertionResult {
+     NotInserted(DynamicLookupResult),
+ }
+ 
+-#[derive(Default)]
++#[derive(Clone, Default)]
+ pub struct DynamicTable {
+     fields: VecDeque<HeaderField>,
+     curr_size: usize,
+@@ -318,9 +318,10 @@ impl DynamicTable {
+ 
+         let required = self.max_size - size;
+ 
+-        if let Some(to_evict) = self.can_free(required)? {
+-            self.evict(to_evict)?;
+-        }
++        let Some(to_evict) = self.can_free(required)? else {
++            return Err(Error::MaxTableSizeReached);
++        };
++        self.evict(to_evict)?;
+ 
+         self.max_size = size;
+         Ok(())
+@@ -1315,6 +1316,22 @@ mod tests {
+         assert_eq!(table.blocked_count, 0);
+     }
+ 
++    #[test]
++    fn capacity_reduction_with_tracked_entries_is_atomic() {
++        let mut table = tracked_table(42);
++        let previous_max = table.max_size;
++        let previous_size = table.curr_size;
++        let previous_fields = table.fields.clone();
++
++        assert_eq!(
++            table.set_max_size(previous_size - 1),
++            Err(Error::MaxTableSizeReached)
++        );
++        assert_eq!(table.max_size, previous_max);
++        assert_eq!(table.curr_size, previous_size);
++        assert_eq!(table.fields, previous_fields);
++    }
++
+     #[test]
+     fn insert_count_increment_must_be_positive_and_not_exceed_insert_count() {
+         let mut table = tracked_table(42);
+diff --git a/h3/src/qpack/encoder.rs b/h3/src/qpack/encoder.rs
+index 169ee75..2b83197 100644
+--- a/h3/src/qpack/encoder.rs
++++ b/h3/src/qpack/encoder.rs
+@@ -51,6 +51,7 @@ impl std::fmt::Display for EncoderError {
+     }
+ }
+ 
++#[derive(Clone)]
+ pub struct Encoder {
+     table: DynamicTable,
+     decoder_stream: BytesMut,
+@@ -84,13 +85,14 @@ impl Encoder {
+         T: IntoIterator<Item = H>,
+         H: AsRef<HeaderField>,
+     {
++        let mut table = self.table.clone();
+         let fields = fields
+             .into_iter()
+             .map(|field| field.as_ref().clone())
+             .collect::<Vec<_>>();
+         let mut encoder_instructions = Vec::new();
+         {
+-            let mut encoder = self.table.encoder(stream_id);
++            let mut encoder = table.encoder(stream_id);
+             for field in &fields {
+                 Self::plan_field(&mut encoder, &mut encoder_instructions, field)?;
+             }
+@@ -98,7 +100,7 @@ impl Encoder {
+ 
+         let mut required_ref = 0;
+         let mut block_buf = Vec::new();
+-        let mut encoder = self.table.encoder(stream_id);
++        let mut encoder = table.encoder(stream_id);
+ 
+         for field in &fields {
+             if let Some(reference) = Self::encode_field_line(&mut encoder, &mut block_buf, field)? {
+@@ -117,10 +119,19 @@ impl Encoder {
+         encoder_buf.put(encoder_instructions.as_slice());
+ 
+         encoder.commit(required_ref);
++        drop(encoder);
++        self.table = table;
+ 
+         Ok(required_ref)
+     }
+ 
++    pub fn cancel_stream(&mut self, stream_id: u64) -> Result<(), EncoderError> {
++        match self.table.cancel_stream(stream_id) {
++            Ok(()) | Err(DynamicTableError::UnknownStreamId(_)) => Ok(()),
++            Err(error) => Err(error.into()),
++        }
++    }
++
+     pub fn on_decoder_recv<R: Buf>(&mut self, read: &mut R) -> Result<(), EncoderError> {
+         while read.has_remaining() {
+             if self.decoder_stream.len() == MAX_BUFFERED_DECODER_INSTRUCTION_BYTES
+@@ -180,6 +191,9 @@ impl Encoder {
+         encoder: &mut W,
+         field: &HeaderField,
+     ) -> Result<(), EncoderError> {
++        if field.sensitive {
++            return Ok(());
++        }
+         if StaticTable::find(field).is_some() {
+             return Ok(());
+         }
+@@ -196,6 +210,10 @@ impl Encoder {
+         block: &mut W,
+         field: &HeaderField,
+     ) -> Result<Option<usize>, EncoderError> {
++        if field.sensitive {
++            Self::encode_sensitive_field(block, field)?;
++            return Ok(None);
++        }
+         if let Some(index) = StaticTable::find(field) {
+             Indexed::Static(index).encode(block);
+             return Ok(None);
+@@ -235,6 +253,22 @@ impl Encoder {
+         }
+     }
+ 
++    fn encode_sensitive_field<W: BufMut>(
++        block: &mut W,
++        field: &HeaderField,
++    ) -> Result<(), EncoderError> {
++        if let Some(index) = StaticTable::find_name(&field.name) {
++            LiteralWithNameRef::new_static(index, field.value.clone())
++                .with_sensitive(true)
++                .encode(block)?;
++        } else {
++            Literal::new(field.name.clone(), field.value.clone())
++                .with_sensitive(true)
++                .encode(block)?;
++        }
++        Ok(())
++    }
++
+     fn insert_field<W: BufMut>(
+         table: &mut DynamicTableEncoder,
+         encoder: &mut W,
+@@ -267,6 +301,10 @@ impl Encoder {
+         encoder: &mut W,
+         field: &HeaderField,
+     ) -> Result<Option<usize>, EncoderError> {
++        if field.sensitive {
++            Self::encode_sensitive_field(block, field)?;
++            return Ok(None);
++        }
+         if let Some(index) = StaticTable::find(field) {
+             Indexed::Static(index).encode(block);
+             return Ok(None);
+@@ -344,7 +382,9 @@ where
+     for field in fields {
+         let field = field.as_ref();
+ 
+-        if let Some(index) = StaticTable::find(field) {
++        if field.sensitive {
++            Encoder::encode_sensitive_field(block, field)?;
++        } else if let Some(index) = StaticTable::find(field) {
+             Indexed::Static(index).encode(block);
+         } else if let Some(index) = StaticTable::find_name(&field.name) {
+             LiteralWithNameRef::new_static(index, field.value.clone()).encode(block)?;
+@@ -779,6 +819,129 @@ mod tests {
+         assert_eq!(Indexed::decode(&mut reused), Ok(Indexed::Dynamic(0)));
+     }
+ 
++    #[test]
++    fn sensitive_fields_are_literal_and_never_inserted() {
++        let mut encoder = Encoder::default();
++        let mut setup = Vec::new();
++        encoder
++            .set_max_table_capacity(TABLE_SIZE, &mut setup)
++            .unwrap();
++        encoder.set_max_blocked_streams(16).unwrap();
++
++        let mut block = Vec::new();
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                0,
++                &mut block,
++                &mut instructions,
++                [HeaderField::new("content-type", "application/json").with_sensitive(true)]
++            ),
++            Ok(0)
++        );
++        assert!(instructions.is_empty());
++        let mut read = Cursor::new(block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut read).unwrap().get(0, TABLE_SIZE),
++            Ok((0, 0))
++        );
++        assert_eq!(
++            LiteralWithNameRef::decode(&mut read),
++            Ok(LiteralWithNameRef::new_static(44, "application/json").with_sensitive(true))
++        );
++
++        let sensitive = HeaderField::new("x-secret", "value").with_sensitive(true);
++        let mut block = Vec::new();
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(4, &mut block, &mut instructions, [sensitive.clone()]),
++            Ok(0)
++        );
++        assert!(instructions.is_empty());
++
++        let mut read = Cursor::new(block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut read).unwrap().get(0, TABLE_SIZE),
++            Ok((0, 0))
++        );
++        assert_eq!(
++            Literal::decode(&mut read),
++            Ok(Literal::new("x-secret", "value").with_sensitive(true))
++        );
++
++        let mut block = Vec::new();
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                8,
++                &mut block,
++                &mut instructions,
++                [HeaderField::new("x-secret", "value")]
++            ),
++            Ok(1)
++        );
++        assert!(!instructions.is_empty());
++
++        let mut block = Vec::new();
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(12, &mut block, &mut instructions, [sensitive]),
++            Ok(0)
++        );
++        assert!(instructions.is_empty());
++        let mut read = Cursor::new(block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut read).unwrap().get(1, TABLE_SIZE),
++            Ok((0, 0))
++        );
++        assert_eq!(
++            Literal::decode(&mut read),
++            Ok(Literal::new("x-secret", "value").with_sensitive(true))
++        );
++    }
++
++    #[test]
++    fn stateless_sensitive_fields_use_never_indexed_literals() {
++        let fields = [
++            HeaderField::new("content-type", "application/json").with_sensitive(true),
++            HeaderField::new("x-secret", "value").with_sensitive(true),
++        ];
++        let expected_size = fields.iter().map(HeaderField::mem_size).sum::<usize>() as u64;
++        let mut block = Vec::new();
++        assert_eq!(encode_stateless(&mut block, &fields), Ok(expected_size));
++
++        let mut read = Cursor::new(block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut read).unwrap().get(0, 0),
++            Ok((0, 0))
++        );
++        assert_eq!(
++            LiteralWithNameRef::decode(&mut read),
++            Ok(LiteralWithNameRef::new_static(44, "application/json").with_sensitive(true))
++        );
++        assert_eq!(
++            Literal::decode(&mut read),
++            Ok(Literal::new("x-secret", "value").with_sensitive(true))
++        );
++    }
++
++    #[test]
++    fn local_stream_cancellation_is_idempotent() {
++        let field = HeaderField::new("x-dynamic", "value");
++        let mut encoder = Encoder::default();
++        let mut setup = Vec::new();
++        encoder
++            .set_max_table_capacity(TABLE_SIZE, &mut setup)
++            .unwrap();
++        encoder.set_max_blocked_streams(1).unwrap();
++        encoder
++            .encode(0, &mut Vec::new(), &mut Vec::new(), [field])
++            .unwrap();
++
++        assert_eq!(encoder.cancel_stream(0), Ok(()));
++        assert_eq!(encoder.cancel_stream(0), Ok(()));
++    }
++
+     #[test]
+     fn decoder_block_ack() {
+         let mut table = build_table();
+diff --git a/h3/src/qpack/field.rs b/h3/src/qpack/field.rs
+index 22a9f6c..811e777 100644
+--- a/h3/src/qpack/field.rs
++++ b/h3/src/qpack/field.rs
+@@ -13,6 +13,7 @@ pub const ESTIMATED_OVERHEAD_BYTES: usize = 32;
+ pub struct HeaderField {
+     pub name: Cow<'static, [u8]>,
+     pub value: Cow<'static, [u8]>,
++    pub sensitive: bool,
+ }
+ 
+ impl HeaderField {
+@@ -24,9 +25,15 @@ impl HeaderField {
+         HeaderField {
+             name: Cow::Owned(name.into()),
+             value: Cow::Owned(value.into()),
++            sensitive: false,
+         }
+     }
+ 
++    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
++        self.sensitive = sensitive;
++        self
++    }
++
+     pub fn mem_size(&self) -> usize {
+         self.name.len() + self.value.len() + ESTIMATED_OVERHEAD_BYTES
+     }
+@@ -38,12 +45,17 @@ impl HeaderField {
+         Self {
+             name: self.name.clone(),
+             value: Cow::Owned(value.into()),
++            sensitive: self.sensitive,
+         }
+     }
+ 
+     pub fn into_inner(self) -> (Cow<'static, [u8]>, Cow<'static, [u8]>) {
+         (self.name, self.value)
+     }
++
++    pub fn into_parts(self) -> (Cow<'static, [u8]>, Cow<'static, [u8]>, bool) {
++        (self.name, self.value, self.sensitive)
++    }
+ }
+ 
+ impl AsRef<HeaderField> for HeaderField {
+@@ -85,6 +97,7 @@ where
+             // FIXME: could avoid allocation if HeaderField had a lifetime
+             name: Cow::Owned(Vec::from(name.as_ref())),
+             value: Cow::Owned(Vec::from(value.as_ref())),
++            sensitive: false,
+         }
+     }
+ }
+@@ -105,6 +118,7 @@ mod tests {
+         let field = HeaderField {
+             name: Cow::Borrowed(b"Name"),
+             value: Cow::Borrowed(b"Value"),
++            sensitive: false,
+         };
+         assert_eq!(field.mem_size(), 4 + 5 + 32);
+     }
+@@ -114,12 +128,14 @@ mod tests {
+         let field = HeaderField {
+             name: Cow::Borrowed(b"Name"),
+             value: Cow::Borrowed(b"Value"),
++            sensitive: true,
+         };
+         assert_eq!(
+             field.with_value("New value"),
+             HeaderField {
+                 name: Cow::Borrowed(b"Name"),
+                 value: Cow::Borrowed(b"New value"),
++                sensitive: true,
+             }
+         );
+     }
+diff --git a/h3/src/qpack/static_.rs b/h3/src/qpack/static_.rs
+index a1a27b0..683fbe4 100644
+--- a/h3/src/qpack/static_.rs
++++ b/h3/src/qpack/static_.rs
+@@ -192,7 +192,8 @@ macro_rules! decl_fields {
+             $(
+             HeaderField {
+                 name: Cow::Borrowed($key),
+-                value: Cow::Borrowed($value)
++                value: Cow::Borrowed($value),
++                sensitive: false,
+             },
+         )* ]
+     }
+diff --git a/h3/src/qpack/vas.rs b/h3/src/qpack/vas.rs
+index 8bfe823..66b40cd 100644
+--- a/h3/src/qpack/vas.rs
++++ b/h3/src/qpack/vas.rs
+@@ -78,7 +78,7 @@ pub enum Error {
+     Index(usize),
+ }
+ 
+-#[derive(Debug, Default)]
++#[derive(Clone, Debug, Default)]
+ pub struct VirtualAddressSpace {
+     inserted: usize,
+     dropped: usize,
+diff --git a/h3/src/tests/mod.rs b/h3/src/tests/mod.rs
+index d3c9f19..4cb60bb 100644
+--- a/h3/src/tests/mod.rs
++++ b/h3/src/tests/mod.rs
+@@ -10,6 +10,7 @@
+ mod h3_quinn;
+ 
+ mod connection;
++mod qpack_request;
+ mod request;
+ 
+ use std::{
+diff --git a/h3/src/client/outbound_qpack.rs b/h3/src/client/outbound_qpack.rs
+new file mode 100644
+index 0000000..c470149
+--- /dev/null
++++ b/h3/src/client/outbound_qpack.rs
+@@ -0,0 +1,387 @@
++use std::{
++    future::Future,
++    pin::Pin,
++    task::{Context, Poll},
++};
++
++use bytes::{Buf, BufMut, Bytes, BytesMut};
++use tokio::sync::{mpsc, oneshot, watch};
++
++use crate::{
++    qpack::{Encoder, EncoderError, HeaderField},
++    quic::{SendStreamUnframed, StreamErrorIncoming},
++};
++
++const COMMAND_CAPACITY: usize = 32;
++const MAX_INSTRUCTION_BYTES: usize = 64 * 1024;
++const MAX_COMMANDS_PER_POLL: usize = 32;
++const LOCAL_MAX_TABLE_CAPACITY: usize = 64 * 1024;
++const LOCAL_MAX_BLOCKED_STREAMS: usize = u16::MAX as usize;
++
++pub(crate) fn channel() -> (Driver, Sender) {
++    let (commands, command_rx) = mpsc::channel(COMMAND_CAPACITY);
++    let (ready, ready_rx) = watch::channel(false);
++    (
++        Driver {
++            commands: command_rx,
++            ready,
++            instructions: BytesMut::new(),
++            pending_release: None,
++            publications: Vec::new(),
++            commands_closed: false,
++            configured: false,
++        },
++        Sender { commands, ready_rx },
++    )
++}
++
++#[derive(Clone)]
++pub(crate) struct Sender {
++    commands: mpsc::Sender<EncodeCommand>,
++    ready_rx: watch::Receiver<bool>,
++}
++
++impl Sender {
++    pub(super) async fn wait_ready(&mut self) -> Result<(), Closed> {
++        loop {
++            if *self.ready_rx.borrow_and_update() {
++                return Ok(());
++            }
++            self.ready_rx.changed().await.map_err(|_| Closed)?;
++        }
++    }
++
++    pub(super) async fn reserve(&self) -> Result<mpsc::OwnedPermit<EncodeCommand>, Closed> {
++        self.commands
++            .clone()
++            .reserve_owned()
++            .await
++            .map_err(|_| Closed)
++    }
++}
++
++#[derive(Debug)]
++pub(super) struct Closed;
++
++pub(super) struct EncodeCommand {
++    stream_id: u64,
++    fields: Vec<HeaderField>,
++    response: oneshot::Sender<Result<Encoded, EncodeError>>,
++}
++
++impl EncodeCommand {
++    pub(super) fn new(
++        stream_id: u64,
++        fields: Vec<HeaderField>,
++    ) -> (Self, oneshot::Receiver<Result<Encoded, EncodeError>>) {
++        let (response, receiver) = oneshot::channel();
++        (
++            Self {
++                stream_id,
++                fields,
++                response,
++            },
++            receiver,
++        )
++    }
++}
++
++pub(super) struct Encoded {
++    pub(super) block: Bytes,
++    pub(super) publication: Publication,
++}
++
++pub(super) struct Publication {
++    published: Option<oneshot::Sender<()>>,
++}
++
++impl Publication {
++    pub(super) fn published(mut self) {
++        if let Some(published) = self.published.take() {
++            let _ = published.send(());
++        }
++    }
++}
++
++#[derive(Debug)]
++pub(super) enum EncodeError {
++    Codec(EncoderError),
++    InstructionsTooLarge { size: usize, limit: usize },
++}
++
++impl std::fmt::Display for EncodeError {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::Codec(error) => write!(formatter, "{error}"),
++            Self::InstructionsTooLarge { size, limit } => write!(
++                formatter,
++                "QPACK encoder instructions require {size} bytes; limit is {limit}"
++            ),
++        }
++    }
++}
++
++impl std::error::Error for EncodeError {}
++
++struct PendingRelease {
++    stream_id: u64,
++    block: Bytes,
++    response: oneshot::Sender<Result<Encoded, EncodeError>>,
++}
++
++struct PendingPublication {
++    stream_id: u64,
++    published: oneshot::Receiver<()>,
++}
++
++pub(crate) struct Driver {
++    commands: mpsc::Receiver<EncodeCommand>,
++    ready: watch::Sender<bool>,
++    instructions: BytesMut,
++    pending_release: Option<PendingRelease>,
++    publications: Vec<PendingPublication>,
++    commands_closed: bool,
++    configured: bool,
++}
++
++impl Driver {
++    pub(crate) fn configure(
++        &mut self,
++        encoder: &mut Encoder,
++        table_capacity: u64,
++        blocked_streams: u64,
++    ) -> Result<(), ConfigureError> {
++        if self.configured {
++            return Ok(());
++        }
++
++        let table_capacity = effective_table_capacity(table_capacity);
++        let blocked_streams = effective_blocked_streams(blocked_streams);
++
++        if table_capacity != 0 {
++            encoder
++                .set_max_table_capacity(table_capacity, &mut self.instructions)
++                .map_err(ConfigureError::Codec)?;
++        }
++        encoder
++            .set_max_blocked_streams(blocked_streams)
++            .map_err(ConfigureError::Codec)?;
++        self.configured = true;
++        Ok(())
++    }
++
++    pub(crate) fn mark_ready(&self) {
++        self.ready.send_replace(true);
++    }
++
++    pub(crate) fn poll<S, B>(
++        &mut self,
++        encoder: &mut Encoder,
++        send: &mut S,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<(), PollError>>
++    where
++        S: SendStreamUnframed<B>,
++        B: Buf,
++    {
++        self.poll_publications(encoder, cx)?;
++        let mut sent = 0;
++        let mut commands = 0;
++
++        loop {
++            while self.instructions.has_remaining() && sent < MAX_INSTRUCTION_BYTES {
++                match send.poll_send(cx, &mut self.instructions) {
++                    Poll::Ready(Ok(0)) => return Poll::Ready(Err(PollError::WriteZero)),
++                    Poll::Ready(Ok(written)) => sent = sent.saturating_add(written),
++                    Poll::Ready(Err(error)) => return Poll::Ready(Err(PollError::Stream(error))),
++                    Poll::Pending => return Poll::Pending,
++                }
++            }
++
++            if self.instructions.has_remaining() {
++                cx.waker().wake_by_ref();
++                return Poll::Pending;
++            }
++
++            if let Some(pending) = self.pending_release.take() {
++                self.release_block(encoder, pending)?;
++                self.poll_publications(encoder, cx)?;
++                commands += 1;
++                if commands == MAX_COMMANDS_PER_POLL {
++                    cx.waker().wake_by_ref();
++                    return Poll::Pending;
++                }
++                continue;
++            }
++
++            if !self.configured || self.commands_closed {
++                return Poll::Pending;
++            }
++
++            let command = match self.commands.poll_recv(cx) {
++                Poll::Ready(Some(command)) => command,
++                Poll::Ready(None) => {
++                    self.commands_closed = true;
++                    return Poll::Pending;
++                }
++                Poll::Pending => return Poll::Pending,
++            };
++            if command.response.is_closed() {
++                continue;
++            }
++            self.prepare_block(encoder, command);
++        }
++    }
++
++    fn prepare_block(&mut self, encoder: &mut Encoder, command: EncodeCommand) {
++        let mut candidate = encoder.clone();
++        let mut block = BytesMut::new();
++        let mut instructions = BytesMut::new();
++        let result = candidate.encode(
++            command.stream_id,
++            &mut block,
++            &mut instructions,
++            command.fields,
++        );
++        if let Err(error) = result {
++            let _ = command.response.send(Err(EncodeError::Codec(error)));
++            return;
++        }
++        if instructions.len() > MAX_INSTRUCTION_BYTES {
++            let _ = command
++                .response
++                .send(Err(EncodeError::InstructionsTooLarge {
++                    size: instructions.len(),
++                    limit: MAX_INSTRUCTION_BYTES,
++                }));
++            return;
++        }
++
++        *encoder = candidate;
++        self.instructions.put(instructions);
++        self.pending_release = Some(PendingRelease {
++            stream_id: command.stream_id,
++            block: block.freeze(),
++            response: command.response,
++        });
++    }
++
++    fn release_block(
++        &mut self,
++        encoder: &mut Encoder,
++        pending: PendingRelease,
++    ) -> Result<(), PollError> {
++        let (published, publication) = oneshot::channel();
++        let encoded = Encoded {
++            block: pending.block,
++            publication: Publication {
++                published: Some(published),
++            },
++        };
++        if pending.response.send(Ok(encoded)).is_err() {
++            encoder
++                .cancel_stream(pending.stream_id)
++                .map_err(PollError::Codec)?;
++            return Ok(());
++        }
++        self.publications.push(PendingPublication {
++            stream_id: pending.stream_id,
++            published: publication,
++        });
++        Ok(())
++    }
++
++    fn poll_publications(
++        &mut self,
++        encoder: &mut Encoder,
++        cx: &mut Context<'_>,
++    ) -> Result<(), PollError> {
++        let mut index = 0;
++        while index < self.publications.len() {
++            match Pin::new(&mut self.publications[index].published).poll(cx) {
++                Poll::Ready(Ok(())) => {
++                    self.publications.swap_remove(index);
++                }
++                Poll::Ready(Err(_)) => {
++                    let publication = self.publications.swap_remove(index);
++                    encoder
++                        .cancel_stream(publication.stream_id)
++                        .map_err(PollError::Codec)?;
++                }
++                Poll::Pending => index += 1,
++            }
++        }
++        Ok(())
++    }
++}
++
++fn effective_table_capacity(peer: u64) -> usize {
++    usize::try_from(peer)
++        .unwrap_or(usize::MAX)
++        .min(LOCAL_MAX_TABLE_CAPACITY)
++}
++
++fn effective_blocked_streams(peer: u64) -> usize {
++    usize::try_from(peer)
++        .unwrap_or(usize::MAX)
++        .min(LOCAL_MAX_BLOCKED_STREAMS)
++}
++
++pub(crate) enum ConfigureError {
++    Codec(EncoderError),
++}
++
++impl std::fmt::Display for ConfigureError {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::Codec(error) => write!(formatter, "{error}"),
++        }
++    }
++}
++
++pub(crate) enum PollError {
++    Codec(EncoderError),
++    Stream(StreamErrorIncoming),
++    WriteZero,
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn peer_blocked_stream_limit_is_clamped() {
++        assert_eq!(
++            effective_blocked_streams(u64::MAX),
++            LOCAL_MAX_BLOCKED_STREAMS
++        );
++    }
++
++    #[test]
++    fn peer_table_capacity_is_clamped_to_local_ceiling() {
++        assert_eq!(
++            effective_table_capacity((1_u64 << 62) - 1),
++            LOCAL_MAX_TABLE_CAPACITY
++        );
++        assert_eq!(effective_table_capacity(4096), 4096);
++    }
++
++    #[tokio::test]
++    async fn publication_drop_is_observable() {
++        let (published, publication) = oneshot::channel();
++        drop(Publication {
++            published: Some(published),
++        });
++        assert!(publication.await.is_err());
++    }
++
++    #[tokio::test]
++    async fn publication_success_is_observable() {
++        let (published, publication) = oneshot::channel();
++        Publication {
++            published: Some(published),
++        }
++        .published();
++        assert!(publication.await.is_ok());
++    }
++}
+diff --git a/h3/src/tests/qpack_request.rs b/h3/src/tests/qpack_request.rs
+new file mode 100644
+index 0000000..903b608
+--- /dev/null
++++ b/h3/src/tests/qpack_request.rs
+@@ -0,0 +1,343 @@
++use std::{
++    future::Future,
++    sync::{
++        atomic::{AtomicUsize, Ordering},
++        Arc,
++    },
++    task::{Context, Poll},
++    time::Duration,
++};
++
++use bytes::Bytes;
++use futures_util::{future, task::noop_waker_ref};
++use http::Request;
++use tokio::sync::oneshot;
++
++use crate::{
++    client,
++    proto::headers::Header,
++    qpack,
++    quic::{self, ConnectionErrorIncoming, StreamErrorIncoming},
++};
++
++use super::{h3_quinn, Pair};
++
++const PEER_DYNAMIC_SETTINGS: &[u8] = &[0x00, 0x04, 0x05, 0x01, 0x50, 0x00, 0x07, 0x10];
++const EMPTY_PEER_SETTINGS: &[u8] = &[0x00, 0x04, 0x00];
++const TEST_TIMEOUT: Duration = Duration::from_secs(5);
++
++#[tokio::test]
++async fn dynamic_request_does_not_open_a_bidi_stream_before_peer_settings() {
++    let mut pair = Pair::default();
++    let endpoint = pair.server_inner();
++    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
++        endpoint.accept().await.unwrap().await.unwrap()
++    });
++    let bidi_polls = Arc::new(AtomicUsize::new(0));
++    let observed = ObservedConnection::new(client_connection, Arc::clone(&bidi_polls));
++
++    let mut builder = client::builder();
++    builder.send_grease(false).enable_dynamic_qpack(true);
++    let (mut driver, mut sender) = builder.build::<_, _, Bytes>(observed).await.unwrap();
++    let driver_task =
++        tokio::spawn(async move { future::poll_fn(|cx| driver.poll_close(cx)).await });
++
++    let request = Request::get("https://localhost/wait").body(()).unwrap();
++    let mut request = Box::pin(sender.send_request(request));
++    let mut context = Context::from_waker(noop_waker_ref());
++    assert!(request.as_mut().poll(&mut context).is_pending());
++    assert_eq!(bidi_polls.load(Ordering::Acquire), 0);
++
++    let mut control = server_connection.open_uni().await.unwrap();
++    control.write_all(PEER_DYNAMIC_SETTINGS).await.unwrap();
++
++    let mut stream = tokio::time::timeout(TEST_TIMEOUT, request)
++        .await
++        .expect("request remained blocked after peer SETTINGS")
++        .unwrap();
++    assert!(bidi_polls.load(Ordering::Acquire) > 0);
++    stream.finish().await.unwrap();
++
++    server_connection.close(0_u32.into(), b"test complete");
++    drop((control, stream, sender));
++    let _ = driver_task.await.unwrap();
++}
++
++#[tokio::test]
++async fn default_request_is_stateless_without_waiting_for_peer_settings() {
++    let mut pair = Pair::default();
++    let endpoint = pair.server_inner();
++    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
++        endpoint.accept().await.unwrap().await.unwrap()
++    });
++    let (captured, captured_rx) = oneshot::channel();
++
++    let server = async move {
++        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
++        let (frame_type, payload) = read_frame(&mut request).await;
++        assert_eq!(frame_type, 0x01);
++
++        let expected = stateless_request_block("https://localhost/default");
++        assert_eq!(payload, expected);
++
++        let mut control = server_connection.open_uni().await.unwrap();
++        control.write_all(EMPTY_PEER_SETTINGS).await.unwrap();
++        captured.send(()).unwrap();
++        server_connection.close(0_u32.into(), b"test complete");
++        drop(control);
++    };
++
++    let client = async move {
++        let mut builder = client::builder();
++        builder.send_grease(false);
++        let (mut driver, mut sender) = builder
++            .build::<_, _, Bytes>(client_connection)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = sender
++                .send_request(Request::get("https://localhost/default").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++            captured_rx.await.unwrap();
++        };
++        let ((), _) = tokio::join!(request, drive);
++    };
++
++    tokio::time::timeout(TEST_TIMEOUT, async {
++        tokio::join!(server, client);
++    })
++    .await
++    .expect("default request waited for peer SETTINGS");
++}
++
++#[tokio::test]
++async fn dynamic_request_emits_the_encoder_and_field_section_bytes() {
++    let mut pair = Pair::default();
++    let endpoint = pair.server_inner();
++    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
++        endpoint.accept().await.unwrap().await.unwrap()
++    });
++    let (expected_instructions, expected_block) =
++        dynamic_request_bytes("https://localhost/dynamic");
++    let (captured, captured_rx) = oneshot::channel();
++
++    let server = async move {
++        let mut control = server_connection.open_uni().await.unwrap();
++        control.write_all(PEER_DYNAMIC_SETTINGS).await.unwrap();
++
++        let mut critical = accept_client_critical_streams(&server_connection).await;
++        let mut instructions = vec![0; expected_instructions.len()];
++        critical
++            .encoder
++            .read_exact(&mut instructions)
++            .await
++            .unwrap();
++        assert_eq!(instructions, expected_instructions);
++
++        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
++        let (frame_type, payload) = read_frame(&mut request).await;
++        assert_eq!(frame_type, 0x01);
++        assert_eq!(payload, expected_block);
++
++        captured.send(()).unwrap();
++        server_connection.close(0_u32.into(), b"test complete");
++        drop((control, critical));
++    };
++
++    let client = async move {
++        let mut builder = client::builder();
++        builder.send_grease(false).enable_dynamic_qpack(true);
++        let (mut driver, mut sender) = builder
++            .build::<_, _, Bytes>(client_connection)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = sender
++                .send_request(Request::get("https://localhost/dynamic").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++            captured_rx.await.unwrap();
++        };
++        let ((), _) = tokio::join!(request, drive);
++    };
++
++    tokio::time::timeout(TEST_TIMEOUT, async {
++        tokio::join!(server, client);
++    })
++    .await
++    .expect("dynamic request did not complete");
++}
++
++fn stateless_request_block(uri: &'static str) -> Vec<u8> {
++    let request = Request::get(uri).body(()).unwrap();
++    let (parts, ()) = request.into_parts();
++    let header = Header::request(parts.method, parts.uri, parts.headers, parts.extensions).unwrap();
++    let mut block = Vec::new();
++    qpack::encode_stateless(&mut block, header).unwrap();
++    block
++}
++
++fn dynamic_request_bytes(uri: &'static str) -> (Vec<u8>, Vec<u8>) {
++    let request = Request::get(uri).body(()).unwrap();
++    let (parts, ()) = request.into_parts();
++    let header = Header::request(parts.method, parts.uri, parts.headers, parts.extensions).unwrap();
++    let mut encoder = qpack::Encoder::default();
++    let mut instructions = Vec::new();
++    encoder
++        .set_max_table_capacity(4096, &mut instructions)
++        .unwrap();
++    encoder.set_max_blocked_streams(16).unwrap();
++    let mut block = Vec::new();
++    assert!(
++        encoder
++            .encode(0, &mut block, &mut instructions, header)
++            .unwrap()
++            > 0
++    );
++    (instructions, block)
++}
++
++struct ClientCriticalStreams {
++    _control: quinn::RecvStream,
++    encoder: quinn::RecvStream,
++    _decoder: quinn::RecvStream,
++}
++
++async fn accept_client_critical_streams(connection: &quinn::Connection) -> ClientCriticalStreams {
++    let mut control = None;
++    let mut encoder = None;
++    let mut decoder = None;
++    while control.is_none() || encoder.is_none() || decoder.is_none() {
++        let mut stream = connection.accept_uni().await.unwrap();
++        match read_varint(&mut stream).await {
++            0x00 => assert!(control.replace(stream).is_none()),
++            0x02 => assert!(encoder.replace(stream).is_none()),
++            0x03 => assert!(decoder.replace(stream).is_none()),
++            stream_type => panic!("unexpected client stream type {stream_type:#x}"),
++        }
++    }
++    ClientCriticalStreams {
++        _control: control.unwrap(),
++        encoder: encoder.unwrap(),
++        _decoder: decoder.unwrap(),
++    }
++}
++
++async fn read_frame(stream: &mut quinn::RecvStream) -> (u64, Vec<u8>) {
++    let frame_type = read_varint(stream).await;
++    let length = usize::try_from(read_varint(stream).await).unwrap();
++    let mut payload = vec![0; length];
++    stream.read_exact(&mut payload).await.unwrap();
++    (frame_type, payload)
++}
++
++async fn read_varint(stream: &mut quinn::RecvStream) -> u64 {
++    let mut first = [0];
++    stream.read_exact(&mut first).await.unwrap();
++    let width = 1_usize << (first[0] >> 6);
++    let mut encoded = [0; 8];
++    encoded[0] = first[0];
++    stream.read_exact(&mut encoded[1..width]).await.unwrap();
++    encoded[..width]
++        .iter()
++        .enumerate()
++        .fold(0_u64, |value, (index, byte)| {
++            let byte = if index == 0 { *byte & 0x3f } else { *byte };
++            (value << 8) | u64::from(byte)
++        })
++}
++
++struct ObservedConnection {
++    inner: h3_quinn::Connection,
++    bidi_polls: Arc<AtomicUsize>,
++}
++
++impl ObservedConnection {
++    fn new(inner: h3_quinn::Connection, bidi_polls: Arc<AtomicUsize>) -> Self {
++        Self { inner, bidi_polls }
++    }
++}
++
++impl quic::Connection<Bytes> for ObservedConnection {
++    type RecvStream = <h3_quinn::Connection as quic::Connection<Bytes>>::RecvStream;
++    type OpenStreams = ObservedOpenStreams;
++
++    fn poll_accept_recv(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Self::RecvStream, ConnectionErrorIncoming>> {
++        <h3_quinn::Connection as quic::Connection<Bytes>>::poll_accept_recv(&mut self.inner, cx)
++    }
++
++    fn poll_accept_bidi(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Self::BidiStream, ConnectionErrorIncoming>> {
++        <h3_quinn::Connection as quic::Connection<Bytes>>::poll_accept_bidi(&mut self.inner, cx)
++    }
++
++    fn opener(&self) -> Self::OpenStreams {
++        ObservedOpenStreams {
++            inner: <h3_quinn::Connection as quic::Connection<Bytes>>::opener(&self.inner),
++            bidi_polls: Arc::clone(&self.bidi_polls),
++        }
++    }
++}
++
++impl quic::OpenStreams<Bytes> for ObservedConnection {
++    type BidiStream = <h3_quinn::Connection as quic::OpenStreams<Bytes>>::BidiStream;
++    type SendStream = <h3_quinn::Connection as quic::OpenStreams<Bytes>>::SendStream;
++
++    fn poll_open_bidi(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Self::BidiStream, StreamErrorIncoming>> {
++        self.bidi_polls.fetch_add(1, Ordering::AcqRel);
++        <h3_quinn::Connection as quic::OpenStreams<Bytes>>::poll_open_bidi(&mut self.inner, cx)
++    }
++
++    fn poll_open_send(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Self::SendStream, StreamErrorIncoming>> {
++        <h3_quinn::Connection as quic::OpenStreams<Bytes>>::poll_open_send(&mut self.inner, cx)
++    }
++
++    fn close(&mut self, code: crate::error::Code, reason: &[u8]) {
++        <h3_quinn::Connection as quic::OpenStreams<Bytes>>::close(&mut self.inner, code, reason);
++    }
++}
++
++struct ObservedOpenStreams {
++    inner: h3_quinn::OpenStreams,
++    bidi_polls: Arc<AtomicUsize>,
++}
++
++impl quic::OpenStreams<Bytes> for ObservedOpenStreams {
++    type BidiStream = <h3_quinn::OpenStreams as quic::OpenStreams<Bytes>>::BidiStream;
++    type SendStream = <h3_quinn::OpenStreams as quic::OpenStreams<Bytes>>::SendStream;
++
++    fn poll_open_bidi(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Self::BidiStream, StreamErrorIncoming>> {
++        self.bidi_polls.fetch_add(1, Ordering::AcqRel);
++        <h3_quinn::OpenStreams as quic::OpenStreams<Bytes>>::poll_open_bidi(&mut self.inner, cx)
++    }
++
++    fn poll_open_send(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Self::SendStream, StreamErrorIncoming>> {
++        <h3_quinn::OpenStreams as quic::OpenStreams<Bytes>>::poll_open_send(&mut self.inner, cx)
++    }
++
++    fn close(&mut self, code: crate::error::Code, reason: &[u8]) {
++        <h3_quinn::OpenStreams as quic::OpenStreams<Bytes>>::close(&mut self.inner, code, reason);
++    }
++}

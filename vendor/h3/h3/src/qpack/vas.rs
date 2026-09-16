@@ -78,7 +78,7 @@ pub enum Error {
     Index(usize),
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct VirtualAddressSpace {
     inserted: usize,
     dropped: usize,

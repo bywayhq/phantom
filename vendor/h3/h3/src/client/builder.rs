@@ -135,6 +135,16 @@ impl Builder {
         self
     }
 
+    /// Enables stateful QPACK encoding for request fields.
+    ///
+    /// When enabled, requests wait for the peer's SETTINGS frame and the
+    /// encoder stream before publishing a dependent HEADERS frame. The default
+    /// remains stateless request encoding.
+    pub fn enable_dynamic_qpack(&mut self, enabled: bool) -> &mut Self {
+        self.config.dynamic_qpack = enabled;
+        self
+    }
+
     /// Create a new HTTP/3 client from a `quic` connection
     pub async fn build<C, O, B>(
         &mut self,
@@ -151,8 +161,9 @@ impl Builder {
 
         let conn_state = Arc::new(shared);
 
-        let inner = ConnectionInner::new(quic, conn_state.clone(), self.config).await?;
+        let mut inner = ConnectionInner::new(quic, conn_state.clone(), self.config).await?;
         let qpack_decoder = inner.qpack_decoder();
+        let outbound_qpack = inner.take_outbound_qpack_sender();
         let send_request = SendRequest {
             open,
             conn_state,
@@ -160,6 +171,7 @@ impl Builder {
             max_field_section_size: self.config.settings.max_field_section_size,
             sender_count: Arc::new(AtomicUsize::new(1)),
             send_grease_frame: self.config.send_grease,
+            outbound_qpack,
             _buf: PhantomData,
         };
 
@@ -192,6 +204,14 @@ mod tests {
 
     fn configured_settings(builder: &Builder) -> Settings {
         Settings::try_from(builder.config).expect("builder settings must be valid")
+    }
+
+    #[test]
+    fn dynamic_qpack_is_explicitly_enabled() {
+        let mut builder = Builder::new();
+        assert!(!builder.config.dynamic_qpack);
+        builder.enable_dynamic_qpack(true);
+        assert!(builder.config.dynamic_qpack);
     }
 
     fn settings_frame_bytes(builder: &Builder) -> Vec<u8> {

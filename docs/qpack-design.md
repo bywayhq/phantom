@@ -4,11 +4,10 @@ Phantom's pinned Hyperium H3 revision now connects its stateful QPACK decoder
 to client response headers and trailers. The engine can advertise nonzero
 decoder capacity and blocked-stream limits honestly. The Chrome profile emits
 its captured `65536` table capacity and `100` blocked-stream limit after a live
-raw control-stream differential. Outbound request encoding remains a separate
-directional capability. Its isolated stateful encoder now reproduces the
-retained Chrome first-request instructions and field section exactly; sharing
-that encoder with request senders and delivering its instructions on the live
-critical stream remain runtime integration work.
+raw control-stream differential. Its outbound policy uses a connection-owned
+encoder after peer SETTINGS arrive and reproduces the retained Chrome
+first-request encoder instructions and field section on a live QUIC
+connection. Profiles may retain the default stateless request encoding.
 
 ## Ownership
 
@@ -18,11 +17,16 @@ bounded decoder-feedback queue, blocked response sections, and wake
 coordination. Cloned request senders share that state; they do not own critical
 streams.
 
-Outbound encoding holds the codec lock only long enough to produce a field
-section and any encoder instructions. Required instructions must be accepted
-by the bounded queue before the corresponding HEADERS bytes can be published.
-If that cannot be guaranteed, the request uses a literal/static encoding that
-has no unpublished dependency.
+Dynamic requests reserve bounded command capacity before opening a bidirectional
+stream. The driver stages encoder state, completely writes required
+instructions to the critical stream, and only then releases the field section
+to its request. Queue pressure and oversized instruction batches fail
+explicitly; they never trigger a silent stateless fallback.
+
+A publication lease closes the cancellation gap after encoding. Dropping a
+request before the synchronous HEADERS enqueue cancels its local references.
+Once enqueued, references remain until peer acknowledgement or cancellation,
+even if the later flow-control wait is cancelled.
 
 Each request reserves one cancellation instruction for its receive lifetime.
 Inbound HEADERS separately reserve encoded-byte and acknowledgement capacity
@@ -65,7 +69,10 @@ Every negotiated value is also a local resource ceiling:
   reservation remains until the buffered bytes are consumed or the stream is
   dropped; and
 - decoded field sections obey `SETTINGS_MAX_FIELD_SECTION_SIZE`; and
-- queued, reserved, and in-flight decoder feedback share a 64 KiB ceiling.
+- queued, reserved, and in-flight decoder feedback share a 64 KiB ceiling;
+- outbound encoder instructions are limited to 64 KiB per command; and
+- the outbound table and blocked-stream strategy are capped locally at 64 KiB
+  and 65,535 streams even if the peer advertises larger legal values.
 
 Insert-count increments use the complete QPACK prefixed-integer domain. Zero,
 overflow, or advancement beyond the number of inserted entries is a protocol
@@ -87,14 +94,14 @@ block and repair blocked-stream accounting.
    Prove park/unblock, acknowledgement, cancellation, count and byte ceilings,
    dropped-future persistence, and no hangs under reset races. Complete.
 5. Enable client outbound dynamic encoding. The capture-matching two-pass codec
-   and adaptive encoder-stream string coding are complete in isolation. Runtime
-   work must still prove queue-before-HEADERS ordering, shared state across
-   cloned senders, safe literal fallback, concurrency, and a live differential.
-   This is not required to advertise inbound decoder limits because QPACK
-   settings are directional.
+   and adaptive encoder-stream string coding are integrated with the
+   connection driver. Bounded admission occurs before stream creation;
+   instructions precede dependent HEADERS; cancellation is safe before and
+   after publication; default stateless behavior is unchanged. Isolated and
+   live Chrome byte differentials pass. Complete.
 6. Enable Chrome's captured nonzero settings after adversarial integration
    tests and a raw control-stream differential. Complete. Server-side and
-   outbound dynamic QPACK remain separate capabilities.
+   request encoding remain directional capabilities.
 
 ## Why not replace the H3 stack
 

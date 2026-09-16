@@ -255,12 +255,22 @@ case "$dependency" in
   h3)
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid h3 revision '$candidate'"
     [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid h3 archive checksum"
-    [[ -f vendor/h3/PHANTOM.md \
-      && -f vendor/h3/patches/ordered-settings.patch \
-      && -f vendor/h3/patches/qpack-codec.patch \
-      && -f vendor/h3/patches/qpack-critical-streams.patch \
-      && -f vendor/h3/patches/qpack-dynamic-client.patch ]] \
-      || die "vendored h3 provenance and canonical patches are required"
+    h3_patches=(
+      ordered-settings.patch
+      qpack-codec.patch
+      qpack-critical-streams.patch
+      qpack-dynamic-client.patch
+      cancel-safe-recv.patch
+      ordered-request-headers.patch
+      qpack-request-encoder.patch
+      qpack-live-request-runtime.patch
+    )
+    [[ -f vendor/h3/PHANTOM.md ]] \
+      || die "vendored h3 provenance is required"
+    for patch in "${h3_patches[@]}"; do
+      [[ -f "vendor/h3/patches/$patch" ]] \
+        || die "vendored h3 canonical patch $patch is required"
+    done
 
     probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-h3-candidate.XXXXXX")
     archive="$probe_staging/h3-$candidate.tar.gz"
@@ -274,31 +284,19 @@ case "$dependency" in
       && -f "$candidate_dir/h3-quinn/Cargo.toml" ]] \
       || die "h3 candidate archive has an unexpected layout"
 
-    settings_patch="$repo_root/vendor/h3/patches/ordered-settings.patch"
-    qpack_patch="$repo_root/vendor/h3/patches/qpack-codec.patch"
-    critical_streams_patch="$repo_root/vendor/h3/patches/qpack-critical-streams.patch"
-    dynamic_client_patch="$repo_root/vendor/h3/patches/qpack-dynamic-client.patch"
-    if ! git -C "$candidate_dir" apply --check "$settings_patch"; then
-      die "ordered SETTINGS patch does not apply to h3 candidate $candidate"
-    fi
-    git -C "$candidate_dir" apply "$settings_patch"
-    if ! git -C "$candidate_dir" apply --check "$qpack_patch"; then
-      die "QPACK codec patch does not apply to h3 candidate $candidate"
-    fi
-    git -C "$candidate_dir" apply "$qpack_patch"
-    if ! git -C "$candidate_dir" apply --check "$critical_streams_patch"; then
-      die "QPACK critical-stream patch does not apply to h3 candidate $candidate"
-    fi
-    git -C "$candidate_dir" apply "$critical_streams_patch"
-    if ! git -C "$candidate_dir" apply --check "$dynamic_client_patch"; then
-      die "QPACK dynamic-client patch does not apply to h3 candidate $candidate"
-    fi
-    git -C "$candidate_dir" apply "$dynamic_client_patch"
+    for patch in "${h3_patches[@]}"; do
+      patch_file="$repo_root/vendor/h3/patches/$patch"
+      if ! git -C "$candidate_dir" apply --check "$patch_file"; then
+        die "h3 patch $patch does not apply to candidate $candidate"
+      fi
+      git -C "$candidate_dir" apply "$patch_file"
+    done
 
     cp vendor/h3/PHANTOM.md "$candidate_dir/PHANTOM.md"
     mkdir -p "$candidate_dir/patches"
-    cp "$settings_patch" "$qpack_patch" "$critical_streams_patch" \
-      "$dynamic_client_patch" "$candidate_dir/patches/"
+    for patch in "${h3_patches[@]}"; do
+      cp "$repo_root/vendor/h3/patches/$patch" "$candidate_dir/patches/"
+    done
     mv vendor/h3 "$probe_staging/h3.previous"
     mv "$candidate_dir" vendor/h3
 

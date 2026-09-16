@@ -16,12 +16,14 @@ bytes. A typed Chrome H3 recipe emits the captured nonzero QPACK limits,
 maximum field-section size, H3 DATAGRAM setting, ascending setting order, and
 randomized GREASE. The receive path bounds dynamic QPACK state and treats a
 datagram on an ordinary request as an H3 protocol error. The isolated outbound
-dynamic QPACK encoder reproduces the retained Chrome request bytes; sharing
-that state across live request senders and delivering its instructions on the
-critical stream remain planned. Captured pseudo-header order and caller-supplied
-ordinary-field order already survive request construction and stateless QPACK
-encoding. Reusable sessions, typed proxy routing, SSE, and WebSocket also
-remain planned. The project does not make broad client-compatibility claims.
+dynamic QPACK encoder reproduces the retained Chrome request bytes. Its live
+connection-owned path now waits for peer SETTINGS, applies bounded
+backpressure, sends encoder instructions before dependent HEADERS, and matches
+the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
+order, ordinary-field order, duplicates, and sensitivity survive request
+construction and QPACK encoding. Reusable sessions, typed proxy routing, SSE,
+and WebSocket remain planned. The project does not make broad
+client-compatibility claims.
 
 ## Principles
 
@@ -49,9 +51,9 @@ remain planned. The project does not make broad client-compatibility claims.
 
 The provenance-tracked H3 fork is an active runtime dependency for ordered
 SETTINGS, bounded dynamic QPACK receive support, immediate stream cancellation
-through the Quinn adapter, and capture-matching outbound dynamic QPACK codec
-behavior. Live request encoding remains stateless until the shared encoder and
-critical-stream delivery are integrated as a separate directional capability.
+through the Quinn adapter, and bounded connection-owned outbound dynamic QPACK
+with capture-matching live request bytes. Stateless encoding remains the
+default for profiles that do not opt into the dynamic policy.
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),

@@ -51,6 +51,7 @@ impl std::fmt::Display for EncoderError {
     }
 }
 
+#[derive(Clone)]
 pub struct Encoder {
     table: DynamicTable,
     decoder_stream: BytesMut,
@@ -84,13 +85,14 @@ impl Encoder {
         T: IntoIterator<Item = H>,
         H: AsRef<HeaderField>,
     {
+        let mut table = self.table.clone();
         let fields = fields
             .into_iter()
             .map(|field| field.as_ref().clone())
             .collect::<Vec<_>>();
         let mut encoder_instructions = Vec::new();
         {
-            let mut encoder = self.table.encoder(stream_id);
+            let mut encoder = table.encoder(stream_id);
             for field in &fields {
                 Self::plan_field(&mut encoder, &mut encoder_instructions, field)?;
             }
@@ -98,7 +100,7 @@ impl Encoder {
 
         let mut required_ref = 0;
         let mut block_buf = Vec::new();
-        let mut encoder = self.table.encoder(stream_id);
+        let mut encoder = table.encoder(stream_id);
 
         for field in &fields {
             if let Some(reference) = Self::encode_field_line(&mut encoder, &mut block_buf, field)? {
@@ -117,8 +119,17 @@ impl Encoder {
         encoder_buf.put(encoder_instructions.as_slice());
 
         encoder.commit(required_ref);
+        drop(encoder);
+        self.table = table;
 
         Ok(required_ref)
+    }
+
+    pub fn cancel_stream(&mut self, stream_id: u64) -> Result<(), EncoderError> {
+        match self.table.cancel_stream(stream_id) {
+            Ok(()) | Err(DynamicTableError::UnknownStreamId(_)) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
     }
 
     pub fn on_decoder_recv<R: Buf>(&mut self, read: &mut R) -> Result<(), EncoderError> {
@@ -180,6 +191,9 @@ impl Encoder {
         encoder: &mut W,
         field: &HeaderField,
     ) -> Result<(), EncoderError> {
+        if field.sensitive {
+            return Ok(());
+        }
         if StaticTable::find(field).is_some() {
             return Ok(());
         }
@@ -196,6 +210,10 @@ impl Encoder {
         block: &mut W,
         field: &HeaderField,
     ) -> Result<Option<usize>, EncoderError> {
+        if field.sensitive {
+            Self::encode_sensitive_field(block, field)?;
+            return Ok(None);
+        }
         if let Some(index) = StaticTable::find(field) {
             Indexed::Static(index).encode(block);
             return Ok(None);
@@ -235,6 +253,22 @@ impl Encoder {
         }
     }
 
+    fn encode_sensitive_field<W: BufMut>(
+        block: &mut W,
+        field: &HeaderField,
+    ) -> Result<(), EncoderError> {
+        if let Some(index) = StaticTable::find_name(&field.name) {
+            LiteralWithNameRef::new_static(index, field.value.clone())
+                .with_sensitive(true)
+                .encode(block)?;
+        } else {
+            Literal::new(field.name.clone(), field.value.clone())
+                .with_sensitive(true)
+                .encode(block)?;
+        }
+        Ok(())
+    }
+
     fn insert_field<W: BufMut>(
         table: &mut DynamicTableEncoder,
         encoder: &mut W,
@@ -267,6 +301,10 @@ impl Encoder {
         encoder: &mut W,
         field: &HeaderField,
     ) -> Result<Option<usize>, EncoderError> {
+        if field.sensitive {
+            Self::encode_sensitive_field(block, field)?;
+            return Ok(None);
+        }
         if let Some(index) = StaticTable::find(field) {
             Indexed::Static(index).encode(block);
             return Ok(None);
@@ -344,7 +382,9 @@ where
     for field in fields {
         let field = field.as_ref();
 
-        if let Some(index) = StaticTable::find(field) {
+        if field.sensitive {
+            Encoder::encode_sensitive_field(block, field)?;
+        } else if let Some(index) = StaticTable::find(field) {
             Indexed::Static(index).encode(block);
         } else if let Some(index) = StaticTable::find_name(&field.name) {
             LiteralWithNameRef::new_static(index, field.value.clone()).encode(block)?;
@@ -777,6 +817,129 @@ mod tests {
             Ok((1, 1))
         );
         assert_eq!(Indexed::decode(&mut reused), Ok(Indexed::Dynamic(0)));
+    }
+
+    #[test]
+    fn sensitive_fields_are_literal_and_never_inserted() {
+        let mut encoder = Encoder::default();
+        let mut setup = Vec::new();
+        encoder
+            .set_max_table_capacity(TABLE_SIZE, &mut setup)
+            .unwrap();
+        encoder.set_max_blocked_streams(16).unwrap();
+
+        let mut block = Vec::new();
+        let mut instructions = Vec::new();
+        assert_eq!(
+            encoder.encode(
+                0,
+                &mut block,
+                &mut instructions,
+                [HeaderField::new("content-type", "application/json").with_sensitive(true)]
+            ),
+            Ok(0)
+        );
+        assert!(instructions.is_empty());
+        let mut read = Cursor::new(block);
+        assert_eq!(
+            HeaderPrefix::decode(&mut read).unwrap().get(0, TABLE_SIZE),
+            Ok((0, 0))
+        );
+        assert_eq!(
+            LiteralWithNameRef::decode(&mut read),
+            Ok(LiteralWithNameRef::new_static(44, "application/json").with_sensitive(true))
+        );
+
+        let sensitive = HeaderField::new("x-secret", "value").with_sensitive(true);
+        let mut block = Vec::new();
+        let mut instructions = Vec::new();
+        assert_eq!(
+            encoder.encode(4, &mut block, &mut instructions, [sensitive.clone()]),
+            Ok(0)
+        );
+        assert!(instructions.is_empty());
+
+        let mut read = Cursor::new(block);
+        assert_eq!(
+            HeaderPrefix::decode(&mut read).unwrap().get(0, TABLE_SIZE),
+            Ok((0, 0))
+        );
+        assert_eq!(
+            Literal::decode(&mut read),
+            Ok(Literal::new("x-secret", "value").with_sensitive(true))
+        );
+
+        let mut block = Vec::new();
+        let mut instructions = Vec::new();
+        assert_eq!(
+            encoder.encode(
+                8,
+                &mut block,
+                &mut instructions,
+                [HeaderField::new("x-secret", "value")]
+            ),
+            Ok(1)
+        );
+        assert!(!instructions.is_empty());
+
+        let mut block = Vec::new();
+        let mut instructions = Vec::new();
+        assert_eq!(
+            encoder.encode(12, &mut block, &mut instructions, [sensitive]),
+            Ok(0)
+        );
+        assert!(instructions.is_empty());
+        let mut read = Cursor::new(block);
+        assert_eq!(
+            HeaderPrefix::decode(&mut read).unwrap().get(1, TABLE_SIZE),
+            Ok((0, 0))
+        );
+        assert_eq!(
+            Literal::decode(&mut read),
+            Ok(Literal::new("x-secret", "value").with_sensitive(true))
+        );
+    }
+
+    #[test]
+    fn stateless_sensitive_fields_use_never_indexed_literals() {
+        let fields = [
+            HeaderField::new("content-type", "application/json").with_sensitive(true),
+            HeaderField::new("x-secret", "value").with_sensitive(true),
+        ];
+        let expected_size = fields.iter().map(HeaderField::mem_size).sum::<usize>() as u64;
+        let mut block = Vec::new();
+        assert_eq!(encode_stateless(&mut block, &fields), Ok(expected_size));
+
+        let mut read = Cursor::new(block);
+        assert_eq!(
+            HeaderPrefix::decode(&mut read).unwrap().get(0, 0),
+            Ok((0, 0))
+        );
+        assert_eq!(
+            LiteralWithNameRef::decode(&mut read),
+            Ok(LiteralWithNameRef::new_static(44, "application/json").with_sensitive(true))
+        );
+        assert_eq!(
+            Literal::decode(&mut read),
+            Ok(Literal::new("x-secret", "value").with_sensitive(true))
+        );
+    }
+
+    #[test]
+    fn local_stream_cancellation_is_idempotent() {
+        let field = HeaderField::new("x-dynamic", "value");
+        let mut encoder = Encoder::default();
+        let mut setup = Vec::new();
+        encoder
+            .set_max_table_capacity(TABLE_SIZE, &mut setup)
+            .unwrap();
+        encoder.set_max_blocked_streams(1).unwrap();
+        encoder
+            .encode(0, &mut Vec::new(), &mut Vec::new(), [field])
+            .unwrap();
+
+        assert_eq!(encoder.cancel_stream(0), Ok(()));
+        assert_eq!(encoder.cancel_stream(0), Ok(()));
     }
 
     #[test]

@@ -269,8 +269,16 @@ impl IndexedWithPostBase {
 
 #[derive(Debug, PartialEq)]
 pub enum LiteralWithNameRef {
-    Static { index: usize, value: Vec<u8> },
-    Dynamic { index: usize, value: Vec<u8> },
+    Static {
+        index: usize,
+        value: Vec<u8>,
+        sensitive: bool,
+    },
+    Dynamic {
+        index: usize,
+        value: Vec<u8>,
+        sensitive: bool,
+    },
 }
 
 impl LiteralWithNameRef {
@@ -278,6 +286,7 @@ impl LiteralWithNameRef {
         LiteralWithNameRef::Static {
             index,
             value: value.into(),
+            sensitive: false,
         }
     }
 
@@ -285,7 +294,20 @@ impl LiteralWithNameRef {
         LiteralWithNameRef::Dynamic {
             index,
             value: value.into(),
+            sensitive: false,
         }
+    }
+
+    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
+        match &mut self {
+            Self::Static {
+                sensitive: marker, ..
+            }
+            | Self::Dynamic {
+                sensitive: marker, ..
+            } => *marker = sensitive,
+        }
+        self
     }
 
     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
@@ -297,10 +319,10 @@ impl LiteralWithNameRef {
                     ));
                 }
 
-                Ok(LiteralWithNameRef::new_static(
-                    i as usize,
-                    prefix_string::decode(8, buf)?,
-                ))
+                Ok(
+                    LiteralWithNameRef::new_static(i as usize, prefix_string::decode(8, buf)?)
+                        .with_sensitive(f & 0b0010 != 0),
+                )
             }
             (f, i) if f & 0b0101 == 0b0100 => {
                 if i > (usize::MAX as u64) {
@@ -309,10 +331,10 @@ impl LiteralWithNameRef {
                     ));
                 }
 
-                Ok(LiteralWithNameRef::new_dynamic(
-                    i as usize,
-                    prefix_string::decode(8, buf)?,
-                ))
+                Ok(
+                    LiteralWithNameRef::new_dynamic(i as usize, prefix_string::decode(8, buf)?)
+                        .with_sensitive(f & 0b0010 != 0),
+                )
             }
             (f, _) => Err(ParseError::InvalidPrefix(f)),
         }
@@ -320,12 +342,30 @@ impl LiteralWithNameRef {
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
         match self {
-            LiteralWithNameRef::Static { index, value } => {
-                prefix_int::encode(4, 0b0101, *index as u64, buf);
+            LiteralWithNameRef::Static {
+                index,
+                value,
+                sensitive,
+            } => {
+                prefix_int::encode(
+                    4,
+                    0b0101 | if *sensitive { 0b0010 } else { 0 },
+                    *index as u64,
+                    buf,
+                );
                 prefix_string::encode(8, 0, value, buf)?;
             }
-            LiteralWithNameRef::Dynamic { index, value } => {
-                prefix_int::encode(4, 0b0100, *index as u64, buf);
+            LiteralWithNameRef::Dynamic {
+                index,
+                value,
+                sensitive,
+            } => {
+                prefix_int::encode(
+                    4,
+                    0b0100 | if *sensitive { 0b0010 } else { 0 },
+                    *index as u64,
+                    buf,
+                );
                 prefix_string::encode(8, 0, value, buf)?;
             }
         }
@@ -337,6 +377,7 @@ impl LiteralWithNameRef {
 pub struct LiteralWithPostBaseNameRef {
     pub index: usize,
     pub value: Vec<u8>,
+    pub sensitive: bool,
 }
 
 impl LiteralWithPostBaseNameRef {
@@ -344,29 +385,40 @@ impl LiteralWithPostBaseNameRef {
         LiteralWithPostBaseNameRef {
             index,
             value: value.into(),
+            sensitive: false,
         }
+    }
+
+    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
+        self.sensitive = sensitive;
+        self
     }
 
     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
         match prefix_int::decode(3, buf)? {
-            (f, i) if f & 0b1111_0000 == 0 => {
+            (f, i) if f & 0b11110 == 0 => {
                 if i > (usize::MAX as u64) {
                     return Err(ParseError::Integer(
                         crate::qpack::prefix_int::Error::Overflow,
                     ));
                 }
 
-                Ok(LiteralWithPostBaseNameRef::new(
-                    i as usize,
-                    prefix_string::decode(8, buf)?,
-                ))
+                Ok(
+                    LiteralWithPostBaseNameRef::new(i as usize, prefix_string::decode(8, buf)?)
+                        .with_sensitive(f & 0b00001 != 0),
+                )
             }
             (f, _) => Err(ParseError::InvalidPrefix(f)),
         }
     }
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
-        prefix_int::encode(3, 0b0000, self.index as u64, buf);
+        prefix_int::encode(
+            3,
+            if self.sensitive { 0b00001 } else { 0 },
+            self.index as u64,
+            buf,
+        );
         prefix_string::encode(8, 0, &self.value, buf)?;
         Ok(())
     }
@@ -376,6 +428,7 @@ impl LiteralWithPostBaseNameRef {
 pub struct Literal {
     pub name: Vec<u8>,
     pub value: Vec<u8>,
+    pub sensitive: bool,
 }
 
 impl Literal {
@@ -383,7 +436,13 @@ impl Literal {
         Literal {
             name: name.into(),
             value: value.into(),
+            sensitive: false,
         }
+    }
+
+    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
+        self.sensitive = sensitive;
+        self
     }
 
     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
@@ -392,14 +451,21 @@ impl Literal {
         } else if buf.chunk()[0] & 0b1110_0000 != 0b0010_0000 {
             return Err(ParseError::InvalidPrefix(buf.chunk()[0]));
         }
+        let sensitive = buf.chunk()[0] & 0b0001_0000 != 0;
         Ok(Literal::new(
             prefix_string::decode(4, buf)?,
             prefix_string::decode(8, buf)?,
-        ))
+        )
+        .with_sensitive(sensitive))
     }
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
-        prefix_string::encode(4, 0b0010, &self.name, buf)?;
+        prefix_string::encode(
+            4,
+            0b0010 | if self.sensitive { 0b0001 } else { 0 },
+            &self.name,
+            buf,
+        )?;
         prefix_string::encode(8, 0, &self.value, buf)?;
         Ok(())
     }
@@ -465,6 +531,41 @@ mod test {
         field.encode(&mut buf).unwrap();
         let mut read = Cursor::new(&buf);
         assert_eq!(Literal::decode(&mut read), Ok(field));
+    }
+
+    #[test]
+    fn never_indexed_literals_set_n_and_round_trip() {
+        let fields = [
+            (
+                LiteralWithNameRef::new_static(42, "foo").with_sensitive(true),
+                0b0010_0000,
+            ),
+            (
+                LiteralWithNameRef::new_dynamic(42, "foo").with_sensitive(true),
+                0b0010_0000,
+            ),
+        ];
+        for (field, n_bit) in fields {
+            let mut buf = Vec::new();
+            field.encode(&mut buf).unwrap();
+            assert_ne!(buf[0] & n_bit, 0);
+            assert_eq!(LiteralWithNameRef::decode(&mut Cursor::new(buf)), Ok(field));
+        }
+
+        let postbase = LiteralWithPostBaseNameRef::new(42, "foo").with_sensitive(true);
+        let mut buf = Vec::new();
+        postbase.encode(&mut buf).unwrap();
+        assert_ne!(buf[0] & 0b0000_1000, 0);
+        assert_eq!(
+            LiteralWithPostBaseNameRef::decode(&mut Cursor::new(buf)),
+            Ok(postbase)
+        );
+
+        let literal = Literal::new("foo", "bar").with_sensitive(true);
+        let mut buf = Vec::new();
+        literal.encode(&mut buf).unwrap();
+        assert_ne!(buf[0] & 0b0001_0000, 0);
+        assert_eq!(Literal::decode(&mut Cursor::new(buf)), Ok(literal));
     }
 
     #[test]

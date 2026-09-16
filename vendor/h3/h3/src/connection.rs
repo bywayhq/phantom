@@ -16,6 +16,7 @@ const MAX_QPACK_STREAM_BYTES_PER_POLL: usize = 64 * 1024;
 use tracing::{instrument, warn};
 
 use crate::{
+    client::outbound_qpack,
     config::Config,
     error::{
         connection_error_creators::{
@@ -74,6 +75,8 @@ where
     decoder: Arc<qpack::DecoderState>,
     encoder: qpack::Encoder,
     decoder_sending: BytesMut,
+    outbound: Option<outbound_qpack::Driver>,
+    outbound_sender: Option<outbound_qpack::Sender>,
 }
 
 fn poll_send_qpack_feedback<S, B>(
@@ -357,6 +360,12 @@ where
             ))
         })?;
 
+        let (outbound, outbound_sender) = if config.dynamic_qpack {
+            let (driver, sender) = outbound_qpack::channel();
+            (Some(driver), Some(sender))
+        } else {
+            (None, None)
+        };
         let qpack_streams = QpackStreams {
             decoder_send: Some(qpack_decoder),
             decoder_recv: None,
@@ -367,6 +376,8 @@ where
             decoder,
             encoder: qpack::Encoder::default(),
             decoder_sending: BytesMut::new(),
+            outbound,
+            outbound_sender,
         };
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
@@ -398,6 +409,10 @@ where
 
     pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
         Arc::clone(&self.qpack_streams.decoder)
+    }
+
+    pub(crate) fn take_outbound_qpack_sender(&mut self) -> Option<outbound_qpack::Sender> {
+        self.qpack_streams.outbound_sender.take()
     }
 
     pub(crate) fn abort_qpack(&self) {
@@ -744,6 +759,31 @@ where
             }
         }
 
+        if self.qpack_streams.outbound.is_some() && self.qpack_streams.encoder_send.is_none() {
+            return Poll::Ready(Err(self.closed_qpack_stream("encoder")));
+        }
+        let qpack = &mut self.qpack_streams;
+        let outbound_result = match (qpack.outbound.as_mut(), qpack.encoder_send.as_mut()) {
+            (Some(outbound), Some(send)) => outbound.poll(&mut qpack.encoder, send, cx),
+            (None, _) | (Some(_), None) => Poll::Pending,
+        };
+        if let Poll::Ready(Err(error)) = outbound_result {
+            let error = match error {
+                outbound_qpack::PollError::Stream(error) => {
+                    return Poll::Ready(Err(self.handle_qpack_stream_error("encoder", error)));
+                }
+                outbound_qpack::PollError::Codec(error) => InternalConnectionError::new(
+                    Code::H3_INTERNAL_ERROR,
+                    format!("outbound QPACK state failed: {error}"),
+                ),
+                outbound_qpack::PollError::WriteZero => InternalConnectionError::new(
+                    Code::H3_CLOSED_CRITICAL_STREAM,
+                    "QPACK encoder stream write made no progress".to_string(),
+                ),
+            };
+            return Poll::Ready(Err(self.handle_connection_error(error)));
+        }
+
         let decoder_stopped = match self.qpack_streams.decoder_send.as_mut() {
             Some(send) => send.poll_stopped(cx),
             None => return Poll::Ready(Err(self.closed_qpack_stream("decoder"))),
@@ -907,9 +947,31 @@ where
             Ok(Some(Frame::Settings(settings))) => {
                 if !self.got_peer_settings {
                     // Received settings frame
-
+                    let semantic_settings: crate::config::Settings = (&settings).into();
+                    let qpack = &mut self.qpack_streams;
+                    let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
+                        outbound.configure(
+                            &mut qpack.encoder,
+                            semantic_settings.qpack_max_table_capacity,
+                            semantic_settings.qpack_blocked_streams,
+                        )
+                    } else {
+                        Ok(())
+                    };
+                    if let Err(error) = configure_result {
+                        return Poll::Ready(Err(self.handle_connection_error(
+                            InternalConnectionError::new(
+                                Code::H3_SETTINGS_ERROR,
+                                format!("invalid peer QPACK settings: {error}"),
+                            ),
+                        )));
+                    }
                     self.got_peer_settings = true;
-                    self.set_settings((&settings).into());
+                    self.set_settings(semantic_settings);
+                    if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
+                        outbound.mark_ready();
+                        cx.waker().wake_by_ref();
+                    }
 
                     Frame::Settings(settings)
                 } else {

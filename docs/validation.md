@@ -424,9 +424,10 @@ one reserved GREASE setting, and ascending order without normalizing them into
 a map. The complete 17-field captured request now passes through Phantom's
 typed construction and the vendored H3 field iterator in exact order. The
 isolated stateful encoder also reproduces the retained dynamic QPACK
-instructions and field-section bytes exactly. Live connection delivery and
-packet-level proof remain separate acceptance work. No Safari HTTP/2 wire
-fixture exists yet.
+instructions and field-section bytes exactly. A raw QUIC peer now proves the
+same encoder-stream prefix and complete HEADERS frame through Phantom's live
+BoringSSL/H3 request path. Packet-level ordering proof remains separate
+acceptance work. No Safari HTTP/2 wire fixture exists yet.
 
 ## External TLS and QUIC observers
 

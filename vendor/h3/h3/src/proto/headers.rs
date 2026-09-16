@@ -247,9 +247,10 @@ impl Iterator for HeaderIter {
         self.pseudo = None;
 
         if let Some(ordered) = self.ordered_fields.as_mut() {
-            return ordered
-                .next()
-                .map(|(name, value)| (name.as_str(), value.as_bytes()).into());
+            return ordered.next().map(|(name, value)| {
+                let sensitive = value.is_sensitive();
+                HeaderField::from((name.as_str(), value.as_bytes())).with_sensitive(sensitive)
+            });
         }
 
         for (new_header_name, header_value) in self.fields.by_ref() {
@@ -257,7 +258,10 @@ impl Iterator for HeaderIter {
                 self.last_header_name = Some(new);
             }
             if let (Some(ref n), v) = (&self.last_header_name, header_value) {
-                return Some((n.as_str(), v.as_bytes()).into());
+                let sensitive = v.is_sensitive();
+                return Some(
+                    HeaderField::from((n.as_str(), v.as_bytes())).with_sensitive(sensitive),
+                );
             }
         }
 
@@ -273,7 +277,7 @@ impl TryFrom<Vec<HeaderField>> for Header {
         let mut regular_field_seen = false;
 
         for field in headers.into_iter() {
-            let (name, value) = field.into_inner();
+            let (name, value, sensitive) = field.into_parts();
             match Field::parse(name, value)? {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3
                 //# Any request or response that contains a
@@ -309,8 +313,9 @@ impl TryFrom<Vec<HeaderField>> for Header {
                     pseudo.status = Some(s);
                     pseudo.len += 1;
                 }
-                Field::Header((n, v)) => {
+                Field::Header((n, mut v)) => {
                     regular_field_seen = true;
+                    v.set_sensitive(sensitive);
                     fields.append(n, v);
                 }
                 Field::Protocol(p) => {
@@ -925,11 +930,13 @@ mod tests {
             vec![
                 HeaderField {
                     name: std::borrow::Cow::Borrowed(b"set-cookie"),
-                    value: std::borrow::Cow::Borrowed(b"foo=foo")
+                    value: std::borrow::Cow::Borrowed(b"foo=foo"),
+                    sensitive: false,
                 },
                 HeaderField {
                     name: std::borrow::Cow::Borrowed(b"set-cookie"),
-                    value: std::borrow::Cow::Borrowed(b"bar=bar")
+                    value: std::borrow::Cow::Borrowed(b"bar=bar"),
+                    sensitive: false,
                 }
             ]
         );
@@ -940,9 +947,57 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![HeaderField {
                 name: std::borrow::Cow::Borrowed(b"other-header"),
-                value: std::borrow::Cow::Borrowed(b"other-header-value")
+                value: std::borrow::Cow::Borrowed(b"other-header-value"),
+                sensitive: false,
             },]
         );
+    }
+
+    #[test]
+    fn preserves_sensitive_markers_in_both_directions() {
+        let mut value = HeaderValue::from_static("secret");
+        value.set_sensitive(true);
+
+        let mut fields = HeaderMap::new();
+        fields.insert("authorization", value.clone());
+        let header = Header::request(
+            Method::GET,
+            Uri::from_static("https://example.test/"),
+            fields,
+            Extensions::new(),
+        )
+        .unwrap();
+        let encoded = header
+            .into_iter()
+            .find(|field| field.name.as_ref() == b"authorization")
+            .unwrap();
+        assert!(encoded.sensitive);
+
+        let decoded = Header::try_from(vec![
+            HeaderField::new(":status", "200"),
+            HeaderField::new("authorization", "secret").with_sensitive(true),
+        ])
+        .unwrap();
+        assert!(decoded.into_fields()["authorization"].is_sensitive());
+
+        let mut fields = HeaderMap::new();
+        fields.insert("authorization", value.clone());
+        let mut extensions = Extensions::new();
+        extensions.insert(OrderedHeaders::new(vec![(
+            HeaderName::from_static("authorization"),
+            value,
+        )]));
+        let ordered = Header::request(
+            Method::GET,
+            Uri::from_static("https://example.test/"),
+            fields,
+            extensions,
+        )
+        .unwrap()
+        .into_iter()
+        .find(|field| field.name.as_ref() == b"authorization")
+        .unwrap();
+        assert!(ordered.sensitive);
     }
 
     #[test]

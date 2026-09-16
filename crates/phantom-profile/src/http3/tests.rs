@@ -1,6 +1,6 @@
 use super::{
-    Http3PseudoHeader, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
-    InvalidHttp3RequestSettings, InvalidHttp3Settings,
+    Http3PseudoHeader, Http3QpackEncoding, Http3RequestSettings, Http3Setting, Http3SettingOrder,
+    Http3Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings,
 };
 
 fn settings() -> Http3Settings {
@@ -13,6 +13,7 @@ fn settings() -> Http3Settings {
             Http3Setting::RandomizedGrease,
         ],
         setting_order: Http3SettingOrder::Ascending,
+        qpack_encoding: Http3QpackEncoding::Dynamic,
     }
 }
 
@@ -43,9 +44,11 @@ fn accepts_owned_customizable_settings() -> Result<(), Box<dyn std::error::Error
     let mut settings = settings();
     settings.initial_settings[1] = Http3Setting::MaxFieldSectionSize(65_536);
     settings.setting_order = Http3SettingOrder::Fixed;
+    settings.qpack_encoding = Http3QpackEncoding::Stateless;
 
     settings.validate()?;
     assert!(settings.receives_datagrams());
+    assert_eq!(settings.qpack_encoding, Http3QpackEncoding::Stateless);
     Ok(())
 }
 

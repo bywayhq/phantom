@@ -524,6 +524,14 @@ h3_source_root="$test_root/h3-source"
 mkdir -p "$h3_source_root"
 copy_vendor_fixture vendor/h3 "$h3_source_root/h3-$h3_revision"
 git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/qpack-live-request-runtime.patch"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/qpack-request-encoder.patch"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/ordered-request-headers.patch"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+  "$repo_root/vendor/h3/patches/cancel-safe-recv.patch"
+git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
   "$repo_root/vendor/h3/patches/qpack-dynamic-client.patch"
 git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
   "$repo_root/vendor/h3/patches/qpack-critical-streams.patch"
@@ -651,7 +659,7 @@ if (
   echo "QPACK-drifted h3 probe unexpectedly accepted the canonical patches" >&2
   exit 1
 fi
-grep -F -q 'QPACK codec patch does not apply' \
+grep -F -q 'h3 patch qpack-codec.patch does not apply' \
   "$test_root/h3-qpack-drift.stderr"
 [[ -z $(git -C "$h3_checkout" status --porcelain) ]]
 [[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
@@ -689,6 +697,22 @@ if grep -F -q 'cargo tree -i h3' "$h3_command_log" \
   echo "unselected h3 probe unexpectedly ran root workspace gates" >&2
   exit 1
 fi
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  --check patches/qpack-live-request-runtime.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  patches/qpack-live-request-runtime.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  --check patches/qpack-request-encoder.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  patches/qpack-request-encoder.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  --check patches/ordered-request-headers.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  patches/ordered-request-headers.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  --check patches/cancel-safe-recv.patch
+git -C "$h3_checkout/vendor/h3" apply --reverse \
+  patches/cancel-safe-recv.patch
 git -C "$h3_checkout/vendor/h3" apply --reverse \
   --check patches/qpack-dynamic-client.patch
 git -C "$h3_checkout/vendor/h3" apply --reverse \

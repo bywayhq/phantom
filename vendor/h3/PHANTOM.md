@@ -76,10 +76,10 @@ blocked streams obey `SETTINGS_QPACK_BLOCKED_STREAMS`; fragmented instructions,
 partial feedback writes, invalid instructions, critical-stream closure, future
 cancellation, and reset wakeups have focused regressions.
 
-The Chrome profile now uses its captured nonzero inbound QPACK limits after a
-live raw control-stream differential. Outbound request encoding remains
-stateless; QPACK settings are directional, so this does not weaken the inbound
-decoder contract. Custom profiles may still select QPACK `0/0`.
+The Chrome profile uses its captured nonzero inbound QPACK limits after a live
+raw control-stream differential. Its explicit dynamic request policy waits for
+peer SETTINGS, then uses a connection-owned encoder. Stateless request encoding
+remains the default for other profiles.
 
 ## Ordered request fields
 
@@ -94,8 +94,8 @@ opened; they do not close the HTTP/3 connection.
 The header iterator emits every pseudo-header first in the declared order,
 followed by ordinary fields in exact sidecar order. The focused QPACK regression
 fixes the resulting stateless field-section bytes for an interleaved duplicate.
-Sensitivity participates in sidecar agreement, but the current stateless QPACK
-encoder does not translate `HeaderValue::is_sensitive` into QPACK's N bit.
+Sensitivity participates in sidecar agreement and round-trips through decoded
+headers. Sensitive values use QPACK's N bit and are never inserted or indexed.
 
 `h3-quinn` now polls Quinn's cancel-safe chunk read directly instead of moving
 the receive stream into a stored future. This keeps `stop_sending` immediately
@@ -117,14 +117,20 @@ The stateful QPACK encoder can be configured from peer table-capacity and
 blocked-stream settings. It stages inserts before encoding a field section, so
 new entries use the final Base and relative references. Encoder-stream strings
 use Huffman coding only when it shortens the value. The default stateless field
-section encoder retains its existing byte representation. Connection-level
-delivery of these encoder instructions is intentionally a separate integration.
+section encoder retains its existing byte representation.
+
+The optional live path reserves a bounded command slot before opening a
+request stream. The connection driver owns the encoder, caps its table and
+instruction buffers, writes instructions before releasing dependent HEADERS,
+and uses a publication lease to cancel references only before HEADERS enqueue.
+Peer limits above local strategy ceilings are clamped rather than allocated.
 
 The canonical source and test deltas are stored in
 `patches/ordered-settings.patch`, `patches/qpack-codec.patch`,
 `patches/qpack-critical-streams.patch`, `patches/qpack-dynamic-client.patch`,
 `patches/cancel-safe-recv.patch`, `patches/ordered-request-headers.patch`, and
-`patches/qpack-request-encoder.patch`.
+`patches/qpack-request-encoder.patch`, and
+`patches/qpack-live-request-runtime.patch`.
 `PHANTOM.md` and the patch files are
 packaging metadata and are deliberately excluded from those patches.
 
@@ -185,6 +191,10 @@ packaging metadata and are deliberately excluded from those patches.
      "$PWD/vendor/h3/patches/qpack-request-encoder.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/qpack-request-encoder.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/qpack-live-request-runtime.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/qpack-live-request-runtime.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the

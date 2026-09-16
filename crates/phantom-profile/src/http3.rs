@@ -54,6 +54,16 @@ pub enum Http3SettingOrder {
     Ascending,
 }
 
+/// Outbound QPACK policy for request field sections.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3QpackEncoding {
+    /// Encode requests without using the peer's dynamic table.
+    Stateless,
+    /// Wait for peer SETTINGS and use the connection-owned dynamic table.
+    Dynamic,
+}
+
 /// A request pseudo-header in its QPACK field-section order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -75,6 +85,8 @@ pub struct Http3Settings {
     pub initial_settings: Vec<Http3Setting>,
     /// Ordering applied after per-connection settings are materialized.
     pub setting_order: Http3SettingOrder,
+    /// QPACK policy for request field sections sent on this connection.
+    pub qpack_encoding: Http3QpackEncoding,
 }
 
 impl Http3Settings {

@@ -31,7 +31,7 @@ use crate::{
     stream::{self, BufRecvStream},
 };
 
-use super::stream::RequestStream;
+use super::{outbound_qpack, stream::RequestStream};
 
 /// HTTP/3 request sender
 ///
@@ -123,6 +123,7 @@ where
     pub(super) sender_count: Arc<AtomicUsize>,
     pub(super) _buf: PhantomData<fn(B)>,
     pub(super) send_grease_frame: bool,
+    pub(super) outbound_qpack: Option<outbound_qpack::Sender>,
 }
 
 impl<T, B> ConnectionState for SendRequest<T, B>
@@ -179,14 +180,6 @@ where
             }
         })?;
 
-        //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
-        //= type=implication
-        //# A
-        //# client MUST send only a single request on a given stream.
-        let mut stream = future::poll_fn(|cx| self.open.poll_open_bidi(cx))
-            .await
-            .map_err(|e| self.handle_quic_stream_error(e))?;
-
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2
         //= type=TODO
         //# Characters in field names MUST be
@@ -198,33 +191,99 @@ where
         //# ([COOKIES]) MAY be split into separate field lines, each with one or
         //# more cookie-pairs, before compression.
 
-        let mut block = BytesMut::new();
-        let mem_size = qpack::encode_stateless(&mut block, headers).map_err(|_e| {
-            self.handle_connection_error_on_stream(InternalConnectionError {
-                code: Code::H3_INTERNAL_ERROR,
-                message: "Failed to encode headers".to_string(),
-            })
-        })?;
-
-        //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
-        //# An implementation that
-        //# has received this parameter SHOULD NOT send an HTTP message header
-        //# that exceeds the indicated size, as the peer will likely refuse to
-        //# process it.
-        //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
-        //# An HTTP implementation MUST NOT send frames or requests that would be
-        //# invalid based on its current understanding of the peer's settings.
-        let peer_max_field_section_size = self.settings().max_field_section_size;
-        if mem_size > peer_max_field_section_size {
-            return Err(StreamError::HeaderTooBig {
-                actual_size: mem_size,
-                max_size: peer_max_field_section_size,
+        let stream = if let Some(mut outbound) = self.outbound_qpack.clone() {
+            let fields = headers.into_iter().collect::<Vec<_>>();
+            let mem_size = fields.iter().try_fold(0_u64, |size, field| {
+                u64::try_from(field.mem_size())
+                    .ok()
+                    .and_then(|field_size| size.checked_add(field_size))
             });
-        }
+            let Some(mem_size) = mem_size else {
+                return Err(StreamError::InvalidRequest(
+                    "request field-section size is not representable".to_string(),
+                ));
+            };
 
-        stream::write(&mut stream, Frame::Headers(block.freeze()))
-            .await
-            .map_err(|e| self.handle_quic_stream_error(e))?;
+            outbound
+                .wait_ready()
+                .await
+                .map_err(|_| self.outbound_qpack_closed())?;
+            if let Some(error) = self.check_peer_connection_closing() {
+                return Err(error);
+            }
+            let peer_max_field_section_size = self.settings().max_field_section_size;
+            if mem_size > peer_max_field_section_size {
+                return Err(StreamError::HeaderTooBig {
+                    actual_size: mem_size,
+                    max_size: peer_max_field_section_size,
+                });
+            }
+
+            let permit = outbound
+                .reserve()
+                .await
+                .map_err(|_| self.outbound_qpack_closed())?;
+            if let Some(error) = self.check_peer_connection_closing() {
+                return Err(error);
+            }
+
+            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+            //= type=implication
+            //# A client MUST send only a single request on a given stream.
+            let mut stream = future::poll_fn(|cx| self.open.poll_open_bidi(cx))
+                .await
+                .map_err(|error| self.handle_quic_stream_error(error))?;
+            let stream_id = quic::SendStream::send_id(&stream).into_inner();
+            let (command, encoded) = outbound_qpack::EncodeCommand::new(stream_id, fields);
+            let _ = permit.send(command);
+            let encoded = encoded
+                .await
+                .map_err(|_| self.outbound_qpack_closed())?
+                .map_err(|error| self.map_outbound_qpack_error(error))?;
+            let outbound_qpack::Encoded { block, publication } = encoded;
+            quic::SendStream::send_data(&mut stream, Frame::Headers(block))
+                .map_err(|error| self.handle_quic_stream_error(error))?;
+            publication.published();
+            future::poll_fn(|cx| quic::SendStream::poll_ready(&mut stream, cx))
+                .await
+                .map_err(|error| self.handle_quic_stream_error(error))?;
+            stream
+        } else {
+            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+            //= type=implication
+            //# A client MUST send only a single request on a given stream.
+            let mut stream = future::poll_fn(|cx| self.open.poll_open_bidi(cx))
+                .await
+                .map_err(|error| self.handle_quic_stream_error(error))?;
+            let mut block = BytesMut::new();
+            let mem_size = qpack::encode_stateless(&mut block, headers).map_err(|_error| {
+                self.handle_connection_error_on_stream(InternalConnectionError {
+                    code: Code::H3_INTERNAL_ERROR,
+                    message: "Failed to encode headers".to_string(),
+                })
+            })?;
+
+            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+            //# An implementation that
+            //# has received this parameter SHOULD NOT send an HTTP message header
+            //# that exceeds the indicated size, as the peer will likely refuse to
+            //# process it.
+            //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
+            //# An HTTP implementation MUST NOT send frames or requests that would be
+            //# invalid based on its current understanding of the peer's settings.
+            let peer_max_field_section_size = self.settings().max_field_section_size;
+            if mem_size > peer_max_field_section_size {
+                return Err(StreamError::HeaderTooBig {
+                    actual_size: mem_size,
+                    max_size: peer_max_field_section_size,
+                });
+            }
+
+            stream::write(&mut stream, Frame::Headers(block.freeze()))
+                .await
+                .map_err(|error| self.handle_quic_stream_error(error))?;
+            stream
+        };
 
         let frame_stream = FrameStream::new_request(
             BufRecvStream::new(stream),
@@ -251,6 +310,30 @@ where
         self.send_grease_frame = false;
         Ok(request_stream)
     }
+
+    fn outbound_qpack_closed(&mut self) -> StreamError {
+        self.existing_connection_error().unwrap_or_else(|| {
+            self.handle_connection_error_on_stream(InternalConnectionError::new(
+                Code::H3_INTERNAL_ERROR,
+                "outbound QPACK driver stopped".to_string(),
+            ))
+        })
+    }
+
+    fn map_outbound_qpack_error(&mut self, error: outbound_qpack::EncodeError) -> StreamError {
+        let message = error.to_string();
+        match error {
+            outbound_qpack::EncodeError::InstructionsTooLarge { .. } => {
+                StreamError::InvalidRequest(message)
+            }
+            outbound_qpack::EncodeError::Codec(_) => {
+                self.handle_connection_error_on_stream(InternalConnectionError::new(
+                    Code::H3_INTERNAL_ERROR,
+                    format!("failed to encode request fields with QPACK: {message}"),
+                ))
+            }
+        }
+    }
 }
 
 impl<T, B> Clone for SendRequest<T, B>
@@ -270,6 +353,7 @@ where
             sender_count: self.sender_count.clone(),
             _buf: PhantomData,
             send_grease_frame: self.send_grease_frame,
+            outbound_qpack: self.outbound_qpack.clone(),
         }
     }
 }

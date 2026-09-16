@@ -10,6 +10,7 @@
 mod h3_quinn;
 
 mod connection;
+mod qpack_request;
 mod request;
 
 use std::{

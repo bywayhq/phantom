@@ -26,6 +26,9 @@ pub struct Config {
     /// and accommodate future changes without breaking existing implementations.
     pub(crate) send_grease: bool,
 
+    /// Use the peer's QPACK settings for stateful request-field encoding.
+    pub(crate) dynamic_qpack: bool,
+
     #[cfg(test)]
     pub(crate) send_settings: bool,
 
@@ -109,6 +112,7 @@ impl TryFrom<Config> for frame::Settings {
 
         let Config {
             send_grease,
+            dynamic_qpack: _,
             #[cfg(test)]
                 send_settings: _,
             settings:
@@ -223,6 +227,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             send_grease: true,
+            dynamic_qpack: false,
             #[cfg(test)]
             send_settings: true,
             settings: Default::default(),
@@ -241,6 +246,11 @@ mod tests {
 
         assert_eq!(settings.qpack_max_table_capacity, 0);
         assert_eq!(settings.qpack_blocked_streams, 0);
+    }
+
+    #[test]
+    fn dynamic_qpack_is_disabled_by_default() {
+        assert!(!Config::default().dynamic_qpack);
     }
 
     #[test]

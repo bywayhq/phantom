@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{HeaderValue, Request, Response, StatusCode};
 use phantom_profile::{
-    Http3PseudoHeader, Http3Setting, Http3SettingOrder, Http3Settings, chromium,
+    Http3PseudoHeader, Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings, chromium,
 };
 use tokio::{sync::oneshot, time::timeout};
 use tracing::instrument::WithSubscriber;
@@ -25,21 +25,11 @@ const CHROME_FIXTURE: &str = include_str!(
 #[test]
 fn chrome_capture_matches_dynamic_qpack_bytes() -> TestResult<()> {
     let expected = fixture_request_headers()?;
-    let authority = std::str::from_utf8(&expected[1].1)?;
-    let target = std::str::from_utf8(&expected[3].1)?;
-    let headers = expected[4..]
-        .iter()
-        .map(|(name, value)| {
-            Ok(RequestHeader::new(
-                std::str::from_utf8(name)?.to_owned(),
-                value,
-            ))
-        })
-        .collect::<TestResult<Vec<_>>>()?;
+    let (authority, target, headers) = fixture_request_input(&expected)?;
     let request = crate::http3::request::prepare_get(
         &chromium::v152_macos_http3_request(),
-        authority,
-        OriginForm::parse(target)?,
+        &authority,
+        target,
         headers,
     )?;
     let (parts, ()) = request.into_parts();
@@ -81,6 +71,69 @@ fn chrome_capture_matches_dynamic_qpack_bytes() -> TestResult<()> {
         field_section.as_ref(),
         decode_hex(fixture_value("request_headers_payload_hex")?)?
     );
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn chrome_request_matches_captured_qpack_on_a_live_connection() -> TestResult<()> {
+    let expected_headers = fixture_request_headers()?;
+    let (authority, target, headers) = fixture_request_input(&expected_headers)?;
+    let expected_encoder = decode_hex(fixture_value("request_qpack_encoder_stream_prefix_hex")?)?;
+    let expected_encoder = expected_encoder
+        .strip_prefix(&[0x02])
+        .ok_or("fixture QPACK encoder prefix omitted its stream type")?
+        .to_vec();
+    let expected_frame = decode_hex(fixture_value("request_headers_frame_hex")?)?;
+
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let connection = incoming.await?;
+        let mut control = connection.open_uni().await?;
+        control
+            .write_all(&[0x00, 0x04, 0x05, 0x01, 0x50, 0x00, 0x07, 0x10])
+            .await?;
+
+        let mut streams = accept_chrome_client_streams(&connection).await?;
+        let mut encoder = vec![0; expected_encoder.len()];
+        streams.encoder.read_exact(&mut encoder).await?;
+        assert_eq!(encoder, expected_encoder);
+
+        let (mut response, mut request) = connection.accept_bi().await?;
+        let mut frame = vec![0; expected_frame.len()];
+        request.read_exact(&mut frame).await?;
+        assert_eq!(frame, expected_frame);
+
+        response.write_all(&[0x01, 0x03, 0x00, 0x00, 0xd9]).await?;
+        response.finish()?;
+        let _ = done_received.await;
+        connection.close(quinn::VarInt::from_u32(0), b"");
+        drop((control, streams));
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let response = timeout(
+        TEST_TIMEOUT,
+        crate::http3::send_get(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            &chromium::v152_macos_http3(),
+            &chromium::v152_macos_http3_request(),
+            &authority,
+            target,
+            headers,
+        ),
+    )
+    .await
+    .map_err(|_| "live Chrome QPACK request timed out")??;
+    assert_eq!(response.status(), StatusCode::OK);
+    drop(response);
+    let _ = client_done.send(());
+    join_server(server).await?;
     Ok(())
 }
 
@@ -322,6 +375,7 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
     let invalid_settings = Http3Settings {
         initial_settings: vec![Http3Setting::QpackMaxTableCapacity(1 << 30)],
         setting_order: Http3SettingOrder::Fixed,
+        qpack_encoding: Http3QpackEncoding::Stateless,
     };
     let mut invalid_request_settings = chromium::v152_macos_http3_request();
     invalid_request_settings.pseudo_header_order[3] = Http3PseudoHeader::Method;
@@ -426,6 +480,82 @@ fn fixture_request_headers() -> TestResult<Vec<(Vec<u8>, Vec<u8>)>> {
             Ok((decode_hex(name)?, decode_hex(value)?))
         })
         .collect()
+}
+
+fn fixture_request_input(
+    expected: &[(Vec<u8>, Vec<u8>)],
+) -> TestResult<(String, OriginForm, Vec<RequestHeader>)> {
+    let authority = std::str::from_utf8(&expected[1].1)?.to_owned();
+    let target = OriginForm::parse(std::str::from_utf8(&expected[3].1)?)?;
+    let headers = expected[4..]
+        .iter()
+        .map(|(name, value)| {
+            Ok(RequestHeader::new(
+                std::str::from_utf8(name)?.to_owned(),
+                value,
+            ))
+        })
+        .collect::<TestResult<Vec<_>>>()?;
+    Ok((authority, target, headers))
+}
+
+struct ChromeClientStreams {
+    _control: quinn::RecvStream,
+    encoder: quinn::RecvStream,
+    _decoder: quinn::RecvStream,
+    _grease: Vec<quinn::RecvStream>,
+}
+
+async fn accept_chrome_client_streams(
+    connection: &quinn::Connection,
+) -> TestResult<ChromeClientStreams> {
+    let mut control = None;
+    let mut encoder = None;
+    let mut decoder = None;
+    let mut grease = Vec::new();
+    while control.is_none() || encoder.is_none() || decoder.is_none() {
+        let mut stream = connection.accept_uni().await?;
+        match read_stream_varint(&mut stream).await? {
+            0x00 => {
+                if control.replace(stream).is_some() {
+                    return Err("client opened a duplicate control stream".into());
+                }
+            }
+            0x02 => {
+                if encoder.replace(stream).is_some() {
+                    return Err("client opened a duplicate QPACK encoder stream".into());
+                }
+            }
+            0x03 => {
+                if decoder.replace(stream).is_some() {
+                    return Err("client opened a duplicate QPACK decoder stream".into());
+                }
+            }
+            _ => grease.push(stream),
+        }
+    }
+    Ok(ChromeClientStreams {
+        _control: control.ok_or("client omitted its control stream")?,
+        encoder: encoder.ok_or("client omitted its QPACK encoder stream")?,
+        _decoder: decoder.ok_or("client omitted its QPACK decoder stream")?,
+        _grease: grease,
+    })
+}
+
+async fn read_stream_varint(stream: &mut quinn::RecvStream) -> TestResult<u64> {
+    let mut first = [0];
+    stream.read_exact(&mut first).await?;
+    let width = 1_usize << (first[0] >> 6);
+    let mut encoded = [0; 8];
+    encoded[0] = first[0];
+    stream.read_exact(&mut encoded[1..width]).await?;
+    Ok(encoded[..width]
+        .iter()
+        .enumerate()
+        .fold(0_u64, |value, (index, byte)| {
+            let byte = if index == 0 { *byte & 0x3f } else { *byte };
+            (value << 8) | u64::from(byte)
+        }))
 }
 
 fn fixture_value(key: &str) -> TestResult<&'static str> {

@@ -52,7 +52,8 @@ check_h3_patch_replay() {
     vendor/h3/patches/qpack-dynamic-client.patch \
     vendor/h3/patches/cancel-safe-recv.patch \
     vendor/h3/patches/ordered-request-headers.patch \
-    vendor/h3/patches/qpack-request-encoder.patch
+    vendor/h3/patches/qpack-request-encoder.patch \
+    vendor/h3/patches/qpack-live-request-runtime.patch
   do
     git -C "$candidate" apply --check "$PWD/$patch"
     git -C "$candidate" apply "$PWD/$patch"

@@ -8,7 +8,8 @@ use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom_profile::{
-    Http3Setting, Http3SettingOrder, Http3Settings, chromium, quic::QuicTransportSettings,
+    Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings, chromium,
+    quic::QuicTransportSettings,
 };
 use phantom_quic_btls::QuicClientConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -301,6 +302,7 @@ async fn send_test_request(
             Http3Setting::QpackBlockedStreams(0),
         ],
         setting_order: Http3SettingOrder::Fixed,
+        qpack_encoding: Http3QpackEncoding::Stateless,
     };
     super::send_request(remote, server_name, client, &settings, request).await
 }

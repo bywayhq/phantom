@@ -255,7 +255,7 @@ pub enum DynamicInsertionResult {
     NotInserted(DynamicLookupResult),
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct DynamicTable {
     fields: VecDeque<HeaderField>,
     curr_size: usize,
@@ -318,9 +318,10 @@ impl DynamicTable {
 
         let required = self.max_size - size;
 
-        if let Some(to_evict) = self.can_free(required)? {
-            self.evict(to_evict)?;
-        }
+        let Some(to_evict) = self.can_free(required)? else {
+            return Err(Error::MaxTableSizeReached);
+        };
+        self.evict(to_evict)?;
 
         self.max_size = size;
         Ok(())
@@ -1313,6 +1314,22 @@ mod tests {
         assert!(table.track_blocks.is_empty());
         assert!(table.blocked_streams.is_empty());
         assert_eq!(table.blocked_count, 0);
+    }
+
+    #[test]
+    fn capacity_reduction_with_tracked_entries_is_atomic() {
+        let mut table = tracked_table(42);
+        let previous_max = table.max_size;
+        let previous_size = table.curr_size;
+        let previous_fields = table.fields.clone();
+
+        assert_eq!(
+            table.set_max_size(previous_size - 1),
+            Err(Error::MaxTableSizeReached)
+        );
+        assert_eq!(table.max_size, previous_max);
+        assert_eq!(table.curr_size, previous_size);
+        assert_eq!(table.fields, previous_fields);
     }
 
     #[test]

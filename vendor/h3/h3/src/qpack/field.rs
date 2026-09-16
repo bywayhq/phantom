@@ -13,6 +13,7 @@ pub const ESTIMATED_OVERHEAD_BYTES: usize = 32;
 pub struct HeaderField {
     pub name: Cow<'static, [u8]>,
     pub value: Cow<'static, [u8]>,
+    pub sensitive: bool,
 }
 
 impl HeaderField {
@@ -24,7 +25,13 @@ impl HeaderField {
         HeaderField {
             name: Cow::Owned(name.into()),
             value: Cow::Owned(value.into()),
+            sensitive: false,
         }
+    }
+
+    pub fn with_sensitive(mut self, sensitive: bool) -> Self {
+        self.sensitive = sensitive;
+        self
     }
 
     pub fn mem_size(&self) -> usize {
@@ -38,11 +45,16 @@ impl HeaderField {
         Self {
             name: self.name.clone(),
             value: Cow::Owned(value.into()),
+            sensitive: self.sensitive,
         }
     }
 
     pub fn into_inner(self) -> (Cow<'static, [u8]>, Cow<'static, [u8]>) {
         (self.name, self.value)
+    }
+
+    pub fn into_parts(self) -> (Cow<'static, [u8]>, Cow<'static, [u8]>, bool) {
+        (self.name, self.value, self.sensitive)
     }
 }
 
@@ -85,6 +97,7 @@ where
             // FIXME: could avoid allocation if HeaderField had a lifetime
             name: Cow::Owned(Vec::from(name.as_ref())),
             value: Cow::Owned(Vec::from(value.as_ref())),
+            sensitive: false,
         }
     }
 }
@@ -105,6 +118,7 @@ mod tests {
         let field = HeaderField {
             name: Cow::Borrowed(b"Name"),
             value: Cow::Borrowed(b"Value"),
+            sensitive: false,
         };
         assert_eq!(field.mem_size(), 4 + 5 + 32);
     }
@@ -114,12 +128,14 @@ mod tests {
         let field = HeaderField {
             name: Cow::Borrowed(b"Name"),
             value: Cow::Borrowed(b"Value"),
+            sensitive: true,
         };
         assert_eq!(
             field.with_value("New value"),
             HeaderField {
                 name: Cow::Borrowed(b"Name"),
                 value: Cow::Borrowed(b"New value"),
+                sensitive: true,
             }
         );
     }

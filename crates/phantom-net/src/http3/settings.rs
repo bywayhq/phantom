@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use phantom_profile::{Http3Setting, Http3SettingOrder, Http3Settings};
+use phantom_profile::{Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings};
 use phantom_quic_btls::QuicClientConfig;
 
 use super::{Http3Error, Http3ErrorKind};
@@ -37,6 +37,18 @@ pub(super) fn builder(
             error,
         )
     })?;
+    match settings.qpack_encoding {
+        Http3QpackEncoding::Stateless => {}
+        Http3QpackEncoding::Dynamic => {
+            builder.enable_dynamic_qpack(true);
+        }
+        _ => {
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Configuration,
+                "HTTP/3 profile contains an unsupported QPACK policy",
+            ));
+        }
+    }
     Ok(builder)
 }
 

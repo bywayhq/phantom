@@ -266,20 +266,32 @@ impl Decoder {
                 table.get_postbase(index)?.clone()
             }
             HeaderBlockField::LiteralWithNameRef => match LiteralWithNameRef::decode(buf)? {
-                LiteralWithNameRef::Static { index, value } => {
-                    StaticTable::get(index)?.with_value(value)
-                }
-                LiteralWithNameRef::Dynamic { index, value } => {
-                    table.get_relative(index)?.with_value(value)
-                }
+                LiteralWithNameRef::Static {
+                    index,
+                    value,
+                    sensitive,
+                } => StaticTable::get(index)?
+                    .with_value(value)
+                    .with_sensitive(sensitive),
+                LiteralWithNameRef::Dynamic {
+                    index,
+                    value,
+                    sensitive,
+                } => table
+                    .get_relative(index)?
+                    .with_value(value)
+                    .with_sensitive(sensitive),
             },
             HeaderBlockField::LiteralWithPostBaseNameRef => {
                 let literal = LiteralWithPostBaseNameRef::decode(buf)?;
-                table.get_postbase(literal.index)?.with_value(literal.value)
+                table
+                    .get_postbase(literal.index)?
+                    .with_value(literal.value)
+                    .with_sensitive(literal.sensitive)
             }
             HeaderBlockField::Literal => {
                 let literal = Literal::decode(buf)?;
-                HeaderField::new(literal.name, literal.value)
+                HeaderField::new(literal.name, literal.value).with_sensitive(literal.sensitive)
             }
             _ => return Err(DecoderError::UnknownPrefix(first)),
         };
@@ -310,13 +322,17 @@ pub fn decode_stateless<T: Buf>(buf: &mut T, max_size: u64) -> Result<Decoded, D
             },
             HeaderBlockField::LiteralWithNameRef => match LiteralWithNameRef::decode(buf)? {
                 LiteralWithNameRef::Dynamic { .. } => return Err(DecoderError::MissingRefs(0)),
-                LiteralWithNameRef::Static { index, value } => {
-                    StaticTable::get(index)?.with_value(value)
-                }
+                LiteralWithNameRef::Static {
+                    index,
+                    value,
+                    sensitive,
+                } => StaticTable::get(index)?
+                    .with_value(value)
+                    .with_sensitive(sensitive),
             },
             HeaderBlockField::Literal => {
                 let literal = Literal::decode(buf)?;
-                HeaderField::new(literal.name, literal.value)
+                HeaderField::new(literal.name, literal.value).with_sensitive(literal.sensitive)
             }
             _ => return Err(DecoderError::UnknownPrefix(buf.chunk()[0])),
         };
@@ -442,6 +458,29 @@ mod tests {
         );
         let result = decode_stateless(&mut buf, 2);
         assert_eq!(result, Err(DecoderError::HeaderTooLong(44)));
+    }
+
+    #[test]
+    fn stateless_decoder_preserves_never_indexed_markers() {
+        let mut block = Vec::new();
+        HeaderPrefix::new(0, 0, 0, 0).encode(&mut block);
+        LiteralWithNameRef::new_static(84, "secret")
+            .with_sensitive(true)
+            .encode(&mut block)
+            .unwrap();
+        Literal::new("x-secret", "value")
+            .with_sensitive(true)
+            .encode(&mut block)
+            .unwrap();
+
+        let decoded = decode_stateless(&mut Cursor::new(block), u64::MAX).unwrap();
+        assert_eq!(
+            decoded.fields,
+            [
+                HeaderField::new("authorization", "secret").with_sensitive(true),
+                HeaderField::new("x-secret", "value").with_sensitive(true),
+            ]
+        );
     }
 
     /**
@@ -768,9 +807,11 @@ mod tests {
         let mut buf = vec![];
         HeaderPrefix::new(2, 2, 4, TABLE_SIZE).encode(&mut buf);
         LiteralWithNameRef::new_dynamic(1, "new bar1")
+            .with_sensitive(true)
             .encode(&mut buf)
             .unwrap();
         LiteralWithNameRef::new_static(18, "PUT")
+            .with_sensitive(true)
             .encode(&mut buf)
             .unwrap();
 
@@ -783,8 +824,11 @@ mod tests {
         assert_eq!(
             fields,
             &[
-                field(1).with_value("new bar1"),
-                StaticTable::get(18).unwrap().with_value("PUT")
+                field(1).with_value("new bar1").with_sensitive(true),
+                StaticTable::get(18)
+                    .unwrap()
+                    .with_value("PUT")
+                    .with_sensitive(true)
             ]
         )
     }
@@ -794,27 +838,34 @@ mod tests {
         let mut buf = vec![];
         HeaderPrefix::new(2, 2, 4, TABLE_SIZE).encode(&mut buf);
         LiteralWithPostBaseNameRef::new(0, "new bar3")
+            .with_sensitive(true)
             .encode(&mut buf)
             .unwrap();
 
         let mut read = Cursor::new(&buf);
         let decoder = Decoder::from(build_table_with_size(4));
         let Decoded { fields, .. } = decoder.decode_header(&mut read).unwrap();
-        assert_eq!(fields, &[field(3).with_value("new bar3")]);
+        assert_eq!(
+            fields,
+            &[field(3).with_value("new bar3").with_sensitive(true)]
+        );
     }
 
     #[test]
     fn decode_without_name_ref_header_field() {
         let mut buf = vec![];
         HeaderPrefix::new(0, 0, 0, TABLE_SIZE).encode(&mut buf);
-        Literal::new("foo", "bar").encode(&mut buf).unwrap();
+        Literal::new("foo", "bar")
+            .with_sensitive(true)
+            .encode(&mut buf)
+            .unwrap();
 
         let mut read = Cursor::new(&buf);
         let decoder = Decoder::from(build_table_with_size(0));
         let Decoded { fields, .. } = decoder.decode_header(&mut read).unwrap();
         assert_eq!(
             fields,
-            &[HeaderField::new(b"foo".to_vec(), b"bar".to_vec())]
+            &[HeaderField::new(b"foo".to_vec(), b"bar".to_vec()).with_sensitive(true)]
         );
     }
 

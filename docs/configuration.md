@@ -72,6 +72,15 @@ differentials honest and prevents a pool from treating two different wire
 identities as equivalent. The complete boundary and threat-review checklist
 are documented in [TLS security boundary](tls-security-boundary.md).
 
+## HTTP/3 QPACK policy
+
+`Http3Settings::qpack_encoding` chooses `Stateless` or `Dynamic` request-field
+encoding for a connection. Dynamic mode is profile data because it changes
+the encoder stream and HEADERS bytes. The engine owns the mutable table,
+settings synchronization, backpressure, and cancellation; callers do not
+receive low-level table controls. Stateless remains available for custom or
+uncaptured stacks and never silently replaces a requested dynamic mode.
+
 ## Lessons from adjacent clients
 
 The projects below are references, not APIs to copy wholesale. Their useful
