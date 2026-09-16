@@ -18,6 +18,7 @@ mod chrome;
 mod client_hello_fixture;
 mod ech;
 mod firefox;
+mod hello_retry;
 mod record_size_limit;
 mod safari;
 mod tracing;
