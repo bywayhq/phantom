@@ -13,10 +13,12 @@ use std::{
 
 use btls::{
     error::ErrorStack,
-    ssl::{SslConnector as BoringConnector, SslMethod, SslVerifyMode},
+    ssl::{SslConnector as BoringConnector, SslMethod, SslVerifyMode, SslVersion},
     x509::{X509, store::X509StoreBuilder},
 };
-use phantom_profile::{AlpsSettings, InvalidTlsSettings, NamedGroup, TlsSettings, TlsVersion};
+use phantom_profile::{
+    AlpsSettings, CipherSuite, InvalidTlsSettings, NamedGroup, TlsSettings, TlsVersion,
+};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
 use tracing::{Instrument, Span, debug, debug_span, field};
@@ -170,6 +172,7 @@ impl TlsConnector {
             alps_negotiated = field::Empty,
             peer_application_settings_len = field::Empty,
             tls_version = field::Empty,
+            cipher_suite = field::Empty,
             outcome = field::Empty,
             error_kind = field::Empty,
         );
@@ -223,21 +226,32 @@ impl TlsConnector {
 
             let negotiated_alpn = stream.ssl().selected_alpn_protocol().map(Box::from);
             let peer_application_settings = stream.ssl().peer_application_settings().map(Box::from);
+            let negotiated_tls_version = negotiated_tls_version(stream.ssl().version2());
+            let negotiated_cipher = stream.ssl().current_cipher();
+            let negotiated_cipher_suite = negotiated_cipher
+                .and_then(|cipher| CipherSuite::from_iana_id(cipher.protocol_id()));
+            let negotiated_cipher_name = negotiated_cipher
+                .and_then(|cipher| cipher.standard_name())
+                .unwrap_or("unknown");
             span.record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
             record_alps_negotiation(&span, peer_application_settings.as_deref());
             span.record("tls_version", stream.ssl().version_str());
+            span.record("cipher_suite", negotiated_cipher_name);
             debug!(
                 negotiated_alpn = trace_alpn(negotiated_alpn.as_deref()),
                 alps_negotiated = peer_application_settings.is_some(),
                 peer_application_settings_len =
                     peer_application_settings.as_deref().map_or(0, <[u8]>::len),
                 tls_version = stream.ssl().version_str(),
+                cipher_suite = negotiated_cipher_name,
                 "TLS handshake completed"
             );
             Ok(TlsStream {
                 inner: stream,
                 negotiated_alpn,
                 peer_application_settings,
+                negotiated_tls_version,
+                negotiated_cipher_suite,
             })
         }
         .instrument(span.clone())
@@ -291,6 +305,8 @@ pub(crate) struct TlsStream<S> {
     inner: BoringStream<S>,
     negotiated_alpn: Option<Box<[u8]>>,
     peer_application_settings: Option<Box<[u8]>>,
+    negotiated_tls_version: Option<TlsVersion>,
+    negotiated_cipher_suite: Option<CipherSuite>,
 }
 
 impl<S> TlsStream<S> {
@@ -302,6 +318,16 @@ impl<S> TlsStream<S> {
     /// Returns the peer's ALPS value, preserving negotiated-empty settings.
     pub(crate) fn peer_application_settings(&self) -> Option<&[u8]> {
         self.peer_application_settings.as_deref()
+    }
+
+    /// Returns the negotiated TLS protocol version.
+    pub(crate) fn negotiated_tls_version(&self) -> Option<TlsVersion> {
+        self.negotiated_tls_version
+    }
+
+    /// Returns the negotiated TLS cipher suite.
+    pub(crate) fn negotiated_cipher_suite(&self) -> Option<CipherSuite> {
+        self.negotiated_cipher_suite
     }
 }
 
@@ -324,7 +350,19 @@ impl<S> fmt::Debug for TlsStream<S> {
                 "peer_application_settings_len",
                 &self.peer_application_settings().map_or(0, <[u8]>::len),
             )
+            .field("negotiated_tls_version", &self.negotiated_tls_version())
+            .field("negotiated_cipher_suite", &self.negotiated_cipher_suite())
             .finish_non_exhaustive()
+    }
+}
+
+fn negotiated_tls_version(version: Option<SslVersion>) -> Option<TlsVersion> {
+    match version? {
+        SslVersion::TLS1 => Some(TlsVersion::Tls10),
+        SslVersion::TLS1_1 => Some(TlsVersion::Tls11),
+        SslVersion::TLS1_2 => Some(TlsVersion::Tls12),
+        SslVersion::TLS1_3 => Some(TlsVersion::Tls13),
+        _ => None,
     }
 }
 

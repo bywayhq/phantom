@@ -19,6 +19,31 @@ pub enum TlsVersion {
     Tls13,
 }
 
+impl TlsVersion {
+    /// Returns the protocol identifier used by the TLS `supported_versions` extension.
+    #[must_use]
+    pub const fn protocol_id(self) -> u16 {
+        match self {
+            Self::Tls10 => 0x0301,
+            Self::Tls11 => 0x0302,
+            Self::Tls12 => 0x0303,
+            Self::Tls13 => 0x0304,
+        }
+    }
+
+    /// Converts a TLS protocol identifier into a known version.
+    #[must_use]
+    pub const fn from_protocol_id(value: u16) -> Option<Self> {
+        match value {
+            0x0301 => Some(Self::Tls10),
+            0x0302 => Some(Self::Tls11),
+            0x0303 => Some(Self::Tls12),
+            0x0304 => Some(Self::Tls13),
+            _ => None,
+        }
+    }
+}
+
 /// A TLS cipher suite in wire preference order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -63,6 +88,63 @@ pub enum CipherSuite {
     RsaAes256CbcSha,
     /// TLS_RSA_WITH_3DES_EDE_CBC_SHA.
     Rsa3DesEdeCbcSha,
+}
+
+impl CipherSuite {
+    /// Returns the cipher suite's IANA value.
+    #[must_use]
+    pub const fn iana_id(self) -> u16 {
+        match self {
+            Self::Aes128GcmSha256 => 0x1301,
+            Self::Aes256GcmSha384 => 0x1302,
+            Self::Chacha20Poly1305Sha256 => 0x1303,
+            Self::EcdheEcdsaAes128GcmSha256 => 0xc02b,
+            Self::EcdheRsaAes128GcmSha256 => 0xc02f,
+            Self::EcdheEcdsaAes256GcmSha384 => 0xc02c,
+            Self::EcdheRsaAes256GcmSha384 => 0xc030,
+            Self::EcdheEcdsaChacha20Poly1305Sha256 => 0xcca9,
+            Self::EcdheRsaChacha20Poly1305Sha256 => 0xcca8,
+            Self::EcdheRsaAes128CbcSha => 0xc013,
+            Self::EcdheRsaAes256CbcSha => 0xc014,
+            Self::EcdheEcdsaAes128CbcSha => 0xc009,
+            Self::EcdheEcdsaAes256CbcSha => 0xc00a,
+            Self::EcdheEcdsa3DesEdeCbcSha => 0xc008,
+            Self::EcdheRsa3DesEdeCbcSha => 0xc012,
+            Self::RsaAes128GcmSha256 => 0x009c,
+            Self::RsaAes256GcmSha384 => 0x009d,
+            Self::RsaAes128CbcSha => 0x002f,
+            Self::RsaAes256CbcSha => 0x0035,
+            Self::Rsa3DesEdeCbcSha => 0x000a,
+        }
+    }
+
+    /// Converts an IANA value into a known cipher suite.
+    #[must_use]
+    pub const fn from_iana_id(value: u16) -> Option<Self> {
+        match value {
+            0x1301 => Some(Self::Aes128GcmSha256),
+            0x1302 => Some(Self::Aes256GcmSha384),
+            0x1303 => Some(Self::Chacha20Poly1305Sha256),
+            0xc02b => Some(Self::EcdheEcdsaAes128GcmSha256),
+            0xc02f => Some(Self::EcdheRsaAes128GcmSha256),
+            0xc02c => Some(Self::EcdheEcdsaAes256GcmSha384),
+            0xc030 => Some(Self::EcdheRsaAes256GcmSha384),
+            0xcca9 => Some(Self::EcdheEcdsaChacha20Poly1305Sha256),
+            0xcca8 => Some(Self::EcdheRsaChacha20Poly1305Sha256),
+            0xc013 => Some(Self::EcdheRsaAes128CbcSha),
+            0xc014 => Some(Self::EcdheRsaAes256CbcSha),
+            0xc009 => Some(Self::EcdheEcdsaAes128CbcSha),
+            0xc00a => Some(Self::EcdheEcdsaAes256CbcSha),
+            0xc008 => Some(Self::EcdheEcdsa3DesEdeCbcSha),
+            0xc012 => Some(Self::EcdheRsa3DesEdeCbcSha),
+            0x009c => Some(Self::RsaAes128GcmSha256),
+            0x009d => Some(Self::RsaAes256GcmSha384),
+            0x002f => Some(Self::RsaAes128CbcSha),
+            0x0035 => Some(Self::RsaAes256CbcSha),
+            0x000a => Some(Self::Rsa3DesEdeCbcSha),
+            _ => None,
+        }
+    }
 }
 
 /// A TLS supported group.

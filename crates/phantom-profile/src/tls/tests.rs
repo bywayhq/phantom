@@ -2,6 +2,51 @@ use std::error::Error;
 
 use super::*;
 
+#[test]
+fn tls_versions_round_trip_protocol_identifiers() {
+    for version in [
+        TlsVersion::Tls10,
+        TlsVersion::Tls11,
+        TlsVersion::Tls12,
+        TlsVersion::Tls13,
+    ] {
+        assert_eq!(
+            TlsVersion::from_protocol_id(version.protocol_id()),
+            Some(version)
+        );
+    }
+    assert_eq!(TlsVersion::from_protocol_id(0x7f17), None);
+}
+
+#[test]
+fn cipher_suites_round_trip_iana_identifiers() {
+    for suite in [
+        CipherSuite::Aes128GcmSha256,
+        CipherSuite::Aes256GcmSha384,
+        CipherSuite::Chacha20Poly1305Sha256,
+        CipherSuite::EcdheEcdsaAes128GcmSha256,
+        CipherSuite::EcdheRsaAes128GcmSha256,
+        CipherSuite::EcdheEcdsaAes256GcmSha384,
+        CipherSuite::EcdheRsaAes256GcmSha384,
+        CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
+        CipherSuite::EcdheRsaChacha20Poly1305Sha256,
+        CipherSuite::EcdheRsaAes128CbcSha,
+        CipherSuite::EcdheRsaAes256CbcSha,
+        CipherSuite::EcdheEcdsaAes128CbcSha,
+        CipherSuite::EcdheEcdsaAes256CbcSha,
+        CipherSuite::EcdheEcdsa3DesEdeCbcSha,
+        CipherSuite::EcdheRsa3DesEdeCbcSha,
+        CipherSuite::RsaAes128GcmSha256,
+        CipherSuite::RsaAes256GcmSha384,
+        CipherSuite::RsaAes128CbcSha,
+        CipherSuite::RsaAes256CbcSha,
+        CipherSuite::Rsa3DesEdeCbcSha,
+    ] {
+        assert_eq!(CipherSuite::from_iana_id(suite.iana_id()), Some(suite));
+    }
+    assert_eq!(CipherSuite::from_iana_id(0x0a0a), None);
+}
+
 fn minimal_settings() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,

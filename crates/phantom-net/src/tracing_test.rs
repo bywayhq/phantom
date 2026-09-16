@@ -30,6 +30,8 @@ struct CaptureState {
     span_names: HashMap<u64, &'static str>,
     outcomes: Vec<(&'static str, String)>,
     error_kinds: Vec<(&'static str, String)>,
+    tls_versions: Vec<(&'static str, String)>,
+    cipher_suites: Vec<(&'static str, String)>,
     response_body_events: Vec<(u64, String)>,
     connection_driver_events: usize,
     response_body_polls_on_origin_dispatch: usize,
@@ -57,6 +59,24 @@ impl OutcomeSubscriber {
             .iter()
             .filter(|(name, _)| *name == span_name)
             .map(|(_, error_kind)| error_kind.clone())
+            .collect()
+    }
+
+    pub(crate) fn tls_versions_for(&self, span_name: &str) -> Vec<String> {
+        self.state()
+            .tls_versions
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, version)| version.clone())
+            .collect()
+    }
+
+    pub(crate) fn cipher_suites_for(&self, span_name: &str) -> Vec<String> {
+        self.state()
+            .cipher_suites
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, suite)| suite.clone())
             .collect()
     }
 
@@ -152,7 +172,11 @@ impl Subscriber for OutcomeSubscriber {
     fn record(&self, span: &Id, values: &Record<'_>) {
         let mut visitor = OutcomeVisitor::default();
         values.record(&mut visitor);
-        if visitor.outcome.is_none() && visitor.error_kind.is_none() {
+        if visitor.outcome.is_none()
+            && visitor.error_kind.is_none()
+            && visitor.tls_version.is_none()
+            && visitor.cipher_suite.is_none()
+        {
             return;
         }
         let mut state = self.state();
@@ -162,6 +186,12 @@ impl Subscriber for OutcomeSubscriber {
             }
             if let Some(error_kind) = visitor.error_kind {
                 state.error_kinds.push((name, error_kind));
+            }
+            if let Some(version) = visitor.tls_version {
+                state.tls_versions.push((name, version));
+            }
+            if let Some(suite) = visitor.cipher_suite {
+                state.cipher_suites.push((name, suite));
             }
         }
     }
@@ -223,6 +253,8 @@ impl Subscriber for OutcomeSubscriber {
 struct OutcomeVisitor {
     outcome: Option<String>,
     error_kind: Option<String>,
+    tls_version: Option<String>,
+    cipher_suite: Option<String>,
 }
 
 impl Visit for OutcomeVisitor {
@@ -232,6 +264,8 @@ impl Visit for OutcomeVisitor {
         match field.name() {
             "outcome" => self.outcome = Some(value.to_owned()),
             "error_kind" => self.error_kind = Some(value.to_owned()),
+            "tls_version" => self.tls_version = Some(value.to_owned()),
+            "cipher_suite" => self.cipher_suite = Some(value.to_owned()),
             _ => {}
         }
     }

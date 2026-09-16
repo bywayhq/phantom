@@ -1,6 +1,6 @@
 use std::{io, net::SocketAddr};
 
-use phantom_profile::{TlsSettings, TlsVersion, chromium::v152_macos_tls};
+use phantom_profile::{CipherSuite, TlsSettings, TlsVersion, chromium::v152_macos_tls};
 use phantom_testkit::tls::{CaptureLimits, ClientHelloCapture, capture_client_hello};
 use tokio::{net::TcpListener, task::JoinHandle, time::Instant};
 
@@ -153,6 +153,15 @@ async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(&b"h2"[..]));
+    assert_eq!(stream.negotiated_tls_version(), Some(TlsVersion::Tls13));
+    assert!(matches!(
+        stream.negotiated_cipher_suite(),
+        Some(
+            CipherSuite::Aes128GcmSha256
+                | CipherSuite::Aes256GcmSha384
+                | CipherSuite::Chacha20Poly1305Sha256
+        )
+    ));
 
     let observed_sni = tokio::time::timeout(TEST_TIMEOUT, server_task).await???;
     assert_eq!(observed_sni.as_deref(), Some(TEST_SERVER_NAME));
