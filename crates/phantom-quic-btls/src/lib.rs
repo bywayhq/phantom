@@ -9,7 +9,7 @@
 
 // Raw BoringSSL access is isolated here so safe protocol code cannot grow new
 // unsafe operations without crossing an explicit, reviewable module boundary.
-#[allow(unsafe_code)]
+#[allow(unsafe_code, reason = "private BoringSSL FFI boundary")]
 mod backend;
 mod error;
 mod header;

@@ -59,6 +59,19 @@ Configuration follows these rules:
 6. A diagnostic switch cannot alter wire behavior except for the protocol's
    documented diagnostic output, such as qlog or a key log.
 
+## TLS profile and connection policy
+
+A TLS profile is an ordered wire offer, not a security grade. Captured clients
+may advertise legacy versions or suites. A connection policy constrains what a
+deployment accepts without silently rewriting that offer. Until the public
+policy type exists, callers restrict the version range and cipher-suite list
+by customizing `TlsSettings` before connector construction.
+
+Profile-policy conflicts will fail before network I/O. This keeps packet
+differentials honest and prevents a pool from treating two different wire
+identities as equivalent. The complete boundary and threat-review checklist
+are documented in [TLS security boundary](tls-security-boundary.md).
+
 ## Lessons from adjacent clients
 
 The projects below are references, not APIs to copy wholesale. Their useful

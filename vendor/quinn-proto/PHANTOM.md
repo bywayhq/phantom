@@ -90,8 +90,10 @@ packaging metadata and are not part of that patch.
 ## Focused checks
 
 ```sh
+rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/key_update.rs
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::key_update
-cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml --all-targets --all-features --locked -- -D warnings
+cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml --all-targets --locked -- -D warnings
+cargo check --manifest-path vendor/quinn-proto/Cargo.toml --no-default-features --locked
 cargo check -p phantom-quic-btls --all-targets --locked
 ```
 

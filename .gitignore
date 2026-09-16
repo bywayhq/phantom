@@ -1,4 +1,5 @@
 /target/
+/vendor/*/target/
 /.worktrees/
 .DS_Store
 __pycache__/

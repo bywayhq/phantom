@@ -55,10 +55,16 @@ assert_non_fips_item() {
   }
 }
 
+copy_vendor_fixture() {
+  local source=$1 destination=$2
+  cp -R "$source" "$destination"
+  rm -rf "$destination/target"
+}
+
 make_btls_candidate() {
   local destination=$1 drift=${2:-none}
   mkdir -p "$destination"
-  cp -R vendor/btls "$destination/btls"
+  copy_vendor_fixture vendor/btls "$destination/btls"
   cp vendor/btls/README.md "$destination/README.md"
   git -C "$destination/btls" apply --reverse \
     "$repo_root/vendor/btls/patches/delegated-credentials.patch"
@@ -267,7 +273,7 @@ mkdir -p \
   "$probe_checkout/crates/phantom-net"
 cp Cargo.toml Cargo.lock "$probe_checkout/"
 cp crates/phantom-net/Cargo.toml "$probe_checkout/crates/phantom-net/"
-cp -R vendor/btls "$probe_checkout/vendor/btls"
+copy_vendor_fixture vendor/btls "$probe_checkout/vendor/btls"
 cp scripts/ci/probe-upstream-candidate.sh \
   scripts/ci/stage-btls-candidate.sh "$probe_checkout/scripts/ci/"
 git -C "$probe_checkout" init --quiet
@@ -454,7 +460,7 @@ fi
 
 http2_source_root="$test_root/http2-source"
 mkdir -p "$http2_source_root"
-cp -R vendor/http2 "$http2_source_root/http2-0.5.20"
+copy_vendor_fixture vendor/http2 "$http2_source_root/http2-0.5.20"
 git -C "$http2_source_root/http2-0.5.20" apply --reverse \
   "$repo_root/vendor/http2/patches/ordered-headers.patch"
 rm -rf "$http2_source_root/http2-0.5.20/patches"
@@ -471,7 +477,7 @@ mkdir -p \
   "$http2_checkout/crates/phantom-net"
 cp Cargo.toml Cargo.lock "$http2_checkout/"
 cp crates/phantom-net/Cargo.toml "$http2_checkout/crates/phantom-net/"
-cp -R vendor/http2 "$http2_checkout/vendor/http2"
+copy_vendor_fixture vendor/http2 "$http2_checkout/vendor/http2"
 cp scripts/ci/probe-upstream-candidate.sh \
   scripts/ci/stage-btls-candidate.sh "$http2_checkout/scripts/ci/"
 git -C "$http2_checkout" init --quiet
@@ -516,7 +522,7 @@ h3_revision=$(sed -nE \
 [[ "$h3_revision" =~ ^[0-9a-f]{40}$ ]]
 h3_source_root="$test_root/h3-source"
 mkdir -p "$h3_source_root"
-cp -R vendor/h3 "$h3_source_root/h3-$h3_revision"
+copy_vendor_fixture vendor/h3 "$h3_source_root/h3-$h3_revision"
 git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
   "$repo_root/vendor/h3/patches/qpack-codec.patch"
 git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
@@ -555,7 +561,7 @@ h3_qpack_drift_checksum=$(shasum -a 256 "$h3_qpack_drift_archive" \
 
 h3_checkout="$test_root/h3-checkout"
 mkdir -p "$h3_checkout/scripts/ci" "$h3_checkout/vendor"
-cp -R vendor/h3 "$h3_checkout/vendor/h3"
+copy_vendor_fixture vendor/h3 "$h3_checkout/vendor/h3"
 cp scripts/ci/probe-upstream-candidate.sh \
   "$h3_checkout/scripts/ci/probe-upstream-candidate.sh"
 git -C "$h3_checkout" init --quiet

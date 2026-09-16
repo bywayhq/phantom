@@ -72,7 +72,7 @@ sources.
 | Component | Audited identity | Use |
 | --- | --- | --- |
 | `quinn` | `0.11.12` | `default-features = false`, `runtime-tokio`; enable `qlog` only when the feature is exposed by Phantom |
-| `quinn-proto` | `0.11.18` | Stock, `default-features = false` |
+| `quinn-proto` | `0.11.18` | Provenance-tracked fork with the fallible key-update patch; `default-features = false` |
 | `quinn-udp` | `0.5.15` | Stock version selected by Quinn 0.11 |
 | `h3` | crate version `0.0.8`, fork base `hyperium/h3@1f3d5295833ad454343f25d55633fb6bee1027b2` | Use the provenance-tracked SETTINGS and dormant QPACK-codec patches; do not select the runtime until its QPACK guard is complete |
 | `h3-quinn` | crate version `0.0.10`, same repository revision as `h3` | Keep unchanged unless dependency unification requires its manifest to point at the forked sibling |
@@ -119,7 +119,10 @@ The pinned BoringSSL headers already provide the complete legacy QUIC API:
   transport-parameter codepoint switch.
 
 `btls-sys` generates bindings for these symbols. No BoringSSL C/C++ patch is
-required. The missing work is a Rust wrapper in the isolated adapter crate.
+required. The isolated adapter now owns the callback table, state, traffic
+secret copies, output publication, alerts, flight limits, and panic boundary.
+The remaining work is the owning SSL session and its Quinn `Session`
+implementation.
 
 Quinn requires usable key-update support in the first provider slice. As soon
 as it installs the 1-RTT keys, its connection state requests the next 1-RTT key
@@ -128,30 +131,36 @@ a provider omission into an infallible Quinn path. By contrast, 0-RTT can be
 disabled explicitly for this slice; its acceptance state is consulted only
 when early keys exist.
 
-## Adapter boundary and required additions
+## Adapter boundary and remaining additions
 
 `phantom-quic-btls` should be an explicitly audited FFI crate and expose only a
 concrete Quinn client configuration to `phantom-net`. Keep all backend types
 private to the backend.
 
-Add private wrappers for:
+The private adapter now implements:
 
 - installing the context/session QUIC callback table;
-- setting and copying local/peer transport-parameter bytes;
-- providing handshake bytes and processing post-handshake records;
-- querying read/write encryption levels and flight limits;
-- configuring early-data context and the legacy parameter codepoint;
+- copying read and write secrets into redacted, zeroizing storage;
+- buffering handshake output by encryption level and publishing it only at
+  `flush_flight`;
+- bounded flight accounting and copied alert state; and
 - QUIC v1 initial secrets, HKDF expansion, packet AEAD, header protection,
   Retry integrity, key updates, and endpoint HMAC.
 
-Before the callback bridge, add one safe crate-private key-schedule slice. It
-maps TLS 1.3 suite identifiers `0x1301`, `0x1302`, and `0x1303` to SHA-256 or
-SHA-384 and the existing packet/header algorithms; generalizes the
-HKDF-Expand-Label helper used by Initial secrets; derives `quic key`, `quic
-iv`, `quic hp`, and `quic ku`; and owns traffic secrets in zeroizing types with
-redacted formatting. It must advance application traffic secrets repeatedly,
-because Quinn asks for the next packet keys as soon as 1-RTT keys are installed
-and again at each key phase. Header-protection keys do not update.
+The next slice must own the SSL handle and implement:
+
+- setting local transport parameters and copying peer parameters;
+- providing handshake bytes and processing post-handshake records;
+- querying encryption levels and draining only published output;
+- configuring early-data context and the legacy parameter codepoint; and
+- translating callback secrets into Quinn key epochs, including repeated
+  application traffic-secret updates.
+
+The completed key-schedule slice maps TLS 1.3 suite identifiers `0x1301`,
+`0x1302`, and `0x1303` to SHA-256 or SHA-384 and the packet/header algorithms.
+It derives `quic key`, `quic iv`, `quic hp`, and `quic ku`, owns traffic
+secrets in zeroizing types with redacted formatting, and advances application
+traffic secrets repeatedly. Header-protection keys do not update.
 
 Reuse the existing Phantom TLS profile-to-BoringSSL translation. Its builder
 entry point currently takes `SslConnectorBuilder`; factor the translation at
@@ -289,10 +298,10 @@ cancellation, and shutdown. qlog and NSS key logging are explicit diagnostic
 options with bounded writers. Normal logs contain neither payloads, header
 values, proxy credentials, nor secrets.
 
-No Cargo command was run for this audit because the repository build slot was
-occupied. Static source inspection and revision checks were used. The
-integration owner should run the normal workspace gates after the dependency
-pins and implementation land.
+The adapter, patched Quinn provider contract, and focused vendored dependency
+gates run under the repository's normal warnings-as-errors and formatting
+checks. A complete forced-H3 integration gate remains pending because the SSL
+session owner and request path do not exist yet.
 
 ## Fork trigger
 

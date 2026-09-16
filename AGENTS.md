@@ -53,6 +53,11 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.85.0 check --workspace --all-targets --locked
+uvx ruff@0.16.7 check scripts/capture
+uvx ruff@0.16.7 format --check scripts/capture
+python3 -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 ```
+
+Run `scripts/ci/check-vendor.sh` for each vendored package touched by a change.
 
 Record the commands actually run, relevant evidence, and unresolved uncertainty in the handoff. Do not include unrelated cleanup.

@@ -42,6 +42,7 @@ receive support rather than advertising capabilities the engine cannot honor.
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),
 [configuration model](docs/configuration.md),
+[TLS security boundary](docs/tls-security-boundary.md),
 [scope and coverage](docs/scope-and-coverage.md),
 [async and feature policy](docs/async-and-features.md),
 [Rust quality review](docs/rust-quality.md),
@@ -60,4 +61,10 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.85.0 check --workspace --all-targets --locked
+uvx ruff@0.16.7 check scripts/capture
+uvx ruff@0.16.7 format --check scripts/capture
+python3 -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 ```
+
+Vendored patch checks are available through
+`scripts/ci/check-vendor.sh {btls|http2|quinn-proto|h3}` and run in CI.

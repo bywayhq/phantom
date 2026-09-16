@@ -157,7 +157,7 @@ the patch can remain enabled throughout the refresh.
 
 ```sh
 cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
-cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features
+cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features --locked
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features client::tests
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features --lib -- --skip hpack::test::fixture
 cargo tree -i http2 --locked

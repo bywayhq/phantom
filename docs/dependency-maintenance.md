@@ -47,7 +47,7 @@ Every pull request and `main` push run:
 
 | Runner | Gate |
 | --- | --- |
-| Linux | formatting, Clippy with warnings denied, all workspace tests, rustdoc warnings denied, patch-tooling regressions, and the declared MSRV |
+| Linux | formatting, Clippy with warnings denied, capture-tool checks, vendored patch gates, all workspace tests, rustdoc warnings denied, patch-tooling regressions, and the declared MSRV |
 | macOS | all workspace targets, features, and tests with the locked dependency graph |
 | Windows | all workspace targets, features, and tests with the locked dependency graph |
 
@@ -89,6 +89,9 @@ cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.85.0 check --workspace --all-targets --locked
 scripts/ci/test-upstream-freshness.sh
+for package in btls http2 quinn-proto h3; do
+  scripts/ci/check-vendor.sh "$package"
+done
 ```
 
 The scheduled upstream-freshness workflow supplements this gate by testing

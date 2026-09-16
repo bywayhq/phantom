@@ -6,7 +6,6 @@ os=macOS 15.5 (24F74)
 endpoint=https://tls3.peet.ws/api/all
 mode=webdriver-isolated-profile
 source_json_sha256=15dd2be6c48f7807c4834878cf1a9302469ed1fd4866fe1efd1d6e64164405fa
-evidence_role=supplemental-live-not-regression-oracle
 http_version=h2
 akamai_fingerprint=1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s
 settings=1:65536,2:0,4:131072,5:16384

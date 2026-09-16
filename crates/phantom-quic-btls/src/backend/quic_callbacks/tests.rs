@@ -115,10 +115,8 @@ fn null_empty_handshake_data_is_published_only_after_flush() {
     let initial = ffi::ssl_encryption_level_t::ssl_encryption_initial;
 
     // SAFETY: the SSL has installed callbacks and null is valid for an empty fragment.
-    assert_eq!(
-        unsafe { add_handshake_data(test_ssl.ssl().as_ptr(), initial, ptr::null(), 0) },
-        1
-    );
+    let status = unsafe { add_handshake_data(test_ssl.ssl().as_ptr(), initial, ptr::null(), 0) };
+    assert_eq!(status, 1);
     assert!(
         state
             .drain_handshake()
@@ -141,10 +139,8 @@ fn null_nonempty_handshake_data_is_terminal() {
     let initial = ffi::ssl_encryption_level_t::ssl_encryption_initial;
 
     // SAFETY: null with a nonzero length exercises validation without dereference.
-    assert_eq!(
-        unsafe { add_handshake_data(test_ssl.ssl().as_ptr(), initial, ptr::null(), 1) },
-        0
-    );
+    let status = unsafe { add_handshake_data(test_ssl.ssl().as_ptr(), initial, ptr::null(), 1) };
+    assert_eq!(status, 0);
 
     assert_eq!(
         state.terminal_error(),
@@ -162,10 +158,9 @@ fn early_data_secret_is_rejected_before_pointer_access() {
     let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
 
     // SAFETY: invalid pointers are not read because early data is rejected first.
-    assert_eq!(
-        unsafe { set_write_secret(test_ssl.ssl().as_ptr(), early, ptr::null(), ptr::null(), 0) },
-        0
-    );
+    let status =
+        unsafe { set_write_secret(test_ssl.ssl().as_ptr(), early, ptr::null(), ptr::null(), 0) };
+    assert_eq!(status, 0);
 
     assert_eq!(
         state.terminal_error(),
@@ -183,10 +178,9 @@ fn invalid_secret_pointer_shapes_are_rejected_before_copy() {
     let null_ssl = TestSsl::client();
     let null_state = install(&null_ssl);
     // SAFETY: null exercises validation and is not dereferenced.
-    assert_eq!(
-        unsafe { set_read_secret(null_ssl.ssl().as_ptr(), level, cipher, ptr::null(), 32,) },
-        0
-    );
+    let status =
+        unsafe { set_read_secret(null_ssl.ssl().as_ptr(), level, cipher, ptr::null(), 32) };
+    assert_eq!(status, 0);
     assert_eq!(
         null_state.terminal_error(),
         Some(CallbackError::NullInput {
@@ -199,10 +193,8 @@ fn invalid_secret_pointer_shapes_are_rejected_before_copy() {
     let short_state = install(&short_ssl);
     let invalid = NonNull::<u8>::dangling().as_ptr();
     // SAFETY: the invalid pointer is not read because the length is rejected first.
-    assert_eq!(
-        unsafe { set_read_secret(short_ssl.ssl().as_ptr(), level, cipher, invalid, 31) },
-        0
-    );
+    let status = unsafe { set_read_secret(short_ssl.ssl().as_ptr(), level, cipher, invalid, 31) };
+    assert_eq!(status, 0);
     assert_eq!(
         short_state.terminal_error(),
         Some(CallbackError::InvalidSecretLength {
@@ -215,18 +207,16 @@ fn invalid_secret_pointer_shapes_are_rejected_before_copy() {
     let cipher_state = install(&cipher_ssl);
     let secret = [0; 32];
     // SAFETY: the secret is live and the null cipher is rejected before use.
-    assert_eq!(
-        unsafe {
-            set_read_secret(
-                cipher_ssl.ssl().as_ptr(),
-                level,
-                ptr::null(),
-                secret.as_ptr(),
-                secret.len(),
-            )
-        },
-        0
-    );
+    let status = unsafe {
+        set_read_secret(
+            cipher_ssl.ssl().as_ptr(),
+            level,
+            ptr::null(),
+            secret.as_ptr(),
+            secret.len(),
+        )
+    };
+    assert_eq!(status, 0);
     assert_eq!(
         cipher_state.terminal_error(),
         Some(CallbackError::NullCipher)
@@ -240,17 +230,15 @@ fn unknown_level_is_rejected_before_pointer_access() {
     let invalid_level = ffi::ssl_encryption_level_t(99);
 
     // SAFETY: the invalid pointer is not read because the level is rejected first.
-    assert_eq!(
-        unsafe {
-            add_handshake_data(
-                test_ssl.ssl().as_ptr(),
-                invalid_level,
-                NonNull::<u8>::dangling().as_ptr(),
-                1,
-            )
-        },
-        0
-    );
+    let status = unsafe {
+        add_handshake_data(
+            test_ssl.ssl().as_ptr(),
+            invalid_level,
+            NonNull::<u8>::dangling().as_ptr(),
+            1,
+        )
+    };
+    assert_eq!(status, 0);
     assert_eq!(
         state.terminal_error(),
         Some(CallbackError::UnsupportedEncryptionLevel { raw: 99 })
@@ -269,31 +257,27 @@ fn read_and_write_callbacks_map_remote_and_local_secrets() {
     let remote = [7; 32];
 
     // SAFETY: all callback inputs remain live for each call.
-    assert_eq!(
-        unsafe {
-            set_write_secret(
-                test_ssl.ssl().as_ptr(),
-                level,
-                cipher,
-                local.as_ptr(),
-                local.len(),
-            )
-        },
-        1
-    );
+    let write_status = unsafe {
+        set_write_secret(
+            test_ssl.ssl().as_ptr(),
+            level,
+            cipher,
+            local.as_ptr(),
+            local.len(),
+        )
+    };
+    assert_eq!(write_status, 1);
     // SAFETY: all callback inputs remain live for each call.
-    assert_eq!(
-        unsafe {
-            set_read_secret(
-                test_ssl.ssl().as_ptr(),
-                level,
-                cipher,
-                remote.as_ptr(),
-                remote.len(),
-            )
-        },
-        1
-    );
+    let read_status = unsafe {
+        set_read_secret(
+            test_ssl.ssl().as_ptr(),
+            level,
+            cipher,
+            remote.as_ptr(),
+            remote.len(),
+        )
+    };
+    assert_eq!(read_status, 1);
 
     assert!(state.secret_matches(EncryptionLevel::Application, SecretDirection::Local, &local));
     assert!(state.secret_matches(
@@ -335,21 +319,17 @@ fn no_bio_client_handshake_publishes_client_hello_after_flush() {
     let transport_parameters = [0x01, 0x01, 0x00];
     let alpn = [2, b'h', b'3'];
     // SAFETY: pointers reference live storage for this call.
-    assert_eq!(
-        unsafe {
-            ffi::SSL_set_quic_transport_params(
-                ssl.as_ptr(),
-                transport_parameters.as_ptr(),
-                transport_parameters.len(),
-            )
-        },
-        1
-    );
+    let transport_status = unsafe {
+        ffi::SSL_set_quic_transport_params(
+            ssl.as_ptr(),
+            transport_parameters.as_ptr(),
+            transport_parameters.len(),
+        )
+    };
+    assert_eq!(transport_status, 1);
     // SAFETY: pointers reference live storage for this call.
-    assert_eq!(
-        unsafe { ffi::SSL_set_alpn_protos(ssl.as_ptr(), alpn.as_ptr(), alpn.len()) },
-        0
-    );
+    let alpn_status = unsafe { ffi::SSL_set_alpn_protos(ssl.as_ptr(), alpn.as_ptr(), alpn.len()) };
+    assert_eq!(alpn_status, 0);
     // SAFETY: the SSL handle is live.
     unsafe {
         assert!(ffi::SSL_get_rbio(ssl.as_ptr()).is_null());

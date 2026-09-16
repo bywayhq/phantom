@@ -6,7 +6,6 @@ os=macOS 15.5 (24F74)
 endpoint=https://pingly.us.kg/api/all
 mode=webdriver-isolated-profile
 source_json_sha256=6ea07fda8d1f22f986b12985236bd646cffca1858f54c1c43143fc0e7b3e5abb
-evidence_role=supplemental-live-not-regression-oracle
 http_version=HTTP/2.0
 akamai_fingerprint=1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s
 settings=1:65536,2:0,4:131072,5:16384

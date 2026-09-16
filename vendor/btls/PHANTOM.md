@@ -144,13 +144,16 @@ machine.
 
 ## Required checks
 
+`Cargo.lock` pins the standalone vendor checks. Refresh it only with a reviewed
+dependency update.
+
 ```sh
 cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
-cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols -- -D warnings
-cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps
-cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::ech
-cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols record_size_limit
-cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols delegated_credentials
+cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols --locked -- -D warnings
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::alps
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols
 ```
 
@@ -164,10 +167,10 @@ Linux and therefore uses `prefix-symbols`.
 On macOS and Windows, use the corresponding omission variant:
 
 ```sh
-cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::alps
-cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech
-cargo test --manifest-path vendor/btls/Cargo.toml record_size_limit
-cargo test --manifest-path vendor/btls/Cargo.toml delegated_credentials
+cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --locked -- -D warnings
+cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::alps
+cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
+cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
+cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets
 ```

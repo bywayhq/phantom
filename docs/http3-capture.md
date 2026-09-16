@@ -218,8 +218,8 @@ Run the deterministic schema and normalization checks without Cargo:
 ```sh
 uv run --with aioquic==1.3.0 \
   python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
-uvx ruff check scripts/capture
-uvx ruff format --check scripts/capture
+uvx ruff@0.16.7 check scripts/capture
+uvx ruff@0.16.7 format --check scripts/capture
 ```
 
 ## Primary references

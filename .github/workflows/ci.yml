@@ -36,11 +36,27 @@ jobs:
             command -v "$tool"
           done
 
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.10"
+
+      - name: Install Python lint tools
+        run: python -m pip install --disable-pip-version-check ruff==0.16.7
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Lint capture tooling
+        run: |
+          ruff check scripts/capture
+          ruff format --check scripts/capture
+
+      - name: Test capture tooling
+        run: python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 
       - name: Test
         run: cargo test --workspace --all-targets --all-features --locked
@@ -52,6 +68,32 @@ jobs:
 
       - name: Test dependency-maintenance tooling
         run: scripts/ci/test-upstream-freshness.sh
+
+  vendor:
+    name: Vendor (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [btls, http2, quinn-proto, h3]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Check native build prerequisites
+        run: |
+          for tool in git cmake clang c++ nm objcopy; do
+            command -v "$tool"
+          done
+
+      - name: Check vendored package
+        run: scripts/ci/check-vendor.sh "${{ matrix.package }}"
 
   platform:
     name: Platform (${{ matrix.name }})

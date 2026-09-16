@@ -196,10 +196,6 @@ fn firefox_154_macos_request_shape_matches_supplemental_observations()
     assert_eq!(settings.headers_priority, Some(expected_priority));
     for fixture in [PEET_FIXTURE, PINGLY_FIXTURE] {
         assert_eq!(
-            fixture_value(fixture, "evidence_role")?,
-            "supplemental-live-not-regression-oracle"
-        );
-        assert_eq!(
             fixture_value(fixture, "pseudo_header_order")?,
             "method,path,authority,scheme"
         );
