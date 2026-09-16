@@ -264,6 +264,7 @@ case "$dependency" in
       ordered-request-headers.patch
       qpack-request-encoder.patch
       qpack-live-request-runtime.patch
+      qpack-lazy-decoder-stream.patch
     )
     [[ -f vendor/h3/PHANTOM.md ]] \
       || die "vendored h3 provenance is required"
@@ -301,6 +302,8 @@ case "$dependency" in
     mv "$candidate_dir" vendor/h3
 
     cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
+    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
+      config::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
       client::builder::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
