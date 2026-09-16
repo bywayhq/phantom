@@ -80,6 +80,9 @@ case "${1:-}" in
       "${btls_features[@]}" --locked record_size_limit
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked delegated_credentials
+    cargo test --manifest-path vendor/btls/Cargo.toml \
+      "${btls_features[@]}" --locked \
+      aead::tests::shared_generic_context_seals_and_opens_concurrently
     ;;
   http2)
     cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check

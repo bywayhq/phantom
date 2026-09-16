@@ -130,7 +130,8 @@ case "$dependency" in
       && -f vendor/btls/patches/alps-settings.patch \
       && -f vendor/btls/patches/ech-grease-payload-length.patch \
       && -f vendor/btls/patches/record-size-limit.patch \
-      && -f vendor/btls/patches/delegated-credentials.patch ]] \
+      && -f vendor/btls/patches/delegated-credentials.patch \
+      && -f vendor/btls/patches/concurrent-aead.patch ]] \
       || die "vendored btls and all canonical wrapper patches are required"
     btls_sources=$(sed -nE \
       's/^(btls|tokio-btls) = .*git = "([^"]+)".*rev = "([0-9a-f]{40})".*/\2\t\3/p' \
@@ -163,6 +164,7 @@ case "$dependency" in
       vendor/btls/patches/ech-grease-payload-length.patch \
       vendor/btls/patches/record-size-limit.patch \
       vendor/btls/patches/delegated-credentials.patch \
+      vendor/btls/patches/concurrent-aead.patch \
       "$candidate_dir/patches/"
 
     replace_exact_line Cargo.toml \
@@ -201,6 +203,8 @@ case "$dependency" in
       cargo test --manifest-path vendor/btls/Cargo.toml ssl::test::ech
       cargo test --manifest-path vendor/btls/Cargo.toml record_size_limit
       cargo test --manifest-path vendor/btls/Cargo.toml delegated_credentials
+      cargo test --manifest-path vendor/btls/Cargo.toml \
+        aead::tests::shared_generic_context_seals_and_opens_concurrently
     else
       cargo clippy --manifest-path vendor/btls/Cargo.toml \
         --all-targets --features prefix-symbols -- -D warnings
@@ -212,6 +216,9 @@ case "$dependency" in
         --features prefix-symbols record_size_limit
       cargo test --manifest-path vendor/btls/Cargo.toml \
         --features prefix-symbols delegated_credentials
+      cargo test --manifest-path vendor/btls/Cargo.toml \
+        --features prefix-symbols \
+        aead::tests::shared_generic_context_seals_and_opens_concurrently
     fi
 
     msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)

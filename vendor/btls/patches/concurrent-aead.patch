@@ -1,0 +1,159 @@
+diff --git a/src/aead.rs b/src/aead.rs
+index ac88901..282a51d 100644
+--- a/src/aead.rs
++++ b/src/aead.rs
+@@ -5,8 +5,8 @@
+ //!
+ //! # Overview
+ //!
+-//! [`AeadCtx`] is the main type. Create one with an [`Algorithm`] and a key,
+-//! then use it to encrypt and decrypt:
++//! [`AeadCtx`] is the general-purpose type. Create one with an [`Algorithm`]
++//! and a key, then use it to encrypt and decrypt:
+ //!
+ //! - [`AeadCtxRef::seal_in_place`] / [`AeadCtxRef::open_in_place`] — encrypt
+ //!   or decrypt a buffer in place with a detached tag. These cover the common
+@@ -16,6 +16,11 @@
+ //!   scatter/gather operations for protocols that split ciphertext output across
+ //!   multiple buffers.
+ //!
++//! [`ConcurrentAeadCtx`] is the restricted alternative for sharing a generic,
++//! stateless AEAD context across threads. It only supports AES-GCM and
++//! ChaCha20-Poly1305 and provides detached-tag seal/open operations through
++//! shared references.
++//!
+ //! # When to use [`crate::symm`] instead
+ //!
+ //! If you want one-shot helpers that allocate output buffers or APIs centered
+@@ -38,7 +43,7 @@
+ //!
+ //! # Mutability
+ //!
+-//! All seal and open methods require `&mut self`. While the generic AEADs
++//! Seal and open methods on [`AeadCtx`] require `&mut self`. While the generic AEADs
+ //! (AES-GCM, ChaCha20-Poly1305, etc.) are stateless after initialization,
+ //! the TLS-specific AEADs are **stateful** and internally mutate the context
+ //! during seal operations. Using `&mut self` universally prevents LLVM from
+@@ -277,6 +282,70 @@ impl AeadCtx {
+     }
+ }
+ 
++/// A shareable context restricted to BoringSSL's generic, stateless AEADs.
++///
++/// BoringSSL documents generic `EVP_AEAD_CTX_seal*` and
++/// `EVP_AEAD_CTX_open*` operations as safe to call concurrently on the same
++/// context. TLS-specific AEADs explicitly do not have that guarantee, so this
++/// type only has named constructors for AES-128-GCM, AES-256-GCM, and
++/// ChaCha20-Poly1305 and does not accept an arbitrary [`Algorithm`].
++pub struct ConcurrentAeadCtx(AeadCtx);
++
++const _: () = {
++    fn assert_send_sync<T: Send + Sync>() {}
++    let _ = assert_send_sync::<ConcurrentAeadCtx>;
++};
++
++impl ConcurrentAeadCtx {
++    /// Creates a concurrent AES-128-GCM context with a full-length tag.
++    pub fn aes_128_gcm(key: &[u8]) -> Result<Self, ErrorStack> {
++        Self::new(&Algorithm::aes_128_gcm(), key)
++    }
++
++    /// Creates a concurrent AES-256-GCM context with a full-length tag.
++    pub fn aes_256_gcm(key: &[u8]) -> Result<Self, ErrorStack> {
++        Self::new(&Algorithm::aes_256_gcm(), key)
++    }
++
++    /// Creates a concurrent ChaCha20-Poly1305 context with a full-length tag.
++    pub fn chacha20_poly1305(key: &[u8]) -> Result<Self, ErrorStack> {
++        Self::new(&Algorithm::chacha20_poly1305(), key)
++    }
++
++    fn new(algorithm: &Algorithm, key: &[u8]) -> Result<Self, ErrorStack> {
++        AeadCtx::new_default_tag(algorithm, key).map(Self)
++    }
++
++    /// Encrypts `buffer` in place and writes a detached authentication tag.
++    ///
++    /// Calls may run concurrently on the same context. The caller must use a
++    /// unique nonce for every message sealed with a given key.
++    pub fn seal_in_place<'a>(
++        &self,
++        nonce: &[u8],
++        buffer: &mut [u8],
++        tag: &'a mut [u8],
++        associated_data: &[u8],
++    ) -> Result<&'a mut [u8], ErrorStack> {
++        #[allow(deprecated)]
++        self.0.seal_in_place(nonce, buffer, tag, associated_data)
++    }
++
++    /// Decrypts `buffer` in place after verifying a detached tag and AAD.
++    ///
++    /// Calls may run concurrently on the same context.
++    pub fn open_in_place(
++        &self,
++        nonce: &[u8],
++        buffer: &mut [u8],
++        tag: &[u8],
++        associated_data: &[u8],
++    ) -> Result<(), ErrorStack> {
++        #[allow(deprecated)]
++        self.0.open_in_place(nonce, buffer, tag, associated_data)
++    }
++}
++
+ impl AeadCtxRef {
+     /// Computes the exact tag length for a [`seal_scatter`](AeadCtxRef::seal_scatter)
+     /// call with the given `in_len` and `extra_in_len`.
+@@ -554,7 +623,50 @@ impl AeadCtxRef {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::{AeadCtx, Algorithm};
++    use std::sync::{Arc, Barrier};
++    use std::thread;
++
++    use super::{AeadCtx, Algorithm, ConcurrentAeadCtx};
++
++    #[test]
++    fn shared_generic_context_seals_and_opens_concurrently() {
++        const THREADS: usize = 8;
++
++        let context = Arc::new(ConcurrentAeadCtx::aes_128_gcm(&[7u8; 16]).unwrap());
++        let seal_start = Arc::new(Barrier::new(THREADS));
++        let open_start = Arc::new(Barrier::new(THREADS));
++
++        let handles: Vec<_> = (0..THREADS)
++            .map(|index| {
++                let context = Arc::clone(&context);
++                let seal_start = Arc::clone(&seal_start);
++                let open_start = Arc::clone(&open_start);
++                thread::spawn(move || {
++                    let nonce = [index as u8 + 1; 12];
++                    let associated_data = [0xa0 + index as u8; 5];
++                    let expected = vec![index as u8; 32 + index];
++                    let mut buffer = expected.clone();
++                    let mut tag = [0u8; 16];
++
++                    seal_start.wait();
++                    let written = context
++                        .seal_in_place(&nonce, &mut buffer, &mut tag, &associated_data)
++                        .unwrap();
++                    assert_eq!(written.len(), tag.len());
++
++                    open_start.wait();
++                    context
++                        .open_in_place(&nonce, &mut buffer, &tag, &associated_data)
++                        .unwrap();
++                    assert_eq!(buffer, expected);
++                })
++            })
++            .collect();
++
++        for handle in handles {
++            handle.join().unwrap();
++        }
++    }
+ 
+     #[test]
+     fn in_out() {

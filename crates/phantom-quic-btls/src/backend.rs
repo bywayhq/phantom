@@ -2,9 +2,8 @@
 
 use std::ffi::c_uint;
 use std::fmt;
-use std::ptr::NonNull;
 
-use btls::{hash, memcmp, rand};
+use btls::{aead::ConcurrentAeadCtx, hash, memcmp, rand};
 use btls_sys as ffi;
 
 use crate::secret::{
@@ -274,43 +273,40 @@ impl fmt::Debug for ChaChaHeaderCipher {
     }
 }
 
-pub(crate) struct AeadContext(NonNull<ffi::EVP_AEAD_CTX>);
+pub(crate) struct AeadContext(ConcurrentAeadCtx);
 
 impl AeadContext {
     pub(crate) fn aes_128_gcm(key: &[u8]) -> Result<Self> {
         validate_key(key, AES_128_KEY_LEN)?;
-        // SAFETY: the getter accepts no arguments and returns BoringSSL's
-        // process-lifetime algorithm descriptor.
-        let algorithm = unsafe { ffi::EVP_aead_aes_128_gcm() };
-        Self::new(key, algorithm, "AES-128-GCM initialization")
+        Self::new(
+            ConcurrentAeadCtx::aes_128_gcm(key),
+            "AES-128-GCM initialization",
+        )
     }
 
     pub(crate) fn aes_256_gcm(key: &[u8]) -> Result<Self> {
         validate_key(key, AES_256_KEY_LEN)?;
-        // SAFETY: the getter accepts no arguments and returns BoringSSL's
-        // process-lifetime algorithm descriptor.
-        let algorithm = unsafe { ffi::EVP_aead_aes_256_gcm() };
-        Self::new(key, algorithm, "AES-256-GCM initialization")
+        Self::new(
+            ConcurrentAeadCtx::aes_256_gcm(key),
+            "AES-256-GCM initialization",
+        )
     }
 
     pub(crate) fn chacha20_poly1305(key: &[u8]) -> Result<Self> {
         validate_key(key, CHACHA20_KEY_LEN)?;
-        // SAFETY: the getter accepts no arguments and returns BoringSSL's
-        // process-lifetime algorithm descriptor.
-        let algorithm = unsafe { ffi::EVP_aead_chacha20_poly1305() };
-        Self::new(key, algorithm, "ChaCha20-Poly1305 initialization")
+        Self::new(
+            ConcurrentAeadCtx::chacha20_poly1305(key),
+            "ChaCha20-Poly1305 initialization",
+        )
     }
 
-    fn new(key: &[u8], algorithm: *const ffi::EVP_AEAD, operation: &'static str) -> Result<Self> {
-        ffi::init();
-        // SAFETY: the algorithm pointer has static BoringSSL lifetime and the
-        // key slice remains valid for the call. The returned allocation is
-        // uniquely owned by this wrapper and freed in `Drop`.
-        let pointer =
-            unsafe { ffi::EVP_AEAD_CTX_new(algorithm, key.as_ptr(), key.len(), AEAD_TAG_LEN) };
-        match NonNull::new(pointer) {
-            Some(pointer) => Ok(Self(pointer)),
-            None => {
+    fn new(
+        context: std::result::Result<ConcurrentAeadCtx, btls::error::ErrorStack>,
+        operation: &'static str,
+    ) -> Result<Self> {
+        match context {
+            Ok(context) => Ok(Self(context)),
+            Err(_) => {
                 drain_error_queue();
                 Err(CryptoError::BackendFailure(operation))
             }
@@ -338,30 +334,16 @@ impl AeadContext {
             });
         }
 
-        let mut written = 0;
-        // SAFETY: the context is live; nonce length was checked; input aliases
-        // output exactly as permitted by BoringSSL; `plaintext_len` is within
-        // `buffer`, which has room for the full authentication tag; AAD is live.
-        let status = unsafe {
-            ffi::EVP_AEAD_CTX_seal(
-                self.0.as_ptr(),
-                buffer.as_mut_ptr(),
-                &mut written,
-                buffer.len(),
-                nonce.as_ptr(),
-                nonce.len(),
-                buffer.as_ptr(),
-                plaintext_len,
-                associated_data.as_ptr(),
-                associated_data.len(),
-            )
-        };
-        if status != 1 || written != required {
-            drain_error_queue();
-            buffer.fill(0);
-            return Err(CryptoError::BackendFailure("packet sealing"));
+        let (plaintext, output) = buffer.split_at_mut(plaintext_len);
+        let tag = &mut output[..AEAD_TAG_LEN];
+        match self.0.seal_in_place(nonce, plaintext, tag, associated_data) {
+            Ok(written_tag) if written_tag.len() == AEAD_TAG_LEN => Ok(required),
+            Ok(_) | Err(_) => {
+                drain_error_queue();
+                buffer.fill(0);
+                Err(CryptoError::BackendFailure("packet sealing"))
+            }
         }
-        Ok(written)
     }
 
     pub(crate) fn open(
@@ -379,35 +361,18 @@ impl AeadContext {
         }
         let expected = buffer.len() - AEAD_TAG_LEN;
 
-        let mut written = 0;
-        // SAFETY: the context is live; nonce length was checked; input aliases
-        // output exactly as permitted by BoringSSL; output capacity equals the
-        // input length and AAD remains live for the duration of the call.
-        let status = unsafe {
-            ffi::EVP_AEAD_CTX_open(
-                self.0.as_ptr(),
-                buffer.as_mut_ptr(),
-                &mut written,
-                buffer.len(),
-                nonce.as_ptr(),
-                nonce.len(),
-                buffer.as_ptr(),
-                buffer.len(),
-                associated_data.as_ptr(),
-                associated_data.len(),
-            )
-        };
-        if status != 1 {
-            drain_error_queue();
-            buffer.fill(0);
-            return Err(CryptoError::AuthenticationFailed);
+        let (ciphertext, tag) = buffer.split_at_mut(expected);
+        match self
+            .0
+            .open_in_place(nonce, ciphertext, tag, associated_data)
+        {
+            Ok(()) => Ok(expected),
+            Err(_) => {
+                drain_error_queue();
+                buffer.fill(0);
+                Err(CryptoError::AuthenticationFailed)
+            }
         }
-        if written != expected {
-            drain_error_queue();
-            buffer.fill(0);
-            return Err(CryptoError::BackendFailure("packet opening"));
-        }
-        Ok(written)
     }
 }
 
@@ -416,23 +381,6 @@ impl fmt::Debug for AeadContext {
         formatter.write_str("AeadContext([REDACTED])")
     }
 }
-
-impl Drop for AeadContext {
-    fn drop(&mut self) {
-        // SAFETY: this wrapper uniquely owns the non-null context allocation;
-        // `Drop` runs once and no references outlive `self`.
-        unsafe {
-            ffi::EVP_AEAD_CTX_free(self.0.as_ptr());
-        }
-    }
-}
-
-// SAFETY: the context is uniquely owned and BoringSSL documents all seal/open
-// operations on one `EVP_AEAD_CTX` as safe to call concurrently.
-unsafe impl Send for AeadContext {}
-// SAFETY: shared operations do not mutate Rust-visible state, and BoringSSL's
-// AEAD contract explicitly permits concurrent seal/open calls on one context.
-unsafe impl Sync for AeadContext {}
 
 fn validate_key(key: &[u8], expected: usize) -> Result<()> {
     if key.len() != expected {

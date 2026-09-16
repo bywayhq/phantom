@@ -23,6 +23,11 @@ The upstream safe wrapper can enable ALPS only with an empty application
 settings value, although its pinned BoringSSL C API accepts distinct protocol
 and settings byte strings. It also does not expose the peer settings query.
 
+The upstream AEAD wrapper requires exclusive access for every operation because
+it also accepts stateful TLS-specific algorithms. The pinned BoringSSL contract
+allows concurrent seal/open calls for generic AEAD contexts, so QUIC needs a
+separate safe wrapper that cannot be constructed with a TLS AEAD.
+
 The upstream ECH GREASE API enables the extension but leaves its payload length
 to BoringSSL's randomized policy. Firefox 154 on macOS 15.5 was captured with a
 239-byte GREASE payload, producing an `encrypted_client_hello` extension body of
@@ -73,10 +78,15 @@ The patches are additive:
 - Native runner tests prove positive and adversarial RFC 9345 client
   verification; wrapper tests preserve exact extension bytes and invalid-
   algorithm rejection.
+- `ConcurrentAeadCtx` exposes shared detached-tag operations only for
+  AES-128-GCM, AES-256-GCM, and ChaCha20-Poly1305. Its tests prove the type is
+  `Send + Sync` and exercise concurrent seal/open calls with distinct nonces
+  and buffers.
 
 The canonical machine-applicable wrapper changes are
 `patches/alps-settings.patch`, `patches/ech-grease-payload-length.patch`, and
-`patches/record-size-limit.patch`, and `patches/delegated-credentials.patch`.
+`patches/record-size-limit.patch`, `patches/delegated-credentials.patch`, and
+`patches/concurrent-aead.patch`.
 They contain only wrapper APIs, documentation, and upstream-style tests;
 packaging changes remain separate. The dependency commit stores the native
 BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series: patch 0005
@@ -115,9 +125,9 @@ machine.
    On Linux, use `sha256sum` when `shasum` is unavailable.
 
 2. Compare `candidate` with `vendor/btls`. Expected differences are
-   the four files under `patches/`, the standalone manifest values, the
+   the five files under `patches/`, the standalone manifest values, the
    materialized `README.md`, and this file. The checked-in wrapper sources and
-   tests should exactly equal the candidate plus all four canonical patches.
+   tests should exactly equal the candidate plus all five canonical patches.
 
    The scheduled candidate probe performs this staging from an exact detached
    git revision. It copies only the upstream `btls` wrapper, materializes the
@@ -154,6 +164,7 @@ cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --lo
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked aead::tests::shared_generic_context_seals_and_opens_concurrently
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols
 ```
 
@@ -172,5 +183,6 @@ cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials
+cargo test --manifest-path vendor/btls/Cargo.toml --locked aead::tests::shared_generic_context_seals_and_opens_concurrently
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets
 ```

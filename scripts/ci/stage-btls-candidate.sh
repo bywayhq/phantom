@@ -144,7 +144,8 @@ for patch_name in \
   alps-settings.patch \
   ech-grease-payload-length.patch \
   record-size-limit.patch \
-  delegated-credentials.patch; do
+  delegated-credentials.patch \
+  concurrent-aead.patch; do
   patch_file="$patch_dir/$patch_name"
   [[ -f "$patch_file" ]] || die "canonical wrapper patch is missing: $patch_name"
   if ! git -C "$destination" apply --check "$patch_file"; then

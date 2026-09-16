@@ -67,6 +67,8 @@ make_btls_candidate() {
   copy_vendor_fixture vendor/btls "$destination/btls"
   cp vendor/btls/README.md "$destination/README.md"
   git -C "$destination/btls" apply --reverse \
+    "$repo_root/vendor/btls/patches/concurrent-aead.patch"
+  git -C "$destination/btls" apply --reverse \
     "$repo_root/vendor/btls/patches/delegated-credentials.patch"
   git -C "$destination/btls" apply --reverse \
     "$repo_root/vendor/btls/patches/record-size-limit.patch"
@@ -420,6 +422,9 @@ grep -F -x -q \
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols delegated_credentials' \
   "$command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols aead::tests::shared_generic_context_seals_and_opens_concurrently' \
+  "$command_log"
 grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
 grep -F -q 'phantom-net --all-features --locked exact_ech_grease_payload' \
   "$command_log"
@@ -449,6 +454,9 @@ grep -F -x -q \
   "$darwin_command_log"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml delegated_credentials' \
+  "$darwin_command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/btls/Cargo.toml aead::tests::shared_generic_context_seals_and_opens_concurrently' \
   "$darwin_command_log"
 if grep -F -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols' \
