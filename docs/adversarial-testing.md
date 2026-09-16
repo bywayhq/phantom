@@ -63,7 +63,11 @@ unknown frame, exact PING acknowledgement, fragmented HPACK with an empty
 `CONTINUATION`, response DATA, and a same-connection follow-up. A separate H2
 sequence covers repeated `103`, `102`, final headers, DATA, trailers, and
 same-connection reuse without leaking interim fields. It also covers
-H3 missing or duplicate SETTINGS, forbidden control-stream frames,
+Reaper's current legal HPACK equivalence matrix: four `103` blocks using raw,
+Huffman, incremental, and dynamic-indexed representations, followed by final
+`200` headers, with exact empty and non-empty `CONTINUATION` splits and stream
+3 reuse. Coverage also includes H3 missing or duplicate SETTINGS, forbidden
+control-stream frames,
 reserved streams and frames, increasing GOAWAY rejection with `H3_ID_ERROR`,
 blocked inbound QPACK release and decoder acknowledgement, peer encoder-stream
 closure with `H3_CLOSED_CRITICAL_STREAM`, one valid QUIC Retry, chained
