@@ -1,11 +1,13 @@
 use std::error::Error;
 
-use http::{Request, StatusCode};
+use bytes::Bytes;
+use http::{HeaderMap, HeaderValue, Request, Response, StatusCode};
 use tokio::{sync::oneshot, time::timeout};
 
 use super::{
-    Http3ErrorKind, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, client_config,
-    join_server, send_test_request, server_endpoint,
+    Http3ErrorKind, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, accept_request,
+    client_config, join_server, next_frame, next_optional_frame, send_test_request,
+    server_endpoint,
 };
 
 const CONTROL_STREAM: u8 = 0x00;
@@ -109,6 +111,140 @@ async fn unknown_stream_and_frame_do_not_interrupt_response() -> TestResult<()> 
     drop(response);
 
     let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn informational_responses_preserve_final_body_and_trailers() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::EARLY_HINTS)
+                    .header("link", "</style.css>; rel=preload")
+                    .body(())?,
+            )
+            .await?;
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::CONTINUE)
+                    .header("x-interim", "ignored")
+                    .body(())?,
+            )
+            .await?;
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header("x-final", "retained")
+                    .body(())?,
+            )
+            .await?;
+        stream.send_data(Bytes::from_static(b"body")).await?;
+        let mut trailers = HeaderMap::new();
+        trailers.insert("x-trailer", HeaderValue::from_static("retained"));
+        stream.send_trailers(trailers).await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let response = timeout(
+        TEST_TIMEOUT,
+        send_test_request(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            request(address, "/informational")?,
+        ),
+    )
+    .await
+    .map_err(|_| "HTTP/3 informational response sequence timed out")??;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("x-final"),
+        Some(&"retained".parse()?)
+    );
+    assert!(response.headers().get("link").is_none());
+    assert!(response.headers().get("x-interim").is_none());
+
+    let mut body = response.into_body();
+    assert_eq!(
+        next_frame(&mut body)
+            .await?
+            .into_data()
+            .map_err(|_| "expected final response body")?,
+        "body"
+    );
+    let trailers = next_frame(&mut body)
+        .await?
+        .into_trailers()
+        .map_err(|_| "expected final response trailers")?;
+    assert_eq!(
+        trailers.get("x-trailer"),
+        Some(&HeaderValue::from_static("retained"))
+    );
+    assert!(next_optional_frame(&mut body).await?.is_none());
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn switching_protocols_is_rejected_over_http3() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let connection = incoming.await?;
+        let mut control = connection.open_uni().await?;
+        control
+            .write_all(&[CONTROL_STREAM, SETTINGS_FRAME, 0x00])
+            .await?;
+
+        let (mut response, mut request) = connection.accept_bi().await?;
+        let _ = request.read_to_end(64 * 1024).await?;
+        response
+            .write_all(&[0x01, 0x08, 0x00, 0x00, 0x5f, 0x09, 0x03, b'1', b'0', b'1'])
+            .await?;
+        let stop_code = timeout(TEST_TIMEOUT, response.stopped())
+            .await
+            .map_err(|_| "client did not stop the HTTP/3 101 response stream")??
+            .ok_or("client accepted the HTTP/3 101 response stream")?;
+        assert_eq!(
+            stop_code.into_inner(),
+            h3::error::Code::H3_MESSAGE_ERROR.value()
+        );
+        connection.close(quinn::VarInt::from_u32(0), b"");
+        drop(control);
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let result = timeout(
+        TEST_TIMEOUT,
+        send_test_request(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            request(address, "/switching-protocols")?,
+        ),
+    )
+    .await
+    .map_err(|_| "HTTP/3 101 rejection timed out")?;
+    let error = match result {
+        Ok(_) => return Err("HTTP/3 accepted a 101 response".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), Http3ErrorKind::Protocol);
     join_server(server).await
 }
 

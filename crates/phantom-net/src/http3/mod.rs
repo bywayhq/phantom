@@ -185,6 +185,12 @@ async fn send_request_inner(
                     "peer sent an HTTP Datagram for a request without datagram semantics",
                 ));
             }
+            Err(ResponseHeadError::SwitchingProtocols) => {
+                return Err(Http3Error::without_source(
+                    Http3ErrorKind::Protocol,
+                    "peer sent a 101 response over HTTP/3",
+                ));
+            }
         };
         span.record("status", response.status().as_u16());
 
@@ -202,6 +208,22 @@ async fn send_request_inner(
 }
 
 async fn receive_response(
+    stream: &mut RequestStream,
+    mut datagrams: Option<&mut DatagramMonitor>,
+) -> Result<Response<()>, ResponseHeadError> {
+    loop {
+        let response = receive_response_head(stream, datagrams.as_deref_mut()).await?;
+        if response.status() == http::StatusCode::SWITCHING_PROTOCOLS {
+            stream.stop_sending(h3::error::Code::H3_MESSAGE_ERROR);
+            return Err(ResponseHeadError::SwitchingProtocols);
+        }
+        if !response.status().is_informational() {
+            return Ok(response);
+        }
+    }
+}
+
+async fn receive_response_head(
     stream: &mut RequestStream,
     datagrams: Option<&mut DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
@@ -236,6 +258,7 @@ async fn receive_response(
 enum ResponseHeadError {
     Stream(h3::error::StreamError),
     UnsupportedDatagram,
+    SwitchingProtocols,
 }
 
 fn endpoint(
