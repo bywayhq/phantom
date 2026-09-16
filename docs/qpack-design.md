@@ -9,10 +9,11 @@ implemented and bounded.
 
 ## Ownership
 
-The H3 connection driver owns the QUIC encoder and decoder stream handles.
-Shared connection state owns the QPACK encoder/decoder state, bounded pending
-instruction queues, blocked response sections, and wake coordination. Cloned
-request senders share that state; they do not own critical streams.
+The H3 connection driver owns the QUIC encoder and decoder stream handles and
+the outbound encoder. Shared connection state owns the inbound decoder,
+bounded decoder-feedback queue, blocked response sections, and wake
+coordination. Cloned request senders share that state; they do not own critical
+streams.
 
 Outbound encoding holds the codec lock only long enough to produce a field
 section and any encoder instructions. Required instructions must be accepted
@@ -67,15 +68,18 @@ block and repair blocked-stream accounting.
 2. Add semantic QPACK settings and connection state. Defaults remain `0/0`,
    peer settings apply once, and the emitted SETTINGS view cannot disagree
    with the runtime limits.
-3. Drive critical streams while HEADERS remain stateless. Prove bounded queues,
-   backpressure, fragmentation, duplicate streams, malformed instructions,
-   and FIN/reset error mapping.
-4. Enable client outbound dynamic encoding. Prove queue-before-HEADERS ordering,
-   shared state across cloned senders, safe literal fallback, concurrency, and
-   capture differentials.
-5. Enable client inbound dynamic decoding for response headers and trailers.
+3. Drive critical streams while HEADERS remain stateless. Prove bounded codec
+   buffers and feedback, fragmentation, malformed instructions, and FIN error
+   mapping. The current implementation completes this engine prerequisite;
+   partial writes and STOP_SENDING are covered, while reset and duplicate-stream
+   adversarial cases remain part of the next runtime slice.
+4. Enable client inbound dynamic decoding for response headers and trailers.
    Prove park/unblock, acknowledgement, cancellation, count and byte ceilings,
    and no hangs under reset races.
+5. Enable client outbound dynamic encoding. Prove queue-before-HEADERS ordering,
+   shared state across cloned senders, safe literal fallback, concurrency, and
+   capture differentials. This is not required to advertise inbound decoder
+   limits because QPACK settings are directional.
 6. Enable Chrome's captured nonzero settings only after adversarial integration
    tests and packet differentials pass. Server-side dynamic QPACK remains a
    separate capability.

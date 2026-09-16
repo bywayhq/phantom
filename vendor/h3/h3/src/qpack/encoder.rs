@@ -22,12 +22,15 @@ use super::{
     HeaderField,
 };
 
+const MAX_BUFFERED_DECODER_INSTRUCTION_BYTES: usize = 64 * 1024;
+
 #[derive(Debug, PartialEq)]
 pub enum EncoderError {
     Insertion(DynamicTableError),
     InvalidString(StringError),
     InvalidInteger(IntError),
     UnknownDecoderInstruction(u8),
+    InstructionBufferTooLarge(usize),
 }
 
 impl std::error::Error for EncoderError {}
@@ -40,6 +43,9 @@ impl std::fmt::Display for EncoderError {
             EncoderError::InvalidInteger(e) => write!(f, "could not parse integer: {}", e),
             EncoderError::UnknownDecoderInstruction(e) => {
                 write!(f, "got unkown decoder instruction: {}", e)
+            }
+            EncoderError::InstructionBufferTooLarge(size) => {
+                write!(f, "decoder instruction buffer too large: {size} bytes")
             }
         }
     }
@@ -90,8 +96,34 @@ impl Encoder {
     }
 
     pub fn on_decoder_recv<R: Buf>(&mut self, read: &mut R) -> Result<(), EncoderError> {
-        self.decoder_stream.put(read);
+        while read.has_remaining() {
+            if self.decoder_stream.len() == MAX_BUFFERED_DECODER_INSTRUCTION_BYTES
+                && !self.apply_decoder_instructions()?
+            {
+                return Err(EncoderError::InstructionBufferTooLarge(
+                    self.decoder_stream.len().saturating_add(read.remaining()),
+                ));
+            }
 
+            let available = MAX_BUFFERED_DECODER_INSTRUCTION_BYTES - self.decoder_stream.len();
+            let mut chunk = read.take(available.min(read.remaining()));
+            self.decoder_stream.put(&mut chunk);
+            let progressed = self.apply_decoder_instructions()?;
+            if !progressed
+                && self.decoder_stream.len() == MAX_BUFFERED_DECODER_INSTRUCTION_BYTES
+                && read.has_remaining()
+            {
+                return Err(EncoderError::InstructionBufferTooLarge(
+                    self.decoder_stream.len().saturating_add(read.remaining()),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn apply_decoder_instructions(&mut self) -> Result<bool, EncoderError> {
+        let mut progressed = false;
         loop {
             let (instruction, consumed) = {
                 let mut buffered = Cursor::new(self.decoder_stream.as_ref());
@@ -101,16 +133,20 @@ impl Encoder {
                 (instruction, buffered.position() as usize)
             };
             self.decoder_stream.advance(consumed);
+            progressed = true;
 
             match instruction {
                 Action::HeaderAck(stream_id) => self.table.acknowledge_block(stream_id)?,
-                Action::StreamCancel(stream_id) => self.table.cancel_stream(stream_id)?,
+                Action::StreamCancel(stream_id) => match self.table.cancel_stream(stream_id) {
+                    Ok(()) | Err(DynamicTableError::UnknownStreamId(_)) => {}
+                    Err(error) => return Err(error.into()),
+                },
                 Action::ReceivedRefIncrement(increment) => {
                     self.table.update_largest_received(increment)?
                 }
             }
         }
-        Ok(())
+        Ok(progressed)
     }
 
     fn encode_field<W: BufMut>(
@@ -379,10 +415,14 @@ mod tests {
     #[test]
     fn encode_static_nameref_indexed_in_dynamic() {
         let field = HeaderField::new("location", "/bar");
-        check_encode_field(&[field.clone()], &[field], &|mut b, e| {
-            assert_eq!(Indexed::decode(&mut b), Ok(Indexed::Dynamic(0)));
-            assert_eq!(e.get_ref().len(), 0);
-        });
+        check_encode_field(
+            std::slice::from_ref(&field),
+            std::slice::from_ref(&field),
+            &|mut b, e| {
+                assert_eq!(Indexed::decode(&mut b), Ok(Indexed::Dynamic(0)));
+                assert_eq!(e.get_ref().len(), 0);
+            },
+        );
     }
 
     #[test]
@@ -436,15 +476,21 @@ mod tests {
         table.set_max_size(63).unwrap();
         let field = HeaderField::new("foo", "bar");
 
-        check_encode_field_table(&mut table, &[], &[field.clone()], 1, &|mut b, _| {
-            assert_eq!(
-                IndexedWithPostBase::decode(&mut b),
-                Ok(IndexedWithPostBase(0))
-            );
-        });
         check_encode_field_table(
             &mut table,
-            &[field.clone()],
+            &[],
+            std::slice::from_ref(&field),
+            1,
+            &|mut b, _| {
+                assert_eq!(
+                    IndexedWithPostBase::decode(&mut b),
+                    Ok(IndexedWithPostBase(0))
+                );
+            },
+        );
+        check_encode_field_table(
+            &mut table,
+            std::slice::from_ref(&field),
             &[field.with_value("quxx")],
             2,
             &|mut b, e| {
@@ -607,6 +653,9 @@ mod tests {
         StreamCancel(2).encode(&mut buf);
         let mut cur = Cursor::new(&buf);
         assert_eq!(Action::parse(&mut cur), Ok(Some(Action::StreamCancel(2))));
+
+        let mut encoder = Encoder::default();
+        assert_eq!(encoder.on_decoder_recv(&mut Cursor::new(buf)), Ok(()));
     }
 
     #[test]
@@ -720,5 +769,14 @@ mod tests {
             encoder.on_decoder_recv(&mut Cursor::new(wire)),
             Err(EncoderError::InvalidInteger(IntError::Overflow))
         );
+    }
+
+    #[test]
+    fn large_coalesced_decoder_instructions_are_processed_incrementally() {
+        let mut encoder = Encoder::default();
+        let mut instructions = Cursor::new(vec![0x40; MAX_BUFFERED_DECODER_INSTRUCTION_BYTES + 1]);
+
+        assert_eq!(encoder.on_decoder_recv(&mut instructions), Ok(()));
+        assert!(encoder.decoder_stream.is_empty());
     }
 }

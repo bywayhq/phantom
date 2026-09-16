@@ -4,6 +4,8 @@ pub use self::{
     field::HeaderField,
 };
 
+pub(crate) use self::{decoder::Decoder, encoder::Encoder};
+
 mod block;
 mod dynamic;
 mod field;

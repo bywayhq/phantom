@@ -109,6 +109,13 @@ where
     ) -> Poll<Result<usize, StreamErrorIncoming>> {
         self.stream.poll_send(cx, buf)
     }
+
+    fn poll_stopped(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
+        self.stream.poll_stopped(cx)
+    }
 }
 
 impl<S, B> quic::SendStream<B> for SendStream<S, B>
@@ -269,6 +276,13 @@ where
         buf: &mut D,
     ) -> Poll<Result<usize, StreamErrorIncoming>> {
         self.stream.poll_send(cx, buf)
+    }
+
+    fn poll_stopped(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
+        self.stream.poll_stopped(cx)
     }
 }
 

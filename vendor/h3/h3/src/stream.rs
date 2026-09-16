@@ -567,6 +567,13 @@ where
     ) -> Poll<Result<usize, StreamErrorIncoming>> {
         self.stream.poll_send(cx, buf)
     }
+
+    fn poll_stopped(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
+        self.stream.poll_stopped(cx)
+    }
 }
 
 impl<S, B> BidiStream<B> for BufRecvStream<S, B>

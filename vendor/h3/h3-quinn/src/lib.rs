@@ -33,6 +33,10 @@ use tracing::instrument;
 #[cfg(feature = "datagram")]
 pub mod datagram;
 
+type StoppedFuture = Pin<
+    Box<dyn Future<Output = Result<Option<VarInt>, quinn::StoppedError>> + Send + Sync + 'static>,
+>;
+
 /// BoxStream with Sync trait
 type BoxStreamSync<'a, T> = Pin<Box<dyn Stream<Item = T> + Sync + Send + 'a>>;
 
@@ -336,6 +340,13 @@ where
     ) -> Poll<Result<usize, StreamErrorIncoming>> {
         self.send.poll_send(cx, buf)
     }
+
+    fn poll_stopped(
+        &mut self,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
+        self.send.poll_stopped(cx)
+    }
 }
 
 impl<B> quic::Is0rtt for BidiStream<B>
@@ -472,6 +483,7 @@ fn convert_write_error_to_stream_error(error: quinn::WriteError) -> StreamErrorI
 pub struct SendStream<B: Buf> {
     stream: quinn::SendStream,
     writing: Option<WriteBuf<B>>,
+    stopped: Option<StoppedFuture>,
 }
 
 impl<B> SendStream<B>
@@ -482,6 +494,7 @@ where
         Self {
             stream,
             writing: None,
+            stopped: None,
         }
     }
 }
@@ -573,6 +586,34 @@ where
                 Poll::Ready(Ok(written))
             }
             Err(err) => Poll::Ready(Err(convert_write_error_to_stream_error(err))),
+        }
+    }
+
+    fn poll_stopped(
+        &mut self,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
+        if self.stopped.is_none() {
+            self.stopped = Some(Box::pin(self.stream.stopped()));
+        }
+
+        match self
+            .stopped
+            .as_mut()
+            .expect("stopped future is initialized")
+            .as_mut()
+            .poll(cx)
+        {
+            Poll::Ready(Ok(code)) => Poll::Ready(Ok(code.map(VarInt::into_inner))),
+            Poll::Ready(Err(quinn::StoppedError::ConnectionLost(error))) => {
+                Poll::Ready(Err(StreamErrorIncoming::ConnectionErrorIncoming {
+                    connection_error: convert_connection_error(error),
+                }))
+            }
+            Poll::Ready(Err(error @ quinn::StoppedError::ZeroRttRejected)) => {
+                Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(error))))
+            }
+            Poll::Pending => Poll::Pending,
         }
     }
 }

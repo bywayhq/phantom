@@ -436,8 +436,10 @@ async fn header_too_big_client_error() {
         };
         let req_fut = async {
             // pretend client already received server's settings
-            let mut settings = Settings::default();
-            settings.max_field_section_size = 12;
+            let settings = Settings {
+                max_field_section_size: 12,
+                ..Settings::default()
+            };
             // Sets the settings if not already received
             client.set_settings(settings);
 
@@ -500,8 +502,10 @@ async fn header_too_big_client_error_trailer() {
             }
         };
         let req_fut = async {
-            let mut settings = Settings::default();
-            settings.max_field_section_size = 200;
+            let settings = Settings {
+                max_field_section_size: 200,
+                ..Settings::default()
+            };
             client.set_settings(settings);
 
             let mut request_stream = client
@@ -755,8 +759,10 @@ async fn header_too_big_server_error() {
         let mut incoming_req = server::Connection::new(conn).await.unwrap();
 
         // pretend the server received a smaller max_field_section_size
-        let mut settings = Settings::default();
-        settings.max_field_section_size = 12;
+        let settings = Settings {
+            max_field_section_size: 12,
+            ..Settings::default()
+        };
         incoming_req.set_settings(settings);
 
         let (_request, mut request_stream) = get_stream_blocking(&mut incoming_req)
@@ -822,8 +828,10 @@ async fn header_too_big_server_error_trailers() {
         let mut incoming_req = server::Connection::new(conn).await.unwrap();
 
         // pretend the server already received client's settings
-        let mut settings = Settings::default();
-        settings.max_field_section_size = 42;
+        let settings = Settings {
+            max_field_section_size: 42,
+            ..Settings::default()
+        };
         incoming_req.set_settings(settings);
 
         let (_request, mut request_stream) = get_stream_blocking(&mut incoming_req)
@@ -1504,9 +1512,7 @@ where
         };
 
         let driver = async {
-            return Result::<(), ConnectionError>::Err(
-                future::poll_fn(|cx| driver.poll_close(cx)).await,
-            );
+            Result::<(), ConnectionError>::Err(future::poll_fn(|cx| driver.poll_close(cx)).await)
         };
 
         tokio::join!(client, driver)
@@ -1524,7 +1530,7 @@ where
         let driver = async move {
             match incoming.accept().await {
                 Ok(_) => (),
-                Err(err) => return Err(err.into()),
+                Err(err) => return Err(err),
             };
             Result::<(), ConnectionError>::Ok(())
         };

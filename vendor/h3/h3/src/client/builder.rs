@@ -29,6 +29,7 @@ pub async fn new<C, O>(
 ) -> Result<(Connection<C, Bytes>, SendRequest<O, Bytes>), ConnectionError>
 where
     C: quic::Connection<Bytes, OpenStreams = O>,
+    C::SendStream: quic::SendStreamUnframed<Bytes>,
     O: quic::OpenStreams<Bytes>,
 {
     //= https://www.rfc-editor.org/rfc/rfc9114#section-3.3
@@ -50,6 +51,7 @@ where
 /// # async fn doc<C, O, B>(quic: C)
 /// # where
 /// #   C: quic::Connection<B, OpenStreams = O>,
+/// #   C::SendStream: quic::SendStreamUnframed<B>,
 /// #   O: quic::OpenStreams<B>,
 /// #   B: bytes::Buf,
 /// # {
@@ -110,7 +112,11 @@ impl Builder {
     /// invalid values for settings with constrained domains.
     pub fn ordered_settings(&mut self, entries: &[(u64, u64)]) -> Result<&mut Self, SettingsError> {
         let settings = frame::Settings::from_ordered(entries)?;
-        self.config.settings = (&settings).into();
+        let semantic_settings: crate::config::Settings = (&settings).into();
+        crate::config::validate_local_qpack_max_table_capacity(
+            semantic_settings.qpack_max_table_capacity,
+        )?;
+        self.config.settings = semantic_settings;
         self.config.ordered_settings = Some(settings);
         Ok(self)
     }
@@ -136,6 +142,7 @@ impl Builder {
     ) -> Result<(Connection<C, B>, SendRequest<O, B>), ConnectionError>
     where
         C: quic::Connection<B, OpenStreams = O>,
+        C::SendStream: quic::SendStreamUnframed<B>,
         O: quic::OpenStreams<B>,
         B: Buf,
     {
@@ -257,8 +264,8 @@ mod tests {
             Some(SettingsError::InvalidSettingId(out_of_range))
         );
         assert_eq!(
-            builder.ordered_settings(&[(0x1, out_of_range)]).err(),
-            Some(SettingsError::InvalidSettingValue(0x1, out_of_range))
+            builder.ordered_settings(&[(0x1, 1 << 30)]).err(),
+            Some(SettingsError::InvalidSettingValue(0x1, 1 << 30))
         );
         assert_eq!(
             builder.ordered_settings(&[(0x7, out_of_range)]).err(),

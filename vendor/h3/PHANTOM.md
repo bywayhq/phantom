@@ -31,7 +31,8 @@ are bypassed. When absent, the upstream conversion path is unchanged.
 Validation rejects:
 
 - duplicate identifiers;
-- identifiers or values outside the QUIC varint range;
+- identifiers or values outside the QUIC varint range, and a locally
+  advertised QPACK table capacity above the engine's implementation limit;
 - HTTP/2-only reserved identifiers `0x2` through `0x5`, plus upstream's
   existing invalid identifier `0x0`;
 - values other than zero or one for the supported boolean CONNECT, datagram,
@@ -42,12 +43,14 @@ Supplied settings that already have a connection-level semantic field also
 update that existing view. This keeps header limits and extension flags
 consistent with the emitted frame without introducing browser-family policy
 into the engine. The semantic view now also retains the QPACK table-capacity
-and blocked-stream settings, defaults both to zero when omitted, and preserves
-every value representable by an HTTP/3 QUIC variable-length integer. This
-state is bootstrap for later runtime integration; it does not add QPACK or
-WebTransport enforcement.
+and blocked-stream settings and defaults both to zero when omitted. Blocked
+streams preserve every HTTP/3 QUIC variable-length integer. Locally advertised
+table capacity is validated against the engine's `2^30 - 1` implementation
+limit before runtime construction; peer settings retain the full QUIC varint
+range. This state is bootstrap for the runtime integration described below; it
+does not by itself add dynamic HEADERS or WebTransport enforcement.
 
-## Integration guard: dynamic QPACK is not wired
+## Integration guard: dynamic HEADERS are not wired
 
 Do **not** select this vendor dependency for Phantom's Chrome runtime path only
 because the retained SETTINGS prefix can be reproduced. At this revision, the
@@ -56,13 +59,16 @@ nonzero `SETTINGS_QPACK_MAX_TABLE_CAPACITY` (`0x1 = 65536`) and
 `SETTINGS_QPACK_BLOCKED_STREAMS` (`0x7 = 100`) can therefore promise peer
 behavior the engine does not yet honor.
 
-Runtime integration is blocked until it implements and bounds all of the
+The client driver now actively consumes both peer QPACK streams, validates
+their instructions with the hardened codec, emits insert-count feedback with
+backpressure, bounds fragmented instruction and pending-feedback buffers, and
+fails closed when critical-stream setup or processing fails. The response and
+trailer paths still use the stateless decoder. Nonzero advertised settings are
+therefore blocked until the remaining runtime implements and bounds all of the
 following together:
 
-- QPACK encoder-stream instruction processing;
 - blocked-section tracking and limits;
-- decoder acknowledgements, stream cancellation, and insert-count feedback;
-  and
+- decoder acknowledgements and stream cancellation; and
 - adversarial tests for blocked streams, invalid instructions, cancellation,
   and memory/resource ceilings.
 
@@ -74,11 +80,12 @@ preserves fragmented critical-stream instructions across input buffers. The
 SETTINGS layer retains peer and local QPACK values, including values from an
 exact ordered SETTINGS frame. It does not reinterpret protocol-valid wire
 values as allocation policy; resource ceilings belong where the future runtime
-allocates table and blocked-section state. Both remain deliberately
-disconnected from the HTTP/3 connection driver. The explicit encoded-byte
-ceiling for parked blocked HEADERS belongs to the future runtime registry that
-owns those bytes; the codec does not retain blocked field sections and
-therefore cannot enforce that aggregate limit honestly.
+allocates table and blocked-section state. The critical-stream codec is
+connected to the client driver, but it does not yet share its decoder with
+request streams. The explicit encoded-byte ceiling for parked blocked HEADERS
+belongs to the future runtime registry that owns those bytes; the codec does
+not retain blocked field sections and therefore cannot enforce that aggregate
+limit honestly.
 
 A static-table-only integration must advertise both QPACK settings as zero and
 must not claim Chrome wire parity. The exact Chrome regression in this patch is
@@ -96,9 +103,9 @@ Phantom repository. A unit regression fixes its complete control-stream prefix,
 including setting order and the concrete GREASE identifier/value widths.
 
 The canonical source and test deltas are stored in
-`patches/ordered-settings.patch` and `patches/qpack-codec.patch`. `PHANTOM.md`
-and the patch files are packaging metadata and are deliberately excluded from
-those patches.
+`patches/ordered-settings.patch`, `patches/qpack-codec.patch`, and
+`patches/qpack-critical-streams.patch`. `PHANTOM.md` and the patch files are
+packaging metadata and are deliberately excluded from those patches.
 
 ## Refreshing the vendor copy
 
@@ -137,6 +144,10 @@ those patches.
      "$PWD/vendor/h3/patches/qpack-codec.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/qpack-codec.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/qpack-critical-streams.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/qpack-critical-streams.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the
@@ -156,8 +167,10 @@ cargo test --manifest-path vendor/h3/Cargo.toml -p h3 config::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::
-cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 --lib --all-features -- -D warnings
+cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack_
+cargo clippy --manifest-path vendor/h3/Cargo.toml --workspace --all-targets --all-features -- -D warnings
 cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn --all-features
+cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-features
 ```
 
 The integration checkout owns workspace-wide checks and lockfile verification.

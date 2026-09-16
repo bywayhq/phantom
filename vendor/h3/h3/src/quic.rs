@@ -197,6 +197,12 @@ pub trait SendStreamUnframed<B: Buf>: SendStream<B> {
         cx: &mut task::Context<'_>,
         buf: &mut D,
     ) -> Poll<Result<usize, StreamErrorIncoming>>;
+
+    /// Polls whether the peer requested that this stream stop sending.
+    fn poll_stopped(
+        &mut self,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>>;
 }
 
 /// A trait describing the "receive" actions of a QUIC stream.

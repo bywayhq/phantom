@@ -293,6 +293,7 @@ where
 /// # where
 /// #    C: quic::Connection<B> + Send + 'static,
 /// #    C::SendStream: Send + 'static,
+/// #    C::SendStream: quic::SendStreamUnframed<B>,
 /// #    C::RecvStream: Send + 'static,
 /// #    B: Buf + Send + 'static,
 /// # {
@@ -318,6 +319,7 @@ where
 /// # where
 /// #    C: quic::Connection<B> + Send + 'static,
 /// #    C::SendStream: Send + 'static,
+/// #    C::SendStream: quic::SendStreamUnframed<B>,
 /// #    C::RecvStream: Send + 'static,
 /// #    B: Buf + Send + 'static,
 /// # {
@@ -388,13 +390,23 @@ where
 
     /// Wait until the connection is closed
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
-    pub async fn wait_idle(&mut self) -> ConnectionError {
+    pub async fn wait_idle(&mut self) -> ConnectionError
+    where
+        C::SendStream: quic::SendStreamUnframed<B>,
+    {
         future::poll_fn(|cx| self.poll_close(cx)).await
     }
 
     /// Maintain the connection state until it is closed
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
-    pub fn poll_close(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionError> {
+    pub fn poll_close(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionError>
+    where
+        C::SendStream: quic::SendStreamUnframed<B>,
+    {
+        if let Poll::Ready(Err(error)) = self.inner.poll_qpack(cx) {
+            return Poll::Ready(error);
+        }
+
         while let Poll::Ready(result) = self.inner.poll_control(cx) {
             match result {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2

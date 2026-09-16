@@ -29,6 +29,34 @@ check_quinn_proto_patch_replay() {
     "$candidate" vendor/quinn-proto
 }
 
+check_h3_patch_replay() {
+  local staging archive candidate actual_checksum patch
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-h3-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  archive="$staging/h3-1f3d5295833ad454343f25d55633fb6bee1027b2.tar.gz"
+  curl --fail --location --silent --show-error --retry 3 \
+    --output "$archive" \
+    https://codeload.github.com/hyperium/h3/tar.gz/1f3d5295833ad454343f25d55633fb6bee1027b2
+  if command -v shasum >/dev/null 2>&1; then
+    actual_checksum=$(shasum -a 256 "$archive" | awk '{print $1}')
+  else
+    actual_checksum=$(sha256sum "$archive" | awk '{print $1}')
+  fi
+  [[ "$actual_checksum" == a30747c0c9f35a57c03c17619e7231eb7f94a4629f3644228219280850d57183 ]]
+  tar -xzf "$archive" -C "$staging"
+  candidate="$staging/h3-1f3d5295833ad454343f25d55633fb6bee1027b2"
+  for patch in \
+    vendor/h3/patches/ordered-settings.patch \
+    vendor/h3/patches/qpack-codec.patch \
+    vendor/h3/patches/qpack-critical-streams.patch
+  do
+    git -C "$candidate" apply --check "$PWD/$patch"
+    git -C "$candidate" apply "$PWD/$patch"
+  done
+  diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
+    --exclude=patches --exclude=target "$candidate" vendor/h3
+}
+
 case "${1:-}" in
   btls)
     case "$(uname -s)" in
@@ -72,15 +100,19 @@ case "${1:-}" in
       --locked datagram_frame_size
     ;;
   h3)
+    check_h3_patch_replay
     cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
-    cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 \
-      --lib --all-features --locked -- -D warnings
+    cargo clippy --manifest-path vendor/h3/Cargo.toml \
+      --workspace --all-targets --all-features --locked -- -D warnings
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
       --locked client::builder::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
       --locked proto::frame::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 --locked qpack::
+    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 --locked qpack_
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn \
+      --all-features --locked
+    cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport \
       --all-features --locked
     ;;
   *)

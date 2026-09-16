@@ -220,7 +220,7 @@ async fn client_close_only_on_last_sender_drop() {
             }) if code == Code::H3_REQUEST_CANCELLED.value()
         );
 
-        let _ = request_stream_1.finish().await.unwrap();
+        request_stream_1.finish().await.unwrap();
 
         let mut request_stream_2 = send2
             .send_request(Request::get("http://no.way").body(()).unwrap())
@@ -233,7 +233,7 @@ async fn client_close_only_on_last_sender_drop() {
                 code
             }) if code == Code::H3_REQUEST_CANCELLED.value()
         );
-        let _ = request_stream_2.finish().await.unwrap();
+        request_stream_2.finish().await.unwrap();
 
         drop(send1);
         drop(send2);
@@ -448,6 +448,223 @@ async fn two_control_streams() {
     };
 
     tokio::select! { _ = server_fut => (), _ = client_fut => panic!("client resolved first") };
+}
+
+#[tokio::test]
+async fn malformed_qpack_encoder_instruction_has_specific_error() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+
+    let client_fut = async {
+        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
+        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
+
+        assert_matches!(
+            error,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::QPACK_ENCODER_STREAM_ERROR,
+                    ..
+                }
+            }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut encoder = connection.open_uni().await.unwrap();
+
+        // A capacity update to one exceeds the client's default advertised capacity of zero.
+        encoder.write_all(&[0x02, 0x21]).await.unwrap();
+        let _ = connection.closed().await;
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn qpack_encoder_insert_emits_decoder_feedback() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder.ordered_settings(&[(0x01, 64)]).unwrap();
+        let (mut driver, _client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let _ = future::poll_fn(|cx| driver.poll_close(cx)).await;
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut client_streams = Vec::new();
+        let mut decoder_index = None;
+
+        for _ in 0..3 {
+            let mut stream = connection.accept_uni().await.unwrap();
+            let mut stream_type = [0];
+            stream.read_exact(&mut stream_type).await.unwrap();
+            if stream_type[0] == 0x03 {
+                decoder_index = Some(client_streams.len());
+            }
+            client_streams.push(stream);
+        }
+
+        let mut encoder = connection.open_uni().await.unwrap();
+        encoder
+            .write_all(&[
+                0x02, // Encoder stream type.
+                0x3f, 0x21, // Dynamic table capacity: 64.
+                0x41, b'x', 0x01, b'y', // Insert literal name and value.
+            ])
+            .await
+            .unwrap();
+
+        let mut feedback = [0];
+        client_streams[decoder_index.unwrap()]
+            .read_exact(&mut feedback)
+            .await
+            .unwrap();
+        assert_eq!(feedback, [0x01]);
+
+        connection.close(0_u32.into(), b"test complete");
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn invalid_qpack_decoder_ack_has_specific_error() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+
+    let client_fut = async {
+        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
+        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
+
+        assert_matches!(
+            error,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::QPACK_DECODER_STREAM_ERROR,
+                    ..
+                }
+            }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut decoder = connection.open_uni().await.unwrap();
+
+        // Header acknowledgement for stream zero is invalid without a referenced block.
+        decoder.write_all(&[0x03, 0x80]).await.unwrap();
+        let _ = connection.closed().await;
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn qpack_cancellation_for_static_stream_is_accepted() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+
+    let client_fut = async {
+        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
+        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
+
+        assert_matches!(
+            error,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut decoder = connection.open_uni().await.unwrap();
+
+        decoder.write_all(&[0x03, 0x40]).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        connection.close(0_u32.into(), b"test complete");
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn closing_qpack_encoder_stream_is_a_critical_stream_error() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+
+    let client_fut = async {
+        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
+        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
+
+        assert_matches!(
+            error,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::H3_CLOSED_CRITICAL_STREAM,
+                    ..
+                }
+            }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut encoder = connection.open_uni().await.unwrap();
+        encoder.write_all(&[0x02]).await.unwrap();
+        encoder.finish().unwrap();
+        let _ = connection.closed().await;
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn stopping_local_qpack_streams_is_a_critical_stream_error() {
+    for target_type in [0x02, 0x03] {
+        let mut pair = Pair::default();
+        let server = pair.server();
+
+        let client_fut = async {
+            let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
+            future::poll_fn(|cx| driver.poll_close(cx)).await
+        };
+
+        let server_fut = async {
+            let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+            let mut streams = Vec::new();
+
+            for _ in 0..3 {
+                let mut stream = connection.accept_uni().await.unwrap();
+                let mut stream_type = [0];
+                stream.read_exact(&mut stream_type).await.unwrap();
+                if stream_type[0] == target_type {
+                    stream.stop(42_u32.into()).unwrap();
+                }
+                streams.push(stream);
+            }
+
+            let _ = connection.closed().await;
+            streams
+        };
+
+        let (error, _streams) = tokio::join!(client_fut, server_fut);
+        assert_matches!(
+            error,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::H3_CLOSED_CRITICAL_STREAM,
+                    ..
+                }
+            }
+        );
+    }
 }
 
 #[tokio::test]
@@ -907,8 +1124,7 @@ async fn server_not_blocking_on_idle_request() {
         let err = connection
             .accept_bi()
             .await
-            .err()
-            .expect("connection should error after sending wrong data on control stream");
+            .expect_err("connection should error after sending wrong data on control stream");
 
         assert_matches!(err,
         quinn::ConnectionError::ApplicationClosed(quinn::ApplicationClose { error_code, .. })

@@ -1,0 +1,1566 @@
+diff --git a/examples/client.rs b/examples/client.rs
+index f91a340..ac9a9ec 100644
+--- a/examples/client.rs
++++ b/examples/client.rs
+@@ -115,7 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
+     let (mut driver, mut send_request) = h3::client::new(quinn_conn).await?;
+ 
+     let drive = async move {
+-        return Err::<(), ConnectionError>(future::poll_fn(|cx| driver.poll_close(cx)).await);
++        Err::<(), ConnectionError>(future::poll_fn(|cx| driver.poll_close(cx)).await)
+     };
+ 
+     // In the following block, we want to take ownership of `send_request`:
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index c61509a..96a5610 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -29,6 +29,7 @@ pub async fn new<C, O>(
+ ) -> Result<(Connection<C, Bytes>, SendRequest<O, Bytes>), ConnectionError>
+ where
+     C: quic::Connection<Bytes, OpenStreams = O>,
++    C::SendStream: quic::SendStreamUnframed<Bytes>,
+     O: quic::OpenStreams<Bytes>,
+ {
+     //= https://www.rfc-editor.org/rfc/rfc9114#section-3.3
+@@ -50,6 +51,7 @@ where
+ /// # async fn doc<C, O, B>(quic: C)
+ /// # where
+ /// #   C: quic::Connection<B, OpenStreams = O>,
++/// #   C::SendStream: quic::SendStreamUnframed<B>,
+ /// #   O: quic::OpenStreams<B>,
+ /// #   B: bytes::Buf,
+ /// # {
+@@ -110,7 +112,11 @@ impl Builder {
+     /// invalid values for settings with constrained domains.
+     pub fn ordered_settings(&mut self, entries: &[(u64, u64)]) -> Result<&mut Self, SettingsError> {
+         let settings = frame::Settings::from_ordered(entries)?;
+-        self.config.settings = (&settings).into();
++        let semantic_settings: crate::config::Settings = (&settings).into();
++        crate::config::validate_local_qpack_max_table_capacity(
++            semantic_settings.qpack_max_table_capacity,
++        )?;
++        self.config.settings = semantic_settings;
+         self.config.ordered_settings = Some(settings);
+         Ok(self)
+     }
+@@ -136,6 +142,7 @@ impl Builder {
+     ) -> Result<(Connection<C, B>, SendRequest<O, B>), ConnectionError>
+     where
+         C: quic::Connection<B, OpenStreams = O>,
++        C::SendStream: quic::SendStreamUnframed<B>,
+         O: quic::OpenStreams<B>,
+         B: Buf,
+     {
+@@ -257,8 +264,8 @@ mod tests {
+             Some(SettingsError::InvalidSettingId(out_of_range))
+         );
+         assert_eq!(
+-            builder.ordered_settings(&[(0x1, out_of_range)]).err(),
+-            Some(SettingsError::InvalidSettingValue(0x1, out_of_range))
++            builder.ordered_settings(&[(0x1, 1 << 30)]).err(),
++            Some(SettingsError::InvalidSettingValue(0x1, 1 << 30))
+         );
+         assert_eq!(
+             builder.ordered_settings(&[(0x7, out_of_range)]).err(),
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 82b800e..362a61d 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -293,6 +293,7 @@ where
+ /// # where
+ /// #    C: quic::Connection<B> + Send + 'static,
+ /// #    C::SendStream: Send + 'static,
++/// #    C::SendStream: quic::SendStreamUnframed<B>,
+ /// #    C::RecvStream: Send + 'static,
+ /// #    B: Buf + Send + 'static,
+ /// # {
+@@ -318,6 +319,7 @@ where
+ /// # where
+ /// #    C: quic::Connection<B> + Send + 'static,
+ /// #    C::SendStream: Send + 'static,
++/// #    C::SendStream: quic::SendStreamUnframed<B>,
+ /// #    C::RecvStream: Send + 'static,
+ /// #    B: Buf + Send + 'static,
+ /// # {
+@@ -388,13 +390,23 @@ where
+ 
+     /// Wait until the connection is closed
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+-    pub async fn wait_idle(&mut self) -> ConnectionError {
++    pub async fn wait_idle(&mut self) -> ConnectionError
++    where
++        C::SendStream: quic::SendStreamUnframed<B>,
++    {
+         future::poll_fn(|cx| self.poll_close(cx)).await
+     }
+ 
+     /// Maintain the connection state until it is closed
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+-    pub fn poll_close(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionError> {
++    pub fn poll_close(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionError>
++    where
++        C::SendStream: quic::SendStreamUnframed<B>,
++    {
++        if let Poll::Ready(Err(error)) = self.inner.poll_qpack(cx) {
++            return Poll::Ready(error);
++        }
++
+         while let Poll::Ready(result) = self.inner.poll_control(cx) {
+             match result {
+                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index cb55580..0ac48ad 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -2,6 +2,20 @@ use std::convert::TryFrom;
+ 
+ use crate::proto::{frame, varint::VarInt};
+ 
++const LOCAL_QPACK_MAX_TABLE_CAPACITY: u64 = (1 << 30) - 1;
++
++pub(crate) fn validate_local_qpack_max_table_capacity(
++    value: u64,
++) -> Result<(), frame::SettingsError> {
++    if value > LOCAL_QPACK_MAX_TABLE_CAPACITY {
++        return Err(frame::SettingsError::InvalidSettingValue(
++            frame::SettingId::QPACK_MAX_TABLE_CAPACITY.0,
++            value,
++        ));
++    }
++    Ok(())
++}
++
+ /// Configures the HTTP/3 connection
+ #[derive(Debug, Clone, Copy)]
+ #[non_exhaustive]
+@@ -135,6 +149,7 @@ impl TryFrom<Config> for frame::Settings {
+         }
+ 
+         if qpack_max_table_capacity != 0 {
++            validate_local_qpack_max_table_capacity(qpack_max_table_capacity)?;
+             settings.insert(
+                 frame::SettingId::QPACK_MAX_TABLE_CAPACITY,
+                 qpack_max_table_capacity,
+@@ -230,15 +245,17 @@ mod tests {
+ 
+     #[test]
+     fn maximum_qpack_settings_round_trip_through_frame_view() {
+-        let mut config = Config::default();
+-        config.send_grease = false;
+-        config.settings.qpack_max_table_capacity = VarInt::MAX.0;
++        let mut config = Config {
++            send_grease: false,
++            ..Config::default()
++        };
++        config.settings.qpack_max_table_capacity = (1 << 30) - 1;
+         config.settings.qpack_blocked_streams = VarInt::MAX.0;
+ 
+         let frame = frame::Settings::try_from(config).unwrap();
+         assert_eq!(
+             frame.get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY),
+-            Some(VarInt::MAX.0)
++            Some((1 << 30) - 1)
+         );
+         assert_eq!(
+             frame.get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS),
+@@ -246,12 +263,19 @@ mod tests {
+         );
+ 
+         let settings = Settings::from(&frame);
+-        assert_eq!(settings.qpack_max_table_capacity, VarInt::MAX.0);
++        assert_eq!(settings.qpack_max_table_capacity, (1 << 30) - 1);
+         assert_eq!(settings.qpack_blocked_streams, VarInt::MAX.0);
+     }
+ 
+     #[test]
+     fn qpack_settings_reject_values_outside_quic_varint_range() {
++        let mut config = Config::default();
++        config.settings.qpack_max_table_capacity = 1 << 30;
++        assert_eq!(
++            frame::Settings::try_from(config),
++            Err(frame::SettingsError::InvalidSettingValue(0x1, 1 << 30))
++        );
++
+         let mut config = Config::default();
+         config.settings.qpack_max_table_capacity = 1 << 62;
+         assert_eq!(
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index 44302f1..f241da2 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -10,6 +10,9 @@ use futures_util::{future, ready};
+ use http::HeaderMap;
+ use stream::WriteBuf;
+ 
++const MAX_PENDING_QPACK_FEEDBACK_BYTES: usize = 64 * 1024;
++const MAX_QPACK_STREAM_BYTES_PER_POLL: usize = 64 * 1024;
++
+ #[cfg(feature = "tracing")]
+ use tracing::{instrument, warn};
+ 
+@@ -30,7 +33,7 @@ use crate::{
+         varint::VarInt,
+     },
+     qpack,
+-    quic::{self, RecvStream, SendStream, StreamErrorIncoming},
++    quic::{self, RecvStream, SendStream, SendStreamUnframed, StreamErrorIncoming},
+     shared_state::{ConnectionState, SharedState},
+     stream::{self, AcceptRecvStream, AcceptedRecvStream, BufRecvStream, UniStreamHeader},
+     webtransport::SessionId,
+@@ -64,9 +67,48 @@ where
+     B: Buf,
+ {
+     decoder_send: Option<C::SendStream>,
+-    decoder_recv: Option<AcceptedRecvStream<C::RecvStream, B>>,
++    decoder_recv: Option<BufRecvStream<C::RecvStream, B>>,
++    decoder_pending: Option<Bytes>,
+     encoder_send: Option<C::SendStream>,
+-    encoder_recv: Option<AcceptedRecvStream<C::RecvStream, B>>,
++    encoder_recv: Option<BufRecvStream<C::RecvStream, B>>,
++    encoder_pending: Option<Bytes>,
++    decoder: qpack::Decoder,
++    encoder: qpack::Encoder,
++    decoder_instructions: BytesMut,
++}
++
++fn poll_send_qpack_feedback<S, B>(
++    send: &mut S,
++    feedback: &mut BytesMut,
++    cx: &mut Context<'_>,
++) -> Poll<Result<(), StreamErrorIncoming>>
++where
++    S: SendStreamUnframed<B>,
++    B: Buf,
++{
++    let mut sent = 0;
++    while feedback.has_remaining() && sent < MAX_QPACK_STREAM_BYTES_PER_POLL {
++        match send.poll_send(cx, feedback) {
++            Poll::Ready(Ok(0)) => {
++                return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
++                    std::io::Error::new(
++                        std::io::ErrorKind::WriteZero,
++                        "QPACK stream write made no progress",
++                    ),
++                ))));
++            }
++            Poll::Ready(Ok(written)) => sent = sent.saturating_add(written),
++            Poll::Ready(Err(error)) => return Poll::Ready(Err(error)),
++            Poll::Pending => return Poll::Pending,
++        }
++    }
++
++    if feedback.has_remaining() {
++        cx.waker().wake_by_ref();
++        Poll::Pending
++    } else {
++        Poll::Ready(Ok(()))
++    }
+ }
+ 
+ #[allow(missing_docs)]
+@@ -193,19 +235,23 @@ where
+         let mut decoder_send = Option::take(&mut self.qpack_streams.decoder_send);
+         let mut encoder_send = Option::take(&mut self.qpack_streams.encoder_send);
+ 
+-        let (control, ..) = future::join3(
++        let (control, decoder, encoder) = future::join3(
+             stream::write(
+                 &mut self.control_send,
+                 WriteBuf::from(UniStreamHeader::Control(settings)),
+             ),
+             async {
+                 if let Some(stream) = &mut decoder_send {
+-                    let _ = stream::write(stream, WriteBuf::from(UniStreamHeader::Decoder)).await;
++                    stream::write(stream, WriteBuf::from(UniStreamHeader::Decoder)).await
++                } else {
++                    Ok(())
+                 }
+             },
+             async {
+                 if let Some(stream) = &mut encoder_send {
+-                    let _ = stream::write(stream, WriteBuf::from(UniStreamHeader::Encoder)).await;
++                    stream::write(stream, WriteBuf::from(UniStreamHeader::Encoder)).await
++                } else {
++                    Ok(())
+                 }
+             },
+         )
+@@ -215,29 +261,35 @@ where
+         self.qpack_streams.encoder_send = encoder_send;
+ 
+         match control {
+-            Ok(control) => Ok(control),
++            Ok(()) => {}
+             Err(StreamErrorIncoming::ConnectionErrorIncoming { connection_error }) => {
+-                Err(self.handle_connection_error(connection_error))
++                return Err(self.handle_connection_error(connection_error));
+             }
+-            Err(StreamErrorIncoming::StreamTerminated { error_code: err }) => Err(self
+-                //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
+-                //# If either control
+-                //# stream is closed at any point, this MUST be treated as a connection
+-                //# error of type H3_CLOSED_CRITICAL_STREAM.
+-                .handle_connection_error(InternalConnectionError::new(
++            Err(StreamErrorIncoming::StreamTerminated { error_code: err }) => {
++                return Err(self.handle_connection_error(InternalConnectionError::new(
+                     Code::H3_CLOSED_CRITICAL_STREAM,
+                     format!(
+                         "control stream was requested to stop sending with error code {}",
+                         err
+                     ),
+-                ))),
++                )));
++            }
+             Err(StreamErrorIncoming::Unknown(error)) => {
+-                Err(self.handle_connection_error(InternalConnectionError::new(
++                return Err(self.handle_connection_error(InternalConnectionError::new(
+                     Code::H3_CLOSED_CRITICAL_STREAM,
+                     format!("an error occurred on the control stream {}", error),
+-                )))
++                )));
+             }
+         }
++
++        if let Err(error) = decoder {
++            return Err(self.handle_qpack_stream_error("decoder", error));
++        }
++        if let Err(error) = encoder {
++            return Err(self.handle_qpack_stream_error("encoder", error));
++        }
++
++        Ok(())
+     }
+ 
+     /// Initiates the connection and opens a control stream
+@@ -289,11 +341,30 @@ where
+             Ok(control_send) => control_send,
+         };
+ 
++        let qpack_encoder =
++            Self::opened_critical_stream(&mut conn, "QPACK encoder", qpack_encoder)?;
++        let qpack_decoder =
++            Self::opened_critical_stream(&mut conn, "QPACK decoder", qpack_decoder)?;
++
+         let qpack_streams = QpackStreams {
+-            decoder_send: qpack_decoder.ok(),
++            decoder_send: Some(qpack_decoder),
+             decoder_recv: None,
+-            encoder_send: qpack_encoder.ok(),
++            decoder_pending: None,
++            encoder_send: Some(qpack_encoder),
+             encoder_recv: None,
++            encoder_pending: None,
++            decoder: qpack::Decoder::new(
++                config.settings.qpack_max_table_capacity,
++                config.settings.max_field_section_size,
++            )
++            .map_err(|error| {
++                conn.close_raw_connection_with_h3_error(InternalConnectionError::new(
++                    Code::H3_SETTINGS_ERROR,
++                    format!("invalid QPACK decoder configuration: {error}"),
++                ))
++            })?,
++            encoder: qpack::Encoder::default(),
++            decoder_instructions: BytesMut::new(),
+         };
+ 
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
+@@ -323,6 +394,29 @@ where
+         Ok(conn_inner)
+     }
+ 
++    fn opened_critical_stream(
++        conn: &mut C,
++        name: &str,
++        result: Result<C::SendStream, StreamErrorIncoming>,
++    ) -> Result<C::SendStream, ConnectionError> {
++        match result {
++            Ok(stream) => Ok(stream),
++            Err(StreamErrorIncoming::ConnectionErrorIncoming { connection_error }) => {
++                Err(conn.handle_quic_error_raw(connection_error))
++            }
++            Err(StreamErrorIncoming::StreamTerminated { error_code }) => Err(conn
++                .close_raw_connection_with_h3_error(InternalConnectionError::new(
++                    Code::H3_CLOSED_CRITICAL_STREAM,
++                    format!("{name} stream was terminated with code {error_code}"),
++                ))),
++            Err(StreamErrorIncoming::Unknown(error)) => Err(conn
++                .close_raw_connection_with_h3_error(InternalConnectionError::new(
++                    Code::H3_CLOSED_CRITICAL_STREAM,
++                    format!("failed to open {name} stream: {error}"),
++                ))),
++        }
++    }
++
+     /// Send GOAWAY with specified max_id, iff max_id is smaller than the previous one.
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub async fn shutdown<T>(
+@@ -444,16 +538,16 @@ where
+                     }
+                     self.control_recv = Some(s);
+                 }
+-                enc @ AcceptedRecvStream::Encoder(_) => {
+-                    if let Some(_prev) = self.qpack_streams.encoder_recv.replace(enc) {
++                AcceptedRecvStream::Encoder(stream) => {
++                    if let Some(_prev) = self.qpack_streams.encoder_recv.replace(stream) {
+                         return Err(self.handle_connection_error(InternalConnectionError::new(
+                             Code::H3_STREAM_CREATION_ERROR,
+                             "got two encoder streams".to_string(),
+                         )));
+                     }
+                 }
+-                dec @ AcceptedRecvStream::Decoder(_) => {
+-                    if let Some(_prev) = self.qpack_streams.decoder_recv.replace(dec) {
++                AcceptedRecvStream::Decoder(stream) => {
++                    if let Some(_prev) = self.qpack_streams.decoder_recv.replace(stream) {
+                         return Err(self.handle_connection_error(InternalConnectionError::new(
+                             Code::H3_STREAM_CREATION_ERROR,
+                             "got two decoder streams".to_string(),
+@@ -504,6 +598,207 @@ where
+         Ok(())
+     }
+ 
++    /// Drives the peer's QPACK critical streams and flushes decoder feedback.
++    pub(crate) fn poll_qpack(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), ConnectionError>>
++    where
++        C::SendStream: SendStreamUnframed<B>,
++    {
++        self.poll_accept_recv(cx)?;
++        let mut encoder_processed = 0;
++
++        while encoder_processed < MAX_QPACK_STREAM_BYTES_PER_POLL {
++            let Some(recv) = self.qpack_streams.encoder_recv.as_mut() else {
++                break;
++            };
++            if self.qpack_streams.encoder_pending.is_none() {
++                match recv.poll_data(cx) {
++                    Poll::Ready(Ok(Some(bytes))) if bytes.has_remaining() => {
++                        self.qpack_streams.encoder_pending = Some(bytes);
++                    }
++                    Poll::Ready(Ok(Some(_))) | Poll::Pending => break,
++                    Poll::Ready(Ok(None)) => {
++                        return Poll::Ready(Err(self.closed_qpack_stream("encoder")));
++                    }
++                    Poll::Ready(Err(error)) => {
++                        return Poll::Ready(Err(self.handle_qpack_stream_error("encoder", error)));
++                    }
++                }
++            }
++
++            let bytes = self.qpack_streams.encoder_pending.as_mut().unwrap();
++            let allowed =
++                (MAX_QPACK_STREAM_BYTES_PER_POLL - encoder_processed).min(bytes.remaining());
++            let mut limited = bytes.take(allowed);
++            if let Err(error) = self
++                .qpack_streams
++                .decoder
++                .on_encoder_recv(&mut limited, &mut self.qpack_streams.decoder_instructions)
++            {
++                return Poll::Ready(Err(self.handle_connection_error(
++                    InternalConnectionError::new(
++                        Code::QPACK_ENCODER_STREAM_ERROR,
++                        format!("invalid QPACK encoder instruction: {error}"),
++                    ),
++                )));
++            }
++            encoder_processed += allowed;
++            if !self
++                .qpack_streams
++                .encoder_pending
++                .as_ref()
++                .unwrap()
++                .has_remaining()
++            {
++                self.qpack_streams.encoder_pending = None;
++            }
++            if self.qpack_streams.decoder_instructions.len() > MAX_PENDING_QPACK_FEEDBACK_BYTES {
++                return Poll::Ready(Err(self.handle_connection_error(
++                    InternalConnectionError::new(
++                        Code::H3_EXCESSIVE_LOAD,
++                        "QPACK decoder feedback exceeded its connection limit".to_string(),
++                    ),
++                )));
++            }
++        }
++
++        let mut decoder_processed = 0;
++        while decoder_processed < MAX_QPACK_STREAM_BYTES_PER_POLL {
++            let Some(recv) = self.qpack_streams.decoder_recv.as_mut() else {
++                break;
++            };
++            if self.qpack_streams.decoder_pending.is_none() {
++                match recv.poll_data(cx) {
++                    Poll::Ready(Ok(Some(bytes))) if bytes.has_remaining() => {
++                        self.qpack_streams.decoder_pending = Some(bytes);
++                    }
++                    Poll::Ready(Ok(Some(_))) | Poll::Pending => break,
++                    Poll::Ready(Ok(None)) => {
++                        return Poll::Ready(Err(self.closed_qpack_stream("decoder")));
++                    }
++                    Poll::Ready(Err(error)) => {
++                        return Poll::Ready(Err(self.handle_qpack_stream_error("decoder", error)));
++                    }
++                }
++            }
++
++            let bytes = self.qpack_streams.decoder_pending.as_mut().unwrap();
++            let allowed =
++                (MAX_QPACK_STREAM_BYTES_PER_POLL - decoder_processed).min(bytes.remaining());
++            let mut limited = bytes.take(allowed);
++            if let Err(error) = self.qpack_streams.encoder.on_decoder_recv(&mut limited) {
++                return Poll::Ready(Err(self.handle_connection_error(
++                    InternalConnectionError::new(
++                        Code::QPACK_DECODER_STREAM_ERROR,
++                        format!("invalid QPACK decoder instruction: {error}"),
++                    ),
++                )));
++            }
++            decoder_processed += allowed;
++            if !self
++                .qpack_streams
++                .decoder_pending
++                .as_ref()
++                .unwrap()
++                .has_remaining()
++            {
++                self.qpack_streams.decoder_pending = None;
++            }
++        }
++        if encoder_processed == MAX_QPACK_STREAM_BYTES_PER_POLL
++            || decoder_processed == MAX_QPACK_STREAM_BYTES_PER_POLL
++        {
++            cx.waker().wake_by_ref();
++        }
++
++        if !self.qpack_streams.decoder_instructions.is_empty() {
++            let Some(send) = self.qpack_streams.decoder_send.as_mut() else {
++                return Poll::Ready(Err(self.closed_qpack_stream("decoder")));
++            };
++
++            match poll_send_qpack_feedback(send, &mut self.qpack_streams.decoder_instructions, cx) {
++                Poll::Ready(Err(error)) => {
++                    return Poll::Ready(Err(self.handle_qpack_stream_error("decoder", error)));
++                }
++                Poll::Ready(Ok(())) | Poll::Pending => {}
++            }
++        }
++
++        let decoder_stopped = match self.qpack_streams.decoder_send.as_mut() {
++            Some(send) => send.poll_stopped(cx),
++            None => return Poll::Ready(Err(self.closed_qpack_stream("decoder"))),
++        };
++        match decoder_stopped {
++            Poll::Ready(Ok(code)) => {
++                return Poll::Ready(Err(self.closed_local_qpack_stream("decoder", code)));
++            }
++            Poll::Ready(Err(error)) => {
++                return Poll::Ready(Err(self.handle_qpack_stream_error("decoder", error)));
++            }
++            Poll::Pending => {}
++        }
++
++        let encoder_stopped = match self.qpack_streams.encoder_send.as_mut() {
++            Some(send) => send.poll_stopped(cx),
++            None => return Poll::Ready(Err(self.closed_qpack_stream("encoder"))),
++        };
++        match encoder_stopped {
++            Poll::Ready(Ok(code)) => {
++                return Poll::Ready(Err(self.closed_local_qpack_stream("encoder", code)));
++            }
++            Poll::Ready(Err(error)) => {
++                return Poll::Ready(Err(self.handle_qpack_stream_error("encoder", error)));
++            }
++            Poll::Pending => {}
++        }
++
++        Poll::Pending
++    }
++
++    fn closed_qpack_stream(&mut self, name: &str) -> ConnectionError {
++        self.handle_connection_error(InternalConnectionError::new(
++            Code::H3_CLOSED_CRITICAL_STREAM,
++            format!("peer closed the QPACK {name} stream"),
++        ))
++    }
++
++    fn closed_local_qpack_stream(
++        &mut self,
++        name: &str,
++        error_code: Option<u64>,
++    ) -> ConnectionError {
++        self.handle_connection_error(InternalConnectionError::new(
++            Code::H3_CLOSED_CRITICAL_STREAM,
++            match error_code {
++                Some(code) => format!("peer stopped the QPACK {name} stream with code {code}"),
++                None => format!("peer acknowledged the closed QPACK {name} stream"),
++            },
++        ))
++    }
++
++    fn handle_qpack_stream_error(
++        &mut self,
++        name: &str,
++        error: StreamErrorIncoming,
++    ) -> ConnectionError {
++        match error {
++            StreamErrorIncoming::ConnectionErrorIncoming { connection_error } => {
++                self.handle_connection_error(connection_error)
++            }
++            StreamErrorIncoming::StreamTerminated { error_code } => {
++                self.handle_connection_error(InternalConnectionError::new(
++                    Code::H3_CLOSED_CRITICAL_STREAM,
++                    format!("QPACK {name} stream was terminated with code {error_code}"),
++                ))
++            }
++            StreamErrorIncoming::Unknown(error) => {
++                self.handle_connection_error(InternalConnectionError::new(
++                    Code::H3_CLOSED_CRITICAL_STREAM,
++                    format!("QPACK {name} stream failed: {error}"),
++                ))
++            }
++        }
++    }
++
+     /// Waits for the control stream to be received and reads subsequent frames.
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub fn poll_control(
+@@ -1157,3 +1452,90 @@ where
+         )
+     }
+ }
++
++#[cfg(test)]
++mod qpack_runtime_tests {
++    use super::*;
++    use bytes::Bytes;
++    use futures_util::task::noop_waker_ref;
++
++    #[derive(Default)]
++    struct PartialSend {
++        written: Vec<u8>,
++        write_zero: bool,
++    }
++
++    impl SendStream<Bytes> for PartialSend {
++        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
++            Poll::Ready(Ok(()))
++        }
++
++        fn send_data<T: Into<WriteBuf<Bytes>>>(
++            &mut self,
++            _data: T,
++        ) -> Result<(), StreamErrorIncoming> {
++            Ok(())
++        }
++
++        fn poll_finish(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
++            Poll::Ready(Ok(()))
++        }
++
++        fn reset(&mut self, _reset_code: u64) {}
++
++        fn send_id(&self) -> quic::StreamId {
++            quic::StreamId::try_from(0).unwrap()
++        }
++    }
++
++    impl SendStreamUnframed<Bytes> for PartialSend {
++        fn poll_send<D: Buf>(
++            &mut self,
++            _cx: &mut Context<'_>,
++            buf: &mut D,
++        ) -> Poll<Result<usize, StreamErrorIncoming>> {
++            if self.write_zero {
++                return Poll::Ready(Ok(0));
++            }
++            let byte = buf.chunk()[0];
++            self.written.push(byte);
++            buf.advance(1);
++            Poll::Ready(Ok(1))
++        }
++
++        fn poll_stopped(
++            &mut self,
++            _cx: &mut Context<'_>,
++        ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
++            Poll::Pending
++        }
++    }
++
++    #[test]
++    fn decoder_feedback_drains_across_partial_writes() {
++        let mut send = PartialSend::default();
++        let mut feedback = BytesMut::from(&b"feedback"[..]);
++        let mut cx = Context::from_waker(noop_waker_ref());
++
++        assert!(poll_send_qpack_feedback::<_, Bytes>(&mut send, &mut feedback, &mut cx).is_ready());
++        assert!(feedback.is_empty());
++        assert_eq!(send.written, b"feedback");
++    }
++
++    #[test]
++    fn decoder_feedback_rejects_zero_progress_writes() {
++        let mut send = PartialSend {
++            write_zero: true,
++            ..PartialSend::default()
++        };
++        let mut feedback = BytesMut::from(&b"feedback"[..]);
++        let mut cx = Context::from_waker(noop_waker_ref());
++
++        let result = poll_send_qpack_feedback::<_, Bytes>(&mut send, &mut feedback, &mut cx);
++        assert!(matches!(
++            result,
++            Poll::Ready(Err(StreamErrorIncoming::Unknown(_)))
++        ));
++        assert_eq!(feedback, &b"feedback"[..]);
++    }
++}
+diff --git a/h3/src/proto/frame.rs b/h3/src/proto/frame.rs
+index 8343dc4..1679447 100644
+--- a/h3/src/proto/frame.rs
++++ b/h3/src/proto/frame.rs
+@@ -468,7 +468,6 @@ setting_identifiers! {
+ }
+ 
+ const SETTINGS_LEN: usize = 8;
+-
+ #[derive(Clone, Copy, Debug, PartialEq)]
+ pub struct Settings {
+     entries: [(SettingId, u64); SETTINGS_LEN],
+@@ -735,11 +734,17 @@ mod tests {
+ 
+     #[test]
+     fn qpack_setting_values_are_preserved_while_parsing() {
+-        for identifier in [
+-            SettingId::QPACK_MAX_TABLE_CAPACITY,
+-            SettingId::QPACK_MAX_BLOCKED_STREAMS,
++        for (identifier, values) in [
++            (
++                SettingId::QPACK_MAX_TABLE_CAPACITY,
++                &[0, 1 << 16, 1 << 30, VarInt::MAX.0][..],
++            ),
++            (
++                SettingId::QPACK_MAX_BLOCKED_STREAMS,
++                &[0, 1 << 16, 1 << 30, VarInt::MAX.0][..],
++            ),
+         ] {
+-            for value in [0, 1 << 16, 1 << 30, VarInt::MAX.0] {
++            for &value in values {
+                 let mut payload = Vec::new();
+                 identifier.encode(&mut payload);
+                 payload.write_var(value);
+diff --git a/h3/src/qpack/decoder.rs b/h3/src/qpack/decoder.rs
+index ac33ec5..ee35704 100644
+--- a/h3/src/qpack/decoder.rs
++++ b/h3/src/qpack/decoder.rs
+@@ -25,6 +25,8 @@ use super::{
+ 
+ use super::{prefix_int, prefix_string};
+ 
++const MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES: usize = 1024 * 1024;
++
+ #[derive(Debug, PartialEq)]
+ pub enum DecoderError {
+     InvalidInteger(prefix_int::Error),
+@@ -37,6 +39,7 @@ pub enum DecoderError {
+     BadBaseIndex(isize),
+     UnexpectedEnd,
+     HeaderTooLong(u64),
++    InstructionBufferTooLarge(usize),
+     BufSize(TryFromIntError),
+ }
+ 
+@@ -55,6 +58,9 @@ impl std::fmt::Display for DecoderError {
+             DecoderError::BadBaseIndex(i) => write!(f, "out of bounds base index: {}", i),
+             DecoderError::UnexpectedEnd => write!(f, "unexpected end"),
+             DecoderError::HeaderTooLong(_) => write!(f, "header too long"),
++            DecoderError::InstructionBufferTooLarge(size) => {
++                write!(f, "encoder instruction buffer too large: {size} bytes")
++            }
+             DecoderError::BufSize(_) => write!(f, "number in buffer wrong size"),
+         }
+     }
+@@ -86,10 +92,11 @@ pub struct Decoder {
+ }
+ 
+ impl Decoder {
+-    pub(super) fn new(
+-        max_table_capacity: usize,
++    pub(crate) fn new(
++        max_table_capacity: u64,
+         max_field_section_size: u64,
+     ) -> Result<Self, DecoderError> {
++        let max_table_capacity = usize::try_from(max_table_capacity)?;
+         let mut table = DynamicTable::new();
+         table.set_max_size(max_table_capacity)?;
+         table.set_max_size(0)?;
+@@ -137,9 +144,41 @@ impl Decoder {
+         read: &mut R,
+         write: &mut W,
+     ) -> Result<usize, DecoderError> {
+-        self.encoder_stream.put(read);
+         let inserted_on_start = self.table.total_inserted();
+ 
++        while read.has_remaining() {
++            if self.encoder_stream.len() == MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES
++                && !self.apply_encoder_instructions()?
++            {
++                return Err(DecoderError::InstructionBufferTooLarge(
++                    self.encoder_stream.len().saturating_add(read.remaining()),
++                ));
++            }
++
++            let available = MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES - self.encoder_stream.len();
++            let mut chunk = read.take(available.min(read.remaining()));
++            self.encoder_stream.put(&mut chunk);
++            let progressed = self.apply_encoder_instructions()?;
++            if !progressed
++                && self.encoder_stream.len() == MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES
++                && read.has_remaining()
++            {
++                return Err(DecoderError::InstructionBufferTooLarge(
++                    self.encoder_stream.len().saturating_add(read.remaining()),
++                ));
++            }
++        }
++
++        if self.table.total_inserted() != inserted_on_start {
++            InsertCountIncrement((self.table.total_inserted() - inserted_on_start) as u64)
++                .encode(write);
++        }
++
++        Ok(self.table.total_inserted())
++    }
++
++    fn apply_encoder_instructions(&mut self) -> Result<bool, DecoderError> {
++        let mut progressed = false;
+         loop {
+             let (instruction, consumed) = {
+                 let mut buffered = Cursor::new(self.encoder_stream.as_ref());
+@@ -149,6 +188,7 @@ impl Decoder {
+                 (instruction, buffered.position() as usize)
+             };
+             self.encoder_stream.advance(consumed);
++            progressed = true;
+ 
+             #[cfg(feature = "tracing")]
+             trace!("instruction {:?}", instruction);
+@@ -165,13 +205,7 @@ impl Decoder {
+                 }
+             }
+         }
+-
+-        if self.table.total_inserted() != inserted_on_start {
+-            InsertCountIncrement((self.table.total_inserted() - inserted_on_start) as u64)
+-                .encode(write);
+-        }
+-
+-        Ok(self.table.total_inserted())
++        Ok(progressed)
+     }
+ 
+     fn parse_instruction<R: Buf>(&self, read: &mut R) -> Result<Option<Instruction>, DecoderError> {
+@@ -847,4 +881,38 @@ mod tests {
+         let Decoded { fields, .. } = decoder.decode_header(&mut read).unwrap();
+         assert_eq!(fields, &[field(max_entries + 6), field(max_entries + 10)]);
+     }
++
++    #[test]
++    fn encoder_instruction_buffer_is_bounded() {
++        let mut decoder = Decoder::new(0, u64::MAX).unwrap();
++        let mut incomplete = Vec::new();
++        prefix_int::encode(
++            5,
++            0b010,
++            (MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES + 1) as u64,
++            &mut incomplete,
++        );
++        incomplete.resize(MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES, 0);
++        decoder.encoder_stream = BytesMut::from(incomplete.as_slice());
++        let mut extra = Cursor::new([0]);
++
++        assert_eq!(
++            decoder.on_encoder_recv(&mut extra, &mut Vec::new()),
++            Err(DecoderError::InstructionBufferTooLarge(
++                MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES + 1
++            ))
++        );
++    }
++
++    #[test]
++    fn large_coalesced_encoder_instructions_are_processed_incrementally() {
++        let mut decoder = Decoder::new(0, u64::MAX).unwrap();
++        let mut instructions = Cursor::new(vec![0x20; MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES + 1]);
++
++        assert_eq!(
++            decoder.on_encoder_recv(&mut instructions, &mut Vec::new()),
++            Ok(0)
++        );
++        assert!(decoder.encoder_stream.is_empty());
++    }
+ }
+diff --git a/h3/src/qpack/dynamic.rs b/h3/src/qpack/dynamic.rs
+index a670db4..8325011 100644
+--- a/h3/src/qpack/dynamic.rs
++++ b/h3/src/qpack/dynamic.rs
+@@ -962,7 +962,7 @@ mod tests {
+         );
+ 
+         assert_eq!(encoder.table.fields.len(), 1);
+-        assert_eq!(encoder.table.fields, &[field_a.clone()]);
++        assert_eq!(encoder.table.fields, std::slice::from_ref(&field_a));
+         assert_eq!(encoder.table.name_map.get(&field_a.name).copied(), Some(1));
+         assert_eq!(encoder.table.field_map.get(&field_a).copied(), Some(1));
+     }
+diff --git a/h3/src/qpack/encoder.rs b/h3/src/qpack/encoder.rs
+index 9ca6ae3..5f3bb4e 100644
+--- a/h3/src/qpack/encoder.rs
++++ b/h3/src/qpack/encoder.rs
+@@ -22,12 +22,15 @@ use super::{
+     HeaderField,
+ };
+ 
++const MAX_BUFFERED_DECODER_INSTRUCTION_BYTES: usize = 64 * 1024;
++
+ #[derive(Debug, PartialEq)]
+ pub enum EncoderError {
+     Insertion(DynamicTableError),
+     InvalidString(StringError),
+     InvalidInteger(IntError),
+     UnknownDecoderInstruction(u8),
++    InstructionBufferTooLarge(usize),
+ }
+ 
+ impl std::error::Error for EncoderError {}
+@@ -41,6 +44,9 @@ impl std::fmt::Display for EncoderError {
+             EncoderError::UnknownDecoderInstruction(e) => {
+                 write!(f, "got unkown decoder instruction: {}", e)
+             }
++            EncoderError::InstructionBufferTooLarge(size) => {
++                write!(f, "decoder instruction buffer too large: {size} bytes")
++            }
+         }
+     }
+ }
+@@ -90,8 +96,34 @@ impl Encoder {
+     }
+ 
+     pub fn on_decoder_recv<R: Buf>(&mut self, read: &mut R) -> Result<(), EncoderError> {
+-        self.decoder_stream.put(read);
++        while read.has_remaining() {
++            if self.decoder_stream.len() == MAX_BUFFERED_DECODER_INSTRUCTION_BYTES
++                && !self.apply_decoder_instructions()?
++            {
++                return Err(EncoderError::InstructionBufferTooLarge(
++                    self.decoder_stream.len().saturating_add(read.remaining()),
++                ));
++            }
++
++            let available = MAX_BUFFERED_DECODER_INSTRUCTION_BYTES - self.decoder_stream.len();
++            let mut chunk = read.take(available.min(read.remaining()));
++            self.decoder_stream.put(&mut chunk);
++            let progressed = self.apply_decoder_instructions()?;
++            if !progressed
++                && self.decoder_stream.len() == MAX_BUFFERED_DECODER_INSTRUCTION_BYTES
++                && read.has_remaining()
++            {
++                return Err(EncoderError::InstructionBufferTooLarge(
++                    self.decoder_stream.len().saturating_add(read.remaining()),
++                ));
++            }
++        }
++
++        Ok(())
++    }
+ 
++    fn apply_decoder_instructions(&mut self) -> Result<bool, EncoderError> {
++        let mut progressed = false;
+         loop {
+             let (instruction, consumed) = {
+                 let mut buffered = Cursor::new(self.decoder_stream.as_ref());
+@@ -101,16 +133,20 @@ impl Encoder {
+                 (instruction, buffered.position() as usize)
+             };
+             self.decoder_stream.advance(consumed);
++            progressed = true;
+ 
+             match instruction {
+                 Action::HeaderAck(stream_id) => self.table.acknowledge_block(stream_id)?,
+-                Action::StreamCancel(stream_id) => self.table.cancel_stream(stream_id)?,
++                Action::StreamCancel(stream_id) => match self.table.cancel_stream(stream_id) {
++                    Ok(()) | Err(DynamicTableError::UnknownStreamId(_)) => {}
++                    Err(error) => return Err(error.into()),
++                },
+                 Action::ReceivedRefIncrement(increment) => {
+                     self.table.update_largest_received(increment)?
+                 }
+             }
+         }
+-        Ok(())
++        Ok(progressed)
+     }
+ 
+     fn encode_field<W: BufMut>(
+@@ -379,10 +415,14 @@ mod tests {
+     #[test]
+     fn encode_static_nameref_indexed_in_dynamic() {
+         let field = HeaderField::new("location", "/bar");
+-        check_encode_field(&[field.clone()], &[field], &|mut b, e| {
+-            assert_eq!(Indexed::decode(&mut b), Ok(Indexed::Dynamic(0)));
+-            assert_eq!(e.get_ref().len(), 0);
+-        });
++        check_encode_field(
++            std::slice::from_ref(&field),
++            std::slice::from_ref(&field),
++            &|mut b, e| {
++                assert_eq!(Indexed::decode(&mut b), Ok(Indexed::Dynamic(0)));
++                assert_eq!(e.get_ref().len(), 0);
++            },
++        );
+     }
+ 
+     #[test]
+@@ -436,15 +476,21 @@ mod tests {
+         table.set_max_size(63).unwrap();
+         let field = HeaderField::new("foo", "bar");
+ 
+-        check_encode_field_table(&mut table, &[], &[field.clone()], 1, &|mut b, _| {
+-            assert_eq!(
+-                IndexedWithPostBase::decode(&mut b),
+-                Ok(IndexedWithPostBase(0))
+-            );
+-        });
+         check_encode_field_table(
+             &mut table,
+-            &[field.clone()],
++            &[],
++            std::slice::from_ref(&field),
++            1,
++            &|mut b, _| {
++                assert_eq!(
++                    IndexedWithPostBase::decode(&mut b),
++                    Ok(IndexedWithPostBase(0))
++                );
++            },
++        );
++        check_encode_field_table(
++            &mut table,
++            std::slice::from_ref(&field),
+             &[field.with_value("quxx")],
+             2,
+             &|mut b, e| {
+@@ -607,6 +653,9 @@ mod tests {
+         StreamCancel(2).encode(&mut buf);
+         let mut cur = Cursor::new(&buf);
+         assert_eq!(Action::parse(&mut cur), Ok(Some(Action::StreamCancel(2))));
++
++        let mut encoder = Encoder::default();
++        assert_eq!(encoder.on_decoder_recv(&mut Cursor::new(buf)), Ok(()));
+     }
+ 
+     #[test]
+@@ -721,4 +770,13 @@ mod tests {
+             Err(EncoderError::InvalidInteger(IntError::Overflow))
+         );
+     }
++
++    #[test]
++    fn large_coalesced_decoder_instructions_are_processed_incrementally() {
++        let mut encoder = Encoder::default();
++        let mut instructions = Cursor::new(vec![0x40; MAX_BUFFERED_DECODER_INSTRUCTION_BYTES + 1]);
++
++        assert_eq!(encoder.on_decoder_recv(&mut instructions), Ok(()));
++        assert!(encoder.decoder_stream.is_empty());
++    }
+ }
+diff --git a/h3/src/qpack/mod.rs b/h3/src/qpack/mod.rs
+index 2e33747..9f83c10 100644
+--- a/h3/src/qpack/mod.rs
++++ b/h3/src/qpack/mod.rs
+@@ -4,6 +4,8 @@ pub use self::{
+     field::HeaderField,
+ };
+ 
++pub(crate) use self::{decoder::Decoder, encoder::Encoder};
++
+ mod block;
+ mod dynamic;
+ mod field;
+diff --git a/h3/src/quic.rs b/h3/src/quic.rs
+index 923b46f..2dcbfd0 100644
+--- a/h3/src/quic.rs
++++ b/h3/src/quic.rs
+@@ -197,6 +197,12 @@ pub trait SendStreamUnframed<B: Buf>: SendStream<B> {
+         cx: &mut task::Context<'_>,
+         buf: &mut D,
+     ) -> Poll<Result<usize, StreamErrorIncoming>>;
++
++    /// Polls whether the peer requested that this stream stop sending.
++    fn poll_stopped(
++        &mut self,
++        cx: &mut task::Context<'_>,
++    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>>;
+ }
+ 
+ /// A trait describing the "receive" actions of a QUIC stream.
+diff --git a/h3/src/stream.rs b/h3/src/stream.rs
+index db90f94..b06d4a5 100644
+--- a/h3/src/stream.rs
++++ b/h3/src/stream.rs
+@@ -567,6 +567,13 @@ where
+     ) -> Poll<Result<usize, StreamErrorIncoming>> {
+         self.stream.poll_send(cx, buf)
+     }
++
++    fn poll_stopped(
++        &mut self,
++        cx: &mut std::task::Context<'_>,
++    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
++        self.stream.poll_stopped(cx)
++    }
+ }
+ 
+ impl<S, B> BidiStream<B> for BufRecvStream<S, B>
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+index aa273fb..6fb6d1c 100644
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -220,7 +220,7 @@ async fn client_close_only_on_last_sender_drop() {
+             }) if code == Code::H3_REQUEST_CANCELLED.value()
+         );
+ 
+-        let _ = request_stream_1.finish().await.unwrap();
++        request_stream_1.finish().await.unwrap();
+ 
+         let mut request_stream_2 = send2
+             .send_request(Request::get("http://no.way").body(()).unwrap())
+@@ -233,7 +233,7 @@ async fn client_close_only_on_last_sender_drop() {
+                 code
+             }) if code == Code::H3_REQUEST_CANCELLED.value()
+         );
+-        let _ = request_stream_2.finish().await.unwrap();
++        request_stream_2.finish().await.unwrap();
+ 
+         drop(send1);
+         drop(send2);
+@@ -450,6 +450,223 @@ async fn two_control_streams() {
+     tokio::select! { _ = server_fut => (), _ = client_fut => panic!("client resolved first") };
+ }
+ 
++#[tokio::test]
++async fn malformed_qpack_encoder_instruction_has_specific_error() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++
++    let client_fut = async {
++        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
++        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
++
++        assert_matches!(
++            error,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::QPACK_ENCODER_STREAM_ERROR,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut encoder = connection.open_uni().await.unwrap();
++
++        // A capacity update to one exceeds the client's default advertised capacity of zero.
++        encoder.write_all(&[0x02, 0x21]).await.unwrap();
++        let _ = connection.closed().await;
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn qpack_encoder_insert_emits_decoder_feedback() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder.ordered_settings(&[(0x01, 64)]).unwrap();
++        let (mut driver, _client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let _ = future::poll_fn(|cx| driver.poll_close(cx)).await;
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut client_streams = Vec::new();
++        let mut decoder_index = None;
++
++        for _ in 0..3 {
++            let mut stream = connection.accept_uni().await.unwrap();
++            let mut stream_type = [0];
++            stream.read_exact(&mut stream_type).await.unwrap();
++            if stream_type[0] == 0x03 {
++                decoder_index = Some(client_streams.len());
++            }
++            client_streams.push(stream);
++        }
++
++        let mut encoder = connection.open_uni().await.unwrap();
++        encoder
++            .write_all(&[
++                0x02, // Encoder stream type.
++                0x3f, 0x21, // Dynamic table capacity: 64.
++                0x41, b'x', 0x01, b'y', // Insert literal name and value.
++            ])
++            .await
++            .unwrap();
++
++        let mut feedback = [0];
++        client_streams[decoder_index.unwrap()]
++            .read_exact(&mut feedback)
++            .await
++            .unwrap();
++        assert_eq!(feedback, [0x01]);
++
++        connection.close(0_u32.into(), b"test complete");
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn invalid_qpack_decoder_ack_has_specific_error() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++
++    let client_fut = async {
++        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
++        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
++
++        assert_matches!(
++            error,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::QPACK_DECODER_STREAM_ERROR,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut decoder = connection.open_uni().await.unwrap();
++
++        // Header acknowledgement for stream zero is invalid without a referenced block.
++        decoder.write_all(&[0x03, 0x80]).await.unwrap();
++        let _ = connection.closed().await;
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn qpack_cancellation_for_static_stream_is_accepted() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++
++    let client_fut = async {
++        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
++        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
++
++        assert_matches!(
++            error,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: 0 })
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut decoder = connection.open_uni().await.unwrap();
++
++        decoder.write_all(&[0x03, 0x40]).await.unwrap();
++        tokio::time::sleep(Duration::from_millis(20)).await;
++        connection.close(0_u32.into(), b"test complete");
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn closing_qpack_encoder_stream_is_a_critical_stream_error() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++
++    let client_fut = async {
++        let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
++        let error = future::poll_fn(|cx| driver.poll_close(cx)).await;
++
++        assert_matches!(
++            error,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_CLOSED_CRITICAL_STREAM,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut encoder = connection.open_uni().await.unwrap();
++        encoder.write_all(&[0x02]).await.unwrap();
++        encoder.finish().unwrap();
++        let _ = connection.closed().await;
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn stopping_local_qpack_streams_is_a_critical_stream_error() {
++    for target_type in [0x02, 0x03] {
++        let mut pair = Pair::default();
++        let server = pair.server();
++
++        let client_fut = async {
++            let (mut driver, _client) = client::new(pair.client().await).await.unwrap();
++            future::poll_fn(|cx| driver.poll_close(cx)).await
++        };
++
++        let server_fut = async {
++            let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++            let mut streams = Vec::new();
++
++            for _ in 0..3 {
++                let mut stream = connection.accept_uni().await.unwrap();
++                let mut stream_type = [0];
++                stream.read_exact(&mut stream_type).await.unwrap();
++                if stream_type[0] == target_type {
++                    stream.stop(42_u32.into()).unwrap();
++                }
++                streams.push(stream);
++            }
++
++            let _ = connection.closed().await;
++            streams
++        };
++
++        let (error, _streams) = tokio::join!(client_fut, server_fut);
++        assert_matches!(
++            error,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_CLOSED_CRITICAL_STREAM,
++                    ..
++                }
++            }
++        );
++    }
++}
++
+ #[tokio::test]
+ async fn control_close_send_error() {
+     init_tracing();
+@@ -907,8 +1124,7 @@ async fn server_not_blocking_on_idle_request() {
+         let err = connection
+             .accept_bi()
+             .await
+-            .err()
+-            .expect("connection should error after sending wrong data on control stream");
++            .expect_err("connection should error after sending wrong data on control stream");
+ 
+         assert_matches!(err,
+         quinn::ConnectionError::ApplicationClosed(quinn::ApplicationClose { error_code, .. })
+diff --git a/h3/src/tests/request.rs b/h3/src/tests/request.rs
+index e150ec6..bbb9d94 100644
+--- a/h3/src/tests/request.rs
++++ b/h3/src/tests/request.rs
+@@ -436,8 +436,10 @@ async fn header_too_big_client_error() {
+         };
+         let req_fut = async {
+             // pretend client already received server's settings
+-            let mut settings = Settings::default();
+-            settings.max_field_section_size = 12;
++            let settings = Settings {
++                max_field_section_size: 12,
++                ..Settings::default()
++            };
+             // Sets the settings if not already received
+             client.set_settings(settings);
+ 
+@@ -500,8 +502,10 @@ async fn header_too_big_client_error_trailer() {
+             }
+         };
+         let req_fut = async {
+-            let mut settings = Settings::default();
+-            settings.max_field_section_size = 200;
++            let settings = Settings {
++                max_field_section_size: 200,
++                ..Settings::default()
++            };
+             client.set_settings(settings);
+ 
+             let mut request_stream = client
+@@ -755,8 +759,10 @@ async fn header_too_big_server_error() {
+         let mut incoming_req = server::Connection::new(conn).await.unwrap();
+ 
+         // pretend the server received a smaller max_field_section_size
+-        let mut settings = Settings::default();
+-        settings.max_field_section_size = 12;
++        let settings = Settings {
++            max_field_section_size: 12,
++            ..Settings::default()
++        };
+         incoming_req.set_settings(settings);
+ 
+         let (_request, mut request_stream) = get_stream_blocking(&mut incoming_req)
+@@ -822,8 +828,10 @@ async fn header_too_big_server_error_trailers() {
+         let mut incoming_req = server::Connection::new(conn).await.unwrap();
+ 
+         // pretend the server already received client's settings
+-        let mut settings = Settings::default();
+-        settings.max_field_section_size = 42;
++        let settings = Settings {
++            max_field_section_size: 42,
++            ..Settings::default()
++        };
+         incoming_req.set_settings(settings);
+ 
+         let (_request, mut request_stream) = get_stream_blocking(&mut incoming_req)
+@@ -1504,9 +1512,7 @@ where
+         };
+ 
+         let driver = async {
+-            return Result::<(), ConnectionError>::Err(
+-                future::poll_fn(|cx| driver.poll_close(cx)).await,
+-            );
++            Result::<(), ConnectionError>::Err(future::poll_fn(|cx| driver.poll_close(cx)).await)
+         };
+ 
+         tokio::join!(client, driver)
+@@ -1524,7 +1530,7 @@ where
+         let driver = async move {
+             match incoming.accept().await {
+                 Ok(_) => (),
+-                Err(err) => return Err(err.into()),
++                Err(err) => return Err(err),
+             };
+             Result::<(), ConnectionError>::Ok(())
+         };
+diff --git a/h3-quinn/src/lib.rs b/h3-quinn/src/lib.rs
+index b2a6a5b..c952a80 100644
+--- a/h3-quinn/src/lib.rs
++++ b/h3-quinn/src/lib.rs
+@@ -33,6 +33,10 @@ use tracing::instrument;
+ #[cfg(feature = "datagram")]
+ pub mod datagram;
+ 
++type StoppedFuture = Pin<
++    Box<dyn Future<Output = Result<Option<VarInt>, quinn::StoppedError>> + Send + Sync + 'static>,
++>;
++
+ /// BoxStream with Sync trait
+ type BoxStreamSync<'a, T> = Pin<Box<dyn Stream<Item = T> + Sync + Send + 'a>>;
+ 
+@@ -336,6 +340,13 @@ where
+     ) -> Poll<Result<usize, StreamErrorIncoming>> {
+         self.send.poll_send(cx, buf)
+     }
++
++    fn poll_stopped(
++        &mut self,
++        cx: &mut task::Context<'_>,
++    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
++        self.send.poll_stopped(cx)
++    }
+ }
+ 
+ impl<B> quic::Is0rtt for BidiStream<B>
+@@ -472,6 +483,7 @@ fn convert_write_error_to_stream_error(error: quinn::WriteError) -> StreamErrorI
+ pub struct SendStream<B: Buf> {
+     stream: quinn::SendStream,
+     writing: Option<WriteBuf<B>>,
++    stopped: Option<StoppedFuture>,
+ }
+ 
+ impl<B> SendStream<B>
+@@ -482,6 +494,7 @@ where
+         Self {
+             stream,
+             writing: None,
++            stopped: None,
+         }
+     }
+ }
+@@ -575,4 +588,32 @@ where
+             Err(err) => Poll::Ready(Err(convert_write_error_to_stream_error(err))),
+         }
+     }
++
++    fn poll_stopped(
++        &mut self,
++        cx: &mut task::Context<'_>,
++    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
++        if self.stopped.is_none() {
++            self.stopped = Some(Box::pin(self.stream.stopped()));
++        }
++
++        match self
++            .stopped
++            .as_mut()
++            .expect("stopped future is initialized")
++            .as_mut()
++            .poll(cx)
++        {
++            Poll::Ready(Ok(code)) => Poll::Ready(Ok(code.map(VarInt::into_inner))),
++            Poll::Ready(Err(quinn::StoppedError::ConnectionLost(error))) => {
++                Poll::Ready(Err(StreamErrorIncoming::ConnectionErrorIncoming {
++                    connection_error: convert_connection_error(error),
++                }))
++            }
++            Poll::Ready(Err(error @ quinn::StoppedError::ZeroRttRejected)) => {
++                Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(error))))
++            }
++            Poll::Pending => Poll::Pending,
++        }
++    }
+ }
+diff --git a/h3-webtransport/src/stream.rs b/h3-webtransport/src/stream.rs
+index b3b3d29..8e47d3f 100644
+--- a/h3-webtransport/src/stream.rs
++++ b/h3-webtransport/src/stream.rs
+@@ -109,6 +109,13 @@ where
+     ) -> Poll<Result<usize, StreamErrorIncoming>> {
+         self.stream.poll_send(cx, buf)
+     }
++
++    fn poll_stopped(
++        &mut self,
++        cx: &mut std::task::Context<'_>,
++    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
++        self.stream.poll_stopped(cx)
++    }
+ }
+ 
+ impl<S, B> quic::SendStream<B> for SendStream<S, B>
+@@ -270,6 +277,13 @@ where
+     ) -> Poll<Result<usize, StreamErrorIncoming>> {
+         self.stream.poll_send(cx, buf)
+     }
++
++    fn poll_stopped(
++        &mut self,
++        cx: &mut std::task::Context<'_>,
++    ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
++        self.stream.poll_stopped(cx)
++    }
+ }
+ 
+ impl<S: quic::RecvStream, B> quic::RecvStream for BidiStream<S, B> {

@@ -468,7 +468,6 @@ setting_identifiers! {
 }
 
 const SETTINGS_LEN: usize = 8;
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Settings {
     entries: [(SettingId, u64); SETTINGS_LEN],
@@ -735,11 +734,17 @@ mod tests {
 
     #[test]
     fn qpack_setting_values_are_preserved_while_parsing() {
-        for identifier in [
-            SettingId::QPACK_MAX_TABLE_CAPACITY,
-            SettingId::QPACK_MAX_BLOCKED_STREAMS,
+        for (identifier, values) in [
+            (
+                SettingId::QPACK_MAX_TABLE_CAPACITY,
+                &[0, 1 << 16, 1 << 30, VarInt::MAX.0][..],
+            ),
+            (
+                SettingId::QPACK_MAX_BLOCKED_STREAMS,
+                &[0, 1 << 16, 1 << 30, VarInt::MAX.0][..],
+            ),
         ] {
-            for value in [0, 1 << 16, 1 << 30, VarInt::MAX.0] {
+            for &value in values {
                 let mut payload = Vec::new();
                 identifier.encode(&mut payload);
                 payload.write_var(value);

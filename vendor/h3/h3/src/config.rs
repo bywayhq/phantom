@@ -2,6 +2,20 @@ use std::convert::TryFrom;
 
 use crate::proto::{frame, varint::VarInt};
 
+const LOCAL_QPACK_MAX_TABLE_CAPACITY: u64 = (1 << 30) - 1;
+
+pub(crate) fn validate_local_qpack_max_table_capacity(
+    value: u64,
+) -> Result<(), frame::SettingsError> {
+    if value > LOCAL_QPACK_MAX_TABLE_CAPACITY {
+        return Err(frame::SettingsError::InvalidSettingValue(
+            frame::SettingId::QPACK_MAX_TABLE_CAPACITY.0,
+            value,
+        ));
+    }
+    Ok(())
+}
+
 /// Configures the HTTP/3 connection
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
@@ -135,6 +149,7 @@ impl TryFrom<Config> for frame::Settings {
         }
 
         if qpack_max_table_capacity != 0 {
+            validate_local_qpack_max_table_capacity(qpack_max_table_capacity)?;
             settings.insert(
                 frame::SettingId::QPACK_MAX_TABLE_CAPACITY,
                 qpack_max_table_capacity,
@@ -230,15 +245,17 @@ mod tests {
 
     #[test]
     fn maximum_qpack_settings_round_trip_through_frame_view() {
-        let mut config = Config::default();
-        config.send_grease = false;
-        config.settings.qpack_max_table_capacity = VarInt::MAX.0;
+        let mut config = Config {
+            send_grease: false,
+            ..Config::default()
+        };
+        config.settings.qpack_max_table_capacity = (1 << 30) - 1;
         config.settings.qpack_blocked_streams = VarInt::MAX.0;
 
         let frame = frame::Settings::try_from(config).unwrap();
         assert_eq!(
             frame.get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY),
-            Some(VarInt::MAX.0)
+            Some((1 << 30) - 1)
         );
         assert_eq!(
             frame.get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS),
@@ -246,12 +263,19 @@ mod tests {
         );
 
         let settings = Settings::from(&frame);
-        assert_eq!(settings.qpack_max_table_capacity, VarInt::MAX.0);
+        assert_eq!(settings.qpack_max_table_capacity, (1 << 30) - 1);
         assert_eq!(settings.qpack_blocked_streams, VarInt::MAX.0);
     }
 
     #[test]
     fn qpack_settings_reject_values_outside_quic_varint_range() {
+        let mut config = Config::default();
+        config.settings.qpack_max_table_capacity = 1 << 30;
+        assert_eq!(
+            frame::Settings::try_from(config),
+            Err(frame::SettingsError::InvalidSettingValue(0x1, 1 << 30))
+        );
+
         let mut config = Config::default();
         config.settings.qpack_max_table_capacity = 1 << 62;
         assert_eq!(

@@ -109,9 +109,13 @@ response and trailers, and proves peer-visible cancellation without any TCP or
 protocol fallback. A capture-backed Chrome recipe now configures Quinn's live
 transport limits and reproduces the retained transport-parameter extension
 under deterministic entropy; production connections randomize its permitted
-order and GREASE. It intentionally advertises static QPACK `0/0`. This is
-working HTTP/3 transport substrate, not Chrome H3 parity; request ordering,
-dynamic QPACK, and packet differentials remain acceptance work.
+order and GREASE. The H3 driver now opens and actively drives both QPACK
+critical streams, bounds fragmented instruction state and decoder feedback,
+and maps malformed instructions and closed streams to their protocol-specific
+connection errors. Response HEADERS still use the stateless decoder, so the
+runtime intentionally advertises QPACK `0/0`. This is working HTTP/3 transport
+substrate, not Chrome H3 parity; request ordering, dynamic response unblocking,
+and packet differentials remain acceptance work.
 
 Acceptance:
 

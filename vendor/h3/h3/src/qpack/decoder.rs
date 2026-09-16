@@ -25,6 +25,8 @@ use super::{
 
 use super::{prefix_int, prefix_string};
 
+const MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES: usize = 1024 * 1024;
+
 #[derive(Debug, PartialEq)]
 pub enum DecoderError {
     InvalidInteger(prefix_int::Error),
@@ -37,6 +39,7 @@ pub enum DecoderError {
     BadBaseIndex(isize),
     UnexpectedEnd,
     HeaderTooLong(u64),
+    InstructionBufferTooLarge(usize),
     BufSize(TryFromIntError),
 }
 
@@ -55,6 +58,9 @@ impl std::fmt::Display for DecoderError {
             DecoderError::BadBaseIndex(i) => write!(f, "out of bounds base index: {}", i),
             DecoderError::UnexpectedEnd => write!(f, "unexpected end"),
             DecoderError::HeaderTooLong(_) => write!(f, "header too long"),
+            DecoderError::InstructionBufferTooLarge(size) => {
+                write!(f, "encoder instruction buffer too large: {size} bytes")
+            }
             DecoderError::BufSize(_) => write!(f, "number in buffer wrong size"),
         }
     }
@@ -86,10 +92,11 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub(super) fn new(
-        max_table_capacity: usize,
+    pub(crate) fn new(
+        max_table_capacity: u64,
         max_field_section_size: u64,
     ) -> Result<Self, DecoderError> {
+        let max_table_capacity = usize::try_from(max_table_capacity)?;
         let mut table = DynamicTable::new();
         table.set_max_size(max_table_capacity)?;
         table.set_max_size(0)?;
@@ -137,9 +144,41 @@ impl Decoder {
         read: &mut R,
         write: &mut W,
     ) -> Result<usize, DecoderError> {
-        self.encoder_stream.put(read);
         let inserted_on_start = self.table.total_inserted();
 
+        while read.has_remaining() {
+            if self.encoder_stream.len() == MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES
+                && !self.apply_encoder_instructions()?
+            {
+                return Err(DecoderError::InstructionBufferTooLarge(
+                    self.encoder_stream.len().saturating_add(read.remaining()),
+                ));
+            }
+
+            let available = MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES - self.encoder_stream.len();
+            let mut chunk = read.take(available.min(read.remaining()));
+            self.encoder_stream.put(&mut chunk);
+            let progressed = self.apply_encoder_instructions()?;
+            if !progressed
+                && self.encoder_stream.len() == MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES
+                && read.has_remaining()
+            {
+                return Err(DecoderError::InstructionBufferTooLarge(
+                    self.encoder_stream.len().saturating_add(read.remaining()),
+                ));
+            }
+        }
+
+        if self.table.total_inserted() != inserted_on_start {
+            InsertCountIncrement((self.table.total_inserted() - inserted_on_start) as u64)
+                .encode(write);
+        }
+
+        Ok(self.table.total_inserted())
+    }
+
+    fn apply_encoder_instructions(&mut self) -> Result<bool, DecoderError> {
+        let mut progressed = false;
         loop {
             let (instruction, consumed) = {
                 let mut buffered = Cursor::new(self.encoder_stream.as_ref());
@@ -149,6 +188,7 @@ impl Decoder {
                 (instruction, buffered.position() as usize)
             };
             self.encoder_stream.advance(consumed);
+            progressed = true;
 
             #[cfg(feature = "tracing")]
             trace!("instruction {:?}", instruction);
@@ -165,13 +205,7 @@ impl Decoder {
                 }
             }
         }
-
-        if self.table.total_inserted() != inserted_on_start {
-            InsertCountIncrement((self.table.total_inserted() - inserted_on_start) as u64)
-                .encode(write);
-        }
-
-        Ok(self.table.total_inserted())
+        Ok(progressed)
     }
 
     fn parse_instruction<R: Buf>(&self, read: &mut R) -> Result<Option<Instruction>, DecoderError> {
@@ -846,5 +880,39 @@ mod tests {
         let decoder = Decoder::from(table);
         let Decoded { fields, .. } = decoder.decode_header(&mut read).unwrap();
         assert_eq!(fields, &[field(max_entries + 6), field(max_entries + 10)]);
+    }
+
+    #[test]
+    fn encoder_instruction_buffer_is_bounded() {
+        let mut decoder = Decoder::new(0, u64::MAX).unwrap();
+        let mut incomplete = Vec::new();
+        prefix_int::encode(
+            5,
+            0b010,
+            (MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES + 1) as u64,
+            &mut incomplete,
+        );
+        incomplete.resize(MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES, 0);
+        decoder.encoder_stream = BytesMut::from(incomplete.as_slice());
+        let mut extra = Cursor::new([0]);
+
+        assert_eq!(
+            decoder.on_encoder_recv(&mut extra, &mut Vec::new()),
+            Err(DecoderError::InstructionBufferTooLarge(
+                MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES + 1
+            ))
+        );
+    }
+
+    #[test]
+    fn large_coalesced_encoder_instructions_are_processed_incrementally() {
+        let mut decoder = Decoder::new(0, u64::MAX).unwrap();
+        let mut instructions = Cursor::new(vec![0x20; MAX_BUFFERED_ENCODER_INSTRUCTION_BYTES + 1]);
+
+        assert_eq!(
+            decoder.on_encoder_recv(&mut instructions, &mut Vec::new()),
+            Ok(0)
+        );
+        assert!(decoder.encoder_stream.is_empty());
     }
 }
