@@ -368,6 +368,13 @@ impl Endpoint {
         let tls = config
             .crypto
             .start_session(config.version, server_name, &params)?;
+        let initial_crypto = match tls.initial_keys(&remote_id, Side::Client) {
+            Ok(keys) => keys,
+            Err(_) => {
+                self.index.retire(loc_cid);
+                return Err(ConnectError::InitialCrypto);
+            }
+        };
 
         let conn = self.add_connection(
             ch,
@@ -381,6 +388,7 @@ impl Endpoint {
             },
             now,
             tls,
+            initial_crypto,
             config.transport,
             SideArgs::Client {
                 token_store: config.token_store,
@@ -643,6 +651,28 @@ impl Endpoint {
         }
 
         let tls = server_config.crypto.clone().start_session(version, &params);
+        let initial_crypto = match tls.initial_keys(&dst_cid, Side::Server) {
+            Ok(keys) => keys,
+            Err(_) => {
+                self.index.remove_initial(dst_cid);
+                self.index.retire(loc_cid);
+                if let Some(cid) = pref_addr_cid {
+                    self.index.retire(cid);
+                }
+                let error = TransportError::INTERNAL_ERROR("initial key derivation failed");
+                return Err(AcceptError {
+                    cause: error.clone().into(),
+                    response: Some(self.initial_close(
+                        version,
+                        incoming.addresses,
+                        &incoming.crypto,
+                        &src_cid,
+                        error,
+                        buf,
+                    )),
+                });
+            }
+        };
         let transport_config = server_config.transport.clone();
         let mut conn = self.add_connection(
             ch,
@@ -653,6 +683,7 @@ impl Endpoint {
             incoming.addresses,
             incoming.received_at,
             tls,
+            initial_crypto,
             transport_config,
             SideArgs::Server {
                 server_config,
@@ -817,6 +848,7 @@ impl Endpoint {
         addresses: FourTuple,
         now: Instant,
         tls: Box<dyn crypto::Session>,
+        initial_crypto: Keys,
         transport_config: Arc<TransportConfig>,
         side_args: SideArgs,
     ) -> Connection {
@@ -833,6 +865,7 @@ impl Endpoint {
             addresses.remote,
             addresses.local_ip,
             tls,
+            initial_crypto,
             self.local_cid_generator.as_ref(),
             now,
             version,
@@ -1285,6 +1318,9 @@ pub enum ConnectError {
     /// The local endpoint does not support the QUIC version specified in the client configuration
     #[error("unsupported QUIC version")]
     UnsupportedVersion,
+    /// Initial packet protection keys could not be derived
+    #[error("initial key derivation failed")]
+    InitialCrypto,
 }
 
 /// Error type for attempting to accept an [`Incoming`]

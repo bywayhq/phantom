@@ -10,13 +10,16 @@ client-only `phantom-quic-btls` adapter. Adapt and harden the official
 `quinn-rs/quinn-boring` implementation rather than implementing QUIC crypto
 from scratch or introducing a second BoringSSL build.
 
-Use a narrow, default-preserving `quinn-proto` patch for one provider-contract
-gap only. In 0.11.18, `Session::next_1rtt_keys` has no error channel, and Quinn
+Use two narrow, default-preserving `quinn-proto` patches for provider-contract
+gaps only. In 0.11.18, `Session::next_1rtt_keys` has no error channel, and Quinn
 unwraps its result both when installing 1-RTT keys and when replenishing the
-next key phase. BoringSSL key derivation and key construction are fallible, so
-the stock contract cannot provide panic-free failure propagation. The patch
-must convert provider failure into `INTERNAL_ERROR` before changing phase or
-emitting a packet; it must not add fingerprint controls.
+next key phase. `Session::initial_keys` is also infallible even though an
+external provider can fail to derive or construct Initial keys. BoringSSL key
+derivation and key construction are fallible, so the stock contracts cannot
+provide panic-free failure propagation. The patches must convert provider
+failure into a bounded connect error or `INTERNAL_ERROR` before inserting a
+connection, changing Retry state, changing key phase, or emitting a packet;
+they must not add fingerprint controls.
 
 No Quinn patch is needed for transport-parameter ordering. The provider
 receives Quinn's semantic `TransportParameters` before BoringSSL constructs
@@ -72,7 +75,7 @@ sources.
 | Component | Audited identity | Use |
 | --- | --- | --- |
 | `quinn` | `0.11.12` | `default-features = false`, `runtime-tokio`; enable `qlog` only when the feature is exposed by Phantom |
-| `quinn-proto` | `0.11.18` | Provenance-tracked fork with the fallible key-update patch; `default-features = false` |
+| `quinn-proto` | `0.11.18` | Provenance-tracked fork with fallible Initial and key-update patches; `default-features = false` |
 | `quinn-udp` | `0.5.15` | Stock version selected by Quinn 0.11 |
 | `h3` | crate version `0.0.8`, fork base `hyperium/h3@1f3d5295833ad454343f25d55633fb6bee1027b2` | Use the provenance-tracked SETTINGS and dormant QPACK-codec patches; do not select the runtime until its QPACK guard is complete |
 | `h3-quinn` | crate version `0.0.10`, same repository revision as `h3` | Keep unchanged unless dependency unification requires its manifest to point at the forked sibling |
@@ -335,9 +338,9 @@ session has not yet been adapted to Quinn and the request path does not exist.
 
 ## Fork trigger
 
-The existing `quinn-proto` patch is limited to recoverable key-update error
-propagation. Do not add observable transport behavior to it until a retained
-differential proves a requirement the crypto provider cannot control:
+The existing `quinn-proto` patches are limited to recoverable Initial and
+key-update error propagation. Do not add observable transport behavior to them
+until a retained differential proves a requirement the crypto provider cannot control:
 packetization, ACK timing/encoding, connection-ID lifecycle, congestion
 control, pacing, or a transport parameter whose value must diverge from
 Quinn's live semantics. Exact transport-parameter ordering, GREASE, and

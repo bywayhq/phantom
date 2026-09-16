@@ -27,7 +27,7 @@ pub mod rustls;
 /// A cryptographic session (commonly TLS)
 pub trait Session: Send + Sync + 'static {
     /// Create the initial set of keys given the client's initial destination ConnectionId
-    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys;
+    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Result<Keys, CryptoError>;
 
     /// Get data negotiated during the handshake, if available
     ///

@@ -1,0 +1,386 @@
+diff --git a/src/connection/mod.rs b/src/connection/mod.rs
+index 7dd5004..2910e4b 100644
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -257,6 +257,7 @@ impl Connection {
+         remote: SocketAddr,
+         local_ip: Option<IpAddr>,
+         crypto: Box<dyn crypto::Session>,
++        initial_crypto: Keys,
+         cid_gen: &dyn ConnectionIdGenerator,
+         now: Instant,
+         version: u32,
+@@ -269,7 +270,7 @@ impl Connection {
+         let connection_side = ConnectionSide::from(side_args);
+         let side = connection_side.side();
+         let initial_space = PacketSpace {
+-            crypto: Some(crypto.initial_keys(&init_cid, side)),
++            crypto: Some(initial_crypto),
+             ..PacketSpace::new(now)
+         };
+         let state = State::Handshake(state::Handshake {
+@@ -1348,6 +1349,27 @@ impl Connection {
+         )
+     }
+
++    #[cfg(test)]
++    pub(crate) fn retry_state(
++        &self,
++    ) -> (
++        ConnectionId,
++        ConnectionId,
++        Option<ConnectionId>,
++        Option<usize>,
++    ) {
++        let initial_key = self.spaces[SpaceId::Initial]
++            .crypto
++            .as_ref()
++            .map(|keys| (&*keys.packet.local as *const dyn PacketKey as *const ()) as usize);
++        (
++            self.rem_cids.active(),
++            self.rem_handshake_cid,
++            self.retry_src_cid,
++            initial_key,
++        )
++    }
++
+     #[cfg(test)]
+     pub(crate) fn exhaust_key_phase_for_test(&mut self) {
+         self.key_phase_size = self.spaces[SpaceId::Data].sent_with_keys;
+@@ -2519,6 +2541,10 @@ impl Connection {
+                     return Ok(());
+                 }
+
++                let initial_crypto = self
++                    .crypto
++                    .initial_keys(&rem_cid, self.side.side())
++                    .map_err(|_| TransportError::INTERNAL_ERROR("initial key derivation failed"))?;
+                 trace!("retrying with CID {}", rem_cid);
+                 let client_hello = state.client_hello.take().unwrap();
+                 self.retry_src_cid = Some(rem_cid);
+@@ -2532,7 +2558,7 @@ impl Connection {
+
+                 self.discard_space(now, SpaceId::Initial); // Make sure we clean up after any retransmitted Initials
+                 self.spaces[SpaceId::Initial] = PacketSpace {
+-                    crypto: Some(self.crypto.initial_keys(&rem_cid, self.side.side())),
++                    crypto: Some(initial_crypto),
+                     next_packet_number: self.spaces[SpaceId::Initial].next_packet_number,
+                     crypto_offset: client_hello.len() as u64,
+                     ..PacketSpace::new(now)
+diff --git a/src/crypto.rs b/src/crypto.rs
+index 6e372c1..df0e285 100644
+--- a/src/crypto.rs
++++ b/src/crypto.rs
+@@ -27,7 +27,7 @@ pub mod rustls;
+ /// A cryptographic session (commonly TLS)
+ pub trait Session: Send + Sync + 'static {
+     /// Create the initial set of keys given the client's initial destination ConnectionId
+-    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys;
++    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Result<Keys, CryptoError>;
+
+     /// Get data negotiated during the handshake, if available
+     ///
+diff --git a/src/crypto/rustls.rs b/src/crypto/rustls.rs
+index d574d0d..3dbf421 100644
+--- a/src/crypto/rustls.rs
++++ b/src/crypto/rustls.rs
+@@ -53,8 +53,12 @@ impl TlsSession {
+ }
+
+ impl crypto::Session for TlsSession {
+-    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys {
+-        initial_keys(self.version, *dst_cid, side, &self.suite)
++    fn initial_keys(
++        &self,
++        dst_cid: &ConnectionId,
++        side: Side,
++    ) -> Result<Keys, crypto::CryptoError> {
++        Ok(initial_keys(self.version, *dst_cid, side, &self.suite))
+     }
+
+     fn handshake_data(&self) -> Option<Box<dyn Any>> {
+diff --git a/src/endpoint.rs b/src/endpoint.rs
+index f46bc8b..6186c72 100644
+--- a/src/endpoint.rs
++++ b/src/endpoint.rs
+@@ -368,6 +368,13 @@ impl Endpoint {
+         let tls = config
+             .crypto
+             .start_session(config.version, server_name, &params)?;
++        let initial_crypto = match tls.initial_keys(&remote_id, Side::Client) {
++            Ok(keys) => keys,
++            Err(_) => {
++                self.index.retire(loc_cid);
++                return Err(ConnectError::InitialCrypto);
++            }
++        };
+
+         let conn = self.add_connection(
+             ch,
+@@ -381,6 +388,7 @@ impl Endpoint {
+             },
+             now,
+             tls,
++            initial_crypto,
+             config.transport,
+             SideArgs::Client {
+                 token_store: config.token_store,
+@@ -643,6 +651,28 @@ impl Endpoint {
+         }
+
+         let tls = server_config.crypto.clone().start_session(version, &params);
++        let initial_crypto = match tls.initial_keys(&dst_cid, Side::Server) {
++            Ok(keys) => keys,
++            Err(_) => {
++                self.index.remove_initial(dst_cid);
++                self.index.retire(loc_cid);
++                if let Some(cid) = pref_addr_cid {
++                    self.index.retire(cid);
++                }
++                let error = TransportError::INTERNAL_ERROR("initial key derivation failed");
++                return Err(AcceptError {
++                    cause: error.clone().into(),
++                    response: Some(self.initial_close(
++                        version,
++                        incoming.addresses,
++                        &incoming.crypto,
++                        &src_cid,
++                        error,
++                        buf,
++                    )),
++                });
++            }
++        };
+         let transport_config = server_config.transport.clone();
+         let mut conn = self.add_connection(
+             ch,
+@@ -653,6 +683,7 @@ impl Endpoint {
+             incoming.addresses,
+             incoming.received_at,
+             tls,
++            initial_crypto,
+             transport_config,
+             SideArgs::Server {
+                 server_config,
+@@ -817,6 +848,7 @@ impl Endpoint {
+         addresses: FourTuple,
+         now: Instant,
+         tls: Box<dyn crypto::Session>,
++        initial_crypto: Keys,
+         transport_config: Arc<TransportConfig>,
+         side_args: SideArgs,
+     ) -> Connection {
+@@ -833,6 +865,7 @@ impl Endpoint {
+             addresses.remote,
+             addresses.local_ip,
+             tls,
++            initial_crypto,
+             self.local_cid_generator.as_ref(),
+             now,
+             version,
+@@ -1285,6 +1318,9 @@ pub enum ConnectError {
+     /// The local endpoint does not support the QUIC version specified in the client configuration
+     #[error("unsupported QUIC version")]
+     UnsupportedVersion,
++    /// Initial packet protection keys could not be derived
++    #[error("initial key derivation failed")]
++    InitialCrypto,
+ }
+
+ /// Error type for attempting to accept an [`Incoming`]
+diff --git a/src/tests/initial_keys.rs b/src/tests/initial_keys.rs
+new file mode 100644
+index 0000000..c0de2de
+--- /dev/null
++++ b/src/tests/initial_keys.rs
+@@ -0,0 +1,162 @@
++use std::{
++    any::Any,
++    sync::{
++        atomic::{AtomicUsize, Ordering},
++        Arc,
++    },
++};
++
++use assert_matches::assert_matches;
++
++use super::*;
++
++struct FailingInitialClientConfig {
++    inner: Arc<dyn crypto::ClientConfig>,
++    fail_on_call: usize,
++}
++
++impl crypto::ClientConfig for FailingInitialClientConfig {
++    fn start_session(
++        self: Arc<Self>,
++        version: u32,
++        server_name: &str,
++        params: &TransportParameters,
++    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
++        let inner = self
++            .inner
++            .clone()
++            .start_session(version, server_name, params)?;
++        Ok(Box::new(FailingInitialSession {
++            inner,
++            fail_on_call: self.fail_on_call,
++            calls: AtomicUsize::new(0),
++        }))
++    }
++}
++
++struct FailingInitialSession {
++    inner: Box<dyn crypto::Session>,
++    fail_on_call: usize,
++    calls: AtomicUsize,
++}
++
++impl crypto::Session for FailingInitialSession {
++    fn initial_keys(
++        &self,
++        dst_cid: &ConnectionId,
++        side: Side,
++    ) -> Result<crypto::Keys, crypto::CryptoError> {
++        let call = self.calls.fetch_add(1, Ordering::Relaxed) + 1;
++        if call == self.fail_on_call {
++            return Err(crypto::CryptoError);
++        }
++        self.inner.initial_keys(dst_cid, side)
++    }
++
++    fn handshake_data(&self) -> Option<Box<dyn Any>> {
++        self.inner.handshake_data()
++    }
++
++    fn peer_identity(&self) -> Option<Box<dyn Any>> {
++        self.inner.peer_identity()
++    }
++
++    fn early_crypto(&self) -> Option<(Box<dyn crypto::HeaderKey>, Box<dyn crypto::PacketKey>)> {
++        self.inner.early_crypto()
++    }
++
++    fn early_data_accepted(&self) -> Option<bool> {
++        self.inner.early_data_accepted()
++    }
++
++    fn is_handshaking(&self) -> bool {
++        self.inner.is_handshaking()
++    }
++
++    fn read_handshake(&mut self, buf: &[u8]) -> Result<bool, TransportError> {
++        self.inner.read_handshake(buf)
++    }
++
++    fn transport_parameters(&self) -> Result<Option<TransportParameters>, TransportError> {
++        self.inner.transport_parameters()
++    }
++
++    fn write_handshake(&mut self, buf: &mut Vec<u8>) -> Option<crypto::Keys> {
++        self.inner.write_handshake(buf)
++    }
++
++    fn next_1rtt_keys(
++        &mut self,
++    ) -> Result<Option<crypto::KeyPair<Box<dyn crypto::PacketKey>>>, TransportError> {
++        self.inner.next_1rtt_keys()
++    }
++
++    fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool {
++        self.inner.is_valid_retry(orig_dst_cid, header, payload)
++    }
++
++    fn export_keying_material(
++        &self,
++        output: &mut [u8],
++        label: &[u8],
++        context: &[u8],
++    ) -> Result<(), crypto::ExportKeyingMaterialError> {
++        self.inner.export_keying_material(output, label, context)
++    }
++}
++
++fn failing_initial_client_config(fail_on_call: usize) -> ClientConfig {
++    ClientConfig::new(Arc::new(FailingInitialClientConfig {
++        inner: Arc::new(client_crypto()),
++        fail_on_call,
++    }))
++}
++
++#[test]
++fn initial_key_failure_rejects_client_before_insertion() {
++    let mut pair = Pair::default();
++    let remote = pair.server.addr;
++    let connections_before = pair.client.known_connections();
++    let cids_before = pair.client.known_cids();
++
++    let result = pair.client.connect(
++        pair.time,
++        failing_initial_client_config(1),
++        remote,
++        "localhost",
++    );
++
++    assert_matches!(result, Err(ConnectError::InitialCrypto));
++    assert_eq!(pair.client.known_connections(), connections_before);
++    assert_eq!(pair.client.known_cids(), cids_before);
++}
++
++#[test]
++fn retry_key_failure_closes_without_changing_retry_state() {
++    let mut pair = Pair::default();
++    pair.server.handle_incoming = Box::new(|_| IncomingConnectionBehavior::Wait);
++    let client = pair.begin_connect(failing_initial_client_config(2));
++    pair.drive_client();
++    pair.server.drive_incoming(pair.time, pair.client.addr);
++    let incoming = pair
++        .server
++        .waiting_incoming
++        .pop()
++        .expect("server did not receive client Initial");
++    pair.server.retry(incoming);
++    pair.drive_server();
++
++    let before = pair.client_conn_mut(client).retry_state();
++    pair.drive_client();
++    let connection = pair.client_conn_mut(client);
++
++    assert_eq!(connection.retry_state(), before);
++    assert!(connection.is_closed());
++    assert_matches!(
++        connection.poll(),
++        Some(Event::ConnectionLost {
++            reason: ConnectionError::TransportError(ref error),
++        }) if error.code == TransportErrorCode::INTERNAL_ERROR
++    );
++    assert_eq!(pair.server.inbound.len(), 1, "client did not send a close");
++}
+diff --git a/src/tests/key_update.rs b/src/tests/key_update.rs
+index c9b2039..0c7cf45 100644
+--- a/src/tests/key_update.rs
++++ b/src/tests/key_update.rs
+@@ -83,7 +83,11 @@ struct FailingSession {
+ }
+
+ impl crypto::Session for FailingSession {
+-    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> crypto::Keys {
++    fn initial_keys(
++        &self,
++        dst_cid: &ConnectionId,
++        side: Side,
++    ) -> Result<crypto::Keys, crypto::CryptoError> {
+         self.inner.initial_keys(dst_cid, side)
+     }
+
+diff --git a/src/tests/mod.rs b/src/tests/mod.rs
+index 18fbff9..4ee507f 100644
+--- a/src/tests/mod.rs
++++ b/src/tests/mod.rs
+@@ -35,5 +35,6 @@ use crate::{
+ mod util;
+ use util::*;
+
++mod initial_keys;
+ mod key_update;
+ mod token;

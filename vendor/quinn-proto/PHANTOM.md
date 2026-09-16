@@ -12,9 +12,11 @@ This directory is the complete crates.io source for `quinn-proto` version
 
 ## Why this patch exists
 
-`crypto::Session::next_1rtt_keys` was infallible apart from an `Option`. A
-provider whose key derivation can fail could not report that failure without
-panicking or silently substituting different behavior.
+Two Quinn session key boundaries could not represent every provider failure.
+`crypto::Session::next_1rtt_keys` was infallible apart from an `Option`, and
+`crypto::Session::initial_keys` was fully infallible. A provider whose key
+derivation can fail could not report either failure without panicking or
+silently substituting different behavior.
 
 The patch changes that method to return
 `Result<Option<KeyPair<Box<dyn PacketKey>>>, TransportError>`. The stock rustls
@@ -28,14 +30,25 @@ a transport close with the existing keys. The timestamp-free public
 `force_key_update` path terminates locally and reports the same error to the
 application.
 
-Focused tests inject deterministic failures at the first 1-RTT derivation and
-at each update path. They verify `INTERNAL_ERROR`, unchanged key state, and no
-automatic-update packet emission. The patch does not add a BoringSSL Session
-implementation.
+The second patch changes `Session::initial_keys` to return
+`Result<Keys, CryptoError>`. The stock rustls provider retains its prior
+behavior inside `Ok`. Client construction derives keys before inserting the
+connection and reports the bounded `ConnectError::InitialCrypto` variant on
+failure. Server construction returns an `INTERNAL_ERROR` close without
+inserting the connection. Retry derives replacement Initial keys before
+changing connection IDs, packet spaces, the retry token, or retransmission
+state, and closes with `INTERNAL_ERROR` if derivation fails.
 
-The canonical source and test delta is stored in
-`patches/fallible-key-updates.patch`. `PHANTOM.md` and the patch file are
-packaging metadata and are not part of that patch.
+Focused tests inject deterministic failures at initial client construction,
+Retry re-derivation, the first 1-RTT derivation, and each update path. They
+verify bounded connection errors, `INTERNAL_ERROR`, unchanged key state, and
+no automatic-update packet emission. The patches do not add a BoringSSL
+Session implementation.
+
+The ordered canonical source and test deltas are stored in
+`patches/fallible-key-updates.patch` and
+`patches/fallible-initial-keys.patch`. Apply them in that order. `PHANTOM.md`
+and the patch files are packaging metadata and are not part of either patch.
 
 ## Refreshing the vendor copy
 
@@ -61,20 +74,26 @@ packaging metadata and are not part of that patch.
    candidate="$refresh_dir/quinn-proto-$quinn_proto_version"
    ```
 
-2. Dry-apply and apply the canonical patch. A failed dry application requires
-   review and patch regeneration; do not accept fuzz or rejected hunks.
+2. Dry-apply and apply both canonical patches in order. A failed dry
+   application requires review and patch regeneration; do not accept fuzz or
+   rejected hunks.
 
    ```sh
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/quinn-proto/patches/fallible-key-updates.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/quinn-proto/patches/fallible-key-updates.patch"
+   for patch in \
+     fallible-key-updates.patch \
+     fallible-initial-keys.patch
+   do
+     git -C "$candidate" apply --check \
+       "$PWD/vendor/quinn-proto/patches/$patch"
+     git -C "$candidate" apply \
+       "$PWD/vendor/quinn-proto/patches/$patch"
+   done
    ```
 
 3. Copy the patched candidate to `vendor/quinn-proto.next`, then copy this file
-   and the canonical patch into it. Keep the current directory as a rollback
-   copy until all checks pass. Update the version, archive URL, checksum, and
-   patch when refreshing.
+   and both canonical patches into it. Keep the current directory as a
+   rollback copy until all checks pass. Update the version, archive URL,
+   checksum, and patches when refreshing.
 
 4. Refresh and inspect the workspace selection:
 
@@ -90,7 +109,9 @@ packaging metadata and are not part of that patch.
 ## Focused checks
 
 ```sh
+rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/initial_keys.rs
 rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/key_update.rs
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::initial_keys
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::key_update
 cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml --all-targets --locked -- -D warnings
 cargo check --manifest-path vendor/quinn-proto/Cargo.toml --no-default-features --locked

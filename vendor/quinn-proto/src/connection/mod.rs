@@ -257,6 +257,7 @@ impl Connection {
         remote: SocketAddr,
         local_ip: Option<IpAddr>,
         crypto: Box<dyn crypto::Session>,
+        initial_crypto: Keys,
         cid_gen: &dyn ConnectionIdGenerator,
         now: Instant,
         version: u32,
@@ -269,7 +270,7 @@ impl Connection {
         let connection_side = ConnectionSide::from(side_args);
         let side = connection_side.side();
         let initial_space = PacketSpace {
-            crypto: Some(crypto.initial_keys(&init_cid, side)),
+            crypto: Some(initial_crypto),
             ..PacketSpace::new(now)
         };
         let state = State::Handshake(state::Handshake {
@@ -1345,6 +1346,27 @@ impl Connection {
             current,
             next,
             self.prev_crypto.is_some(),
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn retry_state(
+        &self,
+    ) -> (
+        ConnectionId,
+        ConnectionId,
+        Option<ConnectionId>,
+        Option<usize>,
+    ) {
+        let initial_key = self.spaces[SpaceId::Initial]
+            .crypto
+            .as_ref()
+            .map(|keys| (&*keys.packet.local as *const dyn PacketKey as *const ()) as usize);
+        (
+            self.rem_cids.active(),
+            self.rem_handshake_cid,
+            self.retry_src_cid,
+            initial_key,
         )
     }
 
@@ -2519,6 +2541,10 @@ impl Connection {
                     return Ok(());
                 }
 
+                let initial_crypto = self
+                    .crypto
+                    .initial_keys(&rem_cid, self.side.side())
+                    .map_err(|_| TransportError::INTERNAL_ERROR("initial key derivation failed"))?;
                 trace!("retrying with CID {}", rem_cid);
                 let client_hello = state.client_hello.take().unwrap();
                 self.retry_src_cid = Some(rem_cid);
@@ -2532,7 +2558,7 @@ impl Connection {
 
                 self.discard_space(now, SpaceId::Initial); // Make sure we clean up after any retransmitted Initials
                 self.spaces[SpaceId::Initial] = PacketSpace {
-                    crypto: Some(self.crypto.initial_keys(&rem_cid, self.side.side())),
+                    crypto: Some(initial_crypto),
                     next_packet_number: self.spaces[SpaceId::Initial].next_packet_number,
                     crypto_offset: client_hello.len() as u64,
                     ..PacketSpace::new(now)

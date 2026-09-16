@@ -34,11 +34,12 @@ resolved.
 
 A dependency patch may also be justified by a concrete provider-contract
 failure even when it does not alter the intended wire image. Quinn 0.11.18's
-key-update interface represents absence but not derivation failure, while both
-production call sites unwrap that absence. Phantom therefore carries a narrow
-error-propagation patch: stock providers retain their behavior, but a custom
-provider can close with `INTERNAL_ERROR` without committing a key phase or
-panicking. Observable transport changes still require retained packet
+Initial-key interface cannot represent derivation failure, while its key-update
+interface represents absence but not failure and production call sites unwrap
+that absence. Phantom therefore carries two narrow error-propagation patches:
+stock providers retain their behavior, while a custom provider can reject
+construction or close with `INTERNAL_ERROR` before committing Retry or key
+phase state. Observable transport changes still require retained packet
 evidence; this safety exception is not permission for speculative tuning.
 
 ## Cross-platform gate

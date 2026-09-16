@@ -83,7 +83,11 @@ struct FailingSession {
 }
 
 impl crypto::Session for FailingSession {
-    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> crypto::Keys {
+    fn initial_keys(
+        &self,
+        dst_cid: &ConnectionId,
+        side: Side,
+    ) -> Result<crypto::Keys, crypto::CryptoError> {
         self.inner.initial_keys(dst_cid, side)
     }
 

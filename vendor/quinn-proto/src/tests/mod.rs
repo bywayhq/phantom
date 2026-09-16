@@ -35,6 +35,7 @@ use crate::{
 mod util;
 use util::*;
 
+mod initial_keys;
 mod key_update;
 mod token;
 

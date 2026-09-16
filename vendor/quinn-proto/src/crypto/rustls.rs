@@ -53,8 +53,12 @@ impl TlsSession {
 }
 
 impl crypto::Session for TlsSession {
-    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys {
-        initial_keys(self.version, *dst_cid, side, &self.suite)
+    fn initial_keys(
+        &self,
+        dst_cid: &ConnectionId,
+        side: Side,
+    ) -> Result<Keys, crypto::CryptoError> {
+        Ok(initial_keys(self.version, *dst_cid, side, &self.suite))
     }
 
     fn handshake_data(&self) -> Option<Box<dyn Any>> {

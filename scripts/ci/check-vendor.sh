@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+check_quinn_proto_patch_replay() {
+  local staging archive candidate actual_checksum patch
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-quinn-proto-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  archive="$staging/quinn-proto-0.11.18.crate"
+  curl --fail --location --silent --show-error --retry 3 \
+    --output "$archive" \
+    https://static.crates.io/crates/quinn-proto/quinn-proto-0.11.18.crate
+  if command -v shasum >/dev/null 2>&1; then
+    actual_checksum=$(shasum -a 256 "$archive" | awk '{print $1}')
+  else
+    actual_checksum=$(sha256sum "$archive" | awk '{print $1}')
+  fi
+  [[ "$actual_checksum" == a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc ]]
+  tar -xzf "$archive" -C "$staging"
+  candidate="$staging/quinn-proto-0.11.18"
+  for patch in \
+    vendor/quinn-proto/patches/fallible-key-updates.patch \
+    vendor/quinn-proto/patches/fallible-initial-keys.patch
+  do
+    git -C "$candidate" apply --check "$PWD/$patch"
+    git -C "$candidate" apply "$PWD/$patch"
+  done
+  diff -qr --exclude=.cargo-ok --exclude=PHANTOM.md --exclude=patches --exclude=target \
+    "$candidate" vendor/quinn-proto
+}
+
 case "${1:-}" in
   btls)
     case "$(uname -s)" in
@@ -29,6 +56,8 @@ case "${1:-}" in
       --all-features --locked --lib -- --skip hpack::test::fixture
     ;;
   quinn-proto)
+    check_quinn_proto_patch_replay
+    rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/initial_keys.rs
     rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/key_update.rs
     cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml \
       --all-targets --locked -- -D warnings
@@ -36,6 +65,8 @@ case "${1:-}" in
       --no-default-features --locked
     cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
       --locked tests::key_update
+    cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
+      --locked tests::initial_keys
     ;;
   h3)
     cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
