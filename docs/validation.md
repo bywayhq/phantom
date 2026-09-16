@@ -6,7 +6,8 @@ Wire-sensitive changes are checked at three levels:
 
 1. Deterministic local protocol assertions
 2. Normalized packet, frame, or qlog differentials against a pinned fixture
-3. Supplemental live checks against services such as Peet and Pingly
+3. Supplemental live checks against services such as Peet, Pingly, and the
+   TLSFingerprint TLS and QUIC observers
 
 Normalization may remove values that are intentionally nondeterministic, such as random bytes, connection identifiers, packet numbers, timestamps, and cryptographic key material. It must not erase ordering, presence, negotiated values, or other behavior the profile claims to control.
 
@@ -418,6 +419,36 @@ fields in `firefox::v154_macos_http2()`, but does not yet have a direct Phantom
 wire differential. Retained Pingly and Peet results supply only that recipe's
 pseudo-header order and priority and remain supplemental observations, not
 substitutes for local bytes. No H3 or Safari HTTP/2 wire fixture exists yet.
+
+## External TLS and QUIC observers
+
+The TLSFingerprint endpoints add two independent live views:
+
+- [TLS client fingerprint](https://tls.tlsfingerprint.io/api/client-fingerprint)
+  reports the observed TLS record and handshake versions, ordered and
+  normalized extensions, cipher suites, groups, signature algorithms, ALPN,
+  certificate compression, record-size limit, supported versions, PSK modes,
+  key shares, application settings, and fingerprint identifiers.
+- [QUIC client fingerprint](https://quic.tlsfingerprint.io/api/client-fingerprint-quic)
+  responds only to a QUIC/H3 connection. Its underlying
+  [`clienthellod`](https://github.com/refraction-networking/clienthellod)
+  project reassembles ClientHello CRYPTO data spanning multiple Initial packets
+  and derives a composite view from the QUIC Initial, embedded ClientHello, and
+  transport parameters.
+
+These endpoints are supplemental observers, not parity oracles. A validation
+run retains the unmodified response, request target, collection time, and
+response digest beside the matching local packet capture or qlog. It compares
+only documented fields that overlap a Phantom claim. The external service may
+change its parser, normalization, hash algorithm, deployment, or output schema
+without a Phantom change, so a service fingerprint identifier is never stored
+as the sole expected result.
+
+The TLS and QUIC probes are separate protocol lanes. A TCP or HTTP/2 request to
+the QUIC endpoint is not a QUIC measurement, even if the hostname is reachable;
+the H3 lane must prove the negotiated protocol and retain its Initial packets.
+Conversely, a successful H3 request does not replace local H3 SETTINGS, QPACK,
+stream-lifecycle, or response-behavior differentials.
 
 ## Active adversarial differentials
 
