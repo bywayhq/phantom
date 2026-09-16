@@ -126,8 +126,9 @@ required. The isolated adapter now owns the callback table, state, traffic
 secret copies, output publication, alerts, flight limits, panic boundary, and
 the private client `SSL` session. The owner enforces TLS 1.3, exact `h3` ALPN,
 peer and hostname verification, copied transport parameters, no BIO, and no
-resumption or early data. The remaining crypto work is the thin Quinn
-`ClientConfig`/`Session` adapter around that private owner.
+resumption or early data. A concrete Quinn `ClientConfig`/`Session` adapter now
+serializes access to that private, thread-affine owner and exposes only owned
+handshake data and peer identity.
 
 Quinn requires usable key-update support in the first provider slice. As soon
 as it installs the 1-RTT keys, its connection state requests the next 1-RTT key
@@ -142,7 +143,7 @@ when early keys exist.
 concrete Quinn client configuration to `phantom-net`. Keep all backend types
 private to the backend.
 
-The private adapter now implements:
+The provider now implements:
 
 - installing the context/session QUIC callback table;
 - copying read and write secrets into redacted, zeroizing storage;
@@ -150,27 +151,19 @@ The private adapter now implements:
   `flush_flight`;
 - bounded flight accounting and copied alert state; and
 - QUIC v1 initial secrets, HKDF expansion, packet AEAD, header protection,
-  Retry integrity, key updates, and endpoint HMAC.
+  Retry integrity, repeated key updates, endpoint HMAC, and exporters;
+- verified DNS-name handshakes with exact `h3` ALPN and copied peer transport
+  parameters; and
+- owned leaf-first peer certificate chains with explicit size and count limits.
 
-The next slice must implement:
-
-- a safe configuration owner which builds the private session from a validated
-  immutable context;
-- a serialized call gate around the non-`Sync` BoringSSL `SSL` owner;
-- incoming CRYPTO-level discovery through `SSL_quic_read_level` before each
-  `SSL_provide_quic_data` call;
-- transactional extraction of complete local/remote callback-secret pairs and
-  translation into Quinn key epochs, including repeated application updates;
-- level-aware output staging so Quinn never queues future-level bytes in the
-  previous packet-number space; and
-- owned peer identity, handshake metadata, exporter, Retry verification,
-  transport-parameter decoding, and bounded error translation.
+The next slice must connect this provider to a forced-H3 request path while
+keeping transport-parameter serialization capture-driven and private.
 
 Quinn's `read_crypto` callback supplies bytes without an encryption level, so
 the level is backend state rather than a public adapter argument. Its
 `write_crypto` path queues returned bytes in the packet-number space captured
-before the call. The adapter must therefore retain future-level flights until
-the corresponding keys have been returned and installed.
+before the call. The adapter therefore retains future-level flights until the
+corresponding keys have been returned and installed.
 
 The completed key-schedule slice maps TLS 1.3 suite identifiers `0x1301`,
 `0x1302`, and `0x1303` to SHA-256 or SHA-384 and the packet/header algorithms.
@@ -178,12 +171,11 @@ It derives `quic key`, `quic iv`, `quic hp`, and `quic ku`, owns traffic
 secrets in zeroizing types with redacted formatting, and advances application
 traffic secrets repeatedly. Header-protection keys do not update.
 
-Reuse the existing Phantom TLS profile-to-BoringSSL translation. Its builder
-entry point currently takes `SslConnectorBuilder`; factor the translation at
-the underlying `SslContextBuilder` level so TCP and QUIC cannot drift. QUIC
-must have an explicit TLS 1.3 profile and ALPN `h3`; TCP-only settings must fail
-validation instead of being silently ignored. Add the standard QUIC transport
-parameters extension (57) to the profile extension vocabulary.
+Reuse the existing Phantom TLS profile-to-BoringSSL translation at its
+`SslContextBuilder` boundary so TCP and QUIC cannot drift. QUIC must have an
+explicit TLS 1.3 profile and ALPN `h3`; TCP-only settings must fail validation
+instead of being silently ignored. Add the standard QUIC transport parameters
+extension (57) to the profile extension vocabulary.
 
 The first provider explicitly disables resumption and 0-RTT. Those require a
 separate replay and session-cache policy and are not prerequisites for a
@@ -334,7 +326,7 @@ values, proxy credentials, nor secrets.
 The adapter, patched Quinn provider contract, and focused vendored dependency
 gates run under the repository's normal warnings-as-errors and formatting
 checks. A complete forced-H3 integration gate remains pending because the SSL
-session has not yet been adapted to Quinn and the request path does not exist.
+session is now adapted to Quinn, but the HTTP/3 request path does not exist.
 
 ## Fork trigger
 

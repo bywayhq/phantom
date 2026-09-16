@@ -28,10 +28,10 @@ remain planned. The project does not make broad client-compatibility claims.
   fixture-backed Chrome, Safari, and Firefox recipes
 - `phantom-net`: the private BoringSSL adapter plus ordered streaming HTTP/1.1
   and one-shot HTTP/2 request paths, including exact-`h2` TLS and ALPS handling
-- `phantom-quic-btls`: the isolated, audited BoringSSL packet-cryptography
-  boundary for the in-progress Quinn HTTP/3 provider, including RFC-backed
-  Initial, Retry, packet/header protection, endpoint HMAC, and TLS 1.3 traffic
-  key derivation
+- `phantom-quic-btls`: the isolated, audited BoringSSL crypto provider for
+  Quinn, including verified TLS 1.3 handshakes, owned peer identity and QUIC
+  parameters, Initial and Retry handling, packet/header protection, endpoint
+  HMAC, exporters, and repeated traffic-key updates
 - `phantom-testkit`: bounded TLS ClientHello and HTTP/2 frame capture with
   strict decoding for deterministic differentials
 

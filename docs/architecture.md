@@ -137,10 +137,10 @@ profile compatibility, and the selected stack's observable behavior are all
 proven. A connection is never shared across profile generations or route
 identities merely because two requests resolve to the same address.
 
-The planned H3 path uses Quinn for QUIC and hyperium's `h3` engine. A small
-`phantom-quic-btls` crate will implement Quinn's existing crypto-provider seam
-with the same patched BoringSSL lineage used by Phantom's TCP TLS path. The FFI
-and key-schedule boundary stays isolated there; `phantom-net` owns request and
+The planned H3 path uses Quinn for QUIC and hyperium's `h3` engine.
+`phantom-quic-btls` implements Quinn's crypto-provider seam with the same
+patched BoringSSL lineage used by Phantom's TCP TLS path. The FFI and
+key-schedule boundary stays isolated there; `phantom-net` will own request and
 connection lifecycle without exposing Quinn or `h3` types publicly.
 
 Stock QUIC stacks expose many transport-parameter values but do not expose all
@@ -202,7 +202,7 @@ crates/
 ├── phantom/          # eventual public Client and session facade
 ├── phantom-profile/  # client-neutral identity and typed wire settings
 ├── phantom-net/      # concrete TLS, H1, H2, and later H3 mechanisms
-├── phantom-quic-btls/ # isolated Quinn/BoringSSL crypto boundary in progress
+├── phantom-quic-btls/ # isolated Quinn/BoringSSL client crypto provider
 └── phantom-testkit/  # bounded capture and deterministic differential tools
 
 fixtures/             # raw retained browser evidence plus exact metadata
