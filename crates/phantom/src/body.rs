@@ -6,7 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
-use phantom_net::{http1::Http1Body, http2::Http2Body};
+use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
 
 use crate::RequestError;
 
@@ -22,6 +22,7 @@ pub struct ResponseBody {
 enum ResponseBodyInner {
     Http1(Http1Body),
     Http2(Http2Body),
+    Http3(Http3Body),
 }
 
 impl ResponseBody {
@@ -36,6 +37,12 @@ impl ResponseBody {
             inner: ResponseBodyInner::Http2(body),
         }
     }
+
+    pub(crate) fn http3(body: Http3Body) -> Self {
+        Self {
+            inner: ResponseBodyInner::Http3(body),
+        }
+    }
 }
 
 impl fmt::Debug for ResponseBody {
@@ -43,6 +50,7 @@ impl fmt::Debug for ResponseBody {
         match &self.inner {
             ResponseBodyInner::Http1(body) => formatter.debug_tuple("Http1").field(body).finish(),
             ResponseBodyInner::Http2(body) => formatter.debug_tuple("Http2").field(body).finish(),
+            ResponseBodyInner::Http3(body) => formatter.debug_tuple("Http3").field(body).finish(),
         }
     }
 }
@@ -62,6 +70,9 @@ impl Body for ResponseBody {
             ResponseBodyInner::Http2(body) => Pin::new(body)
                 .poll_frame(context)
                 .map(|frame| frame.map(|result| result.map_err(RequestError::http2_body))),
+            ResponseBodyInner::Http3(body) => Pin::new(body)
+                .poll_frame(context)
+                .map(|frame| frame.map(|result| result.map_err(RequestError::http3_body))),
         }
     }
 
@@ -69,6 +80,7 @@ impl Body for ResponseBody {
         match &self.inner {
             ResponseBodyInner::Http1(body) => body.is_end_stream(),
             ResponseBodyInner::Http2(body) => body.is_end_stream(),
+            ResponseBodyInner::Http3(body) => body.is_end_stream(),
         }
     }
 
@@ -76,6 +88,7 @@ impl Body for ResponseBody {
         match &self.inner {
             ResponseBodyInner::Http1(body) => body.size_hint(),
             ResponseBodyInner::Http2(body) => body.size_hint(),
+            ResponseBodyInner::Http3(body) => body.size_hint(),
         }
     }
 }

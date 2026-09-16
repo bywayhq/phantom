@@ -3,6 +3,7 @@ use std::{error::Error as StdError, fmt};
 use phantom_net::{
     http1::{Http1Error, Http1TlsError, TlsErrorKind},
     http2::{Http2Error, Http2TlsError},
+    http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
 };
 use phantom_profile::InvalidTlsSettings;
 
@@ -49,6 +50,15 @@ impl BuildError {
     pub(crate) fn http2(source: Http2TlsError) -> Self {
         let kind = classify_http2_build_error(&source);
         Self::with_source(kind, "failed to configure HTTP/2", source)
+    }
+
+    pub(crate) fn http3(source: Http3ConnectorError) -> Self {
+        let kind = match source.kind() {
+            Http3ConnectorErrorKind::InvalidProfile => BuildErrorKind::InvalidProfile,
+            Http3ConnectorErrorKind::TrustStore => BuildErrorKind::TrustStore,
+            _ => BuildErrorKind::ProtocolConfiguration,
+        };
+        Self::with_source(kind, "failed to configure HTTP/3", source)
     }
 
     pub(crate) fn no_supported_protocol() -> Self {
@@ -138,9 +148,13 @@ pub enum RequestErrorKind {
     AuthorityHeader,
     /// The selected protocol is absent from the client profile.
     ProtocolUnavailable,
+    /// The selected route cannot carry the requested protocol.
+    UnsupportedRoute,
     /// The URI target cannot be represented as origin-form.
     InvalidTarget,
-    /// Establishing the TCP connection failed.
+    /// Resolving the direct origin address failed.
+    Resolve,
+    /// Establishing the direct network connection failed.
     Connect,
     /// Connecting to or negotiating with the configured proxy failed.
     Proxy,
@@ -152,6 +166,8 @@ pub enum RequestErrorKind {
     Http1,
     /// HTTP/2 request or response processing failed.
     Http2,
+    /// HTTP/3 or QUIC request or response processing failed.
+    Http3,
 }
 
 /// Error returned by a public client request or response body.
@@ -196,6 +212,15 @@ impl RequestError {
             kind: RequestErrorKind::ProtocolUnavailable,
             protocol: Some(protocol),
             message: "requested protocol is absent from the client profile",
+            source: None,
+        }
+    }
+
+    pub(crate) fn unsupported_route(protocol: HttpProtocol) -> Self {
+        Self {
+            kind: RequestErrorKind::UnsupportedRoute,
+            protocol: Some(protocol),
+            message: "selected route does not support the requested protocol",
             source: None,
         }
     }
@@ -251,6 +276,24 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn http3(source: Http3ConnectorError) -> Self {
+        let kind = match source.kind() {
+            Http3ConnectorErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+            Http3ConnectorErrorKind::Resolve => RequestErrorKind::Resolve,
+            Http3ConnectorErrorKind::Endpoint | Http3ConnectorErrorKind::Connect => {
+                RequestErrorKind::Connect
+            }
+            Http3ConnectorErrorKind::Handshake => RequestErrorKind::Tls,
+            _ => RequestErrorKind::Http3,
+        };
+        Self::with_source(
+            kind,
+            Some(HttpProtocol::Http3),
+            "HTTP/3 request failed",
+            source,
+        )
+    }
+
     pub(crate) fn http1_body(source: Http1Error) -> Self {
         Self::with_source(
             RequestErrorKind::Http1,
@@ -265,6 +308,15 @@ impl RequestError {
             RequestErrorKind::Http2,
             Some(HttpProtocol::Http2),
             "HTTP/2 response body failed",
+            source,
+        )
+    }
+
+    pub(crate) fn http3_body(source: Http3Error) -> Self {
+        Self::with_source(
+            RequestErrorKind::Http3,
+            Some(HttpProtocol::Http3),
+            "HTTP/3 response body failed",
             source,
         )
     }
@@ -320,5 +372,20 @@ impl StdError for RequestError {
         self.source
             .as_deref()
             .map(|source| source as &(dyn StdError + 'static))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RequestError, RequestErrorKind};
+    use crate::HttpProtocol;
+
+    #[test]
+    fn unsupported_route_preserves_the_requested_protocol() {
+        let error = RequestError::unsupported_route(HttpProtocol::Http3);
+
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+        assert!(std::error::Error::source(&error).is_none());
     }
 }

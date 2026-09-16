@@ -25,19 +25,7 @@ fn builder_with_entropy(
     crypto: &Arc<QuicClientConfig>,
     fill_entropy: impl FnMut(&mut [u8]) -> Result<(), Http3Error>,
 ) -> Result<h3::client::Builder, Http3Error> {
-    settings.validate().map_err(|error| {
-        Http3Error::with_source(
-            Http3ErrorKind::Configuration,
-            "HTTP/3 profile settings are invalid",
-            error,
-        )
-    })?;
-    if settings.receives_datagrams() && !crypto.receives_datagrams() {
-        return Err(Http3Error::without_source(
-            Http3ErrorKind::Configuration,
-            "HTTP/3 Datagram support requires QUIC DATAGRAM receive support",
-        ));
-    }
+    validate(settings, crypto)?;
 
     let wire_settings = materialize(settings, fill_entropy)?;
     let mut builder = h3::client::builder();
@@ -75,6 +63,79 @@ fn builder_with_entropy(
         }
     }
     Ok(builder)
+}
+
+pub(super) fn validate(
+    settings: &Http3Settings,
+    crypto: &Arc<QuicClientConfig>,
+) -> Result<(), Http3Error> {
+    settings.validate().map_err(|error| {
+        Http3Error::with_source(
+            Http3ErrorKind::Configuration,
+            "HTTP/3 profile settings are invalid",
+            error,
+        )
+    })?;
+    if settings.receives_datagrams() && !crypto.receives_datagrams() {
+        return Err(Http3Error::without_source(
+            Http3ErrorKind::Configuration,
+            "HTTP/3 Datagram support requires QUIC DATAGRAM receive support",
+        ));
+    }
+    if settings.initial_settings.iter().any(|setting| {
+        !matches!(
+            setting,
+            Http3Setting::QpackMaxTableCapacity(_)
+                | Http3Setting::MaxFieldSectionSize(_)
+                | Http3Setting::QpackBlockedStreams(_)
+                | Http3Setting::H3Datagram(_)
+                | Http3Setting::RandomizedGrease
+        )
+    }) {
+        return Err(Http3Error::without_source(
+            Http3ErrorKind::Configuration,
+            "HTTP/3 profile contains an unsupported setting",
+        ));
+    }
+    match settings.qpack_encoding {
+        Http3QpackEncoding::Stateless | Http3QpackEncoding::Dynamic => {}
+        _ => {
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Configuration,
+                "HTTP/3 profile contains an unsupported QPACK policy",
+            ));
+        }
+    }
+    match settings.qpack_decoder_stream {
+        Http3QpackDecoderStream::Eager | Http3QpackDecoderStream::OnFeedback => {}
+        _ => {
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Configuration,
+                "HTTP/3 profile contains an unsupported QPACK decoder stream policy",
+            ));
+        }
+    }
+    match settings.setting_order {
+        Http3SettingOrder::Fixed | Http3SettingOrder::Ascending => {}
+        _ => {
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Configuration,
+                "HTTP/3 profile contains an unsupported ordering policy",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn validate_for_connector(
+    settings: &Http3Settings,
+    crypto: &Arc<QuicClientConfig>,
+) -> Result<(), Http3Error> {
+    builder_with_entropy(settings, crypto, |output| {
+        output.fill(0);
+        Ok(())
+    })
+    .map(|_| ())
 }
 
 #[cfg(test)]

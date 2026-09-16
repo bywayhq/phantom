@@ -216,8 +216,8 @@ to session policy rather than immutable wire profiles.
 The first landed slice is deliberately smaller than the complete phase. It
 adds an immutable `Client` built from TLS and optional H2 profile components,
 exact per-request H1/H2 selection, additive DER trust roots, URI-owned
-authority fields, and one streaming response body. Real verified loopback TLS
-tests cover H1 and H2 streaming, H2 trailers, ordered fields, and pre-I/O
+authority fields, and one streaming response body. Loopback TLS tests cover H1
+and H2 streaming, H2 trailers, ordered fields, and pre-I/O
 rejection of unavailable protocols and invalid fields.
 
 The next landed slice adds a closed `Route` vocabulary for direct connections
@@ -230,7 +230,19 @@ and H2 origin TLS through the proxy, H2 trailers, pre-I/O validation,
 cancellation, response bounds, and that rejection never opens a direct origin
 socket. It does not introduce an empty `Session` or pool. HTTPS proxies,
 forwarding, SOCKS, authentication challenge negotiation, IDNA normalization,
-and UDP/H3 routes remain later Phase 6 slices.
+and UDP-capable proxy routes remain later Phase 6 slices.
+
+The third landed slice brings the existing direct H3 path into the public
+facade. `HttpProtocol::Http3` selects it exactly, `ClientProfile` owns one
+atomic H3 bundle with distinct QUIC TLS, transport, connection, and request
+settings, and the shared response body streams H3 data and trailers. Profile
+and request validation precede DNS and UDP. The TCP-only HTTP CONNECT route is
+rejected before proxy or origin I/O and never escapes to a direct attempt.
+Loopback tests cover certificate and IP-literal verification, ordered duplicate
+fields, streaming trailers, cancellation, missing-runtime errors, and route
+anti-leak behavior. A built-in Chrome H3 TLS recipe remains pending a retained
+H3 ClientHello; the captured Chrome QUIC and H3 components are not presented as
+proof of those TLS bytes.
 
 Acceptance:
 

@@ -30,7 +30,10 @@ mod suite_tests;
 #[cfg(test)]
 mod tests;
 
-pub use backend::client::{HandshakeData, PeerIdentity, QuicClientConfig};
+pub use backend::client::{
+    HandshakeData, InvalidServerName, PeerIdentity, QuicClientConfig, QuicTlsProfileError,
+    QuicTlsProfileErrorKind,
+};
 pub use error::{CryptoError, Result};
 pub use header::HeaderProtectionKey;
 pub use initial::{InitialKeys, derive_initial_keys};

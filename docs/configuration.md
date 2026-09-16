@@ -41,18 +41,22 @@ The facade grows through three ordinary levels:
   runtime services and pool limits only with their implementations.
 - `RequestBuilder` currently owns an exact protocol, HTTPS target, and ordered
   fields. It may own a route override; deadline and retry policy remain absent.
-- Typed profile values describe observable wire behavior and can be cloned and
-  edited before the client is built.
+- `ClientProfile` owns required TCP TLS, optional H2 settings, and an optional
+  atomic H3 bundle containing its own TLS, QUIC transport, H3 connection, and
+  H3 request settings. Typed values can be cloned and edited before the client
+  is built.
 
 The facade performs a new connection for each request. It synthesizes the H1
-`Host` field from the URI, uses the URI authority for H2, and rejects a
+`Host` field from the URI, uses the URI authority for H2 and H3, and rejects a
 caller-supplied origin `Host` field. A plaintext HTTP CONNECT route has a
 separate ordered field sequence with one typed destination-authority
 placeholder. Request and CONNECT validation happen before proxy I/O; non-2xx
 proxy responses are typed failures and never trigger a direct retry. Selecting
-H2 without H2 profile settings also fails before DNS or TCP I/O. The response
-body implements `http_body::Body` and retains the existing protocol
-cancellation behavior when dropped.
+H2 or H3 without the corresponding profile settings also fails before network
+I/O. H3 currently supports only `Route::Direct`; pairing it with HTTP CONNECT
+is rejected before either proxy TCP or origin UDP is opened. The response body
+implements `http_body::Body` and retains the existing protocol cancellation
+behavior when dropped.
 
 There is no global mutable profile registry, environment-only configuration,
 browser-family switch inside a transport, or callback invoked while a pool
@@ -84,6 +88,15 @@ identities as equivalent. The complete boundary and threat-review checklist
 are documented in [TLS security boundary](tls-security-boundary.md).
 
 ## HTTP/3 QPACK policy
+
+HTTP/3 TLS is a separate profile component rather than an adaptation of the
+TCP offer. The connector requires TLS 1.3, exact `h3` ALPN, QUIC-compatible
+cipher suites, and no ALPS or ticket behavior that the current one-shot path
+cannot represent. Phantom deliberately has no built-in Chrome H3 TLS recipe
+yet: the Chrome QUIC transport and H3 recipes are capture-backed, but a
+retained Chrome H3 ClientHello fixture is still required before those TLS bytes
+can be named as a built-in recipe. Caller-authored H3 TLS uses the same typed
+validation path without inheriting the TCP ClientHello silently.
 
 `Http3Settings::qpack_encoding` chooses `Stateless` or `Dynamic` request-field
 encoding for a connection. Dynamic mode is profile data because it changes

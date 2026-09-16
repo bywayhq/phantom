@@ -40,7 +40,10 @@ impl<'a> RequestBuilder<'a> {
             HttpProtocol::Http2 if client.inner.http2.is_none() => {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http2));
             }
-            HttpProtocol::Http1 | HttpProtocol::Http2 => {}
+            HttpProtocol::Http3 if client.inner.http3.is_none() => {
+                return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
+            }
+            HttpProtocol::Http1 | HttpProtocol::Http2 | HttpProtocol::Http3 => {}
         }
         let uri = uri.parse::<Uri>().map_err(RequestError::invalid_uri)?;
         Ok(Self {
@@ -133,6 +136,7 @@ impl<'a> RequestBuilder<'a> {
             route,
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
+        ensure_route_supported(protocol, route)?;
 
         match protocol {
             HttpProtocol::Http1 => {
@@ -217,8 +221,35 @@ impl<'a> RequestBuilder<'a> {
                 let (parts, body) = response.into_parts();
                 Ok(Response::from_parts(parts, ResponseBody::http2(body)))
             }
+            HttpProtocol::Http3 => {
+                let connector = client
+                    .inner
+                    .http3
+                    .as_ref()
+                    .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
+                let response = connector
+                    .send_get_direct(
+                        request.endpoint.host(),
+                        request.endpoint.port(),
+                        request.endpoint.host(),
+                        request.endpoint.authority().as_str(),
+                        request.target,
+                        request_headers,
+                    )
+                    .await
+                    .map_err(RequestError::http3)?;
+                let (parts, body) = response.into_parts();
+                Ok(Response::from_parts(parts, ResponseBody::http3(body)))
+            }
         }
     }
+}
+
+fn ensure_route_supported(protocol: HttpProtocol, route: &Route) -> Result<(), RequestError> {
+    if protocol == HttpProtocol::Http3 && !matches!(route, Route::Direct) {
+        return Err(RequestError::unsupported_route(protocol));
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -272,6 +303,38 @@ impl Drop for RequestOutcome {
                 "cancelled"
             };
             self.span.record("outcome", outcome);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_route_supported;
+    use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route};
+
+    #[test]
+    fn http_connect_route_rejects_http3_without_network_io()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let route = Route::http_connect(HttpProxy::new("http://127.0.0.1:9")?);
+
+        let error = match ensure_route_supported(HttpProtocol::Http3, &route) {
+            Ok(()) => panic!("HTTP CONNECT accepted HTTP/3"),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+        Ok(())
+    }
+
+    #[test]
+    fn direct_route_accepts_each_supported_protocol() {
+        for protocol in [
+            HttpProtocol::Http1,
+            HttpProtocol::Http2,
+            HttpProtocol::Http3,
+        ] {
+            assert!(ensure_route_supported(protocol, &Route::Direct).is_ok());
         }
     }
 }

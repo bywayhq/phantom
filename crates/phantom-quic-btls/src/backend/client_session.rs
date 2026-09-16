@@ -1,17 +1,22 @@
-use std::ffi::CString;
 use std::fmt;
+use std::net::IpAddr;
 use std::ptr::{self, NonNull};
 use std::slice;
 
 use btls::ssl::{SslContext, SslRef};
+use btls::x509::verify::X509CheckFlags;
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 
-use super::callback_state::{
-    Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk, SecretPair,
-};
 use super::drain_error_queue;
 use super::quic_callbacks::{CallbackInstallError, install_on_ssl};
+use super::{
+    callback_state::{
+        Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
+        SecretPair,
+    },
+    client::ClientTlsProfile,
+};
 
 const H3_ALPN: &[u8] = &[2, b'h', b'3'];
 const H3_PROTOCOL: &[u8] = b"h3";
@@ -110,16 +115,29 @@ impl fmt::Debug for ClientSession {
 impl ClientSession {
     /// Creates a client from a verification-configured BoringSSL context.
     ///
+    #[cfg(test)]
     pub(super) fn new(
         context: &SslContext,
         server_name: &str,
         local_transport_parameters: &[u8],
     ) -> Result<Self, ClientSessionError> {
+        Self::new_with_profile(
+            context,
+            server_name,
+            local_transport_parameters,
+            &ClientTlsProfile::default(),
+        )
+    }
+
+    pub(super) fn new_with_profile(
+        context: &SslContext,
+        server_name: &str,
+        local_transport_parameters: &[u8],
+        tls_profile: &ClientTlsProfile,
+    ) -> Result<Self, ClientSessionError> {
         if server_name.is_empty() {
             return Err(ClientSessionError::InvalidServerName);
         }
-        let server_name =
-            CString::new(server_name).map_err(|_| ClientSessionError::InvalidServerName)?;
         if local_transport_parameters.is_empty() {
             return Err(ClientSessionError::MissingTransportParameters);
         }
@@ -137,7 +155,9 @@ impl ClientSession {
         let context =
             NonNull::new(context.as_ptr()).ok_or(ClientSessionError::X509ContextRequired)?;
         // SAFETY: the safe context owner is live and SSL_new retains its own reference.
-        let ssl = unsafe { OwnedSsl::new(context) }?;
+        let mut ssl = unsafe { OwnedSsl::new(context) }?;
+        apply_tls_profile(&mut ssl, tls_profile)?;
+        apply_server_name(&mut ssl, server_name)?;
         let pointer = ssl.as_ptr();
 
         // SAFETY: `pointer` is uniquely owned throughout construction.
@@ -160,26 +180,6 @@ impl ClientSession {
         // SAFETY: the SSL is live and has not started a handshake.
         unsafe {
             ffi::SSL_set_early_data_enabled(pointer, 0);
-        }
-        // SAFETY: the NUL-terminated name remains live for each copying setter call.
-        if unsafe { ffi::SSL_set_tlsext_host_name(pointer, server_name.as_ptr()) } != 1 {
-            return Err(backend_failure("server name indication"));
-        }
-        // SAFETY: the NUL-terminated name remains live for the copying setter call.
-        if unsafe { ffi::SSL_set1_host(pointer, server_name.as_ptr()) } != 1 {
-            return Err(backend_failure("verification hostname"));
-        }
-        // SAFETY: the SSL owns a live verification parameter for its entire lifetime.
-        let verification = unsafe { ffi::SSL_get0_param(pointer) };
-        if verification.is_null() {
-            return Err(backend_failure("verification parameters"));
-        }
-        // SAFETY: the verification parameter is live and uniquely configured before handshake.
-        unsafe {
-            ffi::X509_VERIFY_PARAM_set_hostflags(
-                verification,
-                ffi::X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS as u32,
-            );
         }
         // SAFETY: ALPN bytes remain live for the copying setter call.
         if unsafe { ffi::SSL_set_alpn_protos(pointer, H3_ALPN.as_ptr(), H3_ALPN.len()) } != 0 {
@@ -474,6 +474,42 @@ impl ClientSession {
             None => ClientSessionError::BackendFailure(operation),
         }
     }
+}
+
+fn apply_tls_profile(
+    ssl: &mut OwnedSsl,
+    profile: &ClientTlsProfile,
+) -> Result<(), ClientSessionError> {
+    // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
+    if let Some(key_shares) = profile.key_shares() {
+        ssl.set_client_key_shares(key_shares)
+            .map_err(|_| backend_failure("client key shares"))?;
+    }
+    ssl.set_enable_ech_grease(profile.ech_grease());
+    if let Some(payload_length) = profile.ech_grease_payload_length() {
+        ssl.set_ech_grease_payload_length(usize::from(payload_length))
+            .map_err(|_| backend_failure("ECH GREASE payload length"))?;
+    }
+    Ok(())
+}
+
+fn apply_server_name(ssl: &mut OwnedSsl, server_name: &str) -> Result<(), ClientSessionError> {
+    // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
+    let ip = server_name.parse::<IpAddr>().ok();
+    if ip.is_none() {
+        ssl.set_hostname(server_name)
+            .map_err(|_| backend_failure("server name indication"))?;
+    }
+
+    let verification = ssl.param_mut();
+    verification.set_hostflags(X509CheckFlags::NO_PARTIAL_WILDCARDS);
+    match ip {
+        Some(ip) => verification.set_ip(ip),
+        None => verification.set_host(server_name),
+    }
+    .map_err(|_| backend_failure("verification server name"))
 }
 
 fn raw_level(level: EncryptionLevel) -> ffi::ssl_encryption_level_t {

@@ -13,7 +13,7 @@ use std::{
 
 use btls::{
     error::ErrorStack,
-    ssl::{SslConnector as BoringConnector, SslMethod, SslVerifyMode, SslVersion},
+    ssl::{SslConnector as BoringConnector, SslContext, SslMethod, SslVerifyMode, SslVersion},
     x509::{X509, store::X509StoreBuilder},
 };
 use phantom_profile::{
@@ -86,6 +86,11 @@ impl TlsConnector {
                 .map(AsRef::as_ref)
                 .chain(roots),
         )
+    }
+
+    /// Consumes this connector and returns its configured TLS context.
+    pub(crate) fn into_context(self) -> SslContext {
+        self.backend.into_context()
     }
 
     fn build_with_roots<'a>(

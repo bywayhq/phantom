@@ -134,8 +134,8 @@ impl TestIdentity {
 
     pub(crate) fn acceptor(&self, alpn: &'static [u8]) -> TestResult<SslAcceptor> {
         let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
-        let certificate = X509::from_der(&self.leaf_der)?;
-        let private_key = PKey::private_key_from_pkcs8(&self.private_key_der)?;
+        let certificate = X509::from_der(self.leaf_der())?;
+        let private_key = PKey::private_key_from_pkcs8(self.private_key_der())?;
         acceptor.set_certificate(&certificate)?;
         acceptor.set_private_key(&private_key)?;
         acceptor.add_extra_chain_cert(X509::from_der(&self.root_der)?)?;
@@ -144,5 +144,13 @@ impl TestIdentity {
             select_next_proto(alpn, offered).ok_or(AlpnError::NOACK)
         });
         Ok(acceptor.build())
+    }
+
+    pub(crate) fn leaf_der(&self) -> &[u8] {
+        &self.leaf_der
+    }
+
+    pub(crate) fn private_key_der(&self) -> &[u8] {
+        &self.private_key_der
     }
 }

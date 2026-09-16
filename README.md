@@ -22,12 +22,14 @@ backpressure, sends encoder instructions before dependent HEADERS, and matches
 the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
 order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
-small facade for exact H1 or H2 requests, additive private trust roots, a typed
-direct-or-plaintext-HTTP-CONNECT route, and one unified streaming response
-body. CONNECT fields preserve caller-declared order, proxy rejection never
-falls back direct, and coalesced tunnel bytes survive negotiation. It has no
-pool or mutable session state yet. HTTPS proxies, SOCKS, H3 routing, reusable
-sessions, SSE, and WebSocket remain planned. The project does not make broad
+small facade for exact H1, H2, or direct H3 requests, additive private trust
+roots, a typed direct-or-plaintext-HTTP-CONNECT route, and one unified
+streaming response body. CONNECT fields preserve caller-declared order, proxy
+rejection never falls back direct, and coalesced tunnel bytes survive
+negotiation. H3 uses a separate protocol-specific TLS profile and rejects the
+TCP-only CONNECT route before network I/O. It has no pool or mutable session
+state yet. HTTPS proxies, SOCKS, UDP-capable proxies, reusable sessions, SSE,
+and WebSocket remain planned. The project does not make broad
 client-compatibility claims.
 
 ## Principles
@@ -66,14 +68,15 @@ Use `ClientBuilder::route` for an immutable default route or
 
 ## Current workspace
 
-- `phantom`: the public exact-protocol client facade for one-shot H1/H2
-  requests, direct and plaintext HTTP CONNECT routes, and streaming responses
+- `phantom`: the public exact-protocol client facade for one-shot H1/H2/H3
+  requests, direct routes, plaintext HTTP CONNECT for H1/H2, and streaming
+  responses
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
 - `phantom-net`: ordered streaming HTTP/1.1, one-shot HTTP/2 with exact-`h2`
-  TLS and ALPS, and a direct forced-H3 transaction path with streaming response
-  bodies and bounded cancellation
+  TLS and ALPS, and a direct forced-H3 connector with streaming response bodies
+  and bounded cancellation
 - `phantom-quic-btls`: the isolated, audited BoringSSL crypto provider for
   Quinn, including verified TLS 1.3 handshakes, owned peer identity and QUIC
   parameters, Initial and Retry handling, packet/header protection, endpoint

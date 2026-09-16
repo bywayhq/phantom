@@ -1,6 +1,6 @@
 use std::fmt;
 
-use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector};
+use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector, http3::Http3Connector};
 use phantom_profile::ClientProfile;
 
 use crate::{BuildError, RequestBuilder, Route};
@@ -13,6 +13,8 @@ pub enum HttpProtocol {
     Http1,
     /// HTTP/2 over TLS.
     Http2,
+    /// HTTP/3 over QUIC.
+    Http3,
 }
 
 impl HttpProtocol {
@@ -20,6 +22,7 @@ impl HttpProtocol {
         match self {
             Self::Http1 => "http/1.1",
             Self::Http2 => "h2",
+            Self::Http3 => "h3",
         }
     }
 }
@@ -37,6 +40,7 @@ pub struct Client {
 pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
+    pub(crate) http3: Option<Http3Connector>,
     pub(crate) route: Route,
 }
 
@@ -78,6 +82,7 @@ impl fmt::Debug for ClientBuilder {
         formatter
             .debug_struct("ClientBuilder")
             .field("http2_configured", &self.profile.http2().is_some())
+            .field("http3_configured", &self.profile.http3().is_some())
             .field("additional_root_count", &self.additional_roots.len())
             .field("route", &self.route)
             .finish_non_exhaustive()
@@ -134,8 +139,22 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http2)?;
+        let http3 = self
+            .profile
+            .http3()
+            .map(|settings| {
+                Http3Connector::new_with_additional_roots(
+                    settings.tls(),
+                    settings.quic_transport(),
+                    settings.http3(),
+                    settings.request(),
+                    roots(),
+                )
+            })
+            .transpose()
+            .map_err(BuildError::http3)?;
 
-        if http1.is_none() && http2.is_none() {
+        if http1.is_none() && http2.is_none() && http3.is_none() {
             return Err(BuildError::no_supported_protocol());
         }
 
@@ -143,8 +162,21 @@ impl ClientBuilder {
             inner: ClientInner {
                 http1,
                 http2,
+                http3,
                 route: self.route,
             },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HttpProtocol;
+
+    #[test]
+    fn protocol_trace_names_match_negotiated_tokens() {
+        assert_eq!(HttpProtocol::Http1.trace_name(), "http/1.1");
+        assert_eq!(HttpProtocol::Http2.trace_name(), "h2");
+        assert_eq!(HttpProtocol::Http3.trace_name(), "h3");
     }
 }

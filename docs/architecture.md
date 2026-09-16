@@ -2,7 +2,7 @@
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
 validated client profile. The current workspace owns profiles, a small routed
-H1/H2 client facade, concrete request paths, and the validation harness. Later
+H1/H2/H3 client facade, concrete request paths, and the validation harness. Later
 slices add reusable connections and session behavior. Phantom carries narrow,
 documented patches to upstream protocol engines only where their public APIs
 cannot preserve a measured client behavior.
@@ -27,8 +27,7 @@ flowchart TB
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Route["Current route<br/>direct · HTTP CONNECT"]
     FutureRoute["Later routes<br/>HTTPS proxy · SOCKS5 · UDP"]
-    FacadeRequest["Facade request<br/>routed H1/H2 GET"]
-    DirectH3["Lower-level forced H3<br/>one-shot GET"]
+    FacadeRequest["Facade request<br/>exact H1/H2/H3 GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
     H2["HTTP/2<br/>ordered headers · flow control"]
@@ -39,16 +38,14 @@ flowchart TB
     WS["WebSocket<br/>handshake + frames"]
 
     User --> Client
-    User --> DirectH3
     Profile --> Client
-    Profile --> DirectH3
     FacadeRequest --> H1
     FacadeRequest --> H2
+    FacadeRequest --> H3
     Client -.-> Session
     Client --> Route
     FutureRoute -.-> Route
     Client --> FacadeRequest
-    DirectH3 --> H3
     H1 --> TLS
     H2 --> TLS
     H3 --> QUIC
@@ -63,7 +60,7 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Client,Profile,Route,FacadeRequest,DirectH3,H1,H2,H3,TLS,QUIC current
+    class Client,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC current
     class Session,FutureRoute,SSE,WS planned
 ```
 
@@ -99,8 +96,10 @@ flowchart LR
     Masque["CONNECT-UDP / MASQUE"] -.-> Udp
 ```
 
-The current proxy slice covers plaintext HTTP CONNECT for H1/H2 origin TLS.
-The client or request owns the route, and the CONNECT field sequence contains
+The current proxy slice covers plaintext HTTP CONNECT for H1/H2 origin TLS;
+direct H3 uses UDP. Selecting H3 with an HTTP CONNECT route fails before proxy
+or origin I/O because that route has no UDP capability. The client or request
+owns the route, and the CONNECT field sequence contains
 one typed destination-authority placeholder. Validation happens before proxy
 I/O. Negotiation is bounded, accepts a final 2xx after bounded informational
 responses, preserves bytes read beyond the response head, and never retries
@@ -151,8 +150,8 @@ The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.
 `phantom-quic-btls` implements Quinn's crypto-provider seam with the same
 patched BoringSSL lineage used by Phantom's TCP TLS path. The FFI and
 key-schedule boundary stays isolated there; `phantom-net` owns the direct
-request and connection lifecycle. The public `phantom` facade does not
-expose Quinn or `h3` types.
+request and connection lifecycle. The public `phantom` facade owns a validated
+connector but does not expose Quinn or `h3` types.
 
 Stock QUIC stacks expose many transport-parameter values but do not expose all
 the ordering and encoding choices visible in browser captures. Phantom uses

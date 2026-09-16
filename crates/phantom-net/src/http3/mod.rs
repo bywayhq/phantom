@@ -20,6 +20,7 @@ use request::{prepare_get, prepare_request};
 
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
+pub use connector::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
 pub use error::{Http3Error, Http3ErrorKind};
 #[cfg(feature = "qlog")]
 pub use qlog::{QlogCapture, QlogCaptureError};
@@ -44,6 +45,16 @@ pub async fn send_get(
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<Response<Http3Body>, Http3Error> {
+    let request = prepare_traced_get(request_settings, authority, target, headers)?;
+    send_request(remote, server_name, crypto, settings, request).await
+}
+
+fn prepare_traced_get(
+    request_settings: &Http3RequestSettings,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Request<()>, Http3Error> {
     let span = debug_span!(
         "http3.request.prepare",
         method = "GET",
@@ -64,8 +75,7 @@ pub async fn send_get(
             span.record("error_kind", error.trace_kind());
         }
     }
-    let request = request?;
-    send_request(remote, server_name, crypto, settings, request).await
+    request
 }
 
 /// Sends one request over a new direct QUIC and HTTP/3 connection.
@@ -148,9 +158,7 @@ async fn send_request_inner(
                 )
             })?
             .await
-            .map_err(|error| {
-                Http3Error::with_source(Http3ErrorKind::Connection, "QUIC connection failed", error)
-            })?;
+            .map_err(connection_error)?;
         require_h3(&connection)?;
         debug!("QUIC connection established with exact h3 ALPN");
 
@@ -269,12 +277,6 @@ fn endpoint(
     #[cfg(not(feature = "qlog"))]
     let _ = diagnostics;
 
-    let bind_address = match remote.ip() {
-        IpAddr::V4(_) => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
-        IpAddr::V6(_) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
-    };
-    let socket = UdpSocket::bind(bind_address).map_err(endpoint_error)?;
-    socket.set_nonblocking(true).map_err(endpoint_error)?;
     let reset_key = StatelessResetKey::generate().map_err(endpoint_error)?;
     let mut endpoint_config = quinn::EndpointConfig::new(Arc::new(reset_key));
     let mut transport_config = quinn::TransportConfig::default();
@@ -300,6 +302,12 @@ fn endpoint(
     }
     let mut client_config = quinn::ClientConfig::new(crypto);
     client_config.transport_config(Arc::new(transport_config));
+    let bind_address = match remote.ip() {
+        IpAddr::V4(_) => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
+        IpAddr::V6(_) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
+    };
+    let socket = UdpSocket::bind(bind_address).map_err(endpoint_error)?;
+    socket.set_nonblocking(true).map_err(endpoint_error)?;
     let mut endpoint =
         quinn::Endpoint::new(endpoint_config, None, socket, Arc::new(quinn::TokioRuntime))
             .map_err(endpoint_error)?;
@@ -313,6 +321,24 @@ fn endpoint_error(error: impl std::error::Error + Send + Sync + 'static) -> Http
         "failed to initialize UDP/QUIC endpoint",
         error,
     )
+}
+
+fn connection_error(error: quinn::ConnectionError) -> Http3Error {
+    let kind = if connection_error_is_tls(&error) {
+        Http3ErrorKind::Handshake
+    } else {
+        Http3ErrorKind::Connection
+    };
+    Http3Error::with_source(kind, "QUIC connection failed", error)
+}
+
+fn connection_error_is_tls(error: &quinn::ConnectionError) -> bool {
+    let code = match error {
+        quinn::ConnectionError::TransportError(error) => error.code,
+        quinn::ConnectionError::ConnectionClosed(close) => close.error_code,
+        _ => return false,
+    };
+    (0x100..0x200).contains(&u64::from(code))
 }
 
 fn require_h3(connection: &quinn::Connection) -> Result<(), Http3Error> {
@@ -388,6 +414,7 @@ impl Drop for PendingRequest {
 }
 
 mod body;
+mod connector;
 mod datagram;
 mod driver;
 mod error;

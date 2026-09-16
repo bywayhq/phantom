@@ -71,6 +71,67 @@ async fn rejects_extension_requests_before_connecting() -> TestResult<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn untrusted_certificate_is_a_handshake_failure() -> TestResult<()> {
+    let server_identity = TestIdentity::generate()?;
+    let unrelated_identity = TestIdentity::generate()?;
+    let (address, endpoint) = server_endpoint(&server_identity)?;
+    let server = tokio::spawn(async move {
+        if let Some(incoming) = endpoint.accept().await {
+            let _ = incoming.await;
+        }
+    });
+    let request = Request::get(format!("https://{TEST_SERVER_NAME}/")).body(())?;
+
+    let error = timeout(
+        TEST_TIMEOUT,
+        send_test_request(
+            address,
+            TEST_SERVER_NAME,
+            client_config(&unrelated_identity)?,
+            request,
+        ),
+    )
+    .await
+    .map_err(|_| "untrusted-certificate request timed out")?
+    .err()
+    .ok_or("untrusted certificate was accepted")?;
+
+    server.abort();
+    assert_eq!(error.kind(), Http3ErrorKind::Handshake);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn wrong_certificate_name_is_a_handshake_failure() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let server = tokio::spawn(async move {
+        if let Some(incoming) = endpoint.accept().await {
+            let _ = incoming.await;
+        }
+    });
+    let request = Request::get("https://wrong.phantom.test/").body(())?;
+
+    let error = timeout(
+        TEST_TIMEOUT,
+        send_test_request(
+            address,
+            "wrong.phantom.test",
+            client_config(&identity)?,
+            request,
+        ),
+    )
+    .await
+    .map_err(|_| "wrong-certificate-name request timed out")?
+    .err()
+    .ok_or("wrong certificate name was accepted")?;
+
+    server.abort();
+    assert_eq!(error.kind(), Http3ErrorKind::Handshake);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn streams_data_and_trailers_over_boringssl_quic() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = client_config(&identity)?;
@@ -526,6 +587,7 @@ async fn join_server(server: JoinHandle<TestResult<()>>) -> TestResult<()> {
 }
 
 mod adversarial;
+mod connector;
 mod datagram;
 mod profile;
 mod qpack;

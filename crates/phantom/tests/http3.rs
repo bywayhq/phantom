@@ -1,0 +1,305 @@
+//! Public HTTP/3 facade integration tests.
+
+#[path = "support/h3.rs"]
+mod h3_support;
+#[allow(dead_code)]
+#[path = "support/tls.rs"]
+mod tls_support;
+
+use std::{
+    future::Future,
+    io,
+    net::{Ipv4Addr, TcpListener as StdTcpListener, UdpSocket},
+    task::{Context, Waker},
+    time::Duration,
+};
+
+use bytes::Bytes;
+use http::{HeaderMap, HeaderValue, Response, StatusCode};
+use http_body_util::BodyExt;
+use phantom::{
+    Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route, profile::ClientProfile,
+};
+use tokio::{sync::oneshot, time::timeout};
+
+use h3_support::{accept_request, client_settings, server_endpoint};
+use tls_support::{TestIdentity, TestResult, tls_settings};
+
+const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+
+#[tokio::test]
+async fn public_client_streams_http3_data_and_trailers() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let (release, released) = oneshot::channel();
+        let (client_done, done_received) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+            let authority = request
+                .uri()
+                .authority()
+                .ok_or("HTTP/3 request omitted its authority")?
+                .to_string();
+            let target = request
+                .uri()
+                .path_and_query()
+                .ok_or("HTTP/3 request omitted its target")?
+                .to_string();
+            let repeated = request
+                .headers()
+                .get_all("x-repeat")
+                .iter()
+                .map(|value| value.as_bytes().to_vec())
+                .collect::<Vec<_>>();
+
+            stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::PARTIAL_CONTENT)
+                        .body(())?,
+                )
+                .await?;
+            stream.send_data(Bytes::from_static(b"first")).await?;
+            released.await.map_err(io::Error::other)?;
+            stream.send_data(Bytes::from_static(b"later")).await?;
+            let mut trailers = HeaderMap::new();
+            trailers.insert("x-finished", HeaderValue::from_static("yes"));
+            stream.send_trailers(trailers).await?;
+            stream.finish().await?;
+            done_received.await.map_err(io::Error::other)?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((authority, target, repeated))
+        });
+
+        let client = test_client(&identity)?;
+        let response = client
+            .get(
+                HttpProtocol::Http3,
+                &format!("https://{address}/resource?item=1"),
+            )?
+            .headers(vec![
+                RequestHeader::new("x-first", "one"),
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("x-repeat", "beta"),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+
+        let mut body = response.into_body();
+        assert_eq!(next_data(&mut body).await?, "first");
+        release
+            .send(())
+            .map_err(|_| "HTTP/3 server stopped before later body release")?;
+        assert_eq!(next_data(&mut body).await?, "later");
+        let trailers = next_trailers(&mut body).await?;
+        assert_eq!(
+            trailers
+                .get("x-finished")
+                .and_then(|value| value.to_str().ok()),
+            Some("yes")
+        );
+        assert!(body.frame().await.is_none());
+
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/3 server stopped before client completion")?;
+        let (authority, target, repeated) = server.await??;
+        assert_eq!(authority, address.to_string());
+        assert_eq!(target, "/resource?item=1");
+        assert_eq!(repeated, [b"alpha".to_vec(), b"beta".to_vec()]);
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn unavailable_http3_fails_before_network_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = tls_support::test_client(&identity, false)?;
+    let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    origin.set_nonblocking(true)?;
+    let address = origin.local_addr()?;
+
+    let error = match client.get(HttpProtocol::Http3, &format!("https://{address}/")) {
+        Ok(_) => return Err("HTTP/3 unexpectedly available".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::ProtocolUnavailable);
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+    assert_udp_untouched(&origin)?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_http3_field_fails_before_udp_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = test_client(&identity)?;
+    let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    origin.set_nonblocking(true)?;
+    let address = origin.local_addr()?;
+
+    let result = client
+        .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+        .header(RequestHeader::new("X-Uppercase", "rejected"))
+        .send()
+        .await;
+    let error = match result {
+        Ok(_) => return Err("invalid HTTP/3 field unexpectedly sent".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::Http3);
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+    assert_udp_untouched(&origin)?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn certificate_failure_has_public_tls_category() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let server = tokio::spawn(async move {
+            if let Some(incoming) = endpoint.accept().await {
+                let _ = incoming.await;
+            }
+        });
+        let mut tcp_tls = tls_settings();
+        tcp_tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
+        let profile = ClientProfile::new(tcp_tls).with_http3(client_settings());
+        let client = Client::builder(profile).build()?;
+
+        let error = client
+            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .send()
+            .await
+            .err()
+            .ok_or("untrusted HTTP/3 certificate was accepted")?;
+
+        server.abort();
+        assert_eq!(error.kind(), RequestErrorKind::Tls);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http_connect_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let proxy = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    proxy.set_nonblocking(true)?;
+    let proxy_address = proxy.local_addr()?;
+    let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    origin.set_nonblocking(true)?;
+    let origin_address = origin.local_addr()?;
+    let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+
+    let default_route_client = client_builder(&identity).route(route.clone()).build()?;
+    let error = match default_route_client
+        .get(
+            HttpProtocol::Http3,
+            &format!("https://{origin_address}/default"),
+        )?
+        .send()
+        .await
+    {
+        Ok(_) => return Err("HTTP/3 used a default HTTP CONNECT route".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+
+    let override_client = test_client(&identity)?;
+    let error = match override_client
+        .get(
+            HttpProtocol::Http3,
+            &format!("https://{origin_address}/override"),
+        )?
+        .route(route)
+        .send()
+        .await
+    {
+        Ok(_) => return Err("HTTP/3 used a request HTTP CONNECT override".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+
+    assert!(matches!(
+        proxy.accept(),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock
+    ));
+    assert_udp_untouched(&origin)?;
+    Ok(())
+}
+
+#[test]
+fn polling_http3_request_without_tokio_returns_runtime_error() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = test_client(&identity)?;
+    let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:9/")?;
+    let mut future = std::pin::pin!(request.send());
+    let mut context = Context::from_waker(Waker::noop());
+
+    let result = match future.as_mut().poll(&mut context) {
+        std::task::Poll::Ready(result) => result,
+        std::task::Poll::Pending => return Err("HTTP/3 request waited without Tokio".into()),
+    };
+    let error = match result {
+        Ok(_) => return Err("HTTP/3 request completed outside Tokio".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+    Ok(())
+}
+
+fn client_builder(identity: &TestIdentity) -> phantom::ClientBuilder {
+    let mut tcp_tls = tls_settings();
+    tcp_tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
+    let profile = ClientProfile::new(tcp_tls).with_http3(client_settings());
+    Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
+}
+
+fn test_client(identity: &TestIdentity) -> TestResult<Client> {
+    Ok(client_builder(identity).build()?)
+}
+
+async fn next_data(body: &mut phantom::ResponseBody) -> TestResult<Bytes> {
+    loop {
+        let frame = body.frame().await.ok_or("response body ended")??;
+        if let Ok(data) = frame.into_data() {
+            if !data.is_empty() {
+                return Ok(data);
+            }
+        }
+    }
+}
+
+async fn next_trailers(body: &mut phantom::ResponseBody) -> TestResult<HeaderMap> {
+    loop {
+        let frame = body.frame().await.ok_or("response body ended")??;
+        if let Ok(trailers) = frame.into_trailers() {
+            return Ok(trailers);
+        }
+    }
+}
+
+fn assert_udp_untouched(socket: &UdpSocket) -> TestResult<()> {
+    let mut byte = [0_u8; 1];
+    assert!(matches!(
+        socket.recv_from(&mut byte),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock
+    ));
+    Ok(())
+}
+
+async fn bounded<F>(future: F) -> TestResult<()>
+where
+    F: Future<Output = TestResult<()>>,
+{
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(|_| "HTTP/3 integration test exceeded its deadline")?
+}

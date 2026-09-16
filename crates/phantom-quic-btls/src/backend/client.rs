@@ -2,9 +2,11 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::fmt;
 use std::io::Cursor;
+use std::net::IpAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use btls::ssl::SslContext;
+use btls::ssl::{KeyShare, SslContext};
+use phantom_profile::{CipherSuite, NamedGroup, TlsSettings, TlsVersion};
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
     ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
@@ -33,6 +35,7 @@ const H3_PROTOCOL: &[u8] = b"h3";
 pub struct QuicClientConfig {
     context: SslContext,
     transport_profile: Option<TransportParameterProfile>,
+    tls_profile: ClientTlsProfile,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -44,6 +47,11 @@ impl QuicClientConfig {
         Self {
             context,
             transport_profile: None,
+            tls_profile: ClientTlsProfile {
+                key_shares: None,
+                ech_grease: false,
+                ech_grease_payload_length: None,
+            },
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -57,9 +65,30 @@ impl QuicClientConfig {
         Ok(Self {
             context,
             transport_profile: Some(TransportParameterProfile::new(settings)?),
+            tls_profile: ClientTlsProfile::default(),
             #[cfg(test)]
             derivation_failure: None,
         })
+    }
+
+    /// Applies TLS controls that BoringSSL owns per QUIC session.
+    ///
+    /// The current one-shot QUIC path requires TLS 1.3, exact `h3` ALPN, no
+    /// TCP ALPS, and no tickets or early data. Profiles must state those
+    /// constraints explicitly; this method never rewrites them silently.
+    pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
+        self.tls_profile = ClientTlsProfile::new(settings)?;
+        Ok(self)
+    }
+
+    /// Validates TLS controls without constructing a QUIC session.
+    pub fn validate_tls_profile(settings: &TlsSettings) -> Result<(), QuicTlsProfileError> {
+        ClientTlsProfile::new(settings).map(|_| ())
+    }
+
+    /// Validates a DNS name or IP literal before endpoint construction.
+    pub fn validate_server_name(server_name: &str) -> Result<(), InvalidServerName> {
+        validate_server_name_inner(server_name)
     }
 
     #[cfg(test)]
@@ -96,6 +125,18 @@ impl fmt::Debug for QuicClientConfig {
         formatter.write_str("QuicClientConfig")
     }
 }
+
+/// A server name that cannot be used for QUIC certificate verification.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InvalidServerName;
+
+impl fmt::Display for InvalidServerName {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("invalid QUIC server name")
+    }
+}
+
+impl std::error::Error for InvalidServerName {}
 
 /// Negotiated information made available by Quinn once ALPN is selected.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -142,7 +183,8 @@ impl crypto::ClientConfig for QuicClientConfig {
         params: &TransportParameters,
     ) -> Result<Box<dyn crypto::Session>, ConnectError> {
         let version = interpret_version(version)?;
-        validate_dns_name(server_name)?;
+        validate_server_name_inner(server_name)
+            .map_err(|_| ConnectError::InvalidServerName(server_name.into()))?;
 
         let encoded_parameters = if let Some(profile) = &self.transport_profile {
             profile.encode(params, version).map_err(|error| {
@@ -158,8 +200,13 @@ impl crypto::ClientConfig for QuicClientConfig {
             params.write(&mut encoded);
             encoded
         };
-        let mut backend = ClientSession::new(&self.context, server_name, &encoded_parameters)
-            .map_err(|error| map_start_error(server_name, error))?;
+        let mut backend = ClientSession::new_with_profile(
+            &self.context,
+            server_name,
+            &encoded_parameters,
+            &self.tls_profile,
+        )
+        .map_err(|error| map_start_error(server_name, error))?;
         backend
             .start_handshake()
             .map_err(|error| map_start_error(server_name, error))?;
@@ -176,6 +223,165 @@ impl crypto::ClientConfig for QuicClientConfig {
             state: Mutex::new(state),
         }))
     }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct ClientTlsProfile {
+    key_shares: Option<Box<[KeyShare]>>,
+    ech_grease: bool,
+    ech_grease_payload_length: Option<u16>,
+}
+
+impl ClientTlsProfile {
+    fn new(settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
+        settings
+            .validate()
+            .map_err(|error| QuicTlsProfileError::invalid(error.field(), error.to_string()))?;
+        if settings.min_version != TlsVersion::Tls13 || settings.max_version != TlsVersion::Tls13 {
+            return Err(QuicTlsProfileError::invalid(
+                "version range",
+                "QUIC requires an explicit TLS 1.3-only profile",
+            ));
+        }
+        if settings.alpn_protocols.len() != 1 || settings.alpn_protocols[0].as_ref() != b"h3" {
+            return Err(QuicTlsProfileError::invalid(
+                "alpn_protocols",
+                "QUIC requires the exact `h3` ALPN protocol",
+            ));
+        }
+        if settings.alps.is_some() {
+            return Err(QuicTlsProfileError::invalid(
+                "alps",
+                "the direct HTTP/3 path does not advertise TCP ALPS",
+            ));
+        }
+        if settings.session_tickets {
+            return Err(QuicTlsProfileError::invalid(
+                "session_tickets",
+                "the one-shot QUIC path disables tickets and early data",
+            ));
+        }
+        if settings
+            .cipher_suites
+            .iter()
+            .any(|suite| !is_tls13_cipher_suite(*suite))
+        {
+            return Err(QuicTlsProfileError::invalid(
+                "cipher_suites",
+                "QUIC TLS profiles must contain only TLS 1.3 cipher suites",
+            ));
+        }
+
+        let key_shares = settings
+            .key_shares
+            .iter()
+            .copied()
+            .map(key_share)
+            .collect::<Result<Vec<_>, _>>()?
+            .into_boxed_slice();
+        Ok(Self {
+            key_shares: Some(key_shares),
+            ech_grease: settings.ech_grease,
+            ech_grease_payload_length: settings.ech_grease_payload_length,
+        })
+    }
+
+    pub(super) fn key_shares(&self) -> Option<&[KeyShare]> {
+        self.key_shares.as_deref()
+    }
+
+    pub(super) const fn ech_grease(&self) -> bool {
+        self.ech_grease
+    }
+
+    pub(super) const fn ech_grease_payload_length(&self) -> Option<u16> {
+        self.ech_grease_payload_length
+    }
+}
+
+const fn is_tls13_cipher_suite(suite: CipherSuite) -> bool {
+    matches!(
+        suite,
+        CipherSuite::Aes128GcmSha256
+            | CipherSuite::Aes256GcmSha384
+            | CipherSuite::Chacha20Poly1305Sha256
+    )
+}
+
+fn key_share(group: NamedGroup) -> Result<KeyShare, QuicTlsProfileError> {
+    match group {
+        NamedGroup::X25519MlKem768 => Ok(KeyShare::X25519_MLKEM768),
+        NamedGroup::X25519 => Ok(KeyShare::X25519),
+        NamedGroup::Secp256r1 => Ok(KeyShare::P256),
+        NamedGroup::Secp384r1 => Ok(KeyShare::P384),
+        NamedGroup::Secp521r1 => Ok(KeyShare::P521),
+        NamedGroup::Ffdhe2048 => Ok(KeyShare::FFDHE2048),
+        NamedGroup::Ffdhe3072 => Ok(KeyShare::FFDHE3072),
+        _ => Err(QuicTlsProfileError::unsupported(
+            "key_shares",
+            "profile contains a key share unsupported by the BoringSSL QUIC adapter",
+        )),
+    }
+}
+
+/// Failure while applying TLS controls to QUIC sessions.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct QuicTlsProfileError {
+    kind: QuicTlsProfileErrorKind,
+    field: &'static str,
+    message: Box<str>,
+}
+
+impl QuicTlsProfileError {
+    fn invalid(field: &'static str, message: impl Into<Box<str>>) -> Self {
+        Self {
+            kind: QuicTlsProfileErrorKind::InvalidProfile,
+            field,
+            message: message.into(),
+        }
+    }
+
+    fn unsupported(field: &'static str, message: impl Into<Box<str>>) -> Self {
+        Self {
+            kind: QuicTlsProfileErrorKind::UnsupportedSetting,
+            field,
+            message: message.into(),
+        }
+    }
+
+    /// Returns the broad failure category.
+    #[must_use]
+    pub const fn kind(&self) -> QuicTlsProfileErrorKind {
+        self.kind
+    }
+
+    /// Returns the incompatible profile field.
+    #[must_use]
+    pub const fn field(&self) -> &'static str {
+        self.field
+    }
+}
+
+impl fmt::Display for QuicTlsProfileError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "QUIC TLS profile {}: {}",
+            self.field, self.message
+        )
+    }
+}
+
+impl std::error::Error for QuicTlsProfileError {}
+
+/// Category of a QUIC TLS profile failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum QuicTlsProfileErrorKind {
+    /// The profile contradicts mandatory QUIC TLS behavior.
+    InvalidProfile,
+    /// The adapter cannot represent one supplied TLS control.
+    UnsupportedSetting,
 }
 
 struct QuicSession {
@@ -548,12 +754,14 @@ fn interpret_version(version: u32) -> Result<QuicVersion, ConnectError> {
     }
 }
 
-fn validate_dns_name(server_name: &str) -> Result<(), ConnectError> {
-    let invalid = server_name.ends_with('.')
-        || server_name.contains('_')
-        || DnsName::try_from(server_name).is_err();
+fn validate_server_name_inner(server_name: &str) -> Result<(), InvalidServerName> {
+    let valid_ip = server_name.parse::<IpAddr>().is_ok();
+    let invalid = !valid_ip
+        && (server_name.ends_with('.')
+            || server_name.contains('_')
+            || DnsName::try_from(server_name).is_err());
     if invalid {
-        Err(ConnectError::InvalidServerName(server_name.into()))
+        Err(InvalidServerName)
     } else {
         Ok(())
     }

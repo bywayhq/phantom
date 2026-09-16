@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use btls::x509::X509;
-use phantom_profile::chromium;
+use phantom_profile::{CipherSuite, NamedGroup, TlsVersion, chromium};
 use quinn_proto::crypto;
 use quinn_proto::{
     ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
@@ -233,11 +233,11 @@ fn later_key_derivation_failure_follows_a_successful_generation() {
 }
 
 #[test]
-fn rejects_unsupported_versions_and_ip_names_before_io() {
+fn rejects_unsupported_versions_and_invalid_names_before_io() {
     for (version, name, expected) in [
         (0xff00_001d, SERVER_NAME, "version"),
-        (0x0000_0001, "127.0.0.1", "name"),
-        (0x0000_0001, "::1", "name"),
+        (0x0000_0001, "bad_name.example", "name"),
+        (0x0000_0001, "example.com.", "name"),
     ] {
         let context = client_context(true);
         let result = crypto::ClientConfig::start_session(
@@ -273,6 +273,100 @@ fn profiled_transport_mismatch_has_a_truthful_connect_error() {
         result,
         Err(ConnectError::InvalidTransportParameters(_))
     ));
+}
+
+#[test]
+fn quic_tls_profile_rejects_adapted_tcp_semantics() {
+    let base = h3_tls_settings();
+    for (settings, field) in [
+        (
+            {
+                let mut settings = base.clone();
+                settings.min_version = TlsVersion::Tls12;
+                settings
+            },
+            "version range",
+        ),
+        (
+            {
+                let mut settings = base.clone();
+                settings.alpn_protocols = vec![Box::from(&b"h2"[..])];
+                settings
+            },
+            "alpn_protocols",
+        ),
+        (
+            {
+                let mut settings = base.clone();
+                settings.alps = Some(phantom_profile::AlpsSettings {
+                    protocol: Box::from(&b"h3"[..]),
+                    settings: Box::new([]),
+                    use_new_codepoint: true,
+                });
+                settings
+            },
+            "alps",
+        ),
+        (
+            {
+                let mut settings = base.clone();
+                settings.session_tickets = true;
+                settings
+            },
+            "session_tickets",
+        ),
+        (
+            {
+                let mut settings = base.clone();
+                settings
+                    .cipher_suites
+                    .push(CipherSuite::EcdheRsaAes128GcmSha256);
+                settings
+            },
+            "cipher_suites",
+        ),
+    ] {
+        let context = client_context(true);
+        let error = QuicClientConfig::new(context.0)
+            .with_tls_profile(&settings)
+            .err()
+            .unwrap_or_else(|| panic!("invalid QUIC TLS {field} was accepted"));
+        assert_eq!(error.field(), field);
+    }
+}
+
+#[test]
+fn quic_tls_profile_changes_raw_client_hello_key_shares_and_ech() {
+    let mut settings = h3_tls_settings();
+    settings.groups = vec![NamedGroup::X25519];
+    settings.key_shares = settings.groups.clone();
+    settings.ech_grease = true;
+    settings.ech_grease_payload_length = Some(64);
+
+    let context = client_context(true);
+    let config = test_ok(
+        QuicClientConfig::new(context.0).with_tls_profile(&settings),
+        "QUIC TLS profile",
+    );
+    let mut client = test_ok(
+        crypto::ClientConfig::start_session(
+            Arc::new(config),
+            0x0000_0001,
+            SERVER_NAME,
+            &client_transport_parameters(),
+        ),
+        "profiled QUIC client session",
+    );
+    let mut client_hello = Vec::new();
+    assert!(client.write_handshake(&mut client_hello).is_none());
+
+    let key_share = extension(&client_hello, 0x0033)
+        .unwrap_or_else(|| panic!("profiled ClientHello omitted key_share"));
+    assert_eq!(key_share_groups(key_share), vec![0x001d]);
+    let ech = extension(&client_hello, 0xfe0d)
+        .unwrap_or_else(|| panic!("profiled ClientHello omitted ECH GREASE"));
+    assert_eq!(ech.len(), 42 + 64);
+    assert_eq!(&ech[40..42], &64_u16.to_be_bytes());
 }
 
 #[test]
@@ -325,4 +419,63 @@ fn hex<const N: usize>(input: &str) -> [u8; N] {
             .unwrap_or_else(|error| panic!("fixture is not hexadecimal: {error}"));
     }
     output
+}
+
+fn h3_tls_settings() -> phantom_profile::TlsSettings {
+    let mut settings = chromium::v152_macos_tls();
+    settings.min_version = TlsVersion::Tls13;
+    settings.max_version = TlsVersion::Tls13;
+    settings.cipher_suites = vec![
+        CipherSuite::Aes128GcmSha256,
+        CipherSuite::Aes256GcmSha384,
+        CipherSuite::Chacha20Poly1305Sha256,
+    ];
+    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
+    settings.alps = None;
+    settings.session_tickets = false;
+    settings
+}
+
+fn extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {
+    let mut offset = 4 + 2 + 32;
+    offset += 1 + usize::from(*client_hello.get(offset)?);
+    let cipher_len = usize::from(u16::from_be_bytes([
+        *client_hello.get(offset)?,
+        *client_hello.get(offset + 1)?,
+    ]));
+    offset += 2 + cipher_len;
+    offset += 1 + usize::from(*client_hello.get(offset)?);
+    let extensions_len = usize::from(u16::from_be_bytes([
+        *client_hello.get(offset)?,
+        *client_hello.get(offset + 1)?,
+    ]));
+    offset += 2;
+    let end = offset.checked_add(extensions_len)?;
+    while offset < end {
+        let kind = u16::from_be_bytes([*client_hello.get(offset)?, *client_hello.get(offset + 1)?]);
+        let len = usize::from(u16::from_be_bytes([
+            *client_hello.get(offset + 2)?,
+            *client_hello.get(offset + 3)?,
+        ]));
+        offset += 4;
+        let next = offset.checked_add(len)?;
+        let payload = client_hello.get(offset..next)?;
+        if kind == expected {
+            return Some(payload);
+        }
+        offset = next;
+    }
+    None
+}
+
+fn key_share_groups(mut extension: &[u8]) -> Vec<u16> {
+    let list_len = usize::from(u16::from_be_bytes([extension[0], extension[1]]));
+    extension = &extension[2..2 + list_len];
+    let mut groups = Vec::new();
+    while !extension.is_empty() {
+        groups.push(u16::from_be_bytes([extension[0], extension[1]]));
+        let key_len = usize::from(u16::from_be_bytes([extension[2], extension[3]]));
+        extension = &extension[4 + key_len..];
+    }
+    groups
 }

@@ -10,24 +10,24 @@ fn version_validation_happens_before_io() {
 }
 
 #[test]
-fn dns_name_validation_accepts_ascii_dns_names() {
+fn server_name_validation_accepts_dns_names_and_ip_literals() {
     for valid in [
         "localhost",
         "example.com",
         "EXAMPLE.COM",
         "a-b.example",
         "xn--bcher-kva.example",
+        "127.0.0.1",
+        "::1",
     ] {
-        assert_eq!(validate_dns_name(valid), Ok(()));
+        assert_eq!(validate_server_name_inner(valid), Ok(()));
     }
 }
 
 #[test]
-fn dns_name_validation_rejects_non_dns_and_absolute_names() {
+fn server_name_validation_rejects_invalid_and_absolute_names() {
     for invalid in [
         "",
-        "127.0.0.1",
-        "::1",
         "example.com.",
         "bad_name.example",
         "-bad.example",
@@ -37,8 +37,8 @@ fn dns_name_validation_rejects_non_dns_and_absolute_names() {
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example",
     ] {
         assert!(matches!(
-            validate_dns_name(invalid),
-            Err(ConnectError::InvalidServerName(_))
+            validate_server_name_inner(invalid),
+            Err(InvalidServerName)
         ));
     }
 }

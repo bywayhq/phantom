@@ -64,8 +64,12 @@ pub(super) fn apply(
     }
 
     builder.set_preserve_tls13_cipher_list(true);
+    let tls13_only =
+        settings.min_version == TlsVersion::Tls13 && settings.max_version == TlsVersion::Tls13;
     builder
-        .set_cipher_list(&join_names(&settings.cipher_suites, cipher_name)?)
+        .set_cipher_list(&join_names(&settings.cipher_suites, |cipher| {
+            cipher_name(cipher, tls13_only)
+        })?)
         .map_err(|error| TlsError::backend("cipher_suites", error))?;
 
     for algorithm in &settings.certificate_compression {
@@ -120,8 +124,11 @@ fn version(field: &'static str, version: TlsVersion) -> Result<SslVersion, TlsEr
     require_supported(field, version, mapped)
 }
 
-fn cipher_name(cipher: CipherSuite) -> Result<&'static str, TlsError> {
+fn cipher_name(cipher: CipherSuite, tls13_only: bool) -> Result<&'static str, TlsError> {
     let mapped = match cipher {
+        CipherSuite::Aes128GcmSha256 if tls13_only => Some("AES128"),
+        CipherSuite::Aes256GcmSha384 if tls13_only => Some("AES256"),
+        CipherSuite::Chacha20Poly1305Sha256 if tls13_only => Some("CHACHA20"),
         CipherSuite::Aes128GcmSha256 => Some("TLS_AES_128_GCM_SHA256"),
         CipherSuite::Aes256GcmSha384 => Some("TLS_AES_256_GCM_SHA384"),
         CipherSuite::Chacha20Poly1305Sha256 => Some("TLS_CHACHA20_POLY1305_SHA256"),

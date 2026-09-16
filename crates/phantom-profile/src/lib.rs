@@ -11,7 +11,7 @@ pub mod tls;
 mod client;
 mod identity;
 
-pub use client::ClientProfile;
+pub use client::{ClientProfile, Http3ClientSettings};
 pub use http2::{
     Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,
 };
