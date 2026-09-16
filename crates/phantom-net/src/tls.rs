@@ -74,6 +74,20 @@ impl TlsConnector {
         )
     }
 
+    /// Builds a connector with the bundled public roots and additional DER certificates.
+    pub(crate) fn new_with_additional_roots<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+    ) -> Result<Self, TlsError> {
+        Self::build_with_roots(
+            settings,
+            webpki_root_certs::TLS_SERVER_ROOT_CERTS
+                .iter()
+                .map(AsRef::as_ref)
+                .chain(roots),
+        )
+    }
+
     fn build_with_roots<'a>(
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
@@ -112,8 +126,8 @@ impl TlsConnector {
 
         debug!("building TLS connector");
 
-        let mut root_store =
-            X509StoreBuilder::new().map_err(|error| TlsError::backend("trust store", error))?;
+        let mut root_store = X509StoreBuilder::new()
+            .map_err(|error| TlsError::trust_store("failed to create trust store", error))?;
         for (index, der) in roots.into_iter().enumerate() {
             let certificate =
                 X509::from_der(der).map_err(|error| TlsError::root_certificate(index, error))?;
@@ -295,7 +309,12 @@ impl HandshakeOutcome {
 impl Drop for HandshakeOutcome {
     fn drop(&mut self) {
         if !self.recorded {
-            self.span.record("outcome", "cancelled");
+            let outcome = if std::thread::panicking() {
+                "panicked"
+            } else {
+                "cancelled"
+            };
+            self.span.record("outcome", outcome);
         }
     }
 }
@@ -420,6 +439,8 @@ pub enum TlsErrorKind {
     InvalidConfiguration,
     /// The configured TLS backend rejected a setting.
     BackendConfiguration,
+    /// A configured trust root could not be loaded.
+    TrustStore,
     /// The profile contains a setting this backend version cannot translate.
     UnsupportedSetting,
     /// The TLS handshake failed.
@@ -431,6 +452,7 @@ impl TlsErrorKind {
         match self {
             Self::InvalidConfiguration => "invalid_configuration",
             Self::BackendConfiguration => "backend_configuration",
+            Self::TrustStore => "trust_store",
             Self::UnsupportedSetting => "unsupported_setting",
             Self::Handshake => "handshake",
         }
@@ -484,10 +506,17 @@ impl TlsError {
     }
 
     fn root_certificate(index: usize, source: ErrorStack) -> Self {
+        Self::trust_store(
+            format!("root certificate at index {index} is invalid"),
+            source,
+        )
+    }
+
+    fn trust_store(message: impl Into<Box<str>>, source: ErrorStack) -> Self {
         Self {
-            kind: TlsErrorKind::BackendConfiguration,
+            kind: TlsErrorKind::TrustStore,
             field: Some("trust store"),
-            message: format!("root certificate at index {index} is invalid").into(),
+            message: message.into(),
             source: Some(Box::new(source)),
         }
     }

@@ -23,7 +23,7 @@ http-body-util = "0.1.3"
 phantom-profile = { path = "../phantom-profile" }
 phantom-quic-btls = { path = "../phantom-quic-btls" }
 quinn.workspace = true
-tokio = { version = "1.53.1", features = ["macros", "rt", "sync"] }
+tokio = { version = "1.53.1", features = ["macros", "net", "rt", "sync"] }
 tracing = "0.1.41"
 webpki-root-certs = "1.0.9"
 wreq-proto = "=0.2.5"

@@ -44,18 +44,19 @@ until the session cache, replay policy, and request eligibility rules exist.
 BoringSSL owns TLS record sequence numbers and nonce construction; Phantom
 does not recreate record protection.
 
-## Planned policy seam
+## Connection policy seam
 
-The public client will resolve a wire profile and connection policy before an
-attempt starts. A conflict returns a typed error. Policy never mutates the
-profile behind the caller's back, because that would make both pooling identity
-and packet differentials dishonest.
+The public client resolves its wire profile and additive trust roots before an
+attempt starts. A conflict returns a typed error. Additional DER roots extend
+the bundled public store without disabling chain or hostname verification.
+Policy never mutates the profile behind the caller's back, because that would
+make both later pooling identity and packet differentials dishonest.
 
 The first policy slice should be deliberately small:
 
 - minimum accepted TLS version;
 - allowed negotiated cipher suites;
-- certificate and hostname verification inputs; and
+- further certificate and hostname verification policy; and
 - resumption and early-data policy once session state exists.
 
 Negotiated TLS version, cipher suite, ALPN, resumption, and early-data status

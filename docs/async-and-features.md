@@ -8,10 +8,14 @@ semantics.
 
 Libraries enable only the Tokio features they use; Phantom does not enable
 Tokio's `full` feature. Library code never creates a process-global runtime or
-installs a tracing subscriber. The future public client will document that
-network operations run inside a compatible runtime and will return a typed
-construction or operation error where that contract can be checked instead of
-depending on an incidental panic.
+installs a tracing subscriber. Public client network operations run inside a
+compatible runtime. Runtime selection remains out of scope until a second
+implementation can prove the same lifecycle contract.
+
+Direct requests require a current Tokio runtime with network I/O enabled. A
+missing runtime is reported as `RuntimeUnavailable`. Tokio exposes no stable
+I/O-driver capability query and treats a runtime without I/O enabled as a
+programmer error, so that invalid runtime configuration can panic.
 
 ## Operation ownership
 

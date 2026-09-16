@@ -1,11 +1,11 @@
 # Architecture
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
-validated client profile. The current workspace owns profiles, concrete
-request paths, and the validation harness. A later facade will own protocol
-routing and session behavior. Phantom carries narrow, documented patches to
-upstream protocol engines only where their public APIs cannot preserve a
-measured client behavior.
+validated client profile. The current workspace owns profiles, a small direct
+H1/H2 client facade, concrete request paths, and the validation harness. Later
+slices add reusable connections and session behavior. Phantom carries narrow,
+documented patches to upstream protocol engines only where their public APIs
+cannot preserve a measured client behavior.
 
 That is the deliberate middle ground between wrapping curl and writing every
 protocol from scratch. curl and curl-impersonate remain valuable reference
@@ -26,7 +26,8 @@ flowchart TB
     Session["Session state<br/>cookies · cache hints · tickets"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Route["Route plan<br/>direct · HTTP(S) · SOCKS5"]
-    Request["Current request APIs<br/>one-shot GET"]
+    FacadeRequest["Facade request<br/>direct H1/H2 GET"]
+    DirectH3["Lower-level forced H3<br/>one-shot GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
     H2["HTTP/2<br/>ordered headers · flow control"]
@@ -36,14 +37,15 @@ flowchart TB
     SSE["SSE decoder<br/>over response body"]
     WS["WebSocket<br/>handshake + frames"]
 
-    User --> Request
-    Profile --> Request
-    Request --> H1
-    Request --> H2
-    User -.-> Client
+    User --> Client
+    User --> DirectH3
+    Profile --> Client
+    Profile --> DirectH3
+    FacadeRequest --> H1
+    FacadeRequest --> H2
     Client -.-> Session
-    Client -.-> Request
-    Request --> H3
+    Client --> FacadeRequest
+    DirectH3 --> H3
     H1 --> TLS
     H2 --> TLS
     H3 --> QUIC
@@ -58,8 +60,8 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Profile,Request,H1,H2,H3,TLS,QUIC current
-    class Client,Session,Route,SSE,WS planned
+    class Client,Profile,FacadeRequest,DirectH3,H1,H2,H3,TLS,QUIC current
+    class Session,Route,SSE,WS planned
 ```
 
 SSE is a response-body consumer, not another transport. WebSocket owns its
@@ -141,7 +143,7 @@ The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.
 `phantom-quic-btls` implements Quinn's crypto-provider seam with the same
 patched BoringSSL lineage used by Phantom's TCP TLS path. The FFI and
 key-schedule boundary stays isolated there; `phantom-net` owns the direct
-request and connection lifecycle. The future public `phantom` facade will not
+request and connection lifecycle. The public `phantom` facade does not
 expose Quinn or `h3` types.
 
 Stock QUIC stacks expose many transport-parameter values but do not expose all
@@ -205,7 +207,7 @@ backend trait.
 
 ```text
 crates/
-├── phantom/          # eventual public Client and session facade
+├── phantom/          # public Client facade; later session and pool ownership
 ├── phantom-profile/  # client-neutral identity and typed wire settings
 ├── phantom-net/      # concrete TLS, H1, H2, and later H3 mechanisms
 ├── phantom-quic-btls/ # isolated Quinn/BoringSSL client crypto provider

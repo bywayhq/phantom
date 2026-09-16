@@ -1,6 +1,6 @@
 //! One-shot HTTP/1.1 requests over the crate's TLS transport.
 
-use std::{error::Error as StdError, fmt};
+use std::{error::Error as StdError, fmt, future::Future};
 
 use http::Response;
 use phantom_profile::TlsSettings;
@@ -11,7 +11,10 @@ use super::{
     Http1Body, Http1Error, OperationOutcome, OriginForm, PreparedGet, RequestHeader,
     send_prepared_get,
 };
-use crate::tls::{TlsConnector, trace_alpn};
+use crate::{
+    direct::{DirectConnectError, connect_tcp},
+    tls::{TlsConnector, trace_alpn},
+};
 
 pub use crate::tls::{TlsError, TlsErrorKind};
 
@@ -26,6 +29,20 @@ impl Http1TlsConnector {
     pub fn new(settings: &TlsSettings) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         TlsConnector::new(settings)
+            .map(|tls| Self { tls })
+            .map_err(Into::into)
+    }
+
+    /// Builds a connector with bundled public roots and additional DER certificates.
+    ///
+    /// Additional roots extend verification for private authorities; they do
+    /// not disable certificate or hostname verification.
+    pub fn new_with_additional_roots<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+    ) -> Result<Self, Http1TlsError> {
+        require_http1_alpn(settings)?;
+        TlsConnector::new_with_additional_roots(settings, roots)
             .map(|tls| Self { tls })
             .map_err(Into::into)
     }
@@ -58,6 +75,81 @@ impl Http1TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        self.trace_response_head(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            self.send_prepared_get(stream, server_name, prepared).await
+        })
+        .await
+    }
+
+    /// Sends one empty-body GET over a new direct TCP and TLS connection.
+    ///
+    /// The complete request is validated before DNS resolution or TCP I/O.
+    /// This method never falls back to another HTTP protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when request preparation, connection setup,
+    /// TLS negotiation, or HTTP/1 processing fails.
+    ///
+    /// # Panics
+    ///
+    /// Tokio may panic if the current runtime was built without network I/O
+    /// enabled.
+    pub async fn send_get_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        self.trace_response_head(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = connect_tcp(host, port).await.map_err(|error| match error {
+                DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+            })?;
+            self.send_prepared_get(stream, server_name, prepared).await
+        })
+        .await
+    }
+
+    async fn send_prepared_get<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        prepared: PreparedGet,
+    ) -> Result<Response<Http1Body>, Http1TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        debug!("HTTP/1 request prepared");
+
+        let stream = self.tls.connect(server_name, stream).await?;
+        let negotiated_alpn = stream.negotiated_alpn();
+        Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
+        if let Some(selected) = negotiated_alpn {
+            if selected != b"http/1.1" {
+                debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
+                return Err(Http1TlsError::UnsupportedAlpn {
+                    selected: selected.into(),
+                });
+            }
+        }
+
+        let response = send_prepared_get(stream, prepared).await?;
+        Span::current().record("status", response.status().as_u16());
+        Ok(response)
+    }
+
+    async fn trace_response_head<F>(
+        &self,
+        operation: F,
+    ) -> Result<Response<Http1Body>, Http1TlsError>
+    where
+        F: Future<Output = Result<Response<Http1Body>, Http1TlsError>>,
+    {
         let span = debug_span!(
             "http1.tls.response_head",
             method = "GET",
@@ -67,30 +159,11 @@ impl Http1TlsConnector {
             outcome = field::Empty,
         );
         let outcome_guard = OperationOutcome::new(&span);
-        let result = async {
-            let prepared = PreparedGet::new(target, headers)?;
-            debug!("HTTP/1 request prepared");
-
-            let stream = self.tls.connect(server_name, stream).await?;
-            let negotiated_alpn = stream.negotiated_alpn();
-            Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
-            if let Some(selected) = negotiated_alpn {
-                if selected != b"http/1.1" {
-                    debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
-                    return Err(Http1TlsError::UnsupportedAlpn {
-                        selected: selected.into(),
-                    });
-                }
-            }
-
-            let response = send_prepared_get(stream, prepared).await?;
-            Span::current().record("status", response.status().as_u16());
-            Ok(response)
-        }
-        .instrument(span.clone())
-        .await;
+        let result = operation.instrument(span.clone()).await;
         let outcome = match &result {
             Ok(_) => "ok",
+            Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
+            Err(Http1TlsError::Connect(_)) => "connect_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
             Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
             Err(Http1TlsError::Http1(Http1Error::AmbiguousResponseFraming)) => "invalid_response",
@@ -107,6 +180,10 @@ impl Http1TlsConnector {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Http1TlsError {
+    /// The direct request was polled outside a Tokio runtime.
+    RuntimeUnavailable,
+    /// Establishing the direct TCP connection failed.
+    Connect(std::io::Error),
     /// TLS connector setup or handshake failed.
     Tls(TlsError),
     /// HTTP/1 request preparation or protocol setup failed.
@@ -123,6 +200,10 @@ pub enum Http1TlsError {
 impl fmt::Display for Http1TlsError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RuntimeUnavailable => {
+                formatter.write_str("direct HTTP/1 requests require a Tokio runtime")
+            }
+            Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
             Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
             Self::Http1(error) => write!(formatter, "HTTP/1 request failed: {error}"),
             Self::UnsupportedAlpn { selected } => write!(
@@ -139,9 +220,12 @@ impl fmt::Display for Http1TlsError {
 impl StdError for Http1TlsError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
+            Self::Connect(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http1(error) => Some(error),
-            Self::UnsupportedAlpn { .. } | Self::MissingHttp1Alpn => None,
+            Self::RuntimeUnavailable | Self::UnsupportedAlpn { .. } | Self::MissingHttp1Alpn => {
+                None
+            }
         }
     }
 }

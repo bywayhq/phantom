@@ -804,7 +804,18 @@ dependencies = [
 name = "phantom"
 version = "0.1.0"
 dependencies = [
+ "btls",
+ "bytes",
+ "http",
+ "http-body",
+ "http-body-util",
+ "http2",
+ "phantom-net",
  "phantom-profile",
+ "rcgen",
+ "tokio",
+ "tokio-btls",
+ "tracing",
 ]
 
 [[package]]

@@ -197,7 +197,7 @@ emulation matters. Minimized deterministic cases gate pull requests, while
 coverage-guided fuzzing, native sanitizers, and long-running soak tests run on a
 schedule.
 
-## Phase 6: client, sessions, routing, and proxies — planned
+## Phase 6: client, sessions, routing, and proxies — in progress
 
 Build the small public `Client` facade and connection pool around explicit
 protocol and route policies. Support direct, HTTP forwarding and CONNECT,
@@ -212,6 +212,15 @@ without changing enabled behavior. The feature matrix and cancellation
 contract are defined in [async and feature policy](async-and-features.md).
 Mutable cookies, redirects, retries, tickets, and learned client hints belong
 to session policy rather than immutable wire profiles.
+
+The first landed slice is deliberately smaller than the complete phase. It
+adds an immutable `Client` built from TLS and optional H2 profile components,
+exact per-request H1/H2 selection, additive DER trust roots, URI-owned
+authority fields, and one streaming response body. Real verified loopback TLS
+tests cover H1 and H2 streaming, H2 trailers, ordered fields, and pre-I/O
+rejection of unavailable protocols and invalid fields. It does not introduce
+an empty `Session`, a nominal `Route`, or a pool before those types have state
+and lifecycle behavior to own.
 
 Acceptance:
 

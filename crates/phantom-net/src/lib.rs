@@ -1,5 +1,6 @@
 //! Network protocol implementations for Phantom.
 
+mod direct;
 pub mod http1;
 pub mod http2;
 /// Direct HTTP/3 transactions over the BoringSSL-backed QUIC provider.

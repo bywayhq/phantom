@@ -162,7 +162,12 @@ impl OperationOutcome {
 impl Drop for OperationOutcome {
     fn drop(&mut self) {
         if !self.recorded {
-            self.span.record("outcome", "cancelled");
+            let outcome = if std::thread::panicking() {
+                "panicked"
+            } else {
+                "cancelled"
+            };
+            self.span.record("outcome", outcome);
         }
     }
 }

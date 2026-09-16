@@ -6,6 +6,7 @@ use std::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
+    task::{Context, Waker},
 };
 
 use http_body_util::BodyExt;
@@ -252,6 +253,64 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn direct_preparation_failure_has_tls_wrapper_outcome() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let subscriber = OutcomeSubscriber::default();
+
+    let result = connector
+        .send_get_direct(
+            "127.0.0.1",
+            9,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            Vec::new(),
+        )
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
+    assert!(matches!(result, Err(Http1TlsError::Http1(_))));
+    assert_eq!(
+        subscriber.outcomes_for("http1.tls.response_head"),
+        ["http_preparation_error"]
+    );
+    Ok(())
+}
+
+#[test]
+fn direct_without_runtime_has_tls_wrapper_outcome() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let subscriber = OutcomeSubscriber::default();
+    let future = connector
+        .send_get_direct(
+            "127.0.0.1",
+            9,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+        )
+        .with_subscriber(Dispatch::new(subscriber.clone()));
+    let mut future = std::pin::pin!(future);
+    let mut context = Context::from_waker(Waker::noop());
+
+    let error = match future.as_mut().poll(&mut context) {
+        std::task::Poll::Ready(Err(error)) => error,
+        std::task::Poll::Ready(Ok(_)) => {
+            return Err("direct request completed outside a Tokio runtime".into());
+        }
+        std::task::Poll::Pending => {
+            return Err("direct request waited outside a Tokio runtime".into());
+        }
+    };
+    assert!(matches!(error, Http1TlsError::RuntimeUnavailable));
+    assert_eq!(
+        subscriber.outcomes_for("http1.tls.response_head"),
+        ["runtime_unavailable"]
+    );
+    Ok(())
 }
 
 #[tokio::test]

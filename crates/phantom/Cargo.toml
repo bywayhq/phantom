@@ -7,7 +7,20 @@ version.workspace = true
 publish = false
 
 [dependencies]
+bytes.workspace = true
+http = "1.4.0"
+http-body = "1.0.1"
+phantom-net = { path = "../phantom-net" }
 phantom-profile = { path = "../phantom-profile" }
+tracing = "0.1.41"
+
+[dev-dependencies]
+btls.workspace = true
+http-body-util = "0.1.3"
+http2 = { version = "=0.5.20", features = ["unstable"] }
+rcgen = "=0.14.5"
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+tokio-btls.workspace = true
 
 [lints]
 workspace = true

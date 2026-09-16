@@ -34,14 +34,22 @@ bytes.
 
 ## Public shape
 
-The planned facade has three ordinary levels:
+The facade grows through three ordinary levels:
 
-- `ClientBuilder` sets long-lived defaults, session stores, route policy,
-  runtime services, pool limits, and diagnostics.
-- `RequestBuilder` overrides request-scoped behavior such as exact protocol,
-  route selection, timeout, retry eligibility, and ordered headers.
+- `ClientBuilder` currently owns one immutable profile and additive trust
+  roots. Later slices add route policy, runtime services, and pool limits only
+  with their implementations.
+- `RequestBuilder` currently owns an exact protocol, HTTPS target, and ordered
+  fields. Later request-scoped route, deadline, and retry policy remain absent.
 - Typed profile values describe observable wire behavior and can be cloned and
   edited before the client is built.
+
+The first facade slice performs a new direct connection for each request. It
+synthesizes the H1 `Host` field from the URI, uses the URI authority for H2,
+and rejects a caller-supplied `Host` field. Selecting H2 without H2 profile
+settings, or supplying an invalid request shape, fails before DNS or TCP I/O.
+The response body implements `http_body::Body` and retains the existing
+protocol cancellation behavior when dropped.
 
 There is no global mutable profile registry, environment-only configuration,
 browser-family switch inside a transport, or callback invoked while a pool
