@@ -38,13 +38,14 @@ fixtures.
 | P0 | TLS 1.3 | Several `NewSessionTicket` messages around fragmented response records | HTTP bytes remain isolated from post-handshake messages; a bounded second connection observes resumption policy |
 | P0 | H1 | Chained `100`, `103`, and unknown 1xx responses under one-byte reads | Only the final response reaches the transaction result; no header leakage or duplicate body write |
 | P0 | H1 | Chunk extensions, trailers, ambiguous framing, truncation, and surplus bytes | Correct streaming/trailers for valid input; typed failure and no reuse for ambiguous input |
-| P0 | H2 | Interleaved `PING`, SETTINGS update, unknown frame, and response DATA | Required ACKs, identical PING payload, continued body progress, no parser desynchronization |
+| P0 | H2 | Interleaved `PING`, SETTINGS update, unknown frame, duplicate setting, and response DATA | Required ACKs for valid input; `PROTOCOL_ERROR` without retry churn for duplicates; continued body progress without parser desynchronization |
 | P0 | H2 | Slow consumer across several flow-control windows | Credit tracks consumed bytes, memory stays bounded, and the response completes |
 | P0 | H2 | Trailers plus `RST_STREAM(NO_ERROR)`, GOAWAY, and reset races | Trailers and accepted data survive; new work is not placed on a draining connection |
 | P1 | QUIC | Retry, duplicate or late Retry, and Version Negotiation variants | At most one valid Retry is processed; spoofed or invalid negotiation cannot loop or downgrade |
 | P1 | H3 | Missing or duplicate SETTINGS, forbidden frame placement, and unknown frames/streams | Correct H3 close code for violations; bounded draining and continuation for valid extensions |
 | P1 | H3/QPACK | Blocked field section followed by insertion, cancellation, or critical-stream failure | Flow control remains accounted, cancellation is stream-scoped, and critical-stream errors close deterministically |
 | P1 | H3 | Descending/increasing GOAWAY and response `103`/trailers/reset races | Draining semantics, `H3_ID_ERROR` for an increase, and response continuity match retained client behavior |
+| P1 | H3 | Reuse before and after the peer idle timeout, including a silently expired path | Stale connections are evicted, one bounded replacement attempt succeeds when eligible, and forced H3 never falls back to TCP |
 
 The current deterministic baseline includes H1 `100 Continue`, chained
 `103`/`100`, declared-length surplus isolation, H2 `RST_STREAM`, and H2

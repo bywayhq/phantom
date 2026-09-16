@@ -26,7 +26,8 @@ The current TCP TLS path:
 - verifies the hostname and sends SNI;
 - returns configuration and handshake failures instead of silently retrying
   with a different version, suite list, protocol, or route;
-- records negotiated protocol facts without logging secrets; and
+- retains typed negotiated TLS versions and cipher suites and records their
+  public names without logging secrets; and
 - does not expose TLS record compression.
 
 Certificate compression is a different TLS feature: it compresses public

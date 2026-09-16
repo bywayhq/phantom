@@ -88,6 +88,8 @@ controls fall into distinct ownership domains.
 | [cronet-rs](https://github.com/sleeyax/cronet-rs) | native Cronet callbacks and async adaptation | Keep as a lifecycle caution and comparison target; do not make Cronet Phantom's engine. |
 | [Curlium](https://scrapfly.io/curlium) | Rust API around mature protocol engines | Confirms the engine-adapter direction, but public claims alone are not packet evidence. |
 | [Prism](https://github.com/WeAreMaven/prism) | passive TCP, TLS, HTTP, and QUIC fingerprints; bounded capture deadlines, concurrency, body, buffer, and drain limits | Use as an independent observation/differential input. Its knobs inform `phantom-testkit`, not the outbound client API, and its summaries do not define parity. |
+| [uTLS](https://github.com/refraction-networking/utls) | versioned and randomized ClientHello IDs, ordered custom extensions, captured-hello import, session/PSK controls, ALPS, ECH, and QUIC hooks | Keep versioned typed recipes and ordered extensions. Resolve correlated randomness once per connection; do not replay opaque hellos or fork a full language TLS stack. |
+| [AzureTLS](https://github.com/Noooste/azuretls-client) | session API, TLS/H2/H3 profiles, cookies, proxies, ordered headers, WebSocket, redirects, pinning, and protocol forcing | Keep the approachable session facade, but preserve protocol-component ownership and strict validation. H3 customization, idle reuse, and GOAWAY behavior require lifecycle tests rather than broad support flags. |
 
 Controls are added in end-to-end slices. For example, `socks` is not complete
 when a URI parser exists: route identity, DNS ownership, authentication,

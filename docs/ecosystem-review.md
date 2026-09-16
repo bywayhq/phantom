@@ -40,6 +40,56 @@ capture updates produce reviewable changes backed by local differentials and
 supplemental Peet/Pingly observations; generated profile changes are not
 auto-merged.
 
+uTLS shows both the value and the maintenance cost of ClientHello presets. Its
+issue history includes an outdated automatic Chrome profile
+([issue 373](https://github.com/refraction-networking/utls/issues/373)) and a
+new fingerprint-visible `trust_anchors` difference
+([issue 397](https://github.com/refraction-networking/utls/issues/397)). A raw
+ClientHello template must also remain consistent with the handshake engine's
+internal state, which was the central concern in
+[issue 54](https://github.com/refraction-networking/utls/issues/54).
+
+Phantom therefore keeps named versions instead of a floating `latest` recipe,
+and retained bytes are evidence rather than replay templates. Import tooling
+must decode into typed settings, validate the complete combination, and then
+prove a fresh emitted handshake. It must not inject opaque ClientHello bytes
+that the TLS state machine does not understand.
+
+## Correlated variability
+
+Random-looking fields are not independent. uTLS fixed a detectable Chrome
+GREASE-ECH mismatch where the outer cipher preference followed AES hardware
+while the ECH cipher choice was random
+([GHSA-7m29-f4hw-g2vx](https://github.com/refraction-networking/utls/security/advisories/GHSA-7m29-f4hw-g2vx)).
+Chrome's extension permutation also required explicit support rather than a
+new fixed preset
+([issue 132](https://github.com/refraction-networking/utls/issues/132)).
+AzureTLS exposes the inverse API problem: applying a JA3 string loses its
+normal Chrome extension shuffling unless callers replace a callback
+([issue 442](https://github.com/Noooste/azuretls-client/issues/442)).
+
+Phantom treats those choices as one connection-resolution problem. AES
+capability, cipher preference, ECH GREASE, extension permutation, GREASE
+values, and padding must derive from the same resolved context. Tests use
+deterministic entropy to assert exact bytes, then multiple seeds to assert
+allowed variation and cross-field invariants. A profile will remain stable
+session identity even when its captured client intentionally varies some
+per-connection fields.
+
+## TLS and HTTP engine coupling
+
+uTLS users hit an HTTP/1 client speaking to a server-selected H2 connection
+when a custom TLS dial hook bypassed Go's protocol routing
+([issue 16](https://github.com/refraction-networking/utls/issues/16)).
+Handshake failures have also occurred when a preset's offer and the TLS state
+machine diverged from what a peer accepted
+([issue 104](https://github.com/refraction-networking/utls/issues/104)).
+
+Phantom treats negotiated ALPN as a checked transition. The current H1 path
+accepts absent ALPN or `http/1.1`, and H2 requires `h2`; the H3 path will
+require `h3`. A negotiated connection is never handed to the wrong HTTP engine
+or used to silently try another protocol.
+
 ## Proxies and pooling
 
 The issue histories show proxy correctness is cross-cutting:
@@ -81,6 +131,32 @@ Bodies remain bounded, backpressured streams. Drop cancels and releases flow
 control; shutdown is idempotent and deadline-bounded. Tests cover one-byte
 readers, stalled consumers, early drop, large bodies, disconnects, and soak
 behavior. Native ownership remains isolated behind small audited wrappers.
+
+AzureTLS has an open timeout when an H3 connection is reused after an idle
+period against some peers
+([issue 447](https://github.com/Noooste/azuretls-client/issues/447)). Its H3
+ClientHello customization also omits associated HTTP/3 and Initial-packet
+settings
+([issue 410](https://github.com/Noooste/azuretls-client/issues/410)). These are
+the failure modes Phantom's connection identity and vertical profile slices
+are intended to prevent. H3 soak tests must cross peer idle expiry, observe
+close and draining state, evict stale connections, and bound a replacement
+attempt without turning a forced-H3 request into TCP fallback.
+
+AzureTLS issue 428 demonstrates a second lifecycle trap: duplicate H2 SETTINGS
+can trigger peer `PROTOCOL_ERROR`, while an ignored GOAWAY can become repeated
+connection churn
+([issue 428](https://github.com/Noooste/azuretls-client/issues/428)). Phantom
+rejects duplicate known profile settings before I/O and tests GOAWAY draining,
+admission, and retry boundaries independently.
+
+Session mutation is another panic boundary. uTLS has an open report of a
+low-reproducibility PSK state panic that terminates the process
+([issue 369](https://github.com/refraction-networking/utls/issues/369)).
+Phantom will keep tickets and PSKs session-owned, validate extension/cache
+state before an attempt, and require concurrency and repeated-ticket tests
+before resumption is enabled. Inconsistent state must return a typed error; it
+must never panic from a request path.
 
 ## SSE and WebSocket
 
