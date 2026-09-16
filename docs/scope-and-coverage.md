@@ -11,7 +11,7 @@ a complete client match.
 | HTTP/1.1 | Ordered request fields, streaming/backpressured responses, cancellation tests | Pooling, redirects/retries, proxies, WebSocket Upgrade |
 | HTTP/2 | Ordered SETTINGS, window update, pseudo/header order, priority, ALPS peer settings, streaming flow control | Reusable sessions, richer request bodies, extended CONNECT where evidence requires it |
 | QUIC | BoringSSL-backed Quinn client handshake, packet/header protection, key updates, Retry and endpoint HMAC; typed captured transport settings | Profile-driven exact transport-parameter serializer, reusable connection lifecycle, packet differential |
-| HTTP/3 | Forced direct one-shot empty-body request; exact `h3` ALPN; static QPACK `0/0`; streaming data/trailers; body cancellation and bounded shutdown | Profile-driven SETTINGS and request order, complete dynamic QPACK, multiplexed sessions, qlog; UDP proxies later |
+| HTTP/3 | Forced direct one-shot request; exact `h3` ALPN; typed ordered SETTINGS; Chrome nonzero inbound QPACK, randomized GREASE, and H3 DATAGRAM policy; bounded dynamic response decode; streaming data/trailers; body cancellation and bounded shutdown | Outbound dynamic QPACK and captured request parity, multiplexed sessions, extension-specific datagram APIs, qlog; UDP proxies later |
 | Session policy | Caller-controlled ordered headers only | Cookies, redirects, retries, client-hint state, tickets, Alt-Svc, pooling |
 | Higher protocols | Ordinary streaming response body | SSE and H1 WebSocket first; later extended CONNECT/H3 only from evidence |
 | Routes | Direct paths in current slices | HTTP(S) proxy, SOCKS5 local/remote DNS, UDP ASSOCIATE, then CONNECT-UDP/MASQUE |

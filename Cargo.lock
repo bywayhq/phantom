@@ -506,12 +506,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "h3-datagram"
+version = "0.0.2"
+dependencies = [
+ "bytes",
+ "h3",
+ "tracing",
+]
+
+[[package]]
 name = "h3-quinn"
 version = "0.0.10"
 dependencies = [
  "bytes",
  "futures-util",
  "h3",
+ "h3-datagram",
  "quinn",
  "tokio-util",
  "tracing",
@@ -766,6 +776,7 @@ dependencies = [
  "criterion",
  "flate2",
  "h3",
+ "h3-datagram",
  "h3-quinn",
  "http",
  "http-body",

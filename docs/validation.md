@@ -418,9 +418,11 @@ The raw Chrome fixture and direct differential establish the captured Chrome
 fields in `firefox::v154_macos_http2()`, but does not yet have a direct Phantom
 wire differential. Retained Pingly and Peet results supply only that recipe's
 pseudo-header order and priority and remain supplemental observations, not
-substitutes for local bytes. A retained Chrome H3 startup capture exists, but
-the current static-QPACK Phantom path does not yet have a browser packet
-differential. No Safari HTTP/2 wire fixture exists yet.
+substitutes for local bytes. A retained Chrome H3 startup capture drives the
+typed profile. A live raw control-stream differential checks its fixed settings,
+one reserved GREASE setting, and ascending order without normalizing them into
+a map. Captured request QPACK bytes and header order remain separate acceptance
+work. No Safari HTTP/2 wire fixture exists yet.
 
 ## External TLS and QUIC observers
 

@@ -1,15 +1,20 @@
 use std::{
     any::Any,
+    future::{Future, poll_fn},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket},
     sync::Arc,
+    task::Poll,
     time::Duration,
 };
 
 use bytes::Bytes;
+use h3_datagram::datagram_handler::HandleDatagramsExt;
 use http::{Request, Response};
+use phantom_profile::Http3Settings;
 use phantom_quic_btls::{HandshakeData, QuicClientConfig, StatelessResetKey};
 use tracing::{Instrument, debug, debug_span, field};
 
+use datagram::DatagramMonitor;
 use driver::{DriverSignal, DriverTask};
 use request::validate_request;
 
@@ -19,17 +24,16 @@ pub use error::{Http3Error, Http3ErrorKind};
 type RequestStream = h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
-const STATIC_QPACK_SETTINGS: [(u64, u64); 3] = [(0x01, 0), (0x06, 64 * 1024), (0x07, 0)];
-
 /// Sends one request over a new direct QUIC and HTTP/3 connection.
 ///
 /// The caller supplies a certificate-verifying BoringSSL-backed QUIC
 /// configuration. This path uses UDP only and never falls back to HTTP/2,
-/// HTTP/1.1, or TCP. The current H3 engine advertises static QPACK only.
+/// HTTP/1.1, or TCP. Profile validation completes before any network I/O.
 pub async fn send_request(
     remote: SocketAddr,
     server_name: &str,
     crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
     request: Request<()>,
 ) -> Result<Response<Http3Body>, Http3Error> {
     let span = debug_span!(
@@ -41,6 +45,7 @@ pub async fn send_request(
     );
     let result = async {
         validate_request(&request)?;
+        let mut builder = settings::builder(settings, &crypto)?;
         let endpoint = endpoint(remote, crypto)?;
 
         debug!("QUIC connection started");
@@ -60,16 +65,6 @@ pub async fn send_request(
         require_h3(&connection)?;
         debug!("QUIC connection established with exact h3 ALPN");
 
-        let mut builder = h3::client::builder();
-        builder
-            .ordered_settings(&STATIC_QPACK_SETTINGS)
-            .map_err(|error| {
-                Http3Error::with_source(
-                    Http3ErrorKind::Local,
-                    "HTTP/3 client settings are invalid",
-                    error,
-                )
-            })?;
         let (h3_driver, sender) = builder
             .build(h3_quinn::Connection::new(connection.clone()))
             .await
@@ -80,21 +75,78 @@ pub async fn send_request(
                     error,
                 )
             })?;
+        let datagram_reader = settings
+            .receives_datagrams()
+            .then(|| h3_driver.get_datagram_reader());
         let mut driver = DriverTask::spawn(h3_driver, sender, endpoint, connection);
         let stream = driver.sender_mut()?.send_request(request).await?;
         let mut pending = PendingRequest::new(stream);
+        let stream_id = pending.stream_mut()?.id();
+        let mut datagrams = datagram_reader.map(|reader| DatagramMonitor::spawn(reader, stream_id));
         pending.stream_mut()?.finish().await?;
-        let response = pending.stream_mut()?.recv_response().await?;
+        let response = match receive_response(pending.stream_mut()?, datagrams.as_mut()).await {
+            Ok(response) => response,
+            Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
+            Err(ResponseHeadError::UnsupportedDatagram) => {
+                datagrams.take();
+                let stream = pending.into_stream()?;
+                body::defer_datagram_abort(stream, driver);
+                return Err(Http3Error::without_source(
+                    Http3ErrorKind::Protocol,
+                    "peer sent an HTTP Datagram for a request without datagram semantics",
+                ));
+            }
+        };
         span.record("status", response.status().as_u16());
 
         let (parts, ()) = response.into_parts();
         let stream = pending.into_stream()?;
-        Ok(Response::from_parts(parts, Http3Body::new(stream, driver)))
+        Ok(Response::from_parts(
+            parts,
+            Http3Body::new(stream, driver, datagrams),
+        ))
     }
     .instrument(span.clone())
     .await;
     span.record("outcome", if result.is_ok() { "ok" } else { "error" });
     result
+}
+
+async fn receive_response(
+    stream: &mut RequestStream,
+    datagrams: Option<&mut DatagramMonitor>,
+) -> Result<Response<()>, ResponseHeadError> {
+    let Some(datagrams) = datagrams else {
+        return stream
+            .recv_response()
+            .await
+            .map_err(ResponseHeadError::Stream);
+    };
+
+    enum Event {
+        Response(Result<Response<()>, h3::error::StreamError>),
+        UnsupportedDatagram,
+    }
+
+    let event = {
+        let mut response = Box::pin(stream.recv_response());
+        poll_fn(|context| {
+            if let Poll::Ready(Some(())) = datagrams.poll_violation(context) {
+                return Poll::Ready(Event::UnsupportedDatagram);
+            }
+            response.as_mut().poll(context).map(Event::Response)
+        })
+        .await
+    };
+    match event {
+        Event::Response(response) => response.map_err(ResponseHeadError::Stream),
+        Event::UnsupportedDatagram => Err(ResponseHeadError::UnsupportedDatagram),
+    }
+}
+
+enum ResponseHeadError {
+    Stream(h3::error::StreamError),
+    UnsupportedDatagram,
 }
 
 fn endpoint(
@@ -203,9 +255,11 @@ impl Drop for PendingRequest {
 }
 
 mod body;
+mod datagram;
 mod driver;
 mod error;
 mod request;
+mod settings;
 
 #[cfg(test)]
 mod tests;

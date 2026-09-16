@@ -25,12 +25,12 @@ changes only after that evidence is available. Automated dependency updates may
 open review work; they do not silently rewrite a wire profile or vendor tree.
 
 The current `btls`, `http2`, and H3 copies follow this contract. The H3 source
-is selected by the root workspace for a static-QPACK direct request path. Its
-disposable probe checksum-binds an exact Hyperium revision, reapplies the
-ordered-SETTINGS and QPACK-codec patches, and runs the focused H3 and
-`h3-quinn` gates. `vendor/h3/PHANTOM.md` blocks advertising Chrome's nonzero
-QPACK or WebTransport capabilities until the enforcement gaps recorded there
-are resolved; it permits the current explicit QPACK `0/0` integration.
+is selected by the root workspace for the direct request path. Its disposable
+probe checksum-binds an exact Hyperium revision, reapplies the ordered-SETTINGS,
+QPACK-runtime, and cancel-safe receive patches, and runs the focused H3 and
+`h3-quinn` gates. Chrome's nonzero inbound QPACK settings are enabled with
+bounded decode and feedback state. Outbound dynamic QPACK, WebTransport, and
+extension-specific datagram APIs remain separate capabilities.
 
 A dependency patch may also be justified by a concrete provider-contract
 failure even when it does not alter the intended wire image. Quinn 0.11.18's

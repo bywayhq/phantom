@@ -1,0 +1,150 @@
+//! Backend-neutral HTTP/3 settings and wire ordering.
+
+use std::{error::Error, fmt};
+
+const MAX_VARINT: u64 = (1 << 62) - 1;
+const MAX_QPACK_TABLE_CAPACITY: u64 = (1 << 30) - 1;
+
+/// One entry in the initial HTTP/3 SETTINGS frame.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3Setting {
+    /// SETTINGS_QPACK_MAX_TABLE_CAPACITY (`0x01`).
+    QpackMaxTableCapacity(u64),
+    /// SETTINGS_MAX_FIELD_SECTION_SIZE (`0x06`).
+    MaxFieldSectionSize(u64),
+    /// SETTINGS_QPACK_BLOCKED_STREAMS (`0x07`).
+    QpackBlockedStreams(u64),
+    /// SETTINGS_H3_DATAGRAM (`0x33`).
+    H3Datagram(bool),
+    /// One reserved setting generated from two independent random `u32` values.
+    ///
+    /// The identifier is `31 * N + 33`; the second value is sent directly.
+    RandomizedGrease,
+}
+
+impl Http3Setting {
+    fn kind(self) -> SettingKind {
+        match self {
+            Self::QpackMaxTableCapacity(_) => SettingKind::QpackMaxTableCapacity,
+            Self::MaxFieldSectionSize(_) => SettingKind::MaxFieldSectionSize,
+            Self::QpackBlockedStreams(_) => SettingKind::QpackBlockedStreams,
+            Self::H3Datagram(_) => SettingKind::H3Datagram,
+            Self::RandomizedGrease => SettingKind::RandomizedGrease,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SettingKind {
+    QpackMaxTableCapacity,
+    MaxFieldSectionSize,
+    QpackBlockedStreams,
+    H3Datagram,
+    RandomizedGrease,
+}
+
+/// Ordering policy for the initial HTTP/3 SETTINGS frame.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3SettingOrder {
+    /// Preserve [`Http3Settings::initial_settings`] order.
+    Fixed,
+    /// Sort materialized settings by their numeric identifier.
+    Ascending,
+}
+
+/// Ordered HTTP/3 settings independent of the concrete HTTP/3 backend.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Http3Settings {
+    /// Initial SETTINGS entries. Position is wire order when order is fixed.
+    pub initial_settings: Vec<Http3Setting>,
+    /// Ordering applied after per-connection settings are materialized.
+    pub setting_order: Http3SettingOrder,
+}
+
+impl Http3Settings {
+    /// Validates settings independent of a concrete HTTP/3 backend.
+    pub fn validate(&self) -> Result<(), InvalidHttp3Settings> {
+        let mut kinds = Vec::with_capacity(self.initial_settings.len());
+
+        for setting in &self.initial_settings {
+            let kind = setting.kind();
+            if kinds.contains(&kind) {
+                return Err(InvalidHttp3Settings::new(
+                    "initial_settings",
+                    format!("{kind:?} must not repeat"),
+                ));
+            }
+            kinds.push(kind);
+
+            match *setting {
+                Http3Setting::QpackMaxTableCapacity(value) if value > MAX_QPACK_TABLE_CAPACITY => {
+                    return Err(InvalidHttp3Settings::new(
+                        "initial_settings.qpack_max_table_capacity",
+                        "QPACK table capacity must not exceed 1073741823 bytes",
+                    ));
+                }
+                Http3Setting::MaxFieldSectionSize(value)
+                | Http3Setting::QpackBlockedStreams(value)
+                    if value > MAX_VARINT =>
+                {
+                    return Err(InvalidHttp3Settings::new(
+                        "initial_settings",
+                        "setting values must be smaller than 2^62",
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Returns whether this profile advertises HTTP Datagram receive support.
+    #[must_use]
+    pub fn receives_datagrams(&self) -> bool {
+        self.initial_settings
+            .iter()
+            .any(|setting| matches!(setting, Http3Setting::H3Datagram(true)))
+    }
+}
+
+/// Error returned when HTTP/3 profile settings are inconsistent.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvalidHttp3Settings {
+    field: &'static str,
+    message: Box<str>,
+}
+
+impl InvalidHttp3Settings {
+    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+        Self {
+            field,
+            message: message.into(),
+        }
+    }
+
+    /// Returns the invalid setting's field name.
+    #[must_use]
+    pub fn field(&self) -> &'static str {
+        self.field
+    }
+
+    /// Returns the reason the setting is invalid.
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        &self.message
+    }
+}
+
+impl fmt::Display for InvalidHttp3Settings {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid HTTP/3 {}: {}", self.field, self.message)
+    }
+}
+
+impl Error for InvalidHttp3Settings {}
+
+#[cfg(test)]
+mod tests;

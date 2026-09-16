@@ -207,11 +207,13 @@ that canonical. Tests need two complementary forms:
 - policy tests over several seeds that preserve the invariant parameter set,
   allowed widths and values, one GREASE element, and non-constant order.
 
-The H3 `SETTINGS` sequence is a fixed ordered prefix followed by randomized
-GREASE in these observations. A larger retained sample is needed before
-claiming the exact GREASE width/value distribution. Header-order claims are
-independent of the raw QPACK representation and should compare the decoded
-ordered list; raw QPACK remains a separate differential.
+The pinned QUICHE source resolves the H3 GREASE policy beyond the three
+observations. It draws two independent native `uint32_t` values, computes the
+identifier as `0x1f * N + 0x21`, uses the second value directly, sorts every
+setting by identifier, and writes both fields with minimal QUIC varints. The
+Chrome profile reproduces that policy rather than one captured GREASE value.
+Header-order claims are independent of the raw QPACK representation and should
+compare the decoded ordered list; raw QPACK remains a separate differential.
 
 Run the deterministic schema and normalization checks without Cargo:
 
@@ -228,6 +230,9 @@ uvx ruff@0.16.7 format --check scripts/capture
 - [Chromium SSL key-log setup](https://chromium.googlesource.com/chromium/src/+/lkgr/content/browser/network_service_instance_impl.cc)
 - [Chromium NetLog design and compatibility](https://chromium.googlesource.com/chromium/src/net/+/HEAD/docs/net-log.md)
 - [QUICHE randomized transport-parameter serialization](https://quiche.googlesource.com/quiche/+/6a93efcba4e4339bb3b4fe14f340f4e3f60b28c7)
+- [Chrome 152.0.7977.133 QUICHE pin](https://chromium.googlesource.com/chromium/src/+/refs/tags/152.0.7977.133/DEPS)
+- [Pinned QUICHE control-stream GREASE](https://quiche.googlesource.com/quiche/+/1ba0d99a5c2fec4f4dbb7f98f251b05dcf4e2968/quiche/quic/core/http/quic_send_control_stream.cc)
+- [Pinned QUICHE SETTINGS ordering and encoding](https://quiche.googlesource.com/quiche/+/1ba0d99a5c2fec4f4dbb7f98f251b05dcf4e2968/quiche/quic/core/http/http_encoder.cc)
 - [RFC 9000 QUIC transport parameters](https://www.rfc-editor.org/rfc/rfc9000.html#section-18)
 - [RFC 8999 reserved QUIC versions](https://www.rfc-editor.org/rfc/rfc8999.html#section-5)
 - [RFC 9114 HTTP/3 control streams and SETTINGS](https://www.rfc-editor.org/rfc/rfc9114.html#section-6.2.1)

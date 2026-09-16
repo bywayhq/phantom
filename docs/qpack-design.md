@@ -2,9 +2,10 @@
 
 Phantom's pinned Hyperium H3 revision now connects its stateful QPACK decoder
 to client response headers and trailers. The engine can advertise nonzero
-decoder capacity and blocked-stream limits honestly. Phantom profiles still
-advertise QPACK `0/0` until the captured Chrome settings complete packet
-differentials; this is a profile-validation gate, not an engine limitation.
+decoder capacity and blocked-stream limits honestly. The Chrome profile emits
+its captured `65536` table capacity and `100` blocked-stream limit after a live
+raw control-stream differential. Outbound request encoding remains a separate
+directional capability.
 
 ## Ownership
 
@@ -86,9 +87,9 @@ block and repair blocked-stream accounting.
    shared state across cloned senders, safe literal fallback, concurrency, and
    capture differentials. This is not required to advertise inbound decoder
    limits because QPACK settings are directional.
-6. Enable Chrome's captured nonzero settings only after adversarial integration
-   tests and packet differentials pass. Server-side dynamic QPACK remains a
-   separate capability.
+6. Enable Chrome's captured nonzero settings after adversarial integration
+   tests and a raw control-stream differential. Complete. Server-side and
+   outbound dynamic QPACK remain separate capabilities.
 
 ## Why not replace the H3 stack
 

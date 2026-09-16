@@ -1,5 +1,5 @@
 use http::{
-    Request,
+    Method, Request,
     header::{CONNECTION, CONTENT_LENGTH, HOST, TE, TRAILER, TRANSFER_ENCODING, UPGRADE},
     uri::Scheme,
 };
@@ -19,6 +19,13 @@ pub(super) fn validate_request(request: &Request<()>) -> Result<(), Http3Error> 
         .is_some_and(|authority| authority.as_str().contains('@'))
     {
         return Err(invalid("HTTP/3 request authority contains userinfo"));
+    }
+    if request.method() == Method::CONNECT
+        || request.extensions().get::<h3::ext::Protocol>().is_some()
+    {
+        return Err(invalid(
+            "HTTP/3 extension requests are not supported by the direct request path",
+        ));
     }
 
     let headers = request.headers();

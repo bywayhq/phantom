@@ -5,14 +5,16 @@ use btls::{
     x509::X509,
 };
 use bytes::Bytes;
-use http::{HeaderMap, HeaderValue, Request, Response, StatusCode};
+use http::{HeaderMap, HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::chromium;
+use phantom_profile::{
+    Http3Setting, Http3SettingOrder, Http3Settings, chromium, quic::QuicTransportSettings,
+};
 use phantom_quic_btls::QuicClientConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
 
-use super::{Http3ErrorKind, send_request};
+use super::Http3ErrorKind;
 use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity};
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -21,7 +23,7 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 async fn rejects_invalid_request_before_connecting() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let request = Request::get("http://server.phantom.test/").body(())?;
-    let result = send_request(
+    let result = send_test_request(
         "127.0.0.1:9".parse()?,
         TEST_SERVER_NAME,
         client_config(&identity)?,
@@ -33,6 +35,35 @@ async fn rejects_invalid_request_before_connecting() -> TestResult<()> {
         Err(error) => error,
     };
     assert_eq!(error.kind(), Http3ErrorKind::Request);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn rejects_extension_requests_before_connecting() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connect = Request::builder()
+        .method(Method::CONNECT)
+        .uri("https://server.phantom.test/")
+        .body(())?;
+    let mut extended = Request::get("https://server.phantom.test/").body(())?;
+    extended
+        .extensions_mut()
+        .insert(h3::ext::Protocol::CONNECT_UDP);
+
+    for request in [connect, extended] {
+        let result = send_test_request(
+            "127.0.0.1:9".parse()?,
+            TEST_SERVER_NAME,
+            client_config(&identity)?,
+            request,
+        )
+        .await;
+        let error = match result {
+            Ok(_) => return Err("extension request unexpectedly reached the network".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), Http3ErrorKind::Request);
+    }
     Ok(())
 }
 
@@ -70,7 +101,7 @@ async fn streams_data_and_trailers_over_boringssl_quic() -> TestResult<()> {
     .body(())?;
     let response = timeout(
         TEST_TIMEOUT,
-        send_request(address, TEST_SERVER_NAME, client, request),
+        send_test_request(address, TEST_SERVER_NAME, client, request),
     )
     .await
     .map_err(|_| "HTTP/3 request timed out")??;
@@ -138,9 +169,10 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
     ))
     .body(())?;
 
+    let settings = chromium::v152_macos_http3();
     let response = timeout(
         TEST_TIMEOUT,
-        send_request(address, TEST_SERVER_NAME, client, request),
+        super::send_request(address, TEST_SERVER_NAME, client, &settings, request),
     )
     .await
     .map_err(|_| "profiled HTTP/3 request timed out")??;
@@ -185,7 +217,7 @@ async fn connects_over_ipv6_when_loopback_is_available() -> TestResult<()> {
     .body(())?;
     let response = timeout(
         TEST_TIMEOUT,
-        send_request(address, TEST_SERVER_NAME, client, request),
+        send_test_request(address, TEST_SERVER_NAME, client, request),
     )
     .await
     .map_err(|_| "IPv6 HTTP/3 request timed out")??;
@@ -234,7 +266,7 @@ async fn dropping_body_cancels_the_peer_stream() -> TestResult<()> {
     .body(())?;
     let response = timeout(
         TEST_TIMEOUT,
-        send_request(address, TEST_SERVER_NAME, client, request),
+        send_test_request(address, TEST_SERVER_NAME, client, request),
     )
     .await
     .map_err(|_| "HTTP/3 request timed out")??;
@@ -256,7 +288,31 @@ fn client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {
     Ok(Arc::new(QuicClientConfig::new(context.build())))
 }
 
+async fn send_test_request(
+    remote: SocketAddr,
+    server_name: &str,
+    client: Arc<QuicClientConfig>,
+    request: Request<()>,
+) -> Result<Response<super::Http3Body>, super::Http3Error> {
+    let settings = Http3Settings {
+        initial_settings: vec![
+            Http3Setting::QpackMaxTableCapacity(0),
+            Http3Setting::MaxFieldSectionSize(65_536),
+            Http3Setting::QpackBlockedStreams(0),
+        ],
+        setting_order: Http3SettingOrder::Fixed,
+    };
+    super::send_request(remote, server_name, client, &settings, request).await
+}
+
 fn profiled_client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {
+    client_config_with_profile(identity, chromium::v152_macos_quic())
+}
+
+fn client_config_with_profile(
+    identity: &TestIdentity,
+    settings: QuicTransportSettings,
+) -> TestResult<Arc<QuicClientConfig>> {
     let mut context = SslContext::builder(SslMethod::tls())?;
     context
         .cert_store_mut()
@@ -264,7 +320,7 @@ fn profiled_client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientC
     context.set_verify(SslVerifyMode::PEER);
     Ok(Arc::new(QuicClientConfig::with_transport_profile(
         context.build(),
-        chromium::v152_macos_quic(),
+        settings,
     )?))
 }
 
@@ -332,3 +388,6 @@ async fn join_server(server: JoinHandle<TestResult<()>>) -> TestResult<()> {
         .map_err(|_| "HTTP/3 test server did not finish")???;
     Ok(())
 }
+
+mod datagram;
+mod profile;

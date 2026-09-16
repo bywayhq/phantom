@@ -3,6 +3,9 @@
 This note records the evidence and implementation boundary for the first
 forced-HTTP/3 client slice. It is not a new public API proposal.
 
+The decision sections preserve the audit state at the time each gate was set.
+The implementation status near the end records which gates have since passed.
+
 ## Decision
 
 Use Quinn's existing crypto-provider interface with a private,
@@ -330,9 +333,11 @@ gates run under the repository's normal warnings-as-errors and formatting
 checks. A direct forced-H3 path now completes a certificate-verified BoringSSL
 QUIC handshake, requires exact `h3` ALPN, streams response data and trailers,
 and proves peer-visible cancellation when the response body is dropped. It
-uses static QPACK `0/0` and a bounded field-section limit. The complete Chrome
-integration gate remains pending on captured request ordering, dynamic QPACK,
-and packet differentials.
+now applies typed ordered H3 settings, Chrome's captured nonzero inbound QPACK
+limits, bounded dynamic response decoding, randomized GREASE, and ordinary-
+request H3 DATAGRAM error handling. A live raw control-stream differential
+checks the emitted fixed settings, reserved setting, and order. Captured
+request ordering and outbound dynamic QPACK remain pending.
 
 ## Fork trigger
 

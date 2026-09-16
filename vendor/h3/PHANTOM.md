@@ -76,10 +76,16 @@ blocked streams obey `SETTINGS_QPACK_BLOCKED_STREAMS`; fragmented instructions,
 partial feedback writes, invalid instructions, critical-stream closure, future
 cancellation, and reset wakeups have focused regressions.
 
-Phantom profiles continue to use QPACK `0/0` until their nonzero values pass
-packet differentials. That is a profile-validation gate rather than a missing
-engine capability. Outbound request encoding remains stateless; QPACK settings
-are directional, so this does not weaken the inbound decoder contract.
+The Chrome profile now uses its captured nonzero inbound QPACK limits after a
+live raw control-stream differential. Outbound request encoding remains
+stateless; QPACK settings are directional, so this does not weaken the inbound
+decoder contract. Custom profiles may still select QPACK `0/0`.
+
+`h3-quinn` now polls Quinn's cancel-safe chunk read directly instead of moving
+the receive stream into a stored future. This keeps `stop_sending` immediately
+available while a read is pending, so cancellation retains its chosen HTTP/3
+error code instead of falling through to Quinn's implicit code zero. The read
+remains zero-copy and does not allocate a boxed future per poll.
 
 Likewise, do not advertise a nonzero `WEBTRANSPORT_MAX_SESSIONS` until the
 connection path enforces that limit and has bounded lifecycle tests. Exact
@@ -94,7 +100,8 @@ including setting order and the concrete GREASE identifier/value widths.
 The canonical source and test deltas are stored in
 `patches/ordered-settings.patch`, `patches/qpack-codec.patch`, and
 `patches/qpack-critical-streams.patch`, and
-`patches/qpack-dynamic-client.patch`. `PHANTOM.md` and the patch files are
+`patches/qpack-dynamic-client.patch`, and `patches/cancel-safe-recv.patch`.
+`PHANTOM.md` and the patch files are
 packaging metadata and are deliberately excluded from those patches.
 
 ## Refreshing the vendor copy
@@ -142,6 +149,10 @@ packaging metadata and are deliberately excluded from those patches.
      "$PWD/vendor/h3/patches/qpack-dynamic-client.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/qpack-dynamic-client.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/cancel-safe-recv.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/cancel-safe-recv.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the

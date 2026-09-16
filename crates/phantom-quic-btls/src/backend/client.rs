@@ -67,6 +67,14 @@ impl QuicClientConfig {
         }
         Ok(())
     }
+
+    /// Returns whether the configured QUIC transport accepts DATAGRAM frames.
+    #[must_use]
+    pub fn receives_datagrams(&self) -> bool {
+        self.transport_profile
+            .as_ref()
+            .is_none_or(TransportParameterProfile::receives_datagrams)
+    }
 }
 
 impl fmt::Debug for QuicClientConfig {

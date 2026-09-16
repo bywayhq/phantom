@@ -111,6 +111,12 @@ impl TransportParameterProfile {
         Ok(())
     }
 
+    pub(crate) fn receives_datagrams(&self) -> bool {
+        self.settings
+            .max_datagram_frame_size
+            .is_some_and(|size| size > 0)
+    }
+
     fn validate_provider_support(&self) -> Result<(), QuicTransportProfileError> {
         use QuicTransportParameterKind as Kind;
 

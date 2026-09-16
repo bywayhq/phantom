@@ -4,43 +4,48 @@ use std::{
     task::{Context, Poll},
 };
 
-use bytes::{Buf, Bytes};
-use h3::error::Code;
+use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
 
-use super::{DriverSignal, DriverTask, Http3Error, Http3ErrorKind, RequestStream};
+use self::task::{BodyEvent, BodyTask};
+use super::{DatagramMonitor, DriverTask, Http3Error, Http3ErrorKind, RequestStream};
 
-#[derive(Clone, Copy)]
-enum ReceiveState {
-    Data,
-    Trailers,
-    Done,
+pub(super) fn defer_datagram_abort(stream: RequestStream, driver: DriverTask) {
+    task::defer_datagram_abort(stream, driver);
 }
 
 #[must_use = "response bodies must be read or deliberately dropped"]
 /// Streaming response body for a one-shot HTTP/3 transaction.
 pub struct Http3Body {
-    stream: Option<RequestStream>,
-    driver: DriverTask,
-    state: ReceiveState,
+    task: BodyTask,
+    done: bool,
     trace: BodyTrace,
 }
 
 impl Http3Body {
-    pub(super) fn new(stream: RequestStream, driver: DriverTask) -> Self {
-        Self {
-            stream: Some(stream),
+    pub(super) fn new(
+        stream: RequestStream,
+        driver: DriverTask,
+        datagrams: Option<DatagramMonitor>,
+    ) -> Self {
+        let trace = BodyTrace::new();
+        let task = BodyTask::spawn(
+            stream,
             driver,
-            state: ReceiveState::Data,
-            trace: BodyTrace::new(),
+            datagrams,
+            trace.dispatch.clone(),
+            trace.span.clone(),
+        );
+        Self {
+            task,
+            done: false,
+            trace,
         }
     }
 
-    fn finish(&mut self, signal: DriverSignal, outcome: &'static str) {
-        self.state = ReceiveState::Done;
-        self.stream.take();
-        self.driver.finish(signal);
+    fn finish(&mut self, outcome: &'static str) {
+        self.done = true;
         self.trace.finish(outcome);
     }
 
@@ -48,49 +53,35 @@ impl Http3Body {
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Bytes>, Http3Error>>> {
-        loop {
-            let state = self.state;
-            if matches!(state, ReceiveState::Done) {
-                return Poll::Ready(None);
+        if self.done {
+            return Poll::Ready(None);
+        }
+        match self.task.poll_event(context) {
+            Poll::Ready(Some(BodyEvent::Frame(frame))) => {
+                if let Some(data) = frame.data_ref() {
+                    self.trace.add_bytes(data.len());
+                }
+                if frame.trailers_ref().is_some() {
+                    self.finish("complete");
+                }
+                Poll::Ready(Some(Ok(frame)))
             }
-            let Some(stream) = self.stream.as_mut() else {
-                self.finish(DriverSignal::ProtocolError, "protocol_error");
-                return Poll::Ready(Some(Err(Http3Error::without_source(
+            Poll::Ready(Some(BodyEvent::End)) => {
+                self.finish("complete");
+                Poll::Ready(None)
+            }
+            Poll::Ready(Some(BodyEvent::Error(error))) => {
+                self.finish("protocol_error");
+                Poll::Ready(Some(Err(error)))
+            }
+            Poll::Ready(None) => {
+                self.finish("task_error");
+                Poll::Ready(Some(Err(Http3Error::without_source(
                     Http3ErrorKind::Local,
-                    "HTTP/3 request driver is unavailable",
-                ))));
-            };
-            match state {
-                ReceiveState::Data => match stream.poll_recv_data(context) {
-                    Poll::Ready(Ok(Some(mut data))) => {
-                        let data = data.copy_to_bytes(data.remaining());
-                        self.trace.add_bytes(data.len());
-                        return Poll::Ready(Some(Ok(Frame::data(data))));
-                    }
-                    Poll::Ready(Ok(None)) => self.state = ReceiveState::Trailers,
-                    Poll::Ready(Err(error)) => {
-                        self.finish(DriverSignal::ProtocolError, "protocol_error");
-                        return Poll::Ready(Some(Err(error.into())));
-                    }
-                    Poll::Pending => return Poll::Pending,
-                },
-                ReceiveState::Trailers => match stream.poll_recv_trailers(context) {
-                    Poll::Ready(Ok(Some(trailers))) => {
-                        self.finish(DriverSignal::Complete, "complete");
-                        return Poll::Ready(Some(Ok(Frame::trailers(trailers))));
-                    }
-                    Poll::Ready(Ok(None)) => {
-                        self.finish(DriverSignal::Complete, "complete");
-                        return Poll::Ready(None);
-                    }
-                    Poll::Ready(Err(error)) => {
-                        self.finish(DriverSignal::ProtocolError, "protocol_error");
-                        return Poll::Ready(Some(Err(error.into())));
-                    }
-                    Poll::Pending => return Poll::Pending,
-                },
-                ReceiveState::Done => return Poll::Ready(None),
+                    "HTTP/3 response body task stopped without a terminal event",
+                ))))
             }
+            Poll::Pending => Poll::Pending,
         }
     }
 }
@@ -99,7 +90,7 @@ impl fmt::Debug for Http3Body {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Http3Body")
-            .field("finished", &matches!(self.state, ReceiveState::Done))
+            .field("finished", &self.done)
             .field("received_bytes", &self.trace.received_bytes)
             .finish_non_exhaustive()
     }
@@ -122,7 +113,7 @@ impl Body for Http3Body {
     }
 
     fn is_end_stream(&self) -> bool {
-        matches!(self.state, ReceiveState::Done)
+        self.done
     }
 
     fn size_hint(&self) -> SizeHint {
@@ -132,14 +123,9 @@ impl Body for Http3Body {
 
 impl Drop for Http3Body {
     fn drop(&mut self) {
-        if matches!(self.state, ReceiveState::Done) {
-            return;
+        if !self.done {
+            self.trace.finish("dropped");
         }
-        if let Some(stream) = self.stream.as_mut() {
-            stream.stop_sending(Code::H3_REQUEST_CANCELLED);
-            stream.stop_stream(Code::H3_REQUEST_CANCELLED);
-        }
-        self.finish(DriverSignal::Cancelled, "dropped");
     }
 }
 
@@ -149,6 +135,8 @@ struct BodyTrace {
     received_bytes: u64,
     finished: bool,
 }
+
+mod task;
 
 impl BodyTrace {
     fn new() -> Self {

@@ -12,9 +12,12 @@ uncaptured. The first forced HTTP/3 slice now performs a direct, one-shot
 request over the BoringSSL Quinn provider, verifies exact `h3` ALPN, streams
 data and trailers, propagates body cancellation, and applies a capture-backed
 Chrome QUIC transport recipe to live Quinn state and the exact TLS extension
-bytes. It uses static QPACK `0/0`; Chrome H3 parity, reusable sessions, typed
-proxy routing, SSE, and WebSocket remain planned. The project does not make
-broad client-compatibility claims.
+bytes. A typed Chrome H3 recipe emits the captured nonzero QPACK limits,
+maximum field-section size, H3 DATAGRAM setting, ascending setting order, and
+randomized GREASE. The receive path bounds dynamic QPACK state and treats a
+datagram on an ordinary request as an H3 protocol error. Outbound dynamic
+QPACK, reusable sessions, typed proxy routing, SSE, and WebSocket remain
+planned. The project does not make broad client-compatibility claims.
 
 ## Principles
 
@@ -28,7 +31,7 @@ broad client-compatibility claims.
 
 - `phantom`: the future public client facade
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
-  HTTP/2, and QUIC settings, and narrow
+  HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
 - `phantom-net`: ordered streaming HTTP/1.1, one-shot HTTP/2 with exact-`h2`
   TLS and ALPS, and a direct forced-H3 transaction path with streaming response
@@ -40,10 +43,10 @@ broad client-compatibility claims.
 - `phantom-testkit`: bounded TLS ClientHello and HTTP/2 frame capture with
   strict decoding for deterministic differentials
 
-The provenance-tracked H3 fork is an active runtime dependency for the safe
-static-QPACK slice. Chrome's nonzero QPACK settings remain gated on complete,
-bounded dynamic QPACK receive support rather than advertising capabilities the
-engine cannot honor.
+The provenance-tracked H3 fork is an active runtime dependency for ordered
+SETTINGS, bounded dynamic QPACK receive support, and immediate stream
+cancellation through the Quinn adapter. Outbound request encoding remains
+stateless and is tracked as a separate directional capability.
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),

@@ -2,6 +2,7 @@
 
 use crate::{
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
+    http3::{Http3Setting, Http3SettingOrder, Http3Settings},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
@@ -154,14 +155,32 @@ pub fn v152_macos_http2() -> Http2Settings {
     }
 }
 
+/// Returns HTTP/3 settings observed from Chrome 152 on macOS 15.5.
+///
+/// The fixed values, ascending order, and randomized reserved setting are
+/// checked against a retained raw control-stream capture. The returned value
+/// is owned and can be customized before constructing a transport.
+#[must_use]
+pub fn v152_macos_http3() -> Http3Settings {
+    Http3Settings {
+        initial_settings: vec![
+            Http3Setting::QpackMaxTableCapacity(65_536),
+            Http3Setting::MaxFieldSectionSize(262_144),
+            Http3Setting::QpackBlockedStreams(100),
+            Http3Setting::H3Datagram(true),
+            Http3Setting::RandomizedGrease,
+        ],
+        setting_order: Http3SettingOrder::Ascending,
+    }
+}
+
 /// Returns QUIC transport settings observed from Chrome 152.0.7977.83 on macOS 15.5.
 ///
 /// The parameter vector retains one captured order as a permutation template;
 /// Chrome varies that order between connections. Connection IDs, the reserved
 /// version, and the reserved transport parameter remain runtime-generated.
-/// This is a QUIC transport recipe, not a complete HTTP/3 profile. In
-/// particular, the current static-QPACK HTTP/3 path does not reproduce
-/// Chrome's nonzero QPACK settings.
+/// This is a QUIC transport recipe; use it with [`v152_macos_http3`] for the
+/// HTTP/3 application settings captured from the same client.
 #[must_use]
 pub fn v152_macos_quic() -> QuicTransportSettings {
     use QuicTransportParameterKind as Kind;
@@ -232,6 +251,8 @@ pub fn v152_macos_quic() -> QuicTransportSettings {
     }
 }
 
+#[cfg(test)]
+mod http3_tests;
 #[cfg(test)]
 mod quic_tests;
 #[cfg(test)]

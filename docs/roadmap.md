@@ -114,9 +114,11 @@ critical streams, bounds fragmented instruction state and decoder feedback,
 and maps malformed instructions and closed streams to their protocol-specific
 connection errors. Response headers and trailers share a stateful decoder with
 bounded parked sections, acknowledgements, cancellations, reset wakeups, and
-receive-future persistence. Phantom profiles still advertise QPACK `0/0` until
-Chrome's nonzero settings pass packet differentials. Request ordering and those
-packet differentials remain acceptance work.
+receive-future persistence. A typed Chrome H3 profile now emits the captured
+nonzero QPACK limits, maximum field-section size, H3 DATAGRAM setting,
+ascending setting order, and randomized GREASE. A live raw control-stream
+differential checks the resulting SETTINGS frame. Captured request ordering
+and outbound dynamic QPACK remain acceptance work.
 
 Acceptance:
 
@@ -129,10 +131,11 @@ Acceptance:
   seeded tests reproduce GREASE exactly and policy tests cover its measured
   variability without sorting or removing it.
 - Nonzero QPACK table capacity and blocked-stream limits are enabled in a
-  browser profile only after its packet differential passes. The engine path
-  already covers encoder-stream processing, bounded section accounting,
+  browser profile only after its raw control-stream differential passes. The
+  engine path covers encoder-stream processing, bounded section accounting,
   decoder acknowledgements and cancellations, dropped futures, reset races,
-  and resource ceilings; static-only profiles remain valid at QPACK `0/0`.
+  and resource ceilings; custom static-only profiles remain valid at QPACK
+  `0/0`.
 - Bounded qlog plus key-log-assisted packet decryption make failures
   diagnosable without logging application payloads or credentials.
 - The dedicated crypto-adapter crate documents every unsafe invariant and does
