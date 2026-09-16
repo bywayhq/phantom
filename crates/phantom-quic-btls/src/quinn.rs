@@ -12,12 +12,6 @@ use quinn_proto::crypto;
 
 use crate::{HeaderProtectionKey, PacketProtectionKey};
 
-// RFC 9001 section 6.6 applies these conservative limits to QUIC packets
-// protected with AEAD_AES_128_GCM or AEAD_AES_256_GCM:
-// https://www.rfc-editor.org/rfc/rfc9001.html#section-6.6
-const AES_CONFIDENTIALITY_LIMIT: u64 = 1 << 23;
-const AES_INTEGRITY_LIMIT: u64 = 1 << 52;
-
 impl crypto::HeaderKey for HeaderProtectionKey {
     fn decrypt(&self, packet_number_offset: usize, packet: &mut [u8]) {
         if self.unprotect(packet_number_offset, packet).is_err() {
@@ -66,11 +60,11 @@ impl crypto::PacketKey for PacketProtectionKey {
     }
 
     fn confidentiality_limit(&self) -> u64 {
-        AES_CONFIDENTIALITY_LIMIT
+        PacketProtectionKey::confidentiality_limit(self)
     }
 
     fn integrity_limit(&self) -> u64 {
-        AES_INTEGRITY_LIMIT
+        PacketProtectionKey::integrity_limit(self)
     }
 }
 

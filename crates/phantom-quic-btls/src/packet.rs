@@ -2,27 +2,47 @@ use std::fmt;
 
 use zeroize::Zeroize;
 
-use crate::backend::Aes128GcmContext;
-use crate::secret::{AES_128_KEY_LEN, QUIC_NONCE_LEN, Secret};
+use crate::backend::AeadContext;
+use crate::secret::QUIC_NONCE_LEN;
+use crate::secret::Secret;
 use crate::{CryptoError, Result};
 
 const TAG_LEN: usize = 16;
 
-/// An AES-128-GCM QUIC packet-protection key and IV.
+/// A QUIC packet-protection key and IV for a TLS 1.3 AEAD suite.
 pub struct PacketProtectionKey {
-    context: Aes128GcmContext,
+    context: AeadContext,
     iv: Secret<QUIC_NONCE_LEN>,
+    algorithm: PacketAlgorithm,
+}
+
+#[derive(Clone, Copy)]
+enum PacketAlgorithm {
+    AesGcm,
+    ChaCha20Poly1305,
 }
 
 impl PacketProtectionKey {
     /// Builds a packet key from a 16-byte AES key and 12-byte QUIC IV.
     pub fn aes_128_gcm(key: &[u8], iv: &[u8]) -> Result<Self> {
-        if key.len() != AES_128_KEY_LEN {
-            return Err(CryptoError::InvalidKeyLength {
-                actual: key.len(),
-                expected: AES_128_KEY_LEN,
-            });
-        }
+        Self::new(AeadContext::aes_128_gcm(key)?, iv, PacketAlgorithm::AesGcm)
+    }
+
+    /// Builds a packet key from a 32-byte AES key and 12-byte QUIC IV.
+    pub fn aes_256_gcm(key: &[u8], iv: &[u8]) -> Result<Self> {
+        Self::new(AeadContext::aes_256_gcm(key)?, iv, PacketAlgorithm::AesGcm)
+    }
+
+    /// Builds a packet key from a 32-byte ChaCha20 key and 12-byte QUIC IV.
+    pub fn chacha20_poly1305(key: &[u8], iv: &[u8]) -> Result<Self> {
+        Self::new(
+            AeadContext::chacha20_poly1305(key)?,
+            iv,
+            PacketAlgorithm::ChaCha20Poly1305,
+        )
+    }
+
+    fn new(context: AeadContext, iv: &[u8], algorithm: PacketAlgorithm) -> Result<Self> {
         if iv.len() != QUIC_NONCE_LEN {
             return Err(CryptoError::InvalidNonceLength {
                 actual: iv.len(),
@@ -30,8 +50,9 @@ impl PacketProtectionKey {
             });
         }
         Ok(Self {
-            context: Aes128GcmContext::new(key)?,
+            context,
             iv: Secret::copy_from_slice(iv)?,
+            algorithm,
         })
     }
 
@@ -90,6 +111,26 @@ impl PacketProtectionKey {
     #[must_use]
     pub const fn tag_len(&self) -> usize {
         TAG_LEN
+    }
+
+    pub(crate) const fn confidentiality_limit(&self) -> u64 {
+        // https://www.rfc-editor.org/rfc/rfc9001.html#section-6.6
+        match self.algorithm {
+            PacketAlgorithm::AesGcm => 1 << 23,
+            // RFC 9001 section 6.6 says ChaCha20-Poly1305's limit is greater
+            // than QUIC's 2^62 packet-number space and can be disregarded.
+            PacketAlgorithm::ChaCha20Poly1305 => u64::MAX,
+        }
+    }
+
+    pub(crate) const fn integrity_limit(&self) -> u64 {
+        // https://www.rfc-editor.org/rfc/rfc9001.html#section-6.6
+        match self.algorithm {
+            // RFC 9001 section 6.6 applies the same conservative bound to
+            // AES-128-GCM and AES-256-GCM.
+            PacketAlgorithm::AesGcm => 1 << 52,
+            PacketAlgorithm::ChaCha20Poly1305 => 1 << 36,
+        }
     }
 
     fn nonce(&self, packet_number: u64) -> [u8; QUIC_NONCE_LEN] {

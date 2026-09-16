@@ -1,13 +1,13 @@
 use std::fmt;
 
 use crate::backend::{AesHeaderCipher, ChaChaHeaderCipher};
-use crate::secret::{AES_128_KEY_LEN, CHACHA20_KEY_LEN};
+use crate::secret::{AES_128_KEY_LEN, AES_256_KEY_LEN, CHACHA20_KEY_LEN};
 use crate::{CryptoError, Result};
 
 const SAMPLE_LEN: usize = 16;
 const SAMPLE_OFFSET_FROM_PACKET_NUMBER: usize = 4;
 
-/// An AES-128 or ChaCha20 QUIC header-protection key.
+/// An AES or ChaCha20 QUIC header-protection key.
 pub struct HeaderProtectionKey {
     cipher: HeaderCipher,
 }
@@ -15,7 +15,7 @@ pub struct HeaderProtectionKey {
 enum HeaderCipher {
     // `AES_KEY` stores a large expanded schedule. Allocate it once when the
     // header key is built rather than inflating every enum value.
-    Aes128(Box<AesHeaderCipher>),
+    Aes(Box<AesHeaderCipher>),
     ChaCha20(ChaChaHeaderCipher),
 }
 
@@ -29,7 +29,20 @@ impl HeaderProtectionKey {
             });
         }
         Ok(Self {
-            cipher: HeaderCipher::Aes128(Box::new(AesHeaderCipher::new(key)?)),
+            cipher: HeaderCipher::Aes(Box::new(AesHeaderCipher::new(key)?)),
+        })
+    }
+
+    /// Builds an AES-256 header-protection key from exactly 32 key bytes.
+    pub fn aes_256(key: &[u8]) -> Result<Self> {
+        if key.len() != AES_256_KEY_LEN {
+            return Err(CryptoError::InvalidKeyLength {
+                actual: key.len(),
+                expected: AES_256_KEY_LEN,
+            });
+        }
+        Ok(Self {
+            cipher: HeaderCipher::Aes(Box::new(AesHeaderCipher::new_256(key)?)),
         })
     }
 
@@ -95,7 +108,7 @@ impl HeaderProtectionKey {
         let mut sample_array = [0; SAMPLE_LEN];
         sample_array.copy_from_slice(sample);
         let mask = match &self.cipher {
-            HeaderCipher::Aes128(cipher) => cipher.mask(&sample_array),
+            HeaderCipher::Aes(cipher) => cipher.mask(&sample_array),
             HeaderCipher::ChaCha20(cipher) => cipher.mask(&sample_array),
         };
         sample_array.fill(0);

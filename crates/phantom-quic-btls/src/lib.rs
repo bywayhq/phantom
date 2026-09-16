@@ -21,6 +21,8 @@ mod retry;
 mod secret;
 
 #[cfg(test)]
+mod suite_tests;
+#[cfg(test)]
 mod tests;
 
 pub use error::{CryptoError, Result};

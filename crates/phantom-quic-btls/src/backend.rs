@@ -6,11 +6,13 @@ use std::ptr::NonNull;
 
 use btls_sys as ffi;
 
-use crate::secret::{AES_128_KEY_LEN, CHACHA20_KEY_LEN, QUIC_NONCE_LEN, SHA256_LEN, Secret};
+use crate::secret::{
+    AES_128_KEY_LEN, AES_256_KEY_LEN, CHACHA20_KEY_LEN, QUIC_NONCE_LEN, SHA256_LEN, Secret,
+};
 use crate::{CryptoError, Result};
 
 const AES_BLOCK_LEN: usize = 16;
-const AES_GCM_TAG_LEN: usize = 16;
+const AEAD_TAG_LEN: usize = 16;
 
 pub(crate) fn random_bytes(output: &mut [u8]) -> Result<()> {
     ffi::init();
@@ -133,21 +135,29 @@ pub(crate) struct AesHeaderCipher(ffi::AES_KEY);
 
 impl AesHeaderCipher {
     pub(crate) fn new(key: &[u8]) -> Result<Self> {
-        if key.len() != AES_128_KEY_LEN {
+        Self::expand(key, AES_128_KEY_LEN)
+    }
+
+    pub(crate) fn new_256(key: &[u8]) -> Result<Self> {
+        Self::expand(key, AES_256_KEY_LEN)
+    }
+
+    fn expand(key: &[u8], expected_len: usize) -> Result<Self> {
+        if key.len() != expected_len {
             return Err(CryptoError::InvalidKeyLength {
                 actual: key.len(),
-                expected: AES_128_KEY_LEN,
+                expected: expected_len,
             });
         }
 
         ffi::init();
         let mut expanded = std::mem::MaybeUninit::uninit();
-        // SAFETY: the key is exactly 128 bits and `expanded` points to writable,
-        // correctly aligned storage which is read only after success.
+        // SAFETY: the key is exactly 128 or 256 bits and `expanded` points to
+        // writable, correctly aligned storage which is read only after success.
         let status = unsafe {
             ffi::AES_set_encrypt_key(
                 key.as_ptr(),
-                (AES_128_KEY_LEN * 8) as c_uint,
+                (expected_len * 8) as c_uint,
                 expanded.as_mut_ptr(),
             )
         };
@@ -241,34 +251,45 @@ impl fmt::Debug for ChaChaHeaderCipher {
     }
 }
 
-pub(crate) struct Aes128GcmContext(NonNull<ffi::EVP_AEAD_CTX>);
+pub(crate) struct AeadContext(NonNull<ffi::EVP_AEAD_CTX>);
 
-impl Aes128GcmContext {
-    pub(crate) fn new(key: &[u8]) -> Result<Self> {
-        if key.len() != AES_128_KEY_LEN {
-            return Err(CryptoError::InvalidKeyLength {
-                actual: key.len(),
-                expected: AES_128_KEY_LEN,
-            });
-        }
+impl AeadContext {
+    pub(crate) fn aes_128_gcm(key: &[u8]) -> Result<Self> {
+        validate_key(key, AES_128_KEY_LEN)?;
+        // SAFETY: the getter accepts no arguments and returns BoringSSL's
+        // process-lifetime algorithm descriptor.
+        let algorithm = unsafe { ffi::EVP_aead_aes_128_gcm() };
+        Self::new(key, algorithm, "AES-128-GCM initialization")
+    }
 
+    pub(crate) fn aes_256_gcm(key: &[u8]) -> Result<Self> {
+        validate_key(key, AES_256_KEY_LEN)?;
+        // SAFETY: the getter accepts no arguments and returns BoringSSL's
+        // process-lifetime algorithm descriptor.
+        let algorithm = unsafe { ffi::EVP_aead_aes_256_gcm() };
+        Self::new(key, algorithm, "AES-256-GCM initialization")
+    }
+
+    pub(crate) fn chacha20_poly1305(key: &[u8]) -> Result<Self> {
+        validate_key(key, CHACHA20_KEY_LEN)?;
+        // SAFETY: the getter accepts no arguments and returns BoringSSL's
+        // process-lifetime algorithm descriptor.
+        let algorithm = unsafe { ffi::EVP_aead_chacha20_poly1305() };
+        Self::new(key, algorithm, "ChaCha20-Poly1305 initialization")
+    }
+
+    fn new(key: &[u8], algorithm: *const ffi::EVP_AEAD, operation: &'static str) -> Result<Self> {
         ffi::init();
         // SAFETY: the algorithm pointer has static BoringSSL lifetime and the
         // key slice remains valid for the call. The returned allocation is
         // uniquely owned by this wrapper and freed in `Drop`.
-        let pointer = unsafe {
-            ffi::EVP_AEAD_CTX_new(
-                ffi::EVP_aead_aes_128_gcm(),
-                key.as_ptr(),
-                key.len(),
-                AES_GCM_TAG_LEN,
-            )
-        };
+        let pointer =
+            unsafe { ffi::EVP_AEAD_CTX_new(algorithm, key.as_ptr(), key.len(), AEAD_TAG_LEN) };
         match NonNull::new(pointer) {
             Some(pointer) => Ok(Self(pointer)),
             None => {
                 drain_error_queue();
-                Err(CryptoError::BackendFailure("AES-128-GCM initialization"))
+                Err(CryptoError::BackendFailure(operation))
             }
         }
     }
@@ -281,7 +302,7 @@ impl Aes128GcmContext {
         associated_data: &[u8],
     ) -> Result<usize> {
         validate_nonce(nonce)?;
-        let required = plaintext_len.checked_add(AES_GCM_TAG_LEN).ok_or(
+        let required = plaintext_len.checked_add(AEAD_TAG_LEN).ok_or(
             CryptoError::InsufficientOutputCapacity {
                 actual: buffer.len(),
                 required: usize::MAX,
@@ -327,12 +348,13 @@ impl Aes128GcmContext {
         associated_data: &[u8],
     ) -> Result<usize> {
         validate_nonce(nonce)?;
-        if buffer.len() < AES_GCM_TAG_LEN {
+        if buffer.len() < AEAD_TAG_LEN {
             return Err(CryptoError::InsufficientOutputCapacity {
                 actual: buffer.len(),
-                required: AES_GCM_TAG_LEN,
+                required: AEAD_TAG_LEN,
             });
         }
+        let expected = buffer.len() - AEAD_TAG_LEN;
 
         let mut written = 0;
         // SAFETY: the context is live; nonce length was checked; input aliases
@@ -357,17 +379,22 @@ impl Aes128GcmContext {
             buffer.fill(0);
             return Err(CryptoError::AuthenticationFailed);
         }
+        if written != expected {
+            drain_error_queue();
+            buffer.fill(0);
+            return Err(CryptoError::BackendFailure("packet opening"));
+        }
         Ok(written)
     }
 }
 
-impl fmt::Debug for Aes128GcmContext {
+impl fmt::Debug for AeadContext {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("Aes128GcmContext([REDACTED])")
+        formatter.write_str("AeadContext([REDACTED])")
     }
 }
 
-impl Drop for Aes128GcmContext {
+impl Drop for AeadContext {
     fn drop(&mut self) {
         // SAFETY: this wrapper uniquely owns the non-null context allocation;
         // `Drop` runs once and no references outlive `self`.
@@ -379,10 +406,20 @@ impl Drop for Aes128GcmContext {
 
 // SAFETY: the context is uniquely owned and BoringSSL documents all seal/open
 // operations on one `EVP_AEAD_CTX` as safe to call concurrently.
-unsafe impl Send for Aes128GcmContext {}
+unsafe impl Send for AeadContext {}
 // SAFETY: shared operations do not mutate Rust-visible state, and BoringSSL's
 // AEAD contract explicitly permits concurrent seal/open calls on one context.
-unsafe impl Sync for Aes128GcmContext {}
+unsafe impl Sync for AeadContext {}
+
+fn validate_key(key: &[u8], expected: usize) -> Result<()> {
+    if key.len() != expected {
+        return Err(CryptoError::InvalidKeyLength {
+            actual: key.len(),
+            expected,
+        });
+    }
+    Ok(())
+}
 
 fn validate_nonce(nonce: &[u8]) -> Result<()> {
     if nonce.len() != QUIC_NONCE_LEN {

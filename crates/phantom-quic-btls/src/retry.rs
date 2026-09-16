@@ -1,4 +1,4 @@
-use crate::backend::{Aes128GcmContext, constant_time_eq};
+use crate::backend::{AeadContext, constant_time_eq};
 use crate::{CryptoError, QuicVersion, Result};
 
 const MAX_CONNECTION_ID_LEN: usize = 20;
@@ -23,7 +23,7 @@ pub fn retry_integrity_tag(
     pseudo_packet.extend_from_slice(original_destination_connection_id);
     pseudo_packet.extend_from_slice(retry_without_tag);
 
-    let context = Aes128GcmContext::new(version.retry_key())?;
+    let context = AeadContext::aes_128_gcm(version.retry_key())?;
     let mut tag = [0; TAG_LEN];
     context.seal(version.retry_nonce(), &mut tag, 0, &pseudo_packet)?;
     Ok(tag)
