@@ -338,8 +338,10 @@ and proves peer-visible cancellation when the response body is dropped. It
 now applies typed ordered H3 settings, Chrome's captured nonzero inbound QPACK
 limits, bounded dynamic response decoding, randomized GREASE, and ordinary-
 request H3 DATAGRAM error handling. A live raw control-stream differential
-checks the emitted fixed settings, reserved setting, and order. Captured
-request ordering and outbound dynamic QPACK remain pending.
+checks the emitted fixed settings, reserved setting, and order. The request
+path now preserves captured pseudo-header and ordinary-field order through a
+bounded connection-owned dynamic QPACK encoder. Dependent HEADERS are not
+published until their encoder instructions are accepted by QUIC.
 
 ## Fork trigger
 

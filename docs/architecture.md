@@ -157,9 +157,11 @@ sections, and emits decoder feedback and cancellation, so the Chrome profile
 can advertise its captured nonzero inbound limits. The outbound path validates
 typed pseudo-header order and an exact ordinary-field sidecar before network
 I/O, then preserves both through stateless QPACK encoding. Dynamic outbound
-QPACK remains separate because QPACK settings are directional. Packetization,
-ACK, connection-ID, and pacing knobs are added only after a retained capture
-proves that they are required.
+QPACK uses the same validated field order through a bounded connection-owned
+encoder, and dependent HEADERS wait for their encoder instructions to be
+accepted by QUIC. Static `0/0` profiles retain the stateless path because QPACK
+settings are directional. Packetization, ACK, connection-ID, and pacing knobs
+are added only after a retained capture proves that they are required.
 
 ## Configuration seam
 

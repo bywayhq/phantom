@@ -11,10 +11,19 @@ const QPACK_MAX_TABLE_CAPACITY: u64 = 0x01;
 const MAX_FIELD_SECTION_SIZE: u64 = 0x06;
 const QPACK_BLOCKED_STREAMS: u64 = 0x07;
 const H3_DATAGRAM: u64 = 0x33;
+const GREASE_ENTROPY_LEN: usize = 8;
 
 pub(super) fn builder(
     settings: &Http3Settings,
     crypto: &Arc<QuicClientConfig>,
+) -> Result<h3::client::Builder, Http3Error> {
+    builder_with_entropy(settings, crypto, fill_grease_entropy)
+}
+
+fn builder_with_entropy(
+    settings: &Http3Settings,
+    crypto: &Arc<QuicClientConfig>,
+    fill_entropy: impl FnMut(&mut [u8]) -> Result<(), Http3Error>,
 ) -> Result<h3::client::Builder, Http3Error> {
     settings.validate().map_err(|error| {
         Http3Error::with_source(
@@ -30,7 +39,7 @@ pub(super) fn builder(
         ));
     }
 
-    let wire_settings = materialize(settings, randomized_grease)?;
+    let wire_settings = materialize(settings, fill_entropy)?;
     let mut builder = h3::client::builder();
     // Profiles own every GREASE emission visible on the wire.
     builder.send_grease(false);
@@ -68,9 +77,21 @@ pub(super) fn builder(
     Ok(builder)
 }
 
+#[cfg(test)]
+pub(super) fn builder_for_test(
+    settings: &Http3Settings,
+    crypto: &Arc<QuicClientConfig>,
+    entropy: [u8; GREASE_ENTROPY_LEN],
+) -> Result<h3::client::Builder, Http3Error> {
+    builder_with_entropy(settings, crypto, |output| {
+        output.copy_from_slice(&entropy);
+        Ok(())
+    })
+}
+
 fn materialize(
     settings: &Http3Settings,
-    mut grease: impl FnMut() -> Result<(u64, u64), Http3Error>,
+    mut fill_entropy: impl FnMut(&mut [u8]) -> Result<(), Http3Error>,
 ) -> Result<Vec<(u64, u64)>, Http3Error> {
     let mut entries = Vec::with_capacity(settings.initial_settings.len());
     for setting in &settings.initial_settings {
@@ -79,7 +100,11 @@ fn materialize(
             Http3Setting::MaxFieldSectionSize(value) => (MAX_FIELD_SECTION_SIZE, value),
             Http3Setting::QpackBlockedStreams(value) => (QPACK_BLOCKED_STREAMS, value),
             Http3Setting::H3Datagram(enabled) => (H3_DATAGRAM, u64::from(enabled)),
-            Http3Setting::RandomizedGrease => grease()?,
+            Http3Setting::RandomizedGrease => {
+                let mut entropy = [0_u8; GREASE_ENTROPY_LEN];
+                fill_entropy(&mut entropy)?;
+                randomized_grease(entropy)
+            }
             _ => {
                 return Err(Http3Error::without_source(
                     Http3ErrorKind::Configuration,
@@ -102,25 +127,27 @@ fn materialize(
     Ok(entries)
 }
 
-fn randomized_grease() -> Result<(u64, u64), Http3Error> {
-    let mut entropy = [0_u8; 8];
-    btls::rand::rand_bytes(&mut entropy).map_err(|error| {
+fn fill_grease_entropy(entropy: &mut [u8]) -> Result<(), Http3Error> {
+    btls::rand::rand_bytes(entropy).map_err(|error| {
         Http3Error::with_source(
             Http3ErrorKind::Local,
             "failed to generate HTTP/3 GREASE",
             error,
         )
-    })?;
+    })
+}
+
+fn randomized_grease(entropy: [u8; GREASE_ENTROPY_LEN]) -> (u64, u64) {
     let [a, b, c, d, e, f, g, h] = entropy;
     let identifier_seed = u32::from_ne_bytes([a, b, c, d]);
     let value = u32::from_ne_bytes([e, f, g, h]);
-    Ok((31 * u64::from(identifier_seed) + 33, u64::from(value)))
+    (31 * u64::from(identifier_seed) + 33, u64::from(value))
 }
 
 #[cfg(test)]
 pub(super) fn materialize_for_test(
     settings: &Http3Settings,
-    grease: (u64, u64),
+    entropy: [u8; GREASE_ENTROPY_LEN],
 ) -> Result<Vec<(u64, u64)>, Http3Error> {
     settings.validate().map_err(|error| {
         Http3Error::with_source(
@@ -129,5 +156,8 @@ pub(super) fn materialize_for_test(
             error,
         )
     })?;
-    materialize(settings, || Ok(grease))
+    materialize(settings, |output| {
+        output.copy_from_slice(&entropy);
+        Ok(())
+    })
 }

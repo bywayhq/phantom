@@ -1,6 +1,6 @@
-use std::error::Error;
+use std::{collections::BTreeSet, error::Error};
 
-use phantom_profile::chromium;
+use phantom_profile::{chromium, quic::QuicTransportSettings};
 use quinn_proto::{Side, transport_parameters::TransportParameters};
 
 use super::{
@@ -25,24 +25,25 @@ fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn 
 }
 
 #[test]
-fn entropy_changes_wire_shape_without_changing_parameter_set() -> Result<(), Box<dyn Error>> {
+fn entropy_changes_order_without_changing_profile_semantics() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v152_macos_quic())?;
-    let mut first = WireEntropy::from_bytes([0; ENTROPY_LEN]);
-    let mut second = WireEntropy::from_bytes([17; ENTROPY_LEN]);
+    let settings = chromium::v152_macos_quic();
+    let profile = TransportParameterProfile::new(settings.clone())?;
+    let expected_shape = parameter_shape(&captured)?;
+    let captured = ParsedTransportParameters::from_encoded(&captured)?;
+    let mut orders = BTreeSet::new();
 
-    let first = profile.encode_with_entropy(&params, QuicVersion::V1, &mut first)?;
-    let second = profile.encode_with_entropy(&params, QuicVersion::V1, &mut second)?;
+    for seed in 0..16 {
+        let mut entropy = seeded_entropy(seed);
+        let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy)?;
 
-    assert_ne!(first, second);
-    let first_shape = parameter_shape(&first)?;
-    let second_shape = parameter_shape(&second)?;
-    assert_eq!(first_shape, second_shape);
-    assert_eq!(first_shape.len(), 13);
-    assert_eq!(first_shape.iter().filter(|entry| entry.0 == 27).count(), 1);
-    validate_version_information(&first)?;
-    validate_version_information(&second)?;
+        assert_eq!(parameter_shape(&encoded)?, expected_shape);
+        assert_profile_semantics(&encoded, &settings, &captured)?;
+        orders.insert(parameter_order(&encoded)?);
+    }
+
+    assert!(orders.len() > 1, "transport-parameter order did not vary");
     Ok(())
 }
 
@@ -129,7 +130,17 @@ fn fixture_entropy() -> WireEntropy {
     WireEntropy::from_bytes(bytes)
 }
 
-fn parameter_shape(encoded: &[u8]) -> Result<Vec<(u64, usize, usize)>, QuicTransportProfileError> {
+fn seeded_entropy(seed: u8) -> WireEntropy {
+    let mut bytes = [0; ENTROPY_LEN];
+    for (index, byte) in (0_u8..12).zip(&mut bytes[..12]) {
+        *byte = seed.wrapping_mul(31).wrapping_add(index.wrapping_mul(17));
+    }
+    WireEntropy::from_bytes(bytes)
+}
+
+fn parameter_shape(
+    encoded: &[u8],
+) -> Result<Vec<(u64, usize, usize, usize)>, QuicTransportProfileError> {
     let mut offset = 0;
     let mut shape = Vec::new();
     while offset < encoded.len() {
@@ -146,10 +157,77 @@ fn parameter_shape(encoded: &[u8]) -> Result<Vec<(u64, usize, usize)>, QuicTrans
         } else {
             identifier
         };
-        shape.push((class, id_width.encoded_len(), length_width.encoded_len()));
+        let stable_length = if class == 27 { 0 } else { length };
+        shape.push((
+            class,
+            id_width.encoded_len(),
+            length_width.encoded_len(),
+            stable_length,
+        ));
     }
     shape.sort_unstable();
     Ok(shape)
+}
+
+fn parameter_order(encoded: &[u8]) -> Result<Vec<u64>, QuicTransportProfileError> {
+    let mut offset = 0;
+    let mut order = Vec::new();
+    while offset < encoded.len() {
+        let (identifier, _) = decode_varint(encoded, &mut offset)?;
+        let (length, _) = decode_varint(encoded, &mut offset)?;
+        let length = usize::try_from(length)
+            .map_err(|_| super::profile_error("test", "length does not fit usize"))?;
+        offset = offset
+            .checked_add(length)
+            .filter(|end| *end <= encoded.len())
+            .ok_or_else(|| super::profile_error("test", "parameter is truncated"))?;
+        order.push(if identifier >= 27 && identifier % 31 == 27 {
+            27
+        } else {
+            identifier
+        });
+    }
+    Ok(order)
+}
+
+fn assert_profile_semantics(
+    encoded: &[u8],
+    settings: &QuicTransportSettings,
+    captured: &ParsedTransportParameters,
+) -> Result<(), Box<dyn Error>> {
+    let parsed = ParsedTransportParameters::from_encoded(encoded)?;
+    let expected_scalars = [
+        (0x01, settings.max_idle_timeout_ms),
+        (0x03, settings.max_udp_payload_size),
+        (0x04, settings.initial_max_data),
+        (0x05, settings.initial_max_stream_data_bidi_local),
+        (0x06, settings.initial_max_stream_data_bidi_remote),
+        (0x07, settings.initial_max_stream_data_uni),
+        (0x08, settings.initial_max_streams_bidi),
+        (0x09, settings.initial_max_streams_uni),
+        (
+            0x20,
+            settings
+                .max_datagram_frame_size
+                .ok_or("Chrome profile omitted max_datagram_frame_size")?,
+        ),
+    ];
+    for (identifier, expected) in expected_scalars {
+        assert_eq!(parsed.scalar(identifier)?, expected);
+    }
+    assert_eq!(parsed.value(0x0f)?, captured.value(0x0f)?);
+    assert_eq!(parsed.value(0x3128)?, b"ORIG");
+
+    let grease = parsed
+        .values
+        .iter()
+        .filter(|(identifier, _)| **identifier >= 27 && **identifier % 31 == 27)
+        .collect::<Vec<_>>();
+    assert_eq!(grease.len(), 1);
+    assert!((0..=15).contains(&grease[0].1.len()));
+    assert_eq!(parsed.values.len(), settings.wire_parameters.len());
+    validate_version_information(encoded)?;
+    Ok(())
 }
 
 fn validate_version_information(encoded: &[u8]) -> Result<(), Box<dyn Error>> {
