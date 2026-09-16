@@ -92,10 +92,11 @@ supplemental observations. Safari HTTP/2 remains deferred until its uncaptured
 wire behavior can be proved without fallback. This phase does not add HTTP/3,
 sessions, SSE, or WebSocket.
 
-## Phase 5: forced HTTP/3 — in progress
+## Phase 5: forced HTTP/3 — complete
 
-Establish one explicitly selected QUIC and HTTP/3 path using Quinn, hyperium
-`h3`, and an isolated `btls` crypto adapter. Carry narrow, default-preserving
+Phase 5 establishes one explicitly selected QUIC and HTTP/3 path using Quinn,
+hyperium `h3`, and an isolated `btls` crypto adapter. Carry narrow,
+default-preserving
 forks only where retained captures or a production-safety contract prove that
 an upstream seam is insufficient. Current evidence requires an H3 SETTINGS
 patch for observable ordering and a Quinn provider-contract patch so key-update
@@ -104,7 +105,7 @@ derivation failures close the connection instead of reaching an internal
 Start with one Chromium desktop profile; Firefox and Safari follow from their
 own captures rather than assumptions about shared engine behavior.
 
-The current vertical slice completes a direct empty-body request, streams the
+The completed vertical slice sends a direct empty-body request, streams the
 response and trailers, and proves peer-visible cancellation without any TCP or
 protocol fallback. A capture-backed Chrome recipe now configures Quinn's live
 transport limits and reproduces the retained transport-parameter extension
@@ -142,6 +143,16 @@ exposed an engine-generated reserved frame after Phantom's request HEADERS.
 Disabling engine GREASE in favor of the profile-owned SETTINGS entry produced
 a fresh Chrome/Phantom match for every logical marker, packet space, FIN
 boundary, retransmission indicator, and terminal-frame check.
+
+The focused hostile-peer suite now exercises missing and duplicate SETTINGS,
+forbidden and reserved control-stream behavior, increasing GOAWAY, chained
+informational responses, invalid `101`, delayed inbound QPACK, decoder
+acknowledgement, critical-stream closure, request cancellation, and a live
+Retry through the BoringSSL provider. Engine-level regressions retain the
+fragmentation, reset, resource-ceiling, duplicate/late Retry, and version-
+negotiation cases that do not require a Phantom policy seam. Reuse after idle
+expiry and descending-GOAWAY admission remain Phase 6 work because the Phase 5
+transport intentionally owns one connection for one request.
 
 Acceptance:
 
