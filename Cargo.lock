@@ -743,8 +743,10 @@ version = "0.1.0"
 name = "phantom-quic-btls"
 version = "0.1.0"
 dependencies = [
+ "btls",
  "btls-sys",
  "bytes",
+ "foreign-types",
  "quinn-proto",
  "zeroize",
 ]

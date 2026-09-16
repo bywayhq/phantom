@@ -16,6 +16,7 @@ const AEAD_TAG_LEN: usize = 16;
 
 #[allow(dead_code, reason = "private QUIC callback bridge")]
 mod callback_state;
+pub(super) mod client;
 #[allow(dead_code, reason = "private BoringSSL QUIC client session")]
 mod client_session;
 #[allow(dead_code, reason = "private QUIC callback bridge")]

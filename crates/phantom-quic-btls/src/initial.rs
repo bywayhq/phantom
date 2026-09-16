@@ -26,6 +26,10 @@ impl InitialKeys {
     pub const fn remote(&self) -> &DirectionKeys {
         &self.remote
     }
+
+    pub(crate) fn into_parts(self) -> (DirectionKeys, DirectionKeys) {
+        (self.local, self.remote)
+    }
 }
 
 impl fmt::Debug for InitialKeys {

@@ -3,10 +3,12 @@ use std::fmt;
 use std::ptr::{self, NonNull};
 use std::slice;
 
+use btls::ssl::{SslContext, SslRef};
 use btls_sys as ffi;
+use foreign_types::{ForeignType, ForeignTypeRef};
 
 use super::callback_state::{
-    Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
+    Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk, SecretPair,
 };
 use super::drain_error_queue;
 use super::quic_callbacks::{CallbackInstallError, install_on_ssl};
@@ -14,10 +16,14 @@ use super::quic_callbacks::{CallbackInstallError, install_on_ssl};
 const H3_ALPN: &[u8] = &[2, b'h', b'3'];
 const H3_PROTOCOL: &[u8] = b"h3";
 const MAX_TRANSPORT_PARAMETERS: usize = u16::MAX as usize;
+const MAX_PEER_CERTIFICATES: usize = 32;
+const MAX_CERTIFICATE_DER: usize = 1024 * 1024;
+const MAX_PEER_CHAIN_DER: usize = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum ClientSessionError {
     InvalidServerName,
+    X509ContextRequired,
     MissingTransportParameters,
     TransportParametersTooLong {
         len: usize,
@@ -33,10 +39,14 @@ pub(super) enum ClientSessionError {
     UnexpectedProtocolVersion {
         actual: i32,
     },
+    PeerVerificationFailed,
     AlpnNotNegotiated,
     ResumptionAttempted,
     EarlyDataActive,
     InvalidPeerTransportParameters,
+    MissingPeerIdentity,
+    PeerIdentityTooLarge,
+    ExportBeforeHandshake,
     AllocationFailed,
 }
 
@@ -100,11 +110,8 @@ impl fmt::Debug for ClientSession {
 impl ClientSession {
     /// Creates a client from a verification-configured BoringSSL context.
     ///
-    /// # Safety
-    ///
-    /// `context` must remain live and immutable for this call. SSL retains it on success.
-    pub(super) unsafe fn new(
-        context: NonNull<ffi::SSL_CTX>,
+    pub(super) fn new(
+        context: &SslContext,
         server_name: &str,
         local_transport_parameters: &[u8],
     ) -> Result<Self, ClientSessionError> {
@@ -122,8 +129,14 @@ impl ClientSession {
             });
         }
 
+        if !context.has_x509_support() {
+            return Err(ClientSessionError::X509ContextRequired);
+        }
+
         ffi::init();
-        // SAFETY: the context invariant is forwarded to the SSL owner.
+        let context =
+            NonNull::new(context.as_ptr()).ok_or(ClientSessionError::X509ContextRequired)?;
+        // SAFETY: the safe context owner is live and SSL_new retains its own reference.
         let ssl = unsafe { OwnedSsl::new(context) }?;
         let pointer = ssl.as_ptr();
 
@@ -155,6 +168,18 @@ impl ClientSession {
         // SAFETY: the NUL-terminated name remains live for the copying setter call.
         if unsafe { ffi::SSL_set1_host(pointer, server_name.as_ptr()) } != 1 {
             return Err(backend_failure("verification hostname"));
+        }
+        // SAFETY: the SSL owns a live verification parameter for its entire lifetime.
+        let verification = unsafe { ffi::SSL_get0_param(pointer) };
+        if verification.is_null() {
+            return Err(backend_failure("verification parameters"));
+        }
+        // SAFETY: the verification parameter is live and uniquely configured before handshake.
+        unsafe {
+            ffi::X509_VERIFY_PARAM_set_hostflags(
+                verification,
+                ffi::X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS as u32,
+            );
         }
         // SAFETY: ALPN bytes remain live for the copying setter call.
         if unsafe { ffi::SSL_set_alpn_protos(pointer, H3_ALPN.as_ptr(), H3_ALPN.len()) } != 0 {
@@ -238,6 +263,101 @@ impl ClientSession {
             .map_err(ClientSessionError::Callback)
     }
 
+    pub(super) fn take_secret_pair(
+        &self,
+        level: EncryptionLevel,
+    ) -> Result<Option<SecretPair>, ClientSessionError> {
+        self.callback_error()?;
+        Ok(self.callbacks.take_secret_pair(level))
+    }
+
+    pub(super) fn selected_protocol(&self) -> Result<Option<Vec<u8>>, ClientSessionError> {
+        self.callback_error()?;
+        let mut protocol = ptr::null();
+        let mut protocol_len = 0;
+        // SAFETY: output pointers are valid and the selected ALPN remains SSL-owned.
+        unsafe {
+            ffi::SSL_get0_alpn_selected(self.ssl.as_ptr(), &mut protocol, &mut protocol_len);
+        }
+        if protocol_len == 0 {
+            return Ok(None);
+        }
+        if protocol.is_null() {
+            return Err(ClientSessionError::AlpnNotNegotiated);
+        }
+        // SAFETY: BoringSSL returned `protocol_len` readable SSL-owned bytes.
+        let protocol = unsafe { slice::from_raw_parts(protocol, protocol_len as usize) };
+        Ok(Some(protocol.to_vec()))
+    }
+
+    pub(super) fn peer_identity(&self) -> Result<Vec<Vec<u8>>, ClientSessionError> {
+        self.callback_error()?;
+        if !self.handshake_complete {
+            return Err(ClientSessionError::MissingPeerIdentity);
+        }
+        // SAFETY: the SSL remains live and no mutable SSL operation overlaps this borrow.
+        let ssl = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) };
+        let chain = ssl
+            .peer_cert_chain()
+            .ok_or(ClientSessionError::MissingPeerIdentity)?;
+        if chain.is_empty() || chain.len() > MAX_PEER_CERTIFICATES {
+            return Err(ClientSessionError::PeerIdentityTooLarge);
+        }
+
+        let mut encoded = Vec::new();
+        encoded
+            .try_reserve_exact(chain.len())
+            .map_err(|_| ClientSessionError::AllocationFailed)?;
+        let mut total = 0usize;
+        for certificate in chain {
+            let len = certificate
+                .to_der()
+                .map_err(|_| backend_failure("peer certificate encoding"))?;
+            total = total
+                .checked_add(len.len())
+                .ok_or(ClientSessionError::PeerIdentityTooLarge)?;
+            if len.len() > MAX_CERTIFICATE_DER || total > MAX_PEER_CHAIN_DER {
+                return Err(ClientSessionError::PeerIdentityTooLarge);
+            }
+            encoded.push(len);
+        }
+        Ok(encoded)
+    }
+
+    pub(super) fn export_keying_material(
+        &self,
+        output: &mut [u8],
+        label: &[u8],
+        context: &[u8],
+    ) -> Result<(), ClientSessionError> {
+        self.callback_error()?;
+        if !self.handshake_complete {
+            return Err(ClientSessionError::ExportBeforeHandshake);
+        }
+        // SAFETY: all slices are live for the call. `use_context` is set even
+        // for an empty context so it remains distinct from an absent context.
+        let status = unsafe {
+            ffi::SSL_export_keying_material(
+                self.ssl.as_ptr(),
+                output.as_mut_ptr(),
+                output.len(),
+                label.as_ptr().cast(),
+                label.len(),
+                context.as_ptr(),
+                context.len(),
+                1,
+            )
+        };
+        if status != 1 {
+            return Err(backend_failure("keying material export"));
+        }
+        Ok(())
+    }
+
+    pub(super) const fn is_handshaking(&self) -> bool {
+        !self.handshake_complete
+    }
+
     pub(super) fn peer_transport_parameters(&self) -> Result<Option<Vec<u8>>, ClientSessionError> {
         self.callback_error()?;
         let mut parameters = ptr::null();
@@ -298,6 +418,12 @@ impl ClientSession {
         let version = unsafe { ffi::SSL_version(self.ssl.as_ptr()) };
         if version != ffi::TLS1_3_VERSION {
             return Err(ClientSessionError::UnexpectedProtocolVersion { actual: version });
+        }
+        // SAFETY: the SSL is live and its handshake completed. A permissive
+        // verification callback can allow completion while retaining a failure result.
+        let verification = unsafe { ffi::SSL_get_verify_result(self.ssl.as_ptr()) };
+        if verification != ffi::X509_V_OK.into() {
+            return Err(ClientSessionError::PeerVerificationFailed);
         }
         // SAFETY: the SSL is live and its handshake completed.
         if unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) } != 0 {

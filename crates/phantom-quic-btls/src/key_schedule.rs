@@ -43,6 +43,10 @@ impl DirectionKeys {
     pub const fn packet(&self) -> &PacketProtectionKey {
         &self.packet
     }
+
+    pub(crate) fn into_parts(self) -> (HeaderProtectionKey, PacketProtectionKey) {
+        (self.header, self.packet)
+    }
 }
 
 impl fmt::Debug for DirectionKeys {
@@ -275,6 +279,32 @@ impl TrafficKeySchedule {
             EndpointSide::Client => (client, server),
             EndpointSide::Server => (server, client),
         };
+        Ok(Self {
+            suite,
+            local,
+            remote,
+        })
+    }
+
+    pub(crate) fn from_local_remote(
+        cipher_suite: u16,
+        local: TrafficSecret,
+        remote: TrafficSecret,
+    ) -> Result<Self> {
+        let suite = CipherSuite::from_id(cipher_suite)?;
+        let expected = suite.digest().output_len();
+        if local.as_slice().len() != expected {
+            return Err(CryptoError::InvalidKeyLength {
+                actual: local.as_slice().len(),
+                expected,
+            });
+        }
+        if remote.as_slice().len() != expected {
+            return Err(CryptoError::InvalidKeyLength {
+                actual: remote.as_slice().len(),
+                expected,
+            });
+        }
         Ok(Self {
             suite,
             local,
