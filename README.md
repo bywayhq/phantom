@@ -10,10 +10,11 @@ fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
 recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
 uncaptured. The first forced HTTP/3 slice now performs a direct, one-shot
 request over the BoringSSL Quinn provider, verifies exact `h3` ALPN, streams
-data and trailers, and propagates body cancellation. It uses static QPACK
-`0/0`; browser-profile QUIC parameters, Chrome H3 parity, reusable sessions,
-typed proxy routing, SSE, and WebSocket remain planned. The project does not
-make broad client-compatibility claims.
+data and trailers, propagates body cancellation, and applies a capture-backed
+Chrome QUIC transport recipe to live Quinn state and the exact TLS extension
+bytes. It uses static QPACK `0/0`; Chrome H3 parity, reusable sessions, typed
+proxy routing, SSE, and WebSocket remain planned. The project does not make
+broad client-compatibility claims.
 
 ## Principles
 
@@ -26,8 +27,8 @@ make broad client-compatibility claims.
 ## Current workspace
 
 - `phantom`: the future public client facade
-- `phantom-profile`: browser-neutral profile identity, public typed TLS and
-  HTTP/2 settings, internal in-progress QUIC settings, and narrow
+- `phantom-profile`: browser-neutral profile identity, public typed TLS,
+  HTTP/2, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
 - `phantom-net`: ordered streaming HTTP/1.1, one-shot HTTP/2 with exact-`h2`
   TLS and ALPS, and a direct forced-H3 transaction path with streaming response

@@ -47,6 +47,7 @@ pub struct TransportConfig {
     pub(crate) crypto_buffer_size: usize,
     pub(crate) allow_spin: bool,
     pub(crate) datagram_receive_buffer_size: Option<usize>,
+    pub(crate) advertised_datagram_frame_size: Option<VarInt>,
     pub(crate) datagram_send_buffer_size: usize,
     #[cfg(test)]
     pub(crate) deterministic_packet_numbers: bool,
@@ -292,7 +293,33 @@ impl TransportConfig {
     /// The amount of payload data buffered may be smaller than `value` due to overhead.
     pub fn datagram_receive_buffer_size(&mut self, value: Option<usize>) -> &mut Self {
         self.datagram_receive_buffer_size = value;
+        self.advertised_datagram_frame_size = None;
         self
+    }
+
+    /// Configures incoming application datagrams and their advertised maximum frame size.
+    ///
+    /// `max_frame_size` must be absent when datagrams are disabled and must not exceed the
+    /// receive buffer. Unlike [`Self::datagram_receive_buffer_size`], this can advertise values
+    /// greater than `u16::MAX` when the receive buffer can hold them.
+    pub fn advertised_datagram_frame_size(
+        &mut self,
+        buffer_size: Option<usize>,
+        max_frame_size: Option<VarInt>,
+    ) -> Result<&mut Self, InvalidDatagramFrameSize> {
+        match (buffer_size, max_frame_size) {
+            (None, Some(_)) => return Err(InvalidDatagramFrameSize::ReceiveDisabled),
+            (Some(buffer_size), Some(max_frame_size))
+                if max_frame_size.into_inner()
+                    > u64::try_from(buffer_size).unwrap_or(u64::MAX) =>
+            {
+                return Err(InvalidDatagramFrameSize::ExceedsReceiveBuffer);
+            }
+            _ => {}
+        }
+        self.datagram_receive_buffer_size = buffer_size;
+        self.advertised_datagram_frame_size = max_frame_size;
+        Ok(self)
     }
 
     /// Maximum number of outgoing application datagram bytes to buffer
@@ -392,6 +419,7 @@ impl Default for TransportConfig {
             crypto_buffer_size: 16 * 1024,
             allow_spin: true,
             datagram_receive_buffer_size: Some(STREAM_RWND as usize),
+            advertised_datagram_frame_size: None,
             datagram_send_buffer_size: 1024 * 1024,
             #[cfg(test)]
             deterministic_packet_numbers: false,
@@ -428,6 +456,7 @@ impl fmt::Debug for TransportConfig {
             crypto_buffer_size,
             allow_spin,
             datagram_receive_buffer_size,
+            advertised_datagram_frame_size,
             datagram_send_buffer_size,
             #[cfg(test)]
                 deterministic_packet_numbers: _,
@@ -460,6 +489,10 @@ impl fmt::Debug for TransportConfig {
             .field("crypto_buffer_size", crypto_buffer_size)
             .field("allow_spin", allow_spin)
             .field("datagram_receive_buffer_size", datagram_receive_buffer_size)
+            .field(
+                "advertised_datagram_frame_size",
+                advertised_datagram_frame_size,
+            )
             .field("datagram_send_buffer_size", datagram_send_buffer_size)
             // congestion_controller_factory not debug
             .field("enable_segmentation_offload", enable_segmentation_offload);
@@ -468,6 +501,50 @@ impl fmt::Debug for TransportConfig {
         }
 
         s.finish_non_exhaustive()
+    }
+}
+
+/// Error returned when an advertised DATAGRAM frame size is inconsistent with buffering.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InvalidDatagramFrameSize {
+    /// DATAGRAM support cannot be advertised when receive buffering is disabled.
+    ReceiveDisabled,
+    /// A single advertised frame would not fit in the configured receive buffer.
+    ExceedsReceiveBuffer,
+}
+
+impl fmt::Display for InvalidDatagramFrameSize {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::ReceiveDisabled => "DATAGRAM receive buffering is disabled",
+            Self::ExceedsReceiveBuffer => {
+                "advertised DATAGRAM frame size exceeds the receive buffer"
+            }
+        })
+    }
+}
+
+impl std::error::Error for InvalidDatagramFrameSize {}
+
+#[cfg(test)]
+mod datagram_frame_size_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_inconsistent_advertisement() {
+        let mut config = TransportConfig::default();
+        assert_eq!(
+            config
+                .advertised_datagram_frame_size(None, Some(1u32.into()))
+                .unwrap_err(),
+            InvalidDatagramFrameSize::ReceiveDisabled
+        );
+        assert_eq!(
+            config
+                .advertised_datagram_frame_size(Some(1_200), Some(1_201u32.into()))
+                .unwrap_err(),
+            InvalidDatagramFrameSize::ExceedsReceiveBuffer
+        );
     }
 }
 

@@ -6,6 +6,8 @@ use std::{error::Error as StdError, fmt};
 pub enum Http3ErrorKind {
     /// The request cannot be represented by the current HTTP/3 path.
     Request,
+    /// The selected QUIC transport profile is incompatible with the runtime.
+    Configuration,
     /// The local UDP or QUIC endpoint could not be initialized.
     Endpoint,
     /// The remote QUIC connection could not be started.

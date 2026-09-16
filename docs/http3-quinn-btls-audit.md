@@ -10,16 +10,19 @@ client-only `phantom-quic-btls` adapter. Adapt and harden the official
 `quinn-rs/quinn-boring` implementation rather than implementing QUIC crypto
 from scratch or introducing a second BoringSSL build.
 
-Use two narrow, default-preserving `quinn-proto` patches for provider-contract
-gaps only. In 0.11.18, `Session::next_1rtt_keys` has no error channel, and Quinn
-unwraps its result both when installing 1-RTT keys and when replenishing the
-next key phase. `Session::initial_keys` is also infallible even though an
-external provider can fail to derive or construct Initial keys. BoringSSL key
-derivation and key construction are fallible, so the stock contracts cannot
-provide panic-free failure propagation. The patches must convert provider
+Use narrow, default-preserving `quinn-proto` patches for proven provider and
+transport gaps only. In 0.11.18, `Session::next_1rtt_keys` has no error channel,
+and Quinn unwraps its result both when installing 1-RTT keys and when
+replenishing the next key phase. `Session::initial_keys` is also infallible
+even though an external provider can fail to derive or construct Initial
+keys. BoringSSL key derivation and key construction are fallible, so the stock
+contracts cannot provide panic-free failure propagation. The patches must convert provider
 failure into a bounded connect error or `INTERNAL_ERROR` before inserting a
 connection, changing Retry state, changing key phase, or emitting a packet;
-they must not add fingerprint controls.
+they must not add fingerprint controls. A third patch permits an explicit
+DATAGRAM frame-size advertisement and distinct local validation and encoding
+errors. It was triggered by the retained value `65,536`, which Quinn otherwise
+clamps to `65,535`; its default behavior remains unchanged.
 
 No Quinn patch is needed for transport-parameter ordering. The provider
 receives Quinn's semantic `TransportParameters` before BoringSSL constructs
@@ -30,12 +33,11 @@ final ordered bytes with profile-owned GREASE and supported opaque parameters.
 This preserves Quinn's state-machine semantics while putting the observable
 TLS extension bytes at the correct boundary.
 
-Implementation is staged. The first standards-conforming provider bring-up
-feeds Quinn's stock serialized parameters to BoringSSL so callback ownership
-and the crypto state machine can be tested without profile reshaping. The
-profile-owned serializer is the following slice and remains required before
-the Chrome differential can pass; the stock path is not presented as browser
-parity.
+Implementation is staged. The stock provider path remains available for
+standards-conforming use. The capture-backed path validates Quinn's live
+semantics, replaces only the final transport-parameter encoding, and passes
+the resulting bytes to BoringSSL. Exact seeded and multi-entropy tests cover
+the retained Chrome fixture; this alone is not presented as Chrome parity.
 
 Carry one narrow, default-preserving `h3` patch now. Both the published release
 and audited upstream revision construct outbound SETTINGS in library-defined
@@ -329,18 +331,20 @@ checks. A direct forced-H3 path now completes a certificate-verified BoringSSL
 QUIC handshake, requires exact `h3` ALPN, streams response data and trailers,
 and proves peer-visible cancellation when the response body is dropped. It
 uses static QPACK `0/0` and a bounded field-section limit. The complete Chrome
-integration gate remains pending on profile-driven transport parameters,
-captured request ordering, dynamic QPACK, and packet differentials.
+integration gate remains pending on captured request ordering, dynamic QPACK,
+and packet differentials.
 
 ## Fork trigger
 
 The existing `quinn-proto` patches are limited to recoverable Initial and
-key-update error propagation. Do not add observable transport behavior to them
-until a retained differential proves a requirement the crypto provider cannot control:
+key-update errors, one explicit DATAGRAM advertisement, and a local profile
+error. Do not add further observable transport behavior until a retained
+differential proves a requirement the crypto provider cannot control:
 packetization, ACK timing/encoding, connection-ID lifecycle, congestion
 control, pacing, or a transport parameter whose value must diverge from
-Quinn's live semantics. Exact transport-parameter ordering, GREASE, and
-supported opaque entries remain insufficient reasons to extend the fork.
+Quinn's live semantics. The retained `65,536` DATAGRAM value met that bar.
+Exact transport-parameter ordering, GREASE, and supported opaque entries
+remain insufficient reasons to extend the fork.
 
 ## Sources inspected
 

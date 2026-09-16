@@ -41,8 +41,7 @@ pub async fn send_request(
     );
     let result = async {
         validate_request(&request)?;
-        let mut endpoint = endpoint(remote)?;
-        endpoint.set_default_client_config(quinn::ClientConfig::new(crypto));
+        let endpoint = endpoint(remote, crypto)?;
 
         debug!("QUIC connection started");
         let connection = endpoint
@@ -98,7 +97,10 @@ pub async fn send_request(
     result
 }
 
-fn endpoint(remote: SocketAddr) -> Result<quinn::Endpoint, Http3Error> {
+fn endpoint(
+    remote: SocketAddr,
+    crypto: Arc<QuicClientConfig>,
+) -> Result<quinn::Endpoint, Http3Error> {
     let bind_address = match remote.ip() {
         IpAddr::V4(_) => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
         IpAddr::V6(_) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
@@ -106,9 +108,24 @@ fn endpoint(remote: SocketAddr) -> Result<quinn::Endpoint, Http3Error> {
     let socket = UdpSocket::bind(bind_address).map_err(endpoint_error)?;
     socket.set_nonblocking(true).map_err(endpoint_error)?;
     let reset_key = StatelessResetKey::generate().map_err(endpoint_error)?;
-    let config = quinn::EndpointConfig::new(Arc::new(reset_key));
-    quinn::Endpoint::new(config, None, socket, Arc::new(quinn::TokioRuntime))
-        .map_err(endpoint_error)
+    let mut endpoint_config = quinn::EndpointConfig::new(Arc::new(reset_key));
+    let mut transport_config = quinn::TransportConfig::default();
+    crypto
+        .configure_transport(&mut endpoint_config, &mut transport_config)
+        .map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Configuration,
+                "QUIC transport profile is incompatible with the runtime",
+                error,
+            )
+        })?;
+    let mut client_config = quinn::ClientConfig::new(crypto);
+    client_config.transport_config(Arc::new(transport_config));
+    let mut endpoint =
+        quinn::Endpoint::new(endpoint_config, None, socket, Arc::new(quinn::TokioRuntime))
+            .map_err(endpoint_error)?;
+    endpoint.set_default_client_config(client_config);
+    Ok(endpoint)
 }
 
 fn endpoint_error(error: impl std::error::Error + Send + Sync + 'static) -> Http3Error {

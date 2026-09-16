@@ -15,7 +15,10 @@ use rustls_pki_types::DnsName;
 use super::callback_state::{EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{ClientSession, ClientSessionError};
 use crate::key_schedule::{PacketKeyPair, TrafficKeySchedule, TrafficKeys};
+use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
+use phantom_profile::quic::QuicTransportSettings;
+use quinn_proto::{EndpointConfig, TransportConfig};
 
 const QUIC_VERSION_1: u32 = 0x0000_0001;
 const H3_PROTOCOL: &[u8] = b"h3";
@@ -27,13 +30,42 @@ const H3_PROTOCOL: &[u8] = b"h3";
 /// Session-specific QUIC requirements are applied to each owned `SSL`.
 pub struct QuicClientConfig {
     context: SslContext,
+    transport_profile: Option<TransportParameterProfile>,
 }
 
 impl QuicClientConfig {
     /// Wraps an already configured BoringSSL context.
     #[must_use]
     pub const fn new(context: SslContext) -> Self {
-        Self { context }
+        Self {
+            context,
+            transport_profile: None,
+        }
+    }
+
+    /// Wraps a BoringSSL context and applies a validated QUIC transport profile.
+    pub fn with_transport_profile(
+        context: SslContext,
+        settings: QuicTransportSettings,
+    ) -> Result<Self, QuicTransportProfileError> {
+        Ok(Self {
+            context,
+            transport_profile: Some(TransportParameterProfile::new(settings)?),
+        })
+    }
+
+    /// Applies this profile's semantic settings to Quinn.
+    ///
+    /// The stock configuration created by [`Self::new`] leaves both values unchanged.
+    pub fn configure_transport(
+        &self,
+        endpoint: &mut EndpointConfig,
+        transport: &mut TransportConfig,
+    ) -> Result<(), QuicTransportProfileError> {
+        if let Some(profile) = &self.transport_profile {
+            profile.configure_quinn(endpoint, transport)?;
+        }
+        Ok(())
     }
 }
 
@@ -90,8 +122,20 @@ impl crypto::ClientConfig for QuicClientConfig {
         let version = interpret_version(version)?;
         validate_dns_name(server_name)?;
 
-        let mut encoded_parameters = Vec::new();
-        params.write(&mut encoded_parameters);
+        let encoded_parameters = if let Some(profile) = &self.transport_profile {
+            profile.encode(params, version).map_err(|error| {
+                let message = error.to_string();
+                if error.is_entropy_failure() {
+                    ConnectError::TransportParameterEncoding(message)
+                } else {
+                    ConnectError::InvalidTransportParameters(message)
+                }
+            })?
+        } else {
+            let mut encoded = Vec::new();
+            params.write(&mut encoded);
+            encoded
+        };
         let mut backend = ClientSession::new(&self.context, server_name, &encoded_parameters)
             .map_err(|error| map_start_error(server_name, error))?;
         backend

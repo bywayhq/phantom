@@ -1,0 +1,231 @@
+diff --git a/src/config/mod.rs b/src/config/mod.rs
+index 0a299d0..9f43dea 100644
+--- a/src/config/mod.rs
++++ b/src/config/mod.rs
+@@ -28,7 +28,9 @@ use crate::{
+ mod transport;
+ #[cfg(feature = "qlog")]
+ pub use transport::QlogConfig;
+-pub use transport::{AckFrequencyConfig, IdleTimeout, MtuDiscoveryConfig, TransportConfig};
++pub use transport::{
++    AckFrequencyConfig, IdleTimeout, InvalidDatagramFrameSize, MtuDiscoveryConfig, TransportConfig,
++};
+ 
+ /// Global configuration for the endpoint, affecting all connections
+ ///
+diff --git a/src/config/transport.rs b/src/config/transport.rs
+index e0b9428..147fe18 100644
+--- a/src/config/transport.rs
++++ b/src/config/transport.rs
+@@ -47,6 +47,7 @@ pub struct TransportConfig {
+     pub(crate) crypto_buffer_size: usize,
+     pub(crate) allow_spin: bool,
+     pub(crate) datagram_receive_buffer_size: Option<usize>,
++    pub(crate) advertised_datagram_frame_size: Option<VarInt>,
+     pub(crate) datagram_send_buffer_size: usize,
+     #[cfg(test)]
+     pub(crate) deterministic_packet_numbers: bool,
+@@ -292,9 +293,35 @@ impl TransportConfig {
+     /// The amount of payload data buffered may be smaller than `value` due to overhead.
+     pub fn datagram_receive_buffer_size(&mut self, value: Option<usize>) -> &mut Self {
+         self.datagram_receive_buffer_size = value;
++        self.advertised_datagram_frame_size = None;
+         self
+     }
+ 
++    /// Configures incoming application datagrams and their advertised maximum frame size.
++    ///
++    /// `max_frame_size` must be absent when datagrams are disabled and must not exceed the
++    /// receive buffer. Unlike [`Self::datagram_receive_buffer_size`], this can advertise values
++    /// greater than `u16::MAX` when the receive buffer can hold them.
++    pub fn advertised_datagram_frame_size(
++        &mut self,
++        buffer_size: Option<usize>,
++        max_frame_size: Option<VarInt>,
++    ) -> Result<&mut Self, InvalidDatagramFrameSize> {
++        match (buffer_size, max_frame_size) {
++            (None, Some(_)) => return Err(InvalidDatagramFrameSize::ReceiveDisabled),
++            (Some(buffer_size), Some(max_frame_size))
++                if max_frame_size.into_inner()
++                    > u64::try_from(buffer_size).unwrap_or(u64::MAX) =>
++            {
++                return Err(InvalidDatagramFrameSize::ExceedsReceiveBuffer);
++            }
++            _ => {}
++        }
++        self.datagram_receive_buffer_size = buffer_size;
++        self.advertised_datagram_frame_size = max_frame_size;
++        Ok(self)
++    }
++
+     /// Maximum number of outgoing application datagram bytes to buffer
+     ///
+     /// While datagrams are sent ASAP, it is possible for an application to generate data faster
+@@ -392,6 +419,7 @@ impl Default for TransportConfig {
+             crypto_buffer_size: 16 * 1024,
+             allow_spin: true,
+             datagram_receive_buffer_size: Some(STREAM_RWND as usize),
++            advertised_datagram_frame_size: None,
+             datagram_send_buffer_size: 1024 * 1024,
+             #[cfg(test)]
+             deterministic_packet_numbers: false,
+@@ -428,6 +456,7 @@ impl fmt::Debug for TransportConfig {
+             crypto_buffer_size,
+             allow_spin,
+             datagram_receive_buffer_size,
++            advertised_datagram_frame_size,
+             datagram_send_buffer_size,
+             #[cfg(test)]
+                 deterministic_packet_numbers: _,
+@@ -460,6 +489,10 @@ impl fmt::Debug for TransportConfig {
+             .field("crypto_buffer_size", crypto_buffer_size)
+             .field("allow_spin", allow_spin)
+             .field("datagram_receive_buffer_size", datagram_receive_buffer_size)
++            .field(
++                "advertised_datagram_frame_size",
++                advertised_datagram_frame_size,
++            )
+             .field("datagram_send_buffer_size", datagram_send_buffer_size)
+             // congestion_controller_factory not debug
+             .field("enable_segmentation_offload", enable_segmentation_offload);
+@@ -471,6 +504,50 @@ impl fmt::Debug for TransportConfig {
+     }
+ }
+ 
++/// Error returned when an advertised DATAGRAM frame size is inconsistent with buffering.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum InvalidDatagramFrameSize {
++    /// DATAGRAM support cannot be advertised when receive buffering is disabled.
++    ReceiveDisabled,
++    /// A single advertised frame would not fit in the configured receive buffer.
++    ExceedsReceiveBuffer,
++}
++
++impl fmt::Display for InvalidDatagramFrameSize {
++    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++        formatter.write_str(match self {
++            Self::ReceiveDisabled => "DATAGRAM receive buffering is disabled",
++            Self::ExceedsReceiveBuffer => {
++                "advertised DATAGRAM frame size exceeds the receive buffer"
++            }
++        })
++    }
++}
++
++impl std::error::Error for InvalidDatagramFrameSize {}
++
++#[cfg(test)]
++mod datagram_frame_size_tests {
++    use super::*;
++
++    #[test]
++    fn rejects_inconsistent_advertisement() {
++        let mut config = TransportConfig::default();
++        assert_eq!(
++            config
++                .advertised_datagram_frame_size(None, Some(1u32.into()))
++                .unwrap_err(),
++            InvalidDatagramFrameSize::ReceiveDisabled
++        );
++        assert_eq!(
++            config
++                .advertised_datagram_frame_size(Some(1_200), Some(1_201u32.into()))
++                .unwrap_err(),
++            InvalidDatagramFrameSize::ExceedsReceiveBuffer
++        );
++    }
++}
++
+ /// Parameters for controlling the peer's acknowledgement frequency
+ ///
+ /// The parameters provided in this config will be sent to the peer at the beginning of the
+diff --git a/src/endpoint.rs b/src/endpoint.rs
+index 6186c72..ebf01dc 100644
+--- a/src/endpoint.rs
++++ b/src/endpoint.rs
+@@ -1321,6 +1321,12 @@ pub enum ConnectError {
+     /// Initial packet protection keys could not be derived
+     #[error("initial key derivation failed")]
+     InitialCrypto,
++    /// The cryptography provider rejected locally constructed transport parameters
++    #[error("invalid local transport parameters: {0}")]
++    InvalidTransportParameters(String),
++    /// The cryptography provider failed to encode local transport parameters
++    #[error("failed to encode local transport parameters: {0}")]
++    TransportParameterEncoding(String),
+ }
+ 
+ /// Error type for attempting to accept an [`Incoming`]
+diff --git a/src/lib.rs b/src/lib.rs
+index 5982b69..9c7e844 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -59,8 +59,9 @@ mod config;
+ #[cfg(feature = "qlog")]
+ pub use config::QlogConfig;
+ pub use config::{
+-    AckFrequencyConfig, ClientConfig, ConfigError, EndpointConfig, IdleTimeout, MtuDiscoveryConfig,
+-    ServerConfig, StdSystemTime, TimeSource, TransportConfig, ValidationTokenConfig,
++    AckFrequencyConfig, ClientConfig, ConfigError, EndpointConfig, IdleTimeout,
++    InvalidDatagramFrameSize, MtuDiscoveryConfig, ServerConfig, StdSystemTime, TimeSource,
++    TransportConfig, ValidationTokenConfig,
+ };
+ 
+ pub mod crypto;
+diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
+index 75462ae..367bd36 100644
+--- a/src/transport_parameters.rs
++++ b/src/transport_parameters.rs
+@@ -167,9 +167,7 @@ impl TransportParameters {
+                 CidQueue::LEN as u32
+             }
+             .into(),
+-            max_datagram_frame_size: config
+-                .datagram_receive_buffer_size
+-                .map(|x| (x.min(u16::MAX.into()) as u16).into()),
++            max_datagram_frame_size: configured_datagram_frame_size(config),
+             grease_quic_bit: endpoint_config.grease_quic_bit,
+             min_ack_delay: Some(
+                 VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
+@@ -213,6 +211,14 @@ impl TransportParameters {
+     }
+ }
+ 
++fn configured_datagram_frame_size(config: &TransportConfig) -> Option<VarInt> {
++    config.datagram_receive_buffer_size.map(|buffer_size| {
++        config
++            .advertised_datagram_frame_size
++            .unwrap_or_else(|| (buffer_size.min(u16::MAX.into()) as u16).into())
++    })
++}
++
+ /// A server's preferred address
+ ///
+ /// This is communicated as a transport parameter during TLS session establishment.
+@@ -732,6 +738,25 @@ mod test {
+ 
+     use super::*;
+ 
++    #[test]
++    fn explicit_datagram_frame_size_overrides_legacy_clamp() {
++        let mut config = TransportConfig::default();
++        config
++            .advertised_datagram_frame_size(Some(65_536), Some(65_536u32.into()))
++            .unwrap();
++
++        assert_eq!(
++            configured_datagram_frame_size(&config),
++            Some(65_536u32.into())
++        );
++
++        config.datagram_receive_buffer_size(Some(65_536));
++        assert_eq!(
++            configured_datagram_frame_size(&config),
++            Some(u32::from(u16::MAX).into())
++        );
++    }
++
+     #[test]
+     fn coding() {
+         let mut buf = Vec::new();
+         let params = TransportParameters {

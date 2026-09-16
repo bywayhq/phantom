@@ -45,10 +45,17 @@ verify bounded connection errors, `INTERNAL_ERROR`, unchanged key state, and
 no automatic-update packet emission. The patches do not add a BoringSSL
 Session implementation.
 
+The third patch adds two provider-facing transport-profile seams. It allows an
+explicit DATAGRAM frame-size advertisement when it fits the configured receive
+buffer, preserving Quinn's existing clamped behavior by default. It also adds
+bounded connection errors for invalid local parameters and provider-side
+encoding failure before any network I/O.
+
 The ordered canonical source and test deltas are stored in
-`patches/fallible-key-updates.patch` and
-`patches/fallible-initial-keys.patch`. Apply them in that order. `PHANTOM.md`
-and the patch files are packaging metadata and are not part of either patch.
+`patches/fallible-key-updates.patch`, `patches/fallible-initial-keys.patch`, and
+`patches/profiled-transport-parameters.patch`. Apply them in that order.
+`PHANTOM.md` and the patch files are packaging metadata and are not part of the
+patches.
 
 ## Refreshing the vendor copy
 
@@ -74,14 +81,15 @@ and the patch files are packaging metadata and are not part of either patch.
    candidate="$refresh_dir/quinn-proto-$quinn_proto_version"
    ```
 
-2. Dry-apply and apply both canonical patches in order. A failed dry
+2. Dry-apply and apply all canonical patches in order. A failed dry
    application requires review and patch regeneration; do not accept fuzz or
    rejected hunks.
 
    ```sh
    for patch in \
      fallible-key-updates.patch \
-     fallible-initial-keys.patch
+     fallible-initial-keys.patch \
+     profiled-transport-parameters.patch
    do
      git -C "$candidate" apply --check \
        "$PWD/vendor/quinn-proto/patches/$patch"
@@ -91,7 +99,7 @@ and the patch files are packaging metadata and are not part of either patch.
    ```
 
 3. Copy the patched candidate to `vendor/quinn-proto.next`, then copy this file
-   and both canonical patches into it. Keep the current directory as a
+   and all canonical patches into it. Keep the current directory as a
    rollback copy until all checks pass. Update the version, archive URL,
    checksum, and patches when refreshing.
 
@@ -113,6 +121,7 @@ rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/initial_keys.rs
 rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/key_update.rs
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::initial_keys
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::key_update
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked datagram_frame_size
 cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml --all-targets --locked -- -D warnings
 cargo check --manifest-path vendor/quinn-proto/Cargo.toml --no-default-features --locked
 cargo check -p phantom-quic-btls --all-targets --locked

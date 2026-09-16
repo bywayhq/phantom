@@ -21,6 +21,7 @@ mod quinn;
 mod reset;
 mod retry;
 mod secret;
+mod transport_parameters;
 
 #[cfg(test)]
 mod suite_tests;
@@ -35,6 +36,7 @@ pub use key_schedule::{DirectionKeys, EndpointSide};
 pub use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;
 pub use retry::{retry_integrity_tag, verify_retry_integrity};
+pub use transport_parameters::QuicTransportProfileError;
 
 /// The QUIC protocol version understood by this packet-crypto slice.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

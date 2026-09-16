@@ -7,6 +7,7 @@ use btls::{
 use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Request, Response, StatusCode};
 use http_body_util::BodyExt;
+use phantom_profile::chromium;
 use phantom_quic_btls::QuicClientConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
@@ -113,6 +114,46 @@ async fn streams_data_and_trailers_over_boringssl_quic() -> TestResult<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = profiled_client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+    let request = Request::get(format!(
+        "https://{TEST_SERVER_NAME}:{}/profiled",
+        address.port()
+    ))
+    .body(())?;
+
+    let response = timeout(
+        TEST_TIMEOUT,
+        send_request(address, TEST_SERVER_NAME, client, request),
+    )
+    .await
+    .map_err(|_| "profiled HTTP/3 request timed out")??;
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let mut body = response.into_body();
+    assert!(next_optional_frame(&mut body).await?.is_none());
+    let _ = client_done.send(());
+    join_server(server).await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn connects_over_ipv6_when_loopback_is_available() -> TestResult<()> {
     let bind_address: SocketAddr = "[::1]:0".parse()?;
     if std::net::UdpSocket::bind(bind_address).is_err() {
@@ -213,6 +254,18 @@ fn client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {
         .add_cert(X509::from_der(identity.root_der())?)?;
     context.set_verify(SslVerifyMode::PEER);
     Ok(Arc::new(QuicClientConfig::new(context.build())))
+}
+
+fn profiled_client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {
+    let mut context = SslContext::builder(SslMethod::tls())?;
+    context
+        .cert_store_mut()
+        .add_cert(X509::from_der(identity.root_der())?)?;
+    context.set_verify(SslVerifyMode::PEER);
+    Ok(Arc::new(QuicClientConfig::with_transport_profile(
+        context.build(),
+        chromium::v152_macos_quic(),
+    )?))
 }
 
 fn server_endpoint(identity: &TestIdentity) -> TestResult<(std::net::SocketAddr, quinn::Endpoint)> {

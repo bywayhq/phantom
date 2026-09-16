@@ -78,7 +78,6 @@ pub enum QuicVersionGrease {
 /// The selected version and the versions actually supported by the transport
 /// remain runtime-owned and are deliberately absent from this profile type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub struct QuicVersionInformation {
     /// Number of non-reserved versions the runtime must place after the chosen version.
     ///
@@ -99,7 +98,6 @@ pub enum GoogleConnectionOption {
 
 /// Policy for one runtime-generated reserved QUIC transport parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub struct QuicTransportGrease {
     /// Smallest generated payload length, inclusive.
     pub minimum_payload_length: u8,
@@ -220,7 +218,6 @@ impl QuicTransportParameterKind {
 
 /// Wire encoding for one configured QUIC transport parameter.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub struct QuicTransportParameter {
     /// Parameter identifier and value policy.
     pub kind: QuicTransportParameterKind,
@@ -232,7 +229,6 @@ pub struct QuicTransportParameter {
 
 /// QUIC transport semantics and their independent ordered wire layout.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub struct QuicTransportSettings {
     /// Maximum accepted idle time in milliseconds; zero omits the local limit.
     ///
@@ -480,6 +476,12 @@ impl InvalidQuicTransportSettings {
     #[must_use]
     pub fn field(&self) -> &'static str {
         self.field
+    }
+
+    /// Returns the reason the field is invalid.
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        &self.message
     }
 }
 

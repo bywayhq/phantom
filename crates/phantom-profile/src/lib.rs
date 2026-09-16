@@ -3,12 +3,11 @@
 pub mod chromium;
 pub mod firefox;
 pub mod http2;
+pub mod quic;
 pub mod safari;
 pub mod tls;
 
 mod identity;
-#[cfg(test)]
-mod quic;
 
 pub use http2::{
     Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,

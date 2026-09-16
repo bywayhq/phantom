@@ -167,9 +167,7 @@ impl TransportParameters {
                 CidQueue::LEN as u32
             }
             .into(),
-            max_datagram_frame_size: config
-                .datagram_receive_buffer_size
-                .map(|x| (x.min(u16::MAX.into()) as u16).into()),
+            max_datagram_frame_size: configured_datagram_frame_size(config),
             grease_quic_bit: endpoint_config.grease_quic_bit,
             min_ack_delay: Some(
                 VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
@@ -211,6 +209,14 @@ impl TransportParameters {
     pub(crate) fn issue_cids_limit(&self) -> u64 {
         self.active_connection_id_limit.0.min(LOC_CID_COUNT)
     }
+}
+
+fn configured_datagram_frame_size(config: &TransportConfig) -> Option<VarInt> {
+    config.datagram_receive_buffer_size.map(|buffer_size| {
+        config
+            .advertised_datagram_frame_size
+            .unwrap_or_else(|| (buffer_size.min(u16::MAX.into()) as u16).into())
+    })
 }
 
 /// A server's preferred address
@@ -731,6 +737,25 @@ mod test {
     use rand::TryRng;
 
     use super::*;
+
+    #[test]
+    fn explicit_datagram_frame_size_overrides_legacy_clamp() {
+        let mut config = TransportConfig::default();
+        config
+            .advertised_datagram_frame_size(Some(65_536), Some(65_536u32.into()))
+            .unwrap();
+
+        assert_eq!(
+            configured_datagram_frame_size(&config),
+            Some(65_536u32.into())
+        );
+
+        config.datagram_receive_buffer_size(Some(65_536));
+        assert_eq!(
+            configured_datagram_frame_size(&config),
+            Some(u32::from(u16::MAX).into())
+        );
+    }
 
     #[test]
     fn coding() {

@@ -797,6 +797,7 @@ dependencies = [
  "btls-sys",
  "bytes",
  "foreign-types",
+ "phantom-profile",
  "quinn-proto",
  "rustls-pki-types",
  "zeroize",

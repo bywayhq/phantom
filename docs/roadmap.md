@@ -106,10 +106,12 @@ own captures rather than assumptions about shared engine behavior.
 
 The current vertical slice completes a direct empty-body request, streams the
 response and trailers, and proves peer-visible cancellation without any TCP or
-protocol fallback. It intentionally advertises static QPACK `0/0`. This is
-working HTTP/3 transport substrate, not Chrome H3 parity; profile-driven QUIC
-transport parameters, request ordering, dynamic QPACK, and packet
-differentials remain acceptance work.
+protocol fallback. A capture-backed Chrome recipe now configures Quinn's live
+transport limits and reproduces the retained transport-parameter extension
+under deterministic entropy; production connections randomize its permitted
+order and GREASE. It intentionally advertises static QPACK `0/0`. This is
+working HTTP/3 transport substrate, not Chrome H3 parity; request ordering,
+dynamic QPACK, and packet differentials remain acceptance work.
 
 Acceptance:
 

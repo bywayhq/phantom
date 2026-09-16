@@ -8,7 +8,6 @@ use crate::{
     },
 };
 
-#[cfg(test)]
 use crate::quic::{
     GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
     QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
@@ -160,11 +159,11 @@ pub fn v152_macos_http2() -> Http2Settings {
 /// The parameter vector retains one captured order as a permutation template;
 /// Chrome varies that order between connections. Connection IDs, the reserved
 /// version, and the reserved transport parameter remain runtime-generated.
-/// This recipe remains crate-private until the runtime serializer makes every
-/// setting observable on the wire.
+/// This is a QUIC transport recipe, not a complete HTTP/3 profile. In
+/// particular, the current static-QPACK HTTP/3 path does not reproduce
+/// Chrome's nonzero QPACK settings.
 #[must_use]
-#[cfg(test)]
-pub(crate) fn v152_macos_quic() -> QuicTransportSettings {
+pub fn v152_macos_quic() -> QuicTransportSettings {
     use QuicTransportParameterKind as Kind;
     use QuicVarIntWidth::{Eight, Four, One, Two};
 

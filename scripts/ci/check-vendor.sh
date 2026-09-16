@@ -19,7 +19,8 @@ check_quinn_proto_patch_replay() {
   candidate="$staging/quinn-proto-0.11.18"
   for patch in \
     vendor/quinn-proto/patches/fallible-key-updates.patch \
-    vendor/quinn-proto/patches/fallible-initial-keys.patch
+    vendor/quinn-proto/patches/fallible-initial-keys.patch \
+    vendor/quinn-proto/patches/profiled-transport-parameters.patch
   do
     git -C "$candidate" apply --check "$PWD/$patch"
     git -C "$candidate" apply "$PWD/$patch"
@@ -67,6 +68,8 @@ case "${1:-}" in
       --locked tests::key_update
     cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
       --locked tests::initial_keys
+    cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
+      --locked datagram_frame_size
     ;;
   h3)
     cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check

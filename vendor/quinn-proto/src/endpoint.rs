@@ -1321,6 +1321,12 @@ pub enum ConnectError {
     /// Initial packet protection keys could not be derived
     #[error("initial key derivation failed")]
     InitialCrypto,
+    /// The cryptography provider rejected locally constructed transport parameters
+    #[error("invalid local transport parameters: {0}")]
+    InvalidTransportParameters(String),
+    /// The cryptography provider failed to encode local transport parameters
+    #[error("failed to encode local transport parameters: {0}")]
+    TransportParameterEncoding(String),
 }
 
 /// Error type for attempting to accept an [`Incoming`]

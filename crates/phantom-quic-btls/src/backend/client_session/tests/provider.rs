@@ -2,6 +2,7 @@ use std::io::Cursor;
 use std::sync::Arc;
 
 use btls::x509::X509;
+use phantom_profile::chromium;
 use quinn_proto::crypto;
 use quinn_proto::{ConnectError, ConnectionId, Side, transport_parameters::TransportParameters};
 
@@ -166,6 +167,27 @@ fn rejects_unsupported_versions_and_ip_names_before_io() {
             _ => panic!("unknown expected mapping"),
         }
     }
+}
+
+#[test]
+fn profiled_transport_mismatch_has_a_truthful_connect_error() {
+    let context = client_context(true);
+    let config = test_ok(
+        QuicClientConfig::with_transport_profile(context.0, chromium::v152_macos_quic()),
+        "profiled client config",
+    );
+
+    let result = crypto::ClientConfig::start_session(
+        Arc::new(config),
+        0x0000_0001,
+        SERVER_NAME,
+        &client_transport_parameters(),
+    );
+
+    assert!(matches!(
+        result,
+        Err(ConnectError::InvalidTransportParameters(_))
+    ));
 }
 
 #[test]
