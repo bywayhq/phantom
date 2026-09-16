@@ -2,15 +2,17 @@
 
 use crate::{
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
-    quic::{
-        GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
-        QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
-        QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
-    },
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
     },
+};
+
+#[cfg(test)]
+use crate::quic::{
+    GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
+    QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
+    QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
 };
 
 const V152_MACOS_TRUST_ANCHOR_IDS: &[&[u8]] = &[
@@ -158,10 +160,11 @@ pub fn v152_macos_http2() -> Http2Settings {
 /// The parameter vector retains one captured order as a permutation template;
 /// Chrome varies that order between connections. Connection IDs, the reserved
 /// version, and the reserved transport parameter remain runtime-generated.
-/// The returned value is an ordinary owned [`QuicTransportSettings`] so callers
-/// can customize both semantics and wire layout before constructing a transport.
+/// This recipe remains crate-private until the runtime serializer makes every
+/// setting observable on the wire.
 #[must_use]
-pub fn v152_macos_quic() -> QuicTransportSettings {
+#[cfg(test)]
+pub(crate) fn v152_macos_quic() -> QuicTransportSettings {
     use QuicTransportParameterKind as Kind;
     use QuicVarIntWidth::{Eight, Four, One, Two};
 
@@ -194,6 +197,7 @@ pub fn v152_macos_quic() -> QuicTransportSettings {
             ),
             parameter(
                 Kind::VersionInformation(QuicVersionInformation {
+                    available_version_count: 1,
                     grease: QuicVersionGrease::Permuted,
                 }),
                 One,
@@ -220,7 +224,7 @@ pub fn v152_macos_quic() -> QuicTransportSettings {
                 Eight,
                 One,
             ),
-            parameter(Kind::InitialSourceConnectionId, One, One),
+            parameter(Kind::InitialSourceConnectionId { length: 0 }, One, One),
             parameter(Kind::MaxUdpPayloadSize { value_width: Two }, One, One),
             parameter(Kind::MaxDatagramFrameSize { value_width: Four }, One, One),
             parameter(Kind::MaxIdleTimeout { value_width: Four }, One, One),

@@ -88,106 +88,287 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
 -> Result<(), Box<dyn std::error::Error>> {
     let settings = v152_macos_quic();
     settings.validate()?;
+    let captured = parse_quic_transport_parameters(HTTP3_FIXTURE)?;
 
-    assert_eq!(settings.max_idle_timeout_ms, 30_000);
-    assert_eq!(settings.max_udp_payload_size, 1_472);
-    assert_eq!(settings.initial_max_data, 15_728_640);
-    assert_eq!(settings.initial_max_stream_data_bidi_local, 6_291_456);
-    assert_eq!(settings.initial_max_stream_data_bidi_remote, 6_291_456);
-    assert_eq!(settings.initial_max_stream_data_uni, 6_291_456);
-    assert_eq!(settings.initial_max_streams_bidi, 100);
-    assert_eq!(settings.initial_max_streams_uni, 103);
-    assert_eq!(settings.max_datagram_frame_size, Some(65_536));
+    assert_eq!(captured.len(), settings.wire_parameters.len());
     assert_eq!(
         settings.parameter_order,
         QuicTransportParameterOrder::Permuted
     );
 
     use QuicTransportParameterKind as Kind;
-    use QuicVarIntWidth::{Eight, Four, One, Two};
-    let expected = [
-        ("initial_max_stream_data_uni", One, One, Some(Four)),
-        ("initial_max_stream_data_bidi_local", One, One, Some(Four)),
-        ("version_information_permuted_grease", One, One, None),
-        ("initial_max_data", One, One, Some(Four)),
-        ("initial_max_streams_bidi", One, One, Some(Two)),
-        ("google_orig", Two, One, None),
-        ("initial_max_streams_uni", One, One, Some(Two)),
-        ("initial_max_stream_data_bidi_remote", One, One, Some(Four)),
-        ("grease_0_15", Eight, One, None),
-        ("initial_source_connection_id", One, One, None),
-        ("max_udp_payload_size", One, One, Some(Two)),
-        ("max_datagram_frame_size", One, One, Some(Four)),
-        ("max_idle_timeout", One, One, Some(Four)),
-    ];
-    let actual = settings
-        .wire_parameters
-        .iter()
-        .map(|parameter| {
-            let (name, value_width) = match &parameter.kind {
-                Kind::InitialMaxStreamDataUni { value_width } => {
-                    ("initial_max_stream_data_uni", Some(*value_width))
-                }
-                Kind::InitialMaxStreamDataBidiLocal { value_width } => {
-                    ("initial_max_stream_data_bidi_local", Some(*value_width))
-                }
-                Kind::VersionInformation(version)
-                    if version.grease == QuicVersionGrease::Permuted =>
-                {
-                    ("version_information_permuted_grease", None)
-                }
-                Kind::InitialMaxData { value_width } => ("initial_max_data", Some(*value_width)),
-                Kind::InitialMaxStreamsBidi { value_width } => {
-                    ("initial_max_streams_bidi", Some(*value_width))
-                }
-                Kind::GoogleConnectionOptions(options)
-                    if options == &[GoogleConnectionOption::RequestOriginFrame] =>
-                {
-                    ("google_orig", None)
-                }
-                Kind::InitialMaxStreamsUni { value_width } => {
-                    ("initial_max_streams_uni", Some(*value_width))
-                }
-                Kind::InitialMaxStreamDataBidiRemote { value_width } => {
-                    ("initial_max_stream_data_bidi_remote", Some(*value_width))
-                }
-                Kind::Grease(grease)
-                    if grease.minimum_payload_length == 0
-                        && grease.maximum_payload_length == 15 =>
-                {
-                    ("grease_0_15", None)
-                }
-                Kind::InitialSourceConnectionId => ("initial_source_connection_id", None),
-                Kind::MaxUdpPayloadSize { value_width } => {
-                    ("max_udp_payload_size", Some(*value_width))
-                }
-                Kind::MaxDatagramFrameSize { value_width } => {
-                    ("max_datagram_frame_size", Some(*value_width))
-                }
-                Kind::MaxIdleTimeout { value_width } => ("max_idle_timeout", Some(*value_width)),
-                _ => ("unexpected", None),
-            };
-            (
-                name,
-                parameter.id_width,
-                parameter.length_width,
-                value_width,
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(actual, expected);
+    for (parameter, observed) in settings.wire_parameters.iter().zip(&captured) {
+        assert_eq!(parameter.id_width, observed.id_width);
+        assert_eq!(parameter.length_width, observed.length_width);
+        assert!(observed.id_width.can_encode(observed.id));
+        assert!(
+            observed
+                .length_width
+                .can_encode(u64::try_from(observed.value.len())?)
+        );
 
-    assert!(HTTP3_FIXTURE.contains("transport_parameter_count=13\n"));
-    assert!(
-        HTTP3_FIXTURE.contains(
-            "transport_parameter_5=id:12584,id_width:2,length_width:1,value_hex:4f524947\n"
-        )
-    );
-    assert!(
-        HTTP3_FIXTURE
-            .contains("transport_parameter_8=id:2442798693768785165,id_width:8,length_width:1,")
-    );
+        match &parameter.kind {
+            Kind::InitialMaxStreamDataUni { value_width } => assert_quic_scalar(
+                observed,
+                0x07,
+                *value_width,
+                settings.initial_max_stream_data_uni,
+            )?,
+            Kind::InitialMaxStreamDataBidiLocal { value_width } => assert_quic_scalar(
+                observed,
+                0x05,
+                *value_width,
+                settings.initial_max_stream_data_bidi_local,
+            )?,
+            Kind::VersionInformation(version) => {
+                assert_eq!(observed.id, 0x11);
+                assert_eq!(version.grease, QuicVersionGrease::Permuted);
+                let versions = decode_u32_words(&observed.value)?;
+                assert_eq!(versions.first(), Some(&1));
+                let available = &versions[1..];
+                assert!(available.contains(&1));
+                assert_eq!(
+                    available
+                        .iter()
+                        .filter(|version| !is_reserved_version(**version))
+                        .count(),
+                    usize::from(version.available_version_count)
+                );
+                assert_eq!(
+                    available
+                        .iter()
+                        .filter(|version| is_reserved_version(**version))
+                        .count(),
+                    1
+                );
+            }
+            Kind::InitialMaxData { value_width } => {
+                assert_quic_scalar(observed, 0x04, *value_width, settings.initial_max_data)?;
+            }
+            Kind::InitialMaxStreamsBidi { value_width } => assert_quic_scalar(
+                observed,
+                0x08,
+                *value_width,
+                settings.initial_max_streams_bidi,
+            )?,
+            Kind::GoogleConnectionOptions(options) => {
+                assert_eq!(observed.id, 0x3128);
+                assert_eq!(options, &[GoogleConnectionOption::RequestOriginFrame]);
+                assert_eq!(observed.value, b"ORIG");
+            }
+            Kind::InitialMaxStreamsUni { value_width } => assert_quic_scalar(
+                observed,
+                0x09,
+                *value_width,
+                settings.initial_max_streams_uni,
+            )?,
+            Kind::InitialMaxStreamDataBidiRemote { value_width } => assert_quic_scalar(
+                observed,
+                0x06,
+                *value_width,
+                settings.initial_max_stream_data_bidi_remote,
+            )?,
+            Kind::Grease(grease) => {
+                assert!(is_reserved_transport_parameter(observed.id));
+                assert!(
+                    (usize::from(grease.minimum_payload_length)
+                        ..=usize::from(grease.maximum_payload_length))
+                        .contains(&observed.value.len())
+                );
+            }
+            Kind::InitialSourceConnectionId { length } => {
+                assert_eq!(observed.id, 0x0f);
+                assert_eq!(observed.value.len(), usize::from(*length));
+            }
+            Kind::MaxUdpPayloadSize { value_width } => {
+                assert_quic_scalar(observed, 0x03, *value_width, settings.max_udp_payload_size)?
+            }
+            Kind::MaxDatagramFrameSize { value_width } => assert_quic_scalar(
+                observed,
+                0x20,
+                *value_width,
+                settings
+                    .max_datagram_frame_size
+                    .ok_or("captured DATAGRAM setting omitted its value")?,
+            )?,
+            Kind::MaxIdleTimeout { value_width } => {
+                assert_quic_scalar(observed, 0x01, *value_width, settings.max_idle_timeout_ms)?
+            }
+        }
+    }
     Ok(())
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct CapturedQuicParameter {
+    id: u64,
+    id_width: QuicVarIntWidth,
+    length_width: QuicVarIntWidth,
+    value: Vec<u8>,
+}
+
+fn parse_quic_transport_parameters(
+    fixture: &str,
+) -> Result<Vec<CapturedQuicParameter>, Box<dyn std::error::Error>> {
+    let count = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix("transport_parameter_count="))
+        .ok_or("HTTP/3 fixture omitted transport-parameter count")?
+        .parse::<usize>()?;
+    let mut annotated = Vec::with_capacity(count);
+
+    for index in 0..count {
+        let prefix = format!("transport_parameter_{index}=");
+        let encoded = fixture
+            .lines()
+            .find_map(|line| line.strip_prefix(&prefix))
+            .ok_or("HTTP/3 fixture omitted an indexed transport parameter")?;
+        let mut fields = BTreeMap::new();
+        for field in encoded.split(',') {
+            let (name, value) = field
+                .split_once(':')
+                .ok_or("transport-parameter field omitted `:`")?;
+            if fields.insert(name, value).is_some() {
+                return Err("transport-parameter field repeated".into());
+            }
+        }
+        if fields.keys().copied().collect::<Vec<_>>()
+            != ["id", "id_width", "length_width", "value_hex"]
+        {
+            return Err("transport-parameter fields do not match the fixture schema".into());
+        }
+        annotated.push(CapturedQuicParameter {
+            id: fields["id"].parse()?,
+            id_width: parse_quic_width(fields["id_width"])?,
+            length_width: parse_quic_width(fields["length_width"])?,
+            value: decode_hex(fields["value_hex"])?,
+        });
+    }
+
+    let wire = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix("transport_parameters_hex="))
+        .ok_or("HTTP/3 fixture omitted raw transport parameters")?;
+    let decoded = decode_transport_parameter_bytes(&decode_hex(wire)?)?;
+    if decoded != annotated || decoded.len() != count {
+        return Err("raw transport parameters disagree with annotated fixture fields".into());
+    }
+    Ok(decoded)
+}
+
+fn decode_transport_parameter_bytes(
+    encoded: &[u8],
+) -> Result<Vec<CapturedQuicParameter>, Box<dyn std::error::Error>> {
+    let mut remaining = encoded;
+    let mut parameters = Vec::new();
+    while !remaining.is_empty() {
+        let (id, id_width, id_len) = decode_quic_varint_prefix(remaining)?;
+        remaining = &remaining[id_len..];
+        let (value_len, length_width, length_len) = decode_quic_varint_prefix(remaining)?;
+        remaining = &remaining[length_len..];
+        let value_len = usize::try_from(value_len)?;
+        let value = remaining
+            .get(..value_len)
+            .ok_or("transport-parameter value exceeds the retained wire bytes")?;
+        parameters.push(CapturedQuicParameter {
+            id,
+            id_width,
+            length_width,
+            value: value.to_vec(),
+        });
+        remaining = &remaining[value_len..];
+    }
+    Ok(parameters)
+}
+
+fn parse_quic_width(value: &str) -> Result<QuicVarIntWidth, Box<dyn std::error::Error>> {
+    match value {
+        "1" => Ok(QuicVarIntWidth::One),
+        "2" => Ok(QuicVarIntWidth::Two),
+        "4" => Ok(QuicVarIntWidth::Four),
+        "8" => Ok(QuicVarIntWidth::Eight),
+        _ => Err("invalid QUIC varint width".into()),
+    }
+}
+
+fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    if value.len() % 2 != 0 {
+        return Err("hex value has odd length".into());
+    }
+    (0..value.len())
+        .step_by(2)
+        .map(|offset| Ok(u8::from_str_radix(&value[offset..offset + 2], 16)?))
+        .collect()
+}
+
+fn assert_quic_scalar(
+    observed: &CapturedQuicParameter,
+    expected_id: u64,
+    expected_width: QuicVarIntWidth,
+    expected_value: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(observed.id, expected_id);
+    assert_eq!(observed.value.len(), expected_width.encoded_len());
+    let (value, width) = decode_quic_varint(&observed.value)?;
+    assert_eq!(width, expected_width);
+    assert_eq!(value, expected_value);
+    Ok(())
+}
+
+fn decode_quic_varint(
+    encoded: &[u8],
+) -> Result<(u64, QuicVarIntWidth), Box<dyn std::error::Error>> {
+    let first = *encoded.first().ok_or("QUIC varint is empty")?;
+    let width = match first >> 6 {
+        0 => QuicVarIntWidth::One,
+        1 => QuicVarIntWidth::Two,
+        2 => QuicVarIntWidth::Four,
+        3 => QuicVarIntWidth::Eight,
+        _ => return Err("QUIC varint prefix is invalid".into()),
+    };
+    if encoded.len() != width.encoded_len() {
+        return Err("QUIC varint length does not match its prefix".into());
+    }
+    let value = encoded
+        .iter()
+        .enumerate()
+        .fold(0_u64, |value, (index, byte)| {
+            (value << 8) | u64::from(if index == 0 { byte & 0x3f } else { *byte })
+        });
+    Ok((value, width))
+}
+
+fn decode_quic_varint_prefix(
+    encoded: &[u8],
+) -> Result<(u64, QuicVarIntWidth, usize), Box<dyn std::error::Error>> {
+    let first = *encoded.first().ok_or("QUIC varint is empty")?;
+    let encoded_len = 1_usize << usize::from(first >> 6);
+    let encoded_value = encoded
+        .get(..encoded_len)
+        .ok_or("QUIC varint exceeds the retained wire bytes")?;
+    let (value, width) = decode_quic_varint(encoded_value)?;
+    Ok((value, width, encoded_len))
+}
+
+fn decode_u32_words(value: &[u8]) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    if value.len() % 4 != 0 {
+        return Err("version-information value is not a sequence of u32 values".into());
+    }
+    value
+        .chunks_exact(4)
+        .map(|word| {
+            let bytes: [u8; 4] = word.try_into()?;
+            Ok(u32::from_be_bytes(bytes))
+        })
+        .collect()
+}
+
+fn is_reserved_version(version: u32) -> bool {
+    version & 0x0f0f_0f0f == 0x0a0a_0a0a
+}
+
+fn is_reserved_transport_parameter(identifier: u64) -> bool {
+    identifier >= 27 && (identifier - 27) % 31 == 0
 }
 
 fn parse_fixture(input: &str) -> Result<BTreeMap<&str, &str>, Box<dyn std::error::Error>> {

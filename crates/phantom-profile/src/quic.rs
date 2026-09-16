@@ -6,7 +6,7 @@ const MAX_VARINT: u64 = (1 << 62) - 1;
 const MAX_STREAM_COUNT: u64 = 1 << 60;
 const MIN_UDP_PAYLOAD_SIZE: u64 = 1_200;
 const MAX_UDP_PAYLOAD_SIZE: u64 = 65_527;
-const MAX_CONNECTION_ID_LENGTH: u64 = 20;
+const MAX_CONNECTION_ID_LENGTH: u8 = 20;
 const MAX_CAPTURED_GREASE_PAYLOAD_LENGTH: u8 = 15;
 
 /// Width of one QUIC variable-length integer on the wire.
@@ -69,10 +69,6 @@ pub enum QuicTransportParameterOrder {
 pub enum QuicVersionGrease {
     /// Do not add a reserved version.
     Omit,
-    /// Place the reserved version before runtime-supported versions.
-    First,
-    /// Place the reserved version after runtime-supported versions.
-    Last,
     /// Permute the reserved version with runtime-supported versions.
     Permuted,
 }
@@ -82,7 +78,13 @@ pub enum QuicVersionGrease {
 /// The selected version and the versions actually supported by the transport
 /// remain runtime-owned and are deliberately absent from this profile type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct QuicVersionInformation {
+    /// Number of non-reserved versions the runtime must place after the chosen version.
+    ///
+    /// The chosen version must appear in that list. A generated reserved
+    /// version controlled by [`Self::grease`] is additional to this count.
+    pub available_version_count: u8,
     /// Whether and where to add one runtime-generated reserved version.
     pub grease: QuicVersionGrease,
 }
@@ -97,6 +99,7 @@ pub enum GoogleConnectionOption {
 
 /// Policy for one runtime-generated reserved QUIC transport parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct QuicTransportGrease {
     /// Smallest generated payload length, inclusive.
     pub minimum_payload_length: u8,
@@ -156,7 +159,10 @@ pub enum QuicTransportParameterKind {
     /// `initial_source_connection_id` (`0x0f`).
     ///
     /// The connection ID bytes are supplied by the running QUIC connection.
-    InitialSourceConnectionId,
+    InitialSourceConnectionId {
+        /// Exact number of runtime-generated connection-ID bytes.
+        length: u8,
+    },
     /// `version_information` (`0x11`).
     VersionInformation(QuicVersionInformation),
     /// `max_datagram_frame_size` (`0x20`).
@@ -185,7 +191,7 @@ impl QuicTransportParameterKind {
             Self::InitialMaxStreamDataUni { .. } => ParameterIdentity::InitialMaxStreamDataUni,
             Self::InitialMaxStreamsBidi { .. } => ParameterIdentity::InitialMaxStreamsBidi,
             Self::InitialMaxStreamsUni { .. } => ParameterIdentity::InitialMaxStreamsUni,
-            Self::InitialSourceConnectionId => ParameterIdentity::InitialSourceConnectionId,
+            Self::InitialSourceConnectionId { .. } => ParameterIdentity::InitialSourceConnectionId,
             Self::VersionInformation(_) => ParameterIdentity::VersionInformation,
             Self::MaxDatagramFrameSize { .. } => ParameterIdentity::MaxDatagramFrameSize,
             Self::GoogleConnectionOptions(_) => ParameterIdentity::GoogleConnectionOptions,
@@ -203,7 +209,7 @@ impl QuicTransportParameterKind {
             Self::InitialMaxStreamDataUni { .. } => Some(0x07),
             Self::InitialMaxStreamsBidi { .. } => Some(0x08),
             Self::InitialMaxStreamsUni { .. } => Some(0x09),
-            Self::InitialSourceConnectionId => Some(0x0f),
+            Self::InitialSourceConnectionId { .. } => Some(0x0f),
             Self::VersionInformation(_) => Some(0x11),
             Self::MaxDatagramFrameSize { .. } => Some(0x20),
             Self::GoogleConnectionOptions(_) => Some(0x3128),
@@ -214,6 +220,7 @@ impl QuicTransportParameterKind {
 
 /// Wire encoding for one configured QUIC transport parameter.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct QuicTransportParameter {
     /// Parameter identifier and value policy.
     pub kind: QuicTransportParameterKind,
@@ -225,8 +232,12 @@ pub struct QuicTransportParameter {
 
 /// QUIC transport semantics and their independent ordered wire layout.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct QuicTransportSettings {
-    /// Maximum accepted idle time in milliseconds; zero disables the timeout.
+    /// Maximum accepted idle time in milliseconds; zero omits the local limit.
+    ///
+    /// The connection has no idle timeout only when the peer also omits its
+    /// limit or advertises zero.
     pub max_idle_timeout_ms: u64,
     /// Largest UDP payload the endpoint is willing to receive.
     pub max_udp_payload_size: u64,
@@ -340,21 +351,17 @@ impl QuicTransportSettings {
             QuicTransportParameterKind::InitialMaxStreamsUni { value_width } => {
                 validate_value_width(*value_width, self.initial_max_streams_uni)?
             }
-            QuicTransportParameterKind::InitialSourceConnectionId => {
-                // The connection owns the value. Any valid connection ID is at most
-                // twenty bytes, so validate the configured length width against that
-                // upper bound rather than inventing a profile-owned value.
-                MAX_CONNECTION_ID_LENGTH
+            QuicTransportParameterKind::InitialSourceConnectionId { length } => {
+                if *length > MAX_CONNECTION_ID_LENGTH {
+                    return Err(InvalidQuicTransportSettings::new(
+                        "wire_parameters.initial_source_connection_id",
+                        "connection ID length must not exceed 20 bytes",
+                    ));
+                }
+                u64::from(*length)
             }
             QuicTransportParameterKind::VersionInformation(settings) => {
-                // The runtime must provide at least the chosen version and include it in the
-                // available-version list. A reserved version adds one more four-byte value.
-                match settings.grease {
-                    QuicVersionGrease::Omit => 8,
-                    QuicVersionGrease::First
-                    | QuicVersionGrease::Last
-                    | QuicVersionGrease::Permuted => 12,
-                }
+                validate_version_information(settings)?
             }
             QuicTransportParameterKind::MaxDatagramFrameSize { value_width } => {
                 let value = self.max_datagram_frame_size.ok_or_else(|| {
@@ -584,6 +591,21 @@ fn validate_grease(grease: &QuicTransportGrease) -> Result<u64, InvalidQuicTrans
         ));
     }
     Ok(u64::from(grease.maximum_payload_length))
+}
+
+fn validate_version_information(
+    settings: &QuicVersionInformation,
+) -> Result<u64, InvalidQuicTransportSettings> {
+    if settings.available_version_count == 0 {
+        return Err(InvalidQuicTransportSettings::new(
+            "wire_parameters.version_information",
+            "available versions must include the chosen version",
+        ));
+    }
+
+    let grease_count = u64::from(!matches!(settings.grease, QuicVersionGrease::Omit));
+    // Four bytes for the chosen version, followed by the available-version list.
+    Ok(4 + 4 * (u64::from(settings.available_version_count) + grease_count))
 }
 
 #[cfg(test)]

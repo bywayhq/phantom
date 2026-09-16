@@ -28,7 +28,7 @@ fn minimal_valid_settings() -> QuicTransportSettings {
         initial_max_streams_uni: 0,
         max_datagram_frame_size: None,
         wire_parameters: vec![parameter(
-            QuicTransportParameterKind::InitialSourceConnectionId,
+            QuicTransportParameterKind::InitialSourceConnectionId { length: 0 },
             QuicVarIntWidth::One,
             QuicVarIntWidth::One,
         )],
@@ -78,7 +78,7 @@ fn non_default_semantics_must_have_a_wire_entry() {
 fn parameter_kinds_must_not_repeat() {
     let mut settings = minimal_valid_settings();
     settings.wire_parameters.push(parameter(
-        QuicTransportParameterKind::InitialSourceConnectionId,
+        QuicTransportParameterKind::InitialSourceConnectionId { length: 0 },
         QuicVarIntWidth::One,
         QuicVarIntWidth::One,
     ));
@@ -206,6 +206,7 @@ fn version_information_keeps_versions_runtime_owned() {
     let mut settings = minimal_valid_settings();
     settings.wire_parameters.push(parameter(
         QuicTransportParameterKind::VersionInformation(QuicVersionInformation {
+            available_version_count: 1,
             grease: QuicVersionGrease::Permuted,
         }),
         QuicVarIntWidth::One,
@@ -213,4 +214,37 @@ fn version_information_keeps_versions_runtime_owned() {
     ));
 
     assert_eq!(validation_result(&settings), Ok(()));
+}
+
+#[test]
+fn source_connection_id_length_is_explicit_and_bounded() {
+    let mut settings = minimal_valid_settings();
+    settings.wire_parameters[0].kind =
+        QuicTransportParameterKind::InitialSourceConnectionId { length: 20 };
+    assert_eq!(validation_result(&settings), Ok(()));
+
+    settings.wire_parameters[0].kind =
+        QuicTransportParameterKind::InitialSourceConnectionId { length: 21 };
+    assert_eq!(
+        validation_result(&settings),
+        Err("wire_parameters.initial_source_connection_id")
+    );
+}
+
+#[test]
+fn version_information_requires_the_chosen_version_in_available_versions() {
+    let mut settings = minimal_valid_settings();
+    settings.wire_parameters.push(parameter(
+        QuicTransportParameterKind::VersionInformation(QuicVersionInformation {
+            available_version_count: 0,
+            grease: QuicVersionGrease::Omit,
+        }),
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::One,
+    ));
+
+    assert_eq!(
+        validation_result(&settings),
+        Err("wire_parameters.version_information")
+    );
 }
