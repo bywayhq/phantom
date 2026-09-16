@@ -1,4 +1,4 @@
-# Session state and HTTP/2 reuse
+# Session state and multiplexed reuse
 
 `Client` is immutable transport configuration. `Session` is an isolated,
 cloneable owner for state that intentionally crosses requests. Creating two
@@ -29,29 +29,40 @@ drop(second);
 # }
 ```
 
-Bare `Client::get` remains one-shot. `Session::get` currently reuses only
-HTTP/2; H1 and H3 retain their existing one-shot lifecycle.
+Bare `Client::get` remains one-shot. `Session::get` reuses HTTP/2 and direct
+HTTP/3 connections. HTTP/1 retains its one-shot lifecycle.
 
 ## Pool boundary
 
-One session retains at most one H2 connection for each canonical host, port,
-and complete route value. Because the session owns one immutable client, the
-wire profile, trust roots, and protocol are structural parts of the boundary.
-Different origins, routes, ordered CONNECT fields, clients, and sessions never
-share a connection. Cross-origin coalescing is disabled.
+One session retains at most one current H2 or H3 connection for each canonical
+host, port, and complete route value. Because the session owns one immutable
+client, the wire profile, trust roots, and protocol are structural parts of
+the boundary. Different origins, routes, ordered CONNECT fields, clients, and
+sessions never share a connection. Cross-origin coalescing is disabled. H3
+reuse is direct-only until a UDP-capable proxy route exists.
 
 Simultaneous first requests for one key share connection setup. Unrelated keys
 can connect concurrently. A connection-fatal error invalidates only the exact
 generation that failed; a stream reset does not discard sibling streams. The
 failed request is returned to the caller and is never replayed automatically.
 
-`SessionBuilder::max_retained_http2_connections` bounds retained pool entries.
-Least-recently selected entries are evicted. An outstanding response body keeps
-its own connection lease until completion or drop, so eviction never cancels a
-body already returned to the caller.
+`SessionBuilder::max_retained_http2_connections` and
+`max_retained_http3_connections` bound retained pool entries. Least-recently
+selected entries are evicted. An outstanding response body keeps its own
+connection lease until completion or drop, so eviction never cancels a body
+already returned to the caller.
 
-Peer stream admission, bounded waiters, GOAWAY draining, graceful public
-shutdown, H1/H3 reuse, retries, and coalescing are later pool work.
+H3 admission is bounded by `max_concurrent_http3_requests_per_origin`; at most
+`max_pending_http3_requests_per_origin` additional requests may wait. These
+bounds span a draining generation and its replacement for the same origin.
+An active slot remains held through stream completion, including bounded reset
+cleanup after an incomplete body is dropped. Excess work returns
+`RequestErrorKind::Capacity`. A GOAWAY or closed H3 generation is not selected
+for new work, while response bodies retain the old generation. Requests are
+never replayed automatically.
+
+Peer-aware H2 admission, graceful public shutdown, H1 reuse, retries, and
+coalescing are later pool work.
 
 ## Optional cookies
 

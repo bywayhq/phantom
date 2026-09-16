@@ -160,6 +160,8 @@ pub enum RequestErrorKind {
     Proxy,
     /// The request lacks a current Tokio runtime with network I/O enabled.
     RuntimeUnavailable,
+    /// Local bounded admission capacity is exhausted.
+    Capacity,
     /// TLS setup or negotiation failed.
     Tls,
     /// HTTP/1 request or response processing failed.
@@ -231,6 +233,15 @@ impl RequestError {
             kind: RequestErrorKind::UnsupportedRoute,
             protocol: Some(protocol),
             message: "selected route does not support the requested protocol",
+            source: None,
+        }
+    }
+
+    pub(crate) fn capacity(protocol: HttpProtocol) -> Self {
+        Self {
+            kind: RequestErrorKind::Capacity,
+            protocol: Some(protocol),
+            message: "request admission capacity is exhausted",
             source: None,
         }
     }

@@ -4,11 +4,10 @@ use std::{
     task::{Context, Poll},
 };
 
+use crate::RequestError;
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
-
-use crate::RequestError;
 
 /// Streaming response body returned by the public client.
 ///
@@ -42,6 +41,14 @@ impl ResponseBody {
         Self {
             inner: ResponseBodyInner::Http3(body),
         }
+    }
+
+    pub(crate) fn http3_with_guard<T>(mut body: Http3Body, guard: T) -> Self
+    where
+        T: Send + 'static,
+    {
+        body.retain_until_stream_cleanup(guard);
+        Self::http3(body)
     }
 }
 

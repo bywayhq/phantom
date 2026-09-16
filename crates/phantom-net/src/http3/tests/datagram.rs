@@ -16,6 +16,114 @@ use super::{TestResult, join_server, profiled_client_config, server_endpoint};
 use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity};
 
 #[tokio::test(flavor = "current_thread")]
+async fn datagram_violation_is_isolated_to_its_request_stream() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = profiled_client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (heads_sent, heads_received) = oneshot::channel();
+    let (release_datagram, datagram_released) = oneshot::channel();
+    let (client_done, done_received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let quinn = incoming.await?;
+        let mut builder = h3::server::builder();
+        builder.enable_datagram(true);
+        let mut connection = builder.build(h3_quinn::Connection::new(quinn)).await?;
+
+        let first = connection
+            .accept()
+            .await?
+            .ok_or("client closed before the first request")?
+            .resolve_request()
+            .await?;
+        let second = connection
+            .accept()
+            .await?
+            .ok_or("client closed before the second request")?
+            .resolve_request()
+            .await?;
+        let ((first_request, first_stream), (second_request, second_stream)) = (first, second);
+        let (mut violated, mut sibling) = if first_request.uri().path() == "/violated"
+            && second_request.uri().path() == "/sibling"
+        {
+            (first_stream, second_stream)
+        } else if first_request.uri().path() == "/sibling"
+            && second_request.uri().path() == "/violated"
+        {
+            (second_stream, first_stream)
+        } else {
+            return Err("server received unexpected request paths".into());
+        };
+
+        violated
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+        sibling
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+        let _ = heads_sent.send(());
+        let _ = datagram_released.await;
+        sibling.send_data(Bytes::from_static(b"sibling")).await?;
+        sibling.finish().await?;
+
+        let mut datagrams = connection.get_datagram_sender(violated.id());
+        datagrams.send_datagram(Bytes::from_static(b"unexpected"))?;
+
+        let (request, mut later) = connection
+            .accept()
+            .await?
+            .ok_or("client closed before the later request")?
+            .resolve_request()
+            .await?;
+        if request.uri().path() != "/later" {
+            return Err("server received an unexpected later request".into());
+        }
+        later
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+        later.send_data(Bytes::from_static(b"later")).await?;
+        later.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let settings = chromium::v152_macos_http3();
+    let connection =
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &settings).await?;
+    let violated = Request::get(format!("https://{TEST_SERVER_NAME}/violated")).body(())?;
+    let sibling = Request::get(format!("https://{TEST_SERVER_NAME}/sibling")).body(())?;
+    let (violated, sibling) = tokio::join!(
+        connection.send_request(violated),
+        connection.send_request(sibling)
+    );
+    let mut violated = violated?.into_body();
+    heads_received.await?;
+    let _ = release_datagram.send(());
+    let sibling = sibling?.into_body().collect().await?.to_bytes();
+    assert_eq!(sibling, Bytes::from_static(b"sibling"));
+
+    let error = violated
+        .frame()
+        .await
+        .ok_or("violated stream ended without an error")?
+        .err()
+        .ok_or("violated stream produced data after its datagram")?;
+    assert_eq!(error.kind(), super::super::Http3ErrorKind::Protocol);
+
+    let later = connection
+        .send_request(Request::get(format!("https://{TEST_SERVER_NAME}/later")).body(())?)
+        .await?
+        .into_body()
+        .collect()
+        .await?
+        .to_bytes();
+    assert_eq!(later, Bytes::from_static(b"later"));
+    let _ = client_done.send(());
+    join_server(server).await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn unexpected_datagram_aborts_get_stream() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = profiled_client_config(&identity)?;

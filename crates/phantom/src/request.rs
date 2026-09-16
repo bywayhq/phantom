@@ -95,9 +95,9 @@ impl RequestBuilder {
 
     /// Sends the request using the selected route and owner.
     ///
-    /// A session may reuse a compatible HTTP/2 connection. A bare client and
-    /// the other protocols remain one-shot. Dropping this future cancels the
-    /// in-flight operation; returned bodies retain protocol cancellation.
+    /// A session may reuse compatible HTTP/2 and direct HTTP/3 connections.
+    /// A bare client and HTTP/1 remain one-shot. Dropping this future cancels
+    /// the in-flight operation; returned bodies retain protocol cancellation.
     ///
     /// # Errors
     ///
@@ -317,19 +317,34 @@ impl RequestBuilder {
                         client.inner.http3.as_ref().ok_or_else(|| {
                             RequestError::unsupported_protocol(HttpProtocol::Http3)
                         })?;
-                    let response = connector
-                        .send_get_direct(
-                            endpoint.host(),
-                            endpoint.port(),
-                            endpoint.host(),
-                            endpoint.authority().as_str(),
-                            target,
-                            request_headers,
-                        )
-                        .await
-                        .map_err(RequestError::http3)?;
-                    let (parts, body) = response.into_parts();
-                    Ok(Response::from_parts(parts, ResponseBody::http3(body)))
+                    if let Some(session) = session {
+                        session
+                            .state
+                            .http3
+                            .send_get(
+                                connector,
+                                &endpoint,
+                                route,
+                                endpoint.authority().as_str(),
+                                target,
+                                request_headers,
+                            )
+                            .await
+                    } else {
+                        let response = connector
+                            .send_get_direct(
+                                endpoint.host(),
+                                endpoint.port(),
+                                endpoint.host(),
+                                endpoint.authority().as_str(),
+                                target,
+                                request_headers,
+                            )
+                            .await
+                            .map_err(RequestError::http3)?;
+                        let (parts, body) = response.into_parts();
+                        Ok(Response::from_parts(parts, ResponseBody::http3(body)))
+                    }
                 }
             }?;
 

@@ -112,6 +112,7 @@ impl WebSocketError {
             RequestErrorKind::Resolve | RequestErrorKind::Connect => WebSocketErrorKind::Connect,
             RequestErrorKind::Proxy => WebSocketErrorKind::Proxy,
             RequestErrorKind::RuntimeUnavailable => WebSocketErrorKind::RuntimeUnavailable,
+            RequestErrorKind::Capacity => WebSocketErrorKind::Capacity,
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
             RequestErrorKind::Http1 | RequestErrorKind::Http2 | RequestErrorKind::Http3 => {
                 WebSocketErrorKind::Http1

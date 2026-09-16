@@ -12,8 +12,8 @@ use phantom_quic_btls::{
 };
 
 use super::{
-    Http3Body, Http3Error, Http3ErrorKind, OriginForm, RequestHeader, prepare_traced_get,
-    send_request, settings,
+    Http3Body, Http3Connection, Http3Error, Http3ErrorKind, OriginForm, RequestHeader,
+    connect_bound, prepare_traced_get, send_request, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
@@ -22,12 +22,13 @@ use crate::{
 
 type BoxError = Box<dyn StdError + Send + Sync>;
 
-/// Reusable validated configuration for direct one-shot HTTP/3 requests.
+/// Reusable validated configuration for direct HTTP/3 requests and connections.
 #[derive(Debug)]
 pub struct Http3Connector {
     crypto: Arc<QuicClientConfig>,
     settings: Http3Settings,
     request_settings: Http3RequestSettings,
+    identity: Arc<()>,
 }
 
 impl Http3Connector {
@@ -94,6 +95,7 @@ impl Http3Connector {
             crypto,
             settings: settings.clone(),
             request_settings: request_settings.clone(),
+            identity: Arc::new(()),
         })
     }
 
@@ -130,6 +132,78 @@ impl Http3Connector {
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
     }
 
+    /// Opens one reusable direct HTTP/3 connection.
+    ///
+    /// The server name is validated before Tokio runtime checks or DNS I/O.
+    /// This method never falls back to TCP or another HTTP protocol.
+    pub async fn connect_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        QuicClientConfig::validate_server_name(server_name)
+            .map_err(Http3ConnectorError::invalid_server_name)?;
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+        poll_tokio_io(|| async {
+            let addresses = tokio::net::lookup_host((host, port))
+                .await
+                .map_err(Http3ConnectorError::resolve)?
+                .collect::<Vec<_>>();
+            self.connect_to_addresses(addresses, server_name).await
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+    }
+
+    /// Sends one empty-body GET over a connection opened by this connector.
+    ///
+    /// The complete request and connector affinity are validated before a new
+    /// request stream opens.
+    pub async fn send_get_on(
+        &self,
+        connection: &Http3Connection,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http3Body>, Http3ConnectorError> {
+        let request = prepare_traced_get(&self.request_settings, authority, target, headers)
+            .map_err(Http3ConnectorError::transaction)?;
+        if !connection.belongs_to(&self.identity) {
+            return Err(Http3ConnectorError::connection_mismatch());
+        }
+        connection
+            .send_prepared_request(request)
+            .await
+            .map_err(Http3ConnectorError::transaction)
+    }
+
+    /// Returns whether an originating connection is currently reusable.
+    ///
+    /// This is a health snapshot for pool selection, not a reservation of peer
+    /// stream capacity. A later send can still fail and is never replayed.
+    pub async fn can_reuse(&self, connection: &Http3Connection) -> bool {
+        connection.belongs_to(&self.identity) && connection.is_reusable().await
+    }
+
+    /// Validates an empty-body GET without opening a connection or stream.
+    pub fn validate_get(
+        &self,
+        authority: &str,
+        target: &OriginForm,
+        headers: &[RequestHeader],
+    ) -> Result<(), Http3ConnectorError> {
+        prepare_traced_get(
+            &self.request_settings,
+            authority,
+            target.clone(),
+            headers.to_vec(),
+        )
+        .map(drop)
+        .map_err(Http3ConnectorError::transaction)
+    }
+
     pub(super) async fn send_prepared_to_addresses(
         &self,
         addresses: Vec<std::net::SocketAddr>,
@@ -153,6 +227,37 @@ impl Http3Connector {
             .await
             {
                 Ok(response) => return Ok(response),
+                Err(error) if should_try_next_address(&error) => {
+                    let Some(next) = addresses.next() else {
+                        return Err(Http3ConnectorError::transaction(error));
+                    };
+                    remote = next;
+                }
+                Err(error) => return Err(Http3ConnectorError::transaction(error)),
+            }
+        }
+    }
+
+    async fn connect_to_addresses(
+        &self,
+        addresses: Vec<std::net::SocketAddr>,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        let mut addresses = addresses.into_iter();
+        let mut remote = addresses
+            .next()
+            .ok_or_else(Http3ConnectorError::no_address)?;
+        loop {
+            match connect_bound(
+                remote,
+                server_name,
+                Arc::clone(&self.crypto),
+                &self.settings,
+                Arc::clone(&self.identity),
+            )
+            .await
+            {
+                Ok(connection) => return Ok(connection),
                 Err(error) if should_try_next_address(&error) => {
                     let Some(next) = addresses.next() else {
                         return Err(Http3ConnectorError::transaction(error));
@@ -192,7 +297,7 @@ pub enum Http3ConnectorErrorKind {
     TrustStore,
     /// The backend cannot represent otherwise valid profile values.
     ProtocolConfiguration,
-    /// The request was polled outside a Tokio runtime.
+    /// No current Tokio runtime with network I/O enabled was available.
     RuntimeUnavailable,
     /// DNS resolution failed or returned no addresses.
     Resolve,
@@ -283,7 +388,14 @@ impl Http3ConnectorError {
     const fn runtime_unavailable() -> Self {
         Self::without_source(
             Http3ConnectorErrorKind::RuntimeUnavailable,
-            "HTTP/3 network requests require a Tokio runtime",
+            "HTTP/3 network requests require a Tokio runtime with network I/O enabled",
+        )
+    }
+
+    const fn connection_mismatch() -> Self {
+        Self::without_source(
+            Http3ConnectorErrorKind::Request,
+            "HTTP/3 connection belongs to a different connector",
         )
     }
 
@@ -314,6 +426,7 @@ impl Http3ConnectorError {
         let kind = match source.kind() {
             Http3ErrorKind::Request => Http3ConnectorErrorKind::Request,
             Http3ErrorKind::Configuration => Http3ConnectorErrorKind::ProtocolConfiguration,
+            Http3ErrorKind::RuntimeUnavailable => Http3ConnectorErrorKind::RuntimeUnavailable,
             Http3ErrorKind::Endpoint => Http3ConnectorErrorKind::Endpoint,
             Http3ErrorKind::Connect => Http3ConnectorErrorKind::Connect,
             Http3ErrorKind::Connection => Http3ConnectorErrorKind::Connection,

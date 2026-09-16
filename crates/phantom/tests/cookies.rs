@@ -146,16 +146,20 @@ async fn http3_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -
         let (first_done, wait_for_first) = oneshot::channel();
         let (second_done, wait_for_second) = oneshot::channel();
         let server = tokio::spawn(async move {
-            let (first, mut stream, connection) = accept_request(&endpoint).await?;
+            let (first, mut stream, mut connection) = accept_request(&endpoint).await?;
             assert_cookie_fields(first.headers(), &[])?;
             stream
                 .send_response(response_with_cookies(&LEARNED_COOKIES)?)
                 .await?;
             stream.finish().await?;
             wait_for_first.await.map_err(io::Error::other)?;
-            drop((stream, connection));
+            drop(stream);
 
-            let (second, mut stream, connection) = accept_request(&endpoint).await?;
+            let resolver = connection
+                .accept()
+                .await?
+                .ok_or("HTTP/3 connection closed before cookie follow-up")?;
+            let (second, mut stream) = resolver.resolve_request().await?;
             let observed = cookie_fields(second.headers())?;
             stream
                 .send_response(Response::builder().status(204).body(())?)

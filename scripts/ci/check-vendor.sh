@@ -87,6 +87,10 @@ check_h3_patch_replay() {
     "$PWD/vendor/h3/patches/ordered-response-headers.patch"
   git -C "$candidate" apply --unidiff-zero \
     "$PWD/vendor/h3/patches/ordered-response-headers.patch"
+  git -C "$candidate" apply --check \
+    "$PWD/vendor/h3/patches/ordered-response-send.patch"
+  git -C "$candidate" apply \
+    "$PWD/vendor/h3/patches/ordered-response-send.patch"
   diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
     --exclude=patches --exclude=target "$candidate" vendor/h3
 }

@@ -109,6 +109,11 @@ by the existing response status and are excluded from the ordered sidecar.
 outbound request-order patch so upgrades can review the inbound API and decoder
 changes independently.
 
+`patches/ordered-response-send.patch` extends the same sidecar to server
+responses. Phantom uses that narrow seam in end-to-end tests to prove the
+public client retains interleaved QPACK response fields instead of observing a
+`HeaderMap`-normalized test fixture.
+
 `h3-quinn` now polls Quinn's cancel-safe chunk read directly instead of moving
 the receive stream into a stored future. This keeps `stop_sending` immediately
 available while a read is pending, so cancellation retains its chosen HTTP/3

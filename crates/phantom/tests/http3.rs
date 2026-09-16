@@ -54,13 +54,20 @@ async fn public_client_streams_http3_data_and_trailers() -> TestResult<()> {
                 .map(|value| value.as_bytes().to_vec())
                 .collect::<Vec<_>>();
 
-            stream
-                .send_response(
-                    Response::builder()
-                        .status(StatusCode::PARTIAL_CONTENT)
-                        .body(())?,
-                )
-                .await?;
+            let mut response = Response::builder()
+                .status(StatusCode::PARTIAL_CONTENT)
+                .header("set-cookie", "first=1")
+                .header("x-middle", "middle")
+                .header("set-cookie", "second=2")
+                .body(())?;
+            response
+                .extensions_mut()
+                .insert(h3::ext::OrderedHeaders::new(vec![
+                    ("set-cookie".parse()?, "first=1".parse()?),
+                    ("x-middle".parse()?, "middle".parse()?),
+                    ("set-cookie".parse()?, "second=2".parse()?),
+                ]));
+            stream.send_response(response).await?;
             stream.send_data(Bytes::from_static(b"first")).await?;
             released.await.map_err(io::Error::other)?;
             stream.send_data(Bytes::from_static(b"later")).await?;
@@ -86,11 +93,20 @@ async fn public_client_streams_http3_data_and_trailers() -> TestResult<()> {
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
-        assert!(
-            response
-                .extensions()
-                .get::<OrderedResponseHeaders>()
-                .is_some_and(OrderedResponseHeaders::is_empty)
+        let ordered = response
+            .extensions()
+            .get::<OrderedResponseHeaders>()
+            .ok_or("HTTP/3 response omitted ordered fields")?;
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|field| (field.name(), field.value()))
+                .collect::<Vec<_>>(),
+            [
+                ("set-cookie", b"first=1".as_slice()),
+                ("x-middle", b"middle".as_slice()),
+                ("set-cookie", b"second=2".as_slice()),
+            ]
         );
 
         let mut body = response.into_body();

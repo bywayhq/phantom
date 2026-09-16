@@ -22,7 +22,12 @@ use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
     profile::{ClientProfile, chromium},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    net::TcpListener,
+    sync::oneshot,
+    time::timeout,
+};
 use tracing::instrument::WithSubscriber;
 
 use tls_support::{
@@ -143,7 +148,12 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
                 .accept()
                 .await
                 .ok_or("connection closed before request")??;
-            let response = Response::builder().status(206).body(())?;
+            let response = Response::builder()
+                .status(206)
+                .header("set-cookie", "first=1")
+                .header("x-middle", "middle")
+                .header("set-cookie", "second=2")
+                .body(())?;
             let mut send = respond.send_response(response, false)?;
             send.send_data(Bytes::from_static(b"first"), false)?;
 
@@ -181,11 +191,20 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
             .send()
             .await?;
         assert_eq!(response.status(), 206);
-        assert!(
-            response
-                .extensions()
-                .get::<OrderedResponseHeaders>()
-                .is_some_and(OrderedResponseHeaders::is_empty)
+        let ordered = response
+            .extensions()
+            .get::<OrderedResponseHeaders>()
+            .ok_or("HTTP/2 response omitted ordered fields")?;
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|field| (field.name(), field.value()))
+                .collect::<Vec<_>>(),
+            [
+                ("set-cookie", b"first=1".as_slice()),
+                ("set-cookie", b"second=2".as_slice()),
+                ("x-middle", b"middle".as_slice()),
+            ]
         );
 
         let mut body = response.into_body();
@@ -224,6 +243,78 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
             uri.path_and_query().map(|value| value.as_str()),
             Some("/resource?item=1")
         );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn public_http2_response_retains_interleaved_field_order() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (client_done, done_received) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(listener, acceptor).await?;
+            let mut preface = [0; 24];
+            stream.read_exact(&mut preface).await?;
+            if &preface != b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" {
+                return Err("client omitted the HTTP/2 preface".into());
+            }
+
+            loop {
+                let frame = read_h2_frame(&mut stream).await?;
+                if frame.kind == 0x4 && frame.stream_id == 0 && frame.flags & 0x1 == 0 {
+                    break;
+                }
+            }
+            write_h2_frame(&mut stream, 0x4, 0, 0, &[]).await?;
+            write_h2_frame(&mut stream, 0x4, 0x1, 0, &[]).await?;
+
+            loop {
+                let frame = read_h2_frame(&mut stream).await?;
+                if frame.kind == 0x1 && frame.stream_id == 1 {
+                    if frame.flags & 0x4 == 0 {
+                        return Err("test request HEADERS required CONTINUATION".into());
+                    }
+                    break;
+                }
+            }
+
+            let block = interleaved_hpack_response();
+            write_h2_frame(&mut stream, 0x1, 0x5, 1, &block).await?;
+            stream.flush().await?;
+            done_received.await.map_err(io::Error::other)?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .get(HttpProtocol::Http2, &format!("https://{address}/ordered"))?
+            .send()
+            .await?;
+        let ordered = response
+            .extensions()
+            .get::<OrderedResponseHeaders>()
+            .ok_or("HTTP/2 response omitted ordered fields")?;
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|field| (field.name(), field.value()))
+                .collect::<Vec<_>>(),
+            [
+                ("set-cookie", b"first=1".as_slice()),
+                ("x-middle", b"middle".as_slice()),
+                ("set-cookie", b"second=2".as_slice()),
+            ]
+        );
+        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+
+        let _ = client_done.send(());
+        server.await??;
         Ok(())
     })
     .await
@@ -395,6 +486,69 @@ fn invalid_additional_root_has_stable_build_category() -> TestResult<()> {
     };
     assert_eq!(error.kind(), BuildErrorKind::TrustStore);
     Ok(())
+}
+
+struct H2FrameHead {
+    kind: u8,
+    flags: u8,
+    stream_id: u32,
+}
+
+async fn read_h2_frame<T>(stream: &mut T) -> io::Result<H2FrameHead>
+where
+    T: AsyncRead + Unpin,
+{
+    let mut head = [0; 9];
+    stream.read_exact(&mut head).await?;
+    let length = usize::from(head[0]) << 16 | usize::from(head[1]) << 8 | usize::from(head[2]);
+    let mut payload = vec![0; length];
+    stream.read_exact(&mut payload).await?;
+    Ok(H2FrameHead {
+        kind: head[3],
+        flags: head[4],
+        stream_id: u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff,
+    })
+}
+
+async fn write_h2_frame<T>(
+    stream: &mut T,
+    kind: u8,
+    flags: u8,
+    stream_id: u32,
+    payload: &[u8],
+) -> io::Result<()>
+where
+    T: AsyncWrite + Unpin,
+{
+    let length = u32::try_from(payload.len())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "HTTP/2 frame is too large"))?;
+    let length_bytes = length.to_be_bytes();
+    let stream_bytes = stream_id.to_be_bytes();
+    let head = [
+        length_bytes[1],
+        length_bytes[2],
+        length_bytes[3],
+        kind,
+        flags,
+        stream_bytes[0] & 0x7f,
+        stream_bytes[1],
+        stream_bytes[2],
+        stream_bytes[3],
+    ];
+    stream.write_all(&head).await?;
+    stream.write_all(payload).await
+}
+
+fn interleaved_hpack_response() -> Vec<u8> {
+    let mut block = vec![0x88, 0x0f, 0x28, 7];
+    block.extend_from_slice(b"first=1");
+    block.extend_from_slice(&[0, 8]);
+    block.extend_from_slice(b"x-middle");
+    block.push(6);
+    block.extend_from_slice(b"middle");
+    block.extend_from_slice(&[0x0f, 0x28, 8]);
+    block.extend_from_slice(b"second=2");
+    block
 }
 
 async fn next_data(body: &mut phantom::ResponseBody) -> TestResult<Bytes> {

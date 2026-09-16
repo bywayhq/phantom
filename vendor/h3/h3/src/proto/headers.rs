@@ -65,13 +65,24 @@ impl Header {
         })
     }
 
-    pub fn response(status: StatusCode, fields: HeaderMap) -> Self {
-        Self {
+    pub fn response(
+        status: StatusCode,
+        fields: HeaderMap,
+        mut extensions: Extensions,
+    ) -> Result<Self, HeaderError> {
+        let ordered_fields = extensions.remove::<OrderedHeaders>();
+        if ordered_fields
+            .as_ref()
+            .is_some_and(|ordered| !ordered.agrees_with(&fields))
+        {
+            return Err(HeaderError::ContradictedOrderedHeaders);
+        }
+        Ok(Self {
             pseudo: Pseudo::response(status),
             pseudo_order: None,
             fields,
-            ordered_fields: None,
-        }
+            ordered_fields: ordered_fields.map(OrderedHeaders::into_inner),
+        })
     }
 
     pub fn trailer(fields: HeaderMap) -> Self {

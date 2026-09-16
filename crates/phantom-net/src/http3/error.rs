@@ -8,6 +8,8 @@ pub enum Http3ErrorKind {
     Request,
     /// The selected QUIC transport profile is incompatible with the runtime.
     Configuration,
+    /// No current Tokio runtime with network I/O enabled was available.
+    RuntimeUnavailable,
     /// The local UDP or QUIC endpoint could not be initialized.
     Endpoint,
     /// The remote QUIC connection could not be started.
@@ -27,6 +29,7 @@ impl Http3ErrorKind {
         match self {
             Self::Request => "request",
             Self::Configuration => "configuration",
+            Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Endpoint => "endpoint",
             Self::Connect => "connect",
             Self::Connection => "connection",

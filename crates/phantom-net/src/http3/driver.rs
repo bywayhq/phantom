@@ -14,21 +14,17 @@ use tracing::{
     Instrument, Span, debug, debug_span, dispatcher, field, instrument::WithSubscriber, warn,
 };
 
-use super::{Http3Error, Http3ErrorKind};
 use crate::shutdown_timer;
 
-type RequestSender = h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>;
 type DriverResult = Result<(), h3::error::ConnectionError>;
 
 pub(super) struct DriverTask {
-    sender: Option<RequestSender>,
     terminal: Option<oneshot::Sender<DriverSignal>>,
 }
 
 impl DriverTask {
     pub(super) fn spawn(
         driver: h3::client::Connection<h3_quinn::Connection, Bytes>,
-        sender: RequestSender,
         endpoint: quinn::Endpoint,
         connection: quinn::Connection,
     ) -> Self {
@@ -54,22 +50,11 @@ impl DriverTask {
         drop(supervisor);
 
         Self {
-            sender: Some(sender),
             terminal: Some(terminal),
         }
     }
 
-    pub(super) fn sender_mut(&mut self) -> Result<&mut RequestSender, Http3Error> {
-        self.sender.as_mut().ok_or_else(|| {
-            Http3Error::without_source(
-                Http3ErrorKind::Local,
-                "HTTP/3 request driver is unavailable",
-            )
-        })
-    }
-
     pub(super) fn finish(&mut self, signal: DriverSignal) {
-        self.sender.take();
         if let Some(terminal) = self.terminal.take() {
             let _ = terminal.send(signal);
         }
@@ -90,6 +75,22 @@ pub(super) enum DriverSignal {
 }
 
 impl DriverSignal {
+    pub(super) const fn rank(self) -> u8 {
+        match self {
+            Self::Complete => 0,
+            Self::Cancelled => 1,
+            Self::ProtocolError => 2,
+        }
+    }
+
+    pub(super) const fn from_rank(rank: u8) -> Self {
+        match rank {
+            0 => Self::Complete,
+            1 => Self::Cancelled,
+            _ => Self::ProtocolError,
+        }
+    }
+
     const fn outcome(self) -> &'static str {
         match self {
             Self::Complete => "complete",

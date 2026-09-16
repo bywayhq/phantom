@@ -1,0 +1,66 @@
+diff --git a/h3/src/ext.rs b/h3/src/ext.rs
+index 51487e5..9932aa1 100644
+--- a/h3/src/ext.rs
++++ b/h3/src/ext.rs
+@@ -6,7 +6,7 @@ use http::{HeaderMap, HeaderName, HeaderValue};
+ 
+ /// Exact wire order for ordinary header fields.
+ ///
+-/// Store this value in a request's extensions to control its field order.
++/// Store this value in an outgoing message's extensions to control its field order.
+ /// Received requests and responses also carry this value in their extensions
+ /// with the order produced by QPACK decoding. Pseudo-headers are excluded.
+ /// Outgoing ordered fields must describe the same semantic multimap as the
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+index 2181ac2..03bc475 100644
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -65,13 +65,24 @@ impl Header {
+         })
+     }
+ 
+-    pub fn response(status: StatusCode, fields: HeaderMap) -> Self {
+-        Self {
++    pub fn response(
++        status: StatusCode,
++        fields: HeaderMap,
++        mut extensions: Extensions,
++    ) -> Result<Self, HeaderError> {
++        let ordered_fields = extensions.remove::<OrderedHeaders>();
++        if ordered_fields
++            .as_ref()
++            .is_some_and(|ordered| !ordered.agrees_with(&fields))
++        {
++            return Err(HeaderError::ContradictedOrderedHeaders);
++        }
++        Ok(Self {
+             pseudo: Pseudo::response(status),
+             pseudo_order: None,
+             fields,
+-            ordered_fields: None,
+-        }
++            ordered_fields: ordered_fields.map(OrderedHeaders::into_inner),
++        })
+     }
+ 
+     pub fn trailer(fields: HeaderMap) -> Self {
+diff --git a/h3/src/server/stream.rs b/h3/src/server/stream.rs
+index 223258d..e2461fc 100644
+--- a/h3/src/server/stream.rs
++++ b/h3/src/server/stream.rs
+@@ -145,9 +145,13 @@ where
+     pub async fn send_response(&mut self, resp: Response<()>) -> Result<(), StreamError> {
+         let (parts, _) = resp.into_parts();
+         let response::Parts {
+-            status, headers, ..
++            status,
++            headers,
++            extensions,
++            ..
+         } = parts;
+-        let headers = Header::response(status, headers);
++        let headers = Header::response(status, headers, extensions)
++            .map_err(|error| StreamError::Undefined(Box::new(error)))?;
+ 
+         let mut block = BytesMut::new();
+         let mem_size = qpack::encode_stateless(&mut block, headers).map_err(|_e| {

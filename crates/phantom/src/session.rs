@@ -7,6 +7,7 @@ use crate::{WebSocketError, WebSocketRequestBuilder};
 #[cfg(feature = "cookies")]
 mod cookies;
 mod http2_pool;
+mod http3_pool;
 
 #[cfg(feature = "cookies")]
 pub use cookies::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
@@ -15,6 +16,14 @@ const DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS: NonZeroUsize = match NonZeroUsize:
     Some(value) => value,
     None => NonZeroUsize::MIN,
 };
+const DEFAULT_MAX_RETAINED_HTTP3_CONNECTIONS: NonZeroUsize = DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS;
+const DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN: NonZeroUsize = match NonZeroUsize::new(100)
+{
+    Some(value) => value,
+    None => NonZeroUsize::MIN,
+};
+const DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN: NonZeroUsize =
+    DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN;
 
 /// Cloneable cross-request state for one immutable [`Client`].
 ///
@@ -28,6 +37,7 @@ pub struct Session {
 
 pub(crate) struct SessionState {
     pub(crate) http2: http2_pool::Http2Pool,
+    pub(crate) http3: http3_pool::Http3Pool,
     #[cfg(feature = "cookies")]
     pub(crate) cookies: Option<Arc<CookieJar>>,
 }
@@ -35,8 +45,8 @@ pub(crate) struct SessionState {
 impl Session {
     /// Starts one empty-body GET using exactly `protocol`.
     ///
-    /// HTTP/2 requests may reuse a compatible connection owned by this
-    /// session. Other protocols retain the client's one-shot behavior.
+    /// HTTP/2 and direct HTTP/3 requests may reuse compatible connections
+    /// owned by this session. HTTP/1 retains the client's one-shot behavior.
     ///
     /// # Errors
     ///
@@ -68,6 +78,18 @@ impl fmt::Debug for Session {
                 "max_retained_http2_connections",
                 &self.state.http2.capacity(),
             )
+            .field(
+                "max_retained_http3_connections",
+                &self.state.http3.capacity(),
+            )
+            .field(
+                "max_concurrent_http3_requests_per_origin",
+                &self.state.http3.max_active(),
+            )
+            .field(
+                "max_pending_http3_requests_per_origin",
+                &self.state.http3.max_pending(),
+            )
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {
@@ -86,6 +108,9 @@ impl fmt::Debug for Session {
 pub struct SessionBuilder {
     client: Client,
     max_retained_http2_connections: NonZeroUsize,
+    max_retained_http3_connections: NonZeroUsize,
+    max_concurrent_http3_requests_per_origin: NonZeroUsize,
+    max_pending_http3_requests_per_origin: NonZeroUsize,
     #[cfg(feature = "cookies")]
     cookie_jar: Option<CookieJar>,
 }
@@ -95,6 +120,10 @@ impl SessionBuilder {
         Self {
             client,
             max_retained_http2_connections: DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS,
+            max_retained_http3_connections: DEFAULT_MAX_RETAINED_HTTP3_CONNECTIONS,
+            max_concurrent_http3_requests_per_origin:
+                DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
+            max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }
@@ -107,6 +136,33 @@ impl SessionBuilder {
     #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.max_retained_http2_connections = maximum;
+        self
+    }
+
+    /// Sets the maximum number of HTTP/3 connections retained for reuse.
+    ///
+    /// Eviction prevents later selection but does not cancel response bodies
+    /// already using the connection.
+    #[must_use]
+    pub fn max_retained_http3_connections(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_retained_http3_connections = maximum;
+        self
+    }
+
+    /// Sets the local active-request bound for each retained HTTP/3 origin.
+    ///
+    /// The bound spans a draining connection and its replacement so a stale
+    /// generation cannot temporarily double the origin's admitted work.
+    #[must_use]
+    pub fn max_concurrent_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_concurrent_http3_requests_per_origin = maximum;
+        self
+    }
+
+    /// Sets the number of requests allowed to wait for each HTTP/3 origin.
+    #[must_use]
+    pub fn max_pending_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_pending_http3_requests_per_origin = maximum;
         self
     }
 
@@ -133,6 +189,11 @@ impl SessionBuilder {
             client: self.client,
             state: Arc::new(SessionState {
                 http2: http2_pool::Http2Pool::new(self.max_retained_http2_connections),
+                http3: http3_pool::Http3Pool::new(
+                    self.max_retained_http3_connections,
+                    self.max_concurrent_http3_requests_per_origin,
+                    self.max_pending_http3_requests_per_origin,
+                ),
                 #[cfg(feature = "cookies")]
                 cookies: self.cookie_jar.map(Arc::new),
             }),
@@ -147,6 +208,18 @@ impl fmt::Debug for SessionBuilder {
             .field(
                 "max_retained_http2_connections",
                 &self.max_retained_http2_connections,
+            )
+            .field(
+                "max_retained_http3_connections",
+                &self.max_retained_http3_connections,
+            )
+            .field(
+                "max_concurrent_http3_requests_per_origin",
+                &self.max_concurrent_http3_requests_per_origin,
+            )
+            .field(
+                "max_pending_http3_requests_per_origin",
+                &self.max_pending_http3_requests_per_origin,
             )
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]

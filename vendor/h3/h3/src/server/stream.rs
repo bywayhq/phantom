@@ -145,9 +145,13 @@ where
     pub async fn send_response(&mut self, resp: Response<()>) -> Result<(), StreamError> {
         let (parts, _) = resp.into_parts();
         let response::Parts {
-            status, headers, ..
+            status,
+            headers,
+            extensions,
+            ..
         } = parts;
-        let headers = Header::response(status, headers);
+        let headers = Header::response(status, headers, extensions)
+            .map_err(|error| StreamError::Undefined(Box::new(error)))?;
 
         let mut block = BytesMut::new();
         let mem_size = qpack::encode_stateless(&mut block, headers).map_err(|_e| {

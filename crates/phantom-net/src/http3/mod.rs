@@ -12,14 +12,18 @@ use h3_datagram::datagram_handler::HandleDatagramsExt;
 use http::{Request, Response};
 use phantom_profile::{Http3RequestSettings, Http3Settings};
 use phantom_quic_btls::{HandshakeData, QuicClientConfig, StatelessResetKey};
-use tracing::{Instrument, debug, debug_span, field};
+use tracing::{debug, debug_span, field};
 
-use datagram::DatagramMonitor;
+use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask};
 use request::{prepare_get, prepare_request};
+use tokio::runtime::Handle;
+
+use crate::direct::{RuntimeUnavailable, poll_tokio_io};
 
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
+pub use connection::Http3Connection;
 pub use connector::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
 pub use error::{Http3Error, Http3ErrorKind};
 #[cfg(feature = "qlog")]
@@ -135,97 +139,106 @@ async fn send_request_inner(
     request: Request<()>,
     diagnostics: ConnectionDiagnostics,
 ) -> Result<Response<Http3Body>, Http3Error> {
-    let span = debug_span!(
-        "http3.response_head",
-        method = %request.method(),
-        protocol = "h3",
-        status = field::Empty,
-        outcome = field::Empty,
-    );
-    let result = async {
-        let request = prepare_request(request)?;
-        let mut builder = settings::builder(settings, &crypto)?;
-        let endpoint = endpoint(remote, crypto, diagnostics)?;
+    let request = prepare_request(request)?;
+    Handle::try_current().map_err(|_| runtime_unavailable())?;
+    poll_tokio_io(|| async {
+        let connection = connect(remote, server_name, crypto, settings, diagnostics, None).await?;
+        connection.send_prepared_request(request).await
+    })
+    .await
+    .map_err(|RuntimeUnavailable| runtime_unavailable())?
+}
 
-        debug!("QUIC connection started");
-        let connection = endpoint
-            .connect(remote, server_name)
-            .map_err(|error| {
-                Http3Error::with_source(
-                    Http3ErrorKind::Connect,
-                    "failed to begin QUIC connection",
-                    error,
-                )
-            })?
-            .await
-            .map_err(connection_error)?;
-        require_h3(&connection)?;
-        debug!("QUIC connection established with exact h3 ALPN");
+fn runtime_unavailable() -> Http3Error {
+    Http3Error::without_source(
+        Http3ErrorKind::RuntimeUnavailable,
+        "HTTP/3 network requests require a Tokio runtime with network I/O enabled",
+    )
+}
 
-        let (h3_driver, sender) = builder
-            .build(h3_quinn::Connection::new(connection.clone()))
-            .await
-            .map_err(|error| {
-                Http3Error::with_source(
-                    Http3ErrorKind::Protocol,
-                    "HTTP/3 connection initialization failed",
-                    error,
-                )
-            })?;
-        let datagram_reader = settings
-            .receives_datagrams()
-            .then(|| h3_driver.get_datagram_reader());
-        let mut driver = DriverTask::spawn(h3_driver, sender, endpoint, connection);
-        let stream = driver.sender_mut()?.send_request(request).await?;
-        let mut pending = PendingRequest::new(stream);
-        let stream_id = pending.stream_mut()?.id();
-        let mut datagrams = datagram_reader.map(|reader| DatagramMonitor::spawn(reader, stream_id));
-        pending.stream_mut()?.finish().await?;
-        let response = match receive_response(pending.stream_mut()?, datagrams.as_mut()).await {
-            Ok(response) => response,
-            Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
-            Err(ResponseHeadError::UnsupportedDatagram) => {
-                datagrams.take();
-                let stream = pending.into_stream()?;
-                body::defer_datagram_abort(stream, driver);
-                return Err(Http3Error::without_source(
-                    Http3ErrorKind::Protocol,
-                    "peer sent an HTTP Datagram for a request without datagram semantics",
-                ));
-            }
-            Err(ResponseHeadError::SwitchingProtocols) => {
-                return Err(Http3Error::without_source(
-                    Http3ErrorKind::Protocol,
-                    "peer sent a 101 response over HTTP/3",
-                ));
-            }
-        };
-        span.record("status", response.status().as_u16());
+#[cfg(test)]
+pub(super) async fn connect_direct(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+) -> Result<Http3Connection, Http3Error> {
+    connect(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        ConnectionDiagnostics::default(),
+        None,
+    )
+    .await
+}
 
-        let (mut parts, ()) = response.into_parts();
-        let ordered_headers = parts
-            .extensions
-            .remove::<h3::ext::OrderedHeaders>()
-            .map(|headers| {
-                crate::OrderedResponseHeaders::from_normalized_fields(headers.as_slice())
-            })
-            .ok_or_else(|| {
-                Http3Error::without_source(
-                    Http3ErrorKind::Protocol,
-                    "HTTP/3 response header order was not captured",
-                )
-            })?;
-        parts.extensions.insert(ordered_headers);
-        let stream = pending.into_stream()?;
-        Ok(Response::from_parts(
-            parts,
-            Http3Body::new(stream, driver, datagrams),
-        ))
-    }
-    .instrument(span.clone())
-    .await;
-    span.record("outcome", if result.is_ok() { "ok" } else { "error" });
-    result
+pub(super) async fn connect_bound(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    connector_identity: Arc<()>,
+) -> Result<Http3Connection, Http3Error> {
+    connect(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        ConnectionDiagnostics::default(),
+        Some(connector_identity),
+    )
+    .await
+}
+
+async fn connect(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    diagnostics: ConnectionDiagnostics,
+    connector_identity: Option<Arc<()>>,
+) -> Result<Http3Connection, Http3Error> {
+    let mut builder = settings::builder(settings, &crypto)?;
+    let endpoint = endpoint(remote, crypto, diagnostics)?;
+
+    debug!("QUIC connection started");
+    let connection = endpoint
+        .connect(remote, server_name)
+        .map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Connect,
+                "failed to begin QUIC connection",
+                error,
+            )
+        })?
+        .await
+        .map_err(connection_error)?;
+    require_h3(&connection)?;
+    debug!("QUIC connection established with exact h3 ALPN");
+
+    let (h3_driver, sender) = builder
+        .build(h3_quinn::Connection::new(connection.clone()))
+        .await
+        .map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Protocol,
+                "HTTP/3 connection initialization failed",
+                error,
+            )
+        })?;
+    let datagrams = settings
+        .receives_datagrams()
+        .then(|| DatagramRouter::spawn(h3_driver.get_datagram_reader(), connection.rtt()));
+    let driver = DriverTask::spawn(h3_driver, endpoint, connection.clone());
+    Ok(Http3Connection::new(
+        sender,
+        driver,
+        datagrams,
+        connection,
+        connector_identity,
+    ))
 }
 
 async fn receive_response(
@@ -427,6 +440,7 @@ impl Drop for PendingRequest {
 }
 
 mod body;
+mod connection;
 mod connector;
 mod datagram;
 mod driver;

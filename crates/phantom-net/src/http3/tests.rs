@@ -22,6 +22,27 @@ use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity};
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
+#[test]
+fn runtime_without_io_returns_runtime_unavailable() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let request = Request::get(format!("https://{TEST_SERVER_NAME}/")).body(())?;
+    let runtime = tokio::runtime::Builder::new_current_thread().build()?;
+
+    let error = runtime
+        .block_on(send_test_request(
+            "127.0.0.1:9".parse()?,
+            TEST_SERVER_NAME,
+            client,
+            request,
+        ))
+        .err()
+        .ok_or("HTTP/3 request completed on a runtime without network I/O")?;
+
+    assert_eq!(error.kind(), Http3ErrorKind::RuntimeUnavailable);
+    Ok(())
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn rejects_invalid_request_before_connecting() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
@@ -587,6 +608,7 @@ async fn join_server(server: JoinHandle<TestResult<()>>) -> TestResult<()> {
 }
 
 mod adversarial;
+mod connection;
 mod connector;
 mod datagram;
 mod profile;

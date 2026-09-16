@@ -175,7 +175,8 @@ fn dynamic_settings() -> Http3Settings {
 fn dynamic_response() -> TestResult<(Vec<u8>, Vec<u8>)> {
     let mut fields = HeaderMap::new();
     fields.insert("x-phantom-dynamic", HeaderValue::from_static("released"));
-    let header = h3::proto::headers::Header::response(StatusCode::OK, fields);
+    let header =
+        h3::proto::headers::Header::response(StatusCode::OK, fields, http::Extensions::new())?;
     let mut encoder = h3::qpack::Encoder::default();
     let mut instructions = Vec::new();
     encoder.set_max_table_capacity(256, &mut instructions)?;

@@ -9,14 +9,14 @@ use http_body::{Body, Frame, SizeHint};
 use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
 
 use self::task::{BodyEvent, BodyTask};
-use super::{DatagramMonitor, DriverTask, Http3Error, Http3ErrorKind, RequestStream};
+use super::{DatagramMonitor, Http3Connection, Http3Error, Http3ErrorKind, RequestStream};
 
-pub(super) fn defer_datagram_abort(stream: RequestStream, driver: DriverTask) {
-    task::defer_datagram_abort(stream, driver);
+pub(super) fn defer_datagram_abort(stream: RequestStream, connection: Http3Connection) {
+    task::defer_datagram_abort(stream, connection);
 }
 
 #[must_use = "response bodies must be read or deliberately dropped"]
-/// Streaming response body for a one-shot HTTP/3 transaction.
+/// Streaming response body for one HTTP/3 request stream.
 pub struct Http3Body {
     task: BodyTask,
     done: bool,
@@ -26,14 +26,16 @@ pub struct Http3Body {
 impl Http3Body {
     pub(super) fn new(
         stream: RequestStream,
-        driver: DriverTask,
+        connection: Http3Connection,
         datagrams: Option<DatagramMonitor>,
     ) -> Self {
         let trace = BodyTrace::new();
+        let runtime = connection.runtime().clone();
         let task = BodyTask::spawn(
             stream,
-            driver,
+            connection,
             datagrams,
+            runtime,
             trace.dispatch.clone(),
             trace.span.clone(),
         );
@@ -42,6 +44,19 @@ impl Http3Body {
             done: false,
             trace,
         }
+    }
+
+    /// Retains a value until the response stream has completed its cleanup.
+    ///
+    /// This hook lets the facade tie local admission to the actual stream
+    /// lifecycle, including bounded reset work after an incomplete body is
+    /// dropped.
+    #[doc(hidden)]
+    pub fn retain_until_stream_cleanup<T>(&mut self, value: T)
+    where
+        T: Send + 'static,
+    {
+        self.task.retain_until_cleanup(value);
     }
 
     fn finish(&mut self, outcome: &'static str) {

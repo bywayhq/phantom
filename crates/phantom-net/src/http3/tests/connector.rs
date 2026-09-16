@@ -170,6 +170,54 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
     Ok(())
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let build_connector = || {
+        Http3Connector::new_with_additional_roots(
+            &h3_tls_settings(),
+            &chromium::v152_macos_quic(),
+            &chromium::v152_macos_http3(),
+            &chromium::v152_macos_http3_request(),
+            [identity.root_der()],
+        )
+    };
+    let first = build_connector()?;
+    let second = build_connector()?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let connection = incoming.await?;
+        let _connection: h3::server::Connection<_, bytes::Bytes> =
+            h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let host = address.ip().to_string();
+    let connection = first
+        .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+        .await?;
+
+    assert!(!second.can_reuse(&connection).await);
+    let error = second
+        .send_get_on(
+            &connection,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            Vec::new(),
+        )
+        .await
+        .err()
+        .ok_or("connection crossed connector identity")?;
+    assert_eq!(error.kind(), Http3ConnectorErrorKind::Request);
+
+    drop(connection);
+    let _ = client_done.send(());
+    server.await??;
+    Ok(())
+}
+
 fn connector() -> Result<Http3Connector, Http3ConnectorError> {
     Http3Connector::new(
         &h3_tls_settings(),

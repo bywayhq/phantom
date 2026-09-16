@@ -1,4 +1,4 @@
-use std::{future::pending, future::poll_fn, pin::Pin, task::Poll};
+use std::{any::Any, future::pending, future::poll_fn, pin::Pin, task::Poll};
 
 use bytes::{Buf, Bytes};
 use h3::error::{Code, StreamError};
@@ -11,7 +11,7 @@ use tokio::{
 use tracing::{Dispatch, Instrument, Span, debug_span, dispatcher, instrument::WithSubscriber};
 
 use super::super::{
-    DatagramMonitor, DriverSignal, DriverTask, Http3Error, Http3ErrorKind, RequestStream,
+    DatagramMonitor, DriverSignal, Http3Connection, Http3Error, Http3ErrorKind, RequestStream,
     SHUTDOWN_GRACE,
 };
 use crate::shutdown_timer;
@@ -29,33 +29,47 @@ pub(super) struct BodyTask {
     demand: mpsc::Sender<()>,
     events: mpsc::Receiver<BodyEvent>,
     _cancel: watch::Sender<()>,
+    cleanup_guards: mpsc::UnboundedSender<Box<dyn Any + Send>>,
     pending: bool,
 }
 
 impl BodyTask {
     pub(super) fn spawn(
         stream: RequestStream,
-        driver: DriverTask,
+        connection: Http3Connection,
         datagrams: Option<DatagramMonitor>,
+        runtime: Handle,
         dispatch: Dispatch,
         span: Span,
     ) -> Self {
         let (demand, demands) = mpsc::channel(BODY_DEMAND_CAPACITY);
         let (events, receiver) = mpsc::channel(BODY_EVENT_CAPACITY);
         let (cancel, cancellation) = watch::channel(());
+        let (cleanup_guards, retained) = mpsc::unbounded_channel();
 
-        let task = run(stream, driver, datagrams, demands, events, cancellation)
-            .instrument(span)
-            .with_subscriber(dispatch);
+        let task = async move {
+            let _retained = retained;
+            run(stream, connection, datagrams, demands, events, cancellation).await;
+        }
+        .instrument(span)
+        .with_subscriber(dispatch);
         // The channels own cancellation; the detached task must finish the QUIC stream.
-        drop(Handle::current().spawn(task));
+        drop(runtime.spawn(task));
 
         Self {
             demand,
             events: receiver,
             _cancel: cancel,
+            cleanup_guards,
             pending: false,
         }
+    }
+
+    pub(super) fn retain_until_cleanup<T>(&self, value: T)
+    where
+        T: Send + 'static,
+    {
+        let _ = self.cleanup_guards.send(Box::new(value));
     }
 
     pub(super) fn poll_event(
@@ -78,17 +92,18 @@ impl BodyTask {
     }
 }
 
-pub(super) fn defer_datagram_abort(mut stream: RequestStream, mut driver: DriverTask) {
+pub(super) fn defer_datagram_abort(mut stream: RequestStream, connection: Http3Connection) {
+    let runtime = connection.runtime().clone();
     let dispatch = dispatcher::get_default(Clone::clone);
     let span = debug_span!("http3.stream_abort", code = "H3_DATAGRAM_ERROR");
     let task = async move {
         reset(&mut stream, Code::H3_DATAGRAM_ERROR);
         wait_for_abort_grace().await;
-        finish(stream, &mut driver, DriverSignal::ProtocolError);
+        finish(stream, &connection, DriverSignal::ProtocolError);
     }
     .instrument(span)
     .with_subscriber(dispatch);
-    drop(Handle::current().spawn(task));
+    drop(runtime.spawn(task));
 }
 
 #[derive(Clone, Copy)]
@@ -99,7 +114,7 @@ enum ReceiveState {
 
 async fn run(
     mut stream: RequestStream,
-    mut driver: DriverTask,
+    connection: Http3Connection,
     mut datagrams: Option<DatagramMonitor>,
     mut demands: mpsc::Receiver<()>,
     events: mpsc::Sender<BodyEvent>,
@@ -113,13 +128,13 @@ async fn run(
             () = wait_for_datagram(&mut datagrams) => {
                 abort_for_datagram(&mut stream, &events);
                 wait_for_abort_grace().await;
-                finish(stream, &mut driver, DriverSignal::ProtocolError);
+                finish(stream, &connection, DriverSignal::ProtocolError);
                 return;
             }
             _ = cancellation.changed() => {
                 cancel(&mut stream);
                 wait_for_abort_grace().await;
-                finish(stream, &mut driver, DriverSignal::Cancelled);
+                finish(stream, &connection, DriverSignal::Cancelled);
                 return;
             }
             demand = demands.recv() => demand,
@@ -127,7 +142,7 @@ async fn run(
         if demand.is_none() {
             cancel(&mut stream);
             wait_for_abort_grace().await;
-            finish(stream, &mut driver, DriverSignal::Cancelled);
+            finish(stream, &connection, DriverSignal::Cancelled);
             return;
         }
 
@@ -143,7 +158,7 @@ async fn run(
                             {
                                 cancel(&mut stream);
                                 wait_for_abort_grace().await;
-                                finish(stream, &mut driver, DriverSignal::Cancelled);
+                                finish(stream, &connection, DriverSignal::Cancelled);
                                 return;
                             }
                             break;
@@ -151,19 +166,19 @@ async fn run(
                         Receive::Value(Ok(None)) => state = ReceiveState::Trailers,
                         Receive::Value(Err(error)) => {
                             send_error(&events, error.into()).await;
-                            finish(stream, &mut driver, DriverSignal::ProtocolError);
+                            finish(stream, &connection, DriverSignal::ProtocolError);
                             return;
                         }
                         Receive::Datagram => {
                             abort_for_datagram(&mut stream, &events);
                             wait_for_abort_grace().await;
-                            finish(stream, &mut driver, DriverSignal::ProtocolError);
+                            finish(stream, &connection, DriverSignal::ProtocolError);
                             return;
                         }
                         Receive::Cancelled => {
                             cancel(&mut stream);
                             wait_for_abort_grace().await;
-                            finish(stream, &mut driver, DriverSignal::Cancelled);
+                            finish(stream, &connection, DriverSignal::Cancelled);
                             return;
                         }
                     }
@@ -174,29 +189,29 @@ async fn run(
                             let _ = events
                                 .send(BodyEvent::Frame(Frame::trailers(trailers)))
                                 .await;
-                            finish(stream, &mut driver, DriverSignal::Complete);
+                            finish(stream, &connection, DriverSignal::Complete);
                             return;
                         }
                         Receive::Value(Ok(None)) => {
                             let _ = events.send(BodyEvent::End).await;
-                            finish(stream, &mut driver, DriverSignal::Complete);
+                            finish(stream, &connection, DriverSignal::Complete);
                             return;
                         }
                         Receive::Value(Err(error)) => {
                             send_error(&events, error.into()).await;
-                            finish(stream, &mut driver, DriverSignal::ProtocolError);
+                            finish(stream, &connection, DriverSignal::ProtocolError);
                             return;
                         }
                         Receive::Datagram => {
                             abort_for_datagram(&mut stream, &events);
                             wait_for_abort_grace().await;
-                            finish(stream, &mut driver, DriverSignal::ProtocolError);
+                            finish(stream, &connection, DriverSignal::ProtocolError);
                             return;
                         }
                         Receive::Cancelled => {
                             cancel(&mut stream);
                             wait_for_abort_grace().await;
-                            finish(stream, &mut driver, DriverSignal::Cancelled);
+                            finish(stream, &connection, DriverSignal::Cancelled);
                             return;
                         }
                     }
@@ -291,9 +306,9 @@ async fn wait_for_abort_grace() {
     }
 }
 
-fn finish(stream: RequestStream, driver: &mut DriverTask, signal: DriverSignal) {
+fn finish(stream: RequestStream, connection: &Http3Connection, signal: DriverSignal) {
     drop(stream);
-    driver.finish(signal);
+    connection.record(signal);
 }
 
 async fn send_error(events: &mpsc::Sender<BodyEvent>, error: Http3Error) {
