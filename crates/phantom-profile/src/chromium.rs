@@ -234,4 +234,6 @@ pub(crate) fn v152_macos_quic() -> QuicTransportSettings {
 }
 
 #[cfg(test)]
+mod quic_tests;
+#[cfg(test)]
 mod tests;
