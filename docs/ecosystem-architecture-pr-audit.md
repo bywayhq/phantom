@@ -59,19 +59,23 @@ Explicit gaps:
 
 ## Phantom baseline: what exists and what does not
 
-Observed: the `phantom` facade currently re-exports only profile identity
-types; its rustdoc explicitly says the reusable client, sessions, and protocol
-routing are planned ([facade source](../crates/phantom/src/lib.rs)). The actual
-request surface is in `phantom-net`: public HTTP/1 and HTTP/2 modules expose
-one-shot empty-body `send_get` functions, ordered `Vec<RequestHeader>`, parsed
-`OriginForm`, streaming response bodies, protocol-specific TLS connectors, and
-typed errors ([module](../crates/phantom-net/src/lib.rs),
+Observed: the `phantom` facade now exposes an immutable `Client`, exact H1/H2
+selection, ordered request fields, streaming response bodies, additive trust
+roots, and an owned direct-or-plaintext-HTTP-CONNECT `Route`. The route can be
+set on the client or overridden by one request; invalid origin or CONNECT
+fields fail before proxy I/O, and proxy failure never becomes a direct retry
+([facade source](../crates/phantom/src/lib.rs),
+[route](../crates/phantom/src/route.rs)). The lower-level request surface is in
+`phantom-net`: public HTTP/1 and HTTP/2 modules expose one-shot empty-body
+`send_get` functions, ordered `Vec<RequestHeader>`, parsed `OriginForm`,
+streaming response bodies, protocol-specific TLS connectors, and typed errors
+([module](../crates/phantom-net/src/lib.rs),
 [HTTP/1](../crates/phantom-net/src/http1/mod.rs),
 [HTTP/2](../crates/phantom-net/src/http2/mod.rs),
 [request primitives](../crates/phantom-net/src/request.rs)). The profile crate
-publicly exposes concrete ordered TLS and HTTP/2 recipes; a QUIC recipe exists
-only as a private, test-covered module. The public runtime path is TLS plus
-HTTP/1 and HTTP/2, not HTTP/3
+publicly exposes concrete ordered TLS, HTTP/2, QUIC, and HTTP/3 settings. A
+forced one-shot H3 runtime exists in `phantom-net`, but it is not yet part of
+the `phantom::Client` facade or routed proxy surface
 ([profile exports](../crates/phantom-profile/src/lib.rs)).
 
 The intended boundary is already explicit: profile and route are independent;
@@ -111,7 +115,7 @@ counted as current.
 
 | Project | Construction and ownership | Request/response surface | Profiles and protocols | Route, DNS, state | Streaming/realtime | Cancellation, errors, concurrency, observability | Escape hatches / defaults |
 |---|---|---|---|---|---|---|---|
-| **Phantom current** | Immutable direct client; no session/pool | Exact H1/H2 GET; ordered fields; streaming body | Public typed TLS/H2 profiles; forced H3 remains a lower-level path | Additive trust roots; no public proxy/DNS/cookies/client hints yet | Response body yes; upload, WS, SSE no | Stable facade error kinds; completion shuts down; early body drop cancels/resets | No backend escape; unsupported surfaces absent |
+| **Phantom current** | Immutable routed client; no session/pool | Exact H1/H2 GET; ordered origin and CONNECT fields; streaming body | Public typed TLS/H2 profiles; forced H3 remains a lower-level path | Additive trust roots; direct or plaintext HTTP CONNECT route; no public DNS/cookies/client hints yet | Response body yes; upload, WS, SSE no | Stable facade/proxy error kinds; completion shuts down; early body drop cancels/resets; proxy failure never retries direct | No backend escape; unsupported surfaces absent |
 | **httpcloak** | `New(preset, options...)`; `Client`/goroutine-safe `Session`; fork/persist/close | Rich `Request`, ordered exact headers, replay factory, streaming response | TLS + H1/H2/H3; presets plus custom fingerprint | CONNECT/SOCKS5/MASQUE, DNS/ECH, cookies, hints, tickets | Body streams; no distinct SSE API; WebSocket not a core surface | Context/timeouts, typed transport errors, hooks/metrics; graceful and hard close | Many options/callbacks; root facade defaults to managed state |
 | **hellojs** | `request()` plus shared `Pool`; implicit state | request-compatible object; stream flag; body/json/form/query | TLS + H1/H2/H3; JS profile objects/from-Peet conversion | CONNECT, pool-keyed route, cookies, sessions, Alt-Svc | H1/H2 response streams; H3 response buffered; no WS/SSE API | Abort/timeout/error codes; event emitter; concurrency semaphores | Broad option bag and low-level TLS/Pool exports |
 | **wreq** | `ClientBuilder` → cloneable `Client` with shared pool | Request builder, upload/download streams, multipart, upgrades | TLS + H1/H2; detailed emulation/TLS/H2 builders; no H3 | HTTP(S)/SOCKS/UDS, custom DNS/socket, cookies | Streams; H1/H2 WebSocket; no SSE helper | Futures/timeouts, typed `Error`, `Client` shared; Tower hooks | Public backend-shaped TLS and connector/layer controls; redirects off by default |
@@ -241,11 +245,11 @@ facade already described by Phantom's architecture.
 | **Current** | `phantom_net::request::{OriginForm, RequestHeader}` | Parsed origin-form and byte-preserving ordered header entry. |
 | **Current** | `phantom_net::http1::send_get(...) -> Response<Http1Body>` and `phantom_net::http2::send_get(...) -> Response<Http2Body>` plus protocol TLS connectors/errors | One-shot GET, explicit stream ownership, no facade pool/session/route. |
 | **Current** | `phantom_profile::{TlsSettings, Http2Settings, ...}` | Concrete public TLS/H2 recipes. QUIC recipe code is private and does not mean H3 runtime support. |
-| **Current facade** | `Client::builder(profile).add_root_certificate_der(...).build()` | Exactly one required immutable profile; bundled roots remain and additions do not disable certificate or hostname verification. No backend callbacks, pool builder, or nominal route type. |
-| **Current facade** | `Client::get(HttpProtocol::{Http1,Http2}, uri) -> Result<RequestBuilder, RequestError>` | Exact one-shot direct HTTPS; ordered fields; URI-owned authority; unsupported protocols and malformed requests fail before DNS/TCP. No negotiation or fallback policy. |
+| **Current facade** | `Client::builder(profile).route(route).add_root_certificate_der(...).build()` | Exactly one required immutable profile and a default direct-or-HTTP-CONNECT route; bundled roots remain and additions do not disable certificate or hostname verification. No backend callbacks or pool builder. |
+| **Current facade** | `Client::get(HttpProtocol::{Http1,Http2}, uri) -> Result<RequestBuilder, RequestError>` | Exact one-shot routed HTTPS; ordered origin and CONNECT fields; URI-owned authority; request-scoped route override; unsupported protocols and malformed requests fail before network I/O. Proxy failure never falls back direct. |
 | **Current facade** | `send() -> Result<Response<ResponseBody>, RequestError>`; `ResponseBody: http_body::Body<Data = Bytes>` | H1/H2 remain pull-driven and preserve their protocol-specific drop/cancel behavior; the facade does not default-buffer. |
 | **Planned session slice** | `Client::session() -> Session`; cloneable `Session` only if its state is `Send + Sync` | Session owns cookies, tickets, DNS/HTTPS answers, Alt-Svc, client hints, and protocol knowledge. A session is not exposed until that mutable state exists. |
-| **Planned policy vocabulary** | Exact selection for implemented protocols only; add `Http3` with the capture-proven H3 slice. A closed route vocabulary begins with direct, scheme-bearing HTTP proxy, and SOCKS5 with explicit local/proxy DNS mode only when implemented | Discovery, ALPN negotiation, Alt-Svc/HTTPS knowledge, H3 racing, and fallback require separate named policy with a complete contract before they become public. A policy never changes route or substitutes an unprofiled protocol. Do not publish MASQUE, custom DNS, local bind, or H3 route variants before they are applied and verified. |
+| **Planned policy vocabulary** | Add `Http3` with the capture-proven H3 slice; extend the closed route vocabulary only when HTTPS proxy, SOCKS5 DNS modes, and UDP carriage are implemented | Discovery, ALPN negotiation, Alt-Svc/HTTPS knowledge, H3 racing, and fallback require separate named policy with a complete contract before they become public. A policy never changes route or substitutes an unprofiled protocol. Do not publish MASQUE, custom DNS, local bind, or H3 route variants before they are applied and verified. |
 
 Deliberately absent from the minimal slice: a backend trait, arbitrary TLS
 extension bytes, request hooks, public connector layers, retry knobs, cache

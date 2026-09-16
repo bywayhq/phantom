@@ -1,52 +1,36 @@
 //! Public-facade integration tests.
 
-mod support;
+#[path = "support/tls.rs"]
+mod tls_support;
+#[path = "support/tracing.rs"]
+mod tracing_support;
 
 use std::{
     error::Error,
     future::{Future, poll_fn},
     io,
-    net::{IpAddr, Ipv4Addr, TcpListener as StdTcpListener},
+    net::{Ipv4Addr, TcpListener as StdTcpListener},
     panic::{AssertUnwindSafe, catch_unwind},
-    pin::Pin,
     task::{Context, Waker},
     time::Duration,
 };
 
-use btls::{
-    pkey::PKey,
-    ssl::{AlpnError, Ssl, SslAcceptor, SslMethod, select_next_proto},
-    x509::X509,
-};
 use bytes::Bytes;
 use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestHeader,
-    profile::{
-        CipherSuite, ClientHelloExtensionOrder, ClientProfile, NamedGroup, SignatureScheme,
-        TlsSettings, TlsVersion, chromium,
-    },
+    profile::{ClientProfile, chromium},
 };
-use rcgen::{
-    BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
-    KeyUsagePurpose, SanType,
-};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-    sync::oneshot,
-    time::timeout,
-};
-use tokio_btls::SslStream;
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 use tracing::instrument::WithSubscriber;
 
-use support::OutcomeSubscriber;
+use tls_support::{
+    H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, test_client, tls_settings,
+};
+use tracing_support::OutcomeSubscriber;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
-const H1_ALPN: &[u8] = b"\x08http/1.1";
-const H2_ALPN: &[u8] = b"\x02h2";
-
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[test]
@@ -387,46 +371,6 @@ fn invalid_additional_root_has_stable_build_category() -> TestResult<()> {
     Ok(())
 }
 
-fn test_client(identity: &TestIdentity, http2: bool) -> TestResult<Client> {
-    let mut tls = tls_settings();
-    if !http2 {
-        tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
-    }
-    let mut profile = ClientProfile::new(tls);
-    if http2 {
-        profile = profile.with_http2(chromium::v152_macos_http2());
-    }
-    Ok(Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .build()?)
-}
-
-fn tls_settings() -> TlsSettings {
-    TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls12,
-        cipher_suites: vec![CipherSuite::EcdheEcdsaAes128GcmSha256],
-        groups: vec![NamedGroup::X25519, NamedGroup::Secp256r1],
-        key_shares: Vec::new(),
-        signature_schemes: vec![SignatureScheme::EcdsaSecp256r1Sha256],
-        delegated_credential_schemes: Vec::new(),
-        alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
-        alps: None,
-        certificate_compression: Vec::new(),
-        session_tickets: true,
-        record_size_limit: None,
-        requested_trust_anchor_ids: None,
-        grease: false,
-        grease_signature_algorithms: false,
-        extension_order: ClientHelloExtensionOrder::BackendDefault,
-        ech_grease: false,
-        ech_grease_payload_length: None,
-        request_ocsp_staple: false,
-        request_signed_certificate_timestamps: false,
-        aes_hardware: true,
-    }
-}
-
 async fn next_data(body: &mut phantom::ResponseBody) -> TestResult<Bytes> {
     loop {
         let frame = body.frame().await.ok_or("response body ended")??;
@@ -445,80 +389,4 @@ where
     timeout(TEST_TIMEOUT, future)
         .await
         .map_err(|_| "client test exceeded its deadline")?
-}
-
-async fn read_head(stream: &mut SslStream<TcpStream>) -> io::Result<Vec<u8>> {
-    let mut bytes = Vec::new();
-    let mut byte = [0_u8; 1];
-    while !bytes.ends_with(b"\r\n\r\n") {
-        if bytes.len() == 32 * 1024 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "request head exceeded test bound",
-            ));
-        }
-        stream.read_exact(&mut byte).await?;
-        bytes.push(byte[0]);
-    }
-    Ok(bytes)
-}
-
-async fn accept_tls(
-    listener: TcpListener,
-    acceptor: SslAcceptor,
-) -> TestResult<SslStream<TcpStream>> {
-    let (tcp, _) = listener.accept().await?;
-    let ssl = Ssl::new(acceptor.context())?;
-    let mut stream = SslStream::new(ssl, tcp)?;
-    Pin::new(&mut stream).accept().await?;
-    Ok(stream)
-}
-
-struct TestIdentity {
-    root_der: Vec<u8>,
-    leaf_der: Vec<u8>,
-    private_key_der: Vec<u8>,
-}
-
-impl TestIdentity {
-    fn generate() -> TestResult<Self> {
-        let mut root_params = CertificateParams::new(Vec::<String>::new())?;
-        root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-        root_params.key_usages = vec![
-            KeyUsagePurpose::DigitalSignature,
-            KeyUsagePurpose::KeyCertSign,
-            KeyUsagePurpose::CrlSign,
-        ];
-        let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
-
-        let mut leaf_params = CertificateParams::new(Vec::<String>::new())?;
-        leaf_params
-            .subject_alt_names
-            .push(SanType::IpAddress(IpAddr::V4(Ipv4Addr::LOCALHOST)));
-        leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-        leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
-        leaf_params.use_authority_key_identifier_extension = true;
-        let leaf_key = KeyPair::generate()?;
-        let leaf = leaf_params.signed_by(&leaf_key, &root)?;
-
-        Ok(Self {
-            root_der: root.der().to_vec(),
-            leaf_der: leaf.der().to_vec(),
-            private_key_der: leaf_key.serialize_der(),
-        })
-    }
-
-    fn acceptor(&self, alpn: &'static [u8]) -> TestResult<SslAcceptor> {
-        let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
-        let certificate = X509::from_der(&self.leaf_der)?;
-        let private_key = PKey::private_key_from_pkcs8(&self.private_key_der)?;
-        acceptor.set_certificate(&certificate)?;
-        acceptor.set_private_key(&private_key)?;
-        acceptor.add_extra_chain_cert(X509::from_der(&self.root_der)?)?;
-        acceptor.check_private_key()?;
-        acceptor.set_alpn_select_callback(move |_, offered| {
-            select_next_proto(alpn, offered).ok_or(AlpnError::NOACK)
-        });
-        Ok(acceptor.build())
-    }
 }

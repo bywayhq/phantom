@@ -36,20 +36,23 @@ bytes.
 
 The facade grows through three ordinary levels:
 
-- `ClientBuilder` currently owns one immutable profile and additive trust
-  roots. Later slices add route policy, runtime services, and pool limits only
-  with their implementations.
+- `ClientBuilder` currently owns one immutable profile, additive trust roots,
+  and a default `Route` (`Direct` or plaintext HTTP CONNECT). Later slices add
+  runtime services and pool limits only with their implementations.
 - `RequestBuilder` currently owns an exact protocol, HTTPS target, and ordered
-  fields. Later request-scoped route, deadline, and retry policy remain absent.
+  fields. It may own a route override; deadline and retry policy remain absent.
 - Typed profile values describe observable wire behavior and can be cloned and
   edited before the client is built.
 
-The first facade slice performs a new direct connection for each request. It
-synthesizes the H1 `Host` field from the URI, uses the URI authority for H2,
-and rejects a caller-supplied `Host` field. Selecting H2 without H2 profile
-settings, or supplying an invalid request shape, fails before DNS or TCP I/O.
-The response body implements `http_body::Body` and retains the existing
-protocol cancellation behavior when dropped.
+The facade performs a new connection for each request. It synthesizes the H1
+`Host` field from the URI, uses the URI authority for H2, and rejects a
+caller-supplied origin `Host` field. A plaintext HTTP CONNECT route has a
+separate ordered field sequence with one typed destination-authority
+placeholder. Request and CONNECT validation happen before proxy I/O; non-2xx
+proxy responses are typed failures and never trigger a direct retry. Selecting
+H2 without H2 profile settings also fails before DNS or TCP I/O. The response
+body implements `http_body::Body` and retains the existing protocol
+cancellation behavior when dropped.
 
 There is no global mutable profile registry, environment-only configuration,
 browser-family switch inside a transport, or callback invoked while a pool

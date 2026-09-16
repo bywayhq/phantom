@@ -47,9 +47,12 @@ fixtures.
 | P1 | H3 | Descending/increasing GOAWAY and response `103`/trailers/reset races | Draining semantics, `H3_ID_ERROR` for an increase, and response continuity match retained client behavior |
 | P1 | H3 | Reuse before and after the peer idle timeout, including a silently expired path | Stale connections are evicted, one bounded replacement attempt succeeds when eligible, and forced H3 never falls back to TCP |
 
-The current deterministic baseline includes H1 `100 Continue`, chained
-`103`/`100`, declared-length surplus isolation, H2 `RST_STREAM`, H2 `GOAWAY`,
-and H3 missing or duplicate SETTINGS, forbidden control-stream frames,
+The current deterministic baseline includes HTTP CONNECT fragmentation,
+informational-response bounds, arbitrary final 2xx, non-2xx rejection,
+coalesced tunnel-byte preservation, oversized-head rejection, cancellation,
+and proof that proxy failure does not open a direct socket. It also includes
+H1 `100 Continue`, chained `103`/`100`, declared-length surplus isolation, H2
+`RST_STREAM`, H2 `GOAWAY`, and H3 missing or duplicate SETTINGS, forbidden control-stream frames,
 reserved streams and frames, increasing GOAWAY rejection with `H3_ID_ERROR`,
 blocked inbound QPACK release and decoder acknowledgement, peer encoder-stream
 closure with `H3_CLOSED_CRITICAL_STREAM`, one valid QUIC Retry, chained
@@ -66,8 +69,8 @@ universal peer framework.
   same-name paths, IP/IDNA hosts, and deterministic outbound ordering.
 - Compression tests fragment gzip, deflate, Brotli, and zstd input while a slow
   consumer verifies incremental output, ratio limits, and one timeout budget.
-- Proxy peers fragment CONNECT, coalesce tunneled TLS bytes with the 2xx head,
-  issue bounded 407 challenges, and prove that no direct socket escaped.
+- Proxy peers still need browser-differential 407 challenge/retry behavior,
+  half-close coverage, and the later HTTPS/SOCKS/UDP route variants.
 - SSE covers BOM and line-ending variants, split UTF-8, comments, `id`,
   `retry`, reconnect, `Last-Event-ID`, and 204 termination.
 - WebSocket covers fragmented UTF-8 with interleaved Ping/Pong, simultaneous

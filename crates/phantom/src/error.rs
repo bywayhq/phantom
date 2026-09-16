@@ -142,6 +142,8 @@ pub enum RequestErrorKind {
     InvalidTarget,
     /// Establishing the TCP connection failed.
     Connect,
+    /// Connecting to or negotiating with the configured proxy failed.
+    Proxy,
     /// The request was polled outside the required async runtime.
     RuntimeUnavailable,
     /// TLS setup or negotiation failed.
@@ -211,6 +213,12 @@ impl RequestError {
         let kind = match &source {
             Http1TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
             Http1TlsError::Connect(_) => RequestErrorKind::Connect,
+            Http1TlsError::Proxy(error)
+                if error.kind() == phantom_net::proxy::HttpConnectErrorKind::RuntimeUnavailable =>
+            {
+                RequestErrorKind::RuntimeUnavailable
+            }
+            Http1TlsError::Proxy(_) => RequestErrorKind::Proxy,
             Http1TlsError::Tls(_) => RequestErrorKind::Tls,
             _ => RequestErrorKind::Http1,
         };
@@ -226,6 +234,12 @@ impl RequestError {
         let kind = match &source {
             Http2TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
             Http2TlsError::Connect(_) => RequestErrorKind::Connect,
+            Http2TlsError::Proxy(error)
+                if error.kind() == phantom_net::proxy::HttpConnectErrorKind::RuntimeUnavailable =>
+            {
+                RequestErrorKind::RuntimeUnavailable
+            }
+            Http2TlsError::Proxy(_) => RequestErrorKind::Proxy,
             Http2TlsError::Tls(_) => RequestErrorKind::Tls,
             _ => RequestErrorKind::Http2,
         };

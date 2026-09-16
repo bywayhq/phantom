@@ -1,14 +1,20 @@
 //! Public Phantom client facade.
 
+mod authority;
 mod body;
 mod client;
 mod error;
 mod request;
+mod route;
 
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use request::RequestBuilder;
+pub use route::{HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route};
+
+/// An ordered HTTP CONNECT field or destination-authority placeholder.
+pub use phantom_net::proxy::HttpConnectHeader;
 
 /// Client-profile types used to configure observable wire behavior.
 pub mod profile {

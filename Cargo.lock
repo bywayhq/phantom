@@ -834,6 +834,7 @@ dependencies = [
  "http-body",
  "http-body-util",
  "http2",
+ "httparse",
  "phantom-profile",
  "phantom-quic-btls",
  "phantom-testkit",

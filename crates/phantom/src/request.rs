@@ -1,10 +1,10 @@
-use std::{fmt, net::Ipv6Addr};
+use std::fmt;
 
-use http::{Response, Uri, uri::Authority};
+use http::{Response, Uri};
 use phantom_net::{http1::OriginForm, request::RequestHeader};
 use tracing::{Instrument, debug_span, field};
 
-use crate::{Client, HttpProtocol, RequestError, ResponseBody};
+use crate::{Client, HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 /// Builder for one exact-protocol, empty-body GET request.
 #[must_use = "request builders do nothing until send is awaited"]
@@ -13,6 +13,7 @@ pub struct RequestBuilder<'a> {
     request: ResolvedRequest,
     protocol: HttpProtocol,
     headers: Vec<RequestHeader>,
+    route: Option<Route>,
 }
 
 impl fmt::Debug for RequestBuilder<'_> {
@@ -21,6 +22,7 @@ impl fmt::Debug for RequestBuilder<'_> {
             .debug_struct("RequestBuilder")
             .field("protocol", &self.protocol)
             .field("header_count", &self.headers.len())
+            .field("route_override", &self.route.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -46,6 +48,7 @@ impl<'a> RequestBuilder<'a> {
             request: ResolvedRequest::new(&uri)?,
             protocol,
             headers: Vec::new(),
+            route: None,
         })
     }
 
@@ -61,7 +64,13 @@ impl<'a> RequestBuilder<'a> {
         self
     }
 
-    /// Sends the request over a new direct connection.
+    /// Overrides the client's route for this request.
+    pub fn route(mut self, route: Route) -> Self {
+        self.route = Some(route);
+        self
+    }
+
+    /// Sends the request over a new connection using the selected route.
     ///
     /// Dropping this future cancels the in-flight operation. After response
     /// headers arrive, the returned body owns protocol cancellation and
@@ -93,10 +102,12 @@ impl<'a> RequestBuilder<'a> {
     /// # }
     /// ```
     pub async fn send(self) -> Result<Response<ResponseBody>, RequestError> {
+        let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
         let span = debug_span!(
             "client.request",
             method = "GET",
             protocol = self.protocol.trace_name(),
+            route = route.trace_name(),
             outcome = field::Empty,
         );
         let outcome = RequestOutcome::new(&span);
@@ -114,51 +125,95 @@ impl<'a> RequestBuilder<'a> {
             return Err(RequestError::authority_header());
         }
 
-        match self.protocol {
+        let Self {
+            client,
+            request,
+            protocol,
+            headers: request_headers,
+            route,
+        } = self;
+        let route = route.as_ref().unwrap_or(&client.inner.route);
+
+        match protocol {
             HttpProtocol::Http1 => {
-                let connector = self
-                    .client
+                let connector = client
                     .inner
                     .http1
                     .as_ref()
                     .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
-                let mut headers = Vec::with_capacity(self.headers.len() + 1);
+                let mut headers = Vec::with_capacity(request_headers.len() + 1);
                 headers.push(RequestHeader::new(
                     "Host",
-                    self.request.authority.as_str().as_bytes(),
+                    request.endpoint.authority().as_str().as_bytes(),
                 ));
-                headers.extend(self.headers);
-                let response = connector
-                    .send_get_direct(
-                        &self.request.host,
-                        self.request.port,
-                        &self.request.host,
-                        self.request.target,
-                        headers,
-                    )
-                    .await
-                    .map_err(RequestError::http1)?;
+                headers.extend(request_headers);
+                let response = match route {
+                    Route::Direct => {
+                        connector
+                            .send_get_direct(
+                                request.endpoint.host(),
+                                request.endpoint.port(),
+                                request.endpoint.host(),
+                                request.target,
+                                headers,
+                            )
+                            .await
+                    }
+                    Route::HttpConnect(proxy) => {
+                        let connect_authority = request.endpoint.tunnel_authority();
+                        connector
+                            .send_get_http_connect(
+                                proxy.host(),
+                                proxy.port(),
+                                &connect_authority,
+                                proxy.ordered_connect_headers(),
+                                request.endpoint.host(),
+                                request.target,
+                                headers,
+                            )
+                            .await
+                    }
+                }
+                .map_err(RequestError::http1)?;
                 let (parts, body) = response.into_parts();
                 Ok(Response::from_parts(parts, ResponseBody::http1(body)))
             }
             HttpProtocol::Http2 => {
-                let connector = self
-                    .client
+                let connector = client
                     .inner
                     .http2
                     .as_ref()
                     .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http2))?;
-                let response = connector
-                    .send_get_direct(
-                        &self.request.host,
-                        self.request.port,
-                        &self.request.host,
-                        self.request.authority.as_str(),
-                        self.request.target,
-                        self.headers,
-                    )
-                    .await
-                    .map_err(RequestError::http2)?;
+                let response = match route {
+                    Route::Direct => {
+                        connector
+                            .send_get_direct(
+                                request.endpoint.host(),
+                                request.endpoint.port(),
+                                request.endpoint.host(),
+                                request.endpoint.authority().as_str(),
+                                request.target,
+                                request_headers,
+                            )
+                            .await
+                    }
+                    Route::HttpConnect(proxy) => {
+                        let connect_authority = request.endpoint.tunnel_authority();
+                        connector
+                            .send_get_http_connect(
+                                proxy.host(),
+                                proxy.port(),
+                                &connect_authority,
+                                proxy.ordered_connect_headers(),
+                                request.endpoint.host(),
+                                request.endpoint.authority().as_str(),
+                                request.target,
+                                request_headers,
+                            )
+                            .await
+                    }
+                }
+                .map_err(RequestError::http2)?;
                 let (parts, body) = response.into_parts();
                 Ok(Response::from_parts(parts, ResponseBody::http2(body)))
             }
@@ -168,9 +223,7 @@ impl<'a> RequestBuilder<'a> {
 
 #[derive(Debug)]
 struct ResolvedRequest {
-    authority: Authority,
-    host: Box<str>,
-    port: u16,
+    endpoint: Endpoint,
     target: OriginForm,
 }
 
@@ -182,74 +235,13 @@ impl ResolvedRequest {
         let authority = uri.authority().cloned().ok_or_else(|| {
             RequestError::invalid_authority("request URI must include an authority")
         })?;
-        if authority.as_str().as_bytes().contains(&b'@') {
-            return Err(RequestError::invalid_authority(
-                "request authority must not contain user information",
-            ));
-        }
-        let (host, port) = resolve_host_and_port(&authority)?;
+        let endpoint = Endpoint::new(authority, 443)
+            .map_err(|error| RequestError::invalid_authority(error.message()))?;
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
             .map_err(RequestError::invalid_target)?;
 
-        Ok(Self {
-            authority,
-            host,
-            port,
-            target,
-        })
+        Ok(Self { endpoint, target })
     }
-}
-
-fn resolve_host_and_port(authority: &Authority) -> Result<(Box<str>, u16), RequestError> {
-    let text = authority.as_str();
-    if let Some(bracketed) = text.strip_prefix('[') {
-        let (literal, suffix) = bracketed.split_once(']').ok_or_else(|| {
-            RequestError::invalid_authority("bracketed request host is incomplete")
-        })?;
-        let address = literal.parse::<Ipv6Addr>().map_err(|_| {
-            RequestError::invalid_authority("bracketed request host must be an IPv6 address")
-        })?;
-        let port = parse_port_suffix(suffix)?;
-        return Ok((address.to_string().into(), port));
-    }
-
-    let host = authority.host();
-    if host.is_empty() {
-        return Err(RequestError::invalid_authority(
-            "request URI host must not be empty",
-        ));
-    }
-    if host.contains(':') {
-        return Err(RequestError::invalid_authority(
-            "IPv6 request hosts must use brackets",
-        ));
-    }
-    let port = match text.strip_prefix(host) {
-        Some("") => 443,
-        Some(suffix) => parse_port_suffix(suffix)?,
-        None => {
-            return Err(RequestError::invalid_authority(
-                "request URI authority does not match its host",
-            ));
-        }
-    };
-    Ok((host.into(), port))
-}
-
-fn parse_port_suffix(suffix: &str) -> Result<u16, RequestError> {
-    if suffix.is_empty() {
-        return Ok(443);
-    }
-    let port = suffix.strip_prefix(':').ok_or_else(|| {
-        RequestError::invalid_authority("request URI authority has an invalid suffix")
-    })?;
-    if port.is_empty() {
-        return Err(RequestError::invalid_authority(
-            "request URI port must not be empty",
-        ));
-    }
-    port.parse::<u16>()
-        .map_err(|_| RequestError::invalid_authority("request URI port is invalid"))
 }
 
 struct RequestOutcome {

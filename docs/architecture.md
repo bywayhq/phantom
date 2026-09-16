@@ -1,7 +1,7 @@
 # Architecture
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
-validated client profile. The current workspace owns profiles, a small direct
+validated client profile. The current workspace owns profiles, a small routed
 H1/H2 client facade, concrete request paths, and the validation harness. Later
 slices add reusable connections and session behavior. Phantom carries narrow,
 documented patches to upstream protocol engines only where their public APIs
@@ -25,8 +25,9 @@ flowchart TB
     Client["phantom::Client<br/>small public facade"]
     Session["Session state<br/>cookies · cache hints · tickets"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
-    Route["Route plan<br/>direct · HTTP(S) · SOCKS5"]
-    FacadeRequest["Facade request<br/>direct H1/H2 GET"]
+    Route["Current route<br/>direct · HTTP CONNECT"]
+    FutureRoute["Later routes<br/>HTTPS proxy · SOCKS5 · UDP"]
+    FacadeRequest["Facade request<br/>routed H1/H2 GET"]
     DirectH3["Lower-level forced H3<br/>one-shot GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
@@ -44,12 +45,14 @@ flowchart TB
     FacadeRequest --> H1
     FacadeRequest --> H2
     Client -.-> Session
+    Client --> Route
+    FutureRoute -.-> Route
     Client --> FacadeRequest
     DirectH3 --> H3
     H1 --> TLS
     H2 --> TLS
     H3 --> QUIC
-    TLS -.-> Route
+    Route --> TLS
     QUIC -.-> Route
     H1 -.-> SSE
     H2 -.-> SSE
@@ -60,8 +63,8 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Client,Profile,FacadeRequest,DirectH3,H1,H2,H3,TLS,QUIC current
-    class Session,Route,SSE,WS planned
+    class Client,Profile,Route,FacadeRequest,DirectH3,H1,H2,H3,TLS,QUIC current
+    class Session,FutureRoute,SSE,WS planned
 ```
 
 SSE is a response-body consumer, not another transport. WebSocket owns its
@@ -73,15 +76,15 @@ controls.
 ## Routing and proxy seam
 
 Route selection is a peer of profile selection, not a request-header trick. A
-route is resolved before a connection is selected or pooled, and every racing
-or retry attempt remains on that route. Failure of a proxy never causes a
+route is resolved before a connection is opened and, once pooling or racing
+exists, every attempt remains on that route. Failure of a proxy never causes a
 direct-network fallback.
 
 ```mermaid
 flowchart LR
     Input["request · profile · route"] --> Route["validated route"]
     Route --> Direct["direct TCP or UDP"]
-    Route --> Http["HTTP proxy<br/>forward or CONNECT"]
+    Route --> Http["HTTP proxy<br/>CONNECT"]
     Route --> Https["HTTPS proxy<br/>proxy TLS · CONNECT"]
     Route --> Socks["SOCKS5<br/>local DNS · remote DNS"]
     Direct --> Tcp["TCP byte stream"]
@@ -96,12 +99,17 @@ flowchart LR
     Masque["CONNECT-UDP / MASQUE"] -.-> Udp
 ```
 
-The first proxy slice will cover plaintext HTTP forwarding, CONNECT for TLS,
-TLS-to-proxy CONNECT, and SOCKS5 with distinct local- and proxy-DNS modes.
-Authentication and CONNECT headers remain ordered typed inputs; credentials do
-not live in endpoint strings or tracing fields. Hostnames, IPv4, bracketed
-IPv6, IDNA, half-close, 407 challenges, and surplus bytes after CONNECT all get
-local fixture coverage.
+The current proxy slice covers plaintext HTTP CONNECT for H1/H2 origin TLS.
+The client or request owns the route, and the CONNECT field sequence contains
+one typed destination-authority placeholder. Validation happens before proxy
+I/O. Negotiation is bounded, accepts a final 2xx after bounded informational
+responses, preserves bytes read beyond the response head, and never retries
+direct. Hostnames, IPv4, and bracketed IPv6 endpoints have local coverage.
+
+HTTP forwarding, TLS-to-proxy CONNECT, SOCKS5 with distinct local- and
+proxy-DNS modes, authentication challenge negotiation, IDNA normalization, and
+half-close behavior remain later slices. Credentials do not live in endpoint
+strings or tracing fields.
 
 H3 is capability-checked separately. A TCP CONNECT proxy cannot carry QUIC.
 SOCKS5 UDP ASSOCIATE is the first UDP proxy target, followed by CONNECT-UDP and

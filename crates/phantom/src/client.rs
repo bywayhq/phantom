@@ -3,7 +3,7 @@ use std::fmt;
 use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector};
 use phantom_profile::ClientProfile;
 
-use crate::{BuildError, RequestBuilder};
+use crate::{BuildError, RequestBuilder, Route};
 
 /// HTTP protocol selected for one request.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -24,7 +24,7 @@ impl HttpProtocol {
     }
 }
 
-/// Immutable client for direct, exact-protocol HTTPS requests.
+/// Immutable client for routed, exact-protocol HTTPS requests.
 ///
 /// This first facade slice does not own a connection pool or mutable session
 /// state.
@@ -37,6 +37,7 @@ pub struct Client {
 pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
+    pub(crate) route: Route,
 }
 
 impl Client {
@@ -46,6 +47,7 @@ impl Client {
         ClientBuilder {
             profile,
             additional_roots: Vec::new(),
+            route: Route::Direct,
         }
     }
 
@@ -68,6 +70,7 @@ impl Client {
 pub struct ClientBuilder {
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,
+    route: Route,
 }
 
 impl fmt::Debug for ClientBuilder {
@@ -76,6 +79,7 @@ impl fmt::Debug for ClientBuilder {
             .debug_struct("ClientBuilder")
             .field("http2_configured", &self.profile.http2().is_some())
             .field("additional_root_count", &self.additional_roots.len())
+            .field("route", &self.route)
             .finish_non_exhaustive()
     }
 }
@@ -87,6 +91,13 @@ impl ClientBuilder {
     #[must_use]
     pub fn add_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
         self.additional_roots.push(certificate.into());
+        self
+    }
+
+    /// Sets the default route for requests made by this client.
+    #[must_use]
+    pub fn route(mut self, route: Route) -> Self {
+        self.route = route;
         self
     }
 
@@ -129,7 +140,11 @@ impl ClientBuilder {
         }
 
         Ok(Client {
-            inner: ClientInner { http1, http2 },
+            inner: ClientInner {
+                http1,
+                http2,
+                route: self.route,
+            },
         })
     }
 }

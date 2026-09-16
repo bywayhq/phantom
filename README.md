@@ -22,10 +22,13 @@ backpressure, sends encoder instructions before dependent HEADERS, and matches
 the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
 order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
-small direct-HTTPS facade for exact H1 or H2 requests, additive private trust
-roots, and one unified streaming response body. It has no pool or mutable
-session state yet. Reusable sessions, typed proxy routing, SSE, and WebSocket
-remain planned. The project does not make broad client-compatibility claims.
+small facade for exact H1 or H2 requests, additive private trust roots, a typed
+direct-or-plaintext-HTTP-CONNECT route, and one unified streaming response
+body. CONNECT fields preserve caller-declared order, proxy rejection never
+falls back direct, and coalesced tunnel bytes survive negotiation. It has no
+pool or mutable session state yet. HTTPS proxies, SOCKS, H3 routing, reusable
+sessions, SSE, and WebSocket remain planned. The project does not make broad
+client-compatibility claims.
 
 ## Principles
 
@@ -35,7 +38,7 @@ remain planned. The project does not make broad client-compatibility claims.
 - Unsupported behavior produces an explicit error instead of a silent fallback.
 - Features land as small, runnable vertical slices.
 
-## Direct client slice
+## Current client slice
 
 ```rust,no_run
 use phantom::{Client, HttpProtocol, RequestHeader};
@@ -58,11 +61,13 @@ println!("{}", response.status());
 
 The selected protocol is exact. This slice opens one connection per request;
 it does not negotiate another HTTP version or retry through another route.
+Use `ClientBuilder::route` for an immutable default route or
+`RequestBuilder::route` for an owned per-request override.
 
 ## Current workspace
 
-- `phantom`: the public direct-HTTPS client facade for exact one-shot H1/H2
-  requests and streaming responses
+- `phantom`: the public exact-protocol client facade for one-shot H1/H2
+  requests, direct and plaintext HTTP CONNECT routes, and streaming responses
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes

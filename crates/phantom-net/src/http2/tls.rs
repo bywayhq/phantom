@@ -13,6 +13,7 @@ use super::{
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
+    proxy::{HttpConnectError, HttpConnectHeader, connect_http_tunnel_direct},
     tls::{TlsConnector, trace_alpn},
 };
 
@@ -132,6 +133,47 @@ impl Http2TlsConnector {
         .await
     }
 
+    /// Sends one empty-body GET through a plaintext HTTP CONNECT proxy.
+    ///
+    /// The origin request and CONNECT request are validated before DNS
+    /// resolution or TCP I/O. Proxy failure never falls back to a direct
+    /// connection or another HTTP protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when request preparation, proxy negotiation,
+    /// TLS negotiation, or HTTP/2 processing fails.
+    ///
+    /// # Panics
+    ///
+    /// Tokio may panic if the current runtime was built without network I/O
+    /// enabled.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_get_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        self.trace_response_head(async {
+            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+            let stream = connect_http_tunnel_direct(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+            )
+            .await?;
+            self.send_prepared_get(stream, server_name, prepared).await
+        })
+        .await
+    }
+
     async fn send_prepared_get<S>(
         &self,
         stream: S,
@@ -207,6 +249,7 @@ impl Http2TlsConnector {
             Ok(_) => "ok",
             Err(Http2TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http2TlsError::Connect(_)) => "connect_error",
+            Err(Http2TlsError::Proxy(_)) => "proxy_error",
             Err(Http2TlsError::Tls(_)) => "tls_error",
             Err(Http2TlsError::Http2(Http2Error::Protocol(_))) => "http_protocol_error",
             Err(Http2TlsError::Http2(_)) => "http_preparation_error",
@@ -225,10 +268,12 @@ impl Http2TlsConnector {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Http2TlsError {
-    /// The direct request was polled outside a Tokio runtime.
+    /// The network request was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// Establishing the direct TCP connection failed.
     Connect(std::io::Error),
+    /// HTTP CONNECT proxy negotiation failed.
+    Proxy(HttpConnectError),
     /// TLS connector setup or handshake failed.
     Tls(TlsError),
     /// HTTP/2 request preparation or protocol setup failed.
@@ -257,9 +302,10 @@ impl fmt::Display for Http2TlsError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RuntimeUnavailable => {
-                formatter.write_str("direct HTTP/2 requests require a Tokio runtime")
+                formatter.write_str("HTTP/2 network requests require a Tokio runtime")
             }
             Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
+            Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
             Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
             Self::Http2(error) => write!(formatter, "HTTP/2 request failed: {error}"),
             Self::MissingNegotiatedAlpn => {
@@ -289,6 +335,7 @@ impl StdError for Http2TlsError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Connect(error) => Some(error),
+            Self::Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http2(error) => Some(error),
             Self::RuntimeUnavailable
@@ -303,6 +350,12 @@ impl StdError for Http2TlsError {
 impl From<TlsError> for Http2TlsError {
     fn from(error: TlsError) -> Self {
         Self::Tls(error)
+    }
+}
+
+impl From<HttpConnectError> for Http2TlsError {
+    fn from(error: HttpConnectError) -> Self {
+        Self::Proxy(error)
     }
 }
 

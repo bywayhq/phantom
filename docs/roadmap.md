@@ -218,9 +218,19 @@ adds an immutable `Client` built from TLS and optional H2 profile components,
 exact per-request H1/H2 selection, additive DER trust roots, URI-owned
 authority fields, and one streaming response body. Real verified loopback TLS
 tests cover H1 and H2 streaming, H2 trailers, ordered fields, and pre-I/O
-rejection of unavailable protocols and invalid fields. It does not introduce
-an empty `Session`, a nominal `Route`, or a pool before those types have state
-and lifecycle behavior to own.
+rejection of unavailable protocols and invalid fields.
+
+The next landed slice adds a closed `Route` vocabulary for direct connections
+and plaintext HTTP CONNECT, with a client default and owned per-request
+override. CONNECT authority is a typed placeholder in an ordered field
+sequence. Negotiation is bounded, accepts any final 2xx after a bounded number
+of informational responses, preserves bytes read beyond the response head,
+and reports rejection without exposing peer fields. Loopback tests prove H1
+and H2 origin TLS through the proxy, H2 trailers, pre-I/O validation,
+cancellation, response bounds, and that rejection never opens a direct origin
+socket. It does not introduce an empty `Session` or pool. HTTPS proxies,
+forwarding, SOCKS, authentication challenge negotiation, IDNA normalization,
+and UDP/H3 routes remain later Phase 6 slices.
 
 Acceptance:
 
