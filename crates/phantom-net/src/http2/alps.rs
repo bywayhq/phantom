@@ -1,6 +1,6 @@
 //! Decoding of peer HTTP/2 settings carried by TLS ALPS.
 
-use ::http2::frame::{Head, Settings};
+use ::http2::frame::{Error as FrameError, Head, Settings};
 
 const FRAME_HEADER_LEN: usize = 9;
 const MAX_FRAME_PAYLOAD_LEN: usize = 16_384;
@@ -169,12 +169,13 @@ fn apply_settings(
     frame_index: usize,
     offset: usize,
 ) -> Result<(), DecodeError> {
-    if payload.len() % 6 != 0 {
-        return Err(error(frame_index, offset, DecodeErrorKind::SettingsLength));
-    }
-
-    let decoded = Settings::load(head, payload)
-        .map_err(|_| error(frame_index, offset, DecodeErrorKind::SettingValue))?;
+    let decoded = Settings::load(head, payload).map_err(|parse_error| {
+        let kind = match parse_error {
+            FrameError::InvalidPayloadAckSettings => DecodeErrorKind::SettingsLength,
+            _ => DecodeErrorKind::SettingValue,
+        };
+        error(frame_index, offset, kind)
+    })?;
     validate_transitions(payload, settings, is_initial, frame_index, offset)?;
     merge_settings(settings, &decoded);
     Ok(())
