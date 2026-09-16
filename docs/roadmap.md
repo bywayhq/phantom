@@ -170,6 +170,9 @@ Acceptance:
   and MASQUE follow as separate proven capabilities.
 - Pooling never crosses a route, profile, origin/SNI, protocol, or session-state
   boundary, and client shutdown drains with a deadline.
+- HTTP/1.1 reuse remains single-exchange and non-pipelined; HTTP/2 and HTTP/3
+  admission respects both peer and local stream limits, bounds waiters, and
+  keeps cancellation and GOAWAY draining stream-scoped.
 - `Accept-CH` state is secure-origin scoped and session owned; redirects do not
   leak hints cross-origin, and `Critical-CH` can retry at most once only for a
   replayable request. Transport-delivered ACCEPT_CH data feeds the same state.

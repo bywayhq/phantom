@@ -113,6 +113,30 @@ identity, DNS mode, and local bind settings. Rotation therefore cannot reuse a
 connection opened through another proxy. Cookies, tickets, DNS/Alt-Svc state,
 and mutable request defaults remain session-scoped rather than process-global.
 
+## Pooling and multiplexing
+
+The connection pool owns physical connections, capacity, and waiter admission;
+the session owns logical cross-request state. HTTP/1.1 connections admit one
+active exchange and are reused sequentially, with pipelining disabled. HTTP/2
+and HTTP/3 connections admit concurrent streams up to the minimum of the
+peer-advertised limit and a configured local bound. There is no generic
+`multiplex` switch: capacity, flow control, priority, and draining follow the
+selected protocol and profile.
+
+Pending admission is bounded and cancellation-safe. Cancelling one H2 or H3
+request resets only its stream; it does not discard unrelated streams. A
+GOAWAY marks the connection draining, prevents new admission, and lets eligible
+in-flight work finish. Retry policy remains outside the pool and may replay only
+requests whose method, body, and failure boundary make that safe. SSE leases a
+long-lived response stream, while WebSocket leases one upgraded or extended-
+CONNECT stream; either can coexist with ordinary H2/H3 requests.
+
+Cross-origin coalescing is disabled in the first pooled slice. It is enabled
+only after certificate authority, DNS/route identity, origin authorization,
+profile compatibility, and the selected stack's observable behavior are all
+proven. A connection is never shared across profile generations or route
+identities merely because two requests resolve to the same address.
+
 The planned H3 path uses Quinn for QUIC and hyperium's `h3` engine. A small
 `phantom-quic-btls` crate will implement Quinn's existing crypto-provider seam
 with the same patched BoringSSL lineage used by Phantom's TCP TLS path. The FFI
