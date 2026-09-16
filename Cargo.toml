@@ -6,7 +6,7 @@ members = [
     "crates/phantom-quic-btls",
     "crates/phantom-testkit",
 ]
-exclude = ["vendor/btls", "vendor/http2"]
+exclude = ["vendor/btls", "vendor/http2", "vendor/quinn-proto"]
 resolver = "3"
 
 [workspace.package]
@@ -24,6 +24,7 @@ zeroize = "=1.9.0"
 
 [patch.crates-io]
 http2 = { path = "vendor/http2" }
+quinn-proto = { path = "vendor/quinn-proto" }
 
 [patch."https://github.com/0xARYA/btls"]
 btls = { path = "vendor/btls" }

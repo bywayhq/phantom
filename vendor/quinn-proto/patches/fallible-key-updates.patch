@@ -1,0 +1,536 @@
+diff --git a/src/connection/mod.rs b/src/connection/mod.rs
+index 05a4385..7dd5004 100644
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -369,8 +369,10 @@ impl Connection {
+         }
+         if side.is_client() {
+             // Kick off the connection
+-            this.write_crypto();
+-            this.init_0rtt();
++            match this.write_crypto() {
++                Ok(()) => this.init_0rtt(),
++                Err(error) => this.close_for_key_update_error(now, error),
++            }
+         }
+         this
+     }
+@@ -1310,17 +1312,9 @@ impl Connection {
+     ///
+     /// This can be useful for testing key updates, as they otherwise only happen infrequently.
+     pub fn force_key_update(&mut self) {
+-        if !self.state.is_established() {
+-            debug!("ignoring forced key update in illegal state");
+-            return;
++        if let Err(error) = self.force_key_update_inner() {
++            self.kill(error.into());
+         }
+-        if self.prev_crypto.is_some() {
+-            // We already just updated, or are currently updating, the keys. Concurrent key updates
+-            // are illegal.
+-            debug!("ignoring redundant forced key update");
+-            return;
+-        }
+-        self.update_keys(None, false);
+     }
+ 
+     // Compatibility wrapper for quinn < 0.11.7. Remove for 0.12.
+@@ -1335,6 +1329,30 @@ impl Connection {
+         &*self.crypto
+     }
+ 
++    #[cfg(test)]
++    pub(crate) fn key_update_state(&self) -> (bool, u64, Option<usize>, Option<usize>, bool) {
++        let current = self.spaces[SpaceId::Data]
++            .crypto
++            .as_ref()
++            .map(|keys| (&*keys.packet.local as *const dyn PacketKey as *const ()) as usize);
++        let next = self
++            .next_crypto
++            .as_ref()
++            .map(|keys| (&*keys.local as *const dyn PacketKey as *const ()) as usize);
++        (
++            self.key_phase,
++            self.key_phase_size,
++            current,
++            next,
++            self.prev_crypto.is_some(),
++        )
++    }
++
++    #[cfg(test)]
++    pub(crate) fn exhaust_key_phase_for_test(&mut self) {
++        self.key_phase_size = self.spaces[SpaceId::Data].sent_with_keys;
++    }
++
+     /// Whether the connection is in the process of being established
+     ///
+     /// If this returns `false`, the connection may be either established or closed, signaled by the
+@@ -2146,17 +2164,17 @@ impl Connection {
+         Ok(())
+     }
+ 
+-    fn write_crypto(&mut self) {
++    fn write_crypto(&mut self) -> Result<(), TransportError> {
+         loop {
+             let space = self.highest_space;
+             let mut outgoing = Vec::new();
+             if let Some(crypto) = self.crypto.write_handshake(&mut outgoing) {
+                 match space {
+                     SpaceId::Initial => {
+-                        self.upgrade_crypto(SpaceId::Handshake, crypto);
++                        self.upgrade_crypto(SpaceId::Handshake, crypto)?;
+                     }
+                     SpaceId::Handshake => {
+-                        self.upgrade_crypto(SpaceId::Data, crypto);
++                        self.upgrade_crypto(SpaceId::Data, crypto)?;
+                     }
+                     _ => unreachable!("got updated secrets during 1-RTT"),
+                 }
+@@ -2183,10 +2201,12 @@ impl Connection {
+                 data: outgoing,
+             });
+         }
++
++        Ok(())
+     }
+ 
+     /// Switch to stronger cryptography during handshake
+-    fn upgrade_crypto(&mut self, space: SpaceId, crypto: Keys) {
++    fn upgrade_crypto(&mut self, space: SpaceId, crypto: Keys) -> Result<(), TransportError> {
+         debug_assert!(
+             self.spaces[space].crypto.is_none(),
+             "already reached packet space {space:?}"
+@@ -2194,11 +2214,7 @@ impl Connection {
+         trace!("{:?} keys ready", space);
+         if space == SpaceId::Data {
+             // Precompute the first key update
+-            self.next_crypto = Some(
+-                self.crypto
+-                    .next_1rtt_keys()
+-                    .expect("handshake should be complete"),
+-            );
++            self.next_crypto = Some(self.next_1rtt_keys()?);
+         }
+ 
+         self.spaces[space].crypto = Some(crypto);
+@@ -2208,6 +2224,8 @@ impl Connection {
+             // Discard 0-RTT keys because 1-RTT keys are available.
+             self.zero_rtt_crypto = None;
+         }
++
++        Ok(())
+     }
+ 
+     fn discard_space(&mut self, now: Instant, space_id: SpaceId) {
+@@ -2741,7 +2759,7 @@ impl Connection {
+                 .set_immediate_ack_required();
+         }
+ 
+-        self.write_crypto();
++        self.write_crypto()?;
+         Ok(())
+     }
+ 
+@@ -3564,34 +3582,59 @@ impl Connection {
+ 
+         if result.incoming_key_update {
+             trace!("key update authenticated");
+-            self.update_keys(Some((result.number, now)), true);
++            self.update_keys(Some((result.number, now)), true)
++                .map_err(Some)?;
+             self.set_key_discard_timer(now, packet.header.space());
+         }
+ 
+         Ok(Some(result.number))
+     }
+ 
+-    fn update_keys(&mut self, end_packet: Option<(u64, Instant)>, remote: bool) {
++    fn next_1rtt_keys(&mut self) -> Result<KeyPair<Box<dyn PacketKey>>, TransportError> {
++        self.crypto
++            .next_1rtt_keys()
++            .map_err(|error| {
++                TransportError::INTERNAL_ERROR(format!("1-RTT key update failed: {error}"))
++            })?
++            .ok_or_else(|| {
++                TransportError::INTERNAL_ERROR("1-RTT keys unavailable during key update")
++            })
++    }
++
++    fn force_key_update_inner(&mut self) -> Result<(), TransportError> {
++        if !self.state.is_established() {
++            debug!("ignoring forced key update in illegal state");
++            return Ok(());
++        }
++        if self.prev_crypto.is_some() {
++            // Only one key update may be in flight.
++            debug!("ignoring redundant forced key update");
++            return Ok(());
++        }
++        self.update_keys(None, false)
++    }
++
++    fn update_keys(
++        &mut self,
++        end_packet: Option<(u64, Instant)>,
++        remote: bool,
++    ) -> Result<(), TransportError> {
+         trace!("executing key update");
+         // Generate keys for the key phase after the one we're switching to, store them in
+         // `next_crypto`, make the contents of `next_crypto` current, and move the current keys into
+         // `prev_crypto`.
+-        let new = self
+-            .crypto
+-            .next_1rtt_keys()
+-            .expect("only called for `Data` packets");
++        let new = self.next_1rtt_keys()?;
++        let current = self.spaces[SpaceId::Data].crypto.as_mut().ok_or_else(|| {
++            TransportError::INTERNAL_ERROR("1-RTT keys unavailable during key update")
++        })?;
++        let next = self.next_crypto.as_mut().ok_or_else(|| {
++            TransportError::INTERNAL_ERROR("1-RTT keys unavailable during key update")
++        })?;
+         self.key_phase_size = new
+             .local
+             .confidentiality_limit()
+             .saturating_sub(KEY_UPDATE_MARGIN);
+-        let old = mem::replace(
+-            &mut self.spaces[SpaceId::Data]
+-                .crypto
+-                .as_mut()
+-                .unwrap() // safe because update_keys() can only be triggered by short packets
+-                .packet,
+-            mem::replace(self.next_crypto.as_mut().unwrap(), new),
+-        );
++        let old = mem::replace(&mut current.packet, mem::replace(next, new));
+         self.spaces[SpaceId::Data].sent_with_keys = 0;
+         self.prev_crypto = Some(PrevCrypto {
+             crypto: old,
+@@ -3599,6 +3642,12 @@ impl Connection {
+             update_unacked: remote,
+         });
+         self.key_phase = !self.key_phase;
++        Ok(())
++    }
++
++    fn close_for_key_update_error(&mut self, now: Instant, error: TransportError) {
++        self.error = Some(error.clone().into());
++        self.close_inner(now, error.into());
+     }
+ 
+     fn peer_supports_ack_frequency(&self) -> bool {
+diff --git a/src/connection/packet_builder.rs b/src/connection/packet_builder.rs
+index 424689e..9481b16 100644
+--- a/src/connection/packet_builder.rs
++++ b/src/connection/packet_builder.rs
+@@ -48,7 +48,10 @@ impl PacketBuilder {
+         if space_id == SpaceId::Data {
+             if sent_with_keys >= conn.key_phase_size {
+                 debug!("routine key update due to phase exhaustion");
+-                conn.force_key_update();
++                if let Err(error) = conn.force_key_update_inner() {
++                    conn.close_for_key_update_error(now, error);
++                    return None;
++                }
+             }
+         } else {
+             let confidentiality_limit = conn.spaces[space_id]
+diff --git a/src/crypto.rs b/src/crypto.rs
+index aebd864..6e372c1 100644
+--- a/src/crypto.rs
++++ b/src/crypto.rs
+@@ -74,7 +74,9 @@ pub trait Session: Send + Sync + 'static {
+     fn write_handshake(&mut self, buf: &mut Vec<u8>) -> Option<Keys>;
+ 
+     /// Compute keys for the next key update
+-    fn next_1rtt_keys(&mut self) -> Option<KeyPair<Box<dyn PacketKey>>>;
++    fn next_1rtt_keys(
++        &mut self,
++    ) -> Result<Option<KeyPair<Box<dyn PacketKey>>>, TransportError>;
+ 
+     /// Verify the integrity of a retry packet
+     fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool;
+diff --git a/src/crypto/rustls.rs b/src/crypto/rustls.rs
+index b45ad3e..d574d0d 100644
+--- a/src/crypto/rustls.rs
++++ b/src/crypto/rustls.rs
+@@ -162,13 +162,17 @@ impl crypto::Session for TlsSession {
+         })
+     }
+ 
+-    fn next_1rtt_keys(&mut self) -> Option<KeyPair<Box<dyn crypto::PacketKey>>> {
+-        let secrets = self.next_secrets.as_mut()?;
++    fn next_1rtt_keys(
++        &mut self,
++    ) -> Result<Option<KeyPair<Box<dyn crypto::PacketKey>>>, TransportError> {
++        let Some(secrets) = self.next_secrets.as_mut() else {
++            return Ok(None);
++        };
+         let keys = secrets.next_packet_keys();
+-        Some(KeyPair {
++        Ok(Some(KeyPair {
+             local: Box::new(keys.local),
+             remote: Box::new(keys.remote),
+-        })
++        }))
+     }
+ 
+     fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool {
+diff --git a/src/tests/key_update.rs b/src/tests/key_update.rs
+new file mode 100644
+index 0000000..c9b2039
+--- /dev/null
++++ b/src/tests/key_update.rs
+@@ -0,0 +1,240 @@
++use std::{
++    any::Any,
++    sync::{
++        atomic::{AtomicUsize, Ordering},
++        Arc,
++    },
++};
++
++use assert_matches::assert_matches;
++
++use super::*;
++
++#[derive(Clone, Copy)]
++enum Failure {
++    Error,
++    Unavailable,
++}
++
++struct FailingClientConfig {
++    inner: Arc<dyn crypto::ClientConfig>,
++    fail_on_call: usize,
++    failure: Failure,
++}
++
++impl crypto::ClientConfig for FailingClientConfig {
++    fn start_session(
++        self: Arc<Self>,
++        version: u32,
++        server_name: &str,
++        params: &TransportParameters,
++    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
++        let inner = self
++            .inner
++            .clone()
++            .start_session(version, server_name, params)?;
++        Ok(Box::new(FailingSession {
++            inner,
++            fail_on_call: self.fail_on_call,
++            calls: AtomicUsize::new(0),
++            failure: self.failure,
++        }))
++    }
++}
++
++struct FailingServerConfig {
++    inner: Arc<dyn crypto::ServerConfig>,
++    fail_on_call: usize,
++    failure: Failure,
++}
++
++impl crypto::ServerConfig for FailingServerConfig {
++    fn initial_keys(
++        &self,
++        version: u32,
++        dst_cid: &ConnectionId,
++    ) -> Result<crypto::Keys, crypto::UnsupportedVersion> {
++        self.inner.initial_keys(version, dst_cid)
++    }
++
++    fn retry_tag(&self, version: u32, orig_dst_cid: &ConnectionId, packet: &[u8]) -> [u8; 16] {
++        self.inner.retry_tag(version, orig_dst_cid, packet)
++    }
++
++    fn start_session(
++        self: Arc<Self>,
++        version: u32,
++        params: &TransportParameters,
++    ) -> Box<dyn crypto::Session> {
++        Box::new(FailingSession {
++            inner: self.inner.clone().start_session(version, params),
++            fail_on_call: self.fail_on_call,
++            calls: AtomicUsize::new(0),
++            failure: self.failure,
++        })
++    }
++}
++
++struct FailingSession {
++    inner: Box<dyn crypto::Session>,
++    fail_on_call: usize,
++    calls: AtomicUsize,
++    failure: Failure,
++}
++
++impl crypto::Session for FailingSession {
++    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> crypto::Keys {
++        self.inner.initial_keys(dst_cid, side)
++    }
++
++    fn handshake_data(&self) -> Option<Box<dyn Any>> {
++        self.inner.handshake_data()
++    }
++
++    fn peer_identity(&self) -> Option<Box<dyn Any>> {
++        self.inner.peer_identity()
++    }
++
++    fn early_crypto(&self) -> Option<(Box<dyn crypto::HeaderKey>, Box<dyn crypto::PacketKey>)> {
++        self.inner.early_crypto()
++    }
++
++    fn early_data_accepted(&self) -> Option<bool> {
++        self.inner.early_data_accepted()
++    }
++
++    fn is_handshaking(&self) -> bool {
++        self.inner.is_handshaking()
++    }
++
++    fn read_handshake(&mut self, buf: &[u8]) -> Result<bool, TransportError> {
++        self.inner.read_handshake(buf)
++    }
++
++    fn transport_parameters(&self) -> Result<Option<TransportParameters>, TransportError> {
++        self.inner.transport_parameters()
++    }
++
++    fn write_handshake(&mut self, buf: &mut Vec<u8>) -> Option<crypto::Keys> {
++        self.inner.write_handshake(buf)
++    }
++
++    fn next_1rtt_keys(
++        &mut self,
++    ) -> Result<Option<crypto::KeyPair<Box<dyn crypto::PacketKey>>>, TransportError> {
++        let call = self.calls.fetch_add(1, Ordering::Relaxed) + 1;
++        if call == self.fail_on_call {
++            return match self.failure {
++                Failure::Error => Err(TransportError::KEY_UPDATE_ERROR("injected failure")),
++                Failure::Unavailable => Ok(None),
++            };
++        }
++        self.inner.next_1rtt_keys()
++    }
++
++    fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool {
++        self.inner.is_valid_retry(orig_dst_cid, header, payload)
++    }
++
++    fn export_keying_material(
++        &self,
++        output: &mut [u8],
++        label: &[u8],
++        context: &[u8],
++    ) -> Result<(), crypto::ExportKeyingMaterialError> {
++        self.inner.export_keying_material(output, label, context)
++    }
++}
++
++fn failing_client_config(fail_on_call: usize, failure: Failure) -> ClientConfig {
++    ClientConfig::new(Arc::new(FailingClientConfig {
++        inner: Arc::new(client_crypto()),
++        fail_on_call,
++        failure,
++    }))
++}
++
++fn failing_server_config(fail_on_call: usize, failure: Failure) -> ServerConfig {
++    ServerConfig::with_crypto(Arc::new(FailingServerConfig {
++        inner: Arc::new(server_crypto()),
++        fail_on_call,
++        failure,
++    }))
++}
++
++fn assert_internal_error(event: Option<Event>) {
++    assert_matches!(
++        event,
++        Some(Event::ConnectionLost {
++            reason: ConnectionError::TransportError(ref error),
++        }) if error.code == TransportErrorCode::INTERNAL_ERROR
++    );
++}
++
++#[test]
++fn initial_1rtt_key_failure_closes_with_internal_error() {
++    for failure in [Failure::Error, Failure::Unavailable] {
++        let mut pair = Pair::default();
++        let client = pair.begin_connect(failing_client_config(1, failure));
++        pair.drive();
++
++        let connection = pair.client_conn_mut(client);
++        let events: Vec<_> = std::iter::from_fn(|| connection.poll()).collect();
++        assert!(!events.iter().any(|event| matches!(event, Event::Connected)));
++        assert_internal_error(
++            events
++                .into_iter()
++                .find(|event| matches!(event, Event::ConnectionLost { .. })),
++        );
++    }
++}
++
++#[test]
++fn forced_key_failure_preserves_key_state() {
++    let mut pair = Pair::default();
++    let (client, _) = pair.connect_with(failing_client_config(2, Failure::Error));
++    let now = pair.time;
++    let before = pair.client_conn_mut(client).key_update_state();
++
++    pair.client_conn_mut(client).force_key_update();
++
++    let connection = pair.client_conn_mut(client);
++    let mut buffer = Vec::new();
++    assert!(connection.poll_transmit(now, 1, &mut buffer).is_none());
++    assert!(buffer.is_empty());
++    assert_eq!(connection.key_update_state(), before);
++    assert_internal_error(connection.poll());
++}
++
++#[test]
++fn automatic_key_failure_emits_no_packet_and_preserves_key_state() {
++    let mut pair = Pair::default();
++    let (client, _) = pair.connect_with(failing_client_config(2, Failure::Error));
++    let now = pair.time;
++    let connection = pair.client_conn_mut(client);
++    connection.exhaust_key_phase_for_test();
++    connection.ping();
++    let before = connection.key_update_state();
++    let mut buffer = Vec::new();
++
++    assert!(connection.poll_transmit(now, 1, &mut buffer).is_none());
++    assert!(buffer.is_empty());
++    assert_eq!(connection.key_update_state(), before);
++    assert_internal_error(connection.poll());
++}
++
++#[test]
++fn peer_key_failure_preserves_key_state() {
++    let mut pair = Pair::new(Default::default(), failing_server_config(2, Failure::Error));
++    let (client, server) = pair.connect();
++    let before = pair.server_conn_mut(server).key_update_state();
++
++    pair.client_conn_mut(client).force_key_update();
++    pair.client_conn_mut(client).ping();
++    pair.drive_client();
++    pair.drive_server();
++
++    let connection = pair.server_conn_mut(server);
++    assert_eq!(connection.key_update_state(), before);
++    assert_internal_error(connection.poll());
++}
+diff --git a/src/tests/mod.rs b/src/tests/mod.rs
+index 1c24d34..18fbff9 100644
+--- a/src/tests/mod.rs
++++ b/src/tests/mod.rs
+@@ -35,6 +35,7 @@ use crate::{
+ mod util;
+ use util::*;
+ 
++mod key_update;
+ mod token;
+ 
+ #[cfg(all(target_family = "wasm", target_os = "unknown"))]
