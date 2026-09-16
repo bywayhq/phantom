@@ -225,6 +225,7 @@ pub struct Settings {
     flags: SettingsFlags,
     // Fields
     header_table_size: Option<u32>,
+    min_header_table_size: Option<u32>,
     enable_push: Option<u32>,
     max_concurrent_streams: Option<u32>,
     initial_window_size: Option<u32>,
@@ -340,6 +341,11 @@ impl Settings {
 
     pub fn set_header_table_size(&mut self, size: Option<u32>) {
         self.header_table_size = size;
+        self.min_header_table_size = size;
+    }
+
+    pub(crate) fn min_header_table_size(&self) -> Option<u32> {
+        self.min_header_table_size
     }
 
     pub fn set_no_rfc7540_priorities(&mut self, enable: bool) {
@@ -392,6 +398,11 @@ impl Settings {
             if let Some(setting) = Setting::load(raw) {
                 match setting.id {
                     SettingId::HeaderTableSize => {
+                        settings.min_header_table_size = Some(
+                            settings
+                                .min_header_table_size
+                                .map_or(setting.value, |minimum| minimum.min(setting.value)),
+                        );
                         settings.header_table_size = Some(setting.value);
                     }
                     SettingId::EnablePush => match setting.value {
@@ -673,6 +684,21 @@ impl fmt::Debug for SettingsFlags {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duplicate_header_table_sizes_preserve_minimum_and_final_values() {
+        let head = Head::new(Kind::Settings, 0, StreamId::zero());
+        let payload = [
+            0x00, 0x01, 0x00, 0x00, 0x00, 0x00, // HEADER_TABLE_SIZE = 0
+            0xf0, 0xf0, 0x52, 0x50, 0x52, 0x31, // unknown setting
+            0x00, 0x01, 0x00, 0x00, 0x10, 0x00, // HEADER_TABLE_SIZE = 4096
+        ];
+
+        let settings = Settings::load(head, &payload).unwrap();
+
+        assert_eq!(settings.min_header_table_size(), Some(0));
+        assert_eq!(settings.header_table_size(), Some(4096));
+    }
 
     #[test]
     fn test_settings_order() {

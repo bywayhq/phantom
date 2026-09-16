@@ -202,8 +202,13 @@ impl Settings {
     {
         streams.apply_remote_settings(settings, is_initial)?;
 
-        if let Some(value) = settings.header_table_size() {
-            codec.set_send_header_table_size(value as usize);
+        if let Some(minimum) = settings.min_header_table_size() {
+            codec.set_send_header_table_size(minimum as usize);
+        }
+        if settings.header_table_size() != settings.min_header_table_size() {
+            if let Some(value) = settings.header_table_size() {
+                codec.set_send_header_table_size(value as usize);
+            }
         }
         if let Some(value) = settings.max_frame_size() {
             codec.set_max_send_frame_size(value as usize);

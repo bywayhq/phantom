@@ -116,6 +116,7 @@ mod adversarial_wire;
 mod connection;
 mod driver_lifecycle;
 mod driver_shutdown;
+mod hpack_transitions;
 mod request_validation;
 mod request_wire;
 mod response_body;

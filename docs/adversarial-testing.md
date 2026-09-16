@@ -85,9 +85,10 @@ HelloRetryRequest and retains both ClientHellos to check the permitted session,
 cipher, extension-order, and key-share delta. Requested `KeyUpdate` and the
 client's exact non-requested response are authenticated through BoringSSL's
 message callback while an open response body crosses the key change and stream
-3 proves same-connection reuse. The remaining H2 HPACK state transitions stay
-explicit regression work until their reactions are exercised through the
-public transport seam.
+3 proves same-connection reuse. Reaper's zero-only and ordered `0 → 4096`
+header-table recipes are also retained as bounded raw peers. They require the
+SETTINGS and exact PING acknowledgements, reassemble HEADERS/CONTINUATION, prove
+streams 1 and 3 share a connection, and assert the required HPACK prefixes.
 
 ## Later client and streaming corpus
 

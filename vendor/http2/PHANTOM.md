@@ -45,6 +45,12 @@ requesting idle close, and the transition becomes one-shot. This preserves a
 queued final reset and avoids a repeated self-wake when GOAWAY cannot yet be
 buffered.
 
+Inbound SETTINGS decoding retains both the minimum and final
+`SETTINGS_HEADER_TABLE_SIZE` values when an ordered frame repeats that setting.
+Applying both values lets the existing HPACK encoder emit the required
+minimum-then-final dynamic-table-size updates at the start of its next field
+block instead of silently collapsing the transition to the last value.
+
 The `unstable` client builder also accepts peer HTTP/2 SETTINGS learned through
 a transport parameter, such as TLS ALPS, before any HTTP/2 bytes are received.
 The seed is applied before the first request can be opened and counts as the
@@ -73,11 +79,13 @@ The canonical patch changes these files:
   that model a full codec write buffer.
 - `src/frame/headers.rs`: select the exact outbound iterator and retain exact
   inbound ordinary-field order while decoding HPACK.
-- `src/frame/settings.rs`: expose the parsed no-RFC-7540-priorities value.
+- `src/frame/settings.rs`: expose the parsed no-RFC-7540-priorities value and
+  retain minimum/final header-table-size transitions.
 - `src/proto/connection.rs`: make idle close one-shot, seed peer settings, and
   enforce the first-frame SETTINGS rule when no seed is present.
 - `src/proto/settings.rs`: validate and apply seeded and wire peer settings
-  through the same transition rules without ACKing a seed.
+  through the same transition rules without ACKing a seed, including ordered
+  HPACK minimum/final size changes.
 - `src/proto/streams/recv.rs`: attach decoded ordinary-field order to received
   requests, final responses, and informational responses.
 - `src/proto/streams/streams.rs`: retain ordered headers across extension
@@ -90,7 +98,8 @@ lifecycle work. `rfc-error-codes.patch` maps invalid SETTINGS and PING lengths
 to `FRAME_SIZE_ERROR` and HPACK decoding failures to `COMPRESSION_ERROR`, as
 required by RFC 9113. The patches remain separate from the complete vendor
 snapshot so a candidate release can be tested without reconstructing changes
-by hand.
+by hand. `ordered-header-table-updates.patch` preserves repeated peer table
+limits through the next HPACK field block.
 
 ## Refreshing the vendor copy
 
