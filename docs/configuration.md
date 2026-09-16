@@ -75,7 +75,9 @@ are documented in [TLS security boundary](tls-security-boundary.md).
 ## Lessons from adjacent clients
 
 The projects below are references, not APIs to copy wholesale. Their useful
-controls fall into distinct ownership domains.
+controls fall into distinct ownership domains. The pinned source, public API,
+and pull-request evidence behind these summaries is recorded in the
+[ecosystem architecture and pull-request audit](ecosystem-architecture-pr-audit.md).
 
 | Project | Useful exposed controls | Phantom decision |
 | --- | --- | --- |

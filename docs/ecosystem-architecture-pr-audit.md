@@ -170,10 +170,10 @@ trade-offs, not because they are a complete project history.
 
 ### Adapt behind Phantom-owned types
 
-- Use Wreq as the likely H1/H2 implementation substrate where it satisfies
-  vectors, but translate Phantom profiles, routes, errors, and bodies privately.
-  Do not re-export Wreq's builder, Tower layers, proxy matcher, or BoringSSL
-  types.
+- Continue using narrow Wreq protocol components where they satisfy Phantom's
+  vectors, but keep Phantom's profiles, routes, errors, and bodies as the owned
+  API. Do not replace the current transport wholesale or re-export Wreq's
+  builder, Tower layers, proxy matcher, or BoringSSL types.
 - Copy httpcloak's separation of hard versus graceful close and its explicit
   replay factory semantics, but start with fewer methods and only the protocol
   behavior Phantom can verify.

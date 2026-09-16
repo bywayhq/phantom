@@ -48,7 +48,9 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [Rust quality review](docs/rust-quality.md),
 [adversarial testing](docs/adversarial-testing.md),
 [dynamic QPACK design](docs/qpack-design.md),
-[ecosystem lessons](docs/ecosystem-review.md), and
+[ecosystem lessons](docs/ecosystem-review.md),
+[ecosystem architecture and API audit](docs/ecosystem-architecture-pr-audit.md),
+and
 [performance guide](docs/performance.md). Dependency forks and the Linux,
 macOS, and Windows gates are described in
 [dependency maintenance](docs/dependency-maintenance.md).
