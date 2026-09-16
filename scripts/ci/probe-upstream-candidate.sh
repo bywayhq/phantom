@@ -247,8 +247,8 @@ case "$dependency" in
 
     # Apply while the canonical patch is still in the checked-out vendor tree.
     patch_file="$repo_root/vendor/http2/patches/ordered-headers.patch"
-    git -C "$candidate_dir" apply --check "$patch_file"
-    git -C "$candidate_dir" apply "$patch_file"
+    git -C "$candidate_dir" apply --check --unidiff-zero "$patch_file"
+    git -C "$candidate_dir" apply --unidiff-zero "$patch_file"
     mv vendor/http2 "$probe_staging/http2.previous"
     mv "$candidate_dir" vendor/http2
     cargo update -p http2 --precise "$candidate"
@@ -262,23 +262,25 @@ case "$dependency" in
   h3)
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid h3 revision '$candidate'"
     [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid h3 archive checksum"
-    h3_patches=(
-      ordered-settings.patch
-      qpack-codec.patch
-      qpack-critical-streams.patch
-      qpack-dynamic-client.patch
-      cancel-safe-recv.patch
-      ordered-request-headers.patch
-      qpack-request-encoder.patch
-      qpack-live-request-runtime.patch
-      qpack-lazy-decoder-stream.patch
-    )
     [[ -f vendor/h3/PHANTOM.md ]] \
       || die "vendored h3 provenance is required"
+    [[ -f vendor/h3/patches/series ]] \
+      || die "vendored h3 patch series is required"
+    h3_patches=()
+    while IFS= read -r patch; do
+      [[ -n "$patch" ]] || die "vendored h3 patch series contains an empty entry"
+      h3_patches+=("$patch")
+    done < vendor/h3/patches/series
+    [[ ${#h3_patches[@]} -gt 0 ]] || die "vendored h3 patch series is empty"
     for patch in "${h3_patches[@]}"; do
       [[ -f "vendor/h3/patches/$patch" ]] \
         || die "vendored h3 canonical patch $patch is required"
     done
+    listed_h3_patches=$(printf '%s\n' "${h3_patches[@]}" | LC_ALL=C sort)
+    stored_h3_patches=$(find vendor/h3/patches -maxdepth 1 -type f \
+      -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+    [[ "$listed_h3_patches" == "$stored_h3_patches" ]] \
+      || die "vendored h3 patch series does not list every canonical patch exactly once"
 
     probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-h3-candidate.XXXXXX")
     archive="$probe_staging/h3-$candidate.tar.gz"
@@ -294,14 +296,22 @@ case "$dependency" in
 
     for patch in "${h3_patches[@]}"; do
       patch_file="$repo_root/vendor/h3/patches/$patch"
-      if ! git -C "$candidate_dir" apply --check "$patch_file"; then
-        die "h3 patch $patch does not apply to candidate $candidate"
+      if [[ "$patch" == ordered-response-headers.patch ]]; then
+        if ! git -C "$candidate_dir" apply --check --unidiff-zero "$patch_file"; then
+          die "h3 patch $patch does not apply to candidate $candidate"
+        fi
+        git -C "$candidate_dir" apply --unidiff-zero "$patch_file"
+      else
+        if ! git -C "$candidate_dir" apply --check "$patch_file"; then
+          die "h3 patch $patch does not apply to candidate $candidate"
+        fi
+        git -C "$candidate_dir" apply "$patch_file"
       fi
-      git -C "$candidate_dir" apply "$patch_file"
     done
 
     cp vendor/h3/PHANTOM.md "$candidate_dir/PHANTOM.md"
     mkdir -p "$candidate_dir/patches"
+    cp vendor/h3/patches/series "$candidate_dir/patches/series"
     for patch in "${h3_patches[@]}"; do
       cp "$repo_root/vendor/h3/patches/$patch" "$candidate_dir/patches/"
     done

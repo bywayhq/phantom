@@ -469,7 +469,7 @@ fi
 http2_source_root="$test_root/http2-source"
 mkdir -p "$http2_source_root"
 copy_vendor_fixture vendor/http2 "$http2_source_root/http2-0.5.20"
-git -C "$http2_source_root/http2-0.5.20" apply --reverse \
+git -C "$http2_source_root/http2-0.5.20" apply --reverse --unidiff-zero \
   "$repo_root/vendor/http2/patches/ordered-headers.patch"
 rm -rf "$http2_source_root/http2-0.5.20/patches"
 rm "$http2_source_root/http2-0.5.20/PHANTOM.md"
@@ -531,24 +531,21 @@ h3_revision=$(sed -nE \
 h3_source_root="$test_root/h3-source"
 mkdir -p "$h3_source_root"
 copy_vendor_fixture vendor/h3 "$h3_source_root/h3-$h3_revision"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/qpack-lazy-decoder-stream.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/qpack-live-request-runtime.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/qpack-request-encoder.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/ordered-request-headers.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/cancel-safe-recv.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/qpack-dynamic-client.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/qpack-critical-streams.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/qpack-codec.patch"
-git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
-  "$repo_root/vendor/h3/patches/ordered-settings.patch"
+h3_patches=()
+while IFS= read -r patch; do
+  [[ -n "$patch" ]]
+  h3_patches+=("$patch")
+done < vendor/h3/patches/series
+for ((index = ${#h3_patches[@]} - 1; index >= 0; index--)); do
+  patch=${h3_patches[$index]}
+  if [[ "$patch" == ordered-response-headers.patch ]]; then
+    git -C "$h3_source_root/h3-$h3_revision" apply --reverse --unidiff-zero \
+      "$repo_root/vendor/h3/patches/$patch"
+  else
+    git -C "$h3_source_root/h3-$h3_revision" apply --reverse \
+      "$repo_root/vendor/h3/patches/$patch"
+  fi
+done
 rm -rf "$h3_source_root/h3-$h3_revision/patches"
 rm "$h3_source_root/h3-$h3_revision/PHANTOM.md"
 h3_archive="$test_root/h3-$h3_revision.tar.gz"
@@ -606,6 +603,27 @@ fi
 grep -F -q 'PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1' \
   "$test_root/h3-refusal.stderr"
 [[ -z $(git -C "$h3_checkout" status --porcelain) ]]
+[[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
+
+h3_unlisted_checkout="$test_root/h3-unlisted-checkout"
+cp -R "$h3_checkout" "$h3_unlisted_checkout"
+cp "$h3_unlisted_checkout/vendor/h3/patches/ordered-settings.patch" \
+  "$h3_unlisted_checkout/vendor/h3/patches/unlisted.patch"
+git -C "$h3_unlisted_checkout" add vendor/h3/patches/unlisted.patch
+git -C "$h3_unlisted_checkout" commit --quiet -m 'unlisted h3 patch'
+if (
+  cd "$h3_unlisted_checkout"
+  TMPDIR="$h3_tmp" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh h3 "$h3_revision" "$h3_checksum"
+) >"$test_root/h3-unlisted.stdout" 2>"$test_root/h3-unlisted.stderr"; then
+  echo "h3 probe unexpectedly accepted an unlisted canonical patch" >&2
+  exit 1
+fi
+grep -F -q \
+  'vendored h3 patch series does not list every canonical patch exactly once' \
+  "$test_root/h3-unlisted.stderr"
+[[ -z $(git -C "$h3_unlisted_checkout" status --porcelain) ]]
 [[ -z $(find "$h3_tmp" -mindepth 1 -print -quit) ]]
 
 if (
@@ -710,40 +728,18 @@ if grep -F -q 'cargo tree -i h3' "$h3_command_log" \
   echo "unselected h3 probe unexpectedly ran root workspace gates" >&2
   exit 1
 fi
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/qpack-lazy-decoder-stream.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/qpack-lazy-decoder-stream.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/qpack-live-request-runtime.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/qpack-live-request-runtime.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/qpack-request-encoder.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/qpack-request-encoder.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/ordered-request-headers.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/ordered-request-headers.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/cancel-safe-recv.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/cancel-safe-recv.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/qpack-dynamic-client.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/qpack-dynamic-client.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/qpack-critical-streams.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/qpack-critical-streams.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  --check patches/qpack-codec.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse \
-  patches/qpack-codec.patch
-git -C "$h3_checkout/vendor/h3" apply --reverse --check \
-  patches/ordered-settings.patch
+for ((index = ${#h3_patches[@]} - 1; index >= 0; index--)); do
+  patch=${h3_patches[$index]}
+  if [[ "$patch" == ordered-response-headers.patch ]]; then
+    git -C "$h3_checkout/vendor/h3" apply --reverse --check --unidiff-zero \
+      "patches/$patch"
+    git -C "$h3_checkout/vendor/h3" apply --reverse --unidiff-zero \
+      "patches/$patch"
+  else
+    git -C "$h3_checkout/vendor/h3" apply --reverse --check "patches/$patch"
+    git -C "$h3_checkout/vendor/h3" apply --reverse "patches/$patch"
+  fi
+done
 grep -F -q 'h3_latest: ${{ steps.freshness.outputs.h3_latest }}' \
   .github/workflows/upstream-freshness.yml
 grep -F -q 'h3_checksum: ${{ steps.freshness.outputs.h3_checksum }}' \

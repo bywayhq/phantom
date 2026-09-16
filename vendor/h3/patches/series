@@ -1,0 +1,11 @@
+ordered-settings.patch
+qpack-codec.patch
+qpack-critical-streams.patch
+qpack-dynamic-client.patch
+cancel-safe-recv.patch
+ordered-request-headers.patch
+qpack-request-encoder.patch
+qpack-live-request-runtime.patch
+qpack-lazy-decoder-stream.patch
+ordered-response-headers.patch
+ordered-response-send.patch

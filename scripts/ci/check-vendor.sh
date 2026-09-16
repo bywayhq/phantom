@@ -55,6 +55,7 @@ check_quinn_proto_patch_replay() {
 
 check_h3_patch_replay() {
   local staging archive candidate actual_checksum patch
+  local listed_patches stored_patches
   staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-h3-replay.XXXXXX")
   trap 'rm -rf "$staging"' RETURN
   archive="$staging/h3-1f3d5295833ad454343f25d55633fb6bee1027b2.tar.gz"
@@ -69,28 +70,28 @@ check_h3_patch_replay() {
   [[ "$actual_checksum" == a30747c0c9f35a57c03c17619e7231eb7f94a4629f3644228219280850d57183 ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/h3-1f3d5295833ad454343f25d55633fb6bee1027b2"
-  for patch in \
-    vendor/h3/patches/ordered-settings.patch \
-    vendor/h3/patches/qpack-codec.patch \
-    vendor/h3/patches/qpack-critical-streams.patch \
-    vendor/h3/patches/qpack-dynamic-client.patch \
-    vendor/h3/patches/cancel-safe-recv.patch \
-    vendor/h3/patches/ordered-request-headers.patch \
-    vendor/h3/patches/qpack-request-encoder.patch \
-    vendor/h3/patches/qpack-live-request-runtime.patch \
-    vendor/h3/patches/qpack-lazy-decoder-stream.patch
-  do
-    git -C "$candidate" apply --check "$PWD/$patch"
-    git -C "$candidate" apply "$PWD/$patch"
-  done
-  git -C "$candidate" apply --check --unidiff-zero \
-    "$PWD/vendor/h3/patches/ordered-response-headers.patch"
-  git -C "$candidate" apply --unidiff-zero \
-    "$PWD/vendor/h3/patches/ordered-response-headers.patch"
-  git -C "$candidate" apply --check \
-    "$PWD/vendor/h3/patches/ordered-response-send.patch"
-  git -C "$candidate" apply \
-    "$PWD/vendor/h3/patches/ordered-response-send.patch"
+  listed_patches=$(LC_ALL=C sort vendor/h3/patches/series)
+  stored_patches=$(find vendor/h3/patches -maxdepth 1 -type f \
+    -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+  if [[ "$listed_patches" != "$stored_patches" ]]; then
+    echo "H3 patch series does not list every canonical patch exactly once" >&2
+    return 1
+  fi
+  while IFS= read -r patch; do
+    if [[ -z "$patch" ]]; then
+      echo "H3 patch series contains an empty entry" >&2
+      return 1
+    fi
+    if [[ "$patch" == ordered-response-headers.patch ]]; then
+      git -C "$candidate" apply --check --unidiff-zero \
+        "$PWD/vendor/h3/patches/$patch"
+      git -C "$candidate" apply --unidiff-zero \
+        "$PWD/vendor/h3/patches/$patch"
+    else
+      git -C "$candidate" apply --check "$PWD/vendor/h3/patches/$patch"
+      git -C "$candidate" apply "$PWD/vendor/h3/patches/$patch"
+    fi
+  done < vendor/h3/patches/series
   diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
     --exclude=patches --exclude=target "$candidate" vendor/h3
 }

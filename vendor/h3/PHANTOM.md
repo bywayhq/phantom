@@ -149,16 +149,9 @@ feedback exists. Header and feedback bytes share one bounded poll budget, and
 only feedback bytes advance QPACK accounting. The default remains upstream's
 eager stream type.
 
-The canonical source and test deltas are stored in
-`patches/ordered-settings.patch`, `patches/qpack-codec.patch`,
-`patches/qpack-critical-streams.patch`, `patches/qpack-dynamic-client.patch`,
-`patches/cancel-safe-recv.patch`, `patches/ordered-request-headers.patch`,
-`patches/qpack-request-encoder.patch`,
-`patches/qpack-live-request-runtime.patch`,
-`patches/qpack-lazy-decoder-stream.patch`, and
-`patches/ordered-response-headers.patch`.
-`PHANTOM.md` and the patch files are
-packaging metadata and are deliberately excluded from those patches.
+The canonical source and test deltas are stored in the exact application order
+listed by `patches/series`. `PHANTOM.md`, the series file, and the patch files
+are packaging metadata and are deliberately excluded from those patches.
 
 ## Refreshing the vendor copy
 
@@ -184,57 +177,27 @@ packaging metadata and are deliberately excluded from those patches.
    candidate="$refresh_dir/h3-$h3_revision"
    ```
 
-2. Dry-apply the canonical patches to the pristine source. A failure means an
-   upstream boundary changed and needs review; do not accept fuzz or rejected
-   hunks.
+2. Dry-apply the canonical patch series to the pristine source. A failure means
+   an upstream boundary changed and needs review; do not accept fuzz or
+   rejected hunks.
 
    ```sh
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/ordered-settings.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/ordered-settings.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/qpack-codec.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/qpack-codec.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/qpack-critical-streams.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/qpack-critical-streams.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/qpack-dynamic-client.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/qpack-dynamic-client.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/cancel-safe-recv.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/cancel-safe-recv.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/ordered-request-headers.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/ordered-request-headers.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/qpack-request-encoder.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/qpack-request-encoder.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/qpack-live-request-runtime.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/qpack-live-request-runtime.patch"
-   git -C "$candidate" apply --check \
-     "$PWD/vendor/h3/patches/qpack-lazy-decoder-stream.patch"
-   git -C "$candidate" apply \
-     "$PWD/vendor/h3/patches/qpack-lazy-decoder-stream.patch"
-   git -C "$candidate" apply --check --unidiff-zero \
-     "$PWD/vendor/h3/patches/ordered-response-headers.patch"
-   git -C "$candidate" apply --unidiff-zero \
-     "$PWD/vendor/h3/patches/ordered-response-headers.patch"
+   patch_root="$PWD/vendor/h3/patches"
+   while IFS= read -r patch; do
+     if test "$patch" = ordered-response-headers.patch; then
+       git -C "$candidate" apply --check --unidiff-zero "$patch_root/$patch"
+       git -C "$candidate" apply --unidiff-zero "$patch_root/$patch"
+     else
+       git -C "$candidate" apply --check "$patch_root/$patch"
+       git -C "$candidate" apply "$patch_root/$patch"
+     fi
+   done < "$patch_root/series"
    ```
 
-3. Copy the patched candidate to `vendor/h3.next`, copy this file and the
-   canonical patches into it, then swap it with `vendor/h3` while retaining the
-   previous directory until all checks pass. Update the commit, archive URL,
-   checksum, and package versions above.
+3. Copy the patched candidate to `vendor/h3.next`, copy this file, the patch
+   series, and the canonical patches into it, then swap it with `vendor/h3`
+   while retaining the previous directory until all checks pass. Update the
+   commit, archive URL, checksum, and package versions above.
 
 4. Run the focused checks below. After workspace integration, also prove the
    lockfile selects `h3` and `h3-quinn` from this directory and inspect the
