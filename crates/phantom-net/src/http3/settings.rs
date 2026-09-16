@@ -32,6 +32,8 @@ pub(super) fn builder(
 
     let wire_settings = materialize(settings, randomized_grease)?;
     let mut builder = h3::client::builder();
+    // Profiles own every GREASE emission visible on the wire.
+    builder.send_grease(false);
     builder.ordered_settings(&wire_settings).map_err(|error| {
         Http3Error::with_source(
             Http3ErrorKind::Configuration,

@@ -137,9 +137,11 @@ engine default remains eager for profiles that do not request this behavior.
 A logical-flight comparator now gates authenticated packet spaces and complete
 symbolic request markers without depending on fragmentation, ACK, padding, or
 retransmission placement. Exact packet placement remains telemetry until
-repeated captures establish which shape fields are stable. Its first fresh
-Chrome/Phantom run matched the stable SETTINGS and QPACK encoder markers and
-exposed Phantom's later request FIN as the next concrete boundary mismatch.
+repeated captures establish which shape fields are stable. Its first run
+exposed an engine-generated reserved frame after Phantom's request HEADERS.
+Disabling engine GREASE in favor of the profile-owned SETTINGS entry produced
+a fresh Chrome/Phantom match for every logical marker, packet space, FIN
+boundary, retransmission indicator, and terminal-frame check.
 
 Acceptance:
 

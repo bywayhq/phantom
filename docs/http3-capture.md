@@ -222,10 +222,12 @@ The SETTINGS marker covers the first three fixed entries (`0x01`, `0x06`, and
 `0x07`) rather than the whole frame, because the later reserved setting has a
 randomized identifier and encoded width. The semantic fixture continues to
 validate H3 DATAGRAM and the complete GREASE policy separately. A fresh
-Chrome/Phantom comparison matched that stable SETTINGS prefix and the complete
-QPACK encoder prefix, then correctly failed on one remaining boundary
-difference: Chrome carried request FIN at the end of HEADERS while Phantom had
-not exposed FIN when the server decoded the same HEADERS bytes.
+Chrome/Phantom comparison initially exposed an engine-generated reserved frame
+after Phantom's request HEADERS. Phantom now disables that independent engine
+GREASE path because the profile owns its SETTINGS GREASE explicitly. The fresh
+rerun matched all three packet spaces, the 13-byte stable SETTINGS prefix, the
+437-byte QPACK encoder prefix, and the 22-byte request HEADERS with FIN at byte
+22. Neither side reported retransmission or a terminal frame.
 
 ## Fixture schema
 

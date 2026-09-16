@@ -67,9 +67,11 @@ than pass/fail evidence until repeated captures establish their stability. A
 strict logical-flight projection now merges marker coverage across packet cuts
 and compares separate Chrome and Phantom summaries while preserving packet
 spaces, completeness, FIN-at-boundary state, and terminal frames. The first
-strict comparison matched the stable SETTINGS prefix and 437-byte QPACK
-encoder prefix and exposed a remaining request-boundary difference: Chrome's
-HEADERS coverage carried FIN, while Phantom's did not.
+strict comparison exposed an engine-generated reserved frame after Phantom's
+request HEADERS. Phantom now leaves GREASE to the typed profile rather than the
+engine default. A fresh rerun matched all three packet spaces, the stable
+SETTINGS and QPACK encoder markers, and request FIN at the exact HEADERS
+boundary, with no retransmission or terminal frames on either side.
 
 ## Browser ClientHello fixture workflow
 

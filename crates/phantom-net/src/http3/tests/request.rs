@@ -111,6 +111,7 @@ async fn chrome_request_matches_captured_qpack_on_a_live_connection() -> TestRes
         let mut frame = vec![0; expected_frame.len()];
         request.read_exact(&mut frame).await?;
         assert_eq!(frame, expected_frame);
+        assert_eq!(request.read_chunk(1, true).await?, None);
 
         response.write_all(&[0x01, 0x03, 0x00, 0x00, 0xd9]).await?;
         response.finish()?;
