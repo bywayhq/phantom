@@ -13,7 +13,9 @@
 mod backend;
 mod error;
 mod header;
+mod hkdf;
 mod initial;
+mod key_schedule;
 mod packet;
 mod quinn;
 mod reset;
@@ -27,7 +29,8 @@ mod tests;
 
 pub use error::{CryptoError, Result};
 pub use header::HeaderProtectionKey;
-pub use initial::{DirectionKeys, EndpointSide, InitialKeys, derive_initial_keys};
+pub use initial::{InitialKeys, derive_initial_keys};
+pub use key_schedule::{DirectionKeys, EndpointSide};
 pub use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;
 pub use retry::{retry_integrity_tag, verify_retry_integrity};

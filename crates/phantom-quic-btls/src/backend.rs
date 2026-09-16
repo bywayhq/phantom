@@ -14,6 +14,32 @@ use crate::{CryptoError, Result};
 const AES_BLOCK_LEN: usize = 16;
 const AEAD_TAG_LEN: usize = 16;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HkdfDigest {
+    Sha256,
+    Sha384,
+}
+
+impl HkdfDigest {
+    pub(crate) const fn output_len(self) -> usize {
+        match self {
+            Self::Sha256 => 32,
+            Self::Sha384 => 48,
+        }
+    }
+
+    fn evp_md(self) -> *const ffi::EVP_MD {
+        // SAFETY: both functions return pointers to immutable, process-lifetime
+        // digest descriptors owned by BoringSSL.
+        unsafe {
+            match self {
+                Self::Sha256 => ffi::EVP_sha256(),
+                Self::Sha384 => ffi::EVP_sha384(),
+            }
+        }
+    }
+}
+
 pub(crate) fn random_bytes(output: &mut [u8]) -> Result<()> {
     ffi::init();
     // SAFETY: `output` is writable for exactly `output.len()` bytes and remains
@@ -93,7 +119,7 @@ pub(crate) fn hkdf_extract_sha256(salt: &[u8], ikm: &[u8], output: &mut [u8]) ->
         ffi::HKDF_extract(
             output.as_mut_ptr(),
             &mut written,
-            ffi::EVP_sha256(),
+            HkdfDigest::Sha256.evp_md(),
             ikm.as_ptr(),
             ikm.len(),
             salt.as_ptr(),
@@ -108,7 +134,12 @@ pub(crate) fn hkdf_extract_sha256(salt: &[u8], ikm: &[u8], output: &mut [u8]) ->
     Ok(())
 }
 
-pub(crate) fn hkdf_expand_sha256(prk: &[u8], info: &[u8], output: &mut [u8]) -> Result<()> {
+pub(crate) fn hkdf_expand(
+    digest: HkdfDigest,
+    prk: &[u8],
+    info: &[u8],
+    output: &mut [u8],
+) -> Result<()> {
     ffi::init();
     // SAFETY: all pointers come from live, non-overlapping slices for the
     // duration of the call; BoringSSL writes exactly `output.len()` bytes.
@@ -116,7 +147,7 @@ pub(crate) fn hkdf_expand_sha256(prk: &[u8], info: &[u8], output: &mut [u8]) -> 
         ffi::HKDF_expand(
             output.as_mut_ptr(),
             output.len(),
-            ffi::EVP_sha256(),
+            digest.evp_md(),
             prk.as_ptr(),
             prk.len(),
             info.as_ptr(),

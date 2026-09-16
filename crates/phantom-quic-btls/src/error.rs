@@ -7,6 +7,11 @@ use std::fmt;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CryptoError {
+    /// A negotiated TLS cipher suite has no QUIC key schedule in this adapter.
+    UnsupportedCipherSuite {
+        /// TLS cipher-suite identifier supplied by the TLS backend.
+        id: u16,
+    },
     /// A connection ID exceeds QUIC's protocol limit.
     InvalidConnectionIdLength {
         /// Length supplied by the caller.
@@ -34,6 +39,29 @@ pub enum CryptoError {
         actual: usize,
         /// Required length.
         expected: usize,
+    },
+    /// A TLS 1.3 HKDF label is outside its permitted length range.
+    InvalidHkdfLabelLength {
+        /// Length supplied by the caller, excluding the mandatory prefix.
+        actual: usize,
+        /// Minimum accepted label length, excluding the mandatory prefix.
+        minimum: usize,
+        /// Maximum accepted label length, excluding the mandatory prefix.
+        maximum: usize,
+    },
+    /// A TLS 1.3 HKDF context is too long for its one-byte encoding.
+    InvalidHkdfContextLength {
+        /// Length supplied by the caller.
+        actual: usize,
+        /// Maximum accepted context length.
+        maximum: usize,
+    },
+    /// A TLS 1.3 HKDF output exceeds the hash or encoding limit.
+    InvalidHkdfOutputLength {
+        /// Length supplied by the caller.
+        actual: usize,
+        /// Maximum accepted output length.
+        maximum: usize,
     },
     /// A header-protection sample is not fully present.
     InvalidSampleBounds {
@@ -71,6 +99,9 @@ pub enum CryptoError {
 impl fmt::Display for CryptoError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnsupportedCipherSuite { id } => {
+                write!(formatter, "TLS cipher suite 0x{id:04x} is not supported")
+            }
             Self::InvalidConnectionIdLength { actual, maximum } => {
                 write!(formatter, "connection ID length {actual} exceeds {maximum}")
             }
@@ -86,6 +117,22 @@ impl fmt::Display for CryptoError {
                     "signature length {actual} does not match {expected}"
                 )
             }
+            Self::InvalidHkdfLabelLength {
+                actual,
+                minimum,
+                maximum,
+            } => write!(
+                formatter,
+                "HKDF label length {actual} is outside {minimum}..={maximum}"
+            ),
+            Self::InvalidHkdfContextLength { actual, maximum } => write!(
+                formatter,
+                "HKDF context length {actual} exceeds encoding limit {maximum}"
+            ),
+            Self::InvalidHkdfOutputLength { actual, maximum } => write!(
+                formatter,
+                "HKDF output length {actual} exceeds encoding limit {maximum}"
+            ),
             Self::InvalidSampleBounds {
                 offset,
                 required,

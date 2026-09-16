@@ -1,45 +1,12 @@
 use std::fmt;
 
-use crate::backend::{hkdf_expand_sha256, hkdf_extract_sha256};
-use crate::secret::{AES_128_KEY_LEN, QUIC_NONCE_LEN, SHA256_LEN, Secret};
-use crate::{CryptoError, HeaderProtectionKey, PacketProtectionKey, QuicVersion, Result};
+use crate::backend::{HkdfDigest, hkdf_extract_sha256};
+use crate::hkdf::expand_label;
+use crate::key_schedule::{CipherSuite, derive_direction_keys};
+use crate::secret::{SHA256_LEN, Secret};
+use crate::{CryptoError, DirectionKeys, EndpointSide, QuicVersion, Result};
 
 const MAX_CONNECTION_ID_LEN: usize = 20;
-
-/// Which endpoint owns the local half of a derived initial key pair.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum EndpointSide {
-    /// The local endpoint initiated the connection.
-    Client,
-    /// The local endpoint accepted the connection.
-    Server,
-}
-
-/// Packet and header keys for one direction of an Initial packet space.
-pub struct DirectionKeys {
-    header: HeaderProtectionKey,
-    packet: PacketProtectionKey,
-}
-
-impl DirectionKeys {
-    /// Returns the header-protection key.
-    #[must_use]
-    pub const fn header(&self) -> &HeaderProtectionKey {
-        &self.header
-    }
-
-    /// Returns the packet-protection key.
-    #[must_use]
-    pub const fn packet(&self) -> &PacketProtectionKey {
-        &self.packet
-    }
-}
-
-impl fmt::Debug for DirectionKeys {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("DirectionKeys([REDACTED])")
-    }
-}
 
 /// Local and remote keys for a QUIC Initial packet space.
 pub struct InitialKeys {
@@ -82,8 +49,8 @@ pub fn derive_initial_keys(
 
     let (client_secret, server_secret) =
         derive_initial_secrets(version, destination_connection_id)?;
-    let client = derive_direction_keys(&client_secret)?;
-    let server = derive_direction_keys(&server_secret)?;
+    let client = derive_direction_keys(CipherSuite::Aes128GcmSha256, client_secret.as_slice())?;
+    let server = derive_direction_keys(CipherSuite::Aes128GcmSha256, server_secret.as_slice())?;
     let (local, remote) = match side {
         EndpointSide::Client => (client, server),
         EndpointSide::Server => (server, client),
@@ -103,50 +70,22 @@ fn derive_initial_secrets(
     )?;
 
     let mut client = Secret::<SHA256_LEN>::zeroed();
-    hkdf_expand_label(initial.as_slice(), b"client in", client.as_mut_slice())?;
+    expand_label(
+        HkdfDigest::Sha256,
+        initial.as_slice(),
+        b"client in",
+        &[],
+        client.as_mut_slice(),
+    )?;
     let mut server = Secret::<SHA256_LEN>::zeroed();
-    hkdf_expand_label(initial.as_slice(), b"server in", server.as_mut_slice())?;
+    expand_label(
+        HkdfDigest::Sha256,
+        initial.as_slice(),
+        b"server in",
+        &[],
+        server.as_mut_slice(),
+    )?;
     Ok((client, server))
-}
-
-fn derive_direction_keys(secret: &Secret<SHA256_LEN>) -> Result<DirectionKeys> {
-    let mut packet_key = Secret::<AES_128_KEY_LEN>::zeroed();
-    hkdf_expand_label(secret.as_slice(), b"quic key", packet_key.as_mut_slice())?;
-    let mut iv = Secret::<QUIC_NONCE_LEN>::zeroed();
-    hkdf_expand_label(secret.as_slice(), b"quic iv", iv.as_mut_slice())?;
-    let mut header_key = Secret::<AES_128_KEY_LEN>::zeroed();
-    hkdf_expand_label(secret.as_slice(), b"quic hp", header_key.as_mut_slice())?;
-
-    Ok(DirectionKeys {
-        header: HeaderProtectionKey::aes_128(header_key.as_slice())?,
-        packet: PacketProtectionKey::aes_128_gcm(packet_key.as_slice(), iv.as_slice())?,
-    })
-}
-
-fn hkdf_expand_label(secret: &[u8], label: &[u8], output: &mut [u8]) -> Result<()> {
-    const TLS_LABEL: &[u8] = b"tls13 ";
-    const MAX_LABEL_LEN: usize = u8::MAX as usize;
-    let full_label_len = TLS_LABEL
-        .len()
-        .checked_add(label.len())
-        .filter(|length| *length <= MAX_LABEL_LEN)
-        .ok_or(CryptoError::BackendFailure("HKDF label encoding"))?;
-    let output_len = u16::try_from(output.len())
-        .map_err(|_| CryptoError::BackendFailure("HKDF output length encoding"))?;
-
-    let mut info = [0; 2 + 1 + TLS_LABEL.len() + 16 + 1];
-    let required = 2 + 1 + full_label_len + 1;
-    if label.len() > 16 || required > info.len() {
-        return Err(CryptoError::BackendFailure("HKDF label encoding"));
-    }
-    info[..2].copy_from_slice(&output_len.to_be_bytes());
-    info[2] = full_label_len as u8;
-    let tls_end = 3 + TLS_LABEL.len();
-    info[3..tls_end].copy_from_slice(TLS_LABEL);
-    let label_end = tls_end + label.len();
-    info[tls_end..label_end].copy_from_slice(label);
-    info[label_end] = 0;
-    hkdf_expand_sha256(secret, &info[..required], output)
 }
 
 #[cfg(test)]

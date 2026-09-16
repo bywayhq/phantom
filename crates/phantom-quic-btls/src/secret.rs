@@ -45,8 +45,28 @@ impl<const N: usize> fmt::Debug for Secret<N> {
     }
 }
 
+impl<const N: usize> Zeroize for Secret<N> {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
 impl<const N: usize> Drop for Secret<N> {
     fn drop(&mut self) {
-        self.0.zeroize();
+        self.zeroize();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn secret_is_redacted_and_explicitly_zeroizable() {
+        let mut secret = Secret::<4>([1, 2, 3, 4]);
+
+        assert_eq!(format!("{secret:?}"), "Secret([REDACTED])");
+        secret.zeroize();
+        assert_eq!(secret.as_slice(), &[0; 4]);
     }
 }
