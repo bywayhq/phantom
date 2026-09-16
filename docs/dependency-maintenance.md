@@ -30,8 +30,16 @@ revision, reapplies the ordered-SETTINGS and QPACK-codec patches, and runs only
 the focused H3 and `h3-quinn` gates. It deliberately does not select the fork
 in the root workspace. `vendor/h3/PHANTOM.md` blocks runtime selection until
 the dynamic QPACK and WebTransport enforcement gaps recorded there are
-resolved. Quinn remains stock unless a retained packet differential proves
-that its provider and socket seams cannot express a required behavior.
+resolved.
+
+A dependency patch may also be justified by a concrete provider-contract
+failure even when it does not alter the intended wire image. Quinn 0.11.18's
+key-update interface represents absence but not derivation failure, while both
+production call sites unwrap that absence. Phantom therefore carries a narrow
+error-propagation patch: stock providers retain their behavior, but a custom
+provider can close with `INTERNAL_ERROR` without committing a key phase or
+panicking. Observable transport changes still require retained packet
+evidence; this safety exception is not permission for speculative tuning.
 
 ## Cross-platform gate
 

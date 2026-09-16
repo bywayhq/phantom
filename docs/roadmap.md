@@ -96,8 +96,11 @@ sessions, SSE, or WebSocket.
 
 Establish one explicitly selected QUIC and HTTP/3 path using Quinn, hyperium
 `h3`, and an isolated `btls` crypto adapter. Carry narrow, default-preserving
-forks only where retained captures require behavior that the provider seam
-cannot express; the current evidence requires one for H3 SETTINGS, not Quinn.
+forks only where retained captures or a production-safety contract prove that
+an upstream seam is insufficient. Current evidence requires an H3 SETTINGS
+patch for observable ordering and a Quinn provider-contract patch so key-update
+derivation failures close the connection instead of reaching an internal
+`expect` panic.
 Start with one Chromium desktop profile; Firefox and Safari follow from their
 own captures rather than assumptions about shared engine behavior.
 
@@ -120,6 +123,9 @@ Acceptance:
   diagnosable without logging application payloads or credentials.
 - The dedicated crypto-adapter crate documents every unsafe invariant and does
   not expose BoringSSL, Quinn, or `h3` types through Phantom's public API.
+- Initial installation and every later 1-RTT key update propagate local
+  derivation failure as a transport error without changing key phase, emitting
+  a packet under partial keys, or panicking.
 - Unsupported profile controls fail validation instead of silently using an
   upstream default.
 

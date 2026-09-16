@@ -10,14 +10,22 @@ client-only `phantom-quic-btls` adapter. Adapt and harden the official
 `quinn-rs/quinn-boring` implementation rather than implementing QUIC crypto
 from scratch or introducing a second BoringSSL build.
 
-Do not fork `quinn-proto` for the first slice. The provider receives Quinn's
-semantic `TransportParameters` before BoringSSL constructs ClientHello, and
-`TransportParameters::write` is public. The adapter can serialize the values,
-parse the resulting QUIC varint TLVs, remove Quinn's generated reserved
-parameter, validate the semantic fields, and re-encode the final ordered bytes
-with profile-owned GREASE and supported opaque parameters. This preserves
-Quinn's state-machine semantics while putting the observable TLS extension
-bytes at the correct boundary.
+Use a narrow, default-preserving `quinn-proto` patch for one provider-contract
+gap only. In 0.11.18, `Session::next_1rtt_keys` has no error channel, and Quinn
+unwraps its result both when installing 1-RTT keys and when replenishing the
+next key phase. BoringSSL key derivation and key construction are fallible, so
+the stock contract cannot provide panic-free failure propagation. The patch
+must convert provider failure into `INTERNAL_ERROR` before changing phase or
+emitting a packet; it must not add fingerprint controls.
+
+No Quinn patch is needed for transport-parameter ordering. The provider
+receives Quinn's semantic `TransportParameters` before BoringSSL constructs
+ClientHello, and `TransportParameters::write` is public. The adapter can
+serialize the values, parse the resulting QUIC varint TLVs, remove Quinn's
+generated reserved parameter, validate the semantic fields, and re-encode the
+final ordered bytes with profile-owned GREASE and supported opaque parameters.
+This preserves Quinn's state-machine semantics while putting the observable
+TLS extension bytes at the correct boundary.
 
 Implementation is staged. The first standards-conforming provider bring-up
 feeds Quinn's stock serialized parameters to BoringSSL so callback ownership
@@ -207,15 +215,16 @@ on. The review must cover:
   material.
 
 Replace reference-code `unwrap`, `panic`, and `todo` sites on runtime paths.
-Some Quinn provider methods are infallible, so validate version and algorithm
-support in `start_session`; store any later callback failure and surface it via
-the next fallible handshake operation rather than panicking.
+Validate version and algorithm support in `start_session`; callback failures
+are stored and surfaced by the current fallible handshake operation. The
+patched Quinn key-update boundary propagates later traffic-secret derivation
+failures directly, because no subsequent handshake operation is guaranteed.
 
 `write_handshake` only drains previously buffered output and keys.
 `read_handshake` owns fallible BoringSSL progression, peer-parameter parsing,
 and copied peer identity. `handshake_data` transitions once. A later key-update
-failure needs a private fail-closed packet-key result because returning `None`
-from Quinn's infallible next-key path would panic.
+failure is returned through the patched provider boundary; dummy, stale, zero,
+or partially derived keys are never installed.
 
 The callback bridge treats `flush_flight` as a publication boundary, accepts
 null-plus-zero only where BoringSSL permits an empty byte slice, copies all
@@ -287,13 +296,13 @@ pins and implementation land.
 
 ## Fork trigger
 
-Do not create a `quinn-proto` fork until a retained differential proves a
-required observable which the crypto provider cannot control: packetization,
-ACK timing/encoding, connection-ID lifecycle, congestion control, pacing, or a
-transport parameter whose value must diverge from Quinn's live semantics. At
-that point patch only the proven boundary and retain stock defaults. Exact
-transport-parameter ordering, GREASE, and supported opaque entries alone are
-not sufficient reasons to fork Quinn.
+The existing `quinn-proto` patch is limited to recoverable key-update error
+propagation. Do not add observable transport behavior to it until a retained
+differential proves a requirement the crypto provider cannot control:
+packetization, ACK timing/encoding, connection-ID lifecycle, congestion
+control, pacing, or a transport parameter whose value must diverge from
+Quinn's live semantics. Exact transport-parameter ordering, GREASE, and
+supported opaque entries remain insufficient reasons to extend the fork.
 
 ## Sources inspected
 

@@ -178,7 +178,7 @@ crates/
 ├── phantom/          # eventual public Client and session facade
 ├── phantom-profile/  # client-neutral identity and typed wire settings
 ├── phantom-net/      # concrete TLS, H1, H2, and later H3 mechanisms
-├── phantom-quic-btls/ # planned, isolated Quinn/BoringSSL crypto boundary
+├── phantom-quic-btls/ # isolated Quinn/BoringSSL crypto boundary in progress
 └── phantom-testkit/  # bounded capture and deterministic differential tools
 
 fixtures/             # raw retained browser evidence plus exact metadata
