@@ -2,7 +2,8 @@
 set -euo pipefail
 
 check_http2_patch_replay() {
-  local staging archive candidate actual_checksum
+  local staging archive candidate actual_checksum patch
+  local listed_patches stored_patches
   staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-http2-replay.XXXXXX")
   trap 'rm -rf "$staging"' RETURN
   archive="$staging/http2-0.5.20.crate"
@@ -17,10 +18,28 @@ check_http2_patch_replay() {
   [[ "$actual_checksum" == 92d3114be2f413b2e491e686b93a28cda30c355cffc8d091a57f8be4b1342896 ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/http2-0.5.20"
-  git -C "$candidate" apply --check --unidiff-zero \
-    "$PWD/vendor/http2/patches/ordered-headers.patch"
-  git -C "$candidate" apply --unidiff-zero \
-    "$PWD/vendor/http2/patches/ordered-headers.patch"
+  listed_patches=$(LC_ALL=C sort vendor/http2/patches/series)
+  stored_patches=$(find vendor/http2/patches -maxdepth 1 -type f \
+    -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+  if [[ "$listed_patches" != "$stored_patches" ]]; then
+    echo "HTTP/2 patch series does not list every canonical patch exactly once" >&2
+    return 1
+  fi
+  while IFS= read -r patch; do
+    if [[ -z "$patch" ]]; then
+      echo "HTTP/2 patch series contains an empty entry" >&2
+      return 1
+    fi
+    if [[ "$patch" == ordered-headers.patch ]]; then
+      git -C "$candidate" apply --check --unidiff-zero \
+        "$PWD/vendor/http2/patches/$patch"
+      git -C "$candidate" apply --unidiff-zero \
+        "$PWD/vendor/http2/patches/$patch"
+    else
+      git -C "$candidate" apply --check "$PWD/vendor/http2/patches/$patch"
+      git -C "$candidate" apply "$PWD/vendor/http2/patches/$patch"
+    fi
+  done < vendor/http2/patches/series
   diff -qr --exclude=PHANTOM.md --exclude=patches --exclude=target \
     "$candidate" vendor/http2
 }

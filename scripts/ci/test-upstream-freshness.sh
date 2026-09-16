@@ -469,8 +469,21 @@ fi
 http2_source_root="$test_root/http2-source"
 mkdir -p "$http2_source_root"
 copy_vendor_fixture vendor/http2 "$http2_source_root/http2-0.5.20"
-git -C "$http2_source_root/http2-0.5.20" apply --reverse --unidiff-zero \
-  "$repo_root/vendor/http2/patches/ordered-headers.patch"
+http2_patches=()
+while IFS= read -r patch; do
+  [[ -n "$patch" ]]
+  http2_patches+=("$patch")
+done < vendor/http2/patches/series
+for ((index = ${#http2_patches[@]} - 1; index >= 0; index--)); do
+  patch=${http2_patches[$index]}
+  if [[ "$patch" == ordered-headers.patch ]]; then
+    git -C "$http2_source_root/http2-0.5.20" apply --reverse --unidiff-zero \
+      "$repo_root/vendor/http2/patches/$patch"
+  else
+    git -C "$http2_source_root/http2-0.5.20" apply --reverse \
+      "$repo_root/vendor/http2/patches/$patch"
+  fi
+done
 rm -rf "$http2_source_root/http2-0.5.20/patches"
 rm "$http2_source_root/http2-0.5.20/PHANTOM.md"
 [[ ! -e "$http2_source_root/http2-0.5.20/.cargo-ok" ]]

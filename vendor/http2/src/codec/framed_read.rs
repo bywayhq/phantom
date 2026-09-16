@@ -182,6 +182,10 @@ fn decode_frame(
                         "header_list_way_too_large",
                     ));
                 },
+                Err(frame::Error::Hpack(_e)) => {
+                    proto_err!(conn: "failed HPACK decoding; err={:?}", _e);
+                    return Err(Error::library_go_away(Reason::COMPRESSION_ERROR));
+                },
                 Err(_e) => {
                     proto_err!(conn: "failed HPACK decoding; err={:?}", _e);
                     return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
@@ -208,18 +212,27 @@ fn decode_frame(
         Kind::Settings => {
             let res = frame::Settings::load(head, &bytes[frame::HEADER_LEN..]);
 
-            res.map_err(|_e| {
-                proto_err!(conn: "failed to load SETTINGS frame; err={:?}", _e);
-                Error::library_go_away(Reason::PROTOCOL_ERROR)
+            res.map_err(|error| {
+                proto_err!(conn: "failed to load SETTINGS frame; err={:?}", error);
+                let reason = match error {
+                    frame::Error::InvalidPayloadLength
+                    | frame::Error::InvalidPayloadAckSettings => Reason::FRAME_SIZE_ERROR,
+                    _ => Reason::PROTOCOL_ERROR,
+                };
+                Error::library_go_away(reason)
             })?
             .into()
         }
         Kind::Ping => {
             let res = frame::Ping::load(head, &bytes[frame::HEADER_LEN..]);
 
-            res.map_err(|_e| {
-                proto_err!(conn: "failed to load PING frame; err={:?}", _e);
-                Error::library_go_away(Reason::PROTOCOL_ERROR)
+            res.map_err(|error| {
+                proto_err!(conn: "failed to load PING frame; err={:?}", error);
+                let reason = match error {
+                    frame::Error::BadFrameSize => Reason::FRAME_SIZE_ERROR,
+                    _ => Reason::PROTOCOL_ERROR,
+                };
+                Error::library_go_away(reason)
             })?
             .into()
         }
@@ -360,6 +373,10 @@ fn decode_frame(
                         Reason::ENHANCE_YOUR_CALM,
                         "header_list_way_too_large",
                     ));
+                }
+                Err(frame::Error::Hpack(_e)) => {
+                    proto_err!(conn: "failed HPACK decoding; err={:?}", _e);
+                    return Err(Error::library_go_away(Reason::COMPRESSION_ERROR));
                 }
                 Err(_e) => {
                     proto_err!(conn: "failed HPACK decoding; err={:?}", _e);

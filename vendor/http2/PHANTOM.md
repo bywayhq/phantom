@@ -67,6 +67,8 @@ The canonical patch changes these files:
   and start idle close only after polling the open connection.
 - `src/client/tests.rs`: contain the 13 focused semantic, wire, and lifecycle
   regressions for ordered headers, idle close, and peer SETTINGS transitions.
+- `src/codec/framed_read.rs`: preserve RFC connection error codes for malformed
+  frame lengths and HPACK decoding failures.
 - `src/codec/framed_write.rs` and `src/codec/mod.rs`: provide test-only hooks
   that model a full codec write buffer.
 - `src/frame/headers.rs`: select the exact outbound iterator and retain exact
@@ -82,10 +84,13 @@ The canonical patch changes these files:
   cleanup, apply seeded limits before stream 1, and suppress RFC 7540 priority
   output when directed by the peer.
 
-The canonical source, manifest, and test delta is stored in
-`patches/ordered-headers.patch`. It is deliberately separate from the complete
-vendor snapshot so a candidate release can be tested without reconstructing
-the changes by hand.
+The canonical source, manifest, and test deltas are listed in
+`patches/series`. `ordered-headers.patch` contains the observable-order and
+lifecycle work. `rfc-error-codes.patch` maps invalid SETTINGS and PING lengths
+to `FRAME_SIZE_ERROR` and HPACK decoding failures to `COMPRESSION_ERROR`, as
+required by RFC 9113. The patches remain separate from the complete vendor
+snapshot so a candidate release can be tested without reconstructing changes
+by hand.
 
 ## Refreshing the vendor copy
 
@@ -121,14 +126,22 @@ the patch can remain enabled throughout the refresh.
    `shasum` covers macOS and `sha256sum` covers typical Linux environments.
    Stop if neither command exists or if the checksum comparison fails.
 
-2. Check the canonical patch against the pristine candidate, then apply it in
-   the staging directory:
+2. Check and apply the canonical patch series in order:
 
    ```sh
-   git -C "$candidate" apply --check --unidiff-zero \
-     "$PWD/vendor/http2/patches/ordered-headers.patch"
-   git -C "$candidate" apply --unidiff-zero \
-     "$PWD/vendor/http2/patches/ordered-headers.patch"
+   while IFS= read -r patch; do
+     if [ "$patch" = ordered-headers.patch ]; then
+       git -C "$candidate" apply --check --unidiff-zero \
+         "$PWD/vendor/http2/patches/$patch"
+       git -C "$candidate" apply --unidiff-zero \
+         "$PWD/vendor/http2/patches/$patch"
+     else
+       git -C "$candidate" apply --check \
+         "$PWD/vendor/http2/patches/$patch"
+       git -C "$candidate" apply \
+         "$PWD/vendor/http2/patches/$patch"
+     fi
+   done < "$PWD/vendor/http2/patches/series"
    ```
 
    A failed dry application is expected evidence that the upstream source
@@ -144,7 +157,8 @@ the patch can remain enabled throughout the refresh.
    cp -R "$candidate" vendor/http2.next
    cp vendor/http2/PHANTOM.md vendor/http2.next/PHANTOM.md
    mkdir -p vendor/http2.next/patches
-   cp vendor/http2/patches/ordered-headers.patch vendor/http2.next/patches/
+   cp vendor/http2/patches/series vendor/http2/patches/*.patch \
+     vendor/http2.next/patches/
    mv vendor/http2 "$refresh_dir/http2.previous"
    mv vendor/http2.next vendor/http2
    ```

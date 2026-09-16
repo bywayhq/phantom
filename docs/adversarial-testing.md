@@ -78,10 +78,11 @@ the client reaction is directly observed. Its malformed lane uses a fresh
 connection per case and asserts protocol error codes without treating malformed
 behavior as a browser-parity target. Reaper's current H3 Retry, reserved
 extension, QPACK block/unblock, informational response, and trailer probes
-overlap existing Phantom fixtures. TLS HelloRetryRequest and requested
-`KeyUpdate`, the malformed H2 matrix, and the remaining H2 HPACK state
-transitions stay explicit regression work until their reactions are exercised
-through the public transport seam.
+overlap existing Phantom fixtures. Its isolated malformed H2 matrix is also
+retained with exact `PROTOCOL_ERROR`, `FRAME_SIZE_ERROR`, and
+`COMPRESSION_ERROR` reactions. TLS HelloRetryRequest and requested `KeyUpdate`,
+plus the remaining H2 HPACK state transitions, stay explicit regression work
+until their reactions are exercised through the public transport seam.
 
 ## Later client and streaming corpus
 

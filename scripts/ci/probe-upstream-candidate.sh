@@ -235,6 +235,25 @@ case "$dependency" in
     [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] \
       || die "invalid http2 candidate '$candidate'"
     [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid http2 checksum"
+    [[ -f vendor/http2/PHANTOM.md ]] \
+      || die "vendored http2 provenance is required"
+    [[ -f vendor/http2/patches/series ]] \
+      || die "vendored http2 patch series is required"
+    http2_patches=()
+    while IFS= read -r patch; do
+      [[ -n "$patch" ]] || die "vendored http2 patch series contains an empty entry"
+      http2_patches+=("$patch")
+    done < vendor/http2/patches/series
+    [[ ${#http2_patches[@]} -gt 0 ]] || die "vendored http2 patch series is empty"
+    for patch in "${http2_patches[@]}"; do
+      [[ -f "vendor/http2/patches/$patch" ]] \
+        || die "vendored http2 canonical patch $patch is required"
+    done
+    listed_http2_patches=$(printf '%s\n' "${http2_patches[@]}" | LC_ALL=C sort)
+    stored_http2_patches=$(find vendor/http2/patches -maxdepth 1 -type f \
+      -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+    [[ "$listed_http2_patches" == "$stored_http2_patches" ]] \
+      || die "vendored http2 patch series does not list every canonical patch exactly once"
 
     probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-http2-candidate.XXXXXX")
     archive="$probe_staging/http2-$candidate.crate"
@@ -245,10 +264,17 @@ case "$dependency" in
     tar -xzf "$archive" -C "$probe_staging"
     candidate_dir="$probe_staging/http2-$candidate"
 
-    # Apply while the canonical patch is still in the checked-out vendor tree.
-    patch_file="$repo_root/vendor/http2/patches/ordered-headers.patch"
-    git -C "$candidate_dir" apply --check --unidiff-zero "$patch_file"
-    git -C "$candidate_dir" apply --unidiff-zero "$patch_file"
+    # Apply while the canonical patches are still in the checked-out vendor tree.
+    for patch in "${http2_patches[@]}"; do
+      patch_file="$repo_root/vendor/http2/patches/$patch"
+      if [[ "$patch" == ordered-headers.patch ]]; then
+        git -C "$candidate_dir" apply --check --unidiff-zero "$patch_file"
+        git -C "$candidate_dir" apply --unidiff-zero "$patch_file"
+      else
+        git -C "$candidate_dir" apply --check "$patch_file"
+        git -C "$candidate_dir" apply "$patch_file"
+      fi
+    done
     mv vendor/http2 "$probe_staging/http2.previous"
     mv "$candidate_dir" vendor/http2
     cargo update -p http2 --precise "$candidate"
