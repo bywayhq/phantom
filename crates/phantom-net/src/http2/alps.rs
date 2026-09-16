@@ -1,6 +1,6 @@
 //! Decoding of peer HTTP/2 settings carried by TLS ALPS.
 
-use ::http2::frame::Settings;
+use ::http2::frame::{Head, Settings};
 
 const FRAME_HEADER_LEN: usize = 9;
 const MAX_FRAME_PAYLOAD_LEN: usize = 16_384;
@@ -130,20 +130,15 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
 
         let frame_type = encoded[offset + 3];
         if frame_type == SETTINGS_FRAME_TYPE {
-            let flags = encoded[offset + 4];
-            let stream_id = u32::from_be_bytes([
-                encoded[offset + 5],
-                encoded[offset + 6],
-                encoded[offset + 7],
-                encoded[offset + 8],
-            ]) & 0x7fff_ffff;
-            if stream_id != 0 {
+            let head = Head::parse(&encoded[offset..payload_start]);
+            if !head.stream_id().is_zero() {
                 return Err(error(frame_index, offset, DecodeErrorKind::SettingsStream));
             }
-            if flags & SETTINGS_ACK != 0 {
+            if head.flag() & SETTINGS_ACK != 0 {
                 return Err(error(frame_index, offset, DecodeErrorKind::SettingsAck));
             }
             apply_settings(
+                head,
                 payload,
                 &mut settings,
                 settings_frame_count == 0,
@@ -167,6 +162,7 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
 }
 
 fn apply_settings(
+    head: Head,
     payload: &[u8],
     settings: &mut Settings,
     is_initial: bool,
@@ -177,28 +173,32 @@ fn apply_settings(
         return Err(error(frame_index, offset, DecodeErrorKind::SettingsLength));
     }
 
+    let decoded = Settings::load(head, payload)
+        .map_err(|_| error(frame_index, offset, DecodeErrorKind::SettingValue))?;
+    validate_transitions(payload, settings, is_initial, frame_index, offset)?;
+    merge_settings(settings, &decoded);
+    Ok(())
+}
+
+fn validate_transitions(
+    payload: &[u8],
+    settings: &Settings,
+    is_initial: bool,
+    frame_index: usize,
+    offset: usize,
+) -> Result<(), DecodeError> {
     let mut enable_connect_protocol = settings
         .is_extended_connect_protocol_enabled()
         .unwrap_or(false);
-    let mut saw_enable_connect_protocol = false;
     let mut no_rfc7540_priorities = settings.is_no_rfc7540_priorities().unwrap_or(false);
-    let mut saw_no_rfc7540_priorities = false;
     for setting in payload.chunks_exact(6) {
         let id = u16::from_be_bytes([setting[0], setting[1]]);
         let value = u32::from_be_bytes([setting[2], setting[3], setting[4], setting[5]]);
         match id {
-            0x1 => settings.set_header_table_size(Some(value)),
-            0x2 if value == 0 => settings.set_enable_push(false),
-            0x2 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
-            0x3 => settings.set_max_concurrent_streams(Some(value)),
-            0x4 if value <= 0x7fff_ffff => settings.set_initial_window_size(Some(value)),
-            0x4 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
-            0x5 if (16_384..=16_777_215).contains(&value) => {
-                settings.set_max_frame_size(Some(value));
+            0x2 if value != 0 => {
+                return Err(error(frame_index, offset, DecodeErrorKind::SettingValue));
             }
-            0x5 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
-            0x6 => settings.set_max_header_list_size(Some(value)),
-            0x8 if value <= 1 => {
+            0x8 => {
                 let value = value == 1;
                 if enable_connect_protocol && !value {
                     return Err(error(
@@ -208,10 +208,8 @@ fn apply_settings(
                     ));
                 }
                 enable_connect_protocol = value;
-                saw_enable_connect_protocol = true;
             }
-            0x8 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
-            0x9 if value <= 1 => {
+            0x9 => {
                 let value = value == 1;
                 if !is_initial && value != no_rfc7540_priorities {
                     return Err(error(
@@ -221,20 +219,38 @@ fn apply_settings(
                     ));
                 }
                 no_rfc7540_priorities = value;
-                saw_no_rfc7540_priorities = true;
             }
-            0x9 => return Err(error(frame_index, offset, DecodeErrorKind::SettingValue)),
             _ => {}
         }
     }
-
-    if saw_enable_connect_protocol {
-        settings.set_enable_connect_protocol(Some(u32::from(enable_connect_protocol)));
-    }
-    if saw_no_rfc7540_priorities {
-        settings.set_no_rfc7540_priorities(no_rfc7540_priorities);
-    }
     Ok(())
+}
+
+fn merge_settings(settings: &mut Settings, decoded: &Settings) {
+    if let Some(value) = decoded.header_table_size() {
+        settings.set_header_table_size(Some(value));
+    }
+    if let Some(value) = decoded.is_push_enabled() {
+        settings.set_enable_push(value);
+    }
+    if let Some(value) = decoded.max_concurrent_streams() {
+        settings.set_max_concurrent_streams(Some(value));
+    }
+    if let Some(value) = decoded.initial_window_size() {
+        settings.set_initial_window_size(Some(value));
+    }
+    if let Some(value) = decoded.max_frame_size() {
+        settings.set_max_frame_size(Some(value));
+    }
+    if let Some(value) = decoded.max_header_list_size() {
+        settings.set_max_header_list_size(Some(value));
+    }
+    if let Some(value) = decoded.is_extended_connect_protocol_enabled() {
+        settings.set_enable_connect_protocol(Some(u32::from(value)));
+    }
+    if let Some(value) = decoded.is_no_rfc7540_priorities() {
+        settings.set_no_rfc7540_priorities(value);
+    }
 }
 
 fn error(frame_index: usize, offset: usize, kind: DecodeErrorKind) -> DecodeError {
