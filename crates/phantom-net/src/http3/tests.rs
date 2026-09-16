@@ -525,6 +525,7 @@ async fn join_server(server: JoinHandle<TestResult<()>>) -> TestResult<()> {
     Ok(())
 }
 
+mod adversarial;
 mod datagram;
 mod profile;
 mod request;

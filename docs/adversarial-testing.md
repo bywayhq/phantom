@@ -49,9 +49,10 @@ fixtures.
 
 The current deterministic baseline includes H1 `100 Continue`, chained
 `103`/`100`, declared-length surplus isolation, H2 `RST_STREAM`, H2 `GOAWAY`,
-and peer-observed H3 request-stream cancellation after an early body drop. The
-remaining H3 cases extend that focused loopback peer rather than introducing a
-speculative universal peer framework.
+and H3 missing or duplicate SETTINGS, forbidden control-stream frames,
+reserved streams and frames, and peer-observed request-stream cancellation.
+The remaining H3 cases extend that focused loopback peer rather than
+introducing a speculative universal peer framework.
 
 ## Later client and streaming corpus
 
