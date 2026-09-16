@@ -1,6 +1,10 @@
 //! Reusable HTTP/2 connection ownership.
 
-use std::{fmt, sync::Arc};
+use std::{
+    fmt,
+    sync::Arc,
+    task::{Context, Poll, Waker},
+};
 
 use ::http2::client;
 use bytes::Bytes;
@@ -68,6 +72,23 @@ impl Http2Connection {
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.inner.driver.is_finished()
+    }
+
+    /// Returns whether this connection is currently eligible for another stream.
+    ///
+    /// This snapshot observes connection errors such as a received GOAWAY but
+    /// does not reserve capacity. A later send can still fail.
+    #[must_use]
+    pub fn is_reusable(&self) -> bool {
+        if self.is_closed() {
+            return false;
+        }
+        let Some(sender) = self.inner.sender() else {
+            return false;
+        };
+        let mut sender = sender.clone();
+        let mut context = Context::from_waker(Waker::noop());
+        matches!(sender.poll_ready(&mut context), Poll::Ready(Ok(())))
     }
 
     pub(super) async fn connect_with_builder<T>(

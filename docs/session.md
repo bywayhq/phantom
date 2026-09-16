@@ -52,17 +52,22 @@ selected entries are evicted. An outstanding response body keeps its own
 connection lease until completion or drop, so eviction never cancels a body
 already returned to the caller.
 
-H3 admission is bounded by `max_concurrent_http3_requests_per_origin`; at most
-`max_pending_http3_requests_per_origin` additional requests may wait. These
-bounds span a draining generation and its replacement for the same origin.
-An active slot remains held through stream completion, including bounded reset
-cleanup after an incomplete body is dropped. Excess work returns
-`RequestErrorKind::Capacity`. A GOAWAY or closed H3 generation is not selected
-for new work, while response bodies retain the old generation. Requests are
-never replayed automatically.
+HTTP/2 and HTTP/3 admission are independently bounded by their
+`max_concurrent_http{2,3}_requests_per_origin` settings; at most the matching
+`max_pending_http{2,3}_requests_per_origin` additional requests may wait. The
+bounds apply per origin and selected route and span a draining generation and
+its replacement. Excess work returns `RequestErrorKind::Capacity`, and
+cancelling a waiter releases its queue slot.
 
-Peer-aware H2 admission, graceful public shutdown, H1 reuse, retries, and
-coalescing are later pool work.
+An H2 active slot remains held until its response stream completes or is
+dropped. The H2 engine independently enforces the peer's advertised concurrent
+stream limit. H3 retains its active slot through stream completion, including
+bounded reset cleanup after an incomplete body is dropped. A GOAWAY or closed
+generation is not selected for new work, while eligible response bodies retain
+the old generation. A GOAWAY race during a send is returned to the caller;
+Phantom invalidates that generation but never replays the request automatically.
+
+Graceful public shutdown, H1 reuse, retries, and coalescing are later pool work.
 
 ## Optional cookies
 

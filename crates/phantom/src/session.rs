@@ -4,6 +4,7 @@ use crate::{Client, HttpProtocol, RequestBuilder, RequestError};
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
 
+mod admission;
 #[cfg(feature = "cookies")]
 mod cookies;
 mod http2_pool;
@@ -17,6 +18,13 @@ const DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS: NonZeroUsize = match NonZeroUsize:
     None => NonZeroUsize::MIN,
 };
 const DEFAULT_MAX_RETAINED_HTTP3_CONNECTIONS: NonZeroUsize = DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS;
+const DEFAULT_MAX_CONCURRENT_HTTP2_REQUESTS_PER_ORIGIN: NonZeroUsize = match NonZeroUsize::new(100)
+{
+    Some(value) => value,
+    None => NonZeroUsize::MIN,
+};
+const DEFAULT_MAX_PENDING_HTTP2_REQUESTS_PER_ORIGIN: NonZeroUsize =
+    DEFAULT_MAX_CONCURRENT_HTTP2_REQUESTS_PER_ORIGIN;
 const DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN: NonZeroUsize = match NonZeroUsize::new(100)
 {
     Some(value) => value,
@@ -83,6 +91,14 @@ impl fmt::Debug for Session {
                 &self.state.http3.capacity(),
             )
             .field(
+                "max_concurrent_http2_requests_per_origin",
+                &self.state.http2.max_active(),
+            )
+            .field(
+                "max_pending_http2_requests_per_origin",
+                &self.state.http2.max_pending(),
+            )
+            .field(
                 "max_concurrent_http3_requests_per_origin",
                 &self.state.http3.max_active(),
             )
@@ -109,6 +125,8 @@ pub struct SessionBuilder {
     client: Client,
     max_retained_http2_connections: NonZeroUsize,
     max_retained_http3_connections: NonZeroUsize,
+    max_concurrent_http2_requests_per_origin: NonZeroUsize,
+    max_pending_http2_requests_per_origin: NonZeroUsize,
     max_concurrent_http3_requests_per_origin: NonZeroUsize,
     max_pending_http3_requests_per_origin: NonZeroUsize,
     #[cfg(feature = "cookies")]
@@ -121,6 +139,9 @@ impl SessionBuilder {
             client,
             max_retained_http2_connections: DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS,
             max_retained_http3_connections: DEFAULT_MAX_RETAINED_HTTP3_CONNECTIONS,
+            max_concurrent_http2_requests_per_origin:
+                DEFAULT_MAX_CONCURRENT_HTTP2_REQUESTS_PER_ORIGIN,
+            max_pending_http2_requests_per_origin: DEFAULT_MAX_PENDING_HTTP2_REQUESTS_PER_ORIGIN,
             max_concurrent_http3_requests_per_origin:
                 DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
             max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
@@ -139,6 +160,23 @@ impl SessionBuilder {
         self
     }
 
+    /// Sets the local active-request bound for each HTTP/2 origin and route.
+    ///
+    /// The bound spans a draining connection and its replacement. The peer's
+    /// advertised concurrent-stream limit remains independently authoritative.
+    #[must_use]
+    pub fn max_concurrent_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_concurrent_http2_requests_per_origin = maximum;
+        self
+    }
+
+    /// Sets the number of requests allowed to wait for each HTTP/2 origin and route.
+    #[must_use]
+    pub fn max_pending_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_pending_http2_requests_per_origin = maximum;
+        self
+    }
+
     /// Sets the maximum number of HTTP/3 connections retained for reuse.
     ///
     /// Eviction prevents later selection but does not cancel response bodies
@@ -149,7 +187,7 @@ impl SessionBuilder {
         self
     }
 
-    /// Sets the local active-request bound for each retained HTTP/3 origin.
+    /// Sets the local active-request bound for each retained HTTP/3 origin and route.
     ///
     /// The bound spans a draining connection and its replacement so a stale
     /// generation cannot temporarily double the origin's admitted work.
@@ -159,7 +197,7 @@ impl SessionBuilder {
         self
     }
 
-    /// Sets the number of requests allowed to wait for each HTTP/3 origin.
+    /// Sets the number of requests allowed to wait for each HTTP/3 origin and route.
     #[must_use]
     pub fn max_pending_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.max_pending_http3_requests_per_origin = maximum;
@@ -188,7 +226,11 @@ impl SessionBuilder {
         Session {
             client: self.client,
             state: Arc::new(SessionState {
-                http2: http2_pool::Http2Pool::new(self.max_retained_http2_connections),
+                http2: http2_pool::Http2Pool::new(
+                    self.max_retained_http2_connections,
+                    self.max_concurrent_http2_requests_per_origin,
+                    self.max_pending_http2_requests_per_origin,
+                ),
                 http3: http3_pool::Http3Pool::new(
                     self.max_retained_http3_connections,
                     self.max_concurrent_http3_requests_per_origin,
@@ -212,6 +254,14 @@ impl fmt::Debug for SessionBuilder {
             .field(
                 "max_retained_http3_connections",
                 &self.max_retained_http3_connections,
+            )
+            .field(
+                "max_concurrent_http2_requests_per_origin",
+                &self.max_concurrent_http2_requests_per_origin,
+            )
+            .field(
+                "max_pending_http2_requests_per_origin",
+                &self.max_pending_http2_requests_per_origin,
             )
             .field(
                 "max_concurrent_http3_requests_per_origin",
@@ -238,9 +288,10 @@ impl fmt::Debug for SessionBuilder {
 #[cfg(test)]
 mod tests {
     use super::{Session, SessionBuilder};
-    use crate::RequestBuilder;
+    use crate::{RequestBuilder, ResponseBody};
 
     fn assert_send_sync_clone<T: Send + Sync + Clone>() {}
+    fn assert_send_sync<T: Send + Sync>() {}
 
     #[test]
     fn session_handles_are_send_sync_and_clone() {
@@ -249,10 +300,8 @@ mod tests {
         assert_send::<SessionBuilder>();
         fn assert_send_static<T: Send + 'static>() {}
         assert_send_static::<RequestBuilder>();
+        assert_send_sync::<ResponseBody>();
         #[cfg(feature = "cookies")]
         assert_send_sync::<super::CookieJar>();
     }
-
-    #[cfg(feature = "cookies")]
-    fn assert_send_sync<T: Send + Sync>() {}
 }

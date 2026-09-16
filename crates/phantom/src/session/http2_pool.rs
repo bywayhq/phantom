@@ -7,23 +7,40 @@ use phantom_net::http2::{
 use tokio::sync::Mutex;
 use tracing::debug;
 
-use crate::{ResponseBody, Route, authority::Endpoint};
+use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
+use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 pub(crate) struct Http2Pool {
     capacity: NonZeroUsize,
-    entries: Mutex<VecDeque<(PoolKey, Arc<PoolEntry>)>>,
+    max_active: NonZeroUsize,
+    max_pending: NonZeroUsize,
+    state: Mutex<PoolState>,
 }
 
 impl Http2Pool {
-    pub(super) fn new(capacity: NonZeroUsize) -> Self {
+    pub(super) fn new(
+        capacity: NonZeroUsize,
+        max_active: NonZeroUsize,
+        max_pending: NonZeroUsize,
+    ) -> Self {
         Self {
             capacity,
-            entries: Mutex::new(VecDeque::new()),
+            max_active,
+            max_pending,
+            state: Mutex::new(PoolState::default()),
         }
     }
 
     pub(super) const fn capacity(&self) -> NonZeroUsize {
         self.capacity
+    }
+
+    pub(super) const fn max_active(&self) -> NonZeroUsize {
+        self.max_active
+    }
+
+    pub(super) const fn max_pending(&self) -> NonZeroUsize {
+        self.max_pending
     }
 
     pub(crate) async fn send_get(
@@ -34,43 +51,66 @@ impl Http2Pool {
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
-    ) -> Result<http::Response<ResponseBody>, Http2TlsError> {
-        validate_get(authority, &target, &headers)?;
+    ) -> Result<http::Response<ResponseBody>, RequestError> {
+        validate_get(authority, &target, &headers)
+            .map_err(Http2TlsError::from)
+            .map_err(RequestError::http2)?;
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
-        let lease = entry.acquire(connector, endpoint, route).await?;
+        let permit = entry.admit().await?;
+        let lease = entry
+            .acquire(connector, endpoint, route)
+            .await
+            .map_err(RequestError::http2)?;
         let result = lease.connection.send_get(authority, target, headers).await;
         match result {
             Ok(response) => {
                 let (parts, body) = response.into_parts();
-                Ok(http::Response::from_parts(parts, ResponseBody::http2(body)))
+                Ok(http::Response::from_parts(
+                    parts,
+                    ResponseBody::http2_with_guard(body, permit),
+                ))
             }
             Err(error) => {
+                drop(permit);
                 if invalidates_connection(&error) {
                     entry.invalidate(&lease.token).await;
                 }
-                Err(error.into())
+                Err(RequestError::http2(error.into()))
             }
         }
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
-        let mut entries = self.entries.lock().await;
-        if let Some(position) = entries.iter().position(|(candidate, _)| candidate == &key) {
-            if let Some((stored_key, entry)) = entries.remove(position) {
-                entries.push_back((stored_key, Arc::clone(&entry)));
+        let mut state = self.state.lock().await;
+        if let Some(position) = state
+            .entries
+            .iter()
+            .position(|(candidate, _)| candidate == &key)
+        {
+            if let Some((stored_key, entry)) = state.entries.remove(position) {
+                state.entries.push_back((stored_key, Arc::clone(&entry)));
                 return entry;
             }
         }
 
-        if entries.len() == self.capacity.get() {
-            entries.pop_front();
+        if state.entries.len() == self.capacity.get() {
+            state.entries.pop_front();
             debug!(outcome = "evicted", "HTTP/2 pool entry evicted");
         }
-        let entry = Arc::new(PoolEntry::default());
-        entries.push_back((key, Arc::clone(&entry)));
+        let admission = state
+            .admissions
+            .get(&key, self.max_active, self.max_pending);
+        let entry = Arc::new(PoolEntry::new(admission));
+        state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
+}
+
+#[derive(Default)]
+struct PoolState {
+    entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
+    admissions: AdmissionRegistry<PoolKey>,
 }
 
 fn invalidates_connection(error: &Http2Error) -> bool {
@@ -98,12 +138,23 @@ impl PoolKey {
     }
 }
 
-#[derive(Default)]
 struct PoolEntry {
     current: Mutex<Option<ConnectionSlot>>,
+    admission: Arc<Admission>,
 }
 
 impl PoolEntry {
+    fn new(admission: Arc<Admission>) -> Self {
+        Self {
+            current: Mutex::new(None),
+            admission,
+        }
+    }
+
+    async fn admit(&self) -> Result<AdmissionPermit, RequestError> {
+        Arc::clone(&self.admission).admit(HttpProtocol::Http2).await
+    }
+
     async fn acquire(
         &self,
         connector: &Http2TlsConnector,
@@ -112,7 +163,7 @@ impl PoolEntry {
     ) -> Result<ConnectionLease, Http2TlsError> {
         let mut current = self.current.lock().await;
         if let Some(slot) = current.as_ref() {
-            if !slot.connection.is_closed() {
+            if slot.connection.is_reusable() {
                 debug!(
                     outcome = "hit",
                     "HTTP/2 connection acquired from session pool"
@@ -196,4 +247,33 @@ impl ConnectionSlot {
 struct ConnectionLease {
     connection: Http2Connection,
     token: Arc<()>,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{num::NonZeroUsize, sync::Arc};
+
+    use super::{Http2Pool, PoolKey};
+    use crate::{Route, authority::Endpoint};
+
+    #[tokio::test]
+    async fn per_origin_admission_survives_lru_eviction() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let one = NonZeroUsize::MIN;
+        let pool = Http2Pool::new(one, one, one);
+        let first = Endpoint::new("first.test:443".parse()?, 443)?;
+        let second = Endpoint::new("second.test:443".parse()?, 443)?;
+
+        let first_entry = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
+        let permit = first_entry.admit().await?;
+        pool.entry(PoolKey::new(&second, &Route::Direct)).await;
+        drop(first_entry);
+        let replacement = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
+
+        assert!(Arc::ptr_eq(permit.admission(), &replacement.admission));
+        assert_eq!(replacement.admission.available_active(), 0);
+        drop(permit);
+        assert_eq!(replacement.admission.available_active(), 1);
+        Ok(())
+    }
 }

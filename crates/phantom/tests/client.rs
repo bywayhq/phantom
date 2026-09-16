@@ -1,6 +1,9 @@
 //! Public-facade integration tests.
 
 #[allow(dead_code)]
+#[path = "support/h2.rs"]
+mod h2_support;
+#[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
 #[path = "support/tracing.rs"]
@@ -23,13 +26,14 @@ use phantom::{
     profile::{ClientProfile, chromium},
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
     time::timeout,
 };
 use tracing::instrument::WithSubscriber;
 
+use h2_support::{read_frame as read_h2_frame, write_frame as write_h2_frame};
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, test_client, tls_settings,
 };
@@ -486,57 +490,6 @@ fn invalid_additional_root_has_stable_build_category() -> TestResult<()> {
     };
     assert_eq!(error.kind(), BuildErrorKind::TrustStore);
     Ok(())
-}
-
-struct H2FrameHead {
-    kind: u8,
-    flags: u8,
-    stream_id: u32,
-}
-
-async fn read_h2_frame<T>(stream: &mut T) -> io::Result<H2FrameHead>
-where
-    T: AsyncRead + Unpin,
-{
-    let mut head = [0; 9];
-    stream.read_exact(&mut head).await?;
-    let length = usize::from(head[0]) << 16 | usize::from(head[1]) << 8 | usize::from(head[2]);
-    let mut payload = vec![0; length];
-    stream.read_exact(&mut payload).await?;
-    Ok(H2FrameHead {
-        kind: head[3],
-        flags: head[4],
-        stream_id: u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff,
-    })
-}
-
-async fn write_h2_frame<T>(
-    stream: &mut T,
-    kind: u8,
-    flags: u8,
-    stream_id: u32,
-    payload: &[u8],
-) -> io::Result<()>
-where
-    T: AsyncWrite + Unpin,
-{
-    let length = u32::try_from(payload.len())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "HTTP/2 frame is too large"))?;
-    let length_bytes = length.to_be_bytes();
-    let stream_bytes = stream_id.to_be_bytes();
-    let head = [
-        length_bytes[1],
-        length_bytes[2],
-        length_bytes[3],
-        kind,
-        flags,
-        stream_bytes[0] & 0x7f,
-        stream_bytes[1],
-        stream_bytes[2],
-        stream_bytes[3],
-    ];
-    stream.write_all(&head).await?;
-    stream.write_all(payload).await
 }
 
 fn interleaved_hpack_response() -> Vec<u8> {

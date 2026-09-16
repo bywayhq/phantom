@@ -37,6 +37,14 @@ impl ResponseBody {
         }
     }
 
+    pub(crate) fn http2_with_guard<T>(mut body: Http2Body, guard: T) -> Self
+    where
+        T: Send + Sync + 'static,
+    {
+        body.retain_until_stream_complete(guard);
+        Self::http2(body)
+    }
+
     pub(crate) fn http3(body: Http3Body) -> Self {
         Self {
             inner: ResponseBodyInner::Http3(body),

@@ -171,10 +171,11 @@ The current public pool is deliberately narrower than this final contract. A
 `Session` retains one reusable HTTP/2 or direct HTTP/3 connection per exact
 origin-and-route key, serializes only same-key cold connection setup, and
 evicts least-recently selected retained entries at configurable bounds.
-Different sessions never share connections. H3 has bounded local active work
-and waiters, stream-scoped cancellation, and stale/GOAWAY generation
-replacement without replay. H1 reuse, peer-aware H2 admission, retries, and
-coalescing remain unimplemented. See [session state and pooling](session.md).
+Different sessions never share connections. H2 and H3 have bounded local
+active work and waiters, stream-scoped cancellation, and stale/GOAWAY
+generation replacement without replay. H2 also delegates the peer's concurrent
+stream limit to the protocol engine. H1 reuse, retries, and coalescing remain
+unimplemented. See [session state and pooling](session.md).
 
 The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.
 `phantom-quic-btls` implements Quinn's crypto-provider seam with the same

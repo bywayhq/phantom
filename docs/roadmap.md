@@ -261,6 +261,13 @@ isolated, and performs no hidden replay. Direct and plaintext-CONNECT tests
 prove sequential/concurrent reuse, tunnel reuse, pre-I/O validation, and
 stream-scoped cancellation.
 
+H2 session admission now adds per-origin-and-route active and waiting bounds
+that survive LRU eviction and connection replacement. Permits follow response
+stream lifetime, cancelled waiters release their slots, and the vendored engine
+remains authoritative for peer `MAX_CONCURRENT_STREAMS`. An observed GOAWAY
+causes later work to open a new generation while eligible streams finish on the
+old one; a request rejected by a GOAWAY is surfaced without automatic replay.
+
 The sixth landed route slice adds no-auth remote-DNS SOCKS5 through an exact
 `socks5h://` configuration. H1, one-shot H2, session-owned H2 reuse, and H1 WSS
 share the same route; domain targets reach the proxy as SOCKS `DOMAIN`

@@ -1,6 +1,7 @@
 //! Streaming HTTP/2 response-body ownership.
 
 use std::{
+    any::Any,
     fmt,
     pin::Pin,
     task::{Context, Poll},
@@ -23,6 +24,7 @@ pub struct Http2Body {
     incoming: Option<RecvStream>,
     reset: Option<SendStream<Bytes>>,
     lease: Option<ConnectionLease>,
+    stream_guard: Option<Box<dyn Any + Send + Sync>>,
     finished: bool,
     trace: BodyTrace,
 }
@@ -42,9 +44,28 @@ impl Http2Body {
             incoming: (!finished).then_some(incoming),
             reset: (!finished).then_some(reset),
             lease: (!finished).then_some(lease),
+            stream_guard: None,
             finished,
             trace,
         }
+    }
+
+    /// Retains a value until this stream completes or is cancelled.
+    #[doc(hidden)]
+    pub fn retain_until_stream_complete<T>(&mut self, value: T)
+    where
+        T: Send + Sync + 'static,
+    {
+        if !self.finished {
+            self.stream_guard = Some(Box::new(value));
+        }
+    }
+
+    fn finish_stream(&mut self) {
+        self.incoming.take();
+        self.reset.take();
+        self.lease.take();
+        self.stream_guard.take();
     }
 
     fn poll_frame_inner(
@@ -57,7 +78,7 @@ impl Http2Body {
 
         let Some(incoming) = self.incoming.as_mut() else {
             self.finished = true;
-            self.lease.take();
+            self.finish_stream();
             self.trace.finish("protocol_error");
             return Poll::Ready(Some(Err(Http2Error::protocol(::http2::Error::from(
                 ::http2::Reason::INTERNAL_ERROR,
@@ -70,43 +91,33 @@ impl Http2Body {
                 self.trace.add_bytes(data.len());
                 if end_stream {
                     self.finished = true;
-                    self.incoming.take();
-                    self.reset.take();
-                    self.lease.take();
+                    self.finish_stream();
                     self.trace.finish("complete");
                 }
                 Poll::Ready(Some(Ok(Frame::data(data))))
             }
             Poll::Ready(Some(Err(error))) => {
                 self.finished = true;
-                self.incoming.take();
-                self.reset.take();
-                self.lease.take();
+                self.finish_stream();
                 self.trace.finish("protocol_error");
                 Poll::Ready(Some(Err(Http2Error::protocol(error))))
             }
             Poll::Ready(None) => match incoming.poll_trailers(context) {
                 Poll::Ready(Ok(Some(trailers))) => {
                     self.finished = true;
-                    self.incoming.take();
-                    self.reset.take();
-                    self.lease.take();
+                    self.finish_stream();
                     self.trace.finish("complete");
                     Poll::Ready(Some(Ok(Frame::trailers(trailers))))
                 }
                 Poll::Ready(Ok(None)) => {
                     self.finished = true;
-                    self.incoming.take();
-                    self.reset.take();
-                    self.lease.take();
+                    self.finish_stream();
                     self.trace.finish("complete");
                     Poll::Ready(None)
                 }
                 Poll::Ready(Err(error)) => {
                     self.finished = true;
-                    self.incoming.take();
-                    self.reset.take();
-                    self.lease.take();
+                    self.finish_stream();
                     self.trace.finish("protocol_error");
                     Poll::Ready(Some(Err(Http2Error::protocol(error))))
                 }

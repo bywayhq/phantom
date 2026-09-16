@@ -1,13 +1,10 @@
-use std::{
-    collections::VecDeque,
-    num::NonZeroUsize,
-    sync::{Arc, Weak},
-};
+use std::{collections::VecDeque, num::NonZeroUsize, sync::Arc};
 
 use phantom_net::http3::{Http3Connection, Http3Connector, OriginForm, RequestHeader};
-use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore};
+use tokio::sync::Mutex;
 use tracing::debug;
 
+use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 pub(crate) struct Http3Pool {
@@ -111,7 +108,7 @@ impl Http3Pool {
 #[derive(Default)]
 struct PoolState {
     entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
-    admissions: Vec<(PoolKey, Weak<Admission>)>,
+    admissions: AdmissionRegistry<PoolKey>,
 }
 
 impl PoolState {
@@ -121,18 +118,7 @@ impl PoolState {
         max_active: NonZeroUsize,
         max_pending: NonZeroUsize,
     ) -> Arc<Admission> {
-        self.admissions
-            .retain(|(_, admission)| admission.strong_count() != 0);
-        if let Some(admission) = self.admissions.iter().find_map(|(candidate, admission)| {
-            (candidate == key).then(|| admission.upgrade()).flatten()
-        }) {
-            return admission;
-        }
-
-        let admission = Arc::new(Admission::new(max_active, max_pending));
-        self.admissions
-            .push((key.clone(), Arc::downgrade(&admission)));
-        admission
+        self.admissions.get(key, max_active, max_pending)
     }
 }
 
@@ -158,11 +144,6 @@ struct PoolEntry {
     admission: Arc<Admission>,
 }
 
-struct Admission {
-    active: Arc<Semaphore>,
-    pending: Arc<Semaphore>,
-}
-
 impl PoolEntry {
     fn new(admission: Arc<Admission>) -> Self {
         Self {
@@ -172,7 +153,7 @@ impl PoolEntry {
     }
 
     async fn admit(&self) -> Result<AdmissionPermit, RequestError> {
-        self.admission.clone().admit().await
+        Arc::clone(&self.admission).admit(HttpProtocol::Http3).await
     }
 
     async fn acquire(
@@ -223,41 +204,6 @@ impl PoolEntry {
     }
 }
 
-impl Admission {
-    fn new(max_active: NonZeroUsize, max_pending: NonZeroUsize) -> Self {
-        Self {
-            active: Arc::new(Semaphore::new(max_active.get())),
-            pending: Arc::new(Semaphore::new(max_pending.get())),
-        }
-    }
-
-    async fn admit(self: Arc<Self>) -> Result<AdmissionPermit, RequestError> {
-        if let Ok(permit) = Arc::clone(&self.active).try_acquire_owned() {
-            return Ok(AdmissionPermit {
-                _admission: self,
-                _permit: permit,
-            });
-        }
-        let pending = Arc::clone(&self.pending)
-            .try_acquire_owned()
-            .map_err(|_| RequestError::capacity(HttpProtocol::Http3))?;
-        let active = Arc::clone(&self.active)
-            .acquire_owned()
-            .await
-            .map_err(|_| RequestError::capacity(HttpProtocol::Http3))?;
-        drop(pending);
-        Ok(AdmissionPermit {
-            _admission: self,
-            _permit: active,
-        })
-    }
-}
-
-struct AdmissionPermit {
-    _admission: Arc<Admission>,
-    _permit: OwnedSemaphorePermit,
-}
-
 struct ConnectionSlot {
     connection: Http3Connection,
     token: Arc<()>,
@@ -298,10 +244,10 @@ mod tests {
         drop(first_entry);
         let replacement = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
 
-        assert!(Arc::ptr_eq(&permit._admission, &replacement.admission));
-        assert_eq!(replacement.admission.active.available_permits(), 0);
+        assert!(Arc::ptr_eq(permit.admission(), &replacement.admission));
+        assert_eq!(replacement.admission.available_active(), 0);
         drop(permit);
-        assert_eq!(replacement.admission.active.available_permits(), 1);
+        assert_eq!(replacement.admission.available_active(), 1);
         Ok(())
     }
 }

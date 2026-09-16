@@ -262,7 +262,6 @@ impl RequestBuilder {
                                 request_headers,
                             )
                             .await
-                            .map_err(RequestError::http2)
                     } else {
                         let response = match route {
                             Route::Direct => {
