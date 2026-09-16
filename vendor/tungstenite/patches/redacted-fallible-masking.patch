@@ -1,0 +1,278 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 5cc4ee9..422426e 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -33,7 +33,9 @@ mod tls;
+ mod utf8;
+ pub mod util;
+ 
++#[cfg(feature = "handshake")]
+ const READ_BUFFER_CHUNK_SIZE: usize = 4096;
++#[cfg(feature = "handshake")]
+ type ReadBuffer = buffer::ReadBuffer<READ_BUFFER_CHUNK_SIZE>;
+ 
+ pub use crate::{
+diff --git a/src/error.rs b/src/error.rs
+index 0bddb6d..1fa057b 100644
+--- a/src/error.rs
++++ b/src/error.rs
+@@ -39,6 +39,9 @@ pub enum Error {
+     /// underlying connection and you should probably consider them fatal.
+     #[error("IO error: {0}")]
+     Io(#[from] io::Error),
++    /// The operating system could not generate a client frame mask.
++    #[error("Failed to generate a WebSocket frame mask")]
++    Random(#[source] rand::rngs::SysError),
+     /// TLS error.
+     ///
+     /// Note that this error variant is enabled unconditionally even if no TLS feature is enabled,
+@@ -76,14 +79,14 @@ pub enum Error {
+ }
+ 
+ impl From<str::Utf8Error> for Error {
+-    fn from(err: str::Utf8Error) -> Self {
+-        Error::Utf8(err.to_string())
++    fn from(_err: str::Utf8Error) -> Self {
++        Error::Utf8("invalid UTF-8 in WebSocket text message".into())
+     }
+ }
+ 
+ impl From<string::FromUtf8Error> for Error {
+-    fn from(err: string::FromUtf8Error) -> Self {
+-        Error::Utf8(err.to_string())
++    fn from(_err: string::FromUtf8Error) -> Self {
++        Error::Utf8("invalid UTF-8 in WebSocket text message".into())
+     }
+ }
+ 
+@@ -256,6 +259,9 @@ pub enum ProtocolError {
+     /// The payload for the closing frame is invalid.
+     #[error("Invalid close sequence")]
+     InvalidCloseSequence,
++    /// The closing frame contains a reserved or otherwise forbidden code.
++    #[error("Invalid close code: {0}")]
++    InvalidCloseCode(u16),
+ }
+ 
+ /// Indicates the specific type/cause of URL error.
+diff --git a/src/protocol/frame/mask.rs b/src/protocol/frame/mask.rs
+index ae3b668..8ca0f08 100644
+--- a/src/protocol/frame/mask.rs
++++ b/src/protocol/frame/mask.rs
+@@ -1,7 +1,15 @@
++use rand::TryRng;
++
++use crate::{Error, Result};
++
+ /// Generate a random frame mask.
+ #[inline]
+-pub fn generate_mask() -> [u8; 4] {
+-    rand::random()
++pub fn generate_mask() -> Result<[u8; 4]> {
++    let mut mask = [0_u8; 4];
++    rand::rngs::SysRng
++        .try_fill_bytes(&mut mask)
++        .map_err(Error::Random)?;
++    Ok(mask)
+ }
+ 
+ /// Mask/unmask a frame.
+diff --git a/src/protocol/frame/frame.rs b/src/protocol/frame/frame.rs
+index 082006d..6001bfc 100644
+--- a/src/protocol/frame/frame.rs
++++ b/src/protocol/frame/frame.rs
+@@ -126,8 +126,9 @@ impl FrameHeader {
+     /// Generate a random frame mask and store this in the header.
+     ///
+     /// Of course this does not change frame contents. It just generates a mask.
+-    pub(crate) fn set_random_mask(&mut self) {
+-        self.mask = Some(generate_mask());
++    pub(crate) fn set_random_mask(&mut self) -> Result<()> {
++        self.mask = Some(generate_mask()?);
++        Ok(())
+     }
+ }
+ 
+@@ -254,8 +255,8 @@ impl Frame {
+     /// This just generates a mask, payload is not changed. The actual masking is performed
+     /// either on `format()` or on `apply_mask()` call.
+     #[inline]
+-    pub(crate) fn set_random_mask(&mut self) {
+-        self.header.set_random_mask();
++    pub(crate) fn set_random_mask(&mut self) -> Result<()> {
++        self.header.set_random_mask()
+     }
+ 
+     /// Consume the frame into its payload as string.
+diff --git a/src/protocol/mod.rs b/src/protocol/mod.rs
+index 2f1e3bf..f591af1 100644
+--- a/src/protocol/mod.rs
++++ b/src/protocol/mod.rs
+@@ -8,15 +8,12 @@ pub use self::{frame::CloseFrame, message::Message};
+ 
+ use self::{
+     frame::{
+-        coding::{CloseCode, Control as OpCtl, Data as OpData, OpCode},
++        coding::{Control as OpCtl, Data as OpData, OpCode},
+         Frame, FrameCodec,
+     },
+     message::{IncompleteMessage, MessageType},
+ };
+-use crate::{
+-    error::{CapacityError, Error, ProtocolError, Result},
+-    protocol::frame::Utf8Bytes,
+-};
++use crate::error::{CapacityError, Error, ProtocolError, Result};
+ use log::*;
+ use std::{
+     io::{self, Read, Write},
+@@ -472,7 +469,7 @@ impl WebSocketContext {
+             // If we get here, either write blocks or we have nothing to write.
+             // Thus if read blocks, just let it return WouldBlock.
+             if let Some(message) = self.read_message_frame(stream)? {
+-                trace!("Received message {message}");
++                trace!("Received WebSocket message");
+                 return Ok(message);
+             }
+         }
+@@ -661,7 +658,9 @@ impl WebSocketContext {
+                     _ if frame.payload().len() > 125 => {
+                         Err(Error::Protocol(ProtocolError::ControlFrameTooBig))
+                     }
+-                    OpCtl::Close => Ok(self.do_close(frame.into_close()?).map(Message::Close)),
++                    OpCtl::Close => self
++                        .do_close(frame.into_close()?)
++                        .map(|close| close.map(Message::Close)),
+                     OpCtl::Reserved(i) => {
+                         Err(Error::Protocol(ProtocolError::UnknownControlFrameType(i)))
+                     }
+@@ -715,37 +714,31 @@ impl WebSocketContext {
+ 
+     /// Received a close frame. Tells if we need to return a close frame to the user.
+     #[allow(clippy::option_option)]
+-    fn do_close(&mut self, close: Option<CloseFrame>) -> Option<Option<CloseFrame>> {
+-        debug!("Received close frame: {close:?}");
++    fn do_close(&mut self, close: Option<CloseFrame>) -> Result<Option<Option<CloseFrame>>> {
++        debug!("Received WebSocket close frame");
++        if let Some(frame) = &close {
++            if !frame.code.is_allowed() {
++                return Err(ProtocolError::InvalidCloseCode(frame.code.into()).into());
++            }
++        }
+         match self.state {
+             WebSocketState::Active => {
+                 self.state = WebSocketState::ClosedByPeer;
+ 
+-                let close = close.map(|frame| {
+-                    if !frame.code.is_allowed() {
+-                        CloseFrame {
+-                            code: CloseCode::Protocol,
+-                            reason: Utf8Bytes::from_static("Protocol violation"),
+-                        }
+-                    } else {
+-                        frame
+-                    }
+-                });
+-
+                 let reply = Frame::close(close.clone());
+-                debug!("Replying to close with {reply:?}");
++                debug!("Replying with WebSocket close frame");
+                 self.set_additional(reply);
+ 
+-                Some(close)
++                Ok(Some(close))
+             }
+             WebSocketState::ClosedByPeer | WebSocketState::CloseAcknowledged => {
+                 // It is already closed, just ignore.
+-                None
++                Ok(None)
+             }
+             WebSocketState::ClosedByUs => {
+                 // We received a reply.
+                 self.state = WebSocketState::CloseAcknowledged;
+-                Some(close)
++                Ok(Some(close))
+             }
+             WebSocketState::Terminated => unreachable!(),
+         }
+@@ -761,11 +754,11 @@ impl WebSocketContext {
+             Role::Client => {
+                 // 5.  If the data is being sent by the client, the frame(s) MUST be
+                 // masked as defined in Section 5.3. (RFC 6455)
+-                frame.set_random_mask();
++                frame.set_random_mask()?;
+             }
+         }
+ 
+-        trace!("Sending frame: {frame:?}");
++        trace!("Sending WebSocket frame");
+         self.frame.buffer_frame(stream, frame).check_connection_reset(self.state)
+     }
+ 
+diff --git a/src/protocol/frame/mod.rs b/src/protocol/frame/mod.rs
+index 51cd54f..e2fc551 100644
+--- a/src/protocol/frame/mod.rs
++++ b/src/protocol/frame/mod.rs
+@@ -226,7 +226,7 @@ impl FrameCodec {
+         }
+ 
+         let frame = Frame::from_payload(header, payload.freeze());
+-        trace!("received frame {frame}");
++        trace!("received WebSocket frame");
+         Ok(Some(frame))
+     }
+ 
+@@ -255,7 +255,7 @@ impl FrameCodec {
+             return Err(Error::WriteBufferFull(Message::Frame(frame).into()));
+         }
+ 
+-        trace!("writing frame {frame}");
++        trace!("writing WebSocket frame");
+ 
+         self.out_buffer.reserve(frame.len());
+         frame.format_into_buf(&mut self.out_buffer).expect("Bug: can't write to vector");
+diff --git a/src/protocol/message.rs b/src/protocol/message.rs
+index 51ccf4b..6a07868 100644
+--- a/src/protocol/message.rs
++++ b/src/protocol/message.rs
+@@ -35,8 +35,10 @@ mod string_collect {
+                     input = completed.remaining_input;
+                     match completed.result {
+                         Ok(text) => self.data.push_str(text),
+-                        Err(result_bytes) => {
+-                            return Err(Error::Utf8(String::from_utf8_lossy(result_bytes).into()))
++                        Err(_) => {
++                            return Err(Error::Utf8(
++                                "invalid UTF-8 in WebSocket text message".into(),
++                            ))
+                         }
+                     }
+                 } else {
+@@ -56,9 +58,11 @@ mod string_collect {
+                         self.incomplete = Some(incomplete_suffix);
+                         Ok(())
+                     }
+-                    Err(DecodeError::Invalid { valid_prefix, invalid_sequence, .. }) => {
++                    Err(DecodeError::Invalid { valid_prefix, .. }) => {
+                         self.data.push_str(valid_prefix);
+-                        Err(Error::Utf8(String::from_utf8_lossy(invalid_sequence).into()))
++                        Err(Error::Utf8(
++                            "invalid UTF-8 in WebSocket text message".into(),
++                        ))
+                     }
+                 }
+             } else {
+@@ -67,8 +71,10 @@ mod string_collect {
+         }
+ 
+         pub fn into_string(self) -> Result<String> {
+-            if let Some(incomplete) = self.incomplete {
+-                Err(Error::Utf8(format!("incomplete string: {incomplete:?}")))
++            if self.incomplete.is_some() {
++                Err(Error::Utf8(
++                    "incomplete UTF-8 in WebSocket text message".into(),
++                ))
+             } else {
+                 Ok(self.data)
+             }
+

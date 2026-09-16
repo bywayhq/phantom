@@ -55,19 +55,22 @@ flowchart TB
     H1 --> SSE
     H2 --> SSE
     H3 --> SSE
-    H1 -.-> WS
+    H1 --> WS
     H2 -.-> WS
     H3 -.-> WS
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Client,Session,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC,SSE current
-    class FutureRoute,WS planned
+    class Client,Session,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC,SSE,WS current
+    class FutureRoute planned
 ```
 
 The optional SSE decoder is a response-body consumer, not another transport.
-WebSocket owns its
-handshake and frame state machine while reusing the selected HTTP connection.
+The current WebSocket slice owns an ordered H1 opening handshake and a bounded
+message facade while reusing the selected route and TLS connector. Its frame
+state machine is delegated to `tokio-tungstenite`; Phantom does not delegate
+header serialization, handshake validation, routing, or public types.
+H2 extended CONNECT and H3 WebSocket remain evidence-gated follow-up work.
 H3 gets a separate QUIC path because forcing TCP and QUIC through one transport
 trait would hide protocol-specific lifecycle, telemetry, and fingerprint
 controls.

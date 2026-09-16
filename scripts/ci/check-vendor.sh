@@ -91,6 +91,30 @@ check_h3_patch_replay() {
     --exclude=patches --exclude=target "$candidate" vendor/h3
 }
 
+check_tungstenite_patch_replay() {
+  local staging archive candidate actual_checksum
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-tungstenite-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  archive="$staging/tungstenite-0.30.0.crate"
+  curl --fail --location --silent --show-error --retry 3 \
+    --output "$archive" \
+    https://static.crates.io/crates/tungstenite/tungstenite-0.30.0.crate
+  if command -v shasum >/dev/null 2>&1; then
+    actual_checksum=$(shasum -a 256 "$archive" | awk '{print $1}')
+  else
+    actual_checksum=$(sha256sum "$archive" | awk '{print $1}')
+  fi
+  [[ "$actual_checksum" == e48ac77174b19c110a50ab2128b24215ac9cb40e0e12e093fb602d175c569d22 ]]
+  tar -xzf "$archive" -C "$staging"
+  candidate="$staging/tungstenite-0.30.0"
+  git -C "$candidate" apply --check \
+    "$PWD/vendor/tungstenite/patches/redacted-fallible-masking.patch"
+  git -C "$candidate" apply \
+    "$PWD/vendor/tungstenite/patches/redacted-fallible-masking.patch"
+  diff -qr --exclude=.cargo-ok --exclude=PHANTOM.md --exclude=patches --exclude=target \
+    "$candidate" vendor/tungstenite
+}
+
 case "${1:-}" in
   btls)
     case "$(uname -s)" in
@@ -155,8 +179,17 @@ case "${1:-}" in
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport \
       --all-features --locked
     ;;
+  tungstenite)
+    check_tungstenite_patch_replay
+    cargo clippy --manifest-path vendor/tungstenite/Cargo.toml \
+      --lib --no-default-features --locked -- -D warnings
+    cargo test --manifest-path vendor/tungstenite/Cargo.toml \
+      --lib --no-default-features --locked
+    cargo test --manifest-path vendor/tungstenite/Cargo.toml \
+      --lib --all-features --locked
+    ;;
   *)
-    echo "usage: $0 {btls|http2|quinn-proto|h3}" >&2
+    echo "usage: $0 {btls|http2|quinn-proto|h3|tungstenite}" >&2
     exit 2
     ;;
 esac

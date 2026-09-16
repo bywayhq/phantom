@@ -96,10 +96,6 @@ where
 /// Returns [`HttpConnectError`] for invalid input, runtime or connection
 /// failure, proxy I/O failure, and rejection by the proxy.
 ///
-/// # Panics
-///
-/// Tokio may panic if the current runtime was built without network I/O
-/// enabled.
 pub async fn connect_http_tunnel_direct(
     proxy_host: &str,
     proxy_port: u16,

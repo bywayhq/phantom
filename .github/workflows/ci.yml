@@ -54,7 +54,10 @@ jobs:
           cargo check -p phantom --no-default-features --locked
           cargo check -p phantom --no-default-features --features cookies --locked
           cargo check -p phantom --no-default-features --features sse --locked
+          cargo check -p phantom --no-default-features --features websocket --locked
           cargo check -p phantom --no-default-features --features cookies,sse --locked
+          cargo check -p phantom --no-default-features --features cookies,websocket --locked
+          cargo check -p phantom --no-default-features --features sse,websocket --locked
           cargo check -p phantom --all-features --locked
           cargo check -p phantom-net --no-default-features --locked
           cargo check -p phantom-net --no-default-features --features qlog --locked
@@ -90,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [btls, http2, quinn-proto, h3]
+        package: [btls, http2, quinn-proto, h3, tungstenite]
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -195,7 +198,10 @@ jobs:
         run: |
           cargo "+$MSRV" check -p phantom --no-default-features --features cookies --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features sse --locked
+          cargo "+$MSRV" check -p phantom --no-default-features --features websocket --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features cookies,sse --locked
+          cargo "+$MSRV" check -p phantom --no-default-features --features cookies,websocket --locked
+          cargo "+$MSRV" check -p phantom --no-default-features --features sse,websocket --locked
           cargo "+$MSRV" check -p phantom --all-features --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked
           cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features keylog --locked

@@ -6,10 +6,7 @@ use std::{
     task::Poll,
 };
 
-use bytes::Bytes;
-use http_body_util::Empty;
 use tokio::{
-    io::{AsyncRead, AsyncWrite},
     runtime::Handle,
     sync::oneshot,
     task::{JoinError, JoinHandle},
@@ -17,7 +14,6 @@ use tokio::{
 use tracing::{
     Instrument, Span, debug, debug_span, dispatcher, field, instrument::WithSubscriber, warn,
 };
-use wreq_proto::conn::http1;
 
 /// Signals the connection driver's origin-runtime supervisor when dropped.
 ///
@@ -28,9 +24,9 @@ pub(super) struct DriverTask {
 }
 
 impl DriverTask {
-    pub(super) fn spawn<T>(connection: http1::Connection<T, Empty<Bytes>>) -> Self
+    pub(super) fn spawn<F>(connection: F) -> Self
     where
-        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        F: Future<Output = Result<(), wreq_proto::Error>> + Send + 'static,
     {
         let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);

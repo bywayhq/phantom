@@ -33,9 +33,12 @@ TCP-only CONNECT route before network I/O. The optional `cookies` capability
 adds a bounded, explicit session jar with public-suffix, prefix, expiry, and
 deterministic ordering rules. A feature-gated, bounded SSE decoder consumes
 the same response body without a background task; reconnection remains later
-session policy. H1/H3 pooling, HTTPS proxies, SOCKS, UDP-capable proxies,
-redirects, retries, and WebSocket remain planned. The project does not make
-broad client-compatibility claims.
+session policy. Feature-gated WebSocket support performs an exact ordered H1
+Upgrade over the same TLS and direct-or-CONNECT route, then exposes bounded
+message I/O through Phantom-owned types. H1/H3 pooling, HTTPS proxies, SOCKS,
+UDP-capable proxies, redirects, retries, WebSocket extensions, and extended
+CONNECT remain planned. The project does not make broad client-compatibility
+claims.
 
 ## Principles
 
@@ -90,8 +93,8 @@ default route or `RequestBuilder::route` for an owned per-request override.
 ## Current workspace
 
 - `phantom`: the public exact-protocol client facade, session-owned H2 reuse,
-  direct routes, plaintext HTTP CONNECT for H1/H2, streaming responses, and
-  optional bounded cookie and SSE capabilities
+  direct routes, plaintext HTTP CONNECT for H1/H2 and H1 WebSocket, streaming
+  responses, and optional bounded cookie, SSE, and WebSocket capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
@@ -120,6 +123,7 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [async and feature policy](docs/async-and-features.md),
 [session state and pooling](docs/session.md),
 [SSE decoder](docs/sse.md),
+[WebSocket](docs/websocket.md),
 [Rust quality review](docs/rust-quality.md),
 [adversarial testing](docs/adversarial-testing.md),
 [dynamic QPACK design](docs/qpack-design.md),

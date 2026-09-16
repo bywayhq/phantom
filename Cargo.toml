@@ -6,7 +6,7 @@ members = [
     "crates/phantom-quic-btls",
     "crates/phantom-testkit",
 ]
-exclude = ["vendor/btls", "vendor/http2", "vendor/quinn-proto"]
+exclude = ["vendor/btls", "vendor/http2", "vendor/quinn-proto", "vendor/tungstenite"]
 resolver = "3"
 
 [workspace.package]
@@ -32,6 +32,7 @@ h3-datagram = { path = "vendor/h3/h3-datagram" }
 h3-quinn = { path = "vendor/h3/h3-quinn" }
 http2 = { path = "vendor/http2" }
 quinn-proto = { path = "vendor/quinn-proto" }
+tungstenite = { path = "vendor/tungstenite" }
 
 [patch."https://github.com/0xARYA/btls"]
 btls = { path = "vendor/btls" }

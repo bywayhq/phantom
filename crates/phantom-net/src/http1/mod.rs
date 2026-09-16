@@ -21,12 +21,14 @@ use wreq_proto::conn::http1;
 use driver::DriverTask;
 use request::PreparedGet;
 use response_head::ResponseHeadObserver;
+use upgrade::send_prepared_upgrade;
 
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http1Body;
+pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
 
 /// Error returned by a one-shot HTTP/1.1 transaction.
 #[derive(Debug)]
@@ -69,6 +71,8 @@ pub enum Http1Error {
     },
     /// The response contained both `Transfer-Encoding` and `Content-Length`.
     AmbiguousResponseFraming,
+    /// An ordinary request received an unsolicited protocol switch.
+    UnexpectedUpgrade,
     /// The HTTP backend completed a response without its ordered field capture.
     MissingResponseHeaderOrder,
     /// The HTTP protocol driver failed.
@@ -111,6 +115,9 @@ impl fmt::Display for Http1Error {
             Self::AmbiguousResponseFraming => formatter.write_str(
                 "response contains both Transfer-Encoding and Content-Length; connection discarded",
             ),
+            Self::UnexpectedUpgrade => {
+                formatter.write_str("ordinary HTTP/1 request received an unexpected 101 response")
+            }
             Self::MissingResponseHeaderOrder => {
                 formatter.write_str("HTTP/1 response header order was not captured")
             }
@@ -145,6 +152,7 @@ impl Http1Error {
             Self::MultipleHost => "multiple_host",
             Self::RequestFramingHeader { .. } => "request_framing_header",
             Self::AmbiguousResponseFraming => "invalid_response_framing",
+            Self::UnexpectedUpgrade => "unexpected_upgrade",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
             Self::Protocol(_) => "protocol",
         }
@@ -217,6 +225,9 @@ where
         drop(sender);
 
         Span::current().record("status", response.status().as_u16());
+        if response.status() == http::StatusCode::SWITCHING_PROTOCOLS {
+            return Err(Http1Error::UnexpectedUpgrade);
+        }
         if response.headers().contains_key(TRANSFER_ENCODING)
             && response.headers().contains_key(CONTENT_LENGTH)
         {
@@ -292,5 +303,6 @@ mod driver;
 mod request;
 mod response_head;
 mod tls;
+mod upgrade;
 
 pub use tls::{Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};

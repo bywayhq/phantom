@@ -9,20 +9,24 @@ publish = false
 [features]
 default = []
 cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl", "dep:url"]
-full = ["cookies", "sse"]
+full = ["cookies", "sse", "websocket"]
 sse = []
+websocket = ["dep:btls", "dep:futures-util", "dep:tokio-tungstenite"]
 
 [dependencies]
+btls = { workspace = true, optional = true }
 bytes.workspace = true
 cookie = { version = "=0.18.2", optional = true }
 cookie_store = { version = "=0.22.0", optional = true, default-features = false }
 http = "1.4.0"
 http-body = "1.0.1"
+futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["sink", "std"] }
 parking_lot = { version = "=0.12.5", optional = true }
 phantom-net = { path = "../phantom-net" }
 phantom-profile = { path = "../phantom-profile" }
 psl = { version = "=2.1.232", optional = true }
 tokio = { version = "1.53.1", features = ["sync"] }
+tokio-tungstenite = { version = "=0.30.0", optional = true, default-features = false }
 tracing = "0.1.41"
 url = { version = "=2.5.8", optional = true }
 

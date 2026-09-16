@@ -4,6 +4,8 @@ use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector, http3::Htt
 use phantom_profile::ClientProfile;
 
 use crate::{BuildError, RequestBuilder, Route, Session, SessionBuilder};
+#[cfg(feature = "websocket")]
+use crate::{WebSocketError, WebSocketRequestBuilder};
 
 /// HTTP protocol selected for one request.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -67,6 +69,12 @@ impl Client {
         uri: &str,
     ) -> Result<RequestBuilder, crate::RequestError> {
         RequestBuilder::new_client(self.clone(), protocol, uri)
+    }
+
+    /// Starts one ordered secure WebSocket opening handshake over HTTP/1.1.
+    #[cfg(feature = "websocket")]
+    pub fn websocket(&self, uri: &str) -> Result<WebSocketRequestBuilder, WebSocketError> {
+        WebSocketRequestBuilder::new_client(self.clone(), uri)
     }
 
     /// Creates an isolated session with default bounded state.

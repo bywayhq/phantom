@@ -60,7 +60,7 @@ The intended vocabulary is:
 | Session policy | `cookies` | Adds a cookie store integration; client-hint state stays separately controlled because it has different rules. |
 | Content decoding | `gzip`, `brotli`, `deflate`, `zstd` | Response `Content-Encoding`; distinct from TLS certificate compression. |
 | Routes | `socks`, later `masque`, possibly `system-proxy` | Compiles a route implementation; never enables proxy discovery or fallback by itself. |
-| Higher protocols | `sse`, later `websocket` | `sse` adds the bounded pull decoder; higher protocols reuse existing body and connection seams. |
+| Higher protocols | `sse`, `websocket` | `sse` adds the bounded pull decoder. `websocket` adds ordered H1 Upgrade plus bounded `Stream`/`Sink` message I/O. |
 | Diagnostics | `qlog`, `keylog` | Compiles support; emission still requires an explicit bounded runtime sink. |
 | Convenience | `full` | Enables all stable public optional capabilities, excluding tests and unstable experiments. |
 
@@ -88,5 +88,7 @@ The public `phantom` crate has an empty default set. `cookies` compiles the
 bounded cookie jar but does not activate it until
 `SessionBuilder::cookies` or `SessionBuilder::cookie_jar` is selected. `sse`
 enables the server-sent event response decoder documented in [sse.md](sse.md).
-`full` enables both stable optional public capabilities. Core response
+`websocket` enables the ordered H1 opening handshake and bounded message
+facade documented in [websocket.md](websocket.md). `full` enables all stable
+optional public capabilities. Core response
 streaming and session-owned H2 reuse remain unconditional.

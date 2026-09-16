@@ -8,8 +8,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http1Body, Http1Error, OperationOutcome, OriginForm, PreparedGet, RequestHeader,
-    send_prepared_get,
+    Http1Body, Http1Error, Http1UpgradeOutcome, OperationOutcome, OriginForm, PreparedGet,
+    RequestHeader, send_prepared_get, send_prepared_upgrade,
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
@@ -93,10 +93,6 @@ impl Http1TlsConnector {
     /// Returns [`Http1TlsError`] when request preparation, connection setup,
     /// TLS negotiation, or HTTP/1 processing fails.
     ///
-    /// # Panics
-    ///
-    /// Tokio may panic if the current runtime was built without network I/O
-    /// enabled.
     pub async fn send_get_direct(
         &self,
         host: &str,
@@ -127,10 +123,6 @@ impl Http1TlsConnector {
     /// Returns [`Http1TlsError`] when request preparation, proxy negotiation,
     /// TLS negotiation, or HTTP/1 processing fails.
     ///
-    /// # Panics
-    ///
-    /// Tokio may panic if the current runtime was built without network I/O
-    /// enabled.
     #[allow(clippy::too_many_arguments)]
     pub async fn send_get_http_connect(
         &self,
@@ -152,6 +144,61 @@ impl Http1TlsConnector {
             )
             .await?;
             self.send_prepared_get(stream, server_name, prepared).await
+        })
+        .await
+    }
+
+    /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS connection.
+    ///
+    /// A `101 Switching Protocols` response yields the upgraded byte stream.
+    /// Any other status remains an ordinary streaming HTTP response. The
+    /// complete request is validated before DNS resolution or TCP I/O.
+    pub async fn upgrade_get_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = connect_tcp(host, port).await.map_err(|error| match error {
+                DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+            })?;
+            self.send_prepared_upgrade(stream, server_name, prepared)
+                .await
+        })
+        .await
+    }
+
+    /// Sends one HTTP/1.1 Upgrade GET through a plaintext HTTP CONNECT proxy.
+    ///
+    /// Origin and proxy requests are validated before proxy or origin I/O.
+    /// Proxy failure never falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = connect_http_tunnel_direct(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+            )
+            .await?;
+            self.send_prepared_upgrade(stream, server_name, prepared)
+                .await
         })
         .await
     }
@@ -184,6 +231,38 @@ impl Http1TlsConnector {
         Ok(response)
     }
 
+    async fn send_prepared_upgrade<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        prepared: PreparedGet,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        debug!("HTTP/1 Upgrade request prepared");
+
+        let stream = self.tls.connect(server_name, stream).await?;
+        let negotiated_alpn = stream.negotiated_alpn();
+        Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
+        if let Some(selected) = negotiated_alpn {
+            if selected != b"http/1.1" {
+                debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
+                return Err(Http1TlsError::UnsupportedAlpn {
+                    selected: selected.into(),
+                });
+            }
+        }
+
+        let outcome = send_prepared_upgrade(stream, prepared).await?;
+        let status = match &outcome {
+            Http1UpgradeOutcome::Upgraded(response) => response.status(),
+            Http1UpgradeOutcome::Rejected(response) => response.status(),
+        };
+        Span::current().record("status", status.as_u16());
+        Ok(outcome)
+    }
+
     async fn trace_response_head<F>(
         &self,
         operation: F,
@@ -208,7 +287,45 @@ impl Http1TlsConnector {
             Err(Http1TlsError::Proxy(_)) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
             Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
-            Err(Http1TlsError::Http1(Http1Error::AmbiguousResponseFraming)) => "invalid_response",
+            Err(Http1TlsError::Http1(
+                Http1Error::AmbiguousResponseFraming | Http1Error::UnexpectedUpgrade,
+            )) => "invalid_response",
+            Err(Http1TlsError::Http1(Http1Error::MissingResponseHeaderOrder)) => {
+                "http_protocol_error"
+            }
+            Err(Http1TlsError::Http1(_)) => "http_preparation_error",
+            Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
+            Err(Http1TlsError::MissingHttp1Alpn) => "invalid_configuration",
+        };
+        outcome_guard.finish(outcome);
+        result
+    }
+
+    async fn trace_upgrade<F>(&self, operation: F) -> Result<Http1UpgradeOutcome, Http1TlsError>
+    where
+        F: Future<Output = Result<Http1UpgradeOutcome, Http1TlsError>>,
+    {
+        let span = debug_span!(
+            "http1.tls.upgrade_response_head",
+            method = "GET",
+            transport = "tls",
+            negotiated_alpn = field::Empty,
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = operation.instrument(span.clone()).await;
+        let outcome = match &result {
+            Ok(Http1UpgradeOutcome::Upgraded(_)) => "upgraded",
+            Ok(Http1UpgradeOutcome::Rejected(_)) => "rejected",
+            Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
+            Err(Http1TlsError::Connect(_)) => "connect_error",
+            Err(Http1TlsError::Proxy(_)) => "proxy_error",
+            Err(Http1TlsError::Tls(_)) => "tls_error",
+            Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
+            Err(Http1TlsError::Http1(
+                Http1Error::AmbiguousResponseFraming | Http1Error::UnexpectedUpgrade,
+            )) => "invalid_response",
             Err(Http1TlsError::Http1(Http1Error::MissingResponseHeaderOrder)) => {
                 "http_protocol_error"
             }

@@ -1,6 +1,8 @@
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use crate::{Client, HttpProtocol, RequestBuilder, RequestError};
+#[cfg(feature = "websocket")]
+use crate::{WebSocketError, WebSocketRequestBuilder};
 
 #[cfg(feature = "cookies")]
 mod cookies;
@@ -42,6 +44,12 @@ impl Session {
     /// or the URI, authority, or request target is invalid.
     pub fn get(&self, protocol: HttpProtocol, uri: &str) -> Result<RequestBuilder, RequestError> {
         RequestBuilder::new_session(self.clone(), protocol, uri)
+    }
+
+    /// Starts a secure WebSocket handshake with this session's route and cookies.
+    #[cfg(feature = "websocket")]
+    pub fn websocket(&self, uri: &str) -> Result<WebSocketRequestBuilder, WebSocketError> {
+        WebSocketRequestBuilder::new_session(self.clone(), uri)
     }
 
     /// Returns this session's cookie jar when cookie handling was enabled.

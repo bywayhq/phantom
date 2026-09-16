@@ -107,10 +107,6 @@ impl Http2TlsConnector {
     /// Returns [`Http2TlsError`] when connection setup, TLS negotiation, ALPS
     /// decoding, or the HTTP/2 handshake fails.
     ///
-    /// # Panics
-    ///
-    /// Tokio may panic if the current runtime was built without network I/O
-    /// enabled.
     pub async fn connect_direct(
         &self,
         host: &str,
@@ -139,10 +135,6 @@ impl Http2TlsConnector {
     /// Returns [`Http2TlsError`] when proxy negotiation, TLS negotiation, ALPS
     /// decoding, or the HTTP/2 handshake fails.
     ///
-    /// # Panics
-    ///
-    /// Tokio may panic if the current runtime was built without network I/O
-    /// enabled.
     pub async fn connect_http_connect(
         &self,
         proxy_host: &str,
@@ -200,10 +192,6 @@ impl Http2TlsConnector {
     /// Returns [`Http2TlsError`] when request preparation, connection setup,
     /// TLS negotiation, or HTTP/2 processing fails.
     ///
-    /// # Panics
-    ///
-    /// Tokio may panic if the current runtime was built without network I/O
-    /// enabled.
     pub async fn send_get_direct(
         &self,
         host: &str,
@@ -235,10 +223,6 @@ impl Http2TlsConnector {
     /// Returns [`Http2TlsError`] when request preparation, proxy negotiation,
     /// TLS negotiation, or HTTP/2 processing fails.
     ///
-    /// # Panics
-    ///
-    /// Tokio may panic if the current runtime was built without network I/O
-    /// enabled.
     #[allow(clippy::too_many_arguments)]
     pub async fn send_get_http_connect(
         &self,

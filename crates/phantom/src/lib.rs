@@ -9,6 +9,8 @@ mod route;
 mod session;
 #[cfg(feature = "sse")]
 mod sse;
+#[cfg(feature = "websocket")]
+mod websocket;
 
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
@@ -20,6 +22,11 @@ pub use session::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
 pub use session::{Session, SessionBuilder};
 #[cfg(feature = "sse")]
 pub use sse::{SseError, SseErrorKind, SseEvent, SseLimits, SseStream};
+#[cfg(feature = "websocket")]
+pub use websocket::{
+    WebSocket, WebSocketCloseFrame, WebSocketError, WebSocketErrorKind, WebSocketHeader,
+    WebSocketLimits, WebSocketMessage, WebSocketRequestBuilder,
+};
 
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::HttpConnectHeader;

@@ -183,8 +183,8 @@ Acceptance:
 - Unsupported profile controls fail validation instead of silently using an
   upstream default.
 
-Protocol negotiation, fallback, session reuse, SSE, and WebSocket remain
-outside this phase.
+Protocol negotiation, fallback, session reuse, SSE, and WebSocket are separate
+client-layer phases rather than part of the HTTP/3 transport acceptance gate.
 
 ## Cross-cutting adversarial validation
 
@@ -295,9 +295,16 @@ Acceptance:
 The feature-gated SSE slice is a bounded pull parser over the ordinary response
 body, with WHATWG field semantics and cancellation-safe incremental reads.
 Reconnect, idle-timeout, and `Last-Event-ID` request policy remain session work.
-WebSocket starts with H1 Upgrade and shares route, TLS, ordered headers, pool
-ownership, cancellation, and tracing with normal requests. RFC 8441 and H3
-WebSocket support follow only with retained wire evidence.
+
+The first feature-gated WebSocket slice is also landed. It performs WSS over
+an exact ordered H1 Upgrade on direct or plaintext-CONNECT routes, retains the
+ordinary response when the server rejects the Upgrade, strictly validates the
+`101`, preserves coalesced post-head bytes, and exposes bounded Phantom-owned
+message types through both methods and standard `Stream`/`Sink` traits.
+Sessions contribute cookies without retaining the exclusive upgraded socket.
+The framing engine is `tokio-tungstenite` with its HTTP/TLS handshake disabled.
+Compression/extensions, reconnect policy, RFC 8441, H3 extended CONNECT, and
+named browser WebSocket recipes wait for retained wire evidence.
 
 ## Phase 8: production hardening and profiling — planned
 
