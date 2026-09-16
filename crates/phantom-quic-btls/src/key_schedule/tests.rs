@@ -145,6 +145,68 @@ fn current_and_updated_keys_cover_every_tls_suite() {
 }
 
 #[test]
+fn current_key_derivation_failures_preserve_secrets_and_retry_exactly() {
+    for stage in [
+        TestDerivationStage::CurrentLocalKeys,
+        TestDerivationStage::CurrentRemoteKeys,
+    ] {
+        let schedule = test_schedule();
+        let control = test_schedule();
+        let local_before = schedule.local.as_slice().to_vec();
+        let remote_before = schedule.remote.as_slice().to_vec();
+        schedule.inject_derivation_failure(TestDerivationFailure::current(stage));
+
+        assert!(matches!(
+            schedule.keys(),
+            Err(CryptoError::BackendFailure("injected key derivation"))
+        ));
+        assert_eq!(schedule.local.as_slice(), local_before);
+        assert_eq!(schedule.remote.as_slice(), remote_before);
+
+        let retry = schedule
+            .keys()
+            .unwrap_or_else(|error| panic!("retry after {stage:?} failed: {error}"));
+        let expected = control
+            .keys()
+            .unwrap_or_else(|error| panic!("control derivation failed: {error}"));
+        assert_direction_keys_match(&retry.local, &expected.local);
+        assert_direction_keys_match(&retry.remote, &expected.remote);
+    }
+}
+
+#[test]
+fn update_derivation_failures_preserve_secrets_and_retry_exactly() {
+    for stage in [
+        TestDerivationStage::NextLocalSecret,
+        TestDerivationStage::NextRemoteSecret,
+        TestDerivationStage::NextLocalPacketKey,
+        TestDerivationStage::NextRemotePacketKey,
+    ] {
+        let mut schedule = test_schedule();
+        let mut control = test_schedule();
+        let local_before = schedule.local.as_slice().to_vec();
+        let remote_before = schedule.remote.as_slice().to_vec();
+        schedule.inject_derivation_failure(TestDerivationFailure::update(stage, 1));
+
+        assert!(matches!(
+            schedule.next_packet_keys(),
+            Err(CryptoError::BackendFailure("injected key derivation"))
+        ));
+        assert_eq!(schedule.local.as_slice(), local_before);
+        assert_eq!(schedule.remote.as_slice(), remote_before);
+
+        let retry = schedule
+            .next_packet_keys()
+            .unwrap_or_else(|error| panic!("retry after {stage:?} failed: {error}"));
+        let expected = control
+            .next_packet_keys()
+            .unwrap_or_else(|error| panic!("control update failed: {error}"));
+        assert_packet_keys_match(&retry.local, &expected.local);
+        assert_packet_keys_match(&retry.remote, &expected.remote);
+    }
+}
+
+#[test]
 fn secret_owning_types_redact_debug_output() {
     let schedule = TrafficKeySchedule::new(
         TLS_AES_128_GCM_SHA256,
@@ -156,6 +218,53 @@ fn secret_owning_types_redact_debug_output() {
 
     assert_eq!(format!("{:?}", schedule.local), "TrafficSecret([REDACTED])");
     assert_eq!(format!("{schedule:?}"), "TrafficKeySchedule([REDACTED])");
+}
+
+fn test_schedule() -> TrafficKeySchedule {
+    TrafficKeySchedule::new(
+        TLS_AES_128_GCM_SHA256,
+        EndpointSide::Client,
+        &[0x33; SHA256_LEN],
+        &[0x44; SHA256_LEN],
+    )
+    .unwrap_or_else(|error| panic!("test schedule failed: {error}"))
+}
+
+fn assert_direction_keys_match(actual: &DirectionKeys, expected: &DirectionKeys) {
+    let mut actual_header = test_header();
+    let mut expected_header = actual_header.clone();
+    actual
+        .header()
+        .protect(5, &mut actual_header)
+        .unwrap_or_else(|error| panic!("actual header protection failed: {error}"));
+    expected
+        .header()
+        .protect(5, &mut expected_header)
+        .unwrap_or_else(|error| panic!("expected header protection failed: {error}"));
+    assert_eq!(actual_header, expected_header);
+    assert_packet_keys_match(actual.packet(), expected.packet());
+}
+
+fn assert_packet_keys_match(actual: &PacketProtectionKey, expected: &PacketProtectionKey) {
+    let mut actual_packet = test_packet();
+    let mut expected_packet = actual_packet.clone();
+    actual
+        .seal(7, &mut actual_packet, 5)
+        .unwrap_or_else(|error| panic!("actual packet protection failed: {error}"));
+    expected
+        .seal(7, &mut expected_packet, 5)
+        .unwrap_or_else(|error| panic!("expected packet protection failed: {error}"));
+    assert_eq!(actual_packet, expected_packet);
+}
+
+fn test_header() -> Vec<u8> {
+    (0..32).map(|value| value as u8).collect()
+}
+
+fn test_packet() -> Vec<u8> {
+    let mut packet = b"headrpayload".to_vec();
+    packet.extend_from_slice(&[0; 16]);
+    packet
 }
 
 fn hex<const N: usize>(input: &str) -> [u8; N] {

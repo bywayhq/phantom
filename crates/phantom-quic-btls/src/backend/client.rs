@@ -14,6 +14,8 @@ use rustls_pki_types::DnsName;
 
 use super::callback_state::{EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{ClientSession, ClientSessionError};
+#[cfg(test)]
+use crate::key_schedule::TestDerivationFailure;
 use crate::key_schedule::{PacketKeyPair, TrafficKeySchedule, TrafficKeys};
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
@@ -31,6 +33,8 @@ const H3_PROTOCOL: &[u8] = b"h3";
 pub struct QuicClientConfig {
     context: SslContext,
     transport_profile: Option<TransportParameterProfile>,
+    #[cfg(test)]
+    derivation_failure: Option<TestDerivationFailure>,
 }
 
 impl QuicClientConfig {
@@ -40,6 +44,8 @@ impl QuicClientConfig {
         Self {
             context,
             transport_profile: None,
+            #[cfg(test)]
+            derivation_failure: None,
         }
     }
 
@@ -51,7 +57,15 @@ impl QuicClientConfig {
         Ok(Self {
             context,
             transport_profile: Some(TransportParameterProfile::new(settings)?),
+            #[cfg(test)]
+            derivation_failure: None,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_test_derivation_failure(mut self, failure: TestDerivationFailure) -> Self {
+        self.derivation_failure = Some(failure);
+        self
     }
 
     /// Applies this profile's semantic settings to Quinn.
@@ -151,6 +165,10 @@ impl crypto::ClientConfig for QuicClientConfig {
             .map_err(|error| map_start_error(server_name, error))?;
 
         let mut state = SessionState::new(version, backend);
+        #[cfg(test)]
+        if let Some(failure) = self.derivation_failure {
+            state.derivation_failure = Some(failure);
+        }
         state
             .collect_backend_state()
             .map_err(|_| ConnectError::EndpointStopping)?;
@@ -189,6 +207,8 @@ struct SessionState {
     handshake_data_announced: bool,
     peer_identity: Option<PeerIdentity>,
     peer_transport_parameters: Option<Vec<u8>>,
+    #[cfg(test)]
+    derivation_failure: Option<TestDerivationFailure>,
 }
 
 impl SessionState {
@@ -204,6 +224,8 @@ impl SessionState {
             handshake_data_announced: false,
             peer_identity: None,
             peer_transport_parameters: None,
+            #[cfg(test)]
+            derivation_failure: None,
         }
     }
 
@@ -222,7 +244,11 @@ impl SessionState {
                 .backend
                 .take_secret_pair(EncryptionLevel::Application)?
             {
-                let (keys, schedule) = keys_from_pair(pair)?;
+                #[cfg(test)]
+                let derived = keys_from_pair_with_failure(pair, self.derivation_failure);
+                #[cfg(not(test))]
+                let derived = keys_from_pair(pair);
+                let (keys, schedule) = derived?;
                 self.application_keys = Some(keys);
                 self.application_schedule = Some(schedule);
             }
@@ -453,6 +479,26 @@ fn keys_from_pair(pair: SecretPair) -> Result<(Keys, TrafficKeySchedule), Adapte
     let schedule =
         TrafficKeySchedule::from_local_remote(pair.cipher_suite, pair.local, pair.remote)
             .map_err(|_| AdapterError::Crypto)?;
+    keys_from_schedule(schedule)
+}
+
+#[cfg(test)]
+fn keys_from_pair_with_failure(
+    pair: SecretPair,
+    failure: Option<TestDerivationFailure>,
+) -> Result<(Keys, TrafficKeySchedule), AdapterError> {
+    let schedule =
+        TrafficKeySchedule::from_local_remote(pair.cipher_suite, pair.local, pair.remote)
+            .map_err(|_| AdapterError::Crypto)?;
+    if let Some(failure) = failure {
+        schedule.inject_derivation_failure(failure);
+    }
+    keys_from_schedule(schedule)
+}
+
+fn keys_from_schedule(
+    schedule: TrafficKeySchedule,
+) -> Result<(Keys, TrafficKeySchedule), AdapterError> {
     let keys = schedule.keys().map_err(|_| AdapterError::Crypto)?;
     Ok((traffic_keys_into_quinn(keys), schedule))
 }

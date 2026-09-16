@@ -4,11 +4,15 @@ use std::sync::Arc;
 use btls::x509::X509;
 use phantom_profile::chromium;
 use quinn_proto::crypto;
-use quinn_proto::{ConnectError, ConnectionId, Side, transport_parameters::TransportParameters};
+use quinn_proto::{
+    ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
+    transport_parameters::TransportParameters,
+};
 
 use super::super::{H3_PROTOCOL, HandshakeProgress};
 use super::support::*;
 use crate::backend::callback_state::EncryptionLevel;
+use crate::key_schedule::{TestDerivationFailure, TestDerivationStage};
 use crate::{HandshakeData, PeerIdentity, QuicClientConfig};
 
 fn client_transport_parameters() -> TransportParameters {
@@ -19,10 +23,16 @@ fn client_transport_parameters() -> TransportParameters {
     )
 }
 
-fn quinn_client_handshake() -> (Box<dyn crypto::Session>, RawServer, usize) {
+fn quinn_client_handshake(
+    failure: Option<TestDerivationFailure>,
+) -> Result<(Box<dyn crypto::Session>, RawServer, usize), TransportError> {
     let client_context = client_context(true);
     let server_context = server_context();
-    let config = Arc::new(QuicClientConfig::new(client_context.0));
+    let mut config = QuicClientConfig::new(client_context.0);
+    if let Some(failure) = failure {
+        config = config.with_test_derivation_failure(failure);
+    }
+    let config = Arc::new(config);
     let mut client = test_ok(
         crypto::ClientConfig::start_session(
             config,
@@ -48,10 +58,7 @@ fn quinn_client_handshake() -> (Box<dyn crypto::Session>, RawServer, usize) {
     );
 
     for chunk in test_ok(server.drain_output(), "server first flight output") {
-        if test_ok(
-            client.read_handshake(&chunk.bytes),
-            "client server-flight input",
-        ) {
+        if client.read_handshake(&chunk.bytes)? {
             metadata_events += 1;
         }
     }
@@ -74,19 +81,17 @@ fn quinn_client_handshake() -> (Box<dyn crypto::Session>, RawServer, usize) {
 
     for chunk in test_ok(server.drain_output(), "server application output") {
         assert_eq!(chunk.level, EncryptionLevel::Application);
-        if test_ok(
-            client.read_handshake(&chunk.bytes),
-            "client post-handshake input",
-        ) {
+        if client.read_handshake(&chunk.bytes)? {
             metadata_events += 1;
         }
     }
-    (client, server, metadata_events)
+    Ok((client, server, metadata_events))
 }
 
 #[test]
 fn completes_with_owned_metadata_identity_and_exporter() {
-    let (mut client, server, metadata_events) = quinn_client_handshake();
+    let (mut client, server, metadata_events) =
+        test_ok(quinn_client_handshake(None), "Quinn client handshake");
     assert_eq!(metadata_events, 1);
     assert!(!client.is_handshaking());
 
@@ -145,6 +150,45 @@ fn completes_with_owned_metadata_identity_and_exporter() {
             "application schedule must remain available"
         );
     }
+}
+
+#[test]
+fn application_key_derivation_failure_is_a_transport_error() {
+    for stage in [
+        TestDerivationStage::CurrentLocalKeys,
+        TestDerivationStage::CurrentRemoteKeys,
+    ] {
+        let error = match quinn_client_handshake(Some(TestDerivationFailure::current(stage))) {
+            Ok(_) => panic!("{stage:?} failure completed the handshake"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, TransportErrorCode::INTERNAL_ERROR);
+        assert_eq!(error.reason, "QUIC traffic key derivation failed");
+    }
+}
+
+#[test]
+fn later_key_derivation_failure_follows_a_successful_generation() {
+    let failure = TestDerivationFailure::update(TestDerivationStage::NextRemotePacketKey, 2);
+    let (mut client, _, _) = test_ok(
+        quinn_client_handshake(Some(failure)),
+        "Quinn client handshake",
+    );
+
+    assert!(
+        test_ok(client.next_1rtt_keys(), "first key generation").is_some(),
+        "application schedule must produce the first generation"
+    );
+    let error = match client.next_1rtt_keys() {
+        Ok(_) => panic!("injected later key derivation failure succeeded"),
+        Err(error) => error,
+    };
+    assert_eq!(error.code, TransportErrorCode::INTERNAL_ERROR);
+    assert_eq!(error.reason, "1-RTT key update failed");
+    assert!(
+        test_ok(client.next_1rtt_keys(), "retry after failure").is_some(),
+        "failed generation must remain retryable"
+    );
 }
 
 #[test]

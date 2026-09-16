@@ -40,10 +40,10 @@ changing connection IDs, packet spaces, the retry token, or retransmission
 state, and closes with `INTERNAL_ERROR` if derivation fails.
 
 Focused tests inject deterministic failures at initial client construction,
-Retry re-derivation, the first 1-RTT derivation, and each update path. They
-verify bounded connection errors, `INTERNAL_ERROR`, unchanged key state, and
-no automatic-update packet emission. The patches do not add a BoringSSL
-Session implementation.
+Retry re-derivation, the first 1-RTT derivation, each update path, and an
+automatic update after an acknowledged rotation. They verify bounded connection
+errors, `INTERNAL_ERROR`, unchanged key state, and no automatic-update packet
+emission. The patches do not add a BoringSSL Session implementation.
 
 The third patch adds two provider-facing transport-profile seams. It allows an
 explicit DATAGRAM frame-size advertisement when it fits the configured receive

@@ -228,6 +228,41 @@ fn automatic_key_failure_emits_no_packet_and_preserves_key_state() {
 }
 
 #[test]
+fn automatic_key_failure_after_acked_rotation_preserves_state() {
+    let mut pair = Pair::default();
+    let (client, _) = pair.connect_with(failing_client_config(3, Failure::Error));
+    pair.client_conn_mut(client).force_key_update();
+    pair.client_conn_mut(client).ping();
+    pair.drive();
+
+    assert!(pair.client_conn_mut(client).key_update_state().0);
+    for _ in 0..8 {
+        if !pair.client_conn_mut(client).key_update_state().4 {
+            break;
+        }
+        let timeout = pair
+            .client_conn_mut(client)
+            .poll_timeout()
+            .expect("key discard timer was not armed");
+        pair.time = timeout;
+        pair.client_conn_mut(client).handle_timeout(timeout);
+    }
+
+    let now = pair.time;
+    let connection = pair.client_conn_mut(client);
+    assert!(!connection.key_update_state().4);
+    connection.exhaust_key_phase_for_test();
+    connection.ping();
+    let before = connection.key_update_state();
+    let mut buffer = Vec::new();
+
+    assert!(connection.poll_transmit(now, 1, &mut buffer).is_none());
+    assert!(buffer.is_empty());
+    assert_eq!(connection.key_update_state(), before);
+    assert_internal_error(connection.poll());
+}
+
+#[test]
 fn peer_key_failure_preserves_key_state() {
     let mut pair = Pair::new(Default::default(), failing_server_config(2, Failure::Error));
     let (client, server) = pair.connect();

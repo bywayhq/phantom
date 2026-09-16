@@ -1,3 +1,5 @@
+#[cfg(test)]
+use std::cell::Cell;
 use std::fmt;
 
 use crate::backend::HkdfDigest;
@@ -262,6 +264,45 @@ pub(crate) struct TrafficKeySchedule {
     suite: CipherSuite,
     local: TrafficSecret,
     remote: TrafficSecret,
+    #[cfg(test)]
+    derivation_failure: Cell<Option<TestDerivationFailure>>,
+    #[cfg(test)]
+    update_attempts: Cell<usize>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TestDerivationStage {
+    CurrentLocalKeys,
+    CurrentRemoteKeys,
+    NextLocalSecret,
+    NextRemoteSecret,
+    NextLocalPacketKey,
+    NextRemotePacketKey,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TestDerivationFailure {
+    stage: TestDerivationStage,
+    update_attempt: usize,
+}
+
+#[cfg(test)]
+impl TestDerivationFailure {
+    pub(crate) const fn current(stage: TestDerivationStage) -> Self {
+        Self {
+            stage,
+            update_attempt: 0,
+        }
+    }
+
+    pub(crate) const fn update(stage: TestDerivationStage, attempt: usize) -> Self {
+        Self {
+            stage,
+            update_attempt: attempt,
+        }
+    }
 }
 
 #[allow(dead_code, reason = "QUIC traffic-key installation and updates")]
@@ -283,6 +324,10 @@ impl TrafficKeySchedule {
             suite,
             local,
             remote,
+            #[cfg(test)]
+            derivation_failure: Cell::new(None),
+            #[cfg(test)]
+            update_attempts: Cell::new(0),
         })
     }
 
@@ -309,14 +354,21 @@ impl TrafficKeySchedule {
             suite,
             local,
             remote,
+            #[cfg(test)]
+            derivation_failure: Cell::new(None),
+            #[cfg(test)]
+            update_attempts: Cell::new(0),
         })
     }
 
     pub(crate) fn keys(&self) -> Result<TrafficKeys> {
-        Ok(TrafficKeys {
-            local: derive_direction_keys(self.suite, self.local.as_slice())?,
-            remote: derive_direction_keys(self.suite, self.remote.as_slice())?,
-        })
+        #[cfg(test)]
+        self.fail_derivation(TestDerivationStage::CurrentLocalKeys, 0)?;
+        let local = derive_direction_keys(self.suite, self.local.as_slice())?;
+        #[cfg(test)]
+        self.fail_derivation(TestDerivationStage::CurrentRemoteKeys, 0)?;
+        let remote = derive_direction_keys(self.suite, self.remote.as_slice())?;
+        Ok(TrafficKeys { local, remote })
     }
 
     /// Advances both directions transactionally and returns the new packet keys.
@@ -326,15 +378,48 @@ impl TrafficKeySchedule {
     /// until the Session provider establishes explicit fail-closed propagation
     /// or precomputes a successful next pair before Quinn can request it.
     pub(crate) fn next_packet_keys(&mut self) -> Result<PacketKeyPair> {
+        #[cfg(test)]
+        let attempt = {
+            let attempt = self.update_attempts.get() + 1;
+            self.update_attempts.set(attempt);
+            attempt
+        };
+        #[cfg(test)]
+        self.fail_derivation(TestDerivationStage::NextLocalSecret, attempt)?;
         let next_local = self.local.next()?;
+        #[cfg(test)]
+        self.fail_derivation(TestDerivationStage::NextRemoteSecret, attempt)?;
         let next_remote = self.remote.next()?;
+        #[cfg(test)]
+        self.fail_derivation(TestDerivationStage::NextLocalPacketKey, attempt)?;
         let local =
             KeyMaterial::derive(self.suite, next_local.as_slice())?.into_packet_key(self.suite)?;
+        #[cfg(test)]
+        self.fail_derivation(TestDerivationStage::NextRemotePacketKey, attempt)?;
         let remote =
             KeyMaterial::derive(self.suite, next_remote.as_slice())?.into_packet_key(self.suite)?;
         self.local = next_local;
         self.remote = next_remote;
         Ok(PacketKeyPair { local, remote })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_derivation_failure(&self, failure: TestDerivationFailure) {
+        self.derivation_failure.set(Some(failure));
+    }
+
+    #[cfg(test)]
+    fn fail_derivation(&self, stage: TestDerivationStage, update_attempt: usize) -> Result<()> {
+        if self.derivation_failure.get()
+            == Some(TestDerivationFailure {
+                stage,
+                update_attempt,
+            })
+        {
+            self.derivation_failure.set(None);
+            return Err(CryptoError::BackendFailure("injected key derivation"));
+        }
+        Ok(())
     }
 }
 

@@ -216,12 +216,14 @@ All new unsafe code belongs in `phantom-quic-btls`; `phantom-net` and profile
 crates remain safe Rust. Each unsafe block needs the local invariant it relies
 on. The review must cover:
 
-- An `Ssl` handle and pinned `Box<CallbackState>` stored as disjoint fields.
-  SSL ex-data contains only the stable callback-state pointer, with documented
-  callback lifetime, serialization, and teardown ordering. The callback state
-  must not own the `Ssl`: callbacks run during a mutable `SSL_do_handshake`
-  operation, and recovering a pointer to a larger state which also owns that
-  `Ssl` would risk overlapping mutable access to the same object.
+- A uniquely owned `SSL` handle and a cloned `CallbackState` handle stored as
+  disjoint fields. SSL ex-data owns a separate stable callback-state allocation;
+  both handles share only its mutex-protected inner state. The SSL frees its
+  ex-data allocation before the external handle drops, with documented callback
+  lifetime, serialization, and teardown ordering. The callback state must not
+  own the `SSL`: callbacks run during a mutable `SSL_do_handshake` operation,
+  and recovering a pointer to a larger state which also owns that `SSL` would
+  risk overlapping mutable access to the same object.
 - Callback pointers and lengths, including null-plus-zero inputs. Copy secrets,
   handshake data, peer parameters, and certificate material before the
   callback or SSL borrow ends.
