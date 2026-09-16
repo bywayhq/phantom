@@ -49,6 +49,13 @@ Apple and Windows, so those targets intentionally use the unprefixed build.
 This platform choice is declared in each direct BoringSSL consumer and exercised
 by the matrix; it is not selected at runtime.
 
+Native builds require CMake 3.22 or newer and a C/C++ toolchain. Windows also
+requires Visual Studio 2022 with the C++ tools and NASM; macOS uses the Xcode
+command-line tools. CI checks these prerequisites before compiling so a runner
+image change fails with a direct diagnostic instead of an opaque native-build
+error. The actual debug and release builds remain the authoritative proof that
+the tools, headers, generated bindings, archives, and Rust linker agree.
+
 Until the native build can prefix Mach-O and COFF symbols, Apple and Windows
 builds require one OpenSSL/BoringSSL lineage in the final process. Publishing
 bindings or embedding Phantom beside a second provider is blocked on a native
