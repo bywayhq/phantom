@@ -60,6 +60,15 @@ class Parameter:
     end: int
 
 
+@dataclass(frozen=True)
+class RequestSnapshot:
+    stream_id: int
+    headers_frame: bytes
+    headers_payload: bytes
+    qpack_encoder_stream_prefix: bytes
+    qpack_decoder_stream_prefix: bytes
+
+
 def parse_parameters(data: bytes) -> list[Parameter]:
     parameters = []
     offset = 0
@@ -184,3 +193,35 @@ def first_frame(
     if end > len(data):
         return None
     return frame_type, data[frame_start:end], data[offset:end]
+
+
+def unidirectional_stream(streams: dict[int, bytearray], stream_type: int) -> bytes:
+    for stream_id, data in streams.items():
+        if stream_id % 4 != 2:
+            continue
+        parsed_type = pull_varint(data, 0)
+        if parsed_type is not None and parsed_type[0] == stream_type:
+            return bytes(data)
+    return b""
+
+
+def capture_request_snapshot(
+    streams: dict[int, bytearray], stream_id: int
+) -> RequestSnapshot:
+    raw = bytes(streams.get(stream_id, b""))
+    frame = first_frame(raw, has_stream_type=False)
+    if frame is None or frame[0] != HEADERS_FRAME:
+        raise ValueError("decoded request has no complete first HEADERS frame")
+
+    _, headers_frame, headers_payload = frame
+    return RequestSnapshot(
+        stream_id=stream_id,
+        headers_frame=headers_frame,
+        headers_payload=headers_payload,
+        qpack_encoder_stream_prefix=unidirectional_stream(
+            streams, QPACK_ENCODER_STREAM
+        ),
+        qpack_decoder_stream_prefix=unidirectional_stream(
+            streams, QPACK_DECODER_STREAM
+        ),
+    )

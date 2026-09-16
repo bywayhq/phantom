@@ -12,7 +12,7 @@ from pathlib import Path
 
 import aioquic
 from aioquic.asyncio import QuicConnectionProtocol, serve
-from aioquic.h3.connection import H3_ALPN, H3Connection
+from aioquic.h3.connection import H3_ALPN, H3Connection, Setting
 from aioquic.h3.events import HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
@@ -20,17 +20,16 @@ from aioquic.quic.events import ProtocolNegotiated, QuicEvent, StreamDataReceive
 
 from .http3_wire import (
     CONTROL_STREAM,
-    HEADERS_FRAME,
-    QPACK_DECODER_STREAM,
-    QPACK_ENCODER_STREAM,
     SENSITIVE_REQUEST_HEADERS,
     SETTINGS_FRAME,
+    capture_request_snapshot,
     first_frame,
     normalize_settings,
     normalize_transport_parameters,
     parse_parameters,
     parse_settings,
     pull_varint,
+    unidirectional_stream,
 )
 
 SUPPORTED_AIOQUIC = "1.3.0"
@@ -45,9 +44,14 @@ class Capture:
     transport_parameters: bytes | None = None
     settings_frame: bytes | None = None
     settings_payload: bytes | None = None
+    request_stream_id: int | None = None
     request_headers_frame: bytes | None = None
     request_headers_payload: bytes | None = None
+    request_qpack_encoder_stream_prefix: bytes | None = None
+    request_qpack_decoder_stream_prefix: bytes | None = None
     headers: list[tuple[bytes, bytes]] | None = None
+    server_qpack_max_table_capacity: int | None = None
+    server_qpack_blocked_streams: int | None = None
     alpn: str | None = None
     quic_version: int | None = None
     connection_claimed: bool = False
@@ -65,41 +69,47 @@ class Capture:
                 if frame_type == SETTINGS_FRAME:
                     self.settings_frame = frame_bytes
                     self.settings_payload = payload
-        elif event.stream_id % 4 == 0 and self.request_headers_frame is None:
-            frame = first_frame(raw, has_stream_type=False)
-            if frame is not None:
-                frame_type, frame_bytes, payload = frame
-                if frame_type == HEADERS_FRAME:
-                    self.request_headers_frame = frame_bytes
-                    self.request_headers_payload = payload
+        self.maybe_complete()
+
+    def snapshot_request(
+        self, stream_id: int, headers: list[tuple[bytes, bytes]]
+    ) -> None:
+        snapshot = capture_request_snapshot(self.streams, stream_id)
+        self.request_stream_id = snapshot.stream_id
+        self.request_headers_frame = snapshot.headers_frame
+        self.request_headers_payload = snapshot.headers_payload
+        self.request_qpack_encoder_stream_prefix = snapshot.qpack_encoder_stream_prefix
+        self.request_qpack_decoder_stream_prefix = snapshot.qpack_decoder_stream_prefix
+        self.headers = list(headers)
         self.maybe_complete()
 
     def maybe_complete(self) -> None:
         if (
             self.transport_parameters is not None
             and self.settings_frame is not None
+            and self.request_stream_id is not None
             and self.request_headers_frame is not None
+            and self.request_qpack_encoder_stream_prefix is not None
+            and self.request_qpack_decoder_stream_prefix is not None
             and self.headers is not None
+            and self.server_qpack_max_table_capacity is not None
+            and self.server_qpack_blocked_streams is not None
         ):
             self.complete.set()
-
-    def unidirectional_stream(self, stream_type: int) -> bytes:
-        for stream_id, data in self.streams.items():
-            if stream_id % 4 != 2:
-                continue
-            parsed_type = pull_varint(data, 0)
-            if parsed_type is not None and parsed_type[0] == stream_type:
-                return bytes(data)
-        return b""
 
     def fixture(self) -> str:
         if (
             self.transport_parameters is None
             or self.settings_payload is None
             or self.settings_frame is None
+            or self.request_stream_id is None
             or self.request_headers_frame is None
             or self.request_headers_payload is None
+            or self.request_qpack_encoder_stream_prefix is None
+            or self.request_qpack_decoder_stream_prefix is None
             or self.headers is None
+            or self.server_qpack_max_table_capacity is None
+            or self.server_qpack_blocked_streams is None
             or self.alpn is None
             or self.quic_version is None
         ):
@@ -111,13 +121,13 @@ class Capture:
         parameters = parse_parameters(self.transport_parameters)
         settings = parse_settings(self.settings_payload)
         settings_prefix_length = len(self.settings_frame) - len(self.settings_payload)
-        control_stream = self.unidirectional_stream(CONTROL_STREAM)
+        control_stream = unidirectional_stream(self.streams, CONTROL_STREAM)
         control_stream_type = pull_varint(control_stream, 0)
         if control_stream_type is None:
             raise RuntimeError("captured control stream has no stream type")
         control_prefix_length = control_stream_type[1] + len(self.settings_frame)
         lines = [
-            "format=phantom-http3-client-startup-v1",
+            "format=phantom-http3-client-startup-v2",
             f"captured_at_unix={int(time.time())}",
             f"client={self.metadata.client}",
             f"client_version={self.metadata.client_version}",
@@ -160,12 +170,15 @@ class Capture:
         )
         lines.extend(
             [
+                f"server_qpack_max_table_capacity={self.server_qpack_max_table_capacity}",
+                f"server_qpack_blocked_streams={self.server_qpack_blocked_streams}",
+                f"request_stream_id={self.request_stream_id}",
                 f"request_headers_frame_hex={self.request_headers_frame.hex()}",
                 f"request_headers_payload_hex={self.request_headers_payload.hex()}",
-                "qpack_encoder_stream_hex="
-                + self.unidirectional_stream(QPACK_ENCODER_STREAM).hex(),
-                "qpack_decoder_stream_hex="
-                + self.unidirectional_stream(QPACK_DECODER_STREAM).hex(),
+                "request_qpack_encoder_stream_prefix_hex="
+                + self.request_qpack_encoder_stream_prefix.hex(),
+                "request_qpack_decoder_stream_prefix_hex="
+                + self.request_qpack_decoder_stream_prefix.hex(),
                 f"request_header_count={len(self.headers)}",
             ]
         )
@@ -196,20 +209,28 @@ class CaptureProtocol(QuicConnectionProtocol):
                 self._quic, "_phantom_transport_parameters", None
             )
             self.http = H3Connection(self._quic)
+            sent_settings = self.http.sent_settings
+            if sent_settings is None:
+                raise RuntimeError("HTTP/3 server did not materialize local settings")
+            self.capture.server_qpack_max_table_capacity = sent_settings.get(
+                Setting.QPACK_MAX_TABLE_CAPACITY, 0
+            )
+            self.capture.server_qpack_blocked_streams = sent_settings.get(
+                Setting.QPACK_BLOCKED_STREAMS, 0
+            )
         if isinstance(event, StreamDataReceived):
             self.capture.stream_data(event)
         if self.http is None:
             return
         for http_event in self.http.handle_event(event):
             if isinstance(http_event, HeadersReceived) and self.capture.headers is None:
-                self.capture.headers = list(http_event.headers)
+                self.capture.snapshot_request(http_event.stream_id, http_event.headers)
                 self.http.send_headers(
                     http_event.stream_id,
                     [(b":status", b"200"), (b"content-length", b"2")],
                 )
                 self.http.send_data(http_event.stream_id, b"ok", end_stream=True)
                 self.transmit()
-                self.capture.maybe_complete()
 
 
 def patch_transport_parameter_capture() -> None:

@@ -16,7 +16,7 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
 -> Result<(), Box<dyn std::error::Error>> {
     let settings = v152_macos_quic();
     settings.validate()?;
-    let captured = parse_quic_transport_parameters(HTTP3_FIXTURE)?;
+    let mut captured = parse_quic_transport_parameters(HTTP3_FIXTURE)?;
 
     assert_eq!(captured.len(), settings.wire_parameters.len());
     assert_eq!(
@@ -25,7 +25,12 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
     );
 
     use QuicTransportParameterKind as Kind;
-    for (parameter, observed) in settings.wire_parameters.iter().zip(&captured) {
+    for parameter in &settings.wire_parameters {
+        let observed_index = captured
+            .iter()
+            .position(|observed| parameter_matches(&parameter.kind, observed.id))
+            .ok_or("captured transport parameters omitted a profile entry")?;
+        let observed = captured.remove(observed_index);
         assert_eq!(parameter.id_width, observed.id_width);
         assert_eq!(parameter.length_width, observed.length_width);
         assert!(observed.id_width.can_encode(observed.id));
@@ -37,13 +42,13 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
 
         match &parameter.kind {
             Kind::InitialMaxStreamDataUni { value_width } => assert_quic_scalar(
-                observed,
+                &observed,
                 0x07,
                 *value_width,
                 settings.initial_max_stream_data_uni,
             )?,
             Kind::InitialMaxStreamDataBidiLocal { value_width } => assert_quic_scalar(
-                observed,
+                &observed,
                 0x05,
                 *value_width,
                 settings.initial_max_stream_data_bidi_local,
@@ -71,10 +76,10 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
                 );
             }
             Kind::InitialMaxData { value_width } => {
-                assert_quic_scalar(observed, 0x04, *value_width, settings.initial_max_data)?;
+                assert_quic_scalar(&observed, 0x04, *value_width, settings.initial_max_data)?;
             }
             Kind::InitialMaxStreamsBidi { value_width } => assert_quic_scalar(
-                observed,
+                &observed,
                 0x08,
                 *value_width,
                 settings.initial_max_streams_bidi,
@@ -85,13 +90,13 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
                 assert_eq!(observed.value, b"ORIG");
             }
             Kind::InitialMaxStreamsUni { value_width } => assert_quic_scalar(
-                observed,
+                &observed,
                 0x09,
                 *value_width,
                 settings.initial_max_streams_uni,
             )?,
             Kind::InitialMaxStreamDataBidiRemote { value_width } => assert_quic_scalar(
-                observed,
+                &observed,
                 0x06,
                 *value_width,
                 settings.initial_max_stream_data_bidi_remote,
@@ -109,10 +114,10 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
                 assert_eq!(observed.value.len(), usize::from(*length));
             }
             Kind::MaxUdpPayloadSize { value_width } => {
-                assert_quic_scalar(observed, 0x03, *value_width, settings.max_udp_payload_size)?
+                assert_quic_scalar(&observed, 0x03, *value_width, settings.max_udp_payload_size)?
             }
             Kind::MaxDatagramFrameSize { value_width } => assert_quic_scalar(
-                observed,
+                &observed,
                 0x20,
                 *value_width,
                 settings
@@ -120,11 +125,32 @@ fn chrome_152_macos_quic_settings_match_retained_startup_shape()
                     .ok_or("captured DATAGRAM setting omitted its value")?,
             )?,
             Kind::MaxIdleTimeout { value_width } => {
-                assert_quic_scalar(observed, 0x01, *value_width, settings.max_idle_timeout_ms)?
+                assert_quic_scalar(&observed, 0x01, *value_width, settings.max_idle_timeout_ms)?
             }
         }
     }
+    assert!(captured.is_empty());
     Ok(())
+}
+
+fn parameter_matches(kind: &QuicTransportParameterKind, observed_id: u64) -> bool {
+    use QuicTransportParameterKind as Kind;
+
+    match kind {
+        Kind::InitialMaxStreamDataUni { .. } => observed_id == 0x07,
+        Kind::InitialMaxStreamDataBidiLocal { .. } => observed_id == 0x05,
+        Kind::VersionInformation(_) => observed_id == 0x11,
+        Kind::InitialMaxData { .. } => observed_id == 0x04,
+        Kind::InitialMaxStreamsBidi { .. } => observed_id == 0x08,
+        Kind::GoogleConnectionOptions(_) => observed_id == 0x3128,
+        Kind::InitialMaxStreamsUni { .. } => observed_id == 0x09,
+        Kind::InitialMaxStreamDataBidiRemote { .. } => observed_id == 0x06,
+        Kind::Grease(_) => is_reserved_transport_parameter(observed_id),
+        Kind::InitialSourceConnectionId { .. } => observed_id == 0x0f,
+        Kind::MaxUdpPayloadSize { .. } => observed_id == 0x03,
+        Kind::MaxDatagramFrameSize { .. } => observed_id == 0x20,
+        Kind::MaxIdleTimeout { .. } => observed_id == 0x01,
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

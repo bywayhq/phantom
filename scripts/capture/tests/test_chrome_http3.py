@@ -1,8 +1,14 @@
+import argparse
+import asyncio
 import hashlib
 import re
 import unittest
 from pathlib import Path
 
+import pylsqpack
+from aioquic.quic.events import StreamDataReceived
+
+from scripts.capture.chrome_http3 import Capture
 from scripts.capture.http3_wire import (
     HEADERS_FRAME,
     SENSITIVE_REQUEST_HEADERS,
@@ -18,7 +24,7 @@ from scripts.capture.http3_wire import (
 )
 
 FIXTURE_PATH = Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt")
-FIXTURE_SHA256 = "0199af21d3c623600fb4bdc86c2fd3d019820baaa3fe9b38860adf9b020167de"
+FIXTURE_SHA256 = "c52cd57896f824fdefdcfdda77d40fe3bd928f2a97ef5093ebd888aa8fb18aaf"
 PARAMETER_PATTERN = re.compile(
     r"id:(\d+),id_width:(\d+),length_width:(\d+),value_hex:([0-9a-f]*)"
 )
@@ -65,6 +71,54 @@ class VarintTests(unittest.TestCase):
             push_varint(64, 1)
 
 
+class CaptureBoundaryTests(unittest.TestCase):
+    def test_first_request_snapshots_do_not_include_later_stream_bytes(self) -> None:
+        capture = Capture(complete=asyncio.Event(), metadata=argparse.Namespace())
+        capture.streams = {
+            0: bytearray(b"\x01\x00"),
+            2: bytearray(b"\x02encoder-at-request"),
+            6: bytearray(b"\x03decoder-at-request"),
+        }
+
+        capture.snapshot_request(0, [(b":method", b"GET")])
+        capture.stream_data(
+            StreamDataReceived(
+                data=b"later-encoder-bytes", end_stream=False, stream_id=2
+            )
+        )
+        capture.stream_data(
+            StreamDataReceived(
+                data=b"later-decoder-bytes", end_stream=False, stream_id=6
+            )
+        )
+
+        self.assertEqual(capture.request_headers_frame, b"\x01\x00")
+        self.assertEqual(capture.request_stream_id, 0)
+        self.assertEqual(
+            capture.request_qpack_encoder_stream_prefix,
+            b"\x02encoder-at-request",
+        )
+        self.assertEqual(
+            capture.request_qpack_decoder_stream_prefix,
+            b"\x03decoder-at-request",
+        )
+
+    def test_request_snapshot_preserves_not_yet_observed_critical_stream(self) -> None:
+        capture = Capture(complete=asyncio.Event(), metadata=argparse.Namespace())
+        capture.streams = {
+            0: bytearray(b"\x01\x00"),
+            2: bytearray(b"\x02encoder-at-request"),
+        }
+
+        capture.snapshot_request(0, [(b":method", b"GET")])
+
+        self.assertEqual(
+            capture.request_qpack_encoder_stream_prefix,
+            b"\x02encoder-at-request",
+        )
+        self.assertEqual(capture.request_qpack_decoder_stream_prefix, b"")
+
+
 class ChromeFixtureTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -72,7 +126,7 @@ class ChromeFixtureTests(unittest.TestCase):
 
     def test_fixture_integrity_and_ordered_schema(self) -> None:
         self.assertEqual(hashlib.sha256(self.source).hexdigest(), FIXTURE_SHA256)
-        self.assertEqual(self.fixture["format"], "phantom-http3-client-startup-v1")
+        self.assertEqual(self.fixture["format"], "phantom-http3-client-startup-v2")
         self.assertEqual(self.fixture["client_version"], "152.0.7977.83")
         self.assertEqual(self.fixture["operating_system"], "macOS 15.5 (24F74)")
         self.assertEqual(self.fixture["listen_address"], "127.0.0.1:9447")
@@ -105,10 +159,13 @@ class ChromeFixtureTests(unittest.TestCase):
             "settings_payload_normalized_hex",
             "setting_count",
             *(f"setting_{index}" for index in range(setting_count)),
+            "server_qpack_max_table_capacity",
+            "server_qpack_blocked_streams",
+            "request_stream_id",
             "request_headers_frame_hex",
             "request_headers_payload_hex",
-            "qpack_encoder_stream_hex",
-            "qpack_decoder_stream_hex",
+            "request_qpack_encoder_stream_prefix_hex",
+            "request_qpack_decoder_stream_prefix_hex",
             "request_header_count",
             *(f"request_header_{index}" for index in range(header_count)),
         ]
@@ -187,6 +244,13 @@ class ChromeFixtureTests(unittest.TestCase):
             )
 
     def test_request_header_order_and_qpack_evidence(self) -> None:
+        table_capacity = int(self.fixture["server_qpack_max_table_capacity"])
+        blocked_streams = int(self.fixture["server_qpack_blocked_streams"])
+        stream_id = int(self.fixture["request_stream_id"])
+        self.assertEqual(table_capacity, 4096)
+        self.assertEqual(blocked_streams, 16)
+        self.assertEqual(stream_id, 0)
+
         raw_frame = fixture_hex(self.fixture, "request_headers_frame_hex")
         frame = first_frame(raw_frame, has_stream_type=False)
         self.assertIsNotNone(frame)
@@ -197,11 +261,17 @@ class ChromeFixtureTests(unittest.TestCase):
         self.assertEqual(
             payload, fixture_hex(self.fixture, "request_headers_payload_hex")
         )
-        self.assertEqual(
-            pull_varint(fixture_hex(self.fixture, "qpack_encoder_stream_hex"), 0)[0], 2
+        encoder_prefix = fixture_hex(
+            self.fixture, "request_qpack_encoder_stream_prefix_hex"
         )
+        encoder_type = pull_varint(encoder_prefix, 0)
+        self.assertIsNotNone(encoder_type)
+        assert encoder_type is not None
+        self.assertEqual(encoder_type[0], 2)
+        self.assertEqual(len(encoder_prefix), 437)
         self.assertEqual(
-            pull_varint(fixture_hex(self.fixture, "qpack_decoder_stream_hex"), 0)[0], 3
+            fixture_hex(self.fixture, "request_qpack_decoder_stream_prefix_hex"),
+            b"",
         )
 
         headers = []
@@ -236,6 +306,11 @@ class ChromeFixtureTests(unittest.TestCase):
         self.assertFalse(
             any(name.lower() in SENSITIVE_REQUEST_HEADERS for name, _ in headers)
         )
+
+        decoder = pylsqpack.Decoder(table_capacity, blocked_streams)
+        decoder.feed_encoder(encoder_prefix[encoder_type[1] :])
+        _, decoded_headers = decoder.feed_header(stream_id, payload)
+        self.assertEqual(decoded_headers, headers)
 
 
 if __name__ == "__main__":

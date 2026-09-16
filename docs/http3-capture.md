@@ -6,19 +6,27 @@ fingerprint summary. It records:
 
 - the raw ordered client QUIC transport-parameter extension before parsing;
 - the raw first HTTP/3 control-stream `SETTINGS` frame and ordered settings;
-- the first request `HEADERS` frame, QPACK encoder/decoder stream bytes, and
-  QPACK-decoded request headers in order.
+- the server QPACK settings that govern client encoding; and
+- the first request stream identifier, `HEADERS` frame, exact QPACK
+  encoder/decoder stream prefixes at decode time, and QPACK-decoded request
+  headers in order.
 
 It does not retain a certificate private key, TLS key log, browser profile,
 pcap, NetLog, or qlog. Those are temporary diagnostic inputs only.
 
 The retained fixture is
 `fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt`, with
-SHA-256 `0199af21d3c623600fb4bdc86c2fd3d019820baaa3fe9b38860adf9b020167de`.
+SHA-256 `c52cd57896f824fdefdcfdda77d40fe3bd928f2a97ef5093ebd888aa8fb18aaf`.
 That exact capture did not enable a TLS key log, so its `launch_arguments`
 correctly omits `--ssl-key-log-file`. The reproduction workflow below includes
 the temporary key-log flag so an operator can independently decrypt its pcap;
 the placeholder must therefore remain in any fixture captured by that workflow.
+
+The retained v2 fixture is a fresh capture from Chrome `152.0.7977.83` on
+macOS `15.5` (`24F74`). It replaces the historical v1 fixture, whose QPACK
+fields were serialized after a response grace period and therefore included
+encoder instructions and a decoder cancellation from later browser activity.
+The v1 bytes were not trimmed or relabeled as v2 evidence.
 
 ## Capture seam
 
@@ -30,6 +38,7 @@ Chrome 152
   └──────────────> pinned aioquic 1.3.0 server
                     ├─ raw TLS QUIC transport-parameter extension
                     ├─ raw client unidirectional streams
+                    ├─ server QPACK settings
                     └─ decoded QPACK header list
 ```
 
@@ -38,6 +47,20 @@ transport-parameter parser at the only point where the authenticated extension
 bytes still retain parameter order and variable-length integer widths. The
 server also records stream bytes before aioquic turns `SETTINGS` into a map.
 The hook is capture-only and is not a Phantom runtime dependency.
+
+For request evidence, raw stream data is accumulated before aioquic handles the
+same QUIC event. When aioquic emits the first `HeadersReceived`, the capture
+selects that request stream's first `HEADERS` frame and copies the client QPACK
+encoder and decoder stream prefixes immediately, before sending the response.
+The later response grace period cannot change those copies. A prefix can be
+empty: in the retained capture Chrome had not opened its decoder stream at that
+boundary. Empty therefore means no bytes had been observed yet, rather than
+missing or post-processed evidence.
+
+The server reads its materialized local SETTINGS from aioquic and records
+`SETTINGS_QPACK_MAX_TABLE_CAPACITY` and `SETTINGS_QPACK_BLOCKED_STREAMS` as
+decimal values. They are server settings, and thus peer settings from Chrome's
+perspective, that govern the captured client encoder behavior.
 
 NetLog is useful supporting evidence, but is not the byte oracle. Chromium
 explicitly gives NetLog events no compatibility guarantee, and qlog
@@ -137,7 +160,7 @@ override and is part of Chromium's documented local QUIC workflow.
 
 ## Fixture schema
 
-`phantom-http3-client-startup-v1` is line-oriented and ordered. Byte strings
+`phantom-http3-client-startup-v2` is line-oriented and ordered. Byte strings
 are lowercase hexadecimal.
 
 1. Capture metadata: timestamp, exact client/OS, hostname, listener, launch
@@ -149,14 +172,19 @@ are lowercase hexadecimal.
    prefix (stream type followed by the frame).
 5. One ordered line per H3 setting, including identifier and value varint
    widths.
-6. The raw first request `HEADERS` frame and the QPACK encoder and decoder
-   stream bytes observed through that request.
-7. One ordered hex name/value line per decoded request header.
+6. The decimal server QPACK maximum table capacity and blocked-stream limit
+   that governed client encoding.
+7. The first decoded request's stream identifier and raw `HEADERS` frame.
+8. Exact client QPACK encoder and decoder stream prefixes copied when that
+   request's `HeadersReceived` event was emitted. An empty prefix is valid and
+   means that no bytes for that critical stream had arrived by the boundary.
+9. One ordered hex name/value line per decoded request header.
 
 The fixture parser should reject missing, repeated, reordered, or extra fields;
 invalid hex; malformed variable-length integers; duplicate parameters or
 settings; a non-loopback listener; a non-v1 QUIC version; a non-`h3` ALPN; or
-any credential-bearing request header.
+any credential-bearing request header. The request QPACK prefix fields are
+snapshots, never reconstructed by trimming a later whole-stream capture.
 
 ## Entropy normalization
 
@@ -194,8 +222,13 @@ Three independent fresh-profile connections showed:
 - stable H3 settings `0x01=65536`, `0x06=262144`, `0x07=100`, and `0x33=1`, in
   that order, followed by one reserved setting with changing identifier,
   value, and varint width;
+- aioquic server QPACK settings `0x01=4096` and `0x07=16` governing the client
+  encoder;
 - the same first request QPACK field section and the same 17 decoded headers in
-  order across the three samples.
+  order across the three samples; and
+- at the v2 request boundary, a 437-byte encoder-stream prefix and an empty
+  decoder-stream prefix. The encoder prefix contains the stream type, capacity
+  update, and the inserts needed to decode that request.
 
 QUICHE's own history describes transport-parameter serialization as
 randomized. Therefore a Chrome profile must model its permutation and GREASE
@@ -218,7 +251,7 @@ compare the decoded ordered list; raw QPACK remains a separate differential.
 Run the deterministic schema and normalization checks without Cargo:
 
 ```sh
-uv run --with aioquic==1.3.0 \
+uv run --no-project --with aioquic==1.3.0 \
   python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 uvx ruff@0.16.7 check scripts/capture
 uvx ruff@0.16.7 format --check scripts/capture
