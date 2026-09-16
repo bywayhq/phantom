@@ -1,9 +1,9 @@
-# TLS 1.3 SHA-384 fixture provenance
+# QUIC key-schedule fixture reproduction
 
-The SHA-384 fixtures in `src/key_schedule/tests.rs` use the 48-byte traffic
-secret `00..2f`. They implement RFC 8446 `HKDF-Expand-Label` with an empty
-context. The following commands reproduced the checked-in values with OpenSSL
-3.6.2; they require only OpenSSL 3's `kdf` command.
+The SHA-384 vectors in `crates/phantom-quic-btls/src/key_schedule/tests.rs`
+use the 48-byte traffic secret `00..2f` and RFC 8446
+`HKDF-Expand-Label` with an empty context. These commands reproduce the
+checked-in values with OpenSSL 3.6.2.
 
 ```sh
 phantom_sha384_secret=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
@@ -17,6 +17,6 @@ phantom_sha384_first_update=d21f524277390ba96b86484d9c687f850f1e4d1f997033bba060
 openssl kdf -keylen 48 -kdfopt digest:SHA384 -kdfopt mode:EXPAND_ONLY -kdfopt "hexkey:${phantom_sha384_first_update}" -kdfopt hexinfo:00300d746c7331332071756963206b7500 HKDF
 ```
 
-In order, the commands emit the `quic key`, `quic iv`, `quic hp`, first
-`quic ku`, and second `quic ku` fixtures. OpenSSL formats output as uppercase
-colon-separated bytes; the tests store the same bytes as lowercase hex.
+The outputs are, in order, `quic key`, `quic iv`, `quic hp`, the first
+`quic ku`, and the second `quic ku`. Tests store the OpenSSL output as
+lowercase hex without separators.

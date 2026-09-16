@@ -40,10 +40,15 @@ for protocol evidence.
   exists.
 - Comments explain a wire citation, invariant, workaround, ownership decision,
   or surprising constraint. They do not narrate the next line.
+- Comments stay local and concise. Longer protocol rationale, history, and
+  reproduction procedures belong in a named document linked from the code.
 - Every public item has useful rustdoc; important operations document errors,
   cancellation, panics if any, and a minimal example at the user-facing seam.
 - Captured behavior cites its fixture and provenance. Unsupported claims are
   stated as planned work rather than implied by a type name.
+- Fixture and vector files contain only versioned fields consumed by tooling,
+  plus identifiers required to reproduce or authenticate the capture. Notes,
+  rationale, command transcripts, and prose provenance live in adjacent docs.
 - Files split when ownership changes or independent testing/review becomes
   clearer, not at an arbitrary line count. Tests may live in a sibling module
   so production code remains navigable.
@@ -74,6 +79,8 @@ The closing review searches specifically for:
 - option bags, boolean soup, opaque byte escape hatches, and dead settings;
 - repetitive comments, padded documentation, generic names, and needless
   wrapper types;
+- run-on safety comments, implementation diaries, and narrative fields inside
+  machine fixtures;
 - fake status labels, unsupported parity claims, and tests that only restate
   constructors;
 - duplicated validation across layers or backend defaults silently overriding

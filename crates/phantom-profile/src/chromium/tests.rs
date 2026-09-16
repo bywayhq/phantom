@@ -65,10 +65,6 @@ fn chrome_152_macos_http2_settings_match_retained_pingly_observation()
         parse_u32(required(&fixture, "headers_frame_flags")?)?,
         0x01 | 0x04 | 0x20
     );
-    assert_eq!(
-        required(&fixture, "notes")?,
-        "Supplemental live endpoint observation; retain a local raw-frame fixture before making packet-parity claims."
-    );
     assert_akamai_summary(&fixture, &observed, window_increment)?;
 
     Ok(())
@@ -83,7 +79,7 @@ fn parse_fixture(input: &str) -> Result<BTreeMap<&str, &str>, Box<dyn std::error
         }
     }
 
-    const EXPECTED_KEYS: [&str; 19] = [
+    const EXPECTED_KEYS: [&str; 18] = [
         "akamai_fingerprint",
         "browser",
         "captured_at",
@@ -97,7 +93,6 @@ fn parse_fixture(input: &str) -> Result<BTreeMap<&str, &str>, Box<dyn std::error
         "headers_priority_weight",
         "http_version",
         "mode",
-        "notes",
         "os",
         "pseudo_header_order",
         "settings",

@@ -16,4 +16,3 @@ headers_frame_flags=37
 headers_priority_dependency=0
 headers_priority_exclusive=true
 headers_priority_weight=256
-notes=Supplemental live endpoint observation; retain a local raw-frame fixture before making packet-parity claims.

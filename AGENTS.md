@@ -40,6 +40,8 @@ artifacts do not accumulate.
 - Keep the public module tree shallow. Backend-specific types and translation code remain private to their backend module.
 - Move substantial tests into a sibling `tests.rs` or `tests/` module once they obscure the implementation. Test names describe observable behavior.
 - Before extending a large module, decide whether the new behavior belongs to an existing responsibility or deserves a clearly named sibling module. Avoid both monolithic files and one-function files.
+- Keep comments short and local. Explain only an invariant, safety condition, wire citation, or non-obvious constraint; move history and extended rationale into a named document.
+- Keep fixture and vector files machine-focused. Store human rationale, capture narrative, and reproduction commands in adjacent documentation rather than data fields or comments.
 
 ## Local checks
 
