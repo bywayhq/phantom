@@ -14,7 +14,7 @@ fn failure<T>(result: Result<T, CallbackError>) -> CallbackError {
 }
 
 #[test]
-fn secrets_accept_both_callback_orders_and_map_directions() {
+fn complete_secret_pairs_are_extracted_once_in_both_callback_orders() {
     for first in [SecretDirection::Local, SecretDirection::Remote] {
         let state = CallbackState::new(FlightLimits::default());
         let second = match first {
@@ -28,6 +28,7 @@ fn secrets_accept_both_callback_orders_and_map_directions() {
             AES_128_GCM_SHA256,
             &[1; 32],
         ));
+        assert!(state.take_secret_pair(EncryptionLevel::Handshake).is_none());
         success(state.set_secret(
             EncryptionLevel::Handshake,
             second,
@@ -42,6 +43,36 @@ fn secrets_accept_both_callback_orders_and_map_directions() {
         assert_eq!(
             state.secret_len(EncryptionLevel::Handshake, SecretDirection::Remote),
             Some(32)
+        );
+
+        let pair = state
+            .take_secret_pair(EncryptionLevel::Handshake)
+            .unwrap_or_else(|| panic!("complete secret pair was not available"));
+        assert_eq!(pair.cipher_suite, AES_128_GCM_SHA256);
+        let (expected_local, expected_remote) = match first {
+            SecretDirection::Local => ([1; 32], [2; 32]),
+            SecretDirection::Remote => ([2; 32], [1; 32]),
+        };
+        assert_eq!(pair.local.as_slice(), expected_local);
+        assert_eq!(pair.remote.as_slice(), expected_remote);
+        assert_eq!(
+            format!("{pair:?}"),
+            "SecretPair { cipher_suite: 4865, local: \"[REDACTED]\", remote: \"[REDACTED]\" }"
+        );
+        assert!(state.take_secret_pair(EncryptionLevel::Handshake).is_none());
+
+        let error = failure(state.set_secret(
+            EncryptionLevel::Handshake,
+            first,
+            AES_128_GCM_SHA256,
+            &[3; 32],
+        ));
+        assert_eq!(
+            error,
+            CallbackError::DuplicateSecret {
+                level: EncryptionLevel::Handshake,
+                direction: first,
+            }
         );
     }
 }

@@ -197,10 +197,10 @@ impl ClientSession {
 
     pub(super) fn provide_handshake_data(
         &mut self,
-        level: EncryptionLevel,
         data: &[u8],
     ) -> Result<HandshakeProgress, ClientSessionError> {
         self.callback_error()?;
+        let level = self.incoming_level()?;
         if !data.is_empty() {
             let raw_level = raw_level(level);
             // SAFETY: the SSL and input slice remain live for the copying call.
@@ -218,6 +218,12 @@ impl ClientSession {
         } else {
             self.drive_handshake()
         }
+    }
+
+    fn incoming_level(&self) -> Result<EncryptionLevel, ClientSessionError> {
+        // SAFETY: the SSL is live and configured with the QUIC method.
+        let level = unsafe { ffi::SSL_quic_read_level(self.ssl.as_ptr()) };
+        encryption_level(level).map_err(ClientSessionError::Callback)
     }
 
     pub(super) fn drain_output(&self) -> Result<Vec<HandshakeChunk>, ClientSessionError> {
@@ -349,6 +355,15 @@ fn raw_level(level: EncryptionLevel) -> ffi::ssl_encryption_level_t {
         EncryptionLevel::Initial => ffi::ssl_encryption_level_t::ssl_encryption_initial,
         EncryptionLevel::Handshake => ffi::ssl_encryption_level_t::ssl_encryption_handshake,
         EncryptionLevel::Application => ffi::ssl_encryption_level_t::ssl_encryption_application,
+    }
+}
+
+fn encryption_level(level: ffi::ssl_encryption_level_t) -> Result<EncryptionLevel, CallbackError> {
+    match level {
+        ffi::ssl_encryption_level_t::ssl_encryption_initial => Ok(EncryptionLevel::Initial),
+        ffi::ssl_encryption_level_t::ssl_encryption_handshake => Ok(EncryptionLevel::Handshake),
+        ffi::ssl_encryption_level_t::ssl_encryption_application => Ok(EncryptionLevel::Application),
+        _ => Err(CallbackError::UnsupportedEncryptionLevel { raw: level.0 }),
     }
 }
 

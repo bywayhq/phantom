@@ -6,7 +6,8 @@ use std::slice;
 use btls_sys as ffi;
 
 use super::{
-    ClientSession, ClientSessionError, H3_PROTOCOL, HandshakeProgress, OwnedSsl, raw_level,
+    ClientSession, ClientSessionError, H3_PROTOCOL, HandshakeProgress, OwnedSsl, encryption_level,
+    raw_level,
 };
 use crate::backend::callback_state::{
     CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
@@ -252,6 +253,7 @@ fn server_context() -> OwnedContext {
             1
         );
         assert_eq!(ffi::SSL_CTX_check_private_key(context.as_ptr()), 1);
+        assert_eq!(ffi::SSL_CTX_set_num_tickets(context.as_ptr(), 1), 1);
         ffi::SSL_CTX_set_alpn_select_cb(context.as_ptr(), Some(select_h3), ptr::null_mut());
     }
     context
@@ -360,7 +362,11 @@ fn hostname_mismatch_is_reported_as_a_tls_failure() {
 
     let mut failure = None;
     for chunk in test_ok(server.drain_output(), "server output") {
-        match client.provide_handshake_data(chunk.level, &chunk.bytes) {
+        assert_eq!(
+            test_ok(client.incoming_level(), "client inferred input level"),
+            chunk.level
+        );
+        match client.provide_handshake_data(&chunk.bytes) {
             Ok(_) => {}
             Err(error) => {
                 failure = Some(error);
@@ -404,8 +410,12 @@ fn fragmented_peer_input_completes_and_copies_transport_parameters() {
         let midpoint = chunk.bytes.len().div_ceil(2);
         for fragment in chunk.bytes.chunks(midpoint.max(1)) {
             fragments += 1;
+            assert_eq!(
+                test_ok(client.incoming_level(), "client inferred input level"),
+                chunk.level
+            );
             client_progress = test_ok(
-                client.provide_handshake_data(chunk.level, fragment),
+                client.provide_handshake_data(fragment),
                 "fragmented server input",
             );
         }
@@ -431,4 +441,34 @@ fn fragmented_peer_input_completes_and_copies_transport_parameters() {
         test_ok(server.drive(), "server completion"),
         HandshakeProgress::Complete
     );
+
+    let post_handshake = test_ok(server.drain_output(), "server post-handshake output");
+    assert!(!post_handshake.is_empty());
+    for chunk in post_handshake {
+        assert_eq!(chunk.level, EncryptionLevel::Application);
+        assert_eq!(
+            test_ok(client.incoming_level(), "post-handshake input level"),
+            EncryptionLevel::Application
+        );
+        assert_eq!(
+            test_ok(
+                client.provide_handshake_data(&chunk.bytes),
+                "post-handshake server input"
+            ),
+            HandshakeProgress::Complete
+        );
+    }
+}
+
+#[test]
+fn unsupported_read_levels_are_rejected() {
+    for raw in [
+        ffi::ssl_encryption_level_t::ssl_encryption_early_data,
+        ffi::ssl_encryption_level_t(99),
+    ] {
+        assert_eq!(
+            encryption_level(raw),
+            Err(CallbackError::UnsupportedEncryptionLevel { raw: raw.0 })
+        );
+    }
 }

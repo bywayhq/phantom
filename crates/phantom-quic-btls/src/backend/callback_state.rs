@@ -149,47 +149,128 @@ impl fmt::Debug for StoredSecret {
     }
 }
 
-#[derive(Default)]
-struct DirectionalSecrets {
-    local: Option<StoredSecret>,
-    remote: Option<StoredSecret>,
+pub(super) struct SecretPair {
+    pub(super) cipher_suite: u16,
+    pub(super) local: TrafficSecret,
+    pub(super) remote: TrafficSecret,
 }
 
-impl DirectionalSecrets {
-    fn slot(&self, direction: SecretDirection) -> &Option<StoredSecret> {
-        match direction {
-            SecretDirection::Local => &self.local,
-            SecretDirection::Remote => &self.remote,
+impl fmt::Debug for SecretPair {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SecretPair")
+            .field("cipher_suite", &self.cipher_suite)
+            .field("local", &"[REDACTED]")
+            .field("remote", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Default)]
+enum SecretState {
+    #[default]
+    Empty,
+    Partial {
+        direction: SecretDirection,
+        secret: StoredSecret,
+    },
+    Complete(SecretPair),
+    Consumed,
+}
+
+impl SecretState {
+    fn set(
+        &mut self,
+        level: EncryptionLevel,
+        direction: SecretDirection,
+        secret: StoredSecret,
+    ) -> Result<(), CallbackError> {
+        let previous = std::mem::replace(self, Self::Consumed);
+        match previous {
+            Self::Empty => {
+                *self = Self::Partial { direction, secret };
+                Ok(())
+            }
+            Self::Partial {
+                direction: peer_direction,
+                secret: peer,
+            } => {
+                if peer_direction == direction {
+                    *self = Self::Partial {
+                        direction: peer_direction,
+                        secret: peer,
+                    };
+                    return Err(CallbackError::DuplicateSecret { level, direction });
+                }
+                if peer.cipher_suite != secret.cipher_suite {
+                    let (local, remote) = match direction {
+                        SecretDirection::Local => (secret.cipher_suite, peer.cipher_suite),
+                        SecretDirection::Remote => (peer.cipher_suite, secret.cipher_suite),
+                    };
+                    *self = Self::Partial {
+                        direction: peer_direction,
+                        secret: peer,
+                    };
+                    return Err(CallbackError::MismatchedCipherSuite {
+                        level,
+                        local,
+                        remote,
+                    });
+                }
+                let pair = match direction {
+                    SecretDirection::Local => SecretPair {
+                        cipher_suite: secret.cipher_suite,
+                        local: secret.value,
+                        remote: peer.value,
+                    },
+                    SecretDirection::Remote => SecretPair {
+                        cipher_suite: secret.cipher_suite,
+                        local: peer.value,
+                        remote: secret.value,
+                    },
+                };
+                *self = Self::Complete(pair);
+                Ok(())
+            }
+            Self::Complete(pair) => {
+                *self = Self::Complete(pair);
+                Err(CallbackError::DuplicateSecret { level, direction })
+            }
+            Self::Consumed => Err(CallbackError::DuplicateSecret { level, direction }),
         }
     }
 
-    fn slot_mut(&mut self, direction: SecretDirection) -> &mut Option<StoredSecret> {
-        match direction {
-            SecretDirection::Local => &mut self.local,
-            SecretDirection::Remote => &mut self.remote,
+    fn take_pair(&mut self) -> Option<SecretPair> {
+        match std::mem::replace(self, Self::Consumed) {
+            Self::Complete(pair) => Some(pair),
+            state => {
+                *self = state;
+                None
+            }
         }
     }
 
-    fn validate_pair(&self, level: EncryptionLevel) -> Result<(), CallbackError> {
-        let (Some(local), Some(remote)) = (&self.local, &self.remote) else {
-            return Ok(());
-        };
-        if local.cipher_suite != remote.cipher_suite {
-            return Err(CallbackError::MismatchedCipherSuite {
-                level,
-                local: local.cipher_suite,
-                remote: remote.cipher_suite,
-            });
+    #[cfg(test)]
+    fn secret(&self, direction: SecretDirection) -> Option<&TrafficSecret> {
+        match self {
+            Self::Partial {
+                direction: stored_direction,
+                secret,
+            } if *stored_direction == direction => Some(&secret.value),
+            Self::Complete(pair) => match direction {
+                SecretDirection::Local => Some(&pair.local),
+                SecretDirection::Remote => Some(&pair.remote),
+            },
+            Self::Empty | Self::Partial { .. } | Self::Consumed => None,
         }
-        Ok(())
     }
 }
 
 #[derive(Default)]
 struct CallbackStateInner {
     terminal_error: Option<CallbackError>,
-    handshake_secrets: DirectionalSecrets,
-    application_secrets: DirectionalSecrets,
+    handshake_secrets: SecretState,
+    application_secrets: SecretState,
     pending: Vec<HandshakeChunk>,
     published: Vec<HandshakeChunk>,
     buffered_by_level: [usize; 3],
@@ -255,16 +336,21 @@ impl CallbackState {
     ) -> Result<(), CallbackError> {
         let secret = StoredSecret::copy(cipher_suite, value)?;
         let mut inner = self.lock();
-        let secrets = match level {
+        let state = match level {
             EncryptionLevel::Handshake => &mut inner.handshake_secrets,
             EncryptionLevel::Application => &mut inner.application_secrets,
             EncryptionLevel::Initial => return Err(CallbackError::SecretAtInitialLevel),
         };
-        if secrets.slot(direction).is_some() {
-            return Err(CallbackError::DuplicateSecret { level, direction });
+        state.set(level, direction, secret)
+    }
+
+    pub(super) fn take_secret_pair(&self, level: EncryptionLevel) -> Option<SecretPair> {
+        let mut inner = self.lock();
+        match level {
+            EncryptionLevel::Handshake => inner.handshake_secrets.take_pair(),
+            EncryptionLevel::Application => inner.application_secrets.take_pair(),
+            EncryptionLevel::Initial => None,
         }
-        *secrets.slot_mut(direction) = Some(secret);
-        secrets.validate_pair(level)
     }
 
     pub(super) fn append_handshake(
@@ -395,15 +481,14 @@ impl CallbackState {
         direction: SecretDirection,
     ) -> Option<usize> {
         let inner = self.lock();
-        let secrets = match level {
+        let state = match level {
             EncryptionLevel::Handshake => &inner.handshake_secrets,
             EncryptionLevel::Application => &inner.application_secrets,
             EncryptionLevel::Initial => return None,
         };
-        secrets
-            .slot(direction)
-            .as_ref()
-            .map(|secret| secret.value.as_slice().len())
+        state
+            .secret(direction)
+            .map(|secret| secret.as_slice().len())
     }
 
     #[cfg(test)]
@@ -414,15 +499,14 @@ impl CallbackState {
         expected: &[u8],
     ) -> bool {
         let inner = self.lock();
-        let secrets = match level {
+        let state = match level {
             EncryptionLevel::Handshake => &inner.handshake_secrets,
             EncryptionLevel::Application => &inner.application_secrets,
             EncryptionLevel::Initial => return false,
         };
-        secrets
-            .slot(direction)
-            .as_ref()
-            .is_some_and(|secret| secret.value.as_slice() == expected)
+        state
+            .secret(direction)
+            .is_some_and(|secret| secret.as_slice() == expected)
     }
 
     #[cfg(test)]
