@@ -7,7 +7,7 @@ use tracing::instrument::WithSubscriber;
 
 use super::{TestResult, bounded_peer_test, host, read_head, target, wait_for_driver_outcome};
 use crate::{
-    http1::{Http1Error, send_get},
+    http1::{Http1Connection, Http1Error, send_get},
     tracing_test::OutcomeSubscriber,
 };
 
@@ -103,35 +103,58 @@ async fn content_length_does_not_expose_surplus_bytes() -> TestResult {
 }
 
 #[tokio::test]
-async fn decodes_chunked_data_and_trailers() -> TestResult {
+async fn decodes_fragmented_chunk_extensions_and_trailers_then_reuses_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let server_task = tokio::spawn(async move {
-            read_head(&mut server).await?;
+            let first = read_head(&mut server).await?;
+            for fragment in [
+                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Final\r\n\r\n"
+                    .as_slice(),
+                b"2;reaper=alpha;flag\r",
+                b"\nhe\r\n3;reaper=ome",
+                b"ga\r\nllo\r",
+                b"\n0;terminal=yes\r",
+                b"\nX-Final:",
+                b" yes\r",
+                b"\n\r",
+                b"\n",
+            ] {
+                server.write_all(fragment).await?;
+                tokio::task::yield_now().await;
+            }
+            let second = read_head(&mut server).await?;
             server
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Final\r\n\r\n5\r\nhello\r\n0\r\nX-Final: yes\r\n\r\n",
-                )
-                .await
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, std::io::Error>((first, second))
         });
 
-        let mut body = send_get(client, target()?, vec![host()]).await?.into_body();
-        let data = body
-            .frame()
-            .await
-            .ok_or("missing data frame")??
-            .into_data()
-            .map_err(|_| "expected data frame")?;
-        assert_eq!(data, "hello");
-        let trailers = body
-            .frame()
-            .await
-            .ok_or("missing trailers frame")??
-            .into_trailers()
-            .map_err(|_| "expected trailers frame")?;
+        let connection = Http1Connection::connect(client).await?;
+        let mut body = connection
+            .send_get(target()?, vec![host()])
+            .await?
+            .into_body();
+        let mut data = Vec::new();
+        let mut trailers = None;
+        while let Some(frame) = body.frame().await {
+            let frame = frame?;
+            match frame.into_data() {
+                Ok(bytes) => data.extend_from_slice(&bytes),
+                Err(frame) => trailers = frame.into_trailers().ok(),
+            }
+        }
+        assert_eq!(data, b"hello");
+        let trailers = trailers.ok_or("missing trailers frame")?;
         assert_eq!(trailers.get("x-final"), Some(&"yes".parse()?));
-        assert!(body.frame().await.is_none());
-        server_task.await??;
+
+        let followup = connection.send_get(target()?, vec![host()]).await?;
+        assert_eq!(followup.status(), 204);
+        assert!(followup.into_body().collect().await?.to_bytes().is_empty());
+
+        let (first, second) = server_task.await??;
+        assert!(first.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
+        assert!(second.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
         Ok(())
     })
     .await
