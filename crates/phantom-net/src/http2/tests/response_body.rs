@@ -11,7 +11,10 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use super::{TestResult, bounded_peer_test, headers, next_nonempty_data, target};
-use crate::{http2::send_get, tracing_test::OutcomeSubscriber};
+use crate::{
+    http2::{Http2Connection, send_get},
+    tracing_test::OutcomeSubscriber,
+};
 
 #[tokio::test]
 async fn streams_data_then_trailers_without_buffering_later_data() -> TestResult<()> {
@@ -113,6 +116,49 @@ async fn terminal_data_completes_without_an_extra_body_poll() -> TestResult<()> 
     .await
 }
 
+#[tokio::test]
+async fn informational_sequence_preserves_final_body_trailers_and_reuse() -> TestResult<()> {
+    bounded_peer_test(async {
+        let (client, server) = duplex(64 * 1024);
+        let server_task = tokio::spawn(informational_server(server));
+        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+
+        let response = connection
+            .send_get("example.test", target()?, Vec::new())
+            .await?;
+        assert_eq!(response.status(), 206);
+        assert_eq!(response.headers().get("x-final"), Some(&"yes".parse()?));
+        assert!(response.headers().get("link").is_none());
+        assert!(response.headers().get("x-processing").is_none());
+
+        let mut body = response.into_body();
+        let mut data = Vec::new();
+        let mut trailers = None;
+        while let Some(frame) = body.frame().await {
+            let frame = frame?;
+            match frame.into_data() {
+                Ok(bytes) => data.extend_from_slice(&bytes),
+                Err(frame) => trailers = frame.into_trailers().ok(),
+            }
+        }
+        assert_eq!(data, b"complete");
+        assert_eq!(
+            trailers.as_ref().and_then(|fields| fields.get("x-trailer")),
+            Some(&"done".parse()?)
+        );
+
+        let followup = connection
+            .send_get("example.test", target()?, Vec::new())
+            .await?;
+        assert_eq!(followup.status(), 204);
+        assert!(followup.into_body().collect().await?.to_bytes().is_empty());
+        drop(connection);
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
 async fn streaming_server(
     stream: DuplexStream,
     release_later: oneshot::Receiver<()>,
@@ -188,4 +234,51 @@ async fn terminal_data_server(stream: DuplexStream) -> TestResult<bool> {
     };
     drop(send);
     Ok(reset)
+}
+
+async fn informational_server(stream: DuplexStream) -> TestResult<()> {
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let (_request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("connection closed before first request")??;
+
+    respond.send_informational(
+        Response::builder()
+            .status(103)
+            .header("link", "</first.css>; rel=preload")
+            .body(())?,
+    )?;
+    respond.send_informational(
+        Response::builder()
+            .status(102)
+            .header("x-processing", "yes")
+            .body(())?,
+    )?;
+    respond.send_informational(
+        Response::builder()
+            .status(103)
+            .header("link", "</second.css>; rel=preload")
+            .body(())?,
+    )?;
+    let response = Response::builder()
+        .status(206)
+        .header("x-final", "yes")
+        .body(())?;
+    let mut send = respond.send_response(response, false)?;
+    send.send_data(Bytes::from_static(b"complete"), false)?;
+    let mut trailers = HeaderMap::new();
+    trailers.insert("x-trailer", http::HeaderValue::from_static("done"));
+    send.send_trailers(trailers)?;
+    drop(send);
+    drop(respond);
+
+    let (_request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("connection closed before follow-up request")??;
+    respond.send_response(Response::builder().status(204).body(())?, true)?;
+    drop(respond);
+    poll_fn(|context| connection.poll_closed(context)).await?;
+    Ok(())
 }

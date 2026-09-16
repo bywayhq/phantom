@@ -56,8 +56,14 @@ ordered address fallback, fragmented IPv4/IPv6/domain replies, malformed and
 rejected replies, cancellation, missing-runtime behavior,
 route-aware H2 tunnel reuse, WSS routing, and the same no-direct-fallback
 proof. It also includes
-H1 `100 Continue`, chained `103`/`100`, declared-length surplus isolation, H2
-`RST_STREAM`, H2 `GOAWAY`, and H3 missing or duplicate SETTINGS, forbidden control-stream frames,
+H1 `100 Continue`, chained `103`/`100`, legal chunk extensions fragmented at
+syntax boundaries, declared-length surplus isolation, H2 `RST_STREAM`, H2
+`GOAWAY`, and a Reaper-derived valid H2 sequence combining an unknown setting,
+unknown frame, exact PING acknowledgement, fragmented HPACK with an empty
+`CONTINUATION`, response DATA, and a same-connection follow-up. A separate H2
+sequence covers repeated `103`, `102`, final headers, DATA, trailers, and
+same-connection reuse without leaking interim fields. It also covers
+H3 missing or duplicate SETTINGS, forbidden control-stream frames,
 reserved streams and frames, increasing GOAWAY rejection with `H3_ID_ERROR`,
 blocked inbound QPACK release and decoder acknowledgement, peer encoder-stream
 closure with `H3_CLOSED_CRITICAL_STREAM`, one valid QUIC Retry, chained
@@ -65,6 +71,17 @@ informational responses through final DATA and trailers, rejection of HTTP/3
 `101`, and peer-observed request-stream cancellation. The remaining H3 cases
 extend that focused loopback peer rather than introducing a speculative
 universal peer framework.
+
+Reaper is a reference corpus, not a runtime dependency. Its production lane is
+mirrored as bounded Phantom-owned fixtures only when the stimulus is valid and
+the client reaction is directly observed. Its malformed lane uses a fresh
+connection per case and asserts protocol error codes without treating malformed
+behavior as a browser-parity target. Reaper's current H3 Retry, reserved
+extension, QPACK block/unblock, informational response, and trailer probes
+overlap existing Phantom fixtures. TLS HelloRetryRequest and requested
+`KeyUpdate`, the malformed H2 matrix, and the remaining H2 HPACK state
+transitions stay explicit regression work until their reactions are exercised
+through the public transport seam.
 
 ## Later client and streaming corpus
 
@@ -111,6 +128,7 @@ bounded decoders on scheduled jobs.
 ## Evidence
 
 - [NIST: browser fingerprinting using server message sequences](https://www.nist.gov/publications/browser-fingerprinting-using-combinatorial-sequence-testing)
+- Reaper's versioned local probe corpus and raw-reaction methodology
 - [Two-step TLS browser fingerprinting study](https://doi.org/10.1016/j.cose.2021.102575)
 - [TLS 1.3 post-handshake messages](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.6)
 - [HTTP/1.1 message parsing](https://www.rfc-editor.org/rfc/rfc9112.html)
