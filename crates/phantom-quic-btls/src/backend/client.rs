@@ -2,7 +2,6 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::fmt;
 use std::io::Cursor;
-use std::net::IpAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use btls::ssl::SslContext;
@@ -11,6 +10,7 @@ use quinn_proto::{
     ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
     transport_parameters::TransportParameters,
 };
+use rustls_pki_types::DnsName;
 
 use super::callback_state::{EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{ClientSession, ClientSessionError};
@@ -451,19 +451,9 @@ fn interpret_version(version: u32) -> Result<QuicVersion, ConnectError> {
 }
 
 fn validate_dns_name(server_name: &str) -> Result<(), ConnectError> {
-    let invalid = server_name.is_empty()
-        || server_name.len() > 253
-        || !server_name.is_ascii()
-        || server_name.parse::<IpAddr>().is_ok()
-        || server_name.split('.').any(|label| {
-            label.is_empty()
-                || label.len() > 63
-                || label.starts_with('-')
-                || label.ends_with('-')
-                || !label
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-        });
+    let invalid = server_name.ends_with('.')
+        || server_name.contains('_')
+        || DnsName::try_from(server_name).is_err();
     if invalid {
         Err(ConnectError::InvalidServerName(server_name.into()))
     } else {

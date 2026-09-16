@@ -1,9 +1,10 @@
 //! The complete FFI boundary for QUIC cryptography primitives.
 
-use std::ffi::{c_uint, c_void};
+use std::ffi::c_uint;
 use std::fmt;
 use std::ptr::NonNull;
 
+use btls::{hash, memcmp, rand};
 use btls_sys as ffi;
 
 use crate::secret::{
@@ -49,12 +50,7 @@ impl HkdfDigest {
 }
 
 pub(crate) fn random_bytes(output: &mut [u8]) -> Result<()> {
-    ffi::init();
-    // SAFETY: `output` is writable for exactly `output.len()` bytes and remains
-    // exclusively borrowed for the duration of the call. BoringSSL's default
-    // CSPRNG obtains its entropy from the operating system.
-    let status = unsafe { ffi::RAND_bytes(output.as_mut_ptr(), output.len()) };
-    if status != 1 {
+    if rand::rand_bytes(output).is_err() {
         drain_error_queue();
         output.fill(0);
         return Err(CryptoError::BackendFailure("random key generation"));
@@ -63,37 +59,25 @@ pub(crate) fn random_bytes(output: &mut [u8]) -> Result<()> {
 }
 
 pub(crate) fn hmac_sha256(key: &[u8], data: &[u8], output: &mut [u8; SHA256_LEN]) -> Result<()> {
-    ffi::init();
-    let mut written = 0;
-    // SAFETY: key and data point to readable storage for their stated lengths;
-    // output is a distinct writable SHA-256-sized array. BoringSSL documents
-    // that `HMAC` writes at most the selected digest's output size.
-    let result = unsafe {
-        ffi::HMAC(
-            ffi::EVP_sha256(),
-            key.as_ptr().cast::<c_void>(),
-            key.len(),
-            data.as_ptr(),
-            data.len(),
-            output.as_mut_ptr(),
-            &mut written,
-        )
-    };
-    if result != output.as_mut_ptr() || written != SHA256_LEN as c_uint {
-        drain_error_queue();
-        output.fill(0);
-        return Err(CryptoError::BackendFailure("HMAC-SHA-256 signing"));
+    match hash::hmac_sha256(key, data) {
+        Ok(mut signature) => {
+            output.copy_from_slice(&signature);
+            signature.fill(0);
+            Ok(())
+        }
+        Err(_) => {
+            drain_error_queue();
+            output.fill(0);
+            Err(CryptoError::BackendFailure("HMAC-SHA-256 signing"))
+        }
     }
-    Ok(())
 }
 
 pub(crate) fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
     if left.len() != right.len() {
         return false;
     }
-    // SAFETY: both pointers reference readable slices of the same checked
-    // length for the duration of the call. `CRYPTO_memcmp` does not write.
-    unsafe { ffi::CRYPTO_memcmp(left.as_ptr().cast(), right.as_ptr().cast(), left.len()) == 0 }
+    memcmp::eq(left, right)
 }
 
 fn drain_error_queue() {

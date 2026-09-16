@@ -1,24 +1,40 @@
 use super::*;
 
 #[test]
-fn version_and_server_name_validation_happen_before_io() {
+fn version_validation_happens_before_io() {
     assert_eq!(interpret_version(QUIC_VERSION_1), Ok(QuicVersion::V1));
     assert_eq!(
         interpret_version(0xff00_001d),
         Err(ConnectError::UnsupportedVersion)
     );
+}
 
-    for valid in ["example.com", "a.example", "xn--bcher-kva.example"] {
+#[test]
+fn dns_name_validation_accepts_ascii_dns_names() {
+    for valid in [
+        "localhost",
+        "example.com",
+        "EXAMPLE.COM",
+        "a-b.example",
+        "xn--bcher-kva.example",
+    ] {
         assert_eq!(validate_dns_name(valid), Ok(()));
     }
+}
+
+#[test]
+fn dns_name_validation_rejects_non_dns_and_absolute_names() {
     for invalid in [
         "",
         "127.0.0.1",
         "::1",
+        "example.com.",
         "bad_name.example",
         "-bad.example",
         "bad-.example",
         "bad..example",
+        "b\u{fc}cher.example",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example",
     ] {
         assert!(matches!(
             validate_dns_name(invalid),
