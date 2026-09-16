@@ -16,7 +16,10 @@ pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use request::RequestBuilder;
-pub use route::{HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route};
+pub use route::{
+    HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route, Socks5Proxy, Socks5ProxyConfigError,
+    Socks5ProxyConfigErrorKind,
+};
 #[cfg(feature = "cookies")]
 pub use session::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
 pub use session::{Session, SessionBuilder};

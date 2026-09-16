@@ -226,6 +226,19 @@ impl RequestBuilder {
                                 )
                                 .await
                         }
+                        Route::Socks5(proxy) => {
+                            connector
+                                .send_get_socks5_remote(
+                                    proxy.host(),
+                                    proxy.port(),
+                                    endpoint.host(),
+                                    endpoint.port(),
+                                    endpoint.host(),
+                                    target,
+                                    headers,
+                                )
+                                .await
+                        }
                     }
                     .map_err(RequestError::http1)?;
                     let (parts, body) = response.into_parts();
@@ -272,6 +285,20 @@ impl RequestBuilder {
                                         proxy.port(),
                                         &connect_authority,
                                         proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                        endpoint.authority().as_str(),
+                                        target,
+                                        request_headers,
+                                    )
+                                    .await
+                            }
+                            Route::Socks5(proxy) => {
+                                connector
+                                    .send_get_socks5_remote(
+                                        proxy.host(),
+                                        proxy.port(),
+                                        endpoint.host(),
+                                        endpoint.port(),
                                         endpoint.host(),
                                         endpoint.authority().as_str(),
                                         target,
@@ -417,20 +444,25 @@ impl Drop for RequestOutcome {
 #[cfg(test)]
 mod tests {
     use super::ensure_route_supported;
-    use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route};
+    use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
 
     #[test]
-    fn http_connect_route_rejects_http3_without_network_io()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let route = Route::http_connect(HttpProxy::new("http://127.0.0.1:9")?);
+    fn tcp_proxy_routes_reject_http3_without_network_io() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let routes = [
+            Route::http_connect(HttpProxy::new("http://127.0.0.1:9")?),
+            Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:9")?),
+        ];
 
-        let error = match ensure_route_supported(HttpProtocol::Http3, &route) {
-            Ok(()) => panic!("HTTP CONNECT accepted HTTP/3"),
-            Err(error) => error,
-        };
+        for route in routes {
+            let error = match ensure_route_supported(HttpProtocol::Http3, &route) {
+                Ok(()) => panic!("TCP-only proxy route accepted HTTP/3"),
+                Err(error) => error,
+            };
 
-        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+            assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+        }
         Ok(())
     }
 

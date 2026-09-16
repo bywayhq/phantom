@@ -25,6 +25,7 @@ phantom-profile = { path = "../phantom-profile" }
 phantom-quic-btls = { path = "../phantom-quic-btls" }
 quinn.workspace = true
 tokio = { version = "1.53.1", features = ["macros", "net", "rt", "sync"] }
+tokio-socks = { version = "=0.5.3", default-features = false, features = ["tokio"] }
 tracing = "0.1.41"
 webpki-root-certs = "1.0.9"
 wreq-proto = "=0.2.5"

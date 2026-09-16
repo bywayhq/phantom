@@ -13,6 +13,8 @@ use crate::{
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
 
+mod socks5;
+
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[tokio::test]

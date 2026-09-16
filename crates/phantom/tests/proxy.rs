@@ -1,5 +1,6 @@
 //! Public HTTP CONNECT route integration tests.
 
+#[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
 

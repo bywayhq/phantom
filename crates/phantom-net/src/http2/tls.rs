@@ -13,7 +13,10 @@ use super::{
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
-    proxy::{HttpConnectError, HttpConnectHeader, connect_http_tunnel_direct},
+    proxy::{
+        HttpConnectError, HttpConnectHeader, Socks5Error, connect_http_tunnel_direct,
+        connect_socks5_tunnel_direct,
+    },
     tls::{TlsConnector, trace_alpn},
 };
 
@@ -157,6 +160,28 @@ impl Http2TlsConnector {
         .await
     }
 
+    /// Establishes HTTP/2 through a SOCKS5 proxy using remote DNS.
+    ///
+    /// Proxy failure never falls back to a direct connection or another HTTP
+    /// protocol.
+    pub async fn connect_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            let stream =
+                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            self.connect_prepared(stream, server_name, client).await
+        })
+        .await
+    }
+
     /// Sends one empty-body HTTP/2 GET after an exact `h2` TLS negotiation.
     ///
     /// `server_name` controls certificate verification and SNI; `authority`
@@ -244,6 +269,32 @@ impl Http2TlsConnector {
                 connect_headers,
             )
             .await?;
+            self.send_prepared_get(stream, server_name, prepared).await
+        })
+        .await
+    }
+
+    /// Sends one empty-body GET through a SOCKS5 proxy using remote DNS.
+    ///
+    /// Origin request validation completes before proxy I/O. Proxy failure
+    /// never falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_get_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        self.trace_response_head(async {
+            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+            let stream =
+                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
             self.send_prepared_get(stream, server_name, prepared).await
         })
         .await
@@ -356,7 +407,7 @@ impl Http2TlsConnector {
             Ok(_) => "ok",
             Err(Http2TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http2TlsError::Connect(_)) => "connect_error",
-            Err(Http2TlsError::Proxy(_)) => "proxy_error",
+            Err(Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_)) => "proxy_error",
             Err(Http2TlsError::Tls(_)) => "tls_error",
             Err(Http2TlsError::Http2(Http2Error::Protocol(_))) => "http_protocol_error",
             Err(Http2TlsError::Http2(_)) => "http_preparation_error",
@@ -376,7 +427,7 @@ fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'stat
         Ok(_) => "ok",
         Err(Http2TlsError::RuntimeUnavailable) => "runtime_unavailable",
         Err(Http2TlsError::Connect(_)) => "connect_error",
-        Err(Http2TlsError::Proxy(_)) => "proxy_error",
+        Err(Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_)) => "proxy_error",
         Err(Http2TlsError::Tls(_)) => "tls_error",
         Err(Http2TlsError::Http2(Http2Error::Protocol(_))) => "http_protocol_error",
         Err(Http2TlsError::Http2(_)) => "http_preparation_error",
@@ -398,6 +449,8 @@ pub enum Http2TlsError {
     Connect(std::io::Error),
     /// HTTP CONNECT proxy negotiation failed.
     Proxy(HttpConnectError),
+    /// SOCKS5 proxy negotiation failed.
+    Socks5Proxy(Socks5Error),
     /// TLS connector setup or handshake failed.
     Tls(TlsError),
     /// HTTP/2 request preparation or protocol setup failed.
@@ -430,6 +483,7 @@ impl fmt::Display for Http2TlsError {
             }
             Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
             Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
+            Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
             Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
             Self::Http2(error) => write!(formatter, "HTTP/2 request failed: {error}"),
             Self::MissingNegotiatedAlpn => {
@@ -460,6 +514,7 @@ impl StdError for Http2TlsError {
         match self {
             Self::Connect(error) => Some(error),
             Self::Proxy(error) => Some(error),
+            Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http2(error) => Some(error),
             Self::RuntimeUnavailable
@@ -480,6 +535,12 @@ impl From<TlsError> for Http2TlsError {
 impl From<HttpConnectError> for Http2TlsError {
     fn from(error: HttpConnectError) -> Self {
         Self::Proxy(error)
+    }
+}
+
+impl From<Socks5Error> for Http2TlsError {
+    fn from(error: Socks5Error) -> Self {
+        Self::Socks5Proxy(error)
     }
 }
 

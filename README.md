@@ -25,20 +25,21 @@ the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
 order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
 small facade for exact H1, H2, or direct H3 requests, additive private trust
-roots, a typed direct-or-plaintext-HTTP-CONNECT route, and one unified
-streaming response body. CONNECT fields preserve caller-declared order, proxy
-rejection never falls back direct, and coalesced tunnel bytes survive
-negotiation. H3 uses a separate protocol-specific TLS profile and rejects the
-TCP-only CONNECT route before network I/O. The optional `cookies` capability
+roots, typed direct, plaintext-HTTP-CONNECT, and remote-DNS SOCKS5 routes, and
+one unified streaming response body. CONNECT fields preserve caller-declared
+order, proxy rejection never falls back direct, and coalesced tunnel bytes
+survive negotiation. SOCKS5 domains are resolved by the proxy. H3 uses a
+separate protocol-specific TLS profile and rejects both TCP-only proxy routes
+before network I/O. The optional `cookies` capability
 adds a bounded, explicit session jar with public-suffix, prefix, expiry, and
 deterministic ordering rules. A feature-gated, bounded SSE decoder consumes
 the same response body without a background task; reconnection remains later
 session policy. Feature-gated WebSocket support performs an exact ordered H1
-Upgrade over the same TLS and direct-or-CONNECT route, then exposes bounded
-message I/O through Phantom-owned types. H1/H3 pooling, HTTPS proxies, SOCKS,
-UDP-capable proxies, redirects, retries, WebSocket extensions, and extended
-CONNECT remain planned. The project does not make broad client-compatibility
-claims.
+Upgrade over the same TLS and selected TCP route, then exposes bounded message
+I/O through Phantom-owned types. H1/H3 pooling, HTTPS proxies, SOCKS5 local DNS
+and authentication, UDP-capable proxies, redirects, retries, WebSocket
+extensions, and extended CONNECT remain planned. The project does not make
+broad client-compatibility claims.
 
 ## Principles
 
@@ -93,8 +94,9 @@ default route or `RequestBuilder::route` for an owned per-request override.
 ## Current workspace
 
 - `phantom`: the public exact-protocol client facade, session-owned H2 reuse,
-  direct routes, plaintext HTTP CONNECT for H1/H2 and H1 WebSocket, streaming
-  responses, and optional bounded cookie, SSE, and WebSocket capabilities
+  direct routes, plaintext HTTP CONNECT and remote-DNS SOCKS5 for H1/H2 and H1
+  WebSocket, streaming responses, and optional bounded cookie, SSE, and
+  WebSocket capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
@@ -118,6 +120,7 @@ default for profiles that do not opt into the dynamic policy.
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),
 [configuration model](docs/configuration.md),
+[proxy routing](docs/proxy-routing.md),
 [TLS security boundary](docs/tls-security-boundary.md),
 [scope and coverage](docs/scope-and-coverage.md),
 [async and feature policy](docs/async-and-features.md),

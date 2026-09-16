@@ -229,7 +229,7 @@ and reports rejection without exposing peer fields. Loopback tests prove H1
 and H2 origin TLS through the proxy, H2 trailers, pre-I/O validation,
 cancellation, response bounds, and that rejection never opens a direct origin
 socket. It does not introduce an empty `Session` or pool. HTTPS proxies,
-forwarding, SOCKS, authentication challenge negotiation, IDNA normalization,
+forwarding, SOCKS5, authentication challenge negotiation, IDNA normalization,
 and UDP-capable proxy routes remain later Phase 6 slices.
 
 The third landed slice brings the existing direct H3 path into the public
@@ -260,6 +260,15 @@ same-key connection setup, bounds retained entries, keeps independent sessions
 isolated, and performs no hidden replay. Direct and plaintext-CONNECT tests
 prove sequential/concurrent reuse, tunnel reuse, pre-I/O validation, and
 stream-scoped cancellation.
+
+The sixth landed route slice adds no-auth remote-DNS SOCKS5 through an exact
+`socks5h://` configuration. H1, one-shot H2, session-owned H2 reuse, and H1 WSS
+share the same route; domain targets reach the proxy as SOCKS `DOMAIN`
+addresses. Invalid requests and unsupported H3 pairings fail before proxy I/O,
+and proxy rejection never opens a direct origin socket. Typed redacted errors,
+payload-free tracing, cancellation, fragmented-reply tests, and missing-runtime
+tests cover the lower seam. Local origin DNS, credentials, UDP ASSOCIATE, and
+H3 proxying remain separate future capabilities.
 
 With the optional `cookies` feature, a session builder can explicitly activate
 a bounded in-memory jar or accept a caller-created one. Phantom delegates

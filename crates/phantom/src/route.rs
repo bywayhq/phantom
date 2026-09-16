@@ -5,6 +5,10 @@ use phantom_net::{proxy::HttpConnectHeader, request::RequestHeader};
 
 use crate::authority::Endpoint;
 
+mod socks5;
+
+pub use socks5::{Socks5Proxy, Socks5ProxyConfigError, Socks5ProxyConfigErrorKind};
+
 /// Route used to establish one origin connection.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
@@ -14,6 +18,8 @@ pub enum Route {
     Direct,
     /// Tunnel TCP through a plaintext HTTP proxy using CONNECT.
     HttpConnect(HttpProxy),
+    /// Tunnel TCP through a SOCKS5 proxy with proxy-owned DNS resolution.
+    Socks5(Socks5Proxy),
 }
 
 impl Route {
@@ -29,10 +35,17 @@ impl Route {
         Self::HttpConnect(proxy)
     }
 
+    /// Returns a SOCKS5 route with proxy-owned origin DNS resolution.
+    #[must_use]
+    pub fn socks5(proxy: Socks5Proxy) -> Self {
+        Self::Socks5(proxy)
+    }
+
     pub(crate) const fn trace_name(&self) -> &'static str {
         match self {
             Self::Direct => "direct",
             Self::HttpConnect(_) => "http_connect",
+            Self::Socks5(_) => "socks5_remote_dns",
         }
     }
 }

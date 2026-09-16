@@ -1,9 +1,9 @@
 # WebSocket
 
 The optional `websocket` feature provides secure WebSocket connections over an
-HTTP/1.1 Upgrade. It reuses Phantom's BoringSSL TLS profile, exact route, HTTP
-CONNECT tunnel, ordered HTTP/1 serializer, ordered response metadata, session
-cookies, runtime errors, and tracing lifecycle.
+HTTP/1.1 Upgrade. It reuses Phantom's BoringSSL TLS profile, exact direct,
+HTTP-CONNECT, or remote-DNS SOCKS5 route, ordered HTTP/1 serializer, ordered
+response metadata, session cookies, runtime errors, and tracing lifecycle.
 
 Phantom owns the opening handshake. `tokio-tungstenite` is used only after a
 validated `101` as the RFC 6455 frame and message engine. Its client handshake,

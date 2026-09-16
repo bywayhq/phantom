@@ -13,7 +13,10 @@ use super::{
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
-    proxy::{HttpConnectError, HttpConnectHeader, connect_http_tunnel_direct},
+    proxy::{
+        HttpConnectError, HttpConnectHeader, Socks5Error, connect_http_tunnel_direct,
+        connect_socks5_tunnel_direct,
+    },
     tls::{TlsConnector, trace_alpn},
 };
 
@@ -148,6 +151,31 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Sends one empty-body GET through a SOCKS5 proxy using remote DNS.
+    ///
+    /// The origin request is validated before the proxy connection starts.
+    /// Proxy failure never falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_get_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        self.trace_response_head(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream =
+                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            self.send_prepared_get(stream, server_name, prepared).await
+        })
+        .await
+    }
+
     /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS connection.
     ///
     /// A `101 Switching Protocols` response yields the upgraded byte stream.
@@ -197,6 +225,32 @@ impl Http1TlsConnector {
                 connect_headers,
             )
             .await?;
+            self.send_prepared_upgrade(stream, server_name, prepared)
+                .await
+        })
+        .await
+    }
+
+    /// Sends one HTTP/1.1 Upgrade GET through a remote-DNS SOCKS5 proxy.
+    ///
+    /// The origin request is validated before proxy I/O. Proxy failure never
+    /// falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream =
+                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
             self.send_prepared_upgrade(stream, server_name, prepared)
                 .await
         })
@@ -284,7 +338,7 @@ impl Http1TlsConnector {
             Ok(_) => "ok",
             Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http1TlsError::Connect(_)) => "connect_error",
-            Err(Http1TlsError::Proxy(_)) => "proxy_error",
+            Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
             Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
             Err(Http1TlsError::Http1(
@@ -320,7 +374,7 @@ impl Http1TlsConnector {
             Ok(Http1UpgradeOutcome::Rejected(_)) => "rejected",
             Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http1TlsError::Connect(_)) => "connect_error",
-            Err(Http1TlsError::Proxy(_)) => "proxy_error",
+            Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
             Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
             Err(Http1TlsError::Http1(
@@ -348,6 +402,8 @@ pub enum Http1TlsError {
     Connect(std::io::Error),
     /// HTTP CONNECT proxy negotiation failed.
     Proxy(HttpConnectError),
+    /// SOCKS5 proxy negotiation failed.
+    Socks5Proxy(Socks5Error),
     /// TLS connector setup or handshake failed.
     Tls(TlsError),
     /// HTTP/1 request preparation or protocol setup failed.
@@ -369,6 +425,7 @@ impl fmt::Display for Http1TlsError {
             }
             Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
             Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
+            Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
             Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
             Self::Http1(error) => write!(formatter, "HTTP/1 request failed: {error}"),
             Self::UnsupportedAlpn { selected } => write!(
@@ -387,6 +444,7 @@ impl StdError for Http1TlsError {
         match self {
             Self::Connect(error) => Some(error),
             Self::Proxy(error) => Some(error),
+            Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http1(error) => Some(error),
             Self::RuntimeUnavailable | Self::UnsupportedAlpn { .. } | Self::MissingHttp1Alpn => {
@@ -405,6 +463,12 @@ impl From<TlsError> for Http1TlsError {
 impl From<HttpConnectError> for Http1TlsError {
     fn from(error: HttpConnectError) -> Self {
         Self::Proxy(error)
+    }
+}
+
+impl From<Socks5Error> for Http1TlsError {
+    fn from(error: Socks5Error) -> Self {
+        Self::Socks5Proxy(error)
     }
 }
 

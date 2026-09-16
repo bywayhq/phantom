@@ -19,7 +19,7 @@ use http::{HeaderMap, HeaderValue, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
-    Route, profile::ClientProfile,
+    Route, Socks5Proxy, profile::ClientProfile,
 };
 use tokio::{sync::oneshot, time::timeout};
 
@@ -192,7 +192,7 @@ async fn certificate_failure_has_public_tls_category() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn http_connect_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
+async fn tcp_proxy_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let proxy = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     proxy.set_nonblocking(true)?;
@@ -200,38 +200,43 @@ async fn http_connect_routes_fail_before_proxy_or_origin_io() -> TestResult<()> 
     let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
     origin.set_nonblocking(true)?;
     let origin_address = origin.local_addr()?;
-    let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+    let routes = [
+        Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?),
+        Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?),
+    ];
 
-    let default_route_client = client_builder(&identity).route(route.clone()).build()?;
-    let error = match default_route_client
-        .get(
-            HttpProtocol::Http3,
-            &format!("https://{origin_address}/default"),
-        )?
-        .send()
-        .await
-    {
-        Ok(_) => return Err("HTTP/3 used a default HTTP CONNECT route".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+    for route in routes {
+        let default_route_client = client_builder(&identity).route(route.clone()).build()?;
+        let error = match default_route_client
+            .get(
+                HttpProtocol::Http3,
+                &format!("https://{origin_address}/default"),
+            )?
+            .send()
+            .await
+        {
+            Ok(_) => return Err("HTTP/3 used a default TCP proxy route".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
 
-    let override_client = test_client(&identity)?;
-    let error = match override_client
-        .get(
-            HttpProtocol::Http3,
-            &format!("https://{origin_address}/override"),
-        )?
-        .route(route)
-        .send()
-        .await
-    {
-        Ok(_) => return Err("HTTP/3 used a request HTTP CONNECT override".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+        let override_client = test_client(&identity)?;
+        let error = match override_client
+            .get(
+                HttpProtocol::Http3,
+                &format!("https://{origin_address}/override"),
+            )?
+            .route(route)
+            .send()
+            .await
+        {
+            Ok(_) => return Err("HTTP/3 used a request TCP proxy override".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+    }
 
     assert!(matches!(
         proxy.accept(),

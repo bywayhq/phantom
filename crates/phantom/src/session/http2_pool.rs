@@ -143,6 +143,17 @@ impl PoolEntry {
                     )
                     .await?
             }
+            Route::Socks5(proxy) => {
+                connector
+                    .connect_socks5_remote(
+                        proxy.host(),
+                        proxy.port(),
+                        endpoint.host(),
+                        endpoint.port(),
+                        endpoint.host(),
+                    )
+                    .await?
+            }
         };
         let slot = ConnectionSlot {
             connection,

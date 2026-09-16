@@ -37,8 +37,9 @@ bytes.
 The facade grows through three ordinary levels:
 
 - `ClientBuilder` currently owns one immutable profile, additive trust roots,
-  and a default `Route` (`Direct` or plaintext HTTP CONNECT). Later slices add
-  runtime services and pool limits only with their implementations.
+  and a default `Route` (`Direct`, plaintext HTTP CONNECT, or remote-DNS
+  SOCKS5). Later slices add runtime services and pool limits only with their
+  implementations.
 - `RequestBuilder` currently owns an exact protocol, HTTPS target, and ordered
   fields. It may own a route override; deadline and retry policy remain absent.
 - `ClientProfile` owns required TCP TLS, optional H2 settings, and an optional
@@ -51,10 +52,12 @@ The facade performs a new connection for each request. It synthesizes the H1
 caller-supplied origin `Host` field. A plaintext HTTP CONNECT route has a
 separate ordered field sequence with one typed destination-authority
 placeholder. Request and CONNECT validation happen before proxy I/O; non-2xx
-proxy responses are typed failures and never trigger a direct retry. Selecting
-H2 or H3 without the corresponding profile settings also fails before network
-I/O. H3 currently supports only `Route::Direct`; pairing it with HTTP CONNECT
-is rejected before either proxy TCP or origin UDP is opened. The response body
+proxy responses are typed failures and never trigger a direct retry. A
+`socks5h://` route resolves domain origins at the proxy and applies to H1, H2,
+session-owned H2 reuse, and H1 WebSocket. Selecting H2 or H3 without the
+corresponding profile settings also fails before network I/O. H3 currently
+supports only `Route::Direct`; pairing it with either TCP-only proxy route is
+rejected before either proxy TCP or origin UDP is opened. The response body
 implements `http_body::Body` and retains the existing protocol cancellation
 behavior when dropped.
 

@@ -253,7 +253,12 @@ impl RequestError {
             {
                 RequestErrorKind::RuntimeUnavailable
             }
-            Http1TlsError::Proxy(_) => RequestErrorKind::Proxy,
+            Http1TlsError::Socks5Proxy(error)
+                if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
+            {
+                RequestErrorKind::RuntimeUnavailable
+            }
+            Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
             Http1TlsError::Tls(_) => RequestErrorKind::Tls,
             _ => RequestErrorKind::Http1,
         };
@@ -274,7 +279,12 @@ impl RequestError {
             {
                 RequestErrorKind::RuntimeUnavailable
             }
-            Http2TlsError::Proxy(_) => RequestErrorKind::Proxy,
+            Http2TlsError::Socks5Proxy(error)
+                if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
+            {
+                RequestErrorKind::RuntimeUnavailable
+            }
+            Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
             Http2TlsError::Tls(_) => RequestErrorKind::Tls,
             _ => RequestErrorKind::Http2,
         };
