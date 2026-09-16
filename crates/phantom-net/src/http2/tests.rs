@@ -111,6 +111,7 @@ async fn reset_observing_server(stream: DuplexStream) -> TestResult<(::http2::Re
     Ok((reason, true))
 }
 
+mod adversarial_malformed;
 mod adversarial_wire;
 mod connection;
 mod driver_lifecycle;
