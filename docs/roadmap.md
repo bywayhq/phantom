@@ -117,8 +117,9 @@ bounded parked sections, acknowledgements, cancellations, reset wakeups, and
 receive-future persistence. A typed Chrome H3 profile now emits the captured
 nonzero QPACK limits, maximum field-section size, H3 DATAGRAM setting,
 ascending setting order, and randomized GREASE. A live raw control-stream
-differential checks the resulting SETTINGS frame. Captured request ordering
-and outbound dynamic QPACK remain acceptance work.
+differential checks the resulting SETTINGS frame. Captured pseudo-header and
+ordinary-field order now pass through the request encoder; outbound dynamic
+QPACK remains acceptance work.
 
 Acceptance:
 
@@ -130,6 +131,9 @@ Acceptance:
 - The first H3 control stream reproduces the captured fixed SETTINGS prefix;
   seeded tests reproduce GREASE exactly and policy tests cover its measured
   variability without sorting or removing it.
+- The first request preserves the captured pseudo-header sequence and exact
+  caller-supplied ordinary-field order, including cross-name interleaving and
+  duplicates, through its encoded QPACK field section.
 - Nonzero QPACK table capacity and blocked-stream limits are enabled in a
   browser profile only after its raw control-stream differential passes. The
   engine path covers encoder-stream processing, bounded section accounting,

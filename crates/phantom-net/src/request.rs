@@ -55,8 +55,8 @@ impl StdError for InvalidOriginForm {}
 /// A request header retaining caller-supplied spelling, value, and position.
 ///
 /// Each protocol validates this representation against its own wire rules.
-/// HTTP/1 preserves the supplied field-name spelling; HTTP/2 requires lowercase
-/// field names while preserving field order and duplicate positions.
+/// HTTP/1 preserves the supplied field-name spelling; HTTP/2 and HTTP/3 require
+/// lowercase field names while preserving field order and duplicate positions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RequestHeader {
     name: Box<str>,

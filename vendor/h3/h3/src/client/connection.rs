@@ -20,7 +20,11 @@ use crate::{
         ConnectionError, StreamError,
     },
     frame::FrameStream,
-    proto::{frame::Frame, headers::Header, push::PushId},
+    proto::{
+        frame::Frame,
+        headers::{Header, HeaderError},
+        push::PushId,
+    },
     qpack,
     quic::{self, StreamId},
     shared_state::{ConnectionState, SharedState},
@@ -161,11 +165,18 @@ where
             extensions,
             ..
         } = parts;
-        let headers = Header::request(method, uri, headers, extensions).map_err(|_e| {
-            self.handle_connection_error_on_stream(InternalConnectionError {
-                code: Code::H3_INTERNAL_ERROR,
-                message: "Failed to build request headers".to_string(),
-            })
+        let headers = Header::request(method, uri, headers, extensions).map_err(|error| {
+            if matches!(
+                error,
+                HeaderError::ContradictedOrderedHeaders | HeaderError::InvalidPseudoHeaderOrder
+            ) {
+                StreamError::InvalidRequest(error.to_string())
+            } else {
+                self.handle_connection_error_on_stream(InternalConnectionError {
+                    code: Code::H3_INTERNAL_ERROR,
+                    message: "Failed to build request headers".to_string(),
+                })
+            }
         })?;
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1

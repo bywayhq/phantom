@@ -54,6 +54,20 @@ pub enum Http3SettingOrder {
     Ascending,
 }
 
+/// A request pseudo-header in its QPACK field-section order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3PseudoHeader {
+    /// `:method`.
+    Method,
+    /// `:authority`.
+    Authority,
+    /// `:scheme`.
+    Scheme,
+    /// `:path`.
+    Path,
+}
+
 /// Ordered HTTP/3 settings independent of the concrete HTTP/3 backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Http3Settings {
@@ -109,6 +123,91 @@ impl Http3Settings {
             .any(|setting| matches!(setting, Http3Setting::H3Datagram(true)))
     }
 }
+
+/// Ordered HTTP/3 request construction independent of the concrete backend.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Http3RequestSettings {
+    /// Wire order of `:method`, `:authority`, `:scheme`, and `:path`.
+    pub pseudo_header_order: Vec<Http3PseudoHeader>,
+}
+
+impl Http3RequestSettings {
+    /// Validates the request profile independently of a concrete backend.
+    pub fn validate(&self) -> Result<(), InvalidHttp3RequestSettings> {
+        validate_pseudo_header_order(&self.pseudo_header_order)
+    }
+}
+
+fn validate_pseudo_header_order(
+    order: &[Http3PseudoHeader],
+) -> Result<(), InvalidHttp3RequestSettings> {
+    const REQUIRED_COUNT: usize = 4;
+    if order.len() != REQUIRED_COUNT {
+        return Err(InvalidHttp3RequestSettings::new(
+            "pseudo_header_order",
+            "order must contain method, authority, scheme, and path exactly once",
+        ));
+    }
+
+    let mut present = [false; REQUIRED_COUNT];
+    for header in order {
+        let index = match header {
+            Http3PseudoHeader::Method => 0,
+            Http3PseudoHeader::Authority => 1,
+            Http3PseudoHeader::Scheme => 2,
+            Http3PseudoHeader::Path => 3,
+        };
+        if present[index] {
+            return Err(InvalidHttp3RequestSettings::new(
+                "pseudo_header_order",
+                "order must contain method, authority, scheme, and path exactly once",
+            ));
+        }
+        present[index] = true;
+    }
+
+    Ok(())
+}
+
+/// Error returned when HTTP/3 request settings are inconsistent.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvalidHttp3RequestSettings {
+    field: &'static str,
+    message: Box<str>,
+}
+
+impl InvalidHttp3RequestSettings {
+    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+        Self {
+            field,
+            message: message.into(),
+        }
+    }
+
+    /// Returns the invalid setting's field name.
+    #[must_use]
+    pub fn field(&self) -> &'static str {
+        self.field
+    }
+
+    /// Returns the reason the setting is invalid.
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        &self.message
+    }
+}
+
+impl fmt::Display for InvalidHttp3RequestSettings {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid HTTP/3 request {}: {}",
+            self.field, self.message
+        )
+    }
+}
+
+impl Error for InvalidHttp3RequestSettings {}
 
 /// Error returned when HTTP/3 profile settings are inconsistent.
 #[derive(Clone, Debug, Eq, PartialEq)]

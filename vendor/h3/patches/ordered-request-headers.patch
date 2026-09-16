@@ -1,0 +1,587 @@
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 542dd9e..90543fa 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -20,7 +20,11 @@ use crate::{
+         ConnectionError, StreamError,
+     },
+     frame::FrameStream,
+-    proto::{frame::Frame, headers::Header, push::PushId},
++    proto::{
++        frame::Frame,
++        headers::{Header, HeaderError},
++        push::PushId,
++    },
+     qpack,
+     quic::{self, StreamId},
+     shared_state::{ConnectionState, SharedState},
+@@ -161,11 +165,18 @@ where
+             extensions,
+             ..
+         } = parts;
+-        let headers = Header::request(method, uri, headers, extensions).map_err(|_e| {
+-            self.handle_connection_error_on_stream(InternalConnectionError {
+-                code: Code::H3_INTERNAL_ERROR,
+-                message: "Failed to build request headers".to_string(),
+-            })
++        let headers = Header::request(method, uri, headers, extensions).map_err(|error| {
++            if matches!(
++                error,
++                HeaderError::ContradictedOrderedHeaders | HeaderError::InvalidPseudoHeaderOrder
++            ) {
++                StreamError::InvalidRequest(error.to_string())
++            } else {
++                self.handle_connection_error_on_stream(InternalConnectionError {
++                    code: Code::H3_INTERNAL_ERROR,
++                    message: "Failed to build request headers".to_string(),
++                })
++            }
+         })?;
+ 
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+diff --git a/h3/src/error/error.rs b/h3/src/error/error.rs
+index 91313f9..ac1958f 100644
+--- a/h3/src/error/error.rs
++++ b/h3/src/error/error.rs
+@@ -120,6 +120,12 @@ pub enum StreamError {
+         /// The maximum size of the header block
+         max_size: u64,
+     },
++    /// The local request metadata is internally inconsistent.
++    #[cfg_attr(
++        not(feature = "i-implement-a-third-party-backend-and-opt-into-breaking-changes"),
++        non_exhaustive
++    )]
++    InvalidRequest(String),
+     /// Received a GoAway frame from the remote
+     ///
+     /// Stream operations cannot be performed
+@@ -190,6 +196,7 @@ impl std::fmt::Display for StreamError {
+                 "Header too big: actual size: {}, max size: {}",
+                 actual_size, max_size
+             ),
++            StreamError::InvalidRequest(reason) => write!(f, "Invalid request: {}", reason),
+             StreamError::Undefined(err) => write!(f, "Undefined error: {}", err),
+             StreamError::RemoteClosing => write!(f, "Remote is closing the connection"),
+         }
+diff --git a/h3/src/ext.rs b/h3/src/ext.rs
+index e9d28c1..36a0643 100644
+--- a/h3/src/ext.rs
++++ b/h3/src/ext.rs
+@@ -2,6 +2,100 @@
+ 
+ use std::str::FromStr;
+ 
++use http::{HeaderMap, HeaderName, HeaderValue};
++
++/// Exact field order for the ordinary fields of an outgoing request.
++///
++/// The ordered fields must describe the same semantic multimap as the
++/// request's [`HeaderMap`], including duplicate values and their per-name
++/// order and sensitivity markers, or the request is rejected. The current
++/// stateless QPACK encoder does not emit the QPACK never-indexed bit from a
++/// [`HeaderValue`]'s sensitivity marker.
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub struct OrderedHeaders {
++    headers: Vec<(HeaderName, HeaderValue)>,
++}
++
++impl OrderedHeaders {
++    /// Creates an owned ordinary-header order.
++    #[must_use]
++    pub fn new(headers: Vec<(HeaderName, HeaderValue)>) -> Self {
++        Self { headers }
++    }
++
++    /// Returns the ordered ordinary fields.
++    #[must_use]
++    pub fn as_slice(&self) -> &[(HeaderName, HeaderValue)] {
++        &self.headers
++    }
++
++    pub(crate) fn agrees_with(&self, semantic: &HeaderMap) -> bool {
++        let mut reconstructed = HeaderMap::new();
++        for (name, value) in &self.headers {
++            if reconstructed.try_append(name, value.clone()).is_err() {
++                return false;
++            }
++        }
++        reconstructed.len() == semantic.len()
++            && semantic.keys().all(|name| {
++                let ordered = reconstructed.get_all(name).iter().collect::<Vec<_>>();
++                let semantic = semantic.get_all(name).iter().collect::<Vec<_>>();
++                ordered.len() == semantic.len()
++                    && ordered
++                        .into_iter()
++                        .zip(semantic)
++                        .all(|(ordered, semantic)| {
++                            ordered.as_bytes() == semantic.as_bytes()
++                                && ordered.is_sensitive() == semantic.is_sensitive()
++                        })
++            })
++    }
++
++    pub(crate) fn into_inner(self) -> Vec<(HeaderName, HeaderValue)> {
++        self.headers
++    }
++}
++
++/// A request pseudo-header in its encoded field-section order.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum RequestPseudoHeader {
++    /// `:method`.
++    Method,
++    /// `:authority`.
++    Authority,
++    /// `:scheme`.
++    Scheme,
++    /// `:path`.
++    Path,
++    /// `:protocol`.
++    Protocol,
++}
++
++/// Exact pseudo-header order for an outgoing request.
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub struct RequestPseudoHeaderOrder {
++    headers: Vec<RequestPseudoHeader>,
++}
++
++impl RequestPseudoHeaderOrder {
++    /// Creates an owned request pseudo-header order.
++    #[must_use]
++    pub fn new(headers: Vec<RequestPseudoHeader>) -> Self {
++        Self { headers }
++    }
++
++    /// Returns the ordered request pseudo-headers.
++    #[must_use]
++    pub fn as_slice(&self) -> &[RequestPseudoHeader] {
++        &self.headers
++    }
++
++    pub(crate) fn into_inner(self) -> Vec<RequestPseudoHeader> {
++        self.headers
++    }
++}
++
+ /// Describes the `:protocol` pseudo-header for extended connect
+ ///
+ /// See: <https://www.rfc-editor.org/rfc/rfc8441#section-4>
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+index d84ed0e..732b572 100644
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -11,13 +11,18 @@ use http::{
+     Extensions, HeaderMap, Method, StatusCode,
+ };
+ 
+-use crate::{ext::Protocol, qpack::HeaderField};
++use crate::{
++    ext::{OrderedHeaders, Protocol, RequestPseudoHeader, RequestPseudoHeaderOrder},
++    qpack::HeaderField,
++};
+ 
+ #[derive(Debug)]
+ #[cfg_attr(test, derive(PartialEq, Clone))]
+ pub struct Header {
+     pseudo: Pseudo,
++    pseudo_order: Option<Vec<RequestPseudoHeader>>,
+     fields: HeaderMap,
++    ordered_fields: Option<Vec<(HeaderName, HeaderValue)>>,
+ }
+ 
+ #[allow(clippy::len_without_is_empty)]
+@@ -27,22 +32,45 @@ impl Header {
+         method: Method,
+         uri: Uri,
+         fields: HeaderMap,
+-        ext: Extensions,
++        mut ext: Extensions,
+     ) -> Result<Self, HeaderError> {
++        let ordered_fields = ext.remove::<OrderedHeaders>();
++        if ordered_fields
++            .as_ref()
++            .is_some_and(|ordered| !ordered.agrees_with(&fields))
++        {
++            return Err(HeaderError::ContradictedOrderedHeaders);
++        }
+         match (uri.authority(), fields.get("host")) {
+-            (None, None) => Err(HeaderError::MissingAuthority),
+-            (Some(a), Some(h)) if a.as_str() != h => Err(HeaderError::ContradictedAuthority),
+-            _ => Ok(Self {
+-                pseudo: Pseudo::request(method, uri, ext),
+-                fields,
+-            }),
++            (None, None) => return Err(HeaderError::MissingAuthority),
++            (Some(a), Some(h)) if a.as_str() != h => {
++                return Err(HeaderError::ContradictedAuthority);
++            }
++            _ => {}
+         }
++        let pseudo_order = ext.remove::<RequestPseudoHeaderOrder>();
++        let pseudo = Pseudo::request(method, uri, ext);
++        if pseudo_order
++            .as_ref()
++            .is_some_and(|order| !pseudo.agrees_with(order.as_slice()))
++        {
++            return Err(HeaderError::InvalidPseudoHeaderOrder);
++        }
++
++        Ok(Self {
++            pseudo,
++            pseudo_order: pseudo_order.map(RequestPseudoHeaderOrder::into_inner),
++            fields,
++            ordered_fields: ordered_fields.map(OrderedHeaders::into_inner),
++        })
+     }
+ 
+     pub fn response(status: StatusCode, fields: HeaderMap) -> Self {
+         Self {
+             pseudo: Pseudo::response(status),
++            pseudo_order: None,
+             fields,
++            ordered_fields: None,
+         }
+     }
+ 
+@@ -52,7 +80,9 @@ impl Header {
+             //# Pseudo-header fields MUST NOT appear in trailer
+             //# sections.
+             pseudo: Pseudo::default(),
++            pseudo_order: None,
+             fields,
++            ordered_fields: None,
+         }
+     }
+ 
+@@ -87,7 +117,7 @@ impl Header {
+             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.1
+             //# If both fields are present, they MUST contain the same value.
+             (Some(a), Some(h)) if a.as_str() != h => {
+-                return Err(HeaderError::ContradictedAuthority)
++                return Err(HeaderError::ContradictedAuthority);
+             }
+             (Some(_), Some(h)) => uri = uri.authority(h.as_bytes()),
+         }
+@@ -141,6 +171,8 @@ impl IntoIterator for Header {
+     fn into_iter(self) -> Self::IntoIter {
+         HeaderIter {
+             pseudo: Some(self.pseudo),
++            pseudo_order: self.pseudo_order.map(Vec::into_iter),
++            ordered_fields: self.ordered_fields.map(Vec::into_iter),
+             last_header_name: None,
+             fields: self.fields.into_iter(),
+         }
+@@ -149,6 +181,8 @@ impl IntoIterator for Header {
+ 
+ pub struct HeaderIter {
+     pseudo: Option<Pseudo>,
++    pseudo_order: Option<std::vec::IntoIter<RequestPseudoHeader>>,
++    ordered_fields: Option<std::vec::IntoIter<(HeaderName, HeaderValue)>>,
+     last_header_name: Option<HeaderName>,
+     fields: header::IntoIter<HeaderValue>,
+ }
+@@ -160,6 +194,30 @@ impl Iterator for HeaderIter {
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3
+         //# All pseudo-header fields MUST appear in the header section before
+         //# regular header fields.
++        if let Some(order) = self.pseudo_order.as_mut() {
++            if let Some(header) = order.next() {
++                let pseudo = self.pseudo.as_mut()?;
++                return Some(match header {
++                    RequestPseudoHeader::Method => {
++                        (":method", pseudo.method.take()?.as_str()).into()
++                    }
++                    RequestPseudoHeader::Authority => {
++                        (":authority", pseudo.authority.take()?.as_str().as_bytes()).into()
++                    }
++                    RequestPseudoHeader::Scheme => {
++                        (":scheme", pseudo.scheme.take()?.as_str().as_bytes()).into()
++                    }
++                    RequestPseudoHeader::Path => {
++                        (":path", pseudo.path.take()?.as_str().as_bytes()).into()
++                    }
++                    RequestPseudoHeader::Protocol => {
++                        (":protocol", pseudo.protocol.take()?.as_str().as_bytes()).into()
++                    }
++                });
++            }
++            self.pseudo = None;
++        }
++
+         if let Some(ref mut pseudo) = self.pseudo {
+             if let Some(method) = pseudo.method.take() {
+                 return Some((":method", method.as_str()).into());
+@@ -188,6 +246,12 @@ impl Iterator for HeaderIter {
+ 
+         self.pseudo = None;
+ 
++        if let Some(ordered) = self.ordered_fields.as_mut() {
++            return ordered
++                .next()
++                .map(|(name, value)| (name.as_str(), value.as_bytes()).into());
++        }
++
+         for (new_header_name, header_value) in self.fields.by_ref() {
+             if let Some(new) = new_header_name {
+                 self.last_header_name = Some(new);
+@@ -223,7 +287,7 @@ impl TryFrom<Vec<HeaderField>> for Header {
+                 | Field::Protocol(_)
+                     if regular_field_seen =>
+                 {
+-                    return Err(HeaderError::PseudoAfterRegularField)
++                    return Err(HeaderError::PseudoAfterRegularField);
+                 }
+                 Field::Method(m) => {
+                     pseudo.method = Some(m);
+@@ -256,7 +320,12 @@ impl TryFrom<Vec<HeaderField>> for Header {
+             }
+         }
+ 
+-        Ok(Header { pseudo, fields })
++        Ok(Header {
++            pseudo,
++            pseudo_order: None,
++            fields,
++            ordered_fields: None,
++        })
+     }
+ }
+ 
+@@ -454,6 +523,33 @@ impl Pseudo {
+     fn len(&self) -> usize {
+         self.len
+     }
++
++    fn agrees_with(&self, order: &[RequestPseudoHeader]) -> bool {
++        let expected = usize::from(self.method.is_some())
++            + usize::from(self.authority.is_some())
++            + usize::from(self.scheme.is_some())
++            + usize::from(self.path.is_some())
++            + usize::from(self.protocol.is_some());
++        if order.len() != expected {
++            return false;
++        }
++
++        let mut seen = [false; 5];
++        for header in order {
++            let (index, present) = match header {
++                RequestPseudoHeader::Method => (0, self.method.is_some()),
++                RequestPseudoHeader::Authority => (1, self.authority.is_some()),
++                RequestPseudoHeader::Scheme => (2, self.scheme.is_some()),
++                RequestPseudoHeader::Path => (3, self.path.is_some()),
++                RequestPseudoHeader::Protocol => (4, self.protocol.is_some()),
++            };
++            if !present || seen[index] {
++                return false;
++            }
++            seen[index] = true;
++        }
++        true
++    }
+ }
+ 
+ #[derive(Debug)]
+@@ -465,6 +561,8 @@ pub enum HeaderError {
+     MissingStatus,
+     MissingAuthority,
+     ContradictedAuthority,
++    ContradictedOrderedHeaders,
++    InvalidPseudoHeaderOrder,
+     PseudoAfterRegularField,
+ }
+ 
+@@ -503,6 +601,12 @@ impl fmt::Display for HeaderError {
+             HeaderError::ContradictedAuthority => {
+                 write!(f, "uri and authority field are in contradiction")
+             }
++            HeaderError::ContradictedOrderedHeaders => {
++                write!(f, "ordered fields disagree with semantic headers")
++            }
++            HeaderError::InvalidPseudoHeaderOrder => {
++                write!(f, "pseudo-header order does not match the request")
++            }
+             HeaderError::PseudoAfterRegularField => {
+                 write!(
+                     f,
+@@ -517,6 +621,178 @@ impl fmt::Display for HeaderError {
+ mod tests {
+     use super::*;
+     use assert_matches::assert_matches;
++    use bytes::BytesMut;
++
++    fn ordered_request() -> Result<Header, HeaderError> {
++        let mut fields = HeaderMap::new();
++        fields.append("x-repeat", HeaderValue::from_static("alpha"));
++        fields.append("x-repeat", HeaderValue::from_static("beta"));
++        fields.insert("x-middle", HeaderValue::from_static("between"));
++
++        let ordered = vec![
++            (
++                HeaderName::from_static("x-repeat"),
++                HeaderValue::from_static("alpha"),
++            ),
++            (
++                HeaderName::from_static("x-middle"),
++                HeaderValue::from_static("between"),
++            ),
++            (
++                HeaderName::from_static("x-repeat"),
++                HeaderValue::from_static("beta"),
++            ),
++        ];
++        let mut extensions = Extensions::new();
++        extensions.insert(OrderedHeaders::new(ordered));
++        extensions.insert(RequestPseudoHeaderOrder::new(vec![
++            RequestPseudoHeader::Method,
++            RequestPseudoHeader::Authority,
++            RequestPseudoHeader::Scheme,
++            RequestPseudoHeader::Path,
++        ]));
++
++        Header::request(
++            Method::GET,
++            Uri::from_static("https://example.test/ordered"),
++            fields,
++            extensions,
++        )
++    }
++
++    #[test]
++    fn ordered_request_fields_reach_qpack_in_declared_order() {
++        let header = ordered_request().expect("matching order must be accepted");
++        let fields = header.clone().into_iter().collect::<Vec<_>>();
++        assert_eq!(
++            fields
++                .iter()
++                .map(|field| (field.name.as_ref(), field.value.as_ref()))
++                .collect::<Vec<_>>(),
++            [
++                (b":method".as_slice(), b"GET".as_slice()),
++                (b":authority".as_slice(), b"example.test".as_slice()),
++                (b":scheme".as_slice(), b"https".as_slice()),
++                (b":path".as_slice(), b"/ordered".as_slice()),
++                (b"x-repeat".as_slice(), b"alpha".as_slice()),
++                (b"x-middle".as_slice(), b"between".as_slice()),
++                (b"x-repeat".as_slice(), b"beta".as_slice()),
++            ]
++        );
++
++        let mut block = BytesMut::new();
++        crate::qpack::encode_stateless(&mut block, header).expect("ordered fields must encode");
++        assert_eq!(
++            block.as_ref(),
++            &[
++                0x00, 0x00, 0xd1, 0x50, 0x89, 0x2f, 0x91, 0xd3, 0x5d, 0x05, 0x5d, 0x25, 0x42, 0x7f,
++                0xd7, 0x51, 0x86, 0x60, 0xf6, 0x48, 0x5b, 0x0b, 0x27, 0x2e, 0xf2, 0xb5, 0x85, 0xac,
++                0xa3, 0x4f, 0x84, 0x1d, 0x15, 0xce, 0x3f, 0x2e, 0xf2, 0xb5, 0x26, 0x92, 0x4a, 0x0b,
++                0x85, 0x8c, 0xa9, 0xf0, 0x52, 0xd5, 0x2e, 0xf2, 0xb5, 0x85, 0xac, 0xa3, 0x4f, 0x83,
++                0x8c, 0xa9, 0x1f,
++            ]
++        );
++    }
++
++    #[test]
++    fn request_without_order_extensions_preserves_upstream_encoding() {
++        let mut fields = HeaderMap::new();
++        fields.append("x-repeat", HeaderValue::from_static("alpha"));
++        fields.append("x-repeat", HeaderValue::from_static("beta"));
++        fields.insert("x-middle", HeaderValue::from_static("between"));
++        let header = Header::request(
++            Method::GET,
++            Uri::from_static("https://example.test/ordered"),
++            fields,
++            Extensions::new(),
++        )
++        .expect("ordinary request must remain valid");
++        let emitted = header.clone().into_iter().collect::<Vec<_>>();
++        assert_eq!(
++            emitted
++                .iter()
++                .map(|field| (field.name.as_ref(), field.value.as_ref()))
++                .collect::<Vec<_>>(),
++            [
++                (b":method".as_slice(), b"GET".as_slice()),
++                (b":scheme".as_slice(), b"https".as_slice()),
++                (b":authority".as_slice(), b"example.test".as_slice()),
++                (b":path".as_slice(), b"/ordered".as_slice()),
++                (b"x-repeat".as_slice(), b"alpha".as_slice()),
++                (b"x-repeat".as_slice(), b"beta".as_slice()),
++                (b"x-middle".as_slice(), b"between".as_slice()),
++            ]
++        );
++
++        let mut block = BytesMut::new();
++        crate::qpack::encode_stateless(&mut block, header).expect("ordinary fields must encode");
++        assert_eq!(
++            block.as_ref(),
++            &[
++                0x00, 0x00, 0xd1, 0xd7, 0x50, 0x89, 0x2f, 0x91, 0xd3, 0x5d, 0x05, 0x5d, 0x25, 0x42,
++                0x7f, 0x51, 0x86, 0x60, 0xf6, 0x48, 0x5b, 0x0b, 0x27, 0x2e, 0xf2, 0xb5, 0x85, 0xac,
++                0xa3, 0x4f, 0x84, 0x1d, 0x15, 0xce, 0x3f, 0x2e, 0xf2, 0xb5, 0x85, 0xac, 0xa3, 0x4f,
++                0x83, 0x8c, 0xa9, 0x1f, 0x2e, 0xf2, 0xb5, 0x26, 0x92, 0x4a, 0x0b, 0x85, 0x8c, 0xa9,
++                0xf0, 0x52, 0xd5,
++            ]
++        );
++    }
++
++    #[test]
++    fn rejects_order_metadata_that_disagrees_with_request() {
++        let mut fields = HeaderMap::new();
++        fields.insert("x-field", HeaderValue::from_static("semantic"));
++        let mut extensions = Extensions::new();
++        extensions.insert(OrderedHeaders::new(vec![(
++            HeaderName::from_static("x-field"),
++            HeaderValue::from_static("different"),
++        )]));
++        assert_matches!(
++            Header::request(
++                Method::GET,
++                Uri::from_static("https://example.test/"),
++                fields,
++                extensions,
++            ),
++            Err(HeaderError::ContradictedOrderedHeaders)
++        );
++
++        let mut fields = HeaderMap::new();
++        let mut sensitive = HeaderValue::from_static("same");
++        sensitive.set_sensitive(true);
++        fields.insert("x-field", sensitive);
++        let mut extensions = Extensions::new();
++        extensions.insert(OrderedHeaders::new(vec![(
++            HeaderName::from_static("x-field"),
++            HeaderValue::from_static("same"),
++        )]));
++        assert_matches!(
++            Header::request(
++                Method::GET,
++                Uri::from_static("https://example.test/"),
++                fields,
++                extensions,
++            ),
++            Err(HeaderError::ContradictedOrderedHeaders)
++        );
++
++        let mut extensions = Extensions::new();
++        extensions.insert(RequestPseudoHeaderOrder::new(vec![
++            RequestPseudoHeader::Method,
++            RequestPseudoHeader::Method,
++            RequestPseudoHeader::Scheme,
++            RequestPseudoHeader::Path,
++        ]));
++        assert_matches!(
++            Header::request(
++                Method::GET,
++                Uri::from_static("https://example.test/"),
++                HeaderMap::new(),
++                extensions,
++            ),
++            Err(HeaderError::InvalidPseudoHeaderOrder)
++        );
++    }
+ 
+     #[test]
+     fn request_has_no_authority_nor_host() {

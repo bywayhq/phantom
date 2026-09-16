@@ -421,7 +421,9 @@ pseudo-header order and priority and remain supplemental observations, not
 substitutes for local bytes. A retained Chrome H3 startup capture drives the
 typed profile. A live raw control-stream differential checks its fixed settings,
 one reserved GREASE setting, and ascending order without normalizing them into
-a map. Captured request QPACK bytes and header order remain separate acceptance
+a map. The complete 17-field captured request now passes through Phantom's
+typed construction and the vendored H3 field iterator in exact order. Exact
+dynamic QPACK instruction and field-section bytes remain separate acceptance
 work. No Safari HTTP/2 wire fixture exists yet.
 
 ## External TLS and QUIC observers

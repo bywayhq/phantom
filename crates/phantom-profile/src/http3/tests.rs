@@ -1,4 +1,7 @@
-use super::{Http3Setting, Http3SettingOrder, Http3Settings, InvalidHttp3Settings};
+use super::{
+    Http3PseudoHeader, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+    InvalidHttp3RequestSettings, InvalidHttp3Settings,
+};
 
 fn settings() -> Http3Settings {
     Http3Settings {
@@ -11,6 +14,28 @@ fn settings() -> Http3Settings {
         ],
         setting_order: Http3SettingOrder::Ascending,
     }
+}
+
+fn request_settings() -> Http3RequestSettings {
+    Http3RequestSettings {
+        pseudo_header_order: vec![
+            Http3PseudoHeader::Method,
+            Http3PseudoHeader::Authority,
+            Http3PseudoHeader::Scheme,
+            Http3PseudoHeader::Path,
+        ],
+    }
+}
+
+#[test]
+fn requires_each_get_pseudo_header_once() {
+    let mut missing = request_settings();
+    missing.pseudo_header_order.pop();
+    assert_request_field(missing.validate(), "pseudo_header_order");
+
+    let mut duplicate = request_settings();
+    duplicate.pseudo_header_order[3] = Http3PseudoHeader::Method;
+    assert_request_field(duplicate.validate(), "pseudo_header_order");
 }
 
 #[test]
@@ -74,6 +99,16 @@ fn datagram_support_requires_true_setting() {
 fn assert_field(result: Result<(), InvalidHttp3Settings>, expected_field: &'static str) {
     assert_eq!(
         result.as_ref().map_err(InvalidHttp3Settings::field),
+        Err(expected_field)
+    );
+}
+
+fn assert_request_field(
+    result: Result<(), InvalidHttp3RequestSettings>,
+    expected_field: &'static str,
+) {
+    assert_eq!(
+        result.as_ref().map_err(InvalidHttp3RequestSettings::field),
         Err(expected_field)
     );
 }

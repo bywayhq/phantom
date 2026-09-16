@@ -81,6 +81,22 @@ live raw control-stream differential. Outbound request encoding remains
 stateless; QPACK settings are directional, so this does not weaken the inbound
 decoder contract. Custom profiles may still select QPACK `0/0`.
 
+## Ordered request fields
+
+`h3::ext::RequestPseudoHeaderOrder` and `h3::ext::OrderedHeaders` carry an
+outgoing request's declared pseudo-header and ordinary-field order without
+changing its semantic `http::Request`. The request encoder validates that each
+pseudo-header exists exactly once and that the ordinary sidecar matches the
+request `HeaderMap` by name, duplicate value order, and sensitivity marker.
+Invalid sidecars return a local request error before a QUIC request stream is
+opened; they do not close the HTTP/3 connection.
+
+The header iterator emits every pseudo-header first in the declared order,
+followed by ordinary fields in exact sidecar order. The focused QPACK regression
+fixes the resulting stateless field-section bytes for an interleaved duplicate.
+Sensitivity participates in sidecar agreement, but the current stateless QPACK
+encoder does not translate `HeaderValue::is_sensitive` into QPACK's N bit.
+
 `h3-quinn` now polls Quinn's cancel-safe chunk read directly instead of moving
 the receive stream into a stored future. This keeps `stop_sending` immediately
 available while a read is pending, so cancellation retains its chosen HTTP/3
@@ -98,9 +114,9 @@ Phantom repository. A unit regression fixes its complete control-stream prefix,
 including setting order and the concrete GREASE identifier/value widths.
 
 The canonical source and test deltas are stored in
-`patches/ordered-settings.patch`, `patches/qpack-codec.patch`, and
-`patches/qpack-critical-streams.patch`, and
-`patches/qpack-dynamic-client.patch`, and `patches/cancel-safe-recv.patch`.
+`patches/ordered-settings.patch`, `patches/qpack-codec.patch`,
+`patches/qpack-critical-streams.patch`, `patches/qpack-dynamic-client.patch`,
+`patches/cancel-safe-recv.patch`, and `patches/ordered-request-headers.patch`.
 `PHANTOM.md` and the patch files are
 packaging metadata and are deliberately excluded from those patches.
 
@@ -153,6 +169,10 @@ packaging metadata and are deliberately excluded from those patches.
      "$PWD/vendor/h3/patches/cancel-safe-recv.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/cancel-safe-recv.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/ordered-request-headers.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/ordered-request-headers.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the
@@ -173,6 +193,7 @@ cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack_
+cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::headers::tests
 cargo clippy --manifest-path vendor/h3/Cargo.toml --workspace --all-targets --all-features -- -D warnings
 cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn --all-features
 cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-features

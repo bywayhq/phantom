@@ -16,8 +16,10 @@ bytes. A typed Chrome H3 recipe emits the captured nonzero QPACK limits,
 maximum field-section size, H3 DATAGRAM setting, ascending setting order, and
 randomized GREASE. The receive path bounds dynamic QPACK state and treats a
 datagram on an ordinary request as an H3 protocol error. Outbound dynamic
-QPACK, reusable sessions, typed proxy routing, SSE, and WebSocket remain
-planned. The project does not make broad client-compatibility claims.
+QPACK remains planned; captured pseudo-header order and caller-supplied
+ordinary-field order now survive request construction and stateless QPACK
+encoding. Reusable sessions, typed proxy routing, SSE, and WebSocket also
+remain planned. The project does not make broad client-compatibility claims.
 
 ## Principles
 
@@ -45,8 +47,9 @@ planned. The project does not make broad client-compatibility claims.
 
 The provenance-tracked H3 fork is an active runtime dependency for ordered
 SETTINGS, bounded dynamic QPACK receive support, and immediate stream
-cancellation through the Quinn adapter. Outbound request encoding remains
-stateless and is tracked as a separate directional capability.
+cancellation through the Quinn adapter. Outbound request encoding preserves
+the configured field order but remains stateless; dynamic encoding is tracked
+as a separate directional capability.
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),
@@ -74,7 +77,8 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --lock
 cargo +1.85.0 check --workspace --all-targets --locked
 uvx ruff@0.16.7 check scripts/capture
 uvx ruff@0.16.7 format --check scripts/capture
-python3 -m unittest discover -s scripts/capture/tests -p 'test_*.py'
+uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+  python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 ```
 
 Vendored patch checks are available through

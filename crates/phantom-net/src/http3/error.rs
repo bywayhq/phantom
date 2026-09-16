@@ -22,6 +22,21 @@ pub enum Http3ErrorKind {
     Local,
 }
 
+impl Http3ErrorKind {
+    pub(super) const fn trace_name(self) -> &'static str {
+        match self {
+            Self::Request => "request",
+            Self::Configuration => "configuration",
+            Self::Endpoint => "endpoint",
+            Self::Connect => "connect",
+            Self::Connection => "connection",
+            Self::Handshake => "handshake",
+            Self::Protocol => "protocol",
+            Self::Local => "local",
+        }
+    }
+}
+
 /// Error returned by a forced HTTP/3 transaction.
 #[derive(Debug)]
 pub struct Http3Error {
@@ -55,6 +70,10 @@ impl Http3Error {
     #[must_use]
     pub const fn kind(&self) -> Http3ErrorKind {
         self.kind
+    }
+
+    pub(super) const fn trace_kind(&self) -> &'static str {
+        self.kind.trace_name()
     }
 }
 

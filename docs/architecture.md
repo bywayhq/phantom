@@ -145,19 +145,21 @@ request and connection lifecycle. The future public `phantom` facade will not
 expose Quinn or `h3` types.
 
 Stock QUIC stacks expose many transport-parameter values but do not expose all
-the ordering and encoding choices visible in browser captures. Phantom will
-use Quinn's provider seam to apply a capture-backed transport-parameter
+the ordering and encoding choices visible in browser captures. Phantom uses
+Quinn's provider seam to apply a capture-backed transport-parameter
 permutation and GREASE policy; no Quinn fork is needed for that boundary. A
 narrow, default-preserving `h3` patch supplies the explicit outbound SETTINGS
-sequence that upstream does not expose. Profiles remain browser-neutral data:
+and request-field sequences that upstream does not expose. Profiles remain browser-neutral data:
 neither adapter nor fork branches on Chromium, Firefox, or Safari. The patch
 is selected by the current direct path and emits QPACK settings from typed
 profile data. The receive path processes the encoder stream, bounds blocked
 sections, and emits decoder feedback and cancellation, so the Chrome profile
-can advertise its captured nonzero inbound limits.
-Outbound request encoding remains stateless because QPACK settings are
-directional. Packetization, ACK, connection-ID, and pacing knobs are added only
-after a retained capture proves that they are required.
+can advertise its captured nonzero inbound limits. The outbound path validates
+typed pseudo-header order and an exact ordinary-field sidecar before network
+I/O, then preserves both through stateless QPACK encoding. Dynamic outbound
+QPACK remains separate because QPACK settings are directional. Packetization,
+ACK, connection-ID, and pacing knobs are added only after a retained capture
+proves that they are required.
 
 ## Configuration seam
 

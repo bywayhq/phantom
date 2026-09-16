@@ -10,20 +10,62 @@ use std::{
 use bytes::Bytes;
 use h3_datagram::datagram_handler::HandleDatagramsExt;
 use http::{Request, Response};
-use phantom_profile::Http3Settings;
+use phantom_profile::{Http3RequestSettings, Http3Settings};
 use phantom_quic_btls::{HandshakeData, QuicClientConfig, StatelessResetKey};
 use tracing::{Instrument, debug, debug_span, field};
 
 use datagram::DatagramMonitor;
 use driver::{DriverSignal, DriverTask};
-use request::validate_request;
+use request::{prepare_get, prepare_request};
 
+pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
 pub use error::{Http3Error, Http3ErrorKind};
 
 type RequestStream = h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
+
+/// Sends one empty-body HTTP/3 GET over a new direct QUIC connection.
+///
+/// The profile, authority, target, and complete ordered header list are
+/// validated before the UDP endpoint is created. Ordinary header order and
+/// duplicate positions are emitted exactly as supplied.
+#[allow(clippy::too_many_arguments)]
+pub async fn send_get(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    request_settings: &Http3RequestSettings,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Response<Http3Body>, Http3Error> {
+    let span = debug_span!(
+        "http3.request.prepare",
+        method = "GET",
+        protocol = "h3",
+        outcome = field::Empty,
+        error_kind = field::Empty,
+    );
+    let request = {
+        let _entered = span.enter();
+        prepare_get(request_settings, authority, target, headers)
+    };
+    match &request {
+        Ok(_) => {
+            span.record("outcome", "ok");
+        }
+        Err(error) => {
+            span.record("outcome", "error");
+            span.record("error_kind", error.trace_kind());
+        }
+    }
+    let request = request?;
+    send_request(remote, server_name, crypto, settings, request).await
+}
+
 /// Sends one request over a new direct QUIC and HTTP/3 connection.
 ///
 /// The caller supplies a certificate-verifying BoringSSL-backed QUIC
@@ -44,7 +86,7 @@ pub async fn send_request(
         outcome = field::Empty,
     );
     let result = async {
-        validate_request(&request)?;
+        let request = prepare_request(request)?;
         let mut builder = settings::builder(settings, &crypto)?;
         let endpoint = endpoint(remote, crypto)?;
 

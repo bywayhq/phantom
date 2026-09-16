@@ -120,6 +120,12 @@ pub enum StreamError {
         /// The maximum size of the header block
         max_size: u64,
     },
+    /// The local request metadata is internally inconsistent.
+    #[cfg_attr(
+        not(feature = "i-implement-a-third-party-backend-and-opt-into-breaking-changes"),
+        non_exhaustive
+    )]
+    InvalidRequest(String),
     /// Received a GoAway frame from the remote
     ///
     /// Stream operations cannot be performed
@@ -190,6 +196,7 @@ impl std::fmt::Display for StreamError {
                 "Header too big: actual size: {}, max size: {}",
                 actual_size, max_size
             ),
+            StreamError::InvalidRequest(reason) => write!(f, "Invalid request: {}", reason),
             StreamError::Undefined(err) => write!(f, "Undefined error: {}", err),
             StreamError::RemoteClosing => write!(f, "Remote is closing the connection"),
         }

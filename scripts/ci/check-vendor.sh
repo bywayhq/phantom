@@ -50,7 +50,8 @@ check_h3_patch_replay() {
     vendor/h3/patches/qpack-codec.patch \
     vendor/h3/patches/qpack-critical-streams.patch \
     vendor/h3/patches/qpack-dynamic-client.patch \
-    vendor/h3/patches/cancel-safe-recv.patch
+    vendor/h3/patches/cancel-safe-recv.patch \
+    vendor/h3/patches/ordered-request-headers.patch
   do
     git -C "$candidate" apply --check "$PWD/$patch"
     git -C "$candidate" apply "$PWD/$patch"
@@ -110,6 +111,8 @@ case "${1:-}" in
       --locked client::builder::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
       --locked proto::frame::tests
+    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
+      --locked proto::headers::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 --locked qpack::
     cargo test --manifest-path vendor/h3/Cargo.toml -p h3 --locked qpack_
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn \

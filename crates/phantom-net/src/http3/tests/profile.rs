@@ -32,6 +32,31 @@ async fn rejects_invalid_profile_before_connecting() -> TestResult<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn rejects_invalid_pseudo_layout_before_connecting() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let settings = chromium::v152_macos_http3();
+    let mut request_settings = chromium::v152_macos_http3_request();
+    request_settings.pseudo_header_order[3] = phantom_profile::Http3PseudoHeader::Method;
+    let result = super::super::send_get(
+        "127.0.0.1:9".parse()?,
+        TEST_SERVER_NAME,
+        client_config(&identity)?,
+        &settings,
+        &request_settings,
+        TEST_SERVER_NAME,
+        super::super::OriginForm::parse("/")?,
+        Vec::new(),
+    )
+    .await;
+    let error = match result {
+        Ok(_) => return Err("invalid pseudo layout unexpectedly reached the network".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), super::super::Http3ErrorKind::Configuration);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn rejects_http_datagrams_when_quic_datagrams_are_disabled() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let mut quic = chromium::v152_macos_quic();

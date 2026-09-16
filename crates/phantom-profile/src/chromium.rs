@@ -2,7 +2,9 @@
 
 use crate::{
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
-    http3::{Http3Setting, Http3SettingOrder, Http3Settings},
+    http3::{
+        Http3PseudoHeader, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+    },
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
@@ -171,6 +173,19 @@ pub fn v152_macos_http3() -> Http3Settings {
             Http3Setting::RandomizedGrease,
         ],
         setting_order: Http3SettingOrder::Ascending,
+    }
+}
+
+/// Returns HTTP/3 request ordering observed from Chrome 152 on macOS 15.5.
+#[must_use]
+pub fn v152_macos_http3_request() -> Http3RequestSettings {
+    Http3RequestSettings {
+        pseudo_header_order: vec![
+            Http3PseudoHeader::Method,
+            Http3PseudoHeader::Authority,
+            Http3PseudoHeader::Scheme,
+            Http3PseudoHeader::Path,
+        ],
     }
 }
 
