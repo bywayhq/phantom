@@ -1,6 +1,6 @@
-//! One-shot HTTP/1.1 requests over the crate's TLS transport.
+//! HTTP/1.1 connections and one-shot requests over TLS.
 
-use std::{error::Error as StdError, fmt, future::Future};
+use std::future::Future;
 
 use http::Response;
 use phantom_profile::TlsSettings;
@@ -8,21 +8,19 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http1Body, Http1Error, Http1UpgradeOutcome, OperationOutcome, OriginForm, PreparedGet,
-    RequestHeader, send_prepared_get, send_prepared_upgrade,
+    Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome, OriginForm,
+    PreparedGet, RequestHeader, send_prepared_upgrade,
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
-    proxy::{
-        HttpConnectError, HttpConnectHeader, Socks5Error, connect_http_tunnel_direct,
-        connect_socks5_tunnel_direct,
-    },
+    proxy::{HttpConnectHeader, connect_http_tunnel_direct, connect_socks5_tunnel_direct},
     tls::{TlsConnector, trace_alpn},
 };
 
 pub use crate::tls::{TlsError, TlsErrorKind};
+pub use error::Http1TlsError;
 
-/// A reusable TLS connector for one-shot HTTP/1.1 GET requests.
+/// A reusable TLS connector for HTTP/1.1 connections and GET requests.
 #[derive(Clone, Debug)]
 pub struct Http1TlsConnector {
     tls: TlsConnector,
@@ -81,7 +79,8 @@ impl Http1TlsConnector {
     {
         self.trace_response_head(async {
             let prepared = PreparedGet::new(target, headers)?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_get(&connection, prepared).await
         })
         .await
     }
@@ -110,7 +109,8 @@ impl Http1TlsConnector {
                 DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
                 DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
             })?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_get(&connection, prepared).await
         })
         .await
     }
@@ -146,7 +146,8 @@ impl Http1TlsConnector {
                 connect_headers,
             )
             .await?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_get(&connection, prepared).await
         })
         .await
     }
@@ -171,7 +172,98 @@ impl Http1TlsConnector {
             let stream =
                 connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
                     .await?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_get(&connection, prepared).await
+        })
+        .await
+    }
+
+    /// Establishes HTTP/1.1 over TLS on an already-connected byte stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when TLS negotiation, ALPN selection, or the
+    /// HTTP/1.1 handshake fails.
+    pub async fn connect<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        self.trace_connect(self.connect_prepared(stream, server_name))
+            .await
+    }
+
+    /// Opens one direct TLS connection for sequential HTTP/1.1 requests.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when TCP setup, TLS negotiation, ALPN
+    /// selection, or the HTTP/1.1 handshake fails.
+    pub async fn connect_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_connect(async {
+            let stream = connect_tcp(host, port).await.map_err(|error| match error {
+                DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+            })?;
+            self.connect_prepared(stream, server_name).await
+        })
+        .await
+    }
+
+    /// Opens one HTTP CONNECT tunnel and establishes HTTP/1.1 over TLS.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when proxy negotiation, TLS negotiation, ALPN
+    /// selection, or the HTTP/1.1 handshake fails.
+    pub async fn connect_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_connect(async {
+            let stream = connect_http_tunnel_direct(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+            )
+            .await?;
+            self.connect_prepared(stream, server_name).await
+        })
+        .await
+    }
+
+    /// Opens one remote-DNS SOCKS5 tunnel and establishes HTTP/1.1 over TLS.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when proxy negotiation, TLS negotiation, ALPN
+    /// selection, or the HTTP/1.1 handshake fails.
+    pub async fn connect_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_connect(async {
+            let stream =
+                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
+                    .await?;
+            self.connect_prepared(stream, server_name).await
         })
         .await
     }
@@ -257,17 +349,14 @@ impl Http1TlsConnector {
         .await
     }
 
-    async fn send_prepared_get<S>(
+    async fn connect_prepared<S>(
         &self,
         stream: S,
         server_name: &str,
-        prepared: PreparedGet,
-    ) -> Result<Response<Http1Body>, Http1TlsError>
+    ) -> Result<Http1Connection, Http1TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        debug!("HTTP/1 request prepared");
-
         let stream = self.tls.connect(server_name, stream).await?;
         let negotiated_alpn = stream.negotiated_alpn();
         Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
@@ -280,7 +369,32 @@ impl Http1TlsConnector {
             }
         }
 
-        let response = send_prepared_get(stream, prepared).await?;
+        Http1Connection::connect(stream).await.map_err(Into::into)
+    }
+
+    async fn trace_connect<F>(&self, operation: F) -> Result<Http1Connection, Http1TlsError>
+    where
+        F: Future<Output = Result<Http1Connection, Http1TlsError>>,
+    {
+        let span = debug_span!(
+            "http1.tls.connect",
+            transport = "tls",
+            negotiated_alpn = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = operation.instrument(span.clone()).await;
+        outcome_guard.finish(connection_outcome(&result));
+        result
+    }
+
+    async fn send_prepared_get(
+        &self,
+        connection: &Http1Connection,
+        prepared: PreparedGet,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        debug!("HTTP/1 request prepared");
+        let response = connection.send_prepared_get(prepared).await?;
         Span::current().record("status", response.status().as_u16());
         Ok(response)
     }
@@ -340,7 +454,9 @@ impl Http1TlsConnector {
             Err(Http1TlsError::Connect(_)) => "connect_error",
             Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
-            Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
+            Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
+                "http_protocol_error"
+            }
             Err(Http1TlsError::Http1(
                 Http1Error::AmbiguousResponseFraming | Http1Error::UnexpectedUpgrade,
             )) => "invalid_response",
@@ -376,7 +492,9 @@ impl Http1TlsConnector {
             Err(Http1TlsError::Connect(_)) => "connect_error",
             Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
-            Err(Http1TlsError::Http1(Http1Error::Protocol(_))) => "http_protocol_error",
+            Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
+                "http_protocol_error"
+            }
             Err(Http1TlsError::Http1(
                 Http1Error::AmbiguousResponseFraming | Http1Error::UnexpectedUpgrade,
             )) => "invalid_response",
@@ -392,89 +510,16 @@ impl Http1TlsConnector {
     }
 }
 
-/// Error returned before an HTTP/1-over-TLS response is available.
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum Http1TlsError {
-    /// The network request was polled outside a Tokio runtime.
-    RuntimeUnavailable,
-    /// Establishing the direct TCP connection failed.
-    Connect(std::io::Error),
-    /// HTTP CONNECT proxy negotiation failed.
-    Proxy(HttpConnectError),
-    /// SOCKS5 proxy negotiation failed.
-    Socks5Proxy(Socks5Error),
-    /// TLS connector setup or handshake failed.
-    Tls(TlsError),
-    /// HTTP/1 request preparation or protocol setup failed.
-    Http1(Http1Error),
-    /// TLS selected a protocol that this HTTP/1 transport cannot speak.
-    UnsupportedAlpn {
-        /// Exact ALPN protocol bytes selected by the peer.
-        selected: Box<[u8]>,
-    },
-    /// The TLS settings cannot negotiate HTTP/1.1.
-    MissingHttp1Alpn,
-}
-
-impl fmt::Display for Http1TlsError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::RuntimeUnavailable => {
-                formatter.write_str("HTTP/1 network requests require a Tokio runtime")
-            }
-            Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
-            Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
-            Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
-            Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
-            Self::Http1(error) => write!(formatter, "HTTP/1 request failed: {error}"),
-            Self::UnsupportedAlpn { selected } => write!(
-                formatter,
-                "TLS selected {} ALPN, which is unsupported by the HTTP/1 transport",
-                trace_alpn(Some(selected))
-            ),
-            Self::MissingHttp1Alpn => formatter
-                .write_str("HTTP/1 TLS settings must include the exact `http/1.1` ALPN protocol"),
-        }
-    }
-}
-
-impl StdError for Http1TlsError {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match self {
-            Self::Connect(error) => Some(error),
-            Self::Proxy(error) => Some(error),
-            Self::Socks5Proxy(error) => Some(error),
-            Self::Tls(error) => Some(error),
-            Self::Http1(error) => Some(error),
-            Self::RuntimeUnavailable | Self::UnsupportedAlpn { .. } | Self::MissingHttp1Alpn => {
-                None
-            }
-        }
-    }
-}
-
-impl From<TlsError> for Http1TlsError {
-    fn from(error: TlsError) -> Self {
-        Self::Tls(error)
-    }
-}
-
-impl From<HttpConnectError> for Http1TlsError {
-    fn from(error: HttpConnectError) -> Self {
-        Self::Proxy(error)
-    }
-}
-
-impl From<Socks5Error> for Http1TlsError {
-    fn from(error: Socks5Error) -> Self {
-        Self::Socks5Proxy(error)
-    }
-}
-
-impl From<Http1Error> for Http1TlsError {
-    fn from(error: Http1Error) -> Self {
-        Self::Http1(error)
+fn connection_outcome(result: &Result<Http1Connection, Http1TlsError>) -> &'static str {
+    match result {
+        Ok(_) => "ok",
+        Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
+        Err(Http1TlsError::Connect(_)) => "connect_error",
+        Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
+        Err(Http1TlsError::Tls(_)) => "tls_error",
+        Err(Http1TlsError::Http1(_)) => "http_protocol_error",
+        Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
+        Err(Http1TlsError::MissingHttp1Alpn) => "invalid_configuration",
     }
 }
 
@@ -486,6 +531,8 @@ fn require_http1_alpn(settings: &TlsSettings) -> Result<(), Http1TlsError> {
         .then_some(())
         .ok_or(Http1TlsError::MissingHttp1Alpn)
 }
+
+mod error;
 
 #[cfg(test)]
 mod tests;

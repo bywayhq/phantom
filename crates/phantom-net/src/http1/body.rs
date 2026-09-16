@@ -1,6 +1,7 @@
-//! Streaming response-body ownership for one-shot HTTP/1.1 transactions.
+//! Streaming HTTP/1.1 response-body ownership.
 
 use std::{
+    any::Any,
     fmt,
     pin::Pin,
     task::{Context, Poll},
@@ -13,24 +14,40 @@ use wreq_proto::body::Incoming;
 
 use super::{
     Http1Error,
+    connection::ConnectionLease,
     driver::{DriverSignal, DriverTask},
 };
 
-/// Streaming response body for a one-shot HTTP/1.1 transaction.
-///
-/// Dropping this body signals the protocol driver's supervisor on the runtime
-/// where the request originated. The supervisor then tears down the byte
-/// stream. `Drop` does not wait for teardown to finish.
+/// Streaming response body for one HTTP/1.1 request.
 #[must_use = "response bodies must be read or deliberately dropped"]
 pub struct Http1Body {
     incoming: Incoming,
-    driver: DriverTask,
+    owner: Option<BodyOwner>,
+    stream_guard: Option<Box<dyn Any + Send + Sync>>,
+    reusable: bool,
     finished: bool,
     trace: BodyTrace,
 }
 
 impl Http1Body {
-    pub(super) fn new(incoming: Incoming, mut driver: DriverTask) -> Self {
+    pub(super) fn new(incoming: Incoming, mut lease: ConnectionLease, reusable: bool) -> Self {
+        let finished = incoming.is_end_stream();
+        let mut trace = BodyTrace::new();
+        if finished {
+            lease.complete(reusable);
+            trace.finish("complete");
+        }
+        Self {
+            incoming,
+            owner: (!finished).then_some(BodyOwner::Reusable(lease)),
+            stream_guard: None,
+            reusable,
+            finished,
+            trace,
+        }
+    }
+
+    pub(super) fn new_one_shot(incoming: Incoming, driver: DriverTask) -> Self {
         let finished = incoming.is_end_stream();
         let mut trace = BodyTrace::new();
         if finished {
@@ -39,9 +56,57 @@ impl Http1Body {
         }
         Self {
             incoming,
-            driver,
+            owner: (!finished).then_some(BodyOwner::OneShot(driver)),
+            stream_guard: None,
+            reusable: false,
             finished,
             trace,
+        }
+    }
+
+    /// Retains a value until this request completes or is cancelled.
+    #[doc(hidden)]
+    pub fn retain_until_stream_complete<T>(&mut self, value: T)
+    where
+        T: Send + Sync + 'static,
+    {
+        if !self.finished {
+            self.stream_guard = Some(Box::new(value));
+        }
+    }
+
+    fn complete(&mut self) {
+        if let Some(owner) = self.owner.take() {
+            owner.complete(self.reusable);
+        }
+        self.stream_guard.take();
+    }
+
+    fn stop(&mut self, signal: DriverSignal) {
+        if let Some(owner) = self.owner.take() {
+            owner.stop(signal);
+        }
+        self.stream_guard.take();
+    }
+}
+
+enum BodyOwner {
+    Reusable(ConnectionLease),
+    OneShot(DriverTask),
+}
+
+impl BodyOwner {
+    fn complete(self, reusable: bool) {
+        match self {
+            Self::Reusable(mut lease) => lease.complete(reusable),
+            Self::OneShot(driver) => driver.finish(DriverSignal::Complete),
+        }
+    }
+
+    fn stop(self, signal: DriverSignal) {
+        match self {
+            Self::Reusable(mut lease) => lease.stop(signal),
+            Self::OneShot(driver) => driver.finish(signal),
         }
     }
 }
@@ -80,20 +145,20 @@ impl Body for Http1Body {
                     }
                     if self.incoming.is_end_stream() {
                         self.finished = true;
-                        self.driver.finish(DriverSignal::Complete);
+                        self.complete();
                         self.trace.finish("complete");
                     }
                     Poll::Ready(Some(Ok(frame)))
                 }
                 Poll::Ready(Some(Err(error))) => {
                     self.finished = true;
-                    self.driver.finish(DriverSignal::ProtocolError);
+                    self.stop(DriverSignal::ProtocolError);
                     self.trace.finish("protocol_error");
                     Poll::Ready(Some(Err(Http1Error::Protocol(error))))
                 }
                 Poll::Ready(None) => {
                     self.finished = true;
-                    self.driver.finish(DriverSignal::Complete);
+                    self.complete();
                     self.trace.finish("complete");
                     Poll::Ready(None)
                 }
@@ -114,7 +179,7 @@ impl Body for Http1Body {
 impl Drop for Http1Body {
     fn drop(&mut self) {
         if !self.finished {
-            self.driver.finish(DriverSignal::Cancelled);
+            self.stop(DriverSignal::Cancelled);
             self.trace.finish("dropped");
         }
     }

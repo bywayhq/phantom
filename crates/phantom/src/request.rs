@@ -95,9 +95,10 @@ impl RequestBuilder {
 
     /// Sends the request using the selected route and owner.
     ///
-    /// A session may reuse compatible HTTP/2 and direct HTTP/3 connections.
-    /// A bare client and HTTP/1 remain one-shot. Dropping this future cancels
-    /// the in-flight operation; returned bodies retain protocol cancellation.
+    /// A session may reuse compatible HTTP/1.1, HTTP/2, and direct HTTP/3
+    /// connections. A bare client remains one-shot. Dropping this future
+    /// cancels the in-flight operation; returned bodies retain protocol
+    /// cancellation.
     ///
     /// # Errors
     ///
@@ -200,49 +201,57 @@ impl RequestBuilder {
                         endpoint.authority().as_str().as_bytes(),
                     ));
                     headers.extend(request_headers);
-                    let response = match route {
-                        Route::Direct => {
-                            connector
-                                .send_get_direct(
-                                    endpoint.host(),
-                                    endpoint.port(),
-                                    endpoint.host(),
-                                    target,
-                                    headers,
-                                )
-                                .await
+                    if let Some(session) = session {
+                        session
+                            .state
+                            .http1
+                            .send_get(connector, &endpoint, route, target, headers)
+                            .await
+                    } else {
+                        let response = match route {
+                            Route::Direct => {
+                                connector
+                                    .send_get_direct(
+                                        endpoint.host(),
+                                        endpoint.port(),
+                                        endpoint.host(),
+                                        target,
+                                        headers,
+                                    )
+                                    .await
+                            }
+                            Route::HttpConnect(proxy) => {
+                                let connect_authority = endpoint.tunnel_authority();
+                                connector
+                                    .send_get_http_connect(
+                                        proxy.host(),
+                                        proxy.port(),
+                                        &connect_authority,
+                                        proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                        target,
+                                        headers,
+                                    )
+                                    .await
+                            }
+                            Route::Socks5(proxy) => {
+                                connector
+                                    .send_get_socks5_remote(
+                                        proxy.host(),
+                                        proxy.port(),
+                                        endpoint.host(),
+                                        endpoint.port(),
+                                        endpoint.host(),
+                                        target,
+                                        headers,
+                                    )
+                                    .await
+                            }
                         }
-                        Route::HttpConnect(proxy) => {
-                            let connect_authority = endpoint.tunnel_authority();
-                            connector
-                                .send_get_http_connect(
-                                    proxy.host(),
-                                    proxy.port(),
-                                    &connect_authority,
-                                    proxy.ordered_connect_headers(),
-                                    endpoint.host(),
-                                    target,
-                                    headers,
-                                )
-                                .await
-                        }
-                        Route::Socks5(proxy) => {
-                            connector
-                                .send_get_socks5_remote(
-                                    proxy.host(),
-                                    proxy.port(),
-                                    endpoint.host(),
-                                    endpoint.port(),
-                                    endpoint.host(),
-                                    target,
-                                    headers,
-                                )
-                                .await
-                        }
+                        .map_err(RequestError::http1)?;
+                        let (parts, body) = response.into_parts();
+                        Ok(Response::from_parts(parts, ResponseBody::http1(body)))
                     }
-                    .map_err(RequestError::http1)?;
-                    let (parts, body) = response.into_parts();
-                    Ok(Response::from_parts(parts, ResponseBody::http1(body)))
                 }
                 HttpProtocol::Http2 => {
                     let connector =

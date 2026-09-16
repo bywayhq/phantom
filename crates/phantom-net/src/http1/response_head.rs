@@ -12,47 +12,55 @@ use crate::{OrderedResponseHeaders, ResponseHeader};
 const MAX_RESPONSE_HEADERS: usize = 100;
 
 pub(super) struct ResponseHeadObserver {
-    headers: Arc<Mutex<Option<OrderedResponseHeaders>>>,
+    state: Arc<Mutex<ResponseHeadState>>,
 }
 
 impl ResponseHeadObserver {
     pub(super) fn wrap<T>(stream: T) -> (ObservedStream<T>, Self) {
-        let headers = Arc::new(Mutex::new(None));
+        let state = Arc::new(Mutex::new(ResponseHeadState::default()));
         (
             ObservedStream {
                 stream,
-                parser: ResponseHeadParser {
-                    buffered: Vec::new(),
-                    headers: Arc::clone(&headers),
-                    complete: false,
-                },
+                state: Arc::clone(&state),
             },
-            Self { headers },
+            Self { state },
         )
     }
 
+    pub(super) fn begin(&self) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.buffered.clear();
+        state.headers = None;
+        state.armed = true;
+    }
+
     pub(super) fn take(&self) -> Option<OrderedResponseHeaders> {
-        self.headers
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .headers
             .take()
     }
 }
 
 pub(super) struct ObservedStream<T> {
     stream: T,
-    parser: ResponseHeadParser,
+    state: Arc<Mutex<ResponseHeadState>>,
 }
 
-struct ResponseHeadParser {
+#[derive(Default)]
+struct ResponseHeadState {
     buffered: Vec<u8>,
-    headers: Arc<Mutex<Option<OrderedResponseHeaders>>>,
-    complete: bool,
+    headers: Option<OrderedResponseHeaders>,
+    armed: bool,
 }
 
-impl ResponseHeadParser {
+impl ResponseHeadState {
     fn observe(&mut self, bytes: &[u8]) {
-        if self.complete {
+        if !self.armed {
             return;
         }
         self.buffered.extend_from_slice(bytes);
@@ -66,7 +74,7 @@ impl ResponseHeadParser {
                 Err(_) => {
                     // The protocol parser reports the actual request error.
                     self.buffered.clear();
-                    self.complete = true;
+                    self.armed = false;
                     return;
                 }
             };
@@ -85,13 +93,9 @@ impl ResponseHeadParser {
                 continue;
             }
 
-            *self
-                .headers
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                Some(OrderedResponseHeaders::new(headers));
+            self.headers = Some(OrderedResponseHeaders::new(headers));
             self.buffered.clear();
-            self.complete = true;
+            self.armed = false;
             return;
         }
     }
@@ -109,7 +113,10 @@ where
         let previous_length = buffer.filled().len();
         match Pin::new(&mut self.stream).poll_read(context, buffer) {
             Poll::Ready(Ok(())) => {
-                self.parser.observe(&buffer.filled()[previous_length..]);
+                self.state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .observe(&buffer.filled()[previous_length..]);
                 Poll::Ready(Ok(()))
             }
             other => other,

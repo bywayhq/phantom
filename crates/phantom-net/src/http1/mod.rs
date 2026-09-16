@@ -1,26 +1,17 @@
-//! A one-shot HTTP/1.1 client transaction.
+//! HTTP/1.1 client transactions and reusable connection ownership.
 //!
 //! The core transaction accepts an already-connected byte stream, while
 //! [`Http1TlsConnector`] composes it with the crate's TLS transport. This
-//! module owns no connection pool. Completing or dropping the body schedules
-//! cancellation of the protocol task; destruction of the underlying stream is
-//! eventual.
+//! module owns no connection pool. [`send_get`] remains a one-shot convenience;
+//! [`Http1Connection`] exposes sequential keep-alive reuse.
 
 use std::{error::Error as StdError, fmt};
 
-use bytes::Bytes;
-use http::{
-    Response,
-    header::{CONTENT_LENGTH, TRANSFER_ENCODING},
-};
-use http_body_util::Empty;
+use http::Response;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::{Instrument, Span, debug, debug_span, field};
-use wreq_proto::conn::http1;
+use tracing::{Span, debug_span, field};
 
-use driver::DriverTask;
 use request::PreparedGet;
-use response_head::ResponseHeadObserver;
 use upgrade::send_prepared_upgrade;
 
 #[cfg(test)]
@@ -28,9 +19,10 @@ use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http1Body;
+pub use connection::Http1Connection;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
 
-/// Error returned by a one-shot HTTP/1.1 transaction.
+/// Error returned by an HTTP/1.1 connection or request.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Http1Error {
@@ -75,6 +67,8 @@ pub enum Http1Error {
     UnexpectedUpgrade,
     /// The HTTP backend completed a response without its ordered field capture.
     MissingResponseHeaderOrder,
+    /// The established connection can no longer accept a request.
+    ConnectionClosed,
     /// The HTTP protocol driver failed.
     Protocol(wreq_proto::Error),
 }
@@ -121,6 +115,7 @@ impl fmt::Display for Http1Error {
             Self::MissingResponseHeaderOrder => {
                 formatter.write_str("HTTP/1 response header order was not captured")
             }
+            Self::ConnectionClosed => formatter.write_str("HTTP/1 connection is closed"),
             Self::Protocol(error) => write!(formatter, "HTTP/1.1 protocol error: {error}"),
         }
     }
@@ -154,6 +149,7 @@ impl Http1Error {
             Self::AmbiguousResponseFraming => "invalid_response_framing",
             Self::UnexpectedUpgrade => "unexpected_upgrade",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
+            Self::ConnectionClosed => "connection_closed",
             Self::Protocol(_) => "protocol",
         }
     }
@@ -194,6 +190,11 @@ where
     send_prepared_get(stream, prepared).await
 }
 
+/// Validates an empty-body HTTP/1.1 GET without performing I/O.
+pub fn validate_get(target: &OriginForm, headers: &[RequestHeader]) -> Result<(), Http1Error> {
+    PreparedGet::new(target.clone(), headers.to_vec()).map(drop)
+}
+
 async fn send_prepared_get<T>(
     stream: T,
     prepared: PreparedGet,
@@ -201,60 +202,10 @@ async fn send_prepared_get<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let span = debug_span!(
-        "http1.response_head",
-        method = "GET",
-        protocol = "http/1.1",
-        status = field::Empty,
-        outcome = field::Empty,
-    );
-    let outcome = OperationOutcome::new(&span);
-    let result = async {
-        debug!("HTTP/1 transaction started");
-        let (stream, observed_headers) = ResponseHeadObserver::wrap(stream);
-        let (mut sender, connection) = http1::Builder::default()
-            .handshake::<_, Empty<Bytes>>(stream)
-            .await?;
-        let driver = DriverTask::spawn(connection);
-
-        sender.ready().await?;
-        let response = sender
-            .try_send_request(prepared.into_request())
-            .await
-            .map_err(|error| Http1Error::Protocol(error.into_error()))?;
-        drop(sender);
-
-        Span::current().record("status", response.status().as_u16());
-        if response.status() == http::StatusCode::SWITCHING_PROTOCOLS {
-            return Err(Http1Error::UnexpectedUpgrade);
-        }
-        if response.headers().contains_key(TRANSFER_ENCODING)
-            && response.headers().contains_key(CONTENT_LENGTH)
-        {
-            return Err(Http1Error::AmbiguousResponseFraming);
-        }
-
-        debug!("HTTP/1 response headers received");
-        let (mut parts, incoming) = response.into_parts();
-        let ordered_headers = observed_headers
-            .take()
-            .ok_or(Http1Error::MissingResponseHeaderOrder)?;
-        parts.extensions.insert(ordered_headers);
-        Ok(Response::from_parts(
-            parts,
-            Http1Body::new(incoming, driver),
-        ))
-    }
-    .instrument(span.clone())
-    .await;
-    let terminal_outcome = match &result {
-        Ok(_) => "ok",
-        Err(Http1Error::AmbiguousResponseFraming) => "invalid_response",
-        Err(Http1Error::Protocol(_)) => "protocol_error",
-        Err(_) => "request_error",
-    };
-    outcome.finish(terminal_outcome);
-    result
+    Http1Connection::connect(stream)
+        .await?
+        .send_prepared_get(prepared)
+        .await
 }
 
 struct OperationOutcome {
@@ -299,6 +250,7 @@ impl Drop for OperationOutcome {
 mod tests;
 
 mod body;
+mod connection;
 mod driver;
 mod request;
 mod response_head;

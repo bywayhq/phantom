@@ -3,16 +3,74 @@ use std::hint::black_box;
 use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput};
 use http_body_util::BodyExt;
-use phantom_net::http1::{Http1TlsConnector, OriginForm, RequestHeader, send_get};
+use phantom_net::http1::{Http1Connection, Http1TlsConnector, OriginForm, RequestHeader, send_get};
 use phantom_profile::chromium::v152_macos_tls;
+use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 
 use super::{BODY_BYTES, replay_stream::ReplayStream, runtime};
 
 pub(super) fn register(criterion: &mut Criterion) {
     tls_connector(criterion);
     response_head(criterion);
+    warm_reuse(criterion);
     content_length(criterion);
     chunked(criterion);
+}
+
+fn warm_reuse(criterion: &mut Criterion) {
+    let runtime = runtime();
+    let (client, server) = duplex(64 * 1024);
+    let server = runtime.spawn(serve_warm_requests(server));
+    let connection = match runtime.block_on(Http1Connection::connect(client)) {
+        Ok(connection) => connection,
+        Err(error) => panic!("HTTP/1 warm benchmark connection failed: {error}"),
+    };
+    let target = target();
+    let headers = twelve_headers();
+
+    criterion.bench_function("http1/reuse/warm_response_head", |bencher| {
+        bencher.to_async(&runtime).iter(|| {
+            let connection = connection.clone();
+            let target = target.clone();
+            let headers = headers.clone();
+            async move {
+                let response = match connection.send_get(target, headers).await {
+                    Ok(response) => response,
+                    Err(error) => panic!("warm HTTP/1 request failed: {error}"),
+                };
+                match response.into_body().collect().await {
+                    Ok(collected) => black_box(collected),
+                    Err(error) => panic!("warm HTTP/1 body failed: {error}"),
+                }
+            }
+        });
+    });
+
+    drop(connection);
+    server.abort();
+}
+
+async fn serve_warm_requests(mut stream: DuplexStream) -> std::io::Result<()> {
+    loop {
+        let mut head = Vec::new();
+        let mut byte = [0_u8; 1];
+        while !head.ends_with(b"\r\n\r\n") {
+            match stream.read_exact(&mut byte).await {
+                Ok(_) => head.push(byte[0]),
+                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()),
+                Err(error) => return Err(error),
+            }
+            if head.len() > 32 * 1024 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "benchmark request head exceeded bound",
+                ));
+            }
+        }
+        stream
+            .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+            .await?;
+    }
 }
 
 fn tls_connector(criterion: &mut Criterion) {

@@ -2,8 +2,8 @@
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
 validated client profile. The current workspace owns profiles, a small routed
-H1/H2/H3 client facade, concrete request paths, session-owned H2 reuse, optional
-bounded cookies, and the validation harness. Later slices extend reuse and
+H1/H2/H3 client facade, concrete request paths, session-owned H1/H2/H3 reuse,
+optional bounded cookies, and the validation harness. Later slices extend
 session behavior. Phantom carries narrow,
 documented patches to upstream protocol engines only where their public APIs
 cannot preserve a measured client behavior.
@@ -24,7 +24,7 @@ commitments.
 flowchart TB
     User[Application]
     Client["phantom::Client<br/>small public facade"]
-    Session["Session<br/>H2 pool · optional cookies"]
+    Session["Session<br/>H1 · H2 · H3 pools · optional cookies"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Route["Current route<br/>direct · HTTP CONNECT · SOCKS5h"]
     FutureRoute["Later routes<br/>HTTPS proxy · local-DNS/auth SOCKS5 · UDP"]
@@ -168,13 +168,14 @@ proven. A connection is never shared across profile generations or route
 identities merely because two requests resolve to the same address.
 
 The current public pool is deliberately narrower than this final contract. A
-`Session` retains one reusable HTTP/2 or direct HTTP/3 connection per exact
-origin-and-route key, serializes only same-key cold connection setup, and
-evicts least-recently selected retained entries at configurable bounds.
-Different sessions never share connections. H2 and H3 have bounded local
-active work and waiters, stream-scoped cancellation, and stale/GOAWAY
+`Session` retains one reusable H1, H2, or direct H3 connection per exact
+origin-and-route key, serializes same-key cold connection setup, and evicts
+least-recently selected retained entries at configurable bounds. Different
+sessions never share connections. H1 is sequential and non-pipelined; a full,
+self-delimited body releases the next admitted request. H2 and H3 have bounded
+local active work and waiters, stream-scoped cancellation, and stale/GOAWAY
 generation replacement without replay. H2 also delegates the peer's concurrent
-stream limit to the protocol engine. H1 reuse, retries, and coalescing remain
+stream limit to the protocol engine. Retries and coalescing remain
 unimplemented. See [session state and pooling](session.md).
 
 The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.

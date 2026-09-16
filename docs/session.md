@@ -29,28 +29,34 @@ drop(second);
 # }
 ```
 
-Bare `Client::get` remains one-shot. `Session::get` reuses HTTP/2 and direct
-HTTP/3 connections. HTTP/1 retains its one-shot lifecycle.
+Bare `Client::get` remains one-shot. `Session::get` reuses eligible HTTP/1.1,
+HTTP/2, and direct HTTP/3 connections.
 
 ## Pool boundary
 
-One session retains at most one current H2 or H3 connection for each canonical
-host, port, and complete route value. Because the session owns one immutable
-client, the wire profile, trust roots, and protocol are structural parts of
-the boundary. Different origins, routes, ordered CONNECT fields, clients, and
-sessions never share a connection. Cross-origin coalescing is disabled. H3
-reuse is direct-only until a UDP-capable proxy route exists.
+One session retains at most one current H1, H2, or H3 connection for each
+canonical host, port, and complete route value. Because the session owns one
+immutable client, the wire profile, trust roots, and protocol are structural
+parts of the boundary. Different origins, routes, ordered CONNECT fields,
+clients, and sessions never share a connection. Cross-origin coalescing is
+disabled. H3 reuse is direct-only until a UDP-capable proxy route exists.
 
 Simultaneous first requests for one key share connection setup. Unrelated keys
 can connect concurrently. A connection-fatal error invalidates only the exact
 generation that failed; a stream reset does not discard sibling streams. The
 failed request is returned to the caller and is never replayed automatically.
 
-`SessionBuilder::max_retained_http2_connections` and
-`max_retained_http3_connections` bound retained pool entries. Least-recently
-selected entries are evicted. An outstanding response body keeps its own
-connection lease until completion or drop, so eviction never cancels a body
-already returned to the caller.
+The `max_retained_http{1,2,3}_connections` builder settings bound retained pool
+entries. Least-recently selected entries are evicted. An outstanding response
+body keeps its own connection lease until completion or drop, so eviction
+never cancels a body already returned to the caller.
+
+HTTP/1.1 admits one active exchange per origin and route. It never pipelines.
+The `max_pending_http1_requests_per_origin` setting bounds additional waiters.
+Reuse begins only after a self-delimited body completes. Incomplete bodies,
+protocol failures, HTTP/1.0, close-delimited responses, and either side's
+`Connection: close` retire the connection. A stale-idle race is returned to
+the caller and is never replayed automatically.
 
 HTTP/2 and HTTP/3 admission are independently bounded by their
 `max_concurrent_http{2,3}_requests_per_origin` settings; at most the matching
@@ -67,7 +73,7 @@ generation is not selected for new work, while eligible response bodies retain
 the old generation. A GOAWAY race during a send is returned to the caller;
 Phantom invalidates that generation but never replays the request automatically.
 
-Graceful public shutdown, H1 reuse, retries, and coalescing are later pool work.
+Graceful public shutdown, retries, and coalescing are later pool work.
 
 ## Optional cookies
 

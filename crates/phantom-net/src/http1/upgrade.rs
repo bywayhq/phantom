@@ -17,8 +17,9 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 use wreq_proto::{conn::http1, upgrade};
 
 use super::{
-    DriverTask, Http1Body, Http1Error, OperationOutcome, PreparedGet, ResponseHeadObserver,
-    driver::DriverSignal,
+    Http1Body, Http1Error, OperationOutcome, PreparedGet,
+    driver::{DriverSignal, DriverTask},
+    response_head::ResponseHeadObserver,
 };
 
 /// Result of an HTTP/1.1 request that may switch protocols.
@@ -115,10 +116,11 @@ where
     let result = async {
         debug!("HTTP/1 Upgrade transaction started");
         let (stream, observed_headers) = ResponseHeadObserver::wrap(stream);
+        observed_headers.begin();
         let (mut sender, connection) = http1::Builder::default()
             .handshake::<_, Empty<Bytes>>(stream)
             .await?;
-        let mut driver = DriverTask::spawn(connection.with_upgrades());
+        let driver = DriverTask::spawn(connection.with_upgrades());
 
         sender.ready().await?;
         let mut response = sender
@@ -142,7 +144,7 @@ where
             parts.extensions.insert(ordered_headers);
             return Ok(Http1UpgradeOutcome::Rejected(Response::from_parts(
                 parts,
-                Http1Body::new(incoming, driver),
+                Http1Body::new_one_shot(incoming, driver),
             )));
         }
 

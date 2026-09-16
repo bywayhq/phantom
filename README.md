@@ -5,9 +5,9 @@ profile-driven wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 
 The current vertical slices implement certificate- and hostname-checked TLS,
 ordered streaming HTTP/1.1, and reusable multiplexed HTTP/2 and direct HTTP/3.
-A cloneable public session retains compatible H2 and H3 connections by exact
-origin and route while bare-client requests remain one-shot. Chrome 152 macOS
-has TLS and HTTP/2 recipes with direct retained
+A cloneable public session retains compatible H1, H2, and H3 connections by
+exact origin and route while bare-client requests remain one-shot. Chrome 152
+macOS has TLS and HTTP/2 recipes with direct retained
 fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
 recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
 uncaptured. The forced HTTP/3 slice performs direct requests over the
@@ -36,8 +36,8 @@ deterministic ordering rules. A feature-gated, bounded SSE decoder consumes
 the same response body without a background task; reconnection remains later
 session policy. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
-I/O through Phantom-owned types. H1 pooling, HTTPS proxies, SOCKS5 local DNS
-and authentication, UDP-capable proxies, redirects, retries, WebSocket
+I/O through Phantom-owned types. HTTPS proxies, SOCKS5 local DNS and
+authentication, UDP-capable proxies, redirects, retries, WebSocket
 extensions, and extended CONNECT remain planned. The project does not make
 broad client-compatibility claims.
 
@@ -86,14 +86,15 @@ Every successful response includes `OrderedResponseHeaders` in its extensions;
 the ordinary `HeaderMap` remains the normalized semantic view. The ordered
 view retains duplicate interleaving on every protocol and received HTTP/1
 field-name spelling. HTTP/2 and HTTP/3 names are lowercase by protocol.
-Use `client.session()` for session-owned HTTP/2 and direct HTTP/3 reuse, or enable bounded cookie
-state explicitly with `client.session_builder().cookies().build()` when the
-`cookies` feature is compiled. Use `ClientBuilder::route` for an immutable
-default route or `RequestBuilder::route` for an owned per-request override.
+Use `client.session()` for session-owned HTTP/1.1, HTTP/2, and direct HTTP/3
+reuse, or enable bounded cookie state explicitly with
+`client.session_builder().cookies().build()` when the `cookies` feature is
+compiled. Use `ClientBuilder::route` for an immutable default route or
+`RequestBuilder::route` for an owned per-request override.
 
 ## Current workspace
 
-- `phantom`: the public exact-protocol client facade, session-owned H2 and H3 reuse,
+- `phantom`: the public exact-protocol client facade, session-owned H1, H2, and H3 reuse,
   direct routes, plaintext HTTP CONNECT and remote-DNS SOCKS5 for H1/H2 and H1
   WebSocket, streaming responses, and optional bounded cookie, SSE, and
   WebSocket capabilities

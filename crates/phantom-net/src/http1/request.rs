@@ -3,7 +3,7 @@
 use bytes::Bytes;
 use http::{
     HeaderMap, HeaderValue, Method, Request, Version,
-    header::{CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
+    header::{CONNECTION, CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
 };
 use http_body_util::Empty;
 use wreq_proto::ext::{OnPreserveHeaderCallback, on_preserve_header};
@@ -15,6 +15,7 @@ pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
 pub(super) struct PreparedGet {
     request: Request<Empty<Bytes>>,
+    allows_reuse: bool,
 }
 
 impl PreparedGet {
@@ -26,13 +27,33 @@ impl PreparedGet {
         *request.version_mut() = Version::HTTP_11;
 
         headers.populate(request.headers_mut());
+        let allows_reuse = !headers
+            .semantic
+            .iter()
+            .filter(|(name, _)| name == CONNECTION)
+            .any(|(_, value)| header_has_token(value, "close"));
         on_preserve_header(&mut request, headers.order);
-        Ok(Self { request })
+        Ok(Self {
+            request,
+            allows_reuse,
+        })
     }
 
     pub(super) fn into_request(self) -> Request<Empty<Bytes>> {
         self.request
     }
+
+    pub(super) const fn allows_reuse(&self) -> bool {
+        self.allows_reuse
+    }
+}
+
+fn header_has_token(value: &HeaderValue, token: &str) -> bool {
+    value.to_str().is_ok_and(|value| {
+        value
+            .split(',')
+            .any(|value| value.trim().eq_ignore_ascii_case(token))
+    })
 }
 
 struct ValidatedHeaders {

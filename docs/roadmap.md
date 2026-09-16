@@ -268,8 +268,16 @@ remains authoritative for peer `MAX_CONCURRENT_STREAMS`. An observed GOAWAY
 causes later work to open a new generation while eligible streams finish on the
 old one; a request rejected by a GOAWAY is surfaced without automatic replay.
 
+HTTP/1.1 sessions now retain one sequential connection per exact origin and
+route, with pipelining disabled and bounded waiters. Reuse begins only after a
+self-delimited response body completes. Incomplete bodies, dispatched-request
+cancellation, protocol errors, HTTP/1.0, close-delimited responses, and either
+side's `Connection: close` retire the generation. Ordered response fields are
+captured independently on every exchange. Bare-client and WebSocket requests
+remain one-shot, and stale connection races are surfaced without replay.
+
 The sixth landed route slice adds no-auth remote-DNS SOCKS5 through an exact
-`socks5h://` configuration. H1, one-shot H2, session-owned H2 reuse, and H1 WSS
+`socks5h://` configuration. H1/H2 sessions, one-shot H2, and H1 WSS
 share the same route; domain targets reach the proxy as SOCKS `DOMAIN`
 addresses. Invalid requests and unsupported H3 pairings fail before proxy I/O,
 and proxy rejection never opens a direct origin socket. Typed redacted errors,

@@ -1,8 +1,12 @@
-//! Connection-driver lifecycle for one-shot HTTP/1.1 transactions.
+//! HTTP/1.1 connection-driver lifecycle.
 
 use std::{
     future::{Future, poll_fn},
     pin::Pin,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     task::Poll,
 };
 
@@ -20,7 +24,8 @@ use tracing::{
 /// The supervisor owns the connection task, observes its terminal state, and
 /// bounds cancellation by aborting the connection task immediately.
 pub(super) struct DriverTask {
-    terminal: Option<oneshot::Sender<DriverSignal>>,
+    terminal: Mutex<Option<oneshot::Sender<DriverSignal>>>,
+    finished: Arc<AtomicBool>,
 }
 
 impl DriverTask {
@@ -31,10 +36,15 @@ impl DriverTask {
         let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);
         let span = debug_span!("http1.connection_driver", outcome = field::Empty);
+        let finished = Arc::new(AtomicBool::new(false));
+        let completion = Arc::clone(&finished);
         let handle = runtime.spawn(
-            connection
-                .instrument(span.clone())
-                .with_subscriber(dispatch.clone()),
+            async move {
+                let _completion = CompletionFlag(completion);
+                connection.await
+            }
+            .instrument(span.clone())
+            .with_subscriber(dispatch.clone()),
         );
         let (terminal, terminal_signal) = oneshot::channel();
         let outcome = DriverOutcome::new(span);
@@ -43,20 +53,37 @@ impl DriverTask {
         drop(supervisor);
 
         Self {
-            terminal: Some(terminal),
+            terminal: Mutex::new(Some(terminal)),
+            finished,
         }
     }
 
-    pub(super) fn finish(&mut self, signal: DriverSignal) {
-        if let Some(terminal) = self.terminal.take() {
+    pub(super) fn finish(&self, signal: DriverSignal) {
+        let mut terminal = self
+            .terminal
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(terminal) = terminal.take() {
             let _ = terminal.send(signal);
         }
+    }
+
+    pub(super) fn is_finished(&self) -> bool {
+        self.finished.load(Ordering::Acquire)
     }
 }
 
 impl Drop for DriverTask {
     fn drop(&mut self) {
         self.finish(DriverSignal::Cancelled);
+    }
+}
+
+struct CompletionFlag(Arc<AtomicBool>);
+
+impl Drop for CompletionFlag {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Release);
     }
 }
 

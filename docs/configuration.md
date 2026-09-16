@@ -54,7 +54,7 @@ separate ordered field sequence with one typed destination-authority
 placeholder. Request and CONNECT validation happen before proxy I/O; non-2xx
 proxy responses are typed failures and never trigger a direct retry. A
 `socks5h://` route resolves domain origins at the proxy and applies to H1, H2,
-session-owned H2 reuse, and H1 WebSocket. Selecting H2 or H3 without the
+session-owned H1/H2 reuse, and H1 WebSocket. Selecting H2 or H3 without the
 corresponding profile settings also fails before network I/O. H3 currently
 supports only `Route::Direct`; pairing it with either TCP-only proxy route is
 rejected before either proxy TCP or origin UDP is opened. The response body

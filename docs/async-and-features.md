@@ -91,4 +91,4 @@ enables the server-sent event response decoder documented in [sse.md](sse.md).
 `websocket` enables the ordered H1 opening handshake and bounded message
 facade documented in [websocket.md](websocket.md). `full` enables all stable
 optional public capabilities. Core response
-streaming and session-owned H2 reuse remain unconditional.
+streaming and session-owned H1/H2 reuse remain unconditional.

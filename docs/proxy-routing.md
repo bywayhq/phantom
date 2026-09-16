@@ -36,7 +36,7 @@ println!("{}", response.status());
   form. The proxy endpoint itself is resolved locally.
 
 The SOCKS5 slice is no-auth and TCP CONNECT only. It supports H1, H2,
-session-owned H2 reuse, and H1 WSS. It does not currently support local origin
+session-owned H1/H2 reuse, and H1 WSS. It does not currently support local origin
 DNS, credentials, UDP ASSOCIATE, or H3. Those are separate route capabilities,
 not flags that silently change the meaning of `socks5h`.
 
