@@ -7,13 +7,13 @@ use crate::secret::{
 };
 use crate::{CryptoError, HeaderProtectionKey, PacketProtectionKey, Result};
 
-#[allow(dead_code, reason = "read from BoringSSL by the Session adapter slice")]
+#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 const TLS_AES_128_GCM_SHA256: u16 = 0x1301;
-#[allow(dead_code, reason = "read from BoringSSL by the Session adapter slice")]
+#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 const TLS_AES_256_GCM_SHA384: u16 = 0x1302;
-#[allow(dead_code, reason = "read from BoringSSL by the Session adapter slice")]
+#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 const TLS_CHACHA20_POLY1305_SHA256: u16 = 0x1303;
-#[allow(dead_code, reason = "needed by Session-owned SHA-384 traffic secrets")]
+#[allow(dead_code, reason = "SHA-384 QUIC traffic-secret storage")]
 const SHA384_LEN: usize = 48;
 
 /// Which endpoint owns the local half of a derived key pair.
@@ -52,10 +52,7 @@ impl fmt::Debug for DirectionKeys {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(
-    dead_code,
-    reason = "non-Initial suites become reachable through the Session adapter"
-)]
+#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 pub(crate) enum CipherSuite {
     Aes128GcmSha256,
     Aes256GcmSha384,
@@ -63,11 +60,8 @@ pub(crate) enum CipherSuite {
 }
 
 impl CipherSuite {
-    #[allow(
-        dead_code,
-        reason = "called with BoringSSL's negotiated suite by Session"
-    )]
-    fn from_id(id: u16) -> Result<Self> {
+    #[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
+    pub(crate) fn from_id(id: u16) -> Result<Self> {
         match id {
             TLS_AES_128_GCM_SHA256 => Ok(Self::Aes128GcmSha256),
             TLS_AES_256_GCM_SHA384 => Ok(Self::Aes256GcmSha384),
@@ -76,7 +70,7 @@ impl CipherSuite {
         }
     }
 
-    const fn digest(self) -> HkdfDigest {
+    pub(crate) const fn digest(self) -> HkdfDigest {
         match self {
             Self::Aes128GcmSha256 | Self::ChaCha20Poly1305Sha256 => HkdfDigest::Sha256,
             Self::Aes256GcmSha384 => HkdfDigest::Sha384,
@@ -165,7 +159,7 @@ impl KeyMaterial {
         })
     }
 
-    #[allow(dead_code, reason = "used for Session-driven 1-RTT key updates")]
+    #[allow(dead_code, reason = "QUIC 1-RTT key updates")]
     fn into_packet_key(self, suite: CipherSuite) -> Result<PacketProtectionKey> {
         suite.packet_key(&self.key.as_slice()[..self.key_len], self.iv.as_slice())
     }
@@ -178,22 +172,22 @@ pub(crate) fn derive_direction_keys(
     KeyMaterial::derive(suite, traffic_secret)?.into_keys(suite)
 }
 
-#[allow(dead_code, reason = "owned by the staged Session adapter")]
-enum TrafficSecret {
+#[allow(dead_code, reason = "QUIC traffic-secret storage")]
+pub(crate) enum TrafficSecret {
     Sha256(Secret<SHA256_LEN>),
     Sha384(Secret<SHA384_LEN>),
 }
 
-#[allow(dead_code, reason = "owned by the staged Session adapter")]
+#[allow(dead_code, reason = "QUIC traffic-secret storage and updates")]
 impl TrafficSecret {
-    fn new(digest: HkdfDigest, value: &[u8]) -> Result<Self> {
+    pub(crate) fn new(digest: HkdfDigest, value: &[u8]) -> Result<Self> {
         match digest {
             HkdfDigest::Sha256 => Ok(Self::Sha256(Secret::copy_from_slice(value)?)),
             HkdfDigest::Sha384 => Ok(Self::Sha384(Secret::copy_from_slice(value)?)),
         }
     }
 
-    fn as_slice(&self) -> &[u8] {
+    pub(crate) fn as_slice(&self) -> &[u8] {
         match self {
             Self::Sha256(secret) => secret.as_slice(),
             Self::Sha384(secret) => secret.as_slice(),
@@ -234,7 +228,7 @@ impl fmt::Debug for TrafficSecret {
     }
 }
 
-#[allow(dead_code, reason = "returned by the staged Session adapter")]
+#[allow(dead_code, reason = "QUIC traffic-key installation")]
 pub(crate) struct TrafficKeys {
     pub(crate) local: DirectionKeys,
     pub(crate) remote: DirectionKeys,
@@ -246,7 +240,7 @@ impl fmt::Debug for TrafficKeys {
     }
 }
 
-#[allow(dead_code, reason = "returned by the staged Session adapter")]
+#[allow(dead_code, reason = "QUIC traffic-key updates")]
 pub(crate) struct PacketKeyPair {
     pub(crate) local: PacketProtectionKey,
     pub(crate) remote: PacketProtectionKey,
@@ -259,14 +253,14 @@ impl fmt::Debug for PacketKeyPair {
 }
 
 /// Owns the application traffic secrets needed for QUIC key updates.
-#[allow(dead_code, reason = "owned by the staged Session adapter")]
+#[allow(dead_code, reason = "QUIC traffic-key installation and updates")]
 pub(crate) struct TrafficKeySchedule {
     suite: CipherSuite,
     local: TrafficSecret,
     remote: TrafficSecret,
 }
 
-#[allow(dead_code, reason = "called by the staged Session adapter")]
+#[allow(dead_code, reason = "QUIC traffic-key installation and updates")]
 impl TrafficKeySchedule {
     pub(crate) fn new(
         cipher_suite: u16,
