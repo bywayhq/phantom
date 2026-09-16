@@ -196,6 +196,23 @@ choice: own the Rust profiles, routing, sessions, and streaming API; reuse
 mature protocol engines behind narrow adapters; do not fork an entire client or
 hand-write TLS and QUIC.
 
+### Additional active implementations
+
+The active ecosystem also includes implementations that broaden the feature
+comparison without changing that ownership decision:
+
+| Project | Observed surface | Phantom lesson |
+| --- | --- | --- |
+| [`curl_cffi`](https://github.com/lexiforest/curl_cffi/tree/571560b) and its [`curl-impersonate` fork](https://github.com/lexiforest/curl-impersonate/tree/9d9b988) | Python CFFI over patched libcurl with browser and custom TLS/H2 profiles, H3 plus UDP proxying, synchronous and asynchronous sessions, and WebSocket APIs. | This is strong evidence for libcurl as a distribution and transfer engine. It is not the right Phantom core: the FFI/build boundary and backend-shaped option surface would constrain typed ordered QUIC/H3 policy and move patch ownership outside Rust. Its wheel and cross-platform test matrix remain useful CI references. |
+| [`CycleTLS`](https://github.com/Danny-Dasilva/CycleTLS/tree/9671e04) | Go transport with a Node/TypeScript frontend, caller-supplied JA3/JA4 and QUIC shapes, H3, connection reuse, WebSocket, SSE, and proxy support. | A fingerprint string is a useful import format, not a coherent session identity. TLS, HTTP, QUIC, headers, routes, and mutable state still require cross-field validation and one resolved connection policy. |
+| [`surf`](https://github.com/enetx/surf/tree/7da0502) | Go client built on uTLS and quic-go with Chrome/Firefox recipes, JA3/JA4, typed H2/H3 controls, QUIC shaping, proxies, and WebSocket support. | Its fluent configuration demonstrates demand for both presets and customization. Phantom should expose the same capabilities through validated recipe and route types rather than backend callbacks or an unrestricted option bag. |
+
+The original `curl-impersonate` project remains an important historical design
+reference, but the maintained `curl_cffi` fork is the more relevant source for
+current H3, proxy, packaging, and browser-profile behavior. These projects are
+references and differential subjects; none provides a complete substitute for
+Phantom's typed Rust ownership boundaries.
+
 ## Passive observation
 
 [Prism](https://github.com/WeAreMaven/prism) is a useful secondary observer.
