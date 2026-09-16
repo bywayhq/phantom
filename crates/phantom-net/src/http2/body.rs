@@ -1,4 +1,4 @@
-//! Streaming response-body ownership for one-shot HTTP/2 transactions.
+//! Streaming HTTP/2 response-body ownership.
 
 use std::{
     fmt,
@@ -11,21 +11,18 @@ use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
 
-use super::{Http2Error, driver::DriverTask};
+use super::{Http2Error, connection::ConnectionLease};
 
-/// Streaming response body for a one-shot HTTP/2 transaction.
+/// Streaming response body for one HTTP/2 stream.
 ///
 /// DATA and trailers are yielded as received. If this body is dropped before
-/// the stream ends, it explicitly resets the stream with `CANCEL` before the
-/// final connection sender is dropped. The still-running driver flushes that
-/// reset and then closes the one-shot connection.
+/// the stream ends, it resets only this stream with `CANCEL`. The connection
+/// stays alive while another connection handle or response-body lease exists.
 #[must_use = "response bodies must be read or deliberately dropped"]
 pub struct Http2Body {
-    // Declaration order is intentional: an incomplete receive stream must be
-    // dropped before DriverTask drops the last request sender.
     incoming: Option<RecvStream>,
     reset: Option<SendStream<Bytes>>,
-    driver: DriverTask,
+    lease: Option<ConnectionLease>,
     finished: bool,
     trace: BodyTrace,
 }
@@ -34,18 +31,17 @@ impl Http2Body {
     pub(super) fn new(
         incoming: RecvStream,
         reset: SendStream<Bytes>,
-        mut driver: DriverTask,
+        lease: ConnectionLease,
     ) -> Self {
         let finished = incoming.is_end_stream();
         let mut trace = BodyTrace::new();
         if finished {
-            driver.shutdown();
             trace.finish("complete");
         }
         Self {
             incoming: (!finished).then_some(incoming),
             reset: (!finished).then_some(reset),
-            driver,
+            lease: (!finished).then_some(lease),
             finished,
             trace,
         }
@@ -61,7 +57,7 @@ impl Http2Body {
 
         let Some(incoming) = self.incoming.as_mut() else {
             self.finished = true;
-            self.driver.shutdown();
+            self.lease.take();
             self.trace.finish("protocol_error");
             return Poll::Ready(Some(Err(Http2Error::protocol(::http2::Error::from(
                 ::http2::Reason::INTERNAL_ERROR,
@@ -76,7 +72,7 @@ impl Http2Body {
                     self.finished = true;
                     self.incoming.take();
                     self.reset.take();
-                    self.driver.shutdown();
+                    self.lease.take();
                     self.trace.finish("complete");
                 }
                 Poll::Ready(Some(Ok(Frame::data(data))))
@@ -85,7 +81,7 @@ impl Http2Body {
                 self.finished = true;
                 self.incoming.take();
                 self.reset.take();
-                self.driver.shutdown();
+                self.lease.take();
                 self.trace.finish("protocol_error");
                 Poll::Ready(Some(Err(Http2Error::protocol(error))))
             }
@@ -94,7 +90,7 @@ impl Http2Body {
                     self.finished = true;
                     self.incoming.take();
                     self.reset.take();
-                    self.driver.shutdown();
+                    self.lease.take();
                     self.trace.finish("complete");
                     Poll::Ready(Some(Ok(Frame::trailers(trailers))))
                 }
@@ -102,7 +98,7 @@ impl Http2Body {
                     self.finished = true;
                     self.incoming.take();
                     self.reset.take();
-                    self.driver.shutdown();
+                    self.lease.take();
                     self.trace.finish("complete");
                     Poll::Ready(None)
                 }
@@ -110,7 +106,7 @@ impl Http2Body {
                     self.finished = true;
                     self.incoming.take();
                     self.reset.take();
-                    self.driver.shutdown();
+                    self.lease.take();
                     self.trace.finish("protocol_error");
                     Poll::Ready(Some(Err(Http2Error::protocol(error))))
                 }
@@ -167,6 +163,7 @@ impl Drop for Http2Body {
                 reset.send_reset(Reason::CANCEL);
             }
             self.incoming.take();
+            self.lease.take();
             self.trace.finish("dropped");
         }
     }

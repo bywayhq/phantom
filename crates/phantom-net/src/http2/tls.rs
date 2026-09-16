@@ -1,4 +1,4 @@
-//! One-shot HTTP/2 requests over the crate's TLS transport.
+//! HTTP/2 connections and one-shot requests over the crate's TLS transport.
 
 use std::{error::Error as StdError, fmt, future::Future};
 
@@ -8,8 +8,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http2Body, Http2Error, OperationOutcome, OriginForm, PreparedGet, RequestHeader, alps,
-    send_prepared_get, translate_settings,
+    Http2Body, Http2Connection, Http2Error, OperationOutcome, OriginForm, PreparedGet,
+    RequestHeader, alps, translate_settings,
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
@@ -19,7 +19,7 @@ use crate::{
 
 pub use crate::tls::{TlsError, TlsErrorKind};
 
-/// Reusable TLS and HTTP/2 settings for one-shot GET requests.
+/// Reusable TLS and HTTP/2 settings for connections and one-shot GET requests.
 #[derive(Clone, Debug)]
 pub struct Http2TlsConnector {
     tls: TlsConnector,
@@ -72,6 +72,97 @@ impl Http2TlsConnector {
                 http2: http2.clone(),
             })
             .map_err(Into::into)
+    }
+
+    /// Establishes HTTP/2 over TLS on an already-connected byte stream.
+    ///
+    /// Missing ALPN and every selected protocol other than exact `h2` are
+    /// rejected before the HTTP/2 connection preface is written.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when TLS negotiation, ALPS decoding, or the
+    /// HTTP/2 handshake fails.
+    pub async fn connect<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            self.connect_prepared(stream, server_name, client).await
+        })
+        .await
+    }
+
+    /// Establishes HTTP/2 over a new direct TCP and TLS connection.
+    ///
+    /// This method never falls back to another HTTP protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when connection setup, TLS negotiation, ALPS
+    /// decoding, or the HTTP/2 handshake fails.
+    ///
+    /// # Panics
+    ///
+    /// Tokio may panic if the current runtime was built without network I/O
+    /// enabled.
+    pub async fn connect_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            let stream = connect_tcp(host, port).await.map_err(|error| match error {
+                DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
+                DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
+            })?;
+            self.connect_prepared(stream, server_name, client).await
+        })
+        .await
+    }
+
+    /// Establishes HTTP/2 through a plaintext HTTP CONNECT proxy.
+    ///
+    /// The CONNECT request is validated before DNS resolution or TCP I/O.
+    /// Proxy failure never falls back to a direct connection or another HTTP
+    /// protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when proxy negotiation, TLS negotiation, ALPS
+    /// decoding, or the HTTP/2 handshake fails.
+    ///
+    /// # Panics
+    ///
+    /// Tokio may panic if the current runtime was built without network I/O
+    /// enabled.
+    pub async fn connect_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            let stream = connect_http_tunnel_direct(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+            )
+            .await?;
+            self.connect_prepared(stream, server_name, client).await
+        })
+        .await
     }
 
     /// Sends one empty-body HTTP/2 GET after an exact `h2` TLS negotiation.
@@ -178,13 +269,29 @@ impl Http2TlsConnector {
         &self,
         stream: S,
         server_name: &str,
-        mut prepared: PreparedGet,
+        prepared: PreparedGet,
     ) -> Result<Response<Http2Body>, Http2TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         debug!("HTTP/2 request prepared");
+        let connection = self
+            .connect_prepared(stream, server_name, prepared.client)
+            .await?;
+        let response = connection.send_prepared_get(prepared.request).await?;
+        Span::current().record("status", response.status().as_u16());
+        Ok(response)
+    }
 
+    async fn connect_prepared<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        mut client: ::http2::client::Builder,
+    ) -> Result<Http2Connection, Http2TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
         let stream = self.tls.connect(server_name, stream).await?;
         let negotiated = stream.negotiated_alpn();
         Span::current().record("negotiated_alpn", trace_alpn(negotiated));
@@ -220,12 +327,28 @@ impl Http2TlsConnector {
             "HTTP/2 peer application settings decoded"
         );
         if let Some(settings) = peer_settings.into_initial_settings() {
-            prepared.apply_initial_peer_settings(settings);
+            client.initial_peer_settings(settings);
         }
 
-        let response = send_prepared_get(stream, prepared).await?;
-        Span::current().record("status", response.status().as_u16());
-        Ok(response)
+        Http2Connection::connect_with_builder(stream, client)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn trace_connect<F>(&self, operation: F) -> Result<Http2Connection, Http2TlsError>
+    where
+        F: Future<Output = Result<Http2Connection, Http2TlsError>>,
+    {
+        let span = debug_span!(
+            "http2.tls.connect",
+            transport = "tls",
+            negotiated_alpn = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = operation.instrument(span.clone()).await;
+        outcome_guard.finish(connection_outcome(&result));
+        result
     }
 
     async fn trace_response_head<F>(
@@ -264,7 +387,24 @@ impl Http2TlsConnector {
     }
 }
 
-/// Error returned before an HTTP/2-over-TLS response is available.
+fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'static str {
+    match result {
+        Ok(_) => "ok",
+        Err(Http2TlsError::RuntimeUnavailable) => "runtime_unavailable",
+        Err(Http2TlsError::Connect(_)) => "connect_error",
+        Err(Http2TlsError::Proxy(_)) => "proxy_error",
+        Err(Http2TlsError::Tls(_)) => "tls_error",
+        Err(Http2TlsError::Http2(Http2Error::Protocol(_))) => "http_protocol_error",
+        Err(Http2TlsError::Http2(_)) => "http_preparation_error",
+        Err(Http2TlsError::MissingNegotiatedAlpn | Http2TlsError::UnsupportedAlpn { .. }) => {
+            "unsupported_alpn"
+        }
+        Err(Http2TlsError::InvalidPeerApplicationSettings { .. }) => "invalid_peer_alps",
+        Err(Http2TlsError::MissingHttp2Alpn) => "invalid_configuration",
+    }
+}
+
+/// Error returned while establishing HTTP/2 over TLS or opening a request.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Http2TlsError {

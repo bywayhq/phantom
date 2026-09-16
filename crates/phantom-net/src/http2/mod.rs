@@ -1,4 +1,4 @@
-//! A one-shot HTTP/2 client transaction.
+//! Exact HTTP/2 client connections and one-shot transactions.
 //!
 //! The core transaction accepts an already-connected byte stream. It owns no
 //! pool and does not fall back to another HTTP version.
@@ -10,16 +10,16 @@ use ::http2::{
 use http::{Request, Response};
 use phantom_profile::{Http2PseudoHeader, Http2Setting, Http2Settings};
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::{Instrument, Span, debug, debug_span, field};
+use tracing::{Span, debug_span, field};
 
 mod alps;
-use driver::DriverTask;
 use request::prepare_get;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http2Body;
+pub use connection::Http2Connection;
 pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
 
 /// Sends one empty-body HTTP/2 GET over an already-connected stream.
@@ -56,7 +56,8 @@ where
         Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
     }
     let prepared = prepared?;
-    send_prepared_get(stream, prepared).await
+    let connection = Http2Connection::connect_with_builder(stream, prepared.client).await?;
+    connection.send_prepared_get(prepared.request).await
 }
 
 struct PreparedGet {
@@ -77,61 +78,30 @@ impl PreparedGet {
 
         Ok(Self { request, client })
     }
-
-    fn apply_initial_peer_settings(&mut self, settings: ::http2::frame::Settings) {
-        self.client.initial_peer_settings(settings);
-    }
 }
 
-async fn send_prepared_get<T>(
-    stream: T,
-    prepared: PreparedGet,
-) -> Result<Response<Http2Body>, Http2Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
+fn prepare_request(
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Request<()>, Http2Error> {
     let span = debug_span!(
-        "http2.response_head",
+        "http2.request.prepare",
         method = "GET",
         protocol = "h2",
-        status = field::Empty,
         outcome = field::Empty,
+        error_kind = field::Empty,
     );
     let outcome = OperationOutcome::new(&span);
-    let result = async {
-        debug!("HTTP/2 transaction started");
-        let (sender, connection) = prepared
-            .client
-            .handshake(stream)
-            .await
-            .map_err(Http2Error::protocol)?;
-        let mut driver = DriverTask::spawn(connection, sender);
-
-        driver.ready().await.map_err(Http2Error::protocol)?;
-        let (response, send_stream) = driver
-            .sender_mut()
-            .map_err(Http2Error::protocol)?
-            .send_request(prepared.request, true)
-            .map_err(Http2Error::protocol)?;
-        let response = response.await.map_err(Http2Error::protocol)?;
-
-        span.record("status", response.status().as_u16());
-        debug!("HTTP/2 response headers received");
-        let (parts, incoming) = response.into_parts();
-        Ok(Response::from_parts(
-            parts,
-            Http2Body::new(incoming, send_stream, driver),
-        ))
-    }
-    .instrument(span.clone())
-    .await;
-    let terminal_outcome = match &result {
-        Ok(_) => "ok",
-        Err(Http2Error::Protocol(_)) => "protocol_error",
-        Err(_) => "request_error",
+    let request = {
+        let _entered = span.enter();
+        prepare_get(authority, target, headers)
     };
-    outcome.finish(terminal_outcome);
-    result
+    match &request {
+        Ok(_) => outcome.finish("ok"),
+        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
+    }
+    request
 }
 
 struct OperationOutcome {
@@ -248,6 +218,7 @@ fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2
 }
 
 mod body;
+mod connection;
 mod driver;
 mod error;
 mod request;

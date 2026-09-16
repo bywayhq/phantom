@@ -1,4 +1,4 @@
-//! Connection-driver lifecycle for one-shot HTTP/2 transactions.
+//! Bounded HTTP/2 connection-driver lifecycle.
 
 use std::{
     future::{Future, poll_fn},
@@ -7,10 +7,7 @@ use std::{
     time::Duration,
 };
 
-use ::http2::client;
-use bytes::Bytes;
 use tokio::{
-    io::{AsyncRead, AsyncWrite},
     runtime::Handle,
     task::{JoinError, JoinHandle},
 };
@@ -23,13 +20,12 @@ use crate::shutdown_timer;
 
 pub(super) const DRIVER_SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 
-/// Owns the HTTP/2 connection driver and the last request sender.
+/// Owns an HTTP/2 connection driver.
 ///
-/// Dropping the sender asks the connection task to shut down. A supervisor
-/// gives the task a fixed grace period to flush pending protocol frames, then
-/// aborts a permanently stalled driver.
+/// Its owner drops every request sender before shutdown. A supervisor gives
+/// the task a fixed grace period to flush pending protocol frames, then aborts
+/// a permanently stalled driver.
 pub(super) struct DriverTask {
-    sender: Option<client::SendRequest<Bytes>>,
     handle: Option<JoinHandle<Result<(), ::http2::Error>>>,
     runtime: Handle,
     dispatch: Dispatch,
@@ -37,12 +33,9 @@ pub(super) struct DriverTask {
 }
 
 impl DriverTask {
-    pub(super) fn spawn<T>(
-        connection: client::Connection<T, Bytes>,
-        sender: client::SendRequest<Bytes>,
-    ) -> Self
+    pub(super) fn spawn<T>(connection: ::http2::client::Connection<T, bytes::Bytes>) -> Self
     where
-        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
     {
         let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);
@@ -53,7 +46,6 @@ impl DriverTask {
                 .with_subscriber(dispatch.clone()),
         );
         Self {
-            sender: Some(sender),
             handle: Some(handle),
             runtime,
             dispatch,
@@ -61,23 +53,13 @@ impl DriverTask {
         }
     }
 
-    pub(super) async fn ready(&mut self) -> Result<(), ::http2::Error> {
-        let sender = self
-            .sender
-            .take()
-            .ok_or_else(|| ::http2::Error::from(::http2::Reason::INTERNAL_ERROR))?;
-        self.sender = Some(sender.ready().await?);
-        Ok(())
-    }
-
-    pub(super) fn sender_mut(&mut self) -> Result<&mut client::SendRequest<Bytes>, ::http2::Error> {
-        self.sender
-            .as_mut()
-            .ok_or_else(|| ::http2::Error::from(::http2::Reason::INTERNAL_ERROR))
+    pub(super) fn is_finished(&self) -> bool {
+        self.handle
+            .as_ref()
+            .is_none_or(tokio::task::JoinHandle::is_finished)
     }
 
     pub(super) fn shutdown(&mut self) {
-        self.sender.take();
         let Some(handle) = self.handle.take() else {
             return;
         };

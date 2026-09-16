@@ -26,6 +26,7 @@ use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{Http2TlsConnector, Http2TlsError};
 use crate::http2::{Http2Error, OriginForm, RequestHeader};
+use crate::proxy::HttpConnectHeader;
 use crate::tls::test_support::{
     H2_ALPN_WIRE, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn,
     TouchCountingStream, accept_tls, loopback_listener,
@@ -106,6 +107,131 @@ async fn streams_http2_over_certificate_verified_tls() -> TestResult<()> {
         let (sni, uri) = server.await??;
         assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
         assert_eq!(uri, "https://server.phantom.test:8443/secure?item=1");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn reusable_connect_applies_alpn_and_alps_to_multiple_requests() -> TestResult<()> {
+    bounded_tls_test(async {
+        const EMPTY_SETTINGS_FRAME: &[u8] = &[0, 0, 0, 4, 0, 0, 0, 0, 0];
+
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = alps_acceptor(&identity)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_alps(listener, acceptor, EMPTY_SETTINGS_FRAME).await?;
+            let mut preface = [0_u8; 24];
+            stream.read_exact(&mut preface).await?;
+            assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
+
+            let mut stream_ids = Vec::new();
+            while stream_ids.len() < 2 {
+                let frame = read_raw_frame(&mut stream).await?;
+                if frame.kind == 1 {
+                    stream_ids.push(frame.stream_id);
+                    write_raw_frame(&mut stream, 1, 0x5, frame.stream_id, &[0x89]).await?;
+                }
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(stream_ids)
+        });
+
+        let connector = alps_test_connector(&identity)?;
+        let tcp = TcpStream::connect(address).await?;
+        let connection = connector.connect(tcp, TEST_SERVER_NAME).await?;
+        request_and_collect(&connection, "/first", vec![]).await?;
+        request_and_collect(&connection, "/second", vec![]).await?;
+        assert_eq!(server.await??, [1, 3]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn reusable_connect_direct_serves_multiple_requests() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = identity.acceptor(TestServerAlpn::H2)?;
+        let server = tokio::spawn(async move {
+            let (stream, sni) = accept_tls(listener, acceptor).await?;
+            let paths = serve_two_requests(stream).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((sni, paths))
+        });
+
+        let connector = test_connector(&identity)?;
+        let connection = connector
+            .connect_direct("127.0.0.1", address.port(), TEST_SERVER_NAME)
+            .await?;
+        request_and_collect(&connection, "/direct-one", vec![]).await?;
+        request_and_collect(&connection, "/direct-two", vec![]).await?;
+        drop(connection);
+
+        let (sni, paths) = server.await??;
+        assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
+        assert_eq!(paths, ["/direct-one", "/direct-two"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn reusable_connect_http_connect_keeps_origin_data_out_of_proxy_head() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = identity.acceptor(TestServerAlpn::H2)?;
+        let server = tokio::spawn(async move {
+            let (mut tcp, _) = listener.accept().await?;
+            let proxy_head = read_http_head(&mut tcp).await?;
+            tcp.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await?;
+
+            let ssl = Ssl::new(acceptor.context())?;
+            let mut stream = BoringStream::new(ssl, tcp)?;
+            Pin::new(&mut stream).accept().await?;
+            let paths = serve_two_requests(stream).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((proxy_head, paths))
+        });
+
+        let connector = test_connector(&identity)?;
+        let connect_headers = [
+            HttpConnectHeader::authority("Host"),
+            HttpConnectHeader::field(RequestHeader::new("Proxy-Authorization", "Basic cHJveHk=")),
+        ];
+        let connection = connector
+            .connect_http_connect(
+                "127.0.0.1",
+                address.port(),
+                TEST_AUTHORITY,
+                &connect_headers,
+                TEST_SERVER_NAME,
+            )
+            .await?;
+        let origin_headers = vec![RequestHeader::new("x-origin-secret", "not-for-proxy")];
+        request_and_collect(&connection, "/tunneled-one", origin_headers).await?;
+        request_and_collect(&connection, "/tunneled-two", vec![]).await?;
+        drop(connection);
+
+        let (proxy_head, paths) = server.await??;
+        assert_eq!(
+            proxy_head,
+            b"CONNECT server.phantom.test:8443 HTTP/1.1\r\n\
+Host: server.phantom.test:8443\r\n\
+Proxy-Authorization: Basic cHJveHk=\r\n\r\n"
+        );
+        assert!(
+            !proxy_head
+                .windows(b"/tunneled-one".len())
+                .any(|part| part == b"/tunneled-one")
+        );
+        assert!(
+            !proxy_head
+                .windows(b"x-origin-secret".len())
+                .any(|part| part == b"x-origin-secret")
+        );
+        assert_eq!(paths, ["/tunneled-one", "/tunneled-two"]);
         Ok(())
     })
     .await
@@ -413,6 +539,57 @@ fn constructor_requires_h2_and_validates_http2_settings() -> TestResult<()> {
         Err(Http2TlsError::Http2(Http2Error::InvalidSettings(_)))
     ));
     Ok(())
+}
+
+async fn request_and_collect(
+    connection: &crate::http2::Http2Connection,
+    path: &str,
+    headers: Vec<RequestHeader>,
+) -> TestResult<()> {
+    let response = connection
+        .send_get(TEST_AUTHORITY, OriginForm::parse(path)?, headers)
+        .await?;
+    assert_eq!(response.status(), 204);
+    assert!(response.into_body().collect().await?.to_bytes().is_empty());
+    Ok(())
+}
+
+async fn serve_two_requests<S>(stream: S) -> TestResult<Vec<String>>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let mut paths = Vec::new();
+    for _ in 0..2 {
+        let (request, mut respond) = connection
+            .accept()
+            .await
+            .ok_or("connection closed before reusable request")??;
+        paths.push(request.uri().path().to_owned());
+        respond.send_response(Response::builder().status(204).body(())?, true)?;
+    }
+    if connection.accept().await.is_some() {
+        return Err("client opened an unexpected third reusable request".into());
+    }
+    Ok(paths)
+}
+
+async fn read_http_head<S>(stream: &mut S) -> TestResult<Vec<u8>>
+where
+    S: AsyncRead + Unpin,
+{
+    const MAX_HEAD_BYTES: usize = 4096;
+
+    let mut head = Vec::new();
+    while !head.ends_with(b"\r\n\r\n") {
+        if head.len() == MAX_HEAD_BYTES {
+            return Err("HTTP proxy request head exceeded test bound".into());
+        }
+        let mut byte = [0_u8; 1];
+        stream.read_exact(&mut byte).await?;
+        head.push(byte[0]);
+    }
+    Ok(head)
 }
 
 fn tls_settings() -> TlsSettings {
