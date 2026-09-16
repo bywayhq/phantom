@@ -120,9 +120,11 @@ The pinned BoringSSL headers already provide the complete legacy QUIC API:
 
 `btls-sys` generates bindings for these symbols. No BoringSSL C/C++ patch is
 required. The isolated adapter now owns the callback table, state, traffic
-secret copies, output publication, alerts, flight limits, and panic boundary.
-The remaining work is the owning SSL session and its Quinn `Session`
-implementation.
+secret copies, output publication, alerts, flight limits, panic boundary, and
+the private client `SSL` session. The owner enforces TLS 1.3, exact `h3` ALPN,
+peer and hostname verification, copied transport parameters, no BIO, and no
+resumption or early data. The remaining crypto work is the thin Quinn
+`ClientConfig`/`Session` adapter around that private owner.
 
 Quinn requires usable key-update support in the first provider slice. As soon
 as it installs the 1-RTT keys, its connection state requests the next 1-RTT key
@@ -147,14 +149,25 @@ The private adapter now implements:
 - QUIC v1 initial secrets, HKDF expansion, packet AEAD, header protection,
   Retry integrity, key updates, and endpoint HMAC.
 
-The next slice must own the SSL handle and implement:
+The next slice must implement:
 
-- setting local transport parameters and copying peer parameters;
-- providing handshake bytes and processing post-handshake records;
-- querying encryption levels and draining only published output;
-- configuring early-data context and the legacy parameter codepoint; and
-- translating callback secrets into Quinn key epochs, including repeated
-  application traffic-secret updates.
+- a safe configuration owner which builds the private session from a validated
+  immutable context;
+- a serialized call gate around the non-`Sync` BoringSSL `SSL` owner;
+- incoming CRYPTO-level discovery through `SSL_quic_read_level` before each
+  `SSL_provide_quic_data` call;
+- transactional extraction of complete local/remote callback-secret pairs and
+  translation into Quinn key epochs, including repeated application updates;
+- level-aware output staging so Quinn never queues future-level bytes in the
+  previous packet-number space; and
+- owned peer identity, handshake metadata, exporter, Retry verification,
+  transport-parameter decoding, and bounded error translation.
+
+Quinn's `read_crypto` callback supplies bytes without an encryption level, so
+the level is backend state rather than a public adapter argument. Its
+`write_crypto` path queues returned bytes in the packet-number space captured
+before the call. The adapter must therefore retain future-level flights until
+the corresponding keys have been returned and installed.
 
 The completed key-schedule slice maps TLS 1.3 suite identifiers `0x1301`,
 `0x1302`, and `0x1303` to SHA-256 or SHA-384 and the packet/header algorithms.
@@ -242,6 +255,18 @@ either order. No callback may unwind across C or re-enter SSL. Output uses
 BoringSSL's maximum-flight guidance, checked length arithmetic, and fallible
 reservation.
 
+BoringSSL explicitly documents `SSL` as single-threaded. The private owner is
+`Send` because moving its unique owner transfers all access; it is deliberately
+not `Sync`. Quinn requires its crypto session to be `Send + Sync`, so the Quinn
+adapter must serialize every handshake, post-handshake, exporter, metadata,
+identity, and teardown access through one mutex or equivalent call gate. A Rust
+wrapper's broader marker traits do not override the C library's contract.
+
+DNS names use SNI and hostname verification. IP literals require the existing
+TCP path's distinct IP verification behavior and no SNI; until that is wired,
+the H3 configuration must reject IP literals rather than treating them as DNS
+names.
+
 ## H3 patch and request lifecycle
 
 Base the fork on the exact `hyperium/h3` revision above, not crates.io `0.0.8`
@@ -270,6 +295,11 @@ endpoint lifetime. Require negotiated ALPN `h3`. Dropping or cancelling a
 response body must stop the receive stream and reset the send stream with
 `H3_REQUEST_CANCELLED`; driver and endpoint shutdown are bounded. A forced-H3
 error is returned as H3/QUIC context and never causes an H2/H1 attempt.
+
+Multiplexing begins above the crypto provider. Quinn owns concurrent
+bidirectional and unidirectional streams, and `h3-quinn` adapts those streams
+to the H3 engine. The provider supplies a verified connection and key epochs;
+it does not implement request admission, stream limits, GOAWAY, or pooling.
 
 ## Verification gates
 
@@ -301,7 +331,7 @@ values, proxy credentials, nor secrets.
 The adapter, patched Quinn provider contract, and focused vendored dependency
 gates run under the repository's normal warnings-as-errors and formatting
 checks. A complete forced-H3 integration gate remains pending because the SSL
-session owner and request path do not exist yet.
+session has not yet been adapted to Quinn and the request path does not exist.
 
 ## Fork trigger
 
