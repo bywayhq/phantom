@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use bytes::Bytes;
+use http::Method;
 use http_body_util::BodyExt;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, duplex},
@@ -54,6 +56,85 @@ async fn sequential_requests_reuse_connection_and_capture_each_head() -> TestRes
 
         let (first, second) = server_task.await??;
         assert!(first.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
+        assert!(second.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn body_request_then_get_reuses_connection() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            let first = read_head(&mut server).await?;
+            let mut body = [0_u8; 4];
+            server.read_exact(&mut body).await?;
+            server.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            let second = read_head(&mut server).await?;
+            server.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            Ok::<_, std::io::Error>((first, body, second))
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        connection
+            .send_request(
+                Method::POST,
+                target()?,
+                vec![host()],
+                Some(Bytes::from_static(b"data")),
+            )
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+        connection
+            .send_get(target()?, vec![host()])
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+
+        let (first, body, second) = server_task.await??;
+        assert!(first.starts_with(b"POST /resource?item=1 HTTP/1.1\r\n"));
+        assert_eq!(&body, b"data");
+        assert!(second.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn head_response_without_framing_reuses_connection() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            let first = read_head(&mut server).await?;
+            server
+                .write_all(b"HTTP/1.1 200 OK\r\nX-Head: yes\r\n\r\n")
+                .await?;
+            let second = read_head(&mut server).await?;
+            server.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            Ok::<_, std::io::Error>((first, second))
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        connection
+            .send_request(Method::HEAD, target()?, vec![host()], None)
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+        assert!(connection.is_reusable());
+        connection
+            .send_get(target()?, vec![host()])
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+
+        let (first, second) = server_task.await??;
+        assert!(first.starts_with(b"HEAD /resource?item=1 HTTP/1.1\r\n"));
         assert!(second.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
         Ok(())
     })

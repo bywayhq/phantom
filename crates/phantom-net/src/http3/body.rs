@@ -9,10 +9,17 @@ use http_body::{Body, Frame, SizeHint};
 use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
 
 use self::task::{BodyEvent, BodyTask};
-use super::{DatagramMonitor, Http3Connection, Http3Error, Http3ErrorKind, RequestStream};
+use super::{
+    DatagramMonitor, Http3Connection, Http3Error, Http3ErrorKind, RequestRecvStream,
+    RequestSendStream,
+};
 
-pub(super) fn defer_datagram_abort(stream: RequestStream, connection: Http3Connection) {
-    task::defer_datagram_abort(stream, connection);
+pub(super) fn defer_datagram_abort(
+    send: RequestSendStream,
+    recv: RequestRecvStream,
+    connection: Http3Connection,
+) {
+    task::defer_datagram_abort(send, recv, connection);
 }
 
 #[must_use = "response bodies must be read or deliberately dropped"]
@@ -25,14 +32,16 @@ pub struct Http3Body {
 
 impl Http3Body {
     pub(super) fn new(
-        stream: RequestStream,
+        send: RequestSendStream,
+        recv: RequestRecvStream,
         connection: Http3Connection,
         datagrams: Option<DatagramMonitor>,
     ) -> Self {
         let trace = BodyTrace::new();
         let runtime = connection.runtime().clone();
         let task = BodyTask::spawn(
-            stream,
+            send,
+            recv,
             connection,
             datagrams,
             runtime,

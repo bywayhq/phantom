@@ -2,14 +2,15 @@
 
 use std::future::Future;
 
-use http::Response;
+use bytes::Bytes;
+use http::{Method, Response};
 use phantom_profile::TlsSettings;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
     Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome, OriginForm,
-    PreparedGet, RequestHeader, send_prepared_upgrade,
+    PreparedGet, PreparedRequest, RequestHeader, send_prepared_upgrade,
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
@@ -80,10 +81,32 @@ impl Http1TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(target, headers)?;
+        self.send_request(stream, server_name, Method::GET, target, headers, None)
+            .await
+    }
+
+    /// Sends one HTTP/1.1 request over a connected byte stream.
+    ///
+    /// The request is validated before the stream is touched. TLS and ALPN
+    /// behavior is identical to [`Self::send_get`].
+    pub async fn send_request<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new(method, target, headers, body)?;
             let connection = self.connect_prepared(stream, server_name).await?;
-            self.send_prepared_get(&connection, prepared).await
+            self.send_prepared_request(&connection, prepared).await
         })
         .await
     }
@@ -106,14 +129,34 @@ impl Http1TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(target, headers)?;
+        self.send_request_direct(host, port, server_name, Method::GET, target, headers, None)
+            .await
+    }
+
+    /// Sends one request over a new direct TCP and TLS connection.
+    ///
+    /// The complete request is validated before DNS resolution or TCP I/O.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream = connect_tcp(host, port).await.map_err(|error| match error {
                 DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
                 DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
             })?;
             let connection = self.connect_prepared(stream, server_name).await?;
-            self.send_prepared_get(&connection, prepared).await
+            self.send_prepared_request(&connection, prepared).await
         })
         .await
     }
@@ -140,8 +183,40 @@ impl Http1TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(target, headers)?;
+        self.send_request_http_connect(
+            proxy_host,
+            proxy_port,
+            connect_authority,
+            connect_headers,
+            server_name,
+            Method::GET,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one request through a plaintext HTTP CONNECT proxy.
+    ///
+    /// Origin and CONNECT requests are validated before proxy or origin I/O.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream = connect_http_tunnel_direct(
                 proxy_host,
                 proxy_port,
@@ -150,7 +225,7 @@ impl Http1TlsConnector {
             )
             .await?;
             let connection = self.connect_prepared(stream, server_name).await?;
-            self.send_prepared_get(&connection, prepared).await
+            self.send_prepared_request(&connection, prepared).await
         })
         .await
     }
@@ -170,13 +245,43 @@ impl Http1TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(target, headers)?;
+        self.send_request_socks5_remote(
+            proxy_host,
+            proxy_port,
+            target_host,
+            target_port,
+            server_name,
+            Method::GET,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one request through a SOCKS5 proxy using remote DNS.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream =
                 connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
                     .await?;
             let connection = self.connect_prepared(stream, server_name).await?;
-            self.send_prepared_get(&connection, prepared).await
+            self.send_prepared_request(&connection, prepared).await
         })
         .await
     }
@@ -196,13 +301,43 @@ impl Http1TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(target, headers)?;
+        self.send_request_socks5_local(
+            proxy_host,
+            proxy_port,
+            target_host,
+            target_port,
+            server_name,
+            Method::GET,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one request through a SOCKS5 proxy using local DNS.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream =
                 connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
                     .await?;
             let connection = self.connect_prepared(stream, server_name).await?;
-            self.send_prepared_get(&connection, prepared).await
+            self.send_prepared_request(&connection, prepared).await
         })
         .await
     }
@@ -466,13 +601,13 @@ impl Http1TlsConnector {
         result
     }
 
-    async fn send_prepared_get(
+    async fn send_prepared_request(
         &self,
         connection: &Http1Connection,
-        prepared: PreparedGet,
+        prepared: PreparedRequest,
     ) -> Result<Response<Http1Body>, Http1TlsError> {
         debug!("HTTP/1 request prepared");
-        let response = connection.send_prepared_get(prepared).await?;
+        let response = connection.send_prepared_request(prepared).await?;
         Span::current().record("status", response.status().as_u16());
         Ok(response)
     }
@@ -511,6 +646,8 @@ impl Http1TlsConnector {
 
     async fn trace_response_head<F>(
         &self,
+        method: &Method,
+        body_bytes: usize,
         operation: F,
     ) -> Result<Response<Http1Body>, Http1TlsError>
     where
@@ -518,7 +655,8 @@ impl Http1TlsConnector {
     {
         let span = debug_span!(
             "http1.tls.response_head",
-            method = "GET",
+            method = %method,
+            body_bytes,
             transport = "tls",
             negotiated_alpn = field::Empty,
             status = field::Empty,

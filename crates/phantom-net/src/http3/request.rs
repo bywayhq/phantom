@@ -1,5 +1,6 @@
 //! HTTP/3 request construction and field validation.
 
+use bytes::Bytes;
 use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
@@ -15,12 +16,55 @@ use super::{Http3Error, Http3ErrorKind, OriginForm, RequestHeader};
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
+pub(super) struct PreparedRequest {
+    request: Request<()>,
+    body: Option<Bytes>,
+}
+
+impl PreparedRequest {
+    pub(super) fn method(&self) -> &Method {
+        self.request.method()
+    }
+
+    pub(super) fn body_len(&self) -> usize {
+        self.body.as_ref().map_or(0, Bytes::len)
+    }
+
+    pub(super) fn has_body(&self) -> bool {
+        self.body.is_some()
+    }
+
+    pub(super) fn into_parts(self) -> (Request<()>, Option<Bytes>) {
+        (self.request, self.body)
+    }
+}
+
+#[cfg(test)]
 pub(super) fn prepare_get(
     request_settings: &Http3RequestSettings,
     authority: &str,
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<Request<()>, Http3Error> {
+    prepare_profiled_request(
+        request_settings,
+        Method::GET,
+        authority,
+        target,
+        headers,
+        None,
+    )
+    .map(|prepared| prepared.request)
+}
+
+pub(super) fn prepare_profiled_request(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+) -> Result<PreparedRequest, Http3Error> {
     if authority.as_bytes().contains(&b'@') {
         return Err(invalid("HTTP/3 request authority contains userinfo"));
     }
@@ -33,10 +77,10 @@ pub(super) fn prepare_get(
         .path_and_query(target.into_path_and_query())
         .build()
         .map_err(|_| invalid("HTTP/3 request URI is invalid"))?;
-    let headers = ValidatedHeaders::new(headers)?;
+    let headers = ValidatedHeaders::new(headers, body.as_ref().map_or(0, Bytes::len))?;
 
     let mut request = Request::new(());
-    *request.method_mut() = Method::GET;
+    *request.method_mut() = method;
     *request.uri_mut() = uri;
     *request.version_mut() = Version::HTTP_3;
     headers.populate(request.headers_mut())?;
@@ -46,14 +90,51 @@ pub(super) fn prepare_get(
     request
         .extensions_mut()
         .insert(pseudo_header_order(request_settings)?);
-    Ok(request)
+    prepare_request(request, body)
 }
 
-pub(super) fn prepare_request(request: Request<()>) -> Result<Request<()>, Http3Error> {
+pub(super) fn prepare_request(
+    mut request: Request<()>,
+    body: Option<Bytes>,
+) -> Result<PreparedRequest, Http3Error> {
+    apply_content_length(&mut request, body.as_ref().map_or(0, Bytes::len))?;
     validate_request(&request)?;
     validate_ordered_headers(&request)?;
     validate_pseudo_header_order(&request)?;
-    Ok(request)
+    Ok(PreparedRequest { request, body })
+}
+
+fn apply_content_length(request: &mut Request<()>, body_len: usize) -> Result<(), Http3Error> {
+    let expected = body_len.to_string();
+    let values = request.headers().get_all(CONTENT_LENGTH);
+    let mut values = values.iter();
+    if let Some(value) = values.next() {
+        if values.next().is_some() {
+            return Err(invalid(
+                "HTTP/3 request contains multiple content-length fields",
+            ));
+        }
+        if value.as_bytes() != expected.as_bytes() {
+            return Err(invalid(
+                "HTTP/3 request content-length does not match the request body",
+            ));
+        }
+        return Ok(());
+    }
+    if body_len == 0 {
+        return Ok(());
+    }
+
+    let value = HeaderValue::from_bytes(expected.as_bytes())
+        .map_err(|_| invalid("HTTP/3 request content-length is invalid"))?;
+    request.headers_mut().append(CONTENT_LENGTH, value.clone());
+    if let Some(mut ordered) = request.extensions_mut().remove::<OrderedHeaders>() {
+        let mut fields = ordered.as_slice().to_vec();
+        fields.push((CONTENT_LENGTH, value));
+        ordered = OrderedHeaders::new(fields);
+        request.extensions_mut().insert(ordered);
+    }
+    Ok(())
 }
 
 fn validate_request(request: &Request<()>) -> Result<(), Http3Error> {
@@ -186,7 +267,29 @@ struct ValidatedHeaders {
 }
 
 impl ValidatedHeaders {
-    fn new(headers: Vec<RequestHeader>) -> Result<Self, Http3Error> {
+    fn new(mut headers: Vec<RequestHeader>, body_len: usize) -> Result<Self, Http3Error> {
+        let expected = body_len.to_string();
+        let content_length_count = headers
+            .iter()
+            .filter(|header| header.name().eq_ignore_ascii_case(CONTENT_LENGTH.as_str()))
+            .count();
+        if content_length_count > 1 {
+            return Err(invalid(
+                "HTTP/3 request contains multiple content-length fields",
+            ));
+        }
+        if let Some(header) = headers
+            .iter()
+            .find(|header| header.name().eq_ignore_ascii_case(CONTENT_LENGTH.as_str()))
+        {
+            if header.value() != expected.as_bytes() {
+                return Err(invalid(
+                    "HTTP/3 request content-length does not match the request body",
+                ));
+            }
+        } else if body_len != 0 {
+            headers.push(RequestHeader::new("content-length", expected));
+        }
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(invalid("HTTP/3 request has too many headers"));
         }
@@ -229,12 +332,6 @@ fn validate_field(name: &HeaderName, value: &HeaderValue) -> Result<(), Http3Err
     if name == TE {
         if value.as_bytes() != b"trailers" {
             return Err(invalid("HTTP/3 TE header must contain only `trailers`"));
-        }
-    } else if name == CONTENT_LENGTH {
-        if value.as_bytes() != b"0" {
-            return Err(invalid(
-                "HTTP/3 empty request requires a zero content length",
-            ));
         }
     } else if name == HOST
         || name == CONNECTION

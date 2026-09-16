@@ -93,8 +93,8 @@ async fn datagram_violation_is_isolated_to_its_request_stream() -> TestResult<()
     let violated = Request::get(format!("https://{TEST_SERVER_NAME}/violated")).body(())?;
     let sibling = Request::get(format!("https://{TEST_SERVER_NAME}/sibling")).body(())?;
     let (violated, sibling) = tokio::join!(
-        connection.send_request(violated),
-        connection.send_request(sibling)
+        connection.send_request(violated, None),
+        connection.send_request(sibling, None)
     );
     let mut violated = violated?.into_body();
     heads_received.await?;
@@ -111,7 +111,10 @@ async fn datagram_violation_is_isolated_to_its_request_stream() -> TestResult<()
     assert_eq!(error.kind(), super::super::Http3ErrorKind::Protocol);
 
     let later = connection
-        .send_request(Request::get(format!("https://{TEST_SERVER_NAME}/later")).body(())?)
+        .send_request(
+            Request::get(format!("https://{TEST_SERVER_NAME}/later")).body(())?,
+            None,
+        )
         .await?
         .into_body()
         .collect()

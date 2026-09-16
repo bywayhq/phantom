@@ -1,7 +1,9 @@
 use std::{collections::VecDeque, num::NonZeroUsize, sync::Arc};
 
+use bytes::Bytes;
+use http::Method;
 use phantom_net::http1::{
-    Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm, RequestHeader, validate_get,
+    Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm, RequestHeader, validate_request,
 };
 use tokio::sync::Mutex;
 use tracing::debug;
@@ -32,15 +34,18 @@ impl Http1Pool {
         self.max_pending
     }
 
-    pub(crate) async fn send_get(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn send_request(
         &self,
         connector: &Http1TlsConnector,
         endpoint: &Endpoint,
         route: &Route,
+        method: Method,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
-        validate_get(&target, &headers)
+        validate_request(&method, &target, &headers, body.as_ref())
             .map_err(Http1TlsError::from)
             .map_err(RequestError::http1)?;
         let key = PoolKey::new(endpoint, route);
@@ -50,7 +55,10 @@ impl Http1Pool {
             .acquire(connector, endpoint, route)
             .await
             .map_err(RequestError::http1)?;
-        let result = lease.connection.send_get(target, headers).await;
+        let result = lease
+            .connection
+            .send_request(method, target, headers, body)
+            .await;
         match result {
             Ok(response) => {
                 let (parts, body) = response.into_parts();

@@ -7,11 +7,12 @@
 
 use std::{error::Error as StdError, fmt};
 
-use http::Response;
+use bytes::Bytes;
+use http::{Method, Response};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
-use request::PreparedGet;
+use request::{PreparedGet, PreparedRequest};
 use upgrade::send_prepared_upgrade;
 
 #[cfg(test)]
@@ -56,10 +57,22 @@ pub enum Http1Error {
     MissingHost,
     /// More than one `Host` field was supplied.
     MultipleHost,
-    /// Request body framing is unavailable for this empty-body GET slice.
+    /// Standard CONNECT cannot be represented by an origin-form target.
+    ConnectUnsupported,
+    /// A transfer-coding field was supplied, or framing was added to Upgrade.
     RequestFramingHeader {
         /// Forbidden framing field name.
         name: Box<str>,
+    },
+    /// `Content-Length` was not the canonical decimal request-body length.
+    InvalidContentLength {
+        /// Position in the ordered header list.
+        index: usize,
+    },
+    /// More than one `Content-Length` field was supplied.
+    DuplicateContentLength {
+        /// Position of the duplicate field in the ordered header list.
+        index: usize,
     },
     /// The response contained both `Transfer-Encoding` and `Content-Length`.
     AmbiguousResponseFraming,
@@ -102,9 +115,19 @@ impl fmt::Display for Http1Error {
             Self::MultipleHost => {
                 formatter.write_str("request must not contain more than one Host header")
             }
-            Self::RequestFramingHeader { name } => write!(
+            Self::ConnectUnsupported => {
+                formatter.write_str("HTTP/1 CONNECT requires an authority-form request API")
+            }
+            Self::RequestFramingHeader { name } => {
+                write!(formatter, "{name} is not allowed on this HTTP/1 request")
+            }
+            Self::InvalidContentLength { index } => write!(
                 formatter,
-                "{name} is not allowed on this empty-body GET request"
+                "request Content-Length at index {index} is not the canonical body length"
+            ),
+            Self::DuplicateContentLength { index } => write!(
+                formatter,
+                "request contains a duplicate Content-Length field at index {index}"
             ),
             Self::AmbiguousResponseFraming => formatter.write_str(
                 "response contains both Transfer-Encoding and Content-Length; connection discarded",
@@ -145,7 +168,10 @@ impl Http1Error {
             Self::InvalidHeaderValue { .. } => "invalid_header_value",
             Self::MissingHost => "missing_host",
             Self::MultipleHost => "multiple_host",
+            Self::ConnectUnsupported => "connect_unsupported",
             Self::RequestFramingHeader { .. } => "request_framing_header",
+            Self::InvalidContentLength { .. } => "invalid_content_length",
+            Self::DuplicateContentLength { .. } => "duplicate_content_length",
             Self::AmbiguousResponseFraming => "invalid_response_framing",
             Self::UnexpectedUpgrade => "unexpected_upgrade",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
@@ -170,41 +196,79 @@ pub async fn send_get<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    send_request(stream, Method::GET, target, headers, None).await
+}
+
+/// Sends one HTTP/1.1 request over an already-connected stream.
+///
+/// Header spelling, ordering, and duplicates are emitted exactly as supplied.
+/// A missing `Content-Length` is appended only when the owned body is nonempty.
+/// The stream and cancellation behavior match [`send_get`].
+pub async fn send_request<T>(
+    stream: T,
+    method: Method,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+) -> Result<Response<Http1Body>, Http1Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let body_bytes = body.as_ref().map_or(0, Bytes::len);
+    let has_body = body.is_some();
     let span = debug_span!(
         "http1.request.prepare",
-        method = "GET",
+        method = %method,
         protocol = "http/1.1",
+        body_bytes,
+        has_body,
         outcome = field::Empty,
         error_kind = field::Empty,
     );
     let outcome = OperationOutcome::new(&span);
     let prepared = {
         let _entered = span.enter();
-        PreparedGet::new(target, headers)
+        PreparedRequest::new(method, target, headers, body)
     };
     match &prepared {
         Ok(_) => outcome.finish("ok"),
         Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
     }
     let prepared = prepared?;
-    send_prepared_get(stream, prepared).await
+    send_prepared_request(stream, prepared).await
 }
 
 /// Validates an empty-body HTTP/1.1 GET without performing I/O.
 pub fn validate_get(target: &OriginForm, headers: &[RequestHeader]) -> Result<(), Http1Error> {
-    PreparedGet::new(target.clone(), headers.to_vec()).map(drop)
+    validate_request(&Method::GET, target, headers, None)
 }
 
-async fn send_prepared_get<T>(
+/// Validates an HTTP/1.1 request without performing I/O.
+pub fn validate_request(
+    method: &Method,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<&Bytes>,
+) -> Result<(), Http1Error> {
+    PreparedRequest::new(
+        method.clone(),
+        target.clone(),
+        headers.to_vec(),
+        body.cloned(),
+    )
+    .map(drop)
+}
+
+async fn send_prepared_request<T>(
     stream: T,
-    prepared: PreparedGet,
+    prepared: PreparedRequest,
 ) -> Result<Response<Http1Body>, Http1Error>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     Http1Connection::connect(stream)
         .await?
-        .send_prepared_get(prepared)
+        .send_prepared_request(prepared)
         .await
 }
 

@@ -5,18 +5,20 @@ use std::sync::{
 
 use bytes::Bytes;
 use h3::ConnectionState;
-use http::{Request, Response};
+#[cfg(test)]
+use http::Request;
+use http::Response;
 use tokio::{runtime::Handle, sync::Mutex};
 use tracing::{Instrument, debug_span, field};
 
-#[cfg(test)]
-use super::prepare_request;
 use super::{
     DatagramRouter, DriverSignal, DriverTask, Http3Body, Http3Error, Http3ErrorKind,
-    PendingRequest, ResponseHeadError, body, receive_response,
+    PendingRequest, RequestRecvStream, RequestSendStream, ResponseHeadError, body,
+    receive_response, request::PreparedRequest,
 };
 
 type RequestSender = h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>;
+const REQUEST_BODY_CHUNK_BYTES: usize = 64 * 1024;
 
 /// Cloneable handle to one established HTTP/3 connection.
 ///
@@ -63,23 +65,30 @@ impl Http3Connection {
     pub(super) async fn send_request(
         &self,
         request: Request<()>,
+        body: Option<Bytes>,
     ) -> Result<Response<Http3Body>, Http3Error> {
-        let request = prepare_request(request)?;
+        let request = super::prepare_request(request, body)?;
         self.send_prepared_request(request).await
     }
 
     pub(super) async fn send_prepared_request(
         &self,
-        request: Request<()>,
+        prepared: PreparedRequest,
     ) -> Result<Response<Http3Body>, Http3Error> {
+        let method = prepared.method().clone();
+        let body_bytes = prepared.body_len();
+        let has_body = prepared.has_body();
         let span = debug_span!(
             "http3.response_head",
-            method = %request.method(),
+            method = %method,
             protocol = "h3",
+            body_bytes,
+            has_body,
             status = field::Empty,
             outcome = field::Empty,
         );
         let result = async {
+            let (request, body) = prepared.into_parts();
             let stream = {
                 let mut sender = self.inner.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(|| {
@@ -90,21 +99,24 @@ impl Http3Connection {
                 })?;
                 sender.send_request(request).await?
             };
+            let stream_id = stream.id();
             let mut pending = PendingRequest::new(stream);
-            let stream_id = pending.stream_mut()?.id();
             let mut datagrams = self
                 .inner
                 .datagrams
                 .as_ref()
                 .map(|router| router.monitor(stream_id));
-            pending.stream_mut()?.finish().await?;
-            let response = match receive_response(pending.stream_mut()?, datagrams.as_mut()).await {
+            let exchange_result = {
+                let (send, recv) = pending.streams_mut()?;
+                exchange(send, recv, body, datagrams.as_mut()).await
+            };
+            let response = match exchange_result {
                 Ok(response) => response,
                 Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
                 Err(ResponseHeadError::UnsupportedDatagram) => {
                     datagrams.take();
-                    let stream = pending.into_stream()?;
-                    body::defer_datagram_abort(stream, self.clone());
+                    let (send, recv) = pending.into_streams()?;
+                    body::defer_datagram_abort(send, recv, self.clone());
                     return Err(Http3Error::without_source(
                         Http3ErrorKind::Protocol,
                         "peer sent an HTTP Datagram for a request without datagram semantics",
@@ -133,10 +145,10 @@ impl Http3Connection {
                     )
                 })?;
             parts.extensions.insert(ordered_headers);
-            let stream = pending.into_stream()?;
+            let (send, recv) = pending.into_streams()?;
             Ok(Response::from_parts(
                 parts,
-                Http3Body::new(stream, self.clone(), datagrams),
+                Http3Body::new(send, recv, self.clone(), datagrams),
             ))
         }
         .instrument(span.clone())
@@ -177,6 +189,59 @@ impl Http3Connection {
     pub(super) fn record(&self, signal: DriverSignal) {
         self.inner.signal.fetch_max(signal.rank(), Ordering::AcqRel);
     }
+}
+
+async fn exchange(
+    send: &mut RequestSendStream,
+    recv: &mut RequestRecvStream,
+    body: Option<Bytes>,
+    datagrams: Option<&mut super::DatagramMonitor>,
+) -> Result<Response<()>, ResponseHeadError> {
+    let Some(body) = body else {
+        send.finish().await.map_err(ResponseHeadError::Stream)?;
+        return receive_response(recv, datagrams).await;
+    };
+
+    let mut upload = Box::pin(send_body(send, body));
+    let mut response = Box::pin(receive_response(recv, datagrams));
+
+    tokio::select! {
+        biased;
+        response = &mut response => {
+            drop(upload);
+            if response.is_ok() {
+                send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
+            }
+            response
+        }
+        upload = &mut upload => {
+            match upload {
+                Ok(()) => response.await,
+                Err(upload_error) => match response.await {
+                    Ok(response) => Ok(response),
+                    Err(ResponseHeadError::Stream(_)) => {
+                        Err(ResponseHeadError::Stream(upload_error))
+                    }
+                    Err(error) => Err(error),
+                },
+            }
+        }
+    }
+}
+
+async fn send_body(
+    send: &mut RequestSendStream,
+    mut body: Bytes,
+) -> Result<(), h3::error::StreamError> {
+    if body.is_empty() {
+        send.send_data(body).await?;
+    } else {
+        while !body.is_empty() {
+            let chunk_len = body.len().min(REQUEST_BODY_CHUNK_BYTES);
+            send.send_data(body.split_to(chunk_len)).await?;
+        }
+    }
+    send.finish().await
 }
 
 impl std::fmt::Debug for Http3Connection {

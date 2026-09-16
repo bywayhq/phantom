@@ -5,7 +5,7 @@ use http::{
     HeaderMap, HeaderValue, Method, Request, Version,
     header::{CONNECTION, CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
 };
-use http_body_util::Empty;
+use http_body_util::{Empty, Full};
 use wreq_proto::ext::{OnPreserveHeaderCallback, on_preserve_header};
 
 use super::{Http1Error, OriginForm, RequestHeader};
@@ -13,38 +13,84 @@ use super::{Http1Error, OriginForm, RequestHeader};
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
+pub(super) struct PreparedRequest {
+    request: Request<Full<Bytes>>,
+    allows_reuse: bool,
+    body_len: usize,
+    has_body: bool,
+}
+
+impl PreparedRequest {
+    pub(super) fn new(
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Self, Http1Error> {
+        if method == Method::CONNECT {
+            return Err(Http1Error::ConnectUnsupported);
+        }
+
+        let has_body = body.is_some();
+        let body = body.unwrap_or_default();
+        let body_len = body.len();
+        let headers = ValidatedHeaders::new(headers, Some(body.len()))?;
+        let mut request = Request::new(Full::new(body));
+        *request.method_mut() = method;
+        *request.uri_mut() = target.into_uri();
+        *request.version_mut() = Version::HTTP_11;
+
+        headers.populate(request.headers_mut());
+        let allows_reuse = headers.allows_reuse();
+        on_preserve_header(&mut request, headers.order);
+        Ok(Self {
+            request,
+            allows_reuse,
+            body_len,
+            has_body,
+        })
+    }
+
+    pub(super) fn method(&self) -> &Method {
+        self.request.method()
+    }
+
+    pub(super) fn into_request(self) -> Request<Full<Bytes>> {
+        self.request
+    }
+
+    pub(super) const fn allows_reuse(&self) -> bool {
+        self.allows_reuse
+    }
+
+    pub(super) const fn body_len(&self) -> usize {
+        self.body_len
+    }
+
+    pub(super) const fn has_body(&self) -> bool {
+        self.has_body
+    }
+}
+
 pub(super) struct PreparedGet {
     request: Request<Empty<Bytes>>,
-    allows_reuse: bool,
 }
 
 impl PreparedGet {
     pub(super) fn new(target: OriginForm, headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
-        let headers = ValidatedHeaders::new(headers)?;
+        let headers = ValidatedHeaders::new(headers, None)?;
         let mut request = Request::new(Empty::<Bytes>::new());
         *request.method_mut() = Method::GET;
         *request.uri_mut() = target.into_uri();
         *request.version_mut() = Version::HTTP_11;
 
         headers.populate(request.headers_mut());
-        let allows_reuse = !headers
-            .semantic
-            .iter()
-            .filter(|(name, _)| name == CONNECTION)
-            .any(|(_, value)| header_has_token(value, "close"));
         on_preserve_header(&mut request, headers.order);
-        Ok(Self {
-            request,
-            allows_reuse,
-        })
+        Ok(Self { request })
     }
 
     pub(super) fn into_request(self) -> Request<Empty<Bytes>> {
         self.request
-    }
-
-    pub(super) const fn allows_reuse(&self) -> bool {
-        self.allows_reuse
     }
 }
 
@@ -62,7 +108,7 @@ struct ValidatedHeaders {
 }
 
 impl ValidatedHeaders {
-    fn new(headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
+    fn new(headers: Vec<RequestHeader>, body_len: Option<usize>) -> Result<Self, Http1Error> {
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(Http1Error::TooManyHeaders {
                 count: headers.len(),
@@ -72,6 +118,8 @@ impl ValidatedHeaders {
 
         let mut total_bytes = 0usize;
         let mut host_count = 0usize;
+        let mut content_length_index = None;
+        let expected_content_length = body_len.map(|length| length.to_string());
         let mut semantic = Vec::with_capacity(headers.len());
         let mut ordered = Vec::with_capacity(headers.len());
 
@@ -99,22 +147,36 @@ impl ValidatedHeaders {
             {
                 return Err(Http1Error::InvalidHeaderName { index });
             }
-            let value = HeaderValue::from_bytes(header.value()).map_err(|_| {
+            let mut value = HeaderValue::from_bytes(header.value()).map_err(|_| {
                 Http1Error::InvalidHeaderValue {
                     index,
                     name: header.name().into(),
                 }
             })?;
+            value.set_sensitive(header.is_sensitive());
 
             if name == HOST {
                 host_count += 1;
                 if host_count > 1 {
                     return Err(Http1Error::MultipleHost);
                 }
-            } else if name == CONTENT_LENGTH || name == TRANSFER_ENCODING {
+            } else if name == TRANSFER_ENCODING {
                 return Err(Http1Error::RequestFramingHeader {
                     name: header.name().into(),
                 });
+            } else if name == CONTENT_LENGTH {
+                let Some(expected) = expected_content_length.as_ref() else {
+                    return Err(Http1Error::RequestFramingHeader {
+                        name: header.name().into(),
+                    });
+                };
+                if content_length_index.is_some() {
+                    return Err(Http1Error::DuplicateContentLength { index });
+                }
+                content_length_index = Some(index);
+                if value.as_bytes() != expected.as_bytes() {
+                    return Err(Http1Error::InvalidContentLength { index });
+                }
             }
 
             ordered.push((header.name().as_bytes().into(), value.clone()));
@@ -123,6 +185,36 @@ impl ValidatedHeaders {
 
         if host_count == 0 {
             return Err(Http1Error::MissingHost);
+        }
+
+        if let Some(length) =
+            body_len.filter(|length| *length > 0 && content_length_index.is_none())
+        {
+            let value = HeaderValue::from_str(&length.to_string()).map_err(|_| {
+                Http1Error::InvalidContentLength {
+                    index: semantic.len(),
+                }
+            })?;
+            total_bytes = total_bytes
+                .checked_add(CONTENT_LENGTH.as_str().len() + value.len())
+                .ok_or(Http1Error::HeadersTooLarge {
+                    bytes: usize::MAX,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                })?;
+            if semantic.len() == MAX_REQUEST_HEADERS {
+                return Err(Http1Error::TooManyHeaders {
+                    count: semantic.len() + 1,
+                    maximum: MAX_REQUEST_HEADERS,
+                });
+            }
+            if total_bytes > MAX_REQUEST_HEADER_BYTES {
+                return Err(Http1Error::HeadersTooLarge {
+                    bytes: total_bytes,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                });
+            }
+            ordered.push((Box::from(b"Content-Length".as_slice()), value.clone()));
+            semantic.push((CONTENT_LENGTH, value));
         }
 
         Ok(Self {
@@ -135,6 +227,14 @@ impl ValidatedHeaders {
         for (name, value) in &self.semantic {
             target.append(name, value.clone());
         }
+    }
+
+    fn allows_reuse(&self) -> bool {
+        !self
+            .semantic
+            .iter()
+            .filter(|(name, _)| name == CONNECTION)
+            .any(|(_, value)| header_has_token(value, "close"))
     }
 }
 

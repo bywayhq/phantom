@@ -4,6 +4,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom_profile::{CipherSuite, TlsVersion, chromium};
@@ -140,7 +141,21 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
     let (address, endpoint) = server_endpoint(&identity)?;
     let (client_done, done_received) = tokio::sync::oneshot::channel();
     let server = tokio::spawn(async move {
-        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+        assert_eq!(request.method(), http::Method::POST);
+        assert_eq!(
+            request
+                .headers()
+                .get("content-length")
+                .and_then(|value| value.to_str().ok()),
+            Some("7")
+        );
+        let mut received = Vec::new();
+        while let Some(mut chunk) = stream.recv_data().await? {
+            let remaining = chunk.remaining();
+            received.extend_from_slice(&chunk.copy_to_bytes(remaining));
+        }
+        assert_eq!(received, b"payload");
         stream
             .send_response(
                 Response::builder()
@@ -152,11 +167,13 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
         let _ = done_received.await;
         Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
     });
-    let request = super::super::prepare_traced_get(
+    let request = super::super::prepare_traced_request(
         &chromium::v152_macos_http3_request(),
+        http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/")?,
         Vec::new(),
+        Some(Bytes::from_static(b"payload")),
     )?;
     let unusable = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), address.port());
 

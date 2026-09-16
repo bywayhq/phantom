@@ -1,5 +1,7 @@
 use std::{collections::VecDeque, num::NonZeroUsize, sync::Arc};
 
+use bytes::Bytes;
+use http::Method;
 use phantom_net::http3::{Http3Connection, Http3Connector, OriginForm, RequestHeader};
 use tokio::sync::Mutex;
 use tracing::debug;
@@ -40,17 +42,20 @@ impl Http3Pool {
         self.max_pending
     }
 
-    pub(crate) async fn send_get(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn send_request(
         &self,
         connector: &Http3Connector,
         endpoint: &Endpoint,
         route: &Route,
+        method: Method,
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
         connector
-            .validate_get(authority, &target, &headers)
+            .validate_request(method.clone(), authority, &target, &headers, body.as_ref())
             .map_err(RequestError::http3)?;
         if !matches!(route, Route::Direct) {
             return Err(RequestError::unsupported_route(HttpProtocol::Http3));
@@ -61,7 +66,7 @@ impl Http3Pool {
         let permit = entry.admit().await?;
         let lease = entry.acquire(connector, endpoint).await?;
         let result = connector
-            .send_get_on(&lease.connection, authority, target, headers)
+            .send_request_on(&lease.connection, method, authority, target, headers, body)
             .await;
         match result {
             Ok(response) => {

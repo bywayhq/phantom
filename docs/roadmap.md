@@ -296,6 +296,17 @@ field suppresses automatic injection for that request. SameSite navigation
 context, CHIPS, persistence, redirects, and browser-specific eviction remain
 future session slices rather than implicit claims.
 
+The request slice now accepts any ordinary non-CONNECT method plus an optional
+owned byte body across H1, H2, and H3, including every direct, proxy, and pooled
+path supported by that protocol. GET remains convenience sugar. Ordered fields
+are preserved, caller-supplied content lengths must be canonical and exact,
+and a missing length is appended only for a non-empty body. H2 and H3 uploads
+obey transport flow control; early final responses, STOP_SENDING, cancellation,
+and sibling-stream reuse have deterministic tests. The current Reaper H2
+70,000-byte request-flow recipe is a retained regression rather than a deferred
+capability gate. General streaming request bodies, replay, redirects, retries,
+trailers, and extended CONNECT remain separate slices.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.

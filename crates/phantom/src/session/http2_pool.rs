@@ -1,8 +1,10 @@
 use std::{collections::VecDeque, num::NonZeroUsize, sync::Arc};
 
+use bytes::Bytes;
+use http::Method;
 use phantom_net::http2::{
     Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector, Http2TlsError,
-    OriginForm, RequestHeader, validate_get,
+    OriginForm, RequestHeader, validate_request,
 };
 use tokio::sync::Mutex;
 use tracing::debug;
@@ -43,16 +45,19 @@ impl Http2Pool {
         self.max_pending
     }
 
-    pub(crate) async fn send_get(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn send_request(
         &self,
         connector: &Http2TlsConnector,
         endpoint: &Endpoint,
         route: &Route,
+        method: Method,
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
-        validate_get(authority, &target, &headers)
+        validate_request(&method, authority, &target, &headers, body.as_ref())
             .map_err(Http2TlsError::from)
             .map_err(RequestError::http2)?;
         let key = PoolKey::new(endpoint, route);
@@ -62,7 +67,10 @@ impl Http2Pool {
             .acquire(connector, endpoint, route)
             .await
             .map_err(RequestError::http2)?;
-        let result = lease.connection.send_get(authority, target, headers).await;
+        let result = lease
+            .connection
+            .send_request(method, authority, target, headers, body)
+            .await;
         match result {
             Ok(response) => {
                 let (parts, body) = response.into_parts();

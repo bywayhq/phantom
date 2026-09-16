@@ -10,16 +10,17 @@ use std::{
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
     pin::Pin,
+    task::Poll,
     time::Duration,
 };
 
 use btls::ssl::{Ssl, SslAcceptor};
 use bytes::Bytes;
-use http::Response;
+use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route, Session};
 use tokio::{
-    io::{AsyncWriteExt, copy_bidirectional},
+    io::{AsyncRead, AsyncWrite, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::Barrier,
     time::timeout,
@@ -60,6 +61,81 @@ async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestRes
             requests,
             vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
         );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn session_upload_and_followup_reuse_one_http2_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(&listener, &acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before upload")??;
+            let first_id = respond.stream_id().as_u32();
+            assert_eq!(request.method(), Method::POST);
+            let mut incoming = request.into_body();
+            let body = collect_h2_request_body(&mut connection, &mut incoming).await?;
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before follow-up")??;
+            let second_id = respond.stream_id().as_u32();
+            assert_eq!(request.method(), Method::GET);
+            assert_eq!(request.uri().path(), "/after-upload");
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((body, [first_id, second_id]))
+        });
+
+        let session = test_client(&identity, true)?.session();
+        let response = session
+            .request(
+                HttpProtocol::Http2,
+                Method::POST,
+                &format!("https://{address}/upload"),
+            )?
+            .body(Bytes::from_static(b"pooled-payload"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        let response = session
+            .get(
+                HttpProtocol::Http2,
+                &format!("https://{address}/after-upload"),
+            )?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        drop(session);
+
+        let (body, stream_ids) = server.await??;
+        assert_eq!(body, "pooled-payload");
+        assert_eq!(stream_ids, [1, 3]);
         Ok(())
     })
     .await
@@ -334,6 +410,34 @@ async fn serve_requests(
     }
     poll_fn(|context| connection.poll_closed(context)).await?;
     Ok(requests)
+}
+
+async fn collect_h2_request_body<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+    body: &mut ::http2::RecvStream,
+) -> TestResult<Bytes>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    let mut received = Vec::new();
+    loop {
+        let chunk = poll_fn(|context| {
+            if let Poll::Ready(item) = body.poll_data(context) {
+                return Poll::Ready(item.transpose());
+            }
+            match connection.poll_closed(context) {
+                Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+                Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+                Poll::Pending => Poll::Pending,
+            }
+        })
+        .await?;
+        let Some(chunk) = chunk else {
+            return Ok(Bytes::from(received));
+        };
+        received.extend_from_slice(&chunk);
+        body.flow_control().release_capacity(chunk.len())?;
+    }
 }
 
 async fn accept_tls(

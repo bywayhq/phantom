@@ -96,14 +96,19 @@ response, and proves stream 3 reuse. Reaper's zero-only and ordered `0 → 4096`
 header-table recipes are also retained as bounded raw peers. They require the
 SETTINGS and exact PING acknowledgements, reassemble HEADERS/CONTINUATION, prove
 streams 1 and 3 share a connection, and assert the required HPACK prefixes.
+Its current request-flow-control recipe is retained against Phantom's real H2
+request path: a 70,000-byte POST exhausts the initial stream and connection
+windows independently, advances only after the corresponding credits, retains
+the observed DATA-frame sequence, and then proves same-connection reuse. Upload
+cancellation is separately stream-scoped and leaves a sibling stream usable.
+An early final response with no remaining upload credit is raced against the
+upload, surfaced immediately, and followed by a request on the same connection.
 
-Two current Reaper recipes remain explicit capability gates rather than
-synthetic transport tests. Its request flow-control matrix needs a streaming
-70,000-byte POST, while Phantom's current H2 request path is empty-body GET.
-Its TLS resumption recipe needs session-ticket retention and second-connection
-reuse, which Phantom intentionally does not expose yet. Those cases must land
-with the corresponding production capability so the fixture exercises
-Phantom's real path rather than only the underlying protocol engine.
+Reaper's TLS resumption recipe remains an explicit capability gate rather than
+a synthetic transport test. It needs session-ticket retention and
+second-connection reuse, which Phantom intentionally does not expose yet. It
+must land with the corresponding production capability so the fixture
+exercises Phantom's real path rather than only the underlying protocol engine.
 
 ## Later client and streaming corpus
 

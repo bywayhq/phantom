@@ -14,11 +14,25 @@ use super::{Http2Error, OriginForm, RequestHeader};
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
+#[cfg(test)]
 pub(super) fn prepare_get(
     authority: &str,
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<Request<()>, Http2Error> {
+    prepare_request(Method::GET, authority, target, headers, 0)
+}
+
+pub(super) fn prepare_request(
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body_len: usize,
+) -> Result<Request<()>, Http2Error> {
+    if method == Method::CONNECT {
+        return Err(Http2Error::ConnectUnsupported);
+    }
     if authority.as_bytes().contains(&b'@') {
         return Err(Http2Error::AuthorityContainsUserinfo);
     }
@@ -31,10 +45,10 @@ pub(super) fn prepare_get(
         .path_and_query(target.into_path_and_query())
         .build()
         .map_err(Http2Error::InvalidRequestUri)?;
-    let headers = ValidatedHeaders::new(headers)?;
+    let headers = ValidatedHeaders::new(headers, body_len)?;
 
     let mut request = Request::new(());
-    *request.method_mut() = Method::GET;
+    *request.method_mut() = method;
     *request.uri_mut() = uri;
     *request.version_mut() = Version::HTTP_2;
     headers.populate(request.headers_mut())?;
@@ -49,7 +63,7 @@ struct ValidatedHeaders {
 }
 
 impl ValidatedHeaders {
-    fn new(headers: Vec<RequestHeader>) -> Result<Self, Http2Error> {
+    fn new(headers: Vec<RequestHeader>, body_len: usize) -> Result<Self, Http2Error> {
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(Http2Error::TooManyHeaders {
                 count: headers.len(),
@@ -59,6 +73,8 @@ impl ValidatedHeaders {
 
         let mut total_bytes = 0usize;
         let mut ordered = Vec::with_capacity(headers.len());
+        let mut content_length_index = None;
+        let expected_content_length = body_len.to_string();
         for (index, header) in headers.into_iter().enumerate() {
             total_bytes = total_bytes
                 .checked_add(header.name().len())
@@ -92,7 +108,11 @@ impl ValidatedHeaders {
                     return Err(Http2Error::InvalidTe);
                 }
             } else if name == CONTENT_LENGTH {
-                if value.as_bytes() != b"0" {
+                if content_length_index.is_some() {
+                    return Err(Http2Error::DuplicateContentLength { index });
+                }
+                content_length_index = Some(index);
+                if value.as_bytes() != expected_content_length.as_bytes() {
                     return Err(Http2Error::InvalidContentLength { index });
                 }
             } else if is_forbidden_header(&name) {
@@ -102,6 +122,32 @@ impl ValidatedHeaders {
             }
 
             ordered.push((name, value));
+        }
+
+        if body_len > 0 && content_length_index.is_none() {
+            let count = ordered.len() + 1;
+            if count > MAX_REQUEST_HEADERS {
+                return Err(Http2Error::TooManyHeaders {
+                    count,
+                    maximum: MAX_REQUEST_HEADERS,
+                });
+            }
+            total_bytes = total_bytes
+                .checked_add(CONTENT_LENGTH.as_str().len())
+                .and_then(|size| size.checked_add(expected_content_length.len()))
+                .ok_or(Http2Error::HeadersTooLarge {
+                    bytes: usize::MAX,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                })?;
+            if total_bytes > MAX_REQUEST_HEADER_BYTES {
+                return Err(Http2Error::HeadersTooLarge {
+                    bytes: total_bytes,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                });
+            }
+            let value = HeaderValue::from_bytes(expected_content_length.as_bytes())
+                .map_err(|_| Http2Error::InvalidContentLength { index: count - 1 })?;
+            ordered.push((CONTENT_LENGTH, value));
         }
 
         Ok(Self { ordered })

@@ -2,13 +2,14 @@
 
 use std::{error::Error as StdError, fmt, future::Future};
 
-use http::Response;
+use bytes::Bytes;
+use http::{Method, Response};
 use phantom_profile::{Http2Settings, TlsSettings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http2Body, Http2Connection, Http2Error, OperationOutcome, OriginForm, PreparedGet,
+    Http2Body, Http2Connection, Http2Error, OperationOutcome, OriginForm, PreparedRequest,
     RequestHeader, alps, translate_settings,
 };
 use crate::{
@@ -22,7 +23,7 @@ use crate::{
 
 pub use crate::tls::{TlsError, TlsErrorKind};
 
-/// Reusable TLS and HTTP/2 settings for connections and one-shot GET requests.
+/// Reusable TLS and HTTP/2 settings for connections and one-shot requests.
 #[derive(Clone, Debug)]
 pub struct Http2TlsConnector {
     tls: TlsConnector,
@@ -222,9 +223,42 @@ impl Http2TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
-            self.send_prepared_get(stream, server_name, prepared).await
+        self.send_request(
+            stream,
+            server_name,
+            Method::GET,
+            authority,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one HTTP/2 request after an exact `h2` TLS negotiation.
+    ///
+    /// Request preparation completes before the supplied stream is touched.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared =
+                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+            self.send_prepared_request(stream, server_name, prepared)
+                .await
         })
         .await
     }
@@ -248,13 +282,45 @@ impl Http2TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+        self.send_request_direct(
+            host,
+            port,
+            server_name,
+            Method::GET,
+            authority,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one request over a new direct TCP and TLS connection.
+    ///
+    /// The complete request is validated before DNS resolution or TCP I/O.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared =
+                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream = connect_tcp(host, port).await.map_err(|error| match error {
                 DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
                 DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
             })?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            self.send_prepared_request(stream, server_name, prepared)
+                .await
         })
         .await
     }
@@ -282,8 +348,43 @@ impl Http2TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+        self.send_request_http_connect(
+            proxy_host,
+            proxy_port,
+            connect_authority,
+            connect_headers,
+            server_name,
+            Method::GET,
+            authority,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one request through a plaintext HTTP CONNECT proxy.
+    ///
+    /// Origin and CONNECT requests are validated before proxy or origin I/O.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared =
+                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream = connect_http_tunnel_direct(
                 proxy_host,
                 proxy_port,
@@ -291,7 +392,8 @@ impl Http2TlsConnector {
                 connect_headers,
             )
             .await?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            self.send_prepared_request(stream, server_name, prepared)
+                .await
         })
         .await
     }
@@ -312,12 +414,46 @@ impl Http2TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+        self.send_request_socks5_remote(
+            proxy_host,
+            proxy_port,
+            target_host,
+            target_port,
+            server_name,
+            Method::GET,
+            authority,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one request through a SOCKS5 proxy using remote DNS.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared =
+                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream =
                 connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
                     .await?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            self.send_prepared_request(stream, server_name, prepared)
+                .await
         })
         .await
     }
@@ -338,21 +474,55 @@ impl Http2TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
-        self.trace_response_head(async {
-            let prepared = PreparedGet::new(&self.http2, authority, target, headers)?;
+        self.send_request_socks5_local(
+            proxy_host,
+            proxy_port,
+            target_host,
+            target_port,
+            server_name,
+            Method::GET,
+            authority,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one request through a SOCKS5 proxy using local DNS.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared =
+                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream =
                 connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
                     .await?;
-            self.send_prepared_get(stream, server_name, prepared).await
+            self.send_prepared_request(stream, server_name, prepared)
+                .await
         })
         .await
     }
 
-    async fn send_prepared_get<S>(
+    async fn send_prepared_request<S>(
         &self,
         stream: S,
         server_name: &str,
-        prepared: PreparedGet,
+        prepared: PreparedRequest,
     ) -> Result<Response<Http2Body>, Http2TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -361,7 +531,9 @@ impl Http2TlsConnector {
         let connection = self
             .connect_prepared(stream, server_name, prepared.client)
             .await?;
-        let response = connection.send_prepared_get(prepared.request).await?;
+        let response = connection
+            .send_prepared_request(prepared.request, prepared.body)
+            .await?;
         Span::current().record("status", response.status().as_u16());
         Ok(response)
     }
@@ -436,6 +608,8 @@ impl Http2TlsConnector {
 
     async fn trace_response_head<F>(
         &self,
+        method: &Method,
+        body_bytes: usize,
         operation: F,
     ) -> Result<Response<Http2Body>, Http2TlsError>
     where
@@ -443,7 +617,8 @@ impl Http2TlsConnector {
     {
         let span = debug_span!(
             "http2.tls.response_head",
-            method = "GET",
+            method = %method,
+            body_bytes,
             transport = "tls",
             negotiated_alpn = field::Empty,
             status = field::Empty,

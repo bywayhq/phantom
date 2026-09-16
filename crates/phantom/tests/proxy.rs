@@ -13,11 +13,11 @@ use std::{
 };
 
 use bytes::Bytes;
-use http::{HeaderMap, Response};
+use http::{HeaderMap, Method, Response};
 use http_body_util::BodyExt;
 use phantom::{HttpConnectHeader, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route};
 use tokio::{
-    io::{AsyncWriteExt, copy_bidirectional},
+    io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     time::timeout,
 };
@@ -29,7 +29,7 @@ use tls_support::{
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tokio::test]
-async fn streams_http1_through_ordered_connect_route() -> TestResult<()> {
+async fn streams_http1_upload_through_ordered_connect_route() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -38,11 +38,13 @@ async fn streams_http1_through_ordered_connect_route() -> TestResult<()> {
         let origin = tokio::spawn(async move {
             let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
             let request = read_head(&mut stream).await?;
+            let mut body = [0_u8; 7];
+            stream.read_exact(&mut body).await?;
             stream
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nthrough")
                 .await?;
             stream.shutdown().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((request, body))
         });
 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -58,11 +60,13 @@ async fn streams_http1_through_ordered_connect_route() -> TestResult<()> {
         let client = client_builder(&identity, false).route(route).build()?;
 
         let response = client
-            .get(
+            .request(
                 HttpProtocol::Http1,
+                Method::POST,
                 &format!("https://{origin_address}/proxied"),
             )?
             .header(RequestHeader::new("X-Origin", "only"))
+            .body(Bytes::from_static(b"payload"))
             .send()
             .await?;
         assert_eq!(response.status(), 200);
@@ -77,10 +81,12 @@ async fn streams_http1_through_ordered_connect_route() -> TestResult<()> {
         );
         assert_eq!(connect, expected_connect.as_bytes());
 
-        let request = origin.await??;
-        let expected_request =
-            format!("GET /proxied HTTP/1.1\r\nHost: {origin_address}\r\nX-Origin: only\r\n\r\n");
+        let (request, body) = origin.await??;
+        let expected_request = format!(
+            "POST /proxied HTTP/1.1\r\nHost: {origin_address}\r\nX-Origin: only\r\nContent-Length: 7\r\n\r\n"
+        );
         assert_eq!(request, expected_request.as_bytes());
+        assert_eq!(&body, b"payload");
         assert!(!request.windows(12).any(|window| window == b"X-Proxy-Ord"));
         Ok(())
     })

@@ -10,10 +10,10 @@ use std::{
 
 use bytes::Bytes;
 use http::{
-    Response,
+    Method, Response,
     header::{CONNECTION, CONTENT_LENGTH, TRANSFER_ENCODING},
 };
-use http_body_util::Empty;
+use http_body_util::Full;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::{Mutex, OwnedSemaphorePermit, Semaphore},
@@ -22,7 +22,7 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 use wreq_proto::conn::http1;
 
 use super::{
-    Http1Body, Http1Error, OperationOutcome, PreparedGet,
+    Http1Body, Http1Error, OperationOutcome, PreparedRequest,
     driver::{DriverSignal, DriverTask},
     response_head::ResponseHeadObserver,
 };
@@ -48,7 +48,7 @@ impl Http1Connection {
     {
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
         let (sender, connection) = http1::Builder::default()
-            .handshake::<_, Empty<Bytes>>(stream)
+            .handshake::<_, Full<Bytes>>(stream)
             .await?;
         Ok(Self {
             inner: Arc::new(ConnectionInner {
@@ -72,7 +72,26 @@ impl Http1Connection {
         target: super::OriginForm,
         headers: Vec<super::RequestHeader>,
     ) -> Result<Response<Http1Body>, Http1Error> {
-        self.send_prepared_get(PreparedGet::new(target, headers)?)
+        self.send_request(Method::GET, target, headers, None).await
+    }
+
+    /// Sends one request after validating its ordered wire representation.
+    ///
+    /// The optional body is owned and has a known length. Phantom rejects
+    /// transfer coding and validates or supplies `Content-Length` before I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Error`] when validation, dispatch, or response-head
+    /// processing fails.
+    pub async fn send_request(
+        &self,
+        method: Method,
+        target: super::OriginForm,
+        headers: Vec<super::RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1Error> {
+        self.send_prepared_request(PreparedRequest::new(method, target, headers, body)?)
             .await
     }
 
@@ -85,14 +104,19 @@ impl Http1Connection {
         self.inner.reusable.load(Ordering::Acquire) && !self.inner.driver.is_finished()
     }
 
-    pub(super) async fn send_prepared_get(
+    pub(super) async fn send_prepared_request(
         &self,
-        prepared: PreparedGet,
+        prepared: PreparedRequest,
     ) -> Result<Response<Http1Body>, Http1Error> {
+        let method = prepared.method().clone();
+        let body_bytes = prepared.body_len();
+        let has_body = prepared.has_body();
         let span = debug_span!(
             "http1.response_head",
-            method = "GET",
+            method = %method,
             protocol = "http/1.1",
+            body_bytes,
+            has_body,
             status = field::Empty,
             outcome = field::Empty,
         );
@@ -138,7 +162,7 @@ impl Http1Connection {
                 return Err(Http1Error::AmbiguousResponseFraming);
             }
 
-            let reusable = request_allows_reuse && response_allows_reuse(&response);
+            let reusable = request_allows_reuse && response_allows_reuse(&method, &response);
             if !reusable {
                 self.inner.reusable.store(false, Ordering::Release);
             }
@@ -211,7 +235,7 @@ impl ConnectionLease {
 }
 
 struct ConnectionInner {
-    sender: Mutex<http1::SendRequest<Empty<Bytes>>>,
+    sender: Mutex<http1::SendRequest<Full<Bytes>>>,
     request_permit: Arc<Semaphore>,
     observer: ResponseHeadObserver,
     driver: DriverTask,
@@ -262,16 +286,19 @@ impl Drop for ConnectionInner {
     }
 }
 
-fn response_allows_reuse(response: &Response<wreq_proto::body::Incoming>) -> bool {
+fn response_allows_reuse(method: &Method, response: &Response<wreq_proto::body::Incoming>) -> bool {
     let keep_alive = match response.version() {
         http::Version::HTTP_11 => !header_has_token(response, CONNECTION, "close"),
         _ => false,
     };
-    keep_alive && response_is_self_delimited(response)
+    keep_alive && response_is_self_delimited(method, response)
 }
 
-fn response_is_self_delimited(response: &Response<wreq_proto::body::Incoming>) -> bool {
-    if matches!(response.status().as_u16(), 204 | 304) {
+fn response_is_self_delimited(
+    method: &Method,
+    response: &Response<wreq_proto::body::Incoming>,
+) -> bool {
+    if method == Method::HEAD || matches!(response.status().as_u16(), 204 | 304) {
         return true;
     }
     if response.headers().contains_key(TRANSFER_ENCODING) {

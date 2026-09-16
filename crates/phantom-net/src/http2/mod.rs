@@ -7,13 +7,14 @@ use ::http2::{
     client,
     frame::{PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId},
 };
-use http::{Request, Response};
+use bytes::Bytes;
+use http::{Method, Request, Response};
 use phantom_profile::{Http2PseudoHeader, Http2Setting, Http2Settings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
 mod alps;
-use request::prepare_get;
+use request::prepare_request as build_request;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
@@ -37,7 +38,35 @@ pub fn validate_get(
     target: &OriginForm,
     headers: &[RequestHeader],
 ) -> Result<(), Http2Error> {
-    prepare_request(authority, target.clone(), headers.to_vec()).map(drop)
+    validate_request(&Method::GET, authority, target, headers, None)
+}
+
+/// Validates one HTTP/2 request without touching a connection.
+///
+/// `None` emits END_STREAM on HEADERS. `Some` emits a request-body DATA
+/// sequence, including an empty terminal DATA frame for an empty value.
+/// Standard CONNECT is not accepted because this API requires an origin-form
+/// target.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when the method, authority, target, ordered fields,
+/// or body length cannot be represented by this HTTP/2 transport.
+pub fn validate_request(
+    method: &Method,
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<&Bytes>,
+) -> Result<(), Http2Error> {
+    prepare_request(
+        method.clone(),
+        authority,
+        target.clone(),
+        headers.to_vec(),
+        body.map_or(0, Bytes::len),
+    )
+    .map(drop)
 }
 
 /// Sends one empty-body HTTP/2 GET over an already-connected stream.
@@ -57,17 +86,53 @@ pub async fn send_get<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    send_request(
+        stream,
+        settings,
+        Method::GET,
+        authority,
+        target,
+        headers,
+        None,
+    )
+    .await
+}
+
+/// Sends one HTTP/2 request over an already-connected stream.
+///
+/// The complete request is validated before the supplied stream is touched.
+/// Ordinary header order and duplicate positions are emitted exactly as
+/// supplied. A missing content-length is appended for a non-empty body.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when request validation, connection setup, upload, or
+/// response processing fails.
+pub async fn send_request<T>(
+    stream: T,
+    settings: &Http2Settings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+) -> Result<Response<Http2Body>, Http2Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let body_bytes = body.as_ref().map_or(0, Bytes::len);
     let span = debug_span!(
         "http2.request.prepare",
-        method = "GET",
+        method = %method,
         protocol = "h2",
+        body_bytes,
         outcome = field::Empty,
         error_kind = field::Empty,
     );
     let outcome = OperationOutcome::new(&span);
     let prepared = {
         let _entered = span.enter();
-        PreparedGet::new(settings, authority, target, headers)
+        PreparedRequest::new(settings, method, authority, target, headers, body)
     };
     match &prepared {
         Ok(_) => outcome.finish("ok"),
@@ -75,45 +140,58 @@ where
     }
     let prepared = prepared?;
     let connection = Http2Connection::connect_with_builder(stream, prepared.client).await?;
-    connection.send_prepared_get(prepared.request).await
+    connection
+        .send_prepared_request(prepared.request, prepared.body)
+        .await
 }
 
-struct PreparedGet {
+struct PreparedRequest {
     request: Request<()>,
+    body: Option<Bytes>,
     client: client::Builder,
 }
 
-impl PreparedGet {
+impl PreparedRequest {
     fn new(
         settings: &Http2Settings,
+        method: Method,
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
     ) -> Result<Self, Http2Error> {
         settings.validate().map_err(Http2Error::InvalidSettings)?;
         let client = translate_settings(settings)?;
-        let request = prepare_get(authority, target, headers)?;
+        let body_len = body.as_ref().map_or(0, Bytes::len);
+        let request = build_request(method, authority, target, headers, body_len)?;
 
-        Ok(Self { request, client })
+        Ok(Self {
+            request,
+            body,
+            client,
+        })
     }
 }
 
 fn prepare_request(
+    method: Method,
     authority: &str,
     target: OriginForm,
     headers: Vec<RequestHeader>,
+    body_len: usize,
 ) -> Result<Request<()>, Http2Error> {
     let span = debug_span!(
         "http2.request.prepare",
-        method = "GET",
+        method = %method,
         protocol = "h2",
+        body_bytes = body_len,
         outcome = field::Empty,
         error_kind = field::Empty,
     );
     let outcome = OperationOutcome::new(&span);
     let request = {
         let _entered = span.enter();
-        prepare_get(authority, target, headers)
+        build_request(method, authority, target, headers, body_len)
     };
     match &request {
         Ok(_) => outcome.finish("ok"),

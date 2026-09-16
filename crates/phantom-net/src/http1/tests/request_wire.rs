@@ -7,6 +7,8 @@ use std::{
     task::{Context, Poll},
 };
 
+use bytes::Bytes;
+use http::Method;
 use http_body_util::BodyExt;
 use tokio::io::{
     AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, duplex,
@@ -16,7 +18,10 @@ use tracing::{Dispatch, instrument::WithSubscriber};
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
-    http1::{Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader, send_get},
+    http1::{
+        Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader, send_get,
+        send_request, validate_request,
+    },
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
 
@@ -69,6 +74,168 @@ async fn writes_exact_order_casing_and_duplicates() -> TestResult {
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn writes_method_body_and_generated_content_length() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let transaction = tokio::spawn(send_request(
+            client,
+            Method::POST,
+            target()?,
+            vec![host(), RequestHeader::new("X-Order", "before-length")],
+            Some(Bytes::from_static(b"payload")),
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-length\r\nContent-Length: 7\r\n\r\n"
+        );
+        let mut body = [0_u8; 7];
+        server.read_exact(&mut body).await?;
+        assert_eq!(&body, b"payload");
+
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn preserves_explicit_content_length_spelling_and_position() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let transaction = tokio::spawn(send_request(
+            client,
+            Method::PUT,
+            target()?,
+            vec![
+                host(),
+                RequestHeader::new("cOnTeNt-LeNgTh", "4"),
+                RequestHeader::new("X-After", "yes"),
+            ],
+            Some(Bytes::from_static(b"data")),
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"PUT /resource?item=1 HTTP/1.1\r\nHost: example.test\r\ncOnTeNt-LeNgTh: 4\r\nX-After: yes\r\n\r\n"
+        );
+        let mut body = [0_u8; 4];
+        server.read_exact(&mut body).await?;
+        assert_eq!(&body, b"data");
+
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn validates_content_length_and_transfer_framing() -> TestResult {
+    let request_target = target()?;
+    let body = Bytes::from_static(b"data");
+
+    assert!(matches!(
+        validate_request(
+            &Method::POST,
+            &request_target,
+            &[host(), RequestHeader::new("Content-Length", "3")],
+            Some(&body),
+        ),
+        Err(Http1Error::InvalidContentLength { index: 1 })
+    ));
+    assert!(matches!(
+        validate_request(
+            &Method::POST,
+            &request_target,
+            &[
+                host(),
+                RequestHeader::new("Content-Length", "4"),
+                RequestHeader::new("content-length", "4"),
+            ],
+            Some(&body),
+        ),
+        Err(Http1Error::DuplicateContentLength { index: 2 })
+    ));
+    assert!(matches!(
+        validate_request(
+            &Method::POST,
+            &request_target,
+            &[host(), RequestHeader::new("Content-Length", "04")],
+            Some(&body),
+        ),
+        Err(Http1Error::InvalidContentLength { index: 1 })
+    ));
+    assert!(matches!(
+        validate_request(
+            &Method::POST,
+            &request_target,
+            &[host(), RequestHeader::new("Transfer-Encoding", "chunked")],
+            Some(&body),
+        ),
+        Err(Http1Error::RequestFramingHeader { .. })
+    ));
+    assert!(matches!(
+        validate_request(&Method::CONNECT, &request_target, &[host()], None),
+        Err(Http1Error::ConnectUnsupported)
+    ));
+    validate_request(
+        &Method::POST,
+        &request_target,
+        &[host(), RequestHeader::new("Content-Length", "0")],
+        None,
+    )?;
+    Ok(())
+}
+
+#[test]
+fn sensitive_fields_reach_semantic_input() -> TestResult {
+    let prepared = crate::http1::request::PreparedRequest::new(
+        Method::POST,
+        target()?,
+        vec![
+            host(),
+            RequestHeader::new("Cookie", "secret=value").sensitive(),
+        ],
+        Some(Bytes::from_static(b"body")),
+    )?;
+    let request = prepared.into_request();
+    assert!(request.headers()["cookie"].is_sensitive());
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_content_length_never_touches_the_stream() -> TestResult {
+    let writes = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let result = send_request(
+        WriteCountingStream {
+            inner: client,
+            writes: Arc::clone(&writes),
+        },
+        Method::POST,
+        target()?,
+        vec![host(), RequestHeader::new("Content-Length", "3")],
+        Some(Bytes::from_static(b"data")),
+    )
+    .await;
+
+    assert!(matches!(
+        result,
+        Err(Http1Error::InvalidContentLength { .. })
+    ));
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    Ok(())
 }
 
 #[tokio::test]
@@ -253,7 +420,6 @@ async fn invalid_headers_never_touch_the_stream() -> TestResult {
         let mut cases = vec![
             vec![],
             vec![host(), host()],
-            vec![host(), RequestHeader::new("Content-Length", "0")],
             vec![host(), RequestHeader::new("Transfer-Encoding", "chunked")],
             vec![host(), RequestHeader::new("bad name", "value")],
             vec![host(), RequestHeader::new("X-Bad", b"ok\r\nInjected: yes")],

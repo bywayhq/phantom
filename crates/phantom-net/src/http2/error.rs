@@ -49,6 +49,14 @@ impl Http2ProtocolError {
         }
     }
 
+    fn stream_reset(reason: ::http2::Reason) -> Self {
+        Self {
+            kind: Http2ProtocolErrorKind::StreamReset,
+            reason_code: Some(u32::from(reason)),
+            source: ::http2::Error::from(reason),
+        }
+    }
+
     /// Returns the stable failure classification.
     #[must_use]
     pub fn kind(&self) -> Http2ProtocolErrorKind {
@@ -91,6 +99,8 @@ pub enum Http2Error {
     InvalidAuthority(http::uri::InvalidUri),
     /// The request authority included forbidden URI user information.
     AuthorityContainsUserinfo,
+    /// Standard CONNECT cannot be represented by an origin-form target.
+    ConnectUnsupported,
     /// The internally composed HTTPS request URI was rejected.
     InvalidRequestUri(http::Error),
     /// The request contained more headers than the fixed safety bound.
@@ -126,11 +136,18 @@ pub enum Http2Error {
     },
     /// `TE` had a value other than the exact token `trailers`.
     InvalidTe,
-    /// `Content-Length` was not the exact decimal value `0` for the empty GET.
+    /// `Content-Length` was not the canonical decimal request-body length.
     InvalidContentLength {
         /// Position in the ordered header list.
         index: usize,
     },
+    /// More than one `Content-Length` field was supplied.
+    DuplicateContentLength {
+        /// Position of the duplicate field in the ordered header list.
+        index: usize,
+    },
+    /// The peer closed the request stream before the body was sent.
+    RequestBodyClosed,
     /// The validated fields could not fit in the semantic header map.
     HeaderMapCapacity,
     /// The HTTP backend completed a response without its ordered field capture.
@@ -153,6 +170,9 @@ impl fmt::Display for Http2Error {
             Self::InvalidAuthority(_) => formatter.write_str("request authority is invalid"),
             Self::AuthorityContainsUserinfo => {
                 formatter.write_str("request authority must not contain URI user information")
+            }
+            Self::ConnectUnsupported => {
+                formatter.write_str("HTTP/2 CONNECT requires an authority-form request API")
             }
             Self::InvalidRequestUri(_) => {
                 formatter.write_str("failed to compose the absolute HTTPS request URI")
@@ -183,8 +203,15 @@ impl fmt::Display for Http2Error {
             }
             Self::InvalidContentLength { index } => write!(
                 formatter,
-                "request content-length at index {index} must be the exact value `0` for an empty GET"
+                "request content-length at index {index} must equal the canonical decimal body length"
             ),
+            Self::DuplicateContentLength { index } => write!(
+                formatter,
+                "request content-length at index {index} duplicates an earlier field"
+            ),
+            Self::RequestBodyClosed => {
+                formatter.write_str("HTTP/2 request body stream closed before completion")
+            }
             Self::HeaderMapCapacity => {
                 formatter.write_str("request fields exceed the semantic header-map capacity")
             }
@@ -213,6 +240,10 @@ impl Http2Error {
         Self::Protocol(Http2ProtocolError::new(error))
     }
 
+    pub(super) fn stream_reset(reason: ::http2::Reason) -> Self {
+        Self::Protocol(Http2ProtocolError::stream_reset(reason))
+    }
+
     pub(super) fn trace_kind(&self) -> &'static str {
         match self {
             Self::InvalidSettings(_) => "invalid_settings",
@@ -220,6 +251,7 @@ impl Http2Error {
             Self::InvalidPriorityDependency { .. } => "invalid_priority_dependency",
             Self::InvalidAuthority(_) => "invalid_authority",
             Self::AuthorityContainsUserinfo => "authority_contains_userinfo",
+            Self::ConnectUnsupported => "connect_unsupported",
             Self::InvalidRequestUri(_) => "invalid_request_uri",
             Self::TooManyHeaders { .. } => "too_many_headers",
             Self::HeadersTooLarge { .. } => "headers_too_large",
@@ -228,6 +260,8 @@ impl Http2Error {
             Self::ForbiddenHeader { .. } => "forbidden_header",
             Self::InvalidTe => "invalid_te",
             Self::InvalidContentLength { .. } => "invalid_content_length",
+            Self::DuplicateContentLength { .. } => "duplicate_content_length",
+            Self::RequestBodyClosed => "request_body_closed",
             Self::HeaderMapCapacity => "header_map_capacity",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
             Self::Protocol(_) => "protocol",

@@ -52,7 +52,7 @@ broad client-compatibility claims.
 ## Current client slice
 
 ```rust,no_run
-use phantom::{Client, HttpProtocol, RequestHeader};
+use phantom::{Client, HttpProtocol, Method, RequestHeader};
 use phantom::profile::{ClientProfile, chromium};
 
 # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -66,6 +66,13 @@ let response = client
     .await?;
 
 println!("{}", response.status());
+
+let upload = client
+    .request(HttpProtocol::Http2, Method::POST, "https://example.com/upload")?
+    .body("payload")
+    .send()
+    .await?;
+println!("{}", upload.status());
 
 // HeaderMap remains available for semantic lookup. This extension retains
 // global field order, duplicates, and HTTP/1 field-name spelling.
@@ -82,6 +89,10 @@ for field in ordered.iter() {
 
 The selected protocol is exact. Bare-client requests open one connection per
 request and never negotiate another version or retry through another route.
+`get` is convenience sugar for `request` with `Method::GET`; ordinary
+non-CONNECT methods may carry one finite owned byte body. Phantom validates a
+caller-supplied `Content-Length` exactly or appends one for a non-empty body.
+Streaming uploads, automatic retries, and redirect replay are not implicit.
 Every successful response includes `OrderedResponseHeaders` in its extensions;
 the ordinary `HeaderMap` remains the normalized semantic view. The ordered
 view retains duplicate interleaving on every protocol and received HTTP/1

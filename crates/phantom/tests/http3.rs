@@ -14,8 +14,8 @@ use std::{
     time::Duration,
 };
 
-use bytes::Bytes;
-use http::{HeaderMap, HeaderValue, Response, StatusCode};
+use bytes::{Buf, Bytes};
+use http::{HeaderMap, HeaderValue, Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
@@ -131,6 +131,61 @@ async fn public_client_streams_http3_data_and_trailers() -> TestResult<()> {
         assert_eq!(authority, address.to_string());
         assert_eq!(target, "/resource?item=1");
         assert_eq!(repeated, [b"alpha".to_vec(), b"beta".to_vec()]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn public_client_sends_owned_http3_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let (client_done, done_received) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+            let method = request.method().clone();
+            let length = request.headers().get("content-length").cloned();
+            let mut body = Vec::new();
+            while let Some(mut chunk) = stream.recv_data().await? {
+                let remaining = chunk.remaining();
+                body.extend_from_slice(&chunk.copy_to_bytes(remaining));
+            }
+            stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(())?,
+                )
+                .await?;
+            stream.finish().await?;
+            done_received.await.map_err(io::Error::other)?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((method, length, body))
+        });
+
+        let client = test_client(&identity)?;
+        let response = client
+            .request(
+                HttpProtocol::Http3,
+                Method::POST,
+                &format!("https://{address}/upload"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/3 server stopped before client completion")?;
+        let (method, length, body) = server.await??;
+        assert_eq!(method, Method::POST);
+        assert_eq!(
+            length.as_ref().and_then(|value| value.to_str().ok()),
+            Some("7")
+        );
+        assert_eq!(body, b"payload");
         Ok(())
     })
     .await

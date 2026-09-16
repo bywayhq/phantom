@@ -1,5 +1,6 @@
 use std::{fmt, sync::Arc};
 
+use http::Method;
 use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector, http3::Http3Connector};
 use phantom_profile::ClientProfile;
 
@@ -68,7 +69,22 @@ impl Client {
         protocol: HttpProtocol,
         uri: &str,
     ) -> Result<RequestBuilder, crate::RequestError> {
-        RequestBuilder::new_client(self.clone(), protocol, uri)
+        self.request(protocol, Method::GET, uri)
+    }
+
+    /// Starts one request using exactly `protocol`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::RequestError`] when the protocol is absent from the
+    /// profile or the URI, authority, or request target is invalid.
+    pub fn request(
+        &self,
+        protocol: HttpProtocol,
+        method: Method,
+        uri: &str,
+    ) -> Result<RequestBuilder, crate::RequestError> {
+        RequestBuilder::new_client(self.clone(), protocol, method, uri)
     }
 
     /// Starts one ordered secure WebSocket opening handshake over HTTP/1.1.

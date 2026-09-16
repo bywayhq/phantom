@@ -1,6 +1,6 @@
 use std::{error::Error, sync::Arc};
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{HeaderValue, Request, Response, StatusCode};
 use phantom_profile::{
@@ -171,6 +171,108 @@ fn prepared_get_retains_cross_name_order_and_duplicates() -> TestResult<()> {
             ("x-repeat", b"beta".as_slice()),
         ]
     );
+    Ok(())
+}
+
+#[test]
+fn prepared_body_request_preserves_method_and_content_length_order() -> TestResult<()> {
+    let prepared = crate::http3::request::prepare_profiled_request(
+        &chromium::v152_macos_http3_request(),
+        http::Method::PATCH,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/body")?,
+        vec![RequestHeader::new("x-before", "value")],
+        Some(Bytes::from_static(b"payload")),
+    )?;
+    let (request, body) = prepared.into_parts();
+
+    assert_eq!(request.method(), http::Method::PATCH);
+    assert_eq!(body, Some(Bytes::from_static(b"payload")));
+    assert_eq!(
+        request.headers().get("content-length"),
+        Some(&HeaderValue::from_static("7"))
+    );
+    let ordered = request
+        .extensions()
+        .get::<OrderedHeaders>()
+        .ok_or("prepared body request omitted ordered headers")?;
+    assert_eq!(
+        ordered
+            .as_slice()
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_bytes()))
+            .collect::<Vec<_>>(),
+        [
+            ("x-before", b"value".as_slice()),
+            ("content-length", b"7".as_slice()),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn explicit_empty_body_remains_distinct_without_synthesized_length() -> TestResult<()> {
+    let prepared = crate::http3::request::prepare_profiled_request(
+        &chromium::v152_macos_http3_request(),
+        http::Method::POST,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/empty")?,
+        Vec::new(),
+        Some(Bytes::new()),
+    )?;
+    let (request, body) = prepared.into_parts();
+
+    assert!(request.headers().get("content-length").is_none());
+    assert_eq!(body, Some(Bytes::new()));
+    Ok(())
+}
+
+#[test]
+fn body_request_rejects_ambiguous_or_incorrect_content_length() -> TestResult<()> {
+    let settings = chromium::v152_macos_http3_request();
+    for headers in [
+        vec![RequestHeader::new("content-length", "6")],
+        vec![RequestHeader::new("content-length", "07")],
+        vec![
+            RequestHeader::new("content-length", "7"),
+            RequestHeader::new("content-length", "7"),
+        ],
+    ] {
+        let error = crate::http3::request::prepare_profiled_request(
+            &settings,
+            http::Method::POST,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/body")?,
+            headers,
+            Some(Bytes::from_static(b"payload")),
+        )
+        .err()
+        .ok_or("invalid content-length was accepted")?;
+        assert_eq!(error.kind(), Http3ErrorKind::Request);
+    }
+    Ok(())
+}
+
+#[test]
+fn exact_caller_content_length_keeps_its_ordered_position() -> TestResult<()> {
+    let prepared = crate::http3::request::prepare_profiled_request(
+        &chromium::v152_macos_http3_request(),
+        http::Method::PUT,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/body")?,
+        vec![
+            RequestHeader::new("content-length", "7"),
+            RequestHeader::new("x-after", "value"),
+        ],
+        Some(Bytes::from_static(b"payload")),
+    )?;
+    let (request, _) = prepared.into_parts();
+    let ordered = request
+        .extensions()
+        .get::<OrderedHeaders>()
+        .ok_or("prepared body request omitted ordered headers")?;
+    assert_eq!(ordered.as_slice()[0].0.as_str(), "content-length");
+    assert_eq!(ordered.as_slice()[1].0.as_str(), "x-after");
     Ok(())
 }
 

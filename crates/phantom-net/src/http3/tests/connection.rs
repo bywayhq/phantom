@@ -1,4 +1,4 @@
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use http::{Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use tokio::{sync::oneshot, time::timeout};
@@ -39,13 +39,198 @@ async fn sequential_requests_share_one_connection() -> TestResult<()> {
     for (path, expected) in [("/first", "first"), ("/second", "second")] {
         let response = timeout(
             TEST_TIMEOUT,
-            connection.send_request(test_request(address.port(), path)?),
+            connection.send_request(test_request(address.port(), path)?, None),
         )
         .await
         .map_err(|_| "sequential HTTP/3 request timed out")??;
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(collect_body(response.into_body()).await?, expected);
     }
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn owned_body_is_flow_controlled_and_received_exactly() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+    let expected = Bytes::from(vec![b'x'; 2 * 1024 * 1024]);
+    let server_expected = expected.clone();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut stream) = accept_stream(&mut connection).await?;
+        assert_eq!(request.method(), http::Method::POST);
+        assert_eq!(request.uri().path(), "/upload");
+        assert_eq!(
+            request
+                .headers()
+                .get("content-length")
+                .and_then(|value| value.to_str().ok()),
+            Some("2097152")
+        );
+
+        let mut received = Vec::new();
+        while let Some(mut chunk) = stream.recv_data().await? {
+            let remaining = chunk.remaining();
+            received.extend_from_slice(&chunk.copy_to_bytes(remaining));
+        }
+        assert_eq!(Bytes::from(received), server_expected);
+        send_response(&mut stream, "accepted").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let request = Request::post(format!(
+        "https://{TEST_SERVER_NAME}:{}/upload",
+        address.port()
+    ))
+    .body(())?;
+    let response = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(request, Some(expected)),
+    )
+    .await
+    .map_err(|_| "HTTP/3 upload timed out")??;
+    assert_eq!(collect_body(response.into_body()).await?, "accepted");
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn early_final_response_and_stop_sending_preserve_connection_reuse() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut rejected) = accept_stream(&mut connection).await?;
+        assert_eq!(request.method(), http::Method::POST);
+        assert_eq!(request.uri().path(), "/rejected");
+        rejected
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::PAYLOAD_TOO_LARGE)
+                    .body(())?,
+            )
+            .await?;
+        rejected.stop_sending(h3::error::Code::H3_REQUEST_CANCELLED);
+        rejected.finish().await?;
+
+        let (request, mut later) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/later");
+        send_response(&mut later, "later").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let rejected = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(
+            Request::post(format!(
+                "https://{TEST_SERVER_NAME}:{}/rejected",
+                address.port()
+            ))
+            .body(())?,
+            Some(Bytes::from(vec![b'x'; 8 * 1024 * 1024])),
+        ),
+    )
+    .await
+    .map_err(|_| "early HTTP/3 response timed out")??;
+    assert_eq!(rejected.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert!(collect_body(rejected.into_body()).await?.is_empty());
+
+    let later = connection
+        .send_request(test_request(address.port(), "/later")?, None)
+        .await?;
+    assert_eq!(collect_body(later.into_body()).await?, "later");
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cancelling_body_upload_resets_only_that_stream() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (request_seen, request_received) = oneshot::channel();
+    let (check_cancel, cancellation_requested) = oneshot::channel();
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut cancelled) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/cancel-upload");
+        let _ = request_seen.send(());
+        let _ = cancellation_requested.await;
+        loop {
+            match cancelled.recv_data().await {
+                Ok(Some(_)) => {}
+                Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                    if code == h3::error::Code::H3_REQUEST_CANCELLED =>
+                {
+                    break;
+                }
+                Ok(None) => return Err("cancelled upload completed normally".into()),
+                Err(error) => return Err(format!("unexpected upload cancellation: {error}").into()),
+            }
+        }
+
+        let (request, mut later) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/after-cancel");
+        send_response(&mut later, "reused").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let request = Request::post(format!(
+        "https://{TEST_SERVER_NAME}:{}/cancel-upload",
+        address.port()
+    ))
+    .body(())?;
+    let upload_connection = connection.clone();
+    let pending = tokio::spawn(async move {
+        upload_connection
+            .send_request(request, Some(Bytes::from(vec![b'x'; 8 * 1024 * 1024])))
+            .await
+    });
+    request_received.await?;
+    pending.abort();
+    let _ = pending.await;
+    let _ = check_cancel.send(());
+
+    let later = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(test_request(address.port(), "/after-cancel")?, None),
+    )
+    .await
+    .map_err(|_| "request after upload cancellation timed out")??;
+    assert_eq!(collect_body(later.into_body()).await?, "reused");
 
     let _ = client_done.send(());
     join_server(server).await
@@ -94,8 +279,8 @@ async fn concurrent_request_bodies_complete_independently() -> TestResult<()> {
     )
     .await
     .map_err(|_| "HTTP/3 connection timed out")??;
-    let fast = connection.send_request(test_request(address.port(), "/fast")?);
-    let slow = connection.send_request(test_request(address.port(), "/slow")?);
+    let fast = connection.send_request(test_request(address.port(), "/fast")?, None);
+    let slow = connection.send_request(test_request(address.port(), "/slow")?, None);
     let (fast, slow) = timeout(TEST_TIMEOUT, async { tokio::try_join!(fast, slow) })
         .await
         .map_err(|_| "concurrent HTTP/3 response heads timed out")??;
@@ -145,7 +330,7 @@ async fn dropping_one_body_preserves_connection_reuse() -> TestResult<()> {
     .map_err(|_| "HTTP/3 connection timed out")??;
     let cancelled = timeout(
         TEST_TIMEOUT,
-        connection.send_request(test_request(address.port(), "/cancel")?),
+        connection.send_request(test_request(address.port(), "/cancel")?, None),
     )
     .await
     .map_err(|_| "cancelled HTTP/3 response head timed out")??;
@@ -153,7 +338,7 @@ async fn dropping_one_body_preserves_connection_reuse() -> TestResult<()> {
 
     let later = timeout(
         TEST_TIMEOUT,
-        connection.send_request(test_request(address.port(), "/later")?),
+        connection.send_request(test_request(address.port(), "/later")?, None),
     )
     .await
     .map_err(|_| "HTTP/3 request after body drop timed out")??;
@@ -197,7 +382,7 @@ async fn goaway_stops_new_requests_without_cancelling_an_existing_body() -> Test
     .await
     .map_err(|_| "HTTP/3 connection timed out")??;
     let response = connection
-        .send_request(test_request(address.port(), "/before-goaway")?)
+        .send_request(test_request(address.port(), "/before-goaway")?, None)
         .await?;
     goaway_received.await?;
 
@@ -210,7 +395,7 @@ async fn goaway_stops_new_requests_without_cancelling_an_existing_body() -> Test
     .map_err(|_| "HTTP/3 GOAWAY was not observed")?;
     assert!(
         connection
-            .send_request(test_request(address.port(), "/after-goaway")?)
+            .send_request(test_request(address.port(), "/after-goaway")?, None)
             .await
             .is_err()
     );

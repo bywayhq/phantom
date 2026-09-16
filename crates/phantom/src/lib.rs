@@ -75,3 +75,6 @@ pub use phantom_net::request::RequestHeader;
 
 /// Lossless ordinary response-field order attached to each response.
 pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};
+
+/// HTTP request method accepted by [`Client::request`] and [`Session::request`].
+pub use http::Method;

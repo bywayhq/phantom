@@ -9,14 +9,14 @@ use std::{
 
 use bytes::Bytes;
 use h3_datagram::datagram_handler::HandleDatagramsExt;
-use http::{Request, Response};
+use http::{Method, Request, Response};
 use phantom_profile::{Http3RequestSettings, Http3Settings};
 use phantom_quic_btls::{HandshakeData, QuicClientConfig, StatelessResetKey};
 use tracing::{debug, debug_span, field};
 
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask};
-use request::{prepare_get, prepare_request};
+use request::{PreparedRequest, prepare_profiled_request, prepare_request};
 use tokio::runtime::Handle;
 
 use crate::direct::{RuntimeUnavailable, poll_tokio_io};
@@ -30,6 +30,8 @@ pub use error::{Http3Error, Http3ErrorKind};
 pub use qlog::{QlogCapture, QlogCaptureError};
 
 type RequestStream = h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
+type RequestSendStream = h3::client::RequestStream<h3_quinn::SendStream<Bytes>, Bytes>;
+type RequestRecvStream = h3::client::RequestStream<h3_quinn::RecvStream, Bytes>;
 
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 
@@ -49,26 +51,47 @@ pub async fn send_get(
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<Response<Http3Body>, Http3Error> {
-    let request = prepare_traced_get(request_settings, authority, target, headers)?;
-    send_request(remote, server_name, crypto, settings, request).await
+    let request = prepare_traced_request(
+        request_settings,
+        Method::GET,
+        authority,
+        target,
+        headers,
+        None,
+    )?;
+    send_prepared_request(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        request,
+        ConnectionDiagnostics::default(),
+    )
+    .await
 }
 
-fn prepare_traced_get(
+fn prepare_traced_request(
     request_settings: &Http3RequestSettings,
+    method: Method,
     authority: &str,
     target: OriginForm,
     headers: Vec<RequestHeader>,
-) -> Result<Request<()>, Http3Error> {
+    body: Option<Bytes>,
+) -> Result<PreparedRequest, Http3Error> {
+    let body_bytes = body.as_ref().map_or(0, Bytes::len);
+    let has_body = body.is_some();
     let span = debug_span!(
         "http3.request.prepare",
-        method = "GET",
+        method = %method,
         protocol = "h3",
+        body_bytes,
+        has_body,
         outcome = field::Empty,
         error_kind = field::Empty,
     );
     let request = {
         let _entered = span.enter();
-        prepare_get(request_settings, authority, target, headers)
+        prepare_profiled_request(request_settings, method, authority, target, headers, body)
     };
     match &request {
         Ok(_) => {
@@ -82,7 +105,7 @@ fn prepare_traced_get(
     request
 }
 
-/// Sends one request over a new direct QUIC and HTTP/3 connection.
+/// Sends one empty-body request over a new direct QUIC and HTTP/3 connection.
 ///
 /// The caller supplies a certificate-verifying BoringSSL-backed QUIC
 /// configuration. This path uses UDP only and never falls back to HTTP/2,
@@ -94,7 +117,25 @@ pub async fn send_request(
     settings: &Http3Settings,
     request: Request<()>,
 ) -> Result<Response<Http3Body>, Http3Error> {
-    send_request_inner(
+    send_request_with_body(remote, server_name, crypto, settings, request, None).await
+}
+
+/// Sends one request with an optional owned body over a new direct QUIC and
+/// HTTP/3 connection.
+///
+/// The caller supplies a certificate-verifying BoringSSL-backed QUIC
+/// configuration. This path uses UDP only and never falls back to HTTP/2,
+/// HTTP/1.1, or TCP. Profile validation completes before any network I/O.
+pub async fn send_request_with_body(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    request: Request<()>,
+    body: Option<Bytes>,
+) -> Result<Response<Http3Body>, Http3Error> {
+    let request = prepare_request(request, body)?;
+    send_prepared_request(
         remote,
         server_name,
         crypto,
@@ -105,7 +146,8 @@ pub async fn send_request(
     .await
 }
 
-/// Sends one request over a new direct QUIC connection while capturing bounded qlog output.
+/// Sends one empty-body request over a new direct QUIC connection while
+/// capturing bounded qlog output.
 ///
 /// The capture is single-use and records only Quinn's QUIC metadata. Request
 /// headers and payloads are not added to the qlog output.
@@ -118,7 +160,35 @@ pub async fn send_request_with_qlog(
     request: Request<()>,
     capture: QlogCapture,
 ) -> Result<Response<Http3Body>, Http3Error> {
-    send_request_inner(
+    send_request_with_body_and_qlog(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        request,
+        None,
+        capture,
+    )
+    .await
+}
+
+/// Sends one request with an optional owned body over a new direct QUIC
+/// connection while capturing bounded qlog output.
+///
+/// The capture is single-use and records only Quinn's QUIC metadata. Request
+/// headers and payloads are not added to the qlog output.
+#[cfg(feature = "qlog")]
+pub async fn send_request_with_body_and_qlog(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    request: Request<()>,
+    body: Option<Bytes>,
+    capture: QlogCapture,
+) -> Result<Response<Http3Body>, Http3Error> {
+    let request = prepare_request(request, body)?;
+    send_prepared_request(
         remote,
         server_name,
         crypto,
@@ -131,15 +201,14 @@ pub async fn send_request_with_qlog(
     .await
 }
 
-async fn send_request_inner(
+async fn send_prepared_request(
     remote: SocketAddr,
     server_name: &str,
     crypto: Arc<QuicClientConfig>,
     settings: &Http3Settings,
-    request: Request<()>,
+    request: PreparedRequest,
     diagnostics: ConnectionDiagnostics,
 ) -> Result<Response<Http3Body>, Http3Error> {
-    let request = prepare_request(request)?;
     Handle::try_current().map_err(|_| runtime_unavailable())?;
     poll_tokio_io(|| async {
         let connection = connect(remote, server_name, crypto, settings, diagnostics, None).await?;
@@ -242,7 +311,7 @@ async fn connect(
 }
 
 async fn receive_response(
-    stream: &mut RequestStream,
+    stream: &mut RequestRecvStream,
     mut datagrams: Option<&mut DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
     loop {
@@ -258,7 +327,7 @@ async fn receive_response(
 }
 
 async fn receive_response_head(
-    stream: &mut RequestStream,
+    stream: &mut RequestRecvStream,
     datagrams: Option<&mut DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
     let Some(datagrams) = datagrams else {
@@ -395,7 +464,8 @@ fn downcast_handshake_data(metadata: Box<dyn Any>) -> Result<Box<HandshakeData>,
 }
 
 struct PendingRequest {
-    stream: Option<RequestStream>,
+    send: Option<RequestSendStream>,
+    recv: Option<RequestRecvStream>,
 }
 
 #[derive(Default)]
@@ -406,35 +476,55 @@ struct ConnectionDiagnostics {
 
 impl PendingRequest {
     fn new(stream: RequestStream) -> Self {
+        let (send, recv) = stream.split();
         Self {
-            stream: Some(stream),
+            send: Some(send),
+            recv: Some(recv),
         }
     }
 
-    fn stream_mut(&mut self) -> Result<&mut RequestStream, Http3Error> {
-        self.stream.as_mut().ok_or_else(|| {
+    fn streams_mut(
+        &mut self,
+    ) -> Result<(&mut RequestSendStream, &mut RequestRecvStream), Http3Error> {
+        let send = self.send.as_mut().ok_or_else(|| {
             Http3Error::without_source(
                 Http3ErrorKind::Local,
                 "HTTP/3 request driver is unavailable",
             )
-        })
+        })?;
+        let recv = self.recv.as_mut().ok_or_else(|| {
+            Http3Error::without_source(
+                Http3ErrorKind::Local,
+                "HTTP/3 request driver is unavailable",
+            )
+        })?;
+        Ok((send, recv))
     }
 
-    fn into_stream(mut self) -> Result<RequestStream, Http3Error> {
-        self.stream.take().ok_or_else(|| {
+    fn into_streams(mut self) -> Result<(RequestSendStream, RequestRecvStream), Http3Error> {
+        let send = self.send.take().ok_or_else(|| {
             Http3Error::without_source(
                 Http3ErrorKind::Local,
                 "HTTP/3 request driver is unavailable",
             )
-        })
+        })?;
+        let recv = self.recv.take().ok_or_else(|| {
+            Http3Error::without_source(
+                Http3ErrorKind::Local,
+                "HTTP/3 request driver is unavailable",
+            )
+        })?;
+        Ok((send, recv))
     }
 }
 
 impl Drop for PendingRequest {
     fn drop(&mut self) {
-        if let Some(stream) = self.stream.as_mut() {
-            stream.stop_sending(h3::error::Code::H3_REQUEST_CANCELLED);
-            stream.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
+        if let Some(recv) = self.recv.as_mut() {
+            recv.stop_sending(h3::error::Code::H3_REQUEST_CANCELLED);
+        }
+        if let Some(send) = self.send.as_mut() {
+            send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
         }
     }
 }

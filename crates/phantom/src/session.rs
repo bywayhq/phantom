@@ -1,5 +1,7 @@
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
+use http::Method;
+
 use crate::{Client, HttpProtocol, RequestBuilder, RequestError};
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
@@ -71,7 +73,25 @@ impl Session {
     /// Returns [`RequestError`] when the protocol is absent from the profile
     /// or the URI, authority, or request target is invalid.
     pub fn get(&self, protocol: HttpProtocol, uri: &str) -> Result<RequestBuilder, RequestError> {
-        RequestBuilder::new_session(self.clone(), protocol, uri)
+        self.request(protocol, Method::GET, uri)
+    }
+
+    /// Starts one request using exactly `protocol`.
+    ///
+    /// HTTP/1.1, HTTP/2, and direct HTTP/3 requests may reuse compatible
+    /// connections owned by this session.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError`] when the protocol is absent from the profile
+    /// or the URI, authority, or request target is invalid.
+    pub fn request(
+        &self,
+        protocol: HttpProtocol,
+        method: Method,
+        uri: &str,
+    ) -> Result<RequestBuilder, RequestError> {
+        RequestBuilder::new_session(self.clone(), protocol, method, uri)
     }
 
     /// Starts a secure WebSocket handshake with this session's route and cookies.

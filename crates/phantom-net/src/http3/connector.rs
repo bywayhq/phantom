@@ -2,7 +2,8 @@
 
 use std::{error::Error as StdError, fmt, sync::Arc};
 
-use http::{Request, Response};
+use bytes::Bytes;
+use http::{Method, Response};
 use phantom_profile::{
     Http3RequestSettings, Http3Settings, TlsSettings, quic::QuicTransportSettings,
 };
@@ -11,9 +12,11 @@ use phantom_quic_btls::{
     StatelessResetKey,
 };
 
+#[cfg(test)]
+use super::request::PreparedRequest;
 use super::{
     Http3Body, Http3Connection, Http3Error, Http3ErrorKind, OriginForm, RequestHeader,
-    connect_bound, prepare_traced_get, send_request, settings,
+    connect_bound, prepare_traced_request, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
@@ -114,8 +117,43 @@ impl Http3Connector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http3Body>, Http3ConnectorError> {
-        let request = prepare_traced_get(&self.request_settings, authority, target, headers)
-            .map_err(Http3ConnectorError::transaction)?;
+        self.send_request_direct(
+            host,
+            port,
+            server_name,
+            Method::GET,
+            authority,
+            target,
+            headers,
+            None,
+        )
+        .await
+    }
+
+    /// Sends one profiled request over a newly resolved direct connection.
+    ///
+    /// Address fallback completes before the request is dispatched exactly once.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http3Body>, Http3ConnectorError> {
+        let request = prepare_traced_request(
+            &self.request_settings,
+            method,
+            authority,
+            target,
+            headers,
+            body,
+        )
+        .map_err(Http3ConnectorError::transaction)?;
         QuicClientConfig::validate_server_name(server_name)
             .map_err(Http3ConnectorError::invalid_server_name)?;
         tokio::runtime::Handle::try_current()
@@ -125,8 +163,11 @@ impl Http3Connector {
                 .await
                 .map_err(Http3ConnectorError::resolve)?
                 .collect::<Vec<_>>();
-            self.send_prepared_to_addresses(addresses, server_name, request)
+            let connection = self.connect_to_addresses(addresses, server_name).await?;
+            connection
+                .send_prepared_request(request)
                 .await
+                .map_err(Http3ConnectorError::transaction)
         })
         .await
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
@@ -168,8 +209,30 @@ impl Http3Connector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Response<Http3Body>, Http3ConnectorError> {
-        let request = prepare_traced_get(&self.request_settings, authority, target, headers)
-            .map_err(Http3ConnectorError::transaction)?;
+        self.send_request_on(connection, Method::GET, authority, target, headers, None)
+            .await
+    }
+
+    /// Sends one profiled request over a connection opened by this connector.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_on(
+        &self,
+        connection: &Http3Connection,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http3Body>, Http3ConnectorError> {
+        let request = prepare_traced_request(
+            &self.request_settings,
+            method,
+            authority,
+            target,
+            headers,
+            body,
+        )
+        .map_err(Http3ConnectorError::transaction)?;
         if !connection.belongs_to(&self.identity) {
             return Err(Http3ConnectorError::connection_mismatch());
         }
@@ -194,48 +257,42 @@ impl Http3Connector {
         target: &OriginForm,
         headers: &[RequestHeader],
     ) -> Result<(), Http3ConnectorError> {
-        prepare_traced_get(
+        self.validate_request(Method::GET, authority, target, headers, None)
+    }
+
+    /// Validates one profiled request without opening a connection or stream.
+    pub fn validate_request(
+        &self,
+        method: Method,
+        authority: &str,
+        target: &OriginForm,
+        headers: &[RequestHeader],
+        body: Option<&Bytes>,
+    ) -> Result<(), Http3ConnectorError> {
+        prepare_traced_request(
             &self.request_settings,
+            method,
             authority,
             target.clone(),
             headers.to_vec(),
+            body.cloned(),
         )
         .map(drop)
         .map_err(Http3ConnectorError::transaction)
     }
 
+    #[cfg(test)]
     pub(super) async fn send_prepared_to_addresses(
         &self,
         addresses: Vec<std::net::SocketAddr>,
         server_name: &str,
-        request: Request<()>,
+        request: PreparedRequest,
     ) -> Result<Response<Http3Body>, Http3ConnectorError> {
-        let mut addresses = addresses.into_iter();
-        let mut remote = addresses
-            .next()
-            .ok_or_else(Http3ConnectorError::no_address)?;
-        let (parts, ()) = request.into_parts();
-        loop {
-            let request = Request::from_parts(parts.clone(), ());
-            match send_request(
-                remote,
-                server_name,
-                Arc::clone(&self.crypto),
-                &self.settings,
-                request,
-            )
+        let connection = self.connect_to_addresses(addresses, server_name).await?;
+        connection
+            .send_prepared_request(request)
             .await
-            {
-                Ok(response) => return Ok(response),
-                Err(error) if should_try_next_address(&error) => {
-                    let Some(next) = addresses.next() else {
-                        return Err(Http3ConnectorError::transaction(error));
-                    };
-                    remote = next;
-                }
-                Err(error) => return Err(Http3ConnectorError::transaction(error)),
-            }
-        }
+            .map_err(Http3ConnectorError::transaction)
     }
 
     async fn connect_to_addresses(

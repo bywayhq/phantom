@@ -14,19 +14,19 @@ use std::{
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
-    task::{Context, Waker},
+    task::{Context, Poll, Waker},
     time::Duration,
 };
 
 use bytes::Bytes;
-use http::{HeaderMap, Response};
+use http::{HeaderMap, Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
     profile::{ClientProfile, chromium},
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
     time::timeout,
@@ -41,6 +41,21 @@ use tracing_support::OutcomeSubscriber;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+
+#[test]
+fn request_debug_reports_shape_without_body_contents() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = test_client(&identity, false)?;
+    let request = client
+        .request(HttpProtocol::Http1, Method::POST, "https://example.com/")?
+        .body(Bytes::from_static(b"private-payload"));
+
+    let debug = format!("{request:?}");
+    assert!(debug.contains("POST"));
+    assert!(debug.contains("body_len: 15"));
+    assert!(!debug.contains("private-payload"));
+    Ok(())
+}
 
 #[test]
 fn runtime_without_io_returns_error_and_records_error_outcomes() -> TestResult<()> {
@@ -132,6 +147,49 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
             "GET /resource?item=1 HTTP/1.1\r\nHost: {address}\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\n\r\n"
         );
         assert_eq!(request, expected.as_bytes());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn public_client_sends_owned_http1_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(listener, acceptor).await?;
+            let head = read_head(&mut stream).await?;
+            let mut body = [0_u8; 7];
+            stream.read_exact(&mut body).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((head, body))
+        });
+
+        let client = test_client(&identity, false)?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("https://{address}/upload"),
+            )?
+            .header(RequestHeader::new("X-Order", "first"))
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        let (head, body) = server.await??;
+        let expected = format!(
+            "POST /upload HTTP/1.1\r\nHost: {address}\r\nX-Order: first\r\nContent-Length: 7\r\n\r\n"
+        );
+        assert_eq!(head, expected.as_bytes());
+        assert_eq!(&body, b"payload");
         Ok(())
     })
     .await
@@ -247,6 +305,63 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
             uri.path_and_query().map(|value| value.as_str()),
             Some("/resource?item=1")
         );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(listener, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before request")??;
+            let method = request.method().clone();
+            let length = request.headers().get("content-length").cloned();
+            let mut incoming = request.into_body();
+            let mut body = Vec::new();
+            while let Some(chunk) = next_h2_request_data(&mut connection, &mut incoming).await? {
+                body.extend_from_slice(&chunk);
+                incoming.flow_control().release_capacity(chunk.len())?;
+            }
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((method, length, Bytes::from(body)))
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .request(
+                HttpProtocol::Http2,
+                Method::POST,
+                &format!("https://{address}/upload"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        let (method, length, body) = server.await??;
+        assert_eq!(method, Method::POST);
+        assert_eq!(
+            length.as_ref().and_then(|value| value.to_str().ok()),
+            Some("7")
+        );
+        assert_eq!(body, "payload");
         Ok(())
     })
     .await
@@ -513,6 +628,27 @@ async fn next_data(body: &mut phantom::ResponseBody) -> TestResult<Bytes> {
             }
         }
     }
+}
+
+async fn next_h2_request_data<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+    body: &mut ::http2::RecvStream,
+) -> TestResult<Option<Bytes>>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    poll_fn(|context| {
+        if let Poll::Ready(item) = body.poll_data(context) {
+            return Poll::Ready(item.transpose());
+        }
+        match connection.poll_closed(context) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
+    .map_err(Into::into)
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>

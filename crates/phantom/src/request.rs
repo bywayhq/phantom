@@ -1,6 +1,7 @@
 use std::fmt;
 
-use http::{Response, Uri};
+use bytes::Bytes;
+use http::{Method, Response, Uri};
 use phantom_net::{http1::OriginForm, request::RequestHeader};
 use tracing::{Instrument, debug_span, field};
 
@@ -8,13 +9,15 @@ use crate::{
     Client, HttpProtocol, RequestError, ResponseBody, Route, Session, authority::Endpoint,
 };
 
-/// Builder for one exact-protocol, empty-body GET request.
+/// Builder for one exact-protocol request with an optional owned body.
 #[must_use = "request builders do nothing until send is awaited"]
 pub struct RequestBuilder {
     context: RequestContext,
     request: ResolvedRequest,
     protocol: HttpProtocol,
+    method: Method,
     headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
     route: Option<Route>,
 }
 
@@ -23,7 +26,9 @@ impl fmt::Debug for RequestBuilder {
         formatter
             .debug_struct("RequestBuilder")
             .field("protocol", &self.protocol)
+            .field("method", &self.method)
             .field("header_count", &self.headers.len())
+            .field("body_len", &self.body.as_ref().map_or(0, Bytes::len))
             .field("route_override", &self.route.is_some())
             .field("session", &self.context.session().is_some())
             .finish_non_exhaustive()
@@ -34,22 +39,25 @@ impl RequestBuilder {
     pub(crate) fn new_client(
         client: Client,
         protocol: HttpProtocol,
+        method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        Self::new(RequestContext::Client(client), protocol, uri)
+        Self::new(RequestContext::Client(client), protocol, method, uri)
     }
 
     pub(crate) fn new_session(
         session: Session,
         protocol: HttpProtocol,
+        method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        Self::new(RequestContext::Session(session), protocol, uri)
+        Self::new(RequestContext::Session(session), protocol, method, uri)
     }
 
     fn new(
         context: RequestContext,
         protocol: HttpProtocol,
+        method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
         let client = context.client();
@@ -70,7 +78,9 @@ impl RequestBuilder {
             context,
             request: ResolvedRequest::new(&uri)?,
             protocol,
+            method,
             headers: Vec::new(),
+            body: None,
             route: None,
         })
     }
@@ -84,6 +94,16 @@ impl RequestBuilder {
     /// Replaces the complete ordered request-field list.
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
         self.headers = headers;
+        self
+    }
+
+    /// Sets the complete owned request body.
+    ///
+    /// Non-empty bodies receive a trailing `Content-Length` field when the
+    /// caller did not supply one. Caller-supplied lengths must be canonical
+    /// and exact.
+    pub fn body(mut self, body: impl Into<Bytes>) -> Self {
+        self.body = Some(body.into());
         self
     }
 
@@ -128,7 +148,8 @@ impl RequestBuilder {
             .unwrap_or(&self.context.client().inner.route);
         let span = debug_span!(
             "client.request",
-            method = "GET",
+            method = %self.method,
+            body_bytes = self.body.as_ref().map_or(0, Bytes::len),
             protocol = self.protocol.trace_name(),
             route = route.trace_name(),
             outcome = field::Empty,
@@ -152,7 +173,9 @@ impl RequestBuilder {
             context,
             request,
             protocol,
+            method,
             headers: request_headers,
+            body,
             route,
         } = self;
         #[cfg(feature = "cookies")]
@@ -188,204 +211,228 @@ impl RequestBuilder {
             }
         }
 
-        let response =
-            match protocol {
-                HttpProtocol::Http1 => {
-                    let connector =
-                        client.inner.http1.as_ref().ok_or_else(|| {
-                            RequestError::unsupported_protocol(HttpProtocol::Http1)
-                        })?;
-                    let mut headers = Vec::with_capacity(request_headers.len() + 1);
-                    headers.push(RequestHeader::new(
-                        "Host",
-                        endpoint.authority().as_str().as_bytes(),
-                    ));
-                    headers.extend(request_headers);
-                    if let Some(session) = session {
-                        session
-                            .state
-                            .http1
-                            .send_get(connector, &endpoint, route, target, headers)
-                            .await
-                    } else {
-                        let response = match route {
-                            Route::Direct => {
+        let response = match protocol {
+            HttpProtocol::Http1 => {
+                let connector = client
+                    .inner
+                    .http1
+                    .as_ref()
+                    .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
+                let mut headers = Vec::with_capacity(request_headers.len() + 1);
+                headers.push(RequestHeader::new(
+                    "Host",
+                    endpoint.authority().as_str().as_bytes(),
+                ));
+                headers.extend(request_headers);
+                if let Some(session) = session {
+                    session
+                        .state
+                        .http1
+                        .send_request(connector, &endpoint, route, method, target, headers, body)
+                        .await
+                } else {
+                    let response = match route {
+                        Route::Direct => {
+                            connector
+                                .send_request_direct(
+                                    endpoint.host(),
+                                    endpoint.port(),
+                                    endpoint.host(),
+                                    method,
+                                    target,
+                                    headers,
+                                    body,
+                                )
+                                .await
+                        }
+                        Route::HttpConnect(proxy) => {
+                            let connect_authority = endpoint.tunnel_authority();
+                            connector
+                                .send_request_http_connect(
+                                    proxy.host(),
+                                    proxy.port(),
+                                    &connect_authority,
+                                    proxy.ordered_connect_headers(),
+                                    endpoint.host(),
+                                    method,
+                                    target,
+                                    headers,
+                                    body,
+                                )
+                                .await
+                        }
+                        Route::Socks5(proxy) => match proxy.dns_mode() {
+                            crate::Socks5DnsMode::Local => {
                                 connector
-                                    .send_get_direct(
+                                    .send_request_socks5_local(
+                                        proxy.host(),
+                                        proxy.port(),
                                         endpoint.host(),
                                         endpoint.port(),
                                         endpoint.host(),
+                                        method,
                                         target,
                                         headers,
+                                        body,
                                     )
                                     .await
                             }
-                            Route::HttpConnect(proxy) => {
-                                let connect_authority = endpoint.tunnel_authority();
+                            crate::Socks5DnsMode::Remote => {
                                 connector
-                                    .send_get_http_connect(
+                                    .send_request_socks5_remote(
                                         proxy.host(),
                                         proxy.port(),
-                                        &connect_authority,
-                                        proxy.ordered_connect_headers(),
-                                        endpoint.host(),
-                                        target,
-                                        headers,
-                                    )
-                                    .await
-                            }
-                            Route::Socks5(proxy) => match proxy.dns_mode() {
-                                crate::Socks5DnsMode::Local => {
-                                    connector
-                                        .send_get_socks5_local(
-                                            proxy.host(),
-                                            proxy.port(),
-                                            endpoint.host(),
-                                            endpoint.port(),
-                                            endpoint.host(),
-                                            target,
-                                            headers,
-                                        )
-                                        .await
-                                }
-                                crate::Socks5DnsMode::Remote => {
-                                    connector
-                                        .send_get_socks5_remote(
-                                            proxy.host(),
-                                            proxy.port(),
-                                            endpoint.host(),
-                                            endpoint.port(),
-                                            endpoint.host(),
-                                            target,
-                                            headers,
-                                        )
-                                        .await
-                                }
-                            },
-                        }
-                        .map_err(RequestError::http1)?;
-                        let (parts, body) = response.into_parts();
-                        Ok(Response::from_parts(parts, ResponseBody::http1(body)))
-                    }
-                }
-                HttpProtocol::Http2 => {
-                    let connector =
-                        client.inner.http2.as_ref().ok_or_else(|| {
-                            RequestError::unsupported_protocol(HttpProtocol::Http2)
-                        })?;
-                    if let Some(session) = session {
-                        session
-                            .state
-                            .http2
-                            .send_get(
-                                connector,
-                                &endpoint,
-                                route,
-                                endpoint.authority().as_str(),
-                                target,
-                                request_headers,
-                            )
-                            .await
-                    } else {
-                        let response = match route {
-                            Route::Direct => {
-                                connector
-                                    .send_get_direct(
                                         endpoint.host(),
                                         endpoint.port(),
                                         endpoint.host(),
-                                        endpoint.authority().as_str(),
+                                        method,
                                         target,
-                                        request_headers,
+                                        headers,
+                                        body,
                                     )
                                     .await
                             }
-                            Route::HttpConnect(proxy) => {
-                                let connect_authority = endpoint.tunnel_authority();
+                        },
+                    }
+                    .map_err(RequestError::http1)?;
+                    let (parts, body) = response.into_parts();
+                    Ok(Response::from_parts(parts, ResponseBody::http1(body)))
+                }
+            }
+            HttpProtocol::Http2 => {
+                let connector = client
+                    .inner
+                    .http2
+                    .as_ref()
+                    .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http2))?;
+                if let Some(session) = session {
+                    session
+                        .state
+                        .http2
+                        .send_request(
+                            connector,
+                            &endpoint,
+                            route,
+                            method,
+                            endpoint.authority().as_str(),
+                            target,
+                            request_headers,
+                            body,
+                        )
+                        .await
+                } else {
+                    let response = match route {
+                        Route::Direct => {
+                            connector
+                                .send_request_direct(
+                                    endpoint.host(),
+                                    endpoint.port(),
+                                    endpoint.host(),
+                                    method,
+                                    endpoint.authority().as_str(),
+                                    target,
+                                    request_headers,
+                                    body,
+                                )
+                                .await
+                        }
+                        Route::HttpConnect(proxy) => {
+                            let connect_authority = endpoint.tunnel_authority();
+                            connector
+                                .send_request_http_connect(
+                                    proxy.host(),
+                                    proxy.port(),
+                                    &connect_authority,
+                                    proxy.ordered_connect_headers(),
+                                    endpoint.host(),
+                                    method,
+                                    endpoint.authority().as_str(),
+                                    target,
+                                    request_headers,
+                                    body,
+                                )
+                                .await
+                        }
+                        Route::Socks5(proxy) => match proxy.dns_mode() {
+                            crate::Socks5DnsMode::Local => {
                                 connector
-                                    .send_get_http_connect(
+                                    .send_request_socks5_local(
                                         proxy.host(),
                                         proxy.port(),
-                                        &connect_authority,
-                                        proxy.ordered_connect_headers(),
                                         endpoint.host(),
+                                        endpoint.port(),
+                                        endpoint.host(),
+                                        method,
                                         endpoint.authority().as_str(),
                                         target,
                                         request_headers,
+                                        body,
                                     )
                                     .await
                             }
-                            Route::Socks5(proxy) => match proxy.dns_mode() {
-                                crate::Socks5DnsMode::Local => {
-                                    connector
-                                        .send_get_socks5_local(
-                                            proxy.host(),
-                                            proxy.port(),
-                                            endpoint.host(),
-                                            endpoint.port(),
-                                            endpoint.host(),
-                                            endpoint.authority().as_str(),
-                                            target,
-                                            request_headers,
-                                        )
-                                        .await
-                                }
-                                crate::Socks5DnsMode::Remote => {
-                                    connector
-                                        .send_get_socks5_remote(
-                                            proxy.host(),
-                                            proxy.port(),
-                                            endpoint.host(),
-                                            endpoint.port(),
-                                            endpoint.host(),
-                                            endpoint.authority().as_str(),
-                                            target,
-                                            request_headers,
-                                        )
-                                        .await
-                                }
-                            },
-                        }
-                        .map_err(RequestError::http2)?;
-                        let (parts, body) = response.into_parts();
-                        Ok(Response::from_parts(parts, ResponseBody::http2(body)))
+                            crate::Socks5DnsMode::Remote => {
+                                connector
+                                    .send_request_socks5_remote(
+                                        proxy.host(),
+                                        proxy.port(),
+                                        endpoint.host(),
+                                        endpoint.port(),
+                                        endpoint.host(),
+                                        method,
+                                        endpoint.authority().as_str(),
+                                        target,
+                                        request_headers,
+                                        body,
+                                    )
+                                    .await
+                            }
+                        },
                     }
+                    .map_err(RequestError::http2)?;
+                    let (parts, body) = response.into_parts();
+                    Ok(Response::from_parts(parts, ResponseBody::http2(body)))
                 }
-                HttpProtocol::Http3 => {
-                    let connector =
-                        client.inner.http3.as_ref().ok_or_else(|| {
-                            RequestError::unsupported_protocol(HttpProtocol::Http3)
-                        })?;
-                    if let Some(session) = session {
-                        session
-                            .state
-                            .http3
-                            .send_get(
-                                connector,
-                                &endpoint,
-                                route,
-                                endpoint.authority().as_str(),
-                                target,
-                                request_headers,
-                            )
-                            .await
-                    } else {
-                        let response = connector
-                            .send_get_direct(
-                                endpoint.host(),
-                                endpoint.port(),
-                                endpoint.host(),
-                                endpoint.authority().as_str(),
-                                target,
-                                request_headers,
-                            )
-                            .await
-                            .map_err(RequestError::http3)?;
-                        let (parts, body) = response.into_parts();
-                        Ok(Response::from_parts(parts, ResponseBody::http3(body)))
-                    }
+            }
+            HttpProtocol::Http3 => {
+                let connector = client
+                    .inner
+                    .http3
+                    .as_ref()
+                    .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
+                if let Some(session) = session {
+                    session
+                        .state
+                        .http3
+                        .send_request(
+                            connector,
+                            &endpoint,
+                            route,
+                            method,
+                            endpoint.authority().as_str(),
+                            target,
+                            request_headers,
+                            body,
+                        )
+                        .await
+                } else {
+                    let response = connector
+                        .send_request_direct(
+                            endpoint.host(),
+                            endpoint.port(),
+                            endpoint.host(),
+                            method,
+                            endpoint.authority().as_str(),
+                            target,
+                            request_headers,
+                            body,
+                        )
+                        .await
+                        .map_err(RequestError::http3)?;
+                    let (parts, body) = response.into_parts();
+                    Ok(Response::from_parts(parts, ResponseBody::http3(body)))
                 }
-            }?;
+            }
+        }?;
 
         #[cfg(feature = "cookies")]
         if let (Some(jar), Some(cookie_url)) = (cookie_jar, cookie_url.as_ref()) {
