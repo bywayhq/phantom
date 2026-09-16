@@ -422,9 +422,11 @@ substitutes for local bytes. A retained Chrome H3 startup capture drives the
 typed profile. A live raw control-stream differential checks its fixed settings,
 one reserved GREASE setting, and ascending order without normalizing them into
 a map. The complete 17-field captured request now passes through Phantom's
-typed construction and the vendored H3 field iterator in exact order. Exact
-dynamic QPACK instruction and field-section bytes remain separate acceptance
-work. No Safari HTTP/2 wire fixture exists yet.
+typed construction and the vendored H3 field iterator in exact order. The
+isolated stateful encoder also reproduces the retained dynamic QPACK
+instructions and field-section bytes exactly. Live connection delivery and
+packet-level proof remain separate acceptance work. No Safari HTTP/2 wire
+fixture exists yet.
 
 ## External TLS and QUIC observers
 

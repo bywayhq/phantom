@@ -206,7 +206,7 @@ impl<'a> DynamicTableEncoder<'a> {
         Ok(result)
     }
 
-    fn find_name(&mut self, name: &[u8]) -> DynamicLookupResult {
+    pub(super) fn find_name(&mut self, name: &[u8]) -> DynamicLookupResult {
         if let Some(index) = StaticTable::find_name(name) {
             return DynamicLookupResult::Static(index);
         }

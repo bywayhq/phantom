@@ -5,7 +5,10 @@ to client response headers and trailers. The engine can advertise nonzero
 decoder capacity and blocked-stream limits honestly. The Chrome profile emits
 its captured `65536` table capacity and `100` blocked-stream limit after a live
 raw control-stream differential. Outbound request encoding remains a separate
-directional capability.
+directional capability. Its isolated stateful encoder now reproduces the
+retained Chrome first-request instructions and field section exactly; sharing
+that encoder with request senders and delivering its instructions on the live
+critical stream remain runtime integration work.
 
 ## Ownership
 
@@ -83,10 +86,12 @@ block and repair blocked-stream accounting.
 4. Enable client inbound dynamic decoding for response headers and trailers.
    Prove park/unblock, acknowledgement, cancellation, count and byte ceilings,
    dropped-future persistence, and no hangs under reset races. Complete.
-5. Enable client outbound dynamic encoding. Prove queue-before-HEADERS ordering,
-   shared state across cloned senders, safe literal fallback, concurrency, and
-   capture differentials. This is not required to advertise inbound decoder
-   limits because QPACK settings are directional.
+5. Enable client outbound dynamic encoding. The capture-matching two-pass codec
+   and adaptive encoder-stream string coding are complete in isolation. Runtime
+   work must still prove queue-before-HEADERS ordering, shared state across
+   cloned senders, safe literal fallback, concurrency, and a live differential.
+   This is not required to advertise inbound decoder limits because QPACK
+   settings are directional.
 6. Enable Chrome's captured nonzero settings after adversarial integration
    tests and a raw control-stream differential. Complete. Server-side and
    outbound dynamic QPACK remain separate capabilities.

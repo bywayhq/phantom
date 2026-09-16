@@ -68,6 +68,23 @@ pub fn encode<B: BufMut>(size: u8, flags: u8, value: &[u8], buf: &mut B) -> Resu
     Ok(())
 }
 
+pub fn encode_if_smaller<B: BufMut>(
+    size: u8,
+    flags: u8,
+    value: &[u8],
+    buf: &mut B,
+) -> Result<(), Error> {
+    let encoded = Vec::from(value).hpack_encode()?;
+    if encoded.len() < value.len() {
+        prefix_int::encode(size - 1, flags << 1 | 1, encoded.len().try_into()?, buf);
+        buf.put_slice(&encoded);
+    } else {
+        prefix_int::encode(size - 1, flags << 1, value.len().try_into()?, buf);
+        buf.put_slice(value);
+    }
+    Ok(())
+}
+
 impl From<HuffmanEncodingError> for Error {
     fn from(error: HuffmanEncodingError) -> Self {
         Error::HuffmanEncoding(error)
@@ -146,6 +163,29 @@ mod tests {
         let mut read = Cursor::new(&buf);
         assert_eq!(&buf, &[0b1000_0000]);
         assert_eq!(decode(8, &mut read).unwrap(), b"");
+    }
+
+    #[test]
+    fn conditional_encoding_uses_raw_bytes_for_ties() {
+        let mut empty = Vec::new();
+        encode_if_smaller(8, 0, b"", &mut empty).unwrap();
+        assert_eq!(empty, [0]);
+
+        let mut one_byte = Vec::new();
+        encode_if_smaller(8, 0, b"x", &mut one_byte).unwrap();
+        assert_eq!(one_byte, [1, b'x']);
+    }
+
+    #[test]
+    fn conditional_encoding_uses_huffman_when_smaller() {
+        let mut buf = Vec::new();
+        encode_if_smaller(8, 0, b"www.example.com", &mut buf).unwrap();
+
+        assert_ne!(buf[0] & 0x80, 0);
+        assert_eq!(
+            decode(8, &mut Cursor::new(buf)).unwrap(),
+            b"www.example.com"
+        );
     }
 
     #[test]

@@ -119,7 +119,8 @@ nonzero QPACK limits, maximum field-section size, H3 DATAGRAM setting,
 ascending setting order, and randomized GREASE. A live raw control-stream
 differential checks the resulting SETTINGS frame. Captured pseudo-header and
 ordinary-field order now pass through the request encoder; outbound dynamic
-QPACK remains acceptance work.
+QPACK codec bytes match the retained first request in isolation, while shared
+runtime delivery remains acceptance work.
 
 Acceptance:
 

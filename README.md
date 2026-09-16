@@ -15,9 +15,11 @@ Chrome QUIC transport recipe to live Quinn state and the exact TLS extension
 bytes. A typed Chrome H3 recipe emits the captured nonzero QPACK limits,
 maximum field-section size, H3 DATAGRAM setting, ascending setting order, and
 randomized GREASE. The receive path bounds dynamic QPACK state and treats a
-datagram on an ordinary request as an H3 protocol error. Outbound dynamic
-QPACK remains planned; captured pseudo-header order and caller-supplied
-ordinary-field order now survive request construction and stateless QPACK
+datagram on an ordinary request as an H3 protocol error. The isolated outbound
+dynamic QPACK encoder reproduces the retained Chrome request bytes; sharing
+that state across live request senders and delivering its instructions on the
+critical stream remain planned. Captured pseudo-header order and caller-supplied
+ordinary-field order already survive request construction and stateless QPACK
 encoding. Reusable sessions, typed proxy routing, SSE, and WebSocket also
 remain planned. The project does not make broad client-compatibility claims.
 
@@ -46,10 +48,10 @@ remain planned. The project does not make broad client-compatibility claims.
   strict decoding for deterministic differentials
 
 The provenance-tracked H3 fork is an active runtime dependency for ordered
-SETTINGS, bounded dynamic QPACK receive support, and immediate stream
-cancellation through the Quinn adapter. Outbound request encoding preserves
-the configured field order but remains stateless; dynamic encoding is tracked
-as a separate directional capability.
+SETTINGS, bounded dynamic QPACK receive support, immediate stream cancellation
+through the Quinn adapter, and capture-matching outbound dynamic QPACK codec
+behavior. Live request encoding remains stateless until the shared encoder and
+critical-stream delivery are integrated as a separate directional capability.
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),

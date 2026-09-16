@@ -23,7 +23,7 @@ const CHROME_FIXTURE: &str = include_str!(
 );
 
 #[test]
-fn chrome_capture_reaches_qpack_in_exact_field_order() -> TestResult<()> {
+fn chrome_capture_matches_dynamic_qpack_bytes() -> TestResult<()> {
     let expected = fixture_request_headers()?;
     let authority = std::str::from_utf8(&expected[1].1)?;
     let target = std::str::from_utf8(&expected[3].1)?;
@@ -57,9 +57,30 @@ fn chrome_capture_reaches_qpack_in_exact_field_order() -> TestResult<()> {
         assert_eq!(actual.value.as_ref(), expected_value);
     }
 
-    let mut stateless = BytesMut::new();
-    h3::qpack::encode_stateless(&mut stateless, fields)?;
-    assert!(!stateless.is_empty());
+    let mut encoder = h3::qpack::Encoder::default();
+    let mut encoder_instructions = BytesMut::new();
+    encoder.set_max_table_capacity(
+        fixture_value("server_qpack_max_table_capacity")?.parse()?,
+        &mut encoder_instructions,
+    )?;
+    encoder.set_max_blocked_streams(fixture_value("server_qpack_blocked_streams")?.parse()?)?;
+    let mut field_section = BytesMut::new();
+    let required_insert_count = encoder.encode(
+        fixture_value("request_stream_id")?.parse()?,
+        &mut field_section,
+        &mut encoder_instructions,
+        fields,
+    )?;
+
+    assert_eq!(required_insert_count, 13);
+    assert_eq!(
+        encoder_instructions.as_ref(),
+        &decode_hex(fixture_value("request_qpack_encoder_stream_prefix_hex")?)?[1..]
+    );
+    assert_eq!(
+        field_section.as_ref(),
+        decode_hex(fixture_value("request_headers_payload_hex")?)?
+    );
     Ok(())
 }
 

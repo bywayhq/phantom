@@ -113,10 +113,18 @@ The retained Chrome 152 fixture is recorded at
 Phantom repository. A unit regression fixes its complete control-stream prefix,
 including setting order and the concrete GREASE identifier/value widths.
 
+The stateful QPACK encoder can be configured from peer table-capacity and
+blocked-stream settings. It stages inserts before encoding a field section, so
+new entries use the final Base and relative references. Encoder-stream strings
+use Huffman coding only when it shortens the value. The default stateless field
+section encoder retains its existing byte representation. Connection-level
+delivery of these encoder instructions is intentionally a separate integration.
+
 The canonical source and test deltas are stored in
 `patches/ordered-settings.patch`, `patches/qpack-codec.patch`,
 `patches/qpack-critical-streams.patch`, `patches/qpack-dynamic-client.patch`,
-`patches/cancel-safe-recv.patch`, and `patches/ordered-request-headers.patch`.
+`patches/cancel-safe-recv.patch`, `patches/ordered-request-headers.patch`, and
+`patches/qpack-request-encoder.patch`.
 `PHANTOM.md` and the patch files are
 packaging metadata and are deliberately excluded from those patches.
 
@@ -173,6 +181,10 @@ packaging metadata and are deliberately excluded from those patches.
      "$PWD/vendor/h3/patches/ordered-request-headers.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/ordered-request-headers.patch"
+   git -C "$candidate" apply --check \
+     "$PWD/vendor/h3/patches/qpack-request-encoder.patch"
+   git -C "$candidate" apply \
+     "$PWD/vendor/h3/patches/qpack-request-encoder.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the

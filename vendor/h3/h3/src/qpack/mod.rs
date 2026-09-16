@@ -1,12 +1,11 @@
 pub use self::{
     decoder::{decode_stateless, Decoded, DecoderError},
-    encoder::{encode_stateless, EncoderError},
+    encoder::{encode_stateless, Encoder, EncoderError},
     field::HeaderField,
 };
 
 pub(crate) use self::{
     decoder::Decoder,
-    encoder::Encoder,
     state::{
         DecodeStatus, DecoderState, ReadAheadLease, RequestGuard, RuntimeError, Section,
         MAX_ENCODED_FIELD_SECTION_BYTES,

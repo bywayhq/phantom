@@ -118,11 +118,11 @@ impl InsertWithNameRef {
         match self {
             InsertWithNameRef::Static { index, value } => {
                 prefix_int::encode(6, 0b11, *index as u64, buf);
-                prefix_string::encode(8, 0, value, buf)?;
+                prefix_string::encode_if_smaller(8, 0, value, buf)?;
             }
             InsertWithNameRef::Dynamic { index, value } => {
                 prefix_int::encode(6, 0b10, *index as u64, buf);
-                prefix_string::encode(8, 0, value, buf)?;
+                prefix_string::encode_if_smaller(8, 0, value, buf)?;
             }
         }
         Ok(())
@@ -158,8 +158,8 @@ impl InsertWithoutNameRef {
     }
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
-        prefix_string::encode(6, 0b01, &self.name, buf)?;
-        prefix_string::encode(8, 0, &self.value, buf)?;
+        prefix_string::encode_if_smaller(6, 0b01, &self.name, buf)?;
+        prefix_string::encode_if_smaller(8, 0, &self.value, buf)?;
         Ok(())
     }
 }
@@ -341,6 +341,32 @@ mod test {
         let mut read = Cursor::new(&buf);
         assert_eq!(
             InsertWithoutNameRef::decode(&mut read),
+            Ok(Some(instruction))
+        );
+    }
+
+    #[test]
+    fn encoder_instruction_uses_raw_strings_for_ties() {
+        let instruction = InsertWithoutNameRef::new("x", "x");
+        let mut buf = vec![];
+        instruction.encode(&mut buf).unwrap();
+
+        assert_eq!(buf, [0x41, b'x', 0x01, b'x']);
+        assert_eq!(
+            InsertWithoutNameRef::decode(&mut Cursor::new(buf)),
+            Ok(Some(instruction))
+        );
+    }
+
+    #[test]
+    fn encoder_instruction_uses_huffman_when_smaller() {
+        let instruction = InsertWithNameRef::new_static(0, "www.example.com");
+        let mut buf = vec![];
+        instruction.encode(&mut buf).unwrap();
+
+        assert_ne!(buf[1] & 0x80, 0);
+        assert_eq!(
+            InsertWithNameRef::decode(&mut Cursor::new(buf)),
             Ok(Some(instruction))
         );
     }

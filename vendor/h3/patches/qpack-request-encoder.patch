@@ -1,0 +1,458 @@
+diff --git a/h3/src/qpack/dynamic.rs b/h3/src/qpack/dynamic.rs
+index 8325011..f4a6943 100644
+--- a/h3/src/qpack/dynamic.rs
++++ b/h3/src/qpack/dynamic.rs
+@@ -206,7 +206,7 @@ impl<'a> DynamicTableEncoder<'a> {
+         Ok(result)
+     }
+ 
+-    fn find_name(&mut self, name: &[u8]) -> DynamicLookupResult {
++    pub(super) fn find_name(&mut self, name: &[u8]) -> DynamicLookupResult {
+         if let Some(index) = StaticTable::find_name(name) {
+             return DynamicLookupResult::Static(index);
+         }
+diff --git a/h3/src/qpack/encoder.rs b/h3/src/qpack/encoder.rs
+index 5f3bb4e..169ee75 100644
+--- a/h3/src/qpack/encoder.rs
++++ b/h3/src/qpack/encoder.rs
+@@ -57,6 +57,21 @@ pub struct Encoder {
+ }
+ 
+ impl Encoder {
++    pub fn set_max_table_capacity<W: BufMut>(
++        &mut self,
++        capacity: usize,
++        encoder_buf: &mut W,
++    ) -> Result<(), EncoderError> {
++        self.table.set_max_size(capacity)?;
++        DynamicTableSizeUpdate(capacity).encode(encoder_buf);
++        Ok(())
++    }
++
++    pub fn set_max_blocked_streams(&mut self, blocked_streams: usize) -> Result<(), EncoderError> {
++        self.table.set_max_blocked(blocked_streams)?;
++        Ok(())
++    }
++
+     pub fn encode<W, T, H>(
+         &mut self,
+         stream_id: u64,
+@@ -69,14 +84,24 @@ impl Encoder {
+         T: IntoIterator<Item = H>,
+         H: AsRef<HeaderField>,
+     {
++        let fields = fields
++            .into_iter()
++            .map(|field| field.as_ref().clone())
++            .collect::<Vec<_>>();
++        let mut encoder_instructions = Vec::new();
++        {
++            let mut encoder = self.table.encoder(stream_id);
++            for field in &fields {
++                Self::plan_field(&mut encoder, &mut encoder_instructions, field)?;
++            }
++        }
++
+         let mut required_ref = 0;
+         let mut block_buf = Vec::new();
+         let mut encoder = self.table.encoder(stream_id);
+ 
+-        for field in fields {
+-            if let Some(reference) =
+-                Self::encode_field(&mut encoder, &mut block_buf, encoder_buf, field.as_ref())?
+-            {
++        for field in &fields {
++            if let Some(reference) = Self::encode_field_line(&mut encoder, &mut block_buf, field)? {
+                 required_ref = cmp::max(required_ref, reference);
+             }
+         }
+@@ -89,6 +114,7 @@ impl Encoder {
+         )
+         .encode(block);
+         block.put(block_buf.as_slice());
++        encoder_buf.put(encoder_instructions.as_slice());
+ 
+         encoder.commit(required_ref);
+ 
+@@ -149,6 +175,92 @@ impl Encoder {
+         Ok(progressed)
+     }
+ 
++    fn plan_field<W: BufMut>(
++        table: &mut DynamicTableEncoder,
++        encoder: &mut W,
++        field: &HeaderField,
++    ) -> Result<(), EncoderError> {
++        if StaticTable::find(field).is_some() {
++            return Ok(());
++        }
++        if !matches!(table.find(field), DynamicLookupResult::NotFound) {
++            return Ok(());
++        }
++
++        Self::insert_field(table, encoder, field)?;
++        Ok(())
++    }
++
++    fn encode_field_line<W: BufMut>(
++        table: &mut DynamicTableEncoder,
++        block: &mut W,
++        field: &HeaderField,
++    ) -> Result<Option<usize>, EncoderError> {
++        if let Some(index) = StaticTable::find(field) {
++            Indexed::Static(index).encode(block);
++            return Ok(None);
++        }
++
++        match table.find(field) {
++            DynamicLookupResult::Relative { index, absolute } => {
++                Indexed::Dynamic(index).encode(block);
++                Ok(Some(absolute))
++            }
++            DynamicLookupResult::PostBase { index, absolute } => {
++                IndexedWithPostBase(index).encode(block);
++                Ok(Some(absolute))
++            }
++            DynamicLookupResult::Static(index) => {
++                LiteralWithNameRef::new_static(index, field.value.clone()).encode(block)?;
++                Ok(None)
++            }
++            DynamicLookupResult::NotFound => match table.find_name(&field.name) {
++                DynamicLookupResult::Static(index) => {
++                    LiteralWithNameRef::new_static(index, field.value.clone()).encode(block)?;
++                    Ok(None)
++                }
++                DynamicLookupResult::Relative { index, absolute } => {
++                    LiteralWithNameRef::new_dynamic(index, field.value.clone()).encode(block)?;
++                    Ok(Some(absolute))
++                }
++                DynamicLookupResult::PostBase { index, absolute } => {
++                    LiteralWithPostBaseNameRef::new(index, field.value.clone()).encode(block)?;
++                    Ok(Some(absolute))
++                }
++                DynamicLookupResult::NotFound => {
++                    Literal::new(field.name.clone(), field.value.clone()).encode(block)?;
++                    Ok(None)
++                }
++            },
++        }
++    }
++
++    fn insert_field<W: BufMut>(
++        table: &mut DynamicTableEncoder,
++        encoder: &mut W,
++        field: &HeaderField,
++    ) -> Result<DynamicInsertionResult, EncoderError> {
++        let insertion = table.insert(field)?;
++        match &insertion {
++            DynamicInsertionResult::Duplicated { relative, .. } => {
++                Duplicate(*relative).encode(encoder);
++            }
++            DynamicInsertionResult::Inserted { .. } => {
++                InsertWithoutNameRef::new(field.name.clone(), field.value.clone())
++                    .encode(encoder)?;
++            }
++            DynamicInsertionResult::InsertedWithStaticNameRef { index, .. } => {
++                InsertWithNameRef::new_static(*index, field.value.clone()).encode(encoder)?;
++            }
++            DynamicInsertionResult::InsertedWithNameRef { relative, .. } => {
++                InsertWithNameRef::new_dynamic(*relative, field.value.clone()).encode(encoder)?;
++            }
++            DynamicInsertionResult::NotInserted(_) => {}
++        }
++        Ok(insertion)
++    }
++
++    #[cfg(test)]
+     fn encode_field<W: BufMut>(
+         table: &mut DynamicTableEncoder,
+         block: &mut Vec<u8>,
+@@ -165,37 +277,26 @@ impl Encoder {
+             return Ok(Some(absolute));
+         }
+ 
+-        let reference = match table.insert(field)? {
++        let reference = match Self::insert_field(table, encoder, field)? {
+             DynamicInsertionResult::Duplicated {
+-                relative,
+-                postbase,
+-                absolute,
++                postbase, absolute, ..
+             } => {
+-                Duplicate(relative).encode(encoder);
+                 IndexedWithPostBase(postbase).encode(block);
+                 Some(absolute)
+             }
+             DynamicInsertionResult::Inserted { postbase, absolute } => {
+-                InsertWithoutNameRef::new(field.name.clone(), field.value.clone())
+-                    .encode(encoder)?;
+                 IndexedWithPostBase(postbase).encode(block);
+                 Some(absolute)
+             }
+             DynamicInsertionResult::InsertedWithStaticNameRef {
+-                postbase,
+-                index,
+-                absolute,
++                postbase, absolute, ..
+             } => {
+-                InsertWithNameRef::new_static(index, field.value.clone()).encode(encoder)?;
+                 IndexedWithPostBase(postbase).encode(block);
+                 Some(absolute)
+             }
+             DynamicInsertionResult::InsertedWithNameRef {
+-                postbase,
+-                relative,
+-                absolute,
++                postbase, absolute, ..
+             } => {
+-                InsertWithNameRef::new_dynamic(relative, field.value.clone()).encode(encoder)?;
+                 IndexedWithPostBase(postbase).encode(block);
+                 Some(absolute)
+             }
+@@ -584,23 +685,98 @@ mod tests {
+             HeaderPrefix::decode(&mut read_block)
+                 .unwrap()
+                 .get(7, TABLE_SIZE),
+-            Ok((7, 4))
++            Ok((7, 7))
+         );
+         assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Static(17)));
+-        assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Dynamic(3)));
++        assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Dynamic(6)));
++        assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Dynamic(2)));
++        assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Dynamic(1)));
++        assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Dynamic(0)));
++        assert_eq!(read_block.get_ref().len() as u64, read_block.position());
++    }
++
++    #[test]
++    fn invalid_peer_limits_do_not_change_encoder_state_or_output() {
++        let mut encoder = Encoder::default();
++        let mut instructions = vec![0xaa];
++
++        assert_eq!(
++            encoder.set_max_table_capacity(1 << 30, &mut instructions),
++            Err(EncoderError::Insertion(
++                DynamicTableError::MaximumTableSizeTooLarge
++            ))
++        );
++        assert_eq!(instructions, [0xaa]);
++        assert_eq!(
++            encoder.set_max_blocked_streams(1 << 16),
++            Err(EncoderError::Insertion(
++                DynamicTableError::MaxBlockedStreamsTooLarge
++            ))
++        );
++
++        encoder
++            .set_max_table_capacity(TABLE_SIZE, &mut instructions)
++            .unwrap();
++        encoder.set_max_blocked_streams(16).unwrap();
++        assert_eq!(&instructions[1..], [0x3f, 0xe1, 0x1f]);
++    }
++
++    #[test]
++    fn feedback_preserves_dynamic_references_across_sections() {
++        let field = HeaderField::new("x-dynamic", "compressible value");
++        let mut encoder = Encoder::default();
++        let mut setup = Vec::new();
++        encoder
++            .set_max_table_capacity(TABLE_SIZE, &mut setup)
++            .unwrap();
++        encoder.set_max_blocked_streams(1).unwrap();
++
++        let mut first_block = Vec::new();
++        let mut first_instructions = Vec::new();
+         assert_eq!(
+-            IndexedWithPostBase::decode(&mut read_block),
+-            Ok(IndexedWithPostBase(0))
++            encoder.encode(
++                0,
++                &mut first_block,
++                &mut first_instructions,
++                [field.clone()]
++            ),
++            Ok(1)
+         );
++        assert!(!first_instructions.is_empty());
++
++        let mut blocked_block = Vec::new();
++        let mut blocked_instructions = Vec::new();
+         assert_eq!(
+-            IndexedWithPostBase::decode(&mut read_block),
+-            Ok(IndexedWithPostBase(1))
++            encoder.encode(
++                4,
++                &mut blocked_block,
++                &mut blocked_instructions,
++                [HeaderField::new("x-next", "value")]
++            ),
++            Ok(0)
+         );
++        assert!(blocked_instructions.is_empty());
++
++        let mut feedback = Vec::new();
++        InsertCountIncrement(1).encode(&mut feedback);
++        HeaderAck(0).encode(&mut feedback);
++        encoder.on_decoder_recv(&mut Cursor::new(feedback)).unwrap();
++
++        let mut reused_block = Vec::new();
++        let mut reused_instructions = Vec::new();
+         assert_eq!(
+-            IndexedWithPostBase::decode(&mut read_block),
+-            Ok(IndexedWithPostBase(2))
++            encoder.encode(8, &mut reused_block, &mut reused_instructions, [field]),
++            Ok(1)
+         );
+-        assert_eq!(read_block.get_ref().len() as u64, read_block.position());
++        assert!(reused_instructions.is_empty());
++        let mut reused = Cursor::new(reused_block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut reused)
++                .unwrap()
++                .get(1, TABLE_SIZE),
++            Ok((1, 1))
++        );
++        assert_eq!(Indexed::decode(&mut reused), Ok(Indexed::Dynamic(0)));
+     }
+ 
+     #[test]
+diff --git a/h3/src/qpack/mod.rs b/h3/src/qpack/mod.rs
+index be73446..879b517 100644
+--- a/h3/src/qpack/mod.rs
++++ b/h3/src/qpack/mod.rs
+@@ -1,12 +1,11 @@
+ pub use self::{
+     decoder::{decode_stateless, Decoded, DecoderError},
+-    encoder::{encode_stateless, EncoderError},
++    encoder::{encode_stateless, Encoder, EncoderError},
+     field::HeaderField,
+ };
+ 
+ pub(crate) use self::{
+     decoder::Decoder,
+-    encoder::Encoder,
+     state::{
+         DecodeStatus, DecoderState, ReadAheadLease, RequestGuard, RuntimeError, Section,
+         MAX_ENCODED_FIELD_SECTION_BYTES,
+diff --git a/h3/src/qpack/prefix_string/mod.rs b/h3/src/qpack/prefix_string/mod.rs
+index 4a0967b..edfeeea 100644
+--- a/h3/src/qpack/prefix_string/mod.rs
++++ b/h3/src/qpack/prefix_string/mod.rs
+@@ -68,6 +68,23 @@ pub fn encode<B: BufMut>(size: u8, flags: u8, value: &[u8], buf: &mut B) -> Resu
+     Ok(())
+ }
+ 
++pub fn encode_if_smaller<B: BufMut>(
++    size: u8,
++    flags: u8,
++    value: &[u8],
++    buf: &mut B,
++) -> Result<(), Error> {
++    let encoded = Vec::from(value).hpack_encode()?;
++    if encoded.len() < value.len() {
++        prefix_int::encode(size - 1, flags << 1 | 1, encoded.len().try_into()?, buf);
++        buf.put_slice(&encoded);
++    } else {
++        prefix_int::encode(size - 1, flags << 1, value.len().try_into()?, buf);
++        buf.put_slice(value);
++    }
++    Ok(())
++}
++
+ impl From<HuffmanEncodingError> for Error {
+     fn from(error: HuffmanEncodingError) -> Self {
+         Error::HuffmanEncoding(error)
+@@ -148,6 +165,29 @@ mod tests {
+         assert_eq!(decode(8, &mut read).unwrap(), b"");
+     }
+ 
++    #[test]
++    fn conditional_encoding_uses_raw_bytes_for_ties() {
++        let mut empty = Vec::new();
++        encode_if_smaller(8, 0, b"", &mut empty).unwrap();
++        assert_eq!(empty, [0]);
++
++        let mut one_byte = Vec::new();
++        encode_if_smaller(8, 0, b"x", &mut one_byte).unwrap();
++        assert_eq!(one_byte, [1, b'x']);
++    }
++
++    #[test]
++    fn conditional_encoding_uses_huffman_when_smaller() {
++        let mut buf = Vec::new();
++        encode_if_smaller(8, 0, b"www.example.com", &mut buf).unwrap();
++
++        assert_ne!(buf[0] & 0x80, 0);
++        assert_eq!(
++            decode(8, &mut Cursor::new(buf)).unwrap(),
++            b"www.example.com"
++        );
++    }
++
+     #[test]
+     fn decode_non_huffman() {
+         let buf = vec![0b0100_0011, b'b', b'a', b'r'];
+diff --git a/h3/src/qpack/stream.rs b/h3/src/qpack/stream.rs
+index 526e06d..847a94e 100644
+--- a/h3/src/qpack/stream.rs
++++ b/h3/src/qpack/stream.rs
+@@ -118,11 +118,11 @@ impl InsertWithNameRef {
+         match self {
+             InsertWithNameRef::Static { index, value } => {
+                 prefix_int::encode(6, 0b11, *index as u64, buf);
+-                prefix_string::encode(8, 0, value, buf)?;
++                prefix_string::encode_if_smaller(8, 0, value, buf)?;
+             }
+             InsertWithNameRef::Dynamic { index, value } => {
+                 prefix_int::encode(6, 0b10, *index as u64, buf);
+-                prefix_string::encode(8, 0, value, buf)?;
++                prefix_string::encode_if_smaller(8, 0, value, buf)?;
+             }
+         }
+         Ok(())
+@@ -158,8 +158,8 @@ impl InsertWithoutNameRef {
+     }
+ 
+     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
+-        prefix_string::encode(6, 0b01, &self.name, buf)?;
+-        prefix_string::encode(8, 0, &self.value, buf)?;
++        prefix_string::encode_if_smaller(6, 0b01, &self.name, buf)?;
++        prefix_string::encode_if_smaller(8, 0, &self.value, buf)?;
+         Ok(())
+     }
+ }
+@@ -345,6 +345,32 @@ mod test {
+         );
+     }
+ 
++    #[test]
++    fn encoder_instruction_uses_raw_strings_for_ties() {
++        let instruction = InsertWithoutNameRef::new("x", "x");
++        let mut buf = vec![];
++        instruction.encode(&mut buf).unwrap();
++
++        assert_eq!(buf, [0x41, b'x', 0x01, b'x']);
++        assert_eq!(
++            InsertWithoutNameRef::decode(&mut Cursor::new(buf)),
++            Ok(Some(instruction))
++        );
++    }
++
++    #[test]
++    fn encoder_instruction_uses_huffman_when_smaller() {
++        let instruction = InsertWithNameRef::new_static(0, "www.example.com");
++        let mut buf = vec![];
++        instruction.encode(&mut buf).unwrap();
++
++        assert_ne!(buf[1] & 0x80, 0);
++        assert_eq!(
++            InsertWithNameRef::decode(&mut Cursor::new(buf)),
++            Ok(Some(instruction))
++        );
++    }
++
+     #[test]
+     fn insert_duplicate() {
+         let instruction = Duplicate(42);
+
