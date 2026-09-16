@@ -1,0 +1,361 @@
+use std::ffi::CString;
+use std::fmt;
+use std::ptr::{self, NonNull};
+use std::slice;
+
+use btls_sys as ffi;
+
+use super::callback_state::{
+    Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
+};
+use super::drain_error_queue;
+use super::quic_callbacks::{CallbackInstallError, install_on_ssl};
+
+const H3_ALPN: &[u8] = &[2, b'h', b'3'];
+const H3_PROTOCOL: &[u8] = b"h3";
+const MAX_TRANSPORT_PARAMETERS: usize = u16::MAX as usize;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum ClientSessionError {
+    InvalidServerName,
+    MissingTransportParameters,
+    TransportParametersTooLong {
+        len: usize,
+    },
+    PeerVerificationDisabled,
+    CallbackInstall(CallbackInstallError),
+    Callback(CallbackError),
+    BackendFailure(&'static str),
+    TlsFailure {
+        operation: &'static str,
+        ssl_error: i32,
+    },
+    UnexpectedProtocolVersion {
+        actual: i32,
+    },
+    AlpnNotNegotiated,
+    ResumptionAttempted,
+    EarlyDataActive,
+    InvalidPeerTransportParameters,
+    AllocationFailed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum HandshakeProgress {
+    NeedsData,
+    Complete,
+}
+
+struct OwnedSsl(NonNull<ffi::SSL>);
+
+// SAFETY: `OwnedSsl` has one owner; moving it transfers all access to the SSL.
+unsafe impl Send for OwnedSsl {}
+
+impl OwnedSsl {
+    unsafe fn new(context: NonNull<ffi::SSL_CTX>) -> Result<Self, ClientSessionError> {
+        // SAFETY: the caller supplies a live context; SSL_new retains its own context reference.
+        let ssl = unsafe { ffi::SSL_new(context.as_ptr()) };
+        let Some(ssl) = NonNull::new(ssl) else {
+            return Err(backend_failure("SSL allocation"));
+        };
+        Ok(Self(ssl))
+    }
+
+    const fn as_ptr(&self) -> *mut ffi::SSL {
+        self.0.as_ptr()
+    }
+}
+
+impl fmt::Debug for OwnedSsl {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("OwnedSsl")
+    }
+}
+
+impl Drop for OwnedSsl {
+    fn drop(&mut self) {
+        // SAFETY: this owner releases its unique SSL allocation exactly once.
+        unsafe {
+            ffi::SSL_free(self.0.as_ptr());
+        }
+    }
+}
+
+pub(super) struct ClientSession {
+    // SSL must drop before the external callback-state handle.
+    ssl: OwnedSsl,
+    callbacks: CallbackState,
+    handshake_complete: bool,
+}
+
+impl fmt::Debug for ClientSession {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ClientSession")
+            .field("handshake_complete", &self.handshake_complete)
+            .finish_non_exhaustive()
+    }
+}
+
+impl ClientSession {
+    /// Creates a client from a verification-configured BoringSSL context.
+    ///
+    /// # Safety
+    ///
+    /// `context` must remain live and immutable for this call. SSL retains it on success.
+    pub(super) unsafe fn new(
+        context: NonNull<ffi::SSL_CTX>,
+        server_name: &str,
+        local_transport_parameters: &[u8],
+    ) -> Result<Self, ClientSessionError> {
+        if server_name.is_empty() {
+            return Err(ClientSessionError::InvalidServerName);
+        }
+        let server_name =
+            CString::new(server_name).map_err(|_| ClientSessionError::InvalidServerName)?;
+        if local_transport_parameters.is_empty() {
+            return Err(ClientSessionError::MissingTransportParameters);
+        }
+        if local_transport_parameters.len() > MAX_TRANSPORT_PARAMETERS {
+            return Err(ClientSessionError::TransportParametersTooLong {
+                len: local_transport_parameters.len(),
+            });
+        }
+
+        ffi::init();
+        // SAFETY: the context invariant is forwarded to the SSL owner.
+        let ssl = unsafe { OwnedSsl::new(context) }?;
+        let pointer = ssl.as_ptr();
+
+        // SAFETY: `pointer` is uniquely owned throughout construction.
+        if unsafe { ffi::SSL_get_verify_mode(pointer) } & ffi::SSL_VERIFY_PEER == 0 {
+            return Err(ClientSessionError::PeerVerificationDisabled);
+        }
+        // SAFETY: `pointer` is live and uniquely owned.
+        if unsafe { ffi::SSL_set_min_proto_version(pointer, ffi::TLS1_3_VERSION as u16) } != 1 {
+            return Err(backend_failure("minimum TLS version"));
+        }
+        // SAFETY: `pointer` is live and uniquely owned.
+        if unsafe { ffi::SSL_set_max_proto_version(pointer, ffi::TLS1_3_VERSION as u16) } != 1 {
+            return Err(backend_failure("maximum TLS version"));
+        }
+        // SAFETY: the option is applied to this uniquely owned SSL.
+        let options = unsafe { ffi::SSL_set_options(pointer, ffi::SSL_OP_NO_TICKET as u32) };
+        if options & ffi::SSL_OP_NO_TICKET as u32 == 0 {
+            return Err(backend_failure("session ticket disable"));
+        }
+        // SAFETY: the SSL is live and has not started a handshake.
+        unsafe {
+            ffi::SSL_set_early_data_enabled(pointer, 0);
+        }
+        // SAFETY: the NUL-terminated name remains live for each copying setter call.
+        if unsafe { ffi::SSL_set_tlsext_host_name(pointer, server_name.as_ptr()) } != 1 {
+            return Err(backend_failure("server name indication"));
+        }
+        // SAFETY: the NUL-terminated name remains live for the copying setter call.
+        if unsafe { ffi::SSL_set1_host(pointer, server_name.as_ptr()) } != 1 {
+            return Err(backend_failure("verification hostname"));
+        }
+        // SAFETY: ALPN bytes remain live for the copying setter call.
+        if unsafe { ffi::SSL_set_alpn_protos(pointer, H3_ALPN.as_ptr(), H3_ALPN.len()) } != 0 {
+            return Err(backend_failure("ALPN configuration"));
+        }
+        // SAFETY: transport parameters remain live for the copying setter call.
+        if unsafe {
+            ffi::SSL_set_quic_transport_params(
+                pointer,
+                local_transport_parameters.as_ptr(),
+                local_transport_parameters.len(),
+            )
+        } != 1
+        {
+            return Err(backend_failure("local QUIC transport parameters"));
+        }
+        // SAFETY: this uniquely owned SSL has not started a handshake.
+        unsafe {
+            ffi::SSL_set_connect_state(pointer);
+        }
+        // SAFETY: the SSL is live; QUIC sessions must not have BIOs.
+        if unsafe { !ffi::SSL_get_rbio(pointer).is_null() || !ffi::SSL_get_wbio(pointer).is_null() }
+        {
+            return Err(ClientSessionError::BackendFailure("unexpected BIO"));
+        }
+
+        // SAFETY: the SSL is live, unique, and has not started its handshake.
+        let callbacks = unsafe { install_on_ssl(ssl.0, FlightLimits::default()) }
+            .map_err(ClientSessionError::CallbackInstall)?;
+        Ok(Self {
+            ssl,
+            callbacks,
+            handshake_complete: false,
+        })
+    }
+
+    pub(super) fn start_handshake(&mut self) -> Result<HandshakeProgress, ClientSessionError> {
+        self.drive_handshake()
+    }
+
+    pub(super) fn provide_handshake_data(
+        &mut self,
+        level: EncryptionLevel,
+        data: &[u8],
+    ) -> Result<HandshakeProgress, ClientSessionError> {
+        self.callback_error()?;
+        if !data.is_empty() {
+            let raw_level = raw_level(level);
+            // SAFETY: the SSL and input slice remain live for the copying call.
+            if unsafe {
+                ffi::SSL_provide_quic_data(self.ssl.as_ptr(), raw_level, data.as_ptr(), data.len())
+            } != 1
+            {
+                return Err(self.operation_failure("provide QUIC handshake data", None));
+            }
+        }
+
+        if self.handshake_complete {
+            self.process_post_handshake()?;
+            Ok(HandshakeProgress::Complete)
+        } else {
+            self.drive_handshake()
+        }
+    }
+
+    pub(super) fn drain_output(&self) -> Result<Vec<HandshakeChunk>, ClientSessionError> {
+        self.callbacks
+            .drain_handshake()
+            .map_err(ClientSessionError::Callback)
+    }
+
+    pub(super) fn drain_alerts(&self) -> Result<Vec<Alert>, ClientSessionError> {
+        self.callbacks
+            .drain_alerts()
+            .map_err(ClientSessionError::Callback)
+    }
+
+    pub(super) fn peer_transport_parameters(&self) -> Result<Option<Vec<u8>>, ClientSessionError> {
+        self.callback_error()?;
+        let mut parameters = ptr::null();
+        let mut len = 0;
+        // SAFETY: both outputs are valid and the SSL remains live for the copy below.
+        unsafe {
+            ffi::SSL_get_peer_quic_transport_params(self.ssl.as_ptr(), &mut parameters, &mut len);
+        }
+        if len == 0 {
+            return Ok(None);
+        }
+        if parameters.is_null() || len > MAX_TRANSPORT_PARAMETERS {
+            return Err(ClientSessionError::InvalidPeerTransportParameters);
+        }
+        let mut owned = Vec::new();
+        owned
+            .try_reserve_exact(len)
+            .map_err(|_| ClientSessionError::AllocationFailed)?;
+        // SAFETY: BoringSSL owns `len` readable bytes for the lifetime of the SSL.
+        owned.extend_from_slice(unsafe { slice::from_raw_parts(parameters, len) });
+        Ok(Some(owned))
+    }
+
+    fn drive_handshake(&mut self) -> Result<HandshakeProgress, ClientSessionError> {
+        self.callback_error()?;
+        if self.handshake_complete {
+            return Ok(HandshakeProgress::Complete);
+        }
+        // SAFETY: the SSL is live, unique, and configured for a QUIC client handshake.
+        let result = unsafe { ffi::SSL_do_handshake(self.ssl.as_ptr()) };
+        if result == 1 {
+            self.validate_completed_handshake()?;
+            self.handshake_complete = true;
+            return Ok(HandshakeProgress::Complete);
+        }
+        // SAFETY: `result` is the immediately preceding SSL operation result.
+        let ssl_error = unsafe { ffi::SSL_get_error(self.ssl.as_ptr(), result) };
+        if result == -1 && ssl_error == ffi::SSL_ERROR_WANT_READ {
+            self.callback_error()?;
+            drain_error_queue();
+            Ok(HandshakeProgress::NeedsData)
+        } else {
+            Err(self.operation_failure("TLS handshake", Some(ssl_error)))
+        }
+    }
+
+    fn process_post_handshake(&self) -> Result<(), ClientSessionError> {
+        self.callback_error()?;
+        // SAFETY: the SSL is live and its initial handshake completed.
+        if unsafe { ffi::SSL_process_quic_post_handshake(self.ssl.as_ptr()) } != 1 {
+            return Err(self.operation_failure("post-handshake processing", None));
+        }
+        self.callback_error()
+    }
+
+    fn validate_completed_handshake(&self) -> Result<(), ClientSessionError> {
+        // SAFETY: the SSL is live and SSL_do_handshake returned success.
+        let version = unsafe { ffi::SSL_version(self.ssl.as_ptr()) };
+        if version != ffi::TLS1_3_VERSION {
+            return Err(ClientSessionError::UnexpectedProtocolVersion { actual: version });
+        }
+        // SAFETY: the SSL is live and its handshake completed.
+        if unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) } != 0 {
+            return Err(ClientSessionError::ResumptionAttempted);
+        }
+        // SAFETY: the SSL is live and its handshake completed.
+        if unsafe { ffi::SSL_in_early_data(self.ssl.as_ptr()) } != 0 {
+            return Err(ClientSessionError::EarlyDataActive);
+        }
+        let mut protocol = ptr::null();
+        let mut protocol_len = 0;
+        // SAFETY: output pointers are valid and the selected ALPN is SSL-owned.
+        unsafe {
+            ffi::SSL_get0_alpn_selected(self.ssl.as_ptr(), &mut protocol, &mut protocol_len);
+        }
+        if protocol.is_null() || protocol_len as usize != H3_PROTOCOL.len() {
+            return Err(ClientSessionError::AlpnNotNegotiated);
+        }
+        // SAFETY: BoringSSL returned `protocol_len` readable SSL-owned bytes.
+        if unsafe { slice::from_raw_parts(protocol, protocol_len as usize) } != H3_PROTOCOL {
+            return Err(ClientSessionError::AlpnNotNegotiated);
+        }
+        Ok(())
+    }
+
+    fn callback_error(&self) -> Result<(), ClientSessionError> {
+        match self.callbacks.terminal_error() {
+            Some(error) => Err(ClientSessionError::Callback(error)),
+            None => Ok(()),
+        }
+    }
+
+    fn operation_failure(
+        &self,
+        operation: &'static str,
+        ssl_error: Option<i32>,
+    ) -> ClientSessionError {
+        if let Some(error) = self.callbacks.terminal_error() {
+            drain_error_queue();
+            return ClientSessionError::Callback(error);
+        }
+        drain_error_queue();
+        match ssl_error {
+            Some(ssl_error) => ClientSessionError::TlsFailure {
+                operation,
+                ssl_error,
+            },
+            None => ClientSessionError::BackendFailure(operation),
+        }
+    }
+}
+
+fn raw_level(level: EncryptionLevel) -> ffi::ssl_encryption_level_t {
+    match level {
+        EncryptionLevel::Initial => ffi::ssl_encryption_level_t::ssl_encryption_initial,
+        EncryptionLevel::Handshake => ffi::ssl_encryption_level_t::ssl_encryption_handshake,
+        EncryptionLevel::Application => ffi::ssl_encryption_level_t::ssl_encryption_application,
+    }
+}
+
+fn backend_failure(operation: &'static str) -> ClientSessionError {
+    drain_error_queue();
+    ClientSessionError::BackendFailure(operation)
+}
+
+#[cfg(test)]
+mod tests;
