@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use btls::ssl::{ExtensionType, KeyShare, SslConnectorBuilder, SslOptions, SslVersion};
+use btls::ssl::{ExtensionType, KeyShare, SslContextBuilder, SslOptions, SslVersion};
 use phantom_profile::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
     NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
@@ -16,7 +16,7 @@ use super::{
 };
 
 pub(super) fn apply(
-    builder: &mut SslConnectorBuilder,
+    builder: &mut SslContextBuilder,
     settings: &TlsSettings,
 ) -> Result<(), TlsError> {
     builder
@@ -201,7 +201,7 @@ fn delegated_credential_signature_name(scheme: SignatureScheme) -> Result<&'stat
 }
 
 fn apply_extension_order(
-    builder: &mut SslConnectorBuilder,
+    builder: &mut SslContextBuilder,
     order: &ClientHelloExtensionOrder,
 ) -> Result<(), TlsError> {
     match order {
