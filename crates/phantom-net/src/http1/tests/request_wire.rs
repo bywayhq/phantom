@@ -15,6 +15,7 @@ use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
+    OrderedResponseHeaders,
     http1::{Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader, send_get},
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
@@ -118,6 +119,50 @@ async fn accepts_interim_response_across_one_byte_reads() -> TestResult {
         assert_eq!(response.headers().get("x-final"), Some(&"kept".parse()?));
         assert!(response.headers().get("x-interim").is_none());
         assert_eq!(response.into_body().collect().await?.to_bytes(), "hello");
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn response_extension_retains_global_order_duplicates_and_casing() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            server
+                .write_all(
+                    b"HTTP/1.1 103 Early Hints\r\nX-Ignored: interim\r\n\r\n\
+                      HTTP/1.1 200 OK\r\nSet-Cookie: first=1\r\nX-MiXeD: middle\r\nset-cookie: second=2\r\nX-OWS:\t value \t\r\nContent-Length: 0\r\n\r\n",
+                )
+                .await
+        });
+
+        let response =
+            send_get(OneByteReadStream { inner: client }, target()?, vec![host()]).await?;
+        let ordered = response
+            .extensions()
+            .get::<OrderedResponseHeaders>()
+            .ok_or("response omitted ordered headers")?;
+        let observed = ordered
+            .iter()
+            .map(|header| (header.name(), header.value()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            observed,
+            [
+                ("Set-Cookie", b"first=1".as_slice()),
+                ("X-MiXeD", b"middle".as_slice()),
+                ("set-cookie", b"second=2".as_slice()),
+                ("X-OWS", b"value".as_slice()),
+                ("Content-Length", b"0".as_slice()),
+            ]
+        );
+        assert_eq!(
+            ordered.as_slice()[3].value(),
+            response.headers()["x-ows"].as_bytes()
+        );
         server_task.await??;
         Ok(())
     })

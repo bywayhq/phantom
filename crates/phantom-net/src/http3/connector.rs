@@ -15,7 +15,10 @@ use super::{
     Http3Body, Http3Error, Http3ErrorKind, OriginForm, RequestHeader, prepare_traced_get,
     send_request, settings,
 };
-use crate::tls::{TlsConnector, TlsError, TlsErrorKind};
+use crate::{
+    direct::{RuntimeUnavailable, poll_tokio_io},
+    tls::{TlsConnector, TlsError, TlsErrorKind},
+};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
 
@@ -115,12 +118,16 @@ impl Http3Connector {
             .map_err(Http3ConnectorError::invalid_server_name)?;
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
-        let addresses = tokio::net::lookup_host((host, port))
-            .await
-            .map_err(Http3ConnectorError::resolve)?
-            .collect::<Vec<_>>();
-        self.send_prepared_to_addresses(addresses, server_name, request)
-            .await
+        poll_tokio_io(|| async {
+            let addresses = tokio::net::lookup_host((host, port))
+                .await
+                .map_err(Http3ConnectorError::resolve)?
+                .collect::<Vec<_>>();
+            self.send_prepared_to_addresses(addresses, server_name, request)
+                .await
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
     }
 
     pub(super) async fn send_prepared_to_addresses(

@@ -1,72 +1,39 @@
 diff --git a/.cargo-ok b/.cargo-ok
 new file mode 100644
-index 0000000000000000000000000000000000000000..5f8b795830acbab5961c1a28c76a7916c9631493
+index 0000000..5f8b795
 --- /dev/null
 +++ b/.cargo-ok
 @@ -0,0 +1 @@
 +{"v":1}
 \ No newline at end of file
 diff --git a/Cargo.toml b/Cargo.toml
-index 6657482ff182ae90b9dd6746a619a448687af506..50ce3b9ae1f714ac4f76e972c009a8b980043ed4 100644
+index 6657482..50ce3b9 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -157,6 +157,7 @@ features = [
-     "macros",
-     "sync",
-     "net",
+@@ -159,0 +160 @@ features = [
 +    "time",
- ]
- 
- [dev-dependencies.tokio-rustls]
 diff --git a/Cargo.toml.orig b/Cargo.toml.orig
-index 2fa7548b189570d0f01524851565f84f584ea3bc..2f13e18cbbd135d1063a976862f757f624cd5082 100644
+index 2fa7548..2f13e18 100644
 --- a/Cargo.toml.orig
 +++ b/Cargo.toml.orig
-@@ -82,6 +82,7 @@ tokio = { version = "1", features = [
-     "macros",
-     "sync",
-     "net",
+@@ -84,0 +85 @@ tokio = { version = "1", features = [
 +    "time",
- ] }
- env_logger = { version = "0.10", default-features = false }
- 
 diff --git a/src/client.rs b/src/client.rs
-index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..a4c945742276c37bcdc923507318a8764c481c31 100644
+index 40f7279..a4c9457 100644
 --- a/src/client.rs
 +++ b/src/client.rs
-@@ -136,7 +136,7 @@
- //! [`Error`]: ../struct.Error.html
- 
- use crate::codec::{Codec, SendError, UserError};
+@@ -139 +139 @@ use crate::codec::{Codec, SendError, UserError};
 -use crate::ext::Protocol;
 +use crate::ext::{OrderedHeaders, Protocol};
- #[cfg(feature = "unstable")]
- use crate::frame::ExperimentalSettings;
- use crate::frame::{
-@@ -340,6 +340,10 @@ pub struct Builder {
-     /// Initial `Settings` frame to send as part of the handshake.
-     settings: Settings,
- 
+@@ -342,0 +343,4 @@ pub struct Builder {
 +    /// Settings received through a transport parameter before HTTP/2 starts.
 +    #[cfg(feature = "unstable")]
 +    initial_peer_settings: Option<Settings>,
 +
-     /// The stream ID of the first (lowest) stream. Subsequent streams will use
-     /// monotonically increasing stream IDs.
-     stream_id: StreamId,
-@@ -676,6 +680,8 @@ impl Builder {
-             initial_target_connection_window_size: None,
-             initial_max_send_streams: usize::MAX,
-             settings: Default::default(),
+@@ -678,0 +683,2 @@ impl Builder {
 +            #[cfg(feature = "unstable")]
 +            initial_peer_settings: None,
-             stream_id: 1.into(),
-             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
-             headers_pseudo_order: None,
-@@ -1177,6 +1183,17 @@ impl Builder {
-         self
-     }
- 
+@@ -1179,0 +1186,11 @@ impl Builder {
 +    /// Seeds settings learned from the peer before HTTP/2 application data.
 +    ///
 +    /// The settings are applied before the returned [`SendRequest`] is
@@ -78,45 +45,21 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..a4c945742276c37bcdc923507318a876
 +        self
 +    }
 +
-     /// Configures custom experimental HTTP/2 setting.
-     ///
-     /// This setting is reserved for future use or experimental purposes.
-@@ -1403,6 +1420,8 @@ where
-         mut io: T,
-         builder: Builder,
-     ) -> Result<(SendRequest<B>, Connection<T, B>), crate::Error> {
+@@ -1405,0 +1423,2 @@ where
 +        #[cfg(feature = "unstable")]
 +        let initial_peer_settings = builder.initial_peer_settings.clone();
-         bind_connection(&mut io).await?;
- 
-         // Create the codec
-@@ -1421,7 +1440,7 @@ where
-             .buffer((builder.settings.clone()).into())
-             .expect("invalid SETTINGS frame");
- 
+@@ -1424 +1443 @@ where
 -        let inner = proto::Connection::new(
 +        let mut inner = proto::Connection::new(
-             codec,
-             proto::Config {
-                 next_stream_id: builder.stream_id,
-@@ -1437,6 +1456,10 @@ where
-                 settings: builder.settings,
-             },
-         );
+@@ -1439,0 +1459,4 @@ where
 +        #[cfg(feature = "unstable")]
 +        if let Some(settings) = initial_peer_settings {
 +            inner.apply_initial_peer_settings(settings)?;
 +        }
-         let send_request = SendRequest {
-             inner: inner.streams().clone(),
-             pending: None,
-@@ -1536,16 +1559,14 @@ where
-     type Output = Result<(), crate::Error>;
- 
-     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+@@ -1539,2 +1561,0 @@ where
 -        self.inner.maybe_close_connection_if_no_streams();
 -        let had_streams_or_refs = self.inner.has_streams_or_other_references();
-         let result = self.inner.poll(cx).map_err(Into::into);
+@@ -1542,7 +1563,7 @@ where
 -        // if we had streams/refs, and don't anymore, wake up one more time to
 -        // ensure proper shutdown
 -        if result.is_pending()
@@ -131,19 +74,9 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..a4c945742276c37bcdc923507318a876
 +        // state's `poll_complete`, losing that queued frame.
 +        if result.is_pending() && self.inner.maybe_close_connection_if_no_streams() {
 +            tracing::trace!("last stream closed, wake once more to shut down");
-             cx.waker().wake_by_ref();
-         }
-         result
-@@ -1717,11 +1738,20 @@ impl Peer {
-                 uri,
-                 headers,
-                 version,
+@@ -1719,0 +1741 @@ impl Peer {
 +                mut extensions,
-                 ..
-             },
-             _,
-         ) = request.into_parts();
- 
+@@ -1724,0 +1747,8 @@ impl Peer {
 +        let ordered_headers = extensions.remove::<OrderedHeaders>();
 +        if matches!(
 +            ordered_headers.as_ref(),
@@ -152,32 +85,17 @@ index 40f727984ea064e1bbc5004f1dd2ca8255be51ca..a4c945742276c37bcdc923507318a876
 +            return Err(UserError::MalformedHeaders.into());
 +        }
 +
-         let is_connect = method == Method::CONNECT;
- 
-         // Build the set pseudo header set. All requests will include `method`
-@@ -1763,6 +1793,9 @@ impl Peer {
- 
-         // Create the HEADERS frame
-         let mut headers_frame = Headers::new(id, pseudo, headers);
+@@ -1765,0 +1796,3 @@ impl Peer {
 +        if let Some(ordered) = ordered_headers {
 +            headers_frame.set_ordered_fields(ordered.into_inner());
 +        }
-         if let Some(stream_dep) = headers_stream_dependency {
-             headers_frame.set_stream_dependency(stream_dep);
-         }
-@@ -1775,6 +1808,9 @@ impl Peer {
-     }
- }
- 
+@@ -1777,0 +1811,3 @@ impl Peer {
 +#[cfg(test)]
 +mod tests;
 +
- impl proto::Peer for Peer {
-     type Poll = Response<()>;
- 
 diff --git a/src/client/tests.rs b/src/client/tests.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..b4cf86069c00017435a07ebb253b57e869c1f559
+index 0000000..b4cf860
 --- /dev/null
 +++ b/src/client/tests.rs
 @@ -0,0 +1,752 @@
@@ -934,57 +852,43 @@ index 0000000000000000000000000000000000000000..b4cf86069c00017435a07ebb253b57e8
 +    }
 +}
 diff --git a/src/codec/framed_write.rs b/src/codec/framed_write.rs
-index 387702dc1d7b80edf296e49924acdeeb21b20d67..9bb8e136bd383289c8671f3103ca8f7c09e623c5 100644
+index 387702d..9bb8e13 100644
 --- a/src/codec/framed_write.rs
 +++ b/src/codec/framed_write.rs
-@@ -340,6 +340,12 @@ impl<T, B> FramedWrite<T, B> {
-     pub fn get_mut(&mut self) -> &mut T {
-         &mut self.inner
-     }
+@@ -342,0 +343,6 @@ impl<T, B> FramedWrite<T, B> {
 +
 +    #[cfg(test)]
 +    pub(crate) fn fill_write_capacity_for_test(&mut self) {
 +        let capacity = self.encoder.buf.get_ref().capacity();
 +        self.encoder.buf.get_mut().resize(capacity, 0);
 +    }
- }
- 
- impl<T: AsyncRead + Unpin, B> AsyncRead for FramedWrite<T, B> {
 diff --git a/src/codec/mod.rs b/src/codec/mod.rs
-index 6cbdc1e189073759fc798324e01128b07e0ac24a..5513f11d8b9de26294c5b4d786c60cb27d27153b 100644
+index 6cbdc1e..5513f11 100644
 --- a/src/codec/mod.rs
 +++ b/src/codec/mod.rs
-@@ -124,6 +124,11 @@ impl<T, B> Codec<T, B> {
-     fn framed_write(&mut self) -> &mut FramedWrite<T, B> {
-         self.inner.get_mut()
-     }
+@@ -126,0 +127,5 @@ impl<T, B> Codec<T, B> {
 +
 +    #[cfg(test)]
 +    pub(crate) fn fill_write_capacity_for_test(&mut self) {
 +        self.framed_write().fill_write_capacity_for_test();
 +    }
- }
- 
- impl<T, B> Codec<T, B>
 diff --git a/src/ext.rs b/src/ext.rs
-index cf383a4950c7eeb171f833009e53965e6705c386..b97fd0654f34d7a7dbebe900c2d5da4659d03e49 100644
+index cf383a4..84dcaad 100644
 --- a/src/ext.rs
 +++ b/src/ext.rs
-@@ -3,8 +3,50 @@
- use crate::hpack::BytesStr;
- 
- use bytes::Bytes;
+@@ -5,0 +6 @@ use bytes::Bytes;
 +use http::{HeaderMap, HeaderName, HeaderValue};
- use std::fmt;
- 
-+/// Exact wire order for the ordinary fields of an outgoing request.
+@@ -7,0 +9,43 @@ use std::fmt;
++/// Exact wire order for ordinary header fields.
 +///
-+/// Store this value in a request's extensions before sending it. Pseudo-header
-+/// order is configured separately. The ordered fields must describe the same
-+/// semantic multimap as the request's [`HeaderMap`], including duplicate
-+/// values and their per-name order, or the request is rejected as malformed.
-+/// Global field-name order is intentionally ignored during that comparison
-+/// because `HeaderMap` does not preserve it.
++/// Store this value in a request's extensions to control its field order.
++/// Received requests and responses also carry this value in their extensions
++/// with the order produced by HPACK decoding. Pseudo-headers are excluded.
++/// Outgoing ordered fields must describe the same semantic multimap as the
++/// request's [`HeaderMap`], including duplicate values and their per-name
++/// order, or the request is rejected as malformed. Global field-name order is
++/// intentionally ignored during that comparison because `HeaderMap` does not
++/// preserve it.
 +#[derive(Clone, Debug, Eq, PartialEq)]
 +pub struct OrderedHeaders {
 +    headers: Vec<(HeaderName, HeaderValue)>,
@@ -1018,17 +922,11 @@ index cf383a4950c7eeb171f833009e53965e6705c386..b97fd0654f34d7a7dbebe900c2d5da46
 +    }
 +}
 +
- /// Represents the `:protocol` pseudo-header used by
- /// the [Extended CONNECT Protocol].
- ///
 diff --git a/src/frame/headers.rs b/src/frame/headers.rs
-index 43ec9cceab3b8773b9f329342fd01847e9c935be..971a94871c3ce91d343a94180c5d3028c1a3efd6 100644
+index 43ec9cc..1b19cc4 100644
 --- a/src/frame/headers.rs
 +++ b/src/frame/headers.rs
-@@ -188,7 +188,13 @@ pub struct Iter {
-     pseudo: Option<Pseudo>,
- 
-     /// Header fields
+@@ -191 +191,7 @@ pub struct Iter {
 -    fields: header::IntoIter<HeaderValue>,
 +    fields: FieldIter,
 +}
@@ -1037,74 +935,39 @@ index 43ec9cceab3b8773b9f329342fd01847e9c935be..971a94871c3ce91d343a94180c5d3028
 +enum FieldIter {
 +    Map(header::IntoIter<HeaderValue>),
 +    Ordered(std::vec::IntoIter<(HeaderName, HeaderValue)>),
- }
- 
- #[derive(Debug, PartialEq, Eq)]
-@@ -196,6 +202,9 @@ struct HeaderBlock {
-     /// The decoded header fields
-     fields: HeaderMap,
- 
+@@ -198,0 +205,3 @@ struct HeaderBlock {
 +    /// Exact ordinary-header order for an outgoing request.
 +    ordered_fields: Option<Vec<(HeaderName, HeaderValue)>>,
 +
-     /// Precomputed size of all of our header fields, for perf reasons
-     field_size: usize,
- 
-@@ -229,6 +238,7 @@ impl Headers {
-             header_block: HeaderBlock {
-                 field_size: calculate_headermap_size(&fields),
-                 fields,
+@@ -231,0 +241 @@ impl Headers {
 +                ordered_fields: None,
-                 is_over_size: false,
-                 pseudo,
-             },
-@@ -246,6 +256,7 @@ impl Headers {
-             header_block: HeaderBlock {
-                 field_size: calculate_headermap_size(&fields),
-                 fields,
+@@ -248,0 +259 @@ impl Headers {
 +                ordered_fields: None,
-                 is_over_size: false,
-                 pseudo: Pseudo::default(),
-             },
-@@ -310,6 +321,7 @@ impl Headers {
-             stream_dep,
-             header_block: HeaderBlock {
-                 fields: HeaderMap::new(),
-+                ordered_fields: None,
-                 field_size: 0,
-                 is_over_size: false,
-                 pseudo: Pseudo::default(),
-@@ -372,6 +384,10 @@ impl Headers {
-         self.stream_dep = Some(stream_dep);
-     }
- 
+@@ -312,0 +324 @@ impl Headers {
++                ordered_fields: Some(Vec::new()),
+@@ -359,0 +372,12 @@ impl Headers {
++    pub(crate) fn into_parts_with_order(
++        self,
++    ) -> (Pseudo, HeaderMap, Option<crate::ext::OrderedHeaders>) {
++        (
++            self.header_block.pseudo,
++            self.header_block.fields,
++            self.header_block
++                .ordered_fields
++                .map(crate::ext::OrderedHeaders::new),
++        )
++    }
++
+@@ -374,0 +399,4 @@ impl Headers {
 +    pub(crate) fn set_ordered_fields(&mut self, fields: Vec<(HeaderName, HeaderValue)>) {
 +        self.header_block.ordered_fields = Some(fields);
 +    }
 +
-     /// Whether it has status 1xx
-     pub(crate) fn is_informational(&self) -> bool {
-         self.header_block.pseudo.is_informational()
-@@ -482,6 +498,7 @@ impl PushPromise {
-             header_block: HeaderBlock {
-                 field_size: calculate_headermap_size(&fields),
-                 fields,
+@@ -484,0 +513 @@ impl PushPromise {
 +                ordered_fields: None,
-                 is_over_size: false,
-                 pseudo,
-             },
-@@ -572,6 +589,7 @@ impl PushPromise {
-             flags,
-             header_block: HeaderBlock {
-                 fields: HeaderMap::new(),
-+                ordered_fields: None,
-                 field_size: 0,
-                 is_over_size: false,
-                 pseudo: Pseudo::default(),
-@@ -871,6 +889,17 @@ impl Iterator for Iter {
-     }
- }
- 
+@@ -574,0 +604 @@ impl PushPromise {
++                ordered_fields: Some(Vec::new()),
+@@ -873,0 +904,11 @@ impl Iterator for Iter {
 +impl Iterator for FieldIter {
 +    type Item = (Option<HeaderName>, HeaderValue);
 +
@@ -1116,65 +979,86 @@ index 43ec9cceab3b8773b9f329342fd01847e9c935be..971a94871c3ce91d343a94180c5d3028
 +    }
 +}
 +
- // ===== impl HeadersFlag =====
- 
- impl HeadersFlag {
-@@ -1112,9 +1141,13 @@ impl HeaderBlock {
- 
-     fn into_encoding(self, encoder: &mut hpack::Encoder) -> EncodingHeaderBlock {
-         let mut hpack = BytesMut::new();
+@@ -1072 +1113,4 @@ impl HeaderBlock {
+-                            if let Err(_) = self.fields.try_append(name, value) {
++                            if let Some(ordered) = self.ordered_fields.as_mut() {
++                                ordered.push((name.clone(), value.clone()));
++                            }
++                            if self.fields.try_append(name, value).is_err() {
+@@ -1114,0 +1159,4 @@ impl HeaderBlock {
 +        let fields = match self.ordered_fields {
 +            Some(fields) => FieldIter::Ordered(fields.into_iter()),
 +            None => FieldIter::Map(self.fields.into_iter()),
 +        };
-         let headers = Iter {
-             pseudo: Some(self.pseudo),
+@@ -1117 +1165 @@ impl HeaderBlock {
 -            fields: self.fields.into_iter(),
 +            fields,
-         };
- 
-         encoder.encode(headers, &mut hpack);
+@@ -1171,0 +1220,45 @@ mod test {
++    #[test]
++    fn hpack_decode_retains_global_field_order_and_duplicates() {
++        let ordered = vec![
++            (
++                HeaderName::from_static("set-cookie"),
++                HeaderValue::from_static("first=1"),
++            ),
++            (
++                HeaderName::from_static("x-middle"),
++                HeaderValue::from_static("value"),
++            ),
++            (
++                HeaderName::from_static("set-cookie"),
++                HeaderValue::from_static("second=2"),
++            ),
++        ];
++        let mut semantic = HeaderMap::new();
++        for (name, value) in &ordered {
++            semantic.append(name, value.clone());
++        }
++        let encoded = HeaderBlock {
++            fields: semantic,
++            ordered_fields: Some(ordered.clone()),
++            field_size: 0,
++            is_over_size: false,
++            pseudo: Pseudo::response(StatusCode::OK),
++        }
++        .into_encoding(&mut Encoder::default())
++        .hpack;
++
++        let mut encoded = BytesMut::from(encoded.as_ref());
++        let mut decoded = HeaderBlock {
++            fields: HeaderMap::new(),
++            ordered_fields: Some(Vec::new()),
++            field_size: 0,
++            is_over_size: false,
++            pseudo: Pseudo::default(),
++        };
++        decoded
++            .load(&mut encoded, usize::MAX, &mut hpack::Decoder::default())
++            .unwrap();
++
++        assert_eq!(decoded.ordered_fields, Some(ordered));
++    }
++
 diff --git a/src/frame/settings.rs b/src/frame/settings.rs
-index c415da96d11ee0ac622a7a73436fbbaaa2562f5d..71df47e793d9d9e850cbf236972ff47d33868d4f 100644
+index c415da9..71df47e 100644
 --- a/src/frame/settings.rs
 +++ b/src/frame/settings.rs
-@@ -346,6 +346,10 @@ impl Settings {
-         self.no_rfc7540_priorities = Some(enable as u32);
-     }
- 
+@@ -348,0 +349,4 @@ impl Settings {
 +    pub fn is_no_rfc7540_priorities(&self) -> Option<bool> {
 +        self.no_rfc7540_priorities.map(|value| value != 0)
 +    }
 +
-     #[cfg(feature = "unstable")]
-     pub fn set_experimental_settings(&mut self, experimental_settings: ExperimentalSettings) {
-         self.experimental_settings = Some(experimental_settings)
 diff --git a/src/proto/connection.rs b/src/proto/connection.rs
-index 89ec584ae610570941abce3ffa604db731dba860..c3976f63c0c0b8b665a46e66ee049a5bcf772440 100644
+index 89ec584..c3976f6 100644
 --- a/src/proto/connection.rs
 +++ b/src/proto/connection.rs
-@@ -24,6 +24,9 @@ where
-     codec: Codec<T, Prioritized<B>>,
- 
-     inner: ConnectionInner<P, B>,
+@@ -26,0 +27,3 @@ where
 +
 +    /// Prevents repeated self-wakes while an idle GOAWAY awaits codec capacity.
 +    idle_close_requested: bool,
- }
- 
- // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
-@@ -139,6 +142,7 @@ where
-         span.follows_from(::tracing::Span::current());
-         Connection {
-             codec,
+@@ -141,0 +145 @@ where
 +            idle_close_requested: false,
-             inner: ConnectionInner {
-                 state: State::Open,
-                 error: None,
-@@ -244,13 +248,19 @@ where
-         }
-     }
- 
+@@ -247,6 +251,9 @@ where
 -    /// Closes the connection by transitioning to a GOAWAY state
 -    /// iff there are no streams or references
 -    pub fn maybe_close_connection_if_no_streams(&mut self) {
@@ -1190,17 +1074,11 @@ index 89ec584ae610570941abce3ffa604db731dba860..c3976f63c0c0b8b665a46e66ee049a5b
 +            && !self.inner.streams.has_streams_or_other_references()
 +        {
 +            self.idle_close_requested = true;
-             self.inner.as_dyn().go_away_now(Reason::NO_ERROR);
+@@ -253,0 +261,3 @@ where
 +            true
 +        } else {
 +            false
-         }
-     }
- 
-@@ -259,17 +269,27 @@ where
-         self.inner.streams.has_streams()
-     }
- 
+@@ -262,7 +271,0 @@ where
 -    /// Checks if there are any streams or references left
 -    pub fn has_streams_or_other_references(&self) -> bool {
 -        // If we poll() and realize that there are no streams or references
@@ -1208,10 +1086,7 @@ index 89ec584ae610570941abce3ffa604db731dba860..c3976f63c0c0b8b665a46e66ee049a5b
 -        self.inner.streams.has_streams_or_other_references()
 -    }
 -
-     pub(crate) fn take_user_pings(&mut self) -> Option<UserPings> {
-         self.inner.ping_pong.take_user_pings()
-     }
- 
+@@ -272,0 +276,17 @@ where
 +    #[cfg(feature = "unstable")]
 +    pub(crate) fn apply_initial_peer_settings(
 +        &mut self,
@@ -1229,13 +1104,7 @@ index 89ec584ae610570941abce3ffa604db731dba860..c3976f63c0c0b8b665a46e66ee049a5b
 +        self.codec.fill_write_capacity_for_test();
 +    }
 +
-     /// Advances the internal state of the connection.
-     pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), Error>> {
-         // XXX(eliza): cloning the span is unfortunately necessary here in
-@@ -355,11 +375,15 @@ where
-             }
-             ready!(self.poll_ready(cx))?;
- 
+@@ -358,4 +378,3 @@ where
 -            match self
 -                .inner
 -                .as_dyn()
@@ -1243,52 +1112,28 @@ index 89ec584ae610570941abce3ffa604db731dba860..c3976f63c0c0b8b665a46e66ee049a5b
 +            let frame = ready!(Pin::new(&mut self.codec).poll_next(cx)?);
 +            if self.inner.settings.requires_remote_initial_settings()
 +                && !matches!(&frame, Some(Frame::Settings(settings)) if !settings.is_ack())
-             {
+@@ -362,0 +382,5 @@ where
 +                proto_err!(conn: "first peer frame was not a non-ACK SETTINGS frame");
 +                return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
 +            }
 +
 +            match self.inner.as_dyn().recv_frame(frame)? {
-                 ReceivedFrame::Settings(frame) => {
-                     self.inner.settings.recv_settings(
-                         frame,
 diff --git a/src/proto/settings.rs b/src/proto/settings.rs
-index 3ed4574d6c47e33ae751ed759c37382f22965af0..c8a28890aacca163457b2f362a7d633e84662c6d 100644
+index 3ed4574..c8a2889 100644
 --- a/src/proto/settings.rs
 +++ b/src/proto/settings.rs
-@@ -15,6 +15,10 @@ pub(crate) struct Settings {
-     /// Whether the connection has received the initial SETTINGS frame from the
-     /// remote peer.
-     has_received_remote_initial_settings: bool,
+@@ -17,0 +18,4 @@ pub(crate) struct Settings {
 +    /// Sticky remote state required by RFC 8441.
 +    remote_extended_connect_protocol_enabled: bool,
 +    /// The RFC 9218 value established by the remote peer's initial settings.
 +    remote_no_rfc7540_priorities: bool,
- }
- 
- #[derive(Debug)]
-@@ -36,6 +40,8 @@ impl Settings {
-             local: Local::WaitingAck(local),
-             remote: None,
-             has_received_remote_initial_settings: false,
+@@ -38,0 +43,2 @@ impl Settings {
 +            remote_extended_connect_protocol_enabled: false,
 +            remote_no_rfc7540_priorities: false,
-         }
-     }
- 
-@@ -83,6 +89,8 @@ impl Settings {
-             // We always ACK before reading more frames, so `remote` should
-             // always be none!
-             assert!(self.remote.is_none());
+@@ -85,0 +92,2 @@ impl Settings {
 +            let is_initial = !self.has_received_remote_initial_settings;
 +            self.validate_remote_settings::<P>(&frame, is_initial)?;
-             self.remote = Some(frame);
-             Ok(())
-         }
-@@ -100,13 +108,32 @@ impl Settings {
-         }
-     }
- 
+@@ -103,5 +111,20 @@ impl Settings {
 -    /// Sets `true` to `self.has_received_remote_initial_settings`.
 -    /// Returns `true` if this method is called for the first time.
 -    /// (i.e. it is the initial SETTINGS frame from the remote peer)
@@ -1314,20 +1159,14 @@ index 3ed4574d6c47e33ae751ed759c37382f22965af0..c8a28890aacca163457b2f362a7d633e
 +        self.validate_remote_settings::<P>(&frame, true)?;
 +        Self::apply_remote_settings(&frame, codec, streams, true)?;
 +        self.record_remote_settings(&frame, true);
-         self.has_received_remote_initial_settings = true;
+@@ -109 +132,5 @@ impl Settings {
 -        !has_received
 +        Ok(())
 +    }
 +
 +    pub(crate) fn requires_remote_initial_settings(&self) -> bool {
 +        !self.has_received_remote_initial_settings
-     }
- 
-     pub(crate) fn poll_send<T, B, C, P>(
-@@ -134,16 +161,10 @@ impl Settings {
- 
-             tracing::trace!("ACK sent; applying settings");
- 
+@@ -137,10 +164,4 @@ impl Settings {
 -            let is_initial = self.mark_remote_initial_settings_as_received();
 -            streams.apply_remote_settings(&settings, is_initial)?;
 -
@@ -1342,13 +1181,7 @@ index 3ed4574d6c47e33ae751ed759c37382f22965af0..c8a28890aacca163457b2f362a7d633e
 +            Self::apply_remote_settings(&settings, dst, streams, is_initial)?;
 +            self.record_remote_settings(&settings, is_initial);
 +            self.has_received_remote_initial_settings = true;
-         }
- 
-         self.remote = None;
-@@ -166,4 +187,65 @@ impl Settings {
- 
-         Poll::Ready(Ok(()))
-     }
+@@ -168,0 +190,61 @@ impl Settings {
 +
 +    fn apply_remote_settings<T, B, C, P>(
 +        settings: &frame::Settings,
@@ -1410,59 +1243,64 @@ index 3ed4574d6c47e33ae751ed759c37382f22965af0..c8a28890aacca163457b2f362a7d633e
 +                settings.is_no_rfc7540_priorities().unwrap_or(false);
 +        }
 +    }
- }
+diff --git a/src/proto/streams/recv.rs b/src/proto/streams/recv.rs
+index 790c989..055b2dd 100644
+--- a/src/proto/streams/recv.rs
++++ b/src/proto/streams/recv.rs
+@@ -84,0 +85,17 @@ pub(crate) enum Open {
++fn insert_ordered_fields(
++    message: &mut peer::PollMessage,
++    ordered_fields: Option<crate::ext::OrderedHeaders>,
++) {
++    let Some(ordered_fields) = ordered_fields else {
++        return;
++    };
++    match message {
++        peer::PollMessage::Client(response) => {
++            response.extensions_mut().insert(ordered_fields);
++        }
++        peer::PollMessage::Server(request) => {
++            request.extensions_mut().insert(ordered_fields);
++        }
++    }
++}
++
+@@ -236 +253 @@ impl Recv {
+-        let (pseudo, fields) = frame.into_parts();
++        let (pseudo, fields, ordered_fields) = frame.into_parts_with_order();
+@@ -252 +269 @@ impl Recv {
+-            let message = counts
++            let mut message = counts
+@@ -254,0 +272 @@ impl Recv {
++            insert_ordered_fields(&mut message, ordered_fields);
+@@ -272 +290 @@ impl Recv {
+-            let message = counts
++            let mut message = counts
+@@ -274,0 +293 @@ impl Recv {
++            insert_ordered_fields(&mut message, ordered_fields);
 diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
-index 4f4b69eb5a695812bc61f5b5bc075982dbff99f2..ce137cf726fb209a45cc5678290c83ccef424f4b 100644
+index 4f4b69e..ce137cf 100644
 --- a/src/proto/streams/streams.rs
 +++ b/src/proto/streams/streams.rs
-@@ -18,7 +18,7 @@ use super::{
- use crate::{
-     client,
-     codec::{Codec, SendError, UserError},
+@@ -21 +21 @@ use crate::{
 -    ext::Protocol,
 +    ext::{OrderedHeaders, Protocol},
-     frame::{self, Frame, Reason},
-     proto,
-     proto::{peer, Error, Initiator, Open, Peer, WindowSize},
-@@ -97,6 +97,9 @@ struct Inner {
- 
-     /// Priority of the headers stream
-     priorities: Option<Priorities>,
+@@ -99,0 +100,3 @@ struct Inner {
 +
 +    /// Whether the peer declared that it ignores RFC 7540 priority signals.
 +    peer_ignores_rfc7540_priorities: bool,
- }
- 
- #[derive(Debug)]
-@@ -219,6 +222,10 @@ where
- 
-         me.counts.apply_remote_settings(frame, is_initial);
- 
+@@ -221,0 +225,4 @@ where
 +        if let Some(value) = frame.is_no_rfc7540_priorities() {
 +            me.peer_ignores_rfc7540_priorities = value;
 +        }
 +
-         me.actions.send.apply_remote_settings(
-             frame,
-             send_buffer,
-@@ -246,9 +253,13 @@ where
-         use super::stream::ContentLength;
- 
-         let protocol = request.extensions_mut().remove::<Protocol>();
+@@ -248,0 +256 @@ where
 +        let ordered_headers = request.extensions_mut().remove::<OrderedHeaders>();
- 
-         // Clear before taking lock, incase extensions contain a StreamRef.
-         request.extensions_mut().clear();
+@@ -251,0 +260,3 @@ where
 +        if let Some(ordered_headers) = ordered_headers {
 +            request.extensions_mut().insert(ordered_headers);
 +        }
- 
-         // TODO: There is a hazard with assigning a stream ID before the
-         // prioritize layer. If prioritization reorders new streams, this
-@@ -294,31 +305,42 @@ where
-         }
- 
-         // Priorities frame check before sending the request.
+@@ -297,8 +308,10 @@ where
 -        if let Some(priorities) = &me.priorities {
 -            let next_id = priorities
 -                .max_stream_id()
@@ -1481,42 +1319,21 @@ index 4f4b69eb5a695812bc61f5b5bc075982dbff99f2..ce137cf726fb209a45cc5678290c83cc
 +                if next_id > stream_id {
 +                    return Err(SendError::User(UserError::OverflowedStreamId));
 +                }
-             }
-         }
- 
-         // Convert the message
+@@ -308,0 +322 @@ where
 +        let send_rfc7540_priorities = !me.peer_ignores_rfc7540_priorities;
-         let headers = client::Peer::convert_send_message(
-             stream_id,
-             request,
-             protocol,
-             end_of_stream,
-             me.headers_pseudo_order.clone(),
+@@ -315 +329,5 @@ where
 -            me.headers_stream_dependency,
 +            if send_rfc7540_priorities {
 +                me.headers_stream_dependency
 +            } else {
 +                None
 +            },
-         )?;
- 
-         let mut stream = me.store.insert(stream.id, stream);
- 
-         let sent = me.actions.send.send_priority_and_headers(
+@@ -321 +339,5 @@ where
 -            me.priorities.clone(),
 +            if send_rfc7540_priorities {
 +                me.priorities.clone()
 +            } else {
 +                None
 +            },
-             headers,
-             send_buffer,
-             &mut stream,
-@@ -457,6 +479,7 @@ impl Inner {
-             headers_stream_dependency: config.headers_stream_dependency,
-             headers_pseudo_order: config.headers_pseudo_order,
-             priorities: config.priorities,
+@@ -459,0 +482 @@ impl Inner {
 +            peer_ignores_rfc7540_priorities: false,
-         }))
-     }
- 

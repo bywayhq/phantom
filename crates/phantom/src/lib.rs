@@ -6,6 +6,7 @@ mod client;
 mod error;
 mod request;
 mod route;
+mod session;
 #[cfg(feature = "sse")]
 mod sse;
 
@@ -14,6 +15,9 @@ pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use request::RequestBuilder;
 pub use route::{HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route};
+#[cfg(feature = "cookies")]
+pub use session::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
+pub use session::{Session, SessionBuilder};
 #[cfg(feature = "sse")]
 pub use sse::{SseError, SseErrorKind, SseEvent, SseLimits, SseStream};
 
@@ -58,3 +62,6 @@ pub mod profile {
 
 /// An ordered request field preserving spelling, value bytes, and position.
 pub use phantom_net::request::RequestHeader;
+
+/// Lossless ordinary response-field order attached to each response.
+pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};

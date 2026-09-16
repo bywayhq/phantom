@@ -202,7 +202,20 @@ async fn send_request_inner(
         };
         span.record("status", response.status().as_u16());
 
-        let (parts, ()) = response.into_parts();
+        let (mut parts, ()) = response.into_parts();
+        let ordered_headers = parts
+            .extensions
+            .remove::<h3::ext::OrderedHeaders>()
+            .map(|headers| {
+                crate::OrderedResponseHeaders::from_normalized_fields(headers.as_slice())
+            })
+            .ok_or_else(|| {
+                Http3Error::without_source(
+                    Http3ErrorKind::Protocol,
+                    "HTTP/3 response header order was not captured",
+                )
+            })?;
+        parts.extensions.insert(ordered_headers);
         let stream = pending.into_stream()?;
         Ok(Response::from_parts(
             parts,

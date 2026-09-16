@@ -252,6 +252,24 @@ starts bounded driver shutdown. The public client does not pool these
 connections yet, and GOAWAY admission, waiter limits, retries, coalescing, and
 pool keys remain Phase 6 work.
 
+The fifth landed slice exposes that seam through an isolated, cloneable public
+`Session`. Requests own cheap client/session handles, so builders are `Send +
+'static` rather than borrowing the facade. Each session retains compatible H2
+connections by canonical origin and complete route identity, shares concurrent
+same-key connection setup, bounds retained entries, keeps independent sessions
+isolated, and performs no hidden replay. Direct and plaintext-CONNECT tests
+prove sequential/concurrent reuse, tunnel reuse, pre-I/O validation, and
+stream-scoped cancellation.
+
+With the optional `cookies` feature, a session builder can explicitly activate
+a bounded in-memory jar or accept a caller-created one. Phantom delegates
+cookie syntax/domain/path/expiry mechanics to `cookie_store` while owning PSL,
+prefix, partitioning, quota, redacted-diagnostic, and RFC request-order policy.
+Invalid response fields are ignored independently; a caller-supplied Cookie
+field suppresses automatic injection for that request. SameSite navigation
+context, CHIPS, persistence, redirects, and browser-specific eviction remain
+future session slices rather than implicit claims.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.

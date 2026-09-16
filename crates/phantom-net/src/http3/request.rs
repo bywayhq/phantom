@@ -206,8 +206,9 @@ impl ValidatedHeaders {
             }
             let name = HeaderName::from_bytes(header.name().as_bytes())
                 .map_err(|_| invalid("HTTP/3 request header name is invalid"))?;
-            let value = HeaderValue::from_bytes(header.value())
+            let mut value = HeaderValue::from_bytes(header.value())
                 .map_err(|_| invalid("HTTP/3 request header value is invalid"))?;
+            value.set_sensitive(header.is_sensitive());
             validate_field(&name, &value)?;
             ordered.push((name, value));
         }

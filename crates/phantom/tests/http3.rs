@@ -18,7 +18,8 @@ use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route, profile::ClientProfile,
+    Client, HttpProtocol, HttpProxy, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
+    Route, profile::ClientProfile,
 };
 use tokio::{sync::oneshot, time::timeout};
 
@@ -85,6 +86,12 @@ async fn public_client_streams_http3_data_and_trailers() -> TestResult<()> {
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert!(
+            response
+                .extensions()
+                .get::<OrderedResponseHeaders>()
+                .is_some_and(OrderedResponseHeaders::is_empty)
+        );
 
         let mut body = response.into_body();
         assert_eq!(next_data(&mut body).await?, "first");

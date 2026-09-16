@@ -158,7 +158,7 @@ pub enum RequestErrorKind {
     Connect,
     /// Connecting to or negotiating with the configured proxy failed.
     Proxy,
-    /// The request was polled outside the required async runtime.
+    /// The request lacks a current Tokio runtime with network I/O enabled.
     RuntimeUnavailable,
     /// TLS setup or negotiation failed.
     Tls,
@@ -185,6 +185,16 @@ impl RequestError {
             RequestErrorKind::InvalidUri,
             None,
             "invalid request URI",
+            source,
+        )
+    }
+
+    #[cfg(feature = "cookies")]
+    pub(crate) fn invalid_cookie_url(source: url::ParseError) -> Self {
+        Self::with_source(
+            RequestErrorKind::InvalidUri,
+            None,
+            "request URI cannot be represented for cookie policy",
             source,
         )
     }

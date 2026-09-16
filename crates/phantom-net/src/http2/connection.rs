@@ -120,7 +120,15 @@ impl Http2Connection {
 
             span.record("status", response.status().as_u16());
             debug!("HTTP/2 response headers received");
-            let (parts, incoming) = response.into_parts();
+            let (mut parts, incoming) = response.into_parts();
+            let ordered_headers = parts
+                .extensions
+                .remove::<::http2::ext::OrderedHeaders>()
+                .map(|headers| {
+                    crate::OrderedResponseHeaders::from_normalized_fields(headers.as_slice())
+                })
+                .ok_or(Http2Error::MissingResponseHeaderOrder)?;
+            parts.extensions.insert(ordered_headers);
             Ok(Response::from_parts(
                 parts,
                 Http2Body::new(incoming, reset, self.lease()),

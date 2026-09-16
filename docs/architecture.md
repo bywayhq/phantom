@@ -2,8 +2,9 @@
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
 validated client profile. The current workspace owns profiles, a small routed
-H1/H2/H3 client facade, concrete request paths, and the validation harness. Later
-slices add reusable connections and session behavior. Phantom carries narrow,
+H1/H2/H3 client facade, concrete request paths, session-owned H2 reuse, optional
+bounded cookies, and the validation harness. Later slices extend reuse and
+session behavior. Phantom carries narrow,
 documented patches to upstream protocol engines only where their public APIs
 cannot preserve a measured client behavior.
 
@@ -23,7 +24,7 @@ commitments.
 flowchart TB
     User[Application]
     Client["phantom::Client<br/>small public facade"]
-    Session["Session state<br/>cookies · cache hints · tickets"]
+    Session["Session<br/>H2 pool · optional cookies"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Route["Current route<br/>direct · HTTP CONNECT"]
     FutureRoute["Later routes<br/>HTTPS proxy · SOCKS5 · UDP"]
@@ -42,7 +43,7 @@ flowchart TB
     FacadeRequest --> H1
     FacadeRequest --> H2
     FacadeRequest --> H3
-    Client -.-> Session
+    Client --> Session
     Client --> Route
     FutureRoute -.-> Route
     Client --> FacadeRequest
@@ -60,8 +61,8 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Client,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC,SSE current
-    class Session,FutureRoute,WS planned
+    class Client,Session,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC,SSE current
+    class FutureRoute,WS planned
 ```
 
 The optional SSE decoder is a response-body consumer, not another transport.
@@ -70,6 +71,14 @@ handshake and frame state machine while reusing the selected HTTP connection.
 H3 gets a separate QUIC path because forcing TCP and QUIC through one transport
 trait would hide protocol-specific lifecycle, telemetry, and fingerprint
 controls.
+
+All three transports return the standard `http::Response` semantic view and
+attach `OrderedResponseHeaders` to its extensions. This sidecar retains global
+ordinary-field order and duplicate interleaving without replacing the Rust
+ecosystem's normal response type. HTTP/1 also retains received field-name
+spelling; HTTP/2 and HTTP/3 names are lowercase by protocol. A transport fails
+explicitly if its engine does not supply the ordered view, so this contract
+cannot silently degrade to `HeaderMap` iteration.
 
 ## Routing and proxy seam
 
@@ -146,6 +155,14 @@ only after certificate authority, DNS/route identity, origin authorization,
 profile compatibility, and the selected stack's observable behavior are all
 proven. A connection is never shared across profile generations or route
 identities merely because two requests resolve to the same address.
+
+The current public pool is deliberately narrower than this final contract. A
+`Session` retains one reusable HTTP/2 connection per exact origin-and-route
+key, serializes only same-key cold connection setup, and evicts least-recently
+selected retained entries at a configurable bound. Different sessions never
+share connections. H1/H3 reuse, peer-limit admission, bounded waiters, GOAWAY
+draining, retries, and coalescing remain unimplemented. See [session state and
+pooling](session.md).
 
 The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.
 `phantom-quic-btls` implements Quinn's crypto-provider seam with the same

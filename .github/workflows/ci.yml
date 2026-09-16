@@ -52,7 +52,9 @@ jobs:
       - name: Check optional feature matrix
         run: |
           cargo check -p phantom --no-default-features --locked
+          cargo check -p phantom --no-default-features --features cookies --locked
           cargo check -p phantom --no-default-features --features sse --locked
+          cargo check -p phantom --no-default-features --features cookies,sse --locked
           cargo check -p phantom --all-features --locked
           cargo check -p phantom-net --no-default-features --locked
           cargo check -p phantom-net --no-default-features --features qlog --locked
@@ -191,7 +193,9 @@ jobs:
 
       - name: Check optional features
         run: |
+          cargo "+$MSRV" check -p phantom --no-default-features --features cookies --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features sse --locked
+          cargo "+$MSRV" check -p phantom --no-default-features --features cookies,sse --locked
           cargo "+$MSRV" check -p phantom --all-features --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked
           cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features keylog --locked

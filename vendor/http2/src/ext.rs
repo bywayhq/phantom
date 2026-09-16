@@ -6,14 +6,16 @@ use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue};
 use std::fmt;
 
-/// Exact wire order for the ordinary fields of an outgoing request.
+/// Exact wire order for ordinary header fields.
 ///
-/// Store this value in a request's extensions before sending it. Pseudo-header
-/// order is configured separately. The ordered fields must describe the same
-/// semantic multimap as the request's [`HeaderMap`], including duplicate
-/// values and their per-name order, or the request is rejected as malformed.
-/// Global field-name order is intentionally ignored during that comparison
-/// because `HeaderMap` does not preserve it.
+/// Store this value in a request's extensions to control its field order.
+/// Received requests and responses also carry this value in their extensions
+/// with the order produced by HPACK decoding. Pseudo-headers are excluded.
+/// Outgoing ordered fields must describe the same semantic multimap as the
+/// request's [`HeaderMap`], including duplicate values and their per-name
+/// order, or the request is rejected as malformed. Global field-name order is
+/// intentionally ignored during that comparison because `HeaderMap` does not
+/// preserve it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OrderedHeaders {
     headers: Vec<(HeaderName, HeaderValue)>,

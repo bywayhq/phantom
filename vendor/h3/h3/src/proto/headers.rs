@@ -134,7 +134,9 @@ impl Header {
         ))
     }
 
-    pub fn into_response_parts(self) -> Result<(StatusCode, HeaderMap), HeaderError> {
+    pub fn into_response_parts(
+        self,
+    ) -> Result<(StatusCode, HeaderMap, Option<OrderedHeaders>), HeaderError> {
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.2
         //= type=implication
         //# For responses, a single ":status" pseudo-header field is defined that
@@ -144,6 +146,7 @@ impl Header {
         Ok((
             self.pseudo.status.ok_or(HeaderError::MissingStatus)?,
             self.fields,
+            self.ordered_fields.map(OrderedHeaders::new),
         ))
     }
 
@@ -273,6 +276,7 @@ impl TryFrom<Vec<HeaderField>> for Header {
     type Error = HeaderError;
     fn try_from(headers: Vec<HeaderField>) -> Result<Self, Self::Error> {
         let mut fields = HeaderMap::with_capacity(headers.len());
+        let mut ordered_fields = Vec::with_capacity(headers.len());
         let mut pseudo = Pseudo::default();
         let mut regular_field_seen = false;
 
@@ -316,6 +320,7 @@ impl TryFrom<Vec<HeaderField>> for Header {
                 Field::Header((n, mut v)) => {
                     regular_field_seen = true;
                     v.set_sensitive(sensitive);
+                    ordered_fields.push((n.clone(), v.clone()));
                     fields.append(n, v);
                 }
                 Field::Protocol(p) => {
@@ -329,7 +334,7 @@ impl TryFrom<Vec<HeaderField>> for Header {
             pseudo,
             pseudo_order: None,
             fields,
-            ordered_fields: None,
+            ordered_fields: Some(ordered_fields),
         })
     }
 }
@@ -998,6 +1003,33 @@ mod tests {
         .find(|field| field.name.as_ref() == b"authorization")
         .unwrap();
         assert!(ordered.sensitive);
+    }
+
+    #[test]
+    fn decoded_response_retains_global_field_order_and_duplicates() {
+        let decoded = Header::try_from(vec![
+            HeaderField::new(":status", "200"),
+            HeaderField::new("set-cookie", "first=1"),
+            HeaderField::new("x-middle", "value"),
+            HeaderField::new("set-cookie", "second=2"),
+        ])
+        .unwrap();
+        let (_, _, ordered) = decoded.into_response_parts().unwrap();
+        let ordered = ordered.unwrap();
+        let observed = ordered
+            .as_slice()
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_bytes()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            observed,
+            [
+                ("set-cookie", b"first=1".as_slice()),
+                ("x-middle", b"value".as_slice()),
+                ("set-cookie", b"second=2".as_slice()),
+            ]
+        );
     }
 
     #[test]

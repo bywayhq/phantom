@@ -174,6 +174,28 @@ fn prepared_get_retains_cross_name_order_and_duplicates() -> TestResult<()> {
     Ok(())
 }
 
+#[test]
+fn sensitive_fields_reach_semantic_and_ordered_qpack_inputs() -> TestResult<()> {
+    let request = crate::http3::request::prepare_get(
+        &chromium::v152_macos_http3_request(),
+        "server.phantom.test",
+        OriginForm::parse("/sensitive")?,
+        vec![RequestHeader::new("cookie", "secret=value").sensitive()],
+    )?;
+    let semantic = request
+        .headers()
+        .get("cookie")
+        .ok_or("prepared HTTP/3 GET omitted semantic cookie")?;
+    let ordered = request
+        .extensions()
+        .get::<OrderedHeaders>()
+        .ok_or("prepared HTTP/3 GET omitted ordered headers")?;
+
+    assert!(semantic.is_sensitive());
+    assert!(ordered.as_slice()[0].1.is_sensitive());
+    Ok(())
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn rejects_disagreeing_order_extensions_before_connecting() -> TestResult<()> {
     let identity = TestIdentity::generate()?;

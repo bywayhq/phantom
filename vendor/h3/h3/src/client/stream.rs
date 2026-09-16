@@ -171,7 +171,7 @@ where
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
         //# Clients MUST NOT
         //# accept a malformed response.
-        let (status, headers) = match Header::try_from(fields)
+        let (status, headers, ordered_headers) = match Header::try_from(fields)
             .map_err(|_e| {
                 self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
                 StreamError::StreamError {
@@ -195,6 +195,9 @@ where
         *resp.status_mut() = status;
         *resp.headers_mut() = headers;
         *resp.version_mut() = http::Version::HTTP_3;
+        if let Some(ordered_headers) = ordered_headers {
+            resp.extensions_mut().insert(ordered_headers);
+        }
 
         Poll::Ready(Ok(resp))
     }

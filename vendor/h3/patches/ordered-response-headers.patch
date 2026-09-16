@@ -1,0 +1,70 @@
+diff --git a/h3/src/client/stream.rs b/h3/src/client/stream.rs
+index ca58ce4..bfe2b4b 100644
+--- a/h3/src/client/stream.rs
++++ b/h3/src/client/stream.rs
+@@ -174 +174 @@ where
+-        let (status, headers) = match Header::try_from(fields)
++        let (status, headers, ordered_headers) = match Header::try_from(fields)
+@@ -197,0 +198,3 @@ where
++        if let Some(ordered_headers) = ordered_headers {
++            resp.extensions_mut().insert(ordered_headers);
++        }
+diff --git a/h3/src/ext.rs b/h3/src/ext.rs
+index 36a0643..51487e5 100644
+--- a/h3/src/ext.rs
++++ b/h3/src/ext.rs
+@@ -7 +7 @@ use http::{HeaderMap, HeaderName, HeaderValue};
+-/// Exact field order for the ordinary fields of an outgoing request.
++/// Exact wire order for ordinary header fields.
+@@ -9 +9,4 @@ use http::{HeaderMap, HeaderName, HeaderValue};
+-/// The ordered fields must describe the same semantic multimap as the
++/// Store this value in a request's extensions to control its field order.
++/// Received requests and responses also carry this value in their extensions
++/// with the order produced by QPACK decoding. Pseudo-headers are excluded.
++/// Outgoing ordered fields must describe the same semantic multimap as the
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+index 199f74a..2181ac2 100644
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -137 +137,3 @@ impl Header {
+-    pub fn into_response_parts(self) -> Result<(StatusCode, HeaderMap), HeaderError> {
++    pub fn into_response_parts(
++        self,
++    ) -> Result<(StatusCode, HeaderMap, Option<OrderedHeaders>), HeaderError> {
+@@ -146,0 +149 @@ impl Header {
++            self.ordered_fields.map(OrderedHeaders::new),
+@@ -275,0 +279 @@ impl TryFrom<Vec<HeaderField>> for Header {
++        let mut ordered_fields = Vec::with_capacity(headers.len());
+@@ -318,0 +323 @@ impl TryFrom<Vec<HeaderField>> for Header {
++                    ordered_fields.push((n.clone(), v.clone()));
+@@ -332 +337 @@ impl TryFrom<Vec<HeaderField>> for Header {
+-            ordered_fields: None,
++            ordered_fields: Some(ordered_fields),
+@@ -1001,0 +1007,27 @@ mod tests {
++
++    #[test]
++    fn decoded_response_retains_global_field_order_and_duplicates() {
++        let decoded = Header::try_from(vec![
++            HeaderField::new(":status", "200"),
++            HeaderField::new("set-cookie", "first=1"),
++            HeaderField::new("x-middle", "value"),
++            HeaderField::new("set-cookie", "second=2"),
++        ])
++        .unwrap();
++        let (_, _, ordered) = decoded.into_response_parts().unwrap();
++        let ordered = ordered.unwrap();
++        let observed = ordered
++            .as_slice()
++            .iter()
++            .map(|(name, value)| (name.as_str(), value.as_bytes()))
++            .collect::<Vec<_>>();
++
++        assert_eq!(
++            observed,
++            [
++                ("set-cookie", b"first=1".as_slice()),
++                ("x-middle", b"value".as_slice()),
++                ("set-cookie", b"second=2".as_slice()),
++            ]
++        );
++    }

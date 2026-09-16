@@ -8,8 +8,11 @@ pub mod http3;
 /// HTTP proxy negotiation and tunneled byte streams.
 pub mod proxy;
 pub mod request;
+mod response;
 mod shutdown_timer;
 pub(crate) mod tls;
+
+pub use response::{OrderedResponseHeaders, ResponseHeader};
 
 #[cfg(test)]
 mod tracing_test;

@@ -1,6 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+check_http2_patch_replay() {
+  local staging archive candidate actual_checksum
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-http2-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  archive="$staging/http2-0.5.20.crate"
+  curl --fail --location --silent --show-error --retry 3 \
+    --output "$archive" \
+    https://static.crates.io/crates/http2/http2-0.5.20.crate
+  if command -v shasum >/dev/null 2>&1; then
+    actual_checksum=$(shasum -a 256 "$archive" | awk '{print $1}')
+  else
+    actual_checksum=$(sha256sum "$archive" | awk '{print $1}')
+  fi
+  [[ "$actual_checksum" == 92d3114be2f413b2e491e686b93a28cda30c355cffc8d091a57f8be4b1342896 ]]
+  tar -xzf "$archive" -C "$staging"
+  candidate="$staging/http2-0.5.20"
+  git -C "$candidate" apply --check --unidiff-zero \
+    "$PWD/vendor/http2/patches/ordered-headers.patch"
+  git -C "$candidate" apply --unidiff-zero \
+    "$PWD/vendor/http2/patches/ordered-headers.patch"
+  diff -qr --exclude=PHANTOM.md --exclude=patches --exclude=target \
+    "$candidate" vendor/http2
+}
+
 check_quinn_proto_patch_replay() {
   local staging archive candidate actual_checksum patch
   staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-quinn-proto-replay.XXXXXX")
@@ -59,6 +83,10 @@ check_h3_patch_replay() {
     git -C "$candidate" apply --check "$PWD/$patch"
     git -C "$candidate" apply "$PWD/$patch"
   done
+  git -C "$candidate" apply --check --unidiff-zero \
+    "$PWD/vendor/h3/patches/ordered-response-headers.patch"
+  git -C "$candidate" apply --unidiff-zero \
+    "$PWD/vendor/h3/patches/ordered-response-headers.patch"
   diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
     --exclude=patches --exclude=target "$candidate" vendor/h3
 }
@@ -85,6 +113,7 @@ case "${1:-}" in
       aead::tests::shared_generic_context_seals_and_opens_concurrently
     ;;
   http2)
+    check_http2_patch_replay
     cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
     cargo check --manifest-path vendor/http2/Cargo.toml \
       --all-targets --all-features --locked

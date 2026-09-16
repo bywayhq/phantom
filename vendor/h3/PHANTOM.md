@@ -97,6 +97,18 @@ fixes the resulting stateless field-section bytes for an interleaved duplicate.
 Sensitivity participates in sidecar agreement and round-trips through decoded
 headers. Sensitive values use QPACK's N bit and are never inserted or indexed.
 
+## Ordered response fields
+
+QPACK decoding retains ordinary response fields in their original global
+order, including interleaved duplicates and sensitivity markers. The client
+attaches that order as `h3::ext::OrderedHeaders` in the response extensions
+without changing the semantic `HeaderMap`. Pseudo-headers remain represented
+by the existing response status and are excluded from the ordered sidecar.
+
+`patches/ordered-response-headers.patch` is deliberately separate from the
+outbound request-order patch so upgrades can review the inbound API and decoder
+changes independently.
+
 `h3-quinn` now polls Quinn's cancel-safe chunk read directly instead of moving
 the receive stream into a stored future. This keeps `stop_sending` immediately
 available while a read is pending, so cancellation retains its chosen HTTP/3
@@ -135,10 +147,11 @@ eager stream type.
 The canonical source and test deltas are stored in
 `patches/ordered-settings.patch`, `patches/qpack-codec.patch`,
 `patches/qpack-critical-streams.patch`, `patches/qpack-dynamic-client.patch`,
-`patches/cancel-safe-recv.patch`, `patches/ordered-request-headers.patch`, and
-`patches/qpack-request-encoder.patch`, and
-`patches/qpack-live-request-runtime.patch`, and
-`patches/qpack-lazy-decoder-stream.patch`.
+`patches/cancel-safe-recv.patch`, `patches/ordered-request-headers.patch`,
+`patches/qpack-request-encoder.patch`,
+`patches/qpack-live-request-runtime.patch`,
+`patches/qpack-lazy-decoder-stream.patch`, and
+`patches/ordered-response-headers.patch`.
 `PHANTOM.md` and the patch files are
 packaging metadata and are deliberately excluded from those patches.
 
@@ -207,6 +220,10 @@ packaging metadata and are deliberately excluded from those patches.
      "$PWD/vendor/h3/patches/qpack-lazy-decoder-stream.patch"
    git -C "$candidate" apply \
      "$PWD/vendor/h3/patches/qpack-lazy-decoder-stream.patch"
+   git -C "$candidate" apply --check --unidiff-zero \
+     "$PWD/vendor/h3/patches/ordered-response-headers.patch"
+   git -C "$candidate" apply --unidiff-zero \
+     "$PWD/vendor/h3/patches/ordered-response-headers.patch"
    ```
 
 3. Copy the patched candidate to `vendor/h3.next`, copy this file and the
@@ -221,6 +238,7 @@ packaging metadata and are deliberately excluded from those patches.
 ## Focused checks
 
 ```sh
+scripts/ci/check-vendor.sh h3
 cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 config::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests

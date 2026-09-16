@@ -20,6 +20,7 @@ use wreq_proto::conn::http1;
 
 use driver::DriverTask;
 use request::PreparedGet;
+use response_head::ResponseHeadObserver;
 
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
@@ -68,6 +69,8 @@ pub enum Http1Error {
     },
     /// The response contained both `Transfer-Encoding` and `Content-Length`.
     AmbiguousResponseFraming,
+    /// The HTTP backend completed a response without its ordered field capture.
+    MissingResponseHeaderOrder,
     /// The HTTP protocol driver failed.
     Protocol(wreq_proto::Error),
 }
@@ -108,6 +111,9 @@ impl fmt::Display for Http1Error {
             Self::AmbiguousResponseFraming => formatter.write_str(
                 "response contains both Transfer-Encoding and Content-Length; connection discarded",
             ),
+            Self::MissingResponseHeaderOrder => {
+                formatter.write_str("HTTP/1 response header order was not captured")
+            }
             Self::Protocol(error) => write!(formatter, "HTTP/1.1 protocol error: {error}"),
         }
     }
@@ -139,6 +145,7 @@ impl Http1Error {
             Self::MultipleHost => "multiple_host",
             Self::RequestFramingHeader { .. } => "request_framing_header",
             Self::AmbiguousResponseFraming => "invalid_response_framing",
+            Self::MissingResponseHeaderOrder => "missing_response_header_order",
             Self::Protocol(_) => "protocol",
         }
     }
@@ -196,6 +203,7 @@ where
     let outcome = OperationOutcome::new(&span);
     let result = async {
         debug!("HTTP/1 transaction started");
+        let (stream, observed_headers) = ResponseHeadObserver::wrap(stream);
         let (mut sender, connection) = http1::Builder::default()
             .handshake::<_, Empty<Bytes>>(stream)
             .await?;
@@ -216,7 +224,11 @@ where
         }
 
         debug!("HTTP/1 response headers received");
-        let (parts, incoming) = response.into_parts();
+        let (mut parts, incoming) = response.into_parts();
+        let ordered_headers = observed_headers
+            .take()
+            .ok_or(Http1Error::MissingResponseHeaderOrder)?;
+        parts.extensions.insert(ordered_headers);
         Ok(Response::from_parts(
             parts,
             Http1Body::new(incoming, driver),
@@ -278,6 +290,7 @@ mod tests;
 mod body;
 mod driver;
 mod request;
+mod response_head;
 mod tls;
 
 pub use tls::{Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};

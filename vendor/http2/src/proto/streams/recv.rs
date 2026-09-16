@@ -82,6 +82,23 @@ pub(crate) enum Open {
     Headers,
 }
 
+fn insert_ordered_fields(
+    message: &mut peer::PollMessage,
+    ordered_fields: Option<crate::ext::OrderedHeaders>,
+) {
+    let Some(ordered_fields) = ordered_fields else {
+        return;
+    };
+    match message {
+        peer::PollMessage::Client(response) => {
+            response.extensions_mut().insert(ordered_fields);
+        }
+        peer::PollMessage::Server(request) => {
+            request.extensions_mut().insert(ordered_fields);
+        }
+    }
+}
+
 impl Recv {
     pub fn new(peer: peer::Dyn, config: &Config) -> Self {
         let next_stream_id = if peer.is_server() { 1 } else { 2 };
@@ -233,7 +250,7 @@ impl Recv {
         }
 
         let stream_id = frame.stream_id();
-        let (pseudo, fields) = frame.into_parts();
+        let (pseudo, fields, ordered_fields) = frame.into_parts_with_order();
 
         if pseudo.protocol.is_some()
             && counts.peer().is_server()
@@ -249,9 +266,10 @@ impl Recv {
         }
 
         if !pseudo.is_informational() {
-            let message = counts
+            let mut message = counts
                 .peer()
                 .convert_poll_message(pseudo, fields, stream_id)?;
+            insert_ordered_fields(&mut message, ordered_fields);
 
             // Push the frame onto the stream's recv buffer
             stream
@@ -269,9 +287,10 @@ impl Recv {
         } else {
             // This is an informational response (1xx status code)
             // Convert to response and store it for polling
-            let message = counts
+            let mut message = counts
                 .peer()
                 .convert_poll_message(pseudo, fields, stream_id)?;
+            insert_ordered_fields(&mut message, ordered_fields);
 
             tracing::trace!("Received informational response: stream_id={:?}", stream_id);
 

@@ -187,6 +187,27 @@ fn exact_zero_content_length_is_preserved_in_declared_order() -> TestResult<()> 
     Ok(())
 }
 
+#[test]
+fn sensitive_fields_reach_semantic_and_ordered_hpack_inputs() -> TestResult<()> {
+    let request = crate::http2::request::prepare_get(
+        "example.test",
+        target()?,
+        vec![RequestHeader::new("cookie", "secret=value").sensitive()],
+    )?;
+    let semantic = request
+        .headers()
+        .get("cookie")
+        .ok_or("prepared request omitted semantic cookie")?;
+    let ordered = request
+        .extensions()
+        .get::<::http2::ext::OrderedHeaders>()
+        .ok_or("prepared request omitted ordered headers")?;
+
+    assert!(semantic.is_sensitive());
+    assert!(ordered.as_slice()[0].1.is_sensitive());
+    Ok(())
+}
+
 #[tokio::test]
 async fn nonzero_or_malformed_content_length_is_rejected_before_io() -> TestResult<()> {
     for value in [b"1".as_slice(), b"00", b"", b"not-a-number"] {

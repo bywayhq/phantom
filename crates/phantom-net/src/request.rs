@@ -57,10 +57,11 @@ impl StdError for InvalidOriginForm {}
 /// Each protocol validates this representation against its own wire rules.
 /// HTTP/1 preserves the supplied field-name spelling; HTTP/2 and HTTP/3 require
 /// lowercase field names while preserving field order and duplicate positions.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct RequestHeader {
     name: Box<str>,
     value: Box<[u8]>,
+    sensitive: bool,
 }
 
 impl RequestHeader {
@@ -73,7 +74,18 @@ impl RequestHeader {
         Self {
             name: name.into(),
             value: value.as_ref().into(),
+            sensitive: false,
         }
+    }
+
+    /// Marks this field as sensitive for compression-layer encoding.
+    ///
+    /// HTTP/2 and HTTP/3 emit sensitive fields as never-indexed literals.
+    /// HTTP/1 wire bytes are unchanged. Debug output redacts the value.
+    #[must_use]
+    pub fn sensitive(mut self) -> Self {
+        self.sensitive = true;
+        self
     }
 
     /// Returns the exact field-name spelling that will be written.
@@ -87,11 +99,30 @@ impl RequestHeader {
     pub fn value(&self) -> &[u8] {
         &self.value
     }
+
+    /// Returns whether compression layers must never index this field.
+    #[must_use]
+    pub fn is_sensitive(&self) -> bool {
+        self.sensitive
+    }
+}
+
+impl fmt::Debug for RequestHeader {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug = formatter.debug_struct("RequestHeader");
+        debug.field("name", &self.name);
+        if self.sensitive {
+            debug.field("value", &"<redacted>");
+        } else {
+            debug.field("value", &self.value);
+        }
+        debug.field("sensitive", &self.sensitive).finish()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{InvalidOriginForm, OriginForm};
+    use super::{InvalidOriginForm, OriginForm, RequestHeader};
 
     #[test]
     fn accepts_only_origin_form_targets() -> Result<(), InvalidOriginForm> {
@@ -117,5 +148,15 @@ mod tests {
             "request target must be HTTP origin-form beginning with `/` and contain no authority or fragment"
         );
         Ok(())
+    }
+
+    #[test]
+    fn sensitive_header_debug_output_redacts_the_value() {
+        let header = RequestHeader::new("cookie", "secret=value").sensitive();
+        let debug = format!("{header:?}");
+
+        assert!(header.is_sensitive());
+        assert!(debug.contains("<redacted>"));
+        assert!(!debug.contains("secret=value"));
     }
 }

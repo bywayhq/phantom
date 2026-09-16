@@ -1,9 +1,9 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector, http3::Http3Connector};
 use phantom_profile::ClientProfile;
 
-use crate::{BuildError, RequestBuilder, Route};
+use crate::{BuildError, RequestBuilder, Route, Session, SessionBuilder};
 
 /// HTTP protocol selected for one request.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -27,13 +27,13 @@ impl HttpProtocol {
     }
 }
 
-/// Immutable client for routed, exact-protocol HTTPS requests.
+/// Immutable transport configuration for routed, exact-protocol HTTPS requests.
 ///
-/// This first facade slice does not own a connection pool or mutable session
-/// state.
-#[derive(Debug)]
+/// Clones share validated protocol connectors but no mutable request state.
+/// Use [`Client::session`] when requests should share cookies or connections.
+#[derive(Clone, Debug)]
 pub struct Client {
-    pub(crate) inner: ClientInner,
+    pub(crate) inner: Arc<ClientInner>,
 }
 
 #[derive(Debug)]
@@ -65,8 +65,20 @@ impl Client {
         &self,
         protocol: HttpProtocol,
         uri: &str,
-    ) -> Result<RequestBuilder<'_>, crate::RequestError> {
-        RequestBuilder::new(self, protocol, uri)
+    ) -> Result<RequestBuilder, crate::RequestError> {
+        RequestBuilder::new_client(self.clone(), protocol, uri)
+    }
+
+    /// Creates an isolated session with default bounded state.
+    #[must_use]
+    pub fn session(&self) -> Session {
+        self.session_builder().build()
+    }
+
+    /// Starts a builder for an isolated session over this client.
+    #[must_use]
+    pub fn session_builder(&self) -> SessionBuilder {
+        SessionBuilder::new(self.clone())
     }
 }
 
@@ -159,12 +171,12 @@ impl ClientBuilder {
         }
 
         Ok(Client {
-            inner: ClientInner {
+            inner: Arc::new(ClientInner {
                 http1,
                 http2,
                 http3,
                 route: self.route,
-            },
+            }),
         })
     }
 }

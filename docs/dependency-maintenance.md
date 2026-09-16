@@ -24,10 +24,12 @@ running its focused tests, then running the workspace gates. The reviewed pin
 changes only after that evidence is available. Automated dependency updates may
 open review work; they do not silently rewrite a wire profile or vendor tree.
 
-The current `btls`, `http2`, and H3 copies follow this contract. The H3 source
-is selected by the root workspace for the direct request path. Its disposable
-probe checksum-binds an exact Hyperium revision, reapplies the ordered-SETTINGS,
-QPACK-runtime, and cancel-safe receive patches, and runs the focused H3 and
+The current `btls`, `http2`, and H3 copies follow this contract. The HTTP/2 and
+H3 patches also retain decoded ordinary response fields before `HeaderMap`
+normalization loses their global order. The H3 source is selected by the root
+workspace for the direct request path. Its disposable probe checksum-binds an
+exact Hyperium revision, reapplies the ordered-SETTINGS, QPACK-runtime,
+ordered-response, and cancel-safe receive patches, and runs the focused H3 and
 `h3-quinn` gates. Chrome's nonzero inbound QPACK settings are enabled with
 bounded decode and feedback state. Outbound dynamic QPACK, WebTransport, and
 extension-specific datagram APIs remain separate capabilities.

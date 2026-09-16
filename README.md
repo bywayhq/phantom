@@ -5,9 +5,9 @@ profile-driven wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 
 The current vertical slices implement certificate- and hostname-checked TLS,
 ordered streaming HTTP/1.1, and reusable multiplexed HTTP/2 over an exact `h2`
-TLS negotiation. The public client still opens one connection per request;
-connection-pool and session ownership have not landed. Chrome 152 macOS has
-TLS and HTTP/2 recipes with direct retained
+TLS negotiation. A cloneable public session now retains compatible HTTP/2
+connections by exact origin and route while bare-client requests remain
+one-shot. Chrome 152 macOS has TLS and HTTP/2 recipes with direct retained
 fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
 recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
 uncaptured. The first forced HTTP/3 slice now performs a direct, one-shot
@@ -29,12 +29,13 @@ roots, a typed direct-or-plaintext-HTTP-CONNECT route, and one unified
 streaming response body. CONNECT fields preserve caller-declared order, proxy
 rejection never falls back direct, and coalesced tunnel bytes survive
 negotiation. H3 uses a separate protocol-specific TLS profile and rejects the
-TCP-only CONNECT route before network I/O. It has no pool or mutable session
-state yet. A feature-gated, bounded SSE decoder consumes the same response
-body without a background task; reconnection remains session policy. HTTPS
-proxies, SOCKS, UDP-capable proxies, reusable sessions, and WebSocket remain
-planned. The project does not make broad
-client-compatibility claims.
+TCP-only CONNECT route before network I/O. The optional `cookies` capability
+adds a bounded, explicit session jar with public-suffix, prefix, expiry, and
+deterministic ordering rules. A feature-gated, bounded SSE decoder consumes
+the same response body without a background task; reconnection remains later
+session policy. H1/H3 pooling, HTTPS proxies, SOCKS, UDP-capable proxies,
+redirects, retries, and WebSocket remain planned. The project does not make
+broad client-compatibility claims.
 
 ## Principles
 
@@ -61,26 +62,43 @@ let response = client
     .await?;
 
 println!("{}", response.status());
+
+// HeaderMap remains available for semantic lookup. This extension retains
+// global field order, duplicates, and HTTP/1 field-name spelling.
+let ordered = response
+    .extensions()
+    .get::<phantom::OrderedResponseHeaders>()
+    .expect("Phantom responses contain ordered fields");
+for field in ordered.iter() {
+    println!("{}", field.name());
+}
 # Ok(())
 # }
 ```
 
-The selected protocol is exact. This slice opens one connection per request;
-it does not negotiate another HTTP version or retry through another route.
-Use `ClientBuilder::route` for an immutable default route or
-`RequestBuilder::route` for an owned per-request override.
+The selected protocol is exact. Bare-client requests open one connection per
+request and never negotiate another version or retry through another route.
+Every successful response includes `OrderedResponseHeaders` in its extensions;
+the ordinary `HeaderMap` remains the normalized semantic view. The ordered
+view retains duplicate interleaving on every protocol and received HTTP/1
+field-name spelling. HTTP/2 and HTTP/3 names are lowercase by protocol.
+Use `client.session()` for session-owned HTTP/2 reuse, or enable bounded cookie
+state explicitly with `client.session_builder().cookies().build()` when the
+`cookies` feature is compiled. Use `ClientBuilder::route` for an immutable
+default route or `RequestBuilder::route` for an owned per-request override.
 
 ## Current workspace
 
-- `phantom`: the public exact-protocol client facade for one-shot H1/H2/H3
-  requests, direct routes, plaintext HTTP CONNECT for H1/H2, and streaming
-  responses, with an optional SSE decoder
+- `phantom`: the public exact-protocol client facade, session-owned H2 reuse,
+  direct routes, plaintext HTTP CONNECT for H1/H2, streaming responses, and
+  optional bounded cookie and SSE capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
 - `phantom-net`: ordered streaming HTTP/1.1, reusable multiplexed HTTP/2 with
   exact-`h2` TLS and ALPS, and a direct forced-H3 connector with streaming
-  response bodies and bounded cancellation
+  response bodies, lossless ordinary response-field ordering, and bounded
+  cancellation
 - `phantom-quic-btls`: the isolated, audited BoringSSL crypto provider for
   Quinn, including verified TLS 1.3 handshakes, owned peer identity and QUIC
   parameters, Initial and Retry handling, packet/header protection, endpoint
@@ -100,6 +118,7 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [TLS security boundary](docs/tls-security-boundary.md),
 [scope and coverage](docs/scope-and-coverage.md),
 [async and feature policy](docs/async-and-features.md),
+[session state and pooling](docs/session.md),
 [SSE decoder](docs/sse.md),
 [Rust quality review](docs/rust-quality.md),
 [adversarial testing](docs/adversarial-testing.md),

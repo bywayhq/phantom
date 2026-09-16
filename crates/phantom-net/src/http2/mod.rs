@@ -22,6 +22,24 @@ pub use body::Http2Body;
 pub use connection::Http2Connection;
 pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
 
+/// Validates one empty-body HTTP/2 GET without touching a connection.
+///
+/// This is useful when connection acquisition may perform network I/O. The
+/// connection still validates again when the request is sent so direct users
+/// cannot bypass the protocol boundary.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when the authority, target, or ordered fields cannot
+/// be represented by this HTTP/2 transport.
+pub fn validate_get(
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+) -> Result<(), Http2Error> {
+    prepare_request(authority, target.clone(), headers.to_vec()).map(drop)
+}
+
 /// Sends one empty-body HTTP/2 GET over an already-connected stream.
 ///
 /// The profile, authority, target, and complete ordered header list are

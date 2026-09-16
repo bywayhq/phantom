@@ -13,9 +13,10 @@ compatible runtime. Runtime selection remains out of scope until a second
 implementation can prove the same lifecycle contract.
 
 Direct requests require a current Tokio runtime with network I/O enabled. A
-missing runtime is reported as `RuntimeUnavailable`. Tokio exposes no stable
-I/O-driver capability query and treats a runtime without I/O enabled as a
-programmer error, so that invalid runtime configuration can panic.
+missing runtime and a runtime built without I/O are both reported as
+`RuntimeUnavailable`. Tokio exposes no stable I/O-driver capability query, so
+Phantom contains only Tokio's exact I/O-disabled runtime panic at the network
+operation boundary; unrelated panics continue unwinding.
 
 ## Operation ownership
 
@@ -83,7 +84,9 @@ capability-oriented feature surfaces used by
 [Hyper](https://docs.rs/hyper/latest/hyper/#features) and
 [Reqwest](https://docs.rs/reqwest/latest/reqwest/#optional-features).
 
-The public `phantom` crate currently has an empty default set. `sse` enables
-the server-sent event response decoder documented in [sse.md](sse.md), and
-`full` enables every stable optional public capability (`sse` today). Core
-response streaming remains unconditional.
+The public `phantom` crate has an empty default set. `cookies` compiles the
+bounded cookie jar but does not activate it until
+`SessionBuilder::cookies` or `SessionBuilder::cookie_jar` is selected. `sse`
+enables the server-sent event response decoder documented in [sse.md](sse.md).
+`full` enables both stable optional public capabilities. Core response
+streaming and session-owned H2 reuse remain unconditional.

@@ -10,7 +10,6 @@ use std::{
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
-    panic::{AssertUnwindSafe, catch_unwind},
     task::{Context, Waker},
     time::Duration,
 };
@@ -19,7 +18,7 @@ use bytes::Bytes;
 use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestHeader,
+    BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
     profile::{ClientProfile, chromium},
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
@@ -34,22 +33,23 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[test]
-fn runtime_without_io_panics_and_records_panicked_outcomes() -> TestResult<()> {
+fn runtime_without_io_returns_error_and_records_error_outcomes() -> TestResult<()> {
     let profile = ClientProfile::new(chromium::v152_macos_tls());
     let client = Client::builder(profile).build()?;
     let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
     let subscriber = OutcomeSubscriber::default();
     let runtime = tokio::runtime::Builder::new_current_thread().build()?;
 
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        runtime.block_on(request.send().with_subscriber(subscriber.dispatch()))
-    }));
+    let error = match runtime.block_on(request.send().with_subscriber(subscriber.dispatch())) {
+        Ok(_) => return Err("request completed on a runtime without network I/O".into()),
+        Err(error) => error,
+    };
 
-    assert!(result.is_err(), "runtime without network I/O did not panic");
-    assert_eq!(subscriber.outcomes_for("client.request"), ["panicked"]);
+    assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
+    assert_eq!(subscriber.outcomes_for("client.request"), ["error"]);
     assert_eq!(
         subscriber.outcomes_for("http1.tls.response_head"),
-        ["panicked"]
+        ["runtime_unavailable"]
     );
     Ok(())
 }
@@ -66,7 +66,9 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nSet-Cookie: first=1\r\nX-MiXeD: middle\r\nset-cookie: second=2\r\nContent-Length: 10\r\n\r\nfirst",
+                )
                 .await?;
             stream.flush().await?;
             released.await.map_err(io::Error::other)?;
@@ -89,6 +91,23 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
             .send()
             .await?;
         assert_eq!(response.status(), 200);
+        let ordered = response
+            .extensions()
+            .get::<OrderedResponseHeaders>()
+            .ok_or("response did not expose ordered fields")?;
+        let observed = ordered
+            .iter()
+            .map(|header| (header.name(), header.value()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            observed,
+            [
+                ("Set-Cookie", b"first=1".as_slice()),
+                ("X-MiXeD", b"middle".as_slice()),
+                ("set-cookie", b"second=2".as_slice()),
+                ("Content-Length", b"10".as_slice()),
+            ]
+        );
 
         let mut body = response.into_body();
         let first = next_data(&mut body).await?;
@@ -161,6 +180,12 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
             .send()
             .await?;
         assert_eq!(response.status(), 206);
+        assert!(
+            response
+                .extensions()
+                .get::<OrderedResponseHeaders>()
+                .is_some_and(OrderedResponseHeaders::is_empty)
+        );
 
         let mut body = response.into_body();
         assert_eq!(next_data(&mut body).await?, "first");

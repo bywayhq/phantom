@@ -4,9 +4,12 @@ use std::str::FromStr;
 
 use http::{HeaderMap, HeaderName, HeaderValue};
 
-/// Exact field order for the ordinary fields of an outgoing request.
+/// Exact wire order for ordinary header fields.
 ///
-/// The ordered fields must describe the same semantic multimap as the
+/// Store this value in a request's extensions to control its field order.
+/// Received requests and responses also carry this value in their extensions
+/// with the order produced by QPACK decoding. Pseudo-headers are excluded.
+/// Outgoing ordered fields must describe the same semantic multimap as the
 /// request's [`HeaderMap`], including duplicate values and their per-name
 /// order and sensitivity markers, or the request is rejected. The current
 /// stateless QPACK encoder does not emit the QPACK never-indexed bit from a

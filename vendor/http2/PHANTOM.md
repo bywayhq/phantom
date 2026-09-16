@@ -27,6 +27,12 @@ the request into a frame. It now retains `OrderedHeaders` across that cleanup;
 the real client-handshake regression proves the public sender preserves the
 interleaved order on the wire, rather than testing only the lower conversion.
 
+Inbound HPACK decoding also records ordinary fields in their original global
+order, including interleaved duplicates, and attaches `OrderedHeaders` to
+received requests and responses. Informational responses retain the same
+sidecar. Pseudo-headers remain represented by the existing semantic fields and
+are not included in the ordered ordinary-field list.
+
 The real-client regression also exposed an upstream idle-close race: dropping
 the final stream can queue an implicit reset while removing the last stream
 reference. The connection now polls the open state before starting its idle
@@ -55,19 +61,23 @@ The canonical patch changes these files:
 
 - `.cargo-ok`: preserves the marker in the active Cargo-vendored snapshot.
 - `Cargo.toml` and `Cargo.toml.orig`: enable Tokio's test-only `time` feature.
-- `src/ext.rs`: define the owned ordered-header extension and semantic check.
+- `src/ext.rs`: define the owned ordered-header extension used by outbound and
+  inbound messages, plus the outbound semantic check.
 - `src/client.rs`: configure initial peer settings, preserve ordered headers,
   and start idle close only after polling the open connection.
 - `src/client/tests.rs`: contain the 13 focused semantic, wire, and lifecycle
   regressions for ordered headers, idle close, and peer SETTINGS transitions.
 - `src/codec/framed_write.rs` and `src/codec/mod.rs`: provide test-only hooks
   that model a full codec write buffer.
-- `src/frame/headers.rs`: select the exact ordinary-header iterator when set.
+- `src/frame/headers.rs`: select the exact outbound iterator and retain exact
+  inbound ordinary-field order while decoding HPACK.
 - `src/frame/settings.rs`: expose the parsed no-RFC-7540-priorities value.
 - `src/proto/connection.rs`: make idle close one-shot, seed peer settings, and
   enforce the first-frame SETTINGS rule when no seed is present.
 - `src/proto/settings.rs`: validate and apply seeded and wire peer settings
   through the same transition rules without ACKing a seed.
+- `src/proto/streams/recv.rs`: attach decoded ordinary-field order to received
+  requests, final responses, and informational responses.
 - `src/proto/streams/streams.rs`: retain ordered headers across extension
   cleanup, apply seeded limits before stream 1, and suppress RFC 7540 priority
   output when directed by the peer.
@@ -115,9 +125,9 @@ the patch can remain enabled throughout the refresh.
    the staging directory:
 
    ```sh
-   git -C "$candidate" apply --check \
+   git -C "$candidate" apply --check --unidiff-zero \
      "$PWD/vendor/http2/patches/ordered-headers.patch"
-   git -C "$candidate" apply \
+   git -C "$candidate" apply --unidiff-zero \
      "$PWD/vendor/http2/patches/ordered-headers.patch"
    ```
 
@@ -156,6 +166,7 @@ the patch can remain enabled throughout the refresh.
 ## Required checks
 
 ```sh
+scripts/ci/check-vendor.sh http2
 cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
 cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features --locked
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features client::tests

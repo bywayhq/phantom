@@ -321,7 +321,7 @@ impl Headers {
             stream_dep,
             header_block: HeaderBlock {
                 fields: HeaderMap::new(),
-                ordered_fields: None,
+                ordered_fields: Some(Vec::new()),
                 field_size: 0,
                 is_over_size: false,
                 pseudo: Pseudo::default(),
@@ -367,6 +367,18 @@ impl Headers {
 
     pub fn into_parts(self) -> (Pseudo, HeaderMap) {
         (self.header_block.pseudo, self.header_block.fields)
+    }
+
+    pub(crate) fn into_parts_with_order(
+        self,
+    ) -> (Pseudo, HeaderMap, Option<crate::ext::OrderedHeaders>) {
+        (
+            self.header_block.pseudo,
+            self.header_block.fields,
+            self.header_block
+                .ordered_fields
+                .map(crate::ext::OrderedHeaders::new),
+        )
     }
 
     #[cfg(feature = "unstable")]
@@ -589,7 +601,7 @@ impl PushPromise {
             flags,
             header_block: HeaderBlock {
                 fields: HeaderMap::new(),
-                ordered_fields: None,
+                ordered_fields: Some(Vec::new()),
                 field_size: 0,
                 is_over_size: false,
                 pseudo: Pseudo::default(),
@@ -1098,7 +1110,10 @@ impl HeaderBlock {
                         }
                         if !self.is_over_size {
                             self.field_size += header_size;
-                            if let Err(_) = self.fields.try_append(name, value) {
+                            if let Some(ordered) = self.ordered_fields.as_mut() {
+                                ordered.push((name.clone(), value.clone()));
+                            }
+                            if self.fields.try_append(name, value).is_err() {
                                 // HeaderMap capacity exceeded — treat as over-size
                                 // so the stream is rejected downstream (RST_STREAM / 431)
                                 // instead of panicking on the 24,577th unique header.
@@ -1201,6 +1216,51 @@ mod test {
     use super::*;
     use crate::frame;
     use crate::hpack::{huffman, Encoder};
+
+    #[test]
+    fn hpack_decode_retains_global_field_order_and_duplicates() {
+        let ordered = vec![
+            (
+                HeaderName::from_static("set-cookie"),
+                HeaderValue::from_static("first=1"),
+            ),
+            (
+                HeaderName::from_static("x-middle"),
+                HeaderValue::from_static("value"),
+            ),
+            (
+                HeaderName::from_static("set-cookie"),
+                HeaderValue::from_static("second=2"),
+            ),
+        ];
+        let mut semantic = HeaderMap::new();
+        for (name, value) in &ordered {
+            semantic.append(name, value.clone());
+        }
+        let encoded = HeaderBlock {
+            fields: semantic,
+            ordered_fields: Some(ordered.clone()),
+            field_size: 0,
+            is_over_size: false,
+            pseudo: Pseudo::response(StatusCode::OK),
+        }
+        .into_encoding(&mut Encoder::default())
+        .hpack;
+
+        let mut encoded = BytesMut::from(encoded.as_ref());
+        let mut decoded = HeaderBlock {
+            fields: HeaderMap::new(),
+            ordered_fields: Some(Vec::new()),
+            field_size: 0,
+            is_over_size: false,
+            pseudo: Pseudo::default(),
+        };
+        decoded
+            .load(&mut encoded, usize::MAX, &mut hpack::Decoder::default())
+            .unwrap();
+
+        assert_eq!(decoded.ordered_fields, Some(ordered));
+    }
 
     #[test]
     fn test_nameless_header_at_resume() {

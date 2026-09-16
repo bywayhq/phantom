@@ -79,12 +79,13 @@ impl ValidatedHeaders {
             }
             let name = HeaderName::from_bytes(header.name().as_bytes())
                 .map_err(|_| Http2Error::InvalidHeaderName { index })?;
-            let value = HeaderValue::from_bytes(header.value()).map_err(|_| {
+            let mut value = HeaderValue::from_bytes(header.value()).map_err(|_| {
                 Http2Error::InvalidHeaderValue {
                     index,
                     name: header.name().into(),
                 }
             })?;
+            value.set_sensitive(header.is_sensitive());
 
             if name == TE {
                 if value.as_bytes() != b"trailers" {

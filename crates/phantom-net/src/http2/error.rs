@@ -133,6 +133,8 @@ pub enum Http2Error {
     },
     /// The validated fields could not fit in the semantic header map.
     HeaderMapCapacity,
+    /// The HTTP backend completed a response without its ordered field capture.
+    MissingResponseHeaderOrder,
     /// The HTTP protocol driver failed.
     Protocol(Http2ProtocolError),
 }
@@ -186,6 +188,9 @@ impl fmt::Display for Http2Error {
             Self::HeaderMapCapacity => {
                 formatter.write_str("request fields exceed the semantic header-map capacity")
             }
+            Self::MissingResponseHeaderOrder => {
+                formatter.write_str("HTTP/2 response header order was not captured")
+            }
             Self::Protocol(error) => write!(formatter, "HTTP/2 protocol error: {error}"),
         }
     }
@@ -224,6 +229,7 @@ impl Http2Error {
             Self::InvalidTe => "invalid_te",
             Self::InvalidContentLength { .. } => "invalid_content_length",
             Self::HeaderMapCapacity => "header_map_capacity",
+            Self::MissingResponseHeaderOrder => "missing_response_header_order",
             Self::Protocol(_) => "protocol",
         }
     }
