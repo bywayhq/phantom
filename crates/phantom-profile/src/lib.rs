@@ -3,6 +3,7 @@
 pub mod chromium;
 pub mod firefox;
 pub mod http2;
+pub mod quic;
 pub mod safari;
 pub mod tls;
 
@@ -13,6 +14,11 @@ pub use http2::{
 };
 pub use identity::{
     ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
+};
+pub use quic::{
+    GoogleConnectionOption, InvalidQuicTransportSettings, QuicTransportGrease,
+    QuicTransportParameter, QuicTransportParameterKind, QuicTransportParameterOrder,
+    QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
 };
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,

@@ -2,6 +2,11 @@
 
 use crate::{
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
+    quic::{
+        GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
+        QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
+        QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
+    },
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
@@ -145,6 +150,82 @@ pub fn v152_macos_http2() -> Http2Settings {
             weight: 256,
             exclusive: true,
         }),
+    }
+}
+
+/// Returns QUIC transport settings observed from Chrome 152.0.7977.83 on macOS 15.5.
+///
+/// The parameter vector retains one captured order as a permutation template;
+/// Chrome varies that order between connections. Connection IDs, the reserved
+/// version, and the reserved transport parameter remain runtime-generated.
+/// The returned value is an ordinary owned [`QuicTransportSettings`] so callers
+/// can customize both semantics and wire layout before constructing a transport.
+#[must_use]
+pub fn v152_macos_quic() -> QuicTransportSettings {
+    use QuicTransportParameterKind as Kind;
+    use QuicVarIntWidth::{Eight, Four, One, Two};
+
+    let parameter = |kind, id_width, length_width| QuicTransportParameter {
+        kind,
+        id_width,
+        length_width,
+    };
+
+    QuicTransportSettings {
+        max_idle_timeout_ms: 30_000,
+        max_udp_payload_size: 1_472,
+        initial_max_data: 15_728_640,
+        initial_max_stream_data_bidi_local: 6_291_456,
+        initial_max_stream_data_bidi_remote: 6_291_456,
+        initial_max_stream_data_uni: 6_291_456,
+        initial_max_streams_bidi: 100,
+        initial_max_streams_uni: 103,
+        max_datagram_frame_size: Some(65_536),
+        wire_parameters: vec![
+            parameter(
+                Kind::InitialMaxStreamDataUni { value_width: Four },
+                One,
+                One,
+            ),
+            parameter(
+                Kind::InitialMaxStreamDataBidiLocal { value_width: Four },
+                One,
+                One,
+            ),
+            parameter(
+                Kind::VersionInformation(QuicVersionInformation {
+                    grease: QuicVersionGrease::Permuted,
+                }),
+                One,
+                One,
+            ),
+            parameter(Kind::InitialMaxData { value_width: Four }, One, One),
+            parameter(Kind::InitialMaxStreamsBidi { value_width: Two }, One, One),
+            parameter(
+                Kind::GoogleConnectionOptions(vec![GoogleConnectionOption::RequestOriginFrame]),
+                Two,
+                One,
+            ),
+            parameter(Kind::InitialMaxStreamsUni { value_width: Two }, One, One),
+            parameter(
+                Kind::InitialMaxStreamDataBidiRemote { value_width: Four },
+                One,
+                One,
+            ),
+            parameter(
+                Kind::Grease(QuicTransportGrease {
+                    minimum_payload_length: 0,
+                    maximum_payload_length: 15,
+                }),
+                Eight,
+                One,
+            ),
+            parameter(Kind::InitialSourceConnectionId, One, One),
+            parameter(Kind::MaxUdpPayloadSize { value_width: Two }, One, One),
+            parameter(Kind::MaxDatagramFrameSize { value_width: Four }, One, One),
+            parameter(Kind::MaxIdleTimeout { value_width: Four }, One, One),
+        ],
+        parameter_order: QuicTransportParameterOrder::Permuted,
     }
 }
 

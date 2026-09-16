@@ -1,13 +1,22 @@
 use std::collections::BTreeMap;
 
-use super::{v152_macos_http2, v152_macos_tls};
+use super::{v152_macos_http2, v152_macos_quic, v152_macos_tls};
 use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
+use crate::quic::{
+    GoogleConnectionOption, QuicTransportParameterKind, QuicTransportParameterOrder,
+    QuicVarIntWidth, QuicVersionGrease,
+};
 
 const PINGLY_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http2/chrome/152.0.7977.83/macos-15.5/pingly-api-all.txt"
 ));
 const INITIAL_CONNECTION_WINDOW: u32 = 65_535;
+
+const HTTP3_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt"
+));
 
 #[test]
 fn chrome_152_macos_tls_settings_are_valid() -> Result<(), Box<dyn std::error::Error>> {
@@ -71,6 +80,113 @@ fn chrome_152_macos_http2_settings_match_retained_pingly_observation()
     );
     assert_akamai_summary(&fixture, &observed, window_increment)?;
 
+    Ok(())
+}
+
+#[test]
+fn chrome_152_macos_quic_settings_match_retained_startup_shape()
+-> Result<(), Box<dyn std::error::Error>> {
+    let settings = v152_macos_quic();
+    settings.validate()?;
+
+    assert_eq!(settings.max_idle_timeout_ms, 30_000);
+    assert_eq!(settings.max_udp_payload_size, 1_472);
+    assert_eq!(settings.initial_max_data, 15_728_640);
+    assert_eq!(settings.initial_max_stream_data_bidi_local, 6_291_456);
+    assert_eq!(settings.initial_max_stream_data_bidi_remote, 6_291_456);
+    assert_eq!(settings.initial_max_stream_data_uni, 6_291_456);
+    assert_eq!(settings.initial_max_streams_bidi, 100);
+    assert_eq!(settings.initial_max_streams_uni, 103);
+    assert_eq!(settings.max_datagram_frame_size, Some(65_536));
+    assert_eq!(
+        settings.parameter_order,
+        QuicTransportParameterOrder::Permuted
+    );
+
+    use QuicTransportParameterKind as Kind;
+    use QuicVarIntWidth::{Eight, Four, One, Two};
+    let expected = [
+        ("initial_max_stream_data_uni", One, One, Some(Four)),
+        ("initial_max_stream_data_bidi_local", One, One, Some(Four)),
+        ("version_information_permuted_grease", One, One, None),
+        ("initial_max_data", One, One, Some(Four)),
+        ("initial_max_streams_bidi", One, One, Some(Two)),
+        ("google_orig", Two, One, None),
+        ("initial_max_streams_uni", One, One, Some(Two)),
+        ("initial_max_stream_data_bidi_remote", One, One, Some(Four)),
+        ("grease_0_15", Eight, One, None),
+        ("initial_source_connection_id", One, One, None),
+        ("max_udp_payload_size", One, One, Some(Two)),
+        ("max_datagram_frame_size", One, One, Some(Four)),
+        ("max_idle_timeout", One, One, Some(Four)),
+    ];
+    let actual = settings
+        .wire_parameters
+        .iter()
+        .map(|parameter| {
+            let (name, value_width) = match &parameter.kind {
+                Kind::InitialMaxStreamDataUni { value_width } => {
+                    ("initial_max_stream_data_uni", Some(*value_width))
+                }
+                Kind::InitialMaxStreamDataBidiLocal { value_width } => {
+                    ("initial_max_stream_data_bidi_local", Some(*value_width))
+                }
+                Kind::VersionInformation(version)
+                    if version.grease == QuicVersionGrease::Permuted =>
+                {
+                    ("version_information_permuted_grease", None)
+                }
+                Kind::InitialMaxData { value_width } => ("initial_max_data", Some(*value_width)),
+                Kind::InitialMaxStreamsBidi { value_width } => {
+                    ("initial_max_streams_bidi", Some(*value_width))
+                }
+                Kind::GoogleConnectionOptions(options)
+                    if options == &[GoogleConnectionOption::RequestOriginFrame] =>
+                {
+                    ("google_orig", None)
+                }
+                Kind::InitialMaxStreamsUni { value_width } => {
+                    ("initial_max_streams_uni", Some(*value_width))
+                }
+                Kind::InitialMaxStreamDataBidiRemote { value_width } => {
+                    ("initial_max_stream_data_bidi_remote", Some(*value_width))
+                }
+                Kind::Grease(grease)
+                    if grease.minimum_payload_length == 0
+                        && grease.maximum_payload_length == 15 =>
+                {
+                    ("grease_0_15", None)
+                }
+                Kind::InitialSourceConnectionId => ("initial_source_connection_id", None),
+                Kind::MaxUdpPayloadSize { value_width } => {
+                    ("max_udp_payload_size", Some(*value_width))
+                }
+                Kind::MaxDatagramFrameSize { value_width } => {
+                    ("max_datagram_frame_size", Some(*value_width))
+                }
+                Kind::MaxIdleTimeout { value_width } => ("max_idle_timeout", Some(*value_width)),
+                _ => ("unexpected", None),
+            };
+            (
+                name,
+                parameter.id_width,
+                parameter.length_width,
+                value_width,
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+
+    assert!(HTTP3_FIXTURE.contains("transport_parameter_count=13\n"));
+    assert!(
+        HTTP3_FIXTURE.contains(
+            "transport_parameter_5=id:12584,id_width:2,length_width:1,value_hex:4f524947\n"
+        )
+    );
+    assert!(
+        HTTP3_FIXTURE
+            .contains("transport_parameter_8=id:2442798693768785165,id_width:8,length_width:1,")
+    );
     Ok(())
 }
 
