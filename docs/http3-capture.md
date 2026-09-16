@@ -158,6 +158,17 @@ repository or CI artifacts. The fixture contains no key material. The
 SPKI-scoped exception is preferable to a global certificate-verification
 override and is part of Chromium's documented local QUIC workflow.
 
+For a retained packet-shape differential, feed bounded client datagrams and the
+temporary NSS lines to `scripts.capture.quic_packet_diff.QuicPacketCapture`
+before cleanup. Supply symbolic stream ranges from the already-authenticated
+control, QPACK, and request snapshots. Persist only `PacketSummary.as_dict()`;
+never persist the analyzer inputs. The analyzer is intentionally not a pcap or
+general QUIC API: it accepts QUIC v1, rejects Retry, 0-RTT, key updates, and
+unknown frames, and clears its owned mutable capture after one summary attempt.
+Its deterministic encrypted-vector tests run in the ordinary Python gate. A
+fresh Chrome capture and a matching Phantom run are still needed to retain the
+first real cross-client packet summary.
+
 ## Fixture schema
 
 `phantom-http3-client-startup-v2` is line-oriented and ordered. Byte strings

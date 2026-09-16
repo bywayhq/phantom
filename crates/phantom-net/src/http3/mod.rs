@@ -21,6 +21,8 @@ use request::{prepare_get, prepare_request};
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
 pub use error::{Http3Error, Http3ErrorKind};
+#[cfg(feature = "qlog")]
+pub use qlog::{QlogCapture, QlogCaptureError};
 
 type RequestStream = h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
@@ -78,6 +80,51 @@ pub async fn send_request(
     settings: &Http3Settings,
     request: Request<()>,
 ) -> Result<Response<Http3Body>, Http3Error> {
+    send_request_inner(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        request,
+        ConnectionDiagnostics::default(),
+    )
+    .await
+}
+
+/// Sends one request over a new direct QUIC connection while capturing bounded qlog output.
+///
+/// The capture is single-use and records only Quinn's QUIC metadata. Request
+/// headers and payloads are not added to the qlog output.
+#[cfg(feature = "qlog")]
+pub async fn send_request_with_qlog(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    request: Request<()>,
+    capture: QlogCapture,
+) -> Result<Response<Http3Body>, Http3Error> {
+    send_request_inner(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        request,
+        ConnectionDiagnostics {
+            qlog: Some(capture),
+        },
+    )
+    .await
+}
+
+async fn send_request_inner(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    request: Request<()>,
+    diagnostics: ConnectionDiagnostics,
+) -> Result<Response<Http3Body>, Http3Error> {
     let span = debug_span!(
         "http3.response_head",
         method = %request.method(),
@@ -88,7 +135,7 @@ pub async fn send_request(
     let result = async {
         let request = prepare_request(request)?;
         let mut builder = settings::builder(settings, &crypto)?;
-        let endpoint = endpoint(remote, crypto)?;
+        let endpoint = endpoint(remote, crypto, diagnostics)?;
 
         debug!("QUIC connection started");
         let connection = endpoint
@@ -194,7 +241,11 @@ enum ResponseHeadError {
 fn endpoint(
     remote: SocketAddr,
     crypto: Arc<QuicClientConfig>,
+    diagnostics: ConnectionDiagnostics,
 ) -> Result<quinn::Endpoint, Http3Error> {
+    #[cfg(not(feature = "qlog"))]
+    let _ = diagnostics;
+
     let bind_address = match remote.ip() {
         IpAddr::V4(_) => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
         IpAddr::V6(_) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
@@ -213,6 +264,17 @@ fn endpoint(
                 error,
             )
         })?;
+    #[cfg(feature = "qlog")]
+    if let Some(capture) = diagnostics.qlog {
+        let stream = capture.attach().map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Configuration,
+                "failed to configure bounded QUIC qlog capture",
+                error,
+            )
+        })?;
+        transport_config.qlog_stream(Some(stream));
+    }
     let mut client_config = quinn::ClientConfig::new(crypto);
     client_config.transport_config(Arc::new(transport_config));
     let mut endpoint =
@@ -261,6 +323,12 @@ struct PendingRequest {
     stream: Option<RequestStream>,
 }
 
+#[derive(Default)]
+struct ConnectionDiagnostics {
+    #[cfg(feature = "qlog")]
+    qlog: Option<QlogCapture>,
+}
+
 impl PendingRequest {
     fn new(stream: RequestStream) -> Self {
         Self {
@@ -300,6 +368,8 @@ mod body;
 mod datagram;
 mod driver;
 mod error;
+#[cfg(feature = "qlog")]
+mod qlog;
 mod request;
 mod settings;
 

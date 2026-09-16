@@ -6,6 +6,10 @@ rust-version.workspace = true
 version.workspace = true
 publish = false
 
+[features]
+default = []
+keylog = []
+
 [dependencies]
 bytes.workspace = true
 foreign-types = "=0.5.0"

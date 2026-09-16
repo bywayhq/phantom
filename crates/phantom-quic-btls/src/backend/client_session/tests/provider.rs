@@ -1,4 +1,6 @@
 use std::io::Cursor;
+#[cfg(feature = "keylog")]
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use btls::x509::X509;
@@ -26,7 +28,13 @@ fn client_transport_parameters() -> TransportParameters {
 fn quinn_client_handshake(
     failure: Option<TestDerivationFailure>,
 ) -> Result<(Box<dyn crypto::Session>, RawServer, usize), TransportError> {
-    let client_context = client_context(true);
+    quinn_client_handshake_with_context(client_context(true), failure)
+}
+
+fn quinn_client_handshake_with_context(
+    client_context: OwnedContext,
+    failure: Option<TestDerivationFailure>,
+) -> Result<(Box<dyn crypto::Session>, RawServer, usize), TransportError> {
     let server_context = server_context();
     let mut config = QuicClientConfig::new(client_context.0);
     if let Some(failure) = failure {
@@ -86,6 +94,39 @@ fn quinn_client_handshake(
         }
     }
     Ok((client, server, metadata_events))
+}
+
+#[cfg(feature = "keylog")]
+#[test]
+fn quic_handshake_emits_bounded_nss_traffic_secrets() {
+    let capacity = NonZeroUsize::new(8).unwrap_or_else(|| panic!("eight is nonzero"));
+    let (context, receiver) = client_context_with_key_log(capacity);
+    let _ = test_ok(
+        quinn_client_handshake_with_context(context, None),
+        "key-logged Quinn client handshake",
+    );
+
+    let mut output = Vec::new();
+    let written = test_ok(receiver.write_pending_nss(&mut output), "NSS key-log drain");
+    assert_eq!(receiver.dropped_line_count(), 0);
+    assert_eq!(written, 5);
+
+    let text = std::str::from_utf8(&output)
+        .unwrap_or_else(|error| panic!("key log was not UTF-8: {error}"));
+    let labels = text
+        .lines()
+        .map(|line| line.split_once(' ').map_or(line, |(label, _)| label))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        [
+            "CLIENT_HANDSHAKE_TRAFFIC_SECRET",
+            "SERVER_HANDSHAKE_TRAFFIC_SECRET",
+            "CLIENT_TRAFFIC_SECRET_0",
+            "SERVER_TRAFFIC_SECRET_0",
+            "EXPORTER_SECRET",
+        ]
+    );
 }
 
 #[test]

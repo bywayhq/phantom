@@ -1,3 +1,5 @@
+#[cfg(feature = "qlog")]
+use std::num::NonZeroUsize;
 use std::{error::Error, net::SocketAddr, sync::Arc};
 
 use btls::{
@@ -186,6 +188,114 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
     Ok(())
 }
 
+#[cfg(feature = "qlog")]
+#[tokio::test(flavor = "current_thread")]
+async fn bounded_qlog_completes_without_recording_request_headers() -> TestResult<()> {
+    const SECRET: &str = "phantom-qlog-secret-value";
+
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+    let request = Request::get(format!(
+        "https://{TEST_SERVER_NAME}:{}/qlog",
+        address.port()
+    ))
+    .header("x-phantom-secret", SECRET)
+    .body(())?;
+    let capture = super::QlogCapture::new(
+        NonZeroUsize::new(64 * 1024).ok_or("qlog test bound must be nonzero")?,
+    );
+
+    let response = timeout(
+        TEST_TIMEOUT,
+        super::send_request_with_qlog(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            &test_settings(),
+            request,
+            capture.clone(),
+        ),
+    )
+    .await
+    .map_err(|_| "qlog HTTP/3 request timed out")??;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let mut body = response.into_body();
+    assert!(next_optional_frame(&mut body).await?.is_none());
+
+    let _ = client_done.send(());
+    join_server(server).await?;
+    timeout(TEST_TIMEOUT, capture.wait_complete())
+        .await
+        .map_err(|_| "qlog capture did not complete")?;
+
+    let snapshot = capture.snapshot();
+    assert!(!snapshot.is_empty());
+    assert!(snapshot.len() <= capture.max_bytes().get());
+    assert_complete_json_seq(&snapshot)?;
+    assert!(
+        !snapshot
+            .windows(SECRET.len())
+            .any(|bytes| bytes == SECRET.as_bytes())
+    );
+    Ok(())
+}
+
+#[cfg(feature = "qlog")]
+#[tokio::test(flavor = "current_thread")]
+async fn rejects_reusing_a_qlog_capture_as_configuration() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let capture =
+        super::QlogCapture::new(NonZeroUsize::new(4096).ok_or("qlog test bound must be nonzero")?);
+    let remote = "127.0.0.1:443".parse()?;
+    let first = super::endpoint(
+        remote,
+        Arc::clone(&client),
+        super::ConnectionDiagnostics {
+            qlog: Some(capture.clone()),
+        },
+    )?;
+
+    let error = match super::endpoint(
+        remote,
+        client,
+        super::ConnectionDiagnostics {
+            qlog: Some(capture.clone()),
+        },
+    ) {
+        Ok(_) => return Err("reused qlog capture unexpectedly configured an endpoint".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), Http3ErrorKind::Configuration);
+    assert_eq!(
+        error
+            .source()
+            .and_then(|source| source.downcast_ref::<super::QlogCaptureError>()),
+        Some(&super::QlogCaptureError::AlreadyAttached)
+    );
+
+    drop(first);
+    timeout(TEST_TIMEOUT, capture.wait_complete())
+        .await
+        .map_err(|_| "qlog capture did not complete after endpoint drop")?;
+    Ok(())
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn connects_over_ipv6_when_loopback_is_available() -> TestResult<()> {
     let bind_address: SocketAddr = "[::1]:0".parse()?;
@@ -295,7 +405,11 @@ async fn send_test_request(
     client: Arc<QuicClientConfig>,
     request: Request<()>,
 ) -> Result<Response<super::Http3Body>, super::Http3Error> {
-    let settings = Http3Settings {
+    super::send_request(remote, server_name, client, &test_settings(), request).await
+}
+
+fn test_settings() -> Http3Settings {
+    Http3Settings {
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(0),
             Http3Setting::MaxFieldSectionSize(65_536),
@@ -303,8 +417,27 @@ async fn send_test_request(
         ],
         setting_order: Http3SettingOrder::Fixed,
         qpack_encoding: Http3QpackEncoding::Stateless,
-    };
-    super::send_request(remote, server_name, client, &settings, request).await
+    }
+}
+
+#[cfg(feature = "qlog")]
+fn assert_complete_json_seq(bytes: &[u8]) -> TestResult<()> {
+    let mut remaining = bytes;
+    while !remaining.is_empty() {
+        if remaining[0] != 0x1e {
+            return Err("qlog record is missing its JSON-SEQ separator".into());
+        }
+        let end = remaining
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .ok_or("qlog snapshot contains a partial record")?;
+        let json = &remaining[1..end];
+        if json.first() != Some(&b'{') || json.last() != Some(&b'}') {
+            return Err("qlog record is not a complete JSON object".into());
+        }
+        remaining = &remaining[end + 1..];
+    }
+    Ok(())
 }
 
 fn profiled_client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {

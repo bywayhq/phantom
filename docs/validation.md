@@ -23,6 +23,37 @@ Claims about browser wire behavior must cite the exact capture and differential
 fixture that supports them. A successful response or summary fingerprint alone
 does not establish the same wire behavior.
 
+## HTTP/3 diagnostics and packet proof
+
+The default build emits neither qlog nor TLS secrets. With the `qlog` feature,
+`phantom_net::http3::QlogCapture` can be attached to exactly one forced H3
+connection. It stores only complete JSON-SEQ records up to a caller-supplied
+nonzero byte bound, reports truncation, and signals when Quinn has dropped the
+writer. Reusing one capture is a configuration error. Quinn's current events
+contain QUIC packet and recovery metadata, not request headers or application
+payloads; tests still place a sentinel header on a live request and require it
+to be absent from the capture.
+
+With the `keylog` feature,
+`phantom_quic_btls::configure_nss_key_log` installs the existing safe BoringSSL
+callback while its `SslContextBuilder` is still uniquely mutable. The callback
+copies validated TLS 1.3 NSS records into a bounded nonblocking queue. It never
+performs file I/O or invokes caller code. Queue overflow is observable and does
+not delay or fail the handshake. Key-log records are secret diagnostic inputs:
+they are explicitly written by the consumer, never traced, serialized into a
+fixture, or included in an error.
+
+`scripts/capture/quic_packet_diff.py` uses pinned aioquic to authenticate and
+decrypt bounded in-memory QUIC v1 datagrams from NSS client traffic secrets.
+Its result retains only packet space, frame kinds, STREAM identifiers, ranges,
+FIN bits, and caller-declared symbolic range overlaps. It removes timestamps,
+addresses, connection IDs, packet numbers, ACK values, ciphertext, plaintext,
+headers, and secrets. Deterministic tests cover coalesced Initial/Handshake
+packets and a later 1-RTT request shape. This proves the analyzer and Phantom's
+key-log seam independently; it is not yet a Chrome packet differential. The
+retained Chrome H3 fixture did not keep a key log, so completing that evidence
+requires a fresh bounded browser capture.
+
 ## Browser ClientHello fixture workflow
 
 ### Retained Chrome capture

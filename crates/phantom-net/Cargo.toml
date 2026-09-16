@@ -6,6 +6,9 @@ rust-version.workspace = true
 version.workspace = true
 publish = false
 
+[features]
+qlog = ["quinn/qlog"]
+
 [dependencies]
 brotli = "8.0.4"
 bytes = "1.12.1"

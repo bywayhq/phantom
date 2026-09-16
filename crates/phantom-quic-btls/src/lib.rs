@@ -15,6 +15,8 @@ mod error;
 mod header;
 mod hkdf;
 mod initial;
+#[cfg(feature = "keylog")]
+mod key_log;
 mod key_schedule;
 mod packet;
 mod quinn;
@@ -32,6 +34,8 @@ pub use backend::client::{HandshakeData, PeerIdentity, QuicClientConfig};
 pub use error::{CryptoError, Result};
 pub use header::HeaderProtectionKey;
 pub use initial::{InitialKeys, derive_initial_keys};
+#[cfg(feature = "keylog")]
+pub use key_log::{NssKeyLogLine, NssKeyLogReceiver, configure_nss_key_log};
 pub use key_schedule::{DirectionKeys, EndpointSide};
 pub use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;

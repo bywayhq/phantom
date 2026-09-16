@@ -422,7 +422,7 @@ impl ClientSession {
         // SAFETY: the SSL is live and its handshake completed. A permissive
         // verification callback can allow completion while retaining a failure result.
         let verification = unsafe { ffi::SSL_get_verify_result(self.ssl.as_ptr()) };
-        if verification != ffi::X509_V_OK.into() {
+        if verification != i64::from(ffi::X509_V_OK) {
             return Err(ClientSessionError::PeerVerificationFailed);
         }
         // SAFETY: the SSL is live and its handshake completed.

@@ -37,10 +37,14 @@ streaming or change transport semantics.
 
 ## Cargo features
 
-The current internal crates have no public feature matrix. Adding empty or
-aspirational flags now would create combinations with no contract. When the
-public `Client` facade owns these capabilities, features will be additive so
-Cargo feature unification cannot disable behavior selected elsewhere.
+The internal transport crates keep ordinary protocol support unconditional for
+now. Their first optional capabilities are the concrete diagnostic leaves
+`phantom-net/qlog` and `phantom-quic-btls/keylog`. Both are default-off and
+still require an explicit bounded runtime sink; enabling either feature alone
+does not emit diagnostics or change normal wire behavior. When the public
+`Client` facade owns these capabilities, its features will forward to the same
+leaves and remain additive so Cargo feature unification cannot disable behavior
+selected elsewhere.
 
 The intended vocabulary is:
 
@@ -62,9 +66,10 @@ builder contract rather than compile-order behavior.
 
 Every introduced leaf feature is checked by CI with `--no-default-features`,
 alone, in the default set, and under `--all-features`; representative pairs
-cover meaningful interactions. Platform jobs cover the native dependency
-matrix. Documentation labels compile-time availability separately from the
-runtime option that activates it.
+cover meaningful interactions once one crate owns more than one leaf.
+Platform jobs cover the native dependency matrix. Documentation labels
+compile-time availability separately from the runtime option that activates
+it.
 
 This policy follows Cargo's
 [additive feature guidance](https://doc.rust-lang.org/cargo/reference/features.html#feature-unification),

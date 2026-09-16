@@ -49,6 +49,13 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      - name: Check optional feature matrix
+        run: |
+          cargo check -p phantom-net --no-default-features --locked
+          cargo check -p phantom-net --no-default-features --features qlog --locked
+          cargo check -p phantom-quic-btls --no-default-features --locked
+          cargo check -p phantom-quic-btls --no-default-features --features keylog --locked
+
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
@@ -178,3 +185,8 @@ jobs:
 
       - name: Check workspace
         run: cargo "+$MSRV" check --workspace --all-targets --locked
+
+      - name: Check optional features
+        run: |
+          cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked
+          cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features keylog --locked

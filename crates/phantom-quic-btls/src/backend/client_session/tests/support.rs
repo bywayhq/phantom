@@ -1,5 +1,7 @@
 use std::ffi::{CString, c_int, c_uint, c_void};
 use std::fmt::Debug;
+#[cfg(feature = "keylog")]
+use std::num::NonZeroUsize;
 use std::ptr::{self, NonNull};
 use std::slice;
 
@@ -16,6 +18,8 @@ use crate::backend::callback_state::{
 };
 use crate::backend::drain_error_queue;
 use crate::backend::quic_callbacks::install_on_ssl;
+#[cfg(feature = "keylog")]
+use crate::{NssKeyLogReceiver, configure_nss_key_log};
 
 pub(super) const CLIENT_PARAMETERS: &[u8] = &[0x01, 0x01, 0x00];
 pub(super) const SERVER_PARAMETERS: &[u8] =
@@ -279,18 +283,33 @@ fn certificate_path(file: &str) -> CString {
 pub(super) fn client_context(verify_peer: bool) -> OwnedContext {
     let context = OwnedContext::new();
     if verify_peer {
-        // SAFETY: the context is live and no SSL has been created from it.
-        unsafe {
-            ffi::SSL_CTX_set_verify(context.as_ptr(), ffi::SSL_VERIFY_PEER, None);
-        }
-        let root = certificate_path("root-ca.pem");
-        // SAFETY: the path is NUL-terminated and remains live for the call.
-        let status = unsafe {
-            ffi::SSL_CTX_load_verify_locations(context.as_ptr(), root.as_ptr(), ptr::null())
-        };
-        assert_eq!(status, 1);
+        configure_client_verification(&context);
     }
     context
+}
+
+#[cfg(feature = "keylog")]
+pub(super) fn client_context_with_key_log(
+    capacity: NonZeroUsize,
+) -> (OwnedContext, NssKeyLogReceiver) {
+    let mut builder = SslContext::builder(SslMethod::tls())
+        .unwrap_or_else(|error| panic!("test context allocation failed: {error}"));
+    let receiver = configure_nss_key_log(&mut builder, capacity);
+    let context = OwnedContext(builder.build());
+    configure_client_verification(&context);
+    (context, receiver)
+}
+
+fn configure_client_verification(context: &OwnedContext) {
+    // SAFETY: the context is live and no SSL has been created from it.
+    unsafe {
+        ffi::SSL_CTX_set_verify(context.as_ptr(), ffi::SSL_VERIFY_PEER, None);
+    }
+    let root = certificate_path("root-ca.pem");
+    // SAFETY: the path is NUL-terminated and remains live for the call.
+    let status =
+        unsafe { ffi::SSL_CTX_load_verify_locations(context.as_ptr(), root.as_ptr(), ptr::null()) };
+    assert_eq!(status, 1);
 }
 
 pub(super) fn untrusted_client_context() -> OwnedContext {

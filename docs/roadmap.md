@@ -123,6 +123,13 @@ QPACK bytes match the retained first request both in isolation and through the
 live connection-owned encoder stream. Dynamic requests use bounded admission,
 wait for peer settings before opening a request stream, and cannot publish
 dependent HEADERS before their instructions are accepted by QUIC.
+Diagnostics are default-off: a single forced connection can retain a bounded,
+complete-record qlog, while a separately enabled BoringSSL builder callback
+publishes NSS TLS 1.3 secrets through a bounded nonblocking queue. A payload-free
+aioquic analyzer now proves authenticated Initial, Handshake, and 1-RTT packet
+normalization with deterministic encrypted vectors. The retained Chrome fixture
+has no key log, so a fresh Chrome run is still required before the browser
+packet differential acceptance item is complete.
 
 Acceptance:
 
