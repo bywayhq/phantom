@@ -59,7 +59,7 @@ The intended vocabulary is:
 | Session policy | `cookies` | Adds a cookie store integration; client-hint state stays separately controlled because it has different rules. |
 | Content decoding | `gzip`, `brotli`, `deflate`, `zstd` | Response `Content-Encoding`; distinct from TLS certificate compression. |
 | Routes | `socks`, later `masque`, possibly `system-proxy` | Compiles a route implementation; never enables proxy discovery or fallback by itself. |
-| Higher protocols | `sse`, `websocket` | Adds parsers/state machines over the existing body and connection seams. |
+| Higher protocols | `sse`, later `websocket` | `sse` adds the bounded pull decoder; higher protocols reuse existing body and connection seams. |
 | Diagnostics | `qlog`, `keylog` | Compiles support; emission still requires an explicit bounded runtime sink. |
 | Convenience | `full` | Enables all stable public optional capabilities, excluding tests and unstable experiments. |
 
@@ -82,3 +82,8 @@ that libraries enable only the features they need rather than `full`, and the
 capability-oriented feature surfaces used by
 [Hyper](https://docs.rs/hyper/latest/hyper/#features) and
 [Reqwest](https://docs.rs/reqwest/latest/reqwest/#optional-features).
+
+The public `phantom` crate currently has an empty default set. `sse` enables
+the server-sent event response decoder documented in [sse.md](sse.md), and
+`full` enables every stable optional public capability (`sse` today). Core
+response streaming remains unconditional.

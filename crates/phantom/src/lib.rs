@@ -6,12 +6,16 @@ mod client;
 mod error;
 mod request;
 mod route;
+#[cfg(feature = "sse")]
+mod sse;
 
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use request::RequestBuilder;
 pub use route::{HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route};
+#[cfg(feature = "sse")]
+pub use sse::{SseError, SseErrorKind, SseEvent, SseLimits, SseStream};
 
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::HttpConnectHeader;

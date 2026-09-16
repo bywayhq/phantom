@@ -244,6 +244,14 @@ anti-leak behavior. A built-in Chrome H3 TLS recipe remains pending a retained
 H3 ClientHello; the captured Chrome QUIC and H3 components are not presented as
 proof of those TLS bytes.
 
+The fourth landed slice separates HTTP/2 connection ownership from individual
+requests. A cloneable lower-level connection can open sequential or concurrent
+streams over supplied, direct-TLS, or HTTP-CONNECT transports. Cancelling or
+dropping one response resets only that stream; the final connection/body lease
+starts bounded driver shutdown. The public client does not pool these
+connections yet, and GOAWAY admission, waiter limits, retries, coalescing, and
+pool keys remain Phase 6 work.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.
@@ -264,11 +272,13 @@ Acceptance:
 - Each public option is covered by validation and an observable integration
   test; no option is a pass-through placeholder for future work.
 
-## Phase 7: SSE and WebSocket — planned
+## Phase 7: SSE and WebSocket — in progress
 
-SSE remains a zero-buffering parser/reconnect policy over the ordinary response
-body. WebSocket starts with H1 Upgrade and shares route, TLS, ordered headers,
-pool ownership, cancellation, and tracing with normal requests. RFC 8441 and H3
+The feature-gated SSE slice is a bounded pull parser over the ordinary response
+body, with WHATWG field semantics and cancellation-safe incremental reads.
+Reconnect, idle-timeout, and `Last-Event-ID` request policy remain session work.
+WebSocket starts with H1 Upgrade and shares route, TLS, ordered headers, pool
+ownership, cancellation, and tracing with normal requests. RFC 8441 and H3
 WebSocket support follow only with retained wire evidence.
 
 ## Phase 8: production hardening and profiling — planned

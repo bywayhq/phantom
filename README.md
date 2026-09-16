@@ -4,8 +4,10 @@ Phantom is an experimental Rust HTTP client focused on observable,
 profile-driven wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 
 The current vertical slices implement certificate- and hostname-checked TLS,
-ordered streaming HTTP/1.1, and one-shot HTTP/2 over an exact `h2` TLS
-negotiation. Chrome 152 macOS has TLS and HTTP/2 recipes with direct retained
+ordered streaming HTTP/1.1, and reusable multiplexed HTTP/2 over an exact `h2`
+TLS negotiation. The public client still opens one connection per request;
+connection-pool and session ownership have not landed. Chrome 152 macOS has
+TLS and HTTP/2 recipes with direct retained
 fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
 recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
 uncaptured. The first forced HTTP/3 slice now performs a direct, one-shot
@@ -28,8 +30,10 @@ streaming response body. CONNECT fields preserve caller-declared order, proxy
 rejection never falls back direct, and coalesced tunnel bytes survive
 negotiation. H3 uses a separate protocol-specific TLS profile and rejects the
 TCP-only CONNECT route before network I/O. It has no pool or mutable session
-state yet. HTTPS proxies, SOCKS, UDP-capable proxies, reusable sessions, SSE,
-and WebSocket remain planned. The project does not make broad
+state yet. A feature-gated, bounded SSE decoder consumes the same response
+body without a background task; reconnection remains session policy. HTTPS
+proxies, SOCKS, UDP-capable proxies, reusable sessions, and WebSocket remain
+planned. The project does not make broad
 client-compatibility claims.
 
 ## Principles
@@ -70,13 +74,13 @@ Use `ClientBuilder::route` for an immutable default route or
 
 - `phantom`: the public exact-protocol client facade for one-shot H1/H2/H3
   requests, direct routes, plaintext HTTP CONNECT for H1/H2, and streaming
-  responses
+  responses, with an optional SSE decoder
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
-- `phantom-net`: ordered streaming HTTP/1.1, one-shot HTTP/2 with exact-`h2`
-  TLS and ALPS, and a direct forced-H3 connector with streaming response bodies
-  and bounded cancellation
+- `phantom-net`: ordered streaming HTTP/1.1, reusable multiplexed HTTP/2 with
+  exact-`h2` TLS and ALPS, and a direct forced-H3 connector with streaming
+  response bodies and bounded cancellation
 - `phantom-quic-btls`: the isolated, audited BoringSSL crypto provider for
   Quinn, including verified TLS 1.3 handshakes, owned peer identity and QUIC
   parameters, Initial and Retry handling, packet/header protection, endpoint
@@ -96,6 +100,7 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [TLS security boundary](docs/tls-security-boundary.md),
 [scope and coverage](docs/scope-and-coverage.md),
 [async and feature policy](docs/async-and-features.md),
+[SSE decoder](docs/sse.md),
 [Rust quality review](docs/rust-quality.md),
 [adversarial testing](docs/adversarial-testing.md),
 [dynamic QPACK design](docs/qpack-design.md),

@@ -51,20 +51,21 @@ flowchart TB
     H3 --> QUIC
     Route --> TLS
     QUIC -.-> Route
-    H1 -.-> SSE
-    H2 -.-> SSE
-    H3 -.-> SSE
+    H1 --> SSE
+    H2 --> SSE
+    H3 --> SSE
     H1 -.-> WS
     H2 -.-> WS
     H3 -.-> WS
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Client,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC current
-    class Session,FutureRoute,SSE,WS planned
+    class Client,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC,SSE current
+    class Session,FutureRoute,WS planned
 ```
 
-SSE is a response-body consumer, not another transport. WebSocket owns its
+The optional SSE decoder is a response-body consumer, not another transport.
+WebSocket owns its
 handshake and frame state machine while reusing the selected HTTP connection.
 H3 gets a separate QUIC path because forcing TCP and QUIC through one transport
 trait would hide protocol-specific lifecycle, telemetry, and fingerprint
