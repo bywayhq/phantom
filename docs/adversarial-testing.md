@@ -48,9 +48,10 @@ fixtures.
 | P1 | H3 | Reuse before and after the peer idle timeout, including a silently expired path | Stale connections are evicted, one bounded replacement attempt succeeds when eligible, and forced H3 never falls back to TCP |
 
 The current deterministic baseline includes H1 `100 Continue`, chained
-`103`/`100`, declared-length surplus isolation, H2 `RST_STREAM`, and H2
-`GOAWAY`. The H3 cases become executable alongside the forced-H3 vertical
-slice rather than through a speculative universal peer framework.
+`103`/`100`, declared-length surplus isolation, H2 `RST_STREAM`, H2 `GOAWAY`,
+and peer-observed H3 request-stream cancellation after an early body drop. The
+remaining H3 cases extend that focused loopback peer rather than introducing a
+speculative universal peer framework.
 
 ## Later client and streaming corpus
 

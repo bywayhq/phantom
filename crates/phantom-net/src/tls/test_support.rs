@@ -73,6 +73,14 @@ impl TestIdentity {
         &self.root_der
     }
 
+    pub(crate) fn leaf_der(&self) -> &[u8] {
+        &self.leaf_der
+    }
+
+    pub(crate) fn private_key_der(&self) -> &[u8] {
+        &self.private_key_der
+    }
+
     pub(crate) fn acceptor_builder(&self) -> TestResult<SslAcceptorBuilder> {
         let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
         let leaf = X509::from_der(&self.leaf_der)?;

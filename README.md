@@ -8,9 +8,12 @@ ordered streaming HTTP/1.1, and one-shot HTTP/2 over an exact `h2` TLS
 negotiation. Chrome 152 macOS has TLS and HTTP/2 recipes with direct retained
 fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
 recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
-uncaptured. Forced HTTP/3 implementation is in progress from a retained Chrome
-QUIC/H3 capture; reusable sessions, typed proxy routing, SSE, and WebSocket
-remain planned. The project does not make broad client-compatibility claims.
+uncaptured. The first forced HTTP/3 slice now performs a direct, one-shot
+request over the BoringSSL Quinn provider, verifies exact `h3` ALPN, streams
+data and trailers, and propagates body cancellation. It uses static QPACK
+`0/0`; browser-profile QUIC parameters, Chrome H3 parity, reusable sessions,
+typed proxy routing, SSE, and WebSocket remain planned. The project does not
+make broad client-compatibility claims.
 
 ## Principles
 
@@ -26,8 +29,9 @@ remain planned. The project does not make broad client-compatibility claims.
 - `phantom-profile`: browser-neutral profile identity, public typed TLS and
   HTTP/2 settings, internal in-progress QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes
-- `phantom-net`: the private BoringSSL adapter plus ordered streaming HTTP/1.1
-  and one-shot HTTP/2 request paths, including exact-`h2` TLS and ALPS handling
+- `phantom-net`: ordered streaming HTTP/1.1, one-shot HTTP/2 with exact-`h2`
+  TLS and ALPS, and a direct forced-H3 transaction path with streaming response
+  bodies and bounded cancellation
 - `phantom-quic-btls`: the isolated, audited BoringSSL crypto provider for
   Quinn, including verified TLS 1.3 handshakes, owned peer identity and QUIC
   parameters, Initial and Retry handling, packet/header protection, endpoint
@@ -35,9 +39,10 @@ remain planned. The project does not make broad client-compatibility claims.
 - `phantom-testkit`: bounded TLS ClientHello and HTTP/2 frame capture with
   strict decoding for deterministic differentials
 
-The vendored H3 SETTINGS patch is provenance-tracked groundwork, not an active
-runtime dependency. Chrome H3 remains gated on complete, bounded dynamic QPACK
-receive support rather than advertising capabilities the engine cannot honor.
+The provenance-tracked H3 fork is an active runtime dependency for the safe
+static-QPACK slice. Chrome's nonzero QPACK settings remain gated on complete,
+bounded dynamic QPACK receive support rather than advertising capabilities the
+engine cannot honor.
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),

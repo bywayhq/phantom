@@ -22,8 +22,11 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use super::{TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, target};
-use crate::http2::{driver::DRIVER_SHUTDOWN_GRACE, send_get, shutdown_timer};
 use crate::tracing_test::OutcomeSubscriber;
+use crate::{
+    http2::{driver::DRIVER_SHUTDOWN_GRACE, send_get},
+    shutdown_timer,
+};
 
 #[test]
 fn body_drop_after_originating_runtime_shutdown_records_driver_outcome() -> TestResult<()> {

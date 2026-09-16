@@ -18,11 +18,16 @@ version = "0.1.0"
 btls = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
 btls-sys = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
 bytes = "=1.12.1"
+h3 = { version = "=0.0.8", default-features = false, features = ["tracing"] }
+h3-quinn = { version = "=0.0.10", default-features = false, features = ["tracing"] }
+quinn = { version = "=0.11.12", default-features = false, features = ["runtime-tokio"] }
 quinn-proto = { version = "=0.11.18", default-features = false }
 tokio-btls = { git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026", default-features = false }
 zeroize = "=1.9.0"
 
 [patch.crates-io]
+h3 = { path = "vendor/h3/h3" }
+h3-quinn = { path = "vendor/h3/h3-quinn" }
 http2 = { path = "vendor/http2" }
 quinn-proto = { path = "vendor/quinn-proto" }
 

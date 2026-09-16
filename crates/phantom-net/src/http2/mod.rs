@@ -246,7 +246,6 @@ mod body;
 mod driver;
 mod error;
 mod request;
-mod shutdown_timer;
 mod tls;
 
 pub use tls::{Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};

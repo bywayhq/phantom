@@ -104,6 +104,13 @@ derivation failures close the connection instead of reaching an internal
 Start with one Chromium desktop profile; Firefox and Safari follow from their
 own captures rather than assumptions about shared engine behavior.
 
+The current vertical slice completes a direct empty-body request, streams the
+response and trailers, and proves peer-visible cancellation without any TCP or
+protocol fallback. It intentionally advertises static QPACK `0/0`. This is
+working HTTP/3 transport substrate, not Chrome H3 parity; profile-driven QUIC
+transport parameters, request ordering, dynamic QPACK, and packet
+differentials remain acceptance work.
+
 Acceptance:
 
 - A forced H3 request and streaming response complete without automatic TCP or

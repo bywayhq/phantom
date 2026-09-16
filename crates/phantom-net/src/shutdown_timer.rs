@@ -1,4 +1,4 @@
-//! Runtime-neutral deadlines for HTTP/2 driver shutdown.
+//! Runtime-neutral deadlines for protocol-driver shutdown.
 
 use std::{
     cmp::Ordering,
@@ -18,9 +18,9 @@ static SERVICE: OnceLock<Option<Sender<Deadline>>> = OnceLock::new();
 static NEXT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct ScheduleError;
+pub(crate) struct ScheduleError;
 
-pub(super) fn after(delay: Duration) -> Result<oneshot::Receiver<()>, ScheduleError> {
+pub(crate) fn after(delay: Duration) -> Result<oneshot::Receiver<()>, ScheduleError> {
     let service = SERVICE
         .get_or_init(start_service)
         .as_ref()
@@ -38,7 +38,7 @@ pub(super) fn after(delay: Duration) -> Result<oneshot::Receiver<()>, ScheduleEr
 fn start_service() -> Option<Sender<Deadline>> {
     let (sender, receiver) = mpsc::channel();
     thread::Builder::new()
-        .name("phantom-h2-shutdown-timer".to_owned())
+        .name("phantom-shutdown-timer".to_owned())
         .spawn(move || run(receiver))
         .ok()
         .map(|_| sender)

@@ -10,11 +10,15 @@ publish = false
 brotli = "8.0.4"
 bytes = "1.12.1"
 flate2 = "1.1.9"
+h3.workspace = true
+h3-quinn.workspace = true
 http = "1.4.0"
 http2 = { version = "=0.5.20", features = ["unstable"] }
 http-body = "1.0.1"
 http-body-util = "0.1.3"
 phantom-profile = { path = "../phantom-profile" }
+phantom-quic-btls = { path = "../phantom-quic-btls" }
+quinn.workspace = true
 tokio = { version = "1.53.1", features = ["rt", "sync"] }
 tracing = "0.1.41"
 webpki-root-certs = "1.0.9"
@@ -34,7 +38,9 @@ tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 [dev-dependencies]
 criterion = { version = "=0.7.0", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
 phantom-testkit = { path = "../phantom-testkit" }
+quinn = { workspace = true, features = ["rustls-ring"] }
 rcgen = "=0.14.5"
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std"] }
 tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 
 [[bench]]

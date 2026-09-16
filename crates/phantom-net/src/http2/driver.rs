@@ -19,7 +19,7 @@ use tracing::{
     warn,
 };
 
-use super::shutdown_timer;
+use crate::shutdown_timer;
 
 pub(super) const DRIVER_SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 

@@ -325,8 +325,12 @@ values, proxy credentials, nor secrets.
 
 The adapter, patched Quinn provider contract, and focused vendored dependency
 gates run under the repository's normal warnings-as-errors and formatting
-checks. A complete forced-H3 integration gate remains pending because the SSL
-session is now adapted to Quinn, but the HTTP/3 request path does not exist.
+checks. A direct forced-H3 path now completes a certificate-verified BoringSSL
+QUIC handshake, requires exact `h3` ALPN, streams response data and trailers,
+and proves peer-visible cancellation when the response body is dropped. It
+uses static QPACK `0/0` and a bounded field-section limit. The complete Chrome
+integration gate remains pending on profile-driven transport parameters,
+captured request ordering, dynamic QPACK, and packet differentials.
 
 ## Fork trigger
 

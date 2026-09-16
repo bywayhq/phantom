@@ -418,7 +418,9 @@ The raw Chrome fixture and direct differential establish the captured Chrome
 fields in `firefox::v154_macos_http2()`, but does not yet have a direct Phantom
 wire differential. Retained Pingly and Peet results supply only that recipe's
 pseudo-header order and priority and remain supplemental observations, not
-substitutes for local bytes. No H3 or Safari HTTP/2 wire fixture exists yet.
+substitutes for local bytes. A retained Chrome H3 startup capture exists, but
+the current static-QPACK Phantom path does not yet have a browser packet
+differential. No Safari HTTP/2 wire fixture exists yet.
 
 ## External TLS and QUIC observers
 
@@ -471,7 +473,7 @@ The corpus covers:
   flow-control starvation and overflow, RST_STREAM, GOAWAY, and early body drop.
 - QUIC Retry and version negotiation, transport-parameter edge cases, 0-RTT
   rejection, H3 control-stream failure, duplicate SETTINGS, blocked QPACK, and
-  GOAWAY once H3 exists.
+  GOAWAY.
 - HTTP 407 sequences, ordered CONNECT headers, SOCKS reply codes, local versus
   remote DNS, UDP ASSOCIATE, proxy rotation, and proof that no attempt escaped
   directly.

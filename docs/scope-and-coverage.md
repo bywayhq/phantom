@@ -10,8 +10,8 @@ a complete client match.
 | TLS over TCP | Typed ordered profiles; fixture-backed Chrome, Firefox, and Safari macOS recipes; certificate and hostname verification; ALPN and ALPS | More versions/platform captures, session resumption, ticket policy, generic imported stacks |
 | HTTP/1.1 | Ordered request fields, streaming/backpressured responses, cancellation tests | Pooling, redirects/retries, proxies, WebSocket Upgrade |
 | HTTP/2 | Ordered SETTINGS, window update, pseudo/header order, priority, ALPS peer settings, streaming flow control | Reusable sessions, richer request bodies, extended CONNECT where evidence requires it |
-| QUIC | TLS 1.3 packet/header protection primitives and typed captured transport settings | BoringSSL handshake provider, exact serializer, connection lifecycle and packet differential |
-| HTTP/3 | Provenance-tracked ordered SETTINGS and bounded QPACK groundwork | Forced direct request/response, complete dynamic QPACK, cancellation, qlog; UDP proxies later |
+| QUIC | BoringSSL-backed Quinn client handshake, packet/header protection, key updates, Retry and endpoint HMAC; typed captured transport settings | Profile-driven exact transport-parameter serializer, reusable connection lifecycle, packet differential |
+| HTTP/3 | Forced direct one-shot empty-body request; exact `h3` ALPN; static QPACK `0/0`; streaming data/trailers; body cancellation and bounded shutdown | Profile-driven SETTINGS and request order, complete dynamic QPACK, multiplexed sessions, qlog; UDP proxies later |
 | Session policy | Caller-controlled ordered headers only | Cookies, redirects, retries, client-hint state, tickets, Alt-Svc, pooling |
 | Higher protocols | Ordinary streaming response body | SSE and H1 WebSocket first; later extended CONNECT/H3 only from evidence |
 | Routes | Direct paths in current slices | HTTP(S) proxy, SOCKS5 local/remote DNS, UDP ASSOCIATE, then CONNECT-UDP/MASQUE |

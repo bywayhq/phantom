@@ -1,0 +1,281 @@
+use std::{error::Error, net::SocketAddr, sync::Arc};
+
+use btls::{
+    ssl::{SslContext, SslMethod, SslVerifyMode},
+    x509::X509,
+};
+use bytes::Bytes;
+use http::{HeaderMap, HeaderValue, Request, Response, StatusCode};
+use http_body_util::BodyExt;
+use phantom_quic_btls::QuicClientConfig;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
+
+use super::{Http3ErrorKind, send_request};
+use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity};
+
+type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+
+#[tokio::test(flavor = "current_thread")]
+async fn rejects_invalid_request_before_connecting() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let request = Request::get("http://server.phantom.test/").body(())?;
+    let result = send_request(
+        "127.0.0.1:9".parse()?,
+        TEST_SERVER_NAME,
+        client_config(&identity)?,
+        request,
+    )
+    .await;
+    let error = match result {
+        Ok(_) => return Err("invalid request unexpectedly reached the network".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), Http3ErrorKind::Request);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn streams_data_and_trailers_over_boringssl_quic() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (first_sent, first_received) = oneshot::channel();
+    let (release, released) = oneshot::channel();
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        stream
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+        stream.send_data(Bytes::from_static(b"first")).await?;
+        let _ = first_sent.send(());
+        let _ = released.await;
+        stream.send_data(Bytes::from_static(b"second")).await?;
+
+        let mut trailers = HeaderMap::new();
+        trailers.insert("x-phantom-finished", HeaderValue::from_static("yes"));
+        stream.send_trailers(trailers).await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let request = Request::get(format!(
+        "https://{TEST_SERVER_NAME}:{}/stream",
+        address.port()
+    ))
+    .body(())?;
+    let response = timeout(
+        TEST_TIMEOUT,
+        send_request(address, TEST_SERVER_NAME, client, request),
+    )
+    .await
+    .map_err(|_| "HTTP/3 request timed out")??;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let mut body = response.into_body();
+    timeout(TEST_TIMEOUT, first_received)
+        .await
+        .map_err(|_| "server did not send the first body chunk")??;
+    let first = next_frame(&mut body).await?;
+    assert_eq!(
+        first.into_data().map_err(|_| "expected response data")?,
+        "first"
+    );
+
+    let _ = release.send(());
+    let second = next_frame(&mut body).await?;
+    assert_eq!(
+        second.into_data().map_err(|_| "expected response data")?,
+        "second"
+    );
+    let trailers = next_frame(&mut body)
+        .await?
+        .into_trailers()
+        .map_err(|_| "expected response trailers")?;
+    assert_eq!(
+        trailers.get("x-phantom-finished"),
+        Some(&HeaderValue::from_static("yes"))
+    );
+    match timeout(TEST_TIMEOUT, body.frame())
+        .await
+        .map_err(|_| "response body did not finish")?
+    {
+        None => {}
+        Some(Ok(_)) => return Err("response produced a frame after trailers".into()),
+        Some(Err(error)) => return Err(error.into()),
+    }
+    let _ = client_done.send(());
+    join_server(server).await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn connects_over_ipv6_when_loopback_is_available() -> TestResult<()> {
+    let bind_address: SocketAddr = "[::1]:0".parse()?;
+    if std::net::UdpSocket::bind(bind_address).is_err() {
+        return Ok(());
+    }
+
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint_at(&identity, bind_address)?;
+    let (client_done, done_received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let request = Request::get(format!(
+        "https://{TEST_SERVER_NAME}:{}/ipv6",
+        address.port()
+    ))
+    .body(())?;
+    let response = timeout(
+        TEST_TIMEOUT,
+        send_request(address, TEST_SERVER_NAME, client, request),
+    )
+    .await
+    .map_err(|_| "IPv6 HTTP/3 request timed out")??;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let mut body = response.into_body();
+    assert!(next_optional_frame(&mut body).await?.is_none());
+    let _ = client_done.send(());
+    join_server(server).await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn dropping_body_cancels_the_peer_stream() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (head_sent, head_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        stream
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+        let _ = head_sent.send(());
+
+        let chunk = Bytes::from(vec![0; 64 * 1024]);
+        loop {
+            match stream.send_data(chunk.clone()).await {
+                Ok(()) => {}
+                Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                    if code == h3::error::Code::H3_REQUEST_CANCELLED =>
+                {
+                    return Ok::<(), Box<dyn Error + Send + Sync>>(());
+                }
+                Err(error) => {
+                    return Err(format!("unexpected cancellation result: {error}").into());
+                }
+            }
+        }
+    });
+
+    let request = Request::get(format!(
+        "https://{TEST_SERVER_NAME}:{}/cancel",
+        address.port()
+    ))
+    .body(())?;
+    let response = timeout(
+        TEST_TIMEOUT,
+        send_request(address, TEST_SERVER_NAME, client, request),
+    )
+    .await
+    .map_err(|_| "HTTP/3 request timed out")??;
+    timeout(TEST_TIMEOUT, head_received)
+        .await
+        .map_err(|_| "server did not send the response head")??;
+    drop(response);
+
+    join_server(server).await?;
+    Ok(())
+}
+
+fn client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {
+    let mut context = SslContext::builder(SslMethod::tls())?;
+    context
+        .cert_store_mut()
+        .add_cert(X509::from_der(identity.root_der())?)?;
+    context.set_verify(SslVerifyMode::PEER);
+    Ok(Arc::new(QuicClientConfig::new(context.build())))
+}
+
+fn server_endpoint(identity: &TestIdentity) -> TestResult<(std::net::SocketAddr, quinn::Endpoint)> {
+    server_endpoint_at(identity, "127.0.0.1:0".parse()?)
+}
+
+fn server_endpoint_at(
+    identity: &TestIdentity,
+    bind_address: SocketAddr,
+) -> TestResult<(SocketAddr, quinn::Endpoint)> {
+    let certificate = CertificateDer::from(identity.leaf_der().to_vec());
+    let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+        identity.private_key_der().to_vec(),
+    ));
+    let mut tls = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![certificate], private_key)?;
+    tls.alpn_protocols = vec![b"h3".to_vec()];
+    let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
+    let endpoint = quinn::Endpoint::server(
+        quinn::ServerConfig::with_crypto(Arc::new(crypto)),
+        bind_address,
+    )?;
+    Ok((endpoint.local_addr()?, endpoint))
+}
+
+async fn accept_request(
+    endpoint: &quinn::Endpoint,
+) -> TestResult<(
+    Request<()>,
+    h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>,
+    h3::server::Connection<h3_quinn::Connection, Bytes>,
+)> {
+    let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+    let connection = incoming.await?;
+    let mut connection = h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+    let resolver = connection
+        .accept()
+        .await?
+        .ok_or("client closed before sending a request")?;
+    let (request, stream) = resolver.resolve_request().await?;
+    Ok((request, stream, connection))
+}
+
+async fn next_frame(body: &mut super::Http3Body) -> TestResult<http_body::Frame<Bytes>> {
+    next_optional_frame(body)
+        .await?
+        .ok_or_else(|| "response body ended early".into())
+}
+
+async fn next_optional_frame(
+    body: &mut super::Http3Body,
+) -> TestResult<Option<http_body::Frame<Bytes>>> {
+    timeout(TEST_TIMEOUT, body.frame())
+        .await
+        .map_err(|_| "response frame timed out")?
+        .transpose()
+        .map_err(Into::into)
+}
+
+async fn join_server(server: JoinHandle<TestResult<()>>) -> TestResult<()> {
+    timeout(TEST_TIMEOUT, server)
+        .await
+        .map_err(|_| "HTTP/3 test server did not finish")???;
+    Ok(())
+}

@@ -43,10 +43,10 @@ flowchart TB
     User -.-> Client
     Client -.-> Session
     Client -.-> Request
-    Request -.-> H3
+    Request --> H3
     H1 --> TLS
     H2 --> TLS
-    H3 -.-> QUIC
+    H3 --> QUIC
     TLS -.-> Route
     QUIC -.-> Route
     H1 -.-> SSE
@@ -58,8 +58,8 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Profile,Request,H1,H2,TLS current
-    class Client,Session,Route,H3,QUIC,SSE,WS planned
+    class Profile,Request,H1,H2,H3,TLS,QUIC current
+    class Client,Session,Route,SSE,WS planned
 ```
 
 SSE is a response-body consumer, not another transport. WebSocket owns its
@@ -137,11 +137,12 @@ profile compatibility, and the selected stack's observable behavior are all
 proven. A connection is never shared across profile generations or route
 identities merely because two requests resolve to the same address.
 
-The planned H3 path uses Quinn for QUIC and hyperium's `h3` engine.
+The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.
 `phantom-quic-btls` implements Quinn's crypto-provider seam with the same
 patched BoringSSL lineage used by Phantom's TCP TLS path. The FFI and
-key-schedule boundary stays isolated there; `phantom-net` will own request and
-connection lifecycle without exposing Quinn or `h3` types publicly.
+key-schedule boundary stays isolated there; `phantom-net` owns the direct
+request and connection lifecycle. The future public `phantom` facade will not
+expose Quinn or `h3` types.
 
 Stock QUIC stacks expose many transport-parameter values but do not expose all
 the ordering and encoding choices visible in browser captures. Phantom will
@@ -150,12 +151,12 @@ permutation and GREASE policy; no Quinn fork is needed for that boundary. A
 narrow, default-preserving `h3` patch supplies the explicit outbound SETTINGS
 sequence that upstream does not expose. Profiles remain browser-neutral data:
 neither adapter nor fork branches on Chromium, Firefox, or Safari.
-The patch is retained groundwork rather than a selected runtime dependency:
-Chrome's nonzero QPACK settings cannot be enabled until the H3 receive path
-processes the encoder stream, bounds blocked sections, and emits decoder
-feedback and cancellation. A static-only path must advertise QPACK `0/0` and
-cannot claim Chrome parity. Packetization, ACK, connection-ID, and pacing knobs
-are added only after a retained capture proves that they are required.
+The patch is selected for the current static-only path, which advertises QPACK
+`0/0` and cannot claim Chrome parity. Chrome's nonzero QPACK settings cannot be
+enabled until the H3 receive path processes the encoder stream, bounds blocked
+sections, and emits decoder feedback and cancellation. Packetization, ACK,
+connection-ID, and pacing knobs are added only after a retained capture proves
+that they are required.
 
 ## Configuration seam
 
