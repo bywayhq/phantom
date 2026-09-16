@@ -23,8 +23,8 @@ remain planned. The project does not make broad client-compatibility claims.
 ## Current workspace
 
 - `phantom`: the future public client facade
-- `phantom-profile`: browser-neutral profile identity, typed TLS and HTTP/2
-  settings, and narrow fixture-backed Chrome, Safari, and Firefox recipes
+- `phantom-profile`: browser-neutral profile identity, typed TLS, HTTP/2, and
+  QUIC settings, and narrow fixture-backed Chrome, Safari, and Firefox recipes
 - `phantom-net`: the private BoringSSL adapter plus ordered streaming HTTP/1.1
   and one-shot HTTP/2 request paths, including exact-`h2` TLS and ALPS handling
 - `phantom-quic-btls`: the isolated, audited BoringSSL packet-cryptography
@@ -38,6 +38,10 @@ receive support rather than advertising capabilities the engine cannot honor.
 
 See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [validation model](docs/validation.md),
+[configuration model](docs/configuration.md),
+[scope and coverage](docs/scope-and-coverage.md),
+[async and feature policy](docs/async-and-features.md),
+[Rust quality review](docs/rust-quality.md),
 [adversarial testing](docs/adversarial-testing.md),
 [dynamic QPACK design](docs/qpack-design.md),
 [ecosystem lessons](docs/ecosystem-review.md), and

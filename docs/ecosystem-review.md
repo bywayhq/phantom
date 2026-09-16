@@ -3,6 +3,8 @@
 This review records recurring failures in adjacent impersonation clients so
 Phantom can turn them into design and CI constraints. It is evidence for
 decisions, not a claim that another project is generally unsafe or incorrect.
+The exposed configuration surfaces and Phantom's ownership decisions are
+compared separately in [the configuration model](configuration.md).
 
 ## Wire fidelity
 
@@ -117,3 +119,34 @@ claim and reference, not validation. The review supports Phantom's existing
 choice: own the Rust profiles, routing, sessions, and streaming API; reuse
 mature protocol engines behind narrow adapters; do not fork an entire client or
 hand-write TLS and QUIC.
+
+## Passive observation
+
+[Prism](https://github.com/WeAreMaven/prism) is a useful secondary observer.
+Its source separates raw TCP, TLS, HTTP/2, and QUIC observations from derived
+JA3, JA4, Peetprint, Akamai, JA4H, and JA4Q signals, and distinguishes
+connection-level observations from per-request headers. Phantom keeps the same
+conceptual boundary: retain exact ordered evidence first, then calculate
+summary fingerprints for diagnosis and interoperability reports.
+
+The summaries are intentionally not parity gates. Some sort cipher suites or
+extensions; JA4Q retains transport-parameter identifiers but not values or
+varint widths; decoded header maps cannot establish H1 spelling or
+HPACK/QPACK/frame behavior. Prism's parser and integration checks are suitable
+for passive service availability but are more permissive and lossy than a
+fixture oracle. Phantom's retained decoders stay strict and report missing
+capture separately from a match.
+
+Prism also supplies useful test-harness lessons. Its QUIC path correlates by
+connection ID, bounds reassembly, handles coalesced packets, and carries
+capture deadlines and buffer ceilings. Fixes for truncated multi-buffer XDP
+packets and a 1232-byte Chrome Initial show why every capture failure must
+retain the phase, total length, bounded byte prefix, and typed reason. Its
+fuzzing workflow and per-stage waterfall benchmarks map well to Phantom's
+ClientHello, QUIC Initial, H2/H3, and QPACK boundaries.
+
+Phantom should not fork or vendor Prism. A later optional Linux CI lane may run
+an exact pinned Prism commit and consume structured output alongside Peet and
+Pingly. Local raw packet/frame fixtures remain authoritative, and TCP/kernel or
+latency fingerprints remain environment context unless Phantom explicitly owns
+that network path.

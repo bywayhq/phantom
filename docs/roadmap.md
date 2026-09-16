@@ -146,6 +146,13 @@ auth identity, DNS ownership, origin, profile, protocol, and local binding are
 all pool-key inputs. Per-request rotation is an owned route override, not a
 global mutable callback.
 
+Tokio is the initial explicit runtime. Core bodies remain backpressured
+`http_body::Body` values; optional Cargo features add capabilities and adapters
+without changing enabled behavior. The feature matrix and cancellation
+contract are defined in [async and feature policy](async-and-features.md).
+Mutable cookies, redirects, retries, tickets, and learned client hints belong
+to session policy rather than immutable wire profiles.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.
@@ -157,6 +164,11 @@ Acceptance:
   and MASQUE follow as separate proven capabilities.
 - Pooling never crosses a route, profile, origin/SNI, protocol, or session-state
   boundary, and client shutdown drains with a deadline.
+- `Accept-CH` state is secure-origin scoped and session owned; redirects do not
+  leak hints cross-origin, and `Critical-CH` can retry at most once only for a
+  replayable request. Transport-delivered ACCEPT_CH data feeds the same state.
+- Each public option is covered by validation and an observable integration
+  test; no option is a pass-through placeholder for future work.
 
 ## Phase 7: SSE and WebSocket — planned
 
@@ -172,6 +184,9 @@ replay, sanitizers, fuzzing, long soaks, and workload benchmarks. Profile
 allocations, CPU, contention, and syscall behavior across direct and proxy
 routes, cold/warm pools, multiplexed concurrency, large slow bodies, SSE, and
 WebSocket. Optimize measured bottlenecks without changing packet fixtures.
+Close with the repository's [Rust production-quality review](rust-quality.md),
+including the explicit AI-smell, feature-combination, documentation, async
+lifecycle, unsafe-boundary, and cross-platform audits.
 
 ## Later profile work
 

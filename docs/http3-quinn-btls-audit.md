@@ -19,6 +19,13 @@ with profile-owned GREASE and supported opaque parameters. This preserves
 Quinn's state-machine semantics while putting the observable TLS extension
 bytes at the correct boundary.
 
+Implementation is staged. The first standards-conforming provider bring-up
+feeds Quinn's stock serialized parameters to BoringSSL so callback ownership
+and the crypto state machine can be tested without profile reshaping. The
+profile-owned serializer is the following slice and remains required before
+the Chrome differential can pass; the stock path is not presented as browser
+parity.
+
 Carry one narrow, default-preserving `h3` patch now. Both the published release
 and audited upstream revision construct outbound SETTINGS in library-defined
 order, always include several zero-valued settings, and cannot configure QPACK
@@ -106,6 +113,13 @@ The pinned BoringSSL headers already provide the complete legacy QUIC API:
 `btls-sys` generates bindings for these symbols. No BoringSSL C/C++ patch is
 required. The missing work is a Rust wrapper in the isolated adapter crate.
 
+Quinn requires usable key-update support in the first provider slice. As soon
+as it installs the 1-RTT keys, its connection state requests the next 1-RTT key
+pair from the crypto session. Treating `next_1rtt_keys` as optional would move
+a provider omission into an infallible Quinn path. By contrast, 0-RTT can be
+disabled explicitly for this slice; its acceptance state is consulted only
+when early keys exist.
+
 ## Adapter boundary and required additions
 
 `phantom-quic-btls` should be an explicitly audited FFI crate and expose only a
@@ -122,12 +136,25 @@ Add private wrappers for:
 - QUIC v1 initial secrets, HKDF expansion, packet AEAD, header protection,
   Retry integrity, key updates, and endpoint HMAC.
 
+Before the callback bridge, add one safe crate-private key-schedule slice. It
+maps TLS 1.3 suite identifiers `0x1301`, `0x1302`, and `0x1303` to SHA-256 or
+SHA-384 and the existing packet/header algorithms; generalizes the
+HKDF-Expand-Label helper used by Initial secrets; derives `quic key`, `quic
+iv`, `quic hp`, and `quic ku`; and owns traffic secrets in zeroizing types with
+redacted formatting. It must advance application traffic secrets repeatedly,
+because Quinn asks for the next packet keys as soon as 1-RTT keys are installed
+and again at each key phase. Header-protection keys do not update.
+
 Reuse the existing Phantom TLS profile-to-BoringSSL translation. Its builder
 entry point currently takes `SslConnectorBuilder`; factor the translation at
 the underlying `SslContextBuilder` level so TCP and QUIC cannot drift. QUIC
 must have an explicit TLS 1.3 profile and ALPN `h3`; TCP-only settings must fail
 validation instead of being silently ignored. Add the standard QUIC transport
 parameters extension (57) to the profile extension vocabulary.
+
+The first provider explicitly disables resumption and 0-RTT. Those require a
+separate replay and session-cache policy and are not prerequisites for a
+one-RTT forced-H3 path.
 
 For outbound transport parameters, the adapter should:
 
@@ -159,8 +186,12 @@ All new unsafe code belongs in `phantom-quic-btls`; `phantom-net` and profile
 crates remain safe Rust. Each unsafe block needs the local invariant it relies
 on. The review must cover:
 
-- A pinned `Box<SessionState>` stored in SSL ex-data, with documented callback
-  lifetime, serialization, and teardown ordering.
+- An `Ssl` handle and pinned `Box<CallbackState>` stored as disjoint fields.
+  SSL ex-data contains only the stable callback-state pointer, with documented
+  callback lifetime, serialization, and teardown ordering. The callback state
+  must not own the `Ssl`: callbacks run during a mutable `SSL_do_handshake`
+  operation, and recovering a pointer to a larger state which also owns that
+  `Ssl` would risk overlapping mutable access to the same object.
 - Callback pointers and lengths, including null-plus-zero inputs. Copy secrets,
   handshake data, peer parameters, and certificate material before the
   callback or SSL borrow ends.
@@ -171,13 +202,27 @@ on. The review must cover:
 - Cipher pointers being valid only for the callback and accepted only for
   supported QUIC TLS 1.3 suites.
 - Packet-number, nonce, tag-length, sample-length, and output-capacity bounds.
-- Key updates and zeroization; tracing, qlog, and error formatting must never
-  contain key material.
+- Mandatory next-generation 1-RTT keys, key-phase transitions, and
+  zeroization; tracing, qlog, and error formatting must never contain key
+  material.
 
 Replace reference-code `unwrap`, `panic`, and `todo` sites on runtime paths.
 Some Quinn provider methods are infallible, so validate version and algorithm
 support in `start_session`; store any later callback failure and surface it via
 the next fallible handshake operation rather than panicking.
+
+`write_handshake` only drains previously buffered output and keys.
+`read_handshake` owns fallible BoringSSL progression, peer-parameter parsing,
+and copied peer identity. `handshake_data` transitions once. A later key-update
+failure needs a private fail-closed packet-key result because returning `None`
+from Quinn's infallible next-key path would panic.
+
+The callback bridge treats `flush_flight` as a publication boundary, accepts
+null-plus-zero only where BoringSSL permits an empty byte slice, copies all
+callback inputs before returning, and tolerates read/write secrets arriving in
+either order. No callback may unwind across C or re-enter SSL. Output uses
+BoringSSL's maximum-flight guidance, checked length arithmetic, and fallible
+reservation.
 
 ## H3 patch and request lifecycle
 
