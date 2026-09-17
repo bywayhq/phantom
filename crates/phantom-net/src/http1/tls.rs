@@ -609,6 +609,39 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Opens one direct plaintext TCP connection for sequential HTTP/1.1 requests.
+    ///
+    /// This method performs no TLS handshake and never routes through a proxy.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, TCP
+    /// setup fails, or the HTTP/1.1 handshake fails.
+    pub async fn connect_plaintext_direct(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        let span = debug_span!(
+            "http1.direct.connect",
+            transport = "tcp",
+            route = "direct",
+            outcome = field::Empty,
+        );
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            let stream = connect_tcp(host, port).await.map_err(|error| match error {
+                DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+            })?;
+            Http1Connection::connect(stream).await.map_err(Into::into)
+        }
+        .instrument(span.clone())
+        .await;
+        outcome.finish(connection_outcome(&result));
+        result
+    }
+
     /// Opens one plaintext HTTP/1.1 connection to a forward proxy.
     ///
     /// This method performs no TLS handshake and never connects directly to

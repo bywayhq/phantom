@@ -14,7 +14,7 @@ use phantom_profile::{
     CipherSuite, ClientHelloExtensionOrder, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, duplex},
+    io::{AsyncRead, AsyncReadExt, AsyncWriteExt, duplex},
     net::TcpStream,
     sync::oneshot,
     time::timeout,
@@ -351,6 +351,106 @@ fn direct_without_runtime_has_tls_wrapper_outcome() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn plaintext_direct_connection_is_reusable_without_tls() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let connector = test_connector(&identity)?;
+        let subscriber = OutcomeSubscriber::default();
+        let (address, listener) = loopback_listener().await?;
+        let server_task = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let first = read_plaintext_head(&mut stream).await?;
+            stream.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            let second = read_plaintext_head(&mut stream).await?;
+            stream.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((first, second))
+        });
+
+        let connection = connector
+            .connect_plaintext_direct("127.0.0.1", address.port())
+            .with_subscriber(Dispatch::new(subscriber.clone()))
+            .await?;
+        for target in ["/first", "/second"] {
+            let response = connection
+                .send_get(
+                    OriginForm::parse(target)?,
+                    vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+                )
+                .await?;
+            assert_eq!(response.status(), 204);
+            assert!(response.into_body().collect().await?.to_bytes().is_empty());
+        }
+
+        let (first, second) = server_task.await??;
+        assert_eq!(
+            first,
+            b"GET /first HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
+        );
+        assert_eq!(
+            second,
+            b"GET /second HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
+        );
+        assert_eq!(subscriber.outcomes_for("http1.direct.connect"), ["ok"]);
+        assert!(
+            subscriber.outcomes_for("http1.tls.connect").is_empty(),
+            "plaintext direct connection emitted a TLS wrapper outcome"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn plaintext_direct_without_runtime_is_runtime_unavailable() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let subscriber = OutcomeSubscriber::default();
+    let future = connector
+        .connect_plaintext_direct("127.0.0.1", 9)
+        .with_subscriber(Dispatch::new(subscriber.clone()));
+    let mut future = std::pin::pin!(future);
+    let mut context = Context::from_waker(Waker::noop());
+
+    let error = match future.as_mut().poll(&mut context) {
+        std::task::Poll::Ready(Err(error)) => error,
+        std::task::Poll::Ready(Ok(_)) => {
+            return Err("plaintext direct connection completed outside a Tokio runtime".into());
+        }
+        std::task::Poll::Pending => {
+            return Err("plaintext direct connection waited outside a Tokio runtime".into());
+        }
+    };
+    assert!(matches!(error, Http1TlsError::RuntimeUnavailable));
+    assert_eq!(
+        subscriber.outcomes_for("http1.direct.connect"),
+        ["runtime_unavailable"]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn plaintext_direct_connect_failure_is_not_a_proxy_error() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let subscriber = OutcomeSubscriber::default();
+    let (address, listener) = loopback_listener().await?;
+    drop(listener);
+
+    let error = connector
+        .connect_plaintext_direct("127.0.0.1", address.port())
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await
+        .expect_err("closed loopback port unexpectedly accepted a connection");
+    assert!(matches!(error, Http1TlsError::Connect(_)));
+    assert_eq!(
+        subscriber.outcomes_for("http1.direct.connect"),
+        ["connect_error"]
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn handshake_failure_has_tls_wrapper_outcome() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = test_connector(&identity)?;
@@ -435,6 +535,13 @@ fn test_connector(identity: &TestIdentity) -> TestResult<Http1TlsConnector> {
 }
 
 async fn read_head(stream: &mut BoringStream<TcpStream>) -> io::Result<Vec<u8>> {
+    read_plaintext_head(stream).await
+}
+
+async fn read_plaintext_head<S>(stream: &mut S) -> io::Result<Vec<u8>>
+where
+    S: AsyncRead + Unpin,
+{
     let mut bytes = Vec::new();
     let mut byte = [0_u8; 1];
     while !bytes.ends_with(b"\r\n\r\n") {
