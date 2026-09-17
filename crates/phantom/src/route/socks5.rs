@@ -1,9 +1,8 @@
 use std::{error::Error as StdError, fmt};
 
-use http::Uri;
 use phantom_net::proxy::Socks5Auth;
 
-use crate::authority::Endpoint;
+use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
 
 /// Ownership of SOCKS5 target DNS resolution.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -35,17 +34,18 @@ struct Socks5Credentials {
 impl Socks5Proxy {
     /// Parses a SOCKS5 proxy URI with explicit DNS ownership.
     ///
-    /// Port 1080 is used when omitted. Unicode hostnames must be normalized to
-    /// an ASCII A-label by the caller.
+    /// Port 1080 is used when omitted. Unicode hostnames are normalized to
+    /// their canonical ASCII form.
     ///
     /// # Errors
     ///
     /// Returns [`Socks5ProxyConfigError`] when the URI is malformed or uses an
     /// unsupported shape.
     pub fn new(uri: &str) -> Result<Self, Socks5ProxyConfigError> {
-        let uri = uri
-            .parse::<Uri>()
-            .map_err(Socks5ProxyConfigError::invalid_uri)?;
+        let uri = parse_absolute_uri(uri).map_err(|error| match error {
+            ParseUriError::Syntax(error) => Socks5ProxyConfigError::invalid_uri(error),
+            ParseUriError::Authority(error) => Socks5ProxyConfigError::authority(error.message()),
+        })?;
         let dns_mode = match uri.scheme_str() {
             Some("socks5") => Socks5DnsMode::Local,
             Some("socks5h") => Socks5DnsMode::Remote,
@@ -259,6 +259,18 @@ mod tests {
     }
 
     #[test]
+    fn canonicalizes_unicode_proxy_hosts() -> Result<(), Box<dyn std::error::Error>> {
+        let proxy = Socks5Proxy::new("socks5h://BÜCHER.Example:1081")?;
+
+        assert_eq!(proxy.endpoint.host(), "xn--bcher-kva.example");
+        assert_eq!(
+            proxy.endpoint.authority().as_str(),
+            "xn--bcher-kva.example:1081"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn rejects_credentials_paths_queries_and_other_schemes() -> Result<(), &'static str> {
         for (uri, kind) in [
             (
@@ -275,6 +287,10 @@ mod tests {
             ),
             (
                 "socks5h://user:secret@proxy.example",
+                Socks5ProxyConfigErrorKind::InvalidAuthority,
+            ),
+            (
+                "socks5h://\u{200d}.example",
                 Socks5ProxyConfigErrorKind::InvalidAuthority,
             ),
         ] {

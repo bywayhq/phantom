@@ -1,9 +1,8 @@
 use std::{error::Error as StdError, fmt};
 
-use http::Uri;
 use phantom_net::{proxy::HttpConnectHeader, request::RequestHeader};
 
-use crate::authority::Endpoint;
+use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
 
 mod socks5;
 
@@ -65,14 +64,17 @@ impl HttpProxy {
     ///
     /// The URI must use `http`, contain only an authority and optional `/`,
     /// and must not contain credentials. Port 80 is used when omitted. Unicode
-    /// hostnames must be normalized to an ASCII A-label by the caller.
+    /// hostnames are normalized to their canonical ASCII form.
     ///
     /// # Errors
     ///
     /// Returns [`ProxyConfigError`] when the URI is malformed or uses an
     /// unsupported shape.
     pub fn new(uri: &str) -> Result<Self, ProxyConfigError> {
-        let uri = uri.parse::<Uri>().map_err(ProxyConfigError::invalid_uri)?;
+        let uri = parse_absolute_uri(uri).map_err(|error| match error {
+            ParseUriError::Syntax(error) => ProxyConfigError::invalid_uri(error),
+            ParseUriError::Authority(error) => ProxyConfigError::authority(error.message()),
+        })?;
         if uri.scheme_str() != Some("http") {
             return Err(ProxyConfigError::unsupported_scheme());
         }
@@ -252,6 +254,18 @@ mod tests {
     }
 
     #[test]
+    fn canonicalizes_unicode_proxy_hosts() -> Result<(), Box<dyn std::error::Error>> {
+        let proxy = HttpProxy::new("http://BÜCHER.Example:8080")?;
+
+        assert_eq!(proxy.endpoint.host(), "xn--bcher-kva.example");
+        assert_eq!(
+            proxy.endpoint.authority().as_str(),
+            "xn--bcher-kva.example:8080"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn rejects_credentials_paths_queries_and_other_schemes() -> Result<(), &'static str> {
         for (uri, kind) in [
             (
@@ -268,6 +282,10 @@ mod tests {
             ),
             (
                 "http://user:secret@proxy.example",
+                ProxyConfigErrorKind::InvalidAuthority,
+            ),
+            (
+                "http://\u{200d}.example",
                 ProxyConfigErrorKind::InvalidAuthority,
             ),
         ] {

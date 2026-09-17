@@ -130,8 +130,10 @@ no UDP capability. The client or request owns the route, and the HTTP CONNECT
 field sequence contains one typed destination-authority placeholder.
 Validation happens before proxy I/O. Negotiation is bounded, accepts a final
 2xx after bounded informational responses, preserves bytes read beyond the
-response head, and never retries direct. Hostnames, IPv4, and bracketed IPv6
-endpoints have local coverage.
+response head, and never retries direct. Hostnames are canonicalized with the
+WHATWG host parser before endpoint construction. Parser coverage includes
+Unicode labels, IPv4, bracketed IPv6, explicit ports, and trailing dots; live
+route fixtures cover canonical DNS names and IP addresses.
 
 The SOCKS5 route uses `socks5://` for local origin DNS and `socks5h://` for
 proxy-owned origin DNS. Local resolution preserves resolver order, opens a
@@ -144,8 +146,8 @@ uses a maintained protocol engine; Phantom owns route validation, error
 categories, tracing, and fallback policy. See [proxy routing](proxy-routing.md).
 
 HTTP forwarding, TLS-to-proxy CONNECT, HTTP proxy authentication challenges,
-custom SOCKS5 resolvers, IDNA normalization, and half-close behavior remain
-later slices. SOCKS5 GSSAPI is unsupported.
+custom SOCKS5 resolvers, and half-close behavior remain later slices. SOCKS5
+GSSAPI is unsupported.
 
 H3 is capability-checked separately. A TCP CONNECT proxy cannot carry QUIC.
 SOCKS5 UDP ASSOCIATE is the first UDP proxy target, followed by CONNECT-UDP and

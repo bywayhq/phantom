@@ -30,6 +30,8 @@ use tokio_btls::SslStream;
 use tls_support::{H2_ALPN, TestIdentity, read_head, test_client};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+const UNICODE_ORIGIN_NAME: &str = "bücher.example";
+const ASCII_ORIGIN_NAME: &str = "xn--bcher-kva.example";
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
@@ -229,9 +231,9 @@ async fn separately_created_sessions_do_not_share_http2_connections() -> TestRes
 }
 
 #[tokio::test]
-async fn identical_connect_route_reuses_one_tunnel() -> TestResult<()> {
+async fn idna_equivalent_origins_reuse_one_connect_tunnel() -> TestResult<()> {
     bounded(async {
-        let identity = TestIdentity::generate()?;
+        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
@@ -245,11 +247,14 @@ async fn identical_connect_route_reuses_one_tunnel() -> TestResult<()> {
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
         let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let session = test_client(&identity, true)?.session();
-        for path in ["/first", "/second"] {
+        for (host, path) in [
+            (UNICODE_ORIGIN_NAME, "/first"),
+            (ASCII_ORIGIN_NAME, "/second"),
+        ] {
             let response = session
                 .get(
                     HttpProtocol::Http2,
-                    &format!("https://{origin_address}{path}"),
+                    &format!("https://{host}:{}{path}", origin_address.port()),
                 )?
                 .route(route.clone())
                 .send()
@@ -265,8 +270,12 @@ async fn identical_connect_route_reuses_one_tunnel() -> TestResult<()> {
         );
         assert_eq!(
             proxy.await??,
-            format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
-                .as_bytes()
+            format!(
+                "CONNECT {ASCII_ORIGIN_NAME}:{} HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\n\r\n",
+                origin_address.port(),
+                origin_address.port()
+            )
+            .as_bytes()
         );
         Ok(())
     })

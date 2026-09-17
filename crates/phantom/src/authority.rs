@@ -1,4 +1,82 @@
-use http::uri::Authority;
+use http::{Uri, uri::Authority};
+
+pub(crate) fn parse_absolute_uri(value: &str) -> Result<Uri, ParseUriError> {
+    let Some(scheme_end) = value.find("://") else {
+        return value.parse().map_err(ParseUriError::Syntax);
+    };
+    let authority_start = scheme_end + 3;
+    let authority_end = value[authority_start..]
+        .find(['/', '?', '#'])
+        .map_or(value.len(), |offset| authority_start + offset);
+    let authority = canonicalize_authority(&value[authority_start..authority_end])
+        .map_err(ParseUriError::Authority)?;
+
+    let mut canonical =
+        String::with_capacity(value.len() + authority.len() - (authority_end - authority_start));
+    canonical.push_str(&value[..authority_start]);
+    canonical.push_str(&authority);
+    canonical.push_str(&value[authority_end..]);
+    canonical.parse().map_err(ParseUriError::Syntax)
+}
+
+#[derive(Debug)]
+pub(crate) enum ParseUriError {
+    Syntax(http::uri::InvalidUri),
+    Authority(AuthorityError),
+}
+
+impl std::fmt::Display for ParseUriError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Syntax(error) => error.fmt(formatter),
+            Self::Authority(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for ParseUriError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Syntax(error) => Some(error),
+            Self::Authority(error) => Some(error),
+        }
+    }
+}
+
+fn canonicalize_authority(value: &str) -> Result<String, AuthorityError> {
+    if value.as_bytes().contains(&b'@') {
+        return Err(AuthorityError(
+            "authority must not contain user information",
+        ));
+    }
+    let (host, suffix) = split_host_and_suffix(value)?;
+    let host = url::Host::parse(host).map_err(|_| AuthorityError("host is invalid"))?;
+
+    let mut canonical = host.to_string();
+    canonical.push_str(suffix);
+    Ok(canonical)
+}
+
+fn split_host_and_suffix(value: &str) -> Result<(&str, &str), AuthorityError> {
+    if value.starts_with('[') {
+        let bracket = value
+            .find(']')
+            .ok_or(AuthorityError("bracketed host is incomplete"))?;
+        let (host, suffix) = value.split_at(bracket + 1);
+        if !suffix.is_empty() && !suffix.starts_with(':') {
+            return Err(AuthorityError("authority has an invalid suffix"));
+        }
+        return Ok((host, suffix));
+    }
+
+    let Some(colon) = value.rfind(':') else {
+        return Ok((value, ""));
+    };
+    if value[..colon].contains(':') {
+        return Err(AuthorityError("IPv6 hosts must use brackets"));
+    }
+    Ok((&value[..colon], &value[colon..]))
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Endpoint {
@@ -107,7 +185,56 @@ fn parse_port_suffix(suffix: &str, default_port: u16) -> Result<u16, AuthorityEr
 
 #[cfg(test)]
 mod tests {
-    use super::Endpoint;
+    use super::{Endpoint, ParseUriError, parse_absolute_uri};
+
+    #[test]
+    fn canonicalizes_url_hosts_without_reserializing_the_target()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let uri = parse_absolute_uri("https://BÜCHER.Example:443/a/%2e%2e/final?value=%2f")?;
+
+        assert_eq!(
+            uri,
+            "https://xn--bcher-kva.example:443/a/%2e%2e/final?value=%2f".parse::<http::Uri>()?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn canonicalizes_whatwg_ip_literals_and_preserves_trailing_dots()
+    -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            parse_absolute_uri("https://127.1/")?,
+            "https://127.0.0.1/".parse::<http::Uri>()?
+        );
+        assert_eq!(
+            parse_absolute_uri("https://１２７．０．０．１/")?,
+            "https://127.0.0.1/".parse::<http::Uri>()?
+        );
+        assert_eq!(
+            parse_absolute_uri("https://[0:0::1]:443/")?,
+            "https://[::1]:443/".parse::<http::Uri>()?
+        );
+        assert_eq!(
+            parse_absolute_uri("https://EXAMPLE.Test./")?,
+            "https://example.test./".parse::<http::Uri>()?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_invalid_url_hosts_as_authority_errors() {
+        for value in [
+            "https:///über",
+            "https://bad host/",
+            "https://user@example.test/",
+            "https://2001:db8::1/",
+        ] {
+            assert!(
+                matches!(parse_absolute_uri(value), Err(ParseUriError::Authority(_))),
+                "{value}"
+            );
+        }
+    }
 
     #[test]
     fn tunnel_authority_adds_default_port_and_preserves_explicit_port()

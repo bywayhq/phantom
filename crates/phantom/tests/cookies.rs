@@ -143,7 +143,7 @@ async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> 
 }
 
 #[tokio::test]
-async fn http1_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -> TestResult<()> {
+async fn http1_cookies_share_the_canonical_host_key() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -164,7 +164,7 @@ async fn http1_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -
         send_and_drain(
             &session,
             HttpProtocol::Http1,
-            &format!("https://{address}/seed"),
+            &format!("https://１２７．０．０．１:{}/seed", address.port()),
         )
         .await?;
         send_and_drain(

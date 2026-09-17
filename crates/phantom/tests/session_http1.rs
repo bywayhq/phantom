@@ -25,7 +25,7 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
-async fn sequential_session_requests_reuse_one_connection() -> TestResult {
+async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -46,7 +46,10 @@ async fn sequential_session_requests_reuse_one_connection() -> TestResult {
 
         let session = test_client(&identity, false)?.session();
         let first = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/first"))?
+            .get(
+                HttpProtocol::Http1,
+                &format!("https://１２７．０．０．１:{}/first", address.port()),
+            )?
             .send()
             .await?
             .into_body()
@@ -65,8 +68,22 @@ async fn sequential_session_requests_reuse_one_connection() -> TestResult {
         assert_eq!(second, "second");
 
         let (first, second) = server.await??;
-        assert!(first.starts_with(b"GET /first HTTP/1.1\r\n"));
-        assert!(second.starts_with(b"GET /second HTTP/1.1\r\n"));
+        assert_eq!(
+            first,
+            format!(
+                "GET /first HTTP/1.1\r\nHost: 127.0.0.1:{}\r\n\r\n",
+                address.port()
+            )
+            .as_bytes()
+        );
+        assert_eq!(
+            second,
+            format!(
+                "GET /second HTTP/1.1\r\nHost: 127.0.0.1:{}\r\n\r\n",
+                address.port()
+            )
+            .as_bytes()
+        );
         Ok(())
     })
     .await

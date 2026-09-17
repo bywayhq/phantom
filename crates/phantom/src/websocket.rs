@@ -5,14 +5,17 @@ use std::fmt;
 #[cfg(feature = "cookies")]
 use std::sync::Arc;
 
-use http::{Response, Uri};
+use http::Response;
 use phantom_net::{
     http1::{Http1UpgradeOutcome, OriginForm},
     request::RequestHeader,
 };
 use tracing::{Instrument, debug_span, field};
 
-use crate::{Client, RequestError, ResponseBody, Route, Session, authority::Endpoint};
+use crate::{
+    Client, RequestError, ResponseBody, Route, Session,
+    authority::{Endpoint, ParseUriError, parse_absolute_uri},
+};
 
 mod connection;
 mod error;
@@ -282,7 +285,10 @@ struct ResolvedWebSocket {
 
 impl ResolvedWebSocket {
     fn new(value: &str) -> Result<Self, WebSocketError> {
-        let uri = value.parse::<Uri>().map_err(WebSocketError::invalid_uri)?;
+        let uri = parse_absolute_uri(value).map_err(|error| match error {
+            ParseUriError::Syntax(error) => WebSocketError::invalid_uri(error),
+            ParseUriError::Authority(error) => WebSocketError::invalid_authority(error.message()),
+        })?;
         if uri.scheme_str() != Some("wss") {
             return Err(WebSocketError::unsupported_scheme());
         }
@@ -295,7 +301,7 @@ impl ResolvedWebSocket {
             .map_err(|_| WebSocketError::invalid_request("invalid WebSocket request target"))?;
         #[cfg(feature = "cookies")]
         let cookie_url = {
-            let mut url = url::Url::parse(value).map_err(|_| {
+            let mut url = url::Url::parse(&uri.to_string()).map_err(|_| {
                 WebSocketError::invalid_request(
                     "WebSocket URI cannot be represented for cookie policy",
                 )
@@ -314,5 +320,27 @@ impl ResolvedWebSocket {
             #[cfg(feature = "cookies")]
             cookie_url,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{OriginForm, ResolvedWebSocket};
+
+    #[test]
+    fn canonicalizes_websocket_host_without_reserializing_the_target()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let request = ResolvedWebSocket::new("wss://BÜCHER.Example:443/a/%2e%2e/final?value=%2f")?;
+
+        assert_eq!(request.endpoint.host(), "xn--bcher-kva.example");
+        assert_eq!(
+            request.endpoint.authority().as_str(),
+            "xn--bcher-kva.example:443"
+        );
+        assert_eq!(
+            request.target,
+            OriginForm::parse("/a/%2e%2e/final?value=%2f")?
+        );
+        Ok(())
     }
 }

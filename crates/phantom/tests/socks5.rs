@@ -19,12 +19,14 @@ use socks5_support::{ObservedSocks5Connect, forward_one_socks5, reject_one_socks
 use tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head};
 
 const ORIGIN_NAME: &str = "origin.phantom.test";
+const UNICODE_ORIGIN_NAME: &str = "bücher.example";
+const ASCII_ORIGIN_NAME: &str = "xn--bcher-kva.example";
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tokio::test]
-async fn http1_uses_proxy_owned_dns_without_direct_fallback() -> TestResult<()> {
+async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> {
     bounded(async {
-        let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
@@ -47,7 +49,10 @@ async fn http1_uses_proxy_owned_dns_without_direct_fallback() -> TestResult<()> 
         let response = client
             .get(
                 HttpProtocol::Http1,
-                &format!("https://{ORIGIN_NAME}:{}/proxied", origin_address.port()),
+                &format!(
+                    "https://{UNICODE_ORIGIN_NAME}:{}/proxied",
+                    origin_address.port()
+                ),
             )?
             .header(RequestHeader::new("X-Origin", "only"))
             .send()
@@ -60,7 +65,7 @@ async fn http1_uses_proxy_owned_dns_without_direct_fallback() -> TestResult<()> 
         assert_eq!(
             request,
             format!(
-                "GET /proxied HTTP/1.1\r\nHost: {ORIGIN_NAME}:{}\r\nX-Origin: only\r\n\r\n",
+                "GET /proxied HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\nX-Origin: only\r\n\r\n",
                 origin_address.port()
             )
             .as_bytes()
@@ -68,7 +73,7 @@ async fn http1_uses_proxy_owned_dns_without_direct_fallback() -> TestResult<()> 
         assert_eq!(
             proxy.await??,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ASCII_ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
             }
         );
@@ -226,9 +231,9 @@ fn io_disabled_runtime_returns_typed_error() -> TestResult<()> {
 
 #[cfg(feature = "websocket")]
 #[tokio::test]
-async fn websocket_uses_the_same_remote_dns_route() -> TestResult<()> {
+async fn websocket_canonicalizes_host_on_the_same_remote_dns_route() -> TestResult<()> {
     bounded(async {
-        let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
@@ -264,7 +269,7 @@ async fn websocket_uses_the_same_remote_dns_route() -> TestResult<()> {
         let client = client_builder(&identity, false).route(route).build()?;
         let socket = client
             .websocket(&format!(
-                "wss://{ORIGIN_NAME}:{}/events",
+                "wss://{UNICODE_ORIGIN_NAME}:{}/events",
                 origin_address.port()
             ))?
             .connect()
@@ -272,11 +277,14 @@ async fn websocket_uses_the_same_remote_dns_route() -> TestResult<()> {
         drop(socket);
         drop(client);
 
-        assert!(origin.await??.starts_with(b"GET /events HTTP/1.1\r\n"));
+        let request = origin.await??;
+        assert!(request.starts_with(b"GET /events HTTP/1.1\r\n"));
+        let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
+        assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
         assert_eq!(
             proxy.await??,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ASCII_ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
             }
         );

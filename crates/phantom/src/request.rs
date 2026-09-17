@@ -7,7 +7,7 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
     Client, HttpProtocol, RequestError, ResponseBody, ResponseInfo, Route, Session,
-    authority::Endpoint,
+    authority::{Endpoint, ParseUriError, parse_absolute_uri},
     redirect::{RedirectAction, RedirectPolicy, RedirectState},
 };
 
@@ -108,7 +108,7 @@ impl RequestBuilder {
             )
             | ProtocolSelection::Http1Or2 => {}
         }
-        let uri = uri.parse::<Uri>().map_err(RequestError::invalid_uri)?;
+        let uri = parse_absolute_uri(uri).map_err(request_uri_error)?;
         Ok(Self {
             context,
             request: ResolvedRequest::new(&uri)?,
@@ -288,6 +288,13 @@ impl RequestBuilder {
                 }
             }
         }
+    }
+}
+
+fn request_uri_error(error: ParseUriError) -> RequestError {
+    match error {
+        ParseUriError::Syntax(error) => RequestError::invalid_uri(error),
+        ParseUriError::Authority(error) => RequestError::invalid_authority(error.message()),
     }
 }
 
@@ -485,6 +492,28 @@ mod tests {
     }
 
     #[test]
+    fn initial_uri_uses_one_canonical_host_for_wire_and_url_state()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let uri = super::parse_absolute_uri("https://BÜCHER.Example:443/a/%2e%2e/final?value=%2f")?;
+        let request = ResolvedRequest::new(&uri)?;
+
+        assert_eq!(request.endpoint.host(), "xn--bcher-kva.example");
+        assert_eq!(
+            request.endpoint.authority().as_str(),
+            "xn--bcher-kva.example:443"
+        );
+        assert_eq!(
+            request.uri,
+            "https://xn--bcher-kva.example:443/a/%2e%2e/final?value=%2f".parse::<http::Uri>()?
+        );
+        assert_eq!(
+            request.url.origin().ascii_serialization(),
+            "https://xn--bcher-kva.example"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn redirect_fragments_are_not_sent() -> Result<(), Box<dyn std::error::Error>> {
         let url = url::Url::parse("https://example.test/final?value=yes#section")?;
         let request = ResolvedRequest::from_redirect_url(&url)?;
@@ -493,6 +522,21 @@ mod tests {
             request.uri,
             "https://example.test/final?value=yes".parse::<http::Uri>()?
         );
+        Ok(())
+    }
+
+    #[test]
+    fn redirect_url_retains_the_same_canonical_endpoint() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let url = url::Url::parse("https://BÜCHER.Example:8443/next")?;
+        let request = ResolvedRequest::from_redirect_url(&url)?;
+
+        assert_eq!(request.endpoint.host(), "xn--bcher-kva.example");
+        assert_eq!(
+            request.endpoint.authority().as_str(),
+            "xn--bcher-kva.example:8443"
+        );
+        assert_eq!(request.url, url);
         Ok(())
     }
 }

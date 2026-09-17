@@ -66,6 +66,13 @@ rejected before either proxy TCP or origin UDP is opened. The response body
 implements `http_body::Body` and retains the existing protocol cancellation
 behavior when dropped.
 
+Absolute request, WebSocket, HTTP-proxy, and SOCKS5-proxy URIs pass through one
+WHATWG host parser before endpoint construction. The resulting ASCII authority
+is shared by DNS, SNI and certificate-name verification, `Host` or
+`:authority`, CONNECT, remote-DNS SOCKS5, pool identity, cookies, and
+client-hint origin keys. Explicit ports and the original request path/query
+bytes are retained; malformed hosts fail before I/O.
+
 There is no global mutable profile registry, environment-only configuration,
 browser-family switch inside a transport, or callback invoked while a pool
 key is being computed. Resolved configuration is owned so a live connection
@@ -86,9 +93,11 @@ Configuration follows these rules:
 
 A TLS profile is an ordered wire offer, not a security grade. Captured clients
 may advertise legacy versions or suites. A connection policy constrains what a
-deployment accepts without silently rewriting that offer. Until the public
-policy type exists, callers restrict the version range and cipher-suite list
-by customizing `TlsSettings` before connector construction.
+deployment accepts without silently rewriting that offer.
+`ClientBuilder::server_authentication` defaults to WebPKI certificate-chain and
+hostname verification. Its explicit disabled mode is limited to controlled
+TCP TLS conformance, cannot be combined with additional roots or HTTP/3, and
+does not change the profile's wire offer.
 
 Profile-policy conflicts will fail before network I/O. This keeps packet
 differentials honest and prevents a pool from treating two different wire

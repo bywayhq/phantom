@@ -38,7 +38,7 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ACCEPT_CH_VALUE: &str = "Sec-CH-UA-Arch, Sec-CH-UA-Platform-Version";
 
 #[tokio::test]
-async fn http1_learns_replaces_and_clears_client_hints() -> TestResult<()> {
+async fn http1_client_hints_share_the_canonical_origin_key() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -58,7 +58,8 @@ async fn http1_learns_replaces_and_clears_client_hints() -> TestResult<()> {
         let client = client(&identity)?;
         let session = client.session();
         let url = format!("https://{address}/");
-        send_and_drain(&session, HttpProtocol::Http1, &url).await?;
+        let unicode_url = format!("https://１２７．０．０．１:{}/", address.port());
+        send_and_drain(&session, HttpProtocol::Http1, &unicode_url).await?;
         send_and_drain(&session, HttpProtocol::Http1, &url).await?;
         send_and_drain(&session, HttpProtocol::Http1, &url).await?;
 

@@ -27,6 +27,8 @@ use tls_support::{
 };
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+const UNICODE_ORIGIN_NAME: &str = "bücher.example";
+const ASCII_ORIGIN_NAME: &str = "xn--bcher-kva.example";
 
 #[tokio::test]
 async fn streams_http1_upload_through_ordered_connect_route() -> TestResult<()> {
@@ -94,9 +96,55 @@ async fn streams_http1_upload_through_ordered_connect_route() -> TestResult<()> 
 }
 
 #[tokio::test]
-async fn request_route_override_streams_http2_and_trailers() -> TestResult<()> {
+async fn unicode_origin_uses_one_canonical_connect_and_host_authority() -> TestResult<()> {
     bounded(async {
-        let identity = TestIdentity::generate()?;
+        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin_acceptor = identity.acceptor(H1_ALPN)?;
+        let origin = tokio::spawn(async move {
+            let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+        });
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
+        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+        let origin_uri = format!(
+            "https://{UNICODE_ORIGIN_NAME}:{}/resource",
+            origin_address.port()
+        );
+
+        let response = client.get(HttpProtocol::Http1, &origin_uri)?.send().await?;
+        assert_eq!(response.status(), 204);
+        response.into_body().collect().await?;
+
+        let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
+        assert_eq!(
+            proxy.await??,
+            format!("CONNECT {authority} HTTP/1.1\r\nHost: {authority}\r\n\r\n").as_bytes()
+        );
+        assert_eq!(
+            origin.await??,
+            format!("GET /resource HTTP/1.1\r\nHost: {authority}\r\n\r\n").as_bytes()
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn request_route_override_canonicalizes_http2_authority_and_streams_trailers()
+-> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let origin_acceptor = identity.acceptor(H2_ALPN)?;
@@ -130,7 +178,10 @@ async fn request_route_override_streams_http2_and_trailers() -> TestResult<()> {
         let response = client
             .get(
                 HttpProtocol::Http2,
-                &format!("https://{origin_address}/h2-proxied"),
+                &format!(
+                    "https://{UNICODE_ORIGIN_NAME}:{}/h2-proxied",
+                    origin_address.port()
+                ),
             )?
             .route(route)
             .send()
@@ -145,12 +196,16 @@ async fn request_route_override_streams_http2_and_trailers() -> TestResult<()> {
         assert_eq!(trailer.as_deref(), Some("yes"));
 
         let connect = proxy.await??;
+        let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
         assert_eq!(
             connect,
-            format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
-                .as_bytes()
+            format!("CONNECT {authority} HTTP/1.1\r\nHost: {authority}\r\n\r\n").as_bytes()
         );
         let uri = origin.await??;
+        assert_eq!(
+            uri.authority().map(|value| value.as_str()),
+            Some(authority.as_str())
+        );
         assert_eq!(uri.path(), "/h2-proxied");
         Ok(())
     })

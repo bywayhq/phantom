@@ -164,6 +164,42 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn direct_request_canonicalizes_a_whatwg_ip_host_before_io() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(listener, acceptor).await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(request)
+        });
+
+        let client = test_client(&identity, false)?;
+        let uri = format!("https://１２７．０．０．１:{}/idna", address.port());
+        let response = client.get(HttpProtocol::Http1, &uri)?.send().await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        assert_eq!(
+            server.await??,
+            format!(
+                "GET /idna HTTP/1.1\r\nHost: 127.0.0.1:{}\r\n\r\n",
+                address.port()
+            )
+            .as_bytes()
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn public_client_sends_owned_http1_request_body() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
@@ -530,6 +566,29 @@ async fn bracketed_ipv4_host_fails_before_network_io() -> TestResult<()> {
 
     let error = match client.get(HttpProtocol::Http1, &format!("https://[127.0.0.1]:{port}/")) {
         Ok(_) => return Err("bracketed IPv4 request host was accepted".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::InvalidAuthority);
+    assert!(matches!(
+        listener.accept(),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock
+    ));
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_idna_host_fails_before_network_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = test_client(&identity, false)?;
+    let listener = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    listener.set_nonblocking(true)?;
+    let port = listener.local_addr()?.port();
+
+    let error = match client.get(
+        HttpProtocol::Http1,
+        &format!("https://\u{200d}.example:{port}/"),
+    ) {
+        Ok(_) => return Err("invalid IDNA request host was accepted".into()),
         Err(error) => error,
     };
     assert_eq!(error.kind(), RequestErrorKind::InvalidAuthority);

@@ -229,8 +229,8 @@ and reports rejection without exposing peer fields. Loopback tests prove H1
 and H2 origin TLS through the proxy, H2 trailers, pre-I/O validation,
 cancellation, response bounds, and that rejection never opens a direct origin
 socket. It does not introduce an empty `Session` or pool. HTTPS proxies,
-forwarding, SOCKS5, authentication challenge negotiation, IDNA normalization,
-and UDP-capable proxy routes remain later Phase 6 slices.
+forwarding, SOCKS5, authentication challenge negotiation, and UDP-capable
+proxy routes remain later Phase 6 slices.
 
 The third landed slice brings the existing direct H3 path into the public
 facade. `HttpProtocol::Http3` selects it exactly, `ClientProfile` owns one
@@ -336,6 +336,15 @@ and connection-scoped `ACCEPT_CH`; `http/1.1` or absent ALPN enters H1. Other
 selected protocols fail before HTTP bytes. `ResponseInfo` records the actual
 protocol. Exact-protocol methods remain unchanged. Negotiated sessions,
 proxies, H3 upgrades, Alt-Svc, and racing remain later slices.
+
+The canonical-endpoint slice is landed across HTTPS, WSS, HTTP-proxy, and
+SOCKS5-proxy URIs. One WHATWG host parse converts Unicode domains and
+noncanonical IP forms before endpoint construction while preserving explicit
+ports and the original request-target bytes. The resulting authority is shared
+by DNS, SNI and certificate verification, H1/H2/H3 fields, CONNECT, remote-DNS
+SOCKS5, pool keys, cookies, redirects, and client-hint origin state. Direct H1
+and H3 plus H1/H2 CONNECT and SOCKS5H fixtures prove the emitted canonical
+authority; equivalent Unicode and ASCII inputs share session state and reuse.
 
 Acceptance:
 

@@ -29,7 +29,7 @@ use tls_support::{TestIdentity, TestResult, tls_settings};
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tokio::test]
-async fn public_client_streams_http3_data_and_trailers() -> TestResult<()> {
+async fn public_client_canonicalizes_host_and_streams_http3_data_and_trailers() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
@@ -83,7 +83,10 @@ async fn public_client_streams_http3_data_and_trailers() -> TestResult<()> {
         let response = client
             .get(
                 HttpProtocol::Http3,
-                &format!("https://{address}/resource?item=1"),
+                &format!(
+                    "https://１２７．０．０．１:{}/resource?item=1",
+                    address.port()
+                ),
             )?
             .headers(vec![
                 RequestHeader::new("x-first", "one"),
