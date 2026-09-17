@@ -13,7 +13,10 @@ use phantom_net::http2::{
 use tokio::sync::Mutex;
 use tracing::debug;
 
-use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
+use super::{
+    admission::{Admission, AdmissionPermit, AdmissionRegistry},
+    client_hints::ClientHintContext,
+};
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 pub(crate) struct Http2Pool {
@@ -59,11 +62,21 @@ impl Http2Pool {
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        client_hints: Option<ClientHintContext<'_>>,
         body: Option<Bytes>,
-    ) -> Result<http::Response<ResponseBody>, RequestError> {
-        validate_request(&method, authority, &target, &headers, body.as_ref())
-            .map_err(Http2TlsError::from)
-            .map_err(RequestError::http2)?;
+    ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+        let prepared_validation_headers =
+            client_hints.map(|context| context.prepare(headers.clone(), None));
+        let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
+        validate_request(
+            &method,
+            authority,
+            &target,
+            validation_headers,
+            body.as_ref(),
+        )
+        .map_err(Http2TlsError::from)
+        .map_err(RequestError::http2)?;
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
         let permit = entry.admit().await?;
@@ -75,22 +88,34 @@ impl Http2Pool {
                 .acquire(connector, endpoint, route)
                 .await
                 .map_err(RequestError::http2)?;
+            let sent_headers = client_hints.map_or_else(
+                || headers.clone(),
+                |context| {
+                    context.prepare(
+                        headers.clone(),
+                        lease.connection.accept_ch_for_origin(context.origin()),
+                    )
+                },
+            );
             let result = lease
                 .connection
                 .send_request(
                     method.clone(),
                     authority,
                     target.clone(),
-                    headers.clone(),
+                    sent_headers.clone(),
                     body.clone(),
                 )
                 .await;
             match result {
                 Ok(response) => {
                     let (parts, body) = response.into_parts();
-                    return Ok(http::Response::from_parts(
-                        parts,
-                        ResponseBody::http2_with_guard(body, permit),
+                    return Ok((
+                        http::Response::from_parts(
+                            parts,
+                            ResponseBody::http2_with_guard(body, permit),
+                        ),
+                        sent_headers,
                     ));
                 }
                 Err(error) => {

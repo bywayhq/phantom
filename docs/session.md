@@ -48,12 +48,19 @@ all learned selections. Bare `Client` requests emit profile defaults without
 retaining response state. Caller-supplied configured hint fields override
 automatic values without being moved.
 
+An H2 or H3 connection may also supply `ACCEPT_CH` in authenticated ALPS. Its
+exact-origin selection is applied after connection choice, including to the
+first request, and augments response-learned session state. It remains
+immutable connection metadata: it is not persisted, inherited by a replacement
+connection, or cleared through `Session::clear_client_hints`.
+
 `Critical-CH` may replay the current owned request once when a supported
-requested hint was missing and the method is idempotent. It cannot loop or
+requested hint was missing and the method is safe. It cannot loop or
 change the selected route or protocol. Cross-origin redirects remove configured
-caller hint fields and rebuild the automatic set for the new origin. ALPS
-`ACCEPT_CH`, persistence, full-navigation restart across an already-followed
-redirect chain, and browsing-context delegation are not part of this slice.
+caller hint fields and rebuild the automatic set for the new origin. Live
+post-handshake `ACCEPT_CH` frames, persistence, full-navigation restart across
+an already-followed redirect chain, and browsing-context delegation are not
+part of this slice.
 
 ## Redirect policy
 

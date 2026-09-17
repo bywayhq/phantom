@@ -120,13 +120,13 @@ async fn streams_http2_over_certificate_verified_tls() -> TestResult<()> {
 #[tokio::test]
 async fn reusable_connect_applies_alpn_and_alps_to_multiple_requests() -> TestResult<()> {
     bounded_tls_test(async {
-        const EMPTY_SETTINGS_FRAME: &[u8] = &[0, 0, 0, 4, 0, 0, 0, 0, 0];
-
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
         let acceptor = alps_acceptor(&identity)?;
+        let application_settings =
+            accept_ch_alps("https://server.phantom.test:8443", "Sec-CH-UA-Arch");
         let server = tokio::spawn(async move {
-            let mut stream = accept_alps(listener, acceptor, EMPTY_SETTINGS_FRAME).await?;
+            let mut stream = accept_alps(listener, acceptor, &application_settings).await?;
             let mut preface = [0_u8; 24];
             stream.read_exact(&mut preface).await?;
             assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
@@ -145,6 +145,10 @@ async fn reusable_connect_applies_alpn_and_alps_to_multiple_requests() -> TestRe
         let connector = alps_test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
         let connection = connector.connect(tcp, TEST_SERVER_NAME).await?;
+        assert_eq!(
+            connection.accept_ch_for_origin("https://server.phantom.test:8443"),
+            Some(&b"Sec-CH-UA-Arch"[..])
+        );
         request_and_collect(&connection, "/first", vec![]).await?;
         request_and_collect(&connection, "/second", vec![]).await?;
         assert_eq!(server.await??, [1, 3]);
@@ -661,7 +665,7 @@ fn alps_acceptor(identity: &TestIdentity) -> TestResult<SslAcceptor> {
 async fn accept_alps(
     listener: TcpListener,
     acceptor: SslAcceptor,
-    application_settings: &'static [u8],
+    application_settings: &[u8],
 ) -> TestResult<BoringStream<TcpStream>> {
     let (tcp, _) = listener.accept().await?;
     let mut ssl = Ssl::new(acceptor.context())?;
@@ -670,6 +674,33 @@ async fn accept_alps(
     let mut stream = BoringStream::new(ssl, tcp)?;
     Pin::new(&mut stream).accept().await?;
     Ok(stream)
+}
+
+fn accept_ch_alps(origin: &str, value: &str) -> Vec<u8> {
+    let Ok(origin_len) = u16::try_from(origin.len()) else {
+        panic!("test origin exceeds the HTTP/2 field width");
+    };
+    let Ok(value_len) = u16::try_from(value.len()) else {
+        panic!("test value exceeds the HTTP/2 field width");
+    };
+    let payload_len = 4 + origin.len() + value.len();
+    let mut encoded = vec![0, 0, 0, 4, 0, 0, 0, 0, 0];
+    encoded.extend([
+        ((payload_len >> 16) & 0xff) as u8,
+        ((payload_len >> 8) & 0xff) as u8,
+        (payload_len & 0xff) as u8,
+        0x89,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]);
+    encoded.extend(origin_len.to_be_bytes());
+    encoded.extend(origin.as_bytes());
+    encoded.extend(value_len.to_be_bytes());
+    encoded.extend(value.as_bytes());
+    encoded
 }
 
 struct RawFrame {

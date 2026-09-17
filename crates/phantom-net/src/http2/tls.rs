@@ -591,13 +591,17 @@ impl Http2TlsConnector {
         })?;
         debug!(
             alps_frame_count = peer_settings.frame_count(),
+            accept_ch_entry_count = peer_settings.accept_ch_entry_count(),
+            ignored_accept_ch_entry_count = peer_settings.ignored_accept_ch_entry_count(),
+            malformed_accept_ch_frame_count = peer_settings.malformed_accept_ch_frame_count(),
             "HTTP/2 peer application settings decoded"
         );
-        if let Some(settings) = peer_settings.into_initial_settings() {
+        let (initial_settings, accept_ch) = peer_settings.into_parts();
+        if let Some(settings) = initial_settings {
             client.initial_peer_settings(settings);
         }
 
-        Http2Connection::connect_with_builder(stream, client)
+        Http2Connection::connect_with_builder_and_accept_ch(stream, client, accept_ch)
             .await
             .map_err(Into::into)
     }

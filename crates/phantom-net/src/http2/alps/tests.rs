@@ -102,6 +102,58 @@ fn ignores_unknown_settings_frames_and_unused_flags() {
 }
 
 #[test]
+fn accepts_connection_client_hints_and_keeps_the_first_origin_value() {
+    let mut encoded = frame(4, 0, 0, &settings(&[(1, 128)]));
+    encoded.extend(frame(
+        0x89,
+        0,
+        0,
+        &accept_ch(&[
+            ("https://example.test", "Sec-CH-UA-Arch"),
+            ("https://other.test", "Sec-CH-UA-Model"),
+        ]),
+    ));
+    encoded.extend(frame(
+        0x89,
+        0,
+        0,
+        &accept_ch(&[("https://example.test", "Sec-CH-UA-Bitness")]),
+    ));
+
+    let decoded = decode_ok(Some(&encoded));
+    assert_eq!(decoded.accept_ch_entry_count(), 2);
+    assert_eq!(decoded.malformed_accept_ch_frame_count(), 0);
+    let (settings, accept_ch) = decoded.into_parts();
+    assert_eq!(
+        settings.and_then(|value| value.header_table_size()),
+        Some(128)
+    );
+    assert_eq!(
+        accept_ch.for_origin("https://example.test"),
+        Some(&b"Sec-CH-UA-Arch"[..])
+    );
+    assert_eq!(
+        accept_ch.for_origin("https://other.test"),
+        Some(&b"Sec-CH-UA-Model"[..])
+    );
+    assert_eq!(accept_ch.for_origin("https://missing.test"), None);
+}
+
+#[test]
+fn malformed_accept_ch_payload_is_ignored_after_complete_entries() {
+    let mut payload = accept_ch(&[("https://example.test", "Sec-CH-UA-Arch")]);
+    payload.extend([0, 5, b'x']);
+    let decoded = decode_ok(Some(&frame(0x89, 0, 0, &payload)));
+
+    assert_eq!(decoded.malformed_accept_ch_frame_count(), 1);
+    let (_, accept_ch) = decoded.into_parts();
+    assert_eq!(
+        accept_ch.for_origin("https://example.test"),
+        Some(&b"Sec-CH-UA-Arch"[..])
+    );
+}
+
+#[test]
 fn rejects_structurally_malformed_frame_sequences() {
     assert_kind(
         &vec![0; usize::from(u16::MAX) + 1],
@@ -119,6 +171,8 @@ fn rejects_structurally_malformed_frame_sequences() {
     assert_kind(&frame(4, 0, 1, &[]), DecodeErrorKind::SettingsStream);
     assert_kind(&frame(4, 1, 0, &[]), DecodeErrorKind::SettingsAck);
     assert_kind(&frame(4, 0, 0, &[0]), DecodeErrorKind::SettingsLength);
+    assert_kind(&frame(0x89, 0, 1, &[]), DecodeErrorKind::AcceptChStream);
+    assert_kind(&frame(0x89, 1, 0, &[]), DecodeErrorKind::AcceptChFlags);
 }
 
 #[test]
@@ -166,6 +220,23 @@ fn settings(values: &[(u16, u32)]) -> Vec<u8> {
     for (id, value) in values {
         payload.extend(id.to_be_bytes());
         payload.extend(value.to_be_bytes());
+    }
+    payload
+}
+
+fn accept_ch(entries: &[(&str, &str)]) -> Vec<u8> {
+    let mut payload = Vec::new();
+    for (origin, value) in entries {
+        let Ok(origin_len) = u16::try_from(origin.len()) else {
+            panic!("test origin exceeds the HTTP/2 field width");
+        };
+        let Ok(value_len) = u16::try_from(value.len()) else {
+            panic!("test value exceeds the HTTP/2 field width");
+        };
+        payload.extend(origin_len.to_be_bytes());
+        payload.extend(origin.as_bytes());
+        payload.extend(value_len.to_be_bytes());
+        payload.extend(value.as_bytes());
     }
     payload
 }

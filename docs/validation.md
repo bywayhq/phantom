@@ -550,7 +550,10 @@ The corpus covers:
   compression, and close races.
 - Client-hint replacement and clearing, repeated and malformed structured
   fields, origin/port isolation, cross-origin redirect stripping, and bounded
-  `Critical-CH` replay over H1, H2, and H3.
+  `Critical-CH` replay over H1, H2, and H3; live H2 ALPS `ACCEPT_CH`
+  first-request and replacement-connection application; and H3 provider
+  round-trip, strict decoding, exact-origin lookup, and connection-to-request
+  seam coverage.
 
 Minimized failures become ordinary regression fixtures. Coverage-guided fuzzing
 uses the same bounded decoders and seeds in scheduled CI; native adapters also

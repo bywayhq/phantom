@@ -5,6 +5,7 @@ use phantom_net::request::RequestHeader;
 use crate::{HttpProtocol, RequestError, ResponseBody, Route};
 
 use super::{RequestContext, ResolvedRequest};
+use crate::session::client_hints::ClientHintContext;
 
 pub(super) async fn send_once(
     context: &RequestContext,
@@ -21,9 +22,16 @@ pub(super) async fn send_once(
     #[cfg(feature = "cookies")]
     let cookie_jar = session.and_then(|session| session.state.cookies.as_deref());
     let mut retried_critical_hints = false;
+    let client_hint_origin = client
+        .inner
+        .client_hints
+        .as_ref()
+        .map(|_| request.url.origin().ascii_serialization());
 
     loop {
-        let mut prepared_headers = request_headers.clone();
+        let prepared_headers = request_headers.clone();
+        #[cfg(feature = "cookies")]
+        let mut prepared_headers = prepared_headers;
         #[cfg(feature = "cookies")]
         if let Some(jar) = cookie_jar {
             let caller_supplied_cookie = prepared_headers
@@ -40,25 +48,30 @@ pub(super) async fn send_once(
             }
         }
 
-        if let Some(settings) = client.inner.client_hints.as_ref() {
-            prepared_headers = match session {
-                Some(session) => session.prepare_client_hints(endpoint, settings, prepared_headers),
-                None => {
-                    crate::session::client_hints::prepare_default_fields(settings, prepared_headers)
-                }
-            };
-        }
-        let sent_headers = prepared_headers.clone();
-        let response = dispatch(
+        let client_hints = client
+            .inner
+            .client_hints
+            .as_ref()
+            .zip(client_hint_origin.as_deref())
+            .map(|(settings, origin)| {
+                session.map_or_else(
+                    || ClientHintContext::stateless(endpoint, origin, settings),
+                    |session| session.client_hint_context(endpoint, origin, settings),
+                )
+            });
+        let dispatched = dispatch(
             context,
             request,
             protocol,
             method.clone(),
             prepared_headers,
+            client_hints,
             body.clone(),
             route,
         )
         .await?;
+        let response = dispatched.response;
+        let sent_headers = dispatched.sent_headers;
 
         #[cfg(feature = "cookies")]
         if let Some(jar) = cookie_jar {
@@ -93,7 +106,12 @@ pub(super) async fn send_once(
 }
 
 fn critical_hint_retry_eligible(method: &Method) -> bool {
-    method.is_idempotent()
+    method.is_safe()
+}
+
+struct DispatchOutcome {
+    response: Response<ResponseBody>,
+    sent_headers: Vec<RequestHeader>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -103,9 +121,10 @@ async fn dispatch(
     protocol: HttpProtocol,
     method: Method,
     request_headers: Vec<RequestHeader>,
+    client_hints: Option<ClientHintContext<'_>>,
     body: Option<Bytes>,
     route: &Route,
-) -> Result<Response<ResponseBody>, RequestError> {
+) -> Result<DispatchOutcome, RequestError> {
     let client = context.client();
     let session = context.session();
     let endpoint = &request.endpoint;
@@ -117,18 +136,19 @@ async fn dispatch(
                 .http1
                 .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
-            let mut headers = Vec::with_capacity(request_headers.len() + 1);
+            let sent_headers = prepare_headers(client_hints, request_headers, None);
+            let mut headers = Vec::with_capacity(sent_headers.len() + 1);
             headers.push(RequestHeader::new(
                 "Host",
                 endpoint.authority().as_str().as_bytes(),
             ));
-            headers.extend(request_headers);
-            if let Some(session) = session {
+            headers.extend(sent_headers.clone());
+            let response = if let Some(session) = session {
                 session
                     .state
                     .http1
                     .send_request(connector, endpoint, route, method, target, headers, body)
-                    .await
+                    .await?
             } else {
                 let response = match route {
                     Route::Direct => {
@@ -195,8 +215,12 @@ async fn dispatch(
                 }
                 .map_err(RequestError::http1)?;
                 let (parts, body) = response.into_parts();
-                Ok(Response::from_parts(parts, ResponseBody::http1(body)))
-            }
+                Response::from_parts(parts, ResponseBody::http1(body))
+            };
+            Ok(DispatchOutcome {
+                response,
+                sent_headers,
+            })
         }
         HttpProtocol::Http2 => {
             let connector = client
@@ -216,80 +240,94 @@ async fn dispatch(
                         endpoint.authority().as_str(),
                         target,
                         request_headers,
+                        client_hints,
                         body,
                     )
                     .await
+                    .map(|(response, sent_headers)| DispatchOutcome {
+                        response,
+                        sent_headers,
+                    })
             } else {
-                let response = match route {
+                let prepared_validation_headers =
+                    client_hints.map(|context| context.prepare(request_headers.clone(), None));
+                let validation_headers = prepared_validation_headers
+                    .as_deref()
+                    .unwrap_or(&request_headers);
+                phantom_net::http2::validate_request(
+                    &method,
+                    endpoint.authority().as_str(),
+                    &target,
+                    validation_headers,
+                    body.as_ref(),
+                )
+                .map_err(phantom_net::http2::Http2TlsError::from)
+                .map_err(RequestError::http2)?;
+                let connection = match route {
                     Route::Direct => {
                         connector
-                            .send_request_direct(
-                                endpoint.host(),
-                                endpoint.port(),
-                                endpoint.host(),
-                                method,
-                                endpoint.authority().as_str(),
-                                target,
-                                request_headers,
-                                body,
-                            )
+                            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
                             .await
                     }
                     Route::HttpConnect(proxy) => {
                         let connect_authority = endpoint.tunnel_authority();
                         connector
-                            .send_request_http_connect(
+                            .connect_http_connect(
                                 proxy.host(),
                                 proxy.port(),
                                 &connect_authority,
                                 proxy.ordered_connect_headers(),
                                 endpoint.host(),
-                                method,
-                                endpoint.authority().as_str(),
-                                target,
-                                request_headers,
-                                body,
                             )
                             .await
                     }
                     Route::Socks5(proxy) => match proxy.dns_mode() {
                         crate::Socks5DnsMode::Local => {
                             connector
-                                .send_request_socks5_local(
+                                .connect_socks5_local(
                                     proxy.host(),
                                     proxy.port(),
                                     endpoint.host(),
                                     endpoint.port(),
                                     endpoint.host(),
-                                    method,
-                                    endpoint.authority().as_str(),
-                                    target,
-                                    request_headers,
-                                    body,
                                 )
                                 .await
                         }
                         crate::Socks5DnsMode::Remote => {
                             connector
-                                .send_request_socks5_remote(
+                                .connect_socks5_remote(
                                     proxy.host(),
                                     proxy.port(),
                                     endpoint.host(),
                                     endpoint.port(),
                                     endpoint.host(),
-                                    method,
-                                    endpoint.authority().as_str(),
-                                    target,
-                                    request_headers,
-                                    body,
                                 )
                                 .await
                         }
                     },
                 }
                 .map_err(RequestError::http2)?;
+                let sent_headers = prepare_headers(
+                    client_hints,
+                    request_headers,
+                    client_hints
+                        .and_then(|context| connection.accept_ch_for_origin(context.origin())),
+                );
+                let response = connection
+                    .send_request(
+                        method,
+                        endpoint.authority().as_str(),
+                        target,
+                        sent_headers.clone(),
+                        body,
+                    )
+                    .await
+                    .map_err(|error| RequestError::http2(error.into()))?;
                 let (parts, body) = response.into_parts();
-                Ok(Response::from_parts(parts, ResponseBody::http2(body)))
+                Ok(DispatchOutcome {
+                    response: Response::from_parts(parts, ResponseBody::http2(body)),
+                    sent_headers,
+                })
             }
         }
         HttpProtocol::Http3 => {
@@ -310,27 +348,71 @@ async fn dispatch(
                         endpoint.authority().as_str(),
                         target,
                         request_headers,
+                        client_hints,
                         body,
                     )
                     .await
+                    .map(|(response, sent_headers)| DispatchOutcome {
+                        response,
+                        sent_headers,
+                    })
             } else {
+                if !matches!(route, Route::Direct) {
+                    return Err(RequestError::unsupported_route(HttpProtocol::Http3));
+                }
+                let prepared_validation_headers =
+                    client_hints.map(|context| context.prepare(request_headers.clone(), None));
+                let validation_headers = prepared_validation_headers
+                    .as_deref()
+                    .unwrap_or(&request_headers);
+                connector
+                    .validate_request(
+                        method.clone(),
+                        endpoint.authority().as_str(),
+                        &target,
+                        validation_headers,
+                        body.as_ref(),
+                    )
+                    .map_err(RequestError::http3)?;
+                let connection = connector
+                    .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                    .await
+                    .map_err(RequestError::http3)?;
+                let sent_headers = prepare_headers(
+                    client_hints,
+                    request_headers,
+                    client_hints
+                        .and_then(|context| connection.accept_ch_for_origin(context.origin())),
+                );
                 let response = connector
-                    .send_request_direct(
-                        endpoint.host(),
-                        endpoint.port(),
-                        endpoint.host(),
+                    .send_request_on(
+                        &connection,
                         method,
                         endpoint.authority().as_str(),
                         target,
-                        request_headers,
+                        sent_headers.clone(),
                         body,
                     )
                     .await
                     .map_err(RequestError::http3)?;
                 let (parts, body) = response.into_parts();
-                Ok(Response::from_parts(parts, ResponseBody::http3(body)))
+                Ok(DispatchOutcome {
+                    response: Response::from_parts(parts, ResponseBody::http3(body)),
+                    sent_headers,
+                })
             }
         }
+    }
+}
+
+fn prepare_headers(
+    client_hints: Option<ClientHintContext<'_>>,
+    headers: Vec<RequestHeader>,
+    connection_accept_ch: Option<&[u8]>,
+) -> Vec<RequestHeader> {
+    match client_hints {
+        Some(context) => context.prepare(headers, connection_accept_ch),
+        None => headers,
     }
 }
 
@@ -341,18 +423,11 @@ mod tests {
     use super::critical_hint_retry_eligible;
 
     #[test]
-    fn critical_hint_replay_uses_http_idempotency() {
-        for method in [
-            Method::GET,
-            Method::HEAD,
-            Method::PUT,
-            Method::DELETE,
-            Method::OPTIONS,
-            Method::TRACE,
-        ] {
+    fn critical_hint_replay_requires_a_safe_method() {
+        for method in [Method::GET, Method::HEAD, Method::OPTIONS, Method::TRACE] {
             assert!(critical_hint_retry_eligible(&method));
         }
-        for method in [Method::POST, Method::PATCH] {
+        for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
             assert!(!critical_hint_retry_eligible(&method));
         }
     }

@@ -2,21 +2,27 @@
 
 use ::http2::frame::{Error as FrameError, Head, Settings};
 
+use crate::accept_ch::AcceptCh;
+
 const FRAME_HEADER_LEN: usize = 9;
 const MAX_FRAME_PAYLOAD_LEN: usize = 16_384;
 const SETTINGS_FRAME_TYPE: u8 = 0x4;
 const SETTINGS_ACK: u8 = 0x1;
+const ACCEPT_CH_FRAME_TYPE: u8 = 0x89;
 
 pub(super) enum PeerApplicationSettings {
     Absent,
     Negotiated {
         settings: Box<Settings>,
+        accept_ch: AcceptCh,
         frame_count: usize,
         settings_frame_count: usize,
+        malformed_accept_ch_frame_count: usize,
     },
 }
 
 impl PeerApplicationSettings {
+    #[cfg(test)]
     pub(super) fn into_initial_settings(self) -> Option<Settings> {
         match self {
             Self::Absent => None,
@@ -29,10 +35,46 @@ impl PeerApplicationSettings {
         }
     }
 
+    pub(super) fn into_parts(self) -> (Option<Settings>, AcceptCh) {
+        match self {
+            Self::Absent => (None, AcceptCh::default()),
+            Self::Negotiated {
+                settings,
+                accept_ch,
+                settings_frame_count,
+                ..
+            } => ((settings_frame_count != 0).then_some(*settings), accept_ch),
+        }
+    }
+
     pub(super) fn frame_count(&self) -> Option<usize> {
         match self {
             Self::Absent => None,
             Self::Negotiated { frame_count, .. } => Some(*frame_count),
+        }
+    }
+
+    pub(super) fn accept_ch_entry_count(&self) -> usize {
+        match self {
+            Self::Absent => 0,
+            Self::Negotiated { accept_ch, .. } => accept_ch.len(),
+        }
+    }
+
+    pub(super) fn ignored_accept_ch_entry_count(&self) -> usize {
+        match self {
+            Self::Absent => 0,
+            Self::Negotiated { accept_ch, .. } => accept_ch.ignored_len(),
+        }
+    }
+
+    pub(super) fn malformed_accept_ch_frame_count(&self) -> usize {
+        match self {
+            Self::Absent => 0,
+            Self::Negotiated {
+                malformed_accept_ch_frame_count,
+                ..
+            } => *malformed_accept_ch_frame_count,
         }
     }
 
@@ -70,6 +112,8 @@ enum DecodeErrorKind {
     CoreFrameType,
     SettingsStream,
     SettingsAck,
+    AcceptChStream,
+    AcceptChFlags,
     SettingsLength,
     SettingValue,
     SettingTransition,
@@ -85,6 +129,8 @@ impl DecodeErrorKind {
             Self::CoreFrameType => "ALPS contains a known non-SETTINGS HTTP/2 frame",
             Self::SettingsStream => "ALPS SETTINGS frame has a nonzero stream identifier",
             Self::SettingsAck => "ALPS SETTINGS frame has the ACK flag",
+            Self::AcceptChStream => "ALPS ACCEPT_CH frame has a nonzero stream identifier",
+            Self::AcceptChFlags => "ALPS ACCEPT_CH frame has nonzero flags",
             Self::SettingsLength => "ALPS SETTINGS payload length is not divisible by six",
             Self::SettingValue => "ALPS SETTINGS contains an invalid known value",
             Self::SettingTransition => {
@@ -103,9 +149,11 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
     }
 
     let mut settings = Settings::default();
+    let mut accept_ch = AcceptCh::default();
     let mut offset = 0;
     let mut frame_index = 0;
     let mut settings_frame_count = 0;
+    let mut malformed_accept_ch_frame_count = 0;
     while offset < encoded.len() {
         let remaining = encoded.len() - offset;
         if remaining < FRAME_HEADER_LEN {
@@ -146,6 +194,17 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
                 offset,
             )?;
             settings_frame_count += 1;
+        } else if frame_type == ACCEPT_CH_FRAME_TYPE {
+            let head = Head::parse(&encoded[offset..payload_start]);
+            if !head.stream_id().is_zero() {
+                return Err(error(frame_index, offset, DecodeErrorKind::AcceptChStream));
+            }
+            if head.flag() != 0 {
+                return Err(error(frame_index, offset, DecodeErrorKind::AcceptChFlags));
+            }
+            if !apply_accept_ch(payload, &mut accept_ch) {
+                malformed_accept_ch_frame_count += 1;
+            }
         } else if frame_type <= 0x9 {
             return Err(error(frame_index, offset, DecodeErrorKind::CoreFrameType));
         }
@@ -156,9 +215,37 @@ pub(super) fn decode(encoded: Option<&[u8]>) -> Result<PeerApplicationSettings, 
 
     Ok(PeerApplicationSettings::Negotiated {
         settings: Box::new(settings),
+        accept_ch,
         frame_count: frame_index,
         settings_frame_count,
+        malformed_accept_ch_frame_count,
     })
+}
+
+fn apply_accept_ch(mut payload: &[u8], accept_ch: &mut AcceptCh) -> bool {
+    while !payload.is_empty() {
+        let Some((&[origin_len_high, origin_len_low], remaining)) =
+            payload.split_first_chunk::<2>()
+        else {
+            return false;
+        };
+        let origin_len = usize::from(u16::from_be_bytes([origin_len_high, origin_len_low]));
+        let Some((origin, remaining)) = remaining.split_at_checked(origin_len) else {
+            return false;
+        };
+        let Some((&[value_len_high, value_len_low], remaining)) =
+            remaining.split_first_chunk::<2>()
+        else {
+            return false;
+        };
+        let value_len = usize::from(u16::from_be_bytes([value_len_high, value_len_low]));
+        let Some((value, remaining)) = remaining.split_at_checked(value_len) else {
+            return false;
+        };
+        accept_ch.insert(origin, value);
+        payload = remaining;
+    }
+    true
 }
 
 fn apply_settings(

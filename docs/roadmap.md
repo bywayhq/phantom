@@ -318,8 +318,10 @@ request trailers, and extended CONNECT remain separate slices.
 The response-header client-hint slice is landed for H1, H2, and H3. Profiles
 own ordered default and negotiated fields; sessions own a bounded exact-origin
 `Accept-CH` cache; cross-origin redirects rebuild rather than carry configured
-hints; and `Critical-CH` has one idempotent replay. ALPS `ACCEPT_CH`, browser
-navigation-context delegation, and persistence remain separate work.
+hints; H2/H3 ALPS `ACCEPT_CH` is applied as exact-origin, connection-scoped
+metadata before the first request; and `Critical-CH` has one safe-method
+replay. Live post-handshake `ACCEPT_CH` frames, browser navigation-context
+delegation, and persistence remain separate work.
 
 Acceptance:
 
@@ -337,7 +339,8 @@ Acceptance:
   keeps cancellation and GOAWAY draining stream-scoped.
 - `Accept-CH` state is secure-origin scoped and session owned; redirects do not
   leak hints cross-origin, and `Critical-CH` can retry at most once only for a
-  replayable request. Transport-delivered ACCEPT_CH data feeds the same state.
+  safe request. Transport-delivered `ACCEPT_CH` augments request preparation
+  but remains owned by the selected connection.
 - Each public option is covered by validation and an observable integration
   test; no option is a pass-through placeholder for future work.
 

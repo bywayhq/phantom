@@ -11,6 +11,8 @@ use http::Response;
 use tokio::{runtime::Handle, sync::Mutex};
 use tracing::{Instrument, debug_span, field};
 
+use crate::accept_ch::AcceptCh;
+
 use super::{
     DatagramRouter, DriverSignal, DriverTask, Http3Body, Http3Error, Http3ErrorKind,
     PendingRequest, RequestRecvStream, RequestSendStream, ResponseHeadError, body,
@@ -38,6 +40,7 @@ struct ConnectionInner {
     signal: AtomicU8,
     connector_identity: Option<Arc<()>>,
     runtime: Handle,
+    accept_ch: AcceptCh,
 }
 
 impl Http3Connection {
@@ -47,6 +50,7 @@ impl Http3Connection {
         datagrams: Option<DatagramRouter>,
         quinn: quinn::Connection,
         connector_identity: Option<Arc<()>>,
+        accept_ch: AcceptCh,
     ) -> Self {
         Self {
             inner: Arc::new(ConnectionInner {
@@ -57,8 +61,19 @@ impl Http3Connection {
                 signal: AtomicU8::new(DriverSignal::Complete.rank()),
                 connector_identity,
                 runtime: Handle::current(),
+                accept_ch,
             }),
         }
+    }
+
+    /// Returns this connection's ALPS-delivered `Accept-CH` value for `origin`.
+    ///
+    /// The lookup is an exact byte match against the origin serialized in the
+    /// peer's HTTP/3 `ACCEPT_CH` frame. The metadata is immutable and remains
+    /// scoped to this connection.
+    #[must_use]
+    pub fn accept_ch_for_origin(&self, origin: &str) -> Option<&[u8]> {
+        self.inner.accept_ch.for_origin(origin)
     }
 
     #[cfg(test)]

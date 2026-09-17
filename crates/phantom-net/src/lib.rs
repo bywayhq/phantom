@@ -1,5 +1,6 @@
 //! Network protocol implementations for Phantom.
 
+mod accept_ch;
 mod direct;
 pub mod http1;
 pub mod http2;

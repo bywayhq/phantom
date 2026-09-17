@@ -6,7 +6,10 @@ use phantom_net::http3::{Http3Connection, Http3Connector, OriginForm, RequestHea
 use tokio::sync::Mutex;
 use tracing::debug;
 
-use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
+use super::{
+    admission::{Admission, AdmissionPermit, AdmissionRegistry},
+    client_hints::ClientHintContext,
+};
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 pub(crate) struct Http3Pool {
@@ -52,10 +55,20 @@ impl Http3Pool {
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        client_hints: Option<ClientHintContext<'_>>,
         body: Option<Bytes>,
-    ) -> Result<http::Response<ResponseBody>, RequestError> {
+    ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+        let prepared_validation_headers =
+            client_hints.map(|context| context.prepare(headers.clone(), None));
+        let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
         connector
-            .validate_request(method.clone(), authority, &target, &headers, body.as_ref())
+            .validate_request(
+                method.clone(),
+                authority,
+                &target,
+                validation_headers,
+                body.as_ref(),
+            )
             .map_err(RequestError::http3)?;
         if !matches!(route, Route::Direct) {
             return Err(RequestError::unsupported_route(HttpProtocol::Http3));
@@ -65,15 +78,29 @@ impl Http3Pool {
         let entry = self.entry(key).await;
         let permit = entry.admit().await?;
         let lease = entry.acquire(connector, endpoint).await?;
+        let sent_headers = match client_hints {
+            Some(context) => context.prepare(
+                headers,
+                lease.connection.accept_ch_for_origin(context.origin()),
+            ),
+            None => headers,
+        };
         let result = connector
-            .send_request_on(&lease.connection, method, authority, target, headers, body)
+            .send_request_on(
+                &lease.connection,
+                method,
+                authority,
+                target,
+                sent_headers.clone(),
+                body,
+            )
             .await;
         match result {
             Ok(response) => {
                 let (parts, body) = response.into_parts();
-                Ok(http::Response::from_parts(
-                    parts,
-                    ResponseBody::http3_with_guard(body, permit),
+                Ok((
+                    http::Response::from_parts(parts, ResponseBody::http3_with_guard(body, permit)),
+                    sent_headers,
                 ))
             }
             Err(error) => {

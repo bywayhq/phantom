@@ -214,7 +214,7 @@ regressions combine repeated structured fields, malformed members, empty and
 unsupported-only replacement, exact-origin port isolation, explicit clearing,
 cross-origin redirect stripping, and a repeated `Critical-CH` demand. The
 observable contract is bounded state and at most one replay across H1, H2, and
-H3 for an idempotent method; malformed behavior is not presented as a browser
+H3 for a safe method; malformed behavior is not presented as a browser
 fingerprint.
 
 ## Fixture shape

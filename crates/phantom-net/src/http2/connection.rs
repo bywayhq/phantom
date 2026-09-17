@@ -14,6 +14,8 @@ use phantom_profile::Http2Settings;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, debug, debug_span, field};
 
+use crate::accept_ch::AcceptCh;
+
 use super::{
     Http2Body, Http2Error, OperationOutcome, OriginForm, RequestHeader, driver::DriverTask,
     prepare_request, translate_settings,
@@ -118,9 +120,29 @@ impl Http2Connection {
         matches!(sender.poll_ready(&mut context), Poll::Ready(Ok(())))
     }
 
+    /// Returns the raw `Accept-CH` field value carried through ALPS for `origin`.
+    ///
+    /// `origin` must use the canonical ASCII origin serialization. The value is
+    /// immutable connection metadata and is not persisted across connections.
+    #[must_use]
+    pub fn accept_ch_for_origin(&self, origin: &str) -> Option<&[u8]> {
+        self.inner.accept_ch.for_origin(origin)
+    }
+
     pub(super) async fn connect_with_builder<T>(
         stream: T,
         client: client::Builder,
+    ) -> Result<Self, Http2Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        Self::connect_with_builder_and_accept_ch(stream, client, AcceptCh::default()).await
+    }
+
+    pub(super) async fn connect_with_builder_and_accept_ch<T>(
+        stream: T,
+        client: client::Builder,
+        accept_ch: AcceptCh,
     ) -> Result<Self, Http2Error>
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -134,6 +156,7 @@ impl Http2Connection {
             inner: Arc::new(ConnectionInner {
                 sender: Some(sender),
                 driver,
+                accept_ch,
             }),
         })
     }
@@ -319,6 +342,7 @@ struct ConnectionInner {
     // Option lets Drop close the final sender before supervising the driver.
     sender: Option<client::SendRequest<Bytes>>,
     driver: DriverTask,
+    accept_ch: AcceptCh,
 }
 
 impl ConnectionInner {

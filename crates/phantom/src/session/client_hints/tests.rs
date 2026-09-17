@@ -4,7 +4,9 @@ use http::{HeaderMap, HeaderValue};
 use phantom_net::request::RequestHeader;
 use phantom_profile::{ClientHint, ClientHintDelivery, ClientHintSettings};
 
-use super::{ClientHintStore, OriginKey, parse_token_list, prepare_default_fields};
+use super::{
+    ClientHintContext, ClientHintStore, OriginKey, parse_token_list, prepare_default_fields,
+};
 use crate::authority::Endpoint;
 
 fn settings() -> ClientHintSettings {
@@ -156,4 +158,60 @@ fn unknown_only_replacement_clears_previous_preferences() {
     store.learn_and_should_retry(&endpoint, &settings, &unknown, &sent);
 
     assert_eq!(store.prepare(&endpoint, &settings, Vec::new()).len(), 1);
+}
+
+#[test]
+fn connection_preferences_augment_session_state_without_persisting() {
+    let store = ClientHintStore::new(NonZeroUsize::MIN);
+    let endpoint = endpoint("example.test");
+    let settings = settings();
+    let sent = prepare_default_fields(&settings, Vec::new());
+    let mut learned = HeaderMap::new();
+    learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
+    store.learn_and_should_retry(&endpoint, &settings, &learned, &sent);
+    let context =
+        ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
+
+    let prepared = context.prepare(
+        vec![RequestHeader::new("Sec-CH-UA-Platform-Version", "caller")],
+        Some(b"Sec-CH-UA-Platform-Version, Sec-CH-Unknown"),
+    );
+    assert_eq!(
+        prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
+        ["sec-ch-ua", "sec-ch-ua-arch", "Sec-CH-UA-Platform-Version"]
+    );
+    assert_eq!(
+        value(&prepared, "sec-ch-ua-platform-version"),
+        Some(b"caller".as_slice())
+    );
+
+    let without_connection = context.prepare(Vec::new(), None);
+    assert_eq!(
+        without_connection
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>(),
+        ["sec-ch-ua", "sec-ch-ua-arch"]
+    );
+}
+
+#[test]
+fn empty_or_malformed_connection_value_does_not_clear_session_state() {
+    let store = ClientHintStore::new(NonZeroUsize::MIN);
+    let endpoint = endpoint("example.test");
+    let settings = settings();
+    let sent = prepare_default_fields(&settings, Vec::new());
+    let mut learned = HeaderMap::new();
+    learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
+    store.learn_and_should_retry(&endpoint, &settings, &learned, &sent);
+    let context =
+        ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
+
+    for value in [&b""[..], &b"\xff"[..], &b"\"not-a-token\""[..]] {
+        let prepared = context.prepare(Vec::new(), Some(value));
+        assert_eq!(
+            prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
+            ["sec-ch-ua", "sec-ch-ua-arch"]
+        );
+    }
 }

@@ -72,16 +72,18 @@ pub(crate) struct SessionState {
 }
 
 impl Session {
-    pub(crate) fn prepare_client_hints(
-        &self,
-        endpoint: &crate::authority::Endpoint,
-        settings: &phantom_profile::ClientHintSettings,
-        caller: Vec<phantom_net::request::RequestHeader>,
-    ) -> Vec<phantom_net::request::RequestHeader> {
-        match &self.state.client_hints {
-            Some(client_hints) => client_hints.prepare(endpoint, settings, caller),
-            None => client_hints::prepare_default_fields(settings, caller),
-        }
+    pub(crate) fn client_hint_context<'a>(
+        &'a self,
+        endpoint: &'a crate::authority::Endpoint,
+        origin: &'a str,
+        settings: &'a phantom_profile::ClientHintSettings,
+    ) -> client_hints::ClientHintContext<'a> {
+        client_hints::ClientHintContext::new(
+            endpoint,
+            origin,
+            settings,
+            self.state.client_hints.as_ref(),
+        )
     }
 
     pub(crate) fn learn_client_hints_and_should_retry(

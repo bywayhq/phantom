@@ -1,6 +1,9 @@
 //! Public client-hint session integration tests.
 
 #[allow(dead_code)]
+#[path = "support/h2.rs"]
+mod h2_support;
+#[allow(dead_code)]
 #[path = "support/h3.rs"]
 mod h3_support;
 #[allow(dead_code)]
@@ -9,12 +12,15 @@ mod tls_support;
 
 use std::{future::poll_fn, net::Ipv4Addr, pin::Pin, time::Duration};
 
-use btls::ssl::{Ssl, SslAcceptor};
+use btls::ssl::{Ssl, SslAcceptor, SslVersion};
 use http::{Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, RequestHeader,
-    profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
+    profile::{
+        AlpsSettings, CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings,
+        ClientProfile, NamedGroup, TlsVersion, chromium,
+    },
 };
 use tokio::{
     io::AsyncWriteExt,
@@ -24,6 +30,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use h2_support::{accept_client_preface, read_request_headers, write_frame};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
@@ -126,6 +133,148 @@ async fn http2_client_hints_share_one_session_connection() -> TestResult<()> {
             .send(())
             .map_err(|_| "HTTP/2 server stopped before client completion")?;
         drop(session);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http2_alps_accept_ch_applies_to_the_first_request_without_a_probe() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let origin = format!("https://{address}");
+        let application_settings = accept_ch_alps(&origin, ACCEPT_CH_VALUE);
+        let mut acceptor = identity.acceptor_builder(H2_ALPN)?;
+        acceptor.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+        acceptor.set_max_proto_version(Some(SslVersion::TLS1_3))?;
+        let acceptor = acceptor.build();
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let stream = accept_tls_with_alps(&listener, &acceptor, &application_settings).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut response) = accept_http2(&mut connection).await?;
+            assert_eq!(
+                request.headers().get("sec-ch-ua"),
+                Some(&"baseline".parse()?)
+            );
+            assert_eq!(
+                request.headers().get("sec-ch-ua-arch"),
+                Some(&"\"caller\"".parse()?)
+            );
+            assert_eq!(
+                request.headers().get("sec-ch-ua-platform-version"),
+                Some(&"\"15.5.0\"".parse()?)
+            );
+            response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            drop((request, response));
+
+            let outcome: TestResult<()> = tokio::select! {
+                request = connection.accept() => {
+                    match request {
+                        Some(Ok(_)) => Err("client sent an unexpected HTTP/2 probe request".into()),
+                        Some(Err(error)) => Err(error.into()),
+                        None => Err("HTTP/2 connection closed before client completion".into()),
+                    }
+                }
+                result = wait_for_client => {
+                    result.map_err(|_| "client stopped before HTTP/2 response completion".into())
+                }
+            };
+            outcome
+        });
+
+        let response = alps_client(&identity)?
+            .session()
+            .get(HttpProtocol::Http2, &format!("{origin}/"))?
+            .header(RequestHeader::new("sec-ch-ua-arch", "\"caller\""))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/2 server stopped before client completion")?;
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http2_replacement_uses_only_its_own_alps_accept_ch() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let origin = format!("https://{address}");
+        let first_settings = accept_ch_alps(&origin, "Sec-CH-UA-Arch");
+        let replacement_settings = accept_ch_alps(&origin, "Sec-CH-UA-Platform-Version");
+        let mut acceptor = identity.acceptor_builder(H2_ALPN)?;
+        acceptor.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+        acceptor.set_max_proto_version(Some(SslVersion::TLS1_3))?;
+        let acceptor = acceptor.build();
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let mut first = accept_tls_with_alps(&listener, &acceptor, &first_settings).await?;
+            accept_client_preface(&mut first).await?;
+            read_request_headers(&mut first, 1).await?;
+            write_frame(&mut first, 0x7, 0, 0, &[0, 0, 0, 0, 0, 0, 0, 0]).await?;
+            first.flush().await?;
+            first.shutdown().await?;
+
+            let replacement =
+                accept_tls_with_alps(&listener, &acceptor, &replacement_settings).await?;
+            let mut connection = ::http2::server::handshake(replacement).await?;
+            let (request, mut response) = accept_http2(&mut connection).await?;
+            assert_eq!(
+                request.headers().get("sec-ch-ua"),
+                Some(&"baseline".parse()?)
+            );
+            assert!(!request.headers().contains_key("sec-ch-ua-arch"));
+            assert_eq!(
+                request.headers().get("sec-ch-ua-platform-version"),
+                Some(&"\"15.5.0\"".parse()?)
+            );
+            response.send_response(
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header("accept-ch", ACCEPT_CH_VALUE)
+                    .header("critical-ch", "Sec-CH-UA-Arch")
+                    .body(())?,
+                true,
+            )?;
+
+            let (retry, mut retry_response) = accept_http2(&mut connection).await?;
+            assert_hints(retry.headers(), true)?;
+            retry_response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            drop((request, response, retry, retry_response));
+            drive_http2_until_client_done(&mut connection, wait_for_client).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let response = alps_client(&identity)?
+            .session()
+            .get(HttpProtocol::Http2, &format!("{origin}/replacement"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/2 server stopped before client completion")?;
         server.await??;
         Ok(())
     })
@@ -341,6 +490,25 @@ fn client(identity: &TestIdentity) -> TestResult<Client> {
         .build()?)
 }
 
+fn alps_client(identity: &TestIdentity) -> TestResult<Client> {
+    let mut tls = tls_settings();
+    tls.min_version = TlsVersion::Tls13;
+    tls.max_version = TlsVersion::Tls13;
+    tls.cipher_suites = vec![CipherSuite::Aes128GcmSha256];
+    tls.key_shares = vec![NamedGroup::X25519];
+    tls.alps = Some(AlpsSettings {
+        protocol: Box::from(&b"h2"[..]),
+        settings: Box::default(),
+        use_new_codepoint: true,
+    });
+    let profile = ClientProfile::new(tls)
+        .with_http2(chromium::v152_macos_http2())
+        .with_client_hints(client_hint_settings());
+    Ok(Client::builder(profile)
+        .add_root_certificate_der(identity.root_der.clone())
+        .build()?)
+}
+
 fn client_hint_settings() -> ClientHintSettings {
     ClientHintSettings::new(vec![
         ClientHint::new("sec-ch-ua", "baseline", ClientHintDelivery::Default),
@@ -384,6 +552,47 @@ async fn accept_tls(
     let mut stream = SslStream::new(ssl, tcp)?;
     Pin::new(&mut stream).accept().await?;
     Ok(stream)
+}
+
+async fn accept_tls_with_alps(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+    application_settings: &[u8],
+) -> TestResult<SslStream<TcpStream>> {
+    let (tcp, _) = listener.accept().await?;
+    let mut ssl = Ssl::new(acceptor.context())?;
+    ssl.add_application_settings_with_payload(b"h2", application_settings)?;
+    ssl.set_alps_use_new_codepoint(true);
+    let mut stream = SslStream::new(ssl, tcp)?;
+    Pin::new(&mut stream).accept().await?;
+    Ok(stream)
+}
+
+fn accept_ch_alps(origin: &str, value: &str) -> Vec<u8> {
+    let Ok(origin_len) = u16::try_from(origin.len()) else {
+        panic!("test origin exceeds the HTTP/2 ALPS field width");
+    };
+    let Ok(value_len) = u16::try_from(value.len()) else {
+        panic!("test value exceeds the HTTP/2 ALPS field width");
+    };
+    let payload_len = 4 + origin.len() + value.len();
+    let mut encoded = vec![0, 0, 0, 4, 0, 0, 0, 0, 0];
+    encoded.extend([
+        ((payload_len >> 16) & 0xff) as u8,
+        ((payload_len >> 8) & 0xff) as u8,
+        (payload_len & 0xff) as u8,
+        0x89,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]);
+    encoded.extend(origin_len.to_be_bytes());
+    encoded.extend(origin.as_bytes());
+    encoded.extend(value_len.to_be_bytes());
+    encoded.extend(value.as_bytes());
+    encoded
 }
 
 async fn write_http1_response(

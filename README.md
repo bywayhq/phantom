@@ -36,8 +36,9 @@ separate protocol-specific TLS profile and rejects both TCP-only proxy routes
 before network I/O. The optional `cookies` capability adds a bounded, explicit
 session jar with public-suffix, prefix, expiry, and deterministic ordering
 rules. Profiles may also define ordered client-hint fields; sessions retain
-bounded exact-origin `Accept-CH` state and perform at most one idempotent
-`Critical-CH` replay. Feature-gated SSE support provides both a bounded
+bounded exact-origin response `Accept-CH` state, H2/H3 connections apply peer
+ALPS `ACCEPT_CH` metadata during request preparation, and safe methods perform at
+most one `Critical-CH` replay. Feature-gated SSE support provides both a bounded
 single-response decoder and a finite, pull-driven session reconnect controller
 without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
@@ -113,7 +114,9 @@ spelling. HTTP/2 and HTTP/3 names are lowercase by protocol. Use
 or enable bounded cookie state explicitly with
 `client.session_builder().cookies().build()` when the `cookies` feature is
 compiled. A profile with client hints emits default fields for bare requests;
-a session additionally retains exact-origin `Accept-CH` state. Use
+a session additionally retains exact-origin response `Accept-CH` state. H2/H3
+request preparation also applies matching connection-scoped ALPS `ACCEPT_CH`
+metadata. Use
 `ClientBuilder::route` for an immutable default route or
 `RequestBuilder::route` for an owned per-request override.
 

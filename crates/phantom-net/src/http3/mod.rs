@@ -21,6 +21,7 @@ use tokio::runtime::Handle;
 
 use crate::direct::{RuntimeUnavailable, poll_tokio_io};
 
+mod alps;
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
 pub use connection::Http3Connection;
@@ -285,7 +286,20 @@ async fn connect(
         .await
         .map_err(connection_error)?;
     let handshake = require_h3(&connection)?;
+    let mut accept_ch = crate::accept_ch::AcceptCh::default();
     if let Some(peer_settings) = handshake.peer_application_settings() {
+        accept_ch = alps::decode(peer_settings).map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Protocol,
+                "peer HTTP/3 ALPS metadata is invalid",
+                error,
+            )
+        })?;
+        debug!(
+            accept_ch_entry_count = accept_ch.len(),
+            ignored_accept_ch_entry_count = accept_ch.ignored_len(),
+            "HTTP/3 peer application settings decoded"
+        );
         builder
             .peer_application_settings(peer_settings)
             .map_err(|error| {
@@ -318,6 +332,7 @@ async fn connect(
         datagrams,
         connection,
         connector_identity,
+        accept_ch,
     ))
 }
 

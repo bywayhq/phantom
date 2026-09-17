@@ -15,6 +15,71 @@ use crate::authority::Endpoint;
 const ACCEPT_CH: HeaderName = HeaderName::from_static("accept-ch");
 const CRITICAL_CH: HeaderName = HeaderName::from_static("critical-ch");
 
+#[derive(Clone, Copy)]
+pub(crate) struct ClientHintContext<'a> {
+    endpoint: &'a Endpoint,
+    origin: &'a str,
+    settings: &'a ClientHintSettings,
+    store: Option<&'a ClientHintStore>,
+}
+
+impl<'a> ClientHintContext<'a> {
+    pub(super) fn new(
+        endpoint: &'a Endpoint,
+        origin: &'a str,
+        settings: &'a ClientHintSettings,
+        store: Option<&'a ClientHintStore>,
+    ) -> Self {
+        Self {
+            endpoint,
+            origin,
+            settings,
+            store,
+        }
+    }
+
+    pub(crate) fn stateless(
+        endpoint: &'a Endpoint,
+        origin: &'a str,
+        settings: &'a ClientHintSettings,
+    ) -> Self {
+        Self::new(endpoint, origin, settings, None)
+    }
+
+    pub(crate) fn origin(self) -> &'a str {
+        self.origin
+    }
+
+    pub(crate) fn prepare(
+        self,
+        caller: Vec<RequestHeader>,
+        connection_accept_ch: Option<&[u8]>,
+    ) -> Vec<RequestHeader> {
+        let stored = self
+            .store
+            .and_then(|store| store.active_indices(&OriginKey::new(self.endpoint)));
+        let connection = connection_accept_ch.and_then(|value| match std::str::from_utf8(value) {
+            Ok(value) => match parse_token_list(value) {
+                Ok(tokens) => Some(requested_indices(self.settings, &tokens)),
+                Err(()) => {
+                    debug!(outcome = "malformed", "ignored ALPS ACCEPT_CH value");
+                    None
+                }
+            },
+            Err(_) => {
+                debug!(outcome = "malformed", "ignored ALPS ACCEPT_CH value");
+                None
+            }
+        });
+        prepare_fields(
+            self.settings,
+            stored.as_deref(),
+            connection.as_deref(),
+            caller,
+        )
+    }
+}
+
 pub(super) struct ClientHintStore {
     capacity: NonZeroUsize,
     entries: Mutex<VecDeque<Entry>>,
@@ -36,6 +101,7 @@ impl ClientHintStore {
         self.lock_entries().clear();
     }
 
+    #[cfg(test)]
     pub(super) fn prepare(
         &self,
         endpoint: &Endpoint,
@@ -44,7 +110,7 @@ impl ClientHintStore {
     ) -> Vec<RequestHeader> {
         let origin = OriginKey::new(endpoint);
         let active = self.active_indices(&origin);
-        prepare_fields(settings, active.as_deref(), caller)
+        prepare_fields(settings, active.as_deref(), None, caller)
     }
 
     pub(super) fn learn_and_should_retry(
@@ -114,16 +180,18 @@ impl ClientHintStore {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn prepare_default_fields(
     settings: &ClientHintSettings,
     caller: Vec<RequestHeader>,
 ) -> Vec<RequestHeader> {
-    prepare_fields(settings, None, caller)
+    prepare_fields(settings, None, None, caller)
 }
 
 fn prepare_fields(
     settings: &ClientHintSettings,
-    active: Option<&[usize]>,
+    stored: Option<&[usize]>,
+    connection: Option<&[usize]>,
     caller: Vec<RequestHeader>,
 ) -> Vec<RequestHeader> {
     let caller_names = caller
@@ -134,7 +202,8 @@ fn prepare_fields(
 
     for (index, hint) in settings.hints().iter().enumerate() {
         let enabled = hint.delivery() == ClientHintDelivery::Default
-            || active.is_some_and(|indices| indices.binary_search(&index).is_ok());
+            || stored.is_some_and(|indices| indices.binary_search(&index).is_ok())
+            || connection.is_some_and(|indices| indices.binary_search(&index).is_ok());
         if enabled && !caller_names.contains(hint.name()) {
             prepared.push(RequestHeader::new(hint.name(), hint.value()));
         }
