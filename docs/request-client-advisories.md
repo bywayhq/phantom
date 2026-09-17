@@ -16,9 +16,6 @@ claim.
 
 ## Additional adversarial coverage
 
-- Exercise thousands of H2 HEADERS/RST cycles and verify stream state returns
-  to baseline while a healthy sibling continues. This covers the class in
-  [h2 GHSA-f8vr-r385-rh5r](https://github.com/advisories/GHSA-f8vr-r385-rh5r).
 - Add a no-panic unsolicited WebSocket subprotocol regression. Tiny and empty
   fragment floods now have a separate count bound; a later message-idle policy
   should cover slow arrival rate independently. See
@@ -46,6 +43,14 @@ claim.
   equivalence, terminal root dots, and the rule that a public suffix equal to
   the request host becomes host-only. This covers the canonicalization bypass
   class in [curl CVE-2023-46218](https://curl.se/docs/CVE-2023-46218.html).
+- The vendored HTTP/2 engine includes the upstream remotely-reset
+  pending-accept-stream bounds. That advisory's queue is server-oriented;
+  Phantom's client path has a separate 2,048-stream response HEADERS/RST churn
+  regression. It accepts either valid typed reset delivery point, retains an
+  already-open sibling, and reuses the same connection afterward. This covers
+  the client-applicable behavior around
+  [h2 GHSA-f8vr-r385-rh5r](https://github.com/advisories/GHSA-f8vr-r385-rh5r)
+  without claiming Phantom exposes the vulnerable server acceptance boundary.
 - TLS sessions issued during a handshake remain pending until certificate and
   hostname authentication succeeds. A reusable TLS 1.2 session is restored
   only after actual resumption; a rejected ticket followed by authentication
