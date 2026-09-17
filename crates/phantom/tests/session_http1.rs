@@ -257,6 +257,80 @@ async fn incomplete_body_is_discarded_before_the_next_request() -> TestResult {
 }
 
 #[tokio::test]
+async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut first = accept_one(&listener, &acceptor).await?;
+            let first_head = read_head(&mut first).await?;
+            // curl/curl test207 at 01346829096c61b372692f6dc43ffa778c6caccd.
+            first
+                .write_all(
+                    b"HTTP/1.1 200 funky chunky! swsclose\r\n\
+                      Server: fakeit/0.9 fakeitbad/1.0\r\n\
+                      Transfer-Encoding: chunked\r\n\
+                      Connection: mooo\r\n\r\n\
+                      41\r\n",
+                )
+                .await?;
+            first.write_all(&[b'a'; 64]).await?;
+            first.write_all(b"\n\r\n").await?;
+            first.flush().await?;
+            drop(first);
+
+            let mut replacement = accept_one(&listener, &acceptor).await?;
+            let replacement_head = read_head(&mut replacement).await?;
+            replacement
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((first_head, replacement_head))
+        });
+
+        let session = test_client(&identity, false)?.session();
+        let mut body = session
+            .get(HttpProtocol::Http1, &format!("https://{address}/truncated"))?
+            .send()
+            .await?
+            .into_body();
+        let mut received = Vec::new();
+        let mut body_error = None;
+        while let Some(frame) = body.frame().await {
+            match frame {
+                Ok(frame) => {
+                    let data = frame
+                        .into_data()
+                        .map_err(|_| "truncated response emitted unexpected trailers")?;
+                    received.extend_from_slice(&data);
+                }
+                Err(error) => {
+                    body_error = Some(error);
+                    break;
+                }
+            }
+        }
+        let error = body_error.ok_or("truncated chunked response completed successfully")?;
+        assert_eq!(error.kind(), RequestErrorKind::Http1);
+        assert_eq!(received, [vec![b'a'; 64], vec![b'\n']].concat());
+
+        let followup = session
+            .get(HttpProtocol::Http1, &format!("https://{address}/followup"))?
+            .send()
+            .await?;
+        assert_eq!(followup.status(), 204);
+        assert!(followup.into_body().collect().await?.to_bytes().is_empty());
+
+        let (first, replacement) = server.await??;
+        assert!(first.starts_with(b"GET /truncated HTTP/1.1\r\n"));
+        assert!(replacement.starts_with(b"GET /followup HTTP/1.1\r\n"));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;

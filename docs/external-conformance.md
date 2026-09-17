@@ -11,7 +11,7 @@ reported as client conformance.
 | [Autobahn Testsuite](https://github.com/crossbario/autobahn-testsuite) | Drive the public WebSocket client against the fuzzing server. Retain the machine-readable case result and convert every failure into a focused Rust regression. | Eight-case smoke set on relevant pull requests; full supported corpus on a schedule and before releases. |
 | [QUIC Interop Runner](https://github.com/quic-interop/quic-interop-runner) | Run the public Phantom client against an independent H3 server through the upstream network simulator. The endpoint declares only the applicable `http3` case. | Endpoint-image build on relevant changes; pinned `http3` run on a Linux schedule and before releases. |
 | [Web Platform Tests](https://github.com/web-platform-tests/wpt) | Execute selected EventSource resources from a pinned sparse checkout, adapting their assertions through Phantom's public API. Run the original JavaScript tests against real browsers only when gathering browser behavior. | Eleven-case smoke set on relevant pull requests; 29 selected scenarios on a schedule and before releases. |
-| [curl tests](https://curl.se/dev/runtests.html) | Mine mature HTTP, proxy, redirect, authentication, timeout, and connection-reuse scenarios. Re-express applicable cases through Phantom's API and bounded peers. | Curated Rust regressions on pull requests; periodic upstream-delta review. |
+| [curl tests](https://curl.se/dev/runtests.html) | Mine mature HTTP, proxy, redirect, authentication, timeout, and connection-reuse scenarios. Re-express applicable cases through Phantom's API and bounded peers. | Public-session regressions on pull requests; periodic upstream-delta review. |
 | [TLS-Anvil](https://github.com/tls-attacker/TLS-Anvil) | Trigger a fresh Phantom client connection for its TLS 1.2/1.3 client cases. Start with a pinned, bounded profile and expand scheduled coverage after failures have stable classification. | Small pinned profile on pull requests after the adapter lands; fuller combinatorial run on a schedule. |
 | [BoringSSL runner](https://boringssl.googlesource.com/boringssl/+/master/ssl/test/) | Validate the pinned TLS engine and patches with its native protocol suite. Phantom continues to test its configuration and callback glue separately. | Pin-update and scheduled vendor job. |
 | [h2spec](https://github.com/summerwind/h2spec) and [h3spec](https://github.com/kazu-yamamoto/h3spec) | Use their error cases as inputs to Phantom's client-side hostile peers. Both tools primarily target servers, so they are not direct Phantom pass/fail gates. | Upstream-delta review plus deterministic adapted regressions. |
@@ -65,6 +65,20 @@ Every external failure is triaged into one of three outcomes:
 Reports retain suite revision, Phantom revision, feature set, platform, and
 case identifiers. They do not retain credentials, response payloads, TLS key
 material, or unbounded packet captures.
+
+## curl-derived execution
+
+Phantom adapts individual wire contracts rather than running curl or emulating
+its command-line behavior. The initial case is
+[`test207`](https://github.com/curl/curl/blob/01346829096c61b372692f6dc43ffa778c6caccd/tests/data/test207),
+pinned to the curl 8.22.0 release commit. It delivers a complete 65-byte chunk
+and then closes before the terminating zero chunk.
+
+The regression uses the public `Session` API over verified TLS. It requires the
+already-delivered bytes to remain visible, the body to end with a typed HTTP/1
+error, and a follow-up request to use a replacement connection without replaying
+the failed request. Additional curl cases are added only when they exercise a
+missing Phantom contract rather than duplicating existing protocol tests.
 
 ## QUIC Interop execution
 
