@@ -1,7 +1,10 @@
 use std::{fmt, sync::Arc};
 
 use http::Method;
-use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector, http3::Http3Connector};
+use phantom_net::{
+    http1::Http1TlsConnector, http1_or_2::Http1Or2TlsConnector, http2::Http2TlsConnector,
+    http3::Http3Connector,
+};
 use phantom_profile::{ClientHintSettings, ClientProfile};
 
 use crate::{BuildError, RequestBuilder, Route, Session, SessionBuilder};
@@ -43,6 +46,7 @@ pub struct Client {
 #[derive(Debug)]
 pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
+    pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
     pub(crate) http3: Option<Http3Connector>,
     pub(crate) client_hints: Option<ClientHintSettings>,
@@ -89,6 +93,40 @@ impl Client {
         RequestBuilder::new_client(self.clone(), protocol, method, uri)
     }
 
+    /// Starts one direct GET that selects HTTP/2 or HTTP/1.1 from TLS ALPN.
+    ///
+    /// The request performs one TCP connection and one TLS handshake. Exact
+    /// `h2` selects HTTP/2; exact `http/1.1` or absent ALPN selects HTTP/1.1.
+    /// It does not race, retry, or consult Alt-Svc. Any non-direct configured
+    /// or per-request route is rejected before I/O. [`crate::ResponseInfo::protocol`]
+    /// reports the selected protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::RequestError`] when the profile cannot negotiate both
+    /// protocols or the URI, authority, or request target is invalid.
+    pub fn get_negotiated(&self, uri: &str) -> Result<RequestBuilder, crate::RequestError> {
+        self.request_negotiated(Method::GET, uri)
+    }
+
+    /// Starts one direct request that selects HTTP/2 or HTTP/1.1 from TLS ALPN.
+    ///
+    /// This has the same one-connection selection contract as
+    /// [`Self::get_negotiated`]. The request must be representable by both HTTP
+    /// versions so validation can finish before network I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::RequestError`] when the profile cannot negotiate both
+    /// protocols or the URI, authority, or request target is invalid.
+    pub fn request_negotiated(
+        &self,
+        method: Method,
+        uri: &str,
+    ) -> Result<RequestBuilder, crate::RequestError> {
+        RequestBuilder::new_client_negotiated(self.clone(), method, uri)
+    }
+
     /// Starts one ordered secure WebSocket opening handshake over HTTP/1.1.
     #[cfg(feature = "websocket")]
     pub fn websocket(&self, uri: &str) -> Result<WebSocketRequestBuilder, WebSocketError> {
@@ -120,6 +158,16 @@ impl fmt::Debug for ClientBuilder {
         formatter
             .debug_struct("ClientBuilder")
             .field("http2_configured", &self.profile.http2().is_some())
+            .field(
+                "negotiated_http1_or_2_configured",
+                &(self.profile.http2().is_some()
+                    && self
+                        .profile
+                        .tls()
+                        .alpn_protocols
+                        .iter()
+                        .any(|protocol| protocol.as_ref() == b"http/1.1")),
+            )
             .field("http3_configured", &self.profile.http3().is_some())
             .field(
                 "client_hints_configured",
@@ -186,6 +234,12 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http2)?;
+        let http1_or_2 = http2
+            .as_ref()
+            .filter(|_| supports_http1)
+            .map(Http1Or2TlsConnector::from_http2)
+            .transpose()
+            .map_err(BuildError::http1_or_2)?;
         let http3 = self
             .profile
             .http3()
@@ -209,6 +263,7 @@ impl ClientBuilder {
         Ok(Client {
             inner: Arc::new(ClientInner {
                 http1,
+                http1_or_2,
                 http2,
                 http3,
                 client_hints,

@@ -28,7 +28,8 @@ flowchart TB
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Route["Current route<br/>direct · HTTP CONNECT · SOCKS5"]
     FutureRoute["Later routes<br/>HTTPS proxy · UDP"]
-    FacadeRequest["Facade request<br/>exact H1/H2/H3 GET"]
+    FacadeRequest["Facade request<br/>exact H1/H2/H3"]
+    NegotiatedRequest["Direct negotiated request<br/>one TLS handshake · H1 or H2"]
 
     H1["HTTP/1.1<br/>streaming body"]
     H2["HTTP/2<br/>ordered headers · flow control"]
@@ -47,6 +48,10 @@ flowchart TB
     Client --> Route
     FutureRoute -.-> Route
     Client --> FacadeRequest
+    Client --> NegotiatedRequest
+    NegotiatedRequest --> TLS
+    NegotiatedRequest --> H1
+    NegotiatedRequest --> H2
     H1 --> TLS
     H2 --> TLS
     H3 --> QUIC
@@ -61,7 +66,7 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Client,Session,Profile,Route,FacadeRequest,H1,H2,H3,TLS,QUIC,SSE,WS current
+    class Client,Session,Profile,Route,FacadeRequest,NegotiatedRequest,H1,H2,H3,TLS,QUIC,SSE,WS current
     class FutureRoute planned
 ```
 
@@ -74,6 +79,14 @@ H2 extended CONNECT and H3 WebSocket remain evidence-gated follow-up work.
 H3 gets a separate QUIC path because forcing TCP and QUIC through one transport
 trait would hide protocol-specific lifecycle, telemetry, and fingerprint
 controls.
+
+The direct negotiated request path is deliberately narrower than the exact
+paths. It validates a request for both H1 and H2 before I/O, performs one TLS
+handshake, then consumes that same stream with the selected engine. It never
+probes with one exact connector and reconnects with another. H2 selection
+reuses the exact connector's ALPS decoding and connection metadata handoff.
+The path is bare-client and direct-only until pooling and route identity have
+their own negotiated-protocol design.
 
 All three transports return the standard `http::Response` semantic view and
 attach `OrderedResponseHeaders` to its extensions. This sidecar retains global

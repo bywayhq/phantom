@@ -2,6 +2,7 @@ use std::{error::Error as StdError, fmt};
 
 use phantom_net::{
     http1::{Http1Error, Http1TlsError, TlsErrorKind},
+    http1_or_2::{Http1Or2TlsError, Http1Or2TlsErrorKind},
     http2::{Http2Error, Http2TlsError},
     http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
 };
@@ -58,6 +59,30 @@ impl BuildError {
     pub(crate) fn http2(source: Http2TlsError) -> Self {
         let kind = classify_http2_build_error(&source);
         Self::with_source(kind, "failed to configure HTTP/2", source)
+    }
+
+    pub(crate) fn http1_or_2(source: Http1Or2TlsError) -> Self {
+        let kind = match source.kind() {
+            Http1Or2TlsErrorKind::Tls => source
+                .source()
+                .and_then(|source| source.downcast_ref::<phantom_net::http1::TlsError>())
+                .map_or(BuildErrorKind::ProtocolConfiguration, |error| {
+                    match error.kind() {
+                        TlsErrorKind::TrustStore => BuildErrorKind::TrustStore,
+                        TlsErrorKind::InvalidConfiguration => BuildErrorKind::InvalidProfile,
+                        _ => BuildErrorKind::ProtocolConfiguration,
+                    }
+                }),
+            Http1Or2TlsErrorKind::InvalidConfiguration | Http1Or2TlsErrorKind::Http2 => {
+                BuildErrorKind::InvalidProfile
+            }
+            _ => BuildErrorKind::ProtocolConfiguration,
+        };
+        Self::with_source(
+            kind,
+            "failed to configure HTTP/1.1-or-HTTP/2 negotiation",
+            source,
+        )
     }
 
     pub(crate) fn http3(source: Http3ConnectorError) -> Self {
@@ -283,6 +308,13 @@ impl RequestError {
         }
     }
 
+    pub(crate) fn unsupported_negotiation() -> Self {
+        Self::without_source(
+            RequestErrorKind::ProtocolUnavailable,
+            "client profile must configure both HTTP/1.1 and HTTP/2 negotiation",
+        )
+    }
+
     pub(crate) fn unsupported_route(protocol: HttpProtocol) -> Self {
         Self {
             kind: RequestErrorKind::UnsupportedRoute,
@@ -290,6 +322,13 @@ impl RequestError {
             message: "selected route does not support the requested protocol",
             source: None,
         }
+    }
+
+    pub(crate) fn unsupported_negotiated_route() -> Self {
+        Self::without_source(
+            RequestErrorKind::UnsupportedRoute,
+            "HTTP/1.1-or-HTTP/2 negotiation currently requires a direct route",
+        )
     }
 
     pub(crate) fn capacity(protocol: HttpProtocol) -> Self {
@@ -368,6 +407,48 @@ impl RequestError {
             kind,
             Some(HttpProtocol::Http2),
             "HTTP/2 request failed",
+            source,
+        )
+    }
+
+    pub(crate) fn http1_or_2(source: Http1Or2TlsError) -> Self {
+        let (kind, protocol) = match source.kind() {
+            Http1Or2TlsErrorKind::RuntimeUnavailable => {
+                (RequestErrorKind::RuntimeUnavailable, None)
+            }
+            Http1Or2TlsErrorKind::Connect => (RequestErrorKind::Connect, None),
+            Http1Or2TlsErrorKind::Tls | Http1Or2TlsErrorKind::UnsupportedAlpn => {
+                (RequestErrorKind::Tls, None)
+            }
+            Http1Or2TlsErrorKind::Http1 => (RequestErrorKind::Http1, Some(HttpProtocol::Http1)),
+            Http1Or2TlsErrorKind::Http2 => (RequestErrorKind::Http2, Some(HttpProtocol::Http2)),
+            Http1Or2TlsErrorKind::InvalidConfiguration => {
+                (RequestErrorKind::ProtocolUnavailable, None)
+            }
+            _ => (RequestErrorKind::Tls, None),
+        };
+        Self::with_source(
+            kind,
+            protocol,
+            "HTTP/1.1-or-HTTP/2 negotiation failed",
+            source,
+        )
+    }
+
+    pub(crate) fn negotiated_http1_validation(source: Http1Error) -> Self {
+        Self::with_source(
+            RequestErrorKind::Http1,
+            None,
+            "request is not valid for negotiated HTTP/1.1",
+            source,
+        )
+    }
+
+    pub(crate) fn negotiated_http2_validation(source: Http2Error) -> Self {
+        Self::with_source(
+            RequestErrorKind::Http2,
+            None,
+            "request is not valid for negotiated HTTP/2",
             source,
         )
     }

@@ -27,7 +27,8 @@ backpressure, sends encoder instructions before dependent HEADERS, and matches
 the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
 order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
-small facade for exact H1, H2, or direct H3 requests, additive private trust
+small facade for exact H1, H2, or direct H3 requests, plus direct one-handshake
+H1/H2 ALPN selection for bare-client requests, additive private trust
 roots, typed direct, plaintext-HTTP-CONNECT, and local- or remote-DNS SOCKS5
 routes with optional RFC 1929 username/password credentials, and one unified
 streaming response body. CONNECT fields preserve caller-declared order, proxy
@@ -96,8 +97,11 @@ for field in ordered.iter() {
 # }
 ```
 
-The selected protocol is exact. Bare-client requests open one connection per
-request and never negotiate another version or retry through another route.
+The protocol-taking methods select exactly that protocol. Bare-client
+`get_negotiated` and `request_negotiated` instead perform one direct TCP/TLS
+connection and select H2 for `h2`, or H1 for `http/1.1` or absent ALPN. They do
+not race, retry, use a proxy, or consider H3. `ResponseInfo::protocol` reports
+the protocol that produced every ordinary response.
 `get` is convenience sugar for `request` with `Method::GET`; ordinary
 non-CONNECT methods may carry one finite owned byte body. Phantom validates a
 caller-supplied `Content-Length` exactly or appends one for a non-empty body.
@@ -124,7 +128,8 @@ metadata. Use
 
 ## Current workspace
 
-- `phantom`: the public exact-protocol client facade, session-owned H1, H2, and H3 reuse,
+- `phantom`: the public exact-protocol client facade, direct one-shot H1/H2 ALPN
+  selection, session-owned H1, H2, and H3 reuse,
   direct routes, plaintext HTTP CONNECT and credential-capable local- or
   remote-DNS SOCKS5 for H1/H2 and H1 WebSocket, opt-in bounded redirects,
   streaming responses, and optional bounded cookie and client-hint state, plus
@@ -161,6 +166,7 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [WebSocket](docs/websocket.md),
 [Rust quality review](docs/rust-quality.md),
 [adversarial testing](docs/adversarial-testing.md),
+[external conformance and interoperability](docs/external-conformance.md),
 [dynamic QPACK design](docs/qpack-design.md),
 [ecosystem lessons](docs/ecosystem-review.md),
 [ecosystem architecture and API audit](docs/ecosystem-architecture-pr-audit.md),

@@ -3,7 +3,7 @@ use std::fmt;
 use bytes::Bytes;
 use http::{Method, Response, Uri};
 use phantom_net::{http1::OriginForm, request::RequestHeader};
-use tracing::{Instrument, debug, debug_span, field};
+use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
     Client, HttpProtocol, RequestError, ResponseBody, ResponseInfo, Route, Session,
@@ -20,7 +20,7 @@ use attempt::send_once;
 pub struct RequestBuilder {
     context: RequestContext,
     request: ResolvedRequest,
-    protocol: HttpProtocol,
+    selection: ProtocolSelection,
     method: Method,
     headers: Vec<RequestHeader>,
     body: Option<Bytes>,
@@ -31,7 +31,7 @@ impl fmt::Debug for RequestBuilder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("RequestBuilder")
-            .field("protocol", &self.protocol)
+            .field("protocol_selection", &self.selection)
             .field("method", &self.method)
             .field("header_count", &self.headers.len())
             .field("body_len", &self.body.as_ref().map_or(0, Bytes::len))
@@ -48,7 +48,25 @@ impl RequestBuilder {
         method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        Self::new(RequestContext::Client(client), protocol, method, uri)
+        Self::new(
+            RequestContext::Client(client),
+            ProtocolSelection::Exact(protocol),
+            method,
+            uri,
+        )
+    }
+
+    pub(crate) fn new_client_negotiated(
+        client: Client,
+        method: Method,
+        uri: &str,
+    ) -> Result<Self, RequestError> {
+        Self::new(
+            RequestContext::Client(client),
+            ProtocolSelection::Http1Or2,
+            method,
+            uri,
+        )
     }
 
     pub(crate) fn new_session(
@@ -57,33 +75,44 @@ impl RequestBuilder {
         method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        Self::new(RequestContext::Session(session), protocol, method, uri)
+        Self::new(
+            RequestContext::Session(session),
+            ProtocolSelection::Exact(protocol),
+            method,
+            uri,
+        )
     }
 
     fn new(
         context: RequestContext,
-        protocol: HttpProtocol,
+        selection: ProtocolSelection,
         method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
         let client = context.client();
-        match protocol {
-            HttpProtocol::Http1 if client.inner.http1.is_none() => {
+        match selection {
+            ProtocolSelection::Exact(HttpProtocol::Http1) if client.inner.http1.is_none() => {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http1));
             }
-            HttpProtocol::Http2 if client.inner.http2.is_none() => {
+            ProtocolSelection::Exact(HttpProtocol::Http2) if client.inner.http2.is_none() => {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http2));
             }
-            HttpProtocol::Http3 if client.inner.http3.is_none() => {
+            ProtocolSelection::Exact(HttpProtocol::Http3) if client.inner.http3.is_none() => {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
             }
-            HttpProtocol::Http1 | HttpProtocol::Http2 | HttpProtocol::Http3 => {}
+            ProtocolSelection::Http1Or2 if client.inner.http1_or_2.is_none() => {
+                return Err(RequestError::unsupported_negotiation());
+            }
+            ProtocolSelection::Exact(
+                HttpProtocol::Http1 | HttpProtocol::Http2 | HttpProtocol::Http3,
+            )
+            | ProtocolSelection::Http1Or2 => {}
         }
         let uri = uri.parse::<Uri>().map_err(RequestError::invalid_uri)?;
         Ok(Self {
             context,
             request: ResolvedRequest::new(&uri)?,
-            protocol,
+            selection,
             method,
             headers: Vec::new(),
             body: None,
@@ -157,17 +186,21 @@ impl RequestBuilder {
             "client.request",
             method = %self.method,
             body_bytes = self.body.as_ref().map_or(0, Bytes::len),
-            protocol = self.protocol.trace_name(),
+            protocol = self.selection.trace_name(),
+            selected_protocol = field::Empty,
             route = route.trace_name(),
             outcome = field::Empty,
         );
         let outcome = RequestOutcome::new(&span);
-        let result = self.send_inner().instrument(span.clone()).await;
+        if let ProtocolSelection::Exact(protocol) = self.selection {
+            span.record("selected_protocol", protocol.trace_name());
+        }
+        let result = self.send_inner(&span).instrument(span.clone()).await;
         outcome.finish(if result.is_ok() { "ok" } else { "error" });
         result
     }
 
-    async fn send_inner(self) -> Result<Response<ResponseBody>, RequestError> {
+    async fn send_inner(self, request_span: &Span) -> Result<Response<ResponseBody>, RequestError> {
         if self
             .headers
             .iter()
@@ -179,7 +212,7 @@ impl RequestBuilder {
         let Self {
             context,
             request,
-            protocol,
+            selection,
             method,
             headers: request_headers,
             body,
@@ -188,25 +221,27 @@ impl RequestBuilder {
         let client = context.client();
         let session = context.session();
         let route = route.as_ref().unwrap_or(&client.inner.route);
-        ensure_route_supported(protocol, route)?;
+        ensure_route_supported(selection, route)?;
         let policy = session.map_or(RedirectPolicy::none(), |session| {
             session.state.redirect_policy
         });
 
         if policy.max_hops().is_none() {
-            let mut response = send_once(
+            let outcome = send_once(
                 &context,
                 &request,
-                protocol,
+                selection,
                 method,
                 request_headers,
                 body,
                 route,
+                request_span,
             )
             .await?;
+            let mut response = outcome.response;
             response
                 .extensions_mut()
-                .insert(ResponseInfo::new(request.uri, 0));
+                .insert(ResponseInfo::new(request.uri, 0, outcome.protocol));
             return Ok(response);
         }
 
@@ -215,21 +250,25 @@ impl RequestBuilder {
         let mut resolved = request;
 
         loop {
-            let mut response = send_once(
+            let outcome = send_once(
                 &context,
                 &resolved,
-                protocol,
+                selection,
                 redirect.method().clone(),
                 redirect.headers().to_vec(),
                 redirect.body().cloned(),
                 route,
+                request_span,
             )
             .await?;
+            let mut response = outcome.response;
             match redirect.follow(&response)? {
                 RedirectAction::Stop => {
-                    response
-                        .extensions_mut()
-                        .insert(ResponseInfo::new(resolved.uri.clone(), redirect.followed()));
+                    response.extensions_mut().insert(ResponseInfo::new(
+                        resolved.uri.clone(),
+                        redirect.followed(),
+                        outcome.protocol,
+                    ));
                     return Ok(response);
                 }
                 RedirectAction::Follow { same_origin } => {
@@ -273,11 +312,35 @@ impl RequestContext {
     }
 }
 
-fn ensure_route_supported(protocol: HttpProtocol, route: &Route) -> Result<(), RequestError> {
-    if protocol == HttpProtocol::Http3 && !matches!(route, Route::Direct) {
-        return Err(RequestError::unsupported_route(protocol));
+fn ensure_route_supported(selection: ProtocolSelection, route: &Route) -> Result<(), RequestError> {
+    match selection {
+        ProtocolSelection::Exact(HttpProtocol::Http3) if !matches!(route, Route::Direct) => {
+            return Err(RequestError::unsupported_route(HttpProtocol::Http3));
+        }
+        ProtocolSelection::Http1Or2 if !matches!(route, Route::Direct) => {
+            return Err(RequestError::unsupported_negotiated_route());
+        }
+        ProtocolSelection::Exact(
+            HttpProtocol::Http1 | HttpProtocol::Http2 | HttpProtocol::Http3,
+        )
+        | ProtocolSelection::Http1Or2 => {}
     }
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum ProtocolSelection {
+    Exact(HttpProtocol),
+    Http1Or2,
+}
+
+impl ProtocolSelection {
+    const fn trace_name(self) -> &'static str {
+        match self {
+            Self::Exact(protocol) => protocol.trace_name(),
+            Self::Http1Or2 => "h2_or_http/1.1",
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -373,7 +436,7 @@ impl Drop for RequestOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::{ResolvedRequest, ensure_route_supported};
+    use super::{ProtocolSelection, ResolvedRequest, ensure_route_supported};
     use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
 
     #[test]
@@ -385,10 +448,12 @@ mod tests {
         ];
 
         for route in routes {
-            let error = match ensure_route_supported(HttpProtocol::Http3, &route) {
-                Ok(()) => panic!("TCP-only proxy route accepted HTTP/3"),
-                Err(error) => error,
-            };
+            let error =
+                match ensure_route_supported(ProtocolSelection::Exact(HttpProtocol::Http3), &route)
+                {
+                    Ok(()) => panic!("TCP-only proxy route accepted HTTP/3"),
+                    Err(error) => error,
+                };
 
             assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
             assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
@@ -403,7 +468,9 @@ mod tests {
             HttpProtocol::Http2,
             HttpProtocol::Http3,
         ] {
-            assert!(ensure_route_supported(protocol, &Route::Direct).is_ok());
+            assert!(
+                ensure_route_supported(ProtocolSelection::Exact(protocol), &Route::Direct).is_ok()
+            );
         }
     }
 

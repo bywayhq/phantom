@@ -23,6 +23,7 @@ use http::{HeaderMap, Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
+    ResponseInfo,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
 };
 use tokio::{
@@ -116,6 +117,13 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
             .send()
             .await?;
         assert_eq!(response.status(), 200);
+        assert_eq!(
+            response
+                .extensions()
+                .get::<ResponseInfo>()
+                .map(ResponseInfo::protocol),
+            Some(HttpProtocol::Http1)
+        );
         let ordered = response
             .extensions()
             .get::<OrderedResponseHeaders>()
@@ -253,6 +261,13 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
             .send()
             .await?;
         assert_eq!(response.status(), 206);
+        assert_eq!(
+            response
+                .extensions()
+                .get::<ResponseInfo>()
+                .map(ResponseInfo::protocol),
+            Some(HttpProtocol::Http2)
+        );
         let ordered = response
             .extensions()
             .get::<OrderedResponseHeaders>()

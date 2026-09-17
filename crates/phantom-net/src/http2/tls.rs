@@ -18,7 +18,7 @@ use crate::{
         HttpConnectError, HttpConnectHeader, Socks5Auth, Socks5Error, connect_http_tunnel_direct,
         connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local_with_auth,
     },
-    tls::{TlsConnector, trace_alpn},
+    tls::{TlsConnector, TlsStream, trace_alpn},
 };
 
 pub use crate::tls::{TlsError, TlsErrorKind};
@@ -88,6 +88,14 @@ impl Http2TlsConnector {
             tls: self.tls.with_isolated_session_cache(),
             http2: self.http2.clone(),
         }
+    }
+
+    pub(crate) fn tls_connector(&self) -> &TlsConnector {
+        &self.tls
+    }
+
+    pub(crate) fn settings(&self) -> &Http2Settings {
+        &self.http2
     }
 
     /// Establishes HTTP/2 over TLS on an already-connected byte stream.
@@ -688,7 +696,7 @@ impl Http2TlsConnector {
         &self,
         stream: S,
         server_name: &str,
-        mut client: ::http2::client::Builder,
+        client: ::http2::client::Builder,
     ) -> Result<Http2Connection, Http2TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -710,34 +718,7 @@ impl Http2TlsConnector {
             }
         }
 
-        let peer_settings = alps::decode(stream.peer_application_settings()).map_err(|error| {
-            debug!(
-                frame_index = error.frame_index,
-                offset = error.offset,
-                reason = error.reason(),
-                "TLS peer supplied invalid HTTP/2 application settings"
-            );
-            Http2TlsError::InvalidPeerApplicationSettings {
-                frame_index: error.frame_index,
-                offset: error.offset,
-                reason: error.reason(),
-            }
-        })?;
-        debug!(
-            alps_frame_count = peer_settings.frame_count(),
-            accept_ch_entry_count = peer_settings.accept_ch_entry_count(),
-            ignored_accept_ch_entry_count = peer_settings.ignored_accept_ch_entry_count(),
-            malformed_accept_ch_frame_count = peer_settings.malformed_accept_ch_frame_count(),
-            "HTTP/2 peer application settings decoded"
-        );
-        let (initial_settings, accept_ch) = peer_settings.into_parts();
-        if let Some(settings) = initial_settings {
-            client.initial_peer_settings(settings);
-        }
-
-        Http2Connection::connect_with_builder_and_accept_ch(stream, client, accept_ch)
-            .await
-            .map_err(Into::into)
+        connect_selected(stream, client).await
     }
 
     async fn trace_connect<F>(&self, operation: F) -> Result<Http2Connection, Http2TlsError>
@@ -793,6 +774,43 @@ impl Http2TlsConnector {
         outcome_guard.finish(outcome);
         result
     }
+}
+
+pub(crate) async fn connect_selected<S>(
+    stream: TlsStream<S>,
+    mut client: ::http2::client::Builder,
+) -> Result<Http2Connection, Http2TlsError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let peer_settings = alps::decode(stream.peer_application_settings()).map_err(|error| {
+        debug!(
+            frame_index = error.frame_index,
+            offset = error.offset,
+            reason = error.reason(),
+            "TLS peer supplied invalid HTTP/2 application settings"
+        );
+        Http2TlsError::InvalidPeerApplicationSettings {
+            frame_index: error.frame_index,
+            offset: error.offset,
+            reason: error.reason(),
+        }
+    })?;
+    debug!(
+        alps_frame_count = peer_settings.frame_count(),
+        accept_ch_entry_count = peer_settings.accept_ch_entry_count(),
+        ignored_accept_ch_entry_count = peer_settings.ignored_accept_ch_entry_count(),
+        malformed_accept_ch_frame_count = peer_settings.malformed_accept_ch_frame_count(),
+        "HTTP/2 peer application settings decoded"
+    );
+    let (initial_settings, accept_ch) = peer_settings.into_parts();
+    if let Some(settings) = initial_settings {
+        client.initial_peer_settings(settings);
+    }
+
+    Http2Connection::connect_with_builder_and_accept_ch(stream, client, accept_ch)
+        .await
+        .map_err(Into::into)
 }
 
 fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'static str {
@@ -932,7 +950,7 @@ fn require_h2_alpn(settings: &TlsSettings) -> Result<(), Http2TlsError> {
         .ok_or(Http2TlsError::MissingHttp2Alpn)
 }
 
-fn validate_http2(settings: &Http2Settings) -> Result<(), Http2TlsError> {
+pub(crate) fn validate_http2(settings: &Http2Settings) -> Result<(), Http2TlsError> {
     settings.validate().map_err(Http2Error::InvalidSettings)?;
     translate_settings(settings)?;
     Ok(())

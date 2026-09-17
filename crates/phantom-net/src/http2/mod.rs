@@ -238,7 +238,7 @@ impl Drop for OperationOutcome {
     }
 }
 
-fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2Error> {
+pub(crate) fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2Error> {
     if settings
         .headers_priority
         .is_some_and(|priority| priority.dependency_stream_id == 1)
@@ -321,6 +321,7 @@ mod request;
 mod tls;
 
 pub use tls::{Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
+pub(crate) use tls::{connect_selected, validate_http2};
 
 #[cfg(test)]
 mod tests;

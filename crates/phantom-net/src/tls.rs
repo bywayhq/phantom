@@ -103,6 +103,23 @@ impl TlsConnector {
         connector
     }
 
+    pub(crate) fn offers_alpn(&self, expected: &[u8]) -> bool {
+        let mut remaining = self.alpn_wire.as_ref();
+
+        while let Some((&length, protocols)) = remaining.split_first() {
+            let length = usize::from(length);
+            let Some((protocol, tail)) = protocols.split_at_checked(length) else {
+                return false;
+            };
+            if protocol == expected {
+                return true;
+            }
+            remaining = tail;
+        }
+
+        false
+    }
+
     fn build_with_roots<'a>(
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,

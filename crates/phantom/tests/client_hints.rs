@@ -209,6 +209,58 @@ async fn http2_alps_accept_ch_applies_to_the_first_request_without_a_probe() -> 
 }
 
 #[tokio::test]
+async fn negotiated_http2_applies_alps_accept_ch_to_its_first_request() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let origin = format!("https://{address}");
+        let application_settings = accept_ch_alps(&origin, ACCEPT_CH_VALUE);
+        let mut acceptor = identity.acceptor_builder(H2_ALPN)?;
+        acceptor.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+        acceptor.set_max_proto_version(Some(SslVersion::TLS1_3))?;
+        let acceptor = acceptor.build();
+        let server = tokio::spawn(async move {
+            let stream = accept_tls_with_alps(&listener, &acceptor, &application_settings).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut response) = accept_http2(&mut connection).await?;
+            assert_eq!(
+                request.headers().get("sec-ch-ua"),
+                Some(&"baseline".parse()?)
+            );
+            assert_eq!(
+                request.headers().get("sec-ch-ua-arch"),
+                Some(&"\"caller\"".parse()?)
+            );
+            assert_eq!(
+                request.headers().get("sec-ch-ua-platform-version"),
+                Some(&"\"15.5.0\"".parse()?)
+            );
+            response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            drop((request, response));
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let response = alps_client(&identity)?
+            .get_negotiated(&format!("{origin}/"))?
+            .header(RequestHeader::new("sec-ch-ua-arch", "\"caller\""))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn http2_replacement_uses_only_its_own_alps_accept_ch() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;

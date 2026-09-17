@@ -1,13 +1,54 @@
 use bytes::Bytes;
 use http::{Method, Response};
-use phantom_net::request::RequestHeader;
+use phantom_net::{http1_or_2::Http1Or2Connection, request::RequestHeader};
+use tracing::Span;
 
 use crate::{HttpProtocol, RequestError, ResponseBody, Route};
 
-use super::{RequestContext, ResolvedRequest};
+use super::{ProtocolSelection, RequestContext, ResolvedRequest};
 use crate::session::client_hints::ClientHintContext;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn send_once(
+    context: &RequestContext,
+    request: &ResolvedRequest,
+    selection: ProtocolSelection,
+    method: Method,
+    request_headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+    route: &Route,
+    request_span: &Span,
+) -> Result<AttemptOutcome, RequestError> {
+    match selection {
+        ProtocolSelection::Exact(protocol) => {
+            send_once_exact(
+                context,
+                request,
+                protocol,
+                method,
+                request_headers,
+                body,
+                route,
+            )
+            .await
+        }
+        ProtocolSelection::Http1Or2 => {
+            send_once_negotiated(
+                context,
+                request,
+                method,
+                request_headers,
+                body,
+                route,
+                request_span,
+            )
+            .await
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn send_once_exact(
     context: &RequestContext,
     request: &ResolvedRequest,
     protocol: HttpProtocol,
@@ -15,7 +56,7 @@ pub(super) async fn send_once(
     request_headers: Vec<RequestHeader>,
     body: Option<Bytes>,
     route: &Route,
-) -> Result<Response<ResponseBody>, RequestError> {
+) -> Result<AttemptOutcome, RequestError> {
     let client = context.client();
     let session = context.session();
     let endpoint = &request.endpoint;
@@ -101,7 +142,99 @@ pub(super) async fn send_once(
             drop(response);
             continue;
         }
-        return Ok(response);
+        return Ok(AttemptOutcome { response, protocol });
+    }
+}
+
+async fn send_once_negotiated(
+    context: &RequestContext,
+    request: &ResolvedRequest,
+    method: Method,
+    request_headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+    route: &Route,
+    request_span: &Span,
+) -> Result<AttemptOutcome, RequestError> {
+    if !matches!(route, Route::Direct) {
+        return Err(RequestError::unsupported_negotiated_route());
+    }
+    let client = context.client();
+    let connector = client
+        .inner
+        .http1_or_2
+        .as_ref()
+        .ok_or_else(RequestError::unsupported_negotiation)?;
+    let endpoint = &request.endpoint;
+    let client_hint_origin = client
+        .inner
+        .client_hints
+        .as_ref()
+        .map(|_| request.url.origin().ascii_serialization());
+    let client_hints = client
+        .inner
+        .client_hints
+        .as_ref()
+        .zip(client_hint_origin.as_deref())
+        .map(|(settings, origin)| ClientHintContext::stateless(endpoint, origin, settings));
+
+    let validation_headers = prepare_headers(client_hints, request_headers.clone(), None);
+    let mut http1_headers = Vec::with_capacity(validation_headers.len() + 1);
+    http1_headers.push(RequestHeader::new(
+        "Host",
+        endpoint.authority().as_str().as_bytes(),
+    ));
+    http1_headers.extend(validation_headers.clone());
+    phantom_net::http1::validate_request(&method, &request.target, &http1_headers, body.as_ref())
+        .map_err(RequestError::negotiated_http1_validation)?;
+    phantom_net::http2::validate_request(
+        &method,
+        endpoint.authority().as_str(),
+        &request.target,
+        &validation_headers,
+        body.as_ref(),
+    )
+    .map_err(RequestError::negotiated_http2_validation)?;
+
+    let connection = connector
+        .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+        .await
+        .map_err(RequestError::http1_or_2)?;
+    match connection {
+        Http1Or2Connection::Http1(connection) => {
+            request_span.record("selected_protocol", HttpProtocol::Http1.trace_name());
+            let response = connection
+                .send_request(method, request.target.clone(), http1_headers, body)
+                .await
+                .map_err(|error| RequestError::http1(error.into()))?;
+            let (parts, body) = response.into_parts();
+            Ok(AttemptOutcome {
+                response: Response::from_parts(parts, ResponseBody::http1(body)),
+                protocol: HttpProtocol::Http1,
+            })
+        }
+        Http1Or2Connection::Http2(connection) => {
+            request_span.record("selected_protocol", HttpProtocol::Http2.trace_name());
+            let sent_headers = prepare_headers(
+                client_hints,
+                request_headers,
+                client_hints.and_then(|context| connection.accept_ch_for_origin(context.origin())),
+            );
+            let response = connection
+                .send_request(
+                    method,
+                    endpoint.authority().as_str(),
+                    request.target.clone(),
+                    sent_headers,
+                    body,
+                )
+                .await
+                .map_err(|error| RequestError::http2(error.into()))?;
+            let (parts, body) = response.into_parts();
+            Ok(AttemptOutcome {
+                response: Response::from_parts(parts, ResponseBody::http2(body)),
+                protocol: HttpProtocol::Http2,
+            })
+        }
     }
 }
 
@@ -112,6 +245,11 @@ fn critical_hint_retry_eligible(method: &Method) -> bool {
 struct DispatchOutcome {
     response: Response<ResponseBody>,
     sent_headers: Vec<RequestHeader>,
+}
+
+pub(super) struct AttemptOutcome {
+    pub(super) response: Response<ResponseBody>,
+    pub(super) protocol: HttpProtocol,
 }
 
 #[allow(clippy::too_many_arguments)]

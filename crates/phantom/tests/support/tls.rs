@@ -90,6 +90,13 @@ pub(crate) async fn accept_tls(
     acceptor: SslAcceptor,
 ) -> TestResult<SslStream<TcpStream>> {
     let (tcp, _) = listener.accept().await?;
+    accept_tls_stream(tcp, acceptor).await
+}
+
+pub(crate) async fn accept_tls_stream(
+    tcp: TcpStream,
+    acceptor: SslAcceptor,
+) -> TestResult<SslStream<TcpStream>> {
     let ssl = Ssl::new(acceptor.context())?;
     let mut stream = SslStream::new(ssl, tcp)?;
     Pin::new(&mut stream).accept().await?;
@@ -150,6 +157,12 @@ impl TestIdentity {
 
     pub(crate) fn acceptor(&self, alpn: &'static [u8]) -> TestResult<SslAcceptor> {
         Ok(self.acceptor_builder(alpn)?.build())
+    }
+
+    pub(crate) fn acceptor_without_alpn(&self) -> TestResult<SslAcceptor> {
+        let mut acceptor = self.acceptor_builder(H1_ALPN)?;
+        acceptor.set_alpn_select_callback(|_, _| Err(AlpnError::NOACK));
+        Ok(acceptor.build())
     }
 
     pub(crate) fn acceptor_builder(&self, alpn: &'static [u8]) -> TestResult<SslAcceptorBuilder> {

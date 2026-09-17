@@ -328,6 +328,15 @@ metadata before the first request; and `Critical-CH` has one safe-method
 replay. Live post-handshake `ACCEPT_CH` frames, browser navigation-context
 delegation, and persistence remain separate work.
 
+The direct negotiation slice is also landed for bare-client requests. It
+validates both H1 and H2 representations before I/O, opens one TCP connection,
+performs one TLS handshake with the profile's ordered ALPN offer, and enters
+only the selected engine. Exact `h2` applies the existing ALPS peer settings
+and connection-scoped `ACCEPT_CH`; `http/1.1` or absent ALPN enters H1. Other
+selected protocols fail before HTTP bytes. `ResponseInfo` records the actual
+protocol. Exact-protocol methods remain unchanged. Negotiated sessions,
+proxies, H3 upgrades, Alt-Svc, and racing remain later slices.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.
@@ -385,6 +394,14 @@ strict ClientHello and HTTP/2 frame decoders. Arbitrary input and valid
 structural seeds run under AddressSanitizer with bounded input lengths; failure
 artifacts are retained and must become deterministic regressions. This does not
 yet claim sanitizer coverage for BoringSSL or the vendored protocol engines.
+
+External conformance follows the tiering in
+[external conformance and interoperability](external-conformance.md): direct
+Autobahn coverage for the WebSocket client, a Phantom endpoint for the QUIC
+Interop Runner, pinned WPT and curl scenario imports, TLS-Anvil client runs,
+and the native BoringSSL runner for dependency updates. Server-oriented h2spec
+and h3spec cases feed client-side hostile-peer regressions rather than
+misleading pass badges.
 
 ## Later profile work
 

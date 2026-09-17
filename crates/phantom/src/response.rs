@@ -2,6 +2,8 @@ use std::fmt;
 
 use http::Uri;
 
+use crate::HttpProtocol;
+
 /// Facade metadata attached to every successful ordinary response.
 ///
 /// Retrieve this value through [`http::Response::extensions`].
@@ -9,6 +11,7 @@ use http::Uri;
 pub struct ResponseInfo {
     effective_uri: Uri,
     redirect_count: usize,
+    protocol: HttpProtocol,
 }
 
 impl fmt::Debug for ResponseInfo {
@@ -16,15 +19,17 @@ impl fmt::Debug for ResponseInfo {
         formatter
             .debug_struct("ResponseInfo")
             .field("redirect_count", &self.redirect_count)
+            .field("protocol", &self.protocol)
             .finish_non_exhaustive()
     }
 }
 
 impl ResponseInfo {
-    pub(crate) fn new(effective_uri: Uri, redirect_count: usize) -> Self {
+    pub(crate) fn new(effective_uri: Uri, redirect_count: usize, protocol: HttpProtocol) -> Self {
         Self {
             effective_uri,
             redirect_count,
+            protocol,
         }
     }
 
@@ -39,18 +44,30 @@ impl ResponseInfo {
     pub const fn redirects_followed(&self) -> usize {
         self.redirect_count
     }
+
+    /// Returns the HTTP protocol that produced this response.
+    #[must_use]
+    pub const fn protocol(&self) -> HttpProtocol {
+        self.protocol
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::ResponseInfo;
+    use crate::HttpProtocol;
 
     #[test]
     fn debug_omits_the_effective_uri() -> Result<(), Box<dyn std::error::Error>> {
-        let info = ResponseInfo::new("https://example.test/private?token=secret".parse()?, 2);
+        let info = ResponseInfo::new(
+            "https://example.test/private?token=secret".parse()?,
+            2,
+            HttpProtocol::Http2,
+        );
         let debug = format!("{info:?}");
 
         assert!(debug.contains("redirect_count: 2"));
+        assert!(debug.contains("protocol: Http2"));
         assert!(!debug.contains("private"));
         assert!(!debug.contains("secret"));
         Ok(())

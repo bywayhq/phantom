@@ -26,6 +26,7 @@ struct CaptureState {
     span_names: HashMap<u64, &'static str>,
     outcomes: Vec<(&'static str, String)>,
     error_kinds: Vec<(&'static str, String)>,
+    selected_protocols: Vec<(&'static str, String)>,
 }
 
 impl OutcomeSubscriber {
@@ -38,6 +39,7 @@ impl OutcomeSubscriber {
         dispatch
     }
 
+    #[allow(dead_code)]
     pub(crate) fn outcomes_for(&self, span_name: &str) -> Vec<String> {
         self.state()
             .outcomes
@@ -54,6 +56,16 @@ impl OutcomeSubscriber {
             .iter()
             .filter(|(name, _)| *name == span_name)
             .map(|(_, error_kind)| error_kind.clone())
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn selected_protocols_for(&self, span_name: &str) -> Vec<String> {
+        self.state()
+            .selected_protocols
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, protocol)| protocol.clone())
             .collect()
     }
 
@@ -111,7 +123,10 @@ impl Subscriber for OutcomeSubscriber {
     fn record(&self, span: &Id, values: &Record<'_>) {
         let mut visitor = OutcomeVisitor::default();
         values.record(&mut visitor);
-        if visitor.outcome.is_none() && visitor.error_kind.is_none() {
+        if visitor.outcome.is_none()
+            && visitor.error_kind.is_none()
+            && visitor.selected_protocol.is_none()
+        {
             return;
         }
         let mut state = self.state();
@@ -121,6 +136,9 @@ impl Subscriber for OutcomeSubscriber {
             }
             if let Some(error_kind) = visitor.error_kind {
                 state.error_kinds.push((name, error_kind));
+            }
+            if let Some(protocol) = visitor.selected_protocol {
+                state.selected_protocols.push((name, protocol));
             }
         }
     }
@@ -138,12 +156,15 @@ impl Subscriber for OutcomeSubscriber {
 struct OutcomeVisitor {
     outcome: Option<String>,
     error_kind: Option<String>,
+    selected_protocol: Option<String>,
 }
 
 impl Visit for OutcomeVisitor {
     fn record_str(&mut self, field: &Field, value: &str) {
         if field.name() == "outcome" {
             self.outcome = Some(value.to_owned());
+        } else if field.name() == "selected_protocol" {
+            self.selected_protocol = Some(value.to_owned());
         }
     }
 
