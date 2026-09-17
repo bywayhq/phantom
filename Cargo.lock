@@ -121,7 +121,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "git+https://github.com/0xARYA/btls?rev=78b8c24a3388973d1d33c523995d311d766a1026#78b8c24a3388973d1d33c523995d311d766a1026"
+source = "git+https://github.com/0xARYA/btls?rev=50e72407ac1f89cea14003004429ecf579541b6f#50e72407ac1f89cea14003004429ecf579541b6f"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1706,7 +1706,7 @@ dependencies = [
 [[package]]
 name = "tokio-btls"
 version = "0.5.6"
-source = "git+https://github.com/0xARYA/btls?rev=78b8c24a3388973d1d33c523995d311d766a1026#78b8c24a3388973d1d33c523995d311d766a1026"
+source = "git+https://github.com/0xARYA/btls?rev=50e72407ac1f89cea14003004429ecf579541b6f#50e72407ac1f89cea14003004429ecf579541b6f"
 dependencies = [
  "btls",
  "tokio",

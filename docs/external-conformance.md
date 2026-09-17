@@ -118,6 +118,31 @@ pinned `http3` case against the pinned quic-go endpoint. CI retains only the
 bounded runner output, result, summary, and revision metadata; its temporary
 pcaps, qlogs, container files, and TLS secrets are discarded.
 
+## BoringSSL native execution
+
+The native job runs BoringSSL's complete `run_tests` target after requiring the
+workspace and standalone `btls` lockfiles to select the same exact `btls-sys`
+revision. It then asks the standalone manifest to materialize and patch
+BoringSSL, locates that build's CMake tree, and runs its C/C++, Go, and BoGo
+tests. This deliberately reuses the dependency build script instead of
+maintaining a second patch list.
+
+The job uses unprefixed symbols because BoringSSL's native test shims link
+against the ordinary library names. Phantom's regular vendor job separately
+tests the prefixed configuration used by the Linux client. Go is pinned to the
+exact version required by the locked BoringSSL source, and the temporary native
+build is not cached or retained:
+
+```console
+scripts/ci/check-boringssl-native.sh
+```
+
+This gate validates the TLS engine and the native patches. It does not exercise
+Phantom profiles, safe wrapper APIs, certificate policy, async I/O, HTTP,
+QUIC, sessions, proxies, or wire ordering; those remain responsibilities of
+the Rust integration, hostile-peer, packet-differential, and external protocol
+tests.
+
 ## Autobahn execution
 
 The runner pins both the suite tag and container digest. Its smoke configuration

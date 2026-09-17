@@ -13,7 +13,7 @@ size limit, and delegated-credential patches.
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
 - Reviewed dependency fork: <https://github.com/0xARYA/btls>
-- Reviewed dependency commit: `78b8c24a3388973d1d33c523995d311d766a1026`
+- Reviewed dependency commit: `50e72407ac1f89cea14003004429ecf579541b6f`
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
 
@@ -115,7 +115,9 @@ They contain only wrapper APIs, documentation, and upstream-style tests;
 packaging changes remain separate. The dependency commit stores the native
 BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series: patch 0005
 implements RFC 8449, patch 0006 implements RFC 9345 client verification, and
-patch 0011 controls the ECH GREASE payload length.
+patch 0011 controls the ECH GREASE payload length. Every native patch owns the
+generated prefix-symbol entries for the APIs it introduces. The dependency CI
+replays the complete patch order and rejects stale BoringSSL pregenerated files.
 
 The existing one-argument `add_application_settings` remains compatible and
 delegates to the new method with an empty payload.

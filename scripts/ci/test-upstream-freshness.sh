@@ -98,7 +98,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "78b8c24a3388973d1d33c523995d311d766a1026" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "50e72407ac1f89cea14003004429ecf579541b6f" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
@@ -177,7 +177,7 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
-grep -F -q 'rev = "78b8c24a3388973d1d33c523995d311d766a1026"' \
+grep -F -q 'rev = "50e72407ac1f89cea14003004429ecf579541b6f"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_ech_grease_payload_length' \
@@ -406,7 +406,7 @@ mkdir -p "$darwin_tmp"
   "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
 grep -F -q "rev = \"$candidate_revision\"" \
   "$probe_checkout/Cargo.toml"
-grep -F -q 'rev = "78b8c24a3388973d1d33c523995d311d766a1026"' \
+grep -F -q 'rev = "50e72407ac1f89cea14003004429ecf579541b6f"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \

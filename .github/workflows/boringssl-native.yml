@@ -1,0 +1,69 @@
+name: BoringSSL native
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/boringssl-native.yml
+      - Cargo.lock
+      - Cargo.toml
+      - rust-toolchain.toml
+      - scripts/ci/check-boringssl-native.sh
+      - vendor/btls/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/boringssl-native.yml
+      - Cargo.lock
+      - Cargo.toml
+      - rust-toolchain.toml
+      - scripts/ci/check-boringssl-native.sh
+      - vendor/btls/**
+  schedule:
+    - cron: "19 9 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  CC: clang-18
+  CMAKE_GENERATOR: Ninja
+  CXX: clang++-18
+  GOTOOLCHAIN: local
+
+concurrency:
+  group: boringssl-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Native tests and BoGo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          cache: false
+          go-version: "1.25.8"
+
+      - name: Install native prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libunwind-dev ninja-build pkg-config
+          cmake --version
+          clang-18 --version
+          go version
+          ninja --version
+          pkg-config --modversion libunwind-generic
+
+      - name: Run native BoringSSL suite
+        run: scripts/ci/check-boringssl-native.sh
