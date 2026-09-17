@@ -104,23 +104,39 @@ cancellation is separately stream-scoped and leaves a sibling stream usable.
 An early final response with no remaining upload credit is raced against the
 upload, surfaced immediately, and followed by a request on the same connection.
 
-The current Reaper executable surface has 21 active, non-passive probes.
-Phantom retains all 21 as production-path regressions. In addition to the
-cases above, those regressions now cover:
+The retained 2026-09-16 Reaper snapshot has 21 active, non-passive probes.
+Phantom has production-path regressions for the raw-client transport behavior
+exercised by all 21. This is stimulus and reaction coverage, not a claim that
+every fixture is byte-identical or that Phantom implements browser renderer
+side effects. The
+[machine-checked mapping](../fixtures/adversarial/reaper/2026-09-16/coverage.json)
+records the source-manifest digest and exact Rust test names. CI validates that
+local inventory with:
+
+```console
+python scripts/capture/reaper_coverage.py check \
+  fixtures/adversarial/reaper/2026-09-16/coverage.json
+```
+
+This gate detects missing or renamed Phantom regressions; it does not discover
+changes to an upstream probe recipe. Refreshing the snapshot therefore requires
+a deliberate Reaper source and retained-browser audit. Reaper and browser
+executables are not CI dependencies. In addition to the cases above, those
+regressions cover:
 
 - a six-write H1 response split across the status line, fields, header/body
   boundary, and body, followed by `Connection: close` replacement;
 - two already-dispatched H2 requests straddling a GOAWAY processed boundary,
-  with the lower stream preserved and the higher stream failed without hidden
-  replay;
+  with the lower stream preserved and the displaced bodyless GET retried once
+  on a replacement connection;
 - authenticated QUIC Retry with original-destination connection-ID continuity;
 - ALPS `HEADER_TABLE_SIZE` final-value behavior carried through TLS, H2 state,
   and the first HPACK block without a synthetic wire acknowledgement;
-- an ALPS final `MAX_CONCURRENT_STREAMS=0` gate that emits no request HEADERS
-  until a wire SETTINGS update releases capacity, followed by connection reuse;
-  and
-- TLS 1.3 ticket delivery after a complete H2 response, graceful H2 shutdown,
-  resumption on the replacement connection at
+- Reaper's current three-profile ALPS sequence ending in
+  `MAX_CONCURRENT_STREAMS=0`, which emits no request HEADERS until a wire
+  SETTINGS update releases capacity, followed by connection reuse; and
+- TLS 1.3 resumption after a complete H2 response and graceful H2 shutdown on
+  the replacement connection at
   `/.well-known/reaper/resume`, absence of an early-data offer, and a full
   handshake from a separate Phantom session.
 

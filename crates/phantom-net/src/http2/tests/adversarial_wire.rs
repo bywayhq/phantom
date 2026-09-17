@@ -110,6 +110,9 @@ async fn observe_request_and_control_acks(
                 if frame.stream_id != 0 || frame.payload.as_slice() != PING_PAYLOAD {
                     return Err("client PING acknowledgement changed the opaque payload".into());
                 }
+                if !observed_settings_ack {
+                    return Err("client acknowledged PING before the preceding SETTINGS".into());
+                }
                 observed_ping_ack = true;
             }
             (0x01, _) if frame.stream_id == expected_stream_id => observed_request = true,

@@ -80,8 +80,9 @@ disabled. H3 reuse is direct-only until a UDP-capable proxy route exists.
 
 Simultaneous first requests for one key share connection setup. Unrelated keys
 can connect concurrently. A connection-fatal error invalidates only the exact
-generation that failed; a stream reset does not discard sibling streams. The
-failed request is returned to the caller and is never replayed automatically.
+generation that failed; a stream reset does not discard sibling streams.
+Automatic transport replay is limited to the graceful H2 GOAWAY case described
+below.
 
 The `max_retained_http{1,2,3}_connections` builder settings bound retained pool
 entries. Least-recently selected entries are evicted. An outstanding response
@@ -107,10 +108,14 @@ dropped. The H2 engine independently enforces the peer's advertised concurrent
 stream limit. H3 retains its active slot through stream completion, including
 bounded reset cleanup after an incomplete body is dropped. A GOAWAY or closed
 generation is not selected for new work, while eligible response bodies retain
-the old generation. A GOAWAY race during a send is returned to the caller;
-Phantom invalidates that generation but never replays the request automatically.
+the old generation. When `GOAWAY(NO_ERROR)` rejects a bodyless GET, Phantom
+invalidates that generation and retries the request once on its replacement.
+The retry keeps the same origin, route, protocol, session, ordered fields, and
+admission slot. Requests with bodies, other methods, other failures, and a
+second GOAWAY are returned to the caller without replay.
 
-Graceful public shutdown, retries, and coalescing are later pool work.
+Graceful public shutdown, a configurable broader retry policy, and coalescing
+are later pool work.
 
 ## Optional cookies
 

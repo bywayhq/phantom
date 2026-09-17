@@ -67,28 +67,48 @@ impl Http2Pool {
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
         let permit = entry.admit().await?;
-        let lease = entry
-            .acquire(connector, endpoint, route)
-            .await
-            .map_err(RequestError::http2)?;
-        let result = lease
-            .connection
-            .send_request(method, authority, target, headers, body)
-            .await;
-        match result {
-            Ok(response) => {
-                let (parts, body) = response.into_parts();
-                Ok(http::Response::from_parts(
-                    parts,
-                    ResponseBody::http2_with_guard(body, permit),
-                ))
-            }
-            Err(error) => {
-                drop(permit);
-                if invalidates_connection(&error) {
-                    entry.invalidate(&lease.token).await;
+        let retryable_request = method == Method::GET && body.is_none();
+        let mut retried_graceful_goaway = false;
+
+        loop {
+            let lease = entry
+                .acquire(connector, endpoint, route)
+                .await
+                .map_err(RequestError::http2)?;
+            let result = lease
+                .connection
+                .send_request(
+                    method.clone(),
+                    authority,
+                    target.clone(),
+                    headers.clone(),
+                    body.clone(),
+                )
+                .await;
+            match result {
+                Ok(response) => {
+                    let (parts, body) = response.into_parts();
+                    return Ok(http::Response::from_parts(
+                        parts,
+                        ResponseBody::http2_with_guard(body, permit),
+                    ));
                 }
-                Err(RequestError::http2(error.into()))
+                Err(error) => {
+                    if invalidates_connection(&error) {
+                        entry.invalidate(&lease.token).await;
+                    }
+                    if retryable_request && !retried_graceful_goaway && is_graceful_goaway(&error) {
+                        retried_graceful_goaway = true;
+                        debug!(
+                            retry = 1,
+                            reason = "graceful_goaway",
+                            "retrying HTTP/2 request on a replacement connection"
+                        );
+                        continue;
+                    }
+                    drop(permit);
+                    return Err(RequestError::http2(error.into()));
+                }
             }
         }
     }
@@ -130,6 +150,15 @@ fn invalidates_connection(error: &Http2Error) -> bool {
         error,
         Http2Error::Protocol(error)
             if error.kind() != Http2ProtocolErrorKind::StreamReset
+    )
+}
+
+fn is_graceful_goaway(error: &Http2Error) -> bool {
+    matches!(
+        error,
+        Http2Error::Protocol(error)
+            if error.kind() == Http2ProtocolErrorKind::ConnectionError
+                && error.reason_code() == Some(0)
     )
 }
 

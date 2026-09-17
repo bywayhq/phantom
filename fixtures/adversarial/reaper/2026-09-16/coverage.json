@@ -1,0 +1,203 @@
+{
+  "schema": "phantom-reaper-coverage/1",
+  "source": {
+    "schema": "reaper-public-clients/1",
+    "snapshot_date": "2026-09-16",
+    "manifest_sha256": "4bc90cfd2db7fb7d3b5173b5eaf5efa2068d46f2eb0e3f39b092cb733644a963"
+  },
+  "probes": [
+    {
+      "id": "h2-unknown-frame",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tests/adversarial_wire.rs",
+          "test": "legal_control_and_fragmentation_probes_preserve_connection"
+        }
+      ]
+    },
+    {
+      "id": "h2-control",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tests/adversarial_wire.rs",
+          "test": "legal_control_and_fragmentation_probes_preserve_connection"
+        }
+      ]
+    },
+    {
+      "id": "h2-hpack-zero",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tests/hpack_transitions.rs",
+          "test": "initial_zero_table_size_starts_first_field_block_with_update"
+        }
+      ]
+    },
+    {
+      "id": "h2-hpack-oscillation",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tests/hpack_transitions.rs",
+          "test": "duplicate_initial_table_sizes_preserve_minimum_then_final_update"
+        }
+      ]
+    },
+    {
+      "id": "h2-redirect",
+      "regressions": [
+        {
+          "file": "crates/phantom/tests/redirects.rs",
+          "test": "session_matches_reaper_redirect_contract"
+        }
+      ]
+    },
+    {
+      "id": "tls-alps-concurrency-gate",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tls/tests/alps_concurrency_gate.rs",
+          "test": "final_alps_zero_concurrency_holds_headers_until_wire_update_and_reuses_connection"
+        }
+      ]
+    },
+    {
+      "id": "tls-alps-hpack-last-wins",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tls/tests/alps_hpack_last_wins.rs",
+          "test": "current_alps_codepoint_uses_last_table_size_without_wire_ack_and_reuses_connection"
+        }
+      ]
+    },
+    {
+      "id": "h2-goaway-retry",
+      "regressions": [
+        {
+          "file": "crates/phantom/tests/session_http2_lifecycle.rs",
+          "test": "graceful_goaway_retries_a_bodyless_get_once_on_a_replacement"
+        }
+      ]
+    },
+    {
+      "id": "h2-flow-control",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tests/request_body_flow.rs",
+          "test": "reaper_request_body_obeys_ordered_flow_control_and_reuses_connection"
+        }
+      ]
+    },
+    {
+      "id": "h2-continuation",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tests/continuation_matrix.rs",
+          "test": "reaper_continuation_matrix_preserves_final_response_and_reuse"
+        }
+      ]
+    },
+    {
+      "id": "h2-misdirected421",
+      "regressions": [
+        {
+          "file": "crates/phantom/tests/session_http2_authority.rs",
+          "test": "dedicated_421_is_returned_without_hidden_replay"
+        },
+        {
+          "file": "crates/phantom/tests/session_http2_authority.rs",
+          "test": "reaper_secondary_authority_uses_a_dedicated_connection"
+        }
+      ]
+    },
+    {
+      "id": "tls-resumption",
+      "regressions": [
+        {
+          "file": "crates/phantom/tests/session_tls_resumption.rs",
+          "test": "tls13_resumption_is_scoped_to_one_session"
+        }
+      ]
+    },
+    {
+      "id": "h2-response-sequence",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tests/response_body.rs",
+          "test": "informational_sequence_preserves_final_body_trailers_and_reuse"
+        }
+      ]
+    },
+    {
+      "id": "h2-goaway-boundary",
+      "regressions": [
+        {
+          "file": "crates/phantom/tests/session_http2_lifecycle.rs",
+          "test": "goaway_processed_boundary_preserves_lower_stream_and_retries_higher_stream"
+        }
+      ]
+    },
+    {
+      "id": "tls-hello-retry",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/tls/tests/hello_retry.rs",
+          "test": "authenticated_hello_retry_has_only_permitted_client_hello_delta"
+        }
+      ]
+    },
+    {
+      "id": "tls-key-update",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+          "test": "requested_key_update_preserves_http2_connection"
+        }
+      ]
+    },
+    {
+      "id": "tls-record-shape",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+          "test": "fragmented_tls13_records_preserve_body_and_connection_reuse"
+        }
+      ]
+    },
+    {
+      "id": "h1-chunk-extensions",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http1/tests/response_body.rs",
+          "test": "decodes_fragmented_chunk_extensions_and_trailers_then_reuses_connection"
+        }
+      ]
+    },
+    {
+      "id": "h1-trailers",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http1/tests/response_body.rs",
+          "test": "decodes_fragmented_chunk_extensions_and_trailers_then_reuses_connection"
+        }
+      ]
+    },
+    {
+      "id": "h1-segmentation",
+      "regressions": [
+        {
+          "file": "crates/phantom/tests/session_http1.rs",
+          "test": "segmented_close_response_is_reassembled_before_connection_replacement"
+        }
+      ]
+    },
+    {
+      "id": "h3-retry",
+      "regressions": [
+        {
+          "file": "crates/phantom-net/src/http3/tests/quic.rs",
+          "test": "completes_after_one_server_retry"
+        }
+      ]
+    }
+  ]
+}

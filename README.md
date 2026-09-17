@@ -37,8 +37,9 @@ the same response body without a background task; reconnection remains later
 session policy. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
 I/O through Phantom-owned types. HTTPS proxies, SOCKS5 authentication,
-UDP-capable proxies, retries, WebSocket extensions, and extended CONNECT
-remain planned. The project does not make broad client-compatibility claims.
+UDP-capable proxies, general retry policy, WebSocket extensions, and extended
+CONNECT remain planned. The project does not make broad client-compatibility
+claims.
 
 ## Principles
 
@@ -91,12 +92,15 @@ request and never negotiate another version or retry through another route.
 `get` is convenience sugar for `request` with `Method::GET`; ordinary
 non-CONNECT methods may carry one finite owned byte body. Phantom validates a
 caller-supplied `Content-Length` exactly or appends one for a non-empty body.
-Streaming uploads and automatic retries remain unavailable. Redirects are an
-explicit session policy configured with `RedirectPolicy::limited`; they keep
-the selected protocol and route, apply a finite hop budget, and replay only
-the current owned byte body. Every successful response includes
-`OrderedResponseHeaders` and `ResponseInfo` in its extensions; the ordinary
-`HeaderMap` remains the normalized semantic view. The ordered view retains
+Streaming uploads and a configurable general retry policy remain unavailable.
+A session retries one bodyless H2 GET when `GOAWAY(NO_ERROR)` identifies it as
+unprocessed; the replacement keeps the same origin, route, protocol, and
+ordered fields. Redirects are an explicit session policy configured with
+`RedirectPolicy::limited`; they keep the selected protocol and route, apply a
+finite hop budget, and replay only the current owned byte body. Every
+successful response includes `OrderedResponseHeaders` and `ResponseInfo` in
+its extensions; the ordinary `HeaderMap` remains the normalized semantic view.
+The ordered view retains
 duplicate interleaving on every protocol and received HTTP/1 field-name
 spelling. HTTP/2 and HTTP/3 names are lowercase by protocol. Use
 `client.session()` for session-owned HTTP/1.1, HTTP/2, and direct HTTP/3 reuse,

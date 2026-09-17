@@ -75,6 +75,11 @@ jobs:
       - name: Test capture tooling
         run: python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 
+      - name: Check adversarial coverage inventory
+        run: >-
+          python scripts/capture/reaper_coverage.py check
+          fixtures/adversarial/reaper/2026-09-16/coverage.json
+
       - name: Test
         run: cargo test --workspace --all-targets --all-features --locked
 

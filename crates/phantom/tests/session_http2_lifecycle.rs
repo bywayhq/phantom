@@ -19,12 +19,13 @@ use std::{
 
 use btls::ssl::{Ssl, SslAcceptor};
 use bytes::Bytes;
-use http::Response;
+use http::{Method, Response};
 use http_body_util::BodyExt;
 use phantom::{HttpProtocol, RequestErrorKind};
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
+    sync::oneshot,
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -234,7 +235,7 @@ async fn goaway_replaces_connection_while_eligible_body_finishes() -> TestResult
 }
 
 #[tokio::test]
-async fn goaway_rejected_request_is_not_replayed() -> TestResult<()> {
+async fn graceful_goaway_retries_a_bodyless_get_once_on_a_replacement() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -253,32 +254,22 @@ async fn goaway_rejected_request_is_not_replayed() -> TestResult<()> {
         });
 
         let session = test_client(&identity, true)?.session();
-        let result = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/failed"))?
-            .send()
-            .await;
-        let error = match result {
-            Ok(_) => return Err("request rejected by GOAWAY was replayed".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Http2);
-
         let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/explicit"))?
+            .get(HttpProtocol::Http2, &format!("https://{address}/failed"))?
             .send()
             .await?;
         assert_eq!(response.status(), 204);
         response.into_body().collect().await?;
         drop(session);
 
-        assert_eq!(server.await??, vec![(1, "/explicit".to_owned())]);
+        assert_eq!(server.await??, vec![(1, "/failed".to_owned())]);
         Ok(())
     })
     .await
 }
 
 #[tokio::test]
-async fn goaway_processed_boundary_preserves_lower_stream_without_replaying_higher_stream()
+async fn goaway_processed_boundary_preserves_lower_stream_and_retries_higher_stream()
 -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
@@ -316,21 +307,145 @@ async fn goaway_processed_boundary_preserves_lower_stream_without_replaying_high
         let lower = lower?;
         assert_eq!(lower.status(), 204);
         lower.into_body().collect().await?;
-        let higher = match higher {
-            Ok(_) => return Err("request above the GOAWAY boundary was replayed".into()),
-            Err(error) => error,
-        };
-        assert_eq!(higher.kind(), RequestErrorKind::Http2);
-
-        let explicit = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/explicit"))?
-            .send()
-            .await?;
-        assert_eq!(explicit.status(), 204);
-        explicit.into_body().collect().await?;
+        let higher = higher?;
+        assert_eq!(higher.status(), 204);
+        higher.into_body().collect().await?;
         drop(session);
 
-        assert_eq!(server.await??, vec![(1, "/explicit".to_owned())]);
+        assert_eq!(server.await??, vec![(1, "/higher".to_owned())]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (client_done_tx, client_done_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let mut stream = accept_tls(&listener, &acceptor).await?;
+                accept_client_preface(&mut stream).await?;
+                read_request_headers(&mut stream, 1).await?;
+                write_frame(&mut stream, 0x7, 0, 0, &[0, 0, 0, 0, 0, 0, 0, 0]).await?;
+                stream.flush().await?;
+                stream.shutdown().await?;
+            }
+
+            tokio::select! {
+                biased;
+                accepted = listener.accept() => {
+                    accepted?;
+                    Ok::<_, Box<dyn Error + Send + Sync>>(false)
+                }
+                completed = client_done_rx => {
+                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    Ok(true)
+                }
+            }
+        });
+
+        let session = test_client(&identity, true)?.session();
+        let result = session
+            .get(HttpProtocol::Http2, &format!("https://{address}/bounded"))?
+            .send()
+            .await;
+        let error = match result {
+            Ok(_) => return Err("request survived a second graceful GOAWAY".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Http2);
+        client_done_tx
+            .send(())
+            .map_err(|_| "server stopped before client completion")?;
+        assert!(server.await??, "a second retry opened a third connection");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn graceful_goaway_does_not_replay_a_request_body() -> TestResult<()> {
+    assert_goaway_not_retried(
+        Method::GET,
+        Some(Bytes::from_static(b"owned body")),
+        "/body",
+        0,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn graceful_goaway_does_not_replay_another_method() -> TestResult<()> {
+    assert_goaway_not_retried(Method::POST, None, "/post", 0).await
+}
+
+#[tokio::test]
+async fn error_goaway_does_not_replay_a_bodyless_get() -> TestResult<()> {
+    assert_goaway_not_retried(Method::GET, None, "/protocol-error", 1).await
+}
+
+async fn assert_goaway_not_retried(
+    method: Method,
+    body: Option<Bytes>,
+    path: &'static str,
+    reason_code: u32,
+) -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (client_done_tx, client_done_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(&listener, &acceptor).await?;
+            accept_client_preface(&mut stream).await?;
+            read_request_headers(&mut stream, 1).await?;
+            let mut goaway = [0_u8; 8];
+            goaway[4..].copy_from_slice(&reason_code.to_be_bytes());
+            write_frame(&mut stream, 0x7, 0, 0, &goaway).await?;
+            stream.flush().await?;
+            stream.shutdown().await?;
+
+            tokio::select! {
+                biased;
+                accepted = listener.accept() => {
+                    accepted?;
+                    Ok::<_, Box<dyn Error + Send + Sync>>(false)
+                }
+                completed = client_done_rx => {
+                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    Ok(true)
+                }
+            }
+        });
+
+        let session = test_client(&identity, true)?.session();
+        let mut request = session.request(
+            HttpProtocol::Http2,
+            method,
+            &format!("https://{address}{path}"),
+        )?;
+        if let Some(body) = body {
+            request = request.body(body);
+        }
+        let result = request.send().await;
+        let error = match result {
+            Ok(_) => return Err("ineligible request was replayed after GOAWAY".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Http2);
+        client_done_tx
+            .send(())
+            .map_err(|_| "server stopped before client completion")?;
+        assert!(
+            server.await??,
+            "ineligible replay opened a replacement connection"
+        );
         Ok(())
     })
     .await

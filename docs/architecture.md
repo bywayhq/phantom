@@ -157,10 +157,11 @@ selected protocol and profile.
 Pending admission is bounded and cancellation-safe. Cancelling one H2 or H3
 request resets only its stream; it does not discard unrelated streams. A
 GOAWAY marks the connection draining, prevents new admission, and lets eligible
-in-flight work finish. Retry policy remains outside the pool and may replay only
-requests whose method, body, and failure boundary make that safe. SSE leases a
-long-lived response stream, while WebSocket leases one upgraded or extended-
-CONNECT stream; either can coexist with ordinary H2/H3 requests.
+in-flight work finish. The H2 pool retries one bodyless GET when a graceful
+GOAWAY identifies it as unprocessed; every broader retry decision remains
+outside the pool and requires an explicit replayability contract. SSE leases a
+long-lived response stream, while WebSocket leases one upgraded or
+extended-CONNECT stream; either can coexist with ordinary H2/H3 requests.
 
 Cross-origin coalescing is disabled in the first pooled slice. It is enabled
 only after certificate authority, DNS/route identity, origin authorization,
@@ -175,9 +176,10 @@ least-recently selected retained entries at configurable bounds. Different
 sessions never share connections. H1 is sequential and non-pipelined; a full,
 self-delimited body releases the next admitted request. H2 and H3 have bounded
 local active work and waiters, stream-scoped cancellation, and stale/GOAWAY
-generation replacement without replay. H2 also delegates the peer's concurrent
-stream limit to the protocol engine. Retries and coalescing remain
-unimplemented. See [session state and pooling](session.md).
+generation replacement. H2 retries one bodyless GET rejected by
+`GOAWAY(NO_ERROR)` exactly once on the replacement and delegates the peer's
+concurrent stream limit to the protocol engine. General retry policy and
+coalescing remain unimplemented. See [session state and pooling](session.md).
 
 The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.
 `phantom-quic-btls` implements Quinn's crypto-provider seam with the same

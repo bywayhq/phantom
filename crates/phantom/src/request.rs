@@ -122,9 +122,10 @@ impl RequestBuilder {
     /// Sends the request using the selected route and owner.
     ///
     /// A session may reuse compatible HTTP/1.1, HTTP/2, and direct HTTP/3
-    /// connections. A bare client remains one-shot. Dropping this future
-    /// cancels the in-flight operation; returned bodies retain protocol
-    /// cancellation.
+    /// connections. A bodyless HTTP/2 GET rejected by `GOAWAY(NO_ERROR)` is
+    /// retried once on the session's replacement connection. A bare client
+    /// remains one-shot. Dropping this future cancels the in-flight operation;
+    /// returned bodies retain protocol cancellation.
     ///
     /// # Errors
     ///

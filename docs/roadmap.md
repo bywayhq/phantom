@@ -257,7 +257,8 @@ The fifth landed slice exposes that seam through an isolated, cloneable public
 'static` rather than borrowing the facade. Each session retains compatible H2
 connections by canonical origin and complete route identity, shares concurrent
 same-key connection setup, bounds retained entries, keeps independent sessions
-isolated, and performs no hidden replay. Direct and plaintext-CONNECT tests
+isolated, and initially performed no hidden replay. The bounded graceful-GOAWAY
+exception described below was added later. Direct and plaintext-CONNECT tests
 prove sequential/concurrent reuse, tunnel reuse, pre-I/O validation, and
 stream-scoped cancellation.
 
@@ -266,7 +267,9 @@ that survive LRU eviction and connection replacement. Permits follow response
 stream lifetime, cancelled waiters release their slots, and the vendored engine
 remains authoritative for peer `MAX_CONCURRENT_STREAMS`. An observed GOAWAY
 causes later work to open a new generation while eligible streams finish on the
-old one; a request rejected by a GOAWAY is surfaced without automatic replay.
+old one. A bodyless GET rejected by `GOAWAY(NO_ERROR)` is retried once on that
+replacement; other methods, bodies, error codes, and a second GOAWAY are
+surfaced without replay.
 
 HTTP/1.1 sessions now retain one sequential connection per exact origin and
 route, with pipelining disabled and bounded waiters. Reuse begins only after a
