@@ -394,13 +394,17 @@ Acceptance:
 Before the public client API stabilizes, run a dedicated ergonomics audit of
 widely used Rust and non-Rust HTTP clients. Extract repeated user preferences
 and complaints from documentation, issues, and real usage, then test proposed
-changes against Phantom's explicit wire-control and ownership boundaries.
+changes against Phantom's explicit wire-control and ownership boundaries. The
+first evidence pass and stabilization decisions are recorded in
+[HTTP client API ergonomics](client-api-ergonomics.md).
 
 Maintain a second evidence ledger for request-client CVEs, security advisories,
 and relevant issue/PR histories, including both impersonating and conventional
 clients. Convert each applicable failure mode into a documented invariant,
 deterministic regression, fuzz target, or CI check; record why non-applicable
 cases do not cross Phantom's trust or lifecycle boundaries.
+The initial inventory is maintained in
+[request-client advisory regression ledger](request-client-advisories.md).
 
 ## Phase 7: SSE and WebSocket — in progress
 
