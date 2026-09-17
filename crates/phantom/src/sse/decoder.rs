@@ -21,6 +21,14 @@ pub(super) struct Decoder {
 
 impl Decoder {
     pub(super) fn new(limits: SseLimits) -> Self {
+        Self::with_state(limits, String::new(), None)
+    }
+
+    pub(super) fn with_state(
+        limits: SseLimits,
+        last_event_id: String,
+        retry_delay: Option<Duration>,
+    ) -> Self {
         Self {
             limits,
             chunk: Bytes::new(),
@@ -30,9 +38,9 @@ impl Decoder {
             stream_start: true,
             data: String::new(),
             event_type: String::new(),
-            id_buffer: String::new(),
-            last_event_id: String::new(),
-            retry_delay: None,
+            id_buffer: last_event_id.clone(),
+            last_event_id,
+            retry_delay,
             event_bytes: 0,
         }
     }

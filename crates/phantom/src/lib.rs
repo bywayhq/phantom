@@ -28,7 +28,9 @@ pub use route::{
 pub use session::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
 pub use session::{Session, SessionBuilder};
 #[cfg(feature = "sse")]
-pub use sse::{SseError, SseErrorKind, SseEvent, SseLimits, SseStream};
+pub use sse::{
+    SseError, SseErrorKind, SseEvent, SseEventSource, SseLimits, SseRequestBuilder, SseStream,
+};
 #[cfg(feature = "websocket")]
 pub use websocket::{
     WebSocket, WebSocketCloseFrame, WebSocketError, WebSocketErrorKind, WebSocketHeader,

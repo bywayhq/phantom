@@ -335,9 +335,13 @@ Acceptance:
 
 ## Phase 7: SSE and WebSocket — in progress
 
-The feature-gated SSE slice is a bounded pull parser over the ordinary response
-body, with WHATWG field semantics and cancellation-safe incremental reads.
-Reconnect, idle-timeout, and `Last-Event-ID` request policy remain session work.
+The feature-gated SSE slice includes a bounded pull parser and a session-owned,
+finite reconnect controller. It carries committed `id` and `retry` state,
+emits `Last-Event-ID` on reconnect, preserves reconnect deadlines across
+cancelled reads, and treats 204 as permanent termination while reusing ordinary
+session routing, redirects, cookies, and pools. Idle timeouts, jitter, and
+retained browser-specific initial-delay/header-order evidence remain future
+work.
 
 The first feature-gated WebSocket slice is also landed. It performs WSS over
 an exact ordered H1 Upgrade on direct or plaintext-CONNECT routes, retains the

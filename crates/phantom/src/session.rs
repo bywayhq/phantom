@@ -2,6 +2,8 @@ use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 
+#[cfg(feature = "sse")]
+use crate::SseRequestBuilder;
 use crate::{Client, HttpProtocol, RedirectPolicy, RequestBuilder, RequestError};
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
@@ -93,6 +95,24 @@ impl Session {
         uri: &str,
     ) -> Result<RequestBuilder, RequestError> {
         RequestBuilder::new_session(self.clone(), protocol, method, uri)
+    }
+
+    /// Starts a bounded server-sent event source using this session's state.
+    ///
+    /// Reconnects use exactly `protocol`, the same route, ordered caller fields,
+    /// shared connection pools, redirect policy, and optional cookie jar.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError`] when the protocol is absent from the profile
+    /// or the URI, authority, or request target is invalid.
+    #[cfg(feature = "sse")]
+    pub fn event_source(
+        &self,
+        protocol: HttpProtocol,
+        uri: &str,
+    ) -> Result<SseRequestBuilder, RequestError> {
+        SseRequestBuilder::new_session(self.clone(), protocol, uri)
     }
 
     /// Starts a secure WebSocket handshake with this session's route and cookies.

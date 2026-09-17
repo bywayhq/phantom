@@ -10,7 +10,7 @@ publish = false
 default = []
 cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
 full = ["cookies", "sse", "websocket"]
-sse = []
+sse = ["tokio/time"]
 websocket = ["dep:btls", "dep:futures-util", "dep:tokio-tungstenite"]
 
 [dependencies]
@@ -39,7 +39,7 @@ http2 = { version = "=0.5.20", features = ["unstable"] }
 quinn = { workspace = true, features = ["rustls-ring"] }
 rcgen = "=0.14.5"
 rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std"] }
-tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "test-util", "time"] }
 tokio-btls.workspace = true
 
 [lints]

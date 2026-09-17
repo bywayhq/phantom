@@ -32,9 +32,9 @@ survive negotiation. The SOCKS5 URI scheme selects explicit DNS ownership. H3 us
 separate protocol-specific TLS profile and rejects both TCP-only proxy routes
 before network I/O. The optional `cookies` capability
 adds a bounded, explicit session jar with public-suffix, prefix, expiry, and
-deterministic ordering rules. A feature-gated, bounded SSE decoder consumes
-the same response body without a background task; reconnection remains later
-session policy. Feature-gated WebSocket support performs an exact ordered H1
+    deterministic ordering rules. Feature-gated SSE support provides both a bounded
+    single-response decoder and a finite, pull-driven session reconnect controller
+    without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
 I/O through Phantom-owned types. HTTPS proxies, SOCKS5 authentication,
 UDP-capable proxies, general retry policy, WebSocket extensions, and extended

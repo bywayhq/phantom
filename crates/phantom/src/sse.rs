@@ -9,6 +9,9 @@ use crate::{RequestError, ResponseBody};
 use self::decoder::Decoder;
 
 mod decoder;
+mod event_source;
+
+pub use event_source::{SseEventSource, SseRequestBuilder};
 
 const DEFAULT_MAX_LINE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_EVENT_BYTES: usize = 1024 * 1024;
@@ -84,6 +87,12 @@ impl SseEvent {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum SseErrorKind {
+    /// The request could not be prepared or sent.
+    Request,
+    /// The caller supplied a field reserved for SSE reconnect state.
+    InvalidRequestHeader,
+    /// The reconnect delay cannot be represented by the runtime clock.
+    InvalidReconnectDelay,
     /// The response status was not 200 OK.
     UnexpectedStatus,
     /// The response did not have a `text/event-stream` content type.
@@ -96,6 +105,8 @@ pub enum SseErrorKind {
     EventTooLarge,
     /// Reading the underlying HTTP response body failed.
     Body,
+    /// The configured reconnect-attempt budget was exhausted.
+    ReconnectLimit,
 }
 
 /// Error returned while validating or decoding an SSE response.
@@ -120,6 +131,43 @@ impl SseError {
             kind: SseErrorKind::Body,
             message: "SSE response body failed",
             source: Some(source),
+        }
+    }
+
+    fn request(source: RequestError) -> Self {
+        Self {
+            kind: SseErrorKind::Request,
+            message: "SSE request failed",
+            source: Some(source),
+        }
+    }
+
+    fn request_state() -> Self {
+        Self::without_source(
+            SseErrorKind::Request,
+            "SSE reconnect request state is unavailable",
+        )
+    }
+
+    fn invalid_request_header() -> Self {
+        Self::without_source(
+            SseErrorKind::InvalidRequestHeader,
+            "Last-Event-ID is managed by the SSE event source",
+        )
+    }
+
+    fn invalid_reconnect_delay() -> Self {
+        Self::without_source(
+            SseErrorKind::InvalidReconnectDelay,
+            "SSE reconnect delay exceeds the runtime clock range",
+        )
+    }
+
+    fn reconnect_limit(source: Option<RequestError>) -> Self {
+        Self {
+            kind: SseErrorKind::ReconnectLimit,
+            message: "SSE reconnect limit was reached",
+            source,
         }
     }
 
@@ -190,6 +238,24 @@ impl SseStream {
             Self {
                 body: Some(body),
                 decoder: Decoder::new(limits),
+                finished: false,
+            },
+        ))
+    }
+
+    fn from_response_with_state(
+        response: Response<ResponseBody>,
+        limits: SseLimits,
+        last_event_id: String,
+        retry_delay: Duration,
+    ) -> Result<Response<Self>, SseError> {
+        validate_response(&response)?;
+        let (parts, body) = response.into_parts();
+        Ok(Response::from_parts(
+            parts,
+            Self {
+                body: Some(body),
+                decoder: Decoder::with_state(limits, last_event_id, Some(retry_delay)),
                 finished: false,
             },
         ))

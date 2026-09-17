@@ -170,10 +170,15 @@ regression.
 - Proxy peers still need browser-differential 407 challenge/retry behavior,
   half-close coverage, HTTPS proxying, SOCKS5 authentication, and UDP
   route variants.
-- SSE covers BOM and line-ending variants, split UTF-8, comments, `id`,
-  `retry`, reconnect, `Last-Event-ID`, and 204 termination.
+- SSE covers BOM and line-ending variants, split UTF-8, comments, `id`, and
+  `retry`. A deterministic H1 session regression also covers one bounded
+  reconnect, `Last-Event-ID`, cookie carry-over, cancellation-safe delay, and
+  204 termination. Broader retained browser and H2/H3 reconnect matrices remain
+  future work.
 - WebSocket covers fragmented UTF-8 with interleaved Ping/Pong, simultaneous
-  Close, compression context takeover, RSV misuse, and invalid control frames.
+  Close, RSV misuse, and invalid control frames. The current handshake rejects
+  extensions; `permessage-deflate` and compression context-takeover coverage
+  remain future work.
 
 Renderer behavior is out of scope for the raw transport client. For example,
 preloading a `Link` from a 103 response and synthesizing `Sec-Fetch-*` require

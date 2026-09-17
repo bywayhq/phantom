@@ -4,6 +4,8 @@
 
 #[path = "support/h3.rs"]
 mod h3_support;
+#[path = "sse/reconnect.rs"]
+mod reconnect;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
