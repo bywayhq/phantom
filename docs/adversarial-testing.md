@@ -43,6 +43,7 @@ fixtures.
 | P0 | H2 | Trailers plus `RST_STREAM(NO_ERROR)`, GOAWAY, and reset races | Trailers and accepted data survive; new work is not placed on a draining connection |
 | P1 | QUIC | Retry, duplicate or late Retry, and Version Negotiation variants | At most one valid Retry is processed; spoofed or invalid negotiation cannot loop or downgrade |
 | P1 | H3 | Missing or duplicate SETTINGS, forbidden frame placement, and unknown frames/streams | Correct H3 close code for violations; bounded draining and continuation for valid extensions |
+| P1 | H3/ALPS | Absent, empty, malformed, forbidden, repeated, or conflicting application settings | Preserve negotiation state; fail invalid payloads before H3 streams; accept compatible first wire SETTINGS and reject late, reduced, or conflicting values |
 | P1 | H3/QPACK | Blocked field section followed by insertion, cancellation, or critical-stream failure | Flow control remains accounted, cancellation is stream-scoped, and critical-stream errors close deterministically |
 | P1 | H3 | Descending/increasing GOAWAY and response `103`/trailers/reset races | Draining semantics, `H3_ID_ERROR` for an increase, and response continuity match retained client behavior |
 | P1 | H3 | Reuse before and after the peer idle timeout, including a silently expired path | Stale connections are evicted, one bounded replacement attempt succeeds when eligible, and forced H3 never falls back to TCP |
@@ -72,7 +73,11 @@ reserved streams and frames, increasing GOAWAY rejection with `H3_ID_ERROR`,
 blocked inbound QPACK release and decoder acknowledgement, peer encoder-stream
 closure with `H3_CLOSED_CRITICAL_STREAM`, one valid QUIC Retry, chained
 informational responses through final DATA and trailers, rejection of HTTP/3
-`101`, and peer-observed request-stream cancellation. The remaining H3 cases
+`101`, and peer-observed request-stream cancellation. H3 ALPS coverage retains
+the authenticated absent/empty/nonempty states, rejects malformed or forbidden
+payloads before stream startup, applies peer QPACK limits before a request, and
+accepts a compatible first wire SETTINGS while rejecting late frames,
+reductions, and conflicts. The remaining H3 cases
 extend that focused loopback peer rather than introducing a speculative
 universal peer framework.
 

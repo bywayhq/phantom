@@ -35,8 +35,26 @@ fn quinn_client_handshake_with_context(
     client_context: OwnedContext,
     failure: Option<TestDerivationFailure>,
 ) -> Result<(Box<dyn crypto::Session>, RawServer, usize), TransportError> {
+    quinn_client_handshake_with_alps(client_context, failure, None, None)
+}
+
+fn quinn_client_handshake_with_alps(
+    client_context: OwnedContext,
+    failure: Option<TestDerivationFailure>,
+    tls_settings: Option<&phantom_profile::TlsSettings>,
+    server_application_settings: Option<&[u8]>,
+) -> Result<(Box<dyn crypto::Session>, RawServer, usize), TransportError> {
     let server_context = server_context();
     let mut config = QuicClientConfig::new(client_context.0);
+    if let Some(settings) = tls_settings {
+        config = config
+            .with_tls_profile(settings)
+            .map_err(|_| TransportError {
+                code: TransportErrorCode::INTERNAL_ERROR,
+                frame: None,
+                reason: "test TLS profile failed".into(),
+            })?;
+    }
     if let Some(failure) = failure {
         config = config.with_test_derivation_failure(failure);
     }
@@ -50,7 +68,10 @@ fn quinn_client_handshake_with_context(
         ),
         "Quinn client session",
     );
-    let mut server = test_ok(RawServer::new(&server_context), "server session");
+    let mut server = test_ok(
+        RawServer::new_with_application_settings(&server_context, server_application_settings),
+        "server session",
+    );
     let mut metadata_events = 0;
 
     let mut client_initial = Vec::new();
@@ -141,11 +162,13 @@ fn completes_with_owned_metadata_identity_and_exporter() {
         .downcast::<HandshakeData>()
         .unwrap_or_else(|_| panic!("unexpected handshake metadata type"));
     assert_eq!(first.protocol(), H3_PROTOCOL);
+    assert_eq!(first.peer_application_settings(), None);
     let retained = test_some(client.handshake_data(), "retained handshake metadata");
     let retained = retained
         .downcast::<HandshakeData>()
         .unwrap_or_else(|_| panic!("unexpected retained metadata type"));
     assert_eq!(retained.protocol(), H3_PROTOCOL);
+    assert_eq!(retained.peer_application_settings(), None);
 
     let identity = test_some(client.peer_identity(), "peer identity");
     let identity = identity
@@ -291,6 +314,7 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
             {
                 let mut settings = base.clone();
                 settings.alpn_protocols = vec![Box::from(&b"h2"[..])];
+                settings.alps = None;
                 settings
             },
             "alpn_protocols",
@@ -299,13 +323,25 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
             {
                 let mut settings = base.clone();
                 settings.alps = Some(phantom_profile::AlpsSettings {
-                    protocol: Box::from(&b"h3"[..]),
-                    settings: Box::new([]),
+                    protocol: Box::from(&b"h2"[..]),
+                    settings: Box::default(),
                     use_new_codepoint: true,
                 });
                 settings
             },
-            "alps",
+            "alps.protocol",
+        ),
+        (
+            {
+                let mut settings = base.clone();
+                settings.alps = Some(phantom_profile::AlpsSettings {
+                    protocol: Box::from(&b"h3"[..]),
+                    settings: Box::from(&b"nonempty"[..]),
+                    use_new_codepoint: true,
+                });
+                settings
+            },
+            "alps.settings",
         ),
         (
             {
@@ -367,6 +403,63 @@ fn quic_tls_profile_changes_raw_client_hello_key_shares_and_ech() {
         .unwrap_or_else(|| panic!("profiled ClientHello omitted ECH GREASE"));
     assert_eq!(ech.len(), 42 + 64);
     assert_eq!(&ech[40..42], &64_u16.to_be_bytes());
+    assert_eq!(
+        extension(&client_hello, 0x44cd),
+        Some(&b"\x00\x03\x02h3"[..])
+    );
+
+    settings
+        .alps
+        .as_mut()
+        .unwrap_or_else(|| panic!("HTTP/3 TLS profile omitted ALPS"))
+        .use_new_codepoint = false;
+    let context = client_context(true);
+    let config = test_ok(
+        QuicClientConfig::new(context.0).with_tls_profile(&settings),
+        "legacy-codepoint QUIC TLS profile",
+    );
+    let mut client = test_ok(
+        crypto::ClientConfig::start_session(
+            Arc::new(config),
+            0x0000_0001,
+            SERVER_NAME,
+            &client_transport_parameters(),
+        ),
+        "legacy-codepoint QUIC client session",
+    );
+    let mut client_hello = Vec::new();
+    assert!(client.write_handshake(&mut client_hello).is_none());
+    assert_eq!(
+        extension(&client_hello, 0x4469),
+        Some(&b"\x00\x03\x02h3"[..])
+    );
+    assert_eq!(extension(&client_hello, 0x44cd), None);
+}
+
+#[test]
+fn negotiated_alps_preserves_empty_and_nonempty_peer_settings() {
+    for peer_settings in [&b""[..], &b"\x04\x02\x01\x00"[..]] {
+        let tls = h3_tls_settings();
+        let (client, server, metadata_events) = test_ok(
+            quinn_client_handshake_with_alps(
+                client_context(true),
+                None,
+                Some(&tls),
+                Some(peer_settings),
+            ),
+            "ALPS Quinn client handshake",
+        );
+        assert_eq!(metadata_events, 1);
+        assert_eq!(server.peer_application_settings(), Some(Vec::new()));
+
+        let metadata = test_some(client.handshake_data(), "ALPS handshake metadata")
+            .downcast::<HandshakeData>()
+            .unwrap_or_else(|_| panic!("unexpected ALPS metadata type"));
+        assert_eq!(metadata.peer_application_settings(), Some(peer_settings));
+        let debug = format!("{metadata:?}");
+        assert!(debug.contains(&format!("Some({})", peer_settings.len())));
+        assert!(!debug.contains("nonempty"));
+    }
 }
 
 #[test]
@@ -422,18 +515,7 @@ fn hex<const N: usize>(input: &str) -> [u8; N] {
 }
 
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    let mut settings = chromium::v152_macos_tls();
-    settings.min_version = TlsVersion::Tls13;
-    settings.max_version = TlsVersion::Tls13;
-    settings.cipher_suites = vec![
-        CipherSuite::Aes128GcmSha256,
-        CipherSuite::Aes256GcmSha384,
-        CipherSuite::Chacha20Poly1305Sha256,
-    ];
-    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
-    settings.alps = None;
-    settings.session_tickets = false;
-    settings
+    chromium::v152_macos_http3_tls()
 }
 
 fn extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {

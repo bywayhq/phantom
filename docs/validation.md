@@ -79,10 +79,10 @@ conflicting overlap, non-ClientHello input, and oversized handshakes. Two
 independent Chrome 152/macOS 15.5 captures retain the complete handshake in a
 strict sidecar schema. Their semantic differential establishes the stable H3
 offer while permitting observed extension permutation and fresh ECH entropy.
-The production `Http3Connector` is tested against that capture; H3 ALPS
-(`0x44cd`) is excluded from the equality only because the current QUIC backend
-rejects it explicitly, which remains the gate for a built-in Chrome H3 TLS
-recipe.
+The production `Http3Connector` is tested against that capture, including the
+exact H3 ALPS (`0x44cd`) extension body. Synthetic authenticated handshakes
+separately prove absent, empty, and nonempty peer application settings without
+placing encrypted server payloads into the ClientHello fixture.
 
 ## Browser ClientHello fixture workflow
 

@@ -1,6 +1,8 @@
 //! HTTP/3 client builder
 
 use std::{
+    fmt,
+    io::Cursor,
     marker::PhantomData,
     sync::{atomic::AtomicUsize, Arc},
 };
@@ -17,6 +19,43 @@ use crate::{
 };
 
 use super::connection::{Connection, SendRequest};
+
+/// An invalid HTTP/3 application-settings payload received through TLS.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ApplicationSettingsError {
+    /// The payload contains an incomplete or malformed HTTP/3 frame.
+    Malformed,
+    /// The payload contains a frame forbidden in application settings.
+    ForbiddenFrame,
+    /// The payload contains more than one SETTINGS frame.
+    MultipleSettings,
+    /// The SETTINGS frame is semantically invalid.
+    Settings(SettingsError),
+}
+
+impl fmt::Display for ApplicationSettingsError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Malformed => formatter.write_str("malformed HTTP/3 application settings"),
+            Self::ForbiddenFrame => {
+                formatter.write_str("HTTP/3 application settings contain a forbidden frame")
+            }
+            Self::MultipleSettings => {
+                formatter.write_str("HTTP/3 application settings contain multiple SETTINGS frames")
+            }
+            Self::Settings(error) => write!(formatter, "invalid HTTP/3 settings: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for ApplicationSettingsError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Settings(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 /// Start building a new HTTP/3 client
 pub fn builder() -> Builder {
@@ -118,6 +157,45 @@ impl Builder {
         )?;
         self.config.settings = semantic_settings;
         self.config.ordered_settings = Some(settings);
+        Ok(self)
+    }
+
+    /// Applies peer HTTP/3 SETTINGS received through TLS application settings.
+    ///
+    /// An empty payload negotiates application settings without replacing the
+    /// peer's required control-stream SETTINGS. Unknown frames are ignored.
+    /// At most one SETTINGS frame is accepted.
+    pub fn peer_application_settings(
+        &mut self,
+        payload: &[u8],
+    ) -> Result<&mut Self, ApplicationSettingsError> {
+        if payload.is_empty() {
+            self.config.peer_settings = None;
+            return Ok(self);
+        }
+
+        let mut payload = Cursor::new(payload);
+        let mut settings = None;
+        while payload.has_remaining() {
+            match frame::Frame::decode(&mut payload) {
+                Ok(frame::Frame::Settings(value)) if settings.is_none() => settings = Some(value),
+                Ok(frame::Frame::Settings(_)) => {
+                    return Err(ApplicationSettingsError::MultipleSettings);
+                }
+                Ok(_) | Err(frame::FrameError::UnsupportedFrame(_)) => {
+                    return Err(ApplicationSettingsError::ForbiddenFrame);
+                }
+                Err(frame::FrameError::UnknownFrame(0x4d | 0xf0700 | 0xf0701)) => {
+                    return Err(ApplicationSettingsError::ForbiddenFrame);
+                }
+                Err(frame::FrameError::UnknownFrame(_)) => {}
+                Err(frame::FrameError::Settings(error)) => {
+                    return Err(ApplicationSettingsError::Settings(error));
+                }
+                Err(_) => return Err(ApplicationSettingsError::Malformed),
+            }
+        }
+        self.config.peer_settings = settings;
         Ok(self)
     }
 
@@ -275,6 +353,78 @@ mod tests {
                 0x5e, 0x81,
             ]
         );
+    }
+
+    #[test]
+    fn peer_application_settings_preserve_empty_and_valid_settings() {
+        let mut builder = Builder::new();
+        builder.send_grease(false);
+        let local_settings = settings_frame_bytes(&builder);
+        builder
+            .peer_application_settings(&[])
+            .expect("empty application settings must be valid");
+        assert!(builder.config.peer_settings.is_none());
+
+        builder
+            .peer_application_settings(&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02])
+            .expect("one SETTINGS frame must be valid");
+        let settings: crate::config::Settings = builder
+            .config
+            .peer_settings
+            .as_ref()
+            .expect("peer settings must be retained")
+            .into();
+        assert_eq!(settings.qpack_max_table_capacity, 32);
+        assert_eq!(settings.qpack_blocked_streams, 2);
+        assert_eq!(settings_frame_bytes(&builder), local_settings);
+    }
+
+    #[test]
+    fn peer_application_settings_reject_invalid_frame_sequences() {
+        for (payload, expected) in [
+            (&[0x04, 0x02, 0x01][..], ApplicationSettingsError::Malformed),
+            (&[0x00, 0x00][..], ApplicationSettingsError::ForbiddenFrame),
+            (
+                &[0x04, 0x00, 0x04, 0x00][..],
+                ApplicationSettingsError::MultipleSettings,
+            ),
+            (
+                &[0x04, 0x02, 0x02, 0x00][..],
+                ApplicationSettingsError::Settings(SettingsError::InvalidSettingId(0x02)),
+            ),
+            (
+                &[0x04, 0x04, 0x01, 0x00, 0x01, 0x01][..],
+                ApplicationSettingsError::Settings(SettingsError::Repeated(0x01)),
+            ),
+            (
+                &[0x04, 0x04, 0x21, 0x00, 0x21, 0x01][..],
+                ApplicationSettingsError::Settings(SettingsError::Repeated(0x21)),
+            ),
+            (
+                &[0x40, 0x4d, 0x00][..],
+                ApplicationSettingsError::ForbiddenFrame,
+            ),
+            (
+                &[0x80, 0x0f, 0x07, 0x00, 0x00][..],
+                ApplicationSettingsError::ForbiddenFrame,
+            ),
+            (
+                &[0x80, 0x0f, 0x07, 0x01, 0x00][..],
+                ApplicationSettingsError::ForbiddenFrame,
+            ),
+        ] {
+            let mut builder = Builder::new();
+            assert_eq!(
+                builder.peer_application_settings(payload).err(),
+                Some(expected)
+            );
+        }
+
+        let mut builder = Builder::new();
+        builder
+            .peer_application_settings(&[0x21, 0x00, 0x04, 0x00, 0x40, 0x5f, 0x00])
+            .expect("unknown frames around SETTINGS must be ignored");
+        assert!(builder.config.peer_settings.is_some());
     }
 
     #[test]

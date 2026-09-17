@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::{v152_macos_http2, v152_macos_tls};
+use super::{v152_macos_http2, v152_macos_http3_tls, v152_macos_tls};
 use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
 
 const PINGLY_FIXTURE: &str = include_str!(concat!(
@@ -15,6 +15,24 @@ fn chrome_152_macos_tls_settings_are_valid() -> Result<(), Box<dyn std::error::E
     settings.validate()?;
     let alps = settings.alps.ok_or("Chrome TLS profile omitted ALPS")?;
     assert_eq!(alps.protocol.as_ref(), b"h2");
+    assert!(alps.settings.is_empty());
+    assert!(alps.use_new_codepoint);
+    Ok(())
+}
+
+#[test]
+fn chrome_152_macos_http3_tls_settings_are_valid() -> Result<(), Box<dyn std::error::Error>> {
+    let settings = v152_macos_http3_tls();
+    settings.validate()?;
+    assert_eq!(settings.min_version, crate::tls::TlsVersion::Tls13);
+    assert_eq!(settings.max_version, crate::tls::TlsVersion::Tls13);
+    assert_eq!(settings.alpn_protocols, [Box::from(&b"h3"[..])]);
+    assert!(!settings.session_tickets);
+
+    let alps = settings
+        .alps
+        .ok_or("Chrome HTTP/3 TLS profile omitted ALPS")?;
+    assert_eq!(alps.protocol.as_ref(), b"h3");
     assert!(alps.settings.is_empty());
     assert!(alps.use_new_codepoint);
     Ok(())

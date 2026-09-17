@@ -240,10 +240,11 @@ and request validation precede DNS and UDP. The TCP-only HTTP CONNECT route is
 rejected before proxy or origin I/O and never escapes to a direct attempt.
 Loopback tests cover certificate and IP-literal verification, ordered duplicate
 fields, streaming trailers, cancellation, missing-runtime errors, and route
-anti-leak behavior. A built-in Chrome H3 TLS recipe remains pending an H3 ALPS
-implementation. Two fresh-profile Chrome H3 ClientHellos are retained, and the
-production connector matches every currently supported stable field; Chrome's
-`0x44cd` H3 ALPS offer is the remaining known TLS-profile gap.
+anti-leak behavior. Two fresh-profile Chrome H3 ClientHellos define the
+built-in Chrome H3 TLS recipe, including the final `0x44cd` H3 ALPS offer. The
+production connector retains authenticated peer settings and applies valid H3
+SETTINGS before request startup. Nonempty local application settings remain
+unsupported until local H3 and QPACK state can be correlated with them.
 
 The fourth landed slice separates HTTP/2 connection ownership from individual
 requests. A cloneable lower-level connection can open sequential or concurrent

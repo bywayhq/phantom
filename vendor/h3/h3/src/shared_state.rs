@@ -1,9 +1,6 @@
 //! This module represents the shared state of the h3 connection
 
-use std::{
-    borrow::Cow,
-    sync::{atomic::AtomicBool, OnceLock},
-};
+use std::sync::{atomic::AtomicBool, OnceLock, RwLock};
 
 use futures_util::task::AtomicWaker;
 
@@ -13,7 +10,7 @@ use crate::{config::Settings, error::internal_error::ErrorOrigin};
 /// This struct represents the shared state of the h3 connection and the stream structs
 pub struct SharedState {
     /// The settings, sent by the peer
-    settings: OnceLock<Settings>,
+    settings: RwLock<Settings>,
     /// The connection error
     connection_error: OnceLock<ErrorOrigin>,
     /// The connection is closing
@@ -25,7 +22,7 @@ pub struct SharedState {
 impl Default for SharedState {
     fn default() -> Self {
         Self {
-            settings: OnceLock::new(),
+            settings: RwLock::new(Settings::default()),
             connection_error: OnceLock::new(),
             closing: AtomicBool::new(false),
             waker: AtomicWaker::new(),
@@ -67,17 +64,17 @@ pub trait ConnectionState {
     }
 
     /// Get the settings
-    fn settings(&self) -> Cow<'_, Settings> {
+    fn settings(&self) -> Settings {
         //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
         //# Each endpoint SHOULD use
         //# these initial values to send messages before the peer's SETTINGS
         //# frame has arrived, as packets carrying the settings can be lost or
         //# delayed.
-        self.shared_state()
+        *self
+            .shared_state()
             .settings
-            .get()
-            .map(Cow::Borrowed)
-            .unwrap_or_default()
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
     /// Set the connection to closing
     fn set_closing(&self) {
@@ -93,7 +90,11 @@ pub trait ConnectionState {
     }
     /// Set the settings
     fn set_settings(&self, settings: Settings) {
-        let _ = self.shared_state().settings.set(settings);
+        *self
+            .shared_state()
+            .settings
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = settings;
     }
 
     /// Returns the waker for the connection

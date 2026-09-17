@@ -6,7 +6,7 @@ use std::net::IpAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use btls::ssl::{KeyShare, SslContext};
-use phantom_profile::{CipherSuite, NamedGroup, TlsSettings, TlsVersion};
+use phantom_profile::{AlpsSettings, CipherSuite, NamedGroup, TlsSettings, TlsVersion};
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
     ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
@@ -51,6 +51,7 @@ impl QuicClientConfig {
                 key_shares: None,
                 ech_grease: false,
                 ech_grease_payload_length: None,
+                alps: None,
             },
             #[cfg(test)]
             derivation_failure: None,
@@ -73,9 +74,9 @@ impl QuicClientConfig {
 
     /// Applies TLS controls that BoringSSL owns per QUIC session.
     ///
-    /// The current QUIC path requires TLS 1.3, exact `h3` ALPN, no H3 ALPS,
-    /// and no tickets or early data. Profiles must state those
-    /// constraints explicitly; this method never rewrites them silently.
+    /// The current QUIC path requires TLS 1.3, exact `h3` ALPN, at most an
+    /// empty local H3 ALPS value, and no tickets or early data. Profiles must
+    /// state those constraints explicitly; this method never rewrites them.
     pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
         self.tls_profile = ClientTlsProfile::new(settings)?;
         Ok(self)
@@ -139,9 +140,10 @@ impl fmt::Display for InvalidServerName {
 impl std::error::Error for InvalidServerName {}
 
 /// Negotiated information made available by Quinn once ALPN is selected.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct HandshakeData {
     protocol: Vec<u8>,
+    peer_application_settings: Option<Vec<u8>>,
 }
 
 impl HandshakeData {
@@ -149,6 +151,28 @@ impl HandshakeData {
     #[must_use]
     pub fn protocol(&self) -> &[u8] {
         &self.protocol
+    }
+
+    /// Returns application settings received from the peer through ALPS.
+    ///
+    /// `None` means ALPS was not negotiated. An empty slice means it was
+    /// negotiated with an empty settings value.
+    #[must_use]
+    pub fn peer_application_settings(&self) -> Option<&[u8]> {
+        self.peer_application_settings.as_deref()
+    }
+}
+
+impl fmt::Debug for HandshakeData {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HandshakeData")
+            .field("protocol", &self.protocol)
+            .field(
+                "peer_application_settings_len",
+                &self.peer_application_settings.as_ref().map(Vec::len),
+            )
+            .finish()
     }
 }
 
@@ -225,11 +249,27 @@ impl crypto::ClientConfig for QuicClientConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub(super) struct ClientTlsProfile {
     key_shares: Option<Box<[KeyShare]>>,
     ech_grease: bool,
     ech_grease_payload_length: Option<u16>,
+    alps: Option<AlpsSettings>,
+}
+
+impl fmt::Debug for ClientTlsProfile {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ClientTlsProfile")
+            .field("key_shares", &self.key_shares)
+            .field("ech_grease", &self.ech_grease)
+            .field("ech_grease_payload_length", &self.ech_grease_payload_length)
+            .field(
+                "alps",
+                &self.alps.as_ref().map(|value| value.settings.len()),
+            )
+            .finish()
+    }
 }
 
 impl ClientTlsProfile {
@@ -249,16 +289,20 @@ impl ClientTlsProfile {
                 "QUIC requires the exact `h3` ALPN protocol",
             ));
         }
-        if settings.alps.is_some() {
-            return Err(QuicTlsProfileError::invalid(
-                "alps",
-                "HTTP/3 ALPS is not supported by the current QUIC path",
+        if settings
+            .alps
+            .as_ref()
+            .is_some_and(|alps| !alps.settings.is_empty())
+        {
+            return Err(QuicTlsProfileError::unsupported(
+                "alps.settings",
+                "nonempty local HTTP/3 ALPS requires correlated H3 SETTINGS",
             ));
         }
         if settings.session_tickets {
             return Err(QuicTlsProfileError::invalid(
                 "session_tickets",
-                "the one-shot QUIC path disables tickets and early data",
+                "the current QUIC path disables tickets and early data",
             ));
         }
         if settings
@@ -283,6 +327,7 @@ impl ClientTlsProfile {
             key_shares: Some(key_shares),
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
+            alps: settings.alps.clone(),
         })
     }
 
@@ -296,6 +341,10 @@ impl ClientTlsProfile {
 
     pub(super) const fn ech_grease_payload_length(&self) -> Option<u16> {
         self.ech_grease_payload_length
+    }
+
+    pub(super) const fn alps(&self) -> Option<&AlpsSettings> {
+        self.alps.as_ref()
     }
 }
 
@@ -460,12 +509,15 @@ impl SessionState {
             }
         }
 
-        if self.handshake_data.is_none() {
+        if self.handshake_data.is_none() && !self.backend.is_handshaking() {
             if let Some(protocol) = self.backend.selected_protocol()? {
                 if protocol != H3_PROTOCOL {
                     return Err(AdapterError::Backend(ClientSessionError::AlpnNotNegotiated));
                 }
-                self.handshake_data = Some(HandshakeData { protocol });
+                self.handshake_data = Some(HandshakeData {
+                    protocol,
+                    peer_application_settings: self.backend.peer_application_settings()?,
+                });
             }
         }
         if self.peer_transport_parameters.is_none() {
@@ -815,7 +867,8 @@ fn map_session_error(backend: &ClientSession, error: ClientSessionError) -> Tran
         | ClientSessionError::CallbackInstall(_)
         | ClientSessionError::Callback(_)
         | ClientSessionError::AllocationFailed
-        | ClientSessionError::ExportBeforeHandshake => transport_error(
+        | ClientSessionError::ExportBeforeHandshake
+        | ClientSessionError::PeerApplicationSettingsBeforeHandshake => transport_error(
             TransportErrorCode::INTERNAL_ERROR,
             "local TLS provider failure",
         ),

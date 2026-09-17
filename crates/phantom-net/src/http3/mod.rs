@@ -284,7 +284,18 @@ async fn connect(
         })?
         .await
         .map_err(connection_error)?;
-    require_h3(&connection)?;
+    let handshake = require_h3(&connection)?;
+    if let Some(peer_settings) = handshake.peer_application_settings() {
+        builder
+            .peer_application_settings(peer_settings)
+            .map_err(|error| {
+                Http3Error::with_source(
+                    Http3ErrorKind::Protocol,
+                    "peer HTTP/3 application settings are invalid",
+                    error,
+                )
+            })?;
+    }
     debug!("QUIC connection established with exact h3 ALPN");
 
     let (h3_driver, sender) = builder
@@ -436,7 +447,7 @@ fn connection_error_is_tls(error: &quinn::ConnectionError) -> bool {
     (0x100..0x200).contains(&u64::from(code))
 }
 
-fn require_h3(connection: &quinn::Connection) -> Result<(), Http3Error> {
+fn require_h3(connection: &quinn::Connection) -> Result<Box<HandshakeData>, Http3Error> {
     let metadata = connection.handshake_data().ok_or_else(|| {
         Http3Error::without_source(
             Http3ErrorKind::Handshake,
@@ -444,14 +455,13 @@ fn require_h3(connection: &quinn::Connection) -> Result<(), Http3Error> {
         )
     })?;
     let metadata = downcast_handshake_data(metadata)?;
-    if metadata.protocol() == b"h3" {
-        Ok(())
-    } else {
-        Err(Http3Error::without_source(
+    if metadata.protocol() != b"h3" {
+        return Err(Http3Error::without_source(
             Http3ErrorKind::Handshake,
             "QUIC TLS did not negotiate the required `h3` ALPN",
-        ))
+        ));
     }
+    Ok(metadata)
 }
 
 fn downcast_handshake_data(metadata: Box<dyn Any>) -> Result<Box<HandshakeData>, Http3Error> {

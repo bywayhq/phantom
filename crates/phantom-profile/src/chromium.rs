@@ -179,6 +179,46 @@ pub fn v152_macos_http3() -> Http3Settings {
     }
 }
 
+/// Returns TLS settings for the Chrome 152 HTTP/3 offer on macOS 15.5.
+///
+/// The wire-visible offer fields come from retained ClientHellos. The empty
+/// application-settings value follows Chromium's QUIC configuration. The
+/// returned value is owned and can be customized before transport setup.
+#[must_use]
+pub fn v152_macos_http3_tls() -> TlsSettings {
+    let mut settings = v152_macos_tls();
+    settings.min_version = TlsVersion::Tls13;
+    settings.max_version = TlsVersion::Tls13;
+    settings.cipher_suites = vec![
+        CipherSuite::Aes128GcmSha256,
+        CipherSuite::Aes256GcmSha384,
+        CipherSuite::Chacha20Poly1305Sha256,
+    ];
+    settings.signature_schemes = vec![
+        SignatureScheme::EcdsaSecp256r1Sha256,
+        SignatureScheme::RsaPssRsaeSha256,
+        SignatureScheme::RsaPkcs1Sha256,
+        SignatureScheme::EcdsaSecp384r1Sha384,
+        SignatureScheme::RsaPssRsaeSha384,
+        SignatureScheme::RsaPkcs1Sha384,
+        SignatureScheme::RsaPssRsaeSha512,
+        SignatureScheme::RsaPkcs1Sha512,
+        SignatureScheme::RsaPkcs1Sha1,
+    ];
+    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
+    settings.alps = Some(AlpsSettings {
+        protocol: Box::from(&b"h3"[..]),
+        settings: Box::default(),
+        use_new_codepoint: true,
+    });
+    settings.session_tickets = false;
+    settings.grease = false;
+    settings.grease_signature_algorithms = false;
+    settings.request_ocsp_staple = false;
+    settings.request_signed_certificate_timestamps = false;
+    settings
+}
+
 /// Returns HTTP/3 request ordering observed from Chrome 152 on macOS 15.5.
 #[must_use]
 pub fn v152_macos_http3_request() -> Http3RequestSettings {

@@ -217,8 +217,10 @@ by the same TLS-profile and QUIC-profile seams as the public client. A unit
 differential compares that production connector with the retained Chrome H3
 capture. It matches the supported stable cipher, version, group, key-share,
 signature, ALPN, trust-anchor, and extension fields. Chrome also advertises H3
-ALPS with codepoint `0x44cd`; Phantom does not publish a built-in Chrome H3 TLS
-recipe until that extension is implemented rather than omitted.
+ALPS with codepoint `0x44cd`; Phantom's built-in Chrome H3 TLS recipe now emits
+that exact empty offer. After authentication, the connector preserves whether
+peer application settings were absent, empty, or nonempty and validates a
+nonempty value before opening HTTP/3 streams.
 
 The first controlled Phantom run authenticated Initial, Handshake, and 1-RTT,
 matched Chrome's 437-byte encoder prefix and 17 decoded headers, and exposed an

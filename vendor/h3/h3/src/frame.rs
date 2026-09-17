@@ -225,6 +225,10 @@ where
         self.remaining_data != 0
     }
 
+    pub(crate) fn take_ignored_unknown(&mut self) -> bool {
+        self.decoder.take_ignored_unknown()
+    }
+
     pub(crate) fn is_eos(&self) -> bool {
         self.stream.is_eos() && !self.stream.buf().has_remaining()
     }
@@ -423,6 +427,7 @@ where
 #[derive(Default)]
 pub struct FrameDecoder {
     expected: Option<usize>,
+    ignored_unknown: bool,
 }
 
 impl FrameDecoder {
@@ -462,6 +467,7 @@ impl FrameDecoder {
 
                 src.advance(pos);
                 self.expected = None;
+                self.ignored_unknown = true;
                 Ok(None)
             }
             Err(frame::FrameError::Incomplete(min)) => {
@@ -496,6 +502,10 @@ impl FrameDecoder {
                 Err(FrameStreamError::Proto(FrameProtocolError::Malformed))
             }
         }
+    }
+
+    fn take_ignored_unknown(&mut self) -> bool {
+        std::mem::take(&mut self.ignored_unknown)
     }
 }
 

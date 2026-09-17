@@ -1,5 +1,6 @@
 use bytes::{Buf, BufMut, Bytes};
 use std::{
+    collections::HashSet,
     convert::TryInto,
     fmt::{self, Debug},
 };
@@ -567,6 +568,7 @@ impl Settings {
 
     pub(super) fn decode<T: Buf>(buf: &mut T) -> Result<Settings, SettingsError> {
         let mut settings = Settings::default();
+        let mut identifiers = HashSet::new();
         while buf.has_remaining() {
             if buf.remaining() < 2 {
                 // remains less than 2 * minimum-size varint
@@ -575,6 +577,10 @@ impl Settings {
 
             let identifier = SettingId::decode(buf).map_err(|_| SettingsError::Malformed)?;
             let value = buf.get_var().map_err(|_| SettingsError::Malformed)?;
+
+            if !identifiers.insert(identifier) {
+                return Err(SettingsError::Repeated(identifier.0));
+            }
 
             if identifier.is_forbidden() {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.1

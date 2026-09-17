@@ -46,6 +46,7 @@ pub(super) enum ClientSessionError {
     },
     PeerVerificationFailed,
     AlpnNotNegotiated,
+    PeerApplicationSettingsBeforeHandshake,
     ResumptionAttempted,
     EarlyDataActive,
     InvalidPeerTransportParameters,
@@ -290,6 +291,24 @@ impl ClientSession {
         Ok(Some(protocol.to_vec()))
     }
 
+    pub(super) fn peer_application_settings(&self) -> Result<Option<Vec<u8>>, ClientSessionError> {
+        self.callback_error()?;
+        if !self.handshake_complete {
+            return Err(ClientSessionError::PeerApplicationSettingsBeforeHandshake);
+        }
+        // SAFETY: the SSL remains live and no mutable SSL operation overlaps this borrow.
+        let ssl = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) };
+        let Some(settings) = ssl.peer_application_settings() else {
+            return Ok(None);
+        };
+        let mut owned = Vec::new();
+        owned
+            .try_reserve_exact(settings.len())
+            .map_err(|_| ClientSessionError::AllocationFailed)?;
+        owned.extend_from_slice(settings);
+        Ok(Some(owned))
+    }
+
     pub(super) fn peer_identity(&self) -> Result<Vec<Vec<u8>>, ClientSessionError> {
         self.callback_error()?;
         if !self.handshake_complete {
@@ -490,6 +509,11 @@ fn apply_tls_profile(
     if let Some(payload_length) = profile.ech_grease_payload_length() {
         ssl.set_ech_grease_payload_length(usize::from(payload_length))
             .map_err(|_| backend_failure("ECH GREASE payload length"))?;
+    }
+    if let Some(alps) = profile.alps() {
+        ssl.add_application_settings_with_payload(&alps.protocol, &alps.settings)
+            .map_err(|_| backend_failure("ALPS configuration"))?;
+        ssl.set_alps_use_new_codepoint(alps.use_new_codepoint);
     }
     Ok(())
 }

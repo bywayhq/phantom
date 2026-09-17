@@ -23,6 +23,7 @@ use crate::{
 use super::{h3_quinn, Pair};
 
 const PEER_DYNAMIC_SETTINGS: &[u8] = &[0x00, 0x04, 0x05, 0x01, 0x50, 0x00, 0x07, 0x10];
+const PEER_DYNAMIC_APPLICATION_SETTINGS: &[u8] = &[0x04, 0x05, 0x01, 0x50, 0x00, 0x07, 0x10];
 const EMPTY_PEER_SETTINGS: &[u8] = &[0x00, 0x04, 0x00];
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -60,6 +61,39 @@ async fn dynamic_request_does_not_open_a_bidi_stream_before_peer_settings() {
 
     server_connection.close(0_u32.into(), b"test complete");
     drop((control, stream, sender));
+    let _ = driver_task.await.unwrap();
+}
+
+#[tokio::test]
+async fn dynamic_request_uses_peer_application_settings_before_wire_settings() {
+    let mut pair = Pair::default();
+    let endpoint = pair.server_inner();
+    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
+        endpoint.accept().await.unwrap().await.unwrap()
+    });
+    let bidi_polls = Arc::new(AtomicUsize::new(0));
+    let observed = ObservedConnection::new(client_connection, Arc::clone(&bidi_polls));
+
+    let mut builder = client::builder();
+    builder
+        .send_grease(false)
+        .enable_dynamic_qpack(true)
+        .peer_application_settings(PEER_DYNAMIC_APPLICATION_SETTINGS)
+        .unwrap();
+    let (mut driver, mut sender) = builder.build::<_, _, Bytes>(observed).await.unwrap();
+    let driver_task =
+        tokio::spawn(async move { future::poll_fn(|cx| driver.poll_close(cx)).await });
+
+    let request = Request::get("https://localhost/alps").body(()).unwrap();
+    let mut stream = tokio::time::timeout(TEST_TIMEOUT, sender.send_request(request))
+        .await
+        .expect("request waited for redundant wire SETTINGS")
+        .unwrap();
+    assert!(bidi_polls.load(Ordering::Acquire) > 0);
+    stream.finish().await.unwrap();
+
+    server_connection.close(0_u32.into(), b"test complete");
+    drop((stream, sender));
     let _ = driver_task.await.unwrap();
 }
 

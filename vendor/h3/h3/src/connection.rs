@@ -40,6 +40,57 @@ use crate::{
     webtransport::SessionId,
 };
 
+fn reconcile_peer_settings(
+    application: &frame::Settings,
+    control: &frame::Settings,
+) -> Result<crate::config::Settings, String> {
+    let mut merged: crate::config::Settings = application.into();
+
+    if let Some(value) = control.get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY) {
+        if application
+            .get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY)
+            .is_some_and(|previous| previous != value)
+        {
+            return Err("control-stream QPACK table capacity conflicts with ALPS".to_string());
+        }
+        merged.qpack_max_table_capacity = value;
+    }
+    if let Some(value) = control.get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS) {
+        if application
+            .get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS)
+            .is_some_and(|previous| value < previous)
+        {
+            return Err("control-stream QPACK blocked-stream limit reduces ALPS".to_string());
+        }
+        merged.qpack_blocked_streams = value;
+    }
+    if let Some(value) = control.get(frame::SettingId::MAX_HEADER_LIST_SIZE) {
+        if application
+            .get(frame::SettingId::MAX_HEADER_LIST_SIZE)
+            .is_some_and(|previous| value < previous)
+        {
+            return Err("control-stream field-section limit reduces ALPS".to_string());
+        }
+        merged.max_field_section_size = value;
+    }
+    if let Some(value) = control.get(frame::SettingId::ENABLE_CONNECT_PROTOCOL) {
+        merged.enable_extended_connect = value != 0;
+    }
+    if let Some(value) = control.get(frame::SettingId::H3_DATAGRAM) {
+        merged.enable_datagram |= value != 0;
+    }
+    if let Some(value) = control.get(frame::SettingId::ENABLE_WEBTRANSPORT) {
+        merged.enable_webtransport |= value != 0;
+    }
+    if let Some(value) = control.get(frame::SettingId::WEBTRANSPORT_MAX_SESSIONS) {
+        if value != 0 {
+            merged.max_webtransport_sessions = value;
+        }
+    }
+
+    Ok(merged)
+}
+
 #[allow(missing_docs)]
 pub struct AcceptedStreams<C, B>
 where
@@ -178,6 +229,8 @@ where
     accepted_streams: AcceptedStreams<C, B>,
     pending_recv_streams: Vec<Option<AcceptRecvStream<C::RecvStream, B>>>,
     got_peer_settings: bool,
+    got_peer_control_frame: bool,
+    peer_application_settings: Option<frame::Settings>,
     pub(crate) handled_connection_error: Option<ConnectionError>,
     pub send_grease_frame: bool,
     // tells if the grease steam should be sent
@@ -438,6 +491,8 @@ where
             handled_connection_error: None,
             pending_recv_streams: Vec::with_capacity(3),
             got_peer_settings: false,
+            got_peer_control_frame: false,
+            peer_application_settings: config.peer_settings,
             send_grease_frame: config.send_grease,
             config,
             accepted_streams: Default::default(),
@@ -446,9 +501,40 @@ where
             // start at first step
             grease_step: GreaseStatus::NotStarted(PhantomData),
         };
+        if let Some(settings) = config.peer_settings {
+            conn_inner.apply_peer_settings((&settings).into())?;
+        }
         conn_inner.send_control_stream_headers().await?;
 
         Ok(conn_inner)
+    }
+
+    fn apply_peer_settings(
+        &mut self,
+        semantic_settings: crate::config::Settings,
+    ) -> Result<(), ConnectionError> {
+        let qpack = &mut self.qpack_streams;
+        let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
+            outbound.configure(
+                &mut qpack.encoder,
+                semantic_settings.qpack_max_table_capacity,
+                semantic_settings.qpack_blocked_streams,
+            )
+        } else {
+            Ok(())
+        };
+        if let Err(error) = configure_result {
+            return Err(self.handle_connection_error(InternalConnectionError::new(
+                Code::H3_SETTINGS_ERROR,
+                format!("invalid peer QPACK settings: {error}"),
+            )));
+        }
+        self.got_peer_settings = true;
+        self.set_settings(semantic_settings);
+        if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
+            outbound.mark_ready();
+        }
+        Ok(())
     }
 
     pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
@@ -915,18 +1001,31 @@ where
         // check if a connection error occurred on a stream
         let _ = self.poll_connection_error(cx)?;
 
-        let recv = {
+        let (next, ignored_unknown) = {
             // TODO
             self.poll_accept_recv(cx)?;
             if let Some(v) = &mut self.control_recv {
-                v
+                let next = v.poll_next(cx);
+                (next, v.take_ignored_unknown())
             } else {
                 // Try later
                 return Poll::Pending;
             }
         };
 
-        let res = match ready!(recv.poll_next(cx)) {
+        if ignored_unknown {
+            if !self.got_peer_settings {
+                return Poll::Ready(Err(self.handle_connection_error(
+                    InternalConnectionError::new(
+                        Code::H3_MISSING_SETTINGS,
+                        "received an unknown frame before settings".to_string(),
+                    ),
+                )));
+            }
+            self.got_peer_control_frame = true;
+        }
+
+        let res = match ready!(next) {
             Err(FrameStreamError::Quic(StreamErrorIncoming::ConnectionErrorIncoming {
                 connection_error,
             })) => return Poll::Ready(Err(self.handle_connection_error(connection_error))),
@@ -991,36 +1090,7 @@ where
                 )));
             }
             Ok(Some(Frame::Settings(settings))) => {
-                if !self.got_peer_settings {
-                    // Received settings frame
-                    let semantic_settings: crate::config::Settings = (&settings).into();
-                    let qpack = &mut self.qpack_streams;
-                    let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
-                        outbound.configure(
-                            &mut qpack.encoder,
-                            semantic_settings.qpack_max_table_capacity,
-                            semantic_settings.qpack_blocked_streams,
-                        )
-                    } else {
-                        Ok(())
-                    };
-                    if let Err(error) = configure_result {
-                        return Poll::Ready(Err(self.handle_connection_error(
-                            InternalConnectionError::new(
-                                Code::H3_SETTINGS_ERROR,
-                                format!("invalid peer QPACK settings: {error}"),
-                            ),
-                        )));
-                    }
-                    self.got_peer_settings = true;
-                    self.set_settings(semantic_settings);
-                    if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
-                        outbound.mark_ready();
-                        cx.waker().wake_by_ref();
-                    }
-
-                    Frame::Settings(settings)
-                } else {
+                if self.got_peer_control_frame {
                     //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4
                     //# If an endpoint receives a second SETTINGS
                     //# frame on the control stream, the endpoint MUST respond with a
@@ -1032,6 +1102,24 @@ where
                         ),
                     )));
                 }
+                let semantic_settings = match self.peer_application_settings.as_ref() {
+                    Some(application_settings) => {
+                        match reconcile_peer_settings(application_settings, &settings) {
+                            Ok(settings) => settings,
+                            Err(message) => {
+                                return Poll::Ready(Err(self.handle_connection_error(
+                                    InternalConnectionError::new(Code::H3_SETTINGS_ERROR, message),
+                                )));
+                            }
+                        }
+                    }
+                    None => (&settings).into(),
+                };
+                if let Err(error) = self.apply_peer_settings(semantic_settings) {
+                    return Poll::Ready(Err(error));
+                }
+                cx.waker().wake_by_ref();
+                Frame::Settings(settings)
             }
             Ok(Some(frame)) if !self.got_peer_settings => {
                 // We received a frame before the settings frame
@@ -1077,6 +1165,7 @@ where
                 )));
             }
         };
+        self.got_peer_control_frame = true;
 
         if self.send_grease_stream_flag {
             //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.3

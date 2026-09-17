@@ -47,8 +47,16 @@ fn server_name_validation_rejects_invalid_and_absolute_names() {
 fn public_metadata_is_owned_and_debug_does_not_emit_certificates() {
     let handshake = HandshakeData {
         protocol: H3_PROTOCOL.to_vec(),
+        peer_application_settings: Some(b"private ALPS payload".to_vec()),
     };
     assert_eq!(handshake.protocol(), H3_PROTOCOL);
+    assert_eq!(
+        handshake.peer_application_settings(),
+        Some(&b"private ALPS payload"[..])
+    );
+    let handshake_debug = format!("{handshake:?}");
+    assert!(handshake_debug.contains("Some(20)"));
+    assert!(!handshake_debug.contains("private"));
 
     let identity = PeerIdentity {
         certificates: vec![vec![0xde, 0xad, 0xbe, 0xef]],

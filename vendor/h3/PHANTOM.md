@@ -120,6 +120,25 @@ available while a read is pending, so cancellation retains its chosen HTTP/3
 error code instead of falling through to Quinn's implicit code zero. The read
 remains zero-copy and does not allocate a boxed future per poll.
 
+## HTTP/3 application settings
+
+`h3::client::Builder::peer_application_settings` accepts authenticated peer
+application settings copied from the completed TLS handshake. An empty value
+remains distinct from an absent value and retains the control-stream SETTINGS
+requirement. A nonempty value may contain unknown frames and at most one valid
+HTTP/3 SETTINGS frame; known-forbidden frames are rejected.
+
+Those settings initialize the peer semantic view and QPACK limits before a
+request can start. A SETTINGS frame sent first on the control stream may repeat
+compatible values or increase limits; reductions and conflicts close with
+`H3_SETTINGS_ERROR`.
+Malformed payloads, forbidden frames, multiple SETTINGS frames, and invalid or
+repeated settings fail before HTTP/3 opens streams. Local ordered SETTINGS
+remain independent and unchanged.
+
+`patches/application-settings.patch` contains the engine and regression-test
+delta for this seam.
+
 Likewise, do not advertise a nonzero `WEBTRANSPORT_MAX_SESSIONS` until the
 connection path enforces that limit and has bounded lifecycle tests. Exact
 serialization is not sufficient evidence that the advertised capability is

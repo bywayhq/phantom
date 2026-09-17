@@ -9,3 +9,4 @@ qpack-live-request-runtime.patch
 qpack-lazy-decoder-stream.patch
 ordered-response-headers.patch
 ordered-response-send.patch
+application-settings.patch

@@ -1,0 +1,972 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index c37bde3..d0e3f2c 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -1,6 +1,8 @@
+ //! HTTP/3 client builder
+ 
+ use std::{
++    fmt,
++    io::Cursor,
+     marker::PhantomData,
+     sync::{atomic::AtomicUsize, Arc},
+ };
+@@ -18,6 +20,43 @@ use crate::{
+ 
+ use super::connection::{Connection, SendRequest};
+ 
++/// An invalid HTTP/3 application-settings payload received through TLS.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum ApplicationSettingsError {
++    /// The payload contains an incomplete or malformed HTTP/3 frame.
++    Malformed,
++    /// The payload contains a frame forbidden in application settings.
++    ForbiddenFrame,
++    /// The payload contains more than one SETTINGS frame.
++    MultipleSettings,
++    /// The SETTINGS frame is semantically invalid.
++    Settings(SettingsError),
++}
++
++impl fmt::Display for ApplicationSettingsError {
++    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++        match self {
++            Self::Malformed => formatter.write_str("malformed HTTP/3 application settings"),
++            Self::ForbiddenFrame => {
++                formatter.write_str("HTTP/3 application settings contain a forbidden frame")
++            }
++            Self::MultipleSettings => {
++                formatter.write_str("HTTP/3 application settings contain multiple SETTINGS frames")
++            }
++            Self::Settings(error) => write!(formatter, "invalid HTTP/3 settings: {error}"),
++        }
++    }
++}
++
++impl std::error::Error for ApplicationSettingsError {
++    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
++        match self {
++            Self::Settings(error) => Some(error),
++            _ => None,
++        }
++    }
++}
++
+ /// Start building a new HTTP/3 client
+ pub fn builder() -> Builder {
+     Builder::new()
+@@ -121,6 +160,45 @@ impl Builder {
+         Ok(self)
+     }
+ 
++    /// Applies peer HTTP/3 SETTINGS received through TLS application settings.
++    ///
++    /// An empty payload negotiates application settings without replacing the
++    /// peer's required control-stream SETTINGS. Unknown frames are ignored.
++    /// At most one SETTINGS frame is accepted.
++    pub fn peer_application_settings(
++        &mut self,
++        payload: &[u8],
++    ) -> Result<&mut Self, ApplicationSettingsError> {
++        if payload.is_empty() {
++            self.config.peer_settings = None;
++            return Ok(self);
++        }
++
++        let mut payload = Cursor::new(payload);
++        let mut settings = None;
++        while payload.has_remaining() {
++            match frame::Frame::decode(&mut payload) {
++                Ok(frame::Frame::Settings(value)) if settings.is_none() => settings = Some(value),
++                Ok(frame::Frame::Settings(_)) => {
++                    return Err(ApplicationSettingsError::MultipleSettings);
++                }
++                Ok(_) | Err(frame::FrameError::UnsupportedFrame(_)) => {
++                    return Err(ApplicationSettingsError::ForbiddenFrame);
++                }
++                Err(frame::FrameError::UnknownFrame(0x4d | 0xf0700 | 0xf0701)) => {
++                    return Err(ApplicationSettingsError::ForbiddenFrame);
++                }
++                Err(frame::FrameError::UnknownFrame(_)) => {}
++                Err(frame::FrameError::Settings(error)) => {
++                    return Err(ApplicationSettingsError::Settings(error));
++                }
++                Err(_) => return Err(ApplicationSettingsError::Malformed),
++            }
++        }
++        self.config.peer_settings = settings;
++        Ok(self)
++    }
++
+     /// Indicates that the client supports HTTP/3 datagrams
+     ///
+     /// See: <https://www.rfc-editor.org/rfc/rfc9297#section-2.1.1>
+@@ -277,6 +355,78 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn peer_application_settings_preserve_empty_and_valid_settings() {
++        let mut builder = Builder::new();
++        builder.send_grease(false);
++        let local_settings = settings_frame_bytes(&builder);
++        builder
++            .peer_application_settings(&[])
++            .expect("empty application settings must be valid");
++        assert!(builder.config.peer_settings.is_none());
++
++        builder
++            .peer_application_settings(&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02])
++            .expect("one SETTINGS frame must be valid");
++        let settings: crate::config::Settings = builder
++            .config
++            .peer_settings
++            .as_ref()
++            .expect("peer settings must be retained")
++            .into();
++        assert_eq!(settings.qpack_max_table_capacity, 32);
++        assert_eq!(settings.qpack_blocked_streams, 2);
++        assert_eq!(settings_frame_bytes(&builder), local_settings);
++    }
++
++    #[test]
++    fn peer_application_settings_reject_invalid_frame_sequences() {
++        for (payload, expected) in [
++            (&[0x04, 0x02, 0x01][..], ApplicationSettingsError::Malformed),
++            (&[0x00, 0x00][..], ApplicationSettingsError::ForbiddenFrame),
++            (
++                &[0x04, 0x00, 0x04, 0x00][..],
++                ApplicationSettingsError::MultipleSettings,
++            ),
++            (
++                &[0x04, 0x02, 0x02, 0x00][..],
++                ApplicationSettingsError::Settings(SettingsError::InvalidSettingId(0x02)),
++            ),
++            (
++                &[0x04, 0x04, 0x01, 0x00, 0x01, 0x01][..],
++                ApplicationSettingsError::Settings(SettingsError::Repeated(0x01)),
++            ),
++            (
++                &[0x04, 0x04, 0x21, 0x00, 0x21, 0x01][..],
++                ApplicationSettingsError::Settings(SettingsError::Repeated(0x21)),
++            ),
++            (
++                &[0x40, 0x4d, 0x00][..],
++                ApplicationSettingsError::ForbiddenFrame,
++            ),
++            (
++                &[0x80, 0x0f, 0x07, 0x00, 0x00][..],
++                ApplicationSettingsError::ForbiddenFrame,
++            ),
++            (
++                &[0x80, 0x0f, 0x07, 0x01, 0x00][..],
++                ApplicationSettingsError::ForbiddenFrame,
++            ),
++        ] {
++            let mut builder = Builder::new();
++            assert_eq!(
++                builder.peer_application_settings(payload).err(),
++                Some(expected)
++            );
++        }
++
++        let mut builder = Builder::new();
++        builder
++            .peer_application_settings(&[0x21, 0x00, 0x04, 0x00, 0x40, 0x5f, 0x00])
++            .expect("unknown frames around SETTINGS must be ignored");
++        assert!(builder.config.peer_settings.is_some());
++    }
++
+     #[test]
+     fn ordered_settings_reject_duplicates_and_forbidden_identifiers() {
+         let mut builder = Builder::new();
+diff --git a/h3/src/client/mod.rs b/h3/src/client/mod.rs
+index 3e98718..2569399 100644
+--- a/h3/src/client/mod.rs
++++ b/h3/src/client/mod.rs
+@@ -7,8 +7,6 @@ mod stream;
+ mod builder;
+ 
+ pub use crate::proto::frame::SettingsError;
+-pub use builder::builder;
+-pub use builder::new;
+-pub use builder::Builder;
++pub use builder::{builder, new, ApplicationSettingsError, Builder};
+ pub use connection::{Connection, SendRequest};
+ pub use stream::RequestStream;
+diff --git a/h3/src/client/outbound_qpack.rs b/h3/src/client/outbound_qpack.rs
+index c470149..6091958 100644
+--- a/h3/src/client/outbound_qpack.rs
++++ b/h3/src/client/outbound_qpack.rs
+@@ -29,7 +29,7 @@ pub(crate) fn channel() -> (Driver, Sender) {
+             pending_release: None,
+             publications: Vec::new(),
+             commands_closed: false,
+-            configured: false,
++            configuration: None,
+         },
+         Sender { commands, ready_rx },
+     )
+@@ -141,7 +141,7 @@ pub(crate) struct Driver {
+     pending_release: Option<PendingRelease>,
+     publications: Vec<PendingPublication>,
+     commands_closed: bool,
+-    configured: bool,
++    configuration: Option<(usize, usize)>,
+ }
+ 
+ impl Driver {
+@@ -151,13 +151,27 @@ impl Driver {
+         table_capacity: u64,
+         blocked_streams: u64,
+     ) -> Result<(), ConfigureError> {
+-        if self.configured {
+-            return Ok(());
+-        }
+-
+         let table_capacity = effective_table_capacity(table_capacity);
+         let blocked_streams = effective_blocked_streams(blocked_streams);
+ 
++        if let Some((current_capacity, current_blocked)) = self.configuration {
++            if table_capacity < current_capacity || blocked_streams < current_blocked {
++                return Err(ConfigureError::ReducedLimit);
++            }
++            if table_capacity > current_capacity {
++                encoder
++                    .set_max_table_capacity(table_capacity, &mut self.instructions)
++                    .map_err(ConfigureError::Codec)?;
++            }
++            if blocked_streams > current_blocked {
++                encoder
++                    .set_max_blocked_streams(blocked_streams)
++                    .map_err(ConfigureError::Codec)?;
++            }
++            self.configuration = Some((table_capacity, blocked_streams));
++            return Ok(());
++        }
++
+         if table_capacity != 0 {
+             encoder
+                 .set_max_table_capacity(table_capacity, &mut self.instructions)
+@@ -166,7 +180,7 @@ impl Driver {
+         encoder
+             .set_max_blocked_streams(blocked_streams)
+             .map_err(ConfigureError::Codec)?;
+-        self.configured = true;
++        self.configuration = Some((table_capacity, blocked_streams));
+         Ok(())
+     }
+ 
+@@ -214,7 +228,7 @@ impl Driver {
+                 continue;
+             }
+ 
+-            if !self.configured || self.commands_closed {
++            if self.configuration.is_none() || self.commands_closed {
+                 return Poll::Pending;
+             }
+ 
+@@ -327,14 +341,17 @@ fn effective_blocked_streams(peer: u64) -> usize {
+         .min(LOCAL_MAX_BLOCKED_STREAMS)
+ }
+ 
++#[derive(Debug)]
+ pub(crate) enum ConfigureError {
+     Codec(EncoderError),
++    ReducedLimit,
+ }
+ 
+ impl std::fmt::Display for ConfigureError {
+     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         match self {
+             Self::Codec(error) => write!(formatter, "{error}"),
++            Self::ReducedLimit => formatter.write_str("peer QPACK limits were reduced"),
+         }
+     }
+ }
+@@ -366,6 +383,20 @@ mod tests {
+         assert_eq!(effective_table_capacity(4096), 4096);
+     }
+ 
++    #[test]
++    fn peer_limits_may_increase_but_not_decrease() {
++        let (mut driver, _sender) = channel();
++        let mut encoder = Encoder::default();
++
++        driver.configure(&mut encoder, 32, 2).unwrap();
++        driver.configure(&mut encoder, 64, 3).unwrap();
++        assert_eq!(driver.configuration, Some((64, 3)));
++        assert!(matches!(
++            driver.configure(&mut encoder, 32, 3),
++            Err(ConfigureError::ReducedLimit)
++        ));
++    }
++
+     #[tokio::test]
+     async fn publication_drop_is_observable() {
+         let (published, publication) = oneshot::channel();
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index 7b9119a..8f30de9 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -40,6 +40,9 @@ pub struct Config {
+ 
+     /// An exact, caller-supplied SETTINGS frame.
+     pub(crate) ordered_settings: Option<frame::Settings>,
++
++    /// Peer SETTINGS received through TLS application settings.
++    pub(crate) peer_settings: Option<frame::Settings>,
+ }
+ 
+ /// HTTP/3 Settings
+@@ -130,6 +133,7 @@ impl TryFrom<Config> for frame::Settings {
+                     max_webtransport_sessions,
+                 },
+             ordered_settings: _,
++            peer_settings: _,
+         } = value;
+ 
+         if send_grease {
+@@ -237,6 +241,7 @@ impl Default for Config {
+             send_settings: true,
+             settings: Default::default(),
+             ordered_settings: None,
++            peer_settings: None,
+         }
+     }
+ }
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index 7539536..94e932a 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -40,6 +40,57 @@ use crate::{
+     webtransport::SessionId,
+ };
+ 
++fn reconcile_peer_settings(
++    application: &frame::Settings,
++    control: &frame::Settings,
++) -> Result<crate::config::Settings, String> {
++    let mut merged: crate::config::Settings = application.into();
++
++    if let Some(value) = control.get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY) {
++        if application
++            .get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY)
++            .is_some_and(|previous| previous != value)
++        {
++            return Err("control-stream QPACK table capacity conflicts with ALPS".to_string());
++        }
++        merged.qpack_max_table_capacity = value;
++    }
++    if let Some(value) = control.get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS) {
++        if application
++            .get(frame::SettingId::QPACK_MAX_BLOCKED_STREAMS)
++            .is_some_and(|previous| value < previous)
++        {
++            return Err("control-stream QPACK blocked-stream limit reduces ALPS".to_string());
++        }
++        merged.qpack_blocked_streams = value;
++    }
++    if let Some(value) = control.get(frame::SettingId::MAX_HEADER_LIST_SIZE) {
++        if application
++            .get(frame::SettingId::MAX_HEADER_LIST_SIZE)
++            .is_some_and(|previous| value < previous)
++        {
++            return Err("control-stream field-section limit reduces ALPS".to_string());
++        }
++        merged.max_field_section_size = value;
++    }
++    if let Some(value) = control.get(frame::SettingId::ENABLE_CONNECT_PROTOCOL) {
++        merged.enable_extended_connect = value != 0;
++    }
++    if let Some(value) = control.get(frame::SettingId::H3_DATAGRAM) {
++        merged.enable_datagram |= value != 0;
++    }
++    if let Some(value) = control.get(frame::SettingId::ENABLE_WEBTRANSPORT) {
++        merged.enable_webtransport |= value != 0;
++    }
++    if let Some(value) = control.get(frame::SettingId::WEBTRANSPORT_MAX_SESSIONS) {
++        if value != 0 {
++            merged.max_webtransport_sessions = value;
++        }
++    }
++
++    Ok(merged)
++}
++
+ #[allow(missing_docs)]
+ pub struct AcceptedStreams<C, B>
+ where
+@@ -178,6 +229,8 @@ where
+     accepted_streams: AcceptedStreams<C, B>,
+     pending_recv_streams: Vec<Option<AcceptRecvStream<C::RecvStream, B>>>,
+     got_peer_settings: bool,
++    got_peer_control_frame: bool,
++    peer_application_settings: Option<frame::Settings>,
+     pub(crate) handled_connection_error: Option<ConnectionError>,
+     pub send_grease_frame: bool,
+     // tells if the grease steam should be sent
+@@ -438,6 +491,8 @@ where
+             handled_connection_error: None,
+             pending_recv_streams: Vec::with_capacity(3),
+             got_peer_settings: false,
++            got_peer_control_frame: false,
++            peer_application_settings: config.peer_settings,
+             send_grease_frame: config.send_grease,
+             config,
+             accepted_streams: Default::default(),
+@@ -446,11 +501,42 @@ where
+             // start at first step
+             grease_step: GreaseStatus::NotStarted(PhantomData),
+         };
++        if let Some(settings) = config.peer_settings {
++            conn_inner.apply_peer_settings((&settings).into())?;
++        }
+         conn_inner.send_control_stream_headers().await?;
+ 
+         Ok(conn_inner)
+     }
+ 
++    fn apply_peer_settings(
++        &mut self,
++        semantic_settings: crate::config::Settings,
++    ) -> Result<(), ConnectionError> {
++        let qpack = &mut self.qpack_streams;
++        let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
++            outbound.configure(
++                &mut qpack.encoder,
++                semantic_settings.qpack_max_table_capacity,
++                semantic_settings.qpack_blocked_streams,
++            )
++        } else {
++            Ok(())
++        };
++        if let Err(error) = configure_result {
++            return Err(self.handle_connection_error(InternalConnectionError::new(
++                Code::H3_SETTINGS_ERROR,
++                format!("invalid peer QPACK settings: {error}"),
++            )));
++        }
++        self.got_peer_settings = true;
++        self.set_settings(semantic_settings);
++        if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
++            outbound.mark_ready();
++        }
++        Ok(())
++    }
++
+     pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
+         Arc::clone(&self.qpack_streams.decoder)
+     }
+@@ -915,18 +1001,31 @@ where
+         // check if a connection error occurred on a stream
+         let _ = self.poll_connection_error(cx)?;
+ 
+-        let recv = {
++        let (next, ignored_unknown) = {
+             // TODO
+             self.poll_accept_recv(cx)?;
+             if let Some(v) = &mut self.control_recv {
+-                v
++                let next = v.poll_next(cx);
++                (next, v.take_ignored_unknown())
+             } else {
+                 // Try later
+                 return Poll::Pending;
+             }
+         };
+ 
+-        let res = match ready!(recv.poll_next(cx)) {
++        if ignored_unknown {
++            if !self.got_peer_settings {
++                return Poll::Ready(Err(self.handle_connection_error(
++                    InternalConnectionError::new(
++                        Code::H3_MISSING_SETTINGS,
++                        "received an unknown frame before settings".to_string(),
++                    ),
++                )));
++            }
++            self.got_peer_control_frame = true;
++        }
++
++        let res = match ready!(next) {
+             Err(FrameStreamError::Quic(StreamErrorIncoming::ConnectionErrorIncoming {
+                 connection_error,
+             })) => return Poll::Ready(Err(self.handle_connection_error(connection_error))),
+@@ -991,36 +1090,7 @@ where
+                 )));
+             }
+             Ok(Some(Frame::Settings(settings))) => {
+-                if !self.got_peer_settings {
+-                    // Received settings frame
+-                    let semantic_settings: crate::config::Settings = (&settings).into();
+-                    let qpack = &mut self.qpack_streams;
+-                    let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
+-                        outbound.configure(
+-                            &mut qpack.encoder,
+-                            semantic_settings.qpack_max_table_capacity,
+-                            semantic_settings.qpack_blocked_streams,
+-                        )
+-                    } else {
+-                        Ok(())
+-                    };
+-                    if let Err(error) = configure_result {
+-                        return Poll::Ready(Err(self.handle_connection_error(
+-                            InternalConnectionError::new(
+-                                Code::H3_SETTINGS_ERROR,
+-                                format!("invalid peer QPACK settings: {error}"),
+-                            ),
+-                        )));
+-                    }
+-                    self.got_peer_settings = true;
+-                    self.set_settings(semantic_settings);
+-                    if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
+-                        outbound.mark_ready();
+-                        cx.waker().wake_by_ref();
+-                    }
+-
+-                    Frame::Settings(settings)
+-                } else {
++                if self.got_peer_control_frame {
+                     //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4
+                     //# If an endpoint receives a second SETTINGS
+                     //# frame on the control stream, the endpoint MUST respond with a
+@@ -1032,6 +1102,24 @@ where
+                         ),
+                     )));
+                 }
++                let semantic_settings = match self.peer_application_settings.as_ref() {
++                    Some(application_settings) => {
++                        match reconcile_peer_settings(application_settings, &settings) {
++                            Ok(settings) => settings,
++                            Err(message) => {
++                                return Poll::Ready(Err(self.handle_connection_error(
++                                    InternalConnectionError::new(Code::H3_SETTINGS_ERROR, message),
++                                )));
++                            }
++                        }
++                    }
++                    None => (&settings).into(),
++                };
++                if let Err(error) = self.apply_peer_settings(semantic_settings) {
++                    return Poll::Ready(Err(error));
++                }
++                cx.waker().wake_by_ref();
++                Frame::Settings(settings)
+             }
+             Ok(Some(frame)) if !self.got_peer_settings => {
+                 // We received a frame before the settings frame
+@@ -1077,6 +1165,7 @@ where
+                 )));
+             }
+         };
++        self.got_peer_control_frame = true;
+ 
+         if self.send_grease_stream_flag {
+             //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.3
+diff --git a/h3/src/frame.rs b/h3/src/frame.rs
+index 7b1bced..fb581b8 100644
+--- a/h3/src/frame.rs
++++ b/h3/src/frame.rs
+@@ -225,6 +225,10 @@ where
+         self.remaining_data != 0
+     }
+ 
++    pub(crate) fn take_ignored_unknown(&mut self) -> bool {
++        self.decoder.take_ignored_unknown()
++    }
++
+     pub(crate) fn is_eos(&self) -> bool {
+         self.stream.is_eos() && !self.stream.buf().has_remaining()
+     }
+@@ -423,6 +427,7 @@ where
+ #[derive(Default)]
+ pub struct FrameDecoder {
+     expected: Option<usize>,
++    ignored_unknown: bool,
+ }
+ 
+ impl FrameDecoder {
+@@ -462,6 +467,7 @@ impl FrameDecoder {
+ 
+                 src.advance(pos);
+                 self.expected = None;
++                self.ignored_unknown = true;
+                 Ok(None)
+             }
+             Err(frame::FrameError::Incomplete(min)) => {
+@@ -497,6 +503,10 @@ impl FrameDecoder {
+             }
+         }
+     }
++
++    fn take_ignored_unknown(&mut self) -> bool {
++        std::mem::take(&mut self.ignored_unknown)
++    }
+ }
+ 
+ #[derive(Debug)]
+diff --git a/h3/src/proto/frame.rs b/h3/src/proto/frame.rs
+index ddea75e..8cdd10b 100644
+--- a/h3/src/proto/frame.rs
++++ b/h3/src/proto/frame.rs
+@@ -1,5 +1,6 @@
+ use bytes::{Buf, BufMut, Bytes};
+ use std::{
++    collections::HashSet,
+     convert::TryInto,
+     fmt::{self, Debug},
+ };
+@@ -567,6 +568,7 @@ impl Settings {
+ 
+     pub(super) fn decode<T: Buf>(buf: &mut T) -> Result<Settings, SettingsError> {
+         let mut settings = Settings::default();
++        let mut identifiers = HashSet::new();
+         while buf.has_remaining() {
+             if buf.remaining() < 2 {
+                 // remains less than 2 * minimum-size varint
+@@ -576,6 +578,10 @@ impl Settings {
+             let identifier = SettingId::decode(buf).map_err(|_| SettingsError::Malformed)?;
+             let value = buf.get_var().map_err(|_| SettingsError::Malformed)?;
+ 
++            if !identifiers.insert(identifier) {
++                return Err(SettingsError::Repeated(identifier.0));
++            }
++
+             if identifier.is_forbidden() {
+                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.1
+                 //# Setting identifiers that were defined in [HTTP/2] where there is no
+diff --git a/h3/src/shared_state.rs b/h3/src/shared_state.rs
+index 2b8f08c..a183af5 100644
+--- a/h3/src/shared_state.rs
++++ b/h3/src/shared_state.rs
+@@ -1,9 +1,6 @@
+ //! This module represents the shared state of the h3 connection
+ 
+-use std::{
+-    borrow::Cow,
+-    sync::{atomic::AtomicBool, OnceLock},
+-};
++use std::sync::{atomic::AtomicBool, OnceLock, RwLock};
+ 
+ use futures_util::task::AtomicWaker;
+ 
+@@ -13,7 +10,7 @@ use crate::{config::Settings, error::internal_error::ErrorOrigin};
+ /// This struct represents the shared state of the h3 connection and the stream structs
+ pub struct SharedState {
+     /// The settings, sent by the peer
+-    settings: OnceLock<Settings>,
++    settings: RwLock<Settings>,
+     /// The connection error
+     connection_error: OnceLock<ErrorOrigin>,
+     /// The connection is closing
+@@ -25,7 +22,7 @@ pub struct SharedState {
+ impl Default for SharedState {
+     fn default() -> Self {
+         Self {
+-            settings: OnceLock::new(),
++            settings: RwLock::new(Settings::default()),
+             connection_error: OnceLock::new(),
+             closing: AtomicBool::new(false),
+             waker: AtomicWaker::new(),
+@@ -67,17 +64,17 @@ pub trait ConnectionState {
+     }
+ 
+     /// Get the settings
+-    fn settings(&self) -> Cow<'_, Settings> {
++    fn settings(&self) -> Settings {
+         //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
+         //# Each endpoint SHOULD use
+         //# these initial values to send messages before the peer's SETTINGS
+         //# frame has arrived, as packets carrying the settings can be lost or
+         //# delayed.
+-        self.shared_state()
++        *self
++            .shared_state()
+             .settings
+-            .get()
+-            .map(Cow::Borrowed)
+-            .unwrap_or_default()
++            .read()
++            .unwrap_or_else(std::sync::PoisonError::into_inner)
+     }
+     /// Set the connection to closing
+     fn set_closing(&self) {
+@@ -93,7 +90,11 @@ pub trait ConnectionState {
+     }
+     /// Set the settings
+     fn set_settings(&self, settings: Settings) {
+-        let _ = self.shared_state().settings.set(settings);
++        *self
++            .shared_state()
++            .settings
++            .write()
++            .unwrap_or_else(std::sync::PoisonError::into_inner) = settings;
+     }
+ 
+     /// Returns the waker for the connection
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+index c10d0fe..8aa3db7 100644
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -1466,6 +1466,208 @@ async fn goaway_from_server_not_request_id() {
+     tokio::select! { _ = server_fut => panic!("client resolved first"), _ = client_fut => () };
+ }
+ 
++#[tokio::test]
++async fn peer_application_settings_allow_reserved_first_control_frame() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder.peer_application_settings(&[0x04, 0x00]).unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++
++        assert_matches!(
++            future::poll_fn(|cx| driver.poll_close(cx)).await,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose {
++                error_code: code,
++                ..
++            }) if code == 0
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x21, 0x00]).await.unwrap();
++        tokio::time::sleep(Duration::from_millis(10)).await;
++        connection.close(0_u32.into(), b"test complete");
++    };
++
++    tokio::join!(server_fut, client_fut);
++}
++
++#[tokio::test]
++async fn empty_peer_application_settings_still_require_wire_settings() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder.peer_application_settings(&[]).unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++
++        assert_matches!(
++            future::poll_fn(|cx| driver.poll_close(cx)).await,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_MISSING_SETTINGS,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00, 0x07, 0x01, 0x00]).await.unwrap();
++        tokio::time::sleep(Duration::from_secs(10)).await;
++    };
++
++    tokio::select! {
++        _ = client_fut => (),
++        _ = server_fut => panic!("server resolved first"),
++    }
++}
++
++#[tokio::test]
++async fn compatible_wire_settings_extend_peer_application_settings() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder
++            .peer_application_settings(&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02])
++            .unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++
++        let result = future::poll_fn(|cx| driver.poll_close(cx)).await;
++        assert_matches!(
++            result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose {
++                error_code: code,
++                ..
++            }) if code == 0
++        );
++        let settings = driver.settings();
++        assert_eq!(settings.qpack_max_table_capacity, 32);
++        assert_eq!(settings.qpack_blocked_streams, 3);
++        assert_eq!(settings.max_field_section_size, 64);
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control
++            .write_all(&[
++                0x00, 0x04, 0x07, 0x01, 0x20, 0x07, 0x03, 0x06, 0x40, 0x40, 0x21, 0x00,
++            ])
++            .await
++            .unwrap();
++        tokio::time::sleep(Duration::from_millis(10)).await;
++        connection.close(0_u32.into(), b"test complete");
++    };
++
++    tokio::join!(server_fut, client_fut);
++}
++
++#[tokio::test]
++async fn wire_settings_after_another_control_frame_are_rejected() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder.peer_application_settings(&[0x04, 0x00]).unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++
++        assert_matches!(
++            future::poll_fn(|cx| driver.poll_close(cx)).await,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_FRAME_UNEXPECTED,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control
++            .write_all(&[0x00, 0x21, 0x00, 0x04, 0x00])
++            .await
++            .unwrap();
++        tokio::time::sleep(Duration::from_secs(10)).await;
++    };
++
++    tokio::select! {
++        _ = client_fut => (),
++        _ = server_fut => panic!("server resolved first"),
++    }
++}
++
++#[tokio::test]
++async fn conflicting_wire_settings_after_peer_application_settings_are_rejected() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder
++            .peer_application_settings(&[0x04, 0x02, 0x01, 0x20])
++            .unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++
++        assert_matches!(
++            future::poll_fn(|cx| driver.poll_close(cx)).await,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_SETTINGS_ERROR,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control
++            .write_all(&[0x00, 0x04, 0x03, 0x01, 0x40, 0x40])
++            .await
++            .unwrap();
++        tokio::time::sleep(Duration::from_secs(10)).await;
++    };
++
++    tokio::select! {
++        _ = client_fut => (),
++        _ = server_fut => panic!("server resolved first"),
++    }
++}
++
+ #[tokio::test]
+ async fn graceful_shutdown_server_rejects() {
+     init_tracing();
+diff --git a/h3/src/tests/qpack_request.rs b/h3/src/tests/qpack_request.rs
+index 903b608..391e446 100644
+--- a/h3/src/tests/qpack_request.rs
++++ b/h3/src/tests/qpack_request.rs
+@@ -23,6 +23,7 @@ use crate::{
+ use super::{h3_quinn, Pair};
+ 
+ const PEER_DYNAMIC_SETTINGS: &[u8] = &[0x00, 0x04, 0x05, 0x01, 0x50, 0x00, 0x07, 0x10];
++const PEER_DYNAMIC_APPLICATION_SETTINGS: &[u8] = &[0x04, 0x05, 0x01, 0x50, 0x00, 0x07, 0x10];
+ const EMPTY_PEER_SETTINGS: &[u8] = &[0x00, 0x04, 0x00];
+ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+ 
+@@ -63,6 +64,39 @@ async fn dynamic_request_does_not_open_a_bidi_stream_before_peer_settings() {
+     let _ = driver_task.await.unwrap();
+ }
+ 
++#[tokio::test]
++async fn dynamic_request_uses_peer_application_settings_before_wire_settings() {
++    let mut pair = Pair::default();
++    let endpoint = pair.server_inner();
++    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
++        endpoint.accept().await.unwrap().await.unwrap()
++    });
++    let bidi_polls = Arc::new(AtomicUsize::new(0));
++    let observed = ObservedConnection::new(client_connection, Arc::clone(&bidi_polls));
++
++    let mut builder = client::builder();
++    builder
++        .send_grease(false)
++        .enable_dynamic_qpack(true)
++        .peer_application_settings(PEER_DYNAMIC_APPLICATION_SETTINGS)
++        .unwrap();
++    let (mut driver, mut sender) = builder.build::<_, _, Bytes>(observed).await.unwrap();
++    let driver_task =
++        tokio::spawn(async move { future::poll_fn(|cx| driver.poll_close(cx)).await });
++
++    let request = Request::get("https://localhost/alps").body(()).unwrap();
++    let mut stream = tokio::time::timeout(TEST_TIMEOUT, sender.send_request(request))
++        .await
++        .expect("request waited for redundant wire SETTINGS")
++        .unwrap();
++    assert!(bidi_polls.load(Ordering::Acquire) > 0);
++    stream.finish().await.unwrap();
++
++    server_connection.close(0_u32.into(), b"test complete");
++    drop((stream, sender));
++    let _ = driver_task.await.unwrap();
++}
++
+ #[tokio::test]
+ async fn default_request_is_stateless_without_waiting_for_peer_settings() {
+     let mut pair = Pair::default();

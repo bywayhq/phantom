@@ -40,6 +40,9 @@ pub struct Config {
 
     /// An exact, caller-supplied SETTINGS frame.
     pub(crate) ordered_settings: Option<frame::Settings>,
+
+    /// Peer SETTINGS received through TLS application settings.
+    pub(crate) peer_settings: Option<frame::Settings>,
 }
 
 /// HTTP/3 Settings
@@ -130,6 +133,7 @@ impl TryFrom<Config> for frame::Settings {
                     max_webtransport_sessions,
                 },
             ordered_settings: _,
+            peer_settings: _,
         } = value;
 
         if send_grease {
@@ -237,6 +241,7 @@ impl Default for Config {
             send_settings: true,
             settings: Default::default(),
             ordered_settings: None,
+            peer_settings: None,
         }
     }
 }

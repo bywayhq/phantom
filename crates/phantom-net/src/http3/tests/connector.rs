@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::{CipherSuite, SignatureScheme, TlsVersion, chromium};
+use phantom_profile::chromium;
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
@@ -79,11 +79,9 @@ fn production_connector_emits_supported_chrome_h3_client_hello_fields() -> TestR
     let mut handshake = Vec::new();
     assert!(session.write_handshake(&mut handshake).is_none());
 
+    let expected_handshake = fixture_hex(CHROME_H3_CLIENT_HELLO, "handshake_hex")?;
     let actual = ClientHelloSummary::from_handshake_bytes(&handshake)?;
-    let expected = ClientHelloSummary::from_handshake_bytes(&fixture_hex(
-        CHROME_H3_CLIENT_HELLO,
-        "handshake_hex",
-    )?)?;
+    let expected = ClientHelloSummary::from_handshake_bytes(&expected_handshake)?;
     assert_eq!(actual.legacy_version(), expected.legacy_version());
     assert_eq!(actual.server_name(), expected.server_name());
     assert_eq!(actual.cipher_suites(), expected.cipher_suites());
@@ -103,9 +101,14 @@ fn production_connector_emits_supported_chrome_h3_client_hello_fields() -> TestR
     let mut actual_extensions = actual.extension_types().to_vec();
     actual_extensions.sort_unstable();
     let mut expected_extensions = expected.extension_types().to_vec();
-    expected_extensions.retain(|extension| *extension != 0x44cd);
     expected_extensions.sort_unstable();
     assert_eq!(actual_extensions, expected_extensions);
+    let actual_alps =
+        client_hello_extension(&handshake, 0x44cd).ok_or("profiled ClientHello omitted ALPS")?;
+    let expected_alps = client_hello_extension(&expected_handshake, 0x44cd)
+        .ok_or("retained ClientHello omitted ALPS")?;
+    assert_eq!(actual_alps, expected_alps);
+    assert_eq!(actual_alps, b"\x00\x03\x02h3");
     Ok(())
 }
 
@@ -294,33 +297,7 @@ fn connector() -> Result<Http3Connector, Http3ConnectorError> {
 }
 
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    let mut settings = chromium::v152_macos_tls();
-    settings.min_version = TlsVersion::Tls13;
-    settings.max_version = TlsVersion::Tls13;
-    settings.cipher_suites = vec![
-        CipherSuite::Aes128GcmSha256,
-        CipherSuite::Aes256GcmSha384,
-        CipherSuite::Chacha20Poly1305Sha256,
-    ];
-    settings.signature_schemes = vec![
-        SignatureScheme::EcdsaSecp256r1Sha256,
-        SignatureScheme::RsaPssRsaeSha256,
-        SignatureScheme::RsaPkcs1Sha256,
-        SignatureScheme::EcdsaSecp384r1Sha384,
-        SignatureScheme::RsaPssRsaeSha384,
-        SignatureScheme::RsaPkcs1Sha384,
-        SignatureScheme::RsaPssRsaeSha512,
-        SignatureScheme::RsaPkcs1Sha512,
-        SignatureScheme::RsaPkcs1Sha1,
-    ];
-    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
-    settings.alps = None;
-    settings.session_tickets = false;
-    settings.grease = false;
-    settings.grease_signature_algorithms = false;
-    settings.request_ocsp_staple = false;
-    settings.request_signed_certificate_timestamps = false;
-    settings
+    chromium::v152_macos_http3_tls()
 }
 
 const CHROME_H3_STARTUP: &str = include_str!(concat!(
@@ -352,6 +329,38 @@ fn fixture_hex(
             Ok(u8::from_str_radix(digits, 16)?)
         })
         .collect()
+}
+
+fn client_hello_extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {
+    let mut offset = 4 + 2 + 32;
+    offset += 1 + usize::from(*client_hello.get(offset)?);
+    let cipher_len = usize::from(u16::from_be_bytes([
+        *client_hello.get(offset)?,
+        *client_hello.get(offset + 1)?,
+    ]));
+    offset += 2 + cipher_len;
+    offset += 1 + usize::from(*client_hello.get(offset)?);
+    let extensions_len = usize::from(u16::from_be_bytes([
+        *client_hello.get(offset)?,
+        *client_hello.get(offset + 1)?,
+    ]));
+    offset += 2;
+    let end = offset.checked_add(extensions_len)?;
+    while offset < end {
+        let kind = u16::from_be_bytes([*client_hello.get(offset)?, *client_hello.get(offset + 1)?]);
+        let len = usize::from(u16::from_be_bytes([
+            *client_hello.get(offset + 2)?,
+            *client_hello.get(offset + 3)?,
+        ]));
+        offset += 4;
+        let next = offset.checked_add(len)?;
+        let payload = client_hello.get(offset..next)?;
+        if kind == expected {
+            return Some(payload);
+        }
+        offset = next;
+    }
+    None
 }
 
 fn sorted_trust_anchor_ids(summary: &ClientHelloSummary) -> Option<Vec<Vec<u8>>> {

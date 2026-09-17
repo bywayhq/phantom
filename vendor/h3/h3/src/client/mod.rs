@@ -7,8 +7,6 @@ mod stream;
 mod builder;
 
 pub use crate::proto::frame::SettingsError;
-pub use builder::builder;
-pub use builder::new;
-pub use builder::Builder;
+pub use builder::{builder, new, ApplicationSettingsError, Builder};
 pub use connection::{Connection, SendRequest};
 pub use stream::RequestStream;

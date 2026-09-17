@@ -5,9 +5,9 @@ use std::num::NonZeroUsize;
 use std::ptr::{self, NonNull};
 use std::slice;
 
-use btls::ssl::{SslContext, SslMethod, SslVerifyMode};
+use btls::ssl::{SslContext, SslMethod, SslRef, SslVerifyMode};
 use btls_sys as ffi;
-use foreign_types::ForeignType;
+use foreign_types::{ForeignType, ForeignTypeRef};
 
 use super::super::{
     ClientSession, ClientSessionError, H3_PROTOCOL, HandshakeProgress, OwnedSsl, encryption_level,
@@ -67,6 +67,13 @@ pub(super) struct RawServer {
 
 impl RawServer {
     pub(super) fn new(context: &OwnedContext) -> Result<Self, ClientSessionError> {
+        Self::new_with_application_settings(context, None)
+    }
+
+    pub(super) fn new_with_application_settings(
+        context: &OwnedContext,
+        application_settings: Option<&[u8]>,
+    ) -> Result<Self, ClientSessionError> {
         // SAFETY: `context` is live for the call and SSL_new retains it.
         let ssl = unsafe {
             OwnedSsl::new(
@@ -74,6 +81,14 @@ impl RawServer {
                     .ok_or(ClientSessionError::BackendFailure("test context pointer"))?,
             )
         }?;
+        if let Some(application_settings) = application_settings {
+            // SAFETY: this test helper uniquely owns the live SSL.
+            let ssl_ref = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
+            ssl_ref
+                .add_application_settings_with_payload(H3_PROTOCOL, application_settings)
+                .map_err(|_| ClientSessionError::BackendFailure("server ALPS configuration"))?;
+            ssl_ref.set_alps_use_new_codepoint(true);
+        }
         let pointer = ssl.as_ptr();
         // SAFETY: `pointer` is live and uniquely owned.
         if unsafe { ffi::SSL_set_min_proto_version(pointer, ffi::TLS1_3_VERSION as u16) } != 1 {
@@ -169,6 +184,12 @@ impl RawServer {
         } else {
             Err(self.failure("server keying material export", None))
         }
+    }
+
+    pub(super) fn peer_application_settings(&self) -> Option<Vec<u8>> {
+        // SAFETY: the SSL remains live and no mutable SSL operation overlaps this borrow.
+        let ssl = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) };
+        ssl.peer_application_settings().map(ToOwned::to_owned)
     }
 
     pub(super) fn drive(&mut self) -> Result<HandshakeProgress, ClientSessionError> {

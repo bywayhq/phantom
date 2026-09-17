@@ -29,7 +29,7 @@ pub(crate) fn channel() -> (Driver, Sender) {
             pending_release: None,
             publications: Vec::new(),
             commands_closed: false,
-            configured: false,
+            configuration: None,
         },
         Sender { commands, ready_rx },
     )
@@ -141,7 +141,7 @@ pub(crate) struct Driver {
     pending_release: Option<PendingRelease>,
     publications: Vec<PendingPublication>,
     commands_closed: bool,
-    configured: bool,
+    configuration: Option<(usize, usize)>,
 }
 
 impl Driver {
@@ -151,12 +151,26 @@ impl Driver {
         table_capacity: u64,
         blocked_streams: u64,
     ) -> Result<(), ConfigureError> {
-        if self.configured {
-            return Ok(());
-        }
-
         let table_capacity = effective_table_capacity(table_capacity);
         let blocked_streams = effective_blocked_streams(blocked_streams);
+
+        if let Some((current_capacity, current_blocked)) = self.configuration {
+            if table_capacity < current_capacity || blocked_streams < current_blocked {
+                return Err(ConfigureError::ReducedLimit);
+            }
+            if table_capacity > current_capacity {
+                encoder
+                    .set_max_table_capacity(table_capacity, &mut self.instructions)
+                    .map_err(ConfigureError::Codec)?;
+            }
+            if blocked_streams > current_blocked {
+                encoder
+                    .set_max_blocked_streams(blocked_streams)
+                    .map_err(ConfigureError::Codec)?;
+            }
+            self.configuration = Some((table_capacity, blocked_streams));
+            return Ok(());
+        }
 
         if table_capacity != 0 {
             encoder
@@ -166,7 +180,7 @@ impl Driver {
         encoder
             .set_max_blocked_streams(blocked_streams)
             .map_err(ConfigureError::Codec)?;
-        self.configured = true;
+        self.configuration = Some((table_capacity, blocked_streams));
         Ok(())
     }
 
@@ -214,7 +228,7 @@ impl Driver {
                 continue;
             }
 
-            if !self.configured || self.commands_closed {
+            if self.configuration.is_none() || self.commands_closed {
                 return Poll::Pending;
             }
 
@@ -327,14 +341,17 @@ fn effective_blocked_streams(peer: u64) -> usize {
         .min(LOCAL_MAX_BLOCKED_STREAMS)
 }
 
+#[derive(Debug)]
 pub(crate) enum ConfigureError {
     Codec(EncoderError),
+    ReducedLimit,
 }
 
 impl std::fmt::Display for ConfigureError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Codec(error) => write!(formatter, "{error}"),
+            Self::ReducedLimit => formatter.write_str("peer QPACK limits were reduced"),
         }
     }
 }
@@ -364,6 +381,20 @@ mod tests {
             LOCAL_MAX_TABLE_CAPACITY
         );
         assert_eq!(effective_table_capacity(4096), 4096);
+    }
+
+    #[test]
+    fn peer_limits_may_increase_but_not_decrease() {
+        let (mut driver, _sender) = channel();
+        let mut encoder = Encoder::default();
+
+        driver.configure(&mut encoder, 32, 2).unwrap();
+        driver.configure(&mut encoder, 64, 3).unwrap();
+        assert_eq!(driver.configuration, Some((64, 3)));
+        assert!(matches!(
+            driver.configure(&mut encoder, 32, 3),
+            Err(ConfigureError::ReducedLimit)
+        ));
     }
 
     #[tokio::test]

@@ -14,7 +14,10 @@ uncaptured. The forced HTTP/3 slice performs direct requests over the
 BoringSSL Quinn provider, verifies exact `h3` ALPN, multiplexes session-owned
 streams, propagates stream-scoped cancellation, and applies a capture-backed
 Chrome QUIC transport recipe to live Quinn state and the exact TLS extension
-bytes. A typed Chrome H3 recipe emits the captured nonzero QPACK limits,
+bytes. Its separate Chrome H3 TLS recipe emits the retained ClientHello shape,
+including the final H3 ALPS codepoint, and carries authenticated peer
+application settings into the H3 engine. A typed Chrome H3 recipe emits the
+captured nonzero QPACK limits,
 maximum field-section size, H3 DATAGRAM setting, ascending setting order, and
 randomized GREASE. The receive path bounds dynamic QPACK state and treats a
 datagram on an ordinary request as an H3 protocol error. The isolated outbound
