@@ -9,7 +9,7 @@ use http::{
     uri::Authority,
 };
 
-use super::{Http2Error, OriginForm, RequestHeader};
+use super::{Http2Error, OriginForm, RequestBodyMetadata, RequestHeader};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -20,7 +20,7 @@ pub(super) fn prepare_get(
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<Request<()>, Http2Error> {
-    prepare_request(Method::GET, authority, target, headers, 0)
+    prepare_request(Method::GET, authority, target, headers, None)
 }
 
 pub(super) fn prepare_request(
@@ -28,7 +28,7 @@ pub(super) fn prepare_request(
     authority: &str,
     target: OriginForm,
     headers: Vec<RequestHeader>,
-    body_len: usize,
+    body: Option<RequestBodyMetadata>,
 ) -> Result<Request<()>, Http2Error> {
     if method == Method::CONNECT {
         return Err(Http2Error::ConnectUnsupported);
@@ -45,7 +45,7 @@ pub(super) fn prepare_request(
         .path_and_query(target.into_path_and_query())
         .build()
         .map_err(Http2Error::InvalidRequestUri)?;
-    let headers = ValidatedHeaders::new(headers, body_len)?;
+    let headers = ValidatedHeaders::new(headers, body)?;
 
     let mut request = Request::new(());
     *request.method_mut() = method;
@@ -63,7 +63,10 @@ struct ValidatedHeaders {
 }
 
 impl ValidatedHeaders {
-    fn new(headers: Vec<RequestHeader>, body_len: usize) -> Result<Self, Http2Error> {
+    fn new(
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBodyMetadata>,
+    ) -> Result<Self, Http2Error> {
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(Http2Error::TooManyHeaders {
                 count: headers.len(),
@@ -74,7 +77,8 @@ impl ValidatedHeaders {
         let mut total_bytes = 0usize;
         let mut ordered = Vec::with_capacity(headers.len());
         let mut content_length_index = None;
-        let expected_content_length = body_len.to_string();
+        let exact_length = body.and_then(RequestBodyMetadata::exact_length);
+        let expected_content_length = exact_length.unwrap_or(0).to_string();
         for (index, header) in headers.into_iter().enumerate() {
             total_bytes = total_bytes
                 .checked_add(header.name().len())
@@ -112,6 +116,9 @@ impl ValidatedHeaders {
                     return Err(Http2Error::DuplicateContentLength { index });
                 }
                 content_length_index = Some(index);
+                if body.is_some() && exact_length.is_none() {
+                    return Err(Http2Error::ContentLengthRequiresExactBody { index });
+                }
                 if value.as_bytes() != expected_content_length.as_bytes() {
                     return Err(Http2Error::InvalidContentLength { index });
                 }
@@ -124,7 +131,7 @@ impl ValidatedHeaders {
             ordered.push((name, value));
         }
 
-        if body_len > 0 && content_length_index.is_none() {
+        if exact_length.is_some_and(|length| length > 0) && content_length_index.is_none() {
             let count = ordered.len() + 1;
             if count > MAX_REQUEST_HEADERS {
                 return Err(Http2Error::TooManyHeaders {

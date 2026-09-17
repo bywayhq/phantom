@@ -1,8 +1,37 @@
+use std::{
+    convert::Infallible,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use bytes::Bytes;
 use http::Method;
+use http_body::{Body, Frame, SizeHint};
 
 use super::{TestResult, target};
-use crate::http2::{Http2Error, RequestHeader, validate_request};
+use crate::http2::{Http2Error, RequestBody, RequestBodyMetadata, RequestHeader, validate_request};
+
+fn exact_body(length: usize) -> Option<RequestBodyMetadata> {
+    Some(RequestBody::from_bytes(Bytes::from(vec![0; length])).metadata())
+}
+
+struct UnknownBody;
+
+impl Body for UnknownBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Pending
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
+}
 
 #[test]
 fn request_body_content_length_is_preserved_or_appended() -> TestResult<()> {
@@ -15,7 +44,7 @@ fn request_body_content_length_is_preserved_or_appended() -> TestResult<()> {
             RequestHeader::new("content-length", "3"),
             RequestHeader::new("x-after", "b"),
         ],
-        3,
+        exact_body(3),
     )?;
     let supplied = supplied
         .extensions()
@@ -39,7 +68,7 @@ fn request_body_content_length_is_preserved_or_appended() -> TestResult<()> {
         "example.test",
         target()?,
         vec![RequestHeader::new("x-only", "value")],
-        3,
+        exact_body(3),
     )?;
     let appended = appended
         .extensions()
@@ -67,7 +96,7 @@ fn request_body_rejects_noncanonical_or_duplicate_content_length() -> TestResult
             "example.test",
             target()?,
             vec![RequestHeader::new("content-length", value)],
-            3,
+            exact_body(3),
         ) {
             Ok(_) => return Err("invalid content-length was accepted".into()),
             Err(error) => error,
@@ -86,7 +115,7 @@ fn request_body_rejects_noncanonical_or_duplicate_content_length() -> TestResult
             RequestHeader::new("content-length", "3"),
             RequestHeader::new("content-length", "3"),
         ],
-        3,
+        exact_body(3),
     ) {
         Ok(_) => return Err("duplicate content-length was accepted".into()),
         Err(error) => error,
@@ -94,6 +123,32 @@ fn request_body_rejects_noncanonical_or_duplicate_content_length() -> TestResult
     assert!(matches!(
         error,
         Http2Error::DuplicateContentLength { index: 1 }
+    ));
+    Ok(())
+}
+
+#[test]
+fn unknown_length_body_omits_and_rejects_content_length() -> TestResult<()> {
+    let metadata = RequestBody::streaming(UnknownBody).metadata();
+    let prepared = crate::http2::request::prepare_request(
+        Method::POST,
+        "example.test",
+        target()?,
+        vec![RequestHeader::new("x-only", "value")],
+        Some(metadata),
+    )?;
+    assert!(prepared.headers().get("content-length").is_none());
+
+    let result = crate::http2::request::prepare_request(
+        Method::POST,
+        "example.test",
+        target()?,
+        vec![RequestHeader::new("content-length", "3")],
+        Some(metadata),
+    );
+    assert!(matches!(
+        result,
+        Err(Http2Error::ContentLengthRequiresExactBody { index: 0 })
     ));
     Ok(())
 }

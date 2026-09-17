@@ -7,7 +7,7 @@ use phantom_profile::chromium::v152_macos_http2;
 use tokio::{io::DuplexStream, sync::oneshot, time::timeout};
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
-use crate::http2::{Http2Connection, OriginForm};
+use crate::http2::{Http2Connection, OriginForm, RequestBody};
 
 const BODY_LEN: usize = 70_000;
 
@@ -28,12 +28,14 @@ async fn cancelling_a_stalled_upload_resets_only_that_stream() -> TestResult<()>
         let upload = tokio::spawn(async move {
             let target = OriginForm::parse("/cancel-upload").map_err(|error| error.to_string())?;
             request_connection
-                .send_request(
+                .send_request_body(
                     Method::POST,
                     "example.test",
                     target,
                     Vec::new(),
-                    Some(Bytes::from(vec![b'R'; BODY_LEN])),
+                    Some(RequestBody::streaming(http_body_util::Full::new(
+                        Bytes::from(vec![b'R'; BODY_LEN]),
+                    ))),
                 )
                 .await
                 .map_err(|error| error.to_string())

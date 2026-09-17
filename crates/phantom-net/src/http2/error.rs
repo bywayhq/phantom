@@ -4,6 +4,8 @@ use std::{error::Error as StdError, fmt};
 
 use phantom_profile::InvalidHttp2Settings;
 
+use crate::request::RequestBodyError;
+
 /// Stable classification of an HTTP/2 protocol-driver failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -146,6 +148,15 @@ pub enum Http2Error {
         /// Position of the duplicate field in the ordered header list.
         index: usize,
     },
+    /// `Content-Length` was supplied for a body without an exact size hint.
+    ContentLengthRequiresExactBody {
+        /// Position of the rejected field in the ordered header list.
+        index: usize,
+    },
+    /// Pulling the caller-provided request body failed.
+    RequestBody(RequestBodyError),
+    /// The erased request body returned a frame other than DATA.
+    UnsupportedRequestBodyFrame,
     /// The peer closed the request stream before the body was sent.
     RequestBodyClosed,
     /// The validated fields could not fit in the semantic header map.
@@ -209,6 +220,14 @@ impl fmt::Display for Http2Error {
                 formatter,
                 "request content-length at index {index} duplicates an earlier field"
             ),
+            Self::ContentLengthRequiresExactBody { index } => write!(
+                formatter,
+                "request content-length at index {index} requires a body with an exact size hint"
+            ),
+            Self::RequestBody(error) => write!(formatter, "HTTP/2 request body failed: {error}"),
+            Self::UnsupportedRequestBodyFrame => {
+                formatter.write_str("HTTP/2 request body returned an unsupported frame")
+            }
             Self::RequestBodyClosed => {
                 formatter.write_str("HTTP/2 request body stream closed before completion")
             }
@@ -229,6 +248,7 @@ impl StdError for Http2Error {
             Self::InvalidSettings(error) => Some(error),
             Self::InvalidAuthority(error) => Some(error),
             Self::InvalidRequestUri(error) => Some(error),
+            Self::RequestBody(error) => Some(error),
             Self::Protocol(error) => Some(error),
             _ => None,
         }
@@ -261,6 +281,9 @@ impl Http2Error {
             Self::InvalidTe => "invalid_te",
             Self::InvalidContentLength { .. } => "invalid_content_length",
             Self::DuplicateContentLength { .. } => "duplicate_content_length",
+            Self::ContentLengthRequiresExactBody { .. } => "content_length_requires_exact_body",
+            Self::RequestBody(_) => "request_body",
+            Self::UnsupportedRequestBodyFrame => "unsupported_request_body_frame",
             Self::RequestBodyClosed => "request_body_closed",
             Self::HeaderMapCapacity => "header_map_capacity",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",

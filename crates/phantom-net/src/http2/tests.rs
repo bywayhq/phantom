@@ -120,6 +120,7 @@ mod driver_shutdown;
 mod hpack_transitions;
 mod request_body_cancellation;
 mod request_body_early_response;
+mod request_body_error;
 mod request_body_flow;
 mod request_body_validation;
 mod request_validation;

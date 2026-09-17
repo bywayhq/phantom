@@ -2,7 +2,6 @@
 
 use std::{
     fmt,
-    future::poll_fn,
     sync::Arc,
     task::{Context, Poll, Waker},
 };
@@ -15,13 +14,12 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, debug, debug_span, field};
 
 use crate::accept_ch::AcceptCh;
+use crate::request::{RequestBody, RequestBodyMetadata};
 
 use super::{
     Http2Body, Http2Error, OperationOutcome, OriginForm, RequestHeader, driver::DriverTask,
-    prepare_request, translate_settings,
+    prepare_request, translate_settings, upload::send_body,
 };
-
-const MAX_FLOW_CONTROL_WINDOW: usize = 0x7fff_ffff;
 
 /// An established HTTP/2 connection that can open concurrent request streams.
 ///
@@ -89,8 +87,36 @@ impl Http2Connection {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http2Body>, Http2Error> {
-        let body_len = body.as_ref().map_or(0, Bytes::len);
-        let request = prepare_request(method, authority, target, headers, body_len)?;
+        self.send_request_body(
+            method,
+            authority,
+            target,
+            headers,
+            body.map(RequestBody::from_bytes),
+        )
+        .await
+    }
+
+    /// Sends one request with a pull-driven body on this connection.
+    ///
+    /// The body's initial exact size hint controls `Content-Length`
+    /// validation. Unknown-length bodies omit an automatic length and reject a
+    /// caller-supplied one. Request trailers fail explicitly.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] when request validation, body production,
+    /// upload, or response processing fails.
+    pub async fn send_request_body(
+        &self,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+    ) -> Result<Response<Http2Body>, Http2Error> {
+        let metadata = body.as_ref().map(RequestBody::metadata);
+        let request = prepare_request(method, authority, target, headers, metadata)?;
         self.send_prepared_request(request, body).await
     }
 
@@ -164,15 +190,18 @@ impl Http2Connection {
     pub(super) async fn send_prepared_request(
         &self,
         request: Request<()>,
-        body: Option<Bytes>,
+        body: Option<RequestBody>,
     ) -> Result<Response<Http2Body>, Http2Error> {
         let method = request.method().clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        let body_bytes = body
+            .as_ref()
+            .map(RequestBody::metadata)
+            .and_then(RequestBodyMetadata::exact_length);
         let span = debug_span!(
             "http2.response_head",
             method = %method,
             protocol = "h2",
-            body_bytes,
+            body_bytes = field::debug(body_bytes),
             status = field::Empty,
             outcome = field::Empty,
         );
@@ -197,7 +226,7 @@ impl Http2Connection {
             let reset = if let Some(body) = body {
                 let mut upload = RequestStreamGuard::new(reset);
                 {
-                    let mut upload_future = Box::pin(send_owned_body(upload.stream_mut()?, body));
+                    let mut upload_future = Box::pin(send_body(upload.stream_mut()?, body));
                     tokio::select! {
                         biased;
                         result = &mut response => {
@@ -247,54 +276,6 @@ impl Http2Connection {
             _inner: Arc::clone(&self.inner),
         }
     }
-}
-
-async fn send_owned_body(
-    stream: &mut SendStream<Bytes>,
-    mut body: Bytes,
-) -> Result<(), Http2Error> {
-    if body.is_empty() {
-        return stream.send_data(body, true).map_err(Http2Error::protocol);
-    }
-
-    while !body.is_empty() {
-        stream.reserve_capacity(body.len().min(MAX_FLOW_CONTROL_WINDOW));
-        let capacity = poll_fn(|context| {
-            match stream.poll_reset(context) {
-                Poll::Ready(Ok(reason)) => {
-                    return Poll::Ready(if reason == Reason::NO_ERROR {
-                        Ok(None)
-                    } else {
-                        Err(Http2Error::stream_reset(reason))
-                    });
-                }
-                Poll::Ready(Err(error)) => {
-                    return Poll::Ready(Err(Http2Error::protocol(error)));
-                }
-                Poll::Pending => {}
-            }
-            match stream.poll_capacity(context) {
-                Poll::Ready(Some(Ok(capacity))) => Poll::Ready(Ok(Some(capacity))),
-                Poll::Ready(Some(Err(error))) => Poll::Ready(Err(Http2Error::protocol(error))),
-                Poll::Ready(None) => Poll::Ready(Err(Http2Error::RequestBodyClosed)),
-                Poll::Pending => Poll::Pending,
-            }
-        })
-        .await?;
-        let Some(capacity) = capacity else {
-            return Ok(());
-        };
-        if capacity == 0 {
-            return Err(Http2Error::RequestBodyClosed);
-        }
-        let chunk_len = capacity.min(body.len());
-        let end_of_stream = chunk_len == body.len();
-        let chunk = body.split_to(chunk_len);
-        stream
-            .send_data(chunk, end_of_stream)
-            .map_err(Http2Error::protocol)?;
-    }
-    Ok(())
 }
 
 struct RequestStreamGuard {

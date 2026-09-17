@@ -17,7 +17,7 @@ use tokio::{
 };
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
-use crate::http2::{Http2Connection, OriginForm};
+use crate::http2::{Http2Connection, OriginForm, RequestBody};
 
 const BODY_LEN: usize = 70_000;
 const CONNECTION_WINDOW: usize = 65_535;
@@ -41,12 +41,14 @@ async fn request_body_obeys_ordered_flow_control_and_reuses_connection() -> Test
         assert!(root.into_body().collect().await?.to_bytes().is_empty());
 
         let response = connection
-            .send_request(
+            .send_request_body(
                 Method::POST,
                 "example.test",
                 OriginForm::parse("/.well-known/phantom/flow")?,
                 Vec::new(),
-                Some(Bytes::from(vec![b'R'; BODY_LEN])),
+                Some(RequestBody::streaming(http_body_util::Full::new(
+                    Bytes::from(vec![b'R'; BODY_LEN]),
+                ))),
             )
             .await?;
         assert_eq!(response.status(), 204);

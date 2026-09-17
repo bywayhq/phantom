@@ -14,11 +14,12 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
 mod alps;
+mod upload;
 use request::prepare_request as build_request;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
-pub use crate::request::{OriginForm, RequestHeader};
+pub use crate::request::{OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
 pub use body::Http2Body;
 pub use connection::Http2Connection;
 pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
@@ -59,12 +60,32 @@ pub fn validate_request(
     headers: &[RequestHeader],
     body: Option<&Bytes>,
 ) -> Result<(), Http2Error> {
+    let metadata = body.map(|body| RequestBody::from_bytes(body.clone()).metadata());
+    validate_request_body(method, authority, target, headers, metadata)
+}
+
+/// Validates one HTTP/2 request-body shape without touching a connection.
+///
+/// An exact body size validates or supplies `Content-Length`; an unknown size
+/// omits an automatic length and rejects a caller-supplied one.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when the method, authority, target, ordered fields,
+/// or body metadata cannot be represented by this HTTP/2 transport.
+pub fn validate_request_body(
+    method: &Method,
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<RequestBodyMetadata>,
+) -> Result<(), Http2Error> {
     prepare_request(
         method.clone(),
         authority,
         target.clone(),
         headers.to_vec(),
-        body.map_or(0, Bytes::len),
+        body,
     )
     .map(drop)
 }
@@ -120,19 +141,56 @@ pub async fn send_request<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let body_bytes = body.as_ref().map_or(0, Bytes::len);
+    send_request_body(
+        stream,
+        settings,
+        method,
+        authority,
+        target,
+        headers,
+        body.map(RequestBody::from_bytes),
+    )
+    .await
+}
+
+/// Sends one HTTP/2 request with a pull-driven body over an already-connected stream.
+///
+/// Request validation completes before the supplied stream is touched. The
+/// body is consumed once with HTTP/2 flow control and no aggregate buffering.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when request validation, connection setup, upload,
+/// or response processing fails.
+#[allow(clippy::too_many_arguments)]
+pub async fn send_request_body<T>(
+    stream: T,
+    settings: &Http2Settings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+) -> Result<Response<Http2Body>, Http2Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let body_bytes = body
+        .as_ref()
+        .map(RequestBody::metadata)
+        .and_then(RequestBodyMetadata::exact_length);
     let span = debug_span!(
         "http2.request.prepare",
         method = %method,
         protocol = "h2",
-        body_bytes,
+        body_bytes = field::debug(body_bytes),
         outcome = field::Empty,
         error_kind = field::Empty,
     );
     let outcome = OperationOutcome::new(&span);
     let prepared = {
         let _entered = span.enter();
-        PreparedRequest::new(settings, method, authority, target, headers, body)
+        PreparedRequest::new_body(settings, method, authority, target, headers, body)
     };
     match &prepared {
         Ok(_) => outcome.finish("ok"),
@@ -147,7 +205,7 @@ where
 
 struct PreparedRequest {
     request: Request<()>,
-    body: Option<Bytes>,
+    body: Option<RequestBody>,
     client: client::Builder,
 }
 
@@ -160,10 +218,28 @@ impl PreparedRequest {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Self, Http2Error> {
+        Self::new_body(
+            settings,
+            method,
+            authority,
+            target,
+            headers,
+            body.map(RequestBody::from_bytes),
+        )
+    }
+
+    fn new_body(
+        settings: &Http2Settings,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+    ) -> Result<Self, Http2Error> {
         settings.validate().map_err(Http2Error::InvalidSettings)?;
         let client = translate_settings(settings)?;
-        let body_len = body.as_ref().map_or(0, Bytes::len);
-        let request = build_request(method, authority, target, headers, body_len)?;
+        let metadata = body.as_ref().map(RequestBody::metadata);
+        let request = build_request(method, authority, target, headers, metadata)?;
 
         Ok(Self {
             request,
@@ -178,20 +254,20 @@ fn prepare_request(
     authority: &str,
     target: OriginForm,
     headers: Vec<RequestHeader>,
-    body_len: usize,
+    body: Option<RequestBodyMetadata>,
 ) -> Result<Request<()>, Http2Error> {
     let span = debug_span!(
         "http2.request.prepare",
         method = %method,
         protocol = "h2",
-        body_bytes = body_len,
+        body_bytes = field::debug(body.and_then(RequestBodyMetadata::exact_length)),
         outcome = field::Empty,
         error_kind = field::Empty,
     );
     let outcome = OperationOutcome::new(&span);
     let request = {
         let _entered = span.enter();
-        build_request(method, authority, target, headers, body_len)
+        build_request(method, authority, target, headers, body)
     };
     match &request {
         Ok(_) => outcome.finish("ok"),

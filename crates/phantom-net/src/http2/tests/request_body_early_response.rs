@@ -7,7 +7,7 @@ use phantom_profile::chromium::v152_macos_http2;
 use tokio::time::timeout;
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
-use crate::http2::{Http2Connection, OriginForm};
+use crate::http2::{Http2Connection, OriginForm, RequestBody};
 
 #[tokio::test]
 async fn early_final_response_cancels_upload_and_preserves_connection() -> TestResult<()> {
@@ -18,12 +18,14 @@ async fn early_final_response_cancels_upload_and_preserves_connection() -> TestR
 
         let response = timeout(
             Duration::from_secs(1),
-            connection.send_request(
+            connection.send_request_body(
                 Method::POST,
                 "example.test",
                 OriginForm::parse("/upload")?,
                 Vec::new(),
-                Some(Bytes::from(vec![b'R'; 70_000])),
+                Some(RequestBody::streaming(http_body_util::Full::new(
+                    Bytes::from(vec![b'R'; 70_000]),
+                ))),
             ),
         )
         .await
