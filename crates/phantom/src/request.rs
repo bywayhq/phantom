@@ -41,7 +41,7 @@ impl fmt::Debug for RequestBuilder {
             .field("method", &self.method)
             .field("header_count", &self.headers.len())
             .field("body_kind", &self.body.trace_kind())
-            .field("body_len", &self.body.exact_length())
+            .field("body_len", &self.body.exact_length().unwrap_or(0))
             .field("route_override", &self.route.is_some())
             .field("timeout_override", &self.timeouts.is_some())
             .finish_non_exhaustive()
