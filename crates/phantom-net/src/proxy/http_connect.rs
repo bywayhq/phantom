@@ -80,7 +80,7 @@ pub async fn connect_http_tunnel<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    trace_connect(async {
+    trace_connect("supplied", async {
         let request = PreparedConnect::new(authority, headers)?;
         establish(stream, request).await
     })
@@ -102,7 +102,7 @@ pub async fn connect_http_tunnel_direct(
     authority: &str,
     headers: &[HttpConnectHeader],
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
-    trace_connect(async {
+    trace_connect("http", async {
         let request = PreparedConnect::new(authority, headers)?;
         let stream = connect_tcp(proxy_host, proxy_port)
             .await
@@ -115,7 +115,7 @@ pub async fn connect_http_tunnel_direct(
     .await
 }
 
-async fn establish<S>(
+pub(super) async fn establish<S>(
     mut stream: S,
     request: PreparedConnect,
 ) -> Result<TunnelStream<S>, HttpConnectError>
@@ -203,13 +203,16 @@ fn find_head_end(bytes: &[u8]) -> Option<usize> {
         .map(|index| index + 4)
 }
 
-async fn trace_connect<F, S>(operation: F) -> Result<TunnelStream<S>, HttpConnectError>
+pub(super) async fn trace_connect<F, S>(
+    transport: &'static str,
+    operation: F,
+) -> Result<TunnelStream<S>, HttpConnectError>
 where
     F: Future<Output = Result<TunnelStream<S>, HttpConnectError>>,
 {
     let span = debug_span!(
         "proxy.http_connect",
-        proxy_scheme = "http",
+        proxy_transport = transport,
         status = field::Empty,
         outcome = field::Empty,
         error_kind = field::Empty,
@@ -260,12 +263,15 @@ impl Drop for ConnectOutcome {
     }
 }
 
-struct PreparedConnect {
+pub(super) struct PreparedConnect {
     bytes: Vec<u8>,
 }
 
 impl PreparedConnect {
-    fn new(authority: &str, headers: &[HttpConnectHeader]) -> Result<Self, HttpConnectError> {
+    pub(super) fn new(
+        authority: &str,
+        headers: &[HttpConnectHeader],
+    ) -> Result<Self, HttpConnectError> {
         if authority.as_bytes().contains(&b'@') {
             return Err(HttpConnectError::InvalidAuthority);
         }

@@ -1,15 +1,23 @@
 use std::{error::Error as StdError, fmt};
 
+use crate::tls::TlsError;
+
 /// Stable category of HTTP CONNECT failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum HttpConnectErrorKind {
+    /// TLS settings cannot support HTTP/1.1 proxy negotiation.
+    InvalidConfiguration,
     /// The CONNECT authority or ordered fields are invalid.
     InvalidRequest,
     /// The request was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// Connecting to the proxy failed.
     Connect,
+    /// TLS negotiation with the proxy failed.
+    Tls,
+    /// The proxy selected an unsupported application protocol.
+    UnsupportedProtocol,
     /// Proxy request or response I/O failed.
     Io,
     /// The proxy response was malformed or exceeded a bound.
@@ -22,6 +30,8 @@ pub enum HttpConnectErrorKind {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum HttpConnectError {
+    /// TLS settings do not offer HTTP/1.1 to the proxy.
+    MissingHttp1Alpn,
     /// The CONNECT target is not a valid authority with an explicit port.
     InvalidAuthority,
     /// The complete CONNECT request exceeded the field-count bound.
@@ -60,6 +70,13 @@ pub enum HttpConnectError {
     RuntimeUnavailable,
     /// Establishing the TCP connection to the proxy failed.
     Connect(std::io::Error),
+    /// Establishing TLS with the proxy failed.
+    ProxyTls(TlsError),
+    /// The TLS proxy selected a protocol this CONNECT implementation cannot use.
+    UnsupportedAlpn {
+        /// Exact ALPN protocol selected by the proxy.
+        selected: Box<[u8]>,
+    },
     /// Writing the CONNECT request failed.
     Write(std::io::Error),
     /// Reading the CONNECT response failed.
@@ -88,6 +105,7 @@ impl HttpConnectError {
     #[must_use]
     pub fn kind(&self) -> HttpConnectErrorKind {
         match self {
+            Self::MissingHttp1Alpn => HttpConnectErrorKind::InvalidConfiguration,
             Self::InvalidAuthority
             | Self::TooManyHeaders { .. }
             | Self::RequestHeadTooLarge { .. }
@@ -99,6 +117,8 @@ impl HttpConnectError {
             | Self::MultipleAuthorityHeaders => HttpConnectErrorKind::InvalidRequest,
             Self::RuntimeUnavailable => HttpConnectErrorKind::RuntimeUnavailable,
             Self::Connect(_) => HttpConnectErrorKind::Connect,
+            Self::ProxyTls(_) => HttpConnectErrorKind::Tls,
+            Self::UnsupportedAlpn { .. } => HttpConnectErrorKind::UnsupportedProtocol,
             Self::Write(_) | Self::Read(_) => HttpConnectErrorKind::Io,
             Self::ResponseHeadTooLarge { .. }
             | Self::TooManyInformationalResponses { .. }
@@ -111,6 +131,9 @@ impl HttpConnectError {
 impl fmt::Display for HttpConnectError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingHttp1Alpn => {
+                formatter.write_str("HTTPS proxy TLS settings must offer http/1.1 through ALPN")
+            }
             Self::InvalidAuthority => formatter
                 .write_str("HTTP CONNECT target must be a valid authority with an explicit port"),
             Self::TooManyHeaders { count, maximum } => write!(
@@ -142,6 +165,10 @@ impl fmt::Display for HttpConnectError {
                 formatter.write_str("HTTP CONNECT requires a Tokio runtime")
             }
             Self::Connect(error) => write!(formatter, "proxy TCP connection failed: {error}"),
+            Self::ProxyTls(error) => write!(formatter, "proxy TLS negotiation failed: {error}"),
+            Self::UnsupportedAlpn { .. } => {
+                formatter.write_str("TLS proxy selected an unsupported application protocol")
+            }
             Self::Write(error) => write!(formatter, "HTTP CONNECT request write failed: {error}"),
             Self::Read(error) => write!(formatter, "HTTP CONNECT response read failed: {error}"),
             Self::ResponseHeadTooLarge { maximum } => write!(
@@ -169,6 +196,7 @@ impl StdError for HttpConnectError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Connect(error) | Self::Write(error) | Self::Read(error) => Some(error),
+            Self::ProxyTls(error) => Some(error),
             _ => None,
         }
     }
@@ -177,9 +205,12 @@ impl StdError for HttpConnectError {
 impl HttpConnectErrorKind {
     pub(super) const fn trace_name(self) -> &'static str {
         match self {
+            Self::InvalidConfiguration => "invalid_configuration",
             Self::InvalidRequest => "invalid_request",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Connect => "connect_error",
+            Self::Tls => "tls_error",
+            Self::UnsupportedProtocol => "unsupported_protocol",
             Self::Io => "io_error",
             Self::InvalidResponse => "invalid_response",
             Self::Rejected => "rejected",
