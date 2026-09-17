@@ -9,7 +9,7 @@ reported as client conformance.
 | Suite | Phantom use | Planned execution tier |
 | --- | --- | --- |
 | [Autobahn Testsuite](https://github.com/crossbario/autobahn-testsuite) | Drive the public WebSocket client against the fuzzing server. Retain the machine-readable case result and convert every failure into a focused Rust regression. | Eight-case smoke set on relevant pull requests; full supported corpus on a schedule and before releases. |
-| [QUIC Interop Runner](https://github.com/quic-interop/quic-interop-runner) | Package a thin Phantom client endpoint and declare only supported QUIC/H3 cases. Exercise Phantom against independent server implementations and the runner's network scenarios. | Scheduled Linux container job; selected release gate. |
+| [QUIC Interop Runner](https://github.com/quic-interop/quic-interop-runner) | Run the public Phantom client against an independent H3 server through the upstream network simulator. The endpoint declares only the applicable `http3` case. | Endpoint-image build on relevant changes; pinned `http3` run on a Linux schedule and before releases. |
 | [Web Platform Tests](https://github.com/web-platform-tests/wpt) | Execute selected EventSource resources from a pinned sparse checkout, adapting their assertions through Phantom's public API. Run the original JavaScript tests against real browsers only when gathering browser behavior. | Eleven-case smoke set on relevant pull requests; 29 selected scenarios on a schedule and before releases. |
 | [curl tests](https://curl.se/dev/runtests.html) | Mine mature HTTP, proxy, redirect, authentication, timeout, and connection-reuse scenarios. Re-express applicable cases through Phantom's API and bounded peers. | Curated Rust regressions on pull requests; periodic upstream-delta review. |
 | [TLS-Anvil](https://github.com/tls-attacker/TLS-Anvil) | Trigger a fresh Phantom client connection for its TLS 1.2/1.3 client cases. Start with a pinned, bounded profile and expand scheduled coverage after failures have stable classification. | Small pinned profile on pull requests after the adapter lands; fuller combinatorial run on a schedule. |
@@ -37,8 +37,9 @@ test hooks in production crates or bypass normal request validation.
   WSS with an ephemeral local CA passed through the ordinary additional-root
   API; certificate and hostname verification remain enabled.
 - The QUIC Interop adapter accepts the runner's environment variables and
-  output directory, performs supported downloads through forced H3, and exits
-  with the runner's unsupported-case code for everything else.
+  output directory, performs bounded concurrent downloads through one forced-H3
+  session, and exits with the runner's unsupported-case code for everything
+  else.
 - The WPT adapter starts the pinned `wptserve` HTTP/1 server directly on an
   ephemeral loopback port. Its short-lived CA is passed through the ordinary
   additional-root API; it does not alter DNS, OS trust, or production code.
@@ -64,6 +65,44 @@ Every external failure is triaged into one of three outcomes:
 Reports retain suite revision, Phantom revision, feature set, platform, and
 case identifiers. They do not retain credentials, response payloads, TLS key
 material, or unbounded packet captures.
+
+## QUIC Interop execution
+
+The client endpoint implements only the upstream `http3` case. The other QUIC
+Interop cases use HTTP/0.9 unless their definitions say otherwise; Phantom
+does not claim them merely because its QUIC engine has the underlying transport
+capability. Unknown cases exit with the runner-required status 127.
+
+For `http3`, the endpoint validates the runner URLs and CA, creates one public
+`Session`, and starts every forced-H3 GET concurrently. Each response is
+streamed into a bounded temporary file and renamed only after a successful
+body. The upstream runner independently requires one QUIC v1 handshake and
+compares all three files by name, length, and contents.
+
+The endpoint and supporting images use immutable digests, and the runner's
+Python environment is hash-locked. The orchestration script also requires a
+clean checkout at the reviewed runner revision and rejects missing,
+unsupported, or failed result cells rather than trusting the runner process
+exit alone:
+
+```console
+docker build \
+  --file scripts/conformance/quic-interop/Dockerfile \
+  --tag phantom-quic-interop:local \
+  .
+python3.10 -m venv target/quic-interop/venv
+target/quic-interop/venv/bin/python -m pip install \
+  --require-hashes \
+  --requirement scripts/conformance/quic-interop/requirements.lock
+target/quic-interop/venv/bin/python scripts/conformance/quic_interop.py
+```
+
+The full run requires Linux, Docker Compose, the network simulator, and
+Wireshark 4.5 or newer. Pull requests build the endpoint and exercise its
+unsupported-case contract. Scheduled and manually dispatched jobs run the
+pinned `http3` case against the pinned quic-go endpoint. CI retains only the
+bounded runner output, result, summary, and revision metadata; its temporary
+pcaps, qlogs, container files, and TLS secrets are discarded.
 
 ## Autobahn execution
 

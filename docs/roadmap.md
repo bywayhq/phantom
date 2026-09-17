@@ -399,11 +399,11 @@ yet claim sanitizer coverage for BoringSSL or the vendored protocol engines.
 
 External conformance follows the tiering in
 [external conformance and interoperability](external-conformance.md): direct
-Autobahn coverage for the WebSocket client, a Phantom endpoint for the QUIC
-Interop Runner, pinned WPT and curl scenario imports, TLS-Anvil client runs,
-and the native BoringSSL runner for dependency updates. Server-oriented h2spec
-and h3spec cases feed client-side hostile-peer regressions rather than
-misleading pass badges.
+Autobahn coverage for the WebSocket client, a pinned public-facade HTTP/3
+client endpoint for the QUIC Interop Runner, selected pinned WPT resources,
+curated curl scenarios, TLS-Anvil client runs, and the native BoringSSL runner
+for dependency updates. Server-oriented h2spec and h3spec cases feed
+client-side hostile-peer regressions rather than misleading pass badges.
 
 ## Later profile work
 

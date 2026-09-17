@@ -1,0 +1,147 @@
+name: QUIC interoperability
+
+on:
+  pull_request:
+    paths:
+      - .dockerignore
+      - .github/workflows/quic-interop.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom/**
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - crates/phantom-quic-btls/**
+      - scripts/conformance/quic-interop/**
+      - scripts/conformance/quic_interop.py
+      - scripts/conformance/tests/test_quic_interop.py
+      - vendor/btls/**
+      - vendor/h3/**
+      - vendor/quinn-proto/**
+  push:
+    branches: [main]
+    paths:
+      - .dockerignore
+      - .github/workflows/quic-interop.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom/**
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - crates/phantom-quic-btls/**
+      - scripts/conformance/quic-interop/**
+      - scripts/conformance/quic_interop.py
+      - scripts/conformance/tests/test_quic_interop.py
+      - vendor/btls/**
+      - vendor/h3/**
+      - vendor/quinn-proto/**
+  schedule:
+    - cron: "43 8 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quic-interop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
+jobs:
+  client:
+    name: H3 client endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install compatible Docker engine
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5
+        with:
+          version: version=v28.3.0
+
+      - name: Build pinned endpoint image
+        run: >-
+          docker build
+          --file scripts/conformance/quic-interop/Dockerfile
+          --tag phantom-quic-interop:local
+          .
+
+      - name: Check unsupported-case contract
+        run: |
+          set +e
+          docker run --rm \
+            --entrypoint /usr/local/bin/quic-interop-client \
+            --env ROLE=client \
+            --env TESTCASE=unknown-runner-case \
+            phantom-quic-interop:local
+          status=$?
+          set -e
+          test "$status" -eq 127
+
+      - name: Install Python
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.10"
+
+      - name: Install runner prerequisites
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          sudo add-apt-repository --yes ppa:wireshark-dev/stable
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes tshark
+          sudo modprobe ip6table_filter
+          docker compose version
+          python3 - <<'PY'
+          import re
+          import subprocess
+
+          output = subprocess.run(
+              ["tshark", "--version"],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout
+          match = re.search(r"TShark \(Wireshark\) (\d+)\.(\d+)", output)
+          if match is None or tuple(map(int, match.groups())) < (4, 5):
+              raise SystemExit(f"tshark 4.5 or newer is required: {output.splitlines()[0]}")
+          PY
+
+      - name: Check out pinned runner
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p target/quic-interop
+          python3 - <<'PY'
+          from pathlib import Path
+          from scripts.conformance.quic_interop import checkout_runner
+
+          checkout_runner(Path("target/quic-interop/runner"))
+          PY
+          python3 -m venv target/quic-interop/venv
+          target/quic-interop/venv/bin/python -m pip install \
+            --disable-pip-version-check \
+            --require-hashes \
+            --requirement scripts/conformance/quic-interop/requirements.lock
+
+      - name: Run pinned HTTP/3 interoperability case
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: >-
+          target/quic-interop/venv/bin/python
+          scripts/conformance/quic_interop.py
+          --runner target/quic-interop/runner
+
+      - name: Upload bounded interoperability report
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: quic-interop-http3-${{ github.sha }}
+          path: |
+            target/quic-interop/http3-*/metadata.json
+            target/quic-interop/http3-*/result.json
+            target/quic-interop/http3-*/runner.log
+            target/quic-interop/http3-*/summary.json
+          if-no-files-found: warn
+          retention-days: 30

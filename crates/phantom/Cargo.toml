@@ -40,7 +40,7 @@ http2 = { version = "=0.5.20", features = ["unstable"] }
 quinn = { workspace = true, features = ["rustls-ring"] }
 rcgen = "=0.14.5"
 rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std"] }
-tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "test-util", "time"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "net", "rt", "sync", "test-util", "time"] }
 tokio-btls.workspace = true
 
 [lints]
@@ -55,3 +55,7 @@ required-features = ["websocket"]
 name = "wpt-eventsource-client"
 path = "examples/wpt_eventsource/main.rs"
 required-features = ["sse"]
+
+[[example]]
+name = "quic-interop-client"
+path = "examples/quic_interop/main.rs"
