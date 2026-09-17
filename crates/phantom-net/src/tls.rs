@@ -282,6 +282,8 @@ impl TlsConnector {
         let outcome = HandshakeOutcome::new(&span);
         let result = async {
             debug!("TLS handshake started");
+            let mut attempted_reusable_session = None;
+            let mut session_capture = None;
 
             let mut configuration = self
                 .backend
@@ -325,13 +327,14 @@ impl TlsConnector {
                 let reusable = session
                     .as_ref()
                     .is_some_and(|session| !session.should_be_single_use());
-                let callback_cache = cache.clone();
+                let capture = cache.begin_handshake();
+                let callback_capture = capture.clone();
                 let ssl = configuration
                     .into_ssl_with_scoped_session(
                         server_name,
                         cache.scope(),
                         session.as_ref(),
-                        move |session| callback_cache.capture(session),
+                        move |session| callback_capture.capture(session),
                     )
                     .map_err(|error| TlsError::backend("session resumption", error))?
                     .ok_or_else(|| {
@@ -341,10 +344,9 @@ impl TlsConnector {
                         )
                     })?;
                 if reusable {
-                    if let Some(session) = session {
-                        cache.restore(session);
-                    }
+                    attempted_reusable_session = session;
                 }
+                session_capture = Some(capture);
                 ssl
             } else {
                 configuration
@@ -368,6 +370,16 @@ impl TlsConnector {
                 .and_then(|cipher| cipher.standard_name())
                 .unwrap_or("unknown");
             let session_reused = stream.ssl().session_reused();
+            let captured_session_count = session_capture
+                .as_ref()
+                .map_or(0, session_cache::TlsSessionCapture::commit_authenticated);
+            if session_reused && captured_session_count == 0 {
+                if let (Some(cache), Some(session)) =
+                    (&self.session_cache, attempted_reusable_session)
+                {
+                    cache.restore(session);
+                }
+            }
             span.record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
             record_alps_negotiation(&span, peer_application_settings.as_deref());
             span.record("tls_version", stream.ssl().version_str());

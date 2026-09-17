@@ -12,7 +12,6 @@ claim.
 
 | Failure class and evidence | Current boundary | Required regression |
 | --- | --- | --- |
-| Failed TLS authentication contaminates a session cache ([curl CVE-2024-0853](https://curl.se/docs/CVE-2024-0853.html)) | TLS sessions are bounded and positive TLS 1.2/1.3 resumption is covered. | Certificate, hostname, and other authentication failures cannot insert or restore a session; a rejected ticket is not restored after a failed attempt. |
 | Oversized H1 response head or chunk metadata exhausts memory ([curl CVE-2023-38039](https://curl.se/docs/CVE-2023-38039.html)) | The engine parser currently applies a default response-head limit; outbound framing is strict. | Phantom owns explicit field/byte limits and tests oversized status lines, aggregate fields, field count, chunk-size lines, and extensions with typed failure and connection discard. |
 | Invalid H2 maximum frame size spins a connection ([Go GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918)) | The vendored engine validates the RFC range. | Exact zero and excessive peer SETTINGS values complete within a deadline, produce one protocol shutdown, and never spin. |
 | H2 CONTINUATION flood consumes CPU or memory ([Go CVE-2023-45288](https://pkg.go.dev/vuln/GO-2024-2687)) | Continuation count is derived from the configured header-list limit. | Over-limit empty and expensive Huffman fragments terminate within deterministic CPU/memory bounds. |
@@ -46,6 +45,14 @@ claim.
 
 ## Existing relevant invariants
 
+- TLS sessions issued during a handshake remain pending until certificate and
+  hostname authentication succeeds. A reusable TLS 1.2 session is restored
+  only after actual resumption; a rejected ticket followed by authentication
+  failure leaves the cache empty. Deterministic capture-state, wrong-host, and
+  three-connection certificate-failure regressions cover the failure boundary,
+  while positive TLS 1.2 and TLS 1.3 resumption tests remain in place. This
+  covers the state-contamination class in
+  [curl CVE-2024-0853](https://curl.se/docs/CVE-2024-0853.html).
 - Cross-origin redirects strip `Authorization`, `Proxy-Authorization`, and
   caller cookies; session cookies are reconstructed for the new origin.
 - HTTP Basic proxy credentials are validated before I/O and sent only after a

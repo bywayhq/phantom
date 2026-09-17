@@ -30,6 +30,8 @@ The default TCP TLS path:
   partitioned by origin, complete route, protocol, profile, and TLS context;
 - consumes single-use TLS 1.3 tickets, prunes expired tickets, and strips
   early-data capability before storage;
+- commits newly issued sessions only after successful peer authentication and
+  restores a reusable TLS 1.2 session only when the server actually resumed it;
 - retains typed negotiated TLS versions and cipher suites and records their
   public names plus the resumption outcome without logging secrets; and
 - does not expose TLS record compression.

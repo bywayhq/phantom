@@ -21,6 +21,7 @@ mod firefox;
 mod hello_retry;
 mod record_size_limit;
 mod safari;
+mod session_cache;
 mod tracing;
 
 #[test]
@@ -187,12 +188,17 @@ async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
 async fn wrong_hostname_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der()])?;
+    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der()])?
+        .with_isolated_session_cache();
 
     let result = connect_local(&connector, address, "wrong.phantom.test").await?;
     assert_eq!(
         result.err().map(|error| error.kind()),
         Some(TlsErrorKind::Handshake)
+    );
+    assert_eq!(
+        connector.session_cache.as_ref().map(|cache| cache.len()),
+        Some(0)
     );
 
     let server_result = tokio::time::timeout(TEST_TIMEOUT, server_task).await??;

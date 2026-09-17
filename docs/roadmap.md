@@ -446,6 +446,13 @@ structural seeds run under AddressSanitizer with bounded input lengths; failure
 artifacts are retained and must become deterministic regressions. This does not
 yet claim sanitizer coverage for BoringSSL or the vendored protocol engines.
 
+TLS session caching now commits sessions issued during a handshake only after
+peer authentication succeeds. Reusable TLS 1.2 state returns to the cache only
+when the server actually resumed it; rejection followed by certificate failure
+discards both attempted and pending state. Deterministic capture-state,
+failure-transition, and positive TLS 1.2/TLS 1.3 resumption tests cover the
+low-level connector used by both origin and HTTPS-proxy TLS.
+
 External conformance follows the tiering in
 [external conformance and interoperability](external-conformance.md): direct
 Autobahn coverage for the WebSocket client, a pinned public-facade HTTP/3
