@@ -54,9 +54,10 @@ coalesced tunnel-byte preservation, oversized-head rejection, cancellation,
 and proof that proxy failure does not open a direct socket. SOCKS5 coverage
 includes exact remote-DNS `DOMAIN` and local-DNS `IPV4`/`IPV6` targets,
 ordered address fallback, fragmented IPv4/IPv6/domain replies, malformed and
-rejected replies, cancellation, missing-runtime behavior,
-route-aware H2 tunnel reuse, WSS routing, and the same no-direct-fallback
-proof. It also includes
+rejected replies, username/password method negotiation and rejection,
+pre-I/O credential-length validation, cancellation, missing-runtime behavior,
+credential-aware route identity, route-aware H2 tunnel reuse, WSS routing,
+secret redaction, and the same no-direct-fallback proof. It also includes
 H1 `100 Continue`, chained `103`/`100`, legal chunk extensions fragmented at
 syntax boundaries, declared-length surplus isolation, H2 `RST_STREAM`, H2
 `GOAWAY`, and a valid H2 sequence combining an unknown setting,
@@ -151,9 +152,9 @@ bounded 421 replay regression.
   same-name paths, IP/IDNA hosts, and deterministic outbound ordering.
 - Compression tests fragment gzip, deflate, Brotli, and zstd input while a slow
   consumer verifies incremental output, ratio limits, and one timeout budget.
-- Proxy peers still need browser-differential 407 challenge/retry behavior,
-  half-close coverage, HTTPS proxying, SOCKS5 authentication, and UDP
-  route variants.
+- Proxy peers still need browser-differential HTTP 407 challenge/retry
+  behavior, half-close coverage, HTTPS proxying, custom SOCKS5 resolvers,
+  GSSAPI, and UDP route variants.
 - SSE covers BOM and line-ending variants, split UTF-8, comments, `id`, and
   `retry`. A deterministic H1 session regression also covers one bounded
   reconnect, `Last-Event-ID`, cookie carry-over, cancellation-safe delay and

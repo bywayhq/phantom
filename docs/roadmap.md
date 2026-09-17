@@ -281,7 +281,7 @@ side's `Connection: close` retire the generation. Ordered response fields are
 captured independently on every exchange. Bare-client and WebSocket requests
 remain one-shot, and stale connection races are surfaced without replay.
 
-The sixth landed route slice adds no-auth SOCKS5 with explicit DNS ownership:
+The sixth landed route slice adds SOCKS5 with explicit DNS ownership:
 `socks5://` resolves origin names locally and sends IP targets, while
 `socks5h://` sends domain targets for proxy resolution. H1/H2 sessions,
 one-shot requests, and H1 WSS share the same route. Local address fallback
@@ -289,8 +289,13 @@ preserves resolver order and opens a fresh proxy connection only after a
 target-specific rejection. Invalid requests and unsupported H3 pairings fail
 before proxy I/O, and proxy rejection never opens a direct origin socket.
 Typed redacted errors, payload-free tracing, cancellation, fragmented-reply
-tests, and missing-runtime tests cover the lower seam. Credentials, custom
-resolvers, UDP ASSOCIATE, and H3 proxying remain separate future capabilities.
+tests, and missing-runtime tests cover the lower seam. An additive follow-up
+supports owned RFC 1929 username/password credentials through
+`Socks5Proxy::with_username_password` on the same one-shot, pooled H1/H2, and
+H1 WSS paths. It validates UTF-8 byte lengths before I/O, excludes secrets from
+diagnostics, and keeps distinct credentials in distinct route and pool
+identities. URI credentials remain invalid. Custom resolvers, GSSAPI, UDP
+ASSOCIATE, and H3 proxying remain separate future capabilities.
 
 With the optional `cookies` feature, a session builder can explicitly activate
 a bounded in-memory jar or accept a caller-created one. Phantom delegates

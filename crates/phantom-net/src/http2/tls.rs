@@ -15,8 +15,8 @@ use super::{
 use crate::{
     direct::{DirectConnectError, connect_tcp},
     proxy::{
-        HttpConnectError, HttpConnectHeader, Socks5Error, connect_http_tunnel_direct,
-        connect_socks5_tunnel_direct, connect_socks5_tunnel_local,
+        HttpConnectError, HttpConnectHeader, Socks5Auth, Socks5Error, connect_http_tunnel_direct,
+        connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local_with_auth,
     },
     tls::{TlsConnector, trace_alpn},
 };
@@ -185,11 +185,41 @@ impl Http2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
+        self.connect_socks5_remote_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+        )
+        .await
+    }
+
+    /// Establishes HTTP/2 through a remote-DNS proxy with configured credentials.
+    ///
+    /// Proxy failure never falls back to a direct connection or another HTTP
+    /// protocol.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
         self.trace_connect(async {
             let client = translate_settings(&self.http2)?;
-            let stream =
-                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_direct_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.connect_prepared(stream, server_name, client).await
         })
         .await
@@ -207,11 +237,41 @@ impl Http2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
+        self.connect_socks5_local_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+        )
+        .await
+    }
+
+    /// Establishes HTTP/2 through a local-DNS proxy with configured credentials.
+    ///
+    /// Proxy failure never falls back to a direct connection or another HTTP
+    /// protocol.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
         self.trace_connect(async {
             let client = translate_settings(&self.http2)?;
-            let stream =
-                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_local_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.connect_prepared(stream, server_name, client).await
         })
         .await
@@ -456,14 +516,51 @@ impl Http2TlsConnector {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
+        self.send_request_socks5_remote_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+            method,
+            authority,
+            target,
+            headers,
+            body,
+        )
+        .await
+    }
+
+    /// Sends one request through a remote-DNS proxy with configured credentials.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared =
                 PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream =
-                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_direct_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.send_prepared_request(stream, server_name, prepared)
                 .await
         })
@@ -516,14 +613,51 @@ impl Http2TlsConnector {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
+        self.send_request_socks5_local_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+            method,
+            authority,
+            target,
+            headers,
+            body,
+        )
+        .await
+    }
+
+    /// Sends one request through a local-DNS proxy with configured credentials.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared =
                 PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream =
-                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_local_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.send_prepared_request(stream, server_name, prepared)
                 .await
         })

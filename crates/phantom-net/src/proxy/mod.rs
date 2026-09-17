@@ -8,7 +8,9 @@ mod tunnel;
 pub use error::{HttpConnectError, HttpConnectErrorKind};
 pub use http_connect::{HttpConnectHeader, connect_http_tunnel, connect_http_tunnel_direct};
 pub use socks5::{
-    Socks5Error, Socks5ErrorKind, connect_socks5_tunnel_direct, connect_socks5_tunnel_local,
+    Socks5Auth, Socks5Error, Socks5ErrorKind, connect_socks5_tunnel_direct,
+    connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local,
+    connect_socks5_tunnel_local_with_auth,
 };
 pub use tunnel::TunnelStream;
 

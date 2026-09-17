@@ -28,8 +28,12 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const TARGET_HOST: &str = "origin.example";
 const TARGET_PORT: u16 = 8443;
 
+#[path = "socks5/auth.rs"]
+mod auth;
+
 #[tokio::test]
 async fn direct_remote_dns_emits_exact_domain_request_and_returns_raw_stream() -> TestResult {
+    OutcomeSubscriber::install_dynamic_callsite_fallback();
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let server = tokio::spawn(async move {
@@ -234,6 +238,7 @@ async fn malformed_method_and_connect_responses_are_negotiation_errors() -> Test
 
 #[tokio::test]
 async fn rejected_connect_is_typed_and_traced_without_peer_payload() -> TestResult {
+    OutcomeSubscriber::install_dynamic_callsite_fallback();
     let (client, proxy) = duplex(1024);
     let server = tokio::spawn(serve_reply_and_close(proxy, vec![0x05, 0x05, 0x00, 0x01]));
     let subscriber = OutcomeSubscriber::default();
@@ -284,6 +289,7 @@ async fn proxy_tcp_failure_has_connect_kind() -> TestResult {
 
 #[tokio::test]
 async fn dropping_negotiation_records_cancellation() -> TestResult {
+    OutcomeSubscriber::install_dynamic_callsite_fallback();
     let (client, _proxy) = duplex(1024);
     let subscriber = OutcomeSubscriber::default();
 

@@ -14,6 +14,8 @@ use crate::direct::{DirectConnectError, connect_tcp, poll_tokio_io};
 pub enum Socks5ErrorKind {
     /// The remote target cannot be encoded as a SOCKS5 address.
     InvalidTarget,
+    /// Username/password credentials cannot be encoded for RFC 1929.
+    InvalidAuthentication,
     /// The request was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// Connecting to the proxy failed.
@@ -22,6 +24,8 @@ pub enum Socks5ErrorKind {
     Resolve,
     /// SOCKS5 method selection or response parsing failed.
     Negotiation,
+    /// The proxy rejected authentication or offered no supported method.
+    Authentication,
     /// The proxy returned a SOCKS5 CONNECT failure reply.
     Rejected,
 }
@@ -71,6 +75,10 @@ impl Socks5Error {
         }
     }
 
+    const fn invalid_authentication() -> Self {
+        Self::without_source(Socks5ErrorKind::InvalidAuthentication)
+    }
+
     fn negotiation(source: tokio_socks::Error) -> Self {
         let kind = match &source {
             tokio_socks::Error::GeneralSocksServerFailure
@@ -82,6 +90,13 @@ impl Socks5Error {
             | tokio_socks::Error::CommandNotSupported
             | tokio_socks::Error::AddressTypeNotSupported
             | tokio_socks::Error::UnknownError => Socks5ErrorKind::Rejected,
+            tokio_socks::Error::InvalidAuthValues(_) => Socks5ErrorKind::InvalidAuthentication,
+            tokio_socks::Error::NoAcceptableAuthMethods
+            | tokio_socks::Error::UnknownAuthMethod
+            | tokio_socks::Error::PasswordAuthFailure(_)
+            | tokio_socks::Error::AuthorizationRequired
+            | tokio_socks::Error::IdentdAuthFailure
+            | tokio_socks::Error::InvalidUserIdAuthFailure => Socks5ErrorKind::Authentication,
             _ => Socks5ErrorKind::Negotiation,
         };
         Self {
@@ -95,10 +110,12 @@ impl fmt::Display for Socks5Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self.kind {
             Socks5ErrorKind::InvalidTarget => "invalid SOCKS5 target",
+            Socks5ErrorKind::InvalidAuthentication => "invalid SOCKS5 authentication credentials",
             Socks5ErrorKind::RuntimeUnavailable => "SOCKS5 proxy requires a Tokio runtime",
             Socks5ErrorKind::Connect => "SOCKS5 proxy TCP connection failed",
             Socks5ErrorKind::Resolve => "SOCKS5 target DNS resolution failed",
             Socks5ErrorKind::Negotiation => "SOCKS5 negotiation failed",
+            Socks5ErrorKind::Authentication => "SOCKS5 proxy authentication failed",
             Socks5ErrorKind::Rejected => "SOCKS5 proxy rejected CONNECT",
         })
     }
@@ -117,12 +134,53 @@ impl Socks5ErrorKind {
     const fn trace_name(self) -> &'static str {
         match self {
             Self::InvalidTarget => "invalid_target",
+            Self::InvalidAuthentication => "invalid_authentication",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Connect => "connect_error",
             Self::Resolve => "resolve_error",
             Self::Negotiation => "negotiation_error",
+            Self::Authentication => "authentication_error",
             Self::Rejected => "rejected",
         }
+    }
+}
+
+/// Authentication offered during SOCKS5 method negotiation.
+///
+/// Debug output intentionally omits credential values.
+#[derive(Clone, Copy)]
+#[non_exhaustive]
+pub enum Socks5Auth<'a> {
+    /// Offer only the SOCKS5 no-authentication method.
+    None,
+    /// Offer no-authentication and RFC 1929 username/password authentication.
+    UsernamePassword {
+        /// RFC 1929 username, encoded as UTF-8 bytes on the wire.
+        username: &'a str,
+        /// RFC 1929 password, encoded as UTF-8 bytes on the wire.
+        password: &'a str,
+    },
+}
+
+impl fmt::Debug for Socks5Auth<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::None => "None",
+            Self::UsernamePassword { .. } => "UsernamePassword(<redacted>)",
+        })
+    }
+}
+
+impl Socks5Auth<'_> {
+    fn validate(self) -> Result<Self, Socks5Error> {
+        if let Self::UsernamePassword { username, password } = self {
+            let username_valid = (1..=255).contains(&username.len());
+            let password_valid = (1..=255).contains(&password.len());
+            if !username_valid || !password_valid {
+                return Err(Socks5Error::invalid_authentication());
+            }
+        }
+        Ok(self)
     }
 }
 
@@ -143,10 +201,38 @@ pub async fn connect_socks5_tunnel_direct(
     target_host: &str,
     target_port: u16,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
+    connect_socks5_tunnel_direct_with_auth(
+        proxy_host,
+        proxy_port,
+        target_host,
+        target_port,
+        Socks5Auth::None,
+    )
+    .await
+}
+
+/// Establishes a SOCKS5 CONNECT tunnel with proxy-owned target DNS.
+///
+/// Authentication and target validation complete before proxy DNS resolution
+/// or TCP I/O. Credential values are not included in errors or trace fields.
+///
+/// # Errors
+///
+/// Returns [`Socks5Error`] for invalid authentication or target values, a
+/// missing Tokio runtime, proxy TCP failure, malformed negotiation,
+/// authentication failure, or a rejected CONNECT request.
+pub async fn connect_socks5_tunnel_direct_with_auth(
+    proxy_host: &str,
+    proxy_port: u16,
+    target_host: &str,
+    target_port: u16,
+    auth: Socks5Auth<'_>,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
     trace_connect("remote", async {
+        let auth = auth.validate()?;
         let target = prepare_target(target_host, target_port)?;
         let stream = connect_proxy(proxy_host, proxy_port).await?;
-        establish(stream, target).await
+        establish(stream, target, auth).await
     })
     .await
 }
@@ -167,7 +253,35 @@ pub async fn connect_socks5_tunnel_local(
     target_host: &str,
     target_port: u16,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
+    connect_socks5_tunnel_local_with_auth(
+        proxy_host,
+        proxy_port,
+        target_host,
+        target_port,
+        Socks5Auth::None,
+    )
+    .await
+}
+
+/// Establishes a SOCKS5 CONNECT tunnel with locally resolved target DNS.
+///
+/// Authentication is validated before target DNS resolution or TCP I/O.
+/// Credential values are not included in errors or trace fields.
+///
+/// # Errors
+///
+/// Returns [`Socks5Error`] for invalid authentication, a missing Tokio runtime,
+/// target DNS failure, proxy TCP failure, malformed negotiation,
+/// authentication failure, or a rejected CONNECT request.
+pub async fn connect_socks5_tunnel_local_with_auth(
+    proxy_host: &str,
+    proxy_port: u16,
+    target_host: &str,
+    target_port: u16,
+    auth: Socks5Auth<'_>,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
     trace_connect("local", async {
+        let auth = auth.validate()?;
         if target_host.is_empty() {
             return Err(Socks5Error::without_source(Socks5ErrorKind::InvalidTarget));
         }
@@ -183,7 +297,12 @@ pub async fn connect_socks5_tunnel_local(
                 ordered.push(target);
             }
         }
-        connect_local_to_addresses(proxy_host, proxy_port, ordered).await
+        match auth {
+            Socks5Auth::None => connect_local_to_addresses(proxy_host, proxy_port, ordered).await,
+            Socks5Auth::UsernamePassword { .. } => {
+                connect_local_to_addresses_with_auth(proxy_host, proxy_port, ordered, auth).await
+            }
+        }
     })
     .await
 }
@@ -197,9 +316,23 @@ pub(super) async fn connect_socks5_tunnel<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    connect_socks5_tunnel_with_auth(stream, target_host, target_port, Socks5Auth::None).await
+}
+
+#[cfg(test)]
+pub(super) async fn connect_socks5_tunnel_with_auth<S>(
+    stream: S,
+    target_host: &str,
+    target_port: u16,
+    auth: Socks5Auth<'_>,
+) -> Result<S, Socks5Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     trace_connect("remote", async {
+        let auth = auth.validate()?;
         let target = prepare_target(target_host, target_port)?;
-        establish(stream, target).await
+        establish(stream, target, auth).await
     })
     .await
 }
@@ -213,12 +346,21 @@ fn prepare_target(host: &str, port: u16) -> Result<TargetAddr<'_>, Socks5Error> 
         .map_err(Socks5Error::invalid_target)
 }
 
-async fn establish<S>(stream: S, target: TargetAddr<'_>) -> Result<S, Socks5Error>
+async fn establish<S>(
+    stream: S,
+    target: TargetAddr<'_>,
+    auth: Socks5Auth<'_>,
+) -> Result<S, Socks5Error>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    Socks5Stream::connect_with_socket(stream, target)
-        .await
+    let stream = match auth {
+        Socks5Auth::None => Socks5Stream::connect_with_socket(stream, target).await,
+        Socks5Auth::UsernamePassword { username, password } => {
+            Socks5Stream::connect_with_password_and_socket(stream, target, username, password).await
+        }
+    };
+    stream
         .map(Socks5Stream::into_inner)
         .map_err(Socks5Error::negotiation)
 }
@@ -228,10 +370,20 @@ pub(super) async fn connect_local_to_addresses(
     proxy_port: u16,
     targets: impl IntoIterator<Item = SocketAddr>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
+    connect_local_to_addresses_with_auth(proxy_host, proxy_port, targets, Socks5Auth::None).await
+}
+
+pub(super) async fn connect_local_to_addresses_with_auth(
+    proxy_host: &str,
+    proxy_port: u16,
+    targets: impl IntoIterator<Item = SocketAddr>,
+    auth: Socks5Auth<'_>,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
+    let auth = auth.validate()?;
     let mut last_rejection = None;
     for target in targets {
         let stream = connect_proxy(proxy_host, proxy_port).await?;
-        match establish(stream, TargetAddr::Ip(target)).await {
+        match establish(stream, TargetAddr::Ip(target), auth).await {
             Ok(stream) => return Ok(stream),
             Err(error) if error.is_target_specific_rejection() => {
                 last_rejection = Some(error);

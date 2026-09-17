@@ -15,8 +15,8 @@ use super::{
 use crate::{
     direct::{DirectConnectError, connect_tcp},
     proxy::{
-        HttpConnectHeader, connect_http_tunnel_direct, connect_socks5_tunnel_direct,
-        connect_socks5_tunnel_local,
+        HttpConnectHeader, Socks5Auth, connect_http_tunnel_direct,
+        connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local_with_auth,
     },
     tls::{TlsConnector, trace_alpn},
 };
@@ -284,13 +284,48 @@ impl Http1TlsConnector {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http1Body>, Http1TlsError> {
+        self.send_request_socks5_remote_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+            method,
+            target,
+            headers,
+            body,
+        )
+        .await
+    }
+
+    /// Sends one request through a remote-DNS proxy with configured credentials.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
-            let stream =
-                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_direct_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             let connection = self.connect_prepared(stream, server_name).await?;
             self.send_prepared_request(&connection, prepared).await
         })
@@ -340,13 +375,48 @@ impl Http1TlsConnector {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http1Body>, Http1TlsError> {
+        self.send_request_socks5_local_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+            method,
+            target,
+            headers,
+            body,
+        )
+        .await
+    }
+
+    /// Sends one request through a local-DNS proxy with configured credentials.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
-            let stream =
-                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_local_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             let connection = self.connect_prepared(stream, server_name).await?;
             self.send_prepared_request(&connection, prepared).await
         })
@@ -434,10 +504,42 @@ impl Http1TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http1Connection, Http1TlsError> {
+        self.connect_socks5_remote_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+        )
+        .await
+    }
+
+    /// Opens a remote-DNS tunnel with configured credentials and establishes HTTP/1.1.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when proxy authentication or negotiation, TLS
+    /// negotiation, ALPN selection, or the HTTP/1.1 handshake fails.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_connect(async {
-            let stream =
-                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_direct_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.connect_prepared(stream, server_name).await
         })
         .await
@@ -457,10 +559,43 @@ impl Http1TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http1Connection, Http1TlsError> {
+        self.connect_socks5_local_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+        )
+        .await
+    }
+
+    /// Opens a local-DNS tunnel with configured credentials and establishes HTTP/1.1.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when target resolution, proxy authentication
+    /// or negotiation, TLS negotiation, ALPN selection, or the HTTP/1.1
+    /// handshake fails.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_connect(async {
-            let stream =
-                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_local_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.connect_prepared(stream, server_name).await
         })
         .await
@@ -536,11 +671,42 @@ impl Http1TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.upgrade_get_socks5_remote_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+            target,
+            headers,
+        )
+        .await
+    }
+
+    /// Sends one Upgrade GET through a remote-DNS proxy with configured credentials.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
         self.trace_upgrade(async {
             let prepared = PreparedGet::new(target, headers)?;
-            let stream =
-                connect_socks5_tunnel_direct(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_direct_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.send_prepared_upgrade(stream, server_name, prepared)
                 .await
         })
@@ -562,11 +728,42 @@ impl Http1TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.upgrade_get_socks5_local_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+            target,
+            headers,
+        )
+        .await
+    }
+
+    /// Sends one Upgrade GET through a local-DNS proxy with configured credentials.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
         self.trace_upgrade(async {
             let prepared = PreparedGet::new(target, headers)?;
-            let stream =
-                connect_socks5_tunnel_local(proxy_host, proxy_port, target_host, target_port)
-                    .await?;
+            let stream = connect_socks5_tunnel_local_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
             self.send_prepared_upgrade(stream, server_name, prepared)
                 .await
         })

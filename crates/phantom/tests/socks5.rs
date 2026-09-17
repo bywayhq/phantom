@@ -1,5 +1,7 @@
 //! Public remote-DNS SOCKS5 route integration tests.
 
+#[path = "socks5/auth.rs"]
+mod auth;
 #[path = "support/socks5.rs"]
 mod socks5_support;
 #[allow(dead_code)]

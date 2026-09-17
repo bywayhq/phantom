@@ -192,9 +192,10 @@ impl WebSocketRequestBuilder {
             Route::Socks5(proxy) => match proxy.dns_mode() {
                 crate::Socks5DnsMode::Local => {
                     connector
-                        .upgrade_get_socks5_local(
+                        .upgrade_get_socks5_local_with_auth(
                             proxy.host(),
                             proxy.port(),
+                            proxy.auth(),
                             request.endpoint.host(),
                             request.endpoint.port(),
                             request.endpoint.host(),
@@ -205,9 +206,10 @@ impl WebSocketRequestBuilder {
                 }
                 crate::Socks5DnsMode::Remote => {
                     connector
-                        .upgrade_get_socks5_remote(
+                        .upgrade_get_socks5_remote_with_auth(
                             proxy.host(),
                             proxy.port(),
+                            proxy.auth(),
                             request.endpoint.host(),
                             request.endpoint.port(),
                             request.endpoint.host(),

@@ -194,9 +194,10 @@ impl PoolEntry {
             Route::Socks5(proxy) => match proxy.dns_mode() {
                 crate::Socks5DnsMode::Local => {
                     connector
-                        .connect_socks5_local(
+                        .connect_socks5_local_with_auth(
                             proxy.host(),
                             proxy.port(),
+                            proxy.auth(),
                             endpoint.host(),
                             endpoint.port(),
                             endpoint.host(),
@@ -205,9 +206,10 @@ impl PoolEntry {
                 }
                 crate::Socks5DnsMode::Remote => {
                     connector
-                        .connect_socks5_remote(
+                        .connect_socks5_remote_with_auth(
                             proxy.host(),
                             proxy.port(),
+                            proxy.auth(),
                             endpoint.host(),
                             endpoint.port(),
                             endpoint.host(),

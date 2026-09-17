@@ -27,7 +27,7 @@ flowchart TB
     Session["Session<br/>H1 · H2 · H3 pools · optional cookies"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Route["Current route<br/>direct · HTTP CONNECT · SOCKS5"]
-    FutureRoute["Later routes<br/>HTTPS proxy · authenticated SOCKS5 · UDP"]
+    FutureRoute["Later routes<br/>HTTPS proxy · UDP"]
     FacadeRequest["Facade request<br/>exact H1/H2/H3 GET"]
 
     H1["HTTP/1.1<br/>streaming body"]
@@ -96,7 +96,7 @@ flowchart LR
     Route --> Direct["direct TCP or UDP"]
     Route --> Http["HTTP proxy<br/>CONNECT"]
     Route --> Https["HTTPS proxy<br/>proxy TLS · CONNECT"]
-    Route --> Socks["SOCKS5<br/>local or remote DNS"]
+    Route --> Socks["SOCKS5<br/>local or remote DNS · optional auth"]
     Direct --> Tcp["TCP byte stream"]
     Http --> Tcp
     Https --> Tcp
@@ -109,28 +109,30 @@ flowchart LR
     Masque["CONNECT-UDP / MASQUE"] -.-> Udp
 ```
 
-The current proxy slices cover plaintext HTTP CONNECT and no-auth local- or
-remote-DNS SOCKS5 for H1/H2 origin TLS and H1 WebSocket; direct H3 uses UDP. Selecting H3
-with either TCP-only proxy route fails before proxy or origin I/O because those
-routes have no UDP capability. The client or request owns the route, and the
-HTTP CONNECT field sequence contains
-one typed destination-authority placeholder. Validation happens before proxy
-I/O. Negotiation is bounded, accepts a final 2xx after bounded informational
-responses, preserves bytes read beyond the response head, and never retries
-direct. Hostnames, IPv4, and bracketed IPv6 endpoints have local coverage.
+The current proxy slices cover plaintext HTTP CONNECT and local- or remote-DNS
+SOCKS5, with optional RFC 1929 username/password credentials, for H1/H2
+origin TLS and H1 WebSocket. Direct H3 uses UDP. Selecting H3 with either
+TCP-only proxy route fails before proxy or origin I/O because those routes have
+no UDP capability. The client or request owns the route, and the HTTP CONNECT
+field sequence contains one typed destination-authority placeholder.
+Validation happens before proxy I/O. Negotiation is bounded, accepts a final
+2xx after bounded informational responses, preserves bytes read beyond the
+response head, and never retries direct. Hostnames, IPv4, and bracketed IPv6
+endpoints have local coverage.
 
 The SOCKS5 route uses `socks5://` for local origin DNS and `socks5h://` for
 proxy-owned origin DNS. Local resolution preserves resolver order, opens a
 fresh proxy connection for each eligible address attempt, and never opens a
-direct origin connection. Its configuration rejects credentials, paths, and
-queries. Negotiation uses a maintained protocol engine; Phantom owns route
-validation, error categories, tracing, and fallback policy. See
-[proxy routing](proxy-routing.md).
+direct origin connection. URI credentials, paths, and queries remain invalid;
+`Socks5Proxy::with_username_password` owns and validates credentials outside
+the endpoint string. Credentials participate in route equality and H1/H2 pool
+identity but never in debug output, errors, or traces. Negotiation
+uses a maintained protocol engine; Phantom owns route validation, error
+categories, tracing, and fallback policy. See [proxy routing](proxy-routing.md).
 
-HTTP forwarding, TLS-to-proxy CONNECT, SOCKS5 authentication,
-authentication challenge negotiation, IDNA normalization, and half-close
-behavior remain later slices. Credentials do not live in endpoint strings or
-tracing fields.
+HTTP forwarding, TLS-to-proxy CONNECT, HTTP proxy authentication challenges,
+custom SOCKS5 resolvers, IDNA normalization, and half-close behavior remain
+later slices. SOCKS5 GSSAPI is unsupported.
 
 H3 is capability-checked separately. A TCP CONNECT proxy cannot carry QUIC.
 SOCKS5 UDP ASSOCIATE is the first UDP proxy target, followed by CONNECT-UDP and

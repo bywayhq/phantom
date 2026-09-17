@@ -28,24 +28,26 @@ the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
 order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
 small facade for exact H1, H2, or direct H3 requests, additive private trust
-roots, typed direct, plaintext-HTTP-CONNECT, and local- or remote-DNS SOCKS5 routes, and
-one unified streaming response body. CONNECT fields preserve caller-declared
-order, proxy rejection never falls back direct, and coalesced tunnel bytes
-survive negotiation. The SOCKS5 URI scheme selects explicit DNS ownership. H3 uses a
-separate protocol-specific TLS profile and rejects both TCP-only proxy routes
-before network I/O. The optional `cookies` capability adds a bounded, explicit
-session jar with public-suffix, prefix, expiry, and deterministic ordering
-rules. Profiles may also define ordered client-hint fields; sessions retain
-bounded exact-origin response `Accept-CH` state, H2/H3 connections apply peer
-ALPS `ACCEPT_CH` metadata during request preparation, and safe methods perform at
-most one `Critical-CH` replay. Feature-gated SSE support provides both a bounded
+roots, typed direct, plaintext-HTTP-CONNECT, and local- or remote-DNS SOCKS5
+routes with optional RFC 1929 username/password credentials, and one unified
+streaming response body. CONNECT fields preserve caller-declared order, proxy
+rejection never falls back direct, and coalesced tunnel bytes survive
+negotiation. The SOCKS5 URI scheme selects explicit DNS ownership; credentials
+are configured with `Socks5Proxy::with_username_password`, validated before
+I/O, and excluded from diagnostics. H3 uses a separate protocol-specific TLS
+profile and rejects both TCP-only proxy routes before network I/O. The optional
+`cookies` capability adds a bounded, explicit session jar with public-suffix,
+prefix, expiry, and deterministic ordering rules. Profiles may also define
+ordered client-hint fields; sessions retain bounded exact-origin response
+`Accept-CH` state, H2/H3 connections apply peer ALPS `ACCEPT_CH` metadata during
+request preparation, and safe methods perform at most one `Critical-CH` replay.
+Feature-gated SSE support provides both a bounded
 single-response decoder and a finite, pull-driven session reconnect controller
 without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
-I/O through Phantom-owned types. HTTPS proxies, SOCKS5 authentication,
+I/O through Phantom-owned types. HTTPS proxies, HTTP proxy authentication,
 UDP-capable proxies, general retry policy, WebSocket extensions, and extended
-CONNECT remain planned. The project does not make broad client-compatibility
-claims.
+CONNECT remain planned. The project does not make broad client-compatibility claims.
 
 ## Principles
 
@@ -123,9 +125,10 @@ metadata. Use
 ## Current workspace
 
 - `phantom`: the public exact-protocol client facade, session-owned H1, H2, and H3 reuse,
-  direct routes, plaintext HTTP CONNECT and local- or remote-DNS SOCKS5 for H1/H2 and H1
-  WebSocket, opt-in bounded redirects, streaming responses, and optional
-  bounded cookie and client-hint state, plus SSE and WebSocket capabilities
+  direct routes, plaintext HTTP CONNECT and credential-capable local- or
+  remote-DNS SOCKS5 for H1/H2 and H1 WebSocket, opt-in bounded redirects,
+  streaming responses, and optional bounded cookie and client-hint state, plus
+  SSE and WebSocket capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes

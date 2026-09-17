@@ -1,6 +1,7 @@
 use std::{error::Error as StdError, fmt};
 
 use http::Uri;
+use phantom_net::proxy::Socks5Auth;
 
 use crate::authority::Endpoint;
 
@@ -17,11 +18,18 @@ pub enum Socks5DnsMode {
 /// SOCKS5 proxy configuration with explicit origin DNS ownership.
 ///
 /// `socks5://` selects local DNS and `socks5h://` selects proxy-owned DNS.
-/// Credentials, paths, and queries are rejected.
+/// Credentials in the URI, paths, and queries are rejected.
 #[derive(Clone, Eq, PartialEq)]
 pub struct Socks5Proxy {
     endpoint: Endpoint,
     dns_mode: Socks5DnsMode,
+    credentials: Option<Socks5Credentials>,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct Socks5Credentials {
+    username: Box<str>,
+    password: Box<str>,
 }
 
 impl Socks5Proxy {
@@ -55,7 +63,39 @@ impl Socks5Proxy {
         }
         let endpoint = Endpoint::new(authority, 1080)
             .map_err(|error| Socks5ProxyConfigError::authority(error.message()))?;
-        Ok(Self { endpoint, dns_mode })
+        Ok(Self {
+            endpoint,
+            dns_mode,
+            credentials: None,
+        })
+    }
+
+    /// Configures RFC 1929 username/password authentication.
+    ///
+    /// The username and password are copied into the route configuration. Each
+    /// value must contain between 1 and 255 bytes, inclusive. SOCKS5 method
+    /// negotiation offers both no-authentication and username/password; the
+    /// proxy selects the method.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Socks5ProxyConfigError`] when either value is empty or exceeds
+    /// the RFC 1929 one-octet length limit.
+    pub fn with_username_password(
+        mut self,
+        username: impl AsRef<str>,
+        password: impl AsRef<str>,
+    ) -> Result<Self, Socks5ProxyConfigError> {
+        let username = username.as_ref();
+        let password = password.as_ref();
+        if !is_valid_credential(username) || !is_valid_credential(password) {
+            return Err(Socks5ProxyConfigError::invalid_credentials());
+        }
+        self.credentials = Some(Socks5Credentials {
+            username: username.into(),
+            password: password.into(),
+        });
+        Ok(self)
     }
 
     pub(crate) fn host(&self) -> &str {
@@ -64,6 +104,17 @@ impl Socks5Proxy {
 
     pub(crate) fn port(&self) -> u16 {
         self.endpoint.port()
+    }
+
+    pub(crate) fn auth(&self) -> Socks5Auth<'_> {
+        self.credentials
+            .as_ref()
+            .map_or(Socks5Auth::None, |credentials| {
+                Socks5Auth::UsernamePassword {
+                    username: &credentials.username,
+                    password: &credentials.password,
+                }
+            })
     }
 
     /// Returns where target domain names are resolved.
@@ -79,8 +130,13 @@ impl fmt::Debug for Socks5Proxy {
             .debug_struct("Socks5Proxy")
             .field("authority", self.endpoint.authority())
             .field("dns", &self.dns_mode)
+            .field("credentials_configured", &self.credentials.is_some())
             .finish()
     }
+}
+
+fn is_valid_credential(value: &str) -> bool {
+    (1..=usize::from(u8::MAX)).contains(&value.len())
 }
 
 /// Stable category of SOCKS5 proxy-configuration failure.
@@ -95,6 +151,8 @@ pub enum Socks5ProxyConfigErrorKind {
     InvalidAuthority,
     /// The proxy URI contains a path or query.
     UnexpectedPath,
+    /// A username or password does not fit the RFC 1929 wire format.
+    InvalidCredentials,
 }
 
 /// Error returned while constructing a [`Socks5Proxy`].
@@ -139,6 +197,13 @@ impl Socks5ProxyConfigError {
         )
     }
 
+    fn invalid_credentials() -> Self {
+        Self::without_source(
+            Socks5ProxyConfigErrorKind::InvalidCredentials,
+            "SOCKS5 username and password must each contain 1 to 255 bytes",
+        )
+    }
+
     fn without_source(kind: Socks5ProxyConfigErrorKind, message: &'static str) -> Self {
         Self {
             kind,
@@ -170,6 +235,8 @@ impl StdError for Socks5ProxyConfigError {
 
 #[cfg(test)]
 mod tests {
+    use phantom_net::proxy::Socks5Auth;
+
     use super::{Socks5DnsMode, Socks5Proxy, Socks5ProxyConfigErrorKind};
 
     #[test]
@@ -217,6 +284,88 @@ mod tests {
             };
             assert_eq!(error.kind(), kind, "{uri}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn owns_username_password_and_includes_them_in_identity()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut username = String::from("route-user");
+        let mut password = String::from("route-password");
+        let authenticated = Socks5Proxy::new("socks5h://proxy.example")?
+            .with_username_password(&username, &password)?;
+        let different_username = Socks5Proxy::new("socks5h://proxy.example")?
+            .with_username_password("other-user", &password)?;
+        let different_password = Socks5Proxy::new("socks5h://proxy.example")?
+            .with_username_password(&username, "other-password")?;
+
+        username.clear();
+        password.clear();
+
+        let (username, password) = match authenticated.auth() {
+            Socks5Auth::UsernamePassword { username, password } => (username, password),
+            _ => return Err("credentials were not stored".into()),
+        };
+        assert_eq!(username, "route-user");
+        assert_eq!(password, "route-password");
+        assert_ne!(authenticated, different_username);
+        assert_ne!(authenticated, different_password);
+        assert_ne!(authenticated, Socks5Proxy::new("socks5h://proxy.example")?);
+        Ok(())
+    }
+
+    #[test]
+    fn accepts_rfc_1929_credential_length_boundaries() -> Result<(), Box<dyn std::error::Error>> {
+        let shortest =
+            Socks5Proxy::new("socks5h://proxy.example")?.with_username_password("u", "p")?;
+        let longest = Socks5Proxy::new("socks5h://proxy.example")?
+            .with_username_password("u".repeat(255), "p".repeat(255))?;
+
+        assert!(matches!(
+            shortest.auth(),
+            Socks5Auth::UsernamePassword { username, .. } if username.len() == 1
+        ));
+        assert!(matches!(
+            longest.auth(),
+            Socks5Auth::UsernamePassword { password, .. } if password.len() == 255
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_credentials_outside_rfc_1929_length_bounds_without_exposing_them()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let marker = "credential-leak-marker";
+        let oversized = marker.repeat(13);
+
+        for (username, password) in [
+            ("", "password"),
+            ("username", ""),
+            (oversized.as_str(), "password"),
+            ("username", oversized.as_str()),
+        ] {
+            let error = match Socks5Proxy::new("socks5h://proxy.example")?
+                .with_username_password(username, password)
+            {
+                Ok(_) => return Err("invalid credentials were accepted".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), Socks5ProxyConfigErrorKind::InvalidCredentials);
+            assert!(!error.to_string().contains("credential-leak-marker"));
+            assert!(!format!("{error:?}").contains("credential-leak-marker"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn debug_output_redacts_username_and_password() -> Result<(), Box<dyn std::error::Error>> {
+        let proxy = Socks5Proxy::new("socks5h://proxy.example")?
+            .with_username_password("debug-user-marker", "debug-password-marker")?;
+        let debug = format!("{proxy:?}");
+
+        assert!(debug.contains("credentials_configured: true"));
+        assert!(!debug.contains("debug-user-marker"));
+        assert!(!debug.contains("debug-password-marker"));
         Ok(())
     }
 }
