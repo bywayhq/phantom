@@ -8,6 +8,7 @@ mod admission;
 pub(crate) mod client_hints;
 #[cfg(feature = "cookies")]
 mod cookies;
+pub(crate) mod http1_or_2_pool;
 mod http1_pool;
 mod http2_pool;
 mod http3_pool;
@@ -93,6 +94,7 @@ pub(crate) struct ClientState {
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) request_timeouts: RequestTimeouts,
     pub(crate) http1: http1_pool::Http1Pool,
+    pub(crate) http1_or_2: http1_or_2_pool::Http1Or2Pool,
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: http3_pool::Http3Pool,
     client_hints: Option<client_hints::ClientHintStore>,
@@ -108,6 +110,13 @@ impl ClientOptions {
             http1: http1_pool::Http1Pool::new(
                 self.max_retained_http1_connections,
                 self.max_pending_http1_requests_per_origin,
+            ),
+            http1_or_2: http1_or_2_pool::Http1Or2Pool::new(
+                self.max_retained_http1_connections,
+                self.max_pending_http1_requests_per_origin,
+                self.max_retained_http2_connections,
+                self.max_concurrent_http2_requests_per_origin,
+                self.max_pending_http2_requests_per_origin,
             ),
             http2: http2_pool::Http2Pool::new(
                 self.max_retained_http2_connections,
