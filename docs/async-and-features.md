@@ -58,7 +58,7 @@ The intended vocabulary is:
 | --- | --- | --- |
 | Protocol engines | `http1`, `http2`, `http3` | Compile support; runtime protocol policy still selects exact, negotiate, or race behavior. |
 | Body adapters | `stream` | Adds ecosystem adapters only; core backpressured bodies remain available. |
-| Session policy | `cookies` | Adds a cookie store integration; client-hint state stays separately controlled because it has different rules. |
+| Client state | `cookies` | Adds a cookie store integration; client-hint state stays separately controlled because it has different rules. |
 | Content decoding | `gzip`, `brotli`, `deflate`, `zstd` | Response `Content-Encoding`; distinct from TLS certificate compression. |
 | Routes | Later `masque`, possibly `system-proxy` | Direct, HTTP CONNECT, and local-/remote-DNS SOCKS5 TCP routes are core. Heavier UDP or discovery integrations may be additive features; none enables fallback by itself. |
 | Higher protocols | `sse`, `websocket`, `websocket-deflate` | `sse` adds the bounded pull decoder. `websocket` adds ordered H1 Upgrade plus bounded `Stream`/`Sink` message I/O. `websocket-deflate` adds the RFC 7692 codec without activating it on a connection. |
@@ -86,12 +86,12 @@ capability-oriented feature surfaces used by
 [Reqwest](https://docs.rs/reqwest/latest/reqwest/#optional-features).
 
 The public `phantom` crate has an empty default set. `cookies` compiles the
-bounded cookie jar but does not activate it until
-`SessionBuilder::cookies` or `SessionBuilder::cookie_jar` is selected. `sse`
+bounded cookie jar but does not activate it until `ClientBuilder::cookies` or
+`ClientBuilder::cookie_jar` is selected. `sse`
 enables the server-sent event response decoder documented in [sse.md](sse.md).
 `websocket` enables the ordered H1 opening handshake and bounded message
 facade documented in [websocket.md](websocket.md). `websocket-deflate`
 includes that facade and compiles `permessage-deflate`; callers still opt in
 per connection. `full` enables all stable
 optional public capabilities. Core response
-streaming and session-owned H1/H2 reuse remain unconditional.
+streaming and client-owned H1/H2 reuse remain unconditional.

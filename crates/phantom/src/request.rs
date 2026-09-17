@@ -9,9 +9,9 @@ use phantom_net::{
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    Client, HttpProtocol, RequestError, ResponseBody, ResponseInfo, Route, Session,
+    Client, HttpProtocol, RequestError, ResponseBody, ResponseInfo, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
-    redirect::{RedirectAction, RedirectPolicy, RedirectState},
+    redirect::{RedirectAction, RedirectState},
 };
 
 mod attempt;
@@ -21,7 +21,7 @@ use attempt::send_once;
 /// Builder for one exact-protocol request with an optional owned body.
 #[must_use = "request builders do nothing until send is awaited"]
 pub struct RequestBuilder {
-    context: RequestContext,
+    client: Client,
     request: ResolvedRequest,
     selection: ProtocolSelection,
     method: Method,
@@ -39,7 +39,6 @@ impl fmt::Debug for RequestBuilder {
             .field("header_count", &self.headers.len())
             .field("body_len", &self.body.as_ref().map_or(0, Bytes::len))
             .field("route_override", &self.route.is_some())
-            .field("session", &self.context.session().is_some())
             .finish_non_exhaustive()
     }
 }
@@ -51,12 +50,7 @@ impl RequestBuilder {
         method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        Self::new(
-            RequestContext::Client(client),
-            ProtocolSelection::Exact(protocol),
-            method,
-            uri,
-        )
+        Self::new(client, ProtocolSelection::Exact(protocol), method, uri)
     }
 
     pub(crate) fn new_client_negotiated(
@@ -64,35 +58,15 @@ impl RequestBuilder {
         method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        Self::new(
-            RequestContext::Client(client),
-            ProtocolSelection::Http1Or2,
-            method,
-            uri,
-        )
-    }
-
-    pub(crate) fn new_session(
-        session: Session,
-        protocol: HttpProtocol,
-        method: Method,
-        uri: &str,
-    ) -> Result<Self, RequestError> {
-        Self::new(
-            RequestContext::Session(session),
-            ProtocolSelection::Exact(protocol),
-            method,
-            uri,
-        )
+        Self::new(client, ProtocolSelection::Http1Or2, method, uri)
     }
 
     fn new(
-        context: RequestContext,
+        client: Client,
         selection: ProtocolSelection,
         method: Method,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        let client = context.client();
         match selection {
             ProtocolSelection::Exact(HttpProtocol::Http1) if client.inner.http1.is_none() => {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http1));
@@ -113,7 +87,7 @@ impl RequestBuilder {
         }
         let uri = parse_absolute_uri(uri).map_err(request_uri_error)?;
         Ok(Self {
-            context,
+            client,
             request: ResolvedRequest::new(&uri)?,
             selection,
             method,
@@ -153,11 +127,11 @@ impl RequestBuilder {
 
     /// Sends the request using the selected route and owner.
     ///
-    /// A session may reuse compatible HTTP/1.1, HTTP/2, and direct HTTP/3
+    /// The client may reuse compatible HTTP/1.1, HTTP/2, and direct HTTP/3
     /// connections. A bodyless HTTP/2 GET rejected by `GOAWAY(NO_ERROR)` is
-    /// retried once on the session's replacement connection. A bare client
-    /// remains one-shot. Dropping this future cancels the in-flight operation;
-    /// returned bodies retain protocol cancellation.
+    /// retried once on the client's replacement connection. Dropping this
+    /// future cancels the in-flight operation; returned bodies retain protocol
+    /// cancellation.
     ///
     /// # Errors
     ///
@@ -181,10 +155,7 @@ impl RequestBuilder {
     /// # }
     /// ```
     pub async fn send(self) -> Result<Response<ResponseBody>, RequestError> {
-        let route = self
-            .route
-            .as_ref()
-            .unwrap_or(&self.context.client().inner.route);
+        let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
         let span = debug_span!(
             "client.request",
             method = %self.method,
@@ -214,7 +185,7 @@ impl RequestBuilder {
         }
 
         let Self {
-            context,
+            client,
             request,
             selection,
             method,
@@ -222,8 +193,6 @@ impl RequestBuilder {
             body,
             route,
         } = self;
-        let client = context.client();
-        let session = context.session();
         let route = route.as_ref().unwrap_or(&client.inner.route);
         ensure_request_supported(selection, route, &request)?;
         let is_forwarded = request.uri.scheme_str() == Some("http");
@@ -234,16 +203,14 @@ impl RequestBuilder {
         {
             return Err(RequestError::forward_proxy_authorization_header());
         }
-        let policy = session.map_or(RedirectPolicy::none(), |session| {
-            session.state.redirect_policy
-        });
+        let policy = client.state.redirect_policy;
         if is_forwarded && policy.max_hops().is_some() {
             return Err(RequestError::forward_redirect_policy());
         }
 
         if policy.max_hops().is_none() {
             let outcome = send_once(
-                &context,
+                &client,
                 &request,
                 selection,
                 method,
@@ -267,7 +234,7 @@ impl RequestBuilder {
         loop {
             ensure_request_supported(selection, route, &resolved)?;
             let outcome = send_once(
-                &context,
+                &client,
                 &resolved,
                 selection,
                 redirect.method().clone(),
@@ -312,27 +279,6 @@ fn request_uri_error(error: ParseUriError) -> RequestError {
         ParseUriError::Syntax(error) => RequestError::invalid_uri(error),
         ParseUriError::Authority(error) => RequestError::invalid_authority(error.message()),
         ParseUriError::Fragment => RequestError::fragment_target(),
-    }
-}
-
-enum RequestContext {
-    Client(Client),
-    Session(Session),
-}
-
-impl RequestContext {
-    fn client(&self) -> &Client {
-        match self {
-            Self::Client(client) => client,
-            Self::Session(session) => &session.client,
-        }
-    }
-
-    fn session(&self) -> Option<&Session> {
-        match self {
-            Self::Client(_) => None,
-            Self::Session(session) => Some(session),
-        }
     }
 }
 

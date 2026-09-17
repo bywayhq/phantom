@@ -35,7 +35,13 @@ pub enum WebSocketHeader {
         /// Exact field-name spelling to emit.
         name: Box<str>,
     },
-    /// Inserts session cookies at this position when the caller did not supply them.
+    /// Inserts client cookies at this position when the caller did not supply them.
+    ClientCookies {
+        /// Exact field-name spelling to emit when cookies are available.
+        name: Box<str>,
+    },
+    /// Compatibility name for [`Self::ClientCookies`].
+    #[doc(hidden)]
     SessionCookies {
         /// Exact field-name spelling to emit when cookies are available.
         name: Box<str>,
@@ -63,10 +69,17 @@ impl WebSocketHeader {
         Self::Key { name: name.into() }
     }
 
-    /// Creates a session-cookie placeholder with caller-controlled spelling.
+    /// Creates a client-cookie placeholder with caller-controlled spelling.
+    #[must_use]
+    pub fn client_cookies(name: impl Into<Box<str>>) -> Self {
+        Self::ClientCookies { name: name.into() }
+    }
+
+    /// Compatibility name for [`Self::client_cookies`].
+    #[doc(hidden)]
     #[must_use]
     pub fn session_cookies(name: impl Into<Box<str>>) -> Self {
-        Self::SessionCookies { name: name.into() }
+        Self::client_cookies(name)
     }
 
     /// Creates a generated compression-offer placeholder.
@@ -88,6 +101,7 @@ impl fmt::Debug for WebSocketHeader {
         let (kind, name) = match self {
             Self::Authority { name } => ("authority", name.as_ref()),
             Self::Key { name } => ("key", name.as_ref()),
+            Self::ClientCookies { name } => ("client_cookies", name.as_ref()),
             Self::SessionCookies { name } => ("session_cookies", name.as_ref()),
             #[cfg(feature = "websocket-deflate")]
             Self::PerMessageDeflate { name } => ("permessage_deflate", name.as_ref()),
@@ -116,7 +130,7 @@ pub(super) fn default_headers() -> Vec<WebSocketHeader> {
         WebSocketHeader::field(RequestHeader::new("Sec-WebSocket-Version", "13")),
         #[cfg(feature = "websocket-deflate")]
         WebSocketHeader::permessage_deflate("Sec-WebSocket-Extensions"),
-        WebSocketHeader::session_cookies("Cookie"),
+        WebSocketHeader::client_cookies("Cookie"),
     ]
 }
 
@@ -141,7 +155,7 @@ pub(super) fn prepare(
             WebSocketHeader::Key { name } => {
                 headers.push(RequestHeader::new(name, &key).sensitive());
             }
-            WebSocketHeader::SessionCookies { name } => {
+            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
                 if !validation.has_literal_cookie {
                     if let Some(value) = session_cookie {
                         headers.push(RequestHeader::new(name, value).sensitive());
@@ -198,7 +212,7 @@ fn validate_templates(
                 validate_placeholder_name(name, KEY_NAME)?;
                 key_count += 1;
             }
-            WebSocketHeader::SessionCookies { name } => {
+            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
                 validate_placeholder_name(name, "cookie")?;
                 cookie_placeholder_count += 1;
             }
@@ -273,7 +287,7 @@ fn validate_templates(
     }
     if cookie_placeholder_count > 1 {
         return Err(WebSocketError::invalid_request(
-            "opening handshake permits at most one session-cookie placeholder",
+            "opening handshake permits at most one client-cookie placeholder",
         ));
     }
     if upgrade_count != 1 || connection_count != 1 || version_count != 1 {

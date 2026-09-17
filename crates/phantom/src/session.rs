@@ -1,12 +1,8 @@
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
-use http::Method;
-
+use crate::{Client, RedirectPolicy, client::ClientInner};
 #[cfg(feature = "sse")]
-use crate::SseRequestBuilder;
-use crate::{Client, HttpProtocol, RedirectPolicy, RequestBuilder, RequestError};
-#[cfg(feature = "websocket")]
-use crate::{WebSocketError, WebSocketRequestBuilder};
+use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
 mod admission;
 pub(crate) mod client_hints;
@@ -51,17 +47,47 @@ const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64
     None => NonZeroUsize::MIN,
 };
 
-/// Cloneable cross-request state for one immutable [`Client`].
-///
-/// Clones share the same connection pool. Separate sessions never share
-/// mutable state, even when they originate from the same client.
-#[derive(Clone)]
-pub struct Session {
-    pub(crate) client: Client,
-    pub(crate) state: Arc<SessionState>,
+pub(crate) struct ClientOptions {
+    pub(crate) redirect_policy: RedirectPolicy,
+    pub(crate) max_retained_http1_connections: NonZeroUsize,
+    pub(crate) max_pending_http1_requests_per_origin: NonZeroUsize,
+    pub(crate) max_retained_http2_connections: NonZeroUsize,
+    pub(crate) max_concurrent_http2_requests_per_origin: NonZeroUsize,
+    pub(crate) max_pending_http2_requests_per_origin: NonZeroUsize,
+    pub(crate) max_retained_http3_connections: NonZeroUsize,
+    pub(crate) max_concurrent_http3_requests_per_origin: NonZeroUsize,
+    pub(crate) max_pending_http3_requests_per_origin: NonZeroUsize,
+    pub(crate) max_client_hint_origins: NonZeroUsize,
+    #[cfg(feature = "cookies")]
+    pub(crate) cookie_jar: Option<CookieJar>,
 }
 
-pub(crate) struct SessionState {
+impl Default for ClientOptions {
+    fn default() -> Self {
+        Self {
+            redirect_policy: RedirectPolicy::none(),
+            max_retained_http1_connections: DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS,
+            max_pending_http1_requests_per_origin: DEFAULT_MAX_PENDING_HTTP1_REQUESTS_PER_ORIGIN,
+            max_retained_http2_connections: DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS,
+            max_concurrent_http2_requests_per_origin:
+                DEFAULT_MAX_CONCURRENT_HTTP2_REQUESTS_PER_ORIGIN,
+            max_pending_http2_requests_per_origin: DEFAULT_MAX_PENDING_HTTP2_REQUESTS_PER_ORIGIN,
+            max_retained_http3_connections: DEFAULT_MAX_RETAINED_HTTP3_CONNECTIONS,
+            max_concurrent_http3_requests_per_origin:
+                DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
+            max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
+            max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
+            #[cfg(feature = "cookies")]
+            cookie_jar: None,
+        }
+    }
+}
+
+/// Compatibility name for the pooled [`Client`] owner.
+#[doc(hidden)]
+pub type Session = Client;
+
+pub(crate) struct ClientState {
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) http1: http1_pool::Http1Pool,
     pub(crate) http2: http2_pool::Http2Pool,
@@ -71,7 +97,35 @@ pub(crate) struct SessionState {
     pub(crate) cookies: Option<Arc<CookieJar>>,
 }
 
-impl Session {
+impl ClientOptions {
+    pub(crate) fn build(self, inner: &ClientInner) -> Arc<ClientState> {
+        Arc::new(ClientState {
+            redirect_policy: self.redirect_policy,
+            http1: http1_pool::Http1Pool::new(
+                self.max_retained_http1_connections,
+                self.max_pending_http1_requests_per_origin,
+            ),
+            http2: http2_pool::Http2Pool::new(
+                self.max_retained_http2_connections,
+                self.max_concurrent_http2_requests_per_origin,
+                self.max_pending_http2_requests_per_origin,
+            ),
+            http3: http3_pool::Http3Pool::new(
+                self.max_retained_http3_connections,
+                self.max_concurrent_http3_requests_per_origin,
+                self.max_pending_http3_requests_per_origin,
+            ),
+            client_hints: inner
+                .client_hints
+                .is_some()
+                .then(|| client_hints::ClientHintStore::new(self.max_client_hint_origins)),
+            #[cfg(feature = "cookies")]
+            cookies: self.cookie_jar.map(Arc::new),
+        })
+    }
+}
+
+impl Client {
     pub(crate) fn client_hint_context<'a>(
         &'a self,
         endpoint: &'a crate::authority::Endpoint,
@@ -101,38 +155,7 @@ impl Session {
             })
     }
 
-    /// Starts one empty-body GET using exactly `protocol`.
-    ///
-    /// HTTP/1.1, HTTP/2, and direct HTTP/3 requests may reuse compatible
-    /// connections owned by this session.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RequestError`] when the protocol is absent from the profile
-    /// or the URI, authority, or request target is invalid.
-    pub fn get(&self, protocol: HttpProtocol, uri: &str) -> Result<RequestBuilder, RequestError> {
-        self.request(protocol, Method::GET, uri)
-    }
-
-    /// Starts one request using exactly `protocol`.
-    ///
-    /// HTTP/1.1, HTTP/2, and direct HTTP/3 requests may reuse compatible
-    /// connections owned by this session.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RequestError`] when the protocol is absent from the profile
-    /// or the URI, authority, or request target is invalid.
-    pub fn request(
-        &self,
-        protocol: HttpProtocol,
-        method: Method,
-        uri: &str,
-    ) -> Result<RequestBuilder, RequestError> {
-        RequestBuilder::new_session(self.clone(), protocol, method, uri)
-    }
-
-    /// Starts a bounded server-sent event source using this session's state.
+    /// Starts a bounded server-sent event source using this client's state.
     ///
     /// Reconnects use exactly `protocol`, the same route, ordered caller fields,
     /// shared connection pools, redirect policy, and optional cookie jar.
@@ -147,23 +170,17 @@ impl Session {
         protocol: HttpProtocol,
         uri: &str,
     ) -> Result<SseRequestBuilder, RequestError> {
-        SseRequestBuilder::new_session(self.clone(), protocol, uri)
+        SseRequestBuilder::new_client(self.clone(), protocol, uri)
     }
 
-    /// Starts a secure WebSocket handshake with this session's route and cookies.
-    #[cfg(feature = "websocket")]
-    pub fn websocket(&self, uri: &str) -> Result<WebSocketRequestBuilder, WebSocketError> {
-        WebSocketRequestBuilder::new_session(self.clone(), uri)
-    }
-
-    /// Returns this session's cookie jar when cookie handling was enabled.
+    /// Returns this client's cookie jar when cookie handling was enabled.
     #[cfg(feature = "cookies")]
     #[must_use]
     pub fn cookie_jar(&self) -> Option<&CookieJar> {
         self.state.cookies.as_deref()
     }
 
-    /// Clears all `Accept-CH` preferences learned by this session.
+    /// Clears all `Accept-CH` preferences learned by this client.
     pub fn clear_client_hints(&self) {
         if let Some(client_hints) = &self.state.client_hints {
             client_hints.clear();
@@ -171,10 +188,10 @@ impl Session {
     }
 }
 
-impl fmt::Debug for Session {
+impl fmt::Debug for Client {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
-            .debug_struct("Session")
+            .debug_struct("Client")
             .field("redirect_policy", &self.state.redirect_policy)
             .field(
                 "max_retained_http1_connections",
@@ -231,41 +248,18 @@ impl fmt::Debug for Session {
     }
 }
 
-/// Builds one isolated [`Session`].
+/// Builds an isolated compatibility client from existing transport configuration.
+#[doc(hidden)]
 pub struct SessionBuilder {
-    client: Client,
-    redirect_policy: RedirectPolicy,
-    max_retained_http1_connections: NonZeroUsize,
-    max_pending_http1_requests_per_origin: NonZeroUsize,
-    max_retained_http2_connections: NonZeroUsize,
-    max_concurrent_http2_requests_per_origin: NonZeroUsize,
-    max_pending_http2_requests_per_origin: NonZeroUsize,
-    max_retained_http3_connections: NonZeroUsize,
-    max_concurrent_http3_requests_per_origin: NonZeroUsize,
-    max_pending_http3_requests_per_origin: NonZeroUsize,
-    max_client_hint_origins: NonZeroUsize,
-    #[cfg(feature = "cookies")]
-    cookie_jar: Option<CookieJar>,
+    inner: Arc<ClientInner>,
+    options: ClientOptions,
 }
 
 impl SessionBuilder {
     pub(crate) fn new(client: Client) -> Self {
         Self {
-            client,
-            redirect_policy: RedirectPolicy::none(),
-            max_retained_http1_connections: DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS,
-            max_pending_http1_requests_per_origin: DEFAULT_MAX_PENDING_HTTP1_REQUESTS_PER_ORIGIN,
-            max_retained_http2_connections: DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS,
-            max_retained_http3_connections: DEFAULT_MAX_RETAINED_HTTP3_CONNECTIONS,
-            max_concurrent_http2_requests_per_origin:
-                DEFAULT_MAX_CONCURRENT_HTTP2_REQUESTS_PER_ORIGIN,
-            max_pending_http2_requests_per_origin: DEFAULT_MAX_PENDING_HTTP2_REQUESTS_PER_ORIGIN,
-            max_concurrent_http3_requests_per_origin:
-                DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
-            max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
-            max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
-            #[cfg(feature = "cookies")]
-            cookie_jar: None,
+            inner: client.inner,
+            options: ClientOptions::default(),
         }
     }
 
@@ -274,21 +268,21 @@ impl SessionBuilder {
     /// Redirects are disabled unless a finite policy is supplied explicitly.
     #[must_use]
     pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
-        self.redirect_policy = policy;
+        self.options.redirect_policy = policy;
         self
     }
 
     /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
     #[must_use]
     pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_retained_http1_connections = maximum;
+        self.options.max_retained_http1_connections = maximum;
         self
     }
 
     /// Sets the number of sequential requests allowed to wait for each HTTP/1.1 origin and route.
     #[must_use]
     pub fn max_pending_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_pending_http1_requests_per_origin = maximum;
+        self.options.max_pending_http1_requests_per_origin = maximum;
         self
     }
 
@@ -298,7 +292,7 @@ impl SessionBuilder {
     /// already using it. It prevents later requests from selecting it.
     #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_retained_http2_connections = maximum;
+        self.options.max_retained_http2_connections = maximum;
         self
     }
 
@@ -308,14 +302,14 @@ impl SessionBuilder {
     /// advertised concurrent-stream limit remains independently authoritative.
     #[must_use]
     pub fn max_concurrent_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_concurrent_http2_requests_per_origin = maximum;
+        self.options.max_concurrent_http2_requests_per_origin = maximum;
         self
     }
 
     /// Sets the number of requests allowed to wait for each HTTP/2 origin and route.
     #[must_use]
     pub fn max_pending_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_pending_http2_requests_per_origin = maximum;
+        self.options.max_pending_http2_requests_per_origin = maximum;
         self
     }
 
@@ -325,7 +319,7 @@ impl SessionBuilder {
     /// already using the connection.
     #[must_use]
     pub fn max_retained_http3_connections(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_retained_http3_connections = maximum;
+        self.options.max_retained_http3_connections = maximum;
         self
     }
 
@@ -335,21 +329,21 @@ impl SessionBuilder {
     /// generation cannot temporarily double the origin's admitted work.
     #[must_use]
     pub fn max_concurrent_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_concurrent_http3_requests_per_origin = maximum;
+        self.options.max_concurrent_http3_requests_per_origin = maximum;
         self
     }
 
     /// Sets the number of requests allowed to wait for each HTTP/3 origin and route.
     #[must_use]
     pub fn max_pending_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_pending_http3_requests_per_origin = maximum;
+        self.options.max_pending_http3_requests_per_origin = maximum;
         self
     }
 
     /// Sets the number of origins that may retain `Accept-CH` state.
     #[must_use]
     pub fn max_client_hint_origins(mut self, maximum: NonZeroUsize) -> Self {
-        self.max_client_hint_origins = maximum;
+        self.options.max_client_hint_origins = maximum;
         self
     }
 
@@ -357,7 +351,7 @@ impl SessionBuilder {
     #[cfg(feature = "cookies")]
     #[must_use]
     pub fn cookies(mut self) -> Self {
-        self.cookie_jar = Some(CookieJar::default());
+        self.options.cookie_jar = Some(CookieJar::default());
         self
     }
 
@@ -365,41 +359,17 @@ impl SessionBuilder {
     #[cfg(feature = "cookies")]
     #[must_use]
     pub fn cookie_jar(mut self, jar: CookieJar) -> Self {
-        self.cookie_jar = Some(jar);
+        self.options.cookie_jar = Some(jar);
         self
     }
 
-    /// Builds the session.
+    /// Builds the isolated client.
     #[must_use]
-    pub fn build(self) -> Session {
-        let client_hints = self
-            .client
-            .inner
-            .client_hints
-            .is_some()
-            .then(|| client_hints::ClientHintStore::new(self.max_client_hint_origins));
-        Session {
-            client: self.client,
-            state: Arc::new(SessionState {
-                redirect_policy: self.redirect_policy,
-                http1: http1_pool::Http1Pool::new(
-                    self.max_retained_http1_connections,
-                    self.max_pending_http1_requests_per_origin,
-                ),
-                http2: http2_pool::Http2Pool::new(
-                    self.max_retained_http2_connections,
-                    self.max_concurrent_http2_requests_per_origin,
-                    self.max_pending_http2_requests_per_origin,
-                ),
-                http3: http3_pool::Http3Pool::new(
-                    self.max_retained_http3_connections,
-                    self.max_concurrent_http3_requests_per_origin,
-                    self.max_pending_http3_requests_per_origin,
-                ),
-                client_hints,
-                #[cfg(feature = "cookies")]
-                cookies: self.cookie_jar.map(Arc::new),
-            }),
+    pub fn build(self) -> Client {
+        let state = self.options.build(&self.inner);
+        Client {
+            inner: self.inner,
+            state,
         }
     }
 }
@@ -408,44 +378,47 @@ impl fmt::Debug for SessionBuilder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("SessionBuilder")
-            .field("redirect_policy", &self.redirect_policy)
+            .field("redirect_policy", &self.options.redirect_policy)
             .field(
                 "max_retained_http1_connections",
-                &self.max_retained_http1_connections,
+                &self.options.max_retained_http1_connections,
             )
             .field(
                 "max_pending_http1_requests_per_origin",
-                &self.max_pending_http1_requests_per_origin,
+                &self.options.max_pending_http1_requests_per_origin,
             )
             .field(
                 "max_retained_http2_connections",
-                &self.max_retained_http2_connections,
+                &self.options.max_retained_http2_connections,
             )
             .field(
                 "max_concurrent_http2_requests_per_origin",
-                &self.max_concurrent_http2_requests_per_origin,
+                &self.options.max_concurrent_http2_requests_per_origin,
             )
             .field(
                 "max_pending_http2_requests_per_origin",
-                &self.max_pending_http2_requests_per_origin,
+                &self.options.max_pending_http2_requests_per_origin,
             )
             .field(
                 "max_retained_http3_connections",
-                &self.max_retained_http3_connections,
+                &self.options.max_retained_http3_connections,
             )
             .field(
                 "max_concurrent_http3_requests_per_origin",
-                &self.max_concurrent_http3_requests_per_origin,
+                &self.options.max_concurrent_http3_requests_per_origin,
             )
             .field(
                 "max_pending_http3_requests_per_origin",
-                &self.max_pending_http3_requests_per_origin,
+                &self.options.max_pending_http3_requests_per_origin,
             )
-            .field("max_client_hint_origins", &self.max_client_hint_origins)
+            .field(
+                "max_client_hint_origins",
+                &self.options.max_client_hint_origins,
+            )
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {
-                    self.cookie_jar.is_some()
+                    self.options.cookie_jar.is_some()
                 }
                 #[cfg(not(feature = "cookies"))]
                 {
@@ -458,15 +431,15 @@ impl fmt::Debug for SessionBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{Session, SessionBuilder};
-    use crate::{RequestBuilder, ResponseBody};
+    use super::SessionBuilder;
+    use crate::{Client, RequestBuilder, ResponseBody};
 
     fn assert_send_sync_clone<T: Send + Sync + Clone>() {}
     fn assert_send_sync<T: Send + Sync>() {}
 
     #[test]
-    fn session_handles_are_send_sync_and_clone() {
-        assert_send_sync_clone::<Session>();
+    fn client_handles_are_send_sync_and_clone() {
+        assert_send_sync_clone::<Client>();
         fn assert_send<T: Send>() {}
         assert_send::<SessionBuilder>();
         fn assert_send_static<T: Send + 'static>() {}

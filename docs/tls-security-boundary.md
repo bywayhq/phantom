@@ -26,7 +26,7 @@ The default TCP TLS path:
 - verifies the hostname and sends SNI;
 - returns configuration and handshake failures instead of silently retrying
   with a different version, suite list, protocol, or route;
-- retains at most eight tickets in each session-owned H1 or H2 pool entry,
+- retains at most eight tickets in each client-owned H1 or H2 pool entry,
   partitioned by origin, complete route, protocol, profile, and TLS context;
 - consumes single-use TLS 1.3 tickets, prunes expired tickets, and strips
   early-data capability before storage;

@@ -451,6 +451,7 @@ async fn plaintext_proxy_route_override_canonicalizes_http2_authority_and_stream
             .map(str::to_owned);
         assert_eq!(collected.to_bytes(), "h2-proxy");
         assert_eq!(trailer.as_deref(), Some("yes"));
+        drop(client);
 
         let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
         assert_eq!(
@@ -530,6 +531,7 @@ async fn https_proxy_route_override_canonicalizes_http2_authority_and_streams_tr
             .map(str::to_owned);
         assert_eq!(collected.to_bytes(), "h2-proxy");
         assert_eq!(trailer.as_deref(), Some("yes"));
+        drop(client);
 
         let connect = proxy.await??;
         let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());

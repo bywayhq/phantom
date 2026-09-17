@@ -2,7 +2,7 @@
 
 Proxy choice is an owned `Route`, not a header convention or an environment
 fallback. Set a default route on `ClientBuilder` or override it on one request.
-The complete route participates in the session's H1/H2 pool key, so a
+The complete route participates in the client's H1/H2 pool key, so a
 connection is never reused across proxy endpoints, DNS modes, or credentials.
 
 ```rust,no_run
@@ -53,11 +53,11 @@ println!("{}", response.status());
 HTTPS proxy roots are configured with
 `ClientBuilder::add_proxy_root_certificate_der`; they do not extend origin
 trust. `ClientBuilder::proxy_server_authentication` controls only the proxy TLS
-leg. Plaintext and TLS proxy routes are distinct pool identities, and session
-ticket caches for proxy and origin handshakes are isolated.
+leg. Plaintext and TLS proxy routes are distinct pool identities, and ticket
+caches for proxy and origin handshakes are isolated.
 
 SOCKS5 remains TCP CONNECT only. Both no-auth and username/password routes
-support one-shot H1/H2 requests, session-owned H1/H2 reuse, and H1 WSS. Each
+support pooled H1/H2 requests and H1 WSS. Each
 username and password must encode to 1–255 UTF-8 bytes; construction rejects
 invalid lengths before DNS or network I/O. Credentials are owned by the route,
 included in route and pool identity, and omitted from debug output, errors,
@@ -88,9 +88,9 @@ let response = client
 
 The origin authority is canonicalized once and used for both the absolute
 request target and leading `Host` field. Caller field casing, order, and
-duplicates remain preserved. A bare client opens one proxy connection per
-request; a session reuses a completed same-origin, same-route connection
-without pipelining. Origin and route remain pool-key inputs even though some
+duplicates remain preserved. A client reuses a completed same-origin,
+same-route connection without pipelining. Origin and route remain pool-key
+inputs even though some
 proxies could serve multiple origins on one connection.
 
 Direct plaintext HTTP, negotiated H1/H2, H2, H3, proxy credentials,

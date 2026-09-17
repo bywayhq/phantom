@@ -1,4 +1,4 @@
-use std::{fmt, sync::Arc};
+use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 use phantom_net::{
@@ -7,7 +7,12 @@ use phantom_net::{
 };
 use phantom_profile::{ClientHintSettings, ClientProfile};
 
-use crate::{BuildError, RequestBuilder, Route, Session, SessionBuilder};
+#[cfg(feature = "cookies")]
+use crate::CookieJar;
+use crate::{
+    BuildError, RedirectPolicy, RequestBuilder, Route, Session, SessionBuilder,
+    session::{ClientOptions, ClientState},
+};
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
 
@@ -33,14 +38,15 @@ impl HttpProtocol {
     }
 }
 
-/// Immutable transport configuration for routed, exact-protocol requests.
+/// Cloneable owner of transport configuration and bounded cross-request state.
 ///
-/// Clones share validated protocol connectors but no mutable request state.
-/// Use [`Client::session`] when requests should share connections, cookies, or
-/// negotiated client-hint state.
-#[derive(Clone, Debug)]
+/// Clones share connection pools, cookies when enabled, redirect policy, TLS
+/// sessions, and negotiated client-hint state. Independently built clients
+/// share none of that mutable state.
+#[derive(Clone)]
 pub struct Client {
     pub(crate) inner: Arc<ClientInner>,
+    pub(crate) state: Arc<ClientState>,
 }
 
 #[derive(Debug)]
@@ -65,6 +71,7 @@ impl Client {
             proxy_additional_roots: Vec::new(),
             proxy_server_authentication: ServerAuthentication::default(),
             route: Route::Direct,
+            options: ClientOptions::default(),
         }
     }
 
@@ -101,9 +108,12 @@ impl Client {
     ///
     /// The request performs one TCP connection and one TLS handshake. Exact
     /// `h2` selects HTTP/2; exact `http/1.1` or absent ALPN selects HTTP/1.1.
-    /// It does not race, retry, or consult Alt-Svc. Any non-direct configured
-    /// or per-request route is rejected before I/O. [`crate::ResponseInfo::protocol`]
-    /// reports the selected protocol.
+    /// It does not race, perform transport retries, or consult Alt-Svc. Any
+    /// non-direct configured or per-request route is rejected before I/O.
+    /// [`crate::ResponseInfo::protocol`]
+    /// reports the selected protocol. Client cookies and learned client hints
+    /// apply, but the selected connection is not retained in an exact-protocol
+    /// pool.
     ///
     /// # Errors
     ///
@@ -137,14 +147,16 @@ impl Client {
         WebSocketRequestBuilder::new_client(self.clone(), uri)
     }
 
-    /// Creates an isolated session with default bounded state.
+    /// Creates an isolated compatibility client with default bounded state.
     #[must_use]
+    #[doc(hidden)]
     pub fn session(&self) -> Session {
         self.session_builder().build()
     }
 
-    /// Starts a builder for an isolated session over this client.
+    /// Starts a compatibility builder for isolated state over this transport.
     #[must_use]
+    #[doc(hidden)]
     pub fn session_builder(&self) -> SessionBuilder {
         SessionBuilder::new(self.clone())
     }
@@ -158,6 +170,7 @@ pub struct ClientBuilder {
     proxy_additional_roots: Vec<Box<[u8]>>,
     proxy_server_authentication: ServerAuthentication,
     route: Route,
+    options: ClientOptions,
 }
 
 impl fmt::Debug for ClientBuilder {
@@ -191,6 +204,53 @@ impl fmt::Debug for ClientBuilder {
                 &self.proxy_server_authentication,
             )
             .field("route", &self.route)
+            .field("redirect_policy", &self.options.redirect_policy)
+            .field(
+                "max_retained_http1_connections",
+                &self.options.max_retained_http1_connections,
+            )
+            .field(
+                "max_pending_http1_requests_per_origin",
+                &self.options.max_pending_http1_requests_per_origin,
+            )
+            .field(
+                "max_retained_http2_connections",
+                &self.options.max_retained_http2_connections,
+            )
+            .field(
+                "max_concurrent_http2_requests_per_origin",
+                &self.options.max_concurrent_http2_requests_per_origin,
+            )
+            .field(
+                "max_pending_http2_requests_per_origin",
+                &self.options.max_pending_http2_requests_per_origin,
+            )
+            .field(
+                "max_retained_http3_connections",
+                &self.options.max_retained_http3_connections,
+            )
+            .field(
+                "max_concurrent_http3_requests_per_origin",
+                &self.options.max_concurrent_http3_requests_per_origin,
+            )
+            .field(
+                "max_pending_http3_requests_per_origin",
+                &self.options.max_pending_http3_requests_per_origin,
+            )
+            .field(
+                "max_client_hint_origins",
+                &self.options.max_client_hint_origins,
+            )
+            .field("cookies_enabled", &{
+                #[cfg(feature = "cookies")]
+                {
+                    self.options.cookie_jar.is_some()
+                }
+                #[cfg(not(feature = "cookies"))]
+                {
+                    false
+                }
+            })
             .finish_non_exhaustive()
     }
 }
@@ -240,6 +300,92 @@ impl ClientBuilder {
     #[must_use]
     pub fn route(mut self, route: Route) -> Self {
         self.route = route;
+        self
+    }
+
+    /// Sets the finite policy for following redirect responses.
+    #[must_use]
+    pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
+        self.options.redirect_policy = policy;
+        self
+    }
+
+    /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
+    #[must_use]
+    pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_retained_http1_connections = maximum;
+        self
+    }
+
+    /// Sets the number of sequential requests allowed to wait per HTTP/1.1 pool key.
+    #[must_use]
+    pub fn max_pending_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_pending_http1_requests_per_origin = maximum;
+        self
+    }
+
+    /// Sets the maximum number of HTTP/2 connections retained for reuse.
+    #[must_use]
+    pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_retained_http2_connections = maximum;
+        self
+    }
+
+    /// Sets the local active-request bound for each HTTP/2 pool key.
+    #[must_use]
+    pub fn max_concurrent_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_concurrent_http2_requests_per_origin = maximum;
+        self
+    }
+
+    /// Sets the number of requests allowed to wait per HTTP/2 pool key.
+    #[must_use]
+    pub fn max_pending_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_pending_http2_requests_per_origin = maximum;
+        self
+    }
+
+    /// Sets the maximum number of HTTP/3 connections retained for reuse.
+    #[must_use]
+    pub fn max_retained_http3_connections(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_retained_http3_connections = maximum;
+        self
+    }
+
+    /// Sets the local active-request bound for each HTTP/3 pool key.
+    #[must_use]
+    pub fn max_concurrent_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_concurrent_http3_requests_per_origin = maximum;
+        self
+    }
+
+    /// Sets the number of requests allowed to wait per HTTP/3 pool key.
+    #[must_use]
+    pub fn max_pending_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_pending_http3_requests_per_origin = maximum;
+        self
+    }
+
+    /// Sets the number of origins that may retain `Accept-CH` state.
+    #[must_use]
+    pub fn max_client_hint_origins(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_client_hint_origins = maximum;
+        self
+    }
+
+    /// Enables a bounded in-memory cookie jar owned by the client.
+    #[cfg(feature = "cookies")]
+    #[must_use]
+    pub fn cookies(mut self) -> Self {
+        self.options.cookie_jar = Some(CookieJar::default());
+        self
+    }
+
+    /// Enables cookie handling with a caller-created jar.
+    #[cfg(feature = "cookies")]
+    #[must_use]
+    pub fn cookie_jar(mut self, jar: CookieJar) -> Self {
+        self.options.cookie_jar = Some(jar);
         self
     }
 
@@ -387,17 +533,17 @@ impl ClientBuilder {
             return Err(BuildError::no_supported_protocol());
         }
 
-        Ok(Client {
-            inner: Arc::new(ClientInner {
-                http1,
-                http1_or_2,
-                http2,
-                http3,
-                https_proxy,
-                client_hints,
-                route: self.route,
-            }),
-        })
+        let inner = Arc::new(ClientInner {
+            http1,
+            http1_or_2,
+            http2,
+            http3,
+            https_proxy,
+            client_hints,
+            route: self.route,
+        });
+        let state = self.options.build(&inner);
+        Ok(Client { inner, state })
     }
 }
 

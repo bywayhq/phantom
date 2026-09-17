@@ -2,9 +2,9 @@
 
 Phantom is a Rust-native client whose observable wire behavior is driven by a
 validated client profile. The current workspace owns profiles, a small routed
-H1/H2/H3 client facade, concrete request paths, session-owned H1/H2/H3 reuse,
+H1/H2/H3 client facade, concrete request paths, client-owned H1/H2/H3 reuse,
 optional bounded cookies, and the validation harness. Later slices extend
-session behavior. Phantom carries narrow,
+cross-request behavior. Phantom carries narrow,
 documented patches to upstream protocol engines only where their public APIs
 cannot preserve a measured client behavior.
 
@@ -23,8 +23,8 @@ commitments.
 ```mermaid
 flowchart TB
     User[Application]
-    Client["phantom::Client<br/>small public facade"]
-    Session["Session<br/>H1 · H2 · H3 pools · optional cookies"]
+    Client["phantom::Client<br/>cheap-clone pooled owner"]
+    State["Client state<br/>H1 · H2 · H3 pools · optional cookies"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
     Route["Current route<br/>direct · HTTP(S) CONNECT · SOCKS5"]
     FutureRoute["Later routes<br/>forwarding · UDP"]
@@ -44,7 +44,7 @@ flowchart TB
     FacadeRequest --> H1
     FacadeRequest --> H2
     FacadeRequest --> H3
-    Client --> Session
+    Client --> State
     Client --> Route
     FutureRoute -.-> Route
     Client --> FacadeRequest
@@ -66,7 +66,7 @@ flowchart TB
 
     classDef current fill:#dff7e8,stroke:#237a49,color:#10291c
     classDef planned fill:#f7f7f7,stroke:#777,stroke-dasharray:5 4,color:#333
-    class Client,Session,Profile,Route,FacadeRequest,NegotiatedRequest,H1,H2,H3,TLS,QUIC,SSE,WS current
+    class Client,State,Profile,Route,FacadeRequest,NegotiatedRequest,H1,H2,H3,TLS,QUIC,SSE,WS current
     class FutureRoute planned
 ```
 
@@ -85,8 +85,8 @@ paths. It validates a request for both H1 and H2 before I/O, performs one TLS
 handshake, then consumes that same stream with the selected engine. It never
 probes with one exact connector and reconnects with another. H2 selection
 reuses the exact connector's ALPS decoding and connection metadata handoff.
-The path is bare-client and direct-only until pooling and route identity have
-their own negotiated-protocol design.
+The path is direct-only and does not enter the exact-protocol pools until
+negotiated-protocol pool identity has its own design.
 
 All three transports return the standard `http::Response` semantic view and
 attach `OrderedResponseHeaders` to its extensions. This sidecar retains global
@@ -167,12 +167,12 @@ Connection reuse keys include the physical route, origin and SNI, negotiated
 protocol, complete wire profile identity, proxy scheme and endpoint, auth
 identity, DNS mode, and local bind settings. Rotation therefore cannot reuse a
 connection opened through another proxy. Cookies, tickets, DNS/Alt-Svc state,
-and mutable request defaults remain session-scoped rather than process-global.
+and mutable request defaults remain client-scoped rather than process-global.
 
 ## Pooling and multiplexing
 
 The connection pool owns physical connections, capacity, and waiter admission;
-the session owns logical cross-request state. HTTP/1.1 connections admit one
+the client owns logical cross-request state. HTTP/1.1 connections admit one
 active exchange and are reused sequentially, with pipelining disabled. HTTP/2
 and HTTP/3 connections admit concurrent streams up to the minimum of the
 peer-advertised limit and a configured local bound. There is no generic
@@ -195,16 +195,16 @@ proven. A connection is never shared across profile generations or route
 identities merely because two requests resolve to the same address.
 
 The current public pool is deliberately narrower than this final contract. A
-`Session` retains one reusable H1, H2, or direct H3 connection per exact
+`Client` retains one reusable H1, H2, or direct H3 connection per exact
 origin-and-route key, serializes same-key cold connection setup, and evicts
 least-recently selected retained entries at configurable bounds. Different
-sessions never share connections. H1 is sequential and non-pipelined; a full,
+independently built clients never share connections. H1 is sequential and non-pipelined; a full,
 self-delimited body releases the next admitted request. H2 and H3 have bounded
 local active work and waiters, stream-scoped cancellation, and stale/GOAWAY
 generation replacement. H2 retries one bodyless GET rejected by
 `GOAWAY(NO_ERROR)` exactly once on the replacement and delegates the peer's
 concurrent stream limit to the protocol engine. General retry policy and
-coalescing remain unimplemented. See [session state and pooling](session.md).
+coalescing remain unimplemented. See [client state and pooling](session.md).
 
 The direct H3 path uses Quinn for QUIC and hyperium's `h3` engine.
 `phantom-quic-btls` implements Quinn's crypto-provider seam with the same
@@ -274,7 +274,7 @@ backend trait.
 
 ```text
 crates/
-├── phantom/          # public Client facade; later session and pool ownership
+├── phantom/          # public Client facade, state, and pool ownership
 ├── phantom-profile/  # client-neutral identity and typed wire settings
 ├── phantom-net/      # concrete TLS, H1, H2, and later H3 mechanisms
 ├── phantom-quic-btls/ # isolated Quinn/BoringSSL client crypto provider
@@ -340,7 +340,7 @@ while deterministic minimized cases stay in the ordinary test suite.
 
 - Dependencies point from the facade toward profiles and network mechanisms.
 - Runtime crates never depend on `phantom-testkit`.
-- Profiles never contain mutable session state such as cookies.
+- Profiles never contain mutable client state such as cookies.
 - Observable wire ordering uses ordered representations end to end.
 - Every public option must be implemented, validated, and observable in a test.
 - Certificate and hostname verification remain concrete transport behavior.

@@ -109,14 +109,14 @@ async fn forward_proxy_status_is_returned_without_direct_fallback() -> TestResul
 }
 
 #[tokio::test]
-async fn bare_client_forward_requests_remain_one_shot() -> TestResult<()> {
+async fn client_reuses_same_origin_and_forward_route() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let proxy = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
             let mut heads = Vec::new();
             for _ in 0..2 {
-                let (mut stream, _) = listener.accept().await?;
                 heads.push(read_head(&mut stream).await?);
                 stream
                     .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")

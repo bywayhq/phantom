@@ -211,7 +211,7 @@ Tokio is the initial explicit runtime. Core bodies remain backpressured
 without changing enabled behavior. The feature matrix and cancellation
 contract are defined in [async and feature policy](async-and-features.md).
 Mutable cookies, redirects, retries, tickets, and learned client hints belong
-to session policy rather than immutable wire profiles.
+to client-owned state rather than immutable wire profiles.
 
 The first landed slice is deliberately smaller than the complete phase. It
 adds an immutable `Client` built from TLS and optional H2 profile components,
@@ -278,8 +278,10 @@ route, with pipelining disabled and bounded waiters. Reuse begins only after a
 self-delimited response body completes. Incomplete bodies, dispatched-request
 cancellation, protocol errors, HTTP/1.0, close-delimited responses, and either
 side's `Connection: close` retire the generation. Ordered response fields are
-captured independently on every exchange. Bare-client and WebSocket requests
-remain one-shot, and stale connection races are surfaced without replay.
+captured independently on every exchange. At that slice boundary, bare-client
+and WebSocket requests remained one-shot; stale connection races were surfaced
+without replay. The pooled-owner migration below supersedes the bare-client
+behavior while WebSocket still owns its upgraded connection.
 
 The sixth landed route slice adds SOCKS5 with explicit DNS ownership:
 `socks5://` resolves origin names locally and sends IP targets, while
@@ -352,7 +354,7 @@ metadata before the first request; and `Critical-CH` has one safe-method
 replay. Live post-handshake `ACCEPT_CH` frames, browser navigation-context
 delegation, and persistence remain separate work.
 
-The direct negotiation slice is also landed for bare-client requests. It
+The direct negotiation slice is also landed for direct negotiated requests. It
 validates both H1 and H2 representations before I/O, opens one TCP connection,
 performs one TLS handshake with the profile's ordered ALPN offer, and enters
 only the selected engine. Exact `h2` applies the existing ALPS peer settings
@@ -373,13 +375,21 @@ authority; equivalent Unicode and ASCII inputs share session state and reuse.
 The plaintext HTTP forwarding slice is landed for exact HTTP/1.1 through a
 plaintext `HttpProxy`. The canonical absolute-form target and leading `Host`
 share one authority, while caller field spelling, order, duplicates, and owned
-body framing remain unchanged. Bare clients stay one-shot; sessions reuse only
-same-origin, same-route connections and retain the existing no-pipelining
-contract. Direct HTTP, proxy TLS, forwarding credentials and redirects,
+body framing remain unchanged. The initial API kept bare clients one-shot and
+put reuse on sessions; the pooled-owner migration below supersedes that split.
+Reuse remains limited to same-origin, same-route connections and retains the
+existing no-pipelining contract. Direct HTTP, proxy TLS, forwarding credentials and redirects,
 negotiated H1/H2, H2, H3, and caller `Proxy-Authorization` fail before proxy
 I/O. Plaintext responses neither receive generated Client Hints nor seed
 `Accept-CH` state. Low-level validation also rejects a `Connection` field that
 names `Host` or a framing field.
+
+The pooled-owner API migration is landed after the original session slices.
+`Client` is now the cheap-clone pooled owner for H1, H2, H3, cookies, learned
+client hints, redirects, and TLS tickets. `ClientBuilder` owns their bounds and
+policies. Independently built clients remain isolated. The former `Session`
+names are retained only as hidden compatibility aliases during the migration;
+new documentation and tests use `Client` directly.
 
 HTTP/1 response parsing now owns fixed aggregate-head, field-count, and
 chunk-size-line limits. Exact-boundary regressions prove acceptance at each
@@ -405,12 +415,12 @@ Acceptance:
   IDNA, local/remote DNS, half-close, cancellation, and rotation are covered.
 - H3 over SOCKS5 UDP ASSOCIATE is packet-tested before exposure; CONNECT-UDP
   and MASQUE follow as separate proven capabilities.
-- Pooling never crosses a route, profile, origin/SNI, protocol, or session-state
+- Pooling never crosses a route, profile, origin/SNI, protocol, or client-state
   boundary, and client shutdown drains with a deadline.
 - HTTP/1.1 reuse remains single-exchange and non-pipelined; HTTP/2 and HTTP/3
   admission respects both peer and local stream limits, bounds waiters, and
   keeps cancellation and GOAWAY draining stream-scoped.
-- `Accept-CH` state is secure-origin scoped and session owned; redirects do not
+- `Accept-CH` state is secure-origin scoped and client owned; redirects do not
   leak hints cross-origin, and `Critical-CH` can retry at most once only for a
   safe request. Transport-delivered `ACCEPT_CH` augments request preparation
   but remains owned by the selected connection.
@@ -434,11 +444,11 @@ The initial inventory is maintained in
 
 ## Phase 7: SSE and WebSocket — in progress
 
-The feature-gated SSE slice includes a bounded pull parser and a session-owned,
+The feature-gated SSE slice includes a bounded pull parser and a client-owned,
 finite reconnect controller. It carries committed `id` and `retry` state,
 emits `Last-Event-ID` on reconnect, preserves reconnect deadlines across
 cancelled reads, supports an optional DATA-activity idle timeout, and treats
-204 as permanent termination while reusing ordinary session routing,
+204 as permanent termination while reusing ordinary client routing,
 redirects, cookies, and pools. Its ordered browser request defaults and parser,
 reconnect, MIME, UTF-8, and status behavior are exercised by selected resources
 from a pinned Web Platform Tests revision on Linux and macOS. Jitter and

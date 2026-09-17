@@ -1,6 +1,6 @@
 # Server-sent events
 
-The optional `sse` feature adds a pull-based decoder and a session-owned,
+The optional `sse` feature adds a pull-based decoder and a client-owned,
 bounded reconnect controller over Phantom's existing streaming response body.
 Neither API creates a background task, channel, or event queue.
 
@@ -21,7 +21,7 @@ while let Some(event) = events.next_event().await? {
 # }
 ```
 
-Use `Session::event_source` when reconnect behavior is required:
+Use `Client::event_source` when reconnect behavior is required:
 
 ```rust,no_run
 use std::time::Duration;
@@ -30,7 +30,6 @@ use phantom::{Client, HttpProtocol};
 
 # async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 let response = client
-    .session()
     .event_source(HttpProtocol::Http2, "https://example.com/events")?
     .idle_timeout(Duration::from_secs(30))
     .initial_retry(Duration::from_secs(3))
@@ -71,7 +70,7 @@ request for the next read. It carries committed `id` and `retry` state across
 responses, adds one `Last-Event-ID` field when the committed ID is nonempty,
 and stops permanently on 204. Initial transport failures, later disconnects,
 and idle responses use the same finite attempt budget. Reconnects use the same
-exact protocol, session cookies, redirect policy, ordered caller fields, and
+exact protocol, client cookies, redirect policy, ordered caller fields, and
 route. A caller-supplied `Last-Event-ID` is rejected so reconnects cannot emit
 duplicates.
 

@@ -198,16 +198,13 @@ impl PoolEntry {
             if connector.can_reuse(&slot.connection).await {
                 debug!(
                     outcome = "hit",
-                    "HTTP/3 connection acquired from session pool"
+                    "HTTP/3 connection acquired from client pool"
                 );
                 return Ok(slot.lease());
             }
         }
 
-        debug!(
-            outcome = "connect",
-            "HTTP/3 session pool opening connection"
-        );
+        debug!(outcome = "connect", "HTTP/3 client pool opening connection");
         let connection = connector
             .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
             .await

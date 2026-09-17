@@ -31,7 +31,7 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use h2_support::{accept_client_preface, read_request_headers, write_frame};
-use tls_support::{H2_ALPN, TestIdentity, test_client};
+use tls_support::{H2_ALPN, TestIdentity, client_builder, test_client};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -71,11 +71,10 @@ async fn http2_admission_is_bounded_until_body_drop_and_cancel_safe() -> TestRes
         });
 
         let one = NonZeroUsize::MIN;
-        let session = test_client(&identity, true)?
-            .session_builder()
+        let session = client_builder(&identity, true)
             .max_concurrent_http2_requests_per_origin(one)
             .max_pending_http2_requests_per_origin(one)
-            .build();
+            .build()?;
         let held = session
             .get(HttpProtocol::Http2, &format!("https://{address}/held"))?
             .send()

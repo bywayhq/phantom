@@ -184,16 +184,13 @@ impl PoolEntry {
             if slot.connection.is_reusable() {
                 debug!(
                     outcome = "hit",
-                    "HTTP/1 connection acquired from session pool"
+                    "HTTP/1 connection acquired from client pool"
                 );
                 return Ok(slot.lease());
             }
         }
 
-        debug!(
-            outcome = "connect",
-            "HTTP/1 session pool opening connection"
-        );
+        debug!(outcome = "connect", "HTTP/1 client pool opening connection");
         let connection = if forwarded {
             let Route::HttpProxy(proxy) = route else {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http1));
@@ -318,7 +315,7 @@ impl PoolEntry {
             current.take();
             debug!(
                 outcome = "invalidated",
-                "HTTP/1 session connection invalidated"
+                "HTTP/1 pooled connection invalidated"
             );
         }
     }

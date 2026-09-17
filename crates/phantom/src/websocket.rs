@@ -13,7 +13,7 @@ use phantom_net::{
 use tracing::{Instrument, debug_span, field};
 
 use crate::{
-    Client, RequestError, ResponseBody, Route, Session,
+    Client, RequestError, ResponseBody, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
 };
 
@@ -40,7 +40,7 @@ use trace::OperationOutcome;
 /// Builder for one ordered secure WebSocket opening handshake.
 #[must_use = "WebSocket builders do nothing until connect is awaited"]
 pub struct WebSocketRequestBuilder {
-    context: WebSocketContext,
+    client: Client,
     request: ResolvedWebSocket,
     headers: Vec<WebSocketHeader>,
     limits: WebSocketLimits,
@@ -58,27 +58,21 @@ impl fmt::Debug for WebSocketRequestBuilder {
             .field("route_override", &self.route.is_some());
         #[cfg(feature = "websocket-deflate")]
         debug.field("permessage_deflate", &self.permessage_deflate.is_some());
-        debug
-            .field("session", &self.context.session().is_some())
-            .finish_non_exhaustive()
+        debug.finish_non_exhaustive()
     }
 }
 
 impl WebSocketRequestBuilder {
     pub(crate) fn new_client(client: Client, uri: &str) -> Result<Self, WebSocketError> {
-        Self::new(WebSocketContext::Client(client), uri)
+        Self::new(client, uri)
     }
 
-    pub(crate) fn new_session(session: Session, uri: &str) -> Result<Self, WebSocketError> {
-        Self::new(WebSocketContext::Session(session), uri)
-    }
-
-    fn new(context: WebSocketContext, uri: &str) -> Result<Self, WebSocketError> {
-        if context.client().inner.http1.is_none() {
+    fn new(client: Client, uri: &str) -> Result<Self, WebSocketError> {
+        if client.inner.http1.is_none() {
             return Err(WebSocketError::protocol_unavailable());
         }
         Ok(Self {
-            context,
+            client,
             request: ResolvedWebSocket::new(uri)?,
             headers: default_headers(),
             limits: WebSocketLimits::default(),
@@ -133,10 +127,7 @@ impl WebSocketRequestBuilder {
     /// Returns [`WebSocketError`] for invalid pre-I/O configuration, route or
     /// TLS failure, HTTP rejection, invalid `101` fields, or framing setup.
     pub async fn connect(self) -> Result<WebSocket, WebSocketError> {
-        let route = self
-            .route
-            .as_ref()
-            .unwrap_or(&self.context.client().inner.route);
+        let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
         let span = debug_span!(
             "websocket.connect",
             protocol = "http/1.1",
@@ -155,7 +146,7 @@ impl WebSocketRequestBuilder {
 
     async fn connect_inner(self) -> Result<WebSocket, WebSocketError> {
         let Self {
-            context,
+            client,
             request,
             headers,
             limits,
@@ -163,14 +154,10 @@ impl WebSocketRequestBuilder {
             #[cfg(feature = "websocket-deflate")]
             permessage_deflate,
         } = self;
-        let client = context.client();
         let route = route.as_ref().unwrap_or(&client.inner.route);
 
         #[cfg(feature = "cookies")]
-        let cookie_jar = context
-            .session()
-            .and_then(|session| session.state.cookies.as_ref())
-            .map(Arc::clone);
+        let cookie_jar = client.state.cookies.as_ref().map(Arc::clone);
         #[cfg(feature = "cookies")]
         let cookie_value = cookie_jar
             .as_deref()
@@ -354,27 +341,6 @@ impl WebSocketRequestBuilder {
                 )
                 .await)
             }
-        }
-    }
-}
-
-enum WebSocketContext {
-    Client(Client),
-    Session(Session),
-}
-
-impl WebSocketContext {
-    fn client(&self) -> &Client {
-        match self {
-            Self::Client(client) => client,
-            Self::Session(session) => &session.client,
-        }
-    }
-
-    fn session(&self) -> Option<&Session> {
-        match self {
-            Self::Client(_) => None,
-            Self::Session(session) => Some(session),
         }
     }
 }

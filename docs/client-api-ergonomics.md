@@ -31,11 +31,12 @@ familiar convenience.
 - HTTP status is not a transport failure. A future status convenience remains
   separate from request execution.
 
-## Resolve before API stabilization
+## Stabilization decisions
 
-1. Decide whether the reusable pooled object becomes `Client`. Most ecosystems
-   use that name for the cheap cloneable pooled handle; Phantom currently calls
-   the one-shot configuration `Client` and the pooled state `Session`.
+1. The reusable pooled object is `Client`. It is cheap to clone, and clones
+   share pools and bounded cross-request state. Independently built clients are
+   isolated. The former `Session` names remain hidden compatibility aliases
+   during migration and are not the API taught to new callers.
 2. Add phase-aware timeout policy with client defaults and request overrides:
    connection/TLS, pool admission, request write inactivity, response head,
    response read inactivity, and an optional whole-operation deadline. SSE and
@@ -54,7 +55,7 @@ familiar convenience.
 ## Required lifecycle regression
 
 Run a long-lived SSE response and concurrent bodied requests on the same H2 and
-H3 session. Backpressure or cancellation on the SSE stream must not stall,
+H3 client. Backpressure or cancellation on the SSE stream must not stall,
 cancel, or close siblings. This specifically guards the scheduling class seen
 in [Undici issue 5524](https://github.com/nodejs/undici/issues/5524).
 

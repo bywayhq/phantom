@@ -121,16 +121,16 @@ Additional regressions cover:
 - TLS 1.3 resumption after a complete H2 response and graceful H2 shutdown on
   the replacement connection at
   `/.well-known/phantom/resume`, absence of an early-data offer, and a full
-  handshake from a separate Phantom session.
+  handshake from a separately built Phantom client.
 
-The H2 redirect pair runs through the public session path. Its 302 case rewrites
+The H2 redirect pair runs through the public client path. Its 302 case rewrites
 POST to a bodyless GET, while its 307 case preserves the POST and owned body.
 Both resolve an encoded dot segment to the canonical final path and complete
 the request stream. The fixture also closes the first H2 generation before the
 second transaction, exercising pool replacement without making connection
 identity part of the contract.
 
-The H3 redirect chronology probe is also retained through the public session
+The H3 redirect chronology probe is also retained through the public client
 path. Phantom follows the 302 on the same H3 connection after response headers
 and before the peer finishes the initial response stream, then exposes only the
 terminal response. The peer keeps the first stream unfinished so this is an
@@ -157,7 +157,7 @@ bounded 421 replay regression.
   UDP route variants. HTTPS proxy regressions cover the two TLS boundaries,
   ordered CONNECT handoff, over-read bytes, ALPN rejection, and no fallback.
 - SSE covers BOM and line-ending variants, split UTF-8, comments, `id`, and
-  `retry`. A deterministic H1 session regression also covers one bounded
+  `retry`. A deterministic H1 client regression also covers one bounded
   reconnect, `Last-Event-ID`, cookie carry-over, cancellation-safe delay and
   DATA-activity idle deadlines, terminal timeout, and 204 termination. Broader
   retained browser and H2/H3 reconnect matrices remain future work.
@@ -171,7 +171,7 @@ preloading a `Link` from a 103 response and synthesizing `Sec-Fetch-*` require
 an explicit browsing-context policy; the transport should preserve the
 protocol event without pretending to be a renderer.
 
-Session-level response policy uses the same hostile-peer method. Client-hint
+Client-level response policy uses the same hostile-peer method. Client-hint
 regressions combine repeated structured fields, malformed members, empty and
 unsupported-only replacement, exact-origin port isolation, explicit clearing,
 cross-origin redirect stripping, and a repeated `Critical-CH` demand. The

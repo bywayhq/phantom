@@ -210,7 +210,7 @@ async fn http2_alps_accept_ch_applies_to_the_first_request_without_a_probe() -> 
 }
 
 #[tokio::test]
-async fn negotiated_http2_applies_alps_accept_ch_to_its_first_request() -> TestResult<()> {
+async fn negotiated_http2_applies_alps_and_retains_response_accept_ch() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -240,6 +240,28 @@ async fn negotiated_http2_applies_alps_accept_ch_to_its_first_request() -> TestR
             response.send_response(
                 Response::builder()
                     .status(StatusCode::NO_CONTENT)
+                    .header("accept-ch", "Sec-CH-UA-Arch")
+                    .body(())?,
+                true,
+            )?;
+            drop((request, response));
+            poll_fn(|context| connection.poll_closed(context)).await?;
+
+            let stream = accept_tls(&listener, &acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut response) = accept_http2(&mut connection).await?;
+            assert_eq!(
+                request.headers().get("sec-ch-ua"),
+                Some(&"baseline".parse()?)
+            );
+            assert_eq!(
+                request.headers().get("sec-ch-ua-arch"),
+                Some(&"\"arm\"".parse()?)
+            );
+            assert!(!request.headers().contains_key("sec-ch-ua-platform-version"));
+            response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
                     .body(())?,
                 true,
             )?;
@@ -248,9 +270,16 @@ async fn negotiated_http2_applies_alps_accept_ch_to_its_first_request() -> TestR
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let response = alps_client(&identity)?
+        let client = alps_client(&identity)?;
+        let response = client
             .get_negotiated(&format!("{origin}/"))?
             .header(RequestHeader::new("sec-ch-ua-arch", "\"caller\""))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let response = client
+            .get_negotiated(&format!("{origin}/retained"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -463,19 +492,19 @@ async fn critical_ch_retries_once_with_only_supported_requested_hints() -> TestR
 }
 
 #[tokio::test]
-async fn bare_client_sends_defaults_without_retaining_accept_ch() -> TestResult<()> {
+async fn client_retains_accept_ch_across_requests() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
         let server = tokio::spawn(async move {
-            let mut observed = Vec::new();
-            for accept_ch in [Some(ACCEPT_CH_VALUE), None] {
-                let mut stream = accept_tls(&listener, &acceptor).await?;
-                observed.push(read_head(&mut stream).await?);
-                write_http1_response(&mut stream, accept_ch).await?;
-            }
+            let mut stream = accept_tls(&listener, &acceptor).await?;
+            let first = read_head(&mut stream).await?;
+            write_http1_response(&mut stream, Some(ACCEPT_CH_VALUE)).await?;
+            let second = read_head(&mut stream).await?;
+            write_http1_response(&mut stream, None).await?;
+            let observed = vec![first, second];
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
 
@@ -485,14 +514,14 @@ async fn bare_client_sends_defaults_without_retaining_accept_ch() -> TestResult<
         send_client_and_drain(&client, HttpProtocol::Http1, &url).await?;
         let requests = server.await??;
         assert_http1_hints(&requests[0], false)?;
-        assert_http1_hints(&requests[1], false)?;
+        assert_http1_hints(&requests[1], true)?;
         Ok(())
     })
     .await
 }
 
 #[tokio::test]
-async fn cloned_sessions_share_client_hints_while_new_sessions_are_isolated() -> TestResult<()> {
+async fn cloned_clients_share_client_hints_while_new_clients_are_isolated() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -513,15 +542,14 @@ async fn cloned_sessions_share_client_hints_while_new_sessions_are_isolated() ->
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>([first, cloned, cleared, separate])
         });
 
-        let client = client(&identity)?;
-        let session = client.session();
-        let clone = session.clone();
+        let shared = client(&identity)?;
+        let clone = shared.clone();
         let url = format!("https://{address}/");
-        send_and_drain(&session, HttpProtocol::Http1, &url).await?;
+        send_and_drain(&shared, HttpProtocol::Http1, &url).await?;
         send_and_drain(&clone, HttpProtocol::Http1, &url).await?;
-        session.clear_client_hints();
-        send_and_drain(&session, HttpProtocol::Http1, &url).await?;
-        send_and_drain(&client.session(), HttpProtocol::Http1, &url).await?;
+        shared.clear_client_hints();
+        send_and_drain(&shared, HttpProtocol::Http1, &url).await?;
+        send_and_drain(&client(&identity)?, HttpProtocol::Http1, &url).await?;
 
         let requests = server.await??;
         assert_http1_hints(&requests[0], false)?;
@@ -574,12 +602,8 @@ fn client_hint_settings() -> ClientHintSettings {
     ])
 }
 
-async fn send_and_drain(
-    session: &phantom::Session,
-    protocol: HttpProtocol,
-    url: &str,
-) -> TestResult<()> {
-    let response = session.get(protocol, url)?.send().await?;
+async fn send_and_drain(client: &Client, protocol: HttpProtocol, url: &str) -> TestResult<()> {
+    let response = client.get(protocol, url)?.send().await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     response.into_body().collect().await?;
     Ok(())

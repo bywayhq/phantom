@@ -241,16 +241,13 @@ impl PoolEntry {
             if slot.connection.is_reusable() {
                 debug!(
                     outcome = "hit",
-                    "HTTP/2 connection acquired from session pool"
+                    "HTTP/2 connection acquired from client pool"
                 );
                 return Ok(slot.lease());
             }
         }
 
-        debug!(
-            outcome = "connect",
-            "HTTP/2 session pool opening connection"
-        );
+        debug!(outcome = "connect", "HTTP/2 client pool opening connection");
         let connector = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
@@ -366,7 +363,7 @@ impl PoolEntry {
             current.take();
             debug!(
                 outcome = "invalidated",
-                "HTTP/2 session pool connection invalidated"
+                "HTTP/2 client pool connection invalidated"
             );
         }
     }

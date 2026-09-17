@@ -10,7 +10,9 @@ use std::{
 
 use btls::ssl::{Ssl, SslAcceptor};
 use http_body_util::BodyExt;
-use phantom::{HttpProtocol, RequestErrorKind};
+use phantom::{
+    Client, HttpProtocol, RequestErrorKind, ServerAuthentication, profile::ClientProfile,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -19,7 +21,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use tls_support::{H1_ALPN, TestIdentity, read_head, test_client};
+use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client, tls_settings};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -90,15 +92,15 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
 }
 
 #[tokio::test]
-async fn bare_client_requests_remain_one_shot() -> TestResult {
+async fn client_requests_reuse_one_connection() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
         let server = tokio::spawn(async move {
+            let mut stream = accept_one(&listener, &acceptor).await?;
             for _ in 0..2 {
-                let mut stream = accept_one(&listener, &acceptor).await?;
                 read_head(&mut stream).await?;
                 stream
                     .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
@@ -117,6 +119,51 @@ async fn bare_client_requests_remain_one_shot() -> TestResult {
                 .collect()
                 .await?;
         }
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn disabled_authentication_replaces_connections_without_session_resumption() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let first_acceptor = identity.acceptor(H1_ALPN)?;
+        let second_acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut first = accept_one(&listener, &first_acceptor).await?;
+            read_head(&mut first).await?;
+            first
+                .write_all(
+                    b"HTTP/1.1 204 No Content\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
+                )
+                .await?;
+            drop(first);
+
+            let mut second = accept_one(&listener, &second_acceptor).await?;
+            read_head(&mut second).await?;
+            second
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let client = Client::builder(ClientProfile::new(tls_settings()))
+            .server_authentication(ServerAuthentication::Disabled)
+            .build()?;
+        for path in ["first", "second"] {
+            client
+                .get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+        }
+
         server.await??;
         Ok(())
     })
@@ -365,11 +412,9 @@ async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let client = test_client(&identity, false)?;
-        let session = client
-            .session_builder()
+        let session = client_builder(&identity, false)
             .max_pending_http1_requests_per_origin(NonZeroUsize::MIN)
-            .build();
+            .build()?;
         let active = session
             .get(HttpProtocol::Http1, &format!("https://{address}/active"))?
             .send()

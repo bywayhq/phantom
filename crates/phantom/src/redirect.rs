@@ -8,7 +8,7 @@ use url::Url;
 
 use crate::RequestError;
 
-/// Session policy for following HTTP redirects.
+/// Client policy for following HTTP redirects.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RedirectPolicy {
     maximum: Option<NonZeroUsize>,

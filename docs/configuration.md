@@ -8,7 +8,7 @@ settings use the same concrete types.
 ```mermaid
 flowchart LR
     Profile["Wire profile\nTLS · H1 · H2 · QUIC · H3"]
-    Session["Session policy\ncookies · client hints · redirects · tickets"]
+    State["Client-owned state\npools · cookies · client hints · redirects · tickets"]
     Route["Route policy\ndirect · proxy · DNS · local bind"]
     Request["Request policy\ntimeouts · retry · protocol · ordered headers"]
     Runtime["Runtime services\nTokio · resolver · clock · entropy"]
@@ -17,7 +17,7 @@ flowchart LR
     Attempt["One owned attempt"]
 
     Profile --> Validate
-    Session --> Validate
+    State --> Validate
     Route --> Validate
     Request --> Validate
     Runtime --> Validate
@@ -26,7 +26,7 @@ flowchart LR
 ```
 
 This keeps unrelated lifetimes separate. A TLS cipher list is immutable
-profile data. A learned `Accept-CH` value is mutable session state. Proxy
+profile data. A learned `Accept-CH` value is mutable client state. Proxy
 credentials belong to a route. A per-request timeout does not mutate the
 client. The runtime owns connection IDs, entropy, clocks, and task execution;
 captured profiles describe their policy but never retain captured random
@@ -38,23 +38,20 @@ The facade grows through three ordinary levels:
 
 - `ClientBuilder` currently owns one immutable profile, additive origin and
   HTTPS-proxy trust roots, independent authentication policies for those TLS
-  legs, and a default `Route` (`Direct`, HTTP forwarding or CONNECT, or
-  local-/remote-DNS SOCKS5). Later slices add runtime services and pool limits
-  only with their implementations.
+  legs, a default `Route` (`Direct`, HTTP forwarding or CONNECT, or
+  local-/remote-DNS SOCKS5), bounded pool and admission limits, optional
+  cookies, client-hint storage, and redirect policy.
 - `RequestBuilder` currently owns an exact protocol, an HTTP or HTTPS target,
   and ordered fields. Plaintext HTTP is accepted only for exact H1 forwarding
   through a plaintext HTTP proxy. It may own a route override; deadline and
   retry policy remain absent.
-- `SessionBuilder` owns bounded connection reuse, optional cookies, bounded
-  learned client-hint origins, and an opt-in finite redirect policy. Redirect
-  attempts keep the exact selected protocol and route.
 - `ClientProfile` owns required TCP TLS, optional H2 settings, optional ordered
   client-hint data, and an optional atomic H3 bundle containing its own TLS,
   QUIC transport, H3 connection, and H3 request settings. Typed values can be
   cloned and edited before the client is built.
 
-Bare-client requests perform a new connection for each request; a session
-reuses eligible H1, H2, and H3 connections. The facade synthesizes the H1
+`Client` reuses eligible H1, H2, and H3 connections; independently built
+clients do not share them. The facade synthesizes the H1
 `Host` field from the URI, uses the URI authority for H2 and H3, and rejects a
 caller-supplied origin `Host` field. An HTTP or HTTPS CONNECT route has a
 separate ordered field sequence with one typed destination-authority
@@ -65,7 +62,7 @@ authenticates the proxy before CONNECT using an independent trust store, then
 authenticates the origin inside the tunnel. Request, credential, and CONNECT
 validation happen before proxy I/O; failures never trigger a direct retry. A
 `socks5://` resolves domain origins locally and `socks5h://` resolves them at
-the proxy. Both apply to H1, H2, session-owned H1/H2 reuse, and H1 WebSocket.
+the proxy. Both apply to H1, H2, client-owned H1/H2 reuse, and H1 WebSocket.
 Selecting H2 or H3 without the
 corresponding profile settings also fails before network I/O. H3 currently
 supports only `Route::Direct`; pairing it with either TCP-only proxy route is
@@ -75,11 +72,11 @@ behavior when dropped.
 
 For an HTTP origin and a plaintext `HttpProxy`, the H1 request instead uses an
 absolute-form target on the proxy connection. The same canonical URI authority
-produces the leading `Host` field. Forwarding is one-shot for a bare client and
-same-origin/same-route reusable for a session. Direct HTTP, proxy TLS,
+produces the leading `Host` field. Forwarding is reusable only for the same
+origin and route. Direct HTTP, proxy TLS,
 forwarding credentials, redirects, H2/H3, and negotiated H1/H2 are rejected
 before I/O. Plaintext responses neither receive generated Client Hints nor
-seed the session's `Accept-CH` state.
+seed the client's `Accept-CH` state.
 
 Absolute request, WebSocket, HTTP-proxy, and SOCKS5-proxy URIs pass through one
 WHATWG host parser before endpoint construction. The resulting ASCII authority

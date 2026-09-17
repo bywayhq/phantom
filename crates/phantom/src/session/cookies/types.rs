@@ -79,7 +79,7 @@ pub enum CookieErrorKind {
     InvalidPrefix,
     /// An insecure origin attempted to overlay an existing secure cookie.
     SecureOverlay,
-    /// The cookie used a policy this session cannot model.
+    /// The cookie used a policy this client cannot model.
     UnsupportedPolicy,
     /// Inserting a new cookie would exceed a configured count bound.
     Capacity,

@@ -1,9 +1,9 @@
-# Session state and multiplexed reuse
+# Client state and multiplexed reuse
 
-`Client` is immutable transport configuration. `Session` is an isolated,
-cloneable owner for state that intentionally crosses requests. Creating two
-sessions from one client creates two connection pools and, when enabled, two
-cookie identities. Cloning one session shares its state.
+`Client` is the cheap-clone owner of immutable transport configuration and the
+bounded state that intentionally crosses requests. Clones share connection
+pools, cookies when enabled, learned client hints, redirect policy, and TLS
+sessions. Independently built clients share none of that mutable state.
 
 ```rust,no_run
 use phantom::{Client, HttpProtocol};
@@ -13,14 +13,12 @@ use phantom::profile::{ClientProfile, chromium};
 let profile = ClientProfile::new(chromium::v152_macos_tls())
     .with_http2(chromium::v152_macos_http2());
 let client = Client::builder(profile).build()?;
-let session = client.session();
-
-let first = session
+let first = client
     .get(HttpProtocol::Http2, "https://example.com/first")?
     .send()
     .await?;
 drop(first);
-let second = session
+let second = client
     .get(HttpProtocol::Http2, "https://example.com/second")?
     .send()
     .await?;
@@ -29,9 +27,11 @@ drop(second);
 # }
 ```
 
-Bare `Client::get` remains one-shot. `Session::get` reuses eligible HTTP/1.1,
-HTTP/2, and direct HTTP/3 connections. When the profile defines client hints,
-the session also retains bounded exact-origin `Accept-CH` state.
+`Client::get` reuses eligible HTTP/1.1, HTTP/2, and direct HTTP/3 connections.
+When the profile defines client hints, the client also retains bounded
+exact-origin `Accept-CH` state. The old `Session` names remain hidden
+compatibility aliases during migration; new code should configure state on
+`ClientBuilder`.
 
 ## Client hints
 
@@ -42,17 +42,16 @@ valid response value replaces the prior selection; an empty or
 unsupported-only value clears it; malformed input leaves prior state intact.
 The effective port is part of the origin.
 
-The store is bounded by `SessionBuilder::max_client_hint_origins`. Session
-clones share it, new sessions do not, and `Session::clear_client_hints` removes
-all learned selections. Bare `Client` requests emit profile defaults without
-retaining response state. Caller-supplied configured hint fields override
-automatic values without being moved.
+The store is bounded by `ClientBuilder::max_client_hint_origins`. Client clones
+share it, independently built clients do not, and
+`Client::clear_client_hints` removes all learned selections. Caller-supplied
+configured hint fields override automatic values without being moved.
 
 An H2 or H3 connection may also supply `ACCEPT_CH` in authenticated ALPS. Its
 exact-origin selection is applied after connection choice, including to the
-first request, and augments response-learned session state. It remains
+first request, and augments response-learned client state. It remains
 immutable connection metadata: it is not persisted, inherited by a replacement
-connection, or cleared through `Session::clear_client_hints`.
+connection, or cleared through `Client::clear_client_hints`.
 
 `Critical-CH` may replay the current owned request once when a supported
 requested hint was missing and the method is safe. It cannot loop or
@@ -64,19 +63,20 @@ part of this slice.
 
 ## Redirect policy
 
-Automatic redirects are disabled by default. A session can enable a finite
-hop budget explicitly:
+Automatic redirects are disabled by default. A client can enable a finite hop
+budget explicitly:
 
 ```rust,no_run
 use std::num::NonZeroUsize;
 use phantom::{Client, RedirectPolicy};
+use phantom::profile::ClientProfile;
 
-# fn example(client: &Client) {
-let session = client
-    .session_builder()
+# fn example(profile: ClientProfile) -> Result<(), phantom::BuildError> {
+let client = Client::builder(profile)
     .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-    .build();
-# let _ = session;
+    .build()?;
+# let _ = client;
+# Ok(())
 # }
 ```
 
@@ -90,24 +90,25 @@ On a cross-origin hop, caller-supplied authorization, proxy authorization, and
 cookie fields are removed. With the `cookies` feature, every intermediate
 response is learned before the jar is evaluated for the next target. The final
 response contains `ResponseInfo` in its extensions with the effective URI and
-number of followed hops. Bare `Client` requests remain one-shot.
+number of followed hops.
 
-For H1 and H2, each retained pool entry also owns a bounded TLS ticket cache.
-Connection replacement for the same canonical origin, complete route, protocol,
-profile, and TLS context can resume. Tickets never cross pool entries or
-sessions, expired entries are discarded, and TLS 1.3 single-use tickets are
-consumed. One-shot client requests do not retain tickets. Early data remains
-disabled, and QUIC resumption is separate future work.
+For authenticated H1 and H2 TLS, each retained pool entry also owns a bounded
+ticket cache. Connection replacement for the same canonical origin, complete
+route, protocol, profile, and TLS context can resume. Tickets never cross pool
+entries or independently built clients, expired entries are discarded, and
+TLS 1.3 single-use tickets are consumed. A TLS leg with authentication
+explicitly disabled does not retain reusable sessions because it has no
+verified hostname binding. Early data remains disabled, and QUIC resumption is
+separate future work.
 
 ## Pool boundary
 
-One session retains at most one current H1, H2, or H3 connection for each
-canonical host, port, complete route value, and forwarding/tunnel mode. Because
-the session owns one
-immutable client, the wire profile, trust roots, and protocol are structural
-parts of the boundary. Different origins, routes, ordered CONNECT fields,
-clients, and sessions never share a connection. Cross-origin coalescing is
-disabled. H3 reuse is direct-only until a UDP-capable proxy route exists.
+One client retains at most one current H1, H2, or H3 connection for each
+canonical host, port, complete route value, and forwarding/tunnel mode. The
+wire profile, trust roots, and protocol are structural parts of the boundary.
+Different origins, routes, ordered CONNECT fields, and independently built
+clients never share a connection. Cross-origin coalescing is disabled. H3
+reuse is direct-only until a UDP-capable proxy route exists.
 
 Simultaneous first requests for one key share connection setup. Unrelated keys
 can connect concurrently. A connection-fatal error invalidates only the exact
@@ -141,7 +142,7 @@ bounded reset cleanup after an incomplete body is dropped. A GOAWAY or closed
 generation is not selected for new work, while eligible response bodies retain
 the old generation. When `GOAWAY(NO_ERROR)` rejects a bodyless GET, Phantom
 invalidates that generation and retries the request once on its replacement.
-The retry keeps the same origin, route, protocol, session, ordered fields, and
+The retry keeps the same origin, route, protocol, client, ordered fields, and
 admission slot. Requests with bodies, other methods, other failures, and a
 second GOAWAY are returned to the caller without replay.
 
@@ -155,13 +156,14 @@ explicitly:
 
 ```rust,no_run
 # use phantom::{Client, CookieJar};
-# fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-let session = client.session_builder().cookies().build();
+# use phantom::profile::ClientProfile;
+# fn example(profile: ClientProfile) -> Result<(), Box<dyn std::error::Error>> {
+let client = Client::builder(profile.clone()).cookies().build()?;
 
 let jar = CookieJar::default();
 jar.set_cookie("https://example.com/", "session=seeded; Secure; Path=/")?;
-let seeded = client.session_builder().cookie_jar(jar).build();
-# let _ = (session, seeded);
+let seeded = Client::builder(profile).cookie_jar(jar).build()?;
+# let _ = (client, seeded);
 # Ok(())
 # }
 ```

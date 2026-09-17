@@ -5,7 +5,7 @@ use phantom_net::request::RequestHeader;
 use tokio::time::{Instant, sleep_until};
 use tracing::{Instrument, debug, debug_span, field};
 
-use crate::{HttpProtocol, RequestBuilder, RequestError, ResponseBody, Route, Session};
+use crate::{Client, HttpProtocol, RequestBuilder, RequestError, ResponseBody, Route};
 
 use super::{ReconnectFuture, SseEventSource};
 use crate::sse::{SseError, SseLimits, SseOutcome, SseStream};
@@ -24,7 +24,7 @@ fn default_headers(protocol: HttpProtocol) -> Vec<RequestHeader> {
     ]
 }
 
-/// Builds one session-owned server-sent event source.
+/// Builds one client-owned server-sent event source.
 #[must_use = "SSE request builders do nothing until connect is awaited"]
 pub struct SseRequestBuilder {
     request: SseRequest,
@@ -50,15 +50,15 @@ impl fmt::Debug for SseRequestBuilder {
 }
 
 impl SseRequestBuilder {
-    pub(crate) fn new_session(
-        session: Session,
+    pub(crate) fn new_client(
+        client: Client,
         protocol: HttpProtocol,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        let _ = session.get(protocol, uri)?;
+        let _ = client.get(protocol, uri)?;
         Ok(Self {
             request: SseRequest {
-                session,
+                client,
                 protocol,
                 uri: uri.into(),
                 headers: default_headers(protocol),
@@ -140,7 +140,7 @@ impl SseRequestBuilder {
             .request
             .route
             .as_ref()
-            .unwrap_or(&self.request.session.client.inner.route);
+            .unwrap_or(&self.request.client.inner.route);
         let span = debug_span!(
             "sse.event_source.connect",
             protocol = self.request.protocol.trace_name(),
@@ -246,7 +246,7 @@ mod tests;
 
 #[derive(Clone)]
 pub(super) struct SseRequest {
-    session: Session,
+    client: Client,
     pub(super) protocol: HttpProtocol,
     uri: Box<str>,
     headers: Vec<RequestHeader>,
@@ -275,7 +275,7 @@ impl SseRequest {
             headers.push(RequestHeader::new(name, last_event_id));
         }
 
-        let request = self.session.get(self.protocol, &self.uri)?.headers(headers);
+        let request = self.client.get(self.protocol, &self.uri)?.headers(headers);
         self.apply_route(request).send().await
     }
 

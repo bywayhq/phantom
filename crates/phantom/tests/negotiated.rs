@@ -36,6 +36,58 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const SECOND_CONNECTION_WINDOW: Duration = Duration::from_millis(100);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
+#[cfg(feature = "cookies")]
+#[tokio::test]
+async fn negotiated_http1_learns_and_sends_client_cookies() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let first_acceptor = identity.acceptor(H1_ALPN)?;
+        let second_acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (first, _) = listener.accept().await?;
+            let mut first = accept_tls_stream(first, first_acceptor).await?;
+            let first_head = read_head(&mut first).await?;
+            first
+                .write_all(
+                    b"HTTP/1.1 204 No Content\r\nSet-Cookie: learned=1; Secure; Path=/\r\nContent-Length: 0\r\n\r\n",
+                )
+                .await?;
+            drop(first);
+
+            let (second, _) = listener.accept().await?;
+            let mut second = accept_tls_stream(second, second_acceptor).await?;
+            let second_head = read_head(&mut second).await?;
+            second
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head))
+        });
+
+        let client = client_builder(&identity, true).cookies().build()?;
+        for path in ["first", "second"] {
+            client
+                .get_negotiated(&format!("https://{address}/{path}"))?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+        }
+
+        let (first, second) = server.await??;
+        assert!(!first.windows(b"\r\nCookie:".len()).any(|part| part == b"\r\nCookie:"));
+        assert!(
+            second
+                .windows(b"\r\nCookie: learned=1\r\n".len())
+                .any(|part| part == b"\r\nCookie: learned=1\r\n")
+        );
+        Ok(())
+    })
+    .await
+}
+
 #[tokio::test]
 async fn negotiated_request_selects_http2_once() -> TestResult<()> {
     bounded(async {

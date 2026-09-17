@@ -38,14 +38,6 @@ impl<'a> ClientHintContext<'a> {
         }
     }
 
-    pub(crate) fn stateless(
-        endpoint: &'a Endpoint,
-        origin: &'a str,
-        settings: &'a ClientHintSettings,
-    ) -> Self {
-        Self::new(endpoint, origin, settings, None)
-    }
-
     pub(crate) fn origin(self) -> &'a str {
         self.origin
     }
@@ -157,7 +149,7 @@ impl ClientHintStore {
             entries.remove(position);
         }
         if requested.is_empty() {
-            debug!(outcome = "cleared", "updated Accept-CH session state");
+            debug!(outcome = "cleared", "updated Accept-CH client state");
             return;
         }
         if entries.len() == self.capacity.get() {
@@ -167,7 +159,7 @@ impl ClientHintStore {
         debug!(
             outcome = "stored",
             hint_count = requested.len(),
-            "updated Accept-CH session state"
+            "updated Accept-CH client state"
         );
         entries.push_back(Entry { origin, requested });
     }

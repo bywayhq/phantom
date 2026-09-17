@@ -17,7 +17,7 @@ use std::{
 use bytes::Bytes;
 use http::{Request, Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom::{Client, HttpProtocol, RequestErrorKind, Session, profile::ClientProfile};
+use phantom::{Client, ClientBuilder, HttpProtocol, RequestErrorKind, profile::ClientProfile};
 use tokio::{sync::oneshot, time::timeout};
 
 use h3_support::{client_settings, server_endpoint};
@@ -140,7 +140,7 @@ async fn concurrent_cloned_session_requests_multiplex_one_http3_connection() -> 
 }
 
 #[tokio::test]
-async fn separately_created_sessions_do_not_share_http3_connections() -> TestResult<()> {
+async fn independently_built_clients_do_not_share_http3_connections() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
@@ -159,9 +159,11 @@ async fn separately_created_sessions_do_not_share_http3_connections() -> TestRes
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
 
-        let client = test_client(&identity)?;
-        for (session, path) in [(client.session(), "/first"), (client.session(), "/second")] {
-            let payload = send_and_drain(session, format!("https://{address}{path}")).await?;
+        for (client, path) in [
+            (test_client(&identity)?, "/first"),
+            (test_client(&identity)?, "/second"),
+        ] {
+            let payload = send_and_drain(client, format!("https://{address}{path}")).await?;
             assert_eq!(payload, path);
         }
 
@@ -176,21 +178,14 @@ async fn separately_created_sessions_do_not_share_http3_connections() -> TestRes
 }
 
 #[tokio::test]
-async fn bare_client_http3_requests_remain_one_shot() -> TestResult<()> {
+async fn client_http3_requests_reuse_one_connection() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
         let server = tokio::spawn(async move {
-            let mut connections = Vec::new();
-            let mut requests = Vec::new();
-            for _ in 0..2 {
-                let mut connection = accept_connection(&endpoint).await?;
-                let (request, stream) = accept_stream(&mut connection).await?;
-                requests.push(request.uri().path().to_owned());
-                send_response(stream, request.uri().path()).await?;
-                connections.push(connection);
-            }
+            let mut connection = accept_connection(&endpoint).await?;
+            let requests = serve_requests(&mut connection, 2).await?;
             let _ = done_received.await;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
@@ -241,11 +236,10 @@ async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> Te
         });
 
         let one = NonZeroUsize::MIN;
-        let session = test_client(&identity)?
-            .session_builder()
+        let session = test_client_builder(&identity)
             .max_concurrent_http3_requests_per_origin(one)
             .max_pending_http3_requests_per_origin(one)
-            .build();
+            .build()?;
         let held = session
             .get(HttpProtocol::Http3, &format!("https://{address}/held"))?
             .send()
@@ -332,18 +326,20 @@ async fn send_response(mut stream: ServerStream, payload: &str) -> TestResult<()
     Ok(())
 }
 
-async fn send_and_drain(session: Session, uri: String) -> TestResult<Bytes> {
-    let response = session.get(HttpProtocol::Http3, &uri)?.send().await?;
+async fn send_and_drain(client: Client, uri: String) -> TestResult<Bytes> {
+    let response = client.get(HttpProtocol::Http3, &uri)?.send().await?;
     Ok(response.into_body().collect().await?.to_bytes())
 }
 
 fn test_client(identity: &TestIdentity) -> TestResult<Client> {
+    Ok(test_client_builder(identity).build()?)
+}
+
+fn test_client_builder(identity: &TestIdentity) -> ClientBuilder {
     let mut tcp_tls = tls_settings();
     tcp_tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
     let profile = ClientProfile::new(tcp_tls).with_http3(client_settings());
-    Ok(Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .build()?)
+    Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>

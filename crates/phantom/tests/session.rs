@@ -20,7 +20,7 @@ use btls::ssl::{Ssl, SslAcceptor};
 use bytes::Bytes;
 use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom::{HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route, Session};
+use phantom::{Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route};
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
@@ -195,7 +195,7 @@ async fn concurrent_cold_requests_through_cloned_session_share_one_connection() 
 }
 
 #[tokio::test]
-async fn separately_created_sessions_do_not_share_http2_connections() -> TestResult<()> {
+async fn independently_built_clients_do_not_share_http2_connections() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -209,11 +209,10 @@ async fn separately_created_sessions_do_not_share_http2_connections() -> TestRes
             Ok::<_, Box<dyn Error + Send + Sync>>([first.await??, second.await??])
         });
 
-        let client = test_client(&identity, true)?;
-        let first_session = client.session();
-        let second_session = client.session();
-        let first = tokio::spawn(send(first_session, format!("https://{address}/first")));
-        let second = tokio::spawn(send(second_session, format!("https://{address}/second")));
+        let first_client = test_client(&identity, true)?;
+        let second_client = test_client(&identity, true)?;
+        let first = tokio::spawn(send(first_client, format!("https://{address}/first")));
+        let second = tokio::spawn(send(second_client, format!("https://{address}/second")));
 
         first.await??;
         second.await??;
@@ -448,16 +447,16 @@ async fn dropping_response_body_cancels_only_its_stream_and_preserves_reuse() ->
 }
 
 async fn send_after_barrier(
-    session: Session,
+    client: Client,
     uri: String,
     start: std::sync::Arc<Barrier>,
 ) -> TestResult<()> {
     start.wait().await;
-    send(session, uri).await
+    send(client, uri).await
 }
 
-async fn send(session: Session, uri: String) -> TestResult<()> {
-    let response = session.get(HttpProtocol::Http2, &uri)?.send().await?;
+async fn send(client: Client, uri: String) -> TestResult<()> {
+    let response = client.get(HttpProtocol::Http2, &uri)?.send().await?;
     assert_eq!(response.status(), 204);
     response.into_body().collect().await?;
     Ok(())

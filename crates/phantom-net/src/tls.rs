@@ -228,7 +228,9 @@ impl TlsConnector {
                 .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
         }
 
-        if settings.session_tickets {
+        let scoped_sessions_enabled = settings.session_tickets
+            && matches!(server_authentication, ServerAuthentication::WebPki);
+        if scoped_sessions_enabled {
             builder.enable_scoped_client_sessions();
         }
 
@@ -244,7 +246,7 @@ impl TlsConnector {
                 .then(|| settings.key_shares.clone().into_boxed_slice()),
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
-            scoped_sessions_enabled: settings.session_tickets,
+            scoped_sessions_enabled,
             session_cache: None,
         })
     }

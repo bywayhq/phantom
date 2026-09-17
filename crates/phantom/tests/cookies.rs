@@ -26,8 +26,8 @@ use bytes::Bytes;
 use http::{HeaderMap, Request, Response, StatusCode, header::COOKIE, header::SET_COOKIE};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, HttpProxy, RedirectPolicy, RequestHeader, Route, profile::ClientProfile,
-    profile::chromium,
+    Client, ClientBuilder, HttpProtocol, HttpProxy, RedirectPolicy, RequestHeader, Route,
+    profile::ClientProfile, profile::chromium,
 };
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
@@ -112,11 +112,10 @@ async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> 
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let session = cookie_client(&identity)?
-            .session_builder()
+        let session = cookie_client_builder(&identity)
             .cookies()
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build();
+            .build()?;
         let response = session
             .get(
                 HttpProtocol::Http2,
@@ -470,12 +469,14 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
 }
 
 fn cookie_client(identity: &TestIdentity) -> TestResult<Client> {
+    Ok(cookie_client_builder(identity).build()?)
+}
+
+fn cookie_client_builder(identity: &TestIdentity) -> ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chromium::v152_macos_http2())
         .with_http3(client_settings());
-    Ok(Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .build()?)
+    Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
 
 async fn send_and_drain(

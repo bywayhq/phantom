@@ -3,7 +3,7 @@
 The optional `websocket` feature provides secure WebSocket connections over an
 HTTP/1.1 Upgrade. It reuses Phantom's BoringSSL TLS profile, exact direct,
 HTTP-CONNECT, or local-/remote-DNS SOCKS5 route, ordered HTTP/1 serializer, ordered
-response metadata, session cookies, runtime errors, and tracing lifecycle.
+response metadata, client cookies, runtime errors, and tracing lifecycle.
 
 The public client is exercised against a pinned Autobahn fuzzing server. See
 [`external-conformance.md`](external-conformance.md#autobahn-execution) for the
@@ -45,7 +45,7 @@ if let Some(message) = receiver.next().await {
 ## Ordered opening fields
 
 The default opening sequence contains typed placeholders for the URI authority,
-fresh random key, and session cookies. `WebSocketRequestBuilder::headers`
+fresh random key, and client cookies. `WebSocketRequestBuilder::headers`
 replaces the complete sequence with `WebSocketHeader` values, allowing callers
 to control placement and field-name spelling without supplying dynamic values.
 Literal Upgrade, Connection, version, subprotocol, Origin, fetch metadata, and
@@ -82,7 +82,7 @@ a Phantom background task. Dropping the connection closes the transport;
 `close` sends and flushes a Close frame, after which the caller may continue
 receiving until the peer replies.
 
-WebSocket connections are exclusive and are never inserted into the session's
+WebSocket connections are exclusive and are never inserted into the client's
 HTTP pool. There are no implicit redirects, retries, reconnects, heartbeats, or
 direct-route fallback after a proxy failure.
 

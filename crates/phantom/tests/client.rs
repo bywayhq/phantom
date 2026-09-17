@@ -14,6 +14,7 @@ use std::{
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
+    num::NonZeroUsize,
     task::{Context, Poll, Waker},
     time::Duration,
 };
@@ -22,8 +23,8 @@ use bytes::Bytes;
 use http::{HeaderMap, Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
-    ResponseInfo, ServerAuthentication,
+    BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RedirectPolicy, RequestErrorKind,
+    RequestHeader, ResponseInfo, ServerAuthentication,
     profile::{
         ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, Http3ClientSettings,
         chromium,
@@ -77,7 +78,7 @@ fn runtime_without_io_returns_error_and_records_error_outcomes() -> TestResult<(
     assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
     assert_eq!(subscriber.outcomes_for("client.request"), ["error"]);
     assert_eq!(
-        subscriber.outcomes_for("http1.tls.response_head"),
+        subscriber.outcomes_for("http1.tls.connect"),
         ["runtime_unavailable"]
     );
     Ok(())
@@ -273,7 +274,7 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
                     if incoming.is_none() {
                         return Err("connection closed before later data release".into());
                     }
-                    return Err("one-shot client sent a second request".into());
+                    return Err("client sent an unexpected second request".into());
                 }
             }
 
@@ -349,6 +350,7 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
             Some("yes")
         );
 
+        drop(client);
         let uri = server.await??;
         let expected_authority = address.to_string();
         assert_eq!(
@@ -409,6 +411,7 @@ async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
 
+        drop(client);
         let (method, length, body) = server.await??;
         assert_eq!(method, Method::POST);
         assert_eq!(
@@ -710,13 +713,21 @@ fn disabled_server_authentication_rejects_http3_during_build() -> TestResult<()>
 }
 
 #[test]
-fn client_builder_debug_reports_server_authentication_policy() {
+fn client_builder_debug_reports_public_policy_without_secrets() {
+    const SEVEN: NonZeroUsize = match NonZeroUsize::new(7) {
+        Some(value) => value,
+        None => NonZeroUsize::MIN,
+    };
     let debug = format!(
         "{:?}",
         Client::builder(ClientProfile::new(tls_settings()))
             .server_authentication(ServerAuthentication::Disabled)
+            .redirect_policy(RedirectPolicy::limited(SEVEN))
+            .max_retained_http1_connections(SEVEN)
     );
     assert!(debug.contains("server_authentication: Disabled"));
+    assert!(debug.contains("redirect_policy: RedirectPolicy { maximum: Some(7) }"));
+    assert!(debug.contains("max_retained_http1_connections: 7"));
 }
 
 #[test]

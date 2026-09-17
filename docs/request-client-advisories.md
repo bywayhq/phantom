@@ -74,7 +74,7 @@ claim.
   covers the unbounded-processing class in
   [Go CVE-2023-45288](https://pkg.go.dev/vuln/GO-2024-2687).
 - Cross-origin redirects strip `Authorization`, `Proxy-Authorization`, and
-  caller cookies; session cookies are reconstructed for the new origin.
+  caller cookies; client cookies are reconstructed for the new origin.
 - HTTP Basic proxy credentials are validated before I/O and sent only after a
   valid 407 on one fresh same-route connection. Parser and public integration
   tests cover malformed/mixed challenges, retry bounds, ordered placement,

@@ -5,13 +5,13 @@ profile-driven wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
 
 The current vertical slices implement certificate- and hostname-checked TLS,
 ordered streaming HTTP/1.1, and reusable multiplexed HTTP/2 and direct HTTP/3.
-A cloneable public session retains compatible H1, H2, and H3 connections by
-exact origin and route while bare-client requests remain one-shot. Chrome 152
+A cheap-clone public `Client` retains compatible H1, H2, and H3 connections by
+exact origin and route. Independently built clients remain isolated. Chrome 152
 macOS has TLS and HTTP/2 recipes with direct retained
 fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
 recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
 uncaptured. The forced HTTP/3 slice performs direct requests over the
-BoringSSL Quinn provider, verifies exact `h3` ALPN, multiplexes session-owned
+BoringSSL Quinn provider, verifies exact `h3` ALPN, multiplexes client-owned
 streams, propagates stream-scoped cancellation, and applies a capture-backed
 Chrome QUIC transport recipe to live Quinn state and the exact TLS extension
 bytes. Its separate Chrome H3 TLS recipe emits the retained ClientHello shape,
@@ -28,7 +28,7 @@ the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
 order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
 small facade for exact H1, H2, or direct H3 requests, plus direct one-handshake
-H1/H2 ALPN selection for bare-client requests, additive private trust
+H1/H2 ALPN selection for negotiated requests, additive private trust
 roots, typed direct, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
 local- or remote-DNS SOCKS5 routes with optional credentials, and one unified
 streaming response body. HTTP Basic
@@ -41,13 +41,13 @@ SOCKS5 URI scheme selects explicit DNS ownership; credentials
 are configured with `Socks5Proxy::with_username_password`, validated before
 I/O, and excluded from diagnostics. H3 uses a separate protocol-specific TLS
 profile and rejects TCP-only proxy routes before network I/O. The optional
-`cookies` capability adds a bounded, explicit session jar with public-suffix,
+`cookies` capability adds a bounded, explicit client-owned jar with public-suffix,
 prefix, expiry, and deterministic ordering rules. Profiles may also define
-ordered client-hint fields; sessions retain bounded exact-origin response
+ordered client-hint fields; clients retain bounded exact-origin response
 `Accept-CH` state, H2/H3 connections apply peer ALPS `ACCEPT_CH` metadata during
 request preparation, and safe methods perform at most one `Critical-CH` replay.
 Feature-gated SSE support provides both a bounded
-single-response decoder and a finite, pull-driven session reconnect controller
+single-response decoder and a finite, pull-driven client-owned reconnect controller
 without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
 I/O through Phantom-owned types, including typed opt-in `permessage-deflate`.
@@ -107,27 +107,28 @@ for field in ordered.iter() {
 The protocol-taking methods select exactly that protocol. Bare-client
 `get_negotiated` and `request_negotiated` instead perform one direct TCP/TLS
 connection and select H2 for `h2`, or H1 for `http/1.1` or absent ALPN. They do
-not race, retry, use a proxy, or consider H3. `ResponseInfo::protocol` reports
-the protocol that produced every ordinary response.
+not race, use a proxy, or consider H3. Client cookies, learned client hints,
+and bounded redirect policy still apply, but the selected connection is not
+retained in an exact-protocol pool. `ResponseInfo::protocol` reports the
+protocol that produced every ordinary response.
 `get` is convenience sugar for `request` with `Method::GET`; ordinary
 non-CONNECT methods may carry one finite owned byte body. Phantom validates a
 caller-supplied `Content-Length` exactly or appends one for a non-empty body.
 Streaming uploads and a configurable general retry policy remain unavailable.
-A session retries one bodyless H2 GET when `GOAWAY(NO_ERROR)` identifies it as
+The client retries one bodyless H2 GET when `GOAWAY(NO_ERROR)` identifies it as
 unprocessed; the replacement keeps the same origin, route, protocol, and
-ordered fields. Redirects are an explicit session policy configured with
+ordered fields. Redirects are an explicit client policy configured with
 `RedirectPolicy::limited`; they keep the selected protocol and route, apply a
 finite hop budget, and replay only the current owned byte body. Every
 successful response includes `OrderedResponseHeaders` and `ResponseInfo` in
 its extensions; the ordinary `HeaderMap` remains the normalized semantic view.
 The ordered view retains
 duplicate interleaving on every protocol and received HTTP/1 field-name
-spelling. HTTP/2 and HTTP/3 names are lowercase by protocol. Use
-`client.session()` for session-owned HTTP/1.1, HTTP/2, and direct HTTP/3 reuse,
-or enable bounded cookie state explicitly with
-`client.session_builder().cookies().build()` when the `cookies` feature is
-compiled. A profile with client hints emits default fields for bare requests;
-a session additionally retains exact-origin response `Accept-CH` state. H2/H3
+spelling. HTTP/2 and HTTP/3 names are lowercase by protocol. `Client` reuses
+eligible HTTP/1.1, HTTP/2, and direct HTTP/3 connections by default. Enable
+bounded cookie state explicitly with `Client::builder(profile).cookies().build()`
+when the `cookies` feature is compiled. A profile with client hints emits
+default fields, and the client retains exact-origin response `Accept-CH` state. H2/H3
 request preparation also applies matching connection-scoped ALPS `ACCEPT_CH`
 metadata. Use
 `ClientBuilder::route` for an immutable default route or
@@ -135,8 +136,8 @@ metadata. Use
 
 ## Current workspace
 
-- `phantom`: the public exact-protocol client facade, direct one-shot H1/H2 ALPN
-  selection, session-owned H1, H2, and H3 reuse,
+- `phantom`: the public exact-protocol client facade, direct one-handshake H1/H2
+  ALPN selection, client-owned H1, H2, and H3 reuse,
   direct routes, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
   credential-capable local- or remote-DNS SOCKS5 for H1/H2 and H1 WebSocket,
   opt-in bounded redirects,
@@ -169,7 +170,7 @@ See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [TLS security boundary](docs/tls-security-boundary.md),
 [scope and coverage](docs/scope-and-coverage.md),
 [async and feature policy](docs/async-and-features.md),
-[session state and pooling](docs/session.md),
+[client state and pooling](docs/session.md),
 [SSE decoder](docs/sse.md),
 [WebSocket](docs/websocket.md),
 [Rust quality review](docs/rust-quality.md),

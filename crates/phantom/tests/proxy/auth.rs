@@ -181,6 +181,7 @@ async fn basic_challenge_reconnects_https_proxy_before_http2_origin() -> TestRes
             .await?;
         assert_eq!(response.status(), 204);
         response.into_body().collect().await?;
+        drop(client);
 
         let (anonymous, authorized) = proxy.await??;
         assert!(!contains_ascii_case_insensitive(
