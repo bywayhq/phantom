@@ -109,9 +109,9 @@ cancellation is separately stream-scoped and leaves a sibling stream usable.
 An early final response with no remaining upload credit is raced against the
 upload, surfaced immediately, and followed by a request on the same connection.
 
-The retained 2026-09-16 Reaper snapshot has 21 active, non-passive probes.
+The retained 2026-09-16 Reaper snapshot has 22 active, non-passive probes.
 Phantom has production-path regressions for the raw-client transport behavior
-exercised by all 21. This is stimulus and reaction coverage, not a claim that
+exercised by all 22. This is stimulus and reaction coverage, not a claim that
 every fixture is byte-identical or that Phantom implements browser renderer
 side effects. The
 [machine-checked mapping](../fixtures/adversarial/reaper/2026-09-16/coverage.json)
@@ -158,12 +158,18 @@ In addition to the cases above, those regressions cover:
   `/.well-known/reaper/resume`, absence of an early-data offer, and a full
   handshake from a separate Phantom session.
 
-Reaper's redirect pair is retained through the public H2 session path. Its 302
+Reaper's H2 redirect pair is retained through the public session path. Its 302
 case rewrites POST to a bodyless GET, while its 307 case preserves the POST and
 owned body. Both resolve an encoded dot segment to the canonical final path
 and complete the request stream. The fixture also closes the first H2
 generation before the second transaction, exercising pool replacement without
 claiming that connection identity is part of Reaper's observation.
+
+The H3 redirect chronology probe is also retained through the public session
+path. Phantom follows the 302 on the same H3 connection after response headers
+and before the peer finishes the initial response stream, then exposes only the
+terminal response. The peer keeps the first stream unfinished so this is an
+observable ordering assertion rather than an ordinary redirect success test.
 
 Reaper's current secondary-authority probe records `not_coalesced` for its
 Chrome and Firefox controls; Safari did not establish the dual-authority test
@@ -202,6 +208,14 @@ Renderer behavior is out of scope for the raw transport client. For example,
 preloading a `Link` from a 103 response and synthesizing `Sec-Fetch-*` require
 an explicit browsing-context policy; the transport should preserve the
 protocol event without pretending to be a renderer.
+
+Session-level response policy uses the same hostile-peer method. Client-hint
+regressions combine repeated structured fields, malformed members, empty and
+unsupported-only replacement, exact-origin port isolation, explicit clearing,
+cross-origin redirect stripping, and a repeated `Critical-CH` demand. The
+observable contract is bounded state and at most one replay across H1, H2, and
+H3 for an idempotent method; malformed behavior is not presented as a browser
+fingerprint.
 
 ## Fixture shape
 

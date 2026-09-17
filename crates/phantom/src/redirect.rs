@@ -3,6 +3,7 @@ use std::num::NonZeroUsize;
 use bytes::Bytes;
 use http::{Method, StatusCode};
 use phantom_net::request::RequestHeader;
+use phantom_profile::ClientHintSettings;
 use url::Url;
 
 use crate::RequestError;
@@ -86,6 +87,15 @@ impl RedirectState {
 
     pub(crate) fn followed(&self) -> usize {
         self.followed
+    }
+
+    pub(crate) fn strip_client_hints(&mut self, settings: &ClientHintSettings) {
+        self.headers.retain(|header| {
+            !settings
+                .hints()
+                .iter()
+                .any(|hint| header.name().eq_ignore_ascii_case(hint.name()))
+        });
     }
 
     pub(crate) fn follow<B>(

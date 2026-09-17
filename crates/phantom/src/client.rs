@@ -2,7 +2,7 @@ use std::{fmt, sync::Arc};
 
 use http::Method;
 use phantom_net::{http1::Http1TlsConnector, http2::Http2TlsConnector, http3::Http3Connector};
-use phantom_profile::ClientProfile;
+use phantom_profile::{ClientHintSettings, ClientProfile};
 
 use crate::{BuildError, RequestBuilder, Route, Session, SessionBuilder};
 #[cfg(feature = "websocket")]
@@ -33,7 +33,8 @@ impl HttpProtocol {
 /// Immutable transport configuration for routed, exact-protocol HTTPS requests.
 ///
 /// Clones share validated protocol connectors but no mutable request state.
-/// Use [`Client::session`] when requests should share cookies or connections.
+/// Use [`Client::session`] when requests should share connections, cookies, or
+/// negotiated client-hint state.
 #[derive(Clone, Debug)]
 pub struct Client {
     pub(crate) inner: Arc<ClientInner>,
@@ -44,6 +45,7 @@ pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
     pub(crate) http3: Option<Http3Connector>,
+    pub(crate) client_hints: Option<ClientHintSettings>,
     pub(crate) route: Route,
 }
 
@@ -119,6 +121,10 @@ impl fmt::Debug for ClientBuilder {
             .debug_struct("ClientBuilder")
             .field("http2_configured", &self.profile.http2().is_some())
             .field("http3_configured", &self.profile.http3().is_some())
+            .field(
+                "client_hints_configured",
+                &self.profile.client_hints().is_some(),
+            )
             .field("additional_root_count", &self.additional_roots.len())
             .field("route", &self.route)
             .finish_non_exhaustive()
@@ -155,6 +161,11 @@ impl ClientBuilder {
             .tls()
             .validate()
             .map_err(BuildError::invalid_tls_profile)?;
+        if let Some(client_hints) = self.profile.client_hints() {
+            client_hints
+                .validate()
+                .map_err(BuildError::invalid_client_hint_profile)?;
+        }
 
         let roots = || self.additional_roots.iter().map(AsRef::as_ref);
         let supports_http1 = self
@@ -189,6 +200,7 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http3)?;
+        let client_hints = self.profile.client_hints().cloned();
 
         if http1.is_none() && http2.is_none() && http3.is_none() {
             return Err(BuildError::no_supported_protocol());
@@ -199,6 +211,7 @@ impl ClientBuilder {
                 http1,
                 http2,
                 http3,
+                client_hints,
                 route: self.route,
             }),
         })

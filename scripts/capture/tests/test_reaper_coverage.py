@@ -78,7 +78,7 @@ class ReaperCoverageTests(unittest.TestCase):
         document = copy.deepcopy(self.document)
         document["probes"].pop()
 
-        self.assert_invalid(document, "missing probe IDs: h3-retry")
+        self.assert_invalid(document, "missing probe IDs: h3-redirect")
 
     def test_rejects_passive_probe(self) -> None:
         document = copy.deepcopy(self.document)
@@ -117,7 +117,7 @@ class ReaperCoverageTests(unittest.TestCase):
             / "coverage.json"
         )
 
-        self.assertEqual(validate_coverage(load_coverage(coverage), repository), 22)
+        self.assertEqual(validate_coverage(load_coverage(coverage), repository), 23)
 
     def test_accepts_exact_reaper_source_manifest(self) -> None:
         manifest = {

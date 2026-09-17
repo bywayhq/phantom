@@ -315,6 +315,12 @@ redirect recipes are retained regressions rather than deferred capability
 gates. General streaming request bodies and their replay factories, retries,
 request trailers, and extended CONNECT remain separate slices.
 
+The response-header client-hint slice is landed for H1, H2, and H3. Profiles
+own ordered default and negotiated fields; sessions own a bounded exact-origin
+`Accept-CH` cache; cross-origin redirects rebuild rather than carry configured
+hints; and `Critical-CH` has one idempotent replay. ALPS `ACCEPT_CH`, browser
+navigation-context delegation, and persistence remain separate work.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.

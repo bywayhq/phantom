@@ -30,7 +30,30 @@ drop(second);
 ```
 
 Bare `Client::get` remains one-shot. `Session::get` reuses eligible HTTP/1.1,
-HTTP/2, and direct HTTP/3 connections.
+HTTP/2, and direct HTTP/3 connections. When the profile defines client hints,
+the session also retains bounded exact-origin `Accept-CH` state.
+
+## Client hints
+
+Client-hint values and relative order come from `ClientHintSettings` in the
+immutable profile. Default fields are emitted on every request. Fields marked
+`AcceptCh` are emitted only after that exact HTTPS origin requests them. A
+valid response value replaces the prior selection; an empty or
+unsupported-only value clears it; malformed input leaves prior state intact.
+The effective port is part of the origin.
+
+The store is bounded by `SessionBuilder::max_client_hint_origins`. Session
+clones share it, new sessions do not, and `Session::clear_client_hints` removes
+all learned selections. Bare `Client` requests emit profile defaults without
+retaining response state. Caller-supplied configured hint fields override
+automatic values without being moved.
+
+`Critical-CH` may replay the current owned request once when a supported
+requested hint was missing and the method is idempotent. It cannot loop or
+change the selected route or protocol. Cross-origin redirects remove configured
+caller hint fields and rebuild the automatic set for the new origin. ALPS
+`ACCEPT_CH`, persistence, full-navigation restart across an already-followed
+redirect chain, and browsing-context delegation are not part of this slice.
 
 ## Redirect policy
 
@@ -153,6 +176,6 @@ SameSite `Strict` and `Lax` require navigation/initiator context that the
 current request API does not expose, so they are rejected. `SameSite=None` is
 accepted only with `Secure`; an omitted SameSite attribute receives no
 context-dependent filtering in this slice. Partitioned cookies need a
-top-level-site key and remain unsupported. Persistence, browser-specific
-eviction priority, retries, client hints, QUIC tickets, DNS/HTTPS answers, and
+top-level-site key and remain unsupported. Persistence, browser-specific cookie
+eviction priority, general retries, QUIC tickets, DNS/HTTPS answers, and
 Alt-Svc state are also outside this slice.

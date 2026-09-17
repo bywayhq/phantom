@@ -3,6 +3,7 @@ use std::{error::Error, num::NonZeroUsize};
 use bytes::Bytes;
 use http::{Method, Response, StatusCode};
 use phantom_net::request::RequestHeader;
+use phantom_profile::{ClientHint, ClientHintDelivery, ClientHintSettings};
 
 use super::{RedirectAction, RedirectPolicy, RedirectState};
 use crate::RequestErrorKind;
@@ -102,6 +103,41 @@ fn cross_origin_redirect_strips_credentials_only() -> TestResult {
             .map(RequestHeader::name)
             .collect::<Vec<_>>(),
         ["content-type", "x-ordered"]
+    );
+    Ok(())
+}
+
+#[test]
+fn configured_client_hints_are_stripped_before_cross_origin_rebuild() -> TestResult {
+    let mut state = state(Method::GET)?;
+    state
+        .headers
+        .push(RequestHeader::new("Sec-CH-UA", "caller"));
+    state
+        .headers
+        .push(RequestHeader::new("x-after-hint", "two"));
+    let settings = ClientHintSettings::new(vec![ClientHint::new(
+        "sec-ch-ua",
+        "profile",
+        ClientHintDelivery::Default,
+    )]);
+
+    assert!(matches!(
+        state.follow(&redirect(
+            StatusCode::PERMANENT_REDIRECT,
+            "https://other.test/final"
+        )?)?,
+        RedirectAction::Follow { same_origin: false }
+    ));
+    state.strip_client_hints(&settings);
+
+    assert_eq!(
+        state
+            .headers()
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>(),
+        ["content-type", "x-ordered", "x-after-hint"]
     );
     Ok(())
 }

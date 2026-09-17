@@ -1,0 +1,17 @@
+format=phantom-client-hints-v1
+captured_at=2026-09-16
+browser=Google Chrome 152.0.7977.83
+os=macOS 15.5 arm64
+transport=HTTP/1.1
+hint_count=11
+hint_0=default|sec-ch-ua|"Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152"
+hint_1=default|sec-ch-ua-mobile|?0
+hint_2=accept-ch|sec-ch-ua-full-version|"152.0.7977.83"
+hint_3=accept-ch|sec-ch-ua-arch|"arm"
+hint_4=default|sec-ch-ua-platform|"macOS"
+hint_5=accept-ch|sec-ch-ua-platform-version|"15.5.0"
+hint_6=accept-ch|sec-ch-ua-model|""
+hint_7=accept-ch|sec-ch-ua-bitness|"64"
+hint_8=accept-ch|sec-ch-ua-wow64|?0
+hint_9=accept-ch|sec-ch-ua-full-version-list|"Chromium";v="152.0.7977.83", "Not?A_Brand";v="24.0.0.0", "Google Chrome";v="152.0.7977.83"
+hint_10=accept-ch|sec-ch-ua-form-factors|"Desktop"

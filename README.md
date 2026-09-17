@@ -33,11 +33,13 @@ one unified streaming response body. CONNECT fields preserve caller-declared
 order, proxy rejection never falls back direct, and coalesced tunnel bytes
 survive negotiation. The SOCKS5 URI scheme selects explicit DNS ownership. H3 uses a
 separate protocol-specific TLS profile and rejects both TCP-only proxy routes
-before network I/O. The optional `cookies` capability
-adds a bounded, explicit session jar with public-suffix, prefix, expiry, and
-    deterministic ordering rules. Feature-gated SSE support provides both a bounded
-    single-response decoder and a finite, pull-driven session reconnect controller
-    without a background task. Feature-gated WebSocket support performs an exact ordered H1
+before network I/O. The optional `cookies` capability adds a bounded, explicit
+session jar with public-suffix, prefix, expiry, and deterministic ordering
+rules. Profiles may also define ordered client-hint fields; sessions retain
+bounded exact-origin `Accept-CH` state and perform at most one idempotent
+`Critical-CH` replay. Feature-gated SSE support provides both a bounded
+single-response decoder and a finite, pull-driven session reconnect controller
+without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
 I/O through Phantom-owned types. HTTPS proxies, SOCKS5 authentication,
 UDP-capable proxies, general retry policy, WebSocket extensions, and extended
@@ -60,7 +62,8 @@ use phantom::profile::{ClientProfile, chromium};
 
 # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ClientProfile::new(chromium::v152_macos_tls())
-    .with_http2(chromium::v152_macos_http2());
+    .with_http2(chromium::v152_macos_http2())
+    .with_client_hints(chromium::v152_macos_client_hints());
 let client = Client::builder(profile).build()?;
 let response = client
     .get(HttpProtocol::Http2, "https://example.com/resource")?
@@ -109,7 +112,9 @@ spelling. HTTP/2 and HTTP/3 names are lowercase by protocol. Use
 `client.session()` for session-owned HTTP/1.1, HTTP/2, and direct HTTP/3 reuse,
 or enable bounded cookie state explicitly with
 `client.session_builder().cookies().build()` when the `cookies` feature is
-compiled. Use `ClientBuilder::route` for an immutable default route or
+compiled. A profile with client hints emits default fields for bare requests;
+a session additionally retains exact-origin `Accept-CH` state. Use
+`ClientBuilder::route` for an immutable default route or
 `RequestBuilder::route` for an owned per-request override.
 
 ## Current workspace
@@ -117,7 +122,7 @@ compiled. Use `ClientBuilder::route` for an immutable default route or
 - `phantom`: the public exact-protocol client facade, session-owned H1, H2, and H3 reuse,
   direct routes, plaintext HTTP CONNECT and local- or remote-DNS SOCKS5 for H1/H2 and H1
   WebSocket, opt-in bounded redirects, streaming responses, and optional
-  bounded cookie, SSE, and WebSocket capabilities
+  bounded cookie and client-hint state, plus SSE and WebSocket capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes

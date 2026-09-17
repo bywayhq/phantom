@@ -49,10 +49,11 @@ pub mod profile {
     };
     pub use phantom_profile::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientFamily, ClientHelloExtension,
-        ClientHelloExtensionOrder, ClientProfile, EmptyClientVersion, Http2Priority,
-        Http2PseudoHeader, Http2Setting, Http2Settings, Http3ClientSettings, Http3PseudoHeader,
-        Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings, Http3Setting,
-        Http3SettingOrder, Http3Settings, InvalidHttp2Settings, InvalidHttp3RequestSettings,
+        ClientHelloExtensionOrder, ClientHint, ClientHintDelivery, ClientHintSettings,
+        ClientProfile, EmptyClientVersion, Http2Priority, Http2PseudoHeader, Http2Setting,
+        Http2Settings, Http3ClientSettings, Http3PseudoHeader, Http3QpackDecoderStream,
+        Http3QpackEncoding, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+        InvalidClientHintSettings, InvalidHttp2Settings, InvalidHttp3RequestSettings,
         InvalidHttp3Settings, InvalidProfileId, InvalidTlsSettings, NamedGroup, Platform,
         ProfileId, ProfileMetadata, SignatureScheme, TlsSettings, TlsVersion,
     };
@@ -60,8 +61,8 @@ pub mod profile {
     /// Chromium-family recipes implemented by the public facade.
     pub mod chromium {
         pub use phantom_profile::chromium::{
-            v152_macos_http2, v152_macos_http3, v152_macos_http3_request, v152_macos_quic,
-            v152_macos_tls,
+            v152_macos_client_hints, v152_macos_http2, v152_macos_http3, v152_macos_http3_request,
+            v152_macos_http3_tls, v152_macos_quic, v152_macos_tls,
         };
     }
 

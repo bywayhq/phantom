@@ -233,6 +233,11 @@ impl RequestBuilder {
                     return Ok(response);
                 }
                 RedirectAction::Follow { same_origin } => {
+                    if !same_origin {
+                        if let Some(settings) = client.inner.client_hints.as_ref() {
+                            redirect.strip_client_hints(settings);
+                        }
+                    }
                     debug!(
                         hop = redirect.followed(),
                         status = response.status().as_u16(),

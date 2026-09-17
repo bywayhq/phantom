@@ -214,6 +214,75 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
     .await
 }
 
+#[tokio::test]
+async fn reaper_h3_redirect_follows_before_response_fin_on_same_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = h3_support::server_endpoint(&identity)?;
+        let callback = "/.well-known/reaper/h3-redirect/0123456789abcdef0123456789abcdef";
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+            let quic = incoming.await?;
+            let mut connection =
+                h3::server::Connection::new(h3_quinn::Connection::new(quic)).await?;
+
+            let (initial, mut initial_stream) = accept_h3_request(&mut connection).await?;
+            assert_eq!(initial.method(), Method::GET);
+            assert_eq!(initial.uri().path(), "/.well-known/reaper/h3-redirect");
+            assert!(collect_h3_body(&mut initial_stream).await?.is_empty());
+            initial_stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::FOUND)
+                        .header("location", callback)
+                        .body(())?,
+                )
+                .await?;
+
+            let (followed, mut followed_stream) = accept_h3_request(&mut connection).await?;
+            assert_eq!(followed.method(), Method::GET);
+            assert_eq!(followed.uri().path(), callback);
+            assert!(collect_h3_body(&mut followed_stream).await?.is_empty());
+            followed_stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(())?,
+                )
+                .await?;
+            followed_stream.finish().await?;
+            let _ = initial_stream.finish().await;
+            wait_for_client
+                .await
+                .map_err(|_| "client stopped before HTTP/3 response completion")?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let session = http3_client(&identity)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build();
+        let response = session
+            .get(
+                HttpProtocol::Http3,
+                &format!("https://{address}/.well-known/reaper/h3-redirect"),
+            )?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_response_info(&response, &format!("https://{address}{callback}"))?;
+        response.into_body().collect().await?;
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/3 server stopped before client completion")?;
+        drop(session);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
 async fn send_reaper_probe(
     session: &phantom::Session,
     address: std::net::SocketAddr,

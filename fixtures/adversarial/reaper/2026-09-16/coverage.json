@@ -3,7 +3,7 @@
   "source": {
     "schema": "reaper-public-clients/1",
     "snapshot_date": "2026-09-16",
-    "manifest_sha256": "4bc90cfd2db7fb7d3b5173b5eaf5efa2068d46f2eb0e3f39b092cb733644a963"
+    "manifest_sha256": "ad68dce4f8c34e794a7a90ffb06b538dda3af84d63c165ddb0290f2ea2164f3c"
   },
   "probes": [
     {
@@ -196,6 +196,15 @@
         {
           "file": "crates/phantom-net/src/http3/tests/quic.rs",
           "test": "completes_after_one_server_retry"
+        }
+      ]
+    },
+    {
+      "id": "h3-redirect",
+      "regressions": [
+        {
+          "file": "crates/phantom/tests/redirects.rs",
+          "test": "reaper_h3_redirect_follows_before_response_fin_on_same_connection"
         }
       ]
     }

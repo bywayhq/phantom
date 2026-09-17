@@ -23,7 +23,7 @@ use http::{HeaderMap, Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
-    profile::{ClientProfile, chromium},
+    profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -589,6 +589,29 @@ fn invalid_http2_profile_has_stable_build_category() -> TestResult<()> {
         Err(error) => error,
     };
     assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+    Ok(())
+}
+
+#[test]
+fn invalid_client_hint_profile_has_stable_build_category() -> TestResult<()> {
+    let hints = ClientHintSettings::new(vec![ClientHint::new(
+        "Sec-CH-UA",
+        "value",
+        ClientHintDelivery::Default,
+    )]);
+    let error = match Client::builder(ClientProfile::new(tls_settings()).with_client_hints(hints))
+        .build()
+    {
+        Ok(_) => return Err("invalid client-hint profile was accepted".into()),
+        Err(error) => error,
+    };
+
+    assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+    assert!(
+        error
+            .to_string()
+            .starts_with("invalid client-hint profile:")
+    );
     Ok(())
 }
 

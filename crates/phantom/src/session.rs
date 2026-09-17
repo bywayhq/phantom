@@ -9,6 +9,7 @@ use crate::{Client, HttpProtocol, RedirectPolicy, RequestBuilder, RequestError};
 use crate::{WebSocketError, WebSocketRequestBuilder};
 
 mod admission;
+pub(crate) mod client_hints;
 #[cfg(feature = "cookies")]
 mod cookies;
 mod http1_pool;
@@ -45,6 +46,10 @@ const DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN: NonZeroUsize = match Non
 };
 const DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN: NonZeroUsize =
     DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN;
+const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64) {
+    Some(value) => value,
+    None => NonZeroUsize::MIN,
+};
 
 /// Cloneable cross-request state for one immutable [`Client`].
 ///
@@ -61,11 +66,39 @@ pub(crate) struct SessionState {
     pub(crate) http1: http1_pool::Http1Pool,
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: http3_pool::Http3Pool,
+    client_hints: Option<client_hints::ClientHintStore>,
     #[cfg(feature = "cookies")]
     pub(crate) cookies: Option<Arc<CookieJar>>,
 }
 
 impl Session {
+    pub(crate) fn prepare_client_hints(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        settings: &phantom_profile::ClientHintSettings,
+        caller: Vec<phantom_net::request::RequestHeader>,
+    ) -> Vec<phantom_net::request::RequestHeader> {
+        match &self.state.client_hints {
+            Some(client_hints) => client_hints.prepare(endpoint, settings, caller),
+            None => client_hints::prepare_default_fields(settings, caller),
+        }
+    }
+
+    pub(crate) fn learn_client_hints_and_should_retry(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        settings: &phantom_profile::ClientHintSettings,
+        response: &http::HeaderMap,
+        sent: &[phantom_net::request::RequestHeader],
+    ) -> bool {
+        self.state
+            .client_hints
+            .as_ref()
+            .is_some_and(|client_hints| {
+                client_hints.learn_and_should_retry(endpoint, settings, response, sent)
+            })
+    }
+
     /// Starts one empty-body GET using exactly `protocol`.
     ///
     /// HTTP/1.1, HTTP/2, and direct HTTP/3 requests may reuse compatible
@@ -127,6 +160,13 @@ impl Session {
     pub fn cookie_jar(&self) -> Option<&CookieJar> {
         self.state.cookies.as_deref()
     }
+
+    /// Clears all `Accept-CH` preferences learned by this session.
+    pub fn clear_client_hints(&self) {
+        if let Some(client_hints) = &self.state.client_hints {
+            client_hints.clear();
+        }
+    }
 }
 
 impl fmt::Debug for Session {
@@ -176,6 +216,15 @@ impl fmt::Debug for Session {
                     false
                 }
             })
+            .field("client_hints_enabled", &self.state.client_hints.is_some())
+            .field(
+                "max_client_hint_origins",
+                &self
+                    .state
+                    .client_hints
+                    .as_ref()
+                    .map(client_hints::ClientHintStore::capacity),
+            )
             .finish_non_exhaustive()
     }
 }
@@ -192,6 +241,7 @@ pub struct SessionBuilder {
     max_retained_http3_connections: NonZeroUsize,
     max_concurrent_http3_requests_per_origin: NonZeroUsize,
     max_pending_http3_requests_per_origin: NonZeroUsize,
+    max_client_hint_origins: NonZeroUsize,
     #[cfg(feature = "cookies")]
     cookie_jar: Option<CookieJar>,
 }
@@ -211,6 +261,7 @@ impl SessionBuilder {
             max_concurrent_http3_requests_per_origin:
                 DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
             max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
+            max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }
@@ -293,6 +344,13 @@ impl SessionBuilder {
         self
     }
 
+    /// Sets the number of origins that may retain `Accept-CH` state.
+    #[must_use]
+    pub fn max_client_hint_origins(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_client_hint_origins = maximum;
+        self
+    }
+
     /// Enables an isolated in-memory cookie jar with default bounds.
     #[cfg(feature = "cookies")]
     #[must_use]
@@ -312,6 +370,12 @@ impl SessionBuilder {
     /// Builds the session.
     #[must_use]
     pub fn build(self) -> Session {
+        let client_hints = self
+            .client
+            .inner
+            .client_hints
+            .is_some()
+            .then(|| client_hints::ClientHintStore::new(self.max_client_hint_origins));
         Session {
             client: self.client,
             state: Arc::new(SessionState {
@@ -330,6 +394,7 @@ impl SessionBuilder {
                     self.max_concurrent_http3_requests_per_origin,
                     self.max_pending_http3_requests_per_origin,
                 ),
+                client_hints,
                 #[cfg(feature = "cookies")]
                 cookies: self.cookie_jar.map(Arc::new),
             }),
@@ -374,6 +439,7 @@ impl fmt::Debug for SessionBuilder {
                 "max_pending_http3_requests_per_origin",
                 &self.max_pending_http3_requests_per_origin,
             )
+            .field("max_client_hint_origins", &self.max_client_hint_origins)
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use super::{v152_macos_http2, v152_macos_http3_tls, v152_macos_tls};
+use super::{v152_macos_client_hints, v152_macos_http2, v152_macos_http3_tls, v152_macos_tls};
+use crate::client_hints::ClientHintDelivery;
 use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
 
 const PINGLY_FIXTURE: &str = include_str!(concat!(
@@ -8,6 +9,51 @@ const PINGLY_FIXTURE: &str = include_str!(concat!(
     "/../../fixtures/http2/chrome/152.0.7977.83/macos-15.5/pingly-api-all.txt"
 ));
 const INITIAL_CONNECTION_WINDOW: u32 = 65_535;
+const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/client-hints/chrome/152.0.7977.83/macos-15.5/navigation.txt"
+));
+
+#[test]
+fn chrome_152_macos_client_hints_match_isolated_navigation_capture()
+-> Result<(), Box<dyn std::error::Error>> {
+    let settings = v152_macos_client_hints();
+    settings.validate()?;
+    let lines = CLIENT_HINT_FIXTURE.lines().collect::<Vec<_>>();
+    assert_eq!(lines[0], "format=phantom-client-hints-v1");
+    assert_eq!(lines[1], "captured_at=2026-09-16");
+    assert_eq!(lines[2], "browser=Google Chrome 152.0.7977.83");
+    assert_eq!(lines[3], "os=macOS 15.5 arm64");
+    assert_eq!(lines[4], "transport=HTTP/1.1");
+    assert_eq!(lines[5], "hint_count=11");
+
+    let observed = lines[6..]
+        .iter()
+        .enumerate()
+        .map(|(index, line)| {
+            let prefix = format!("hint_{index}=");
+            let value = line
+                .strip_prefix(&prefix)
+                .ok_or("client-hint fixture index is not canonical")?;
+            let mut parts = value.splitn(3, '|');
+            let delivery = match parts.next() {
+                Some("default") => ClientHintDelivery::Default,
+                Some("accept-ch") => ClientHintDelivery::AcceptCh,
+                _ => return Err("client-hint fixture delivery is invalid"),
+            };
+            let name = parts.next().ok_or("client-hint fixture name is missing")?;
+            let value = parts.next().ok_or("client-hint fixture value is missing")?;
+            Ok((delivery, name, value.as_bytes()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let profile = settings
+        .hints()
+        .iter()
+        .map(|hint| (hint.delivery(), hint.name(), hint.value()))
+        .collect::<Vec<_>>();
+    assert_eq!(profile, observed);
+    Ok(())
+}
 
 #[test]
 fn chrome_152_macos_tls_settings_are_valid() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,6 +1,7 @@
 //! Client-neutral profile identity, provenance, and wire settings.
 
 pub mod chromium;
+pub mod client_hints;
 pub mod firefox;
 pub mod http2;
 pub mod http3;
@@ -12,6 +13,9 @@ mod client;
 mod identity;
 
 pub use client::{ClientProfile, Http3ClientSettings};
+pub use client_hints::{
+    ClientHint, ClientHintDelivery, ClientHintSettings, InvalidClientHintSettings,
+};
 pub use http2::{
     Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,
 };

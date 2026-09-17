@@ -5,7 +5,7 @@ use phantom_net::{
     http2::{Http2Error, Http2TlsError},
     http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
 };
-use phantom_profile::InvalidTlsSettings;
+use phantom_profile::{InvalidClientHintSettings, InvalidTlsSettings};
 
 use crate::HttpProtocol;
 
@@ -38,6 +38,14 @@ impl BuildError {
         Self::with_source(
             BuildErrorKind::InvalidProfile,
             "invalid TLS profile",
+            source,
+        )
+    }
+
+    pub(crate) fn invalid_client_hint_profile(source: InvalidClientHintSettings) -> Self {
+        Self::with_source(
+            BuildErrorKind::InvalidProfile,
+            "invalid client-hint profile",
             source,
         )
     }

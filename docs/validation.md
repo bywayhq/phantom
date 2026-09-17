@@ -548,6 +548,9 @@ The corpus covers:
 - SSE partial UTF-8, multiline data, comments, retry fields, idle periods, and
   reconnect; WebSocket fragmentation, interleaved control frames, masking,
   compression, and close races.
+- Client-hint replacement and clearing, repeated and malformed structured
+  fields, origin/port isolation, cross-origin redirect stripping, and bounded
+  `Critical-CH` replay over H1, H2, and H3.
 
 Minimized failures become ordinary regression fixtures. Coverage-guided fuzzing
 uses the same bounded decoders and seeds in scheduled CI; native adapters also

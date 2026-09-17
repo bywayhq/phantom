@@ -14,7 +14,7 @@ COVERAGE_SCHEMA = "phantom-reaper-coverage/1"
 SOURCE_SCHEMA = "reaper-public-clients/1"
 SNAPSHOT_DATE = "2026-09-16"
 SOURCE_MANIFEST_SHA256 = (
-    "4bc90cfd2db7fb7d3b5173b5eaf5efa2068d46f2eb0e3f39b092cb733644a963"
+    "ad68dce4f8c34e794a7a90ffb06b538dda3af84d63c165ddb0290f2ea2164f3c"
 )
 EXPECTED_PROBE_IDS = (
     "h2-unknown-frame",
@@ -38,6 +38,7 @@ EXPECTED_PROBE_IDS = (
     "h1-trailers",
     "h1-segmentation",
     "h3-retry",
+    "h3-redirect",
 )
 
 _TOP_LEVEL_KEYS = {"schema", "source", "probes"}

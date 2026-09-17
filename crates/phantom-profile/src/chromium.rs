@@ -1,6 +1,7 @@
 //! Wire settings retained from Chromium-family browser observations.
 
 use crate::{
+    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
     http3::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
@@ -52,6 +53,37 @@ const V152_MACOS_TRUST_ANCHOR_IDS: &[&[u8]] = &[
     &[0x82, 0xdf, 0x13, 0x02, 0x0e],
     &[0xd6, 0x79, 0x09, 0x0b],
 ];
+
+/// Returns client-hint fields observed from Chrome 152 on macOS 15.5 arm64.
+///
+/// Field values and relative order come from an isolated navigation capture.
+/// The returned value is owned and may be customized before client creation.
+#[must_use]
+pub fn v152_macos_client_hints() -> ClientHintSettings {
+    use ClientHintDelivery::{AcceptCh, Default};
+
+    ClientHintSettings::new(vec![
+        ClientHint::new(
+            "sec-ch-ua",
+            r#""Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152""#,
+            Default,
+        ),
+        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
+        ClientHint::new("sec-ch-ua-full-version", r#""152.0.7977.83""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
+        ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
+        ClientHint::new(
+            "sec-ch-ua-full-version-list",
+            r#""Chromium";v="152.0.7977.83", "Not?A_Brand";v="24.0.0.0", "Google Chrome";v="152.0.7977.83""#,
+            AcceptCh,
+        ),
+        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
+    ])
+}
 
 /// Returns TLS settings captured from Chrome 152.0.7977.83 on macOS 15.5.
 ///

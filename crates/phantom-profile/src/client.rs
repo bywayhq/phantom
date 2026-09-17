@@ -1,7 +1,8 @@
 //! Protocol settings grouped for client construction.
 
 use crate::{
-    Http2Settings, Http3RequestSettings, Http3Settings, TlsSettings, quic::QuicTransportSettings,
+    ClientHintSettings, Http2Settings, Http3RequestSettings, Http3Settings, TlsSettings,
+    quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -61,6 +62,7 @@ pub struct ClientProfile {
     tls: TlsSettings,
     http2: Option<Http2Settings>,
     http3: Option<Http3ClientSettings>,
+    client_hints: Option<ClientHintSettings>,
 }
 
 impl ClientProfile {
@@ -71,6 +73,7 @@ impl ClientProfile {
             tls,
             http2: None,
             http3: None,
+            client_hints: None,
         }
     }
 
@@ -85,6 +88,13 @@ impl ClientProfile {
     #[must_use]
     pub fn with_http3(mut self, http3: Http3ClientSettings) -> Self {
         self.http3 = Some(http3);
+        self
+    }
+
+    /// Adds ordered client-hint request fields to the profile.
+    #[must_use]
+    pub fn with_client_hints(mut self, client_hints: ClientHintSettings) -> Self {
+        self.client_hints = Some(client_hints);
         self
     }
 
@@ -105,11 +115,20 @@ impl ClientProfile {
     pub fn http3(&self) -> Option<&Http3ClientSettings> {
         self.http3.as_ref()
     }
+
+    /// Returns the client-hint settings when configured.
+    #[must_use]
+    pub fn client_hints(&self) -> Option<&ClientHintSettings> {
+        self.client_hints.as_ref()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{CipherSuite, ClientProfile, Http3ClientSettings, TlsVersion, chromium};
+    use crate::{
+        CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile,
+        Http3ClientSettings, TlsVersion, chromium,
+    };
 
     #[test]
     fn new_owns_tls_settings_without_enabling_http2() {
@@ -129,6 +148,19 @@ mod tests {
 
         assert_eq!(profile.tls(), &tls);
         assert_eq!(profile.http2(), Some(&http2));
+    }
+
+    #[test]
+    fn with_client_hints_owns_and_exposes_ordered_settings() {
+        let hints = ClientHintSettings::new(vec![ClientHint::new(
+            "sec-ch-ua",
+            "value",
+            ClientHintDelivery::Default,
+        )]);
+        let profile =
+            ClientProfile::new(chromium::v152_macos_tls()).with_client_hints(hints.clone());
+
+        assert_eq!(profile.client_hints(), Some(&hints));
     }
 
     #[test]

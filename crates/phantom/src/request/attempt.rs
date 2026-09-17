@@ -18,29 +18,99 @@ pub(super) async fn send_once(
     let client = context.client();
     let session = context.session();
     let endpoint = &request.endpoint;
-    let target = request.target.clone();
-    #[cfg(feature = "cookies")]
-    let mut request_headers = request_headers;
-
     #[cfg(feature = "cookies")]
     let cookie_jar = session.and_then(|session| session.state.cookies.as_deref());
-    #[cfg(feature = "cookies")]
-    if let Some(jar) = cookie_jar {
-        let caller_supplied_cookie = request_headers
-            .iter()
-            .any(|header| header.name().eq_ignore_ascii_case("cookie"));
-        if !caller_supplied_cookie {
-            if let Some(value) = jar.request_value_for_url(&request.url) {
-                let name = match protocol {
-                    HttpProtocol::Http1 => "Cookie",
-                    HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
-                };
-                request_headers.push(RequestHeader::new(name, value).sensitive());
+    let mut retried_critical_hints = false;
+
+    loop {
+        let mut prepared_headers = request_headers.clone();
+        #[cfg(feature = "cookies")]
+        if let Some(jar) = cookie_jar {
+            let caller_supplied_cookie = prepared_headers
+                .iter()
+                .any(|header| header.name().eq_ignore_ascii_case("cookie"));
+            if !caller_supplied_cookie {
+                if let Some(value) = jar.request_value_for_url(&request.url) {
+                    let name = match protocol {
+                        HttpProtocol::Http1 => "Cookie",
+                        HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
+                    };
+                    prepared_headers.push(RequestHeader::new(name, value).sensitive());
+                }
             }
         }
-    }
 
-    let response = match protocol {
+        if let Some(settings) = client.inner.client_hints.as_ref() {
+            prepared_headers = match session {
+                Some(session) => session.prepare_client_hints(endpoint, settings, prepared_headers),
+                None => {
+                    crate::session::client_hints::prepare_default_fields(settings, prepared_headers)
+                }
+            };
+        }
+        let sent_headers = prepared_headers.clone();
+        let response = dispatch(
+            context,
+            request,
+            protocol,
+            method.clone(),
+            prepared_headers,
+            body.clone(),
+            route,
+        )
+        .await?;
+
+        #[cfg(feature = "cookies")]
+        if let Some(jar) = cookie_jar {
+            jar.store_response_headers(&request.url, response.headers());
+        }
+
+        let critical_retry_requested = session.is_some_and(|session| {
+            client.inner.client_hints.as_ref().is_some_and(|settings| {
+                session.learn_client_hints_and_should_retry(
+                    endpoint,
+                    settings,
+                    response.headers(),
+                    &sent_headers,
+                )
+            })
+        });
+        let should_retry = !retried_critical_hints
+            && critical_retry_requested
+            && critical_hint_retry_eligible(&method);
+        if should_retry {
+            retried_critical_hints = true;
+            tracing::debug!(
+                retry = 1,
+                reason = "critical_client_hints",
+                "retrying request with negotiated client hints"
+            );
+            drop(response);
+            continue;
+        }
+        return Ok(response);
+    }
+}
+
+fn critical_hint_retry_eligible(method: &Method) -> bool {
+    method.is_idempotent()
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn dispatch(
+    context: &RequestContext,
+    request: &ResolvedRequest,
+    protocol: HttpProtocol,
+    method: Method,
+    request_headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+    route: &Route,
+) -> Result<Response<ResponseBody>, RequestError> {
+    let client = context.client();
+    let session = context.session();
+    let endpoint = &request.endpoint;
+    let target = request.target.clone();
+    match protocol {
         HttpProtocol::Http1 => {
             let connector = client
                 .inner
@@ -261,11 +331,29 @@ pub(super) async fn send_once(
                 Ok(Response::from_parts(parts, ResponseBody::http3(body)))
             }
         }
-    }?;
-
-    #[cfg(feature = "cookies")]
-    if let Some(jar) = cookie_jar {
-        jar.store_response_headers(&request.url, response.headers());
     }
-    Ok(response)
+}
+
+#[cfg(test)]
+mod tests {
+    use http::Method;
+
+    use super::critical_hint_retry_eligible;
+
+    #[test]
+    fn critical_hint_replay_uses_http_idempotency() {
+        for method in [
+            Method::GET,
+            Method::HEAD,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::TRACE,
+        ] {
+            assert!(critical_hint_retry_eligible(&method));
+        }
+        for method in [Method::POST, Method::PATCH] {
+            assert!(!critical_hint_retry_eligible(&method));
+        }
+    }
 }
