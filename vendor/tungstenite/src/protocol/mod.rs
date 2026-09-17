@@ -2,6 +2,9 @@
 
 pub mod frame;
 
+#[cfg(feature = "deflate")]
+pub(crate) mod deflate;
+
 mod message;
 
 pub use self::{frame::CloseFrame, message::Message};
@@ -27,6 +30,20 @@ pub enum Role {
     Server,
     /// This socket is a client
     Client,
+}
+
+/// One ordered parameter in a client `permessage-deflate` offer.
+#[cfg(feature = "deflate")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PerMessageDeflateOfferParameter {
+    /// `server_no_context_takeover`.
+    ServerNoContextTakeover,
+    /// `client_no_context_takeover`.
+    ClientNoContextTakeover,
+    /// `server_max_window_bits=<value>`.
+    ServerMaxWindowBits(u8),
+    /// `client_max_window_bits`, optionally with a value.
+    ClientMaxWindowBits(Option<u8>),
 }
 
 /// The configuration for WebSocket connection.
@@ -71,6 +88,11 @@ pub struct WebSocketConfig {
     ///
     /// Note: Should always be at least [`write_buffer_size + 1 message`](Self::write_buffer_size)
     /// and probably a little more depending on error handling strategy.
+    /// With deflate enabled, “1 message” means its uncompressed full wire size;
+    /// a larger message is unsendable regardless of how much the buffer drains.
+    /// A message that compresses larger than its plain form is still sent compressed while
+    /// it fits; only when the compressed wire form no longer fits is it sent uncompressed
+    /// instead, with outgoing takeover history reset before later compressed output.
     pub max_write_buffer_size: usize,
     /// The maximum size of an incoming message. `None` means no size limit. The default value is 64 MiB
     /// which should be reasonably big for all normal use-cases but small enough to prevent
@@ -87,6 +109,41 @@ pub struct WebSocketConfig {
     /// some popular libraries that are sending unmasked frames, ignoring the RFC.
     /// By default this option is set to `false`, i.e. according to RFC 6455.
     pub accept_unmasked_frames: bool,
+    #[cfg(feature = "deflate")]
+    pub(crate) deflate: Option<deflate::Settings>,
+}
+
+/// The effective `permessage-deflate` settings agreed by the handshake.
+#[cfg(feature = "deflate")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PerMessageDeflateConfig {
+    server_no_context_takeover: bool,
+    client_no_context_takeover: bool,
+    server_max_window_bits: u8,
+    client_max_window_bits: u8,
+}
+
+#[cfg(feature = "deflate")]
+impl PerMessageDeflateConfig {
+    /// Whether the server resets its compression context after each message.
+    pub fn server_no_context_takeover(self) -> bool {
+        self.server_no_context_takeover
+    }
+
+    /// Whether the client resets its compression context after each message.
+    pub fn client_no_context_takeover(self) -> bool {
+        self.client_no_context_takeover
+    }
+
+    /// The server encoder's negotiated window width.
+    pub fn server_max_window_bits(self) -> u8 {
+        self.server_max_window_bits
+    }
+
+    /// The client encoder's negotiated window width.
+    pub fn client_max_window_bits(self) -> u8 {
+        self.client_max_window_bits
+    }
 }
 
 impl Default for WebSocketConfig {
@@ -98,11 +155,201 @@ impl Default for WebSocketConfig {
             max_message_size: Some(64 << 20),
             max_frame_size: Some(16 << 20),
             accept_unmasked_frames: false,
+            #[cfg(feature = "deflate")]
+            deflate: None,
         }
     }
 }
 
 impl WebSocketConfig {
+    /// Offers `permessage-deflate` on this connection, with RFC 7692 defaults.
+    ///
+    /// A client offers the extension in its handshake; a server accepts an
+    /// offer only through [`accept_deflate_offers`]. Enabling it here is not a
+    /// promise that the peer agrees — the negotiated outcome is whatever the
+    /// handshake settles on, and a peer that declines leaves the connection
+    /// uncompressed.
+    ///
+    /// The client offer carries `client_max_window_bits` with no value, so a server may
+    /// select the window this endpoint compresses with; see [`deflate_max_window_bits`].
+    ///
+    /// [`deflate_max_window_bits`]: WebSocketConfig::deflate_max_window_bits
+    ///
+    /// [`accept_deflate_offers`]: WebSocketConfig::accept_deflate_offers
+    #[cfg(feature = "deflate")]
+    pub fn enable_deflate(mut self) -> Self {
+        self.deflate.get_or_insert_default();
+        self
+    }
+
+    /// Caps the LZ77 sliding window for one direction, in bits.
+    ///
+    /// `role` names the direction, not this endpoint: [`Role::Server`] sets
+    /// `server_max_window_bits`, [`Role::Client`] sets `client_max_window_bits`.
+    /// Valid values are 8 to 15; a smaller window trades compression ratio for memory.
+    ///
+    /// Which encoder a setting names decides what it does:
+    ///
+    /// - **Your own** — [`Role::Client`] on a client, [`Role::Server`] on a server. Always
+    ///   applied when permessage-deflate is negotiated, and always saves memory locally.
+    /// - **The peer's, on a client** — [`Role::Server`]. A reduced cap is a handshake
+    ///   requirement: a response that does not select that cap or less fails the handshake.
+    /// - **The peer's, on a server** — [`Role::Client`]. A reduced cap is a preference, not
+    ///   a ceiling. An offer carrying `client_max_window_bits` is bound to the cap, or to
+    ///   the offer's own lower value. An offer that omits the parameter is still accepted,
+    ///   with a bare response and a 15-bit decoder: RFC 7692 §7.1.2.2 forbids naming the
+    ///   parameter in a response the offer did not invite, and §7.2.2 then requires a
+    ///   32,768-byte decoder window. Such a client bypasses the cap — the decoder window is
+    ///   the full 32 KiB rather than the `2^bits` bytes asked for.
+    ///   [`accept_deflate_offers`] prefers an offer the cap can bind when a client sends
+    ///   more than one.
+    ///
+    /// A client's own cap is a ceiling rather than a request: the offer names
+    /// `client_max_window_bits` without a value, so a server may select this endpoint's
+    /// window, and a selection narrows the cap instead of raising it. A selected 8 uses the
+    /// interoperable 9-bit zlib construction while retaining the negotiated 8-bit bound.
+    /// RFC 7692 §7.1.2.2 reads a response that omits the
+    /// parameter as a 32,768-byte peer decoder, so the cap then stands as configured and the
+    /// peer must decode whatever we encode with.
+    ///
+    /// [`accept_deflate_offers`]: WebSocketConfig::accept_deflate_offers
+    ///
+    /// # Panics
+    /// Panics if `bits` is outside 8..=15.
+    #[cfg(feature = "deflate")]
+    pub fn deflate_max_window_bits(mut self, role: Role, bits: u8) -> Self {
+        self.deflate = Some(self.deflate.unwrap_or_default().max_window_bits(role, bits));
+        self
+    }
+
+    /// Requests that one direction reset its sliding window between messages.
+    ///
+    /// `role` selects the direction. Disabling context takeover costs most of
+    /// the compression ratio — it is the difference between compressing against
+    /// the whole conversation and compressing each message alone — and it does
+    /// not reduce steady-state memory, because resetting a stream reuses its
+    /// arena rather than freeing it. It is a ratio and CPU knob, not a memory
+    /// one; for memory use [`deflate_max_window_bits`].
+    ///
+    /// For a client, setting [`Role::Server`] to `true` is a hard requirement:
+    /// a response omitting `server_no_context_takeover` fails the handshake;
+    /// preference-plus-fallback is not supported. Per RFC 7692 §7.1.1.2, a
+    /// server may ignore this on the client's behalf.
+    ///
+    /// [`deflate_max_window_bits`]: WebSocketConfig::deflate_max_window_bits
+    #[cfg(feature = "deflate")]
+    pub fn deflate_no_context_takeover(mut self, role: Role, on: bool) -> Self {
+        self.deflate = Some(self.deflate.unwrap_or_default().no_context_takeover(role, on));
+        self
+    }
+
+    /// Sets the DEFLATE compression level, 0 (store) to 9 (maximum).
+    ///
+    /// Defaults to the backend's default. Levels above the default cost CPU for
+    /// a ratio gain that is small on short messages.
+    ///
+    /// # Panics
+    /// Panics if `level` is above 9.
+    #[cfg(feature = "deflate")]
+    pub fn deflate_compression_level(mut self, level: u32) -> Self {
+        self.deflate = Some(self.deflate.unwrap_or_default().compression_level(level));
+        self
+    }
+
+    /// Replaces the ordered parameters in the generated client offer.
+    ///
+    /// An empty slice emits only `permessage-deflate`. Parameter order is
+    /// preserved. Duplicate parameters and window widths outside 8..=15 are
+    /// rejected.
+    #[cfg(feature = "deflate")]
+    pub fn deflate_offer_parameters(
+        mut self,
+        parameters: &[PerMessageDeflateOfferParameter],
+    ) -> Result<Self> {
+        let settings = self.deflate.unwrap_or_default();
+        self.deflate = Some(settings.offer_parameters(parameters)?);
+        Ok(self)
+    }
+
+    /// Returns the exact client offer generated for the current deflate policy.
+    #[cfg(feature = "deflate")]
+    pub fn deflate_offer(&self) -> Option<http::HeaderValue> {
+        self.deflate.map(deflate::Settings::offer)
+    }
+
+    /// Applies a server response to a client-owned custom handshake.
+    ///
+    /// The returned configuration is socket-ready. A declined offer disables
+    /// compression; an unsolicited or malformed selection is an error.
+    #[cfg(feature = "deflate")]
+    pub fn accept_deflate_response(mut self, headers: &http::HeaderMap) -> Result<Self> {
+        self.deflate = match self.deflate {
+            Some(offered) => offered.accept_response(headers)?,
+            None => {
+                if deflate::headers_select_deflate(headers)? {
+                    return Err(Error::Protocol(ProtocolError::InvalidHeader(
+                        http::header::SEC_WEBSOCKET_EXTENSIONS.clone().into(),
+                    )));
+                }
+                None
+            }
+        };
+        Ok(self)
+    }
+
+    /// Returns the effective negotiated deflate settings, when enabled.
+    #[cfg(feature = "deflate")]
+    pub fn permessage_deflate(&self) -> Option<PerMessageDeflateConfig> {
+        self.deflate.map(|settings| PerMessageDeflateConfig {
+            server_no_context_takeover: settings.server_no_context_takeover,
+            client_no_context_takeover: settings.client_no_context_takeover,
+            server_max_window_bits: settings.server_max_window_bits,
+            client_max_window_bits: settings.client_max_window_bits,
+        })
+    }
+
+    /// Answers a client's extension offers for a server-owned handshake.
+    ///
+    /// Takes every raw `Sec-WebSocket-Extensions` value from the request and
+    /// returns a socket-ready config plus the exact response header, if one was
+    /// agreed. On decline, the config has compression disabled and the header
+    /// is `None`.
+    ///
+    /// Which offer wins depends on the [`Role::Client`] window preference from
+    /// [`deflate_max_window_bits`]. At its default of 15, the first acceptable offer wins.
+    /// Under a reduced preference, an offer carrying `client_max_window_bits` outranks an
+    /// earlier one that omits it: only the former lets the response hold the client to the
+    /// preference, which is what RFC 7692 §7.1.2.2 gives the parameter for — a response
+    /// naming it reduces the memory the server reserves for the connection's decompression
+    /// context. Wire order decides within each group, and §7.1.3 lets a server pick any
+    /// supported offer. This changes which response header you send, never whether an offer
+    /// is acceptable.
+    ///
+    /// If a header is returned, send it and use the config returned with it;
+    /// applying only one would put the wire and codec into different states.
+    /// Pass that config to [`WebSocket::from_raw_socket`].
+    ///
+    /// A framework using tungstenite's own handshake needs only
+    /// [`enable_deflate`].
+    ///
+    /// [`enable_deflate`]: WebSocketConfig::enable_deflate
+    /// [`deflate_max_window_bits`]: WebSocketConfig::deflate_max_window_bits
+    #[cfg(feature = "deflate")]
+    pub fn accept_deflate_offers(
+        mut self,
+        offers: &[http::HeaderValue],
+    ) -> (Self, Option<http::HeaderValue>) {
+        let accepted = self.deflate.and_then(|settings| settings.accept_offers(offers));
+        let response = accepted.map(|(settings, response)| {
+            self.deflate = Some(settings);
+            response
+        });
+        if response.is_none() {
+            self.deflate = None;
+        }
+        (self, response)
+    }
+
     /// Set [`Self::read_buffer_size`].
     pub fn read_buffer_size(mut self, read_buffer_size: usize) -> Self {
         self.read_buffer_size = read_buffer_size;
@@ -214,6 +461,15 @@ impl<Stream> WebSocket<Stream> {
     ///
     /// # Panics
     /// Panics if config is invalid e.g. `max_write_buffer_size <= write_buffer_size`.
+    ///
+    /// With the `deflate` feature, also panics if the callback changes deflate settings
+    /// the handshake has already agreed. Compression is negotiated once, and a connection
+    /// cannot move to different settings mid-stream.
+    ///
+    /// What survives a panic differs between the two builds, in one direction only. An
+    /// invalid configuration is committed before it is rejected, in both. With `deflate`
+    /// on the callback runs against a copy, so a panic raised *inside* the callback, or a
+    /// rejected deflate change, leaves the live configuration untouched.
     pub fn set_config(&mut self, set_func: impl FnOnce(&mut WebSocketConfig)) {
         self.context.set_config(set_func);
     }
@@ -372,6 +628,19 @@ pub struct WebSocketContext {
     unflushed_additional: bool,
     /// The configuration for the websocket session.
     config: WebSocketConfig,
+    #[cfg(feature = "deflate")]
+    deflate: Option<deflate::Context>,
+    #[cfg(feature = "deflate")]
+    compressed_incomplete: bool,
+    /// Compression state is no longer usable, by any of the routes that reach it: a failed
+    /// inflate, a decompressed-size limit, a frame carrying compressed payload that was
+    /// rejected and discarded, or a frame discarded before anything could ask. The last
+    /// one is not known to have desynchronised us -- it is no longer provably in step,
+    /// which is the same thing for a decoder. Separate from `WebSocketState`
+    /// because the states the base terminates with still permit a final flush; this one
+    /// must not.
+    #[cfg(feature = "deflate")]
+    compression_unusable: bool,
 }
 
 impl WebSocketContext {
@@ -397,6 +666,8 @@ impl WebSocketContext {
         config.assert_valid();
         frame.set_max_out_buffer_len(config.max_write_buffer_size);
         frame.set_out_buffer_write_len(config.write_buffer_size);
+        #[cfg(feature = "deflate")]
+        let deflate = config.deflate.map(|settings| deflate::Context::new(role, settings));
         Self {
             role,
             frame,
@@ -405,6 +676,12 @@ impl WebSocketContext {
             additional_send: None,
             unflushed_additional: false,
             config,
+            #[cfg(feature = "deflate")]
+            deflate,
+            #[cfg(feature = "deflate")]
+            compressed_incomplete: false,
+            #[cfg(feature = "deflate")]
+            compression_unusable: false,
         }
     }
 
@@ -412,8 +689,24 @@ impl WebSocketContext {
     ///
     /// # Panics
     /// Panics if config is invalid e.g. `max_write_buffer_size <= write_buffer_size`.
+    #[cfg(not(feature = "deflate"))]
     pub fn set_config(&mut self, set_func: impl FnOnce(&mut WebSocketConfig)) {
         set_func(&mut self.config);
+        self.config.assert_valid();
+        self.frame.set_max_out_buffer_len(self.config.max_write_buffer_size);
+        self.frame.set_out_buffer_write_len(self.config.write_buffer_size);
+    }
+
+    /// Change the configuration without changing the negotiated compression state.
+    ///
+    /// # Panics
+    /// Panics if config is invalid or the callback changes agreed deflate settings.
+    #[cfg(feature = "deflate")]
+    pub fn set_config(&mut self, set_func: impl FnOnce(&mut WebSocketConfig)) {
+        let mut candidate = self.config;
+        set_func(&mut candidate);
+        assert_eq!(candidate.deflate, self.config.deflate, "agreed deflate settings are immutable");
+        self.config = candidate;
         self.config.assert_valid();
         self.frame.set_max_out_buffer_len(self.config.max_write_buffer_size);
         self.frame.set_out_buffer_write_len(self.config.write_buffer_size);
@@ -497,9 +790,37 @@ impl WebSocketContext {
             return Err(Error::Protocol(ProtocolError::SendAfterClosing));
         }
 
+        let prepare_data = |this: &mut Self, data, opcode| -> Result<Frame> {
+            #[cfg(not(feature = "deflate"))]
+            let _ = &this;
+            let plain = Frame::message(data, OpCode::Data(opcode), true);
+            #[cfg(feature = "deflate")]
+            if let Some(deflate) = &mut this.deflate {
+                // Keep this role-aware: for clients, `wire_size` counts the mask before
+                // `buffer_frame` applies it.
+                if !this.frame.can_buffer(wire_size(this.role, &plain)) {
+                    return Err(Error::WriteBufferFull(Message::Frame(plain).into()));
+                }
+                let compressed = match deflate.compress(plain.payload()) {
+                    Ok(compressed) => compressed,
+                    Err(error) => {
+                        deflate.reset_encoder();
+                        return Err(error);
+                    }
+                };
+                let mut frame = Frame::message(compressed, OpCode::Data(opcode), true);
+                frame.header_mut().rsv1 = true;
+                if this.frame.can_buffer(wire_size(this.role, &frame)) {
+                    return Ok(frame);
+                }
+                deflate.reset_encoder();
+            }
+            Ok(plain)
+        };
+
         let frame = match message {
-            Message::Text(data) => Frame::message(data, OpCode::Data(OpData::Text), true),
-            Message::Binary(data) => Frame::message(data, OpCode::Data(OpData::Binary), true),
+            Message::Text(data) => prepare_data(self, data.into(), OpData::Text)?,
+            Message::Binary(data) => prepare_data(self, data, OpData::Binary)?,
             Message::Ping(data) => Frame::ping(data),
             Message::Pong(data) => {
                 self.set_additional(Frame::pong(data));
@@ -507,7 +828,16 @@ impl WebSocketContext {
                 return self._write(stream, None).map(|_| ());
             }
             Message::Close(code) => return self.close(stream, code),
-            Message::Frame(f) => f,
+            Message::Frame(frame) => {
+                // The encoder's history is private, so a caller cannot keep it in step with
+                // a frame it compressed itself. Under context takeover the next ordinary
+                // message would then reference a history the peer does not have.
+                #[cfg(feature = "deflate")]
+                if frame.header().rsv1 && self.deflate.is_some() {
+                    return Err(Error::Protocol(ProtocolError::NonZeroReservedBits));
+                }
+                frame
+            }
         };
 
         let should_flush = self._write(stream, Some(frame))?;
@@ -526,6 +856,14 @@ impl WebSocketContext {
     where
         Stream: Read + Write,
     {
+        // Queued bytes belong to a connection the codec failure ended, so they are not
+        // written and neither is a close frame -- `close` reaches the stream through here.
+        // Latched separately from `WebSocketState` because the states the base sets do
+        // permit a final flush, and that is not ours to change.
+        #[cfg(feature = "deflate")]
+        if self.compression_unusable {
+            return Err(Error::AlreadyClosed);
+        }
         self._write(stream, None)?;
         self.frame.write_out_buffer(stream)?;
         stream.flush()?;
@@ -603,9 +941,68 @@ impl WebSocketContext {
         self.flush(stream)
     }
 
+    /// Inflate one frame's payload, ending the connection if the decoder fails.
+    ///
+    /// A failed inflate has already consumed part of the peer's compressed stream, and
+    /// DEFLATE offers no way to resynchronise a decoder, so every later frame would
+    /// decode to garbage rather than fail. Terminating keeps `read` and `write` off the
+    /// stream, and the separate latch keeps `flush` and `close` off it too -- the states
+    /// the base terminates with do allow a last flush, and this one must not.
+    #[cfg(feature = "deflate")]
+    fn decompress(&mut self, payload: &[u8], final_frame: bool) -> Result<bytes::Bytes> {
+        let already = self.incomplete.as_ref().map(IncompleteMessage::len).unwrap_or(0);
+        let max_size = self.config.max_message_size;
+        let deflate = self.deflate.as_mut().expect("a compressed frame requires a codec");
+        deflate.decompress(payload, final_frame, already, max_size).inspect_err(|_| {
+            self.fail_compression();
+        })
+    }
+
+    /// Take the connection out of service because compression state is no longer usable.
+    ///
+    /// The two fields move together and only here: `WebSocketState` stops `read` and
+    /// `write`, and the separate flag also stops `flush` and `close`, which the base's own
+    /// terminal states deliberately still allow.
+    #[cfg(feature = "deflate")]
+    fn fail_compression(&mut self) {
+        self.compression_unusable = true;
+        self.state = WebSocketState::Terminated;
+    }
+
+    /// End the connection when a frame whose payload will never reach our decoder carried
+    /// compressed bytes. Every rejection that can be followed by another decode asks this
+    /// one function, so the answer cannot differ by which of them asked. A frame arriving
+    /// after the read side has closed is discarded without asking, because the states that
+    /// close it are one-way and no later decode exists to corrupt.
+    ///
+    /// `FrameCodec` has already split those bytes off the input buffer, and the peer's
+    /// compressor produced them, so our decoder can never see them and -- under context
+    /// takeover, the default -- can never rebuild the window they belong to. Discarding
+    /// them silently leaves a caller free to read on into wrong bytes, or into an error
+    /// blaming a later message that was never at fault.
+    #[cfg(feature = "deflate")]
+    fn fail_compression_on_discarded_frame(&mut self, frame: &Frame) {
+        let header = frame.header();
+        // RSV1 is an explicit claim on compression state whatever the opcode, so a
+        // discarded control frame carrying it counts too. Without RSV1 only a continuation
+        // can be carrying compressed bytes: it does when the message it continues was
+        // compressed, and when there is no such message it carries bytes nothing left here
+        // can classify -- which under this contract is the same answer. An RSV1-clear
+        // continuation of an open plain message is the one that stays live. RSV2 and RSV3
+        // claim nothing about PMD.
+        // "Claims" rather than "carries": the stray-continuation cell below latches because
+        // ownership is unclassifiable, not because those bytes are known to be compressed.
+        let claims_compression = header.rsv1
+            || (matches!(header.opcode, OpCode::Data(OpData::Continue))
+                && (self.compressed_incomplete || self.incomplete.is_none()));
+        if claims_compression && self.deflate.is_some() {
+            self.fail_compression();
+        }
+    }
+
     /// Try to decode one message frame. May return None.
     fn read_message_frame(&mut self, stream: &mut impl Read) -> Result<Option<Message>> {
-        let frame = match self
+        let read = self
             .frame
             .read_frame(
                 stream,
@@ -613,8 +1010,20 @@ impl WebSocketContext {
                 matches!(self.role, Role::Server),
                 self.config.accept_unmasked_frames,
             )
-            .check_connection_reset(self.state)?
+            .check_connection_reset(self.state);
+        // The only `read_frame` error raised after the payload is split off the input
+        // buffer, and it throws the header away with it -- so unlike every other rejection
+        // there is nothing left to ask whether those bytes were compressed. Continuing
+        // cannot be shown safe, and RFC 6455 requires closing this connection anyway; a
+        // caller who needs the frame instead sets `accept_unmasked_frames`, and then no
+        // rejection happens here at all.
+        #[cfg(feature = "deflate")]
+        if self.deflate.is_some()
+            && matches!(read, Err(Error::Protocol(ProtocolError::UnmaskedFrameFromClient)))
         {
+            self.fail_compression();
+        }
+        let frame = match read? {
             None => {
                 // Connection closed by peer
                 return match replace(&mut self.state, WebSocketState::Terminated) {
@@ -626,6 +1035,8 @@ impl WebSocketContext {
             }
             Some(frame) => frame,
         };
+        #[cfg(feature = "deflate")]
+        let mut frame = frame;
 
         if !self.state.can_read() {
             return Err(Error::Protocol(ProtocolError::ReceivedAfterClosing));
@@ -635,16 +1046,62 @@ impl WebSocketContext {
         // the negotiated extensions defines the meaning of such a nonzero
         // value, the receiving endpoint MUST _Fail the WebSocket
         // Connection_.
-        {
+        let reserved_bits_set = {
             let hdr = frame.header();
-            if hdr.rsv1 || hdr.rsv2 || hdr.rsv3 {
-                return Err(Error::Protocol(ProtocolError::NonZeroReservedBits));
-            }
+            #[cfg(not(feature = "deflate"))]
+            let invalid_rsv1 = hdr.rsv1;
+            #[cfg(feature = "deflate")]
+            let invalid_rsv1 = hdr.rsv1
+                && (self.deflate.is_none()
+                    || !matches!(hdr.opcode, OpCode::Data(OpData::Text | OpData::Binary)));
+            invalid_rsv1 || hdr.rsv2 || hdr.rsv3
+        };
+        if reserved_bits_set {
+            #[cfg(feature = "deflate")]
+            self.fail_compression_on_discarded_frame(&frame);
+            return Err(Error::Protocol(ProtocolError::NonZeroReservedBits));
         }
 
         if self.role == Role::Client && frame.is_masked() {
             // A client MUST close a connection if it detects a masked frame. (RFC 6455)
+            #[cfg(feature = "deflate")]
+            self.fail_compression_on_discarded_frame(&frame);
             return Err(Error::Protocol(ProtocolError::MaskedFrameFromServer));
+        }
+
+        // The fragment-sequence check that rejects an illegal opcode transition lives in
+        // the assembly match below, so test the same condition here: a frame that does not
+        // own the message stream must not advance the inflater or overwrite the saved
+        // compressed mode before it is rejected. Both are one-way.
+        #[cfg(feature = "deflate")]
+        if let OpCode::Data(data) = frame.header().opcode {
+            if matches!(data, OpData::Continue) == self.incomplete.is_some() {
+                let final_frame = frame.header().is_final;
+                let compressed = match data {
+                    OpData::Text | OpData::Binary => frame.header().rsv1,
+                    OpData::Continue => self.compressed_incomplete,
+                    OpData::Reserved(_) => false,
+                };
+                if compressed {
+                    let payload = self.decompress(frame.payload(), final_frame)?;
+                    let mut header = frame.header().clone();
+                    header.rsv1 = false;
+                    frame = Frame::from_payload(header, payload);
+                }
+                match data {
+                    OpData::Text | OpData::Binary if !final_frame => {
+                        self.compressed_incomplete = compressed;
+                    }
+                    OpData::Continue if final_frame => self.compressed_incomplete = false,
+                    _ => {}
+                }
+            } else {
+                // Skipping this frame is not recoverable either: its bytes went through the
+                // peer's compressor and its window moved, while ours cannot. Same question
+                // as a frame discarded before the host saw it, so the same classifier
+                // answers it. The error below is unchanged either way.
+                self.fail_compression_on_discarded_frame(&frame);
+            }
         }
 
         match frame.header().opcode {
@@ -749,12 +1206,19 @@ impl WebSocketContext {
     where
         Stream: Read + Write,
     {
+        #[cfg(feature = "deflate")]
+        let carries_compression_state = frame.header().rsv1 && self.deflate.is_some();
         match self.role {
             Role::Server => {}
             Role::Client => {
                 // 5.  If the data is being sent by the client, the frame(s) MUST be
                 // masked as defined in Section 5.3. (RFC 6455)
-                frame.set_random_mask()?;
+                frame.set_random_mask().inspect_err(|_| {
+                    #[cfg(feature = "deflate")]
+                    if carries_compression_state {
+                        self.fail_compression();
+                    }
+                })?;
             }
         }
 
@@ -772,6 +1236,16 @@ impl WebSocketContext {
             self.additional_send.replace(add);
         }
     }
+}
+
+/// Wire bytes a prepared frame will occupy once `buffer_frame` has masked it.
+///
+/// Only ever called on a frame built moments earlier in `write`, so the client mask is
+/// always still pending.
+#[cfg(feature = "deflate")]
+fn wire_size(role: Role, frame: &Frame) -> usize {
+    debug_assert!(!frame.is_masked(), "wire_size adds the pending client mask itself");
+    frame.len() + usize::from(role == Role::Client) * 4
 }
 
 fn check_max_size(size: usize, max_size: Option<usize>) -> crate::Result<()> {
@@ -840,6 +1314,7 @@ impl<T> CheckConnectionReset for Result<T> {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::{Message, Role, WebSocket, WebSocketConfig};
@@ -903,5 +1378,74 @@ mod tests {
             socket.read(),
             Err(Error::Capacity(CapacityError::MessageTooLong { size: 3, max_size: 2 }))
         ));
+    }
+
+    #[test]
+    fn set_config_changes_the_configuration() {
+        let mut socket =
+            WebSocket::from_raw_socket(WriteMoc(Cursor::new(Vec::<u8>::new())), Role::Client, None);
+        assert_eq!(socket.get_config().max_message_size, Some(64 << 20));
+
+        socket.set_config(|config| config.max_message_size = Some(1024));
+
+        assert_eq!(socket.get_config().max_message_size, Some(1024));
+    }
+
+    /// The feature-on arm applies the callback to a copy, so what survives a panic depends
+    /// on which panic it is. Validation still fires after the commit, as upstream does.
+    #[cfg(feature = "deflate")]
+    #[test]
+    fn set_config_panics_leave_the_live_config_in_a_defined_state() {
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+
+        fn agreed_socket() -> WebSocket<WriteMoc<Cursor<Vec<u8>>>> {
+            WebSocket::from_raw_socket(
+                WriteMoc(Cursor::new(Vec::<u8>::new())),
+                Role::Client,
+                Some(WebSocketConfig::default().enable_deflate()),
+            )
+        }
+
+        let mut invalid = agreed_socket();
+        let outcome = catch_unwind(AssertUnwindSafe(|| {
+            invalid.set_config(|config| config.max_write_buffer_size = config.write_buffer_size)
+        }));
+        assert!(outcome.is_err(), "an invalid candidate must still be rejected");
+        assert_eq!(
+            invalid.get_config().max_write_buffer_size,
+            invalid.get_config().write_buffer_size,
+            "upstream commits before validating, and the deflate arm keeps that ordering"
+        );
+
+        let mut callback = agreed_socket();
+        let untouched = callback.get_config().max_message_size;
+        let outcome = catch_unwind(AssertUnwindSafe(|| {
+            callback.set_config(|config| {
+                config.max_message_size = Some(1);
+                panic!("the callback itself fails");
+            })
+        }));
+        assert!(outcome.is_err(), "the callback's own panic must propagate");
+        assert_eq!(
+            callback.get_config().max_message_size,
+            untouched,
+            "the candidate is discarded, so the callback's edit never lands"
+        );
+
+        // An agreed `Some(..)` moving to a different `Some(..)`. Starting from `None` also
+        // panics, while measuring that deflate cannot be switched on mid-connection --
+        // a different claim from the one this assert makes.
+        let mut agreed = agreed_socket();
+        let settled = agreed.get_config().deflate;
+        assert!(settled.is_some(), "the socket must start from an agreed Some(..)");
+        let outcome = catch_unwind(AssertUnwindSafe(|| {
+            agreed.set_config(|config| *config = config.deflate_max_window_bits(Role::Client, 10))
+        }));
+        let message = *outcome
+            .expect_err("a deflate change must be rejected")
+            .downcast::<String>()
+            .expect("assert_eq! panics with a String");
+        assert!(message.contains("agreed deflate settings are immutable"), "{message}");
+        assert_eq!(agreed.get_config().deflate, settled, "rejection happens before the commit");
     }
 }

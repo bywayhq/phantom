@@ -31,8 +31,8 @@ AGENT = "phantom-autobahn"
 STRICT_STATUSES = frozenset({"OK", "INFORMATIONAL"})
 WARNING_BEHAVIORS = frozenset({"NON-STRICT"})
 WARNING_CLOSE_BEHAVIORS = frozenset({"NON-STRICT", "WRONG CODE", "FAILED BY CLIENT"})
-MODE_TIMEOUT_SECONDS = {"smoke": 180, "full": 1500}
-EXPECTED_CASE_COUNTS = {"smoke": 8, "full": 247}
+MODE_TIMEOUT_SECONDS = {"smoke": 180, "compression": 1800, "full": 2400}
+EXPECTED_CASE_COUNTS = {"smoke": 8, "compression": 216, "full": 463}
 
 
 @dataclass(frozen=True)
@@ -245,7 +245,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
     shutil.copyfile(source_config, run_directory / "case-config.json")
     metadata = {
         "agent": AGENT,
-        "features": ["websocket"],
+        "features": ["websocket-deflate"],
         "image": IMAGE,
         "mode": mode,
         "phantom_revision": _git_revision(repository),
@@ -292,26 +292,30 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
             )
             container_started = True
             _wait_for_tls(port, container_name)
+            adapter_command = [
+                "cargo",
+                "run",
+                "--quiet",
+                "--release",
+                "--locked",
+                "-p",
+                "phantom",
+                "--example",
+                "autobahn-client",
+                "--features",
+                "websocket-deflate",
+                "--",
+                "--url",
+                f"wss://127.0.0.1:{port}/",
+                "--ca-der",
+                str(certificate.root_der),
+                "--agent",
+                AGENT,
+            ]
+            if mode in {"compression", "full"}:
+                adapter_command.append("--deflate")
             adapter = subprocess.run(
-                [
-                    "cargo",
-                    "run",
-                    "--quiet",
-                    "--locked",
-                    "-p",
-                    "phantom",
-                    "--example",
-                    "autobahn-client",
-                    "--features",
-                    "websocket",
-                    "--",
-                    "--url",
-                    f"wss://127.0.0.1:{port}/",
-                    "--ca-der",
-                    str(certificate.root_der),
-                    "--agent",
-                    AGENT,
-                ],
+                adapter_command,
                 check=False,
                 text=True,
                 timeout=MODE_TIMEOUT_SECONDS[mode],

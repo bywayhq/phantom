@@ -37,6 +37,8 @@ jobs:
           mkdir -p target/benchmark-report
           set -o pipefail
           cargo bench --locked -p phantom-net --bench transport -- --noplot 2>&1 | tee target/benchmark-report/output.txt
+          cargo bench --locked --manifest-path vendor/tungstenite/Cargo.toml \
+            --bench deflate --features deflate -- --noplot 2>&1 | tee -a target/benchmark-report/output.txt
 
       - name: Upload benchmark report
         if: always()

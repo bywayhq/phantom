@@ -136,6 +136,15 @@ impl WebSocketError {
         Self::new(WebSocketErrorKind::InvalidHandshake, message)
     }
 
+    #[cfg(feature = "websocket-deflate")]
+    pub(super) fn invalid_handshake_source(source: impl StdError + Send + Sync + 'static) -> Self {
+        Self::with_source(
+            WebSocketErrorKind::InvalidHandshake,
+            "server selected an invalid WebSocket extension",
+            source,
+        )
+    }
+
     pub(super) fn capacity(message: &'static str) -> Self {
         Self::new(WebSocketErrorKind::Capacity, message)
     }
@@ -162,6 +171,8 @@ impl WebSocketError {
             }
             EngineError::Protocol(_) | EngineError::AttackAttempt => WebSocketErrorKind::Protocol,
             EngineError::Tls(_) | EngineError::Url(_) => WebSocketErrorKind::Protocol,
+            #[cfg(feature = "websocket-deflate")]
+            EngineError::Http(_) | EngineError::HttpFormat(_) => WebSocketErrorKind::Protocol,
         };
         Self::with_source(kind, "WebSocket operation failed", source)
     }

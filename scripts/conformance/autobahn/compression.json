@@ -3,7 +3,7 @@
   "key": "/config/server.key",
   "cert": "/config/server.pem",
   "outdir": "/reports/clients",
-  "cases": ["*"],
-  "exclude-cases": ["9.*"],
+  "cases": ["12.*", "13.*"],
+  "exclude-cases": [],
   "exclude-agent-cases": {}
 }

@@ -3,7 +3,7 @@
 use std::{env, error::Error, io, path::PathBuf, time::Duration};
 
 use phantom::{
-    Client, WebSocket, WebSocketMessage,
+    Client, PerMessageDeflate, WebSocket, WebSocketMessage, WebSocketRequestBuilder,
     profile::{ClientProfile, chromium},
 };
 use url::Url;
@@ -11,12 +11,14 @@ use url::Url;
 const DEFAULT_AGENT: &str = concat!("phantom/", env!("CARGO_PKG_VERSION"));
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(10);
 const CASE_TIMEOUT: Duration = Duration::from_secs(15);
+const DEFLATE_CASE_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug)]
 struct Config {
     base_url: Url,
     ca_der: PathBuf,
     agent: String,
+    deflate: bool,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -28,16 +30,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .add_root_certificate_der(root)
         .build()?;
 
-    let case_count =
-        tokio::time::timeout(CONTROL_TIMEOUT, get_case_count(&client, &config.base_url))
-            .await
-            .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "case discovery timed out"))??;
+    let case_count = tokio::time::timeout(
+        CONTROL_TIMEOUT,
+        get_case_count(&client, &config.base_url, config.deflate),
+    )
+    .await
+    .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "case discovery timed out"))??;
     println!("running {case_count} Autobahn cases as {}", config.agent);
     let mut timed_out_cases = Vec::new();
     for case in 1..=case_count {
+        let case_timeout = if config.deflate {
+            DEFLATE_CASE_TIMEOUT
+        } else {
+            CASE_TIMEOUT
+        };
         match tokio::time::timeout(
-            CASE_TIMEOUT,
-            run_case(&client, &config.base_url, &config.agent, case),
+            case_timeout,
+            run_case(
+                &client,
+                &config.base_url,
+                &config.agent,
+                case,
+                config.deflate,
+            ),
         )
         .await
         {
@@ -50,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     tokio::time::timeout(
         CONTROL_TIMEOUT,
-        update_reports(&client, &config.base_url, &config.agent),
+        update_reports(&client, &config.base_url, &config.agent, config.deflate),
     )
     .await
     .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "report update timed out"))??;
@@ -66,8 +81,13 @@ impl Config {
         let mut base_url = None;
         let mut ca_der = None;
         let mut agent = None;
+        let mut deflate = false;
         let mut arguments = arguments.into_iter();
         while let Some(argument) = arguments.next() {
+            if argument == "--deflate" {
+                deflate = true;
+                continue;
+            }
             let value = arguments
                 .next()
                 .ok_or_else(|| invalid_input(format!("missing value after {argument}")))?;
@@ -89,13 +109,18 @@ impl Config {
             base_url,
             ca_der,
             agent: agent.unwrap_or_else(|| DEFAULT_AGENT.to_owned()),
+            deflate,
         })
     }
 }
 
-async fn get_case_count(client: &Client, base_url: &Url) -> Result<usize, Box<dyn Error>> {
+async fn get_case_count(
+    client: &Client,
+    base_url: &Url,
+    deflate: bool,
+) -> Result<usize, Box<dyn Error>> {
     let url = endpoint(base_url, "/getCaseCount", &[]);
-    let mut socket = client.websocket(url.as_str())?.connect().await?;
+    let mut socket = websocket(client, url.as_str(), deflate)?.connect().await?;
     let mut count = None;
     loop {
         match socket.receive().await? {
@@ -122,6 +147,7 @@ async fn run_case(
     base_url: &Url,
     agent: &str,
     case: usize,
+    deflate: bool,
 ) -> Result<(), Box<dyn Error>> {
     let case_string = case.to_string();
     let url = endpoint(
@@ -129,7 +155,7 @@ async fn run_case(
         "/runCase",
         &[("case", &case_string), ("agent", agent)],
     );
-    let mut socket = client.websocket(url.as_str())?.connect().await?;
+    let mut socket = websocket(client, url.as_str(), deflate)?.connect().await?;
     loop {
         match socket.receive().await {
             Ok(WebSocketMessage::Text(value)) => {
@@ -154,10 +180,24 @@ async fn update_reports(
     client: &Client,
     base_url: &Url,
     agent: &str,
+    deflate: bool,
 ) -> Result<(), Box<dyn Error>> {
     let url = endpoint(base_url, "/updateReports", &[("agent", agent)]);
-    let mut socket = client.websocket(url.as_str())?.connect().await?;
+    let mut socket = websocket(client, url.as_str(), deflate)?.connect().await?;
     wait_for_close(&mut socket).await
+}
+
+fn websocket(
+    client: &Client,
+    url: &str,
+    deflate: bool,
+) -> Result<WebSocketRequestBuilder, phantom::WebSocketError> {
+    let builder = client.websocket(url)?;
+    Ok(if deflate {
+        builder.permessage_deflate(PerMessageDeflate::new())
+    } else {
+        builder
+    })
 }
 
 async fn wait_for_close(socket: &mut WebSocket) -> Result<(), Box<dyn Error>> {

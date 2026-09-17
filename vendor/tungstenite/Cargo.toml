@@ -57,9 +57,13 @@ __rustls-tls = [
     "rustls-pki-types",
 ]
 default = ["handshake"]
+deflate = [
+    "dep:flate2",
+    "dep:http",
+]
 handshake = [
     "data-encoding",
-    "http",
+    "dep:http",
     "httparse",
     "sha1",
 ]
@@ -124,6 +128,12 @@ harness = false
 required-features = ["handshake"]
 
 [[bench]]
+name = "deflate"
+path = "benches/deflate.rs"
+harness = false
+required-features = ["deflate"]
+
+[[bench]]
 name = "read"
 path = "benches/read.rs"
 harness = false
@@ -135,6 +145,12 @@ harness = false
 
 [dependencies.bytes]
 version = "1.9.0"
+
+[dependencies.flate2]
+version = "1.0.31"
+features = ["zlib-rs"]
+optional = true
+default-features = false
 
 [dependencies.data-encoding]
 version = "2"

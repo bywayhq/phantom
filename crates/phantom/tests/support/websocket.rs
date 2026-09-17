@@ -12,6 +12,7 @@ pub(super) const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) struct ClientFrame {
+    pub(super) rsv1: bool,
     pub(super) opcode: u8,
     pub(super) payload: Vec<u8>,
 }
@@ -47,6 +48,7 @@ pub(super) async fn read_client_frame(
         *byte ^= mask[index % mask.len()];
     }
     Ok(ClientFrame {
+        rsv1: head[0] & 0x40 != 0,
         opcode: head[0] & 0x0f,
         payload,
     })
@@ -58,7 +60,17 @@ pub(super) fn append_server_frame(
     opcode: u8,
     payload: &[u8],
 ) {
-    output.push((u8::from(final_frame) << 7) | opcode);
+    append_server_frame_with_rsv1(output, final_frame, false, opcode, payload);
+}
+
+pub(super) fn append_server_frame_with_rsv1(
+    output: &mut Vec<u8>,
+    final_frame: bool,
+    rsv1: bool,
+    opcode: u8,
+    payload: &[u8],
+) {
+    output.push((u8::from(final_frame) << 7) | (u8::from(rsv1) << 6) | opcode);
     if payload.len() < 126 {
         output.push(payload.len() as u8);
     } else if payload.len() <= usize::from(u16::MAX) {

@@ -9,11 +9,17 @@ The public client is exercised against a pinned Autobahn fuzzing server. See
 [`external-conformance.md`](external-conformance.md#autobahn-execution) for the
 smoke and scheduled-suite boundaries.
 
+The additive `websocket-deflate` feature compiles RFC 7692 support. It does not
+change the wire by itself: each connection must opt in through
+`WebSocketRequestBuilder::permessage_deflate`.
+
 Phantom owns the opening handshake. `tokio-tungstenite` is used only after a
 validated `101` as the RFC 6455 frame and message engine. Its client handshake,
 TLS connectors, and public types are not exposed. The pinned engine carries a
 replayable narrow patch so dependency logs never contain frames or messages and
 client mask entropy failure is returned as a typed error instead of panicking.
+The ordered patch series also carries the compression frame state machine;
+Phantom continues to own the exact opening fields and response boundary.
 
 ```rust,no_run
 use futures_util::{SinkExt, StreamExt};
@@ -48,11 +54,16 @@ other fields retain their caller-provided order and casing.
 Validation finishes before network I/O. The sequence must contain exactly one
 authority and key placeholder, one valid Upgrade field, one Connection field
 containing the Upgrade token, and version 13. Literal Host and key fields are
-rejected. Extensions are rejected because this slice has no extension codec.
+rejected. Literal extension fields remain forbidden so an offer cannot diverge
+from the installed codec. With `websocket-deflate`, the typed
+`WebSocketHeader::permessage_deflate` placeholder emits the generated offer at
+the caller-selected position and field-name spelling.
 
 The server response must be an HTTP/1.1 `101`, contain a single matching accept
 value, valid Upgrade and Connection tokens, no HTTP body framing, no unsolicited
-extension, and at most one offered subprotocol. An ordinary non-`101` response
+extension, and at most one offered subprotocol. Compression responses are
+strictly parsed before the frame codec is installed; duplicate, malformed,
+unknown, or contradictory selections fail the handshake. An ordinary non-`101` response
 is available through `WebSocketError::response` with its streaming body and
 ordered fields.
 
@@ -75,10 +86,32 @@ WebSocket connections are exclusive and are never inserted into the session's
 HTTP pool. There are no implicit redirects, retries, reconnects, heartbeats, or
 direct-route fallback after a proxy failure.
 
+## Compression
+
+`PerMessageDeflate::new()` emits
+`permessage-deflate; client_max_window_bits`. The typed offer API can replace
+that with any RFC-valid ordered combination, including no parameters and a
+bare or valued `client_max_window_bits`. Duplicate parameters and invalid
+window widths fail before I/O. Callers may also configure direction-specific
+context takeover, the local encoder cap, and compression level.
+`WebSocket::negotiated_permessage_deflate` returns the effective server
+selection.
+
+Compression state lives in the frame engine so RSV1, fragmented data,
+interleaved control frames, context takeover, UTF-8 validation, and the
+decompressed message bound share one state machine. Expansion beyond
+`WebSocketLimits::max_message_size` is stopped incrementally. Codec divergence
+terminates the connection instead of allowing later frames to use a mismatched
+dictionary. Ping, Pong, and Close frames are never compressed. Existing
+tracing records logical uncompressed byte counts and never payload contents.
+
 ## Current boundary
 
 This slice does not claim a Chrome, Firefox, or Safari WebSocket header recipe.
-Callers can reproduce retained ordered captures through the public field
-template. Named recipes, `permessage-deflate`, H2 extended CONNECT, and H3
-WebSocket require browser captures and protocol-reaction differentials before
-they become profile data.
+Callers can reproduce retained ordered handshake fields and compression-offer
+parameters through the public typed templates. Named compression recipes,
+codec-output parity, and browser send-selection heuristics remain
+capture-driven profile work; the generic policy compresses every text and
+binary message after negotiation. H2 extended CONNECT and H3 WebSocket require
+browser captures and protocol-reaction differentials before they become
+profile data.

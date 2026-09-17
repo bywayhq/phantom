@@ -40,6 +40,12 @@ pub enum WebSocketHeader {
         /// Exact field-name spelling to emit when cookies are available.
         name: Box<str>,
     },
+    /// Inserts the generated `permessage-deflate` offer at this position.
+    #[cfg(feature = "websocket-deflate")]
+    PerMessageDeflate {
+        /// Exact field-name spelling to emit.
+        name: Box<str>,
+    },
     /// Emits one literal ordered field.
     Field(RequestHeader),
 }
@@ -63,6 +69,13 @@ impl WebSocketHeader {
         Self::SessionCookies { name: name.into() }
     }
 
+    /// Creates a generated compression-offer placeholder.
+    #[cfg(feature = "websocket-deflate")]
+    #[must_use]
+    pub fn permessage_deflate(name: impl Into<Box<str>>) -> Self {
+        Self::PerMessageDeflate { name: name.into() }
+    }
+
     /// Creates a literal ordered field.
     #[must_use]
     pub fn field(header: RequestHeader) -> Self {
@@ -76,6 +89,8 @@ impl fmt::Debug for WebSocketHeader {
             Self::Authority { name } => ("authority", name.as_ref()),
             Self::Key { name } => ("key", name.as_ref()),
             Self::SessionCookies { name } => ("session_cookies", name.as_ref()),
+            #[cfg(feature = "websocket-deflate")]
+            Self::PerMessageDeflate { name } => ("permessage_deflate", name.as_ref()),
             Self::Field(header) => ("field", header.name()),
         };
         formatter
@@ -99,6 +114,8 @@ pub(super) fn default_headers() -> Vec<WebSocketHeader> {
         WebSocketHeader::field(RequestHeader::new("Connection", "Upgrade")),
         WebSocketHeader::key("Sec-WebSocket-Key"),
         WebSocketHeader::field(RequestHeader::new("Sec-WebSocket-Version", "13")),
+        #[cfg(feature = "websocket-deflate")]
+        WebSocketHeader::permessage_deflate("Sec-WebSocket-Extensions"),
         WebSocketHeader::session_cookies("Cookie"),
     ]
 }
@@ -107,8 +124,9 @@ pub(super) fn prepare(
     templates: Vec<WebSocketHeader>,
     authority: &str,
     session_cookie: Option<&str>,
+    extension_offer: Option<&[u8]>,
 ) -> Result<PreparedHandshake, WebSocketError> {
-    let validation = validate_templates(&templates)?;
+    let validation = validate_templates(&templates, extension_offer.is_some())?;
     let mut nonce = [0_u8; 16];
     btls::rand::rand_bytes(&mut nonce).map_err(WebSocketError::random)?;
     let key = btls::base64::encode_block(&nonce);
@@ -130,6 +148,12 @@ pub(super) fn prepare(
                     }
                 }
             }
+            #[cfg(feature = "websocket-deflate")]
+            WebSocketHeader::PerMessageDeflate { name } => {
+                if let Some(value) = extension_offer {
+                    headers.push(RequestHeader::new(name, value));
+                }
+            }
             WebSocketHeader::Field(header) => headers.push(header),
         }
     }
@@ -146,7 +170,10 @@ struct TemplateValidation {
     offered_protocols: Vec<Box<str>>,
 }
 
-fn validate_templates(templates: &[WebSocketHeader]) -> Result<TemplateValidation, WebSocketError> {
+fn validate_templates(
+    templates: &[WebSocketHeader],
+    extension_required: bool,
+) -> Result<TemplateValidation, WebSocketError> {
     let mut authority_count = 0;
     let mut key_count = 0;
     let mut cookie_placeholder_count = 0;
@@ -154,6 +181,10 @@ fn validate_templates(templates: &[WebSocketHeader]) -> Result<TemplateValidatio
     let mut connection_count = 0;
     let mut version_count = 0;
     let mut protocol_count = 0;
+    #[cfg(feature = "websocket-deflate")]
+    let mut extension_placeholder_count = 0;
+    #[cfg(not(feature = "websocket-deflate"))]
+    let extension_placeholder_count = 0;
     let mut has_literal_cookie = false;
     let mut offered_protocols = Vec::new();
 
@@ -170,6 +201,11 @@ fn validate_templates(templates: &[WebSocketHeader]) -> Result<TemplateValidatio
             WebSocketHeader::SessionCookies { name } => {
                 validate_placeholder_name(name, "cookie")?;
                 cookie_placeholder_count += 1;
+            }
+            #[cfg(feature = "websocket-deflate")]
+            WebSocketHeader::PerMessageDeflate { name } => {
+                validate_placeholder_name(name, EXTENSIONS_NAME)?;
+                extension_placeholder_count += 1;
             }
             WebSocketHeader::Field(header) => {
                 let name = header.name();
@@ -213,7 +249,7 @@ fn validate_templates(templates: &[WebSocketHeader]) -> Result<TemplateValidatio
                     }
                 } else if name.eq_ignore_ascii_case(EXTENSIONS_NAME) {
                     return Err(WebSocketError::invalid_request(
-                        "WebSocket extensions are not supported by this build",
+                        "literal WebSocket extensions are forbidden without a matching typed codec",
                     ));
                 } else if name.eq_ignore_ascii_case(PROTOCOL_NAME) {
                     protocol_count += 1;
@@ -248,6 +284,16 @@ fn validate_templates(templates: &[WebSocketHeader]) -> Result<TemplateValidatio
     if protocol_count > 1 {
         return Err(WebSocketError::invalid_request(
             "opening handshake permits at most one Sec-WebSocket-Protocol field",
+        ));
+    }
+    if extension_placeholder_count > 1 {
+        return Err(WebSocketError::invalid_request(
+            "opening handshake permits at most one compression placeholder",
+        ));
+    }
+    if extension_required && extension_placeholder_count != 1 {
+        return Err(WebSocketError::invalid_request(
+            "enabled WebSocket compression requires one extension placeholder",
         ));
     }
 

@@ -3,6 +3,9 @@
 
 #[path = "websocket/adversarial.rs"]
 mod adversarial;
+#[cfg(feature = "websocket-deflate")]
+#[path = "websocket/compression.rs"]
+mod compression;
 #[path = "websocket/routing.rs"]
 mod routing;
 #[allow(dead_code)]
@@ -136,6 +139,7 @@ async fn ordered_handshake_and_bounded_message_lifecycle() -> TestResult<()> {
         assert_eq!(
             pong,
             ClientFrame {
+                rsv1: false,
                 opcode: 0xA,
                 payload: b"probe".to_vec()
             }
@@ -143,6 +147,7 @@ async fn ordered_handshake_and_bounded_message_lifecycle() -> TestResult<()> {
         assert_eq!(
             binary,
             ClientFrame {
+                rsv1: false,
                 opcode: 0x2,
                 payload: b"client-data".to_vec()
             }
@@ -150,6 +155,7 @@ async fn ordered_handshake_and_bounded_message_lifecycle() -> TestResult<()> {
         assert_eq!(
             close,
             ClientFrame {
+                rsv1: false,
                 opcode: 0x8,
                 payload: 1000_u16.to_be_bytes().to_vec()
             }

@@ -13,6 +13,8 @@ use tokio_tungstenite::{
 };
 use tracing::{Instrument, Span, debug_span, field};
 
+#[cfg(feature = "websocket-deflate")]
+use super::NegotiatedPerMessageDeflate;
 use super::{
     OperationOutcome, WebSocketCloseFrame, WebSocketError, WebSocketLimits, WebSocketMessage,
     message::WRITE_BUFFER_SIZE,
@@ -29,17 +31,21 @@ pub struct WebSocket {
     handshake: Response<()>,
     selected_protocol: Option<Box<str>>,
     limits: WebSocketLimits,
+    #[cfg(feature = "websocket-deflate")]
+    permessage_deflate: Option<NegotiatedPerMessageDeflate>,
     pending_incoming: Option<WebSocketMessage>,
 }
 
 impl fmt::Debug for WebSocket {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("WebSocket")
+        let mut debug = formatter.debug_struct("WebSocket");
+        debug
             .field("status", &self.handshake.status())
             .field("has_selected_protocol", &self.selected_protocol.is_some())
-            .field("limits", &self.limits)
-            .finish_non_exhaustive()
+            .field("limits", &self.limits);
+        #[cfg(feature = "websocket-deflate")]
+        debug.field("permessage_deflate", &self.permessage_deflate);
+        debug.finish_non_exhaustive()
     }
 }
 
@@ -49,21 +55,30 @@ impl WebSocket {
         handshake: Response<()>,
         selected_protocol: Option<Box<str>>,
         limits: WebSocketLimits,
+        config: WebSocketConfig,
+        #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
+            NegotiatedPerMessageDeflate,
+        >,
     ) -> Self {
-        let config = WebSocketConfig::default()
-            .write_buffer_size(WRITE_BUFFER_SIZE)
-            .max_write_buffer_size(limits.max_write_buffer_size())
-            .max_message_size(Some(limits.max_message_size().get()))
-            .max_frame_size(Some(limits.max_frame_size().get()))
-            .accept_unmasked_frames(false);
         let socket = WebSocketStream::from_raw_socket(stream, Role::Client, Some(config)).await;
         Self {
             socket: Some(socket),
             handshake,
             selected_protocol,
             limits,
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate,
             pending_incoming: None,
         }
+    }
+
+    pub(super) fn engine_config(limits: WebSocketLimits) -> WebSocketConfig {
+        WebSocketConfig::default()
+            .write_buffer_size(WRITE_BUFFER_SIZE)
+            .max_write_buffer_size(limits.max_write_buffer_size())
+            .max_message_size(Some(limits.max_message_size().get()))
+            .max_frame_size(Some(limits.max_frame_size().get()))
+            .accept_unmasked_frames(false)
     }
 
     /// Returns the validated `101` response and its ordered-header extension.
@@ -76,6 +91,13 @@ impl WebSocket {
     #[must_use]
     pub fn selected_protocol(&self) -> Option<&str> {
         self.selected_protocol.as_deref()
+    }
+
+    /// Returns the effective negotiated compression settings, when selected.
+    #[cfg(feature = "websocket-deflate")]
+    #[must_use]
+    pub fn negotiated_permessage_deflate(&self) -> Option<NegotiatedPerMessageDeflate> {
+        self.permessage_deflate
     }
 
     /// Returns the active frame and message bounds.

@@ -9,9 +9,10 @@ publish = false
 [features]
 default = []
 cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
-full = ["cookies", "sse", "websocket"]
+full = ["cookies", "sse", "websocket-deflate"]
 sse = ["tokio/time"]
 websocket = ["dep:btls", "dep:futures-util", "dep:tokio-tungstenite"]
+websocket-deflate = ["websocket", "dep:tungstenite", "tungstenite/deflate"]
 
 [dependencies]
 btls = { workspace = true, optional = true }
@@ -28,6 +29,7 @@ psl = { version = "=2.1.232", optional = true }
 sfv.workspace = true
 tokio = { version = "1.53.1", features = ["sync"] }
 tokio-tungstenite = { version = "=0.30.0", optional = true, default-features = false }
+tungstenite = { version = "=0.30.0", optional = true, default-features = false }
 tracing = "0.1.41"
 url = "=2.5.8"
 
@@ -49,7 +51,7 @@ workspace = true
 [[example]]
 name = "autobahn-client"
 path = "examples/autobahn_client.rs"
-required-features = ["websocket"]
+required-features = ["websocket-deflate"]
 
 [[example]]
 name = "wpt-eventsource-client"

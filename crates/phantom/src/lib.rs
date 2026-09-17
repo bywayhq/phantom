@@ -31,6 +31,10 @@ pub use session::{Session, SessionBuilder};
 pub use sse::{
     SseError, SseErrorKind, SseEvent, SseEventSource, SseLimits, SseRequestBuilder, SseStream,
 };
+#[cfg(feature = "websocket-deflate")]
+pub use websocket::{
+    NegotiatedPerMessageDeflate, PerMessageDeflate, PerMessageDeflateOfferParameter,
+};
 #[cfg(feature = "websocket")]
 pub use websocket::{
     WebSocket, WebSocketCloseFrame, WebSocketError, WebSocketErrorKind, WebSocketHeader,

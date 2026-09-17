@@ -17,12 +17,18 @@ use crate::{
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
 };
 
+#[cfg(feature = "websocket-deflate")]
+mod compression;
 mod connection;
 mod error;
 mod handshake;
 mod message;
 mod trace;
 
+#[cfg(feature = "websocket-deflate")]
+pub use compression::{
+    NegotiatedPerMessageDeflate, PerMessageDeflate, PerMessageDeflateOfferParameter,
+};
 pub use connection::WebSocket;
 pub use error::{WebSocketError, WebSocketErrorKind};
 pub use handshake::WebSocketHeader;
@@ -39,15 +45,20 @@ pub struct WebSocketRequestBuilder {
     headers: Vec<WebSocketHeader>,
     limits: WebSocketLimits,
     route: Option<Route>,
+    #[cfg(feature = "websocket-deflate")]
+    permessage_deflate: Option<PerMessageDeflate>,
 }
 
 impl fmt::Debug for WebSocketRequestBuilder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("WebSocketRequestBuilder")
+        let mut debug = formatter.debug_struct("WebSocketRequestBuilder");
+        debug
             .field("header_count", &self.headers.len())
             .field("limits", &self.limits)
-            .field("route_override", &self.route.is_some())
+            .field("route_override", &self.route.is_some());
+        #[cfg(feature = "websocket-deflate")]
+        debug.field("permessage_deflate", &self.permessage_deflate.is_some());
+        debug
             .field("session", &self.context.session().is_some())
             .finish_non_exhaustive()
     }
@@ -72,6 +83,8 @@ impl WebSocketRequestBuilder {
             headers: default_headers(),
             limits: WebSocketLimits::default(),
             route: None,
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate: None,
         })
     }
 
@@ -100,6 +113,13 @@ impl WebSocketRequestBuilder {
     /// Overrides the client's route for this connection.
     pub fn route(mut self, route: Route) -> Self {
         self.route = Some(route);
+        self
+    }
+
+    /// Enables `permessage-deflate` with the supplied wire and codec policy.
+    #[cfg(feature = "websocket-deflate")]
+    pub fn permessage_deflate(mut self, policy: PerMessageDeflate) -> Self {
+        self.permessage_deflate = Some(policy);
         self
     }
 
@@ -140,6 +160,8 @@ impl WebSocketRequestBuilder {
             headers,
             limits,
             route,
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate,
         } = self;
         let client = context.client();
         let route = route.as_ref().unwrap_or(&client.inner.route);
@@ -156,10 +178,20 @@ impl WebSocketRequestBuilder {
         #[cfg(not(feature = "cookies"))]
         let cookie_value: Option<String> = None;
 
+        let engine_config = WebSocket::engine_config(limits);
+        #[cfg(feature = "websocket-deflate")]
+        let engine_config =
+            permessage_deflate.map_or(Ok(engine_config), |policy| policy.apply(engine_config))?;
+        #[cfg(feature = "websocket-deflate")]
+        let extension_offer = engine_config.deflate_offer();
+        #[cfg(not(feature = "websocket-deflate"))]
+        let extension_offer: Option<http::HeaderValue> = None;
+
         let prepared = prepare(
             headers,
             request.endpoint.authority().as_str(),
             cookie_value.as_deref(),
+            extension_offer.as_ref().map(http::HeaderValue::as_bytes),
         )?;
         let connector = client
             .inner
@@ -242,14 +274,32 @@ impl WebSocketRequestBuilder {
                     response.headers(),
                     &prepared.expected_accept,
                     &prepared.offered_protocols,
+                    extension_offer.is_some(),
                 )?;
+                #[cfg(feature = "websocket-deflate")]
+                let engine_config = engine_config
+                    .accept_deflate_response(response.headers())
+                    .map_err(WebSocketError::invalid_handshake_source)?;
+                #[cfg(feature = "websocket-deflate")]
+                let negotiated = engine_config
+                    .permessage_deflate()
+                    .map(NegotiatedPerMessageDeflate::from_engine);
                 #[cfg(feature = "cookies")]
                 if let Some(jar) = cookie_jar.as_deref() {
                     jar.store_response_headers(&request.cookie_url, response.headers());
                 }
                 let (parts, stream) = response.into_parts();
                 let handshake = Response::from_parts(parts, ());
-                Ok(WebSocket::new(stream, handshake, selected_protocol, limits).await)
+                Ok(WebSocket::new(
+                    stream,
+                    handshake,
+                    selected_protocol,
+                    limits,
+                    engine_config,
+                    #[cfg(feature = "websocket-deflate")]
+                    negotiated,
+                )
+                .await)
             }
         }
     }

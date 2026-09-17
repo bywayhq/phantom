@@ -8,7 +8,7 @@ reported as client conformance.
 
 | Suite | Phantom use | Planned execution tier |
 | --- | --- | --- |
-| [Autobahn Testsuite](https://github.com/crossbario/autobahn-testsuite) | Drive the public WebSocket client against the fuzzing server. Retain the machine-readable case result and convert every failure into a focused Rust regression. | Eight-case smoke set on relevant pull requests; full supported corpus on a schedule and before releases. |
+| [Autobahn Testsuite](https://github.com/crossbario/autobahn-testsuite) | Drive the public WebSocket client against the fuzzing server. Retain the machine-readable case result and convert every failure into a focused Rust regression. | Eight-case smoke set on relevant pull requests; 216 compression cases as a focused mode; 463 supported cases on a schedule and before releases. |
 | [QUIC Interop Runner](https://github.com/quic-interop/quic-interop-runner) | Run the public Phantom client against an independent H3 server through the upstream network simulator. The endpoint declares only the applicable `http3` case. | Endpoint-image build on relevant changes; pinned `http3` run on a Linux schedule and before releases. |
 | [Web Platform Tests](https://github.com/web-platform-tests/wpt) | Execute selected EventSource resources from a pinned sparse checkout, adapting their assertions through Phantom's public API. Run the original JavaScript tests against real browsers only when gathering browser behavior. | Eleven-case smoke set on relevant pull requests; 29 selected scenarios on a schedule and before releases. |
 | [curl tests](https://curl.se/dev/runtests.html) | Mine mature HTTP, proxy, redirect, authentication, timeout, and connection-reuse scenarios. Re-express applicable cases through Phantom's API and bounded peers. | Public-session regressions on pull requests; periodic upstream-delta review. |
@@ -180,13 +180,15 @@ tests.
 The runner pins both the suite tag and container digest. Its smoke configuration
 covers text and binary framing, Ping/Pong, invalid reserved bits and opcodes,
 fragmentation with an interleaved control frame, invalid UTF-8, and Close. The
-scheduled configuration runs the supported RFC 6455 corpus while excluding the
-performance/limit group and the unsupported compression extension groups.
+compression configuration runs 216 RFC 7692 cases through the public opt-in
+API. The scheduled full configuration combines those cases with the supported
+RFC 6455 corpus while excluding the performance/limit group.
 
-Run either tier from the repository root:
+Run any tier from the repository root:
 
 ```console
 python3 scripts/conformance/autobahn.py smoke
+python3 scripts/conformance/autobahn.py compression
 python3 scripts/conformance/autobahn.py full
 ```
 

@@ -11,6 +11,7 @@ pub(in crate::websocket) fn validate_response(
     headers: &HeaderMap,
     expected_accept: &str,
     offered_protocols: &[Box<str>],
+    allow_extensions: bool,
 ) -> Result<Option<Box<str>>, WebSocketError> {
     if version != Version::HTTP_11 {
         return Err(WebSocketError::invalid_handshake(
@@ -52,7 +53,7 @@ pub(in crate::websocket) fn validate_response(
         ));
     }
 
-    if headers.contains_key(EXTENSIONS_NAME) {
+    if !allow_extensions && headers.contains_key(EXTENSIONS_NAME) {
         return Err(WebSocketError::invalid_handshake(
             "server selected an unsupported WebSocket extension",
         ));
@@ -116,7 +117,13 @@ mod tests {
         headers.insert("sec-websocket-accept", "expected".parse()?);
 
         assert_eq!(
-            validate_response(Version::HTTP_11, &headers, "expected", &["chat".into()])?,
+            validate_response(
+                Version::HTTP_11,
+                &headers,
+                "expected",
+                &["chat".into()],
+                false,
+            )?,
             None
         );
         Ok(())
@@ -129,13 +136,13 @@ mod tests {
         headers.insert("upgrade", "websocket".parse()?);
         headers.insert("connection", "notupgrade".parse()?);
         headers.insert("sec-websocket-accept", "expected".parse()?);
-        assert!(validate_response(Version::HTTP_11, &headers, "expected", &[]).is_err());
+        assert!(validate_response(Version::HTTP_11, &headers, "expected", &[], false).is_err());
 
         headers.insert("connection", "Upgrade".parse()?);
         headers.insert("sec-websocket-extensions", "permessage-deflate".parse()?);
-        assert!(validate_response(Version::HTTP_11, &headers, "expected", &[]).is_err());
+        assert!(validate_response(Version::HTTP_11, &headers, "expected", &[], false).is_err());
         headers.remove("sec-websocket-extensions");
-        assert!(validate_response(Version::HTTP_10, &headers, "expected", &[]).is_err());
+        assert!(validate_response(Version::HTTP_10, &headers, "expected", &[], false).is_err());
         Ok(())
     }
 }

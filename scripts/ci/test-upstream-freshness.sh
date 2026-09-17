@@ -57,8 +57,11 @@ assert_non_fips_item() {
 
 copy_vendor_fixture() {
   local source=$1 destination=$2
-  cp -R "$source" "$destination"
-  rm -rf "$destination/target"
+  [[ ! -e "$destination" ]]
+  mkdir -p "$destination"
+  tar --exclude='./target' -cf - -C "$source" . \
+    | tar -xf - -C "$destination"
+  [[ ! -e "$destination/target" ]]
 }
 
 make_btls_candidate() {

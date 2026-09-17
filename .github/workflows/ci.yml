@@ -55,8 +55,10 @@ jobs:
           cargo check -p phantom --no-default-features --features cookies --locked
           cargo check -p phantom --no-default-features --features sse --locked
           cargo check -p phantom --no-default-features --features websocket --locked
+          cargo check -p phantom --no-default-features --features websocket-deflate --locked
           cargo check -p phantom --no-default-features --features cookies,sse --locked
           cargo check -p phantom --no-default-features --features cookies,websocket --locked
+          cargo check -p phantom --no-default-features --features cookies,websocket-deflate --locked
           cargo check -p phantom --no-default-features --features sse,websocket --locked
           cargo check -p phantom --all-features --locked
           cargo check -p phantom-net --no-default-features --locked
@@ -201,8 +203,10 @@ jobs:
           cargo "+$MSRV" check -p phantom --no-default-features --features cookies --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features sse --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features websocket --locked
+          cargo "+$MSRV" check -p phantom --no-default-features --features websocket-deflate --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features cookies,sse --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features cookies,websocket --locked
+          cargo "+$MSRV" check -p phantom --no-default-features --features cookies,websocket-deflate --locked
           cargo "+$MSRV" check -p phantom --no-default-features --features sse,websocket --locked
           cargo "+$MSRV" check -p phantom --all-features --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked

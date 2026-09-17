@@ -39,6 +39,7 @@ on:
         type: choice
         options:
           - smoke
+          - compression
           - full
 
 permissions:
@@ -52,7 +53,7 @@ jobs:
   conformance:
     name: ${{ github.event_name == 'schedule' && 'Full' || 'Selected' }} client suite
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

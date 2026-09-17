@@ -1040,6 +1040,7 @@ dependencies = [
  "tokio-btls",
  "tokio-tungstenite",
  "tracing",
+ "tungstenite",
  "url",
 ]
 
@@ -1803,6 +1804,8 @@ name = "tungstenite"
 version = "0.30.0"
 dependencies = [
  "bytes",
+ "flate2",
+ "http",
  "log",
  "rand",
  "thiserror 2.0.20",

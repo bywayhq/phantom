@@ -131,11 +131,23 @@ check_tungstenite_patch_replay() {
   [[ "$actual_checksum" == e48ac77174b19c110a50ab2128b24215ac9cb40e0e12e093fb602d175c569d22 ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/tungstenite-0.30.0"
-  git -C "$candidate" apply --check \
-    "$PWD/vendor/tungstenite/patches/redacted-fallible-masking.patch"
-  git -C "$candidate" apply \
-    "$PWD/vendor/tungstenite/patches/redacted-fallible-masking.patch"
-  diff -qr --exclude=.cargo-ok --exclude=PHANTOM.md --exclude=patches --exclude=target \
+  listed_patches=$(LC_ALL=C sort vendor/tungstenite/patches/series)
+  stored_patches=$(find vendor/tungstenite/patches -maxdepth 1 -type f \
+    -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+  if [[ "$listed_patches" != "$stored_patches" ]]; then
+    echo "tungstenite patch series does not list every canonical patch exactly once" >&2
+    return 1
+  fi
+  while IFS= read -r patch; do
+    if [[ -z "$patch" ]]; then
+      echo "tungstenite patch series contains an empty entry" >&2
+      return 1
+    fi
+    git -C "$candidate" apply --check "$PWD/vendor/tungstenite/patches/$patch"
+    git -C "$candidate" apply "$PWD/vendor/tungstenite/patches/$patch"
+  done < vendor/tungstenite/patches/series
+  diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
+    --exclude=patches --exclude=target \
     "$candidate" vendor/tungstenite
 }
 
@@ -213,6 +225,10 @@ case "${1:-}" in
       --lib --no-default-features --locked -- -D warnings
     cargo test --manifest-path vendor/tungstenite/Cargo.toml \
       --lib --no-default-features --locked
+    cargo clippy --manifest-path vendor/tungstenite/Cargo.toml \
+      --lib --no-default-features --features deflate --locked -- -D warnings
+    cargo test --manifest-path vendor/tungstenite/Cargo.toml \
+      --lib --no-default-features --features deflate --locked
     cargo test --manifest-path vendor/tungstenite/Cargo.toml \
       --lib --all-features --locked
     ;;
