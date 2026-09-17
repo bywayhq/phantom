@@ -37,9 +37,8 @@ the same response body without a background task; reconnection remains later
 session policy. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
 I/O through Phantom-owned types. HTTPS proxies, SOCKS5 authentication,
-UDP-capable proxies, redirects, retries, WebSocket
-extensions, and extended CONNECT remain planned. The project does not make
-broad client-compatibility claims.
+UDP-capable proxies, retries, WebSocket extensions, and extended CONNECT
+remain planned. The project does not make broad client-compatibility claims.
 
 ## Principles
 
@@ -92,13 +91,16 @@ request and never negotiate another version or retry through another route.
 `get` is convenience sugar for `request` with `Method::GET`; ordinary
 non-CONNECT methods may carry one finite owned byte body. Phantom validates a
 caller-supplied `Content-Length` exactly or appends one for a non-empty body.
-Streaming uploads, automatic retries, and redirect replay are not implicit.
-Every successful response includes `OrderedResponseHeaders` in its extensions;
-the ordinary `HeaderMap` remains the normalized semantic view. The ordered
-view retains duplicate interleaving on every protocol and received HTTP/1
-field-name spelling. HTTP/2 and HTTP/3 names are lowercase by protocol.
-Use `client.session()` for session-owned HTTP/1.1, HTTP/2, and direct HTTP/3
-reuse, or enable bounded cookie state explicitly with
+Streaming uploads and automatic retries remain unavailable. Redirects are an
+explicit session policy configured with `RedirectPolicy::limited`; they keep
+the selected protocol and route, apply a finite hop budget, and replay only
+the current owned byte body. Every successful response includes
+`OrderedResponseHeaders` and `ResponseInfo` in its extensions; the ordinary
+`HeaderMap` remains the normalized semantic view. The ordered view retains
+duplicate interleaving on every protocol and received HTTP/1 field-name
+spelling. HTTP/2 and HTTP/3 names are lowercase by protocol. Use
+`client.session()` for session-owned HTTP/1.1, HTTP/2, and direct HTTP/3 reuse,
+or enable bounded cookie state explicitly with
 `client.session_builder().cookies().build()` when the `cookies` feature is
 compiled. Use `ClientBuilder::route` for an immutable default route or
 `RequestBuilder::route` for an owned per-request override.
@@ -107,8 +109,8 @@ compiled. Use `ClientBuilder::route` for an immutable default route or
 
 - `phantom`: the public exact-protocol client facade, session-owned H1, H2, and H3 reuse,
   direct routes, plaintext HTTP CONNECT and local- or remote-DNS SOCKS5 for H1/H2 and H1
-  WebSocket, streaming responses, and optional bounded cookie, SSE, and
-  WebSocket capabilities
+  WebSocket, opt-in bounded redirects, streaming responses, and optional
+  bounded cookie, SSE, and WebSocket capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,
   HTTP/2, HTTP/3, and QUIC settings, and narrow
   fixture-backed Chrome, Safari, and Firefox recipes

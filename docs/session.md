@@ -32,6 +32,36 @@ drop(second);
 Bare `Client::get` remains one-shot. `Session::get` reuses eligible HTTP/1.1,
 HTTP/2, and direct HTTP/3 connections.
 
+## Redirect policy
+
+Automatic redirects are disabled by default. A session can enable a finite
+hop budget explicitly:
+
+```rust,no_run
+use std::num::NonZeroUsize;
+use phantom::{Client, RedirectPolicy};
+
+# fn example(client: &Client) {
+let session = client
+    .session_builder()
+    .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+    .build();
+# let _ = session;
+# }
+```
+
+The transaction keeps the selected protocol and route. It resolves each
+`Location` using WHATWG URL rules, applies the standard 301/302/303/307/308
+method and replayable-body transitions, and stops with a typed redirect error
+when the budget is exhausted. Redirects never trigger protocol fallback or a
+transport-failure retry.
+
+On a cross-origin hop, caller-supplied authorization, proxy authorization, and
+cookie fields are removed. With the `cookies` feature, every intermediate
+response is learned before the jar is evaluated for the next target. The final
+response contains `ResponseInfo` in its extensions with the effective URI and
+number of followed hops. Bare `Client` requests remain one-shot.
+
 For H1 and H2, each retained pool entry also owns a bounded TLS ticket cache.
 Connection replacement for the same canonical origin, complete route, protocol,
 profile, and TLS context can resume. Tickets never cross pool entries or
@@ -118,6 +148,6 @@ SameSite `Strict` and `Lax` require navigation/initiator context that the
 current request API does not expose, so they are rejected. `SameSite=None` is
 accepted only with `Secure`; an omitted SameSite attribute receives no
 context-dependent filtering in this slice. Partitioned cookies need a
-top-level-site key and remain unsupported. Persistence,
-browser-specific eviction priority, redirects, retries, client hints, QUIC
-tickets, DNS/HTTPS answers, and Alt-Svc state are also outside this slice.
+top-level-site key and remain unsupported. Persistence, browser-specific
+eviction priority, retries, client hints, QUIC tickets, DNS/HTTPS answers, and
+Alt-Svc state are also outside this slice.

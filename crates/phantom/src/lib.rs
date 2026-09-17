@@ -4,7 +4,9 @@ mod authority;
 mod body;
 mod client;
 mod error;
+mod redirect;
 mod request;
+mod response;
 mod route;
 mod session;
 #[cfg(feature = "sse")]
@@ -15,7 +17,9 @@ mod websocket;
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
+pub use redirect::RedirectPolicy;
 pub use request::RequestBuilder;
+pub use response::ResponseInfo;
 pub use route::{
     HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route, Socks5DnsMode, Socks5Proxy,
     Socks5ProxyConfigError, Socks5ProxyConfigErrorKind,

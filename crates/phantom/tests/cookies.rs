@@ -12,6 +12,7 @@ use std::{
     future::Future,
     io,
     net::{Ipv4Addr, SocketAddr},
+    num::NonZeroUsize,
     pin::Pin,
     time::Duration,
 };
@@ -25,7 +26,7 @@ use bytes::Bytes;
 use http::{HeaderMap, Request, Response, StatusCode, header::COOKIE, header::SET_COOKIE};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, HttpProxy, RequestHeader, Route, profile::ClientProfile,
+    Client, HttpProtocol, HttpProxy, RedirectPolicy, RequestHeader, Route, profile::ClientProfile,
     profile::chromium,
 };
 use rcgen::{
@@ -47,6 +48,99 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const LEARNED_COOKIES: [&str; 2] = ["root=one; Path=/", "deep=two; Path=/next"];
 const ORDERED_COOKIE_VALUE: &str = "deep=two; root=one";
 const ORDERED_HTTP1_COOKIE_FIELD: &str = "Cookie: deep=two; root=one";
+
+#[tokio::test]
+async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let first_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let first_address = first_listener.local_addr()?;
+        let second_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let second_address = second_listener.local_addr()?;
+        let first_acceptor = identity.acceptor(H2_ALPN)?;
+        let second_acceptor = identity.acceptor(H2_ALPN)?;
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let first = accept_tls(&first_listener, &first_acceptor).await?;
+            let mut first_connection = ::http2::server::handshake(first).await?;
+            let (initial, mut initial_response) = accept_http2(&mut first_connection).await?;
+            assert_eq!(initial.uri().path(), "/start");
+            assert_eq!(cookie_fields(initial.headers())?, ["manual=first"]);
+            assert_eq!(
+                initial.headers().get("authorization"),
+                Some(&"secret".parse()?)
+            );
+            assert_eq!(
+                initial.headers().get("proxy-authorization"),
+                Some(&"proxy".parse()?)
+            );
+            assert_eq!(initial.headers().get("cookie2"), Some(&"legacy".parse()?));
+            initial_response.send_response(
+                Response::builder()
+                    .status(StatusCode::TEMPORARY_REDIRECT)
+                    .header("location", format!("https://{second_address}/final"))
+                    .header(SET_COOKIE, "learned=redirect; Secure; Path=/")
+                    .header("content-length", "0")
+                    .body(())?,
+                true,
+            )?;
+            drop(initial);
+            drop(initial_response);
+            let first_driver = tokio::spawn(async move {
+                std::future::poll_fn(|context| first_connection.poll_closed(context)).await
+            });
+
+            let second = accept_tls(&second_listener, &second_acceptor).await?;
+            let mut second_connection = ::http2::server::handshake(second).await?;
+            let (followed, mut final_response) = accept_http2(&mut second_connection).await?;
+            assert_eq!(followed.uri().path(), "/final");
+            assert_eq!(cookie_fields(followed.headers())?, ["learned=redirect"]);
+            assert!(!followed.headers().contains_key("authorization"));
+            assert!(!followed.headers().contains_key("proxy-authorization"));
+            assert!(!followed.headers().contains_key("cookie2"));
+            final_response.send_response(Response::builder().status(204).body(())?, true)?;
+            drop(followed);
+            drop(final_response);
+            let second_driver = tokio::spawn(async move {
+                std::future::poll_fn(|context| second_connection.poll_closed(context)).await
+            });
+            wait_for_client
+                .await
+                .map_err(|_| "client stopped before redirected response completion")?;
+            first_driver.abort();
+            second_driver.abort();
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let session = cookie_client(&identity)?
+            .session_builder()
+            .cookies()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build();
+        let response = session
+            .get(
+                HttpProtocol::Http2,
+                &format!("https://{first_address}/start"),
+            )?
+            .headers(vec![
+                RequestHeader::new("cookie", "manual=first").sensitive(),
+                RequestHeader::new("authorization", "secret").sensitive(),
+                RequestHeader::new("proxy-authorization", "proxy").sensitive(),
+                RequestHeader::new("cookie2", "legacy").sensitive(),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        client_done
+            .send(())
+            .map_err(|_| "redirect server stopped before client completion")?;
+        drop(session);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
 
 #[tokio::test]
 async fn http1_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -> TestResult<()> {

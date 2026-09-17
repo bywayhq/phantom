@@ -42,12 +42,16 @@ The facade grows through three ordinary levels:
   implementations.
 - `RequestBuilder` currently owns an exact protocol, HTTPS target, and ordered
   fields. It may own a route override; deadline and retry policy remain absent.
+- `SessionBuilder` owns bounded connection reuse, optional cookies, and an
+  opt-in finite redirect policy. Redirect attempts keep the exact selected
+  protocol and route.
 - `ClientProfile` owns required TCP TLS, optional H2 settings, and an optional
   atomic H3 bundle containing its own TLS, QUIC transport, H3 connection, and
   H3 request settings. Typed values can be cloned and edited before the client
   is built.
 
-The facade performs a new connection for each request. It synthesizes the H1
+Bare-client requests perform a new connection for each request; a session
+reuses eligible H1, H2, and H3 connections. The facade synthesizes the H1
 `Host` field from the URI, uses the URI authority for H2 and H3, and rejects a
 caller-supplied origin `Host` field. A plaintext HTTP CONNECT route has a
 separate ordered field sequence with one typed destination-authority

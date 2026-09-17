@@ -30,7 +30,8 @@ cancellation path. The rules are:
   detached driver alive indefinitely;
 - locks are not held across `.await` unless the protected value is explicitly
   an asynchronous state machine;
-- retry and redirect logic checks body replayability before another attempt;
+- redirect logic replays only the current owned-byte body; future streaming
+  bodies must expose replayability before another attempt;
 - timeouts cover named phases and a whole-operation deadline, with one owner
   deciding which expiration wins;
 - shutdown is idempotent and deadline-bounded;

@@ -2,7 +2,7 @@ use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 
-use crate::{Client, HttpProtocol, RequestBuilder, RequestError};
+use crate::{Client, HttpProtocol, RedirectPolicy, RequestBuilder, RequestError};
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
 
@@ -55,6 +55,7 @@ pub struct Session {
 }
 
 pub(crate) struct SessionState {
+    pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) http1: http1_pool::Http1Pool,
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: http3_pool::Http3Pool,
@@ -112,6 +113,7 @@ impl fmt::Debug for Session {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Session")
+            .field("redirect_policy", &self.state.redirect_policy)
             .field(
                 "max_retained_http1_connections",
                 &self.state.http1.capacity(),
@@ -161,6 +163,7 @@ impl fmt::Debug for Session {
 /// Builds one isolated [`Session`].
 pub struct SessionBuilder {
     client: Client,
+    redirect_policy: RedirectPolicy,
     max_retained_http1_connections: NonZeroUsize,
     max_pending_http1_requests_per_origin: NonZeroUsize,
     max_retained_http2_connections: NonZeroUsize,
@@ -177,6 +180,7 @@ impl SessionBuilder {
     pub(crate) fn new(client: Client) -> Self {
         Self {
             client,
+            redirect_policy: RedirectPolicy::none(),
             max_retained_http1_connections: DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS,
             max_pending_http1_requests_per_origin: DEFAULT_MAX_PENDING_HTTP1_REQUESTS_PER_ORIGIN,
             max_retained_http2_connections: DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS,
@@ -190,6 +194,15 @@ impl SessionBuilder {
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }
+    }
+
+    /// Sets the policy for following redirect responses.
+    ///
+    /// Redirects are disabled unless a finite policy is supplied explicitly.
+    #[must_use]
+    pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
+        self.redirect_policy = policy;
+        self
     }
 
     /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
@@ -282,6 +295,7 @@ impl SessionBuilder {
         Session {
             client: self.client,
             state: Arc::new(SessionState {
+                redirect_policy: self.redirect_policy,
                 http1: http1_pool::Http1Pool::new(
                     self.max_retained_http1_connections,
                     self.max_pending_http1_requests_per_origin,
@@ -307,6 +321,7 @@ impl fmt::Debug for SessionBuilder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("SessionBuilder")
+            .field("redirect_policy", &self.redirect_policy)
             .field(
                 "max_retained_http1_connections",
                 &self.max_retained_http1_connections,

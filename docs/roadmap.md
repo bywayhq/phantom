@@ -292,9 +292,10 @@ a bounded in-memory jar or accept a caller-created one. Phantom delegates
 cookie syntax/domain/path/expiry mechanics to `cookie_store` while owning PSL,
 prefix, partitioning, quota, redacted-diagnostic, and RFC request-order policy.
 Invalid response fields are ignored independently; a caller-supplied Cookie
-field suppresses automatic injection for that request. SameSite navigation
-context, CHIPS, persistence, redirects, and browser-specific eviction remain
-future session slices rather than implicit claims.
+field suppresses automatic injection for that request. Intermediate redirect
+responses are learned before the next target is evaluated. SameSite navigation
+context, CHIPS, persistence, and browser-specific eviction remain future
+session slices rather than implicit claims.
 
 The request slice now accepts any ordinary non-CONNECT method plus an optional
 owned byte body across H1, H2, and H3, including every direct, proxy, and pooled
@@ -302,10 +303,12 @@ path supported by that protocol. GET remains convenience sugar. Ordered fields
 are preserved, caller-supplied content lengths must be canonical and exact,
 and a missing length is appended only for a non-empty body. H2 and H3 uploads
 obey transport flow control; early final responses, STOP_SENDING, cancellation,
-and sibling-stream reuse have deterministic tests. The current Reaper H2
-70,000-byte request-flow recipe is a retained regression rather than a deferred
-capability gate. General streaming request bodies, replay, redirects, retries,
-trailers, and extended CONNECT remain separate slices.
+and sibling-stream reuse have deterministic tests. Finite opt-in session
+redirects replay owned bodies where required and apply the same policy above
+H1, H2, and H3. The current Reaper H2 70,000-byte request-flow and 302/307
+redirect recipes are retained regressions rather than deferred capability
+gates. General streaming request bodies and their replay factories, retries,
+request trailers, and extended CONNECT remain separate slices.
 
 Acceptance:
 

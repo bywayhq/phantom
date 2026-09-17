@@ -1,0 +1,396 @@
+//! Redirect behavior exercised through the public session paths.
+
+#[allow(dead_code)]
+#[path = "support/h3.rs"]
+mod h3_support;
+#[allow(dead_code)]
+#[path = "support/tls.rs"]
+mod tls_support;
+
+use std::{
+    error::Error,
+    future::{Future, poll_fn},
+    net::Ipv4Addr,
+    num::NonZeroUsize,
+    pin::Pin,
+    task::Poll,
+    time::Duration,
+};
+
+use btls::ssl::{Ssl, SslAcceptor};
+use bytes::{Buf, Bytes};
+use http::{Method, Request, Response, StatusCode};
+use http_body_util::BodyExt;
+use phantom::{Client, HttpProtocol, RedirectPolicy, ResponseInfo, profile::ClientProfile};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+    sync::oneshot,
+    time::timeout,
+};
+use tokio_btls::SslStream;
+
+use tls_support::{H2_ALPN, TestIdentity, test_client};
+
+const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+
+#[tokio::test]
+async fn session_matches_reaper_redirect_contract() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (first_drained, wait_for_first_drain) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let first = accept_tls(&listener, &acceptor).await?;
+            serve_reaper_redirect(first, StatusCode::FOUND, b"reaper-302").await?;
+            first_drained
+                .send(())
+                .map_err(|_| "client stopped before the first connection drained")?;
+
+            let replacement = accept_tls(&listener, &acceptor).await?;
+            serve_reaper_redirect(replacement, StatusCode::TEMPORARY_REDIRECT, b"reaper-307").await
+        });
+
+        let one = NonZeroUsize::MIN;
+        let session = test_client(&identity, true)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(one))
+            .build();
+
+        let found = send_reaper_probe(&session, address, 302, b"reaper-302").await?;
+        assert_eq!(found.status(), StatusCode::OK);
+        assert_response_info(
+            &found,
+            &format!("https://{address}/.well-known/reaper/redirect/302/final"),
+        )?;
+        found.into_body().collect().await?;
+
+        wait_for_first_drain
+            .await
+            .map_err(|_| "server stopped before the first connection drained")?;
+
+        let temporary = send_reaper_probe(&session, address, 307, b"reaper-307").await?;
+        assert_eq!(temporary.status(), StatusCode::OK);
+        assert_response_info(
+            &temporary,
+            &format!("https://{address}/.well-known/reaper/redirect/307/final"),
+        )?;
+        temporary.into_body().collect().await?;
+
+        drop(session);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut first = accept_tls(&listener, &acceptor).await?;
+            let first_head = tls_support::read_head(&mut first).await?;
+            assert!(first_head.starts_with(b"POST /start HTTP/1.1\r\n"));
+            let mut first_body = [0_u8; 7];
+            first.read_exact(&mut first_body).await?;
+            assert_eq!(&first_body, b"payload");
+            first
+                .write_all(
+                    b"HTTP/1.1 302 Found\r\nLocation: /a/%2e%2e/final\r\nContent-Length: 1024\r\n\r\nx",
+                )
+                .await?;
+            first.flush().await?;
+
+            let mut replacement = accept_tls(&listener, &acceptor).await?;
+            let final_head = tls_support::read_head(&mut replacement).await?;
+            assert!(final_head.starts_with(b"GET /final HTTP/1.1\r\n"));
+            assert!(!contains_header(&final_head, b"content-length"));
+            replacement
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            replacement.shutdown().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let session = test_client(&identity, false)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build();
+        let response = session
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("https://{address}/start"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_response_info(&response, &format!("https://{address}/final"))?;
+        response.into_body().collect().await?;
+        drop(session);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = h3_support::server_endpoint(&identity)?;
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+            let quic = incoming.await?;
+            let mut connection =
+                h3::server::Connection::new(h3_quinn::Connection::new(quic)).await?;
+
+            let (initial, mut initial_stream) = accept_h3_request(&mut connection).await?;
+            assert_eq!(initial.method(), Method::POST);
+            assert_eq!(initial.uri().path(), "/start");
+            assert_eq!(collect_h3_body(&mut initial_stream).await?, "payload");
+            initial_stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::TEMPORARY_REDIRECT)
+                        .header("location", "/a/%2e%2e/final")
+                        .header("content-length", "0")
+                        .body(())?,
+                )
+                .await?;
+            initial_stream.finish().await?;
+
+            let (followed, mut followed_stream) = accept_h3_request(&mut connection).await?;
+            assert_eq!(followed.method(), Method::POST);
+            assert_eq!(followed.uri().path(), "/final");
+            assert_eq!(collect_h3_body(&mut followed_stream).await?, "payload");
+            followed_stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .header("content-length", "0")
+                        .body(())?,
+                )
+                .await?;
+            followed_stream.finish().await?;
+            wait_for_client
+                .await
+                .map_err(|_| "client stopped before HTTP/3 response completion")?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let session = http3_client(&identity)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build();
+        let response = session
+            .request(
+                HttpProtocol::Http3,
+                Method::POST,
+                &format!("https://{address}/start"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_response_info(&response, &format!("https://{address}/final"))?;
+        response.into_body().collect().await?;
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/3 server stopped before client completion")?;
+        drop(session);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+async fn send_reaper_probe(
+    session: &phantom::Session,
+    address: std::net::SocketAddr,
+    status: u16,
+    body: &'static [u8],
+) -> Result<Response<phantom::ResponseBody>, phantom::RequestError> {
+    session
+        .request(
+            HttpProtocol::Http2,
+            Method::POST,
+            &format!("https://{address}/.well-known/reaper/redirect/{status}/start"),
+        )?
+        .body(Bytes::from_static(body))
+        .send()
+        .await
+}
+
+async fn serve_reaper_redirect(
+    stream: SslStream<TcpStream>,
+    status: StatusCode,
+    expected_body: &'static [u8],
+) -> TestResult<()> {
+    let status_number = status.as_u16();
+    let start_path = format!("/.well-known/reaper/redirect/{status_number}/start");
+    let final_path = format!("/.well-known/reaper/redirect/{status_number}/final");
+    let location = format!("/.well-known/reaper/redirect/{status_number}/a/%2e%2e/final");
+    let mut connection = ::http2::server::handshake(stream).await?;
+
+    let (initial, mut initial_response) = accept_request(&mut connection).await?;
+    assert_eq!(initial.method(), Method::POST);
+    assert_eq!(initial.uri().path(), start_path);
+    let initial_body = collect_body(&mut connection, initial.into_body()).await?;
+    assert_eq!(initial_body, expected_body);
+    initial_response.send_response(
+        Response::builder()
+            .status(status)
+            .header("location", location)
+            .header("cache-control", "no-store")
+            .header("content-length", "0")
+            .body(())?,
+        true,
+    )?;
+
+    let (followed, mut final_response) = accept_request(&mut connection).await?;
+    assert_eq!(followed.uri().path(), final_path);
+    let expected_method = if status == StatusCode::FOUND {
+        Method::GET
+    } else {
+        Method::POST
+    };
+    assert_eq!(followed.method(), expected_method);
+    let followed_body = collect_body(&mut connection, followed.into_body()).await?;
+    let expected_followed_body: &[u8] = if status == StatusCode::FOUND {
+        &[]
+    } else {
+        expected_body
+    };
+    assert_eq!(followed_body, expected_followed_body);
+    final_response.send_response(
+        Response::builder()
+            .status(StatusCode::OK)
+            .header("content-length", "0")
+            .body(())?,
+        true,
+    )?;
+
+    connection.graceful_shutdown();
+    poll_fn(|context| connection.poll_closed(context)).await?;
+    Ok(())
+}
+
+async fn accept_request<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+) -> TestResult<(
+    Request<::http2::RecvStream>,
+    ::http2::server::SendResponse<Bytes>,
+)>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    Ok(connection
+        .accept()
+        .await
+        .ok_or("connection closed before expected request")??)
+}
+
+async fn collect_body<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+    mut body: ::http2::RecvStream,
+) -> TestResult<Bytes>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    let mut received = Vec::new();
+    loop {
+        let chunk = poll_fn(|context| {
+            if let Poll::Ready(item) = body.poll_data(context) {
+                return Poll::Ready(item.transpose());
+            }
+            match connection.poll_closed(context) {
+                Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+                Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+                Poll::Pending => Poll::Pending,
+            }
+        })
+        .await?;
+        let Some(chunk) = chunk else {
+            return Ok(Bytes::from(received));
+        };
+        received.extend_from_slice(&chunk);
+        body.flow_control().release_capacity(chunk.len())?;
+    }
+}
+
+async fn accept_tls(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+) -> TestResult<SslStream<TcpStream>> {
+    let (tcp, _) = listener.accept().await?;
+    let ssl = Ssl::new(acceptor.context())?;
+    let mut stream = SslStream::new(ssl, tcp)?;
+    Pin::new(&mut stream).accept().await?;
+    Ok(stream)
+}
+
+type H3Connection = h3::server::Connection<h3_quinn::Connection, Bytes>;
+type H3Stream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
+
+async fn accept_h3_request(connection: &mut H3Connection) -> TestResult<(Request<()>, H3Stream)> {
+    let resolver = connection
+        .accept()
+        .await?
+        .ok_or("client closed before expected HTTP/3 request")?;
+    Ok(resolver.resolve_request().await?)
+}
+
+async fn collect_h3_body(stream: &mut H3Stream) -> TestResult<Bytes> {
+    let mut body = Vec::new();
+    while let Some(mut chunk) = stream.recv_data().await? {
+        let remaining = chunk.remaining();
+        body.extend_from_slice(&chunk.copy_to_bytes(remaining));
+    }
+    Ok(Bytes::from(body))
+}
+
+fn http3_client(identity: &TestIdentity) -> TestResult<Client> {
+    let mut tcp_tls = tls_support::tls_settings();
+    tcp_tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
+    let profile = ClientProfile::new(tcp_tls).with_http3(h3_support::client_settings());
+    Ok(Client::builder(profile)
+        .add_root_certificate_der(identity.root_der.clone())
+        .build()?)
+}
+
+fn assert_response_info(response: &Response<phantom::ResponseBody>, uri: &str) -> TestResult<()> {
+    let info = response
+        .extensions()
+        .get::<ResponseInfo>()
+        .ok_or("response omitted redirect metadata")?;
+    assert_eq!(info.effective_uri().to_string(), uri);
+    assert_eq!(info.redirects_followed(), 1);
+    Ok(())
+}
+
+fn contains_header(head: &[u8], name: &[u8]) -> bool {
+    head.split(|byte| *byte == b'\n').any(|line| {
+        line.get(..name.len())
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(name))
+            && line.get(name.len()) == Some(&b':')
+    })
+}
+
+async fn bounded<F>(future: F) -> TestResult<()>
+where
+    F: Future<Output = TestResult<()>>,
+{
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(|_| "redirect test exceeded its deadline")?
+}

@@ -105,7 +105,7 @@ An early final response with no remaining upload credit is raced against the
 upload, surfaced immediately, and followed by a request on the same connection.
 
 The current Reaper executable surface has 21 active, non-passive probes.
-Phantom retains 19 of them as production-path regressions. In addition to the
+Phantom retains 20 of them as production-path regressions. In addition to the
 cases above, those regressions now cover:
 
 - a six-write H1 response split across the status line, fields, header/body
@@ -124,16 +124,22 @@ cases above, those regressions now cover:
   `/.well-known/reaper/resume`, absence of an early-data offer, and a full
   handshake from a separate Phantom session.
 
-The other two probes require capabilities that are not exposed. Phantom does
-not automatically follow redirects, so it cannot apply 302/307 method and body
-replay policy. It does not coalesce H2 connections across authorities, so the
-secondary-authority 421 recovery path is unreachable. Each capability must
-land with its corresponding adversarial regression.
+Reaper's redirect pair is retained through the public H2 session path. Its 302
+case rewrites POST to a bodyless GET, while its 307 case preserves the POST and
+owned body. Both resolve an encoded dot segment to the canonical final path
+and complete the request stream. The fixture also closes the first H2
+generation before the second transaction, exercising pool replacement without
+claiming that connection identity is part of Reaper's observation.
+
+The remaining probe requires a capability that is not exposed. Phantom does
+not coalesce H2 connections across authorities, so the secondary-authority 421
+recovery path is unreachable. That capability must land with its corresponding
+adversarial regression.
 
 ## Later client and streaming corpus
 
-- Redirects cover 301/302/303/307/308 method and replayable-body behavior,
-  cross-origin credential removal, URL resolution, and a finite hop budget.
+- Redirect coverage should expand beyond the retained Reaper H2 pair to H1/H3
+  lifecycle cases and cookie transitions across origins.
 - Cookie tests preserve repeated `Set-Cookie`, host-only and domain scope,
   same-name paths, IP/IDNA hosts, and deterministic outbound ordering.
 - Compression tests fragment gzip, deflate, Brotli, and zstd input while a slow

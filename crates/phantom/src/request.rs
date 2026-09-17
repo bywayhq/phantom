@@ -3,11 +3,17 @@ use std::fmt;
 use bytes::Bytes;
 use http::{Method, Response, Uri};
 use phantom_net::{http1::OriginForm, request::RequestHeader};
-use tracing::{Instrument, debug_span, field};
+use tracing::{Instrument, debug, debug_span, field};
 
 use crate::{
-    Client, HttpProtocol, RequestError, ResponseBody, Route, Session, authority::Endpoint,
+    Client, HttpProtocol, RequestError, ResponseBody, ResponseInfo, Route, Session,
+    authority::Endpoint,
+    redirect::{RedirectAction, RedirectPolicy, RedirectState},
 };
+
+mod attempt;
+
+use attempt::send_once;
 
 /// Builder for one exact-protocol request with an optional owned body.
 #[must_use = "request builders do nothing until send is awaited"]
@@ -178,267 +184,65 @@ impl RequestBuilder {
             body,
             route,
         } = self;
-        #[cfg(feature = "cookies")]
-        let mut request_headers = request_headers;
         let client = context.client();
         let session = context.session();
         let route = route.as_ref().unwrap_or(&client.inner.route);
         ensure_route_supported(protocol, route)?;
+        let policy = session.map_or(RedirectPolicy::none(), |session| {
+            session.state.redirect_policy
+        });
 
-        let ResolvedRequest {
-            endpoint,
-            target,
-            #[cfg(feature = "cookies")]
-            cookie_uri,
-        } = request;
-        #[cfg(feature = "cookies")]
-        let cookie_jar = session.and_then(|session| session.state.cookies.as_deref());
-        #[cfg(feature = "cookies")]
-        let cookie_url = parse_cookie_url_if_enabled(cookie_jar.is_some(), &cookie_uri)?;
-        #[cfg(feature = "cookies")]
-        if let (Some(jar), Some(cookie_url)) = (cookie_jar, cookie_url.as_ref()) {
-            let caller_supplied_cookie = request_headers
-                .iter()
-                .any(|header| header.name().eq_ignore_ascii_case("cookie"));
-            if !caller_supplied_cookie {
-                if let Some(value) = jar.request_value_for_url(cookie_url) {
-                    let name = match protocol {
-                        HttpProtocol::Http1 => "Cookie",
-                        HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
-                    };
-                    request_headers.push(RequestHeader::new(name, value).sensitive());
+        if policy.max_hops().is_none() {
+            let mut response = send_once(
+                &context,
+                &request,
+                protocol,
+                method,
+                request_headers,
+                body,
+                route,
+            )
+            .await?;
+            response
+                .extensions_mut()
+                .insert(ResponseInfo::new(request.uri, 0));
+            return Ok(response);
+        }
+
+        let mut redirect =
+            RedirectState::new(policy, request.url.clone(), method, request_headers, body);
+        let mut resolved = request;
+
+        loop {
+            let mut response = send_once(
+                &context,
+                &resolved,
+                protocol,
+                redirect.method().clone(),
+                redirect.headers().to_vec(),
+                redirect.body().cloned(),
+                route,
+            )
+            .await?;
+            match redirect.follow(&response)? {
+                RedirectAction::Stop => {
+                    response
+                        .extensions_mut()
+                        .insert(ResponseInfo::new(resolved.uri.clone(), redirect.followed()));
+                    return Ok(response);
+                }
+                RedirectAction::Follow { same_origin } => {
+                    debug!(
+                        hop = redirect.followed(),
+                        status = response.status().as_u16(),
+                        same_origin,
+                        "following redirect"
+                    );
+                    drop(response);
+                    resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
                 }
             }
         }
-
-        let response = match protocol {
-            HttpProtocol::Http1 => {
-                let connector = client
-                    .inner
-                    .http1
-                    .as_ref()
-                    .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
-                let mut headers = Vec::with_capacity(request_headers.len() + 1);
-                headers.push(RequestHeader::new(
-                    "Host",
-                    endpoint.authority().as_str().as_bytes(),
-                ));
-                headers.extend(request_headers);
-                if let Some(session) = session {
-                    session
-                        .state
-                        .http1
-                        .send_request(connector, &endpoint, route, method, target, headers, body)
-                        .await
-                } else {
-                    let response = match route {
-                        Route::Direct => {
-                            connector
-                                .send_request_direct(
-                                    endpoint.host(),
-                                    endpoint.port(),
-                                    endpoint.host(),
-                                    method,
-                                    target,
-                                    headers,
-                                    body,
-                                )
-                                .await
-                        }
-                        Route::HttpConnect(proxy) => {
-                            let connect_authority = endpoint.tunnel_authority();
-                            connector
-                                .send_request_http_connect(
-                                    proxy.host(),
-                                    proxy.port(),
-                                    &connect_authority,
-                                    proxy.ordered_connect_headers(),
-                                    endpoint.host(),
-                                    method,
-                                    target,
-                                    headers,
-                                    body,
-                                )
-                                .await
-                        }
-                        Route::Socks5(proxy) => match proxy.dns_mode() {
-                            crate::Socks5DnsMode::Local => {
-                                connector
-                                    .send_request_socks5_local(
-                                        proxy.host(),
-                                        proxy.port(),
-                                        endpoint.host(),
-                                        endpoint.port(),
-                                        endpoint.host(),
-                                        method,
-                                        target,
-                                        headers,
-                                        body,
-                                    )
-                                    .await
-                            }
-                            crate::Socks5DnsMode::Remote => {
-                                connector
-                                    .send_request_socks5_remote(
-                                        proxy.host(),
-                                        proxy.port(),
-                                        endpoint.host(),
-                                        endpoint.port(),
-                                        endpoint.host(),
-                                        method,
-                                        target,
-                                        headers,
-                                        body,
-                                    )
-                                    .await
-                            }
-                        },
-                    }
-                    .map_err(RequestError::http1)?;
-                    let (parts, body) = response.into_parts();
-                    Ok(Response::from_parts(parts, ResponseBody::http1(body)))
-                }
-            }
-            HttpProtocol::Http2 => {
-                let connector = client
-                    .inner
-                    .http2
-                    .as_ref()
-                    .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http2))?;
-                if let Some(session) = session {
-                    session
-                        .state
-                        .http2
-                        .send_request(
-                            connector,
-                            &endpoint,
-                            route,
-                            method,
-                            endpoint.authority().as_str(),
-                            target,
-                            request_headers,
-                            body,
-                        )
-                        .await
-                } else {
-                    let response = match route {
-                        Route::Direct => {
-                            connector
-                                .send_request_direct(
-                                    endpoint.host(),
-                                    endpoint.port(),
-                                    endpoint.host(),
-                                    method,
-                                    endpoint.authority().as_str(),
-                                    target,
-                                    request_headers,
-                                    body,
-                                )
-                                .await
-                        }
-                        Route::HttpConnect(proxy) => {
-                            let connect_authority = endpoint.tunnel_authority();
-                            connector
-                                .send_request_http_connect(
-                                    proxy.host(),
-                                    proxy.port(),
-                                    &connect_authority,
-                                    proxy.ordered_connect_headers(),
-                                    endpoint.host(),
-                                    method,
-                                    endpoint.authority().as_str(),
-                                    target,
-                                    request_headers,
-                                    body,
-                                )
-                                .await
-                        }
-                        Route::Socks5(proxy) => match proxy.dns_mode() {
-                            crate::Socks5DnsMode::Local => {
-                                connector
-                                    .send_request_socks5_local(
-                                        proxy.host(),
-                                        proxy.port(),
-                                        endpoint.host(),
-                                        endpoint.port(),
-                                        endpoint.host(),
-                                        method,
-                                        endpoint.authority().as_str(),
-                                        target,
-                                        request_headers,
-                                        body,
-                                    )
-                                    .await
-                            }
-                            crate::Socks5DnsMode::Remote => {
-                                connector
-                                    .send_request_socks5_remote(
-                                        proxy.host(),
-                                        proxy.port(),
-                                        endpoint.host(),
-                                        endpoint.port(),
-                                        endpoint.host(),
-                                        method,
-                                        endpoint.authority().as_str(),
-                                        target,
-                                        request_headers,
-                                        body,
-                                    )
-                                    .await
-                            }
-                        },
-                    }
-                    .map_err(RequestError::http2)?;
-                    let (parts, body) = response.into_parts();
-                    Ok(Response::from_parts(parts, ResponseBody::http2(body)))
-                }
-            }
-            HttpProtocol::Http3 => {
-                let connector = client
-                    .inner
-                    .http3
-                    .as_ref()
-                    .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-                if let Some(session) = session {
-                    session
-                        .state
-                        .http3
-                        .send_request(
-                            connector,
-                            &endpoint,
-                            route,
-                            method,
-                            endpoint.authority().as_str(),
-                            target,
-                            request_headers,
-                            body,
-                        )
-                        .await
-                } else {
-                    let response = connector
-                        .send_request_direct(
-                            endpoint.host(),
-                            endpoint.port(),
-                            endpoint.host(),
-                            method,
-                            endpoint.authority().as_str(),
-                            target,
-                            request_headers,
-                            body,
-                        )
-                        .await
-                        .map_err(RequestError::http3)?;
-                    let (parts, body) = response.into_parts();
-                    Ok(Response::from_parts(parts, ResponseBody::http3(body)))
-                }
-            }
-        }?;
-
-        #[cfg(feature = "cookies")]
-        if let (Some(jar), Some(cookie_url)) = (cookie_jar, cookie_url.as_ref()) {
-            jar.store_response_headers(cookie_url, response.headers());
-        }
-        Ok(response)
     }
 }
 
@@ -472,10 +276,10 @@ fn ensure_route_supported(protocol: HttpProtocol, route: &Route) -> Result<(), R
 
 #[derive(Debug)]
 struct ResolvedRequest {
+    uri: Uri,
+    url: url::Url,
     endpoint: Endpoint,
     target: OriginForm,
-    #[cfg(feature = "cookies")]
-    cookie_uri: Uri,
 }
 
 impl ResolvedRequest {
@@ -490,24 +294,43 @@ impl ResolvedRequest {
             .map_err(|error| RequestError::invalid_authority(error.message()))?;
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
             .map_err(RequestError::invalid_target)?;
+        let url = url::Url::parse(&uri.to_string()).map_err(RequestError::invalid_url)?;
 
         Ok(Self {
+            uri: uri.clone(),
+            url,
             endpoint,
             target,
-            #[cfg(feature = "cookies")]
-            cookie_uri: uri.clone(),
         })
     }
-}
 
-#[cfg(feature = "cookies")]
-fn parse_cookie_url_if_enabled(enabled: bool, uri: &Uri) -> Result<Option<url::Url>, RequestError> {
-    if !enabled {
-        return Ok(None);
+    fn from_redirect_url(url: &url::Url) -> Result<Self, RequestError> {
+        let mut wire_url = url.clone();
+        wire_url.set_fragment(None);
+        let uri = wire_url
+            .as_str()
+            .parse::<Uri>()
+            .map_err(RequestError::invalid_redirect_uri)?;
+        let authority = uri.authority().cloned().ok_or_else(|| {
+            RequestError::invalid_redirect_target("redirect target must include an authority")
+        })?;
+        let endpoint = Endpoint::new(authority, 443).map_err(|_| {
+            RequestError::invalid_redirect_target("redirect target authority is invalid")
+        })?;
+        let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
+            .map_err(|_| {
+                RequestError::invalid_redirect_target(
+                    "redirect target cannot be represented as origin-form",
+                )
+            })?;
+
+        Ok(Self {
+            uri,
+            url: wire_url,
+            endpoint,
+            target,
+        })
     }
-    url::Url::parse(&uri.to_string())
-        .map(Some)
-        .map_err(RequestError::invalid_cookie_url)
 }
 
 struct RequestOutcome {
@@ -544,7 +367,7 @@ impl Drop for RequestOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::ensure_route_supported;
+    use super::{ResolvedRequest, ensure_route_supported};
     use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
 
     #[test]
@@ -578,14 +401,25 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "cookies")]
     #[test]
-    fn disabled_cookie_state_does_not_apply_whatwg_url_parsing() {
-        let relative = http::Uri::from_static("/relative-only");
+    fn initial_uri_is_not_reserialized_through_whatwg_rules()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let uri = "https://example.test/a/%2e%2e/final?value=%2f".parse()?;
+        let request = ResolvedRequest::new(&uri)?;
 
-        assert!(
-            super::parse_cookie_url_if_enabled(false, &relative).is_ok_and(|url| url.is_none())
+        assert_eq!(request.uri, uri);
+        Ok(())
+    }
+
+    #[test]
+    fn redirect_fragments_are_not_sent() -> Result<(), Box<dyn std::error::Error>> {
+        let url = url::Url::parse("https://example.test/final?value=yes#section")?;
+        let request = ResolvedRequest::from_redirect_url(&url)?;
+
+        assert_eq!(
+            request.uri,
+            "https://example.test/final?value=yes".parse::<http::Uri>()?
         );
-        assert!(super::parse_cookie_url_if_enabled(true, &relative).is_err());
+        Ok(())
     }
 }

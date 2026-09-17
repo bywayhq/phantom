@@ -152,6 +152,8 @@ pub enum RequestErrorKind {
     UnsupportedRoute,
     /// The URI target cannot be represented as origin-form.
     InvalidTarget,
+    /// Redirect policy rejected a response or target.
+    Redirect,
     /// Resolving the origin address failed.
     Resolve,
     /// Establishing the direct network connection failed.
@@ -191,14 +193,59 @@ impl RequestError {
         )
     }
 
-    #[cfg(feature = "cookies")]
-    pub(crate) fn invalid_cookie_url(source: url::ParseError) -> Self {
+    pub(crate) fn invalid_url(source: url::ParseError) -> Self {
         Self::with_source(
             RequestErrorKind::InvalidUri,
             None,
-            "request URI cannot be represented for cookie policy",
+            "invalid request URL",
             source,
         )
+    }
+
+    pub(crate) fn invalid_redirect_header(source: http::header::ToStrError) -> Self {
+        Self::with_source(
+            RequestErrorKind::Redirect,
+            None,
+            "redirect Location is not valid text",
+            source,
+        )
+    }
+
+    pub(crate) fn invalid_redirect_url(source: url::ParseError) -> Self {
+        Self::with_source(
+            RequestErrorKind::Redirect,
+            None,
+            "redirect Location is not a valid URL reference",
+            source,
+        )
+    }
+
+    pub(crate) fn invalid_redirect_uri(source: http::uri::InvalidUri) -> Self {
+        Self::with_source(
+            RequestErrorKind::Redirect,
+            None,
+            "redirect target cannot be represented as an HTTP URI",
+            source,
+        )
+    }
+
+    pub(crate) fn invalid_redirect_target(message: &'static str) -> Self {
+        Self::without_source(RequestErrorKind::Redirect, message)
+    }
+
+    pub(crate) fn ambiguous_redirect_location() -> Self {
+        Self::without_source(
+            RequestErrorKind::Redirect,
+            "redirect response contains multiple Location fields",
+        )
+    }
+
+    pub(crate) fn redirect_scheme() -> Self {
+        Self::without_source(RequestErrorKind::Redirect, "redirect target must use HTTPS")
+    }
+
+    pub(crate) fn redirect_limit() -> Self {
+        Self::without_source(RequestErrorKind::Redirect, "redirect limit was exhausted")
     }
 
     pub(crate) fn unsupported_scheme() -> Self {
