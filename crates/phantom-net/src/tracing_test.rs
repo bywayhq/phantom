@@ -97,6 +97,7 @@ impl OutcomeSubscriber {
     }
 
     pub(crate) fn dispatch(&self) -> Dispatch {
+        Self::install_dynamic_callsite_fallback();
         let dispatch = Dispatch::new(self.clone());
         tracing::callsite::rebuild_interest_cache();
         dispatch
