@@ -490,10 +490,11 @@ including the explicit AI-smell, feature-combination, documentation, async
 lifecycle, unsafe-boundary, and cross-platform audits.
 
 The first hardening slice adds scheduled, pinned libFuzzer jobs for Phantom's
-strict ClientHello and HTTP/2 frame decoders. Arbitrary input and valid
-structural seeds run under AddressSanitizer with bounded input lengths; failure
-artifacts are retained and must become deterministic regressions. This does not
-yet claim sanitizer coverage for BoringSSL or the vendored protocol engines.
+strict ClientHello and HTTP/2 frame decoders plus the real Quinn transport-
+parameter decoder at the QUIC TLS boundary. Arbitrary input and structural
+seeds run under AddressSanitizer with bounded input lengths; failure artifacts
+are retained and must become deterministic regressions. This does not claim
+general sanitizer coverage for BoringSSL or the vendored protocol engines.
 
 TLS session caching now commits sessions issued during a handshake only after
 peer authentication succeeds. Reusable TLS 1.2 state returns to the cache only

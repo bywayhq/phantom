@@ -19,10 +19,6 @@ claim.
 - A later WebSocket message-idle policy should cover slow fragment arrival
   independently of the existing frame-count and decoded-byte bounds. See
   [GHSA-rfgv-xxqx-mfg5](https://github.com/nodejs/undici/security/advisories/GHSA-rfgv-xxqx-mfg5).
-- Retain the patched Quinn malformed-transport-parameter proof as a fuzz seed,
-  then cover reordered, duplicated, truncated, and malformed-varint parameters.
-  See
-  [Quinn GHSA-6xvm-j4wr-6v98](https://github.com/quinn-rs/quinn/security/advisories/GHSA-6xvm-j4wr-6v98).
 - Soak slow H1/H2/H3 and SSE consumers under an allocator/RSS ceiling and
   verify cancellation. Current H3 channels are bounded and one slow response
   already has sibling-progress coverage.
@@ -35,6 +31,14 @@ claim.
 
 ## Existing relevant invariants
 
+- The selected Quinn 0.11.18 parser is newer than the fixed 0.11.14 release for
+  malformed QUIC transport parameters. Provider-level regressions prove that
+  truncated identifiers, lengths and values plus duplicate known parameters
+  become `TRANSPORT_PARAMETER_ERROR`, while reordered equivalent parameters
+  retain the same semantics. A dedicated AddressSanitizer fuzz target invokes
+  the real Quinn decoder in both endpoint roles with those structural seeds,
+  including the advisory's truncated-varint shape. This covers
+  [Quinn GHSA-6xvm-j4wr-6v98](https://github.com/quinn-rs/quinn/security/advisories/GHSA-6xvm-j4wr-6v98).
 - Cookie domains are lowercased and IDNA-normalized before matching and public
   suffix policy. Regressions cover mixed-case suffixes, Unicode and A-label
   equivalence, terminal root dots, and the rule that a public suffix equal to

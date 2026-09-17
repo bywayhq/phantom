@@ -115,7 +115,7 @@ fn outbound_flights_stay_in_their_packet_number_spaces() {
 }
 
 #[test]
-fn peer_transport_parameters_distinguish_pending_missing_and_malformed() {
+fn peer_transport_parameters_distinguish_pending_and_missing() {
     assert!(matches!(
         decode_peer_transport_parameters(None, true),
         Ok(None)
@@ -127,13 +127,37 @@ fn peer_transport_parameters_distinguish_pending_missing_and_malformed() {
             ..
         })
     ));
-    assert!(matches!(
-        decode_peer_transport_parameters(Some(&[0x03, 0x02, 0x44]), false),
-        Err(TransportError {
-            code: TransportErrorCode::TRANSPORT_PARAMETER_ERROR,
-            ..
-        })
-    ));
+}
+
+#[test]
+fn peer_transport_parameters_reject_malformed_wire_encodings() {
+    for malformed in [
+        &[0x03, 0x02, 0x44][..],
+        &[0x04, 0x01, 0x40],
+        &[0x04, 0x01, 0x01, 0x04, 0x01, 0x02],
+        &[0x40],
+        &[0x04, 0x40],
+        &[0x04, 0x02, 0x01],
+    ] {
+        assert!(matches!(
+            decode_peer_transport_parameters(Some(malformed), false),
+            Err(TransportError {
+                code: TransportErrorCode::TRANSPORT_PARAMETER_ERROR,
+                ..
+            })
+        ));
+    }
+}
+
+#[test]
+fn peer_transport_parameter_order_does_not_change_semantics() {
+    let ordered =
+        decode_peer_transport_parameters(Some(&[0x04, 0x01, 0x01, 0x05, 0x01, 0x02]), false);
+    let reordered =
+        decode_peer_transport_parameters(Some(&[0x05, 0x01, 0x02, 0x04, 0x01, 0x01]), false);
+
+    assert!(matches!((&ordered, &reordered), (Ok(Some(_)), Ok(Some(_)))));
+    assert_eq!(ordered, reordered);
 }
 
 fn test_keys(connection_id_byte: u8) -> Keys {
