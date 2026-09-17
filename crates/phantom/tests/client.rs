@@ -305,7 +305,7 @@ async fn public_http1_body_source_error_has_request_body_category() -> TestResul
         });
 
         let client = test_client(&identity, false)?;
-        let error = client
+        let error = match client
             .request(
                 HttpProtocol::Http1,
                 Method::POST,
@@ -314,7 +314,10 @@ async fn public_http1_body_source_error_has_request_body_category() -> TestResul
             .streaming_body(ErrorBody::new())
             .send()
             .await
-            .expect_err("failing HTTP/1 body source was accepted");
+        {
+            Ok(_) => return Err("failing HTTP/1 body source was accepted".into()),
+            Err(error) => error,
+        };
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
         assert_eq!(error.protocol(), Some(HttpProtocol::Http1));
         let _observed = server.await??;
@@ -579,7 +582,7 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
         });
 
         let client = test_client(&identity, true)?;
-        let error = client
+        let error = match client
             .request(
                 HttpProtocol::Http2,
                 Method::POST,
@@ -588,7 +591,10 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
             .streaming_body(ErrorBody::new())
             .send()
             .await
-            .expect_err("failing HTTP/2 body source was accepted");
+        {
+            Ok(_) => return Err("failing HTTP/2 body source was accepted".into()),
+            Err(error) => error,
+        };
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
         assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
         drop(client);

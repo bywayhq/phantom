@@ -39,7 +39,7 @@ async fn request_body_error_resets_only_that_stream_and_preserves_connection() -
         let peer = tokio::spawn(run_peer(server));
         let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
 
-        let error = connection
+        let error = match connection
             .send_request_body(
                 Method::POST,
                 "example.test",
@@ -48,7 +48,10 @@ async fn request_body_error_resets_only_that_stream_and_preserves_connection() -
                 Some(RequestBody::streaming(FailingBody)),
             )
             .await
-            .expect_err("failing producer must fail the request");
+        {
+            Ok(_) => return Err("failing producer completed the request".into()),
+            Err(error) => error,
+        };
         assert!(matches!(
             error,
             Http2Error::RequestBody(ref error)
@@ -95,7 +98,10 @@ async fn run_peer(stream: tokio::io::DuplexStream) -> TestResult<()> {
     .await
     .map_err(|_| "request-body failure did not reset the stream")?
     .ok_or("request-body failure ended without a reset")?;
-    let error = observed.expect_err("failed request body unexpectedly emitted DATA");
+    let error = match observed {
+        Ok(_) => return Err("failed request body unexpectedly emitted DATA".into()),
+        Err(error) => error,
+    };
     assert!(error.is_reset());
     assert_eq!(error.reason(), Some(::http2::Reason::CANCEL));
 

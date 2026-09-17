@@ -579,14 +579,11 @@ mod tests {
             Bytes::from_static(b"payload"),
         )));
 
-        assert!(
-            body.next_attempt()
-                .expect("first attempt is available")
-                .is_some()
-        );
-        let error = body
-            .next_attempt()
-            .expect_err("second attempt must reject a consumed stream");
+        assert!(matches!(body.next_attempt(), Ok(Some(_))));
+        let error = match body.next_attempt() {
+            Ok(_) => panic!("second attempt accepted a consumed stream"),
+            Err(error) => error,
+        };
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
     }
 

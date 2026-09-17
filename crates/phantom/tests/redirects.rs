@@ -171,7 +171,7 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
             .session_builder()
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build();
-        let error = client
+        let error = match client
             .request(
                 HttpProtocol::Http1,
                 Method::POST,
@@ -180,7 +180,10 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
             .streaming_body(Full::new(Bytes::from_static(b"payload")))
             .send()
             .await
-            .expect_err("one-shot body was replayed across a 307 redirect");
+        {
+            Ok(_) => return Err("one-shot body was replayed across a 307 redirect".into()),
+            Err(error) => error,
+        };
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
 
         let (head, body, no_second_request) = server.await??;

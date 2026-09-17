@@ -437,7 +437,7 @@ mod tests {
         }
 
         fn size_hint(&self) -> SizeHint {
-            self.hint.clone()
+            self.hint
         }
     }
 
@@ -511,22 +511,18 @@ mod tests {
         let mut body = RequestBody::streaming(body);
         assert_eq!(body.metadata().exact_length(), Some(8));
         assert!(body.frame().await.transpose().is_ok());
-        let error = body
-            .frame()
-            .await
-            .transpose()
-            .expect_err("short exact body must fail at end of stream");
+        let Err(error) = body.frame().await.transpose() else {
+            panic!("short exact body must fail at end of stream");
+        };
         assert_eq!(error.kind(), RequestBodyErrorKind::LengthMismatch);
 
         let body = TestBody {
             frames: VecDeque::from([Ok(Frame::trailers(HeaderMap::new()))]),
             hint: SizeHint::default(),
         };
-        let error = RequestBody::streaming(body)
-            .frame()
-            .await
-            .transpose()
-            .expect_err("request trailers must fail explicitly");
+        let Err(error) = RequestBody::streaming(body).frame().await.transpose() else {
+            panic!("request trailers must fail explicitly");
+        };
         assert_eq!(error.kind(), RequestBodyErrorKind::TrailersUnsupported);
     }
 }
