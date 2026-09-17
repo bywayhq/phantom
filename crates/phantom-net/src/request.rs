@@ -1,11 +1,229 @@
 //! Request syntax shared by HTTP protocol implementations.
 
-use std::{error::Error as StdError, fmt};
+use std::{
+    error::Error as StdError,
+    fmt,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
+use bytes::Bytes;
 use http::{
     Uri,
     uri::{Authority, PathAndQuery},
 };
+use http_body::{Body, Frame, SizeHint};
+use http_body_util::{BodyExt as _, combinators::UnsyncBoxBody};
+
+type BoxError = Box<dyn StdError + Send + Sync>;
+
+/// Stable category of a caller-provided request-body failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum RequestBodyErrorKind {
+    /// The caller-provided body returned an error.
+    Source,
+    /// The body emitted a byte count different from its exact size hint.
+    LengthMismatch,
+    /// The body emitted trailers, which this request slice does not support.
+    TrailersUnsupported,
+}
+
+/// Error produced while pulling a caller-provided request body.
+pub struct RequestBodyError {
+    kind: RequestBodyErrorKind,
+    source: Option<BoxError>,
+}
+
+impl RequestBodyError {
+    fn source(error: impl StdError + Send + Sync + 'static) -> Self {
+        Self {
+            kind: RequestBodyErrorKind::Source,
+            source: Some(Box::new(error)),
+        }
+    }
+
+    fn length_mismatch() -> Self {
+        Self {
+            kind: RequestBodyErrorKind::LengthMismatch,
+            source: None,
+        }
+    }
+
+    fn trailers_unsupported() -> Self {
+        Self {
+            kind: RequestBodyErrorKind::TrailersUnsupported,
+            source: None,
+        }
+    }
+
+    /// Returns the stable failure category.
+    #[must_use]
+    pub const fn kind(&self) -> RequestBodyErrorKind {
+        self.kind
+    }
+}
+
+impl fmt::Debug for RequestBodyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RequestBodyError")
+            .field("kind", &self.kind)
+            .field("has_source", &self.source.is_some())
+            .finish()
+    }
+}
+
+impl fmt::Display for RequestBodyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.kind {
+            RequestBodyErrorKind::Source => formatter.write_str("request body source failed"),
+            RequestBodyErrorKind::LengthMismatch => {
+                formatter.write_str("request body length did not match its exact size hint")
+            }
+            RequestBodyErrorKind::TrailersUnsupported => {
+                formatter.write_str("request trailers are not supported")
+            }
+        }
+    }
+}
+
+impl StdError for RequestBodyError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.source
+            .as_deref()
+            .map(|source| source as &(dyn StdError + 'static))
+    }
+}
+
+/// Framing metadata captured before a request body is polled.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RequestBodyMetadata {
+    exact_length: Option<u64>,
+}
+
+impl RequestBodyMetadata {
+    /// Returns the body's exact byte length when its initial size hint supplied one.
+    #[must_use]
+    pub const fn exact_length(self) -> Option<u64> {
+        self.exact_length
+    }
+}
+
+/// One pull-driven request body consumed by exactly one transport attempt.
+///
+/// The body retains at most the frame currently returned by its source. Exact
+/// size hints are enforced while frames are pulled, and trailers fail
+/// explicitly until Phantom has an ordered request-trailer representation.
+pub struct RequestBody {
+    inner: UnsyncBoxBody<Bytes, RequestBodyError>,
+    exact_length: Option<u64>,
+    emitted: u64,
+    finished: bool,
+}
+
+impl RequestBody {
+    /// Erases a caller-provided pull body for one request attempt.
+    pub fn streaming<B>(body: B) -> Self
+    where
+        B: Body<Data = Bytes> + Send + 'static,
+        B::Error: StdError + Send + Sync + 'static,
+    {
+        let exact_length = body.size_hint().exact();
+        Self {
+            inner: body.map_err(RequestBodyError::source).boxed_unsync(),
+            exact_length,
+            emitted: 0,
+            finished: false,
+        }
+    }
+
+    /// Wraps one complete replayable byte body for a transport attempt.
+    #[must_use]
+    pub fn from_bytes(body: Bytes) -> Self {
+        Self::streaming(http_body_util::Full::new(body))
+    }
+
+    /// Returns framing metadata without polling the body.
+    #[must_use]
+    pub const fn metadata(&self) -> RequestBodyMetadata {
+        RequestBodyMetadata {
+            exact_length: self.exact_length,
+        }
+    }
+}
+
+impl fmt::Debug for RequestBody {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RequestBody")
+            .field("exact_length", &self.exact_length)
+            .field("emitted", &self.emitted)
+            .field("finished", &self.finished)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Body for RequestBody {
+    type Data = Bytes;
+    type Error = RequestBodyError;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        if self.finished {
+            return Poll::Ready(None);
+        }
+        match Pin::new(&mut self.inner).poll_frame(context) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Some(Err(error))) => {
+                self.finished = true;
+                Poll::Ready(Some(Err(error)))
+            }
+            Poll::Ready(Some(Ok(frame))) => match frame.into_data() {
+                Ok(data) => {
+                    let Some(emitted) = self.emitted.checked_add(data.len() as u64) else {
+                        self.finished = true;
+                        return Poll::Ready(Some(Err(RequestBodyError::length_mismatch())));
+                    };
+                    if self.exact_length.is_some_and(|expected| emitted > expected) {
+                        self.finished = true;
+                        return Poll::Ready(Some(Err(RequestBodyError::length_mismatch())));
+                    }
+                    self.emitted = emitted;
+                    Poll::Ready(Some(Ok(Frame::data(data))))
+                }
+                Err(_frame) => {
+                    self.finished = true;
+                    Poll::Ready(Some(Err(RequestBodyError::trailers_unsupported())))
+                }
+            },
+            Poll::Ready(None) => {
+                self.finished = true;
+                if self
+                    .exact_length
+                    .is_some_and(|expected| self.emitted != expected)
+                {
+                    Poll::Ready(Some(Err(RequestBodyError::length_mismatch())))
+                } else {
+                    Poll::Ready(None)
+                }
+            }
+        }
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.finished
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        match self.exact_length {
+            Some(expected) => SizeHint::with_exact(expected.saturating_sub(self.emitted)),
+            None => self.inner.size_hint(),
+        }
+    }
+}
 
 /// An HTTP absolute-form request target such as `http://example.test/search?q=rust`.
 ///
@@ -186,7 +404,38 @@ impl fmt::Debug for RequestHeader {
 
 #[cfg(test)]
 mod tests {
-    use super::{AbsoluteForm, InvalidAbsoluteForm, InvalidOriginForm, OriginForm, RequestHeader};
+    use std::{collections::VecDeque, io, pin::Pin, task::Poll};
+
+    use bytes::Bytes;
+    use http::HeaderMap;
+    use http_body::{Body, Frame, SizeHint};
+    use http_body_util::BodyExt as _;
+
+    use super::{
+        AbsoluteForm, InvalidAbsoluteForm, InvalidOriginForm, OriginForm, RequestBody,
+        RequestBodyErrorKind, RequestHeader,
+    };
+
+    struct TestBody {
+        frames: VecDeque<Result<Frame<Bytes>, io::Error>>,
+        hint: SizeHint,
+    }
+
+    impl Body for TestBody {
+        type Data = Bytes;
+        type Error = io::Error;
+
+        fn poll_frame(
+            mut self: Pin<&mut Self>,
+            _context: &mut std::task::Context<'_>,
+        ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+            Poll::Ready(self.frames.pop_front())
+        }
+
+        fn size_hint(&self) -> SizeHint {
+            self.hint.clone()
+        }
+    }
 
     #[test]
     fn accepts_only_http_absolute_form_targets() -> Result<(), InvalidAbsoluteForm> {
@@ -247,5 +496,33 @@ mod tests {
         assert!(header.is_sensitive());
         assert!(debug.contains("<redacted>"));
         assert!(!debug.contains("secret=value"));
+    }
+
+    #[tokio::test]
+    async fn request_body_enforces_exact_length_and_rejects_trailers() {
+        let body = TestBody {
+            frames: VecDeque::from([Ok(Frame::data(Bytes::from_static(b"short")))]),
+            hint: SizeHint::with_exact(8),
+        };
+        let mut body = RequestBody::streaming(body);
+        assert_eq!(body.metadata().exact_length(), Some(8));
+        assert!(body.frame().await.transpose().is_ok());
+        let error = body
+            .frame()
+            .await
+            .transpose()
+            .expect_err("short exact body must fail at end of stream");
+        assert_eq!(error.kind(), RequestBodyErrorKind::LengthMismatch);
+
+        let body = TestBody {
+            frames: VecDeque::from([Ok(Frame::trailers(HeaderMap::new()))]),
+            hint: SizeHint::default(),
+        };
+        let error = RequestBody::streaming(body)
+            .frame()
+            .await
+            .transpose()
+            .expect_err("request trailers must fail explicitly");
+        assert_eq!(error.kind(), RequestBodyErrorKind::TrailersUnsupported);
     }
 }
