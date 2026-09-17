@@ -1,0 +1,16 @@
+{
+  "revision": "7dbbcb8bcbf62683e6ac095da7d95a84b3672ab5",
+  "cases": [
+    "eventsource/event-data.any.js",
+    "eventsource/format-bom-2.any.js",
+    "eventsource/format-bom.any.js",
+    "eventsource/format-field-event.any.js",
+    "eventsource/format-field-parsing.any.js",
+    "eventsource/format-mime-trailing-semicolon.any.js",
+    "eventsource/format-mime-valid-bogus.any.js",
+    "eventsource/format-newlines.any.js",
+    "eventsource/format-utf-8.any.js",
+    "eventsource/request-accept.any.js",
+    "eventsource/request-cache-control.any.js#same-origin"
+  ]
+}

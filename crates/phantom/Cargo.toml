@@ -50,3 +50,8 @@ workspace = true
 name = "autobahn-client"
 path = "examples/autobahn_client.rs"
 required-features = ["websocket"]
+
+[[example]]
+name = "wpt-eventsource-client"
+path = "examples/wpt_eventsource/main.rs"
+required-features = ["sse"]

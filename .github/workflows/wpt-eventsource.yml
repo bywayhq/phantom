@@ -1,0 +1,107 @@
+name: WPT EventSource conformance
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/wpt-eventsource.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom/Cargo.toml
+      - crates/phantom/examples/wpt_eventsource/**
+      - crates/phantom/src/**
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - scripts/conformance/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/wpt-eventsource.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom/Cargo.toml
+      - crates/phantom/examples/wpt_eventsource/**
+      - crates/phantom/src/**
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - scripts/conformance/**
+  schedule:
+    - cron: "17 9 * * 4"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: EventSource case set
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wpt-eventsource-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.mode || 'automatic' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
+jobs:
+  conformance:
+    name: ${{ matrix.name }} ${{ github.event_name == 'schedule' && 'full' || 'selected' }} suite
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-latest
+          - name: macOS
+            runner: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.10"
+
+      - name: Check runner prerequisites
+        run: |
+          command -v git
+          command -v openssl
+
+      - name: Select case set
+        env:
+          DISPATCH_MODE: ${{ inputs.mode }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          mode=smoke
+          if [[ "$EVENT_NAME" == schedule ]]; then
+            mode=full
+          elif [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            mode="$DISPATCH_MODE"
+          fi
+          echo "WPT_EVENTSOURCE_MODE=$mode" >> "$GITHUB_ENV"
+
+      - name: Run pinned EventSource scenarios
+        run: python3 scripts/conformance/wpt_eventsource.py "$WPT_EVENTSOURCE_MODE"
+
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wpt-eventsource-${{ matrix.name }}-${{ env.WPT_EVENTSOURCE_MODE }}-${{ github.sha }}
+          path: |
+            target/wpt-eventsource/**/adapter.log
+            target/wpt-eventsource/**/case-manifest.json
+            target/wpt-eventsource/**/metadata.json
+            target/wpt-eventsource/**/server.log
+            target/wpt-eventsource/**/summary.json
+          if-no-files-found: warn
+          retention-days: 30

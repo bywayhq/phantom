@@ -17,6 +17,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+if __package__:
+    from .loopback_tls import generate_loopback_certificate
+else:
+    from loopback_tls import generate_loopback_certificate
+
 IMAGE = (
     "crossbario/autobahn-testsuite:25.10.1@"
     "sha256:519915fb568b04c9383f70a1c405ae3ff44ab9e35835b085239c258b6fac3074"
@@ -155,116 +160,6 @@ def _run(
     )
 
 
-def _generate_certificates(directory: Path) -> Path:
-    ca_config = directory / "ca.cnf"
-    server_config = directory / "server.cnf"
-    ca_config.write_text(
-        """[req]
-distinguished_name = dn
-x509_extensions = ca_ext
-prompt = no
-[dn]
-CN = Phantom Autobahn Test CA
-[ca_ext]
-basicConstraints = critical,CA:TRUE
-keyUsage = critical,keyCertSign,cRLSign
-subjectKeyIdentifier = hash
-""",
-        encoding="utf-8",
-    )
-    server_config.write_text(
-        """[req]
-distinguished_name = dn
-prompt = no
-[dn]
-CN = localhost
-[server_ext]
-basicConstraints = critical,CA:FALSE
-keyUsage = critical,digitalSignature,keyEncipherment
-extendedKeyUsage = serverAuth
-subjectAltName = DNS:localhost,IP:127.0.0.1
-""",
-        encoding="utf-8",
-    )
-    _run(
-        [
-            "openssl",
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:2048",
-            "-nodes",
-            "-sha256",
-            "-days",
-            "2",
-            "-config",
-            str(ca_config),
-            "-keyout",
-            str(directory / "ca.key"),
-            "-out",
-            str(directory / "ca.pem"),
-        ],
-        quiet=True,
-    )
-    _run(
-        [
-            "openssl",
-            "req",
-            "-new",
-            "-newkey",
-            "rsa:2048",
-            "-nodes",
-            "-sha256",
-            "-config",
-            str(server_config),
-            "-keyout",
-            str(directory / "server.key"),
-            "-out",
-            str(directory / "server.csr"),
-        ],
-        quiet=True,
-    )
-    _run(
-        [
-            "openssl",
-            "x509",
-            "-req",
-            "-in",
-            str(directory / "server.csr"),
-            "-CA",
-            str(directory / "ca.pem"),
-            "-CAkey",
-            str(directory / "ca.key"),
-            "-CAcreateserial",
-            "-days",
-            "2",
-            "-sha256",
-            "-extfile",
-            str(server_config),
-            "-extensions",
-            "server_ext",
-            "-out",
-            str(directory / "server.pem"),
-        ],
-        quiet=True,
-    )
-    root_der = directory / "ca.der"
-    _run(
-        [
-            "openssl",
-            "x509",
-            "-in",
-            str(directory / "ca.pem"),
-            "-outform",
-            "DER",
-            "-out",
-            str(root_der),
-        ],
-        quiet=True,
-    )
-    return root_der
-
-
 def _wait_for_tls(port: int, container_name: str) -> None:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     context.check_hostname = False
@@ -368,7 +263,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
     try:
         with tempfile.TemporaryDirectory(prefix="phantom-autobahn-") as temporary:
             config_directory = Path(temporary).resolve()
-            root_der = _generate_certificates(config_directory)
+            certificate = generate_loopback_certificate(config_directory)
             port = _available_port()
             runtime_config = dict(config)
             runtime_config["url"] = f"wss://127.0.0.1:{port}"
@@ -413,7 +308,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                     "--url",
                     f"wss://127.0.0.1:{port}/",
                     "--ca-der",
-                    str(root_der),
+                    str(certificate.root_der),
                     "--agent",
                     AGENT,
                 ],

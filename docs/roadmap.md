@@ -365,8 +365,10 @@ finite reconnect controller. It carries committed `id` and `retry` state,
 emits `Last-Event-ID` on reconnect, preserves reconnect deadlines across
 cancelled reads, supports an optional DATA-activity idle timeout, and treats
 204 as permanent termination while reusing ordinary session routing,
-redirects, cookies, and pools. Jitter and retained browser-specific
-initial-delay/header-order evidence remain future work.
+redirects, cookies, and pools. Its ordered browser request defaults and parser,
+reconnect, MIME, UTF-8, and status behavior are exercised by selected resources
+from a pinned Web Platform Tests revision on Linux and macOS. Jitter and
+retained browser-specific initial-delay evidence remain future work.
 
 The first feature-gated WebSocket slice is also landed. It performs WSS over
 an exact ordered H1 Upgrade on direct or plaintext-CONNECT routes, retains the
