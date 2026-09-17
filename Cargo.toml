@@ -6,7 +6,13 @@ members = [
     "crates/phantom-quic-btls",
     "crates/phantom-testkit",
 ]
-exclude = ["vendor/btls", "vendor/http2", "vendor/quinn-proto", "vendor/tungstenite"]
+exclude = [
+    "fuzz",
+    "vendor/btls",
+    "vendor/http2",
+    "vendor/quinn-proto",
+    "vendor/tungstenite",
+]
 resolver = "3"
 
 [workspace.package]

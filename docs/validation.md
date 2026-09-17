@@ -555,10 +555,23 @@ The corpus covers:
   round-trip, strict decoding, exact-origin lookup, and connection-to-request
   seam coverage.
 
-Minimized failures become ordinary regression fixtures. Coverage-guided fuzzing
-uses the same bounded decoders and seeds in scheduled CI; native adapters also
-run under applicable sanitizers. Large slow-reader and soak workloads verify
-memory, flow-control accounting, and task cleanup separately from packet parity.
+Minimized failures become ordinary regression fixtures. Scheduled
+coverage-guided fuzzing currently runs the Phantom-owned ClientHello and
+HTTP/2 frame decoders under libFuzzer and AddressSanitizer. Each target combines
+arbitrary bytes with a valid structural seed, and bounds libFuzzer input length.
+Relevant pull requests run a 15-second smoke pass per target; scheduled and
+manually dispatched jobs run each target for five minutes.
+Run the same targets locally from `fuzz/`:
+
+```console
+cargo +nightly fuzz run client_hello -- -max_len=65536
+cargo +nightly fuzz run http2_frame -- -max_len=262144
+```
+
+This first slice does not cover BoringSSL or the vendored H2, H3, QUIC, and
+WebSocket engines. Native-adapter sanitizers and large slow-reader and soak
+workloads remain separate gates for memory, flow-control accounting, and task
+cleanup.
 
 The first committed response-side cases cover an H1 `100 Continue` followed by
 a final response under one-byte reads, H1 surplus bytes after a declared

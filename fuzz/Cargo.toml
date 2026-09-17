@@ -1,0 +1,26 @@
+[package]
+name = "phantom-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+phantom-testkit = { path = "../crates/phantom-testkit" }
+
+[[bin]]
+name = "client_hello"
+path = "fuzz_targets/client_hello.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "http2_frame"
+path = "fuzz_targets/http2_frame.rs"
+test = false
+doc = false
+bench = false

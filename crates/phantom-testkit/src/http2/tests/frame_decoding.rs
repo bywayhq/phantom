@@ -1,5 +1,46 @@
 use super::super::{SettingsDecodeError, WindowUpdateDecodeError};
 use super::*;
+use crate::http2::{CapturedFrame, FrameDecodeError};
+
+#[test]
+fn decodes_one_complete_frame_from_wire_bytes() -> Result<(), Box<dyn std::error::Error>> {
+    let wire = frame(0x04, 0, 0, &setting(1, 4_096));
+    let captured = CapturedFrame::from_wire_bytes(&wire)?;
+
+    assert_eq!(captured.wire_bytes(), wire);
+    let settings = captured.settings()?.ok_or("frame was not SETTINGS")?;
+    assert_eq!(settings.entries().len(), 1);
+    assert_eq!(settings.entries()[0].identifier(), 1);
+    assert_eq!(settings.entries()[0].value(), 4_096);
+    Ok(())
+}
+
+#[test]
+fn rejects_incomplete_or_overlong_complete_frames() {
+    assert!(matches!(
+        CapturedFrame::from_wire_bytes(&[0; 8]),
+        Err(FrameDecodeError::TruncatedHeader { length: 8 })
+    ));
+
+    let truncated = frame(0x04, 0, 0, &setting(1, 4_096));
+    assert!(matches!(
+        CapturedFrame::from_wire_bytes(&truncated[..truncated.len() - 1]),
+        Err(FrameDecodeError::PayloadLengthMismatch {
+            declared: 6,
+            actual: 5
+        })
+    ));
+
+    let mut overlong = frame(0x04, 0, 0, &[]);
+    overlong.push(0);
+    assert!(matches!(
+        CapturedFrame::from_wire_bytes(&overlong),
+        Err(FrameDecodeError::PayloadLengthMismatch {
+            declared: 0,
+            actual: 1
+        })
+    ));
+}
 
 #[tokio::test]
 async fn captures_settings_and_connection_window_update_from_one_byte_reads()

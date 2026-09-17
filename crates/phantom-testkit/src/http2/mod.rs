@@ -3,7 +3,7 @@
 mod frame;
 
 pub use frame::{
-    CapturedFrame, FrameHeader, Setting, SettingsDecodeError, SettingsFrame,
+    CapturedFrame, FrameDecodeError, FrameHeader, Setting, SettingsDecodeError, SettingsFrame,
     WindowUpdateDecodeError, WindowUpdateFrame,
 };
 

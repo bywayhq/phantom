@@ -364,7 +364,7 @@ The framing engine is `tokio-tungstenite` with its HTTP/TLS handshake disabled.
 Compression/extensions, reconnect policy, RFC 8441, H3 extended CONNECT, and
 named browser WebSocket recipes wait for retained wire evidence.
 
-## Phase 8: production hardening and profiling — planned
+## Phase 8: production hardening and profiling — in progress
 
 Run cross-platform debug/release CI, dependency-update isolation, native patch
 replay, sanitizers, fuzzing, long soaks, and workload benchmarks. Profile
@@ -374,6 +374,12 @@ WebSocket. Optimize measured bottlenecks without changing packet fixtures.
 Close with the repository's [Rust production-quality review](rust-quality.md),
 including the explicit AI-smell, feature-combination, documentation, async
 lifecycle, unsafe-boundary, and cross-platform audits.
+
+The first hardening slice adds scheduled, pinned libFuzzer jobs for Phantom's
+strict ClientHello and HTTP/2 frame decoders. Arbitrary input and valid
+structural seeds run under AddressSanitizer with bounded input lengths; failure
+artifacts are retained and must become deterministic regressions. This does not
+yet claim sanitizer coverage for BoringSSL or the vendored protocol engines.
 
 ## Later profile work
 

@@ -87,6 +87,36 @@ pub struct CapturedFrame {
 }
 
 impl CapturedFrame {
+    /// Decodes one complete HTTP/2 frame from exact wire bytes.
+    ///
+    /// The input must contain one nine-byte frame header and exactly the
+    /// payload length declared by that header.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FrameDecodeError`] when the header is truncated or the actual
+    /// payload length differs from the declared length.
+    pub fn from_wire_bytes(wire: &[u8]) -> Result<Self, FrameDecodeError> {
+        let header_bytes = wire
+            .get(..FRAME_HEADER_LENGTH)
+            .ok_or(FrameDecodeError::TruncatedHeader { length: wire.len() })?;
+        let mut encoded_header = [0; FRAME_HEADER_LENGTH];
+        encoded_header.copy_from_slice(header_bytes);
+        let header = FrameHeader::decode(encoded_header);
+        let actual = wire.len() - FRAME_HEADER_LENGTH;
+        if actual != header.payload_length() {
+            return Err(FrameDecodeError::PayloadLengthMismatch {
+                declared: header.payload_length(),
+                actual,
+            });
+        }
+
+        Ok(Self {
+            header,
+            wire: wire.to_vec(),
+        })
+    }
+
     /// Returns the decoded frame header.
     #[must_use]
     pub const fn header(&self) -> &FrameHeader {
@@ -171,6 +201,41 @@ impl CapturedFrame {
         }))
     }
 }
+
+/// Failure returned while decoding one complete HTTP/2 frame.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum FrameDecodeError {
+    /// The input ended before the nine-byte frame header completed.
+    TruncatedHeader {
+        /// Number of bytes supplied by the caller.
+        length: usize,
+    },
+    /// The bytes after the header did not match its declared payload length.
+    PayloadLengthMismatch {
+        /// Payload length declared by the frame header.
+        declared: usize,
+        /// Number of payload bytes supplied by the caller.
+        actual: usize,
+    },
+}
+
+impl fmt::Display for FrameDecodeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TruncatedHeader { length } => write!(
+                formatter,
+                "HTTP/2 frame has a {length}-byte header prefix; expected 9 bytes"
+            ),
+            Self::PayloadLengthMismatch { declared, actual } => write!(
+                formatter,
+                "HTTP/2 frame declares a {declared}-byte payload but contains {actual} bytes"
+            ),
+        }
+    }
+}
+
+impl Error for FrameDecodeError {}
 
 fn validate_setting(setting: Setting) -> Result<(), SettingsDecodeError> {
     match setting.identifier {

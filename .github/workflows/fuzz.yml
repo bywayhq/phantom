@@ -1,0 +1,84 @@
+name: Parser fuzzing
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fuzz.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom-testkit/**
+      - fuzz/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fuzz.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom-testkit/**
+      - fuzz/**
+  workflow_dispatch:
+  schedule:
+    - cron: "31 8 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_FUZZ_VERSION: "0.13.2"
+  FUZZ_SECONDS: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '300' || '15' }}
+  NIGHTLY_TOOLCHAIN: nightly-2026-09-01
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }} under ASan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: client_hello
+            max_len: 65536
+          - target: http2_frame
+            max_len: 262144
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install pinned nightly
+        run: rustup toolchain install "$NIGHTLY_TOOLCHAIN" --profile minimal
+
+      - name: Install cargo-fuzz
+        run: >-
+          cargo "+$NIGHTLY_TOOLCHAIN" install cargo-fuzz
+          --version "$CARGO_FUZZ_VERSION" --locked
+
+      - name: Build fuzz target
+        working-directory: fuzz
+        run: |
+          cargo "+$NIGHTLY_TOOLCHAIN" fetch --locked
+          cargo "+$NIGHTLY_TOOLCHAIN" fuzz build --sanitizer address "${{ matrix.target }}"
+
+      - name: Run fuzz target
+        working-directory: fuzz
+        run: >-
+          cargo "+$NIGHTLY_TOOLCHAIN" fuzz run
+          --sanitizer address "${{ matrix.target }}" --
+          -max_total_time="$FUZZ_SECONDS"
+          -max_len="${{ matrix.max_len }}"
+          -timeout=10
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-${{ matrix.target }}-${{ github.sha }}
+          path: fuzz/artifacts
+          if-no-files-found: warn
+          retention-days: 14
