@@ -42,6 +42,53 @@ async fn invalid_accept_is_rejected() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn unsolicited_subprotocol_is_a_typed_handshake_error() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(listener, acceptor).await?;
+            let request = read_head(&mut stream).await?;
+            if header_value(&request, "sec-websocket-protocol").is_some() {
+                return Err("client unexpectedly offered a WebSocket subprotocol".into());
+            }
+            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+            let accept = websocket_accept(key);
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 101 Switching Protocols\r\n\
+                         Upgrade: websocket\r\n\
+                         Connection: Upgrade\r\n\
+                         Sec-WebSocket-Accept: {accept}\r\n\
+                         Sec-WebSocket-Protocol: unsolicited\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await?;
+            stream.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let client = test_client(&identity, false)?;
+        let error = match client
+            .websocket(&format!("wss://{address}/"))?
+            .connect()
+            .await
+        {
+            Ok(_) => return Err("unsolicited WebSocket subprotocol was accepted".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), WebSocketErrorKind::InvalidHandshake);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn masked_server_frame_closes_transport_and_traces_closed_send() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;

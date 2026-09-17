@@ -16,11 +16,8 @@ claim.
 
 ## Additional adversarial coverage
 
-- Add a no-panic unsolicited WebSocket subprotocol regression. Tiny and empty
-  fragment floods now have a separate count bound; a later message-idle policy
-  should cover slow arrival rate independently. See
-  [Undici GHSA-vxpw-j846-p89q](https://github.com/nodejs/undici/security/advisories/GHSA-vxpw-j846-p89q)
-  and
+- A later WebSocket message-idle policy should cover slow fragment arrival
+  independently of the existing frame-count and decoded-byte bounds. See
   [GHSA-rfgv-xxqx-mfg5](https://github.com/nodejs/undici/security/advisories/GHSA-rfgv-xxqx-mfg5).
 - Retain the patched Quinn malformed-transport-parameter proof as a fuzz seed,
   then cover reordered, duplicated, truncated, and malformed-varint parameters.
@@ -98,6 +95,11 @@ claim.
 - Proxy TLS roots, hostname policy, ticket cache, and origin TLS state remain
   separate.
 - WebSocket decompression enforces the message bound during inflation.
+- An unsolicited WebSocket subprotocol on a live WSS handshake returns the
+  typed `InvalidHandshake` outcome without panicking. The selected protocol is
+  accepted only when it exactly matches one of the caller's offers. This covers
+  the failure class in
+  [Undici GHSA-vxpw-j846-p89q](https://github.com/nodejs/undici/security/advisories/GHSA-vxpw-j846-p89q).
 - WebSocket message assembly independently bounds data-frame count. The engine
   counts the initial frame and empty continuations, ignores interleaved control
   frames, rejects overflow before decompression or buffering, and enters a
