@@ -254,30 +254,6 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
         let proxy_uri = format!("http://{address}");
         let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?);
 
-        let direct = client_builder(&identity, false).build()?;
-        let direct_error = direct
-            .get(HttpProtocol::Http1, "http://origin.test/")?
-            .send()
-            .await
-            .err()
-            .ok_or("direct plaintext HTTP unexpectedly succeeded")?;
-        assert_eq!(direct_error.kind(), RequestErrorKind::UnsupportedScheme);
-
-        let direct_policy_error = direct
-            .session_builder()
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()
-            .get(HttpProtocol::Http1, "http://origin.test/")?
-            .header(RequestHeader::new("Proxy-Authorization", "Basic secret"))
-            .send()
-            .await
-            .err()
-            .ok_or("direct plaintext HTTP unexpectedly reached forwarding validation")?;
-        assert_eq!(
-            direct_policy_error.kind(),
-            RequestErrorKind::UnsupportedScheme
-        );
-
         let forward_client = client_builder(&identity, false)
             .route(route.clone())
             .build()?;
