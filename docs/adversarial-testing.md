@@ -153,8 +153,9 @@ bounded 421 replay regression.
 - Compression tests fragment gzip, deflate, Brotli, and zstd input while a slow
   consumer verifies incremental output, ratio limits, and one timeout budget.
 - Proxy peers still need browser-differential HTTP 407 challenge/retry
-  behavior, half-close coverage, HTTPS proxying, custom SOCKS5 resolvers,
-  GSSAPI, and UDP route variants.
+  behavior, broader half-close coverage, custom SOCKS5 resolvers, GSSAPI, and
+  UDP route variants. HTTPS proxy regressions cover the two TLS boundaries,
+  ordered CONNECT handoff, over-read bytes, ALPN rejection, and no fallback.
 - SSE covers BOM and line-ending variants, split UTF-8, comments, `id`, and
   `retry`. A deterministic H1 session regression also covers one bounded
   reconnect, `Last-Event-ID`, cookie carry-over, cancellation-safe delay and

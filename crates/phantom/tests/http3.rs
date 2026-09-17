@@ -276,6 +276,7 @@ async fn tcp_proxy_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
     let origin_address = origin.local_addr()?;
     let routes = [
         Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?),
+        Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?),
         Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?),
     ];
 

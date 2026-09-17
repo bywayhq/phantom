@@ -26,8 +26,8 @@ flowchart TB
     Client["phantom::Client<br/>small public facade"]
     Session["Session<br/>H1 · H2 · H3 pools · optional cookies"]
     Profile["Client profile<br/>TLS · H1 · H2 · QUIC · H3 settings"]
-    Route["Current route<br/>direct · HTTP CONNECT · SOCKS5"]
-    FutureRoute["Later routes<br/>HTTPS proxy · UDP"]
+    Route["Current route<br/>direct · HTTP(S) CONNECT · SOCKS5"]
+    FutureRoute["Later routes<br/>forwarding · UDP"]
     FacadeRequest["Facade request<br/>exact H1/H2/H3"]
     NegotiatedRequest["Direct negotiated request<br/>one TLS handshake · H1 or H2"]
 
@@ -122,10 +122,11 @@ flowchart LR
     Masque["CONNECT-UDP / MASQUE"] -.-> Udp
 ```
 
-The current proxy slices cover plaintext HTTP CONNECT and local- or remote-DNS
-SOCKS5, with optional RFC 1929 username/password credentials, for H1/H2
-origin TLS and H1 WebSocket. Direct H3 uses UDP. Selecting H3 with either
-TCP-only proxy route fails before proxy or origin I/O because those routes have
+The current proxy slices cover HTTP CONNECT over plaintext or independently
+authenticated proxy TLS and local- or remote-DNS SOCKS5, with optional RFC
+1929 username/password credentials, for H1/H2 origin TLS and H1 WebSocket.
+Direct H3 uses UDP. Selecting H3 with any TCP-only proxy route fails before
+proxy or origin I/O because those routes have
 no UDP capability. The client or request owns the route, and the HTTP CONNECT
 field sequence contains one typed destination-authority placeholder.
 Validation happens before proxy I/O. Negotiation is bounded, accepts a final
@@ -145,9 +146,11 @@ identity but never in debug output, errors, or traces. Negotiation
 uses a maintained protocol engine; Phantom owns route validation, error
 categories, tracing, and fallback policy. See [proxy routing](proxy-routing.md).
 
-HTTP forwarding, TLS-to-proxy CONNECT, HTTP proxy authentication challenges,
-custom SOCKS5 resolvers, and half-close behavior remain later slices. SOCKS5
-GSSAPI is unsupported.
+HTTPS proxy and origin certificate policy and ticket caches are independent.
+HTTPS CONNECT currently requires H1 to the proxy: absent ALPN or `http/1.1` is
+accepted, while selected `h2` is rejected explicitly. HTTP forwarding, HTTP
+proxy authentication challenges, custom SOCKS5 resolvers, and broader
+half-close behavior remain later slices. SOCKS5 GSSAPI is unsupported.
 
 H3 is capability-checked separately. A TCP CONNECT proxy cannot carry QUIC.
 SOCKS5 UDP ASSOCIATE is the first UDP proxy target, followed by CONNECT-UDP and

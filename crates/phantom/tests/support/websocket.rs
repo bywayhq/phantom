@@ -6,7 +6,7 @@ use tokio::{
     time::timeout,
 };
 
-use super::tls_support::{TestResult, read_head};
+use super::tls_support::{TestResult, accept_tls, read_head};
 
 pub(super) const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -122,6 +122,30 @@ pub(super) async fn forward_one_connect(
         .await?;
     downstream.flush().await?;
     copy_bidirectional(&mut downstream, &mut upstream).await?;
+    Ok(request)
+}
+
+pub(super) async fn forward_one_https_connect(
+    listener: TcpListener,
+    acceptor: btls::ssl::SslAcceptor,
+    origin: std::net::SocketAddr,
+) -> TestResult<Vec<u8>> {
+    let mut downstream = accept_tls(listener, acceptor).await?;
+    let request = read_head(&mut downstream).await?;
+    let mut upstream = TcpStream::connect(origin).await?;
+    downstream
+        .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        .await?;
+    downstream.flush().await?;
+    match copy_bidirectional(&mut downstream, &mut upstream).await {
+        Ok(_) => {}
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::ConnectionReset | io::ErrorKind::BrokenPipe
+            ) => {}
+        Err(error) => return Err(error.into()),
+    }
     Ok(request)
 }
 

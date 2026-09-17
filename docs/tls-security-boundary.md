@@ -45,8 +45,11 @@ set must customize those fields before building the connector.
 `ServerAuthentication` is connection policy, not profile data. Its default
 `WebPki` variant verifies the certificate chain and requested server name.
 `Disabled` accepts an unauthenticated certificate while preserving SNI and is
-limited to controlled TCP TLS conformance or diagnostic use. It cannot be
-combined with additional roots or HTTP/3; those conflicts fail during client
+limited to controlled TCP TLS conformance or diagnostic use. Disabling origin
+authentication cannot be combined with origin roots or HTTP/3. Disabling
+HTTPS-proxy authentication cannot be combined with proxy roots, but it does
+not alter origin authentication or prevent a direct HTTP/3 capability from
+coexisting in the same client. These conflicts fail during client
 construction.
 
 The QUIC path is TLS 1.3 only. QUIC session resumption remains disabled, and
@@ -56,12 +59,13 @@ Phantom does not recreate record protection.
 
 ## Connection policy seam
 
-The public client resolves its wire profile, server-authentication policy, and
-additive trust roots before an attempt starts. A conflict returns a typed
-error. Additional DER roots extend the bundled public store without disabling
-chain or hostname verification. Policy never mutates the profile behind the
-caller's back, because that would make both later pooling identity and packet
-differentials dishonest.
+The public client resolves its wire profile, independent origin and HTTPS-proxy
+server-authentication policies, and their additive trust roots before an
+attempt starts. A conflict returns a typed error. Additional DER roots extend
+the corresponding bundled public store without disabling chain or hostname
+verification. Proxy policy never changes origin policy. Policy never mutates
+the profile behind the caller's back, because that would make both later
+pooling identity and packet differentials dishonest.
 
 Remaining policy slices should stay deliberately small:
 

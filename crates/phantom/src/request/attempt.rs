@@ -285,7 +285,16 @@ async fn dispatch(
                 session
                     .state
                     .http1
-                    .send_request(connector, endpoint, route, method, target, headers, body)
+                    .send_request(
+                        connector,
+                        client.inner.https_proxy.as_ref(),
+                        endpoint,
+                        route,
+                        method,
+                        target,
+                        headers,
+                        body,
+                    )
                     .await?
             } else {
                 let response = match route {
@@ -304,19 +313,41 @@ async fn dispatch(
                     }
                     Route::HttpConnect(proxy) => {
                         let connect_authority = endpoint.tunnel_authority();
-                        connector
-                            .send_request_http_connect(
-                                proxy.host(),
-                                proxy.port(),
-                                &connect_authority,
-                                proxy.ordered_connect_headers(),
-                                endpoint.host(),
-                                method,
-                                target,
-                                headers,
-                                body,
-                            )
-                            .await
+                        if proxy.uses_tls() {
+                            let proxy_connector =
+                                client.inner.https_proxy.as_ref().ok_or_else(|| {
+                                    RequestError::unsupported_route(HttpProtocol::Http1)
+                                })?;
+                            connector
+                                .send_request_https_connect(
+                                    proxy_connector,
+                                    proxy.host(),
+                                    proxy.port(),
+                                    proxy.host(),
+                                    &connect_authority,
+                                    proxy.ordered_connect_headers(),
+                                    endpoint.host(),
+                                    method,
+                                    target,
+                                    headers,
+                                    body,
+                                )
+                                .await
+                        } else {
+                            connector
+                                .send_request_http_connect(
+                                    proxy.host(),
+                                    proxy.port(),
+                                    &connect_authority,
+                                    proxy.ordered_connect_headers(),
+                                    endpoint.host(),
+                                    method,
+                                    target,
+                                    headers,
+                                    body,
+                                )
+                                .await
+                        }
                     }
                     Route::Socks5(proxy) => match proxy.dns_mode() {
                         crate::Socks5DnsMode::Local => {
@@ -374,6 +405,7 @@ async fn dispatch(
                     .http2
                     .send_request(
                         connector,
+                        client.inner.https_proxy.as_ref(),
                         endpoint,
                         route,
                         method,
@@ -411,15 +443,33 @@ async fn dispatch(
                     }
                     Route::HttpConnect(proxy) => {
                         let connect_authority = endpoint.tunnel_authority();
-                        connector
-                            .connect_http_connect(
-                                proxy.host(),
-                                proxy.port(),
-                                &connect_authority,
-                                proxy.ordered_connect_headers(),
-                                endpoint.host(),
-                            )
-                            .await
+                        if proxy.uses_tls() {
+                            let proxy_connector =
+                                client.inner.https_proxy.as_ref().ok_or_else(|| {
+                                    RequestError::unsupported_route(HttpProtocol::Http2)
+                                })?;
+                            connector
+                                .connect_https_connect(
+                                    proxy_connector,
+                                    proxy.host(),
+                                    proxy.port(),
+                                    proxy.host(),
+                                    &connect_authority,
+                                    proxy.ordered_connect_headers(),
+                                    endpoint.host(),
+                                )
+                                .await
+                        } else {
+                            connector
+                                .connect_http_connect(
+                                    proxy.host(),
+                                    proxy.port(),
+                                    &connect_authority,
+                                    proxy.ordered_connect_headers(),
+                                    endpoint.host(),
+                                )
+                                .await
+                        }
                     }
                     Route::Socks5(proxy) => match proxy.dns_mode() {
                         crate::Socks5DnsMode::Local => {

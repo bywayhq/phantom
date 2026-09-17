@@ -221,15 +221,15 @@ and H2 streaming, H2 trailers, ordered fields, and pre-I/O
 rejection of unavailable protocols and invalid fields.
 
 The next landed slice adds a closed `Route` vocabulary for direct connections
-and plaintext HTTP CONNECT, with a client default and owned per-request
+and HTTP CONNECT, with a client default and owned per-request
 override. CONNECT authority is a typed placeholder in an ordered field
 sequence. Negotiation is bounded, accepts any final 2xx after a bounded number
 of informational responses, preserves bytes read beyond the response head,
 and reports rejection without exposing peer fields. Loopback tests prove H1
 and H2 origin TLS through the proxy, H2 trailers, pre-I/O validation,
 cancellation, response bounds, and that rejection never opens a direct origin
-socket. It does not introduce an empty `Session` or pool. HTTPS proxies,
-forwarding, SOCKS5, authentication challenge negotiation, and UDP-capable
+socket. It does not introduce an empty `Session` or pool. Forwarding, SOCKS5,
+authentication challenge negotiation, and UDP-capable
 proxy routes remain later Phase 6 slices.
 
 The third landed slice brings the existing direct H3 path into the public
@@ -296,6 +296,18 @@ H1 WSS paths. It validates UTF-8 byte lengths before I/O, excludes secrets from
 diagnostics, and keeps distinct credentials in distinct route and pool
 identities. URI credentials remain invalid. Custom resolvers, GSSAPI, UDP
 ASSOCIATE, and H3 proxying remain separate future capabilities.
+
+The seventh landed route slice adds HTTPS CONNECT without changing the
+origin-facing wire profile. The client performs an independently authenticated
+TLS handshake to the proxy, writes the ordered H1 CONNECT request, and then
+performs origin TLS inside the tunnel. Proxy roots and certificate policy are
+separate from origin trust, and proxy and origin ticket caches never share
+state. An absent proxy ALPN or `http/1.1` is accepted; a proxy selecting `h2`
+is rejected explicitly because H2 proxy transport is not implemented. One-shot
+and pooled H1/H2 requests, H1 WSS, and SSE through ordinary session requests
+use the route, while H3 rejects it before network I/O. Loopback tests cover
+proxy SNI, ordered CONNECT bytes, over-read preservation, trust separation,
+pool reuse, route isolation, typed errors, and the no-direct-fallback rule.
 
 With the optional `cookies` feature, a session builder can explicitly activate
 a bounded in-memory jar or accept a caller-created one. Phantom delegates
@@ -367,6 +379,17 @@ Acceptance:
 - Each public option is covered by validation and an observable integration
   test; no option is a pass-through placeholder for future work.
 
+Before the public client API stabilizes, run a dedicated ergonomics audit of
+widely used Rust and non-Rust HTTP clients. Extract repeated user preferences
+and complaints from documentation, issues, and real usage, then test proposed
+changes against Phantom's explicit wire-control and ownership boundaries.
+
+Maintain a second evidence ledger for request-client CVEs, security advisories,
+and relevant issue/PR histories, including both impersonating and conventional
+clients. Convert each applicable failure mode into a documented invariant,
+deterministic regression, fuzz target, or CI check; record why non-applicable
+cases do not cross Phantom's trust or lifecycle boundaries.
+
 ## Phase 7: SSE and WebSocket — in progress
 
 The feature-gated SSE slice includes a bounded pull parser and a session-owned,
@@ -380,14 +403,15 @@ from a pinned Web Platform Tests revision on Linux and macOS. Jitter and
 retained browser-specific initial-delay evidence remain future work.
 
 The first feature-gated WebSocket slice is also landed. It performs WSS over
-an exact ordered H1 Upgrade on direct or plaintext-CONNECT routes, retains the
+an exact ordered H1 Upgrade on any supported TCP route, retains the
 ordinary response when the server rejects the Upgrade, strictly validates the
 `101`, preserves coalesced post-head bytes, and exposes bounded Phantom-owned
 message types through both methods and standard `Stream`/`Sink` traits.
 Sessions contribute cookies without retaining the exclusive upgraded socket.
 The framing engine is `tokio-tungstenite` with its HTTP/TLS handshake disabled.
-Compression/extensions, reconnect policy, RFC 8441, H3 extended CONNECT, and
-named browser WebSocket recipes wait for retained wire evidence.
+Typed opt-in `permessage-deflate` is supported. Other extensions, reconnect
+policy, RFC 8441, H3 extended CONNECT, and named browser WebSocket recipes wait
+for retained wire evidence.
 
 ## Phase 8: production hardening and profiling — in progress
 

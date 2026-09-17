@@ -5,6 +5,7 @@ use phantom_net::{
     http1_or_2::{Http1Or2TlsError, Http1Or2TlsErrorKind},
     http2::{Http2Error, Http2TlsError},
     http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
+    proxy::HttpConnectError,
 };
 use phantom_profile::{InvalidClientHintSettings, InvalidTlsSettings};
 
@@ -102,6 +103,22 @@ impl BuildError {
             _ => BuildErrorKind::ProtocolConfiguration,
         };
         Self::with_source(kind, "failed to configure HTTP/3", source)
+    }
+
+    pub(crate) fn https_proxy(source: HttpConnectError) -> Self {
+        let kind = match &source {
+            HttpConnectError::ProxyTls(error) if error.kind() == TlsErrorKind::TrustStore => {
+                BuildErrorKind::TrustStore
+            }
+            HttpConnectError::ProxyTls(error)
+                if error.kind() == TlsErrorKind::InvalidConfiguration =>
+            {
+                BuildErrorKind::InvalidProfile
+            }
+            HttpConnectError::MissingHttp1Alpn => BuildErrorKind::ProtocolConfiguration,
+            _ => BuildErrorKind::ProtocolConfiguration,
+        };
+        Self::with_source(kind, "failed to configure HTTPS proxy", source)
     }
 
     pub(crate) fn no_supported_protocol() -> Self {

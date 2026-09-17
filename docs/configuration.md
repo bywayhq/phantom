@@ -36,8 +36,9 @@ bytes.
 
 The facade grows through three ordinary levels:
 
-- `ClientBuilder` currently owns one immutable profile, additive trust roots,
-  and a default `Route` (`Direct`, plaintext HTTP CONNECT, or local-/remote-DNS
+- `ClientBuilder` currently owns one immutable profile, additive origin and
+  HTTPS-proxy trust roots, independent authentication policies for those TLS
+  legs, and a default `Route` (`Direct`, HTTP/HTTPS CONNECT, or local-/remote-DNS
   SOCKS5). Later slices add runtime services and pool limits only with their
   implementations.
 - `RequestBuilder` currently owns an exact protocol, HTTPS target, and ordered
@@ -53,10 +54,12 @@ The facade grows through three ordinary levels:
 Bare-client requests perform a new connection for each request; a session
 reuses eligible H1, H2, and H3 connections. The facade synthesizes the H1
 `Host` field from the URI, uses the URI authority for H2 and H3, and rejects a
-caller-supplied origin `Host` field. A plaintext HTTP CONNECT route has a
+caller-supplied origin `Host` field. An HTTP or HTTPS CONNECT route has a
 separate ordered field sequence with one typed destination-authority
-placeholder. Request and CONNECT validation happen before proxy I/O; non-2xx
-proxy responses are typed failures and never trigger a direct retry. A
+placeholder. HTTPS authenticates the proxy before CONNECT using an independent
+trust store, then authenticates the origin inside the tunnel. Request and
+CONNECT validation happen before proxy I/O; non-2xx proxy responses are typed
+failures and never trigger a direct retry. A
 `socks5://` resolves domain origins locally and `socks5h://` resolves them at
 the proxy. Both apply to H1, H2, session-owned H1/H2 reuse, and H1 WebSocket.
 Selecting H2 or H3 without the

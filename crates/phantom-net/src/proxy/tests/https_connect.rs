@@ -24,7 +24,8 @@ fn requires_http1_alpn_before_building_tls() -> TestResult<()> {
     settings.alpn_protocols = vec![Box::from(&b"h2"[..])];
 
     let error = HttpsProxyConnector::new(&settings)
-        .expect_err("HTTPS proxy connector accepted settings without HTTP/1.1 ALPN");
+        .err()
+        .ok_or("HTTPS proxy connector accepted settings without HTTP/1.1 ALPN")?;
     assert!(matches!(error, HttpConnectError::MissingHttp1Alpn));
     assert_eq!(error.kind(), HttpConnectErrorKind::InvalidConfiguration);
     Ok(())
@@ -36,7 +37,8 @@ fn exposes_tls_configuration_failure_as_proxy_error() -> TestResult<()> {
         &tls_settings(),
         [&b"not-a-certificate"[..]],
     )
-    .expect_err("invalid proxy trust root was accepted");
+    .err()
+    .ok_or("invalid proxy trust root was accepted")?;
     assert!(matches!(error, HttpConnectError::ProxyTls(_)));
     assert_eq!(error.kind(), HttpConnectErrorKind::Tls);
     Ok(())
@@ -155,7 +157,8 @@ async fn rejects_h2_before_writing_connect() -> TestResult<()> {
                 &[HttpConnectHeader::authority("Host")],
             )
             .await
-            .expect_err("HTTPS proxy accepted h2 for an HTTP/1.1 CONNECT exchange");
+            .err()
+            .ok_or("HTTPS proxy accepted h2 for an HTTP/1.1 CONNECT exchange")?;
         assert!(matches!(
             error,
             HttpConnectError::UnsupportedAlpn { ref selected } if selected.as_ref() == b"h2"
@@ -184,7 +187,8 @@ async fn invalid_connect_fails_before_proxy_tcp_io() -> TestResult<()> {
             &[],
         )
         .await
-        .expect_err("HTTPS proxy accepted CONNECT without an authority field");
+        .err()
+        .ok_or("HTTPS proxy accepted CONNECT without an authority field")?;
     assert!(matches!(error, HttpConnectError::MissingAuthorityHeader));
     assert!(
         timeout(Duration::from_millis(100), listener.accept())

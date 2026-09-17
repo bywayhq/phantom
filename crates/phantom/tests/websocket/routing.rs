@@ -44,6 +44,63 @@ async fn connects_through_http_connect_without_origin_fallback() -> TestResult<(
 }
 
 #[tokio::test]
+async fn connects_through_verified_https_proxy() -> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate()?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
+        let origin = tokio::spawn(async move {
+            let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
+            let request = read_head(&mut stream).await?;
+            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+            let accept = websocket_accept(key);
+            stream.write_all(format!(
+                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
+            ).as_bytes()).await?;
+            let close = read_client_frame(&mut stream).await?;
+            append_and_write_server_frame(&mut stream, true, 0x8, &close.payload).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(request)
+        });
+
+        let proxy_identity = TestIdentity::generate()?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
+        let proxy = tokio::spawn(forward_one_https_connect(
+            proxy_listener,
+            proxy_acceptor,
+            origin_address,
+        ));
+        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let client = client_builder(&origin_identity, false)
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(route)
+            .build()?;
+        let mut socket = client
+            .websocket(&format!("wss://{origin_address}/through-secure-proxy"))?
+            .connect()
+            .await?;
+        socket.close(Some(WebSocketCloseFrame::new(1000, "done")?)).await?;
+        assert!(matches!(socket.receive().await?, WebSocketMessage::Close(_)));
+        drop(socket);
+
+        assert_eq!(
+            proxy.await??,
+            format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
+                .as_bytes()
+        );
+        assert!(
+            origin
+                .await??
+                .starts_with(b"GET /through-secure-proxy HTTP/1.1\r\n")
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn rejected_connect_never_opens_a_direct_websocket_connection() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;

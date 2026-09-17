@@ -29,14 +29,15 @@ order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
 small facade for exact H1, H2, or direct H3 requests, plus direct one-handshake
 H1/H2 ALPN selection for bare-client requests, additive private trust
-roots, typed direct, plaintext-HTTP-CONNECT, and local- or remote-DNS SOCKS5
-routes with optional RFC 1929 username/password credentials, and one unified
-streaming response body. CONNECT fields preserve caller-declared order, proxy
-rejection never falls back direct, and coalesced tunnel bytes survive
-negotiation. The SOCKS5 URI scheme selects explicit DNS ownership; credentials
+roots, typed direct, HTTP/HTTPS CONNECT, and local- or remote-DNS SOCKS5 routes
+with optional RFC 1929 username/password credentials, and one unified streaming
+response body. HTTPS-proxy certificate policy and additive roots are independent
+from origin trust. CONNECT fields preserve caller-declared order, proxy rejection
+never falls back direct, and coalesced tunnel bytes survive negotiation. The
+SOCKS5 URI scheme selects explicit DNS ownership; credentials
 are configured with `Socks5Proxy::with_username_password`, validated before
 I/O, and excluded from diagnostics. H3 uses a separate protocol-specific TLS
-profile and rejects both TCP-only proxy routes before network I/O. The optional
+profile and rejects TCP-only proxy routes before network I/O. The optional
 `cookies` capability adds a bounded, explicit session jar with public-suffix,
 prefix, expiry, and deterministic ordering rules. Profiles may also define
 ordered client-hint fields; sessions retain bounded exact-origin response
@@ -46,9 +47,10 @@ Feature-gated SSE support provides both a bounded
 single-response decoder and a finite, pull-driven session reconnect controller
 without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
-I/O through Phantom-owned types. HTTPS proxies, HTTP proxy authentication,
-UDP-capable proxies, general retry policy, WebSocket extensions, and extended
-CONNECT remain planned. The project does not make broad client-compatibility claims.
+I/O through Phantom-owned types, including typed opt-in `permessage-deflate`.
+HTTP-proxy authentication challenges, forwarding, UDP-capable proxies, general
+retry policy, other WebSocket extensions, and extended CONNECT remain planned.
+The project does not make broad client-compatibility claims.
 
 ## Principles
 
@@ -130,8 +132,8 @@ metadata. Use
 
 - `phantom`: the public exact-protocol client facade, direct one-shot H1/H2 ALPN
   selection, session-owned H1, H2, and H3 reuse,
-  direct routes, plaintext HTTP CONNECT and credential-capable local- or
-  remote-DNS SOCKS5 for H1/H2 and H1 WebSocket, opt-in bounded redirects,
+  direct routes, HTTP/HTTPS CONNECT and credential-capable local- or remote-DNS
+  SOCKS5 for H1/H2 and H1 WebSocket, opt-in bounded redirects,
   streaming responses, and optional bounded cookie and client-hint state, plus
   SSE and WebSocket capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,

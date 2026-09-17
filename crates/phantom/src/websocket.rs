@@ -212,17 +212,38 @@ impl WebSocketRequestBuilder {
             }
             Route::HttpConnect(proxy) => {
                 let authority = request.endpoint.tunnel_authority();
-                connector
-                    .upgrade_get_http_connect(
-                        proxy.host(),
-                        proxy.port(),
-                        &authority,
-                        proxy.ordered_connect_headers(),
-                        request.endpoint.host(),
-                        request.target,
-                        prepared.headers,
-                    )
-                    .await
+                if proxy.uses_tls() {
+                    let proxy_connector = client.inner.https_proxy.as_ref().ok_or_else(|| {
+                        WebSocketError::request(RequestError::unsupported_route(
+                            crate::HttpProtocol::Http1,
+                        ))
+                    })?;
+                    connector
+                        .upgrade_get_https_connect(
+                            proxy_connector,
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.host(),
+                            &authority,
+                            proxy.ordered_connect_headers(),
+                            request.endpoint.host(),
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                } else {
+                    connector
+                        .upgrade_get_http_connect(
+                            proxy.host(),
+                            proxy.port(),
+                            &authority,
+                            proxy.ordered_connect_headers(),
+                            request.endpoint.host(),
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                }
             }
             Route::Socks5(proxy) => match proxy.dns_mode() {
                 crate::Socks5DnsMode::Local => {

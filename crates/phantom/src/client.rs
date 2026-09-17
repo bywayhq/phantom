@@ -3,7 +3,7 @@ use std::{fmt, sync::Arc};
 use http::Method;
 use phantom_net::{
     ServerAuthentication, http1::Http1TlsConnector, http1_or_2::Http1Or2TlsConnector,
-    http2::Http2TlsConnector, http3::Http3Connector,
+    http2::Http2TlsConnector, http3::Http3Connector, proxy::HttpsProxyConnector,
 };
 use phantom_profile::{ClientHintSettings, ClientProfile};
 
@@ -49,6 +49,7 @@ pub(crate) struct ClientInner {
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
     pub(crate) http3: Option<Http3Connector>,
+    pub(crate) https_proxy: Option<HttpsProxyConnector>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     pub(crate) route: Route,
 }
@@ -61,6 +62,8 @@ impl Client {
             profile,
             additional_roots: Vec::new(),
             server_authentication: ServerAuthentication::default(),
+            proxy_additional_roots: Vec::new(),
+            proxy_server_authentication: ServerAuthentication::default(),
             route: Route::Direct,
         }
     }
@@ -152,6 +155,8 @@ pub struct ClientBuilder {
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,
     server_authentication: ServerAuthentication,
+    proxy_additional_roots: Vec<Box<[u8]>>,
+    proxy_server_authentication: ServerAuthentication,
     route: Route,
 }
 
@@ -177,6 +182,14 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("additional_root_count", &self.additional_roots.len())
             .field("server_authentication", &self.server_authentication)
+            .field(
+                "proxy_additional_root_count",
+                &self.proxy_additional_roots.len(),
+            )
+            .field(
+                "proxy_server_authentication",
+                &self.proxy_server_authentication,
+            )
             .field("route", &self.route)
             .finish_non_exhaustive()
     }
@@ -200,6 +213,26 @@ impl ClientBuilder {
     #[must_use]
     pub fn server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.server_authentication = policy;
+        self
+    }
+
+    /// Adds a DER-encoded certificate to the HTTPS-proxy trust roots.
+    ///
+    /// Proxy trust is independent from origin trust. Certificate and hostname
+    /// verification remain enabled for the proxy.
+    #[must_use]
+    pub fn add_proxy_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
+        self.proxy_additional_roots.push(certificate.into());
+        self
+    }
+
+    /// Sets how an HTTPS proxy authenticates its TLS certificate.
+    ///
+    /// This policy applies only to the outer proxy connection. Origin TLS uses
+    /// [`Self::server_authentication`] and its own trust roots.
+    #[must_use]
+    pub fn proxy_server_authentication(mut self, policy: ServerAuthentication) -> Self {
+        self.proxy_server_authentication = policy;
         self
     }
 
@@ -249,6 +282,21 @@ impl ClientBuilder {
                     "disabled server authentication is not supported for HTTP/3",
                 ));
             }
+        }
+
+        let proxy_authentication_disabled = match self.proxy_server_authentication {
+            ServerAuthentication::WebPki => false,
+            ServerAuthentication::Disabled => true,
+            _ => {
+                return Err(BuildError::invalid_policy(
+                    "unsupported proxy server-authentication policy",
+                ));
+            }
+        };
+        if proxy_authentication_disabled && !self.proxy_additional_roots.is_empty() {
+            return Err(BuildError::invalid_policy(
+                "disabled proxy server authentication cannot be combined with proxy roots",
+            ));
         }
 
         let roots = || self.additional_roots.iter().map(AsRef::as_ref);
@@ -311,6 +359,28 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http3)?;
+        let secure_proxy_requested = self
+            .route
+            .as_http_proxy()
+            .is_some_and(|proxy| proxy.uses_tls())
+            || !self.proxy_additional_roots.is_empty()
+            || proxy_authentication_disabled;
+        let https_proxy = (supports_http1 || secure_proxy_requested)
+            .then(|| {
+                if proxy_authentication_disabled {
+                    HttpsProxyConnector::new_with_server_authentication(
+                        self.profile.tls(),
+                        self.proxy_server_authentication,
+                    )
+                } else {
+                    HttpsProxyConnector::new_with_additional_roots(
+                        self.profile.tls(),
+                        self.proxy_additional_roots.iter().map(AsRef::as_ref),
+                    )
+                }
+            })
+            .transpose()
+            .map_err(BuildError::https_proxy)?;
         let client_hints = self.profile.client_hints().cloned();
 
         if http1.is_none() && http2.is_none() && http3.is_none() {
@@ -323,6 +393,7 @@ impl ClientBuilder {
                 http1_or_2,
                 http2,
                 http3,
+                https_proxy,
                 client_hints,
                 route: self.route,
             }),
@@ -332,12 +403,61 @@ impl ClientBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::HttpProtocol;
+    use phantom_profile::{ClientProfile, chromium};
+
+    use super::{Client, HttpProtocol};
+    use crate::{BuildErrorKind, HttpProxy, Route, ServerAuthentication};
 
     #[test]
     fn protocol_trace_names_match_negotiated_tokens() {
         assert_eq!(HttpProtocol::Http1.trace_name(), "http/1.1");
         assert_eq!(HttpProtocol::Http2.trace_name(), "h2");
         assert_eq!(HttpProtocol::Http3.trace_name(), "h3");
+    }
+
+    #[test]
+    fn invalid_proxy_root_has_trust_store_category() -> Result<(), &'static str> {
+        let profile = ClientProfile::new(chromium::v152_macos_tls());
+        let error = Client::builder(profile)
+            .add_proxy_root_certificate_der(b"not-a-certificate".as_slice())
+            .build()
+            .err()
+            .ok_or("invalid HTTPS-proxy trust root was accepted")?;
+
+        assert_eq!(error.kind(), BuildErrorKind::TrustStore);
+        Ok(())
+    }
+
+    #[test]
+    fn disabled_proxy_authentication_rejects_proxy_roots() -> Result<(), &'static str> {
+        let profile = ClientProfile::new(chromium::v152_macos_tls());
+        let error = Client::builder(profile)
+            .proxy_server_authentication(ServerAuthentication::Disabled)
+            .add_proxy_root_certificate_der(b"unused".as_slice())
+            .build()
+            .err()
+            .ok_or("disabled HTTPS-proxy authentication accepted trust roots")?;
+
+        assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+        Ok(())
+    }
+
+    #[test]
+    fn https_proxy_requires_http1_in_the_tls_recipe() -> Result<(), &'static str> {
+        let mut tls = chromium::v152_macos_tls();
+        tls.alpn_protocols = vec![Box::from(&b"h2"[..])];
+        let profile = ClientProfile::new(tls).with_http2(chromium::v152_macos_http2());
+        let route = Route::http_connect(
+            HttpProxy::new("https://proxy.example")
+                .map_err(|_| "valid HTTPS proxy route was rejected")?,
+        );
+        let error = Client::builder(profile)
+            .route(route)
+            .build()
+            .err()
+            .ok_or("HTTPS proxy accepted TLS settings without HTTP/1.1 ALPN")?;
+
+        assert_eq!(error.kind(), BuildErrorKind::ProtocolConfiguration);
+        Ok(())
     }
 }

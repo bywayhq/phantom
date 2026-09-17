@@ -15,7 +15,7 @@ pub enum Route {
     /// Connect directly to the origin.
     #[default]
     Direct,
-    /// Tunnel TCP through a plaintext HTTP proxy using CONNECT.
+    /// Tunnel TCP through an HTTP proxy using CONNECT.
     HttpConnect(HttpProxy),
     /// Tunnel TCP through a SOCKS5 proxy with explicit DNS ownership.
     Socks5(Socks5Proxy),
@@ -28,7 +28,7 @@ impl Route {
         Self::Direct
     }
 
-    /// Returns a plaintext HTTP CONNECT route.
+    /// Returns an HTTP CONNECT route.
     #[must_use]
     pub fn http_connect(proxy: HttpProxy) -> Self {
         Self::HttpConnect(proxy)
@@ -43,28 +43,43 @@ impl Route {
     pub(crate) const fn trace_name(&self) -> &'static str {
         match self {
             Self::Direct => "direct",
-            Self::HttpConnect(_) => "http_connect",
+            Self::HttpConnect(proxy) => proxy.trace_name(),
             Self::Socks5(proxy) => match proxy.dns_mode() {
                 Socks5DnsMode::Local => "socks5_local_dns",
                 Socks5DnsMode::Remote => "socks5_remote_dns",
             },
         }
     }
+
+    pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
+        match self {
+            Self::HttpConnect(proxy) => Some(proxy),
+            Self::Direct | Self::Socks5(_) => None,
+        }
+    }
 }
 
-/// Plaintext HTTP proxy configuration for CONNECT tunnels.
+/// HTTP proxy configuration for CONNECT tunnels.
 #[derive(Clone, Eq, PartialEq)]
 pub struct HttpProxy {
+    transport: HttpProxyTransport,
     endpoint: Endpoint,
     connect_headers: Vec<HttpConnectHeader>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HttpProxyTransport {
+    Plaintext,
+    Tls,
+}
+
 impl HttpProxy {
-    /// Parses a plaintext HTTP proxy URI.
+    /// Parses an HTTP or HTTPS proxy URI.
     ///
-    /// The URI must use `http`, contain only an authority and optional `/`,
-    /// and must not contain credentials. Port 80 is used when omitted. Unicode
-    /// hostnames are normalized to their canonical ASCII form.
+    /// The URI must use `http` or `https`, contain only an authority and
+    /// optional `/`, and must not contain credentials. The default port is 80
+    /// for HTTP and 443 for HTTPS. Unicode hostnames are normalized to their
+    /// canonical ASCII form.
     ///
     /// # Errors
     ///
@@ -75,9 +90,11 @@ impl HttpProxy {
             ParseUriError::Syntax(error) => ProxyConfigError::invalid_uri(error),
             ParseUriError::Authority(error) => ProxyConfigError::authority(error.message()),
         })?;
-        if uri.scheme_str() != Some("http") {
-            return Err(ProxyConfigError::unsupported_scheme());
-        }
+        let (transport, default_port) = match uri.scheme_str() {
+            Some("http") => (HttpProxyTransport::Plaintext, 80),
+            Some("https") => (HttpProxyTransport::Tls, 443),
+            _ => return Err(ProxyConfigError::unsupported_scheme()),
+        };
         let authority = uri
             .authority()
             .cloned()
@@ -88,9 +105,10 @@ impl HttpProxy {
         ) {
             return Err(ProxyConfigError::unexpected_path());
         }
-        let endpoint = Endpoint::new(authority, 80)
+        let endpoint = Endpoint::new(authority, default_port)
             .map_err(|error| ProxyConfigError::authority(error.message()))?;
         Ok(Self {
+            transport,
             endpoint,
             connect_headers: vec![HttpConnectHeader::authority("Host")],
         })
@@ -134,6 +152,17 @@ impl HttpProxy {
         self.endpoint.port()
     }
 
+    pub(crate) const fn uses_tls(&self) -> bool {
+        matches!(self.transport, HttpProxyTransport::Tls)
+    }
+
+    const fn trace_name(&self) -> &'static str {
+        match self.transport {
+            HttpProxyTransport::Plaintext => "http_connect",
+            HttpProxyTransport::Tls => "https_connect",
+        }
+    }
+
     pub(crate) fn ordered_connect_headers(&self) -> &[HttpConnectHeader] {
         &self.connect_headers
     }
@@ -143,6 +172,13 @@ impl fmt::Debug for HttpProxy {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("HttpProxy")
+            .field(
+                "scheme",
+                &match self.transport {
+                    HttpProxyTransport::Plaintext => "http",
+                    HttpProxyTransport::Tls => "https",
+                },
+            )
             .field("authority", self.endpoint.authority())
             .field("connect_header_count", &self.connect_headers.len())
             .finish_non_exhaustive()
@@ -183,7 +219,7 @@ impl ProxyConfigError {
     fn unsupported_scheme() -> Self {
         Self::without_source(
             ProxyConfigErrorKind::UnsupportedScheme,
-            "HTTP CONNECT proxy URI must use the http scheme",
+            "HTTP CONNECT proxy URI must use the http or https scheme",
         )
     }
 
@@ -241,11 +277,13 @@ mod tests {
     #[test]
     fn parses_domain_ipv4_and_bracketed_ipv6_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         let domain = HttpProxy::new("http://proxy.example")?;
+        let secure = HttpProxy::new("https://proxy.example")?;
         let ipv4 = HttpProxy::new("http://127.0.0.1:8080")?;
         let ipv6 = HttpProxy::new("http://[::1]:3128")?;
 
         assert_eq!(domain.endpoint.host(), "proxy.example");
         assert_eq!(domain.endpoint.port(), 80);
+        assert_eq!(secure.endpoint.port(), 443);
         assert_eq!(ipv4.endpoint.host(), "127.0.0.1");
         assert_eq!(ipv4.endpoint.port(), 8080);
         assert_eq!(ipv6.endpoint.host(), "::1");
@@ -255,13 +293,27 @@ mod tests {
 
     #[test]
     fn canonicalizes_unicode_proxy_hosts() -> Result<(), Box<dyn std::error::Error>> {
-        let proxy = HttpProxy::new("http://BÜCHER.Example:8080")?;
+        let proxy = HttpProxy::new("https://BÜCHER.Example:8443")?;
 
         assert_eq!(proxy.endpoint.host(), "xn--bcher-kva.example");
         assert_eq!(
             proxy.endpoint.authority().as_str(),
-            "xn--bcher-kva.example:8080"
+            "xn--bcher-kva.example:8443"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn proxy_transport_is_part_of_route_identity_and_tracing()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let plaintext = HttpProxy::new("http://proxy.example:8080")?;
+        let secure = HttpProxy::new("https://proxy.example:8080")?;
+
+        assert_ne!(plaintext, secure);
+        assert!(!plaintext.uses_tls());
+        assert!(secure.uses_tls());
+        assert_eq!(plaintext.trace_name(), "http_connect");
+        assert_eq!(secure.trace_name(), "https_connect");
         Ok(())
     }
 
@@ -269,7 +321,7 @@ mod tests {
     fn rejects_credentials_paths_queries_and_other_schemes() -> Result<(), &'static str> {
         for (uri, kind) in [
             (
-                "https://proxy.example",
+                "socks5://proxy.example",
                 ProxyConfigErrorKind::UnsupportedScheme,
             ),
             (

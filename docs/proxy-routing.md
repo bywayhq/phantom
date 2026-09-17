@@ -30,8 +30,11 @@ println!("{}", response.status());
 ## Current routes
 
 - `Route::Direct` opens the origin TCP or UDP path directly.
-- `Route::HttpConnect` opens a plaintext connection to an HTTP proxy and sends
-  an ordered CONNECT request before origin TLS.
+- `Route::HttpConnect` accepts `http://` and `https://` proxy URIs. HTTPS first
+  authenticates the proxy with its own roots and hostname, then sends the same
+  ordered HTTP/1.1 CONNECT request before the independent origin TLS handshake.
+  The profile's TLS recipe is used unchanged for the outer handshake; a proxy
+  selecting `h2` is rejected because H2 proxy transport is not implemented.
 - `Route::Socks5` uses `socks5://` for locally resolved origin names and
   `socks5h://` for proxy-resolved origin names. Local DNS sends an ordered IP
   candidate as a SOCKS address; remote DNS sends the original domain. The
@@ -41,6 +44,12 @@ println!("{}", response.status());
   invalid. Configured credentials add username/password to the offered methods;
   the proxy may still select no-authentication.
 
+HTTPS proxy roots are configured with
+`ClientBuilder::add_proxy_root_certificate_der`; they do not extend origin
+trust. `ClientBuilder::proxy_server_authentication` controls only the proxy TLS
+leg. Plaintext and TLS proxy routes are distinct pool identities, and session
+ticket caches for proxy and origin handshakes are isolated.
+
 SOCKS5 remains TCP CONNECT only. Both no-auth and username/password routes
 support one-shot H1/H2 requests, session-owned H1/H2 reuse, and H1 WSS. Each
 username and password must encode to 1–255 UTF-8 bytes; construction rejects
@@ -48,7 +57,8 @@ invalid lengths before DNS or network I/O. Credentials are owned by the route,
 included in route and pool identity, and omitted from debug output, errors,
 and traces. Wire tests use synthetic marker credentials.
 
-Custom resolvers, GSSAPI, UDP ASSOCIATE, and H3 proxying are not supported.
+HTTP/2 proxy transport, authentication challenges, forwarding, custom
+resolvers, GSSAPI, UDP ASSOCIATE, and H3 proxying are not supported.
 
 ## Failure and observability
 

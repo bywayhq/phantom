@@ -9,6 +9,7 @@ use http::Method;
 use phantom_net::http1::{
     Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm, RequestHeader, validate_request,
 };
+use phantom_net::proxy::HttpsProxyConnector;
 use tokio::sync::Mutex;
 use tracing::debug;
 
@@ -42,6 +43,7 @@ impl Http1Pool {
     pub(crate) async fn send_request(
         &self,
         connector: &Http1TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
         method: Method,
@@ -52,13 +54,15 @@ impl Http1Pool {
         validate_request(&method, &target, &headers, body.as_ref())
             .map_err(Http1TlsError::from)
             .map_err(RequestError::http1)?;
+        if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
+            return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+        }
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
         let permit = entry.admit().await?;
         let lease = entry
-            .acquire(connector, endpoint, route)
-            .await
-            .map_err(RequestError::http1)?;
+            .acquire(connector, https_proxy, endpoint, route)
+            .await?;
         let result = lease
             .connection
             .send_request(method, target, headers, body)
@@ -134,6 +138,7 @@ struct PoolEntry {
     current: Mutex<Option<ConnectionSlot>>,
     admission: Arc<Admission>,
     connector: OnceLock<Http1TlsConnector>,
+    https_proxy: OnceLock<HttpsProxyConnector>,
 }
 
 impl PoolEntry {
@@ -142,6 +147,7 @@ impl PoolEntry {
             current: Mutex::new(None),
             admission,
             connector: OnceLock::new(),
+            https_proxy: OnceLock::new(),
         }
     }
 
@@ -152,9 +158,10 @@ impl PoolEntry {
     async fn acquire(
         &self,
         connector: &Http1TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
-    ) -> Result<ConnectionLease, Http1TlsError> {
+    ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
         if let Some(slot) = current.as_ref() {
             if slot.connection.is_reusable() {
@@ -174,48 +181,66 @@ impl PoolEntry {
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
         let connection = match route {
-            Route::Direct => {
-                connector
-                    .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
-                    .await?
-            }
+            Route::Direct => connector
+                .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                .await
+                .map_err(RequestError::http1)?,
             Route::HttpConnect(proxy) => {
                 let connect_authority = endpoint.tunnel_authority();
-                connector
-                    .connect_http_connect(
-                        proxy.host(),
-                        proxy.port(),
-                        &connect_authority,
-                        proxy.ordered_connect_headers(),
-                        endpoint.host(),
-                    )
-                    .await?
+                if proxy.uses_tls() {
+                    let base = https_proxy
+                        .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
+                    let proxy_connector = self
+                        .https_proxy
+                        .get_or_init(|| base.with_isolated_session_cache());
+                    connector
+                        .connect_https_connect(
+                            proxy_connector,
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.host(),
+                            &connect_authority,
+                            proxy.ordered_connect_headers(),
+                            endpoint.host(),
+                        )
+                        .await
+                        .map_err(RequestError::http1)?
+                } else {
+                    connector
+                        .connect_http_connect(
+                            proxy.host(),
+                            proxy.port(),
+                            &connect_authority,
+                            proxy.ordered_connect_headers(),
+                            endpoint.host(),
+                        )
+                        .await
+                        .map_err(RequestError::http1)?
+                }
             }
             Route::Socks5(proxy) => match proxy.dns_mode() {
-                crate::Socks5DnsMode::Local => {
-                    connector
-                        .connect_socks5_local_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            endpoint.host(),
-                            endpoint.port(),
-                            endpoint.host(),
-                        )
-                        .await?
-                }
-                crate::Socks5DnsMode::Remote => {
-                    connector
-                        .connect_socks5_remote_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            endpoint.host(),
-                            endpoint.port(),
-                            endpoint.host(),
-                        )
-                        .await?
-                }
+                crate::Socks5DnsMode::Local => connector
+                    .connect_socks5_local_with_auth(
+                        proxy.host(),
+                        proxy.port(),
+                        proxy.auth(),
+                        endpoint.host(),
+                        endpoint.port(),
+                        endpoint.host(),
+                    )
+                    .await
+                    .map_err(RequestError::http1)?,
+                crate::Socks5DnsMode::Remote => connector
+                    .connect_socks5_remote_with_auth(
+                        proxy.host(),
+                        proxy.port(),
+                        proxy.auth(),
+                        endpoint.host(),
+                        endpoint.port(),
+                        endpoint.host(),
+                    )
+                    .await
+                    .map_err(RequestError::http1)?,
             },
         };
         let slot = ConnectionSlot {

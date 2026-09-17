@@ -78,12 +78,12 @@ impl HttpsProxyConnector {
                 .connect(proxy_server_name, stream)
                 .await
                 .map_err(HttpConnectError::ProxyTls)?;
-            if let Some(selected) = stream.negotiated_alpn()
-                && selected != b"http/1.1"
-            {
-                return Err(HttpConnectError::UnsupportedAlpn {
-                    selected: selected.into(),
-                });
+            if let Some(selected) = stream.negotiated_alpn() {
+                if selected != b"http/1.1" {
+                    return Err(HttpConnectError::UnsupportedAlpn {
+                        selected: selected.into(),
+                    });
+                }
             }
             establish(stream, request).await
         })
