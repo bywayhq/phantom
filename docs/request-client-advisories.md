@@ -12,7 +12,6 @@ claim.
 
 | Failure class and evidence | Current boundary | Required regression |
 | --- | --- | --- |
-| Mixed-case or unusual cookie domain bypasses PSL policy ([curl CVE-2023-46218](https://curl.se/docs/CVE-2023-46218.html)) | PSL checks and lowercase public-suffix rejection are covered. | Add mixed-case PSL, IDNA, trailing-dot, and public-suffix-equals-request-host cases. |
 | Protocol racing bypasses route policy or shares mutable request state ([tls-client releases](https://github.com/bogdanfinn/tls-client/releases)) | Phantom has no general racing/fallback and rejects unsupported H3 proxy routes before I/O. | Any future Auto, Alt-Svc, or racing leg inherits the exact route capability check and owns immutable request state. |
 
 ## Additional adversarial coverage
@@ -42,6 +41,11 @@ claim.
 
 ## Existing relevant invariants
 
+- Cookie domains are lowercased and IDNA-normalized before matching and public
+  suffix policy. Regressions cover mixed-case suffixes, Unicode and A-label
+  equivalence, terminal root dots, and the rule that a public suffix equal to
+  the request host becomes host-only. This covers the canonicalization bypass
+  class in [curl CVE-2023-46218](https://curl.se/docs/CVE-2023-46218.html).
 - TLS sessions issued during a handshake remain pending until certificate and
   hostname authentication succeeds. A reusable TLS 1.2 session is restored
   only after actual resumption; a rejected ticket followed by authentication

@@ -157,6 +157,66 @@ fn rejects_public_suffix_but_accepts_identical_host_as_host_only()
 }
 
 #[test]
+fn canonicalizes_cookie_domains_before_public_suffix_policy()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    let error = rejected(
+        jar.set_cookie("https://example.com/", "mixed=1; Domain=CoM"),
+        "mixed-case public-suffix cookie was accepted",
+    );
+    assert_eq!(error.kind(), CookieErrorKind::PublicSuffix);
+
+    jar.set_cookie("https://CoM/", "exact=1; Domain=CoM")?;
+    assert_eq!(
+        jar.request_value("https://com/")?.as_deref(),
+        Some("exact=1")
+    );
+    assert_eq!(jar.request_value("https://example.com/")?.as_deref(), None);
+
+    jar.set_cookie("https://bücher.example/", "idna=1; Domain=BÜCHER.EXAMPLE")?;
+    assert_eq!(
+        jar.request_value("https://xn--bcher-kva.example/")?
+            .as_deref(),
+        Some("idna=1")
+    );
+    assert_eq!(
+        jar.request_value("https://sub.bücher.example/")?.as_deref(),
+        Some("idna=1")
+    );
+    Ok(())
+}
+
+#[test]
+fn trailing_dot_does_not_bypass_public_suffix_policy() -> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+
+    for (url, value) in [
+        ("https://example.com/", "plain=1; Domain=com."),
+        ("https://example.com./", "dotted=1; Domain=com"),
+    ] {
+        let error = rejected(
+            jar.set_cookie(url, value),
+            "mismatched trailing-dot cookie was accepted",
+        );
+        assert_eq!(error.kind(), CookieErrorKind::InvalidSetCookie);
+    }
+
+    let error = rejected(
+        jar.set_cookie("https://example.com./", "suffix=1; Domain=com."),
+        "dot-terminated public-suffix cookie was accepted",
+    );
+    assert_eq!(error.kind(), CookieErrorKind::PublicSuffix);
+
+    jar.set_cookie("https://com./", "exact=1; Domain=com.")?;
+    assert_eq!(
+        jar.request_value("https://com./")?.as_deref(),
+        Some("exact=1")
+    );
+    assert_eq!(jar.request_value("https://example.com./")?.as_deref(), None);
+    Ok(())
+}
+
+#[test]
 fn secure_and_path_matching_follow_request_url() -> Result<(), Box<dyn std::error::Error>> {
     let jar = CookieJar::default();
     jar.set_cookie("https://example.test/private", "secure=1; Secure; Path=/")?;
