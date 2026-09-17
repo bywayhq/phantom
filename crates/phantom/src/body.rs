@@ -4,7 +4,10 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::RequestError;
+use crate::{
+    HttpProtocol, RequestError,
+    timeout::{ResponseTimeouts, TimeoutBudget},
+};
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
@@ -15,7 +18,8 @@ use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
 /// behavior and bounded driver teardown.
 #[must_use = "response bodies must be read or deliberately dropped"]
 pub struct ResponseBody {
-    inner: ResponseBodyInner,
+    inner: Option<ResponseBodyInner>,
+    timeouts: Option<ResponseTimeouts>,
 }
 
 enum ResponseBodyInner {
@@ -27,7 +31,8 @@ enum ResponseBodyInner {
 impl ResponseBody {
     pub(crate) fn http1(body: Http1Body) -> Self {
         Self {
-            inner: ResponseBodyInner::Http1(body),
+            inner: Some(ResponseBodyInner::Http1(body)),
+            timeouts: None,
         }
     }
 
@@ -41,7 +46,8 @@ impl ResponseBody {
 
     pub(crate) fn http2(body: Http2Body) -> Self {
         Self {
-            inner: ResponseBodyInner::Http2(body),
+            inner: Some(ResponseBodyInner::Http2(body)),
+            timeouts: None,
         }
     }
 
@@ -55,7 +61,8 @@ impl ResponseBody {
 
     pub(crate) fn http3(body: Http3Body) -> Self {
         Self {
-            inner: ResponseBodyInner::Http3(body),
+            inner: Some(ResponseBodyInner::Http3(body)),
+            timeouts: None,
         }
     }
 
@@ -66,14 +73,32 @@ impl ResponseBody {
         body.retain_until_stream_cleanup(guard);
         Self::http3(body)
     }
+
+    pub(crate) fn apply_timeouts(
+        &mut self,
+        budget: TimeoutBudget,
+        protocol: HttpProtocol,
+    ) -> Result<(), RequestError> {
+        if !self.is_end_stream() {
+            self.timeouts = budget.response_body(protocol)?;
+        }
+        Ok(())
+    }
 }
 
 impl fmt::Debug for ResponseBody {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.inner {
-            ResponseBodyInner::Http1(body) => formatter.debug_tuple("Http1").field(body).finish(),
-            ResponseBodyInner::Http2(body) => formatter.debug_tuple("Http2").field(body).finish(),
-            ResponseBodyInner::Http3(body) => formatter.debug_tuple("Http3").field(body).finish(),
+            Some(ResponseBodyInner::Http1(body)) => {
+                formatter.debug_tuple("Http1").field(body).finish()
+            }
+            Some(ResponseBodyInner::Http2(body)) => {
+                formatter.debug_tuple("Http2").field(body).finish()
+            }
+            Some(ResponseBodyInner::Http3(body)) => {
+                formatter.debug_tuple("Http3").field(body).finish()
+            }
+            None => formatter.write_str("Closed"),
         }
     }
 }
@@ -86,32 +111,69 @@ impl Body for ResponseBody {
         self: Pin<&mut Self>,
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-        match &mut self.get_mut().inner {
-            ResponseBodyInner::Http1(body) => Pin::new(body)
+        let this = self.get_mut();
+        let result = match this.inner.as_mut() {
+            Some(ResponseBodyInner::Http1(body)) => Pin::new(body)
                 .poll_frame(context)
                 .map(|frame| frame.map(|result| result.map_err(RequestError::http1_body))),
-            ResponseBodyInner::Http2(body) => Pin::new(body)
+            Some(ResponseBodyInner::Http2(body)) => Pin::new(body)
                 .poll_frame(context)
                 .map(|frame| frame.map(|result| result.map_err(RequestError::http2_body))),
-            ResponseBodyInner::Http3(body) => Pin::new(body)
+            Some(ResponseBodyInner::Http3(body)) => Pin::new(body)
                 .poll_frame(context)
                 .map(|frame| frame.map(|result| result.map_err(RequestError::http3_body))),
+            None => Poll::Ready(None),
+        };
+        match result {
+            Poll::Ready(Some(Ok(frame))) => {
+                if let Some(timeouts) = this.timeouts.as_mut() {
+                    if let Err(error) = timeouts.record_activity() {
+                        this.inner.take();
+                        this.timeouts.take();
+                        return Poll::Ready(Some(Err(error)));
+                    }
+                }
+                Poll::Ready(Some(Ok(frame)))
+            }
+            Poll::Ready(frame) => {
+                if frame.is_none() || frame.as_ref().is_some_and(Result::is_err) {
+                    this.timeouts.take();
+                }
+                Poll::Ready(frame)
+            }
+            Poll::Pending => {
+                if let Some(timeouts) = this.timeouts.as_mut() {
+                    if let Poll::Ready(error) = timeouts.poll_expired(context) {
+                        tracing::debug!(
+                            timeout_phase =
+                                error.timeout_phase().map(crate::TimeoutPhase::trace_name),
+                            "response body timed out"
+                        );
+                        this.inner.take();
+                        this.timeouts.take();
+                        return Poll::Ready(Some(Err(error)));
+                    }
+                }
+                Poll::Pending
+            }
         }
     }
 
     fn is_end_stream(&self) -> bool {
         match &self.inner {
-            ResponseBodyInner::Http1(body) => body.is_end_stream(),
-            ResponseBodyInner::Http2(body) => body.is_end_stream(),
-            ResponseBodyInner::Http3(body) => body.is_end_stream(),
+            Some(ResponseBodyInner::Http1(body)) => body.is_end_stream(),
+            Some(ResponseBodyInner::Http2(body)) => body.is_end_stream(),
+            Some(ResponseBodyInner::Http3(body)) => body.is_end_stream(),
+            None => true,
         }
     }
 
     fn size_hint(&self) -> SizeHint {
         match &self.inner {
-            ResponseBodyInner::Http1(body) => body.size_hint(),
-            ResponseBodyInner::Http2(body) => body.size_hint(),
-            ResponseBodyInner::Http3(body) => body.size_hint(),
+            Some(ResponseBodyInner::Http1(body)) => body.size_hint(),
+            Some(ResponseBodyInner::Http2(body)) => body.size_hint(),
+            Some(ResponseBodyInner::Http3(body)) => body.size_hint(),
+            None => SizeHint::with_exact(0),
         }
     }
 }

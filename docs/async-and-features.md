@@ -12,11 +12,29 @@ installs a tracing subscriber. Public client network operations run inside a
 compatible runtime. Runtime selection remains out of scope until a second
 implementation can prove the same lifecycle contract.
 
-Direct requests require a current Tokio runtime with network I/O enabled. A
-missing runtime and a runtime built without I/O are both reported as
-`RuntimeUnavailable`. Tokio exposes no stable I/O-driver capability query, so
-Phantom contains only Tokio's exact I/O-disabled runtime panic at the network
-operation boundary; unrelated panics continue unwinding.
+Direct requests require a current Tokio runtime with network I/O enabled.
+Configured timeouts additionally require its time driver. A missing runtime,
+an I/O-disabled runtime, and a time-disabled runtime are reported as
+`RuntimeUnavailable`. Tokio exposes no stable driver-capability query, so
+Phantom contains only Tokio's exact disabled-driver panics at the operation
+boundary; unrelated panics continue unwinding.
+
+`RequestTimeouts` is disabled by default and may be installed as a client
+default or replaced completely for one request. It names pool admission,
+connection setup, response-head, response-body inactivity, and total limits.
+Connection setup includes DNS, proxy negotiation, TLS or QUIC, and protocol
+startup. Response-head time currently includes writing the owned request body.
+Phase clocks restart for redirect and bounded replay attempts; the monotonic
+total deadline does not and remains active through the final ordinary response
+body. When an operation and its timer become ready together, the operation
+wins. When a phase and total deadline coincide, total wins.
+
+Timeout cancellation follows protocol ownership: an H1 response-head or body
+timeout retires that connection, while H2 and H3 cancel only the affected
+stream. SSE request phases use the same policy, but generic body timers stop
+once the event stream is established; `SseRequestBuilder::idle_timeout` then
+owns stream inactivity. WebSocket keeps its separate handshake and message
+lifecycle until its timeout surface can name those phases truthfully.
 
 ## Operation ownership
 
@@ -32,8 +50,8 @@ cancellation path. The rules are:
   an asynchronous state machine;
 - redirect logic replays only the current owned-byte body; future streaming
   bodies must expose replayability before another attempt;
-- timeouts cover named phases and a whole-operation deadline, with one owner
-  deciding which expiration wins;
+- timeouts cover named phases and a whole-operation deadline, with deterministic
+  precedence and one owner deciding cancellation;
 - shutdown is idempotent and deadline-bounded;
 - public cancellation and backpressure behavior is documented and tested.
 

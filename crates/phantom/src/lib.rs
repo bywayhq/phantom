@@ -11,6 +11,7 @@ mod route;
 mod session;
 #[cfg(feature = "sse")]
 mod sse;
+mod timeout;
 #[cfg(feature = "websocket")]
 mod websocket;
 
@@ -32,6 +33,7 @@ pub use session::{Session, SessionBuilder};
 pub use sse::{
     SseError, SseErrorKind, SseEvent, SseEventSource, SseLimits, SseRequestBuilder, SseStream,
 };
+pub use timeout::{RequestTimeouts, TimeoutPhase};
 #[cfg(feature = "websocket-deflate")]
 pub use websocket::{
     NegotiatedPerMessageDeflate, PerMessageDeflate, PerMessageDeflateOfferParameter,

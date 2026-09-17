@@ -1,7 +1,7 @@
 use std::{error::Error, net::Ipv4Addr, pin::Pin, time::Duration};
 
 use btls::ssl::{Ssl, SslAcceptor};
-use phantom::{HttpProtocol, SseErrorKind};
+use phantom::{HttpProtocol, RequestTimeouts, SseErrorKind};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -12,8 +12,61 @@ use tokio_btls::SslStream;
 
 use super::{
     TestResult,
-    tls_support::{H1_ALPN, TestIdentity, read_head, test_client},
+    tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client},
 };
+
+#[tokio::test(flavor = "current_thread")]
+async fn ordinary_body_timeouts_end_when_event_stream_is_established() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let (release_event, event_released) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let mut stream = accept_tls_reusable(&listener, &acceptor).await?;
+        read_head(&mut stream).await?;
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\n\
+                  Content-Type: text/event-stream\r\n\
+                  Content-Length: 13\r\n\r\n",
+            )
+            .await?;
+        stream.flush().await?;
+        event_released
+            .await
+            .map_err(|_| "client stopped before releasing the SSE event")?;
+        stream.write_all(b"data: later\n\n").await?;
+        stream.shutdown().await?;
+        Ok::<_, Box<dyn Error + Send + Sync>>(())
+    });
+    let client = client_builder(&identity, false)
+        .request_timeouts(
+            RequestTimeouts::new()
+                .read_idle(Duration::from_secs(30))
+                .total(Duration::from_secs(30)),
+        )
+        .build()?;
+    let response = client
+        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+        .max_reconnects(0)
+        .connect()
+        .await?;
+    let mut source = response.into_body();
+
+    tokio::time::pause();
+    tokio::time::advance(Duration::from_secs(31)).await;
+    release_event
+        .send(())
+        .map_err(|_| "server stopped before SSE event release")?;
+    let event = source
+        .next_event()
+        .await?
+        .ok_or("event stream ended before the delayed event")?;
+    assert_eq!(event.data(), "later");
+    server.await??;
+    Ok(())
+}
 
 #[tokio::test(flavor = "current_thread")]
 async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {

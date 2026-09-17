@@ -31,7 +31,9 @@ small facade for exact H1, H2, or direct H3 requests, plus direct one-handshake
 H1/H2 ALPN selection for negotiated requests, additive private trust
 roots, typed direct, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
 local- or remote-DNS SOCKS5 routes with optional credentials, and one unified
-streaming response body. HTTP Basic
+streaming response body. Disabled-by-default phase-aware timeouts cover pool
+admission, connection setup, response head, response-body inactivity, and a
+whole-operation deadline with typed phase reporting. HTTP Basic
 proxy credentials are sent only after a valid challenge on a fresh connection;
 SOCKS5 supports RFC 1929 username/password negotiation. HTTPS-proxy certificate
 policy and additive roots are independent from origin trust. CONNECT fields

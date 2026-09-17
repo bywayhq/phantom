@@ -37,10 +37,15 @@ familiar convenience.
    share pools and bounded cross-request state. Independently built clients are
    isolated. The former `Session` names remain hidden compatibility aliases
    during migration and are not the API taught to new callers.
-2. Add phase-aware timeout policy with client defaults and request overrides:
-   connection/TLS, pool admission, request write inactivity, response head,
-   response read inactivity, and an optional whole-operation deadline. SSE and
-   WebSocket retain separate long-lived idle policy.
+2. The first phase-aware timeout policy is landed with client defaults and
+   complete request overrides: pool admission, connection setup, response
+   head, response read inactivity, and an optional whole-operation deadline.
+   Connection setup currently owns DNS, proxy, TLS/QUIC, and protocol startup;
+   response-head owns the complete write of today's bounded byte body. A
+   separate write-idle clock waits for a streaming request-body seam, and a
+   separate TLS phase waits for lower-layer ownership that can cancel it
+   independently. SSE hands established streams to its own idle policy;
+   WebSocket retains a separate lifecycle surface.
 3. Add streaming request bodies only with explicit replay semantics. Owned
    bytes are replayable; a stream is one-shot unless backed by a deliberate
    factory. Redirect, client-hint, and retry paths reject an unavailable replay

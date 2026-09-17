@@ -9,14 +9,14 @@ use phantom_net::{
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    Client, HttpProtocol, RequestError, ResponseBody, ResponseInfo, Route,
+    Client, HttpProtocol, RequestError, RequestTimeouts, ResponseBody, ResponseInfo, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
     redirect::{RedirectAction, RedirectState},
 };
 
 mod attempt;
 
-use attempt::send_once;
+use attempt::{AttemptRequest, send_once};
 
 /// Builder for one exact-protocol request with an optional owned body.
 #[must_use = "request builders do nothing until send is awaited"]
@@ -28,6 +28,8 @@ pub struct RequestBuilder {
     headers: Vec<RequestHeader>,
     body: Option<Bytes>,
     route: Option<Route>,
+    timeouts: Option<RequestTimeouts>,
+    response_body_timeouts: bool,
 }
 
 impl fmt::Debug for RequestBuilder {
@@ -39,6 +41,7 @@ impl fmt::Debug for RequestBuilder {
             .field("header_count", &self.headers.len())
             .field("body_len", &self.body.as_ref().map_or(0, Bytes::len))
             .field("route_override", &self.route.is_some())
+            .field("timeout_override", &self.timeouts.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -94,6 +97,8 @@ impl RequestBuilder {
             headers: Vec::new(),
             body: None,
             route: None,
+            timeouts: None,
+            response_body_timeouts: true,
         })
     }
 
@@ -122,6 +127,20 @@ impl RequestBuilder {
     /// Overrides the client's route for this request.
     pub fn route(mut self, route: Route) -> Self {
         self.route = Some(route);
+        self
+    }
+
+    /// Replaces the client's timeout policy for this operation.
+    ///
+    /// [`RequestTimeouts::default`] explicitly disables every client default.
+    pub fn timeouts(mut self, timeouts: RequestTimeouts) -> Self {
+        self.timeouts = Some(timeouts);
+        self
+    }
+
+    #[cfg(feature = "sse")]
+    pub(crate) fn without_response_body_timeouts(mut self) -> Self {
+        self.response_body_timeouts = false;
         self
     }
 
@@ -163,6 +182,7 @@ impl RequestBuilder {
             protocol = self.selection.trace_name(),
             selected_protocol = field::Empty,
             route = route.request_trace_name(self.request.uri.scheme_str()),
+            timeout_phase = field::Empty,
             outcome = field::Empty,
         );
         let outcome = RequestOutcome::new(&span);
@@ -171,11 +191,23 @@ impl RequestBuilder {
         }
         // Keep the public future small when callers join many requests.
         let result = Box::pin(self.send_inner(&span).instrument(span.clone())).await;
-        outcome.finish(if result.is_ok() { "ok" } else { "error" });
+        if let Err(error) = &result {
+            if let Some(phase) = error.timeout_phase() {
+                span.record("timeout_phase", phase.trace_name());
+            }
+        }
+        outcome.finish(match &result {
+            Ok(_) => "ok",
+            Err(error) if error.timeout_phase().is_some() => "timeout",
+            Err(_) => "error",
+        });
         result
     }
 
     async fn send_inner(self, request_span: &Span) -> Result<Response<ResponseBody>, RequestError> {
+        let timeout_budget = crate::timeout::TimeoutBudget::new(
+            self.timeouts.unwrap_or(self.client.state.request_timeouts),
+        )?;
         if self
             .headers
             .iter()
@@ -192,6 +224,8 @@ impl RequestBuilder {
             headers: request_headers,
             body,
             route,
+            timeouts: _,
+            response_body_timeouts,
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
         ensure_request_supported(selection, route, &request)?;
@@ -213,14 +247,22 @@ impl RequestBuilder {
                 &client,
                 &request,
                 selection,
-                method,
-                request_headers,
-                body,
+                AttemptRequest {
+                    method,
+                    headers: request_headers,
+                    body,
+                },
                 route,
                 request_span,
+                timeout_budget,
             )
             .await?;
             let mut response = outcome.response;
+            if response_body_timeouts {
+                response
+                    .body_mut()
+                    .apply_timeouts(timeout_budget, outcome.protocol)?;
+            }
             response
                 .extensions_mut()
                 .insert(ResponseInfo::new(request.uri, 0, outcome.protocol));
@@ -237,16 +279,24 @@ impl RequestBuilder {
                 &client,
                 &resolved,
                 selection,
-                redirect.method().clone(),
-                redirect.headers().to_vec(),
-                redirect.body().cloned(),
+                AttemptRequest {
+                    method: redirect.method().clone(),
+                    headers: redirect.headers().to_vec(),
+                    body: redirect.body().cloned(),
+                },
                 route,
                 request_span,
+                timeout_budget,
             )
             .await?;
             let mut response = outcome.response;
             match redirect.follow(&response)? {
                 RedirectAction::Stop => {
+                    if response_body_timeouts {
+                        response
+                            .body_mut()
+                            .apply_timeouts(timeout_budget, outcome.protocol)?;
+                    }
                     response.extensions_mut().insert(ResponseInfo::new(
                         resolved.uri.clone(),
                         redirect.followed(),

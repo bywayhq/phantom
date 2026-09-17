@@ -76,6 +76,11 @@ duplicates.
 
 The initial reconnect delay and finite reconnect count are explicit builder
 settings; their defaults are three seconds and three reconnect requests.
+`SseRequestBuilder::request_timeouts` replaces the client's ordinary request
+policy for every initial or reconnect attempt. Pool-admission, connection, and
+response-head limits apply independently to each attempt. Generic read-idle
+and total timers end when an event-stream response is established, because an
+SSE source may intentionally outlive an ordinary request deadline.
 The optional idle timeout is disabled by default. It starts when a response is
 accepted and resets on every HTTP DATA frame, including comments, partial
 events, and empty frames. Reaching it releases the response and reconnects when

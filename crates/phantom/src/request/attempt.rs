@@ -3,60 +3,58 @@ use http::{Method, Response};
 use phantom_net::{http1_or_2::Http1Or2Connection, request::RequestHeader};
 use tracing::Span;
 
+use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{Client, HttpProtocol, RequestError, ResponseBody, Route};
 
 use super::{ProtocolSelection, ResolvedRequest};
 use crate::session::client_hints::ClientHintContext;
 
-#[allow(clippy::too_many_arguments)]
+pub(super) struct AttemptRequest {
+    pub(super) method: Method,
+    pub(super) headers: Vec<RequestHeader>,
+    pub(super) body: Option<Bytes>,
+}
+
 pub(super) async fn send_once(
     client: &Client,
     request: &ResolvedRequest,
     selection: ProtocolSelection,
-    method: Method,
-    request_headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
+    attempt: AttemptRequest,
     route: &Route,
     request_span: &Span,
+    timeout_budget: TimeoutBudget,
 ) -> Result<AttemptOutcome, RequestError> {
     match selection {
         ProtocolSelection::Exact(protocol) => {
-            send_once_exact(
-                client,
-                request,
-                protocol,
-                method,
-                request_headers,
-                body,
-                route,
-            )
-            .await
+            send_once_exact(client, request, protocol, attempt, route, timeout_budget).await
         }
         ProtocolSelection::Http1Or2 => {
             send_once_negotiated(
                 client,
                 request,
-                method,
-                request_headers,
-                body,
+                attempt,
                 route,
                 request_span,
+                timeout_budget,
             )
             .await
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn send_once_exact(
     client: &Client,
     request: &ResolvedRequest,
     protocol: HttpProtocol,
-    method: Method,
-    request_headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
+    attempt: AttemptRequest,
     route: &Route,
+    timeout_budget: TimeoutBudget,
 ) -> Result<AttemptOutcome, RequestError> {
+    let AttemptRequest {
+        method,
+        headers: request_headers,
+        body,
+    } = attempt;
     let endpoint = &request.endpoint;
     #[cfg(feature = "cookies")]
     let cookie_jar = client.state.cookies.as_deref();
@@ -88,6 +86,7 @@ async fn send_once_exact(
             client_hints,
             body.clone(),
             route,
+            timeout_budget,
         )
         .await?;
         let response = dispatched.response;
@@ -127,12 +126,16 @@ async fn send_once_exact(
 async fn send_once_negotiated(
     client: &Client,
     request: &ResolvedRequest,
-    method: Method,
-    request_headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
+    attempt: AttemptRequest,
     route: &Route,
     request_span: &Span,
+    timeout_budget: TimeoutBudget,
 ) -> Result<AttemptOutcome, RequestError> {
+    let AttemptRequest {
+        method,
+        headers: request_headers,
+        body,
+    } = attempt;
     if !matches!(route, Route::Direct) {
         return Err(RequestError::unsupported_negotiated_route());
     }
@@ -198,22 +201,34 @@ async fn send_once_negotiated(
         )
         .map_err(RequestError::negotiated_http2_validation)?;
 
-        let connection = connector
-            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
-            .await
-            .map_err(RequestError::http1_or_2)?;
+        let connection = timeout_budget
+            .run(TimeoutPhase::Connect, None, async {
+                connector
+                    .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                    .await
+                    .map_err(RequestError::http1_or_2)
+            })
+            .await?;
         let (response, protocol, sent_headers) = match connection {
             Http1Or2Connection::Http1(connection) => {
                 request_span.record("selected_protocol", HttpProtocol::Http1.trace_name());
-                let response = connection
-                    .send_request(
-                        method.clone(),
-                        request.target.clone(),
-                        http1_headers,
-                        body.clone(),
+                let response = timeout_budget
+                    .run(
+                        TimeoutPhase::ResponseHead,
+                        Some(HttpProtocol::Http1),
+                        async {
+                            connection
+                                .send_request(
+                                    method.clone(),
+                                    request.target.clone(),
+                                    http1_headers,
+                                    body.clone(),
+                                )
+                                .await
+                                .map_err(|error| RequestError::http1(error.into()))
+                        },
                     )
-                    .await
-                    .map_err(|error| RequestError::http1(error.into()))?;
+                    .await?;
                 let (parts, body) = response.into_parts();
                 (
                     Response::from_parts(parts, ResponseBody::http1(body)),
@@ -229,16 +244,24 @@ async fn send_once_negotiated(
                     client_hints
                         .and_then(|context| connection.accept_ch_for_origin(context.origin())),
                 );
-                let response = connection
-                    .send_request(
-                        method.clone(),
-                        endpoint.authority().as_str(),
-                        request.target.clone(),
-                        sent_headers.clone(),
-                        body.clone(),
+                let response = timeout_budget
+                    .run(
+                        TimeoutPhase::ResponseHead,
+                        Some(HttpProtocol::Http2),
+                        async {
+                            connection
+                                .send_request(
+                                    method.clone(),
+                                    endpoint.authority().as_str(),
+                                    request.target.clone(),
+                                    sent_headers.clone(),
+                                    body.clone(),
+                                )
+                                .await
+                                .map_err(|error| RequestError::http2(error.into()))
+                        },
                     )
-                    .await
-                    .map_err(|error| RequestError::http2(error.into()))?;
+                    .await?;
                 let (parts, body) = response.into_parts();
                 (
                     Response::from_parts(parts, ResponseBody::http2(body)),
@@ -329,6 +352,7 @@ async fn dispatch(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<Bytes>,
     route: &Route,
+    timeout_budget: TimeoutBudget,
 ) -> Result<DispatchOutcome, RequestError> {
     let endpoint = &request.endpoint;
     let target = request.target.clone();
@@ -361,6 +385,7 @@ async fn dispatch(
                     request.absolute_target.clone(),
                     headers,
                     body,
+                    timeout_budget,
                 )
                 .await?;
             Ok(DispatchOutcome {
@@ -388,6 +413,7 @@ async fn dispatch(
                     request_headers,
                     client_hints,
                     body,
+                    timeout_budget,
                 )
                 .await
                 .map(|(response, sent_headers)| DispatchOutcome {
@@ -414,6 +440,7 @@ async fn dispatch(
                     request_headers,
                     client_hints,
                     body,
+                    timeout_budget,
                 )
                 .await
                 .map(|(response, sent_headers)| DispatchOutcome {

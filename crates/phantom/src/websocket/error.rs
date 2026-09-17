@@ -107,6 +107,7 @@ impl WebSocketError {
             RequestErrorKind::InvalidAuthority => WebSocketErrorKind::InvalidAuthority,
             RequestErrorKind::AuthorityHeader
             | RequestErrorKind::InvalidHeader
+            | RequestErrorKind::InvalidTimeout
             | RequestErrorKind::Redirect => WebSocketErrorKind::InvalidRequest,
             RequestErrorKind::ProtocolUnavailable | RequestErrorKind::UnsupportedRoute => {
                 WebSocketErrorKind::ProtocolUnavailable
@@ -116,9 +117,10 @@ impl WebSocketError {
             RequestErrorKind::RuntimeUnavailable => WebSocketErrorKind::RuntimeUnavailable,
             RequestErrorKind::Capacity => WebSocketErrorKind::Capacity,
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
-            RequestErrorKind::Http1 | RequestErrorKind::Http2 | RequestErrorKind::Http3 => {
-                WebSocketErrorKind::Http1
-            }
+            RequestErrorKind::Http1
+            | RequestErrorKind::Http2
+            | RequestErrorKind::Http3
+            | RequestErrorKind::Timeout => WebSocketErrorKind::Http1,
         };
         Self::with_source(kind, "WebSocket transport failed", source)
     }

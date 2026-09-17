@@ -391,6 +391,17 @@ policies. Independently built clients remain isolated. The former `Session`
 names are retained only as hidden compatibility aliases during the migration;
 new documentation and tests use `Client` directly.
 
+The first timeout slice is landed with disabled-by-default client policy and
+complete per-request replacement. It covers pool admission, connection setup,
+response head, response-body inactivity, and one monotonic total deadline
+across redirects, bounded replays, and final-body EOF. Typed errors retain the
+phase and selected protocol. H1 expiration retires the connection where
+required; H2 and H3 response-head expiration cancels only the stream and keeps
+the multiplexed connection reusable. SSE uses these limits through response
+establishment and then transfers ownership to its dedicated idle/reconnect
+policy. Separate write-idle and TLS-handshake phases wait for streaming-body
+and lower-transport seams that can enforce them without false precision.
+
 HTTP/1 response parsing now owns fixed aggregate-head, field-count, and
 chunk-size-line limits. Exact-boundary regressions prove acceptance at each
 ceiling, typed overflow, and connection discard for ordinary and rejected

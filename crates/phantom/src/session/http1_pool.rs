@@ -15,6 +15,7 @@ use tokio::sync::Mutex;
 use tracing::debug;
 
 use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
+use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 pub(crate) struct Http1Pool {
@@ -53,6 +54,7 @@ impl Http1Pool {
         absolute_target: AbsoluteForm,
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
+        timeout_budget: TimeoutBudget,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
         if forwarded {
             validate_forward_request(&method, &absolute_target, &headers, body.as_ref())
@@ -66,35 +68,58 @@ impl Http1Pool {
         }
         let key = PoolKey::new(endpoint, route, forwarded);
         let entry = self.entry(key).await;
-        let permit = entry.admit().await?;
-        let lease = entry
-            .acquire(connector, https_proxy, endpoint, route, forwarded)
+        let permit = timeout_budget
+            .run(
+                TimeoutPhase::PoolAdmission,
+                Some(HttpProtocol::Http1),
+                entry.admit(),
+            )
             .await?;
-        let result = if forwarded {
-            lease
-                .connection
-                .send_forward_request(method, absolute_target, headers, body)
-                .await
-        } else {
-            lease
-                .connection
-                .send_request(method, target, headers, body)
-                .await
-        };
+        let lease = timeout_budget
+            .run(TimeoutPhase::Connect, Some(HttpProtocol::Http1), async {
+                entry
+                    .acquire(connector, https_proxy, endpoint, route, forwarded)
+                    .await
+            })
+            .await?;
+        let result = timeout_budget
+            .run(
+                TimeoutPhase::ResponseHead,
+                Some(HttpProtocol::Http1),
+                async {
+                    Ok(if forwarded {
+                        lease
+                            .connection
+                            .send_forward_request(method, absolute_target, headers, body)
+                            .await
+                    } else {
+                        lease
+                            .connection
+                            .send_request(method, target, headers, body)
+                            .await
+                    })
+                },
+            )
+            .await;
         match result {
-            Ok(response) => {
+            Ok(Ok(response)) => {
                 let (parts, body) = response.into_parts();
                 Ok(http::Response::from_parts(
                     parts,
                     ResponseBody::http1_with_guard(body, permit),
                 ))
             }
-            Err(error) => {
+            Ok(Err(error)) => {
                 drop(permit);
                 if !lease.connection.is_reusable() {
                     entry.invalidate(&lease.token).await;
                 }
                 Err(RequestError::http1(error.into()))
+            }
+            Err(error) => {
+                drop(permit);
+                entry.invalidate(&lease.token).await;
+                Err(error)
             }
         }
     }

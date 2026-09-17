@@ -10,7 +10,7 @@ use phantom_profile::{ClientHintSettings, ClientProfile};
 #[cfg(feature = "cookies")]
 use crate::CookieJar;
 use crate::{
-    BuildError, RedirectPolicy, RequestBuilder, Route, Session, SessionBuilder,
+    BuildError, RedirectPolicy, RequestBuilder, RequestTimeouts, Route, Session, SessionBuilder,
     session::{ClientOptions, ClientState},
 };
 #[cfg(feature = "websocket")]
@@ -205,6 +205,7 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("route", &self.route)
             .field("redirect_policy", &self.options.redirect_policy)
+            .field("request_timeouts", &self.options.request_timeouts)
             .field(
                 "max_retained_http1_connections",
                 &self.options.max_retained_http1_connections,
@@ -310,6 +311,16 @@ impl ClientBuilder {
         self
     }
 
+    /// Sets the default phase and whole-operation limits for ordinary requests.
+    ///
+    /// Individual [`RequestBuilder`] values may replace this policy. Every
+    /// timeout is disabled unless explicitly present in `timeouts`.
+    #[must_use]
+    pub fn request_timeouts(mut self, timeouts: RequestTimeouts) -> Self {
+        self.options.request_timeouts = timeouts;
+        self
+    }
+
     /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
     #[must_use]
     pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
@@ -398,6 +409,11 @@ impl ClientBuilder {
     /// profile enables no supported protocol. Use [`BuildError::kind`] for the
     /// stable category.
     pub fn build(self) -> Result<Client, BuildError> {
+        if !self.options.request_timeouts.validate() {
+            return Err(BuildError::invalid_policy(
+                "request timeout exceeds the runtime clock range",
+            ));
+        }
         self.profile
             .tls()
             .validate()

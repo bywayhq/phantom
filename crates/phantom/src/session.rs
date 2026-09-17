@@ -1,6 +1,6 @@
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
-use crate::{Client, RedirectPolicy, client::ClientInner};
+use crate::{Client, RedirectPolicy, RequestTimeouts, client::ClientInner};
 #[cfg(feature = "sse")]
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
@@ -49,6 +49,7 @@ const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64
 
 pub(crate) struct ClientOptions {
     pub(crate) redirect_policy: RedirectPolicy,
+    pub(crate) request_timeouts: RequestTimeouts,
     pub(crate) max_retained_http1_connections: NonZeroUsize,
     pub(crate) max_pending_http1_requests_per_origin: NonZeroUsize,
     pub(crate) max_retained_http2_connections: NonZeroUsize,
@@ -66,6 +67,7 @@ impl Default for ClientOptions {
     fn default() -> Self {
         Self {
             redirect_policy: RedirectPolicy::none(),
+            request_timeouts: RequestTimeouts::default(),
             max_retained_http1_connections: DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS,
             max_pending_http1_requests_per_origin: DEFAULT_MAX_PENDING_HTTP1_REQUESTS_PER_ORIGIN,
             max_retained_http2_connections: DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS,
@@ -89,6 +91,7 @@ pub type Session = Client;
 
 pub(crate) struct ClientState {
     pub(crate) redirect_policy: RedirectPolicy,
+    pub(crate) request_timeouts: RequestTimeouts,
     pub(crate) http1: http1_pool::Http1Pool,
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: http3_pool::Http3Pool,
@@ -101,6 +104,7 @@ impl ClientOptions {
     pub(crate) fn build(self, inner: &ClientInner) -> Arc<ClientState> {
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
+            request_timeouts: self.request_timeouts,
             http1: http1_pool::Http1Pool::new(
                 self.max_retained_http1_connections,
                 self.max_pending_http1_requests_per_origin,
@@ -126,6 +130,12 @@ impl ClientOptions {
 }
 
 impl Client {
+    /// Returns the default timeout policy for ordinary requests.
+    #[must_use]
+    pub fn request_timeouts(&self) -> RequestTimeouts {
+        self.state.request_timeouts
+    }
+
     pub(crate) fn client_hint_context<'a>(
         &'a self,
         endpoint: &'a crate::authority::Endpoint,
@@ -193,6 +203,7 @@ impl fmt::Debug for Client {
         formatter
             .debug_struct("Client")
             .field("redirect_policy", &self.state.redirect_policy)
+            .field("request_timeouts", &self.state.request_timeouts)
             .field(
                 "max_retained_http1_connections",
                 &self.state.http1.capacity(),

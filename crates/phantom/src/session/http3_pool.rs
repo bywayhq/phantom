@@ -10,6 +10,7 @@ use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
 };
+use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 pub(crate) struct Http3Pool {
@@ -57,6 +58,7 @@ impl Http3Pool {
         headers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<Bytes>,
+        timeout_budget: TimeoutBudget,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
@@ -76,8 +78,18 @@ impl Http3Pool {
 
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
-        let permit = entry.admit().await?;
-        let lease = entry.acquire(connector, endpoint).await?;
+        let permit = timeout_budget
+            .run(
+                TimeoutPhase::PoolAdmission,
+                Some(HttpProtocol::Http3),
+                entry.admit(),
+            )
+            .await?;
+        let lease = timeout_budget
+            .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
+                entry.acquire(connector, endpoint).await
+            })
+            .await?;
         let sent_headers = match client_hints {
             Some(context) => context.prepare(
                 headers,
@@ -85,30 +97,44 @@ impl Http3Pool {
             ),
             None => headers,
         };
-        let result = connector
-            .send_request_on(
-                &lease.connection,
-                method,
-                authority,
-                target,
-                sent_headers.clone(),
-                body,
+        let result = timeout_budget
+            .run(
+                TimeoutPhase::ResponseHead,
+                Some(HttpProtocol::Http3),
+                async {
+                    Ok::<_, RequestError>(
+                        connector
+                            .send_request_on(
+                                &lease.connection,
+                                method,
+                                authority,
+                                target,
+                                sent_headers.clone(),
+                                body,
+                            )
+                            .await,
+                    )
+                },
             )
             .await;
         match result {
-            Ok(response) => {
+            Ok(Ok(response)) => {
                 let (parts, body) = response.into_parts();
                 Ok((
                     http::Response::from_parts(parts, ResponseBody::http3_with_guard(body, permit)),
                     sent_headers,
                 ))
             }
-            Err(error) => {
+            Ok(Err(error)) => {
                 drop(permit);
                 if !connector.can_reuse(&lease.connection).await {
                     entry.invalidate(&lease.token).await;
                 }
                 Err(RequestError::http3(error))
+            }
+            Err(error) => {
+                drop(permit);
+                Err(error)
             }
         }
     }

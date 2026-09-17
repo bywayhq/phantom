@@ -18,6 +18,7 @@ use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
 };
+use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
 pub(crate) struct Http2Pool {
@@ -66,6 +67,7 @@ impl Http2Pool {
         headers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<Bytes>,
+        timeout_budget: TimeoutBudget,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
@@ -84,13 +86,23 @@ impl Http2Pool {
         }
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
-        let permit = entry.admit().await?;
+        let permit = timeout_budget
+            .run(
+                TimeoutPhase::PoolAdmission,
+                Some(HttpProtocol::Http2),
+                entry.admit(),
+            )
+            .await?;
         let retryable_request = method == Method::GET && body.is_none();
         let mut retried_graceful_goaway = false;
+        let response_timeout =
+            timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
 
         loop {
-            let lease = entry
-                .acquire(connector, https_proxy, endpoint, route)
+            let lease = timeout_budget
+                .run(TimeoutPhase::Connect, Some(HttpProtocol::Http2), async {
+                    entry.acquire(connector, https_proxy, endpoint, route).await
+                })
                 .await?;
             let sent_headers = client_hints.map_or_else(
                 || headers.clone(),
@@ -101,18 +113,24 @@ impl Http2Pool {
                     )
                 },
             );
-            let result = lease
-                .connection
-                .send_request(
-                    method.clone(),
-                    authority,
-                    target.clone(),
-                    sent_headers.clone(),
-                    body.clone(),
-                )
+            let result = response_timeout
+                .run(async {
+                    Ok::<_, RequestError>(
+                        lease
+                            .connection
+                            .send_request(
+                                method.clone(),
+                                authority,
+                                target.clone(),
+                                sent_headers.clone(),
+                                body.clone(),
+                            )
+                            .await,
+                    )
+                })
                 .await;
             match result {
-                Ok(response) => {
+                Ok(Ok(response)) => {
                     let (parts, body) = response.into_parts();
                     return Ok((
                         http::Response::from_parts(
@@ -122,7 +140,7 @@ impl Http2Pool {
                         sent_headers,
                     ));
                 }
-                Err(error) => {
+                Ok(Err(error)) => {
                     if invalidates_connection(&error) {
                         entry.invalidate(&lease.token).await;
                     }
@@ -137,6 +155,10 @@ impl Http2Pool {
                     }
                     drop(permit);
                     return Err(RequestError::http2(error.into()));
+                }
+                Err(error) => {
+                    drop(permit);
+                    return Err(error);
                 }
             }
         }

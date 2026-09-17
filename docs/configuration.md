@@ -42,9 +42,9 @@ The facade grows through three ordinary levels:
   local-/remote-DNS SOCKS5), bounded pool and admission limits, optional
   cookies, client-hint storage, and redirect policy.
 - `RequestBuilder` currently owns an exact protocol, an HTTP or HTTPS target,
-  and ordered fields. Plaintext HTTP is accepted only for exact H1 forwarding
-  through a plaintext HTTP proxy. It may own a route override; deadline and
-  retry policy remain absent.
+  ordered fields, and an optional complete timeout-policy override. Plaintext
+  HTTP is accepted only for exact H1 forwarding through a plaintext HTTP
+  proxy. It may also own a route override; general retry policy remains absent.
 - `ClientProfile` owns required TCP TLS, optional H2 settings, optional ordered
   client-hint data, and an optional atomic H3 bundle containing its own TLS,
   QUIC transport, H3 connection, and H3 request settings. Typed values can be
@@ -89,6 +89,22 @@ There is no global mutable profile registry, environment-only configuration,
 browser-family switch inside a transport, or callback invoked while a pool
 key is being computed. Resolved configuration is owned so a live connection
 cannot change identity underneath the pool.
+
+## Request timeout policy
+
+`ClientBuilder::request_timeouts` installs a `RequestTimeouts` default shared
+by client clones. `RequestBuilder::timeouts` replaces that entire policy for
+one operation; `RequestTimeouts::default()` is therefore an explicit way to
+disable a client's limits for one request. Every limit is disabled unless the
+caller enables it.
+
+The named limits are pool admission, connection setup, response head,
+response-body read inactivity, and total operation time. Connection setup
+includes DNS, proxy, TLS or QUIC, and protocol startup. Response-head time
+includes sending the current owned byte body. The total deadline spans
+redirects, bounded internal replays, and the final ordinary body. Errors expose
+both `RequestErrorKind::Timeout` and the exact `TimeoutPhase`; unrepresentable
+durations fail before network I/O.
 
 Configuration follows these rules:
 

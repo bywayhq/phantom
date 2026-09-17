@@ -9,7 +9,7 @@ use phantom_net::{
 };
 use phantom_profile::{InvalidClientHintSettings, InvalidTlsSettings};
 
-use crate::HttpProtocol;
+use crate::{HttpProtocol, TimeoutPhase};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
 
@@ -226,6 +226,10 @@ pub enum RequestErrorKind {
     RuntimeUnavailable,
     /// Local bounded admission capacity is exhausted.
     Capacity,
+    /// A configured timeout cannot be represented by the runtime clock.
+    InvalidTimeout,
+    /// A named request phase exhausted its configured time budget.
+    Timeout,
     /// TLS setup or negotiation failed.
     Tls,
     /// HTTP/1 request or response processing failed.
@@ -241,6 +245,7 @@ pub enum RequestErrorKind {
 pub struct RequestError {
     kind: RequestErrorKind,
     protocol: Option<HttpProtocol>,
+    timeout_phase: Option<TimeoutPhase>,
     message: &'static str,
     source: Option<BoxError>,
 }
@@ -353,6 +358,7 @@ impl RequestError {
         Self {
             kind: RequestErrorKind::ProtocolUnavailable,
             protocol: Some(protocol),
+            timeout_phase: None,
             message: "requested protocol is absent from the client profile",
             source: None,
         }
@@ -369,6 +375,7 @@ impl RequestError {
         Self {
             kind: RequestErrorKind::UnsupportedRoute,
             protocol: Some(protocol),
+            timeout_phase: None,
             message: "selected route does not support the requested protocol",
             source: None,
         }
@@ -385,9 +392,41 @@ impl RequestError {
         Self {
             kind: RequestErrorKind::Capacity,
             protocol: Some(protocol),
+            timeout_phase: None,
             message: "request admission capacity is exhausted",
             source: None,
         }
+    }
+
+    pub(crate) fn invalid_timeout() -> Self {
+        Self::without_source(
+            RequestErrorKind::InvalidTimeout,
+            "request timeout exceeds the runtime clock range",
+        )
+    }
+
+    pub(crate) fn timeout(phase: TimeoutPhase, protocol: Option<HttpProtocol>) -> Self {
+        let message = match phase {
+            TimeoutPhase::PoolAdmission => "request pool admission timed out",
+            TimeoutPhase::Connect => "request connection setup timed out",
+            TimeoutPhase::ResponseHead => "request response head timed out",
+            TimeoutPhase::ReadIdle => "request response body became idle",
+            TimeoutPhase::Total => "request total deadline elapsed",
+        };
+        Self {
+            kind: RequestErrorKind::Timeout,
+            protocol,
+            timeout_phase: Some(phase),
+            message,
+            source: None,
+        }
+    }
+
+    pub(crate) fn runtime_timer_unavailable() -> Self {
+        Self::without_source(
+            RequestErrorKind::RuntimeUnavailable,
+            "request timeouts require a Tokio runtime with time enabled",
+        )
     }
 
     pub(crate) fn invalid_target(source: phantom_net::request::InvalidOriginForm) -> Self {
@@ -564,6 +603,7 @@ impl RequestError {
         Self {
             kind,
             protocol: None,
+            timeout_phase: None,
             message,
             source: None,
         }
@@ -578,6 +618,7 @@ impl RequestError {
         Self {
             kind,
             protocol,
+            timeout_phase: None,
             message,
             source: Some(Box::new(source)),
         }
@@ -593,6 +634,12 @@ impl RequestError {
     #[must_use]
     pub fn protocol(&self) -> Option<HttpProtocol> {
         self.protocol
+    }
+
+    /// Returns the phase that timed out, when this is a timeout failure.
+    #[must_use]
+    pub fn timeout_phase(&self) -> Option<TimeoutPhase> {
+        self.timeout_phase
     }
 }
 

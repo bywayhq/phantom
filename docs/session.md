@@ -33,6 +33,20 @@ exact-origin `Accept-CH` state. The old `Session` names remain hidden
 compatibility aliases during migration; new code should configure state on
 `ClientBuilder`.
 
+## Request timeouts
+
+`ClientBuilder::request_timeouts` sets the default `RequestTimeouts` policy for
+all clones. `RequestBuilder::timeouts` replaces it for one request rather than
+merging individual fields, so `RequestTimeouts::default()` predictably disables
+all client defaults for that operation. Limits are disabled by default.
+
+Pool admission, connection setup, response-head, response-body inactivity, and
+total deadlines produce `RequestErrorKind::Timeout` with a `TimeoutPhase`.
+Phase deadlines restart for redirects and bounded internal replays, while the
+total deadline spans the entire request and final body. H1 connection-fatal
+expirations retire the connection; H2 and H3 stream-local expirations preserve
+the multiplexed connection.
+
 ## Client hints
 
 Client-hint values and relative order come from `ClientHintSettings` in the

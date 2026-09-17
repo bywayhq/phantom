@@ -5,7 +5,9 @@ use phantom_net::request::RequestHeader;
 use tokio::time::{Instant, sleep_until};
 use tracing::{Instrument, debug, debug_span, field};
 
-use crate::{Client, HttpProtocol, RequestBuilder, RequestError, ResponseBody, Route};
+use crate::{
+    Client, HttpProtocol, RequestBuilder, RequestError, RequestTimeouts, ResponseBody, Route,
+};
 
 use super::{ReconnectFuture, SseEventSource};
 use crate::sse::{SseError, SseLimits, SseOutcome, SseStream};
@@ -41,6 +43,7 @@ impl fmt::Debug for SseRequestBuilder {
             .field("protocol", &self.request.protocol)
             .field("header_count", &self.request.headers.len())
             .field("route_override", &self.request.route.is_some())
+            .field("timeout_override", &self.request.timeouts.is_some())
             .field("limits", &self.limits)
             .field("idle_timeout", &self.idle_timeout)
             .field("initial_retry", &self.initial_retry)
@@ -63,6 +66,7 @@ impl SseRequestBuilder {
                 uri: uri.into(),
                 headers: default_headers(protocol),
                 route: None,
+                timeouts: None,
             },
             limits: SseLimits::default(),
             idle_timeout: None,
@@ -93,6 +97,16 @@ impl SseRequestBuilder {
     /// Overrides the client's route for every connection attempt.
     pub fn route(mut self, route: Route) -> Self {
         self.request.route = Some(route);
+        self
+    }
+
+    /// Replaces the client's request timeout policy for every connection attempt.
+    ///
+    /// Pool, connection, and response-head limits apply to each attempt. The
+    /// generic body and total timers end after the response head; established
+    /// streams use [`Self::idle_timeout`] and the finite reconnect budget.
+    pub fn request_timeouts(mut self, timeouts: RequestTimeouts) -> Self {
+        self.request.timeouts = Some(timeouts);
         self
     }
 
@@ -251,6 +265,7 @@ pub(super) struct SseRequest {
     uri: Box<str>,
     headers: Vec<RequestHeader>,
     route: Option<Route>,
+    timeouts: Option<RequestTimeouts>,
 }
 
 impl SseRequest {
@@ -275,7 +290,14 @@ impl SseRequest {
             headers.push(RequestHeader::new(name, last_event_id));
         }
 
-        let request = self.client.get(self.protocol, &self.uri)?.headers(headers);
+        let mut request = self
+            .client
+            .get(self.protocol, &self.uri)?
+            .headers(headers)
+            .without_response_body_timeouts();
+        if let Some(timeouts) = self.timeouts {
+            request = request.timeouts(timeouts);
+        }
         self.apply_route(request).send().await
     }
 
