@@ -1,5 +1,6 @@
 use std::{
     future::Future,
+    io::Cursor,
     net::{Ipv4Addr, SocketAddr},
     task::{Context, Poll, Waker},
 };
@@ -7,7 +8,9 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::{CipherSuite, TlsVersion, chromium};
+use phantom_profile::{CipherSuite, SignatureScheme, TlsVersion, chromium};
+use phantom_testkit::tls::ClientHelloSummary;
+use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
 use super::super::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
 use super::{TestResult, accept_request, server_endpoint};
@@ -58,6 +61,52 @@ fn invalid_additional_root_is_a_trust_store_failure() {
         .err()
         .unwrap_or_else(|| panic!("invalid trust root was accepted"));
     assert_eq!(error.kind(), Http3ConnectorErrorKind::TrustStore);
+}
+
+#[test]
+fn production_connector_emits_supported_chrome_h3_client_hello_fields() -> TestResult<()> {
+    let connector = connector()?;
+    let parameters = TransportParameters::read(
+        Side::Server,
+        &mut Cursor::new(fixture_hex(CHROME_H3_STARTUP, "transport_parameters_hex")?),
+    )?;
+    let mut session = crypto::ClientConfig::start_session(
+        connector.test_crypto(),
+        1,
+        "server.phantom.test",
+        &parameters,
+    )?;
+    let mut handshake = Vec::new();
+    assert!(session.write_handshake(&mut handshake).is_none());
+
+    let actual = ClientHelloSummary::from_handshake_bytes(&handshake)?;
+    let expected = ClientHelloSummary::from_handshake_bytes(&fixture_hex(
+        CHROME_H3_CLIENT_HELLO,
+        "handshake_hex",
+    )?)?;
+    assert_eq!(actual.legacy_version(), expected.legacy_version());
+    assert_eq!(actual.server_name(), expected.server_name());
+    assert_eq!(actual.cipher_suites(), expected.cipher_suites());
+    assert_eq!(actual.supported_versions(), expected.supported_versions());
+    assert_eq!(actual.supported_groups(), expected.supported_groups());
+    assert_eq!(actual.key_share_groups(), expected.key_share_groups());
+    assert_eq!(
+        actual.signature_algorithms(),
+        expected.signature_algorithms()
+    );
+    assert_eq!(actual.alpn_protocols(), expected.alpn_protocols());
+    assert_eq!(
+        sorted_trust_anchor_ids(&actual),
+        sorted_trust_anchor_ids(&expected)
+    );
+
+    let mut actual_extensions = actual.extension_types().to_vec();
+    actual_extensions.sort_unstable();
+    let mut expected_extensions = expected.extension_types().to_vec();
+    expected_extensions.retain(|extension| *extension != 0x44cd);
+    expected_extensions.sort_unstable();
+    assert_eq!(actual_extensions, expected_extensions);
+    Ok(())
 }
 
 #[test]
@@ -253,8 +302,62 @@ fn h3_tls_settings() -> phantom_profile::TlsSettings {
         CipherSuite::Aes256GcmSha384,
         CipherSuite::Chacha20Poly1305Sha256,
     ];
+    settings.signature_schemes = vec![
+        SignatureScheme::EcdsaSecp256r1Sha256,
+        SignatureScheme::RsaPssRsaeSha256,
+        SignatureScheme::RsaPkcs1Sha256,
+        SignatureScheme::EcdsaSecp384r1Sha384,
+        SignatureScheme::RsaPssRsaeSha384,
+        SignatureScheme::RsaPkcs1Sha384,
+        SignatureScheme::RsaPssRsaeSha512,
+        SignatureScheme::RsaPkcs1Sha512,
+        SignatureScheme::RsaPkcs1Sha1,
+    ];
     settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
     settings.alps = None;
     settings.session_tickets = false;
+    settings.grease = false;
+    settings.grease_signature_algorithms = false;
+    settings.request_ocsp_staple = false;
+    settings.request_signed_certificate_timestamps = false;
     settings
+}
+
+const CHROME_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
+    "macos-15.5/client-startup.txt"
+));
+const CHROME_H3_CLIENT_HELLO: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
+    "macos-15.5/quic-client-hello-1.txt"
+));
+
+fn fixture_hex(
+    fixture: &str,
+    field: &str,
+) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    let prefix = format!("{field}=");
+    let encoded = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .ok_or("fixture omitted hexadecimal field")?;
+    if encoded.len() % 2 != 0 {
+        return Err("fixture hexadecimal field has odd length".into());
+    }
+    encoded
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|digits| {
+            let digits = std::str::from_utf8(digits)?;
+            Ok(u8::from_str_radix(digits, 16)?)
+        })
+        .collect()
+}
+
+fn sorted_trust_anchor_ids(summary: &ClientHelloSummary) -> Option<Vec<Vec<u8>>> {
+    summary.requested_trust_anchor_ids().map(|identifiers| {
+        let mut identifiers = identifiers.to_vec();
+        identifiers.sort_unstable();
+        identifiers
+    })
 }

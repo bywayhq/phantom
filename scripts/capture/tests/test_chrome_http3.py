@@ -30,6 +30,16 @@ from scripts.capture.quic_summary import SymbolicSpan
 
 FIXTURE_PATH = Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt")
 FIXTURE_SHA256 = "c52cd57896f824fdefdcfdda77d40fe3bd928f2a97ef5093ebd888aa8fb18aaf"
+CLIENT_HELLO_FIXTURES = (
+    (
+        Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/quic-client-hello-1.txt"),
+        "3dfea80e543ce8e990a8821e9588d29a0cf3776953440bc7cf1e1f04b4c7df42",
+    ),
+    (
+        Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/quic-client-hello-2.txt"),
+        "cb6324046cd096f70422ea8ad8d902303493b744e5d797683c2d2af4bd06c034",
+    ),
+)
 PARAMETER_PATTERN = re.compile(
     r"id:(\d+),id_width:(\d+),length_width:(\d+),value_hex:([0-9a-f]*)"
 )
@@ -236,6 +246,42 @@ class ChromeFixtureTests(unittest.TestCase):
             *(f"request_header_{index}" for index in range(header_count)),
         ]
         self.assertEqual([key for key, _ in self.fields], expected_keys)
+
+    def test_quic_client_hello_fixtures_are_strict_and_independent(self) -> None:
+        handshakes = []
+        expected_keys = [
+            "format",
+            "captured_at_unix",
+            "client",
+            "client_version",
+            "operating_system",
+            "hostname",
+            "listen_address",
+            "launch_mode",
+            "launch_arguments",
+            "capture_tool",
+            "quic_version",
+            "alpn",
+            "handshake_hex",
+        ]
+        for path, expected_hash in CLIENT_HELLO_FIXTURES:
+            source = path.read_bytes()
+            self.assertEqual(hashlib.sha256(source).hexdigest(), expected_hash)
+            fields = [
+                line.partition("=") for line in source.decode("ascii").splitlines()
+            ]
+            self.assertTrue(all(separator == "=" for _, separator, _ in fields))
+            self.assertEqual([key for key, _, _ in fields], expected_keys)
+            fixture = {key: value for key, _, value in fields}
+            self.assertEqual(fixture["format"], "phantom-quic-client-hello-v1")
+            self.assertEqual(fixture["client_version"], "152.0.7977.83")
+            self.assertEqual(fixture["quic_version"], "0x00000001")
+            self.assertEqual(fixture["alpn"], "h3")
+            handshake = bytes.fromhex(fixture["handshake_hex"])
+            self.assertEqual(handshake[0], 1)
+            self.assertEqual(len(handshake), 4 + int.from_bytes(handshake[1:4], "big"))
+            handshakes.append(handshake)
+        self.assertNotEqual(handshakes[0], handshakes[1])
 
     def test_transport_parameters_redecode_and_normalize(self) -> None:
         raw = fixture_hex(self.fixture, "transport_parameters_hex")

@@ -102,6 +102,11 @@ impl Http3Connector {
         })
     }
 
+    #[cfg(test)]
+    pub(super) fn test_crypto(&self) -> Arc<QuicClientConfig> {
+        Arc::clone(&self.crypto)
+    }
+
     /// Sends one empty-body GET over a newly resolved direct QUIC connection.
     ///
     /// The complete request is prepared before the Tokio runtime is checked or

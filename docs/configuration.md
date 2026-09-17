@@ -99,12 +99,13 @@ are documented in [TLS security boundary](tls-security-boundary.md).
 
 HTTP/3 TLS is a separate profile component rather than an adaptation of the
 TCP offer. The connector requires TLS 1.3, exact `h3` ALPN, QUIC-compatible
-cipher suites, and no ALPS or ticket behavior that the current one-shot path
+cipher suites, and no ALPS or ticket behavior that the current QUIC path
 cannot represent. Phantom deliberately has no built-in Chrome H3 TLS recipe
-yet: the Chrome QUIC transport and H3 recipes are capture-backed, but a
-retained Chrome H3 ClientHello fixture is still required before those TLS bytes
-can be named as a built-in recipe. Caller-authored H3 TLS uses the same typed
-validation path without inheriting the TCP ClientHello silently.
+yet. Two retained Chrome H3 ClientHellos show a distinct offer that includes
+H3 ALPS (`0x44cd`); the current QUIC backend rejects ALPS instead of silently
+omitting it. Caller-authored H3 TLS uses the same typed validation path without
+inheriting the TCP ClientHello silently. The built-in recipe follows after the
+H3 ALPS negotiation and lifecycle are implemented through the production path.
 
 `Http3Settings::qpack_encoding` chooses `Stateless` or `Dynamic` request-field
 encoding for a connection. Dynamic mode is profile data because it changes

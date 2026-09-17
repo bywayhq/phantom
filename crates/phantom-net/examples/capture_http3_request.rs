@@ -1,18 +1,15 @@
 //! Sends Phantom's Chrome 152 HTTP/3 request to the loopback capture server.
 //!
 //! The server owns packet decryption and fixture output. This client only
-//! supplies the profiled QUIC transport, HTTP/3 settings, and request shape.
+//! supplies the profiled TLS, QUIC transport, HTTP/3 settings, and request
+//! shape.
 
-use std::{env, error::Error, fs, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{env, error::Error, fs, net::SocketAddr, path::PathBuf, time::Duration};
 
-use btls::{
-    ssl::{SslContext, SslMethod, SslVerifyMode},
-    x509::X509,
-};
+use btls::x509::X509;
 use http_body_util::BodyExt as _;
-use phantom_net::http3::{OriginForm, RequestHeader, send_get};
-use phantom_profile::chromium;
-use phantom_quic_btls::QuicClientConfig;
+use phantom_net::http3::{Http3Connector, OriginForm, RequestHeader};
+use phantom_profile::{CipherSuite, SignatureScheme, TlsSettings, TlsVersion, chromium};
 use tokio::time::timeout;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -23,24 +20,23 @@ async fn main() -> CaptureResult<()> {
     let arguments = Arguments::parse(env::args().skip(1))?;
     require_loopback(arguments.remote)?;
 
-    let certificate = X509::from_pem(&fs::read(&arguments.trust_root)?)?;
-    let mut context = SslContext::builder(SslMethod::tls())?;
-    context.cert_store_mut().add_cert(certificate)?;
-    context.set_verify(SslVerifyMode::PEER);
-    let client = Arc::new(QuicClientConfig::with_transport_profile(
-        context.build(),
-        chromium::v152_macos_quic(),
-    )?);
+    let certificate = X509::from_pem(&fs::read(&arguments.trust_root)?)?.to_der()?;
+    let tls = capture_tls_settings();
+    let connector = Http3Connector::new_with_additional_roots(
+        &tls,
+        &chromium::v152_macos_quic(),
+        &chromium::v152_macos_http3(),
+        &chromium::v152_macos_http3_request(),
+        std::iter::once(certificate.as_slice()),
+    )?;
 
     let authority = format!("{}:{}", arguments.hostname, arguments.remote.port());
     let response = timeout(
         REQUEST_TIMEOUT,
-        send_get(
-            arguments.remote,
+        connector.send_get_direct(
+            &arguments.remote.ip().to_string(),
+            arguments.remote.port(),
             &arguments.hostname,
-            client,
-            &chromium::v152_macos_http3(),
-            &chromium::v152_macos_http3_request(),
             &authority,
             OriginForm::parse("/")?,
             chrome_request_headers(),
@@ -60,6 +56,36 @@ async fn main() -> CaptureResult<()> {
         return Err("capture server returned an unexpected body".into());
     }
     Ok(())
+}
+
+fn capture_tls_settings() -> TlsSettings {
+    let mut settings = chromium::v152_macos_tls();
+    settings.min_version = TlsVersion::Tls13;
+    settings.max_version = TlsVersion::Tls13;
+    settings.cipher_suites = vec![
+        CipherSuite::Aes128GcmSha256,
+        CipherSuite::Aes256GcmSha384,
+        CipherSuite::Chacha20Poly1305Sha256,
+    ];
+    settings.signature_schemes = vec![
+        SignatureScheme::EcdsaSecp256r1Sha256,
+        SignatureScheme::RsaPssRsaeSha256,
+        SignatureScheme::RsaPkcs1Sha256,
+        SignatureScheme::EcdsaSecp384r1Sha384,
+        SignatureScheme::RsaPssRsaeSha384,
+        SignatureScheme::RsaPkcs1Sha384,
+        SignatureScheme::RsaPssRsaeSha512,
+        SignatureScheme::RsaPkcs1Sha512,
+        SignatureScheme::RsaPkcs1Sha1,
+    ];
+    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
+    settings.alps = None;
+    settings.session_tickets = false;
+    settings.grease = false;
+    settings.grease_signature_algorithms = false;
+    settings.request_ocsp_staple = false;
+    settings.request_signed_certificate_timestamps = false;
+    settings
 }
 
 struct Arguments {

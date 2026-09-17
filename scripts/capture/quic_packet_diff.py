@@ -1,12 +1,15 @@
 """Bounded, payload-free analysis of captured client QUIC datagrams.
 
 The analyzer accepts UDP payloads and NSS key-log lines in memory, authenticates
-and decrypts QUIC v1 packets with aioquic, and returns only packet-space and
-frame-layout metadata. Captured datagrams and traffic secrets are cleared after
-one analysis attempt and are never included in the returned summary.
+and decrypts QUIC v1 packets with aioquic, and returns packet-space and
+frame-layout metadata. An opt-in result also returns the reassembled Initial
+ClientHello. Captured datagrams and traffic secrets are cleared after one
+analysis attempt and are never included in the packet summary.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 from aioquic.buffer import Buffer, BufferReadError
 from aioquic.quic.crypto import CryptoContext, CryptoError, CryptoPair
@@ -31,6 +34,7 @@ DEFAULT_MAX_DATAGRAMS = 64
 DEFAULT_MAX_DATAGRAM_BYTES = 256 * 1024
 DEFAULT_MAX_KEY_LOG_LINES = 8
 DEFAULT_MAX_KEY_LOG_CHARS = 4096
+DEFAULT_MAX_CLIENT_HELLO_BYTES = 32 * 1024
 
 _CLIENT_HANDSHAKE_SECRET = "CLIENT_HANDSHAKE_TRAFFIC_SECRET"
 _CLIENT_APPLICATION_SECRET = "CLIENT_TRAFFIC_SECRET_0"
@@ -38,6 +42,47 @@ _IGNORED_SERVER_SECRETS = {
     "SERVER_HANDSHAKE_TRAFFIC_SECRET",
     "SERVER_TRAFFIC_SECRET_0",
 }
+
+
+@dataclass(frozen=True)
+class QuicPacketAnalysis:
+    """Payload-free packet summary plus the reassembled Initial ClientHello."""
+
+    summary: PacketSummary
+    client_hello: bytes
+
+
+class _InitialCrypto:
+    def __init__(self, maximum: int = DEFAULT_MAX_CLIENT_HELLO_BYTES) -> None:
+        self._maximum = maximum
+        self._data = bytearray()
+        self._received = bytearray()
+
+    def add(self, offset: int, data: bytes) -> None:
+        end = offset + len(data)
+        if end > self._maximum:
+            raise ValueError("Initial CRYPTO exceeds the ClientHello capture limit")
+        if end > len(self._data):
+            growth = end - len(self._data)
+            self._data.extend(bytes(growth))
+            self._received.extend(bytes(growth))
+        for index, value in enumerate(data, start=offset):
+            if self._received[index] and self._data[index] != value:
+                raise ValueError("Initial CRYPTO contains conflicting overlap")
+            self._data[index] = value
+            self._received[index] = 1
+
+    def client_hello(self) -> bytes:
+        if len(self._data) < 4 or not all(self._received[:4]):
+            raise ValueError("Initial CRYPTO omitted the ClientHello header")
+        if self._data[0] != 1:
+            raise ValueError("Initial CRYPTO does not begin with a ClientHello")
+        length = 4 + int.from_bytes(self._data[1:4], byteorder="big")
+        if length > self._maximum:
+            raise ValueError("ClientHello exceeds the capture limit")
+        if len(self._data) < length or not all(self._received[:length]):
+            raise ValueError("Initial CRYPTO contains an incomplete ClientHello")
+        return bytes(self._data[:length])
 
 
 class QuicPacketCapture:
@@ -141,11 +186,39 @@ class QuicPacketCapture:
             if self._key_log_pending:
                 self._consume_key_log_line(self._key_log_pending)
                 self._key_log_pending = ""
-            return self._summarize(
+            summary, _ = self._analyze(
                 cipher_suite=cipher_suite,
                 short_header_cid_length=short_header_cid_length,
                 spans=spans,
+                collect_client_hello=False,
             )
+            return summary
+        finally:
+            self.clear()
+
+    def summarize_with_client_hello(
+        self,
+        *,
+        cipher_suite: CipherSuite,
+        short_header_cid_length: int,
+        spans: tuple[SymbolicSpan, ...] = (),
+    ) -> QuicPacketAnalysis:
+        """Authenticates one client flight and returns its Initial ClientHello once."""
+
+        self._require_open()
+        try:
+            if self._key_log_pending:
+                self._consume_key_log_line(self._key_log_pending)
+                self._key_log_pending = ""
+            summary, client_hello = self._analyze(
+                cipher_suite=cipher_suite,
+                short_header_cid_length=short_header_cid_length,
+                spans=spans,
+                collect_client_hello=True,
+            )
+            if client_hello is None:
+                raise ValueError("capture omitted the Initial ClientHello")
+            return QuicPacketAnalysis(summary=summary, client_hello=client_hello)
         finally:
             self.clear()
 
@@ -168,13 +241,14 @@ class QuicPacketCapture:
         self._accept_datagrams = False
         self._closed = True
 
-    def _summarize(
+    def _analyze(
         self,
         *,
         cipher_suite: CipherSuite,
         short_header_cid_length: int,
         spans: tuple[SymbolicSpan, ...],
-    ) -> PacketSummary:
+        collect_client_hello: bool,
+    ) -> tuple[PacketSummary, bytes | None]:
         if not 0 <= short_header_cid_length <= CONNECTION_ID_MAX_SIZE:
             raise ValueError("invalid short-header connection ID length")
         if not self._datagrams:
@@ -183,6 +257,7 @@ class QuicPacketCapture:
         expected_packet_number = {"initial": 0, "handshake": 0, "1rtt": 0}
         initial_crypto: CryptoPair | None = None
         traffic_cryptos: dict[str, CryptoContext] = {}
+        initial_handshake = _InitialCrypto() if collect_client_hello else None
         version: int | None = None
         packets = []
         try:
@@ -250,12 +325,21 @@ class QuicPacketCapture:
                     packets.append(
                         NormalizedPacket(
                             space=space,
-                            frames=_parse_frames(payload, spans),
+                            frames=_parse_frames(
+                                payload,
+                                spans,
+                                initial_handshake if space == "initial" else None,
+                            ),
                         )
                     )
                     payload = b""
                     packet = b""
-            return PacketSummary.build(tuple(packets), spans)
+            client_hello = (
+                initial_handshake.client_hello()
+                if initial_handshake is not None
+                else None
+            )
+            return PacketSummary.build(tuple(packets), spans), client_hello
         except (BufferReadError, CryptoError) as error:
             raise ValueError(
                 "failed to authenticate or decode captured QUIC packet"
@@ -327,7 +411,9 @@ def _packet_space(packet_type: QuicPacketType) -> str:
 
 
 def _parse_frames(
-    payload: bytes, spans: tuple[SymbolicSpan, ...]
+    payload: bytes,
+    spans: tuple[SymbolicSpan, ...],
+    initial_crypto: _InitialCrypto | None = None,
 ) -> tuple[FrameKind | StreamFrame, ...]:
     buf = Buffer(data=payload)
     frames: list[FrameKind | StreamFrame] = []
@@ -349,7 +435,11 @@ def _parse_frames(
             _pull_varints(buf, 2)
             frames.append(FrameKind("stop_sending"))
         elif frame_type == QuicFrameType.CRYPTO:
-            _pull_length_prefixed(buf, prefix_fields=1)
+            offset = buf.pull_uint_var()
+            length = buf.pull_uint_var()
+            data = buf.pull_bytes(length)
+            if initial_crypto is not None:
+                initial_crypto.add(offset, data)
             frames.append(FrameKind("crypto"))
         elif frame_type == QuicFrameType.NEW_TOKEN:
             _pull_length_prefixed(buf)

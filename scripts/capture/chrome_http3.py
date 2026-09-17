@@ -44,7 +44,7 @@ from .http3_wire import (
     unidirectional_stream_id,
 )
 from .quic_flight import PacketSummary
-from .quic_packet_diff import QuicPacketCapture
+from .quic_packet_diff import QuicPacketAnalysis, QuicPacketCapture
 from .quic_summary import SymbolicSpan
 
 SUPPORTED_AIOQUIC = "1.3.0"
@@ -72,6 +72,7 @@ class Capture:
     cipher_suite: CipherSuite | None = None
     short_header_cid_length: int | None = None
     packet_capture: QuicPacketCapture | None = None
+    client_hello: bytes | None = None
     failure: Exception | None = None
     connection_claimed: bool = False
 
@@ -218,6 +219,26 @@ class Capture:
         )
         return "\n".join(lines) + "\n"
 
+    def client_hello_fixture(self) -> str:
+        if self.client_hello is None or self.alpn is None or self.quic_version is None:
+            raise RuntimeError("capture completed without a QUIC ClientHello")
+        lines = [
+            "format=phantom-quic-client-hello-v1",
+            f"captured_at_unix={int(time.time())}",
+            f"client={self.metadata.client}",
+            f"client_version={self.metadata.client_version}",
+            f"operating_system={self.metadata.operating_system}",
+            f"hostname={self.metadata.hostname}",
+            f"listen_address={self.metadata.listen}",
+            f"launch_mode={self.metadata.launch_mode}",
+            f"launch_arguments={self.metadata.launch_arguments}",
+            f"capture_tool=aioquic {aioquic.__version__}",
+            f"quic_version=0x{self.quic_version:08x}",
+            f"alpn={self.alpn}",
+            f"handshake_hex={self.client_hello.hex()}",
+        ]
+        return "\n".join(lines) + "\n"
+
     def packet_spans(self) -> tuple[SymbolicSpan, ...]:
         if (
             self.settings_frame is None
@@ -284,12 +305,12 @@ class Capture:
                 )
         return tuple(spans)
 
-    def packet_summary(self) -> PacketSummary | None:
+    def packet_analysis(self) -> QuicPacketAnalysis:
         if self.packet_capture is None:
-            return None
+            raise RuntimeError("capture has no packet analyzer")
         if self.cipher_suite is None or self.short_header_cid_length is None:
             raise RuntimeError("capture completed without negotiated QUIC metadata")
-        return self.packet_capture.summarize(
+        return self.packet_capture.summarize_with_client_hello(
             cipher_suite=self.cipher_suite,
             short_header_cid_length=self.short_header_cid_length,
             spans=self.packet_spans(),
@@ -300,6 +321,7 @@ class Capture:
 class CaptureResult:
     fixture: str
     packet_summary: PacketSummary | None
+    client_hello_fixture: str | None
 
 
 class CaptureProtocol(QuicConnectionProtocol):
@@ -393,7 +415,9 @@ def patch_transport_parameter_capture() -> None:
 async def run(args: argparse.Namespace) -> CaptureResult:
     complete = asyncio.Event()
     packet_capture = (
-        QuicPacketCapture() if getattr(args, "packet_summary", None) else None
+        QuicPacketCapture()
+        if args.packet_summary is not None or args.client_hello is not None
+        else None
     )
     capture = Capture(
         complete=complete,
@@ -419,7 +443,12 @@ async def run(args: argparse.Namespace) -> CaptureResult:
         capture.raise_if_failed()
         server.close()
         fixture = capture.fixture()
-        return CaptureResult(fixture, capture.packet_summary())
+        if packet_capture is None:
+            return CaptureResult(fixture, None, None)
+        analysis = capture.packet_analysis()
+        capture.client_hello = analysis.client_hello
+        packet_summary = analysis.summary if args.packet_summary is not None else None
+        return CaptureResult(fixture, packet_summary, capture.client_hello_fixture())
     finally:
         server.close()
         if packet_capture is not None:
@@ -444,6 +473,23 @@ def write_packet_summary(path: Path, summary: PacketSummary) -> None:
             temporary_path.unlink(missing_ok=True)
 
 
+def write_text_fixture(path: Path, fixture: str) -> None:
+    path = path.resolve()
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="ascii", dir=path.parent, delete=False
+        ) as output:
+            temporary_path = Path(output.name)
+            output.write(fixture)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--certificate", type=Path, required=True)
@@ -456,6 +502,7 @@ def main() -> None:
     parser.add_argument("--launch-mode", default="command-line")
     parser.add_argument("--launch-arguments", required=True)
     parser.add_argument("--packet-summary", type=Path)
+    parser.add_argument("--client-hello", type=Path)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     if aioquic.__version__ != SUPPORTED_AIOQUIC:
@@ -470,6 +517,10 @@ def main() -> None:
         if result.packet_summary is None:
             raise RuntimeError("packet summary was requested but not produced")
         write_packet_summary(args.packet_summary, result.packet_summary)
+    if args.client_hello is not None:
+        if result.client_hello_fixture is None:
+            raise RuntimeError("ClientHello fixture was requested but not produced")
+        write_text_fixture(args.client_hello, result.client_hello_fixture)
     print(result.fixture, end="")
 
 

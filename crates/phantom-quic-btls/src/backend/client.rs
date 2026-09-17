@@ -73,8 +73,8 @@ impl QuicClientConfig {
 
     /// Applies TLS controls that BoringSSL owns per QUIC session.
     ///
-    /// The current one-shot QUIC path requires TLS 1.3, exact `h3` ALPN, no
-    /// TCP ALPS, and no tickets or early data. Profiles must state those
+    /// The current QUIC path requires TLS 1.3, exact `h3` ALPN, no H3 ALPS,
+    /// and no tickets or early data. Profiles must state those
     /// constraints explicitly; this method never rewrites them silently.
     pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
         self.tls_profile = ClientTlsProfile::new(settings)?;
@@ -252,7 +252,7 @@ impl ClientTlsProfile {
         if settings.alps.is_some() {
             return Err(QuicTlsProfileError::invalid(
                 "alps",
-                "the direct HTTP/3 path does not advertise TCP ALPS",
+                "HTTP/3 ALPS is not supported by the current QUIC path",
             ));
         }
         if settings.session_tickets {

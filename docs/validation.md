@@ -73,6 +73,17 @@ engine default. A fresh rerun matched all three packet spaces, the stable
 SETTINGS and QPACK encoder markers, and request FIN at the exact HEADERS
 boundary, with no retransmission or terminal frames on either side.
 
+The analyzer also has a bounded one-shot ClientHello result. It reassembles
+Initial CRYPTO by offset across packet cuts and rejects incomplete data,
+conflicting overlap, non-ClientHello input, and oversized handshakes. Two
+independent Chrome 152/macOS 15.5 captures retain the complete handshake in a
+strict sidecar schema. Their semantic differential establishes the stable H3
+offer while permitting observed extension permutation and fresh ECH entropy.
+The production `Http3Connector` is tested against that capture; H3 ALPS
+(`0x44cd`) is excluded from the equality only because the current QUIC backend
+rejects it explicitly, which remains the gate for a built-in Chrome H3 TLS
+recipe.
+
 ## Browser ClientHello fixture workflow
 
 ### Retained Chrome capture

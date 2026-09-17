@@ -1063,6 +1063,7 @@ dependencies = [
  "phantom-quic-btls",
  "phantom-testkit",
  "quinn",
+ "quinn-proto",
  "rcgen",
  "rustls",
  "tokio",

@@ -10,7 +10,10 @@ from aioquic.quic.packet import (
 from aioquic.tls import CipherSuite
 
 from scripts.capture.http3_wire import push_varint
-from scripts.capture.quic_packet_diff import QuicPacketCapture
+from scripts.capture.quic_packet_diff import (
+    DEFAULT_MAX_CLIENT_HELLO_BYTES,
+    QuicPacketCapture,
+)
 from scripts.capture.quic_summary import (
     FrameKind,
     NormalizedPacket,
@@ -33,6 +36,10 @@ def key_log_line(label: str, secret: bytes) -> str:
 
 def crypto_frame(data: bytes, offset: int = 0) -> bytes:
     return b"\x06" + push_varint(offset, 1) + push_varint(len(data), 1) + data
+
+
+def client_hello(body: bytes = b"hello") -> bytes:
+    return b"\x01" + len(body).to_bytes(3, "big") + body
 
 
 def stream_frame(
@@ -89,6 +96,121 @@ def client_traffic_crypto(secret: bytes) -> CryptoContext:
 
 
 class QuicPacketDiffTests(unittest.TestCase):
+    def test_reassembles_fragmented_reordered_and_retransmitted_client_hello(
+        self,
+    ) -> None:
+        hello = client_hello()
+        crypto = client_initial_crypto()
+        try:
+            packet = long_packet(
+                QuicPacketType.INITIAL,
+                crypto_frame(hello[4:], offset=4)
+                + crypto_frame(hello[:6])
+                + crypto_frame(hello[4:], offset=4),
+                0,
+                crypto.send,
+            )
+        finally:
+            crypto.teardown()
+
+        capture = QuicPacketCapture()
+        capture.add_datagram(packet)
+        analysis = capture.summarize_with_client_hello(
+            cipher_suite=CIPHER_SUITE,
+            short_header_cid_length=len(DESTINATION_CID),
+        )
+
+        self.assertEqual(analysis.client_hello, hello)
+        self.assertEqual(
+            analysis.summary.packets[0].frames,
+            (FrameKind("crypto"), FrameKind("crypto"), FrameKind("crypto")),
+        )
+
+    def test_rejects_conflicting_initial_crypto_overlap(self) -> None:
+        hello = client_hello()
+        conflicting = bytes([hello[4] ^ 1]) + hello[5:]
+        crypto = client_initial_crypto()
+        try:
+            packet = long_packet(
+                QuicPacketType.INITIAL,
+                crypto_frame(hello) + crypto_frame(conflicting, offset=4),
+                0,
+                crypto.send,
+            )
+        finally:
+            crypto.teardown()
+
+        capture = QuicPacketCapture()
+        capture.add_datagram(packet)
+        with self.assertRaisesRegex(ValueError, "conflicting overlap"):
+            capture.summarize_with_client_hello(
+                cipher_suite=CIPHER_SUITE,
+                short_header_cid_length=len(DESTINATION_CID),
+            )
+        self.assertEqual(capture.buffered_datagram_count, 0)
+
+    def test_rejects_missing_header_and_non_client_hello(self) -> None:
+        cases = (
+            (crypto_frame(b"body", offset=4), "omitted the ClientHello header"),
+            (crypto_frame(b"\x02\x00\x00\x00"), "does not begin with a ClientHello"),
+        )
+        for payload, message in cases:
+            with self.subTest(message=message):
+                crypto = client_initial_crypto()
+                try:
+                    packet = long_packet(
+                        QuicPacketType.INITIAL,
+                        payload,
+                        0,
+                        crypto.send,
+                    )
+                finally:
+                    crypto.teardown()
+                capture = QuicPacketCapture()
+                capture.add_datagram(packet)
+                with self.assertRaisesRegex(ValueError, message):
+                    capture.summarize_with_client_hello(
+                        cipher_suite=CIPHER_SUITE,
+                        short_header_cid_length=len(DESTINATION_CID),
+                    )
+                self.assertEqual(capture.buffered_datagram_count, 0)
+
+    def test_rejects_incomplete_and_oversized_client_hello(self) -> None:
+        cases = (
+            (client_hello(b"truncated")[:5], "incomplete ClientHello"),
+            (
+                b"\x06"
+                + push_varint(DEFAULT_MAX_CLIENT_HELLO_BYTES, 4)
+                + push_varint(1, 1)
+                + b"x",
+                "capture limit",
+            ),
+        )
+        for payload, message in cases:
+            with self.subTest(message=message):
+                crypto = client_initial_crypto()
+                try:
+                    encoded = (
+                        payload
+                        if payload.startswith(b"\x06")
+                        else crypto_frame(payload)
+                    )
+                    packet = long_packet(
+                        QuicPacketType.INITIAL,
+                        encoded,
+                        0,
+                        crypto.send,
+                    )
+                finally:
+                    crypto.teardown()
+                capture = QuicPacketCapture()
+                capture.add_datagram(packet)
+                with self.assertRaisesRegex(ValueError, message):
+                    capture.summarize_with_client_hello(
+                        cipher_suite=CIPHER_SUITE,
+                        short_header_cid_length=len(DESTINATION_CID),
+                    )
+
     def test_authenticates_initial_and_normalizes_frame_kinds(self) -> None:
         crypto = client_initial_crypto()
         try:

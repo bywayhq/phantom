@@ -2,6 +2,8 @@
 
 #[path = "browser_client_hello_fixtures/chrome.rs"]
 mod chrome;
+#[path = "browser_client_hello_fixtures/chrome_quic.rs"]
+mod chrome_quic;
 #[path = "browser_client_hello_fixtures/firefox.rs"]
 mod firefox;
 #[path = "browser_client_hello_fixtures/fixture.rs"]

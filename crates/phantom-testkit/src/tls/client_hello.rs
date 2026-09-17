@@ -32,7 +32,17 @@ pub struct ClientHelloSummary {
 }
 
 impl ClientHelloSummary {
-    pub(super) fn decode(handshake: &[u8]) -> Result<Self, ClientHelloDecodeError> {
+    /// Decodes one complete TLS ClientHello handshake message.
+    ///
+    /// The input starts with the TLS handshake type and three-byte length. It
+    /// does not include a TLS record header, so the same decoder can validate
+    /// ClientHellos carried by TLS records or QUIC CRYPTO frames.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ClientHelloDecodeError`] when the message is truncated,
+    /// ambiguous, malformed, or followed by trailing bytes.
+    pub fn from_handshake_bytes(handshake: &[u8]) -> Result<Self, ClientHelloDecodeError> {
         let mut message = Cursor::new(handshake);
         let handshake_type = message.read_u8("handshake type")?;
         if handshake_type != CLIENT_HELLO_HANDSHAKE_TYPE {
@@ -162,6 +172,10 @@ impl ClientHelloSummary {
         }
 
         Ok(summary)
+    }
+
+    pub(super) fn decode(handshake: &[u8]) -> Result<Self, ClientHelloDecodeError> {
+        Self::from_handshake_bytes(handshake)
     }
 
     /// Returns the ClientHello legacy version without normalization.

@@ -5,6 +5,8 @@ wire oracle is the authenticated byte stream received by the server, not a
 fingerprint summary. It records:
 
 - the raw ordered client QUIC transport-parameter extension before parsing;
+- the complete ClientHello reassembled from authenticated Initial CRYPTO
+  frames;
 - the raw first HTTP/3 control-stream `SETTINGS` frame and ordered settings;
 - the server QPACK settings that govern client encoding; and
 - the first request stream identifier, `HEADERS` frame, exact QPACK
@@ -13,12 +15,18 @@ fingerprint summary. It records:
 
 It does not retain a certificate private key, TLS key log, browser profile,
 pcap, NetLog, or qlog. Those are temporary diagnostic inputs only. With
-`--packet-summary`, it may separately retain authenticated payload-free packet
-metadata; this never changes the semantic fixture written to standard output.
+`--client-hello`, it may retain the reassembled handshake in a separate strict
+fixture; with `--packet-summary`, it may retain authenticated payload-free
+packet metadata. Neither option changes the semantic fixture written to
+standard output.
 
 The retained fixture is
 `fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt`, with
 SHA-256 `c52cd57896f824fdefdcfdda77d40fe3bd928f2a97ef5093ebd888aa8fb18aaf`.
+Two independent clean-profile ClientHello fixtures live beside it as
+`quic-client-hello-1.txt` and `quic-client-hello-2.txt`. They are intentionally
+separate from the startup fixture so stable TLS semantics can be compared
+without treating randomized extension order or ECH payload bytes as fixed.
 That exact capture did not enable a TLS key log, so its `launch_arguments`
 correctly omits `--ssl-key-log-file`. The reproduction workflow below includes
 the temporary key-log flag so an operator can independently decrypt its pcap;
@@ -91,6 +99,7 @@ directory:
 ```sh
 fixture_path="$PWD/chrome-h3-capture.txt"
 packet_summary_path="$PWD/chrome-h3-packets.json"
+client_hello_path="$PWD/chrome-h3-client-hello.txt"
 capture_dir="$(mktemp -d /tmp/phantom-chrome-h3.XXXXXX)"
 
 cleanup_capture() {
@@ -132,6 +141,7 @@ tcpdump_pid=$!
   )" \
   --operating-system "macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion))" \
   --launch-arguments "$launch_arguments" \
+  --client-hello "$client_hello_path" \
   --packet-summary "$packet_summary_path" \
   >"$capture_dir/fixture.txt" &
 server_pid=$!
@@ -181,6 +191,13 @@ rejects Retry, 0-RTT, key updates, and unknown frames, and clears its owned
 mutable capture after one summary attempt. Its deterministic encrypted-vector
 tests run in the ordinary Python gate.
 
+`--client-hello` uses the same authenticated Initial packets, reassembles
+fragmented and out-of-order CRYPTO ranges, accepts identical retransmissions,
+and rejects gaps, conflicting overlaps, non-ClientHello data, and messages over
+32 KiB. Run it twice with separate temporary browser profiles before changing a
+recipe; the retained test compares stable semantic fields while requiring the
+two raw handshakes and extension orders to differ.
+
 A fresh Chrome 152 run exercised this path successfully and authenticated all
 three packet spaces through the first request. The result found the SETTINGS,
 437-byte QPACK encoder, and request HEADERS spans. It is diagnostic evidence,
@@ -194,6 +211,14 @@ certificate as the trust root:
 cargo run -p phantom-net --example capture_http3_request --locked -- \
   127.0.0.1:9447 server.phantom.test "$capture_dir/cert.pem"
 ```
+
+That example now enters through `Http3Connector`, so its ClientHello is formed
+by the same TLS-profile and QUIC-profile seams as the public client. A unit
+differential compares that production connector with the retained Chrome H3
+capture. It matches the supported stable cipher, version, group, key-share,
+signature, ALPN, trust-anchor, and extension fields. Chrome also advertises H3
+ALPS with codepoint `0x44cd`; Phantom does not publish a built-in Chrome H3 TLS
+recipe until that extension is implemented rather than omitted.
 
 The first controlled Phantom run authenticated Initial, Handshake, and 1-RTT,
 matched Chrome's 437-byte encoder prefix and 17 decoded headers, and exposed an
