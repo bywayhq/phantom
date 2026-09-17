@@ -6,7 +6,7 @@ use phantom_net::request::RequestHeader;
 use phantom_profile::{ClientHint, ClientHintDelivery, ClientHintSettings};
 
 use super::{RedirectAction, RedirectPolicy, RedirectState};
-use crate::RequestErrorKind;
+use crate::{RequestErrorKind, request::RequestBodySource};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -29,7 +29,7 @@ fn state(method: Method) -> Result<RedirectState, Box<dyn Error>> {
             RequestHeader::new("cookie2", "legacy=secret"),
             RequestHeader::new("x-ordered", "one"),
         ],
-        Some(Bytes::from_static(b"body")),
+        RequestBodySource::Bytes(Bytes::from_static(b"body")),
     ))
 }
 

@@ -7,15 +7,19 @@ mod h3_support;
 mod tls_support;
 
 use std::{
+    collections::VecDeque,
+    convert::Infallible,
     future::Future,
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener, UdpSocket},
-    task::{Context, Waker},
+    pin::Pin,
+    task::{Context, Poll, Waker},
     time::Duration,
 };
 
 use bytes::{Buf, Bytes};
 use http::{HeaderMap, HeaderValue, Method, Response, StatusCode};
+use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
@@ -194,6 +198,56 @@ async fn public_client_sends_owned_http3_request_body() -> TestResult<()> {
     .await
 }
 
+#[tokio::test]
+async fn public_client_streams_unknown_length_http3_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let (client_done, done_received) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+            let length = request.headers().get("content-length").cloned();
+            let mut body = Vec::new();
+            while let Some(mut chunk) = stream.recv_data().await? {
+                let remaining = chunk.remaining();
+                body.extend_from_slice(&chunk.copy_to_bytes(remaining));
+            }
+            stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(())?,
+                )
+                .await?;
+            stream.finish().await?;
+            done_received.await.map_err(io::Error::other)?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((length, body))
+        });
+
+        let client = test_client(&identity)?;
+        let response = client
+            .request(
+                HttpProtocol::Http3,
+                Method::POST,
+                &format!("https://{address}/stream-upload"),
+            )?
+            .streaming_body(UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/3 server stopped before client completion")?;
+        let (length, body) = server.await??;
+        assert!(length.is_none());
+        assert_eq!(body, b"alphabeta");
+        Ok(())
+    })
+    .await
+}
+
 #[test]
 fn unavailable_http3_fails_before_network_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
@@ -351,6 +405,34 @@ fn client_builder(identity: &TestIdentity) -> phantom::ClientBuilder {
 
 fn test_client(identity: &TestIdentity) -> TestResult<Client> {
     Ok(client_builder(identity).build()?)
+}
+
+struct UnknownBody {
+    chunks: VecDeque<Bytes>,
+}
+
+impl UnknownBody {
+    fn new<const N: usize>(chunks: [&'static [u8]; N]) -> Self {
+        Self {
+            chunks: chunks.into_iter().map(Bytes::from_static).collect(),
+        }
+    }
+}
+
+impl Body for UnknownBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.chunks.pop_front().map(Frame::data).map(Ok))
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
 }
 
 async fn next_data(body: &mut phantom::ResponseBody) -> TestResult<Bytes> {

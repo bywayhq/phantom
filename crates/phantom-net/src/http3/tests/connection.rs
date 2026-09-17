@@ -239,9 +239,28 @@ async fn streaming_body_failures_reset_only_their_streams() -> TestResult<()> {
 
     let server = tokio::spawn(async move {
         let mut connection = accept_connection(&endpoint).await?;
-        for expected_path in ["/source-error", "/trailers", "/length-mismatch"] {
-            let (request, mut failed) = accept_stream(&mut connection).await?;
-            assert_eq!(request.uri().path(), expected_path);
+        loop {
+            let resolver = connection
+                .accept()
+                .await?
+                .ok_or("client closed before sending a request")?;
+            let (request, mut failed) = match resolver.resolve_request().await {
+                Ok(stream) => stream,
+                Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                    if code == h3::error::Code::H3_REQUEST_CANCELLED =>
+                {
+                    continue;
+                }
+                Err(error) => return Err(error.into()),
+            };
+            if request.uri().path() == "/after-source-error" {
+                send_response(&mut failed, "reused").await?;
+                break;
+            }
+            assert!(matches!(
+                request.uri().path(),
+                "/source-error" | "/trailers" | "/length-mismatch"
+            ));
             loop {
                 match failed.recv_data().await {
                     Ok(Some(_)) => {}
@@ -257,10 +276,6 @@ async fn streaming_body_failures_reset_only_their_streams() -> TestResult<()> {
                 }
             }
         }
-
-        let (request, mut later) = accept_stream(&mut connection).await?;
-        assert_eq!(request.uri().path(), "/after-source-error");
-        send_response(&mut later, "reused").await?;
         let _ = done_received.await;
         Ok(())
     });

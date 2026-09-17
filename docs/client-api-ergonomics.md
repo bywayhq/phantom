@@ -41,15 +41,15 @@ familiar convenience.
    complete request overrides: pool admission, connection setup, response
    head, response read inactivity, and an optional whole-operation deadline.
    Connection setup currently owns DNS, proxy, TLS/QUIC, and protocol startup;
-   response-head owns the complete write of today's bounded byte body. A
-   separate write-idle clock waits for a streaming request-body seam, and a
+   response-head owns the complete request-body write. A separate write-idle
+   clock remains deferred until it can be enforced at every transport, and a
    separate TLS phase waits for lower-layer ownership that can cancel it
    independently. SSE hands established streams to its own idle policy;
    WebSocket retains a separate lifecycle surface.
-3. Add streaming request bodies only with explicit replay semantics. Owned
-   bytes are replayable; a stream is one-shot unless backed by a deliberate
-   factory. Redirect, client-hint, and retry paths reject an unavailable replay
-   before consuming the body.
+3. Streaming request bodies are landed with explicit replay semantics. Owned
+   bytes are replayable and streams are one-shot. Redirect and client-hint
+   paths reject an unavailable second attempt before polling the body again.
+   Deliberate replay factories remain a later ergonomics slice.
 4. Add bounded body collection and direct ordered-header/trailer access without
    replacing the streaming response or silently buffering an unlimited body.
 5. Record every internal attempt and bounded retry in tracing and response

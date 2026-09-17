@@ -60,6 +60,7 @@ pub(super) fn prepare_get(
     .map(|prepared| prepared.request)
 }
 
+#[cfg(test)]
 pub(super) fn prepare_profiled_request(
     request_settings: &Http3RequestSettings,
     method: Method,

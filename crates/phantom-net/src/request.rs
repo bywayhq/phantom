@@ -215,6 +215,10 @@ impl Body for RequestBody {
 
     fn is_end_stream(&self) -> bool {
         self.finished
+            || (self.inner.is_end_stream()
+                && self
+                    .exact_length
+                    .is_none_or(|expected| self.emitted == expected))
     }
 
     fn size_hint(&self) -> SizeHint {

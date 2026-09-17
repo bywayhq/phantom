@@ -10,17 +10,21 @@ mod tls_support;
 mod tracing_support;
 
 use std::{
+    collections::VecDeque,
+    convert::Infallible,
     error::Error,
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
     num::NonZeroUsize,
+    pin::Pin,
     task::{Context, Poll, Waker},
     time::Duration,
 };
 
 use bytes::Bytes;
 use http::{HeaderMap, Method, Response, StatusCode};
+use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RedirectPolicy, RequestErrorKind,
@@ -244,6 +248,82 @@ async fn public_client_sends_owned_http1_request_body() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn public_client_streams_unknown_length_http1_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(listener, acceptor).await?;
+            let head = read_head(&mut stream).await?;
+            let mut framed = Vec::new();
+            while !framed.ends_with(b"0\r\n\r\n") {
+                let mut byte = [0_u8; 1];
+                stream.read_exact(&mut byte).await?;
+                framed.push(byte[0]);
+            }
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((head, framed))
+        });
+
+        let client = test_client(&identity, false)?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("https://{address}/stream-upload"),
+            )?
+            .streaming_body(UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        let (head, framed) = server.await??;
+        assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
+        assert_eq!(framed, b"5\r\nalpha\r\n4\r\nbeta\r\n0\r\n\r\n");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn public_http1_body_source_error_has_request_body_category() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(listener, acceptor).await?;
+            let mut observed = Vec::new();
+            stream.read_to_end(&mut observed).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(observed)
+        });
+
+        let client = test_client(&identity, false)?;
+        let error = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("https://{address}/failed-upload"),
+            )?
+            .streaming_body(ErrorBody::new())
+            .send()
+            .await
+            .expect_err("failing HTTP/1 body source was accepted");
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http1));
+        let _observed = server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
@@ -419,6 +499,100 @@ async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
             Some("7")
         );
         assert_eq!(body, "payload");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn public_client_streams_unknown_length_http2_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(listener, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before request")??;
+            let length = request.headers().get("content-length").cloned();
+            let mut incoming = request.into_body();
+            let mut body = Vec::new();
+            while let Some(chunk) = next_h2_request_data(&mut connection, &mut incoming).await? {
+                body.extend_from_slice(&chunk);
+                incoming.flow_control().release_capacity(chunk.len())?;
+            }
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((length, body))
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .request(
+                HttpProtocol::Http2,
+                Method::POST,
+                &format!("https://{address}/stream-upload"),
+            )?
+            .streaming_body(UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        drop(client);
+        let (length, body) = server.await??;
+        assert!(length.is_none());
+        assert_eq!(body, b"alphabeta");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn public_http2_body_source_error_has_request_body_category() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(listener, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            if let Some(Ok((request, _respond))) = connection.accept().await {
+                let mut incoming = request.into_body();
+                while let Ok(Some(chunk)) =
+                    next_h2_request_data(&mut connection, &mut incoming).await
+                {
+                    incoming.flow_control().release_capacity(chunk.len())?;
+                }
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let client = test_client(&identity, true)?;
+        let error = client
+            .request(
+                HttpProtocol::Http2,
+                Method::POST,
+                &format!("https://{address}/failed-upload"),
+            )?
+            .streaming_body(ErrorBody::new())
+            .send()
+            .await
+            .expect_err("failing HTTP/2 body source was accepted");
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+        drop(client);
+        server.await??;
         Ok(())
     })
     .await
@@ -778,6 +952,66 @@ fn interleaved_hpack_response() -> Vec<u8> {
     block.extend_from_slice(&[0x0f, 0x28, 8]);
     block.extend_from_slice(b"second=2");
     block
+}
+
+struct UnknownBody {
+    chunks: VecDeque<Bytes>,
+}
+
+impl UnknownBody {
+    fn new<const N: usize>(chunks: [&'static [u8]; N]) -> Self {
+        Self {
+            chunks: chunks.into_iter().map(Bytes::from_static).collect(),
+        }
+    }
+}
+
+impl Body for UnknownBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.chunks.pop_front().map(Frame::data).map(Ok))
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
+}
+
+struct ErrorBody {
+    frames: VecDeque<Result<Frame<Bytes>, io::Error>>,
+}
+
+impl ErrorBody {
+    fn new() -> Self {
+        Self {
+            frames: [
+                Ok(Frame::data(Bytes::from_static(b"prefix"))),
+                Err(io::Error::other("synthetic request body failure")),
+            ]
+            .into(),
+        }
+    }
+}
+
+impl Body for ErrorBody {
+    type Data = Bytes;
+    type Error = io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.frames.pop_front())
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
 }
 
 async fn next_data(body: &mut phantom::ResponseBody) -> TestResult<Bytes> {

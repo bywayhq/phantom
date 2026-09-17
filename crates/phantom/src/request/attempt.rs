@@ -1,25 +1,27 @@
-use bytes::Bytes;
 use http::{Method, Response};
-use phantom_net::{http1_or_2::Http1Or2Connection, request::RequestHeader};
+use phantom_net::{
+    http1_or_2::Http1Or2Connection,
+    request::{RequestBody, RequestHeader},
+};
 use tracing::Span;
 
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{Client, HttpProtocol, RequestError, ResponseBody, Route};
 
-use super::{ProtocolSelection, ResolvedRequest};
+use super::{ProtocolSelection, RequestBodySource, ResolvedRequest};
 use crate::session::client_hints::ClientHintContext;
 
-pub(super) struct AttemptRequest {
+pub(super) struct AttemptRequest<'a> {
     pub(super) method: Method,
     pub(super) headers: Vec<RequestHeader>,
-    pub(super) body: Option<Bytes>,
+    pub(super) body: &'a mut RequestBodySource,
 }
 
 pub(super) async fn send_once(
     client: &Client,
     request: &ResolvedRequest,
     selection: ProtocolSelection,
-    attempt: AttemptRequest,
+    attempt: AttemptRequest<'_>,
     route: &Route,
     request_span: &Span,
     timeout_budget: TimeoutBudget,
@@ -46,7 +48,7 @@ async fn send_once_exact(
     client: &Client,
     request: &ResolvedRequest,
     protocol: HttpProtocol,
-    attempt: AttemptRequest,
+    attempt: AttemptRequest<'_>,
     route: &Route,
     timeout_budget: TimeoutBudget,
 ) -> Result<AttemptOutcome, RequestError> {
@@ -77,6 +79,7 @@ async fn send_once_exact(
             .filter(|_| request.uri.scheme_str() == Some("https"))
             .zip(client_hint_origin.as_deref())
             .map(|(settings, origin)| client.client_hint_context(endpoint, origin, settings));
+        let attempt_body = body.next_attempt()?;
         let dispatched = dispatch(
             client,
             request,
@@ -84,7 +87,7 @@ async fn send_once_exact(
             method.clone(),
             prepared_headers,
             client_hints,
-            body.clone(),
+            attempt_body,
             route,
             timeout_budget,
         )
@@ -126,7 +129,7 @@ async fn send_once_exact(
 async fn send_once_negotiated(
     client: &Client,
     request: &ResolvedRequest,
-    attempt: AttemptRequest,
+    attempt: AttemptRequest<'_>,
     route: &Route,
     request_span: &Span,
     timeout_budget: TimeoutBudget,
@@ -185,19 +188,21 @@ async fn send_once_negotiated(
             endpoint.authority().as_str().as_bytes(),
         ));
         http1_headers.extend(http1_sent_headers.clone());
-        phantom_net::http1::validate_request(
+        let attempt_body = body.next_attempt()?;
+        let body_metadata = attempt_body.as_ref().map(RequestBody::metadata);
+        phantom_net::http1::validate_request_body(
             &method,
             &request.target,
             &http1_headers,
-            body.as_ref(),
+            body_metadata,
         )
         .map_err(RequestError::negotiated_http1_validation)?;
-        phantom_net::http2::validate_request(
+        phantom_net::http2::validate_request_body(
             &method,
             endpoint.authority().as_str(),
             &request.target,
             &http2_validation_headers,
-            body.as_ref(),
+            body_metadata,
         )
         .map_err(RequestError::negotiated_http2_validation)?;
 
@@ -218,11 +223,11 @@ async fn send_once_negotiated(
                         Some(HttpProtocol::Http1),
                         async {
                             connection
-                                .send_request(
+                                .send_request_body(
                                     method.clone(),
                                     request.target.clone(),
                                     http1_headers,
-                                    body.clone(),
+                                    attempt_body,
                                 )
                                 .await
                                 .map_err(|error| RequestError::http1(error.into()))
@@ -250,12 +255,12 @@ async fn send_once_negotiated(
                         Some(HttpProtocol::Http2),
                         async {
                             connection
-                                .send_request(
+                                .send_request_body(
                                     method.clone(),
                                     endpoint.authority().as_str(),
                                     request.target.clone(),
                                     sent_headers.clone(),
-                                    body.clone(),
+                                    attempt_body,
                                 )
                                 .await
                                 .map_err(|error| RequestError::http2(error.into()))
@@ -350,7 +355,7 @@ async fn dispatch(
     method: Method,
     request_headers: Vec<RequestHeader>,
     client_hints: Option<ClientHintContext<'_>>,
-    body: Option<Bytes>,
+    body: Option<RequestBody>,
     route: &Route,
     timeout_budget: TimeoutBudget,
 ) -> Result<DispatchOutcome, RequestError> {

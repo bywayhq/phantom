@@ -20,8 +20,10 @@ use std::{
 use btls::ssl::{Ssl, SslAcceptor};
 use bytes::{Buf, Bytes};
 use http::{Method, Request, Response, StatusCode};
-use http_body_util::BodyExt;
-use phantom::{Client, HttpProtocol, RedirectPolicy, ResponseInfo, profile::ClientProfile};
+use http_body_util::{BodyExt, Full};
+use phantom::{
+    Client, HttpProtocol, RedirectPolicy, RequestErrorKind, ResponseInfo, profile::ClientProfile,
+};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -137,6 +139,54 @@ async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
         response.into_body().collect().await?;
         drop(session);
         server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request() -> TestResult<()>
+{
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut first = accept_tls(&listener, &acceptor).await?;
+            let head = tls_support::read_head(&mut first).await?;
+            let mut body = [0_u8; 7];
+            first.read_exact(&mut body).await?;
+            first
+                .write_all(
+                    b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /final\r\nContent-Length: 0\r\n\r\n",
+                )
+                .await?;
+            first.flush().await?;
+            let second = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn Error + Send + Sync>>((head, body, second.is_err()))
+        });
+
+        let client = test_client(&identity, false)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build();
+        let error = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("https://{address}/start"),
+            )?
+            .streaming_body(Full::new(Bytes::from_static(b"payload")))
+            .send()
+            .await
+            .expect_err("one-shot body was replayed across a 307 redirect");
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+
+        let (head, body, no_second_request) = server.await??;
+        assert!(head.starts_with(b"POST /start HTTP/1.1\r\n"));
+        assert_eq!(&body, b"payload");
+        assert!(no_second_request);
         Ok(())
     })
     .await

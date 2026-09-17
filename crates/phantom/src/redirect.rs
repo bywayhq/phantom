@@ -1,12 +1,11 @@
 use std::num::NonZeroUsize;
 
-use bytes::Bytes;
 use http::{Method, StatusCode};
 use phantom_net::request::RequestHeader;
 use phantom_profile::ClientHintSettings;
 use url::Url;
 
-use crate::RequestError;
+use crate::{RequestError, request::RequestBodySource};
 
 /// Client policy for following HTTP redirects.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -47,7 +46,7 @@ pub(crate) struct RedirectState {
     current_url: Url,
     method: Method,
     headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
+    body: RequestBodySource,
     followed: usize,
 }
 
@@ -57,7 +56,7 @@ impl RedirectState {
         current_url: Url,
         method: Method,
         headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
+        body: RequestBodySource,
     ) -> Self {
         Self {
             policy,
@@ -81,8 +80,13 @@ impl RedirectState {
         &self.headers
     }
 
-    pub(crate) fn body(&self) -> Option<&Bytes> {
-        self.body.as_ref()
+    #[cfg(test)]
+    pub(crate) fn body(&self) -> Option<&bytes::Bytes> {
+        self.body.replayable_bytes()
+    }
+
+    pub(crate) fn body_mut(&mut self) -> &mut RequestBodySource {
+        &mut self.body
     }
 
     pub(crate) fn followed(&self) -> usize {
@@ -132,7 +136,7 @@ impl RedirectState {
 
         if changes_to_get(response.status(), &self.method) {
             self.method = Method::GET;
-            self.body = None;
+            self.body.clear();
             self.headers.retain(|header| !is_body_header(header.name()));
         }
         let same_origin = self.current_url.origin() == next_url.origin();

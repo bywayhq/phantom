@@ -2,6 +2,23 @@
 
 Each phase ends when its observable acceptance criteria pass. Later work does not expand the active phase.
 
+## Delivery order
+
+Work proceeds in this order:
+
+1. **Functionality:** complete the smallest end-to-end product slices across
+   every supported protocol and route.
+2. **Ergonomics:** make those proven capabilities coherent and convenient
+   without adding configuration that is not applied.
+3. **Hardening:** attack the resulting behavior with hostile peers, fuzzing,
+   sanitizers, soak tests, platform coverage, and lifecycle regressions.
+4. **Profiling and optimization:** measure complete representative workloads
+   and optimize only demonstrated bottlenecks without changing wire fixtures.
+
+Security invariants required for a functional slice remain part of that
+slice; this ordering defers broad hardening campaigns, not correctness at the
+protocol boundary.
+
 ## Phase 0: foundation — complete
 
 Acceptance:
@@ -333,18 +350,18 @@ responses are learned before the next target is evaluated. SameSite navigation
 context, CHIPS, persistence, and browser-specific eviction remain future
 session slices rather than implicit claims.
 
-The request slice now accepts any ordinary non-CONNECT method plus an optional
-owned byte body across H1, H2, and H3, including every direct, proxy, and pooled
-path supported by that protocol. GET remains convenience sugar. Ordered fields
-are preserved, caller-supplied content lengths must be canonical and exact,
-and a missing length is appended only for a non-empty body. H2 and H3 uploads
-obey transport flow control; early final responses, STOP_SENDING, cancellation,
-and sibling-stream reuse have deterministic tests. Finite opt-in session
-redirects replay owned bodies where required and apply the same policy above
-H1, H2, and H3. The 70,000-byte H2 request-flow and 302/307 redirect recipes
-are retained regressions rather than deferred capability gates. General
-streaming request bodies and their replay factories, retries, request trailers,
-and extended CONNECT remain separate slices.
+The request slice now accepts any ordinary non-CONNECT method plus either an
+owned byte body or a pull-driven `http_body::Body<Data = Bytes>` across H1,
+H2, H3, and direct H1/H2 negotiation. GET remains convenience sugar. Ordered
+fields are preserved, caller-supplied content lengths must be canonical and
+exact, unknown-length H1 bodies use canonical chunked framing, and H2/H3 omit
+the length. Uploads pull one frame at a time under transport backpressure;
+producer failure and cancellation invalidate H1 while resetting only the
+affected H2/H3 stream so siblings and connection reuse survive. Finite opt-in
+redirects replay owned bodies where required. Streams are explicitly one-shot:
+body-preserving redirects and internal replays fail before a second attempt.
+Replay factories, write-idle timeouts, request trailers, general retries, and
+extended CONNECT remain separate slices.
 
 The response-header client-hint slice is landed for H1, H2, and H3. Profiles
 own ordered default and negotiated fields; sessions own a bounded exact-origin
@@ -478,16 +495,14 @@ or reassembly and closes the offending transport. Other extensions, reconnect
 policy, message-idle policy, RFC 8441, H3 extended CONNECT, and named browser
 WebSocket recipes wait for retained wire evidence.
 
-## Phase 8: production hardening and profiling — in progress
+## Phase 8: production hardening — partially landed; currently deferred
 
-Run cross-platform debug/release CI, dependency-update isolation, native patch
-replay, sanitizers, fuzzing, long soaks, and workload benchmarks. Profile
-allocations, CPU, contention, and syscall behavior across direct and proxy
-routes, cold/warm pools, multiplexed concurrency, large slow bodies, SSE, and
-WebSocket. Optimize measured bottlenecks without changing packet fixtures.
-Close with the repository's [Rust production-quality review](rust-quality.md),
-including the explicit AI-smell, feature-combination, documentation, async
-lifecycle, unsafe-boundary, and cross-platform audits.
+After functionality and its ergonomics are complete, run cross-platform
+debug/release CI, dependency-update isolation, native patch replay,
+sanitizers, fuzzing, and long soaks. Close with the repository's
+[Rust production-quality review](rust-quality.md), including the explicit
+AI-smell, feature-combination, documentation, async lifecycle,
+unsafe-boundary, and cross-platform audits.
 
 The first hardening slice adds scheduled, pinned libFuzzer jobs for Phantom's
 strict ClientHello and HTTP/2 frame decoders plus the real Quinn transport-
@@ -510,6 +525,14 @@ client endpoint for the QUIC Interop Runner, selected pinned WPT resources,
 curated curl scenarios, TLS-Anvil client runs, and the native BoringSSL runner
 for dependency updates. Server-oriented h2spec and h3spec cases feed
 client-side hostile-peer regressions rather than misleading pass badges.
+
+## Phase 9: profiling and optimization — planned
+
+After production hardening passes, benchmark complete representative
+workloads and profile allocations, CPU, contention, and syscall behavior
+across direct and proxy routes, cold and warm pools, multiplexed concurrency,
+large slow bodies, SSE, and WebSocket. Optimize measured bottlenecks without
+changing packet fixtures or adding speculative fast paths.
 
 ## Later profile work
 

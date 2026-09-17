@@ -4,13 +4,13 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use bytes::Bytes;
 use http::Method;
 use phantom_net::http2::{
     Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector, Http2TlsError,
-    OriginForm, RequestHeader, validate_request,
+    OriginForm, RequestHeader, validate_request_body,
 };
 use phantom_net::proxy::HttpsProxyConnector;
+use phantom_net::request::RequestBody;
 use tokio::sync::Mutex;
 use tracing::debug;
 
@@ -66,18 +66,18 @@ impl Http2Pool {
         target: OriginForm,
         headers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
-        body: Option<Bytes>,
+        body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
-        validate_request(
+        validate_request_body(
             &method,
             authority,
             &target,
             validation_headers,
-            body.as_ref(),
+            body.as_ref().map(RequestBody::metadata),
         )
         .map_err(Http2TlsError::from)
         .map_err(RequestError::http2)?;
@@ -94,6 +94,7 @@ impl Http2Pool {
             )
             .await?;
         let retryable_request = method == Method::GET && body.is_none();
+        let mut body = body;
         let mut retried_graceful_goaway = false;
         let response_timeout =
             timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
@@ -118,12 +119,12 @@ impl Http2Pool {
                     Ok::<_, RequestError>(
                         lease
                             .connection
-                            .send_request(
+                            .send_request_body(
                                 method.clone(),
                                 authority,
                                 target.clone(),
                                 sent_headers.clone(),
-                                body.clone(),
+                                body.take(),
                             )
                             .await,
                     )

@@ -4,13 +4,13 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use bytes::Bytes;
 use http::Method;
 use phantom_net::http1::{
     AbsoluteForm, Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm, RequestHeader,
-    validate_forward_request, validate_request,
+    validate_forward_request_body, validate_request_body,
 };
 use phantom_net::proxy::HttpsProxyConnector;
+use phantom_net::request::RequestBody;
 use tokio::sync::Mutex;
 use tracing::debug;
 
@@ -53,13 +53,23 @@ impl Http1Pool {
         target: OriginForm,
         absolute_target: AbsoluteForm,
         headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
+        body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
         if forwarded {
-            validate_forward_request(&method, &absolute_target, &headers, body.as_ref())
+            validate_forward_request_body(
+                &method,
+                &absolute_target,
+                &headers,
+                body.as_ref().map(RequestBody::metadata),
+            )
         } else {
-            validate_request(&method, &target, &headers, body.as_ref())
+            validate_request_body(
+                &method,
+                &target,
+                &headers,
+                body.as_ref().map(RequestBody::metadata),
+            )
         }
         .map_err(Http1TlsError::from)
         .map_err(RequestError::http1)?;
@@ -90,12 +100,12 @@ impl Http1Pool {
                     Ok(if forwarded {
                         lease
                             .connection
-                            .send_forward_request(method, absolute_target, headers, body)
+                            .send_forward_request_body(method, absolute_target, headers, body)
                             .await
                     } else {
                         lease
                             .connection
-                            .send_request(method, target, headers, body)
+                            .send_request_body(method, target, headers, body)
                             .await
                     })
                 },

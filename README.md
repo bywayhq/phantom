@@ -114,14 +114,18 @@ and bounded redirect policy still apply, but the selected connection is not
 retained in an exact-protocol pool. `ResponseInfo::protocol` reports the
 protocol that produced every ordinary response.
 `get` is convenience sugar for `request` with `Method::GET`; ordinary
-non-CONNECT methods may carry one finite owned byte body. Phantom validates a
-caller-supplied `Content-Length` exactly or appends one for a non-empty body.
-Streaming uploads and a configurable general retry policy remain unavailable.
+non-CONNECT methods may carry an owned byte body or a pull-driven
+`http_body::Body<Data = Bytes>` through `streaming_body`. Phantom validates a
+caller-supplied `Content-Length` against exact size hints; unknown-length H1
+uploads use chunked transfer coding while H2 and H3 omit the field. Streams are
+one-shot and fail with `RequestErrorKind::RequestBody` before a body-preserving
+redirect or internal replay starts a second attempt. Replay factories, request
+trailers, and a configurable general retry policy remain unavailable.
 The client retries one bodyless H2 GET when `GOAWAY(NO_ERROR)` identifies it as
 unprocessed; the replacement keeps the same origin, route, protocol, and
 ordered fields. Redirects are an explicit client policy configured with
 `RedirectPolicy::limited`; they keep the selected protocol and route, apply a
-finite hop budget, and replay only the current owned byte body. Every
+finite hop budget, and replay only owned byte bodies. Every
 successful response includes `OrderedResponseHeaders` and `ResponseInfo` in
 its extensions; the ordinary `HeaderMap` remains the normalized semantic view.
 The ordered view retains

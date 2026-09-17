@@ -6,6 +6,7 @@ use phantom_net::{
     http2::{Http2Error, Http2TlsError},
     http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
     proxy::HttpConnectError,
+    request::RequestBodyError,
 };
 use phantom_profile::{InvalidClientHintSettings, InvalidTlsSettings};
 
@@ -230,6 +231,8 @@ pub enum RequestErrorKind {
     InvalidTimeout,
     /// A named request phase exhausted its configured time budget.
     Timeout,
+    /// A caller-provided body failed or could not be replayed safely.
+    RequestBody,
     /// TLS setup or negotiation failed.
     Tls,
     /// HTTP/1 request or response processing failed.
@@ -319,6 +322,13 @@ impl RequestError {
         Self::without_source(
             RequestErrorKind::Redirect,
             "redirect following is not yet supported for plaintext forwarding",
+        )
+    }
+
+    pub(crate) fn request_body_not_replayable() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestBody,
+            "one-shot request body cannot be replayed for another wire attempt",
         )
     }
 
@@ -450,28 +460,33 @@ impl RequestError {
     }
 
     pub(crate) fn http1(source: Http1TlsError) -> Self {
-        let kind = match &source {
-            Http1TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
-            Http1TlsError::Connect(_) => RequestErrorKind::Connect,
-            Http1TlsError::ForwardProxyConnect(_) => RequestErrorKind::Proxy,
-            Http1TlsError::Proxy(error)
-                if error.kind() == phantom_net::proxy::HttpConnectErrorKind::RuntimeUnavailable =>
-            {
-                RequestErrorKind::RuntimeUnavailable
+        let kind = if error_chain_contains_request_body(&source) {
+            RequestErrorKind::RequestBody
+        } else {
+            match &source {
+                Http1TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+                Http1TlsError::Connect(_) => RequestErrorKind::Connect,
+                Http1TlsError::ForwardProxyConnect(_) => RequestErrorKind::Proxy,
+                Http1TlsError::Proxy(error)
+                    if error.kind()
+                        == phantom_net::proxy::HttpConnectErrorKind::RuntimeUnavailable =>
+                {
+                    RequestErrorKind::RuntimeUnavailable
+                }
+                Http1TlsError::Socks5Proxy(error)
+                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
+                {
+                    RequestErrorKind::RuntimeUnavailable
+                }
+                Http1TlsError::Socks5Proxy(error)
+                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
+                {
+                    RequestErrorKind::Resolve
+                }
+                Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
+                Http1TlsError::Tls(_) => RequestErrorKind::Tls,
+                _ => RequestErrorKind::Http1,
             }
-            Http1TlsError::Socks5Proxy(error)
-                if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
-            {
-                RequestErrorKind::RuntimeUnavailable
-            }
-            Http1TlsError::Socks5Proxy(error)
-                if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
-            {
-                RequestErrorKind::Resolve
-            }
-            Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
-            Http1TlsError::Tls(_) => RequestErrorKind::Tls,
-            _ => RequestErrorKind::Http1,
         };
         Self::with_source(
             kind,
@@ -482,27 +497,32 @@ impl RequestError {
     }
 
     pub(crate) fn http2(source: Http2TlsError) -> Self {
-        let kind = match &source {
-            Http2TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
-            Http2TlsError::Connect(_) => RequestErrorKind::Connect,
-            Http2TlsError::Proxy(error)
-                if error.kind() == phantom_net::proxy::HttpConnectErrorKind::RuntimeUnavailable =>
-            {
-                RequestErrorKind::RuntimeUnavailable
+        let kind = if error_chain_contains_request_body(&source) {
+            RequestErrorKind::RequestBody
+        } else {
+            match &source {
+                Http2TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+                Http2TlsError::Connect(_) => RequestErrorKind::Connect,
+                Http2TlsError::Proxy(error)
+                    if error.kind()
+                        == phantom_net::proxy::HttpConnectErrorKind::RuntimeUnavailable =>
+                {
+                    RequestErrorKind::RuntimeUnavailable
+                }
+                Http2TlsError::Socks5Proxy(error)
+                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
+                {
+                    RequestErrorKind::RuntimeUnavailable
+                }
+                Http2TlsError::Socks5Proxy(error)
+                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
+                {
+                    RequestErrorKind::Resolve
+                }
+                Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
+                Http2TlsError::Tls(_) => RequestErrorKind::Tls,
+                _ => RequestErrorKind::Http2,
             }
-            Http2TlsError::Socks5Proxy(error)
-                if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
-            {
-                RequestErrorKind::RuntimeUnavailable
-            }
-            Http2TlsError::Socks5Proxy(error)
-                if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
-            {
-                RequestErrorKind::Resolve
-            }
-            Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
-            Http2TlsError::Tls(_) => RequestErrorKind::Tls,
-            _ => RequestErrorKind::Http2,
         };
         Self::with_source(
             kind,
@@ -555,14 +575,18 @@ impl RequestError {
     }
 
     pub(crate) fn http3(source: Http3ConnectorError) -> Self {
-        let kind = match source.kind() {
-            Http3ConnectorErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
-            Http3ConnectorErrorKind::Resolve => RequestErrorKind::Resolve,
-            Http3ConnectorErrorKind::Endpoint | Http3ConnectorErrorKind::Connect => {
-                RequestErrorKind::Connect
+        let kind = if error_chain_contains_request_body(&source) {
+            RequestErrorKind::RequestBody
+        } else {
+            match source.kind() {
+                Http3ConnectorErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+                Http3ConnectorErrorKind::Resolve => RequestErrorKind::Resolve,
+                Http3ConnectorErrorKind::Endpoint | Http3ConnectorErrorKind::Connect => {
+                    RequestErrorKind::Connect
+                }
+                Http3ConnectorErrorKind::Handshake => RequestErrorKind::Tls,
+                _ => RequestErrorKind::Http3,
             }
-            Http3ConnectorErrorKind::Handshake => RequestErrorKind::Tls,
-            _ => RequestErrorKind::Http3,
         };
         Self::with_source(
             kind,
@@ -641,6 +665,17 @@ impl RequestError {
     pub fn timeout_phase(&self) -> Option<TimeoutPhase> {
         self.timeout_phase
     }
+}
+
+fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {
+    let mut current = Some(error);
+    while let Some(error) = current {
+        if error.is::<RequestBodyError>() {
+            return true;
+        }
+        current = error.source();
+    }
+    false
 }
 
 impl fmt::Display for RequestError {

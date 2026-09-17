@@ -22,7 +22,7 @@ use crate::{
     http1::{
         AbsoluteForm, Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader,
         send_forward_request, send_forward_request_body, send_get, send_request, send_request_body,
-        validate_forward_request, validate_request,
+        validate_forward_request, validate_request, validate_request_body,
     },
     request::RequestBody,
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
@@ -417,6 +417,12 @@ fn validates_content_length_and_transfer_framing() -> TestResult {
         Err(Http1Error::ConnectionNominatesCriticalField { index: 1 })
     ));
     validate_request(
+        &Method::POST,
+        &request_target,
+        &[host(), RequestHeader::new("Content-Length", "0")],
+        None,
+    )?;
+    validate_request_body(
         &Method::POST,
         &request_target,
         &[host(), RequestHeader::new("Content-Length", "0")],

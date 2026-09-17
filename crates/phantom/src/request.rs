@@ -1,10 +1,11 @@
-use std::fmt;
+use std::{error::Error as StdError, fmt};
 
 use bytes::Bytes;
 use http::{Method, Response, Uri};
+use http_body::Body;
 use phantom_net::{
     http1::{AbsoluteForm, OriginForm},
-    request::RequestHeader,
+    request::{RequestBody, RequestHeader},
 };
 use tracing::{Instrument, Span, debug, debug_span, field};
 
@@ -26,7 +27,7 @@ pub struct RequestBuilder {
     selection: ProtocolSelection,
     method: Method,
     headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
+    body: RequestBodySource,
     route: Option<Route>,
     timeouts: Option<RequestTimeouts>,
     response_body_timeouts: bool,
@@ -39,7 +40,8 @@ impl fmt::Debug for RequestBuilder {
             .field("protocol_selection", &self.selection)
             .field("method", &self.method)
             .field("header_count", &self.headers.len())
-            .field("body_len", &self.body.as_ref().map_or(0, Bytes::len))
+            .field("body_kind", &self.body.trace_kind())
+            .field("body_len", &self.body.exact_length())
             .field("route_override", &self.route.is_some())
             .field("timeout_override", &self.timeouts.is_some())
             .finish_non_exhaustive()
@@ -95,7 +97,7 @@ impl RequestBuilder {
             selection,
             method,
             headers: Vec::new(),
-            body: None,
+            body: RequestBodySource::Absent,
             route: None,
             timeouts: None,
             response_body_timeouts: true,
@@ -120,7 +122,28 @@ impl RequestBuilder {
     /// caller did not supply one. Caller-supplied lengths must be canonical
     /// and exact.
     pub fn body(mut self, body: impl Into<Bytes>) -> Self {
-        self.body = Some(body.into());
+        self.body = RequestBodySource::Bytes(body.into());
+        self
+    }
+
+    /// Sets one pull-driven request body consumed by at most one wire attempt.
+    ///
+    /// Data frames are streamed with transport backpressure and are never
+    /// collected into a complete body. The initial exact size hint, when
+    /// present, controls `Content-Length` and is enforced while the body is
+    /// read. Unknown-length HTTP/1.1 bodies use chunked transfer coding;
+    /// HTTP/2 and HTTP/3 omit `Content-Length`.
+    ///
+    /// This body is not replayable. A redirect, client-hint retry, or other
+    /// policy that requires a second body-bearing attempt returns a typed
+    /// request-body error before starting that attempt. Request trailers are
+    /// rejected until Phantom exposes an ordered trailer representation.
+    pub fn streaming_body<B>(mut self, body: B) -> Self
+    where
+        B: Body<Data = Bytes> + Send + 'static,
+        B::Error: StdError + Send + Sync + 'static,
+    {
+        self.body = RequestBodySource::Streaming(Some(RequestBody::streaming(body)));
         self
     }
 
@@ -178,7 +201,8 @@ impl RequestBuilder {
         let span = debug_span!(
             "client.request",
             method = %self.method,
-            body_bytes = self.body.as_ref().map_or(0, Bytes::len),
+            body_bytes = self.body.exact_length(),
+            body_kind = self.body.trace_kind(),
             protocol = self.selection.trace_name(),
             selected_protocol = field::Empty,
             route = route.request_trace_name(self.request.uri.scheme_str()),
@@ -243,6 +267,7 @@ impl RequestBuilder {
         }
 
         if policy.max_hops().is_none() {
+            let mut body = body;
             let outcome = send_once(
                 &client,
                 &request,
@@ -250,7 +275,7 @@ impl RequestBuilder {
                 AttemptRequest {
                     method,
                     headers: request_headers,
-                    body,
+                    body: &mut body,
                 },
                 route,
                 request_span,
@@ -282,7 +307,7 @@ impl RequestBuilder {
                 AttemptRequest {
                     method: redirect.method().clone(),
                     headers: redirect.headers().to_vec(),
-                    body: redirect.body().cloned(),
+                    body: redirect.body_mut(),
                 },
                 route,
                 request_span,
@@ -320,6 +345,53 @@ impl RequestBuilder {
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
                 }
             }
+        }
+    }
+}
+
+pub(crate) enum RequestBodySource {
+    Absent,
+    Bytes(Bytes),
+    Streaming(Option<RequestBody>),
+}
+
+impl RequestBodySource {
+    pub(crate) fn next_attempt(&mut self) -> Result<Option<RequestBody>, RequestError> {
+        match self {
+            Self::Absent => Ok(None),
+            Self::Bytes(body) => Ok(Some(RequestBody::from_bytes(body.clone()))),
+            Self::Streaming(body) => body
+                .take()
+                .map(Some)
+                .ok_or_else(RequestError::request_body_not_replayable),
+        }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        *self = Self::Absent;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn replayable_bytes(&self) -> Option<&Bytes> {
+        match self {
+            Self::Bytes(body) => Some(body),
+            Self::Absent | Self::Streaming(_) => None,
+        }
+    }
+
+    fn exact_length(&self) -> Option<u64> {
+        match self {
+            Self::Absent | Self::Streaming(None) => None,
+            Self::Bytes(body) => Some(body.len() as u64),
+            Self::Streaming(Some(body)) => body.metadata().exact_length(),
+        }
+    }
+
+    const fn trace_kind(&self) -> &'static str {
+        match self {
+            Self::Absent => "absent",
+            Self::Bytes(_) => "bytes",
+            Self::Streaming(_) => "stream",
         }
     }
 }
@@ -495,8 +567,28 @@ impl Drop for RequestOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::{ProtocolSelection, ResolvedRequest, ensure_request_supported};
+    use bytes::Bytes;
+    use phantom_net::request::RequestBody;
+
+    use super::{ProtocolSelection, RequestBodySource, ResolvedRequest, ensure_request_supported};
     use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
+
+    #[test]
+    fn streaming_body_cannot_be_replayed_for_a_second_attempt() {
+        let mut body = RequestBodySource::Streaming(Some(RequestBody::from_bytes(
+            Bytes::from_static(b"payload"),
+        )));
+
+        assert!(
+            body.next_attempt()
+                .expect("first attempt is available")
+                .is_some()
+        );
+        let error = body
+            .next_attempt()
+            .expect_err("second attempt must reject a consumed stream");
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+    }
 
     #[test]
     fn tcp_proxy_routes_reject_http3_without_network_io() -> Result<(), Box<dyn std::error::Error>>

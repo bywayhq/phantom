@@ -101,7 +101,8 @@ caller enables it.
 The named limits are pool admission, connection setup, response head,
 response-body read inactivity, and total operation time. Connection setup
 includes DNS, proxy, TLS or QUIC, and protocol startup. Response-head time
-includes sending the current owned byte body. The total deadline spans
+includes sending the current request body. A separate write-idle phase is not
+yet exposed. The total deadline spans
 redirects, bounded internal replays, and the final ordinary body. Errors expose
 both `RequestErrorKind::Timeout` and the exact `TimeoutPhase`; unrepresentable
 durations fail before network I/O.

@@ -233,10 +233,14 @@ async fn exchange(
             }
             response
         }
-        upload = &mut upload => {
-            match upload {
+        upload_result = &mut upload => {
+            drop(upload);
+            match upload_result {
                 Ok(()) => response.await,
-                Err(UploadError::Body(error)) => Err(ResponseHeadError::RequestBody(error)),
+                Err(UploadError::Body(error)) => {
+                    send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
+                    Err(ResponseHeadError::RequestBody(error))
+                }
                 Err(UploadError::Stream(upload_error)) => match response.await {
                     Ok(response) => Ok(response),
                     Err(ResponseHeadError::Stream(_)) => {

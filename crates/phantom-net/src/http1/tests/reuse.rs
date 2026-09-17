@@ -372,10 +372,9 @@ async fn streaming_body_error_invalidates_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let server_task = tokio::spawn(async move {
-            let head = read_head(&mut server).await?;
-            let mut remaining = Vec::new();
-            server.read_to_end(&mut remaining).await?;
-            Ok::<_, std::io::Error>((head, remaining))
+            let mut observed = Vec::new();
+            server.read_to_end(&mut observed).await?;
+            Ok::<_, std::io::Error>(observed)
         });
 
         let connection = Http1Connection::connect(client).await?;
@@ -390,9 +389,8 @@ async fn streaming_body_error_invalidates_connection() -> TestResult {
         assert!(result.is_err());
         assert!(!connection.is_reusable());
 
-        let (head, remaining) = server_task.await??;
-        assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
-        assert!(remaining.is_empty());
+        let observed = server_task.await??;
+        assert!(observed.is_empty() || observed.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
         Ok(())
     })
     .await

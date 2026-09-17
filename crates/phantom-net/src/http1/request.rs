@@ -242,9 +242,10 @@ impl ValidatedHeaders {
         let mut total_bytes = 0usize;
         let mut host_count = 0usize;
         let mut content_length_index = None;
-        let expected_content_length = body
-            .and_then(RequestBodyMetadata::exact_length)
-            .map(|length| length.to_string());
+        let expected_content_length = match body {
+            None => Some(String::from("0")),
+            Some(metadata) => metadata.exact_length().map(|length| length.to_string()),
+        };
         let unknown_body = body.is_some_and(|metadata| metadata.exact_length().is_none());
         let mut semantic = Vec::with_capacity(headers.len());
         let mut ordered = Vec::with_capacity(headers.len());

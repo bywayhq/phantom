@@ -7,20 +7,24 @@ mod tls_support;
 mod tracing_support;
 
 use std::{
+    convert::Infallible,
     error::Error,
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
+    pin::Pin,
     task::{Context, Poll, Waker},
     time::Duration,
 };
 
-use http::{Response, StatusCode};
-use http_body_util::BodyExt;
+use bytes::Bytes;
+use http::{Method, Response, StatusCode};
+use http_body::{Body, Frame, SizeHint};
+use http_body_util::{BodyExt, Full};
 use phantom::profile::{ClientProfile, chromium};
 use phantom::{HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, ResponseInfo, Route};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
     time::timeout,
@@ -138,8 +142,97 @@ async fn negotiated_request_selects_http2_once() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn negotiated_http2_streams_unknown_length_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let stream = accept_tls_stream(tcp, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before the negotiated request")??;
+            let length = request.headers().get("content-length").cloned();
+            let mut incoming = request.into_body();
+            let mut body = Vec::new();
+            while let Some(chunk) = next_h2_request_data(&mut connection, &mut incoming).await? {
+                body.extend_from_slice(&chunk);
+                incoming.flow_control().release_capacity(chunk.len())?;
+            }
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((length, body))
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .request_negotiated(Method::POST, &format!("https://{address}/stream-upload"))?
+            .streaming_body(UnknownBody(Some(Bytes::from_static(b"payload"))))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http2);
+        response.into_body().collect().await?;
+
+        drop(client);
+        let (length, body) = server.await??;
+        assert!(length.is_none());
+        assert_eq!(body, b"payload");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn negotiated_request_selects_http1_once() -> TestResult<()> {
     negotiated_http1_case(true).await
+}
+
+#[tokio::test]
+async fn negotiated_http1_sends_streaming_request_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let mut stream = accept_tls_stream(tcp, acceptor).await?;
+            let head = read_head(&mut stream).await?;
+            let mut body = [0_u8; 7];
+            stream.read_exact(&mut body).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((head, body))
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .request_negotiated(Method::POST, &format!("https://{address}/stream-upload"))?
+            .streaming_body(Full::new(Bytes::from_static(b"payload")))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+        response.into_body().collect().await?;
+
+        let (head, body) = server.await??;
+        assert!(head.starts_with(b"POST /stream-upload HTTP/1.1\r\n"));
+        assert!(head.ends_with(b"Content-Length: 7\r\n\r\n"));
+        assert_eq!(&body, b"payload");
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test]
@@ -427,6 +520,45 @@ fn response_protocol(response: &http::Response<phantom::ResponseBody>) -> TestRe
         .get::<ResponseInfo>()
         .map(ResponseInfo::protocol)
         .ok_or_else(|| "response omitted facade metadata".into())
+}
+
+struct UnknownBody(Option<Bytes>);
+
+impl Body for UnknownBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.0.take().map(Frame::data).map(Ok))
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
+}
+
+async fn next_h2_request_data<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+    body: &mut ::http2::RecvStream,
+) -> TestResult<Option<Bytes>>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    poll_fn(|context| {
+        if let Poll::Ready(item) = body.poll_data(context) {
+            return Poll::Ready(item.transpose());
+        }
+        match connection.poll_closed(context) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
+    .map_err(Into::into)
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>

@@ -1,8 +1,8 @@
 use std::{collections::VecDeque, num::NonZeroUsize, sync::Arc};
 
-use bytes::Bytes;
 use http::Method;
 use phantom_net::http3::{Http3Connection, Http3Connector, OriginForm, RequestHeader};
+use phantom_net::request::RequestBody;
 use tokio::sync::Mutex;
 use tracing::debug;
 
@@ -57,19 +57,19 @@ impl Http3Pool {
         target: OriginForm,
         headers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
-        body: Option<Bytes>,
+        body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
         connector
-            .validate_request(
+            .validate_request_body(
                 method.clone(),
                 authority,
                 &target,
                 validation_headers,
-                body.as_ref(),
+                body.as_ref().map(RequestBody::metadata),
             )
             .map_err(RequestError::http3)?;
         if !matches!(route, Route::Direct) {
@@ -104,7 +104,7 @@ impl Http3Pool {
                 async {
                     Ok::<_, RequestError>(
                         connector
-                            .send_request_on(
+                            .send_request_body_on(
                                 &lease.connection,
                                 method,
                                 authority,
