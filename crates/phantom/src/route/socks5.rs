@@ -45,6 +45,7 @@ impl Socks5Proxy {
         let uri = parse_absolute_uri(uri).map_err(|error| match error {
             ParseUriError::Syntax(error) => Socks5ProxyConfigError::invalid_uri(error),
             ParseUriError::Authority(error) => Socks5ProxyConfigError::authority(error.message()),
+            ParseUriError::Fragment => Socks5ProxyConfigError::unexpected_path(),
         })?;
         let dns_mode = match uri.scheme_str() {
             Some("socks5") => Socks5DnsMode::Local,

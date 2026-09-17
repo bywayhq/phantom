@@ -30,13 +30,17 @@ println!("{}", response.status());
 ## Current routes
 
 - `Route::Direct` opens the origin TCP or UDP path directly.
-- `Route::HttpConnect` accepts `http://` and `https://` proxy URIs. HTTPS first
-  authenticates the proxy with its own roots and hostname, then sends the same
-  ordered HTTP/1.1 CONNECT request before the independent origin TLS handshake.
-  The profile's TLS recipe is used unchanged for the outer handshake; a proxy
-  selecting `h2` is rejected because H2 proxy transport is not implemented.
-  Optional HTTP Basic credentials use challenge-response negotiation rather
-  than a preemptive field.
+- `Route::HttpProxy` accepts `http://` and `https://` proxy URIs.
+  `Route::http_proxy` is the preferred constructor; `Route::http_connect`
+  remains an equivalent constructor for CONNECT-oriented call sites. An exact HTTP/1.1 request to
+  an `http://` origin through a plaintext proxy uses absolute-form forwarding.
+  HTTPS origins use CONNECT. An HTTPS proxy first authenticates the proxy with
+  its own roots and hostname, then sends the ordered HTTP/1.1 CONNECT request
+  before the independent origin TLS handshake. The profile's TLS recipe is
+  used unchanged for the outer handshake; a proxy selecting `h2` is rejected
+  because H2 proxy transport is not implemented. Optional HTTP Basic
+  credentials currently apply only to CONNECT and make plaintext forwarding
+  unsupported rather than being silently ignored.
 - `Route::Socks5` uses `socks5://` for locally resolved origin names and
   `socks5h://` for proxy-resolved origin names. Local DNS sends an ordered IP
   candidate as a SOCKS address; remote DNS sends the original domain. The
@@ -59,8 +63,40 @@ invalid lengths before DNS or network I/O. Credentials are owned by the route,
 included in route and pool identity, and omitted from debug output, errors,
 and traces. Wire tests use synthetic marker credentials.
 
-HTTP/2 proxy transport, forwarding, custom resolvers, non-Basic HTTP
+Forwarding through an HTTPS proxy, forwarding authentication, forwarding
+redirects, HTTP/2 proxy transport, custom resolvers, non-Basic HTTP
 authentication, GSSAPI, UDP ASSOCIATE, and H3 proxying are not supported.
+
+## HTTP/1.1 forwarding
+
+```rust,no_run
+use phantom::{Client, HttpProtocol, HttpProxy, Route};
+use phantom::profile::{ClientProfile, chromium};
+
+# async fn example() -> Result<(), Box<dyn std::error::Error>> {
+let profile = ClientProfile::new(chromium::v152_macos_tls());
+let route = Route::http_proxy(HttpProxy::new("http://127.0.0.1:8080")?);
+let client = Client::builder(profile).route(route).build()?;
+
+let response = client
+    .get(HttpProtocol::Http1, "http://example.com/resource")?
+    .send()
+    .await?;
+# Ok(())
+# }
+```
+
+The origin authority is canonicalized once and used for both the absolute
+request target and leading `Host` field. Caller field casing, order, and
+duplicates remain preserved. A bare client opens one proxy connection per
+request; a session reuses a completed same-origin, same-route connection
+without pipelining. Origin and route remain pool-key inputs even though some
+proxies could serve multiple origins on one connection.
+
+Direct plaintext HTTP, negotiated H1/H2, H2, H3, proxy credentials,
+`Proxy-Authorization`, proxy TLS, and enabled redirect policy are rejected
+before proxy I/O. Plaintext responses cannot generate, negotiate, or persist
+Client Hints; explicitly supplied ordinary fields remain caller-owned.
 
 ## HTTP Basic CONNECT authentication
 
@@ -72,7 +108,7 @@ use phantom::{HttpProxy, Route};
 # fn example() -> Result<Route, Box<dyn std::error::Error>> {
 let proxy = HttpProxy::new("https://proxy.example:8443")?
     .with_basic_auth("proxy-user", "proxy-password")?;
-let route = Route::http_connect(proxy);
+let route = Route::http_proxy(proxy);
 # Ok(route)
 # }
 ```

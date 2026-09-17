@@ -370,6 +370,17 @@ SOCKS5, pool keys, cookies, redirects, and client-hint origin state. Direct H1
 and H3 plus H1/H2 CONNECT and SOCKS5H fixtures prove the emitted canonical
 authority; equivalent Unicode and ASCII inputs share session state and reuse.
 
+The plaintext HTTP forwarding slice is landed for exact HTTP/1.1 through a
+plaintext `HttpProxy`. The canonical absolute-form target and leading `Host`
+share one authority, while caller field spelling, order, duplicates, and owned
+body framing remain unchanged. Bare clients stay one-shot; sessions reuse only
+same-origin, same-route connections and retain the existing no-pipelining
+contract. Direct HTTP, proxy TLS, forwarding credentials and redirects,
+negotiated H1/H2, H2, H3, and caller `Proxy-Authorization` fail before proxy
+I/O. Plaintext responses neither receive generated Client Hints nor seed
+`Accept-CH` state. Low-level validation also rejects a `Connection` field that
+names `Host` or a framing field.
+
 HTTP/1 response parsing now owns fixed aggregate-head, field-count, and
 chunk-size-line limits. Exact-boundary regressions prove acceptance at each
 ceiling, typed overflow, and connection discard for ordinary and rejected

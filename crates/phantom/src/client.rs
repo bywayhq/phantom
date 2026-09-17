@@ -15,7 +15,7 @@ use crate::{WebSocketError, WebSocketRequestBuilder};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum HttpProtocol {
-    /// HTTP/1.1 over TLS.
+    /// HTTP/1.1 over TLS or plaintext forwarding to an HTTP proxy.
     Http1,
     /// HTTP/2 over TLS.
     Http2,
@@ -33,7 +33,7 @@ impl HttpProtocol {
     }
 }
 
-/// Immutable transport configuration for routed, exact-protocol HTTPS requests.
+/// Immutable transport configuration for routed, exact-protocol requests.
 ///
 /// Clones share validated protocol connectors but no mutable request state.
 /// Use [`Client::session`] when requests should share connections, cookies, or

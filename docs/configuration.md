@@ -38,11 +38,13 @@ The facade grows through three ordinary levels:
 
 - `ClientBuilder` currently owns one immutable profile, additive origin and
   HTTPS-proxy trust roots, independent authentication policies for those TLS
-  legs, and a default `Route` (`Direct`, HTTP/HTTPS CONNECT, or local-/remote-DNS
-  SOCKS5). Later slices add runtime services and pool limits only with their
-  implementations.
-- `RequestBuilder` currently owns an exact protocol, HTTPS target, and ordered
-  fields. It may own a route override; deadline and retry policy remain absent.
+  legs, and a default `Route` (`Direct`, HTTP forwarding or CONNECT, or
+  local-/remote-DNS SOCKS5). Later slices add runtime services and pool limits
+  only with their implementations.
+- `RequestBuilder` currently owns an exact protocol, an HTTP or HTTPS target,
+  and ordered fields. Plaintext HTTP is accepted only for exact H1 forwarding
+  through a plaintext HTTP proxy. It may own a route override; deadline and
+  retry policy remain absent.
 - `SessionBuilder` owns bounded connection reuse, optional cookies, bounded
   learned client-hint origins, and an opt-in finite redirect policy. Redirect
   attempts keep the exact selected protocol and route.
@@ -70,6 +72,14 @@ supports only `Route::Direct`; pairing it with either TCP-only proxy route is
 rejected before either proxy TCP or origin UDP is opened. The response body
 implements `http_body::Body` and retains the existing protocol cancellation
 behavior when dropped.
+
+For an HTTP origin and a plaintext `HttpProxy`, the H1 request instead uses an
+absolute-form target on the proxy connection. The same canonical URI authority
+produces the leading `Host` field. Forwarding is one-shot for a bare client and
+same-origin/same-route reusable for a session. Direct HTTP, proxy TLS,
+forwarding credentials, redirects, H2/H3, and negotiated H1/H2 are rejected
+before I/O. Plaintext responses neither receive generated Client Hints nor
+seed the session's `Accept-CH` state.
 
 Absolute request, WebSocket, HTTP-proxy, and SOCKS5-proxy URIs pass through one
 WHATWG host parser before endpoint construction. The resulting ASCII authority

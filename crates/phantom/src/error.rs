@@ -206,6 +206,8 @@ pub enum RequestErrorKind {
     InvalidAuthority,
     /// A caller supplied an authority field owned by the facade.
     AuthorityHeader,
+    /// A request field is not valid for the selected operation.
+    InvalidHeader,
     /// The selected protocol is absent from the client profile.
     ProtocolUnavailable,
     /// The selected route cannot carry the requested protocol.
@@ -308,10 +310,17 @@ impl RequestError {
         Self::without_source(RequestErrorKind::Redirect, "redirect limit was exhausted")
     }
 
+    pub(crate) fn forward_redirect_policy() -> Self {
+        Self::without_source(
+            RequestErrorKind::Redirect,
+            "redirect following is not yet supported for plaintext forwarding",
+        )
+    }
+
     pub(crate) fn unsupported_scheme() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedScheme,
-            "request URI must use HTTPS",
+            "request URI must use HTTPS unless HTTP/1.1 is sent through an HTTP forward proxy",
         )
     }
 
@@ -319,10 +328,24 @@ impl RequestError {
         Self::without_source(RequestErrorKind::InvalidAuthority, message)
     }
 
+    pub(crate) fn fragment_target() -> Self {
+        Self::without_source(
+            RequestErrorKind::InvalidTarget,
+            "request URI must not contain a fragment",
+        )
+    }
+
     pub(crate) fn authority_header() -> Self {
         Self::without_source(
             RequestErrorKind::AuthorityHeader,
             "Host is derived from the request URI and must not be supplied as a request field",
+        )
+    }
+
+    pub(crate) fn forward_proxy_authorization_header() -> Self {
+        Self::without_source(
+            RequestErrorKind::InvalidHeader,
+            "Proxy-Authorization is not supported for plaintext forwarding",
         )
     }
 
@@ -376,10 +399,22 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn invalid_absolute_target(
+        source: phantom_net::request::InvalidAbsoluteForm,
+    ) -> Self {
+        Self::with_source(
+            RequestErrorKind::InvalidTarget,
+            None,
+            "invalid absolute-form request target",
+            source,
+        )
+    }
+
     pub(crate) fn http1(source: Http1TlsError) -> Self {
         let kind = match &source {
             Http1TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
             Http1TlsError::Connect(_) => RequestErrorKind::Connect,
+            Http1TlsError::ForwardProxyConnect(_) => RequestErrorKind::Proxy,
             Http1TlsError::Proxy(error)
                 if error.kind() == phantom_net::proxy::HttpConnectErrorKind::RuntimeUnavailable =>
             {

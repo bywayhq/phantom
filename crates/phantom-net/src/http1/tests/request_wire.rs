@@ -19,8 +19,8 @@ use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
     http1::{
-        Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader, send_get,
-        send_request, validate_request,
+        AbsoluteForm, Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader,
+        send_forward_request, send_get, send_request, validate_forward_request, validate_request,
     },
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
@@ -92,6 +92,41 @@ async fn writes_method_body_and_generated_content_length() -> TestResult {
         assert_eq!(
             head,
             b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-length\r\nContent-Length: 7\r\n\r\n"
+        );
+        let mut body = [0_u8; 7];
+        server.read_exact(&mut body).await?;
+        assert_eq!(&body, b"payload");
+
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn forwarding_writes_exact_absolute_target_and_ordered_fields() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let transaction = tokio::spawn(send_forward_request(
+            client,
+            Method::POST,
+            AbsoluteForm::parse("http://example.test:8080/resource?item=1")?,
+            vec![
+                RequestHeader::new("Host", "example.test:8080"),
+                RequestHeader::new("X-First", "one"),
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("X-Repeat", "beta"),
+            ],
+            Some(Bytes::from_static(b"payload")),
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST http://example.test:8080/resource?item=1 HTTP/1.1\r\nHost: example.test:8080\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\nContent-Length: 7\r\n\r\n"
         );
         let mut body = [0_u8; 7];
         server.read_exact(&mut body).await?;
@@ -189,6 +224,29 @@ fn validates_content_length_and_transfer_framing() -> TestResult {
         validate_request(&Method::CONNECT, &request_target, &[host()], None),
         Err(Http1Error::ConnectUnsupported)
     ));
+    for value in ["host", "Content-Length", "transfer-encoding"] {
+        assert!(matches!(
+            validate_request(
+                &Method::GET,
+                &request_target,
+                &[host(), RequestHeader::new("Connection", value)],
+                None,
+            ),
+            Err(Http1Error::ConnectionNominatesCriticalField { index: 1 })
+        ));
+    }
+    assert!(matches!(
+        validate_request(
+            &Method::GET,
+            &request_target,
+            &[
+                host(),
+                RequestHeader::new("Connection", b"content-length,\xff"),
+            ],
+            None,
+        ),
+        Err(Http1Error::ConnectionNominatesCriticalField { index: 1 })
+    ));
     validate_request(
         &Method::POST,
         &request_target,
@@ -233,6 +291,40 @@ async fn invalid_content_length_never_touches_the_stream() -> TestResult {
     assert!(matches!(
         result,
         Err(Http1Error::InvalidContentLength { .. })
+    ));
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn mismatched_forward_host_never_touches_the_stream() -> TestResult {
+    let writes = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let target = AbsoluteForm::parse("http://example.test/resource")?;
+    assert!(matches!(
+        validate_forward_request(
+            &Method::GET,
+            &target,
+            &[RequestHeader::new("Host", "other.test")],
+            None,
+        ),
+        Err(Http1Error::MismatchedHost { index: 0 })
+    ));
+
+    let result = send_forward_request(
+        WriteCountingStream {
+            inner: client,
+            writes: Arc::clone(&writes),
+        },
+        Method::GET,
+        target,
+        vec![RequestHeader::new("Host", "other.test")],
+        None,
+    )
+    .await;
+    assert!(matches!(
+        result,
+        Err(Http1Error::MismatchedHost { index: 0 })
     ));
     assert_eq!(writes.load(Ordering::SeqCst), 0);
     Ok(())

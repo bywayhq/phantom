@@ -102,7 +102,8 @@ disabled, and QUIC resumption is separate future work.
 ## Pool boundary
 
 One session retains at most one current H1, H2, or H3 connection for each
-canonical host, port, and complete route value. Because the session owns one
+canonical host, port, complete route value, and forwarding/tunnel mode. Because
+the session owns one
 immutable client, the wire profile, trust roots, and protocol are structural
 parts of the boundary. Different origins, routes, ordered CONNECT fields,
 clients, and sessions never share a connection. Cross-origin coalescing is

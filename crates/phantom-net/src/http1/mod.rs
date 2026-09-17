@@ -18,7 +18,7 @@ use upgrade::send_prepared_upgrade;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
-pub use crate::request::{OriginForm, RequestHeader};
+pub use crate::request::{AbsoluteForm, InvalidAbsoluteForm, OriginForm, RequestHeader};
 pub use body::Http1Body;
 pub use connection::Http1Connection;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
@@ -72,6 +72,16 @@ pub enum Http1Error {
     MissingHost,
     /// More than one `Host` field was supplied.
     MultipleHost,
+    /// `Host` did not match the authority in an absolute-form target.
+    MismatchedHost {
+        /// Position of the mismatched `Host` field.
+        index: usize,
+    },
+    /// `Connection` nominated an authority or framing field for removal.
+    ConnectionNominatesCriticalField {
+        /// Position of the invalid `Connection` field.
+        index: usize,
+    },
     /// Standard CONNECT cannot be represented by an origin-form target.
     ConnectUnsupported,
     /// A transfer-coding field was supplied, or framing was added to Upgrade.
@@ -144,6 +154,14 @@ impl fmt::Display for Http1Error {
             Self::MultipleHost => {
                 formatter.write_str("request must not contain more than one Host header")
             }
+            Self::MismatchedHost { index } => write!(
+                formatter,
+                "request Host header at index {index} does not match the absolute-form authority"
+            ),
+            Self::ConnectionNominatesCriticalField { index } => write!(
+                formatter,
+                "request Connection header at index {index} names Host or a framing field"
+            ),
             Self::ConnectUnsupported => {
                 formatter.write_str("HTTP/1 CONNECT requires an authority-form request API")
             }
@@ -206,6 +224,8 @@ impl Http1Error {
             Self::InvalidHeaderValue { .. } => "invalid_header_value",
             Self::MissingHost => "missing_host",
             Self::MultipleHost => "multiple_host",
+            Self::MismatchedHost { .. } => "mismatched_host",
+            Self::ConnectionNominatesCriticalField { .. } => "connection_nominates_critical_field",
             Self::ConnectUnsupported => "connect_unsupported",
             Self::RequestFramingHeader { .. } => "request_framing_header",
             Self::InvalidContentLength { .. } => "invalid_content_length",
@@ -276,6 +296,45 @@ where
     send_prepared_request(stream, prepared).await
 }
 
+/// Sends one HTTP/1.1 request with an absolute-form target over an
+/// already-connected forward-proxy stream.
+///
+/// The `Host` field must match the target authority. Validation completes
+/// before the supplied stream is touched.
+pub async fn send_forward_request<T>(
+    stream: T,
+    method: Method,
+    target: AbsoluteForm,
+    headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+) -> Result<Response<Http1Body>, Http1Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let body_bytes = body.as_ref().map_or(0, Bytes::len);
+    let has_body = body.is_some();
+    let span = debug_span!(
+        "http1.request.prepare",
+        method = %method,
+        protocol = "http/1.1",
+        body_bytes,
+        has_body,
+        outcome = field::Empty,
+        error_kind = field::Empty,
+    );
+    let outcome = OperationOutcome::new(&span);
+    let prepared = {
+        let _entered = span.enter();
+        PreparedRequest::new_forward(method, target, headers, body)
+    };
+    match &prepared {
+        Ok(_) => outcome.finish("ok"),
+        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
+    }
+    let prepared = prepared?;
+    send_prepared_request(stream, prepared).await
+}
+
 /// Validates an empty-body HTTP/1.1 GET without performing I/O.
 pub fn validate_get(target: &OriginForm, headers: &[RequestHeader]) -> Result<(), Http1Error> {
     validate_request(&Method::GET, target, headers, None)
@@ -289,6 +348,22 @@ pub fn validate_request(
     body: Option<&Bytes>,
 ) -> Result<(), Http1Error> {
     PreparedRequest::new(
+        method.clone(),
+        target.clone(),
+        headers.to_vec(),
+        body.cloned(),
+    )
+    .map(drop)
+}
+
+/// Validates an HTTP/1.1 absolute-form request without performing I/O.
+pub fn validate_forward_request(
+    method: &Method,
+    target: &AbsoluteForm,
+    headers: &[RequestHeader],
+    body: Option<&Bytes>,
+) -> Result<(), Http1Error> {
+    PreparedRequest::new_forward(
         method.clone(),
         target.clone(),
         headers.to_vec(),

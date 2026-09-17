@@ -29,8 +29,9 @@ order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
 small facade for exact H1, H2, or direct H3 requests, plus direct one-handshake
 H1/H2 ALPN selection for bare-client requests, additive private trust
-roots, typed direct, HTTP/HTTPS CONNECT, and local- or remote-DNS SOCKS5 routes
-with optional credentials, and one unified streaming response body. HTTP Basic
+roots, typed direct, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
+local- or remote-DNS SOCKS5 routes with optional credentials, and one unified
+streaming response body. HTTP Basic
 proxy credentials are sent only after a valid challenge on a fresh connection;
 SOCKS5 supports RFC 1929 username/password negotiation. HTTPS-proxy certificate
 policy and additive roots are independent from origin trust. CONNECT fields
@@ -50,9 +51,10 @@ single-response decoder and a finite, pull-driven session reconnect controller
 without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
 I/O through Phantom-owned types, including typed opt-in `permessage-deflate`.
-Other HTTP-proxy authentication schemes, forwarding, UDP-capable proxies,
-general retry policy, other WebSocket extensions, and extended CONNECT remain
-planned.
+Plaintext HTTP/1.1 forwarding is supported through the same HTTP-proxy route.
+Other HTTP-proxy authentication schemes, authenticated forwarding,
+UDP-capable proxies, general retry policy, other WebSocket extensions, and
+extended CONNECT remain planned.
 The project does not make broad client-compatibility claims.
 
 ## Principles
@@ -135,8 +137,9 @@ metadata. Use
 
 - `phantom`: the public exact-protocol client facade, direct one-shot H1/H2 ALPN
   selection, session-owned H1, H2, and H3 reuse,
-  direct routes, HTTP/HTTPS CONNECT and credential-capable local- or remote-DNS
-  SOCKS5 for H1/H2 and H1 WebSocket, opt-in bounded redirects,
+  direct routes, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
+  credential-capable local- or remote-DNS SOCKS5 for H1/H2 and H1 WebSocket,
+  opt-in bounded redirects,
   streaming responses, and optional bounded cookie and client-hint state, plus
   SSE and WebSocket capabilities
 - `phantom-profile`: browser-neutral profile identity, public typed TLS,

@@ -1,4 +1,4 @@
-//! HTTP/1.1 connections and one-shot requests over TLS.
+//! HTTP/1.1 connections and one-shot requests over TLS or a forward proxy.
 
 use std::future::Future;
 
@@ -9,8 +9,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome, OriginForm,
-    PreparedGet, PreparedRequest, RequestHeader, send_prepared_upgrade,
+    AbsoluteForm, Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome,
+    OriginForm, PreparedGet, PreparedRequest, RequestHeader, send_prepared_upgrade,
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
@@ -25,7 +25,7 @@ use crate::{
 pub use crate::tls::{ServerAuthentication, TlsError, TlsErrorKind};
 pub use error::Http1TlsError;
 
-/// A reusable TLS connector for HTTP/1.1 connections and GET requests.
+/// A reusable connector for profiled HTTP/1.1 TLS and proxy-forwarded requests.
 #[derive(Clone, Debug)]
 pub struct Http1TlsConnector {
     tls: TlsConnector,
@@ -182,6 +182,30 @@ impl Http1TlsConnector {
                 DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
             })?;
             let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_request(&connection, prepared).await
+        })
+        .await
+    }
+
+    /// Sends one absolute-form HTTP/1.1 request to a plaintext forward proxy.
+    ///
+    /// Request validation completes before DNS resolution or proxy I/O. The
+    /// proxy connection is plaintext and no direct-origin fallback is used.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_forward_proxy(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        method: Method,
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new_forward(method, target, headers, body)?;
+            let connection = self.connect_forward_proxy(proxy_host, proxy_port).await?;
             self.send_prepared_request(&connection, prepared).await
         })
         .await
@@ -583,6 +607,40 @@ impl Http1TlsConnector {
             self.connect_prepared(stream, server_name).await
         })
         .await
+    }
+
+    /// Opens one plaintext HTTP/1.1 connection to a forward proxy.
+    ///
+    /// This method performs no TLS handshake and never connects directly to
+    /// the origin.
+    pub async fn connect_forward_proxy(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        let span = debug_span!(
+            "http1.proxy.connect",
+            transport = "tcp",
+            proxy_kind = "forward",
+            outcome = field::Empty,
+        );
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            let stream =
+                connect_tcp(proxy_host, proxy_port)
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => {
+                            Http1TlsError::ForwardProxyConnect(error)
+                        }
+                    })?;
+            Http1Connection::connect(stream).await.map_err(Into::into)
+        }
+        .instrument(span.clone())
+        .await;
+        outcome.finish(connection_outcome(&result));
+        result
     }
 
     /// Opens one HTTP CONNECT tunnel and establishes HTTP/1.1 over TLS.
@@ -1177,7 +1235,11 @@ impl Http1TlsConnector {
             Ok(_) => "ok",
             Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http1TlsError::Connect(_)) => "connect_error",
-            Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
+            Err(
+                Http1TlsError::ForwardProxyConnect(_)
+                | Http1TlsError::Proxy(_)
+                | Http1TlsError::Socks5Proxy(_),
+            ) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
             Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
                 "http_protocol_error"
@@ -1219,7 +1281,11 @@ impl Http1TlsConnector {
             Ok(Http1UpgradeOutcome::Rejected(_)) => "rejected",
             Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http1TlsError::Connect(_)) => "connect_error",
-            Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
+            Err(
+                Http1TlsError::ForwardProxyConnect(_)
+                | Http1TlsError::Proxy(_)
+                | Http1TlsError::Socks5Proxy(_),
+            ) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
             Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
                 "http_protocol_error"
@@ -1248,7 +1314,11 @@ fn connection_outcome(result: &Result<Http1Connection, Http1TlsError>) -> &'stat
         Ok(_) => "ok",
         Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
         Err(Http1TlsError::Connect(_)) => "connect_error",
-        Err(Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_)) => "proxy_error",
+        Err(
+            Http1TlsError::ForwardProxyConnect(_)
+            | Http1TlsError::Proxy(_)
+            | Http1TlsError::Socks5Proxy(_),
+        ) => "proxy_error",
         Err(Http1TlsError::Tls(_)) => "tls_error",
         Err(Http1TlsError::Http1(_)) => "http_protocol_error",
         Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",

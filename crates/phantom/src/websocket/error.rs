@@ -105,9 +105,9 @@ impl WebSocketError {
             }
             RequestErrorKind::UnsupportedScheme => WebSocketErrorKind::UnsupportedScheme,
             RequestErrorKind::InvalidAuthority => WebSocketErrorKind::InvalidAuthority,
-            RequestErrorKind::AuthorityHeader | RequestErrorKind::Redirect => {
-                WebSocketErrorKind::InvalidRequest
-            }
+            RequestErrorKind::AuthorityHeader
+            | RequestErrorKind::InvalidHeader
+            | RequestErrorKind::Redirect => WebSocketErrorKind::InvalidRequest,
             RequestErrorKind::ProtocolUnavailable | RequestErrorKind::UnsupportedRoute => {
                 WebSocketErrorKind::ProtocolUnavailable
             }

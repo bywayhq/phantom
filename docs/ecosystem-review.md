@@ -106,8 +106,9 @@ The issue histories show proxy correctness is cross-cutting:
 - `wreq` replaced serialization-derived pool IDs with owned configuration IDs
   after [issue 1086](https://github.com/0x676e67/wreq/issues/1086).
 
-Phantom makes direct, HTTP/HTTPS CONNECT, and local-/remote-DNS SOCKS5 owned,
-typed choices at the client or request boundary. HTTPS proxy authentication
+Phantom makes direct, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
+local-/remote-DNS SOCKS5 owned, typed choices at the client or request
+boundary. HTTPS proxy authentication
 and ticket state are isolated from the origin. CONNECT fields are ordered,
 request validation occurs before opening the proxy socket, and proxy failure
 never falls back to a direct connection. The HTTP tunnel wrapper also

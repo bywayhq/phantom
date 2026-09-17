@@ -25,6 +25,9 @@ familiar convenience.
   explicit and independently testable.
 - Proxy and origin TLS policy remain distinct. Environment proxy discovery, if
   added, is an explicit loader rather than ambient behavior.
+- One `HttpProxy` route selects absolute-form forwarding for plaintext HTTP/1
+  and CONNECT for HTTPS. Unsupported combinations fail before I/O; callers do
+  not choose a wire operation that can contradict the target URI.
 - HTTP status is not a transport failure. A future status convenience remains
   separate from request execution.
 

@@ -96,6 +96,21 @@ impl Http1Connection {
             .await
     }
 
+    /// Sends one request with an absolute-form target to an HTTP forward proxy.
+    ///
+    /// The `Host` field must match the target authority. The complete request
+    /// is validated before it is admitted to the connection.
+    pub async fn send_forward_request(
+        &self,
+        method: Method,
+        target: super::AbsoluteForm,
+        headers: Vec<super::RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1Error> {
+        self.send_prepared_request(PreparedRequest::new_forward(method, target, headers, body)?)
+            .await
+    }
+
     /// Returns whether this connection is eligible for another request.
     ///
     /// This is a snapshot. The peer can still close an idle connection before

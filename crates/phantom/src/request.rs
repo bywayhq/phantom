@@ -2,7 +2,10 @@ use std::fmt;
 
 use bytes::Bytes;
 use http::{Method, Response, Uri};
-use phantom_net::{http1::OriginForm, request::RequestHeader};
+use phantom_net::{
+    http1::{AbsoluteForm, OriginForm},
+    request::RequestHeader,
+};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
@@ -188,14 +191,15 @@ impl RequestBuilder {
             body_bytes = self.body.as_ref().map_or(0, Bytes::len),
             protocol = self.selection.trace_name(),
             selected_protocol = field::Empty,
-            route = route.trace_name(),
+            route = route.request_trace_name(self.request.uri.scheme_str()),
             outcome = field::Empty,
         );
         let outcome = RequestOutcome::new(&span);
         if let ProtocolSelection::Exact(protocol) = self.selection {
             span.record("selected_protocol", protocol.trace_name());
         }
-        let result = self.send_inner(&span).instrument(span.clone()).await;
+        // Keep the public future small when callers join many requests.
+        let result = Box::pin(self.send_inner(&span).instrument(span.clone())).await;
         outcome.finish(if result.is_ok() { "ok" } else { "error" });
         result
     }
@@ -221,10 +225,21 @@ impl RequestBuilder {
         let client = context.client();
         let session = context.session();
         let route = route.as_ref().unwrap_or(&client.inner.route);
-        ensure_route_supported(selection, route)?;
+        ensure_request_supported(selection, route, &request)?;
+        let is_forwarded = request.uri.scheme_str() == Some("http");
+        if is_forwarded
+            && request_headers
+                .iter()
+                .any(|header| header.name().eq_ignore_ascii_case("proxy-authorization"))
+        {
+            return Err(RequestError::forward_proxy_authorization_header());
+        }
         let policy = session.map_or(RedirectPolicy::none(), |session| {
             session.state.redirect_policy
         });
+        if is_forwarded && policy.max_hops().is_some() {
+            return Err(RequestError::forward_redirect_policy());
+        }
 
         if policy.max_hops().is_none() {
             let outcome = send_once(
@@ -250,6 +265,7 @@ impl RequestBuilder {
         let mut resolved = request;
 
         loop {
+            ensure_request_supported(selection, route, &resolved)?;
             let outcome = send_once(
                 &context,
                 &resolved,
@@ -295,6 +311,7 @@ fn request_uri_error(error: ParseUriError) -> RequestError {
     match error {
         ParseUriError::Syntax(error) => RequestError::invalid_uri(error),
         ParseUriError::Authority(error) => RequestError::invalid_authority(error.message()),
+        ParseUriError::Fragment => RequestError::fragment_target(),
     }
 }
 
@@ -319,20 +336,42 @@ impl RequestContext {
     }
 }
 
-fn ensure_route_supported(selection: ProtocolSelection, route: &Route) -> Result<(), RequestError> {
-    match selection {
-        ProtocolSelection::Exact(HttpProtocol::Http3) if !matches!(route, Route::Direct) => {
-            return Err(RequestError::unsupported_route(HttpProtocol::Http3));
-        }
-        ProtocolSelection::Http1Or2 if !matches!(route, Route::Direct) => {
-            return Err(RequestError::unsupported_negotiated_route());
-        }
-        ProtocolSelection::Exact(
-            HttpProtocol::Http1 | HttpProtocol::Http2 | HttpProtocol::Http3,
-        )
-        | ProtocolSelection::Http1Or2 => {}
+fn ensure_request_supported(
+    selection: ProtocolSelection,
+    route: &Route,
+    request: &ResolvedRequest,
+) -> Result<(), RequestError> {
+    match request.uri.scheme_str() {
+        Some("http") => match (selection, route) {
+            (ProtocolSelection::Exact(HttpProtocol::Http1), Route::HttpProxy(proxy))
+                if proxy.supports_plaintext_forwarding() =>
+            {
+                Ok(())
+            }
+            (ProtocolSelection::Exact(protocol), Route::HttpProxy(_)) => {
+                Err(RequestError::unsupported_route(protocol))
+            }
+            (ProtocolSelection::Http1Or2, Route::HttpProxy(_)) => {
+                Err(RequestError::unsupported_negotiated_route())
+            }
+            _ => Err(RequestError::unsupported_scheme()),
+        },
+        Some("https") => match selection {
+            ProtocolSelection::Exact(protocol)
+                if protocol == HttpProtocol::Http3 && !matches!(route, Route::Direct) =>
+            {
+                Err(RequestError::unsupported_route(protocol))
+            }
+            ProtocolSelection::Http1Or2 if !matches!(route, Route::Direct) => {
+                Err(RequestError::unsupported_negotiated_route())
+            }
+            ProtocolSelection::Exact(
+                HttpProtocol::Http1 | HttpProtocol::Http2 | HttpProtocol::Http3,
+            )
+            | ProtocolSelection::Http1Or2 => Ok(()),
+        },
+        _ => Err(RequestError::unsupported_scheme()),
     }
-    Ok(())
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -356,20 +395,25 @@ struct ResolvedRequest {
     url: url::Url,
     endpoint: Endpoint,
     target: OriginForm,
+    absolute_target: AbsoluteForm,
 }
 
 impl ResolvedRequest {
     fn new(uri: &Uri) -> Result<Self, RequestError> {
-        if uri.scheme_str() != Some("https") {
-            return Err(RequestError::unsupported_scheme());
-        }
+        let default_port = match uri.scheme_str() {
+            Some("http") => 80,
+            Some("https") => 443,
+            _ => return Err(RequestError::unsupported_scheme()),
+        };
         let authority = uri.authority().cloned().ok_or_else(|| {
             RequestError::invalid_authority("request URI must include an authority")
         })?;
-        let endpoint = Endpoint::new(authority, 443)
+        let endpoint = Endpoint::new(authority, default_port)
             .map_err(|error| RequestError::invalid_authority(error.message()))?;
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
             .map_err(RequestError::invalid_target)?;
+        let absolute_target =
+            AbsoluteForm::from_uri(uri.clone()).map_err(RequestError::invalid_absolute_target)?;
         let url = url::Url::parse(&uri.to_string()).map_err(RequestError::invalid_url)?;
 
         Ok(Self {
@@ -377,6 +421,7 @@ impl ResolvedRequest {
             url,
             endpoint,
             target,
+            absolute_target,
         })
     }
 
@@ -390,7 +435,12 @@ impl ResolvedRequest {
         let authority = uri.authority().cloned().ok_or_else(|| {
             RequestError::invalid_redirect_target("redirect target must include an authority")
         })?;
-        let endpoint = Endpoint::new(authority, 443).map_err(|_| {
+        let default_port = match uri.scheme_str() {
+            Some("http") => 80,
+            Some("https") => 443,
+            _ => return Err(RequestError::redirect_scheme()),
+        };
+        let endpoint = Endpoint::new(authority, default_port).map_err(|_| {
             RequestError::invalid_redirect_target("redirect target authority is invalid")
         })?;
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
@@ -399,12 +449,18 @@ impl ResolvedRequest {
                     "redirect target cannot be represented as origin-form",
                 )
             })?;
+        let absolute_target = AbsoluteForm::from_uri(uri.clone()).map_err(|_| {
+            RequestError::invalid_redirect_target(
+                "redirect target cannot be represented as absolute-form",
+            )
+        })?;
 
         Ok(Self {
             uri,
             url: wire_url,
             endpoint,
             target,
+            absolute_target,
         })
     }
 }
@@ -443,7 +499,7 @@ impl Drop for RequestOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::{ProtocolSelection, ResolvedRequest, ensure_route_supported};
+    use super::{ProtocolSelection, ResolvedRequest, ensure_request_supported};
     use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
 
     #[test]
@@ -453,14 +509,17 @@ mod tests {
             Route::http_connect(HttpProxy::new("http://127.0.0.1:9")?),
             Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:9")?),
         ];
+        let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
 
         for route in routes {
-            let error =
-                match ensure_route_supported(ProtocolSelection::Exact(HttpProtocol::Http3), &route)
-                {
-                    Ok(()) => panic!("TCP-only proxy route accepted HTTP/3"),
-                    Err(error) => error,
-                };
+            let error = match ensure_request_supported(
+                ProtocolSelection::Exact(HttpProtocol::Http3),
+                &route,
+                &request,
+            ) {
+                Ok(()) => panic!("TCP-only proxy route accepted HTTP/3"),
+                Err(error) => error,
+            };
 
             assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
             assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
@@ -469,16 +528,23 @@ mod tests {
     }
 
     #[test]
-    fn direct_route_accepts_each_supported_protocol() {
+    fn direct_route_accepts_each_supported_protocol() -> Result<(), Box<dyn std::error::Error>> {
+        let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
         for protocol in [
             HttpProtocol::Http1,
             HttpProtocol::Http2,
             HttpProtocol::Http3,
         ] {
             assert!(
-                ensure_route_supported(ProtocolSelection::Exact(protocol), &Route::Direct).is_ok()
+                ensure_request_supported(
+                    ProtocolSelection::Exact(protocol),
+                    &Route::Direct,
+                    &request,
+                )
+                .is_ok()
             );
         }
+        Ok(())
     }
 
     #[test]

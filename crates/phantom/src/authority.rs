@@ -1,6 +1,9 @@
 use http::{Uri, uri::Authority};
 
 pub(crate) fn parse_absolute_uri(value: &str) -> Result<Uri, ParseUriError> {
+    if value.contains('#') {
+        return Err(ParseUriError::Fragment);
+    }
     let Some(scheme_end) = value.find("://") else {
         return value.parse().map_err(ParseUriError::Syntax);
     };
@@ -23,6 +26,7 @@ pub(crate) fn parse_absolute_uri(value: &str) -> Result<Uri, ParseUriError> {
 pub(crate) enum ParseUriError {
     Syntax(http::uri::InvalidUri),
     Authority(AuthorityError),
+    Fragment,
 }
 
 impl std::fmt::Display for ParseUriError {
@@ -30,6 +34,7 @@ impl std::fmt::Display for ParseUriError {
         match self {
             Self::Syntax(error) => error.fmt(formatter),
             Self::Authority(error) => error.fmt(formatter),
+            Self::Fragment => formatter.write_str("URI fragments are not sent in HTTP requests"),
         }
     }
 }
@@ -39,6 +44,7 @@ impl std::error::Error for ParseUriError {
         match self {
             Self::Syntax(error) => Some(error),
             Self::Authority(error) => Some(error),
+            Self::Fragment => None,
         }
     }
 }
@@ -234,6 +240,11 @@ mod tests {
                 "{value}"
             );
         }
+
+        assert!(matches!(
+            parse_absolute_uri("https://example.test/path#fragment"),
+            Err(ParseUriError::Fragment)
+        ));
     }
 
     #[test]

@@ -107,10 +107,12 @@ direct-network fallback.
 flowchart LR
     Input["request · profile · route"] --> Route["validated route"]
     Route --> Direct["direct TCP or UDP"]
+    Route --> Forward["HTTP proxy<br/>H1 absolute-form"]
     Route --> Http["HTTP proxy<br/>CONNECT"]
     Route --> Https["HTTPS proxy<br/>proxy TLS · CONNECT"]
     Route --> Socks["SOCKS5<br/>local or remote DNS · optional auth"]
     Direct --> Tcp["TCP byte stream"]
+    Forward --> H1H2
     Http --> Tcp
     Https --> Tcp
     Socks --> Tcp
@@ -122,9 +124,10 @@ flowchart LR
     Masque["CONNECT-UDP / MASQUE"] -.-> Udp
 ```
 
-The current proxy slices cover HTTP CONNECT over plaintext or independently
-authenticated proxy TLS and local- or remote-DNS SOCKS5, with optional RFC
-1929 username/password credentials, for H1/H2 origin TLS and H1 WebSocket.
+The current proxy slices cover unauthenticated plaintext HTTP/1.1 forwarding,
+HTTP CONNECT over plaintext or independently authenticated proxy TLS, and
+local- or remote-DNS SOCKS5 with optional RFC 1929 username/password
+credentials for H1/H2 origin TLS and H1 WebSocket.
 Direct H3 uses UDP. Selecting H3 with any TCP-only proxy route fails before
 proxy or origin I/O because those routes have
 no UDP capability. The client or request owns the route, and the HTTP CONNECT
@@ -148,8 +151,9 @@ categories, tracing, and fallback policy. See [proxy routing](proxy-routing.md).
 
 HTTPS proxy and origin certificate policy and ticket caches are independent.
 HTTPS CONNECT currently requires H1 to the proxy: absent ALPN or `http/1.1` is
-accepted, while selected `h2` is rejected explicitly. HTTP forwarding,
-non-Basic proxy authentication and learned challenge state, custom SOCKS5
+accepted, while selected `h2` is rejected explicitly. HTTP forwarding over
+proxy TLS, forwarding authentication and redirects, non-Basic proxy
+authentication and learned challenge state, custom SOCKS5
 resolvers, and broader
 half-close behavior remain later slices. SOCKS5 GSSAPI is unsupported.
 

@@ -3,7 +3,7 @@ use std::{error::Error as StdError, fmt};
 use super::{Http1Error, TlsError, trace_alpn};
 use crate::proxy::{HttpConnectError, Socks5Error};
 
-/// Error returned before an HTTP/1-over-TLS response is available.
+/// Error returned before an HTTP/1 response is available.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Http1TlsError {
@@ -11,6 +11,8 @@ pub enum Http1TlsError {
     RuntimeUnavailable,
     /// Establishing the direct TCP connection failed.
     Connect(std::io::Error),
+    /// Establishing the plaintext HTTP forward-proxy connection failed.
+    ForwardProxyConnect(std::io::Error),
     /// HTTP CONNECT proxy negotiation failed.
     Proxy(HttpConnectError),
     /// SOCKS5 proxy negotiation failed.
@@ -35,6 +37,9 @@ impl fmt::Display for Http1TlsError {
                 formatter.write_str("HTTP/1 network requests require a Tokio runtime")
             }
             Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
+            Self::ForwardProxyConnect(error) => {
+                write!(formatter, "HTTP forward proxy connection failed: {error}")
+            }
             Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
             Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
             Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
@@ -54,6 +59,7 @@ impl StdError for Http1TlsError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Connect(error) => Some(error),
+            Self::ForwardProxyConnect(error) => Some(error),
             Self::Proxy(error) => Some(error),
             Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),

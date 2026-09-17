@@ -8,7 +8,7 @@ use http::{
 use http_body_util::{Empty, Full};
 use wreq_proto::ext::{OnPreserveHeaderCallback, on_preserve_header};
 
-use super::{Http1Error, OriginForm, RequestHeader};
+use super::{AbsoluteForm, Http1Error, OriginForm, RequestHeader};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -27,6 +27,26 @@ impl PreparedRequest {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Self, Http1Error> {
+        Self::from_uri(method, target.into_uri(), headers, body, None)
+    }
+
+    pub(super) fn new_forward(
+        method: Method,
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Self, Http1Error> {
+        let authority = target.authority().to_owned();
+        Self::from_uri(method, target.into_uri(), headers, body, Some(&authority))
+    }
+
+    fn from_uri(
+        method: Method,
+        target: http::Uri,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+        expected_host: Option<&str>,
+    ) -> Result<Self, Http1Error> {
         if method == Method::CONNECT {
             return Err(Http1Error::ConnectUnsupported);
         }
@@ -34,10 +54,10 @@ impl PreparedRequest {
         let has_body = body.is_some();
         let body = body.unwrap_or_default();
         let body_len = body.len();
-        let headers = ValidatedHeaders::new(headers, Some(body.len()))?;
+        let headers = ValidatedHeaders::new(headers, Some(body.len()), expected_host)?;
         let mut request = Request::new(Full::new(body));
         *request.method_mut() = method;
-        *request.uri_mut() = target.into_uri();
+        *request.uri_mut() = target;
         *request.version_mut() = Version::HTTP_11;
 
         headers.populate(request.headers_mut());
@@ -78,7 +98,7 @@ pub(super) struct PreparedGet {
 
 impl PreparedGet {
     pub(super) fn new(target: OriginForm, headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
-        let headers = ValidatedHeaders::new(headers, None)?;
+        let headers = ValidatedHeaders::new(headers, None, None)?;
         let mut request = Request::new(Empty::<Bytes>::new());
         *request.method_mut() = Method::GET;
         *request.uri_mut() = target.into_uri();
@@ -95,10 +115,16 @@ impl PreparedGet {
 }
 
 fn header_has_token(value: &HeaderValue, token: &str) -> bool {
-    value.to_str().is_ok_and(|value| {
-        value
-            .split(',')
-            .any(|value| value.trim().eq_ignore_ascii_case(token))
+    value.as_bytes().split(|byte| *byte == b',').any(|value| {
+        let start = value
+            .iter()
+            .position(|byte| !matches!(byte, b' ' | b'\t'))
+            .unwrap_or(value.len());
+        let end = value
+            .iter()
+            .rposition(|byte| !matches!(byte, b' ' | b'\t'))
+            .map_or(start, |index| index + 1);
+        value[start..end].eq_ignore_ascii_case(token.as_bytes())
     })
 }
 
@@ -108,7 +134,11 @@ struct ValidatedHeaders {
 }
 
 impl ValidatedHeaders {
-    fn new(headers: Vec<RequestHeader>, body_len: Option<usize>) -> Result<Self, Http1Error> {
+    fn new(
+        headers: Vec<RequestHeader>,
+        body_len: Option<usize>,
+        expected_host: Option<&str>,
+    ) -> Result<Self, Http1Error> {
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(Http1Error::TooManyHeaders {
                 count: headers.len(),
@@ -160,6 +190,11 @@ impl ValidatedHeaders {
                 if host_count > 1 {
                     return Err(Http1Error::MultipleHost);
                 }
+                if expected_host.is_some_and(|expected| {
+                    !value.as_bytes().eq_ignore_ascii_case(expected.as_bytes())
+                }) {
+                    return Err(Http1Error::MismatchedHost { index });
+                }
             } else if name == TRANSFER_ENCODING {
                 return Err(Http1Error::RequestFramingHeader {
                     name: header.name().into(),
@@ -177,6 +212,12 @@ impl ValidatedHeaders {
                 if value.as_bytes() != expected.as_bytes() {
                     return Err(Http1Error::InvalidContentLength { index });
                 }
+            } else if name == CONNECTION
+                && ["host", "content-length", "transfer-encoding"]
+                    .into_iter()
+                    .any(|token| header_has_token(&value, token))
+            {
+                return Err(Http1Error::ConnectionNominatesCriticalField { index });
             }
 
             ordered.push((header.name().as_bytes().into(), value.clone()));

@@ -18,8 +18,8 @@ pub enum Route {
     /// Connect directly to the origin.
     #[default]
     Direct,
-    /// Tunnel TCP through an HTTP proxy using CONNECT.
-    HttpConnect(HttpProxy),
+    /// Route through an HTTP proxy using forwarding or CONNECT as required.
+    HttpProxy(HttpProxy),
     /// Tunnel TCP through a SOCKS5 proxy with explicit DNS ownership.
     Socks5(Socks5Proxy),
 }
@@ -31,10 +31,22 @@ impl Route {
         Self::Direct
     }
 
-    /// Returns an HTTP CONNECT route.
+    /// Returns an HTTP proxy route using the established CONNECT-oriented constructor.
+    ///
+    /// Prefer [`Self::http_proxy`] when the route may also carry plaintext
+    /// HTTP/1.1 forwarding.
     #[must_use]
     pub fn http_connect(proxy: HttpProxy) -> Self {
-        Self::HttpConnect(proxy)
+        Self::HttpProxy(proxy)
+    }
+
+    /// Returns an HTTP proxy route.
+    ///
+    /// Plaintext HTTP/1.1 uses absolute-form forwarding. HTTPS protocols use
+    /// CONNECT tunneling.
+    #[must_use]
+    pub fn http_proxy(proxy: HttpProxy) -> Self {
+        Self::HttpProxy(proxy)
     }
 
     /// Returns a SOCKS5 route using the proxy's configured DNS mode.
@@ -46,7 +58,7 @@ impl Route {
     pub(crate) const fn trace_name(&self) -> &'static str {
         match self {
             Self::Direct => "direct",
-            Self::HttpConnect(proxy) => proxy.trace_name(),
+            Self::HttpProxy(proxy) => proxy.trace_name(),
             Self::Socks5(proxy) => match proxy.dns_mode() {
                 Socks5DnsMode::Local => "socks5_local_dns",
                 Socks5DnsMode::Remote => "socks5_remote_dns",
@@ -54,15 +66,23 @@ impl Route {
         }
     }
 
+    pub(crate) fn request_trace_name(&self, scheme: Option<&str>) -> &'static str {
+        if scheme == Some("http") && matches!(self, Self::HttpProxy(_)) {
+            "http_forward"
+        } else {
+            self.trace_name()
+        }
+    }
+
     pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
         match self {
-            Self::HttpConnect(proxy) => Some(proxy),
+            Self::HttpProxy(proxy) => Some(proxy),
             Self::Direct | Self::Socks5(_) => None,
         }
     }
 }
 
-/// HTTP proxy configuration for CONNECT tunnels.
+/// HTTP proxy configuration for forwarding and CONNECT tunneling.
 #[derive(Clone, Eq, PartialEq)]
 pub struct HttpProxy {
     transport: HttpProxyTransport,
@@ -90,27 +110,7 @@ impl HttpProxy {
     /// Returns [`ProxyConfigError`] when the URI is malformed or uses an
     /// unsupported shape.
     pub fn new(uri: &str) -> Result<Self, ProxyConfigError> {
-        let uri = parse_absolute_uri(uri).map_err(|error| match error {
-            ParseUriError::Syntax(error) => ProxyConfigError::invalid_uri(error),
-            ParseUriError::Authority(error) => ProxyConfigError::authority(error.message()),
-        })?;
-        let (transport, default_port) = match uri.scheme_str() {
-            Some("http") => (HttpProxyTransport::Plaintext, 80),
-            Some("https") => (HttpProxyTransport::Tls, 443),
-            _ => return Err(ProxyConfigError::unsupported_scheme()),
-        };
-        let authority = uri
-            .authority()
-            .cloned()
-            .ok_or_else(ProxyConfigError::invalid_authority)?;
-        if !matches!(
-            uri.path_and_query().map(|value| value.as_str()),
-            None | Some("/")
-        ) {
-            return Err(ProxyConfigError::unexpected_path());
-        }
-        let endpoint = Endpoint::new(authority, default_port)
-            .map_err(|error| ProxyConfigError::authority(error.message()))?;
+        let (transport, endpoint) = parse_http_proxy_uri(uri)?;
         Ok(Self {
             transport,
             endpoint,
@@ -123,7 +123,8 @@ impl HttpProxy {
     ///
     /// The first CONNECT request omits credentials. Phantom sends them only
     /// after a valid Basic proxy challenge and retries once on a fresh proxy
-    /// connection. URI credentials remain unsupported.
+    /// connection. URI credentials remain unsupported. Configured credentials
+    /// are currently incompatible with plaintext forwarding and fail before I/O.
     ///
     /// Basic credentials sent to a plaintext `http://` proxy have no transport
     /// confidentiality. Use an `https://` proxy for sensitive credentials.
@@ -218,6 +219,36 @@ impl HttpProxy {
     pub(crate) fn basic_credentials(&self) -> Option<&HttpBasicCredentials> {
         self.credentials.as_ref()
     }
+
+    pub(crate) const fn supports_plaintext_forwarding(&self) -> bool {
+        matches!(self.transport, HttpProxyTransport::Plaintext) && self.credentials.is_none()
+    }
+}
+
+fn parse_http_proxy_uri(value: &str) -> Result<(HttpProxyTransport, Endpoint), ProxyConfigError> {
+    let uri = parse_absolute_uri(value).map_err(|error| match error {
+        ParseUriError::Syntax(error) => ProxyConfigError::invalid_uri(error),
+        ParseUriError::Authority(error) => ProxyConfigError::authority(error.message()),
+        ParseUriError::Fragment => ProxyConfigError::unexpected_path(),
+    })?;
+    let (transport, default_port) = match uri.scheme_str() {
+        Some("http") => (HttpProxyTransport::Plaintext, 80),
+        Some("https") => (HttpProxyTransport::Tls, 443),
+        _ => return Err(ProxyConfigError::unsupported_scheme()),
+    };
+    let authority = uri
+        .authority()
+        .cloned()
+        .ok_or_else(ProxyConfigError::invalid_authority)?;
+    if !matches!(
+        uri.path_and_query().map(|value| value.as_str()),
+        None | Some("/")
+    ) {
+        return Err(ProxyConfigError::unexpected_path());
+    }
+    let endpoint = Endpoint::new(authority, default_port)
+        .map_err(|error| ProxyConfigError::authority(error.message()))?;
+    Ok((transport, endpoint))
 }
 
 impl fmt::Debug for HttpProxy {
@@ -254,7 +285,7 @@ pub enum ProxyConfigErrorKind {
     InvalidCredentials,
 }
 
-/// Error returned while constructing an [`HttpProxy`].
+/// Error returned while constructing an HTTP proxy route.
 #[derive(Debug)]
 pub struct ProxyConfigError {
     kind: ProxyConfigErrorKind,
@@ -274,7 +305,7 @@ impl ProxyConfigError {
     fn unsupported_scheme() -> Self {
         Self::without_source(
             ProxyConfigErrorKind::UnsupportedScheme,
-            "HTTP CONNECT proxy URI must use the http or https scheme",
+            "HTTP proxy URI must use the http or https scheme",
         )
     }
 
@@ -336,7 +367,7 @@ impl StdError for ProxyConfigError {
 mod tests {
     use phantom_net::proxy::HttpConnectHeader;
 
-    use super::{HttpProxy, ProxyConfigErrorKind};
+    use super::{HttpProxy, ProxyConfigErrorKind, Route};
 
     #[test]
     fn parses_domain_ipv4_and_bracketed_ipv6_endpoints() -> Result<(), Box<dyn std::error::Error>> {
@@ -378,6 +409,24 @@ mod tests {
         assert!(secure.uses_tls());
         assert_eq!(plaintext.trace_name(), "http_connect");
         assert_eq!(secure.trace_name(), "https_connect");
+        Ok(())
+    }
+
+    #[test]
+    fn connect_constructor_maps_to_the_generic_proxy_route()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let proxy = HttpProxy::new("http://proxy.example:8080")?;
+
+        assert_eq!(
+            Route::http_proxy(proxy.clone()),
+            Route::http_connect(proxy.clone())
+        );
+        assert!(proxy.supports_plaintext_forwarding());
+        assert!(
+            !proxy
+                .with_basic_auth("user", "secret")?
+                .supports_plaintext_forwarding()
+        );
         Ok(())
     }
 

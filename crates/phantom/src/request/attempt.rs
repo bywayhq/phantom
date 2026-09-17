@@ -67,6 +67,7 @@ async fn send_once_exact(
         .inner
         .client_hints
         .as_ref()
+        .filter(|_| request.uri.scheme_str() == Some("https"))
         .map(|_| request.url.origin().ascii_serialization());
 
     loop {
@@ -93,6 +94,7 @@ async fn send_once_exact(
             .inner
             .client_hints
             .as_ref()
+            .filter(|_| request.uri.scheme_str() == Some("https"))
             .zip(client_hint_origin.as_deref())
             .map(|(settings, origin)| {
                 session.map_or_else(
@@ -119,16 +121,17 @@ async fn send_once_exact(
             jar.store_response_headers(&request.url, response.headers());
         }
 
-        let critical_retry_requested = session.is_some_and(|session| {
-            client.inner.client_hints.as_ref().is_some_and(|settings| {
-                session.learn_client_hints_and_should_retry(
-                    endpoint,
-                    settings,
-                    response.headers(),
-                    &sent_headers,
-                )
-            })
-        });
+        let critical_retry_requested = request.uri.scheme_str() == Some("https")
+            && session.is_some_and(|session| {
+                client.inner.client_hints.as_ref().is_some_and(|settings| {
+                    session.learn_client_hints_and_should_retry(
+                        endpoint,
+                        settings,
+                        response.headers(),
+                        &sent_headers,
+                    )
+                })
+            });
         let should_retry = !retried_critical_hints
             && critical_retry_requested
             && critical_hint_retry_eligible(&method);
@@ -267,6 +270,7 @@ async fn dispatch(
     let session = context.session();
     let endpoint = &request.endpoint;
     let target = request.target.clone();
+    let absolute_target = request.absolute_target.clone();
     match protocol {
         HttpProtocol::Http1 => {
             let connector = client
@@ -290,8 +294,10 @@ async fn dispatch(
                         client.inner.https_proxy.as_ref(),
                         endpoint,
                         route,
+                        request.uri.scheme_str() == Some("http"),
                         method,
                         target,
+                        absolute_target,
                         headers,
                         body,
                     )
@@ -311,7 +317,19 @@ async fn dispatch(
                             )
                             .await
                     }
-                    Route::HttpConnect(proxy) => {
+                    Route::HttpProxy(proxy) if request.uri.scheme_str() == Some("http") => {
+                        connector
+                            .send_request_forward_proxy(
+                                proxy.host(),
+                                proxy.port(),
+                                method,
+                                absolute_target,
+                                headers,
+                                body,
+                            )
+                            .await
+                    }
+                    Route::HttpProxy(proxy) => {
                         let connect_authority = endpoint.tunnel_authority();
                         if proxy.uses_tls() {
                             let proxy_connector =
@@ -477,7 +495,7 @@ async fn dispatch(
                             .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
                             .await
                     }
-                    Route::HttpConnect(proxy) => {
+                    Route::HttpProxy(proxy) => {
                         let connect_authority = endpoint.tunnel_authority();
                         if proxy.uses_tls() {
                             let proxy_connector =

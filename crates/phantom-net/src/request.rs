@@ -2,7 +2,71 @@
 
 use std::{error::Error as StdError, fmt};
 
-use http::{Uri, uri::PathAndQuery};
+use http::{
+    Uri,
+    uri::{Authority, PathAndQuery},
+};
+
+/// An HTTP absolute-form request target such as `http://example.test/search?q=rust`.
+///
+/// HTTP forward proxies receive this form instead of the origin-form used by
+/// direct and tunneled requests.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AbsoluteForm {
+    uri: Uri,
+    authority: Authority,
+}
+
+impl AbsoluteForm {
+    /// Parses an HTTP or HTTPS absolute-form request target.
+    pub fn parse(value: &str) -> Result<Self, InvalidAbsoluteForm> {
+        if value.contains('#') {
+            return Err(InvalidAbsoluteForm);
+        }
+        value
+            .parse::<Uri>()
+            .map_err(|_| InvalidAbsoluteForm)
+            .and_then(Self::from_uri)
+    }
+
+    /// Validates an already-parsed HTTP URI as absolute-form.
+    pub fn from_uri(uri: Uri) -> Result<Self, InvalidAbsoluteForm> {
+        if !matches!(uri.scheme_str(), Some("http" | "https"))
+            || uri
+                .path_and_query()
+                .is_none_or(|target| target.as_str().contains('#'))
+        {
+            return Err(InvalidAbsoluteForm);
+        }
+        let authority = uri.authority().cloned().ok_or(InvalidAbsoluteForm)?;
+        if authority.as_str().as_bytes().contains(&b'@') {
+            return Err(InvalidAbsoluteForm);
+        }
+        Ok(Self { uri, authority })
+    }
+
+    pub(crate) fn authority(&self) -> &str {
+        self.authority.as_str()
+    }
+
+    pub(crate) fn into_uri(self) -> Uri {
+        self.uri
+    }
+}
+
+/// Error returned when a request target is not valid HTTP absolute-form.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InvalidAbsoluteForm;
+
+impl fmt::Display for InvalidAbsoluteForm {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(
+            "request target must be HTTP absolute-form with an http or https scheme and authority",
+        )
+    }
+}
+
+impl StdError for InvalidAbsoluteForm {}
 
 /// An HTTP origin-form request target such as `/search?q=rust`.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -122,7 +186,32 @@ impl fmt::Debug for RequestHeader {
 
 #[cfg(test)]
 mod tests {
-    use super::{InvalidOriginForm, OriginForm, RequestHeader};
+    use super::{AbsoluteForm, InvalidAbsoluteForm, InvalidOriginForm, OriginForm, RequestHeader};
+
+    #[test]
+    fn accepts_only_http_absolute_form_targets() -> Result<(), InvalidAbsoluteForm> {
+        let target = AbsoluteForm::parse("http://example.test/path?query=yes")?;
+        assert_eq!(
+            target.uri,
+            "http://example.test/path?query=yes"
+                .parse::<http::Uri>()
+                .map_err(|_| InvalidAbsoluteForm)?
+        );
+        let root = AbsoluteForm::parse("http://example.test")?;
+        assert_eq!(root.uri.path(), "/");
+
+        for value in [
+            "/path",
+            "example.test/path",
+            "ftp://example.test/path",
+            "http:///path",
+            "http://user@example.test/path",
+            "http://example.test/path#fragment",
+        ] {
+            assert!(AbsoluteForm::parse(value).is_err(), "accepted {value:?}");
+        }
+        Ok(())
+    }
 
     #[test]
     fn accepts_only_origin_form_targets() -> Result<(), InvalidOriginForm> {

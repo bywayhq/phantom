@@ -210,7 +210,7 @@ impl WebSocketRequestBuilder {
                     )
                     .await
             }
-            Route::HttpConnect(proxy) => {
+            Route::HttpProxy(proxy) => {
                 let authority = request.endpoint.tunnel_authority();
                 if proxy.uses_tls() {
                     let proxy_connector = client.inner.https_proxy.as_ref().ok_or_else(|| {
@@ -391,6 +391,9 @@ impl ResolvedWebSocket {
         let uri = parse_absolute_uri(value).map_err(|error| match error {
             ParseUriError::Syntax(error) => WebSocketError::invalid_uri(error),
             ParseUriError::Authority(error) => WebSocketError::invalid_authority(error.message()),
+            ParseUriError::Fragment => {
+                WebSocketError::invalid_request("WebSocket URI must not contain a fragment")
+            }
         })?;
         if uri.scheme_str() != Some("wss") {
             return Err(WebSocketError::unsupported_scheme());

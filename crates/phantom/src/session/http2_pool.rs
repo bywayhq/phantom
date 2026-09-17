@@ -259,7 +259,7 @@ impl PoolEntry {
                 .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
                 .await
                 .map_err(RequestError::http2)?,
-            Route::HttpConnect(proxy) => {
+            Route::HttpProxy(proxy) => {
                 let connect_authority = endpoint.tunnel_authority();
                 if proxy.uses_tls() {
                     let base = https_proxy
