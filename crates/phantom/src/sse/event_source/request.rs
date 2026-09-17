@@ -13,6 +13,17 @@ use crate::sse::{SseError, SseLimits, SseOutcome, SseStream};
 const DEFAULT_INITIAL_RETRY: Duration = Duration::from_secs(3);
 const DEFAULT_MAX_RECONNECTS: usize = 3;
 
+fn default_headers(protocol: HttpProtocol) -> Vec<RequestHeader> {
+    let (accept, cache_control) = match protocol {
+        HttpProtocol::Http1 => ("Accept", "Cache-Control"),
+        HttpProtocol::Http2 | HttpProtocol::Http3 => ("accept", "cache-control"),
+    };
+    vec![
+        RequestHeader::new(accept, "text/event-stream"),
+        RequestHeader::new(cache_control, "no-cache"),
+    ]
+}
+
 /// Builds one session-owned server-sent event source.
 #[must_use = "SSE request builders do nothing until connect is awaited"]
 pub struct SseRequestBuilder {
@@ -50,7 +61,7 @@ impl SseRequestBuilder {
                 session,
                 protocol,
                 uri: uri.into(),
-                headers: Vec::new(),
+                headers: default_headers(protocol),
                 route: None,
             },
             limits: SseLimits::default(),
@@ -60,7 +71,7 @@ impl SseRequestBuilder {
         })
     }
 
-    /// Appends one ordered request field.
+    /// Appends one ordered request field after the EventSource defaults.
     ///
     /// `Last-Event-ID` is reserved for reconnects and is rejected by
     /// [`SseRequestBuilder::connect`].
@@ -69,7 +80,8 @@ impl SseRequestBuilder {
         self
     }
 
-    /// Replaces the complete ordered request-field list.
+    /// Replaces the complete ordered request-field list, including the
+    /// EventSource defaults.
     ///
     /// `Last-Event-ID` is reserved for reconnects and is rejected by
     /// [`SseRequestBuilder::connect`].
@@ -228,6 +240,9 @@ impl SseRequestBuilder {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone)]
 pub(super) struct SseRequest {

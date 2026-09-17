@@ -156,6 +156,12 @@ async fn session_event_source_reconnects_with_committed_state_and_stops_on_204()
 
     advance(Duration::from_secs(1)).await;
     let (listener, first_head, second_head) = server.await??;
+    for head in [&first_head, &second_head] {
+        assert_eq!(count_header(head, b"accept"), 1);
+        assert!(contains_header(head, b"accept", b"text/event-stream"));
+        assert_eq!(count_header(head, b"cache-control"), 1);
+        assert!(contains_header(head, b"cache-control", b"no-cache"));
+    }
     assert!(contains_header(&first_head, b"x-user", b"stable"));
     assert_eq!(count_header(&first_head, b"last-event-id"), 0);
     assert!(contains_header(&second_head, b"x-user", b"stable"));

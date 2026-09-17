@@ -46,6 +46,11 @@ while let Some(event) = events.next_event().await? {
 # }
 ```
 
+The EventSource builder starts with ordered `Accept: text/event-stream` and
+`Cache-Control: no-cache` fields, using lowercase names for HTTP/2 and HTTP/3.
+`header` appends after those defaults. `headers` replaces the complete list so
+callers can reproduce a different request shape exactly.
+
 `from_response` requires status 200, a `text/event-stream` content-type
 essence, and no content encoding other than `identity`. Decoding follows the
 WHATWG event-stream rules for UTF-8 replacement, a leading byte-order mark,

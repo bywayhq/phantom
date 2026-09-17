@@ -8,6 +8,8 @@ mod h3_support;
 mod idle;
 #[path = "sse/reconnect.rs"]
 mod reconnect;
+#[path = "sse/request.rs"]
+mod request;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
