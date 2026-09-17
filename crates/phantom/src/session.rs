@@ -293,6 +293,9 @@ impl SessionBuilder {
     }
 
     /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
+    ///
+    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
+    /// and H2 retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http1_connections = maximum;
@@ -310,6 +313,8 @@ impl SessionBuilder {
     ///
     /// Evicting a connection from the pool does not cancel response bodies
     /// already using it. It prevents later requests from selecting it.
+    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
+    /// and H2 retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http2_connections = maximum;

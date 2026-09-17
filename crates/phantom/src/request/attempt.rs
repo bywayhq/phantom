@@ -1,11 +1,8 @@
 use http::{Method, Response};
-use phantom_net::{
-    http1_or_2::Http1Or2Connection,
-    request::{RequestBody, RequestHeader},
-};
+use phantom_net::request::{RequestBody, RequestHeader};
 use tracing::Span;
 
-use crate::timeout::{TimeoutBudget, TimeoutPhase};
+use crate::timeout::TimeoutBudget;
 use crate::{Client, HttpProtocol, RequestError, ResponseBody, Route};
 
 use super::{ProtocolSelection, RequestBodySource, ResolvedRequest};
@@ -179,102 +176,23 @@ async fn send_once_negotiated(
             .as_ref()
             .zip(client_hint_origin.as_deref())
             .map(|(settings, origin)| client.client_hint_context(endpoint, origin, settings));
-        let http1_sent_headers = prepare_headers(client_hints, http1_request_headers, None);
-        let http2_validation_headers =
-            prepare_headers(client_hints, http2_request_headers.clone(), None);
-        let mut http1_headers = Vec::with_capacity(http1_sent_headers.len() + 1);
-        http1_headers.push(RequestHeader::new(
-            "Host",
-            endpoint.authority().as_str().as_bytes(),
-        ));
-        http1_headers.extend(http1_sent_headers.clone());
         let attempt_body = body.next_attempt()?;
-        let body_metadata = attempt_body.as_ref().map(RequestBody::metadata);
-        phantom_net::http1::validate_request_body(
-            &method,
-            &request.target,
-            &http1_headers,
-            body_metadata,
-        )
-        .map_err(RequestError::negotiated_http1_validation)?;
-        phantom_net::http2::validate_request_body(
-            &method,
-            endpoint.authority().as_str(),
-            &request.target,
-            &http2_validation_headers,
-            body_metadata,
-        )
-        .map_err(RequestError::negotiated_http2_validation)?;
-
-        let connection = timeout_budget
-            .run(TimeoutPhase::Connect, None, async {
-                connector
-                    .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
-                    .await
-                    .map_err(RequestError::http1_or_2)
-            })
+        let (response, protocol, sent_headers) = client
+            .state
+            .http1_or_2
+            .send_request(
+                connector,
+                endpoint,
+                request_span,
+                method.clone(),
+                request.target.clone(),
+                http1_request_headers,
+                http2_request_headers,
+                client_hints,
+                attempt_body,
+                timeout_budget,
+            )
             .await?;
-        let (response, protocol, sent_headers) = match connection {
-            Http1Or2Connection::Http1(connection) => {
-                request_span.record("selected_protocol", HttpProtocol::Http1.trace_name());
-                let response = timeout_budget
-                    .run(
-                        TimeoutPhase::ResponseHead,
-                        Some(HttpProtocol::Http1),
-                        async {
-                            connection
-                                .send_request_body(
-                                    method.clone(),
-                                    request.target.clone(),
-                                    http1_headers,
-                                    attempt_body,
-                                )
-                                .await
-                                .map_err(|error| RequestError::http1(error.into()))
-                        },
-                    )
-                    .await?;
-                let (parts, body) = response.into_parts();
-                (
-                    Response::from_parts(parts, ResponseBody::http1(body)),
-                    HttpProtocol::Http1,
-                    http1_sent_headers,
-                )
-            }
-            Http1Or2Connection::Http2(connection) => {
-                request_span.record("selected_protocol", HttpProtocol::Http2.trace_name());
-                let sent_headers = prepare_headers(
-                    client_hints,
-                    http2_request_headers,
-                    client_hints
-                        .and_then(|context| connection.accept_ch_for_origin(context.origin())),
-                );
-                let response = timeout_budget
-                    .run(
-                        TimeoutPhase::ResponseHead,
-                        Some(HttpProtocol::Http2),
-                        async {
-                            connection
-                                .send_request_body(
-                                    method.clone(),
-                                    endpoint.authority().as_str(),
-                                    request.target.clone(),
-                                    sent_headers.clone(),
-                                    attempt_body,
-                                )
-                                .await
-                                .map_err(|error| RequestError::http2(error.into()))
-                        },
-                    )
-                    .await?;
-                let (parts, body) = response.into_parts();
-                (
-                    Response::from_parts(parts, ResponseBody::http2(body)),
-                    HttpProtocol::Http2,
-                    sent_headers,
-                )
-            }
-        };
 
         #[cfg(feature = "cookies")]
         if let Some(jar) = cookie_jar {

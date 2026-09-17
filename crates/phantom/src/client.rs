@@ -106,14 +106,16 @@ impl Client {
 
     /// Starts one direct GET that selects HTTP/2 or HTTP/1.1 from TLS ALPN.
     ///
-    /// The request performs one TCP connection and one TLS handshake. Exact
-    /// `h2` selects HTTP/2; exact `http/1.1` or absent ALPN selects HTTP/1.1.
+    /// The client opens at most one current direct TCP/TLS generation per
+    /// origin and reuses the ALPN-selected protocol while that generation is
+    /// eligible. Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN
+    /// selects HTTP/1.1.
     /// It does not race, perform transport retries, or consult Alt-Svc. Any
     /// non-direct configured or per-request route is rejected before I/O.
     /// [`crate::ResponseInfo::protocol`]
     /// reports the selected protocol. Client cookies and learned client hints
-    /// apply, but the selected connection is not retained in an exact-protocol
-    /// pool.
+    /// apply. Negotiated generations are isolated from the exact-protocol
+    /// pools.
     ///
     /// # Errors
     ///
@@ -125,7 +127,7 @@ impl Client {
 
     /// Starts one direct request that selects HTTP/2 or HTTP/1.1 from TLS ALPN.
     ///
-    /// This has the same one-connection selection contract as
+    /// This has the same pooled-generation selection contract as
     /// [`Self::get_negotiated`]. The request must be representable by both HTTP
     /// versions so validation can finish before network I/O.
     ///
@@ -322,6 +324,9 @@ impl ClientBuilder {
     }
 
     /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
+    ///
+    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
+    /// and H2 retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http1_connections = maximum;
@@ -336,6 +341,9 @@ impl ClientBuilder {
     }
 
     /// Sets the maximum number of HTTP/2 connections retained for reuse.
+    ///
+    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
+    /// and H2 retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http2_connections = maximum;

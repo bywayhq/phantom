@@ -133,6 +133,7 @@ async fn negotiated_request_selects_http2_once() -> TestResult<()> {
         assert_eq!(response_protocol(&response)?, HttpProtocol::Http2);
         response.into_body().collect().await?;
 
+        drop(client);
         let (uri, had_no_second_connection) = server.await??;
         assert_eq!(uri.path(), "/selected-h2");
         assert!(had_no_second_connection);

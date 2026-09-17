@@ -372,13 +372,16 @@ replay. Live post-handshake `ACCEPT_CH` frames, browser navigation-context
 delegation, and persistence remain separate work.
 
 The direct negotiation slice is also landed for direct negotiated requests. It
-validates both H1 and H2 representations before I/O, opens one TCP connection,
-performs one TLS handshake with the profile's ordered ALPN offer, and enters
-only the selected engine. Exact `h2` applies the existing ALPS peer settings
-and connection-scoped `ACCEPT_CH`; `http/1.1` or absent ALPN enters H1. Other
-selected protocols fail before HTTP bytes. `ResponseInfo` records the actual
-protocol. Exact-protocol methods remain unchanged. Negotiated sessions,
-proxies, H3 upgrades, Alt-Svc, and racing remain later slices.
+validates both H1 and H2 representations before I/O, opens one current TCP/TLS
+generation per origin with the profile's ordered ALPN offer, and enters only
+the selected engine. Eligible H1 generations serve sequential requests after
+the prior body completes; H2 generations multiplex within bounded admission.
+Exact `h2` applies the existing ALPS peer settings and connection-scoped
+`ACCEPT_CH`; `http/1.1` or absent ALPN enters H1. Other selected protocols fail
+before HTTP bytes. Nonreusable or draining generations are replaced before a
+later dispatch without replaying a dispatched request. `ResponseInfo` records
+the actual protocol, and exact-protocol pools remain isolated. Proxies, H3
+upgrades, Alt-Svc, and racing remain later slices.
 
 The canonical-endpoint slice is landed across HTTPS, WSS, HTTP-proxy, and
 SOCKS5-proxy URIs. One WHATWG host parse converts Unicode domains and

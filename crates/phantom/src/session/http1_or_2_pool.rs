@@ -44,7 +44,7 @@ impl Http1Or2Pool {
         max_http2_pending: NonZeroUsize,
     ) -> Self {
         Self {
-            capacity: http1_capacity.max(http2_capacity),
+            capacity: http1_capacity.min(http2_capacity),
             max_http1_pending,
             max_http2_active,
             max_http2_pending,

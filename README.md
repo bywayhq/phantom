@@ -107,12 +107,14 @@ for field in ordered.iter() {
 ```
 
 The protocol-taking methods select exactly that protocol. Bare-client
-`get_negotiated` and `request_negotiated` instead perform one direct TCP/TLS
-connection and select H2 for `h2`, or H1 for `http/1.1` or absent ALPN. They do
-not race, use a proxy, or consider H3. Client cookies, learned client hints,
-and bounded redirect policy still apply, but the selected connection is not
-retained in an exact-protocol pool. `ResponseInfo::protocol` reports the
-protocol that produced every ordinary response.
+`get_negotiated` and `request_negotiated` instead keep one current direct
+TCP/TLS generation per origin and select H2 for `h2`, or H1 for `http/1.1` or
+absent ALPN. Eligible H1 generations serve sequential requests and H2
+generations multiplex requests; they do not race, use a proxy, or consider H3.
+Client cookies, learned client hints, and bounded redirect policy still apply,
+and the negotiated pool remains isolated from exact-protocol pools.
+`ResponseInfo::protocol` reports the protocol that produced every ordinary
+response.
 `get` is convenience sugar for `request` with `Method::GET`; ordinary
 non-CONNECT methods may carry an owned byte body or a pull-driven
 `http_body::Body<Data = Bytes>` through `streaming_body`. Phantom validates a
