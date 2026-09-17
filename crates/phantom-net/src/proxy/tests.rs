@@ -13,6 +13,7 @@ use crate::{
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
 
+mod authentication;
 mod https_connect;
 mod socks5;
 

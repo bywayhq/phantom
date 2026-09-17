@@ -1,8 +1,12 @@
 use phantom_profile::TlsSettings;
 
 use super::{
-    HttpConnectError, HttpConnectHeader, TunnelStream,
-    http_connect::{PreparedConnect, establish, trace_connect},
+    HttpBasicCredentials, HttpConnectError, HttpConnectHeader, TunnelStream,
+    http_connect::{
+        ChallengeOutcome, PreparedBasicConnect, PreparedConnect, establish,
+        establish_authenticated, establish_challenge, record_authentication_attempts,
+        trace_connect,
+    },
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
@@ -88,6 +92,62 @@ impl HttpsProxyConnector {
             establish(stream, request).await
         })
         .await
+    }
+
+    pub(crate) async fn connect_tunnel_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        authority: &str,
+        headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+    ) -> Result<TunnelStream<TlsStream<tokio::net::TcpStream>>, HttpConnectError> {
+        trace_connect("https", async {
+            let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
+            record_authentication_attempts(false);
+            let stream = self
+                .connect_proxy(proxy_host, proxy_port, proxy_server_name)
+                .await?;
+            match establish_challenge(stream, requests.anonymous).await? {
+                ChallengeOutcome::Tunnel(tunnel) => Ok(tunnel),
+                ChallengeOutcome::Retry => {
+                    record_authentication_attempts(true);
+                    let stream = self
+                        .connect_proxy(proxy_host, proxy_port, proxy_server_name)
+                        .await?;
+                    establish_authenticated(stream, requests.authenticated).await
+                }
+            }
+        })
+        .await
+    }
+
+    async fn connect_proxy(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+    ) -> Result<TlsStream<tokio::net::TcpStream>, HttpConnectError> {
+        let stream = connect_tcp(proxy_host, proxy_port)
+            .await
+            .map_err(|error| match error {
+                DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
+                DirectConnectError::Connect(error) => HttpConnectError::Connect(error),
+            })?;
+        let stream = self
+            .tls
+            .connect(proxy_server_name, stream)
+            .await
+            .map_err(HttpConnectError::ProxyTls)?;
+        if let Some(selected) = stream.negotiated_alpn() {
+            if selected != b"http/1.1" {
+                return Err(HttpConnectError::UnsupportedAlpn {
+                    selected: selected.into(),
+                });
+            }
+        }
+        Ok(stream)
     }
 }
 

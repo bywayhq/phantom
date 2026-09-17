@@ -15,7 +15,8 @@ use super::{
 use crate::{
     direct::{DirectConnectError, connect_tcp},
     proxy::{
-        HttpConnectHeader, HttpsProxyConnector, Socks5Auth, connect_http_tunnel_direct,
+        HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks5Auth,
+        connect_http_tunnel_direct, connect_http_tunnel_direct_with_basic_auth,
         connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local_with_auth,
     },
     tls::{TlsConnector, trace_alpn},
@@ -255,6 +256,39 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Sends one request through a plaintext proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new(method, target, headers, body)?;
+            let stream = connect_http_tunnel_direct_with_basic_auth(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+            let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_request(&connection, prepared).await
+        })
+        .await
+    }
+
     /// Sends one request through an HTTP/1.1 CONNECT tunnel to an HTTPS proxy.
     ///
     /// Origin and CONNECT requests are validated before proxy or origin I/O.
@@ -284,6 +318,43 @@ impl Http1TlsConnector {
                     proxy_server_name,
                     connect_authority,
                     connect_headers,
+                )
+                .await?;
+            let connection = self.connect_prepared(stream, server_name).await?;
+            self.send_prepared_request(&connection, prepared).await
+        })
+        .await
+    }
+
+    /// Sends one request through an HTTPS proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared = PreparedRequest::new(method, target, headers, body)?;
+            let stream = proxy_connector
+                .connect_tunnel_with_basic_auth(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
                 )
                 .await?;
             let connection = self.connect_prepared(stream, server_name).await?;
@@ -541,6 +612,31 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Opens a plaintext proxy tunnel using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_connect(async {
+            let stream = connect_http_tunnel_direct_with_basic_auth(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+            self.connect_prepared(stream, server_name).await
+        })
+        .await
+    }
+
     /// Opens an HTTP/1.1 CONNECT tunnel through an HTTPS proxy and establishes
     /// HTTP/1.1 over origin TLS.
     ///
@@ -564,6 +660,35 @@ impl Http1TlsConnector {
                     proxy_server_name,
                     connect_authority,
                     connect_headers,
+                )
+                .await?;
+            self.connect_prepared(stream, server_name).await
+        })
+        .await
+    }
+
+    /// Opens an HTTPS proxy tunnel using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_connect(async {
+            let stream = proxy_connector
+                .connect_tunnel_with_basic_auth(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
                 )
                 .await?;
             self.connect_prepared(stream, server_name).await
@@ -737,6 +862,35 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Sends an Upgrade GET through a plaintext proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = connect_http_tunnel_direct_with_basic_auth(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+            self.send_prepared_upgrade(stream, server_name, prepared)
+                .await
+        })
+        .await
+    }
+
     /// Sends one HTTP/1.1 Upgrade GET through an HTTPS proxy using CONNECT.
     ///
     /// Origin and CONNECT requests are validated before proxy or origin I/O.
@@ -762,6 +916,39 @@ impl Http1TlsConnector {
                     proxy_server_name,
                     connect_authority,
                     connect_headers,
+                )
+                .await?;
+            self.send_prepared_upgrade(stream, server_name, prepared)
+                .await
+        })
+        .await
+    }
+
+    /// Sends an Upgrade GET through an HTTPS proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = proxy_connector
+                .connect_tunnel_with_basic_auth(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
                 )
                 .await?;
             self.send_prepared_upgrade(stream, server_name, prepared)

@@ -3,20 +3,22 @@ use std::{fmt, future::Future};
 use bytes::Bytes;
 use http::{
     HeaderValue,
-    header::{CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
+    header::{CONTENT_LENGTH, HOST, HeaderName, PROXY_AUTHORIZATION, TRANSFER_ENCODING},
     uri::Authority,
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::{Instrument, Span, debug_span, field};
 
-use super::{HttpConnectError, TunnelStream};
+use super::{
+    HttpBasicCredentials, HttpConnectError, TunnelStream, authentication::has_valid_basic_challenge,
+};
 use crate::{
     direct::{DirectConnectError, connect_tcp},
     request::RequestHeader,
 };
 
 const MAX_CONNECT_HEADERS: usize = 100;
-const MAX_CONNECT_HEAD_BYTES: usize = 32 * 1024;
+pub(super) const MAX_CONNECT_HEAD_BYTES: usize = 32 * 1024;
 const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
 /// One ordered field in an HTTP CONNECT request.
@@ -30,6 +32,12 @@ pub enum HttpConnectHeader {
     },
     /// Emits one literal field.
     Field(RequestHeader),
+    /// Emits generated credentials at this position after a valid challenge.
+    ProxyAuthorization {
+        /// Field-name spelling, which must be an ASCII case variant of
+        /// `Proxy-Authorization`.
+        name: Box<str>,
+    },
 }
 
 impl HttpConnectHeader {
@@ -44,6 +52,18 @@ impl HttpConnectHeader {
     pub fn field(header: RequestHeader) -> Self {
         Self::Field(header)
     }
+
+    /// Creates the challenge-response authorization placeholder.
+    #[must_use]
+    pub fn proxy_authorization(name: impl Into<Box<str>>) -> Self {
+        Self::ProxyAuthorization { name: name.into() }
+    }
+
+    /// Reports whether this is the generated authorization placeholder.
+    #[must_use]
+    pub fn is_proxy_authorization(&self) -> bool {
+        matches!(self, Self::ProxyAuthorization { .. })
+    }
 }
 
 impl fmt::Debug for HttpConnectHeader {
@@ -57,6 +77,10 @@ impl fmt::Debug for HttpConnectHeader {
                 .debug_struct("Field")
                 .field("name", &header.name())
                 .field("value_bytes", &header.value().len())
+                .finish(),
+            Self::ProxyAuthorization { name } => formatter
+                .debug_struct("ProxyAuthorization")
+                .field("name", name)
                 .finish(),
         }
     }
@@ -115,10 +139,99 @@ pub async fn connect_http_tunnel_direct(
     .await
 }
 
+/// Opens a direct HTTP CONNECT tunnel with one challenge-driven Basic retry.
+///
+/// Both request forms are validated before DNS resolution or TCP I/O. The
+/// first request omits the authorization placeholder. A valid Basic challenge
+/// causes exactly one retry on a fresh connection to the same proxy.
+///
+/// # Errors
+///
+/// Returns [`HttpConnectError`] for invalid credentials or fields, connection
+/// and I/O failures, unusable authentication challenges, and proxy rejection.
+pub async fn connect_http_tunnel_direct_with_basic_auth(
+    proxy_host: &str,
+    proxy_port: u16,
+    authority: &str,
+    headers: &[HttpConnectHeader],
+    credentials: &HttpBasicCredentials,
+) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
+    trace_connect("http", async {
+        let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
+        record_authentication_attempts(false);
+        let stream = connect_proxy_tcp(proxy_host, proxy_port).await?;
+        match establish_challenge(stream, requests.anonymous).await? {
+            ChallengeOutcome::Tunnel(tunnel) => Ok(tunnel),
+            ChallengeOutcome::Retry => {
+                record_authentication_attempts(true);
+                let stream = connect_proxy_tcp(proxy_host, proxy_port).await?;
+                establish_authenticated(stream, requests.authenticated).await
+            }
+        }
+    })
+    .await
+}
+
+async fn connect_proxy_tcp(
+    proxy_host: &str,
+    proxy_port: u16,
+) -> Result<tokio::net::TcpStream, HttpConnectError> {
+    connect_tcp(proxy_host, proxy_port)
+        .await
+        .map_err(|error| match error {
+            DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
+            DirectConnectError::Connect(error) => HttpConnectError::Connect(error),
+        })
+}
+
 pub(super) async fn establish<S>(
-    mut stream: S,
+    stream: S,
     request: PreparedConnect,
 ) -> Result<TunnelStream<S>, HttpConnectError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    match exchange(stream, request, false).await? {
+        ExchangeOutcome::Tunnel(tunnel) => Ok(tunnel),
+        ExchangeOutcome::Retry => Err(HttpConnectError::InvalidResponse),
+    }
+}
+
+pub(super) async fn establish_challenge<S>(
+    stream: S,
+    request: PreparedConnect,
+) -> Result<ChallengeOutcome<S>, HttpConnectError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    match exchange(stream, request, true).await? {
+        ExchangeOutcome::Tunnel(tunnel) => Ok(ChallengeOutcome::Tunnel(tunnel)),
+        ExchangeOutcome::Retry => Ok(ChallengeOutcome::Retry),
+    }
+}
+
+pub(super) async fn establish_authenticated<S>(
+    stream: S,
+    request: PreparedConnect,
+) -> Result<TunnelStream<S>, HttpConnectError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    match exchange(stream, request, false).await {
+        Err(HttpConnectError::Rejected { status: 407 }) => {
+            Err(HttpConnectError::AuthenticationRejected)
+        }
+        Ok(ExchangeOutcome::Tunnel(tunnel)) => Ok(tunnel),
+        Ok(ExchangeOutcome::Retry) => Err(HttpConnectError::InvalidResponse),
+        Err(error) => Err(error),
+    }
+}
+
+async fn exchange<S>(
+    mut stream: S,
+    request: PreparedConnect,
+    inspect_challenge: bool,
+) -> Result<ExchangeOutcome<S>, HttpConnectError>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -130,28 +243,34 @@ where
 
     let mut response = Vec::with_capacity(1024);
     let mut informational_count = 0;
-    let head_end = loop {
-        let end = read_response_head(&mut stream, &mut response).await?;
-        let status = parse_status(&response[..end])?;
-        if status != 101 && (100..200).contains(&status) {
+    loop {
+        let head_end = read_response_head(&mut stream, &mut response).await?;
+        let parsed = parse_response(&response[..head_end], inspect_challenge)?;
+        if parsed.status != 101 && (100..200).contains(&parsed.status) {
             informational_count += 1;
             if informational_count > MAX_INFORMATIONAL_RESPONSES {
                 return Err(HttpConnectError::TooManyInformationalResponses {
                     maximum: MAX_INFORMATIONAL_RESPONSES,
                 });
             }
-            response.drain(..end);
+            response.drain(..head_end);
             continue;
         }
-        Span::current().record("status", status);
-        if !(200..300).contains(&status) {
-            return Err(HttpConnectError::Rejected { status });
+        Span::current().record("status", parsed.status);
+        if (200..300).contains(&parsed.status) {
+            let prefix = Bytes::from(response).slice(head_end..);
+            return Ok(ExchangeOutcome::Tunnel(TunnelStream::new(stream, prefix)));
         }
-        break end;
-    };
-
-    let prefix = Bytes::from(response).slice(head_end..);
-    Ok(TunnelStream::new(stream, prefix))
+        if inspect_challenge && parsed.status == 407 {
+            parsed
+                .authentication
+                .ok_or(HttpConnectError::InvalidResponse)??;
+            return Ok(ExchangeOutcome::Retry);
+        }
+        return Err(HttpConnectError::Rejected {
+            status: parsed.status,
+        });
+    }
 }
 
 async fn read_response_head<S>(
@@ -184,7 +303,10 @@ where
     }
 }
 
-fn parse_status(head: &[u8]) -> Result<u16, HttpConnectError> {
+fn parse_response(
+    head: &[u8],
+    inspect_challenge: bool,
+) -> Result<ParsedResponse, HttpConnectError> {
     let mut headers = [httparse::EMPTY_HEADER; MAX_CONNECT_HEADERS];
     let mut response = httparse::Response::new(&mut headers);
     match response.parse(head) {
@@ -193,7 +315,13 @@ fn parse_status(head: &[u8]) -> Result<u16, HttpConnectError> {
             return Err(HttpConnectError::InvalidResponse);
         }
     }
-    response.code.ok_or(HttpConnectError::InvalidResponse)
+    let status = response.code.ok_or(HttpConnectError::InvalidResponse)?;
+    let authentication =
+        (inspect_challenge && status == 407).then(|| has_valid_basic_challenge(response.headers));
+    Ok(ParsedResponse {
+        status,
+        authentication,
+    })
 }
 
 fn find_head_end(bytes: &[u8]) -> Option<usize> {
@@ -216,11 +344,18 @@ where
         status = field::Empty,
         outcome = field::Empty,
         error_kind = field::Empty,
+        authentication_retry = field::Empty,
+        proxy_attempts = field::Empty,
     );
     let outcome = ConnectOutcome::new(&span);
     let result = operation.instrument(span.clone()).await;
     outcome.finish(&result);
     result
+}
+
+pub(super) fn record_authentication_attempts(retried: bool) {
+    Span::current().record("authentication_retry", retried);
+    Span::current().record("proxy_attempts", if retried { 2_u64 } else { 1_u64 });
 }
 
 struct ConnectOutcome {
@@ -271,6 +406,14 @@ impl PreparedConnect {
     pub(super) fn new(
         authority: &str,
         headers: &[HttpConnectHeader],
+    ) -> Result<Self, HttpConnectError> {
+        Self::prepare(authority, headers, Authorization::Forbidden)
+    }
+
+    fn prepare(
+        authority: &str,
+        headers: &[HttpConnectHeader],
+        authorization: Authorization<'_>,
     ) -> Result<Self, HttpConnectError> {
         if authority.as_bytes().contains(&b'@') {
             return Err(HttpConnectError::InvalidAuthority);
@@ -330,7 +473,30 @@ impl PreparedConnect {
                     if name == CONTENT_LENGTH || name == TRANSFER_ENCODING {
                         return Err(HttpConnectError::RequestFramingHeader);
                     }
+                    if authorization.is_generated() && name == PROXY_AUTHORIZATION {
+                        return Err(HttpConnectError::ProxyAuthorizationHeader);
+                    }
                     append_field(&mut bytes, header.name().as_bytes(), header.value())?;
+                }
+                HttpConnectHeader::ProxyAuthorization { name } => {
+                    let parsed = HeaderName::from_bytes(name.as_bytes())
+                        .map_err(|_| HttpConnectError::InvalidHeaderName { index })?;
+                    if parsed != PROXY_AUTHORIZATION
+                        || !name
+                            .as_bytes()
+                            .eq_ignore_ascii_case(parsed.as_str().as_bytes())
+                    {
+                        return Err(HttpConnectError::InvalidHeaderName { index });
+                    }
+                    match authorization {
+                        Authorization::Forbidden => {
+                            return Err(HttpConnectError::ProxyAuthorizationPlaceholder);
+                        }
+                        Authorization::Omit => {}
+                        Authorization::Emit(value) => {
+                            append_field(&mut bytes, name.as_bytes(), value)?;
+                        }
+                    }
                 }
             }
         }
@@ -339,6 +505,67 @@ impl PreparedConnect {
         }
         extend_bounded(&mut bytes, b"\r\n")?;
         Ok(Self { bytes })
+    }
+}
+
+pub(super) struct PreparedBasicConnect {
+    pub(super) anonymous: PreparedConnect,
+    pub(super) authenticated: PreparedConnect,
+}
+
+impl PreparedBasicConnect {
+    pub(super) fn new(
+        authority: &str,
+        headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+    ) -> Result<Self, HttpConnectError> {
+        let placeholders = headers
+            .iter()
+            .filter(|header| header.is_proxy_authorization())
+            .count();
+        match placeholders {
+            0 => return Err(HttpConnectError::MissingProxyAuthorizationPlaceholder),
+            1 => {}
+            _ => return Err(HttpConnectError::MultipleProxyAuthorizationPlaceholders),
+        }
+        let anonymous = PreparedConnect::prepare(authority, headers, Authorization::Omit)?;
+        let authenticated = PreparedConnect::prepare(
+            authority,
+            headers,
+            Authorization::Emit(credentials.authorization()),
+        )?;
+        Ok(Self {
+            anonymous,
+            authenticated,
+        })
+    }
+}
+
+pub(super) enum ChallengeOutcome<S> {
+    Tunnel(TunnelStream<S>),
+    Retry,
+}
+
+enum ExchangeOutcome<S> {
+    Tunnel(TunnelStream<S>),
+    Retry,
+}
+
+struct ParsedResponse {
+    status: u16,
+    authentication: Option<Result<(), HttpConnectError>>,
+}
+
+#[derive(Clone, Copy)]
+enum Authorization<'a> {
+    Forbidden,
+    Omit,
+    Emit(&'a [u8]),
+}
+
+impl Authorization<'_> {
+    fn is_generated(self) -> bool {
+        !matches!(self, Self::Forbidden)
     }
 }
 

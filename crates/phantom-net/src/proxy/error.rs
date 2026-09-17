@@ -10,6 +10,8 @@ pub enum HttpConnectErrorKind {
     InvalidConfiguration,
     /// The CONNECT authority or ordered fields are invalid.
     InvalidRequest,
+    /// Proxy authentication failed or the challenge was unusable.
+    Authentication,
     /// The request was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// Connecting to the proxy failed.
@@ -32,6 +34,12 @@ pub enum HttpConnectErrorKind {
 pub enum HttpConnectError {
     /// TLS settings do not offer HTTP/1.1 to the proxy.
     MissingHttp1Alpn,
+    /// The HTTP Basic username is invalid.
+    InvalidBasicUsername,
+    /// The HTTP Basic password is invalid.
+    InvalidBasicPassword,
+    /// The HTTP Basic credential pair cannot fit in a bounded CONNECT request.
+    BasicCredentialsTooLarge,
     /// The CONNECT target is not a valid authority with an explicit port.
     InvalidAuthority,
     /// The complete CONNECT request exceeded the field-count bound.
@@ -66,6 +74,14 @@ pub enum HttpConnectError {
     MissingAuthorityHeader,
     /// The CONNECT field sequence contains more than one authority placeholder.
     MultipleAuthorityHeaders,
+    /// An authentication placeholder was supplied without credentials.
+    ProxyAuthorizationPlaceholder,
+    /// Challenge-driven authentication requires one authorization placeholder.
+    MissingProxyAuthorizationPlaceholder,
+    /// The CONNECT fields contain more than one authorization placeholder.
+    MultipleProxyAuthorizationPlaceholders,
+    /// A literal authorization field is ambiguous with generated credentials.
+    ProxyAuthorizationHeader,
     /// The proxy request was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// Establishing the TCP connection to the proxy failed.
@@ -93,6 +109,12 @@ pub enum HttpConnectError {
     },
     /// The proxy returned an invalid HTTP/1 response head.
     InvalidResponse,
+    /// The proxy sent a malformed authentication challenge.
+    MalformedAuthenticationChallenge,
+    /// The proxy did not offer a supported authentication challenge.
+    UnsupportedAuthenticationChallenge,
+    /// The proxy rejected the one authenticated retry.
+    AuthenticationRejected,
     /// The proxy returned a non-success status.
     Rejected {
         /// HTTP response status returned by the proxy.
@@ -106,7 +128,10 @@ impl HttpConnectError {
     pub fn kind(&self) -> HttpConnectErrorKind {
         match self {
             Self::MissingHttp1Alpn => HttpConnectErrorKind::InvalidConfiguration,
-            Self::InvalidAuthority
+            Self::InvalidBasicUsername
+            | Self::InvalidBasicPassword
+            | Self::BasicCredentialsTooLarge
+            | Self::InvalidAuthority
             | Self::TooManyHeaders { .. }
             | Self::RequestHeadTooLarge { .. }
             | Self::InvalidHeaderName { .. }
@@ -114,7 +139,14 @@ impl HttpConnectError {
             | Self::AuthorityHeader
             | Self::RequestFramingHeader
             | Self::MissingAuthorityHeader
-            | Self::MultipleAuthorityHeaders => HttpConnectErrorKind::InvalidRequest,
+            | Self::MultipleAuthorityHeaders
+            | Self::ProxyAuthorizationPlaceholder
+            | Self::MissingProxyAuthorizationPlaceholder
+            | Self::MultipleProxyAuthorizationPlaceholders
+            | Self::ProxyAuthorizationHeader => HttpConnectErrorKind::InvalidRequest,
+            Self::MalformedAuthenticationChallenge
+            | Self::UnsupportedAuthenticationChallenge
+            | Self::AuthenticationRejected => HttpConnectErrorKind::Authentication,
             Self::RuntimeUnavailable => HttpConnectErrorKind::RuntimeUnavailable,
             Self::Connect(_) => HttpConnectErrorKind::Connect,
             Self::ProxyTls(_) => HttpConnectErrorKind::Tls,
@@ -133,6 +165,15 @@ impl fmt::Display for HttpConnectError {
         match self {
             Self::MissingHttp1Alpn => {
                 formatter.write_str("HTTPS proxy TLS settings must offer http/1.1 through ALPN")
+            }
+            Self::InvalidBasicUsername => {
+                formatter.write_str("HTTP Basic proxy username is invalid")
+            }
+            Self::InvalidBasicPassword => {
+                formatter.write_str("HTTP Basic proxy password is invalid")
+            }
+            Self::BasicCredentialsTooLarge => {
+                formatter.write_str("HTTP Basic proxy credentials are too large")
             }
             Self::InvalidAuthority => formatter
                 .write_str("HTTP CONNECT target must be a valid authority with an explicit port"),
@@ -161,6 +202,17 @@ impl fmt::Display for HttpConnectError {
             }
             Self::MultipleAuthorityHeaders => formatter
                 .write_str("HTTP CONNECT fields must not contain multiple authority placeholders"),
+            Self::ProxyAuthorizationPlaceholder => formatter.write_str(
+                "HTTP CONNECT authorization placeholder requires challenge-driven credentials",
+            ),
+            Self::MissingProxyAuthorizationPlaceholder => formatter.write_str(
+                "authenticated HTTP CONNECT fields must contain one authorization placeholder",
+            ),
+            Self::MultipleProxyAuthorizationPlaceholders => formatter.write_str(
+                "HTTP CONNECT fields must not contain multiple authorization placeholders",
+            ),
+            Self::ProxyAuthorizationHeader => formatter
+                .write_str("authenticated HTTP CONNECT must use the authorization placeholder"),
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP CONNECT requires a Tokio runtime")
             }
@@ -181,6 +233,15 @@ impl fmt::Display for HttpConnectError {
             ),
             Self::InvalidResponse => {
                 formatter.write_str("proxy returned an invalid HTTP CONNECT response")
+            }
+            Self::MalformedAuthenticationChallenge => {
+                formatter.write_str("proxy returned a malformed authentication challenge")
+            }
+            Self::UnsupportedAuthenticationChallenge => {
+                formatter.write_str("proxy did not offer supported authentication")
+            }
+            Self::AuthenticationRejected => {
+                formatter.write_str("proxy rejected HTTP Basic authentication")
             }
             Self::Rejected { status } => {
                 write!(
@@ -207,6 +268,7 @@ impl HttpConnectErrorKind {
         match self {
             Self::InvalidConfiguration => "invalid_configuration",
             Self::InvalidRequest => "invalid_request",
+            Self::Authentication => "authentication_error",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Connect => "connect_error",
             Self::Tls => "tls_error",

@@ -15,9 +15,9 @@ use super::{
 use crate::{
     direct::{DirectConnectError, connect_tcp},
     proxy::{
-        HttpConnectError, HttpConnectHeader, HttpsProxyConnector, Socks5Auth, Socks5Error,
-        connect_http_tunnel_direct, connect_socks5_tunnel_direct_with_auth,
-        connect_socks5_tunnel_local_with_auth,
+        HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector, Socks5Auth,
+        Socks5Error, connect_http_tunnel_direct, connect_http_tunnel_direct_with_basic_auth,
+        connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local_with_auth,
     },
     tls::{TlsConnector, TlsStream, trace_alpn},
 };
@@ -201,6 +201,32 @@ impl Http2TlsConnector {
         .await
     }
 
+    /// Establishes HTTP/2 through a plaintext proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            let stream = connect_http_tunnel_direct_with_basic_auth(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+            self.connect_prepared(stream, server_name, client).await
+        })
+        .await
+    }
+
     /// Establishes HTTP/2 origin TLS through an HTTP/1.1 CONNECT tunnel to an
     /// HTTPS proxy.
     ///
@@ -225,6 +251,36 @@ impl Http2TlsConnector {
                     proxy_server_name,
                     connect_authority,
                     connect_headers,
+                )
+                .await?;
+            self.connect_prepared(stream, server_name, client).await
+        })
+        .await
+    }
+
+    /// Establishes HTTP/2 through an HTTPS proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            let stream = proxy_connector
+                .connect_tunnel_with_basic_auth(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
                 )
                 .await?;
             self.connect_prepared(stream, server_name, client).await
@@ -529,6 +585,41 @@ impl Http2TlsConnector {
         .await
     }
 
+    /// Sends one request through a plaintext proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared =
+                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+            let stream = connect_http_tunnel_direct_with_basic_auth(
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+            self.send_prepared_request(stream, server_name, prepared)
+                .await
+        })
+        .await
+    }
+
     /// Sends one HTTP/2 request through an HTTP/1.1 CONNECT tunnel to an HTTPS
     /// proxy.
     ///
@@ -561,6 +652,45 @@ impl Http2TlsConnector {
                     proxy_server_name,
                     connect_authority,
                     connect_headers,
+                )
+                .await?;
+            self.send_prepared_request(stream, server_name, prepared)
+                .await
+        })
+        .await
+    }
+
+    /// Sends one request through an HTTPS proxy using challenge-driven Basic authentication.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(&trace_method, body_bytes, async {
+            let prepared =
+                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+            let stream = proxy_connector
+                .connect_tunnel_with_basic_auth(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
                 )
                 .await?;
             self.send_prepared_request(stream, server_name, prepared)
