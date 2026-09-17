@@ -105,7 +105,7 @@ An early final response with no remaining upload credit is raced against the
 upload, surfaced immediately, and followed by a request on the same connection.
 
 The current Reaper executable surface has 21 active, non-passive probes.
-Phantom retains 20 of them as production-path regressions. In addition to the
+Phantom retains all 21 as production-path regressions. In addition to the
 cases above, those regressions now cover:
 
 - a six-write H1 response split across the status line, fields, header/body
@@ -131,15 +131,22 @@ and complete the request stream. The fixture also closes the first H2
 generation before the second transaction, exercising pool replacement without
 claiming that connection identity is part of Reaper's observation.
 
-The remaining probe requires a capability that is not exposed. Phantom does
-not coalesce H2 connections across authorities, so the secondary-authority 421
-recovery path is unreachable. That capability must land with its corresponding
-adversarial regression.
+Reaper's current secondary-authority probe records `not_coalesced` for its
+Chrome and Firefox controls; Safari did not establish the dual-authority test
+precondition. Phantom retains that observed connection choice with two
+authorities covered by one trusted certificate and routed to the same peer.
+The secondary authority receives a dedicated H2 connection, matching Reaper's
+current no-challenge outcome. A separate regression proves that a 421 received
+on a dedicated connection is returned without hidden replay. Phantom does not
+claim the unobserved recovery branch: future opt-in coalescing must carry
+certificate, DNS, route, and peer-address proof plus one bounded 421 replay
+regression.
 
 ## Later client and streaming corpus
 
-- Redirect coverage should expand beyond the retained Reaper H2 pair to H1/H3
-  lifecycle cases and cookie transitions across origins.
+- Redirect coverage includes H1 replacement after an incomplete adversarial
+  response, H3 body-preserving replay, and cookie transitions across origins;
+  future work should add broader retained browser matrices.
 - Cookie tests preserve repeated `Set-Cookie`, host-only and domain scope,
   same-name paths, IP/IDNA hosts, and deterministic outbound ordering.
 - Compression tests fragment gzip, deflate, Brotli, and zstd input while a slow

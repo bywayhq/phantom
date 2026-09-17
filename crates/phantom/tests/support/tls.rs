@@ -104,16 +104,26 @@ pub(crate) struct TestIdentity {
 
 impl TestIdentity {
     pub(crate) fn generate() -> TestResult<Self> {
-        Self::generate_with_san(SanType::IpAddress(std::net::IpAddr::V4(
+        Self::generate_with_sans(vec![SanType::IpAddress(std::net::IpAddr::V4(
             Ipv4Addr::LOCALHOST,
-        )))
+        ))])
     }
 
     pub(crate) fn generate_for_dns(name: &str) -> TestResult<Self> {
-        Self::generate_with_san(SanType::DnsName(name.try_into()?))
+        Self::generate_with_sans(vec![SanType::DnsName(name.try_into()?)])
     }
 
-    fn generate_with_san(subject_alt_name: SanType) -> TestResult<Self> {
+    pub(crate) fn generate_for_ip_and_dns(
+        address: std::net::IpAddr,
+        name: &str,
+    ) -> TestResult<Self> {
+        Self::generate_with_sans(vec![
+            SanType::IpAddress(address),
+            SanType::DnsName(name.try_into()?),
+        ])
+    }
+
+    fn generate_with_sans(subject_alt_names: Vec<SanType>) -> TestResult<Self> {
         let mut root_params = CertificateParams::new(Vec::<String>::new())?;
         root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
         root_params.key_usages = vec![
@@ -124,7 +134,7 @@ impl TestIdentity {
         let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
 
         let mut leaf_params = CertificateParams::new(Vec::<String>::new())?;
-        leaf_params.subject_alt_names.push(subject_alt_name);
+        leaf_params.subject_alt_names = subject_alt_names;
         leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
         leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
         leaf_params.use_authority_key_identifier_extension = true;
