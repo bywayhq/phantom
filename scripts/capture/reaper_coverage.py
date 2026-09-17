@@ -68,10 +68,17 @@ def _string(value: object, description: str) -> str:
 
 def _test_pattern(name: str) -> re.Pattern[str]:
     return re.compile(
-        rf"(?m)^[ \t]*#\[(?:tokio::)?test(?:\([^\]\r\n]*\))?\][ \t]*\r?$"
-        rf"(?:\n^[ \t]*#\[[^\]\r\n]+\][ \t]*\r?$)*"
-        rf"\n^[ \t]*(?:async[ \t]+)?fn[ \t]+{re.escape(name)}[ \t]*\(",
+        rf"(?m)(?P<attributes>(?:^[ \t]*#\[[^\]\r\n]+\][ \t]*\r?\n)+)"
+        rf"^[ \t]*(?:async[ \t]+)?fn[ \t]+{re.escape(name)}[ \t]*\(",
     )
+
+
+_TEST_ATTRIBUTE = re.compile(
+    r"(?m)^[ \t]*#\[(?:tokio::)?test(?:\([^\]\r\n]*\))?\][ \t]*\r?$"
+)
+_IGNORE_ATTRIBUTE = re.compile(
+    r'(?m)^[ \t]*#\[ignore(?:[ \t]*=[ \t]*"[^"\r\n]*")?\][ \t]*\r?$'
+)
 
 
 def _validate_regression(
@@ -96,10 +103,15 @@ def _validate_regression(
         raise CoverageError(f"source file for {probe_id} does not exist: {source_name}")
 
     contents = source.read_text(encoding="utf-8")
-    if _test_pattern(test_name).search(contents) is None:
+    declaration = _test_pattern(test_name).search(contents)
+    if declaration is None or _TEST_ATTRIBUTE.search(declaration["attributes"]) is None:
         raise CoverageError(
             f"annotated Rust test for {probe_id} does not exist: "
             f"{source_name}::{test_name}"
+        )
+    if _IGNORE_ATTRIBUTE.search(declaration["attributes"]) is not None:
+        raise CoverageError(
+            f"regression for {probe_id} is ignored: {source_name}::{test_name}"
         )
     return source_name, test_name
 

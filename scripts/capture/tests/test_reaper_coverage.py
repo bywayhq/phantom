@@ -106,6 +106,21 @@ class ReaperCoverageTests(unittest.TestCase):
 
         self.assert_invalid(document, "annotated Rust test .* does not exist")
 
+    def test_rejects_ignored_regression(self) -> None:
+        source = self.repo_root / "crates" / "probe" / "tests.rs"
+        contents = source.read_text(encoding="utf-8")
+        test_name = self.regression_test_name(EXPECTED_PROBE_IDS[0])
+        source.write_text(
+            contents.replace(
+                f"#[test]\nfn {test_name}",
+                f'#[test]\n#[ignore = "not exercised"]\nfn {test_name}',
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+        self.assert_invalid(self.document, "regression .* is ignored")
+
     def test_repository_snapshot_maps_to_existing_tests(self) -> None:
         repository = Path(__file__).resolve().parents[3]
         coverage = (

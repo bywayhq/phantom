@@ -136,10 +136,11 @@ reordered active probes after a deliberate digest refresh. A changed manifest
 requires a source review and new Phantom regressions before updating the
 snapshot; it is never accepted by changing the digest alone.
 
-The repository-only CI gate detects missing or renamed Phantom regressions; it
-does not discover changes to an upstream probe recipe without a source manifest.
-Refreshing the snapshot therefore requires a deliberate Reaper source and
-retained-browser audit. Reaper and browser executables are not CI dependencies.
+The repository-only CI gate detects missing, renamed, or ignored Phantom
+regressions; it does not discover changes to an upstream probe recipe without a
+source manifest. Refreshing the snapshot therefore requires a deliberate Reaper
+source and retained-browser audit. Reaper and browser executables are not CI
+dependencies.
 In addition to the cases above, those regressions cover:
 
 - a six-write H1 response split across the status line, fields, header/body
