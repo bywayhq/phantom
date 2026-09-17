@@ -148,6 +148,70 @@ async fn connection_close_response_is_replaced_without_replay() -> TestResult {
 }
 
 #[tokio::test]
+async fn segmented_close_response_is_reassembled_before_connection_replacement() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut first = accept_one(&listener, &acceptor).await?;
+            let first_head = read_head(&mut first).await?;
+            let body = b"segmented response body";
+            let head = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: text/plain\r\ncache-control: no-store\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                body.len()
+            );
+            let segments: [&[u8]; 6] = [
+                b"HTTP/1.",
+                b"1 200 OK\r\n",
+                &head.as_bytes()[17..head.len() - 3],
+                &head.as_bytes()[head.len() - 3..],
+                &body[..17],
+                &body[17..],
+            ];
+            for segment in segments {
+                first.write_all(segment).await?;
+                first.flush().await?;
+                tokio::task::yield_now().await;
+            }
+            drop(first);
+
+            let mut second = accept_one(&listener, &acceptor).await?;
+            let second_head = read_head(&mut second).await?;
+            second
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head))
+        });
+
+        let session = test_client(&identity, false)?.session();
+        let first = session
+            .get(HttpProtocol::Http1, &format!("https://{address}/segmented"))?
+            .send()
+            .await?
+            .into_body()
+            .collect()
+            .await?
+            .to_bytes();
+        assert_eq!(first, "segmented response body");
+
+        let second = session
+            .get(HttpProtocol::Http1, &format!("https://{address}/followup"))?
+            .send()
+            .await?;
+        assert_eq!(second.status(), 204);
+        assert!(second.into_body().collect().await?.to_bytes().is_empty());
+
+        let (first_head, second_head) = server.await??;
+        assert!(first_head.starts_with(b"GET /segmented HTTP/1.1\r\n"));
+        assert!(second_head.starts_with(b"GET /followup HTTP/1.1\r\n"));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn incomplete_body_is_discarded_before_the_next_request() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;

@@ -21,6 +21,7 @@ async fn completes_after_one_server_retry() -> TestResult<()> {
             .ok_or("test endpoint closed before the initial attempt")?;
         assert!(!first.remote_address_validated());
         assert!(first.may_retry());
+        let original_dst_cid = first.orig_dst_cid();
         first.retry()?;
 
         let retried = timeout(TEST_TIMEOUT, async {
@@ -41,6 +42,7 @@ async fn completes_after_one_server_retry() -> TestResult<()> {
         .map_err(|_| "retried QUIC attempt timed out")??;
         assert!(retried.remote_address_validated());
         assert!(!retried.may_retry());
+        assert_eq!(retried.orig_dst_cid(), original_dst_cid);
 
         let connection = retried.await?;
         let mut connection: h3::server::Connection<_, Bytes> =

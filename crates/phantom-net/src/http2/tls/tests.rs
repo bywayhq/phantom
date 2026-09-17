@@ -33,6 +33,8 @@ use crate::tls::test_support::{
 };
 use crate::tracing_test::OutcomeSubscriber;
 
+mod alps_concurrency_gate;
+mod alps_hpack_last_wins;
 mod key_update;
 mod record_shape;
 
@@ -674,6 +676,7 @@ struct RawFrame {
     kind: u8,
     flags: u8,
     stream_id: u32,
+    payload: Vec<u8>,
 }
 
 async fn read_raw_frame<S>(stream: &mut S) -> TestResult<RawFrame>
@@ -689,6 +692,7 @@ where
         kind: head[3],
         flags: head[4],
         stream_id: u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff,
+        payload,
     })
 }
 

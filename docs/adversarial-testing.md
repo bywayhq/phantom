@@ -104,6 +104,28 @@ cancellation is separately stream-scoped and leaves a sibling stream usable.
 An early final response with no remaining upload credit is raced against the
 upload, surfaced immediately, and followed by a request on the same connection.
 
+The current Reaper executable surface has 21 active, non-passive probes.
+Phantom retains 18 of them as production-path regressions. In addition to the
+cases above, those regressions now cover:
+
+- a six-write H1 response split across the status line, fields, header/body
+  boundary, and body, followed by `Connection: close` replacement;
+- two already-dispatched H2 requests straddling a GOAWAY processed boundary,
+  with the lower stream preserved and the higher stream failed without hidden
+  replay;
+- authenticated QUIC Retry with original-destination connection-ID continuity;
+- ALPS `HEADER_TABLE_SIZE` final-value behavior carried through TLS, H2 state,
+  and the first HPACK block without a synthetic wire acknowledgement; and
+- an ALPS final `MAX_CONCURRENT_STREAMS=0` gate that emits no request HEADERS
+  until a wire SETTINGS update releases capacity, followed by connection reuse.
+
+The other three probes require capabilities that are not exposed. Phantom does
+not automatically follow redirects, so it cannot apply 302/307 method and body
+replay policy. It does not coalesce H2 connections across authorities, so the
+secondary-authority 421 recovery path is unreachable. It does not retain TLS
+session tickets, so a second connection always performs a full handshake.
+Each capability must land with its corresponding adversarial regression.
+
 Reaper's TLS resumption recipe remains an explicit capability gate rather than
 a synthetic transport test. It needs session-ticket retention and
 second-connection reuse, which Phantom intentionally does not expose yet. It

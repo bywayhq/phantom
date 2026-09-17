@@ -277,6 +277,65 @@ async fn goaway_rejected_request_is_not_replayed() -> TestResult<()> {
     .await
 }
 
+#[tokio::test]
+async fn goaway_processed_boundary_preserves_lower_stream_without_replaying_higher_stream()
+-> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut first = accept_tls(&listener, &acceptor).await?;
+            accept_client_preface(&mut first).await?;
+            read_request_headers(&mut first, 1).await?;
+            read_request_headers(&mut first, 3).await?;
+
+            write_frame(&mut first, 0x1, 0x5, 1, &[0x89]).await?;
+            write_frame(&mut first, 0x7, 0, 0, &[0, 0, 0, 1, 0, 0, 0, 0]).await?;
+            first.flush().await?;
+            first.shutdown().await?;
+
+            let replacement = accept_tls(&listener, &acceptor).await?;
+            serve_requests(replacement, 1).await
+        });
+
+        let two = NonZeroUsize::new(2).ok_or("two must be non-zero")?;
+        let session = test_client(&identity, true)?
+            .session_builder()
+            .max_concurrent_http2_requests_per_origin(two)
+            .build();
+        let lower = session
+            .get(HttpProtocol::Http2, &format!("https://{address}/lower"))?
+            .send();
+        let higher = session
+            .get(HttpProtocol::Http2, &format!("https://{address}/higher"))?
+            .send();
+        let (lower, higher) = tokio::join!(lower, higher);
+
+        let lower = lower?;
+        assert_eq!(lower.status(), 204);
+        lower.into_body().collect().await?;
+        let higher = match higher {
+            Ok(_) => return Err("request above the GOAWAY boundary was replayed".into()),
+            Err(error) => error,
+        };
+        assert_eq!(higher.kind(), RequestErrorKind::Http2);
+
+        let explicit = session
+            .get(HttpProtocol::Http2, &format!("https://{address}/explicit"))?
+            .send()
+            .await?;
+        assert_eq!(explicit.status(), 204);
+        explicit.into_body().collect().await?;
+        drop(session);
+
+        assert_eq!(server.await??, vec![(1, "/explicit".to_owned())]);
+        Ok(())
+    })
+    .await
+}
+
 async fn assert_pending<F>(mut future: Pin<&mut F>, message: &'static str) -> TestResult<()>
 where
     F: Future,
