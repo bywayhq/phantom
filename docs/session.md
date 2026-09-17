@@ -32,6 +32,13 @@ drop(second);
 Bare `Client::get` remains one-shot. `Session::get` reuses eligible HTTP/1.1,
 HTTP/2, and direct HTTP/3 connections.
 
+For H1 and H2, each retained pool entry also owns a bounded TLS ticket cache.
+Connection replacement for the same canonical origin, complete route, protocol,
+profile, and TLS context can resume. Tickets never cross pool entries or
+sessions, expired entries are discarded, and TLS 1.3 single-use tickets are
+consumed. One-shot client requests do not retain tickets. Early data remains
+disabled, and QUIC resumption is separate future work.
+
 ## Pool boundary
 
 One session retains at most one current H1, H2, or H3 connection for each
@@ -112,5 +119,5 @@ current request API does not expose, so they are rejected. `SameSite=None` is
 accepted only with `Secure`; an omitted SameSite attribute receives no
 context-dependent filtering in this slice. Partitioned cookies need a
 top-level-site key and remain unsupported. Persistence,
-browser-specific eviction priority, redirects, retries, client hints, tickets,
-DNS/HTTPS answers, and Alt-Svc state are also outside this slice.
+browser-specific eviction priority, redirects, retries, client hints, QUIC
+tickets, DNS/HTTPS answers, and Alt-Svc state are also outside this slice.

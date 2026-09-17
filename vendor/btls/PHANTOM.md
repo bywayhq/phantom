@@ -33,6 +33,14 @@ message observation, but the upstream wrapper exposes neither. Phantom uses a
 small safe wrapper for deterministic post-handshake interoperability tests;
 runtime client configuration remains unchanged.
 
+The upstream client-session API requires an unsafe `SSL_set_session` call whose
+peer, context, and pre-handshake invariants otherwise escape into Phantom.
+The scoped-session wrapper binds an owned session to its exact verified
+hostname, `SSL_CTX`, and opaque application scope, removes early-data
+capability, and exposes one safe pre-handshake attachment method that rejects
+any identity mismatch. Session construction remains private to the real
+new-session callback pair.
+
 The upstream ECH GREASE API enables the extension but leaves its payload length
 to BoringSSL's randomized policy. Firefox 154 on macOS 15.5 was captured with a
 239-byte GREASE payload, producing an `encrypted_client_hello` extension body of
@@ -92,6 +100,14 @@ The patches are additive:
   observations without leaking raw FFI into Phantom.
 - `src/ssl/test/key_update.rs` proves a requested update is emitted, answered
   with a non-requested update, and followed by application traffic.
+- `SslSessionScope`, `ScopedSslSession`,
+  `SslConnectorBuilder::enable_scoped_client_sessions`, and
+  `ConnectConfiguration::into_ssl_with_scoped_session` keep session
+  construction and unsafe attachment inside this wrapper, reject cross-host,
+  cross-scope, and cross-context reuse, and disable 0-RTT before a session
+  enters an external cache.
+- `src/ssl/test/session_resumption.rs` proves matching scoped resumption,
+  mismatch refusal, and early-data stripping.
 
 The canonical machine-applicable wrapper changes are listed in
 `patches/series`; the order is part of the reviewed source transformation.
@@ -171,6 +187,7 @@ cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
 cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols --locked -- -D warnings
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::key_update
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
@@ -191,6 +208,7 @@ On macOS and Windows, use the corresponding omission variant:
 cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::key_update
+cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials

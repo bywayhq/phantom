@@ -105,7 +105,7 @@ An early final response with no remaining upload credit is raced against the
 upload, surfaced immediately, and followed by a request on the same connection.
 
 The current Reaper executable surface has 21 active, non-passive probes.
-Phantom retains 18 of them as production-path regressions. In addition to the
+Phantom retains 19 of them as production-path regressions. In addition to the
 cases above, those regressions now cover:
 
 - a six-write H1 response split across the status line, fields, header/body
@@ -115,22 +115,20 @@ cases above, those regressions now cover:
   replay;
 - authenticated QUIC Retry with original-destination connection-ID continuity;
 - ALPS `HEADER_TABLE_SIZE` final-value behavior carried through TLS, H2 state,
-  and the first HPACK block without a synthetic wire acknowledgement; and
+  and the first HPACK block without a synthetic wire acknowledgement;
 - an ALPS final `MAX_CONCURRENT_STREAMS=0` gate that emits no request HEADERS
-  until a wire SETTINGS update releases capacity, followed by connection reuse.
+  until a wire SETTINGS update releases capacity, followed by connection reuse;
+  and
+- TLS 1.3 ticket delivery after a complete H2 response, graceful H2 shutdown,
+  resumption on the replacement connection at
+  `/.well-known/reaper/resume`, absence of an early-data offer, and a full
+  handshake from a separate Phantom session.
 
-The other three probes require capabilities that are not exposed. Phantom does
+The other two probes require capabilities that are not exposed. Phantom does
 not automatically follow redirects, so it cannot apply 302/307 method and body
 replay policy. It does not coalesce H2 connections across authorities, so the
-secondary-authority 421 recovery path is unreachable. It does not retain TLS
-session tickets, so a second connection always performs a full handshake.
-Each capability must land with its corresponding adversarial regression.
-
-Reaper's TLS resumption recipe remains an explicit capability gate rather than
-a synthetic transport test. It needs session-ticket retention and
-second-connection reuse, which Phantom intentionally does not expose yet. It
-must land with the corresponding production capability so the fixture
-exercises Phantom's real path rather than only the underlying protocol engine.
+secondary-authority 421 recovery path is unreachable. Each capability must
+land with its corresponding adversarial regression.
 
 ## Later client and streaming corpus
 

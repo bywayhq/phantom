@@ -2977,6 +2977,107 @@ impl SslSession {
     }
 }
 
+/// An opaque identity used to partition client sessions by peer and policy.
+///
+/// Clones refer to the same scope. Independently created values, including two
+/// values created with [`Default`], refer to distinct scopes.
+#[derive(Clone, Default)]
+pub struct SslSessionScope(Arc<()>);
+
+impl fmt::Debug for SslSessionScope {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SslSessionScope")
+            .finish_non_exhaustive()
+    }
+}
+
+/// A client session bound to its originating TLS context and application scope.
+///
+/// Construction removes early-data capability so attaching this session cannot
+/// enable 0-RTT. The scope should represent every peer and policy distinction
+/// relevant to session authentication.
+pub struct ScopedSslSession {
+    session: SslSession,
+    context: SslContext,
+    scope: SslSessionScope,
+    hostname: Box<str>,
+}
+
+impl fmt::Debug for ScopedSslSession {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ScopedSslSession")
+            .finish_non_exhaustive()
+    }
+}
+
+impl ScopedSslSession {
+    fn from_new_session(
+        scope: &SslSessionScope,
+        hostname: &str,
+        ssl: &SslRef,
+        session: SslSession,
+    ) -> Result<Self, ErrorStack> {
+        Ok(Self {
+            session: session.copy_without_early_data()?,
+            context: ssl.ssl_context().to_owned(),
+            scope: scope.clone(),
+            hostname: hostname.into(),
+        })
+    }
+
+    /// Returns the time at which the session was established, in seconds since the Unix epoch.
+    #[must_use]
+    pub fn time(&self) -> u64 {
+        self.session.time()
+    }
+
+    /// Returns the session timeout, in seconds.
+    #[must_use]
+    pub fn timeout(&self) -> u32 {
+        self.session.timeout()
+    }
+
+    /// Returns whether an external cache should consume this session after one lookup.
+    #[must_use]
+    pub fn should_be_single_use(&self) -> bool {
+        self.session.should_be_single_use()
+    }
+
+    /// Returns the session's TLS protocol version.
+    #[must_use]
+    pub fn protocol_version(&self) -> SslVersion {
+        self.session.protocol_version()
+    }
+
+    pub(super) fn matches(
+        &self,
+        scope: &SslSessionScope,
+        context: &SslContextRef,
+        hostname: &str,
+    ) -> bool {
+        Arc::ptr_eq(&self.scope.0, &scope.0)
+            && self.context.as_ptr() == context.as_ptr()
+            && session_hostnames_match(&self.hostname, hostname)
+    }
+
+    pub(super) fn session(&self) -> &SslSessionRef {
+        &self.session
+    }
+}
+
+fn session_hostnames_match(established: &str, requested: &str) -> bool {
+    match (
+        established.parse::<std::net::IpAddr>(),
+        requested.parse::<std::net::IpAddr>(),
+    ) {
+        (Ok(established), Ok(requested)) => established == requested,
+        (Err(_), Err(_)) => established.eq_ignore_ascii_case(requested),
+        _ => false,
+    }
+}
+
 impl ToOwned for SslSessionRef {
     type Owned = SslSession;
 

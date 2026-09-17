@@ -78,6 +78,18 @@ impl Http2TlsConnector {
             .map_err(Into::into)
     }
 
+    /// Returns a connector clone with a fresh isolated TLS session cache.
+    ///
+    /// Clones of the returned connector share that cache. Separate calls create
+    /// separate caches, and cached sessions remain bound to their TLS hostname.
+    #[must_use]
+    pub fn with_isolated_session_cache(&self) -> Self {
+        Self {
+            tls: self.tls.with_isolated_session_cache(),
+            http2: self.http2.clone(),
+        }
+    }
+
     /// Establishes HTTP/2 over TLS on an already-connected byte stream.
     ///
     /// Missing ALPN and every selected protocol other than exact `h2` are

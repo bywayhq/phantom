@@ -64,6 +64,17 @@ impl Http1TlsConnector {
             .map_err(Into::into)
     }
 
+    /// Returns a connector clone with a fresh isolated TLS session cache.
+    ///
+    /// Clones of the returned connector share that cache. Separate calls create
+    /// separate caches, and cached sessions remain bound to their TLS hostname.
+    #[must_use]
+    pub fn with_isolated_session_cache(&self) -> Self {
+        Self {
+            tls: self.tls.with_isolated_session_cache(),
+        }
+    }
+
     /// Sends one empty-body HTTP/1.1 GET over a connected byte stream.
     ///
     /// The target and complete ordered header list are prepared before the

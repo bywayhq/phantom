@@ -1,4 +1,8 @@
-use std::{collections::VecDeque, num::NonZeroUsize, sync::Arc};
+use std::{
+    collections::VecDeque,
+    num::NonZeroUsize,
+    sync::{Arc, OnceLock},
+};
 
 use bytes::Bytes;
 use http::Method;
@@ -149,6 +153,7 @@ impl PoolKey {
 struct PoolEntry {
     current: Mutex<Option<ConnectionSlot>>,
     admission: Arc<Admission>,
+    connector: OnceLock<Http2TlsConnector>,
 }
 
 impl PoolEntry {
@@ -156,6 +161,7 @@ impl PoolEntry {
         Self {
             current: Mutex::new(None),
             admission,
+            connector: OnceLock::new(),
         }
     }
 
@@ -184,6 +190,9 @@ impl PoolEntry {
             outcome = "connect",
             "HTTP/2 session pool opening connection"
         );
+        let connector = self
+            .connector
+            .get_or_init(|| connector.with_isolated_session_cache());
         let connection = match route {
             Route::Direct => {
                 connector

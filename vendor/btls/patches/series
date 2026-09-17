@@ -4,3 +4,4 @@ record-size-limit.patch
 delegated-credentials.patch
 concurrent-aead.patch
 tls-key-update.patch
+scoped-client-sessions.patch

@@ -4,8 +4,8 @@ use std::ops::{Deref, DerefMut};
 use crate::dh::Dh;
 use crate::error::ErrorStack;
 use crate::ssl::{
-    HandshakeError, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode,
-    SslOptions, SslRef, SslStream, SslVerifyMode,
+    HandshakeError, ScopedSslSession, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod,
+    SslMode, SslOptions, SslRef, SslSessionCacheMode, SslSessionScope, SslStream, SslVerifyMode,
 };
 use crate::version;
 use std::net::IpAddr;
@@ -144,6 +144,22 @@ impl SslConnector {
 pub struct SslConnectorBuilder(SslContextBuilder);
 
 impl SslConnectorBuilder {
+    /// Enables externally scoped client-session handling.
+    ///
+    /// New sessions are delivered only to callbacks installed on individual
+    /// connections with [`ConnectConfiguration::into_ssl_with_scoped_session`].
+    pub fn enable_scoped_client_sessions(&mut self) {
+        self.set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
+        self.set_new_session_callback(|ssl, session| {
+            let Some(binding) = ssl.ex_data(Ssl::cached_ex_index::<ScopedSessionBinding>()) else {
+                return;
+            };
+            let session =
+                ScopedSslSession::from_new_session(&binding.scope, &binding.hostname, ssl, session);
+            (binding.callback)(session);
+        });
+    }
+
     /// Consumes the builder, returning an `SslConnector`.
     #[must_use]
     pub fn build(self) -> SslConnector {
@@ -173,6 +189,48 @@ pub struct ConnectConfiguration {
 }
 
 impl ConnectConfiguration {
+    /// Configures this connection for safely scoped client sessions.
+    ///
+    /// The domain is configured for hostname verification before an optional
+    /// session is attached. Returns `None` when hostname verification is
+    /// disabled or the session belongs to a different domain, application
+    /// scope, or TLS context. New sessions have early data disabled before
+    /// they are delivered to `callback`.
+    pub fn into_ssl_with_scoped_session<F>(
+        mut self,
+        domain: &str,
+        scope: &SslSessionScope,
+        session: Option<&ScopedSslSession>,
+        callback: F,
+    ) -> Result<Option<Ssl>, ErrorStack>
+    where
+        F: Fn(Result<ScopedSslSession, ErrorStack>) + Send + Sync + 'static,
+    {
+        self.configure_domain(domain)?;
+        if !self.verify_hostname
+            || session
+                .is_some_and(|session| !session.matches(scope, self.ssl.ssl_context(), domain))
+        {
+            return Ok(None);
+        }
+
+        self.ssl.set_ex_data(
+            Ssl::cached_ex_index::<ScopedSessionBinding>(),
+            ScopedSessionBinding {
+                scope: scope.clone(),
+                hostname: domain.into(),
+                callback: Box::new(callback),
+            },
+        );
+        if let Some(session) = session {
+            // SAFETY: consuming `ConnectConfiguration` proves the handshake has
+            // not started. `matches` proves the exact verified hostname,
+            // context, and application scope that authenticated the session.
+            unsafe { self.ssl.set_session(session.session())? };
+        }
+        Ok(Some(self.ssl))
+    }
+
     /// A builder-style version of `set_use_server_name_indication`.
     #[must_use]
     pub fn use_server_name_indication(mut self, use_sni: bool) -> ConnectConfiguration {
@@ -211,6 +269,11 @@ impl ConnectConfiguration {
     ///
     /// The domain is used for SNI (if it is not an IP address) and hostname verification if enabled.
     pub fn into_ssl(mut self, domain: &str) -> Result<Ssl, ErrorStack> {
+        self.configure_domain(domain)?;
+        Ok(self.ssl)
+    }
+
+    fn configure_domain(&mut self, domain: &str) -> Result<(), ErrorStack> {
         if self.sni && domain.parse::<IpAddr>().is_err() {
             self.ssl.set_hostname(domain)?;
         }
@@ -219,7 +282,7 @@ impl ConnectConfiguration {
             setup_verify_hostname(&mut self.ssl, domain)?;
         }
 
-        Ok(self.ssl)
+        Ok(())
     }
 
     /// Initiates a client-side TLS session on a stream.
@@ -253,6 +316,12 @@ impl ConnectConfiguration {
             .map_err(HandshakeError::SetupFailure)?
             .handshake()
     }
+}
+
+struct ScopedSessionBinding {
+    scope: SslSessionScope,
+    hostname: Box<str>,
+    callback: Box<dyn Fn(Result<ScopedSslSession, ErrorStack>) + Send + Sync>,
 }
 
 impl Deref for ConnectConfiguration {

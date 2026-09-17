@@ -26,8 +26,12 @@ The current TCP TLS path:
 - verifies the hostname and sends SNI;
 - returns configuration and handshake failures instead of silently retrying
   with a different version, suite list, protocol, or route;
+- retains at most eight tickets in each session-owned H1 or H2 pool entry,
+  partitioned by origin, complete route, protocol, profile, and TLS context;
+- consumes single-use TLS 1.3 tickets, prunes expired tickets, and strips
+  early-data capability before storage;
 - retains typed negotiated TLS versions and cipher suites and records their
-  public names without logging secrets; and
+  public names plus the resumption outcome without logging secrets; and
 - does not expose TLS record compression.
 
 Certificate compression is a different TLS feature: it compresses public
@@ -39,10 +43,10 @@ legacy option if the server also selects it. Callers that require a restricted
 set must customize those fields before building the connector. Phantom does
 not yet expose a separate public connection-policy type.
 
-The QUIC path is TLS 1.3 only. Session resumption and 0-RTT remain disabled
-until the session cache, replay policy, and request eligibility rules exist.
-BoringSSL owns TLS record sequence numbers and nonce construction; Phantom
-does not recreate record protection.
+The QUIC path is TLS 1.3 only. QUIC session resumption remains disabled, and
+0-RTT is disabled on every path until replay policy and request-eligibility
+rules exist. BoringSSL owns TLS record sequence numbers and nonce construction;
+Phantom does not recreate record protection.
 
 ## Connection policy seam
 
@@ -57,7 +61,7 @@ The first policy slice should be deliberately small:
 - minimum accepted TLS version;
 - allowed negotiated cipher suites;
 - further certificate and hostname verification policy; and
-- resumption and early-data policy once session state exists.
+- public resumption policy and early-data policy.
 
 Negotiated TLS version, cipher suite, ALPN, resumption, and early-data status
 belong in structured diagnostics. Private keys, traffic secrets, tickets,

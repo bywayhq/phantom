@@ -2,7 +2,7 @@ use std::{error::Error, net::Ipv4Addr, pin::Pin};
 
 use btls::{
     pkey::PKey,
-    ssl::{AlpnError, Ssl, SslAcceptor, SslMethod, select_next_proto},
+    ssl::{AlpnError, Ssl, SslAcceptor, SslAcceptorBuilder, SslMethod, select_next_proto},
     x509::X509,
 };
 use phantom::{
@@ -139,6 +139,10 @@ impl TestIdentity {
     }
 
     pub(crate) fn acceptor(&self, alpn: &'static [u8]) -> TestResult<SslAcceptor> {
+        Ok(self.acceptor_builder(alpn)?.build())
+    }
+
+    pub(crate) fn acceptor_builder(&self, alpn: &'static [u8]) -> TestResult<SslAcceptorBuilder> {
         let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
         let certificate = X509::from_der(self.leaf_der())?;
         let private_key = PKey::private_key_from_pkcs8(self.private_key_der())?;
@@ -149,7 +153,7 @@ impl TestIdentity {
         acceptor.set_alpn_select_callback(move |_, offered| {
             select_next_proto(alpn, offered).ok_or(AlpnError::NOACK)
         });
-        Ok(acceptor.build())
+        Ok(acceptor)
     }
 
     pub(crate) fn leaf_der(&self) -> &[u8] {

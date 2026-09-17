@@ -26,9 +26,11 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
+use self::session_cache::TlsSessionCache;
 
 mod compression;
 mod configuration;
+mod session_cache;
 
 /// A reusable TLS connector with a validated immutable configuration.
 #[derive(Clone)]
@@ -39,6 +41,8 @@ pub(crate) struct TlsConnector {
     tls13_key_shares: Option<Box<[NamedGroup]>>,
     ech_grease: bool,
     ech_grease_payload_length: Option<u16>,
+    scoped_sessions_enabled: bool,
+    session_cache: Option<TlsSessionCache>,
 }
 
 impl fmt::Debug for TlsConnector {
@@ -91,6 +95,12 @@ impl TlsConnector {
     /// Consumes this connector and returns its configured TLS context.
     pub(crate) fn into_context(self) -> SslContext {
         self.backend.into_context()
+    }
+
+    pub(crate) fn with_isolated_session_cache(&self) -> Self {
+        let mut connector = self.clone();
+        connector.session_cache = self.scoped_sessions_enabled.then(TlsSessionCache::default);
+        connector
     }
 
     fn build_with_roots<'a>(
@@ -153,6 +163,10 @@ impl TlsConnector {
                 .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
         }
 
+        if settings.session_tickets {
+            builder.enable_scoped_client_sessions();
+        }
+
         let alpn_wire = encode_alpn(&settings.alpn_protocols)?;
         debug!("TLS connector built");
 
@@ -164,6 +178,8 @@ impl TlsConnector {
                 .then(|| settings.key_shares.clone().into_boxed_slice()),
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
+            scoped_sessions_enabled: settings.session_tickets,
+            session_cache: None,
         })
     }
 
@@ -192,6 +208,7 @@ impl TlsConnector {
             peer_application_settings_len = field::Empty,
             tls_version = field::Empty,
             cipher_suite = field::Empty,
+            session_reused = field::Empty,
             outcome = field::Empty,
             error_kind = field::Empty,
         );
@@ -233,9 +250,37 @@ impl TlsConnector {
                     .map_err(|error| TlsError::backend("key_shares", error))?;
             }
 
-            let ssl = configuration
-                .into_ssl(server_name)
-                .map_err(|error| TlsError::backend("server_name", error))?;
+            let ssl = if let Some(cache) = &self.session_cache {
+                let session = cache.take();
+                let reusable = session
+                    .as_ref()
+                    .is_some_and(|session| !session.should_be_single_use());
+                let callback_cache = cache.clone();
+                let ssl = configuration
+                    .into_ssl_with_scoped_session(
+                        server_name,
+                        cache.scope(),
+                        session.as_ref(),
+                        move |session| callback_cache.capture(session),
+                    )
+                    .map_err(|error| TlsError::backend("session resumption", error))?
+                    .ok_or_else(|| {
+                        TlsError::configuration(
+                            "session resumption",
+                            "cached session does not match its connector scope and hostname",
+                        )
+                    })?;
+                if reusable {
+                    if let Some(session) = session {
+                        cache.restore(session);
+                    }
+                }
+                ssl
+            } else {
+                configuration
+                    .into_ssl(server_name)
+                    .map_err(|error| TlsError::backend("server_name", error))?
+            };
             let mut stream = BoringStream::new(ssl, stream)
                 .map_err(|error| TlsError::backend("stream", error))?;
             Pin::new(&mut stream).connect().await.map_err(|error| {
@@ -252,10 +297,12 @@ impl TlsConnector {
             let negotiated_cipher_name = negotiated_cipher
                 .and_then(|cipher| cipher.standard_name())
                 .unwrap_or("unknown");
+            let session_reused = stream.ssl().session_reused();
             span.record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
             record_alps_negotiation(&span, peer_application_settings.as_deref());
             span.record("tls_version", stream.ssl().version_str());
             span.record("cipher_suite", negotiated_cipher_name);
+            span.record("session_reused", session_reused);
             debug!(
                 negotiated_alpn = trace_alpn(negotiated_alpn.as_deref()),
                 alps_negotiated = peer_application_settings.is_some(),
@@ -263,6 +310,7 @@ impl TlsConnector {
                     peer_application_settings.as_deref().map_or(0, <[u8]>::len),
                 tls_version = stream.ssl().version_str(),
                 cipher_suite = negotiated_cipher_name,
+                session_reused,
                 "TLS handshake completed"
             );
             Ok(TlsStream {
@@ -271,6 +319,7 @@ impl TlsConnector {
                 peer_application_settings,
                 negotiated_tls_version,
                 negotiated_cipher_suite,
+                session_reused,
             })
         }
         .instrument(span.clone())
@@ -331,6 +380,7 @@ pub(crate) struct TlsStream<S> {
     peer_application_settings: Option<Box<[u8]>>,
     negotiated_tls_version: Option<TlsVersion>,
     negotiated_cipher_suite: Option<CipherSuite>,
+    session_reused: bool,
 }
 
 impl<S> TlsStream<S> {
@@ -352,6 +402,11 @@ impl<S> TlsStream<S> {
     /// Returns the negotiated TLS cipher suite.
     pub(crate) fn negotiated_cipher_suite(&self) -> Option<CipherSuite> {
         self.negotiated_cipher_suite
+    }
+
+    /// Returns whether the handshake resumed a cached TLS session.
+    pub(crate) const fn session_reused(&self) -> bool {
+        self.session_reused
     }
 }
 
@@ -376,6 +431,7 @@ impl<S> fmt::Debug for TlsStream<S> {
             )
             .field("negotiated_tls_version", &self.negotiated_tls_version())
             .field("negotiated_cipher_suite", &self.negotiated_cipher_suite())
+            .field("session_reused", &self.session_reused())
             .finish_non_exhaustive()
     }
 }
