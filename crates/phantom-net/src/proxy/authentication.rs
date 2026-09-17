@@ -3,6 +3,7 @@ use std::fmt;
 use super::{HttpConnectError, http_connect::MAX_CONNECT_HEAD_BYTES};
 
 const BASIC_PREFIX: &[u8] = b"Basic ";
+const MAX_AUTH_PARAMS_PER_CHALLENGE: usize = 64;
 
 /// Validated credentials for challenge-driven HTTP Basic proxy authentication.
 #[derive(Clone, Eq, PartialEq)]
@@ -109,7 +110,7 @@ fn parse_challenge_list(value: &[u8], saw_basic: &mut bool) -> Result<(), ()> {
     loop {
         let scheme = cursor.token().ok_or(())?;
         let is_basic = scheme.eq_ignore_ascii_case(b"Basic");
-        let had_whitespace = cursor.skip_ows();
+        let had_whitespace = cursor.skip_spaces();
         let mut has_realm = false;
 
         if !cursor.is_end() && cursor.peek() != Some(b',') {
@@ -171,25 +172,29 @@ fn parse_auth_params(
         {
             return Err(());
         }
+        if names.len() == MAX_AUTH_PARAMS_PER_CHALLENGE {
+            return Err(());
+        }
         names.push(name);
         cursor.skip_ows();
         if !cursor.consume(b'=') {
             return Err(());
         }
         cursor.skip_ows();
-        let value = if cursor.peek() == Some(b'"') {
-            cursor.quoted_string().ok_or(())?
+        let requires_utf8 = is_basic && name.eq_ignore_ascii_case(b"charset");
+        let valid_value = if cursor.peek() == Some(b'"') {
+            cursor
+                .quoted_string_matches(requires_utf8.then_some(&b"UTF-8"[..]))
+                .ok_or(())?
         } else {
-            cursor.token().ok_or(())?
+            let value = cursor.token().ok_or(())?;
+            !requires_utf8 || value.eq_ignore_ascii_case(b"UTF-8")
         };
 
         if is_basic && name.eq_ignore_ascii_case(b"realm") {
             *has_realm = true;
         }
-        if is_basic
-            && name.eq_ignore_ascii_case(b"charset")
-            && !value.eq_ignore_ascii_case(b"UTF-8")
-        {
+        if !valid_value {
             return Err(());
         }
 
@@ -265,6 +270,12 @@ impl<'a> Cursor<'a> {
         self.position != start
     }
 
+    fn skip_spaces(&mut self) -> bool {
+        let start = self.position;
+        while self.consume(b' ') {}
+        self.position != start
+    }
+
     fn token(&mut self) -> Option<&'a [u8]> {
         let start = self.position;
         while self.peek().is_some_and(is_tchar) {
@@ -285,17 +296,19 @@ impl<'a> Cursor<'a> {
         Some(&self.bytes[start..self.position])
     }
 
-    fn quoted_string(&mut self) -> Option<&'a [u8]> {
+    fn quoted_string_matches(&mut self, expected: Option<&[u8]>) -> Option<bool> {
         if !self.consume(b'"') {
             return None;
         }
-        let start = self.position;
+        let mut matches = true;
+        let mut value_length = 0;
         loop {
-            match self.peek()? {
+            let value = match self.peek()? {
                 b'"' => {
-                    let value = &self.bytes[start..self.position];
                     self.advance();
-                    return Some(value);
+                    return Some(
+                        expected.is_none_or(|expected| matches && value_length == expected.len()),
+                    );
                 }
                 b'\\' => {
                     self.advance();
@@ -304,12 +317,21 @@ impl<'a> Cursor<'a> {
                         return None;
                     }
                     self.advance();
+                    escaped
                 }
                 b'\t' | b' ' | b'!' | b'#'..=b'[' | b']'..=b'~' | 0x80..=0xff => {
+                    let value = self.peek()?;
                     self.advance();
+                    value
                 }
                 _ => return None,
+            };
+            if let Some(expected) = expected {
+                matches &= expected
+                    .get(value_length)
+                    .is_some_and(|candidate| value.eq_ignore_ascii_case(candidate));
             }
+            value_length += 1;
         }
     }
 }

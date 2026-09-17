@@ -197,6 +197,7 @@ async fn malformed_or_unsupported_challenge_does_not_retry() -> TestResult {
         "Basic realm=\"unterminated",
         "Basic realm=\"proxy\", realm=\"duplicate\"",
         "Basic realm=\"proxy\", charset=\"ISO-8859-1\"",
+        "Basic\trealm=\"proxy\"",
     ] {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let address = listener.local_addr()?;
@@ -243,7 +244,7 @@ async fn accepts_token68_padding_and_empty_challenge_list_members() -> TestResul
         first
             .write_all(
                 b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                  Proxy-Authenticate: Bearer abc==, , Basic realm=\"proxy\",\r\n\r\n",
+                  Proxy-Authenticate: Bearer abc==, , Basic realm=\"proxy\", charset=\"UTF\\-8\",\r\n\r\n",
             )
             .await?;
         let (mut second, _) = listener.accept().await?;
@@ -264,6 +265,48 @@ async fn accepts_token68_padding_and_empty_challenge_list_members() -> TestResul
     )
     .await?;
     proxy.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn rejects_excessive_authentication_parameters_without_retry() -> TestResult {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
+    let address = listener.local_addr()?;
+    let mut challenge = String::from("Basic realm=\"proxy\"");
+    for index in 0..64 {
+        challenge.push_str(&format!(", p{index}=v"));
+    }
+    let response = format!(
+        "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: {challenge}\r\n\r\n"
+    );
+    let proxy = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await?;
+        let _request = read_head(&mut stream).await?;
+        stream.write_all(response.as_bytes()).await?;
+        let retried = timeout(Duration::from_millis(100), listener.accept())
+            .await
+            .is_ok();
+        Ok::<_, std::io::Error>(retried)
+    });
+
+    let error = connect_http_tunnel_direct_with_basic_auth(
+        "127.0.0.1",
+        address.port(),
+        "origin.example:443",
+        &[
+            HttpConnectHeader::authority("Host"),
+            HttpConnectHeader::proxy_authorization("Proxy-Authorization"),
+        ],
+        &HttpBasicCredentials::new("user", "secret")?,
+    )
+    .await
+    .err()
+    .ok_or("excessive challenge parameters established a tunnel")?;
+    assert_eq!(error.kind(), HttpConnectErrorKind::Authentication);
+    assert!(
+        !proxy.await??,
+        "excessive challenge parameters triggered a retry"
+    );
     Ok(())
 }
 
