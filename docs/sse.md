@@ -32,6 +32,7 @@ use phantom::{Client, HttpProtocol};
 let response = client
     .session()
     .event_source(HttpProtocol::Http2, "https://example.com/events")?
+    .idle_timeout(Duration::from_secs(30))
     .initial_retry(Duration::from_secs(3))
     .max_reconnects(4)
     .connect()
@@ -60,16 +61,22 @@ the body immediately.
 Both `next_event` methods are cancellation-safe. `SseStream` retains partial
 decoder state for the next call and remains a single-response primitive.
 `SseEventSource` preserves a scheduled reconnect deadline across a cancelled
-read and retains an in-flight reconnect request for the next read. It carries
-committed `id` and `retry` state across responses, adds one `Last-Event-ID`
-field when the committed ID is nonempty, and stops permanently on 204. Initial
-transport failures and later disconnects use the same finite attempt budget.
-Reconnects use the same exact protocol, session cookies, redirect policy,
-ordered caller fields, and route. A caller-supplied `Last-Event-ID` is rejected
-so reconnects cannot emit duplicates.
+read, including an active idle deadline, and retains an in-flight reconnect
+request for the next read. It carries committed `id` and `retry` state across
+responses, adds one `Last-Event-ID` field when the committed ID is nonempty,
+and stops permanently on 204. Initial transport failures, later disconnects,
+and idle responses use the same finite attempt budget. Reconnects use the same
+exact protocol, session cookies, redirect policy, ordered caller fields, and
+route. A caller-supplied `Last-Event-ID` is rejected so reconnects cannot emit
+duplicates.
 
 The initial reconnect delay and finite reconnect count are explicit builder
 settings; their defaults are three seconds and three reconnect requests.
-Exhausting the budget returns `SseErrorKind::ReconnectLimit`. The controller
-does not decode compressed content, impose an idle timeout, add jitter, or
-model browser renderer events.
+The optional idle timeout is disabled by default. It starts when a response is
+accepted and resets on every HTTP DATA frame, including comments, partial
+events, and empty frames. Reaching it releases the response and reconnects when
+the budget permits; without a remaining attempt it returns
+`SseErrorKind::IdleTimeout`. Exhausting the budget after transport failures or
+ordinary end-of-body returns `SseErrorKind::ReconnectLimit`. The controller
+does not decode compressed content, add reconnect jitter, or model browser
+renderer events.

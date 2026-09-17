@@ -1,7 +1,15 @@
-use std::{error::Error as StdError, fmt, future::poll_fn, pin::Pin, time::Duration};
+use std::{
+    error::Error as StdError,
+    fmt,
+    future::{Future, poll_fn},
+    pin::Pin,
+    task::Poll,
+    time::Duration,
+};
 
 use http::{Response, StatusCode, header};
 use http_body::Body;
+use tokio::time::{Instant, sleep_until};
 use tracing::{Instrument, debug_span, field};
 
 use crate::{RequestError, ResponseBody};
@@ -93,6 +101,8 @@ pub enum SseErrorKind {
     InvalidRequestHeader,
     /// The reconnect delay cannot be represented by the runtime clock.
     InvalidReconnectDelay,
+    /// The idle timeout cannot be represented by the runtime clock.
+    InvalidIdleTimeout,
     /// The response status was not 200 OK.
     UnexpectedStatus,
     /// The response did not have a `text/event-stream` content type.
@@ -105,6 +115,8 @@ pub enum SseErrorKind {
     EventTooLarge,
     /// Reading the underlying HTTP response body failed.
     Body,
+    /// The response body produced no DATA before the configured deadline.
+    IdleTimeout,
     /// The configured reconnect-attempt budget was exhausted.
     ReconnectLimit,
 }
@@ -163,6 +175,20 @@ impl SseError {
         )
     }
 
+    fn invalid_idle_timeout() -> Self {
+        Self::without_source(
+            SseErrorKind::InvalidIdleTimeout,
+            "SSE idle timeout exceeds the runtime clock range",
+        )
+    }
+
+    fn idle_timeout() -> Self {
+        Self::without_source(
+            SseErrorKind::IdleTimeout,
+            "SSE response body reached its idle timeout",
+        )
+    }
+
     fn reconnect_limit(source: Option<RequestError>) -> Self {
         Self {
             kind: SseErrorKind::ReconnectLimit,
@@ -206,6 +232,8 @@ impl StdError for SseError {
 pub struct SseStream {
     body: Option<ResponseBody>,
     decoder: Decoder,
+    idle_timeout: Option<Duration>,
+    idle_deadline: Option<Instant>,
     finished: bool,
 }
 
@@ -238,6 +266,8 @@ impl SseStream {
             Self {
                 body: Some(body),
                 decoder: Decoder::new(limits),
+                idle_timeout: None,
+                idle_deadline: None,
                 finished: false,
             },
         ))
@@ -248,14 +278,24 @@ impl SseStream {
         limits: SseLimits,
         last_event_id: String,
         retry_delay: Duration,
+        idle_timeout: Option<Duration>,
     ) -> Result<Response<Self>, SseError> {
         validate_response(&response)?;
+        let idle_deadline = idle_timeout
+            .map(|timeout| {
+                Instant::now()
+                    .checked_add(timeout)
+                    .ok_or_else(SseError::invalid_idle_timeout)
+            })
+            .transpose()?;
         let (parts, body) = response.into_parts();
         Ok(Response::from_parts(
             parts,
             Self {
                 body: Some(body),
                 decoder: Decoder::with_state(limits, last_event_id, Some(retry_delay)),
+                idle_timeout,
+                idle_deadline,
                 finished: false,
             },
         ))
@@ -282,6 +322,7 @@ impl SseStream {
                 SseErrorKind::LineTooLong => "line_limit",
                 SseErrorKind::EventTooLarge => "event_limit",
                 SseErrorKind::Body => "body_error",
+                SseErrorKind::IdleTimeout => "idle_timeout",
                 _ => "error",
             },
         });
@@ -325,23 +366,58 @@ impl SseStream {
                 self.finish();
                 return Ok(None);
             };
-            let frame = poll_fn(|context| Pin::new(&mut *body).poll_frame(context)).await;
+            let mut idle = self
+                .idle_deadline
+                .map(|deadline| Box::pin(sleep_until(deadline)));
+            let frame = poll_fn(|context| {
+                if let Poll::Ready(frame) = Pin::new(&mut *body).poll_frame(context) {
+                    return Poll::Ready(Ok(frame));
+                }
+                if idle
+                    .as_mut()
+                    .is_some_and(|timer| timer.as_mut().poll(context).is_ready())
+                {
+                    return Poll::Ready(Err(()));
+                }
+                Poll::Pending
+            })
+            .await;
             match frame {
-                Some(Ok(frame)) => {
+                Err(()) => {
+                    self.finish();
+                    return Err(SseError::idle_timeout());
+                }
+                Ok(Some(Ok(frame))) => {
                     if let Ok(data) = frame.into_data() {
+                        if let Err(error) = self.reset_idle_deadline() {
+                            self.finish();
+                            return Err(error);
+                        }
                         self.decoder.replace_chunk(data);
                     }
                 }
-                Some(Err(error)) => {
+                Ok(Some(Err(error))) => {
                     self.finish();
                     return Err(SseError::body(error));
                 }
-                None => {
+                Ok(None) => {
                     self.finish();
                     return Ok(None);
                 }
             }
         }
+    }
+
+    fn reset_idle_deadline(&mut self) -> Result<(), SseError> {
+        let Some(timeout) = self.idle_timeout else {
+            return Ok(());
+        };
+        self.idle_deadline = Some(
+            Instant::now()
+                .checked_add(timeout)
+                .ok_or_else(SseError::invalid_idle_timeout)?,
+        );
+        Ok(())
     }
 
     fn finish(&mut self) {
@@ -356,6 +432,7 @@ impl fmt::Debug for SseStream {
         formatter
             .debug_struct("SseStream")
             .field("limits", &self.decoder.limits)
+            .field("idle_timeout", &self.idle_timeout)
             .field("buffered_line_bytes", &self.decoder.line.len())
             .field("buffered_event_bytes", &self.decoder.event_bytes)
             .field("finished", &self.finished)

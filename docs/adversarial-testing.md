@@ -156,9 +156,9 @@ bounded 421 replay regression.
   route variants.
 - SSE covers BOM and line-ending variants, split UTF-8, comments, `id`, and
   `retry`. A deterministic H1 session regression also covers one bounded
-  reconnect, `Last-Event-ID`, cookie carry-over, cancellation-safe delay, and
-  204 termination. Broader retained browser and H2/H3 reconnect matrices remain
-  future work.
+  reconnect, `Last-Event-ID`, cookie carry-over, cancellation-safe delay and
+  DATA-activity idle deadlines, terminal timeout, and 204 termination. Broader
+  retained browser and H2/H3 reconnect matrices remain future work.
 - WebSocket covers fragmented UTF-8 with interleaved Ping/Pong, simultaneous
   Close, RSV misuse, and invalid control frames. The current handshake rejects
   extensions; `permessage-deflate` and compression context-takeover coverage

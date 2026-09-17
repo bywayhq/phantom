@@ -18,6 +18,7 @@ const DEFAULT_MAX_RECONNECTS: usize = 3;
 pub struct SseRequestBuilder {
     request: SseRequest,
     limits: SseLimits,
+    idle_timeout: Option<Duration>,
     initial_retry: Duration,
     max_reconnects: usize,
 }
@@ -30,6 +31,7 @@ impl fmt::Debug for SseRequestBuilder {
             .field("header_count", &self.request.headers.len())
             .field("route_override", &self.request.route.is_some())
             .field("limits", &self.limits)
+            .field("idle_timeout", &self.idle_timeout)
             .field("initial_retry", &self.initial_retry)
             .field("max_reconnects", &self.max_reconnects)
             .finish_non_exhaustive()
@@ -52,6 +54,7 @@ impl SseRequestBuilder {
                 route: None,
             },
             limits: SseLimits::default(),
+            idle_timeout: None,
             initial_retry: DEFAULT_INITIAL_RETRY,
             max_reconnects: DEFAULT_MAX_RECONNECTS,
         })
@@ -84,6 +87,16 @@ impl SseRequestBuilder {
     /// Sets the event-stream decoding bounds.
     pub fn limits(mut self, limits: SseLimits) -> Self {
         self.limits = limits;
+        self
+    }
+
+    /// Sets the maximum interval without an HTTP DATA frame.
+    ///
+    /// The timeout is disabled by default. Comments, partial events, and empty
+    /// DATA frames count as activity. An idle response reconnects within the
+    /// same finite budget as a disconnected response.
+    pub fn idle_timeout(mut self, timeout: Duration) -> Self {
+        self.idle_timeout = Some(timeout);
         self
     }
 
@@ -139,6 +152,7 @@ impl SseRequestBuilder {
     async fn connect_inner(self) -> Result<Response<SseEventSource>, SseError> {
         self.request.validate_headers()?;
         self.validate_initial_retry()?;
+        self.validate_idle_timeout()?;
 
         let mut reconnects = 0;
         let response = loop {
@@ -167,6 +181,7 @@ impl SseRequestBuilder {
                 SseEventSource::closed(
                     self.request,
                     self.limits,
+                    self.idle_timeout,
                     self.initial_retry,
                     self.max_reconnects,
                     reconnects,
@@ -179,6 +194,7 @@ impl SseRequestBuilder {
             self.limits,
             String::new(),
             self.initial_retry,
+            self.idle_timeout,
         )?;
         let (parts, stream) = response.into_parts();
         Ok(Response::from_parts(
@@ -186,6 +202,7 @@ impl SseRequestBuilder {
             SseEventSource::open(
                 self.request,
                 self.limits,
+                self.idle_timeout,
                 self.initial_retry,
                 self.max_reconnects,
                 reconnects,
@@ -197,6 +214,16 @@ impl SseRequestBuilder {
     fn validate_initial_retry(&self) -> Result<(), SseError> {
         if self.max_reconnects > 0 && Instant::now().checked_add(self.initial_retry).is_none() {
             return Err(SseError::invalid_reconnect_delay());
+        }
+        Ok(())
+    }
+
+    fn validate_idle_timeout(&self) -> Result<(), SseError> {
+        if self
+            .idle_timeout
+            .is_some_and(|timeout| Instant::now().checked_add(timeout).is_none())
+        {
+            return Err(SseError::invalid_idle_timeout());
         }
         Ok(())
     }
