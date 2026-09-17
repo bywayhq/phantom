@@ -19,6 +19,7 @@ use upgrade::send_prepared_upgrade;
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
 
 pub use crate::request::{AbsoluteForm, InvalidAbsoluteForm, OriginForm, RequestHeader};
+use crate::request::{RequestBody, RequestBodyMetadata};
 pub use body::Http1Body;
 pub use connection::Http1Connection;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
@@ -296,6 +297,50 @@ where
     send_prepared_request(stream, prepared).await
 }
 
+/// Sends one pull-driven HTTP/1.1 request body over an already-connected stream.
+///
+/// Exact initial size hints use `Content-Length`; unknown sizes use chunked
+/// transfer coding. Header and framing validation completes before the body is
+/// polled or the stream is touched.
+pub async fn send_request_body<T>(
+    stream: T,
+    method: Method,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+) -> Result<Response<Http1Body>, Http1Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let body_bytes = body
+        .as_ref()
+        .and_then(|body| body.metadata().exact_length());
+    let has_body = body.is_some();
+    let span = debug_span!(
+        "http1.request.prepare",
+        method = %method,
+        protocol = "http/1.1",
+        body_bytes = field::Empty,
+        has_body,
+        outcome = field::Empty,
+        error_kind = field::Empty,
+    );
+    if let Some(body_bytes) = body_bytes {
+        span.record("body_bytes", body_bytes);
+    }
+    let outcome = OperationOutcome::new(&span);
+    let prepared = {
+        let _entered = span.enter();
+        PreparedRequest::new_body(method, target, headers, body)
+    };
+    match &prepared {
+        Ok(_) => outcome.finish("ok"),
+        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
+    }
+    let prepared = prepared?;
+    send_prepared_request(stream, prepared).await
+}
+
 /// Sends one HTTP/1.1 request with an absolute-form target over an
 /// already-connected forward-proxy stream.
 ///
@@ -335,6 +380,48 @@ where
     send_prepared_request(stream, prepared).await
 }
 
+/// Sends one pull-driven HTTP/1.1 body with an absolute-form proxy target.
+///
+/// Validation completes before the supplied stream or request body is touched.
+pub async fn send_forward_request_body<T>(
+    stream: T,
+    method: Method,
+    target: AbsoluteForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+) -> Result<Response<Http1Body>, Http1Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let body_bytes = body
+        .as_ref()
+        .and_then(|body| body.metadata().exact_length());
+    let has_body = body.is_some();
+    let span = debug_span!(
+        "http1.request.prepare",
+        method = %method,
+        protocol = "http/1.1",
+        body_bytes = field::Empty,
+        has_body,
+        outcome = field::Empty,
+        error_kind = field::Empty,
+    );
+    if let Some(body_bytes) = body_bytes {
+        span.record("body_bytes", body_bytes);
+    }
+    let outcome = OperationOutcome::new(&span);
+    let prepared = {
+        let _entered = span.enter();
+        PreparedRequest::new_forward_body(method, target, headers, body)
+    };
+    match &prepared {
+        Ok(_) => outcome.finish("ok"),
+        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
+    }
+    let prepared = prepared?;
+    send_prepared_request(stream, prepared).await
+}
+
 /// Validates an empty-body HTTP/1.1 GET without performing I/O.
 pub fn validate_get(target: &OriginForm, headers: &[RequestHeader]) -> Result<(), Http1Error> {
     validate_request(&Method::GET, target, headers, None)
@@ -347,13 +434,22 @@ pub fn validate_request(
     headers: &[RequestHeader],
     body: Option<&Bytes>,
 ) -> Result<(), Http1Error> {
-    PreparedRequest::new(
-        method.clone(),
-        target.clone(),
-        headers.to_vec(),
-        body.cloned(),
+    validate_request_body(
+        method,
+        target,
+        headers,
+        Some(RequestBody::from_bytes(body.cloned().unwrap_or_default()).metadata()),
     )
-    .map(drop)
+}
+
+/// Validates an HTTP/1.1 request and body framing metadata without performing I/O.
+pub fn validate_request_body(
+    method: &Method,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<RequestBodyMetadata>,
+) -> Result<(), Http1Error> {
+    PreparedRequest::validate(method.clone(), target.clone(), headers.to_vec(), body)
 }
 
 /// Validates an HTTP/1.1 absolute-form request without performing I/O.
@@ -363,13 +459,22 @@ pub fn validate_forward_request(
     headers: &[RequestHeader],
     body: Option<&Bytes>,
 ) -> Result<(), Http1Error> {
-    PreparedRequest::new_forward(
-        method.clone(),
-        target.clone(),
-        headers.to_vec(),
-        body.cloned(),
+    validate_forward_request_body(
+        method,
+        target,
+        headers,
+        Some(RequestBody::from_bytes(body.cloned().unwrap_or_default()).metadata()),
     )
-    .map(drop)
+}
+
+/// Validates an absolute-form request and body framing metadata without I/O.
+pub fn validate_forward_request_body(
+    method: &Method,
+    target: &AbsoluteForm,
+    headers: &[RequestHeader],
+    body: Option<RequestBodyMetadata>,
+) -> Result<(), Http1Error> {
+    PreparedRequest::validate_forward(method.clone(), target.clone(), headers.to_vec(), body)
 }
 
 async fn send_prepared_request<T>(

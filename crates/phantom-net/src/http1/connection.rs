@@ -13,7 +13,6 @@ use http::{
     Method, Response,
     header::{CONNECTION, CONTENT_LENGTH, TRANSFER_ENCODING},
 };
-use http_body_util::Full;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::{Mutex, OwnedSemaphorePermit, Semaphore},
@@ -27,6 +26,7 @@ use super::{
     limits::connection_builder,
     response_head::ResponseHeadObserver,
 };
+use crate::request::RequestBody;
 
 /// An established HTTP/1.1 connection that executes requests sequentially.
 ///
@@ -49,7 +49,7 @@ impl Http1Connection {
     {
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
         let (sender, connection) = connection_builder()
-            .handshake::<_, Full<Bytes>>(stream)
+            .handshake::<_, RequestBody>(stream)
             .await?;
         Ok(Self {
             inner: Arc::new(ConnectionInner {
@@ -96,6 +96,21 @@ impl Http1Connection {
             .await
     }
 
+    /// Sends one pull-driven request body after validating its framing metadata.
+    ///
+    /// An exact initial size hint uses `Content-Length`; an unknown size uses
+    /// chunked transfer coding. Validation completes before the body is polled.
+    pub async fn send_request_body(
+        &self,
+        method: Method,
+        target: super::OriginForm,
+        headers: Vec<super::RequestHeader>,
+        body: Option<RequestBody>,
+    ) -> Result<Response<Http1Body>, Http1Error> {
+        self.send_prepared_request(PreparedRequest::new_body(method, target, headers, body)?)
+            .await
+    }
+
     /// Sends one request with an absolute-form target to an HTTP forward proxy.
     ///
     /// The `Host` field must match the target authority. The complete request
@@ -109,6 +124,23 @@ impl Http1Connection {
     ) -> Result<Response<Http1Body>, Http1Error> {
         self.send_prepared_request(PreparedRequest::new_forward(method, target, headers, body)?)
             .await
+    }
+
+    /// Sends one pull-driven request body with an absolute-form proxy target.
+    ///
+    /// The target, fields, and body framing metadata are validated before the
+    /// body is polled.
+    pub async fn send_forward_request_body(
+        &self,
+        method: Method,
+        target: super::AbsoluteForm,
+        headers: Vec<super::RequestHeader>,
+        body: Option<RequestBody>,
+    ) -> Result<Response<Http1Body>, Http1Error> {
+        self.send_prepared_request(PreparedRequest::new_forward_body(
+            method, target, headers, body,
+        )?)
+        .await
     }
 
     /// Returns whether this connection is eligible for another request.
@@ -131,11 +163,14 @@ impl Http1Connection {
             "http1.response_head",
             method = %method,
             protocol = "http/1.1",
-            body_bytes,
+            body_bytes = field::Empty,
             has_body,
             status = field::Empty,
             outcome = field::Empty,
         );
+        if let Some(body_bytes) = body_bytes {
+            span.record("body_bytes", body_bytes);
+        }
         let outcome = OperationOutcome::new(&span);
         let result = async {
             debug!("HTTP/1 transaction started");
@@ -264,7 +299,7 @@ impl ConnectionLease {
 }
 
 struct ConnectionInner {
-    sender: Mutex<http1::SendRequest<Full<Bytes>>>,
+    sender: Mutex<http1::SendRequest<RequestBody>>,
     request_permit: Arc<Semaphore>,
     observer: ResponseHeadObserver,
     driver: DriverTask,

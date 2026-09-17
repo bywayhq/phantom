@@ -5,29 +5,91 @@ use http::{
     HeaderMap, HeaderValue, Method, Request, Version,
     header::{CONNECTION, CONTENT_LENGTH, HOST, HeaderName, TRANSFER_ENCODING},
 };
-use http_body_util::{Empty, Full};
+use http_body_util::Empty;
 use wreq_proto::ext::{OnPreserveHeaderCallback, on_preserve_header};
 
 use super::{AbsoluteForm, Http1Error, OriginForm, RequestHeader};
+use crate::request::{RequestBody, RequestBodyMetadata};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
 pub(super) struct PreparedRequest {
-    request: Request<Full<Bytes>>,
+    request: Request<RequestBody>,
     allows_reuse: bool,
-    body_len: usize,
+    body_len: Option<u64>,
     has_body: bool,
 }
 
 impl PreparedRequest {
+    pub(super) fn validate(
+        method: Method,
+        _target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBodyMetadata>,
+    ) -> Result<(), Http1Error> {
+        Self::validate_uri(method, headers, body, None)
+    }
+
+    pub(super) fn validate_forward(
+        method: Method,
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBodyMetadata>,
+    ) -> Result<(), Http1Error> {
+        Self::validate_uri(method, headers, body, Some(target.authority()))
+    }
+
+    fn validate_uri(
+        method: Method,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBodyMetadata>,
+        expected_host: Option<&str>,
+    ) -> Result<(), Http1Error> {
+        if method == Method::CONNECT {
+            return Err(Http1Error::ConnectUnsupported);
+        }
+        ValidatedHeaders::new(headers, body, expected_host).map(drop)
+    }
+
     pub(super) fn new(
         method: Method,
         target: OriginForm,
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Self, Http1Error> {
-        Self::from_uri(method, target.into_uri(), headers, body, None)
+        let has_body = body.is_some();
+        let body = RequestBody::from_bytes(body.unwrap_or_default());
+        let metadata = body.metadata();
+        Self::from_uri(
+            method,
+            target.into_uri(),
+            headers,
+            body,
+            has_body,
+            Some(metadata),
+            None,
+        )
+    }
+
+    pub(super) fn new_body(
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+    ) -> Result<Self, Http1Error> {
+        let has_body = body.is_some();
+        let metadata = body.as_ref().map(RequestBody::metadata);
+        let body = body.unwrap_or_else(|| RequestBody::from_bytes(Bytes::new()));
+        Self::from_uri(
+            method,
+            target.into_uri(),
+            headers,
+            body,
+            has_body,
+            metadata,
+            None,
+        )
     }
 
     pub(super) fn new_forward(
@@ -36,26 +98,57 @@ impl PreparedRequest {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Self, Http1Error> {
+        let has_body = body.is_some();
+        let body = RequestBody::from_bytes(body.unwrap_or_default());
+        let metadata = body.metadata();
         let authority = target.authority().to_owned();
-        Self::from_uri(method, target.into_uri(), headers, body, Some(&authority))
+        Self::from_uri(
+            method,
+            target.into_uri(),
+            headers,
+            body,
+            has_body,
+            Some(metadata),
+            Some(&authority),
+        )
+    }
+
+    pub(super) fn new_forward_body(
+        method: Method,
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+    ) -> Result<Self, Http1Error> {
+        let has_body = body.is_some();
+        let metadata = body.as_ref().map(RequestBody::metadata);
+        let body = body.unwrap_or_else(|| RequestBody::from_bytes(Bytes::new()));
+        let authority = target.authority().to_owned();
+        Self::from_uri(
+            method,
+            target.into_uri(),
+            headers,
+            body,
+            has_body,
+            metadata,
+            Some(&authority),
+        )
     }
 
     fn from_uri(
         method: Method,
         target: http::Uri,
         headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
+        body: RequestBody,
+        has_body: bool,
+        metadata: Option<RequestBodyMetadata>,
         expected_host: Option<&str>,
     ) -> Result<Self, Http1Error> {
         if method == Method::CONNECT {
             return Err(Http1Error::ConnectUnsupported);
         }
-
-        let has_body = body.is_some();
-        let body = body.unwrap_or_default();
-        let body_len = body.len();
-        let headers = ValidatedHeaders::new(headers, Some(body.len()), expected_host)?;
-        let mut request = Request::new(Full::new(body));
+        let body_len = metadata.and_then(RequestBodyMetadata::exact_length);
+        let headers = ValidatedHeaders::new(headers, metadata, expected_host)?;
+        let mut request = Request::new(body);
         *request.method_mut() = method;
         *request.uri_mut() = target;
         *request.version_mut() = Version::HTTP_11;
@@ -75,7 +168,7 @@ impl PreparedRequest {
         self.request.method()
     }
 
-    pub(super) fn into_request(self) -> Request<Full<Bytes>> {
+    pub(super) fn into_request(self) -> Request<RequestBody> {
         self.request
     }
 
@@ -83,7 +176,7 @@ impl PreparedRequest {
         self.allows_reuse
     }
 
-    pub(super) const fn body_len(&self) -> usize {
+    pub(super) const fn body_len(&self) -> Option<u64> {
         self.body_len
     }
 
@@ -136,7 +229,7 @@ struct ValidatedHeaders {
 impl ValidatedHeaders {
     fn new(
         headers: Vec<RequestHeader>,
-        body_len: Option<usize>,
+        body: Option<RequestBodyMetadata>,
         expected_host: Option<&str>,
     ) -> Result<Self, Http1Error> {
         if headers.len() > MAX_REQUEST_HEADERS {
@@ -149,7 +242,10 @@ impl ValidatedHeaders {
         let mut total_bytes = 0usize;
         let mut host_count = 0usize;
         let mut content_length_index = None;
-        let expected_content_length = body_len.map(|length| length.to_string());
+        let expected_content_length = body
+            .and_then(RequestBodyMetadata::exact_length)
+            .map(|length| length.to_string());
+        let unknown_body = body.is_some_and(|metadata| metadata.exact_length().is_none());
         let mut semantic = Vec::with_capacity(headers.len());
         let mut ordered = Vec::with_capacity(headers.len());
 
@@ -228,34 +324,30 @@ impl ValidatedHeaders {
             return Err(Http1Error::MissingHost);
         }
 
-        if let Some(length) =
-            body_len.filter(|length| *length > 0 && content_length_index.is_none())
+        if unknown_body {
+            append_generated_header(
+                &mut semantic,
+                &mut ordered,
+                &mut total_bytes,
+                TRANSFER_ENCODING,
+                b"Transfer-Encoding",
+                HeaderValue::from_static("chunked"),
+            )?;
+        } else if let Some(length) =
+            expected_content_length.filter(|length| length != "0" && content_length_index.is_none())
         {
-            let value = HeaderValue::from_str(&length.to_string()).map_err(|_| {
-                Http1Error::InvalidContentLength {
+            let value =
+                HeaderValue::from_str(&length).map_err(|_| Http1Error::InvalidContentLength {
                     index: semantic.len(),
-                }
-            })?;
-            total_bytes = total_bytes
-                .checked_add(CONTENT_LENGTH.as_str().len() + value.len())
-                .ok_or(Http1Error::HeadersTooLarge {
-                    bytes: usize::MAX,
-                    maximum: MAX_REQUEST_HEADER_BYTES,
                 })?;
-            if semantic.len() == MAX_REQUEST_HEADERS {
-                return Err(Http1Error::TooManyHeaders {
-                    count: semantic.len() + 1,
-                    maximum: MAX_REQUEST_HEADERS,
-                });
-            }
-            if total_bytes > MAX_REQUEST_HEADER_BYTES {
-                return Err(Http1Error::HeadersTooLarge {
-                    bytes: total_bytes,
-                    maximum: MAX_REQUEST_HEADER_BYTES,
-                });
-            }
-            ordered.push((Box::from(b"Content-Length".as_slice()), value.clone()));
-            semantic.push((CONTENT_LENGTH, value));
+            append_generated_header(
+                &mut semantic,
+                &mut ordered,
+                &mut total_bytes,
+                CONTENT_LENGTH,
+                b"Content-Length",
+                value,
+            )?;
         }
 
         Ok(Self {
@@ -277,6 +369,37 @@ impl ValidatedHeaders {
             .filter(|(name, _)| name == CONNECTION)
             .any(|(_, value)| header_has_token(value, "close"))
     }
+}
+
+fn append_generated_header(
+    semantic: &mut Vec<(HeaderName, HeaderValue)>,
+    ordered: &mut Vec<(Box<[u8]>, HeaderValue)>,
+    total_bytes: &mut usize,
+    name: HeaderName,
+    wire_name: &'static [u8],
+    value: HeaderValue,
+) -> Result<(), Http1Error> {
+    if semantic.len() == MAX_REQUEST_HEADERS {
+        return Err(Http1Error::TooManyHeaders {
+            count: semantic.len() + 1,
+            maximum: MAX_REQUEST_HEADERS,
+        });
+    }
+    *total_bytes = total_bytes
+        .checked_add(wire_name.len() + value.len())
+        .ok_or(Http1Error::HeadersTooLarge {
+            bytes: usize::MAX,
+            maximum: MAX_REQUEST_HEADER_BYTES,
+        })?;
+    if *total_bytes > MAX_REQUEST_HEADER_BYTES {
+        return Err(Http1Error::HeadersTooLarge {
+            bytes: *total_bytes,
+            maximum: MAX_REQUEST_HEADER_BYTES,
+        });
+    }
+    ordered.push((Box::from(wire_name), value.clone()));
+    semantic.push((name, value));
+    Ok(())
 }
 
 // This Vec is the sole authority for wire order and spelling. `semantic` in

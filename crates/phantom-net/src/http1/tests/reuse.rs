@@ -1,18 +1,62 @@
-use std::time::Duration;
+use std::{
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    task::{Context, Poll},
+    time::Duration,
+};
 
 use bytes::Bytes;
 use http::Method;
-use http_body_util::BodyExt;
+use http_body::{Body, Frame};
+use http_body_util::{BodyExt, Full};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, duplex},
     sync::oneshot,
     time::timeout,
 };
 
+struct PendingBody(Arc<AtomicBool>);
+
+impl Body for PendingBody {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Pending
+    }
+}
+
+impl Drop for PendingBody {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+
+struct ErrorBody;
+
+impl Body for ErrorBody {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(Some(Err(std::io::Error::other("injected body error"))))
+    }
+}
+
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
     http1::{Http1Connection, RequestHeader},
+    request::RequestBody,
 };
 
 #[test]
@@ -98,6 +142,51 @@ async fn body_request_then_get_reuses_connection() -> TestResult {
         let (first, body, second) = server_task.await??;
         assert!(first.starts_with(b"POST /resource?item=1 HTTP/1.1\r\n"));
         assert_eq!(&body, b"data");
+        assert!(second.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn streaming_body_then_get_reuses_connection() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            let first = read_head(&mut server).await?;
+            let mut body = [0_u8; 7];
+            server.read_exact(&mut body).await?;
+            server.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            let second = read_head(&mut server).await?;
+            server.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            Ok::<_, std::io::Error>((first, body, second))
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        connection
+            .send_request_body(
+                Method::POST,
+                target()?,
+                vec![host()],
+                Some(RequestBody::streaming(Full::new(Bytes::from_static(
+                    b"payload",
+                )))),
+            )
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+        assert!(connection.is_reusable());
+        connection
+            .send_get(target()?, vec![host()])
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+
+        let (first, body, second) = server_task.await??;
+        assert!(first.ends_with(b"Content-Length: 7\r\n\r\n"));
+        assert_eq!(&body, b"payload");
         assert!(second.starts_with(b"GET /resource?item=1 HTTP/1.1\r\n"));
         Ok(())
     })
@@ -226,6 +315,84 @@ async fn cancelling_a_dispatched_response_head_invalidates_connection() -> TestR
         let _ = sending.await;
         assert!(!connection.is_reusable());
         assert!(server_task.await??.is_empty());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn cancelling_stalled_upload_drops_source_and_invalidates_connection() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let (observed_tx, observed_rx) = oneshot::channel();
+        let server_task = tokio::spawn(async move {
+            let head = read_head(&mut server).await?;
+            let _ = observed_tx.send(head);
+            let mut remaining = Vec::new();
+            server.read_to_end(&mut remaining).await?;
+            Ok::<_, std::io::Error>(remaining)
+        });
+
+        let dropped = Arc::new(AtomicBool::new(false));
+        let connection = Http1Connection::connect(client).await?;
+        let request_target = target()?;
+        let sending = tokio::spawn({
+            let connection = connection.clone();
+            let dropped = Arc::clone(&dropped);
+            async move {
+                connection
+                    .send_request_body(
+                        Method::POST,
+                        request_target,
+                        vec![host()],
+                        Some(RequestBody::streaming(PendingBody(dropped))),
+                    )
+                    .await
+            }
+        });
+        let head = observed_rx.await?;
+        assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
+        sending.abort();
+        let _ = sending.await;
+        timeout(Duration::from_secs(1), async {
+            while !dropped.load(Ordering::Acquire) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        assert!(!connection.is_reusable());
+        assert!(server_task.await??.is_empty());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn streaming_body_error_invalidates_connection() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            let head = read_head(&mut server).await?;
+            let mut remaining = Vec::new();
+            server.read_to_end(&mut remaining).await?;
+            Ok::<_, std::io::Error>((head, remaining))
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        let result = connection
+            .send_request_body(
+                Method::POST,
+                target()?,
+                vec![host()],
+                Some(RequestBody::streaming(ErrorBody)),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(!connection.is_reusable());
+
+        let (head, remaining) = server_task.await??;
+        assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
+        assert!(remaining.is_empty());
         Ok(())
     })
     .await

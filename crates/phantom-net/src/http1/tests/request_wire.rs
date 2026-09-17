@@ -9,6 +9,7 @@ use std::{
 
 use bytes::Bytes;
 use http::Method;
+use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use tokio::io::{
     AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, duplex,
@@ -20,10 +21,79 @@ use crate::{
     OrderedResponseHeaders,
     http1::{
         AbsoluteForm, Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader,
-        send_forward_request, send_get, send_request, validate_forward_request, validate_request,
+        send_forward_request, send_forward_request_body, send_get, send_request, send_request_body,
+        validate_forward_request, validate_request,
     },
+    request::RequestBody,
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
+
+struct Chunks {
+    chunks: std::collections::VecDeque<Bytes>,
+    exact: Option<u64>,
+}
+
+impl Chunks {
+    fn known(chunks: impl IntoIterator<Item = Bytes>) -> Self {
+        let chunks = chunks
+            .into_iter()
+            .collect::<std::collections::VecDeque<_>>();
+        let exact = chunks.iter().map(|chunk| chunk.len() as u64).sum();
+        Self {
+            chunks,
+            exact: Some(exact),
+        }
+    }
+
+    fn unknown(chunks: impl IntoIterator<Item = Bytes>) -> Self {
+        Self {
+            chunks: chunks.into_iter().collect(),
+            exact: None,
+        }
+    }
+}
+
+impl Body for Chunks {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        let chunk = self.chunks.pop_front();
+        if let (Some(exact), Some(chunk)) = (self.exact.as_mut(), chunk.as_ref()) {
+            *exact -= chunk.len() as u64;
+        }
+        Poll::Ready(chunk.map(Frame::data).map(Ok))
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.chunks.is_empty()
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        match self.exact {
+            Some(exact) => SizeHint::with_exact(exact),
+            None => SizeHint::default(),
+        }
+    }
+}
+
+struct PollCountingBody(Arc<AtomicUsize>);
+
+impl Body for PollCountingBody {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        self.0.fetch_add(1, Ordering::SeqCst);
+        Poll::Pending
+    }
+}
 
 #[tokio::test]
 async fn cancelled_response_head_records_outcome_once() -> TestResult {
@@ -107,6 +177,72 @@ async fn writes_method_body_and_generated_content_length() -> TestResult {
 }
 
 #[tokio::test]
+async fn known_stream_preserves_generated_content_length_order() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let body = RequestBody::streaming(Chunks::known([
+            Bytes::from_static(b"pay"),
+            Bytes::from_static(b"load"),
+        ]));
+        let transaction = tokio::spawn(send_request_body(
+            client,
+            Method::POST,
+            target()?,
+            vec![host(), RequestHeader::new("X-Order", "before-length")],
+            Some(body),
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-length\r\nContent-Length: 7\r\n\r\n"
+        );
+        let mut body = [0_u8; 7];
+        server.read_exact(&mut body).await?;
+        assert_eq!(&body, b"payload");
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn unknown_stream_preserves_generated_chunked_framing_order() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let body = RequestBody::streaming(Chunks::unknown([
+            Bytes::from_static(b"pay"),
+            Bytes::from_static(b"load"),
+        ]));
+        let transaction = tokio::spawn(send_request_body(
+            client,
+            Method::POST,
+            target()?,
+            vec![host(), RequestHeader::new("X-Order", "before-framing")],
+            Some(body),
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-framing\r\nTransfer-Encoding: chunked\r\n\r\n"
+        );
+        let mut body = [0_u8; 22];
+        server.read_exact(&mut body).await?;
+        assert_eq!(&body, b"3\r\npay\r\n4\r\nload\r\n0\r\n\r\n");
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn forwarding_writes_exact_absolute_target_and_ordered_fields() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
@@ -132,6 +268,39 @@ async fn forwarding_writes_exact_absolute_target_and_ordered_fields() -> TestRes
         server.read_exact(&mut body).await?;
         assert_eq!(&body, b"payload");
 
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn forward_proxy_streams_unknown_body_with_absolute_form() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let body = RequestBody::streaming(Chunks::unknown([Bytes::from_static(b"proxy")]));
+        let transaction = tokio::spawn(send_forward_request_body(
+            client,
+            Method::POST,
+            AbsoluteForm::parse("http://example.test:8080/upload")?,
+            vec![
+                RequestHeader::new("Host", "example.test:8080"),
+                RequestHeader::new("X-Order", "before-framing"),
+            ],
+            Some(body),
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST http://example.test:8080/upload HTTP/1.1\r\nHost: example.test:8080\r\nX-Order: before-framing\r\nTransfer-Encoding: chunked\r\n\r\n"
+        );
+        let mut body = [0_u8; 15];
+        server.read_exact(&mut body).await?;
+        assert_eq!(&body, b"5\r\nproxy\r\n0\r\n\r\n");
         server
             .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
             .await?;
@@ -292,6 +461,33 @@ async fn invalid_content_length_never_touches_the_stream() -> TestResult {
         result,
         Err(Http1Error::InvalidContentLength { .. })
     ));
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn unknown_stream_framing_error_never_polls_body_or_touches_stream() -> TestResult {
+    let writes = Arc::new(AtomicUsize::new(0));
+    let polls = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let body = RequestBody::streaming(PollCountingBody(Arc::clone(&polls)));
+    let result = send_request_body(
+        WriteCountingStream {
+            inner: client,
+            writes: Arc::clone(&writes),
+        },
+        Method::POST,
+        target()?,
+        vec![host(), RequestHeader::new("Content-Length", "1")],
+        Some(body),
+    )
+    .await;
+
+    assert!(matches!(
+        result,
+        Err(Http1Error::RequestFramingHeader { .. })
+    ));
+    assert_eq!(polls.load(Ordering::SeqCst), 0);
     assert_eq!(writes.load(Ordering::SeqCst), 0);
     Ok(())
 }
