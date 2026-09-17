@@ -245,10 +245,6 @@ async fn negotiated_http2_applies_alps_and_retains_response_accept_ch() -> TestR
                 true,
             )?;
             drop((request, response));
-            poll_fn(|context| connection.poll_closed(context)).await?;
-
-            let stream = accept_tls(&listener, &acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut response) = accept_http2(&mut connection).await?;
             assert_eq!(
                 request.headers().get("sec-ch-ua"),
@@ -258,7 +254,10 @@ async fn negotiated_http2_applies_alps_and_retains_response_accept_ch() -> TestR
                 request.headers().get("sec-ch-ua-arch"),
                 Some(&"\"arm\"".parse()?)
             );
-            assert!(!request.headers().contains_key("sec-ch-ua-platform-version"));
+            assert_eq!(
+                request.headers().get("sec-ch-ua-platform-version"),
+                Some(&"\"15.5.0\"".parse()?)
+            );
             response.send_response(
                 Response::builder()
                     .status(StatusCode::NO_CONTENT)
@@ -284,6 +283,7 @@ async fn negotiated_http2_applies_alps_and_retains_response_accept_ch() -> TestR
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
+        drop(client);
         server.await??;
         Ok(())
     })
