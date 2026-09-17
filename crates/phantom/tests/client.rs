@@ -23,8 +23,11 @@ use http::{HeaderMap, Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RequestErrorKind, RequestHeader,
-    ResponseInfo,
-    profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
+    ResponseInfo, ServerAuthentication,
+    profile::{
+        ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, Http3ClientSettings,
+        chromium,
+    },
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -605,6 +608,56 @@ fn invalid_http2_profile_has_stable_build_category() -> TestResult<()> {
     };
     assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
     Ok(())
+}
+
+#[test]
+fn contradictory_server_authentication_policy_fails_during_build() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let error = match Client::builder(ClientProfile::new(tls_settings()))
+        .server_authentication(ServerAuthentication::Disabled)
+        .add_root_certificate_der(identity.root_der)
+        .build()
+    {
+        Ok(_) => return Err("disabled authentication with extra roots was accepted".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+    assert!(
+        error
+            .to_string()
+            .contains("cannot be combined with additional roots")
+    );
+    Ok(())
+}
+
+#[test]
+fn disabled_server_authentication_rejects_http3_during_build() -> TestResult<()> {
+    let http3 = Http3ClientSettings::new(
+        chromium::v152_macos_http3_tls(),
+        chromium::v152_macos_quic(),
+        chromium::v152_macos_http3(),
+        chromium::v152_macos_http3_request(),
+    );
+    let error = match Client::builder(ClientProfile::new(tls_settings()).with_http3(http3))
+        .server_authentication(ServerAuthentication::Disabled)
+        .build()
+    {
+        Ok(_) => return Err("disabled authentication with HTTP/3 was accepted".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+    assert!(error.to_string().contains("not supported for HTTP/3"));
+    Ok(())
+}
+
+#[test]
+fn client_builder_debug_reports_server_authentication_policy() {
+    let debug = format!(
+        "{:?}",
+        Client::builder(ClientProfile::new(tls_settings()))
+            .server_authentication(ServerAuthentication::Disabled)
+    );
+    assert!(debug.contains("server_authentication: Disabled"));
 }
 
 #[test]

@@ -18,6 +18,8 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 pub enum BuildErrorKind {
     /// The supplied wire profile is internally inconsistent.
     InvalidProfile,
+    /// Connection policies are contradictory or unsupported together.
+    InvalidPolicy,
     /// A configured trust root could not be loaded.
     TrustStore,
     /// A protocol connector cannot represent the supplied profile.
@@ -35,6 +37,14 @@ pub struct BuildError {
 }
 
 impl BuildError {
+    pub(crate) fn invalid_policy(message: &'static str) -> Self {
+        Self {
+            kind: BuildErrorKind::InvalidPolicy,
+            message,
+            source: None,
+        }
+    }
+
     pub(crate) fn invalid_tls_profile(source: InvalidTlsSettings) -> Self {
         Self::with_source(
             BuildErrorKind::InvalidProfile,

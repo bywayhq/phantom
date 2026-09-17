@@ -22,7 +22,7 @@ use tokio::{
 use tokio_btls::SslStream as BoringStream;
 use tracing::{Dispatch, instrument::WithSubscriber};
 
-use super::{Http1TlsConnector, Http1TlsError};
+use super::{Http1TlsConnector, Http1TlsError, ServerAuthentication};
 use crate::http1::{OriginForm, RequestHeader};
 use crate::tls::test_support::{
     TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, TouchCountingStream,
@@ -223,6 +223,43 @@ async fn no_negotiated_alpn_proceeds_as_http1() -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn disabled_authentication_accepts_untrusted_name_mismatch_and_preserves_sni()
+-> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
+        let server_task = tokio::spawn(async move {
+            let (_stream, sni) = accept_tls(listener, acceptor).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(sni)
+        });
+
+        let connector = Http1TlsConnector::new_with_server_authentication(
+            &tls_settings(),
+            ServerAuthentication::Disabled,
+        )?;
+        let tcp = TcpStream::connect(address).await?;
+        let connection = connector.connect(tcp, "mismatch.phantom.test").await?;
+        drop(connection);
+
+        assert_eq!(
+            server_task.await??.as_deref(),
+            Some("mismatch.phantom.test")
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn webpki_is_the_default_server_authentication_policy() {
+    assert_eq!(
+        ServerAuthentication::default(),
+        ServerAuthentication::WebPki
+    );
 }
 
 #[tokio::test]

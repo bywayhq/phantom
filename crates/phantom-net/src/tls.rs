@@ -32,10 +32,34 @@ mod compression;
 mod configuration;
 mod session_cache;
 
+/// Policy for authenticating a TLS server certificate.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ServerAuthentication {
+    /// Verify the certificate chain and the requested server name.
+    #[default]
+    WebPki,
+    /// Accept the server certificate without chain or name verification.
+    ///
+    /// This is intended for controlled protocol conformance and diagnostics.
+    /// Server Name Indication is still sent.
+    Disabled,
+}
+
+impl ServerAuthentication {
+    const fn trace_name(self) -> &'static str {
+        match self {
+            Self::WebPki => "webpki",
+            Self::Disabled => "disabled",
+        }
+    }
+}
+
 /// A reusable TLS connector with a validated immutable configuration.
 #[derive(Clone)]
 pub(crate) struct TlsConnector {
     backend: BoringConnector,
+    server_authentication: ServerAuthentication,
     alpn_wire: Box<[u8]>,
     alps: Option<AlpsSettings>,
     tls13_key_shares: Option<Box<[NamedGroup]>>,
@@ -56,6 +80,7 @@ impl fmt::Debug for TlsConnector {
 
         formatter
             .debug_struct("TlsConnector")
+            .field("server_authentication", &self.server_authentication)
             .field("alpn_protocol_count", &count_alpn(&self.alpn_wire))
             .field("alps_protocol", &alps_protocol)
             .field("alps_settings_len", &alps_settings_len)
@@ -72,6 +97,7 @@ impl TlsConnector {
     pub(crate) fn new(settings: &TlsSettings) -> Result<Self, TlsError> {
         Self::build_with_roots(
             settings,
+            ServerAuthentication::WebPki,
             webpki_root_certs::TLS_SERVER_ROOT_CERTS
                 .iter()
                 .map(AsRef::as_ref),
@@ -85,11 +111,27 @@ impl TlsConnector {
     ) -> Result<Self, TlsError> {
         Self::build_with_roots(
             settings,
+            ServerAuthentication::WebPki,
             webpki_root_certs::TLS_SERVER_ROOT_CERTS
                 .iter()
                 .map(AsRef::as_ref)
                 .chain(roots),
         )
+    }
+
+    /// Builds a connector with an explicit server-authentication policy.
+    pub(crate) fn new_with_server_authentication(
+        settings: &TlsSettings,
+        server_authentication: ServerAuthentication,
+    ) -> Result<Self, TlsError> {
+        match server_authentication {
+            ServerAuthentication::WebPki => Self::new(settings),
+            ServerAuthentication::Disabled => Self::build_with_roots(
+                settings,
+                ServerAuthentication::Disabled,
+                std::iter::empty::<&[u8]>(),
+            ),
+        }
     }
 
     /// Consumes this connector and returns its configured TLS context.
@@ -122,6 +164,7 @@ impl TlsConnector {
 
     fn build_with_roots<'a>(
         settings: &TlsSettings,
+        server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, TlsError> {
         let span = debug_span!(
@@ -139,17 +182,19 @@ impl TlsConnector {
             extension_order = extension_order_trace_name(&settings.extension_order),
             ech_grease = settings.ech_grease,
             ech_grease_payload_length_configured = settings.ech_grease_payload_length.is_some(),
+            server_authentication = server_authentication.trace_name(),
             outcome = field::Empty,
             error_kind = field::Empty,
         );
         let _entered = span.enter();
-        let result = Self::build_connector(settings, roots);
+        let result = Self::build_connector(settings, server_authentication, roots);
         record_tls_result(&span, &result);
         result
     }
 
     fn build_connector<'a>(
         settings: &TlsSettings,
+        server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, TlsError> {
         settings
@@ -171,7 +216,10 @@ impl TlsConnector {
         let mut builder = BoringConnector::bare_builder(SslMethod::tls())
             .map_err(|error| TlsError::backend("connector", error))?;
         builder.set_cert_store_builder(root_store);
-        builder.set_verify(SslVerifyMode::PEER);
+        builder.set_verify(match server_authentication {
+            ServerAuthentication::WebPki => SslVerifyMode::PEER,
+            ServerAuthentication::Disabled => SslVerifyMode::NONE,
+        });
         configuration::apply(&mut builder, settings)?;
 
         if let Some(ids) = &settings.requested_trust_anchor_ids {
@@ -189,6 +237,7 @@ impl TlsConnector {
 
         Ok(Self {
             backend: builder.build(),
+            server_authentication,
             alpn_wire,
             alps: settings.alps.clone(),
             tls13_key_shares: (settings.max_version == TlsVersion::Tls13)
@@ -205,7 +254,7 @@ impl TlsConnector {
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, TlsError> {
-        Self::build_with_roots(settings, roots)
+        Self::build_with_roots(settings, ServerAuthentication::WebPki, roots)
     }
 
     /// Performs a TLS client handshake over an already-connected byte stream.
@@ -226,6 +275,7 @@ impl TlsConnector {
             tls_version = field::Empty,
             cipher_suite = field::Empty,
             session_reused = field::Empty,
+            server_authentication = self.server_authentication.trace_name(),
             outcome = field::Empty,
             error_kind = field::Empty,
         );
@@ -238,7 +288,10 @@ impl TlsConnector {
                 .configure()
                 .map_err(|error| TlsError::backend("handshake configuration", error))?;
             configuration.set_use_server_name_indication(true);
-            configuration.set_verify_hostname(true);
+            configuration.set_verify_hostname(matches!(
+                self.server_authentication,
+                ServerAuthentication::WebPki
+            ));
             configuration.set_enable_ech_grease(self.ech_grease);
             if let Some(payload_length) = self.ech_grease_payload_length {
                 configuration

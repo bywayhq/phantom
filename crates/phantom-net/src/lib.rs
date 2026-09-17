@@ -16,6 +16,7 @@ mod shutdown_timer;
 pub(crate) mod tls;
 
 pub use response::{OrderedResponseHeaders, ResponseHeader};
+pub use tls::ServerAuthentication;
 
 #[cfg(test)]
 mod tracing_test;

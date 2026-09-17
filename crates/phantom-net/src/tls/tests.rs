@@ -137,9 +137,10 @@ fn connector_debug_reports_alps_metadata_without_payload() -> TestResult<()> {
     let debug = format!("{connector:?}");
     assert_eq!(
         debug,
-        "TlsConnector { alpn_protocol_count: 2, alps_protocol: Some(\"h2\"), \
-         alps_settings_len: Some(23), alps_use_new_codepoint: Some(true), \
-         tls13_key_shares: Some([X25519MlKem768, X25519]), ech_grease: true, \
+        "TlsConnector { server_authentication: WebPki, alpn_protocol_count: 2, \
+         alps_protocol: Some(\"h2\"), alps_settings_len: Some(23), \
+         alps_use_new_codepoint: Some(true), tls13_key_shares: \
+         Some([X25519MlKem768, X25519]), ech_grease: true, \
          ech_grease_payload_length: None, .. }"
     );
     assert!(!debug.contains("opaque-alps-marker-7f3c"));

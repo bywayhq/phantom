@@ -21,7 +21,7 @@ use crate::{
     tls::{TlsConnector, trace_alpn},
 };
 
-pub use crate::tls::{TlsError, TlsErrorKind};
+pub use crate::tls::{ServerAuthentication, TlsError, TlsErrorKind};
 pub use error::Http1TlsError;
 
 /// A reusable TLS connector for HTTP/1.1 connections and GET requests.
@@ -49,6 +49,20 @@ impl Http1TlsConnector {
     ) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         TlsConnector::new_with_additional_roots(settings, roots)
+            .map(|tls| Self { tls })
+            .map_err(Into::into)
+    }
+
+    /// Builds a connector with an explicit server-authentication policy.
+    ///
+    /// [`ServerAuthentication::Disabled`] accepts unauthenticated server
+    /// certificates but continues to send Server Name Indication.
+    pub fn new_with_server_authentication(
+        settings: &TlsSettings,
+        server_authentication: ServerAuthentication,
+    ) -> Result<Self, Http1TlsError> {
+        require_http1_alpn(settings)?;
+        TlsConnector::new_with_server_authentication(settings, server_authentication)
             .map(|tls| Self { tls })
             .map_err(Into::into)
     }

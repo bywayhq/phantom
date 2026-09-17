@@ -37,6 +37,8 @@ pub use websocket::{
     WebSocketLimits, WebSocketMessage, WebSocketRequestBuilder,
 };
 
+/// Policy for authenticating a TLS server certificate.
+pub use phantom_net::ServerAuthentication;
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::HttpConnectHeader;
 

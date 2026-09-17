@@ -19,7 +19,7 @@ security rating or a recommendation to negotiate them.
 
 ## Current behavior
 
-The current TCP TLS path:
+The default TCP TLS path:
 
 - validates the profile before network I/O;
 - verifies the certificate chain against the configured WebPKI roots;
@@ -37,11 +37,17 @@ The current TCP TLS path:
 Certificate compression is a different TLS feature: it compresses public
 certificate messages, not application data mixed with secrets.
 
-`TlsSettings` currently supplies both the advertised version range and cipher
+`TlsSettings` supplies both the advertised version range and cipher
 suite list directly to BoringSSL. Therefore an exact profile can negotiate a
 legacy option if the server also selects it. Callers that require a restricted
-set must customize those fields before building the connector. Phantom does
-not yet expose a separate public connection-policy type.
+set must customize those fields before building the connector.
+
+`ServerAuthentication` is connection policy, not profile data. Its default
+`WebPki` variant verifies the certificate chain and requested server name.
+`Disabled` accepts an unauthenticated certificate while preserving SNI and is
+limited to controlled TCP TLS conformance or diagnostic use. It cannot be
+combined with additional roots or HTTP/3; those conflicts fail during client
+construction.
 
 The QUIC path is TLS 1.3 only. QUIC session resumption remains disabled, and
 0-RTT is disabled on every path until replay policy and request-eligibility
@@ -50,17 +56,18 @@ Phantom does not recreate record protection.
 
 ## Connection policy seam
 
-The public client resolves its wire profile and additive trust roots before an
-attempt starts. A conflict returns a typed error. Additional DER roots extend
-the bundled public store without disabling chain or hostname verification.
-Policy never mutates the profile behind the caller's back, because that would
-make both later pooling identity and packet differentials dishonest.
+The public client resolves its wire profile, server-authentication policy, and
+additive trust roots before an attempt starts. A conflict returns a typed
+error. Additional DER roots extend the bundled public store without disabling
+chain or hostname verification. Policy never mutates the profile behind the
+caller's back, because that would make both later pooling identity and packet
+differentials dishonest.
 
-The first policy slice should be deliberately small:
+Remaining policy slices should stay deliberately small:
 
 - minimum accepted TLS version;
 - allowed negotiated cipher suites;
-- further certificate and hostname verification policy; and
+- custom certificate and hostname verifiers; and
 - public resumption policy and early-data policy.
 
 Negotiated TLS version, cipher suite, ALPN, resumption, and early-data status

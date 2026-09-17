@@ -21,7 +21,7 @@ use crate::{
     tls::{TlsConnector, TlsStream, trace_alpn},
 };
 
-pub use crate::tls::{TlsError, TlsErrorKind};
+pub use crate::tls::{ServerAuthentication, TlsError, TlsErrorKind};
 
 /// Reusable TLS and HTTP/2 settings for connections and one-shot requests.
 #[derive(Clone, Debug)]
@@ -55,6 +55,25 @@ impl Http2TlsConnector {
         require_h2_alpn(tls)?;
         validate_http2(http2)?;
         TlsConnector::new_with_additional_roots(tls, roots)
+            .map(|tls| Self {
+                tls,
+                http2: http2.clone(),
+            })
+            .map_err(Into::into)
+    }
+
+    /// Builds a connector with an explicit server-authentication policy.
+    ///
+    /// [`ServerAuthentication::Disabled`] accepts unauthenticated server
+    /// certificates but continues to send Server Name Indication.
+    pub fn new_with_server_authentication(
+        tls: &TlsSettings,
+        http2: &Http2Settings,
+        server_authentication: ServerAuthentication,
+    ) -> Result<Self, Http2TlsError> {
+        require_h2_alpn(tls)?;
+        validate_http2(http2)?;
+        TlsConnector::new_with_server_authentication(tls, server_authentication)
             .map(|tls| Self {
                 tls,
                 http2: http2.clone(),

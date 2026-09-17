@@ -2,8 +2,8 @@ use std::{fmt, sync::Arc};
 
 use http::Method;
 use phantom_net::{
-    http1::Http1TlsConnector, http1_or_2::Http1Or2TlsConnector, http2::Http2TlsConnector,
-    http3::Http3Connector,
+    ServerAuthentication, http1::Http1TlsConnector, http1_or_2::Http1Or2TlsConnector,
+    http2::Http2TlsConnector, http3::Http3Connector,
 };
 use phantom_profile::{ClientHintSettings, ClientProfile};
 
@@ -60,6 +60,7 @@ impl Client {
         ClientBuilder {
             profile,
             additional_roots: Vec::new(),
+            server_authentication: ServerAuthentication::default(),
             route: Route::Direct,
         }
     }
@@ -150,6 +151,7 @@ impl Client {
 pub struct ClientBuilder {
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,
+    server_authentication: ServerAuthentication,
     route: Route,
 }
 
@@ -174,6 +176,7 @@ impl fmt::Debug for ClientBuilder {
                 &self.profile.client_hints().is_some(),
             )
             .field("additional_root_count", &self.additional_roots.len())
+            .field("server_authentication", &self.server_authentication)
             .field("route", &self.route)
             .finish_non_exhaustive()
     }
@@ -186,6 +189,17 @@ impl ClientBuilder {
     #[must_use]
     pub fn add_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
         self.additional_roots.push(certificate.into());
+        self
+    }
+
+    /// Sets how TLS servers are authenticated.
+    ///
+    /// The default is [`ServerAuthentication::WebPki`]. Disabling
+    /// authentication is explicit and is supported for HTTP/1.1 and HTTP/2;
+    /// it cannot be combined with additional roots or HTTP/3.
+    #[must_use]
+    pub fn server_authentication(mut self, policy: ServerAuthentication) -> Self {
+        self.server_authentication = policy;
         self
     }
 
@@ -215,6 +229,28 @@ impl ClientBuilder {
                 .map_err(BuildError::invalid_client_hint_profile)?;
         }
 
+        let authentication_disabled = match self.server_authentication {
+            ServerAuthentication::WebPki => false,
+            ServerAuthentication::Disabled => true,
+            _ => {
+                return Err(BuildError::invalid_policy(
+                    "unsupported server-authentication policy",
+                ));
+            }
+        };
+        if authentication_disabled {
+            if !self.additional_roots.is_empty() {
+                return Err(BuildError::invalid_policy(
+                    "disabled server authentication cannot be combined with additional roots",
+                ));
+            }
+            if self.profile.http3().is_some() {
+                return Err(BuildError::invalid_policy(
+                    "disabled server authentication is not supported for HTTP/3",
+                ));
+            }
+        }
+
         let roots = || self.additional_roots.iter().map(AsRef::as_ref);
         let supports_http1 = self
             .profile
@@ -223,14 +259,35 @@ impl ClientBuilder {
             .iter()
             .any(|protocol| protocol.as_ref() == b"http/1.1");
         let http1 = supports_http1
-            .then(|| Http1TlsConnector::new_with_additional_roots(self.profile.tls(), roots()))
+            .then(|| {
+                if authentication_disabled {
+                    Http1TlsConnector::new_with_server_authentication(
+                        self.profile.tls(),
+                        self.server_authentication,
+                    )
+                } else {
+                    Http1TlsConnector::new_with_additional_roots(self.profile.tls(), roots())
+                }
+            })
             .transpose()
             .map_err(BuildError::http1)?;
         let http2 = self
             .profile
             .http2()
             .map(|settings| {
-                Http2TlsConnector::new_with_additional_roots(self.profile.tls(), settings, roots())
+                if authentication_disabled {
+                    Http2TlsConnector::new_with_server_authentication(
+                        self.profile.tls(),
+                        settings,
+                        self.server_authentication,
+                    )
+                } else {
+                    Http2TlsConnector::new_with_additional_roots(
+                        self.profile.tls(),
+                        settings,
+                        roots(),
+                    )
+                }
             })
             .transpose()
             .map_err(BuildError::http2)?;
