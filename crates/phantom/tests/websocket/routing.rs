@@ -44,6 +44,68 @@ async fn connects_through_http_connect_without_origin_fallback() -> TestResult<(
 }
 
 #[tokio::test]
+async fn basic_proxy_challenge_reconnects_before_websocket_upgrade() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let origin = tokio::spawn(async move {
+            let mut stream = accept_tls(origin_listener, acceptor).await?;
+            let request = read_head(&mut stream).await?;
+            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+            let accept = websocket_accept(key);
+            stream.write_all(format!(
+                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
+            ).as_bytes()).await?;
+            let close = read_client_frame(&mut stream).await?;
+            append_and_write_server_frame(&mut stream, true, 0x8, &close.payload).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(request)
+        });
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(challenge_then_forward_connect(
+            proxy_listener,
+            origin_address,
+        ));
+        let route = Route::http_connect(
+            HttpProxy::new(&format!("http://{proxy_address}"))?
+                .connect_headers(vec![
+                    phantom::HttpConnectHeader::authority("Host"),
+                    phantom::HttpConnectHeader::proxy_authorization("Proxy-Authorization"),
+                ])
+                .with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+        let mut socket = client
+            .websocket(&format!("wss://{origin_address}/authenticated-proxy"))?
+            .connect()
+            .await?;
+        socket
+            .close(Some(WebSocketCloseFrame::new(1000, "done")?))
+            .await?;
+        assert!(matches!(
+            socket.receive().await?,
+            WebSocketMessage::Close(_)
+        ));
+        drop(socket);
+
+        let (anonymous, authorized) = proxy.await??;
+        assert!(!header_value(&anonymous, "proxy-authorization").is_some());
+        assert_eq!(
+            header_value(&authorized, "proxy-authorization"),
+            Some("Basic YWxpY2U6c2VjcmV0")
+        );
+        let origin_request = origin.await??;
+        assert!(origin_request.starts_with(b"GET /authenticated-proxy HTTP/1.1\r\n"));
+        assert!(header_value(&origin_request, "proxy-authorization").is_none());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn connects_through_verified_https_proxy() -> TestResult<()> {
     bounded(async {
         let origin_identity = TestIdentity::generate()?;
@@ -187,4 +249,30 @@ async fn stream_sink_split_supports_concurrent_message_io() -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+async fn challenge_then_forward_connect(
+    listener: TcpListener,
+    origin: std::net::SocketAddr,
+) -> TestResult<(Vec<u8>, Vec<u8>)> {
+    let (mut first, _) = listener.accept().await?;
+    let anonymous = read_head(&mut first).await?;
+    first
+        .write_all(
+            b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+              Proxy-Authenticate: Basic realm=\"websocket\"\r\n\
+              Content-Length: 0\r\n\r\n",
+        )
+        .await?;
+    first.shutdown().await?;
+
+    let (mut second, _) = listener.accept().await?;
+    let authorized = read_head(&mut second).await?;
+    let mut upstream = tokio::net::TcpStream::connect(origin).await?;
+    second
+        .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        .await?;
+    second.flush().await?;
+    tokio::io::copy_bidirectional(&mut second, &mut upstream).await?;
+    Ok((anonymous, authorized))
 }

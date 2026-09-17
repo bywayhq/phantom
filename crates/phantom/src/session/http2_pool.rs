@@ -267,29 +267,60 @@ impl PoolEntry {
                     let proxy_connector = self
                         .https_proxy
                         .get_or_init(|| base.with_isolated_session_cache());
-                    connector
-                        .connect_https_connect(
+                    if let Some(credentials) = proxy.basic_credentials() {
+                        // The retry state machine is large; one allocation per
+                        // authenticated proxy connection bounds this future.
+                        Box::pin(connector.connect_https_connect_with_basic_auth(
                             proxy_connector,
                             proxy.host(),
                             proxy.port(),
                             proxy.host(),
                             &connect_authority,
                             proxy.ordered_connect_headers(),
+                            credentials,
                             endpoint.host(),
-                        )
+                        ))
                         .await
                         .map_err(RequestError::http2)?
+                    } else {
+                        connector
+                            .connect_https_connect(
+                                proxy_connector,
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.host(),
+                                &connect_authority,
+                                proxy.ordered_connect_headers(),
+                                endpoint.host(),
+                            )
+                            .await
+                            .map_err(RequestError::http2)?
+                    }
                 } else {
-                    connector
-                        .connect_http_connect(
+                    if let Some(credentials) = proxy.basic_credentials() {
+                        // See the TLS-proxy branch above.
+                        Box::pin(connector.connect_http_connect_with_basic_auth(
                             proxy.host(),
                             proxy.port(),
                             &connect_authority,
                             proxy.ordered_connect_headers(),
+                            credentials,
                             endpoint.host(),
-                        )
+                        ))
                         .await
                         .map_err(RequestError::http2)?
+                    } else {
+                        connector
+                            .connect_http_connect(
+                                proxy.host(),
+                                proxy.port(),
+                                &connect_authority,
+                                proxy.ordered_connect_headers(),
+                                endpoint.host(),
+                            )
+                            .await
+                            .map_err(RequestError::http2)?
+                    }
                 }
             }
             Route::Socks5(proxy) => match proxy.dns_mode() {

@@ -309,6 +309,18 @@ use the route, while H3 rejects it before network I/O. Loopback tests cover
 proxy SNI, ordered CONNECT bytes, over-read preservation, trust separation,
 pool reuse, route isolation, typed errors, and the no-direct-fallback rule.
 
+The eighth landed route slice adds challenge-driven HTTP Basic authentication
+to both plaintext and TLS CONNECT proxies. A typed ordered authorization
+placeholder emits nothing on the first CONNECT. A valid Basic challenge with a
+realm permits exactly one fresh same-route connection and places the generated
+credential field at the placeholder position; no origin TLS or request bytes
+have been sent yet. A second 407 and malformed or unsupported challenges are
+typed terminal errors. Credentials are validated before I/O, redacted from
+diagnostics and traces, and included in route and pool identity. One-shot and
+pooled H1/H2 plus H1 WSS share the behavior. Preemptive credentials, learned
+challenge caches, other authentication schemes, forwarding, and H2 proxy
+transport remain separate work.
+
 With the optional `cookies` feature, a session builder can explicitly activate
 a bounded in-memory jar or accept a caller-created one. Phantom delegates
 cookie syntax/domain/path/expiry mechanics to `cookie_store` while owning PSL,

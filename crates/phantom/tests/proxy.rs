@@ -1,5 +1,7 @@
 //! Public HTTP CONNECT route integration tests.
 
+#[path = "proxy/auth.rs"]
+mod auth;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
@@ -20,7 +22,7 @@ use phantom::{
     ServerAuthentication, profile::ClientProfile,
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     time::timeout,
 };
@@ -683,7 +685,7 @@ async fn forward_one_connect(
         .write_all(b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     downstream.flush().await?;
-    copy_bidirectional(&mut downstream, &mut upstream).await?;
+    relay_until_terminal_close(&mut downstream, &mut upstream).await?;
     Ok(request)
 }
 
@@ -699,8 +701,27 @@ async fn forward_one_https_connect(
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     downstream.flush().await?;
-    copy_bidirectional(&mut downstream, &mut upstream).await?;
+    relay_until_terminal_close(&mut downstream, &mut upstream).await?;
     Ok(request)
+}
+
+async fn relay_until_terminal_close<A, B>(downstream: &mut A, upstream: &mut B) -> io::Result<()>
+where
+    A: AsyncRead + AsyncWrite + Unpin,
+    B: AsyncRead + AsyncWrite + Unpin,
+{
+    match copy_bidirectional(downstream, upstream).await {
+        Ok(_) => Ok(()),
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+            ) =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>

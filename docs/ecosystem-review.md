@@ -120,8 +120,9 @@ and
 HttpCloak's buffered handoff is a useful positive reference
 ([source](https://github.com/sardanioss/httpcloak/blob/30379124605d212efe5240aacd60bd4b9ab7c6cf/transport/http1_transport.go#L1020-L1067)).
 
-Later route slices add HTTP forwarding, authentication challenges, rotation,
-and local binding as explicit policy. H3 requires a separately
+Later route slices add HTTP forwarding, authentication schemes beyond the
+current bounded Basic challenge retry, rotation, and local binding as explicit
+policy. H3 requires a separately
 proven UDP route—SOCKS5 UDP ASSOCIATE, then CONNECT-UDP/MASQUE—not ordinary
 CONNECT.
 

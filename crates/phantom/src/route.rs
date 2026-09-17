@@ -1,6 +1,9 @@
 use std::{error::Error as StdError, fmt};
 
-use phantom_net::{proxy::HttpConnectHeader, request::RequestHeader};
+use phantom_net::{
+    proxy::{HttpBasicCredentials, HttpConnectHeader},
+    request::RequestHeader,
+};
 
 use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
 
@@ -65,6 +68,7 @@ pub struct HttpProxy {
     transport: HttpProxyTransport,
     endpoint: Endpoint,
     connect_headers: Vec<HttpConnectHeader>,
+    credentials: Option<HttpBasicCredentials>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -111,7 +115,44 @@ impl HttpProxy {
             transport,
             endpoint,
             connect_headers: vec![HttpConnectHeader::authority("Host")],
+            credentials: None,
         })
+    }
+
+    /// Configures challenge-driven HTTP Basic proxy authentication.
+    ///
+    /// The first CONNECT request omits credentials. Phantom sends them only
+    /// after a valid Basic proxy challenge and retries once on a fresh proxy
+    /// connection. URI credentials remain unsupported.
+    ///
+    /// Basic credentials sent to a plaintext `http://` proxy have no transport
+    /// confidentiality. Use an `https://` proxy for sensitive credentials.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProxyConfigError`] when the username is empty or contains a
+    /// colon, either value contains non-ASCII or control characters, or the
+    /// encoded credential field exceeds its bounded size. The complete
+    /// CONNECT head is validated when the request is prepared for sending.
+    pub fn with_basic_auth(
+        mut self,
+        username: impl AsRef<str>,
+        password: impl AsRef<str>,
+    ) -> Result<Self, ProxyConfigError> {
+        let credentials = HttpBasicCredentials::new(username, password)
+            .map_err(|_| ProxyConfigError::invalid_credentials())?;
+        if !self
+            .connect_headers
+            .iter()
+            .any(HttpConnectHeader::is_proxy_authorization)
+        {
+            self.connect_headers
+                .push(HttpConnectHeader::proxy_authorization(
+                    "Proxy-Authorization",
+                ));
+        }
+        self.credentials = Some(credentials);
+        Ok(self)
     }
 
     /// Appends one ordered field to the CONNECT request.
@@ -129,6 +170,11 @@ impl HttpProxy {
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
         self.connect_headers = std::iter::once(HttpConnectHeader::authority("Host"))
             .chain(headers.into_iter().map(HttpConnectHeader::field))
+            .chain(
+                self.credentials
+                    .is_some()
+                    .then(|| HttpConnectHeader::proxy_authorization("Proxy-Authorization")),
+            )
             .collect();
         self
     }
@@ -136,8 +182,10 @@ impl HttpProxy {
     /// Replaces the complete CONNECT field sequence.
     ///
     /// The sequence must contain exactly one
-    /// [`HttpConnectHeader::Authority`] placeholder. Validation happens before
-    /// proxy I/O when a request is sent.
+    /// [`HttpConnectHeader::Authority`] placeholder. When Basic credentials are
+    /// configured, it must also contain exactly one
+    /// [`HttpConnectHeader::proxy_authorization`] placeholder. Validation
+    /// happens before proxy I/O when a request is sent.
     #[must_use]
     pub fn connect_headers(mut self, headers: Vec<HttpConnectHeader>) -> Self {
         self.connect_headers = headers;
@@ -166,6 +214,10 @@ impl HttpProxy {
     pub(crate) fn ordered_connect_headers(&self) -> &[HttpConnectHeader] {
         &self.connect_headers
     }
+
+    pub(crate) fn basic_credentials(&self) -> Option<&HttpBasicCredentials> {
+        self.credentials.as_ref()
+    }
 }
 
 impl fmt::Debug for HttpProxy {
@@ -181,6 +233,7 @@ impl fmt::Debug for HttpProxy {
             )
             .field("authority", self.endpoint.authority())
             .field("connect_header_count", &self.connect_headers.len())
+            .field("credentials_configured", &self.credentials.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -197,6 +250,8 @@ pub enum ProxyConfigErrorKind {
     InvalidAuthority,
     /// The proxy URI contains a path or query.
     UnexpectedPath,
+    /// The HTTP Basic username or password is invalid.
+    InvalidCredentials,
 }
 
 /// Error returned while constructing an [`HttpProxy`].
@@ -241,6 +296,13 @@ impl ProxyConfigError {
         )
     }
 
+    fn invalid_credentials() -> Self {
+        Self::without_source(
+            ProxyConfigErrorKind::InvalidCredentials,
+            "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
+        )
+    }
+
     fn without_source(kind: ProxyConfigErrorKind, message: &'static str) -> Self {
         Self {
             kind,
@@ -272,6 +334,8 @@ impl StdError for ProxyConfigError {
 
 #[cfg(test)]
 mod tests {
+    use phantom_net::proxy::HttpConnectHeader;
+
     use super::{HttpProxy, ProxyConfigErrorKind};
 
     #[test]
@@ -347,6 +411,79 @@ mod tests {
             };
             assert_eq!(error.kind(), kind, "{uri}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn basic_credentials_are_validated_redacted_and_part_of_route_identity()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let first =
+            HttpProxy::new("http://proxy.example")?.with_basic_auth("alice", "first secret")?;
+        let matching =
+            HttpProxy::new("http://proxy.example")?.with_basic_auth("alice", "first secret")?;
+        let other =
+            HttpProxy::new("http://proxy.example")?.with_basic_auth("alice", "second secret")?;
+
+        assert_eq!(first, matching);
+        assert_ne!(first, other);
+        assert_eq!(
+            first
+                .connect_headers
+                .iter()
+                .filter(|header| header.is_proxy_authorization())
+                .count(),
+            1
+        );
+        let debug = format!("{first:?}");
+        assert!(debug.contains("credentials_configured: true"));
+        assert!(!debug.contains("alice"));
+        assert!(!debug.contains("first secret"));
+        Ok(())
+    }
+
+    #[test]
+    fn basic_credentials_reject_ambiguous_or_unsafe_values() -> Result<(), &'static str> {
+        for (username, password) in [
+            ("", "secret"),
+            ("user:name", "secret"),
+            ("user", "line\nfeed"),
+            ("usér", "secret"),
+            ("user", "sécret"),
+        ] {
+            let result = HttpProxy::new("http://proxy.example")
+                .map_err(|_| "valid proxy URI was rejected")?
+                .with_basic_auth(username, password);
+            let error = match result {
+                Ok(_) => return Err("invalid credentials were accepted"),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidCredentials);
+            assert!(!format!("{error:?}").contains(password));
+        }
+
+        let oversized = "p".repeat(32 * 1024);
+        let result = HttpProxy::new("http://proxy.example")
+            .map_err(|_| "valid proxy URI was rejected")?
+            .with_basic_auth("user", &oversized);
+        let error = match result {
+            Ok(_) => return Err("oversized credentials were accepted"),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidCredentials);
+        Ok(())
+    }
+
+    #[test]
+    fn replacing_literal_fields_preserves_the_auth_placeholder()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let proxy = HttpProxy::new("http://proxy.example")?
+            .with_basic_auth("user", "secret")?
+            .headers(Vec::new());
+
+        assert!(matches!(
+            proxy.connect_headers.as_slice(),
+            [HttpConnectHeader::Authority { .. }, auth] if auth.is_proxy_authorization()
+        ));
         Ok(())
     }
 }

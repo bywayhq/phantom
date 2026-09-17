@@ -148,8 +148,9 @@ categories, tracing, and fallback policy. See [proxy routing](proxy-routing.md).
 
 HTTPS proxy and origin certificate policy and ticket caches are independent.
 HTTPS CONNECT currently requires H1 to the proxy: absent ALPN or `http/1.1` is
-accepted, while selected `h2` is rejected explicitly. HTTP forwarding, HTTP
-proxy authentication challenges, custom SOCKS5 resolvers, and broader
+accepted, while selected `h2` is rejected explicitly. HTTP forwarding,
+non-Basic proxy authentication and learned challenge state, custom SOCKS5
+resolvers, and broader
 half-close behavior remain later slices. SOCKS5 GSSAPI is unsupported.
 
 H3 is capability-checked separately. A TCP CONNECT proxy cannot carry QUIC.

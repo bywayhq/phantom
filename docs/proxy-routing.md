@@ -35,6 +35,8 @@ println!("{}", response.status());
   ordered HTTP/1.1 CONNECT request before the independent origin TLS handshake.
   The profile's TLS recipe is used unchanged for the outer handshake; a proxy
   selecting `h2` is rejected because H2 proxy transport is not implemented.
+  Optional HTTP Basic credentials use challenge-response negotiation rather
+  than a preemptive field.
 - `Route::Socks5` uses `socks5://` for locally resolved origin names and
   `socks5h://` for proxy-resolved origin names. Local DNS sends an ordered IP
   candidate as a SOCKS address; remote DNS sends the original domain. The
@@ -57,8 +59,46 @@ invalid lengths before DNS or network I/O. Credentials are owned by the route,
 included in route and pool identity, and omitted from debug output, errors,
 and traces. Wire tests use synthetic marker credentials.
 
-HTTP/2 proxy transport, authentication challenges, forwarding, custom
-resolvers, GSSAPI, UDP ASSOCIATE, and H3 proxying are not supported.
+HTTP/2 proxy transport, forwarding, custom resolvers, non-Basic HTTP
+authentication, GSSAPI, UDP ASSOCIATE, and H3 proxying are not supported.
+
+## HTTP Basic CONNECT authentication
+
+Configure credentials separately from the proxy URI:
+
+```rust,no_run
+use phantom::{HttpProxy, Route};
+
+# fn example() -> Result<Route, Box<dyn std::error::Error>> {
+let proxy = HttpProxy::new("https://proxy.example:8443")?
+    .with_basic_auth("proxy-user", "proxy-password")?;
+let route = Route::http_connect(proxy);
+# Ok(route)
+# }
+```
+
+The initial CONNECT is anonymous. Phantom retries only after a syntactically
+valid Basic challenge with a realm, opens a fresh TCP connection, repeats the
+proxy TLS handshake when applicable, and sends credentials once. A second 407,
+an unsupported or malformed challenge, cancellation, or proxy connection
+failure is terminal. This retry occurs before origin TLS and before any origin
+request bytes, so it does not replay the application request.
+
+`with_basic_auth` appends a `Proxy-Authorization` placeholder to the default
+CONNECT fields. Callers that replace the full sequence with `connect_headers`
+can position `HttpConnectHeader::proxy_authorization` explicitly. The
+placeholder emits no field on the anonymous attempt and emits the generated
+field in place on the authenticated attempt. Literal `Proxy-Authorization`
+fields cannot be combined with typed credentials.
+
+Usernames must be nonempty ASCII without a colon or control characters;
+passwords must be ASCII without control characters. An empty password is
+allowed. Credentials are part of route and pool identity and remain absent
+from debug output, errors, and traces.
+
+Basic authentication does not provide transport confidentiality. Credentials
+sent to a plaintext `http://` proxy are recoverable by an observer on that
+network path; use an `https://` proxy when the credentials are sensitive.
 
 ## Failure and observability
 

@@ -318,35 +318,71 @@ async fn dispatch(
                                 client.inner.https_proxy.as_ref().ok_or_else(|| {
                                     RequestError::unsupported_route(HttpProtocol::Http1)
                                 })?;
-                            connector
-                                .send_request_https_connect(
+                            if let Some(credentials) = proxy.basic_credentials() {
+                                // Bound the challenge/retry future on the heap;
+                                // direct request stack size must not depend on it.
+                                Box::pin(connector.send_request_https_connect_with_basic_auth(
                                     proxy_connector,
                                     proxy.host(),
                                     proxy.port(),
                                     proxy.host(),
                                     &connect_authority,
                                     proxy.ordered_connect_headers(),
+                                    credentials,
                                     endpoint.host(),
                                     method,
                                     target,
                                     headers,
                                     body,
-                                )
+                                ))
                                 .await
+                            } else {
+                                connector
+                                    .send_request_https_connect(
+                                        proxy_connector,
+                                        proxy.host(),
+                                        proxy.port(),
+                                        proxy.host(),
+                                        &connect_authority,
+                                        proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                        method,
+                                        target,
+                                        headers,
+                                        body,
+                                    )
+                                    .await
+                            }
                         } else {
-                            connector
-                                .send_request_http_connect(
+                            if let Some(credentials) = proxy.basic_credentials() {
+                                Box::pin(connector.send_request_http_connect_with_basic_auth(
                                     proxy.host(),
                                     proxy.port(),
                                     &connect_authority,
                                     proxy.ordered_connect_headers(),
+                                    credentials,
                                     endpoint.host(),
                                     method,
                                     target,
                                     headers,
                                     body,
-                                )
+                                ))
                                 .await
+                            } else {
+                                connector
+                                    .send_request_http_connect(
+                                        proxy.host(),
+                                        proxy.port(),
+                                        &connect_authority,
+                                        proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                        method,
+                                        target,
+                                        headers,
+                                        body,
+                                    )
+                                    .await
+                            }
                         }
                     }
                     Route::Socks5(proxy) => match proxy.dns_mode() {
@@ -448,27 +484,55 @@ async fn dispatch(
                                 client.inner.https_proxy.as_ref().ok_or_else(|| {
                                     RequestError::unsupported_route(HttpProtocol::Http2)
                                 })?;
-                            connector
-                                .connect_https_connect(
+                            if let Some(credentials) = proxy.basic_credentials() {
+                                // Keep the retry state machine out of the
+                                // ordinary request future's stack frame.
+                                Box::pin(connector.connect_https_connect_with_basic_auth(
                                     proxy_connector,
                                     proxy.host(),
                                     proxy.port(),
                                     proxy.host(),
                                     &connect_authority,
                                     proxy.ordered_connect_headers(),
+                                    credentials,
                                     endpoint.host(),
-                                )
+                                ))
                                 .await
+                            } else {
+                                connector
+                                    .connect_https_connect(
+                                        proxy_connector,
+                                        proxy.host(),
+                                        proxy.port(),
+                                        proxy.host(),
+                                        &connect_authority,
+                                        proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                    )
+                                    .await
+                            }
                         } else {
-                            connector
-                                .connect_http_connect(
+                            if let Some(credentials) = proxy.basic_credentials() {
+                                Box::pin(connector.connect_http_connect_with_basic_auth(
                                     proxy.host(),
                                     proxy.port(),
                                     &connect_authority,
                                     proxy.ordered_connect_headers(),
+                                    credentials,
                                     endpoint.host(),
-                                )
+                                ))
                                 .await
+                            } else {
+                                connector
+                                    .connect_http_connect(
+                                        proxy.host(),
+                                        proxy.port(),
+                                        &connect_authority,
+                                        proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                    )
+                                    .await
+                            }
                         }
                     }
                     Route::Socks5(proxy) => match proxy.dns_mode() {

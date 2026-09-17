@@ -56,10 +56,12 @@ reuses eligible H1, H2, and H3 connections. The facade synthesizes the H1
 `Host` field from the URI, uses the URI authority for H2 and H3, and rejects a
 caller-supplied origin `Host` field. An HTTP or HTTPS CONNECT route has a
 separate ordered field sequence with one typed destination-authority
-placeholder. HTTPS authenticates the proxy before CONNECT using an independent
-trust store, then authenticates the origin inside the tunnel. Request and
-CONNECT validation happen before proxy I/O; non-2xx proxy responses are typed
-failures and never trigger a direct retry. A
+placeholder. Optional HTTP Basic credentials add a second typed placeholder;
+the first CONNECT omits it, and one valid Basic challenge permits one retry on
+a fresh connection with the generated field in that exact position. HTTPS
+authenticates the proxy before CONNECT using an independent trust store, then
+authenticates the origin inside the tunnel. Request, credential, and CONNECT
+validation happen before proxy I/O; failures never trigger a direct retry. A
 `socks5://` resolves domain origins locally and `socks5h://` resolves them at
 the proxy. Both apply to H1, H2, session-owned H1/H2 reuse, and H1 WebSocket.
 Selecting H2 or H3 without the

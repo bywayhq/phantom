@@ -218,31 +218,63 @@ impl WebSocketRequestBuilder {
                             crate::HttpProtocol::Http1,
                         ))
                     })?;
-                    connector
-                        .upgrade_get_https_connect(
+                    if let Some(credentials) = proxy.basic_credentials() {
+                        // Keep the challenge/retry state machine out of the
+                        // ordinary WebSocket connection future's stack frame.
+                        Box::pin(connector.upgrade_get_https_connect_with_basic_auth(
                             proxy_connector,
                             proxy.host(),
                             proxy.port(),
                             proxy.host(),
                             &authority,
                             proxy.ordered_connect_headers(),
+                            credentials,
                             request.endpoint.host(),
                             request.target,
                             prepared.headers,
-                        )
+                        ))
                         .await
+                    } else {
+                        connector
+                            .upgrade_get_https_connect(
+                                proxy_connector,
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.host(),
+                                &authority,
+                                proxy.ordered_connect_headers(),
+                                request.endpoint.host(),
+                                request.target,
+                                prepared.headers,
+                            )
+                            .await
+                    }
                 } else {
-                    connector
-                        .upgrade_get_http_connect(
+                    if let Some(credentials) = proxy.basic_credentials() {
+                        Box::pin(connector.upgrade_get_http_connect_with_basic_auth(
                             proxy.host(),
                             proxy.port(),
                             &authority,
                             proxy.ordered_connect_headers(),
+                            credentials,
                             request.endpoint.host(),
                             request.target,
                             prepared.headers,
-                        )
+                        ))
                         .await
+                    } else {
+                        connector
+                            .upgrade_get_http_connect(
+                                proxy.host(),
+                                proxy.port(),
+                                &authority,
+                                proxy.ordered_connect_headers(),
+                                request.endpoint.host(),
+                                request.target,
+                                prepared.headers,
+                            )
+                            .await
+                    }
                 }
             }
             Route::Socks5(proxy) => match proxy.dns_mode() {

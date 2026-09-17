@@ -1,5 +1,7 @@
 //! Public session connection-reuse integration tests.
 
+#[path = "session/proxy_auth.rs"]
+mod proxy_auth;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
