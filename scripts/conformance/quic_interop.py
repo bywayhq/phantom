@@ -9,7 +9,7 @@ import platform
 import subprocess
 import sys
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -230,7 +230,7 @@ def run(
     verify_runner_checkout(runner)
     registry_path = runner / "implementations_quic.json"
     validate_server(registry_path, server)
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_directory = (
         report_root / f"http3-{server}-{timestamp}-{os.getpid()}"
     ).resolve()
@@ -248,7 +248,7 @@ def run(
         "server_image": server_image,
         "simulator_image": SIMULATOR_IMAGE,
         "cleanup_image": CLEANUP_IMAGE,
-        "started_at": datetime.now(UTC).isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
         "test": SUPPORTED_TEST,
     }
     (run_directory / "metadata.json").write_text(

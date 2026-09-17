@@ -13,7 +13,7 @@ import subprocess
 import tempfile
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -239,7 +239,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
     source_config = repository / "scripts" / "conformance" / "autobahn" / f"{mode}.json"
     config = load_json(source_config)
     expected_cases = _expected_smoke_cases(config)
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_directory = (report_root / f"{mode}-{timestamp}-{os.getpid()}").resolve()
     run_directory.mkdir(parents=True, exist_ok=False)
     shutil.copyfile(source_config, run_directory / "case-config.json")
@@ -251,7 +251,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
         "phantom_revision": _git_revision(repository),
         "platform": platform.platform(),
         "suite_source_revision": SOURCE_REVISION,
-        "started_at": datetime.now(UTC).isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
     }
     (run_directory / "metadata.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",

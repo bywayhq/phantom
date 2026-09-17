@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -254,7 +254,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
         repository / "scripts" / "conformance" / "wpt-eventsource" / f"{mode}.json"
     )
     case_ids = load_case_ids(source_manifest)
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_directory = (report_root / f"{mode}-{timestamp}-{os.getpid()}").resolve()
     run_directory.mkdir(parents=True, exist_ok=False)
     (run_directory / "case-manifest.json").write_text(
@@ -265,7 +265,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
         "mode": mode,
         "phantom_revision": _git_revision(repository),
         "platform": platform.platform(),
-        "started_at": datetime.now(UTC).isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
         "suite_repository": WPT_REPOSITORY,
         "suite_source_revision": WPT_REVISION,
     }
