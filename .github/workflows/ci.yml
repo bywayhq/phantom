@@ -69,11 +69,13 @@ jobs:
 
       - name: Lint capture tooling
         run: |
-          ruff check scripts/capture
-          ruff format --check scripts/capture
+          ruff check scripts/capture scripts/conformance
+          ruff format --check scripts/capture scripts/conformance
 
-      - name: Test capture tooling
-        run: python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
+      - name: Test protocol tooling
+        run: |
+          python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
+          python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
 
       - name: Test
         run: cargo test --workspace --all-targets --all-features --locked

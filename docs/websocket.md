@@ -5,6 +5,10 @@ HTTP/1.1 Upgrade. It reuses Phantom's BoringSSL TLS profile, exact direct,
 HTTP-CONNECT, or local-/remote-DNS SOCKS5 route, ordered HTTP/1 serializer, ordered
 response metadata, session cookies, runtime errors, and tracing lifecycle.
 
+The public client is exercised against a pinned Autobahn fuzzing server. See
+[`external-conformance.md`](external-conformance.md#autobahn-execution) for the
+smoke and scheduled-suite boundaries.
+
 Phantom owns the opening handshake. `tokio-tungstenite` is used only after a
 validated `101` as the RFC 6455 frame and message engine. Its client handshake,
 TLS connectors, and public types are not exposed. The pinned engine carries a

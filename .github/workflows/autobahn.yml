@@ -1,0 +1,99 @@
+name: Autobahn WebSocket conformance
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/autobahn.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom/Cargo.toml
+      - crates/phantom/examples/autobahn_client.rs
+      - crates/phantom/src/**
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - scripts/conformance/**
+      - vendor/btls/**
+      - vendor/tungstenite/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/autobahn.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom/Cargo.toml
+      - crates/phantom/examples/autobahn_client.rs
+      - crates/phantom/src/**
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - scripts/conformance/**
+      - vendor/btls/**
+      - vendor/tungstenite/**
+  schedule:
+    - cron: "41 8 * * 3"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Autobahn case set
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autobahn-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.mode || 'automatic' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
+jobs:
+  conformance:
+    name: ${{ github.event_name == 'schedule' && 'Full' || 'Selected' }} client suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Check runner prerequisites
+        run: |
+          command -v docker
+          command -v openssl
+          docker version
+
+      - name: Select case set
+        env:
+          DISPATCH_MODE: ${{ inputs.mode }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          mode=smoke
+          if [[ "$EVENT_NAME" == schedule ]]; then
+            mode=full
+          elif [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            mode="$DISPATCH_MODE"
+          fi
+          echo "AUTOBAHN_MODE=$mode" >> "$GITHUB_ENV"
+
+      - name: Run pinned Autobahn client suite
+        run: python3 scripts/conformance/autobahn.py "$AUTOBAHN_MODE"
+
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: autobahn-${{ env.AUTOBAHN_MODE }}-${{ github.sha }}
+          path: |
+            target/autobahn/**/case-config.json
+            target/autobahn/**/clients/index.json
+            target/autobahn/**/container.log
+            target/autobahn/**/metadata.json
+            target/autobahn/**/summary.json
+          if-no-files-found: warn
+          retention-days: 30

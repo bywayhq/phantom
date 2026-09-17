@@ -8,7 +8,7 @@ reported as client conformance.
 
 | Suite | Phantom use | Planned execution tier |
 | --- | --- | --- |
-| [Autobahn Testsuite](https://github.com/crossbario/autobahn-testsuite) | Drive the public WebSocket client against the fuzzing server. Retain the machine-readable case result and convert every failure into a focused Rust regression. | Bounded smoke set on pull requests after the adapter lands; full pinned container on a schedule and before releases. |
+| [Autobahn Testsuite](https://github.com/crossbario/autobahn-testsuite) | Drive the public WebSocket client against the fuzzing server. Retain the machine-readable case result and convert every failure into a focused Rust regression. | Eight-case smoke set on relevant pull requests; full supported corpus on a schedule and before releases. |
 | [QUIC Interop Runner](https://github.com/quic-interop/quic-interop-runner) | Package a thin Phantom client endpoint and declare only supported QUIC/H3 cases. Exercise Phantom against independent server implementations and the runner's network scenarios. | Scheduled Linux container job; selected release gate. |
 | [Web Platform Tests](https://github.com/web-platform-tests/wpt) | Import relevant EventSource, Fetch, client-hint, and WebSocket scenarios into Phantom-owned loopback fixtures. Run the original tests against real browsers when gathering browser behavior. | Pinned scenario-sync audit on a schedule; minimized Rust regressions on pull requests. |
 | [curl tests](https://curl.se/dev/runtests.html) | Mine mature HTTP, proxy, redirect, authentication, timeout, and connection-reuse scenarios. Re-express applicable cases through Phantom's API and bounded peers. | Curated Rust regressions on pull requests; periodic upstream-delta review. |
@@ -28,12 +28,14 @@ line merely to make the harness start.
 
 ## Adapter boundaries
 
-Planned external adapters are test-only binaries or scripts. They may translate a
+External adapters are test-only binaries or scripts. They may translate a
 suite's control protocol into public Phantom calls, but they must not expose
 test hooks in production crates or bypass normal request validation.
 
 - The Autobahn adapter performs the suite's case-discovery, case-run, echo,
-  close, and report-update sequence through Phantom's WebSocket API.
+  close, and report-update sequence through Phantom's WebSocket API. It uses
+  WSS with an ephemeral local CA passed through the ordinary additional-root
+  API; certificate and hostname verification remain enabled.
 - The QUIC Interop adapter accepts the runner's environment variables and
   output directory, performs supported downloads through forced H3, and exits
   with the runner's unsupported-case code for everything else.
@@ -59,3 +61,24 @@ Every external failure is triaged into one of three outcomes:
 Reports retain suite revision, Phantom revision, feature set, platform, and
 case identifiers. They do not retain credentials, response payloads, TLS key
 material, or unbounded packet captures.
+
+## Autobahn execution
+
+The runner pins both the suite tag and container digest. Its smoke configuration
+covers text and binary framing, Ping/Pong, invalid reserved bits and opcodes,
+fragmentation with an interleaved control frame, invalid UTF-8, and Close. The
+scheduled configuration runs the supported RFC 6455 corpus while excluding the
+performance/limit group and the unsupported compression extension groups.
+
+Run either tier from the repository root:
+
+```console
+python3 scripts/conformance/autobahn.py smoke
+python3 scripts/conformance/autobahn.py full
+```
+
+Strict `OK` and neutral `INFORMATIONAL` results pass. `NON-STRICT`, `WRONG CODE`,
+and `FAILED BY CLIENT` are preserved as warnings. Failed, unclean, missing, or
+unknown results fail the run. CI retains the suite's bounded index plus a
+sanitized summary, metadata, case configuration, and container log; per-case
+wire logs and generated TLS keys are not uploaded.

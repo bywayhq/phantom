@@ -45,3 +45,8 @@ tokio-btls.workspace = true
 
 [lints]
 workspace = true
+
+[[example]]
+name = "autobahn-client"
+path = "examples/autobahn_client.rs"
+required-features = ["websocket"]
