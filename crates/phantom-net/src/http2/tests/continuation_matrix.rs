@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::{Http2Setting, chromium::v152_macos_http2};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     sync::oneshot,
@@ -24,6 +24,9 @@ const FINAL_HTML: &[u8] = &[
     b'h', b'a', b'r', b's', b'e', b't', b'=', b'u', b't', b'f', b'-', b'8',
 ];
 const FINAL_BODY: &[u8] = b"continuation matrix accepted";
+const HUFFMAN_BODY: &[u8] = b"Huffman expansion accepted";
+const HUFFMAN_VALUE_LEN: usize = 65_460;
+const HUFFMAN_VALUE_BYTE: u8 = 0xdc;
 
 #[tokio::test]
 async fn continuation_matrix_preserves_final_response_and_reuse() -> TestResult<()> {
@@ -65,6 +68,151 @@ async fn continuation_matrix_preserves_final_response_and_reuse() -> TestResult<
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn huffman_expansion_within_decoded_budget_preserves_connection() -> TestResult<()> {
+    bounded_peer_test(async {
+        let (client, server) = duplex(256 * 1024);
+        let (finish_tx, finish_rx) = oneshot::channel();
+        let peer = tokio::spawn(run_huffman_peer(server, finish_rx));
+        let mut settings = v152_macos_http2();
+        let maximum = settings
+            .initial_settings
+            .iter_mut()
+            .find_map(|setting| match setting {
+                Http2Setting::MaxHeaderListSize(maximum) => Some(maximum),
+                _ => None,
+            })
+            .ok_or("Chrome HTTP/2 fixture omitted MAX_HEADER_LIST_SIZE")?;
+        *maximum = 65_536;
+
+        let connection = Http2Connection::connect(client, &settings).await?;
+        let response = connection
+            .send_get("example.test", target()?, Vec::new())
+            .await?;
+        assert_eq!(response.status(), 200);
+        let value = response
+            .headers()
+            .get("x")
+            .ok_or("missing expanded field")?;
+        assert_eq!(value.as_bytes().len(), HUFFMAN_VALUE_LEN);
+        assert!(
+            value
+                .as_bytes()
+                .iter()
+                .all(|byte| *byte == HUFFMAN_VALUE_BYTE)
+        );
+        assert_eq!(
+            response.into_body().collect().await?.to_bytes(),
+            Bytes::from_static(HUFFMAN_BODY)
+        );
+
+        let followup = connection
+            .send_get("example.test", target()?, Vec::new())
+            .await?;
+        assert_eq!(followup.status(), 204);
+        assert!(followup.into_body().collect().await?.to_bytes().is_empty());
+        assert!(!connection.is_closed());
+
+        finish_tx
+            .send(())
+            .map_err(|_| "Huffman peer stopped before connection reuse was checked")?;
+        drop(connection);
+        peer.await??;
+        Ok(())
+    })
+    .await
+}
+
+async fn run_huffman_peer(
+    mut stream: DuplexStream,
+    finish: oneshot::Receiver<()>,
+) -> TestResult<()> {
+    let mut preface = [0_u8; CLIENT_PREFACE.len()];
+    stream.read_exact(&mut preface).await?;
+    if preface.as_slice() != CLIENT_PREFACE {
+        return Err("client sent an invalid HTTP/2 connection preface".into());
+    }
+
+    write_frame(&mut stream, 0x04, 0, 0, &[]).await?;
+    stream.flush().await?;
+
+    let mut bounds = PeerBounds::default();
+    observe_initial_request(&mut stream, &mut bounds).await?;
+    write_huffman_response(&mut stream).await?;
+
+    observe_request(&mut stream, 3, &mut bounds).await?;
+    write_frame(&mut stream, 0x01, 0x05, 3, &[0x89]).await?;
+    stream.flush().await?;
+
+    finish
+        .await
+        .map_err(|_| "client stopped before confirming Huffman connection reuse")?;
+    Ok(())
+}
+
+async fn write_huffman_response(stream: &mut DuplexStream) -> TestResult<()> {
+    let encoded_value = encode_repeated_huffman(0x0fff_fffd, 28, HUFFMAN_VALUE_LEN);
+    let mut field_block = Vec::with_capacity(encoded_value.len() + 16);
+    field_block.extend_from_slice(&[0x88, 0x00, 0x01, b'x']);
+    push_huffman_length(&mut field_block, encoded_value.len())?;
+    field_block.extend_from_slice(&encoded_value);
+
+    let fragments = field_block
+        .chunks(16_384)
+        .map(|fragment| fragment.len())
+        .collect::<Vec<_>>();
+    if fragments.len() != 14 {
+        return Err("fixed Huffman block no longer spans fourteen frames".into());
+    }
+    write_field_block(stream, &field_block, &fragments).await?;
+    write_frame(stream, 0x00, 0x01, 1, HUFFMAN_BODY).await?;
+    stream.flush().await?;
+    Ok(())
+}
+
+fn encode_repeated_huffman(code: u32, code_bits: u8, count: usize) -> Vec<u8> {
+    let mut encoded = Vec::with_capacity(count.saturating_mul(code_bits as usize).div_ceil(8));
+    let mut pending = 0_u64;
+    let mut pending_bits = 0_u8;
+
+    for _ in 0..count {
+        pending = (pending << code_bits) | u64::from(code);
+        pending_bits += code_bits;
+        while pending_bits >= 8 {
+            pending_bits -= 8;
+            encoded.push((pending >> pending_bits) as u8);
+            if pending_bits == 0 {
+                pending = 0;
+            } else {
+                pending &= (1_u64 << pending_bits) - 1;
+            }
+        }
+    }
+
+    if pending_bits != 0 {
+        let padding_bits = 8 - pending_bits;
+        let padding = (1_u64 << padding_bits) - 1;
+        encoded.push(((pending << padding_bits) | padding) as u8);
+    }
+    encoded
+}
+
+fn push_huffman_length(target: &mut Vec<u8>, length: usize) -> TestResult<()> {
+    if length < 127 {
+        target.push(0x80 | u8::try_from(length)?);
+        return Ok(());
+    }
+
+    target.push(0xff);
+    let mut remaining = length - 127;
+    while remaining >= 128 {
+        target.push(u8::try_from(remaining & 0x7f)? | 0x80);
+        remaining >>= 7;
+    }
+    target.push(u8::try_from(remaining)?);
+    Ok(())
 }
 
 async fn run_peer(mut stream: DuplexStream, finish: oneshot::Receiver<()>) -> TestResult<()> {

@@ -208,6 +208,9 @@ struct HeaderBlock {
     /// Precomputed size of all of our header fields, for perf reasons
     field_size: usize,
 
+    /// Decoded size seen across the complete HEADERS/CONTINUATION chain.
+    decoded_size: usize,
+
     /// Set to true if decoding went over the max header list size.
     is_over_size: bool,
 
@@ -237,6 +240,7 @@ impl Headers {
             stream_dep: None,
             header_block: HeaderBlock {
                 field_size: calculate_headermap_size(&fields),
+                decoded_size: 0,
                 fields,
                 ordered_fields: None,
                 is_over_size: false,
@@ -255,6 +259,7 @@ impl Headers {
             stream_dep: None,
             header_block: HeaderBlock {
                 field_size: calculate_headermap_size(&fields),
+                decoded_size: 0,
                 fields,
                 ordered_fields: None,
                 is_over_size: false,
@@ -323,6 +328,7 @@ impl Headers {
                 fields: HeaderMap::new(),
                 ordered_fields: Some(Vec::new()),
                 field_size: 0,
+                decoded_size: 0,
                 is_over_size: false,
                 pseudo: Pseudo::default(),
             },
@@ -509,6 +515,7 @@ impl PushPromise {
             flags: PushPromiseFlag::default(),
             header_block: HeaderBlock {
                 field_size: calculate_headermap_size(&fields),
+                decoded_size: 0,
                 fields,
                 ordered_fields: None,
                 is_over_size: false,
@@ -603,6 +610,7 @@ impl PushPromise {
                 fields: HeaderMap::new(),
                 ordered_fields: Some(Vec::new()),
                 field_size: 0,
+                decoded_size: 0,
                 is_over_size: false,
                 pseudo: Pseudo::default(),
             },
@@ -1030,7 +1038,7 @@ impl HeaderBlock {
         let mut reg = !self.fields.is_empty();
         let mut malformed = false;
         let mut header_list_way_too_large = false;
-        let mut headers_size = self.calculate_header_list_size();
+        let mut headers_size = self.decoded_size;
         let max_header_list_abuse_size =
             max_header_list_size.saturating_mul(MAX_HEADER_LIST_ABUSE_MULTIPLIER);
 
@@ -1052,22 +1060,22 @@ impl HeaderBlock {
 
         macro_rules! set_pseudo {
             ($field:ident, $val:expr) => {{
+                let __val = $val;
+                headers_size = headers_size.saturating_add(decoded_header_size(
+                    stringify!($field).len() + 1,
+                    __val.as_str().len(),
+                ));
+                if check_size!().is_break() {
+                    return ControlFlow::Break(());
+                }
                 if reg {
                     tracing::trace!("load_hpack; header malformed -- pseudo not at head of block");
                     malformed = true;
                 } else if self.pseudo.$field.is_some() {
                     tracing::trace!("load_hpack; header malformed -- repeated pseudo");
                     malformed = true;
-                } else {
-                    let __val = $val;
-                    headers_size +=
-                        decoded_header_size(stringify!($field).len() + 1, __val.as_str().len());
-                    if check_size!().is_break() {
-                        return ControlFlow::Break(());
-                    }
-                    if !self.is_over_size {
-                        self.pseudo.$field = Some(__val);
-                    }
+                } else if !self.is_over_size {
+                    self.pseudo.$field = Some(__val);
                 }
             }};
         }
@@ -1083,6 +1091,13 @@ impl HeaderBlock {
 
             match header {
                 Field { name, value } => {
+                    reg = true;
+                    let header_size = decoded_header_size(name.as_str().len(), value.len());
+                    headers_size = headers_size.saturating_add(header_size);
+                    if check_size!().is_break() {
+                        return ControlFlow::Break(());
+                    }
+
                     // Connection level header fields are not supported and must
                     // result in a protocol error.
 
@@ -1100,25 +1115,16 @@ impl HeaderBlock {
                             value
                         );
                         malformed = true;
-                    } else {
-                        reg = true;
-
-                        let header_size = decoded_header_size(name.as_str().len(), value.len());
-                        headers_size += header_size;
-                        if check_size!().is_break() {
-                            return ControlFlow::Break(());
+                    } else if !self.is_over_size {
+                        self.field_size += header_size;
+                        if let Some(ordered) = self.ordered_fields.as_mut() {
+                            ordered.push((name.clone(), value.clone()));
                         }
-                        if !self.is_over_size {
-                            self.field_size += header_size;
-                            if let Some(ordered) = self.ordered_fields.as_mut() {
-                                ordered.push((name.clone(), value.clone()));
-                            }
-                            if self.fields.try_append(name, value).is_err() {
-                                // HeaderMap capacity exceeded — treat as over-size
-                                // so the stream is rejected downstream (RST_STREAM / 431)
-                                // instead of panicking on the 24,577th unique header.
-                                self.is_over_size = true;
-                            }
+                        if self.fields.try_append(name, value).is_err() {
+                            // HeaderMap capacity exceeded — treat as over-size
+                            // so the stream is rejected downstream (RST_STREAM / 431)
+                            // instead of panicking on the 24,577th unique header.
+                            self.is_over_size = true;
                         }
                     }
                 }
@@ -1132,6 +1138,7 @@ impl HeaderBlock {
 
             ControlFlow::Continue(())
         });
+        self.decoded_size = headers_size;
 
         match res {
             Ok(()) => {}
@@ -1170,32 +1177,6 @@ impl HeaderBlock {
         EncodingHeaderBlock {
             hpack: hpack.freeze(),
         }
-    }
-
-    /// Calculates the size of the currently decoded header list.
-    ///
-    /// According to http://httpwg.org/specs/rfc7540.html#SETTINGS_MAX_HEADER_LIST_SIZE
-    ///
-    /// > The value is based on the uncompressed size of header fields,
-    /// > including the length of the name and value in octets plus an
-    /// > overhead of 32 octets for each header field.
-    fn calculate_header_list_size(&self) -> usize {
-        macro_rules! pseudo_size {
-            ($name:ident) => {{
-                self.pseudo
-                    .$name
-                    .as_ref()
-                    .map(|m| decoded_header_size(stringify!($name).len() + 1, m.as_str().len()))
-                    .unwrap_or(0)
-            }};
-        }
-
-        pseudo_size!(method)
-            + pseudo_size!(scheme)
-            + pseudo_size!(status)
-            + pseudo_size!(authority)
-            + pseudo_size!(path)
-            + self.field_size
     }
 }
 
@@ -1241,6 +1222,7 @@ mod test {
             fields: semantic,
             ordered_fields: Some(ordered.clone()),
             field_size: 0,
+            decoded_size: 0,
             is_over_size: false,
             pseudo: Pseudo::response(StatusCode::OK),
         }
@@ -1252,6 +1234,7 @@ mod test {
             fields: HeaderMap::new(),
             ordered_fields: Some(Vec::new()),
             field_size: 0,
+            decoded_size: 0,
             is_over_size: false,
             pseudo: Pseudo::default(),
         };
@@ -1260,6 +1243,31 @@ mod test {
             .unwrap();
 
         assert_eq!(decoded.ordered_fields, Some(ordered));
+    }
+
+    #[test]
+    fn decoded_abuse_size_accumulates_across_fragments() {
+        const HUFFMAN_FIELD: &[u8] = &[0x00, 0x01, b'x', 0x81, 0x1f];
+
+        let mut decoded = HeaderBlock {
+            fields: HeaderMap::new(),
+            ordered_fields: Some(Vec::new()),
+            field_size: 0,
+            decoded_size: 0,
+            is_over_size: false,
+            pseudo: Pseudo::default(),
+        };
+        let mut decoder = hpack::Decoder::default();
+
+        for _ in 0..2 {
+            let mut fragment = BytesMut::from(HUFFMAN_FIELD.repeat(40).as_slice());
+            decoded.load(&mut fragment, 1_024, &mut decoder).unwrap();
+        }
+        let mut final_fragment = BytesMut::from(HUFFMAN_FIELD.repeat(41).as_slice());
+        assert!(matches!(
+            decoded.load(&mut final_fragment, 1_024, &mut decoder),
+            Err(Error::HeaderListWayTooLarge)
+        ));
     }
 
     #[test]

@@ -21,6 +21,16 @@ use tokio_util::codec::{LengthDelimitedCodec, LengthDelimitedCodecError};
 
 // 16 MB "sane default" taken from golang http2
 const DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE: usize = 16 << 20;
+// HPACK's longest Huffman code is 30 bits per decoded byte. Two six-byte
+// table-size updates are the only block metadata not charged to header size.
+const MAX_HPACK_ENCODED_BYTES_PER_DECODED_BYTE: usize = 4;
+const HPACK_STATE_UPDATE_ALLOWANCE: usize = 12;
+// Permit quarter-sized minimum frames while bounding tiny-fragment CPU work.
+const CONTINUATION_FRAGMENT_BUDGET: usize = DEFAULT_MAX_FRAME_SIZE as usize / 4;
+const MIN_CONTINUATION_FRAMES: usize = 16;
+const MAX_CONTINUATION_FRAMES: usize = 16_384;
+// Empty fragments add no HPACK input and only repeat decoder work.
+const MAX_EMPTY_CONTINUATION_FRAMES: usize = 16;
 
 #[derive(Debug)]
 pub struct FramedRead<T> {
@@ -30,6 +40,8 @@ pub struct FramedRead<T> {
     hpack: hpack::Decoder,
 
     max_header_list_size: usize,
+
+    max_header_block_bytes: usize,
 
     max_continuation_frames: usize,
 
@@ -45,7 +57,11 @@ struct Partial {
     /// Partial header payload
     buf: BytesMut,
 
+    header_block_bytes: usize,
+
     continuation_frames_count: usize,
+
+    empty_continuation_frames_count: usize,
 }
 
 #[derive(Debug)]
@@ -57,12 +73,13 @@ enum Continuable {
 impl<T> FramedRead<T> {
     pub fn new(inner: InnerFramedRead<T, LengthDelimitedCodec>) -> FramedRead<T> {
         let max_header_list_size = DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
-        let max_continuation_frames =
-            calc_max_continuation_frames(max_header_list_size, inner.decoder().max_frame_length());
+        let max_header_block_bytes = calc_max_header_block_bytes(max_header_list_size);
+        let max_continuation_frames = calc_max_continuation_frames(max_header_list_size);
         FramedRead {
             inner,
             hpack: hpack::Decoder::new(DEFAULT_SETTINGS_HEADER_TABLE_SIZE),
             max_header_list_size,
+            max_header_block_bytes,
             max_continuation_frames,
             partial: None,
         }
@@ -89,16 +106,14 @@ impl<T> FramedRead<T> {
     pub fn set_max_frame_size(&mut self, val: usize) {
         assert!(DEFAULT_MAX_FRAME_SIZE as usize <= val && val <= MAX_MAX_FRAME_SIZE as usize);
         self.inner.decoder_mut().set_max_frame_length(val);
-        // Update max CONTINUATION frames too, since its based on this
-        self.max_continuation_frames = calc_max_continuation_frames(self.max_header_list_size, val);
     }
 
     /// Update the max header list size setting.
     #[inline]
     pub fn set_max_header_list_size(&mut self, val: usize) {
         self.max_header_list_size = val;
-        // Update max CONTINUATION frames too, since its based on this
-        self.max_continuation_frames = calc_max_continuation_frames(val, self.max_frame_size());
+        self.max_header_block_bytes = calc_max_header_block_bytes(val);
+        self.max_continuation_frames = calc_max_continuation_frames(val);
     }
 
     /// Update the header table size setting.
@@ -108,13 +123,16 @@ impl<T> FramedRead<T> {
     }
 }
 
-fn calc_max_continuation_frames(header_max: usize, frame_max: usize) -> usize {
-    // At least this many frames needed to use max header list size
-    let min_frames_for_list = (header_max / frame_max).max(1);
-    // Some padding for imperfectly packed frames
-    // 25% without floats
-    let padding = min_frames_for_list >> 2;
-    min_frames_for_list.saturating_add(padding).max(5)
+fn calc_max_header_block_bytes(header_max: usize) -> usize {
+    header_max
+        .saturating_mul(MAX_HPACK_ENCODED_BYTES_PER_DECODED_BYTE)
+        .saturating_add(HPACK_STATE_UPDATE_ALLOWANCE)
+}
+
+fn calc_max_continuation_frames(header_max: usize) -> usize {
+    calc_max_header_block_bytes(header_max)
+        .div_ceil(CONTINUATION_FRAGMENT_BUDGET)
+        .clamp(MIN_CONTINUATION_FRAMES, MAX_CONTINUATION_FRAMES)
 }
 
 /// Decodes a frame.
@@ -123,6 +141,7 @@ fn calc_max_continuation_frames(header_max: usize, frame_max: usize) -> usize {
 fn decode_frame(
     hpack: &mut hpack::Decoder,
     max_header_list_size: usize,
+    max_header_block_bytes: usize,
     max_continuation_frames: usize,
     partial_inout: &mut Option<Partial>,
     mut bytes: BytesMut,
@@ -165,6 +184,14 @@ fn decode_frame(
             };
 
             let is_end_headers = frame.is_end_headers();
+            let header_block_bytes = payload.len();
+            if header_block_bytes > max_header_block_bytes {
+                tracing::debug!("header_block_too_large, max = {}", max_header_block_bytes);
+                return Err(Error::library_go_away_data(
+                    Reason::ENHANCE_YOUR_CALM,
+                    "header_block_too_large",
+                ));
+            }
 
             // Load the HPACK encoded headers
             match frame.load_hpack(&mut payload, max_header_list_size, hpack) {
@@ -200,7 +227,9 @@ fn decode_frame(
                 *partial_inout = Some(Partial {
                     frame: Continuable::$frame(frame),
                     buf: payload,
+                    header_block_bytes,
                     continuation_frames_count: 0,
+                    empty_continuation_frames_count: 0,
                 });
 
                 return Ok(None);
@@ -299,6 +328,7 @@ fn decode_frame(
         }
         Kind::Continuation => {
             let is_end_headers = (head.flag() & 0x4) == 0x4;
+            let payload_len = bytes.len() - frame::HEADER_LEN;
 
             let mut partial = match partial_inout.take() {
                 Some(partial) => partial,
@@ -314,19 +344,35 @@ fn decode_frame(
                 return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
             }
 
-            // Check for CONTINUATION flood
-            if is_end_headers {
-                partial.continuation_frames_count = 0;
-            } else {
-                let cnt = partial.continuation_frames_count + 1;
-                if cnt > max_continuation_frames {
-                    tracing::debug!("too_many_continuations, max = {}", max_continuation_frames);
+            partial.header_block_bytes = partial.header_block_bytes.saturating_add(payload_len);
+            if partial.header_block_bytes > max_header_block_bytes {
+                tracing::debug!("header_block_too_large, max = {}", max_header_block_bytes);
+                return Err(Error::library_go_away_data(
+                    Reason::ENHANCE_YOUR_CALM,
+                    "header_block_too_large",
+                ));
+            }
+
+            partial.continuation_frames_count += 1;
+            if partial.continuation_frames_count > max_continuation_frames {
+                tracing::debug!("too_many_continuations, max = {}", max_continuation_frames);
+                return Err(Error::library_go_away_data(
+                    Reason::ENHANCE_YOUR_CALM,
+                    "too_many_continuations",
+                ));
+            }
+
+            if payload_len == 0 {
+                partial.empty_continuation_frames_count += 1;
+                if partial.empty_continuation_frames_count > MAX_EMPTY_CONTINUATION_FRAMES {
+                    tracing::debug!(
+                        "too_many_empty_continuations, max = {}",
+                        MAX_EMPTY_CONTINUATION_FRAMES
+                    );
                     return Err(Error::library_go_away_data(
                         Reason::ENHANCE_YOUR_CALM,
-                        "too_many_continuations",
+                        "too_many_empty_continuations",
                     ));
-                } else {
-                    partial.continuation_frames_count = cnt;
                 }
             }
 
@@ -420,6 +466,7 @@ where
             let Self {
                 ref mut hpack,
                 max_header_list_size,
+                max_header_block_bytes,
                 ref mut partial,
                 max_continuation_frames,
                 ..
@@ -427,6 +474,7 @@ where
             if let Some(frame) = decode_frame(
                 hpack,
                 max_header_list_size,
+                max_header_block_bytes,
                 max_continuation_frames,
                 partial,
                 bytes,
@@ -447,6 +495,30 @@ fn map_err(err: io::Error) -> Error {
         }
     }
     err.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        calc_max_continuation_frames, calc_max_header_block_bytes, MAX_CONTINUATION_FRAMES,
+        MIN_CONTINUATION_FRAMES,
+    };
+
+    #[test]
+    fn header_block_budget_covers_maximum_huffman_expansion() {
+        assert_eq!(calc_max_header_block_bytes(65_536), 262_156);
+        assert_eq!(calc_max_continuation_frames(65_536), 65);
+        assert!(calc_max_continuation_frames(16 << 20) >= 3_585);
+    }
+
+    #[test]
+    fn continuation_budget_is_bounded_for_tiny_and_huge_lists() {
+        assert_eq!(calc_max_continuation_frames(0), MIN_CONTINUATION_FRAMES);
+        assert_eq!(
+            calc_max_continuation_frames(usize::MAX),
+            MAX_CONTINUATION_FRAMES
+        );
+    }
 }
 
 // ===== impl Continuable =====

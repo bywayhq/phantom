@@ -51,6 +51,14 @@ Applying both values lets the existing HPACK encoder emit the required
 minimum-then-final dynamic-table-size updates at the start of its next field
 block instead of silently collapsing the transition to the last value.
 
+Inbound header blocks use separate encoded-byte, fragment-count, empty-fragment,
+and decoded-size bounds. The encoded budget allows the maximum HPACK Huffman
+expansion without relying on the peer to fill every frame. Decoded size remains
+cumulative after the ordinary response limit is crossed, so splitting fields
+across CONTINUATION frames cannot reset the connection-abuse threshold. Total
+fragments use a quarter-minimum-frame work estimate with a fixed 16,384-frame
+CPU ceiling; tiny-fragment chains beyond that ceiling are treated as abuse.
+
 The `unstable` client builder also accepts peer HTTP/2 SETTINGS learned through
 a transport parameter, such as TLS ALPS, before any HTTP/2 bytes are received.
 The seed is applied before the first request can be opened and counts as the
@@ -74,11 +82,14 @@ The canonical patch changes these files:
 - `src/client/tests.rs`: contain the 13 focused semantic, wire, and lifecycle
   regressions for ordered headers, idle close, and peer SETTINGS transitions.
 - `src/codec/framed_read.rs`: preserve RFC connection error codes for malformed
-  frame lengths and HPACK decoding failures.
+  frame lengths and HPACK decoding failures, and bound complete header-block
+  work without rejecting maximum-expansion Huffman values that fit the decoded
+  limit.
 - `src/codec/framed_write.rs` and `src/codec/mod.rs`: provide test-only hooks
   that model a full codec write buffer.
-- `src/frame/headers.rs`: select the exact outbound iterator and retain exact
-  inbound ordinary-field order while decoding HPACK.
+- `src/frame/headers.rs`: select the exact outbound iterator, retain exact
+  inbound ordinary-field order, and preserve cumulative decoded-size
+  accounting across HPACK fragments.
 - `src/frame/settings.rs`: expose the parsed no-RFC-7540-priorities value and
   retain minimum/final header-table-size transitions.
 - `src/proto/connection.rs`: make idle close one-shot, seed peer settings, and
@@ -99,7 +110,9 @@ to `FRAME_SIZE_ERROR` and HPACK decoding failures to `COMPRESSION_ERROR`, as
 required by RFC 9113. The patches remain separate from the complete vendor
 snapshot so a candidate release can be tested without reconstructing changes
 by hand. `ordered-header-table-updates.patch` preserves repeated peer table
-limits through the next HPACK field block.
+limits through the next HPACK field block. `continuation-bounds.patch`
+separates header-block resource ceilings and fixes cumulative decoded-size
+accounting across CONTINUATION frames.
 
 ## Refreshing the vendor copy
 

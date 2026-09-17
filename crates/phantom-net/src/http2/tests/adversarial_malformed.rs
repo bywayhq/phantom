@@ -1,4 +1,4 @@
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::{Http2Setting, Http2Settings, chromium::v152_macos_http2};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 
 use super::{TestResult, bounded_peer_test, target};
@@ -37,10 +37,41 @@ async fn interrupted_header_block_emits_protocol_error() -> TestResult<()> {
     bounded_peer_test(run_case(MalformedCase::InterruptedHeaderBlock)).await
 }
 
+#[tokio::test]
+async fn zero_maximum_frame_size_emits_one_protocol_error() -> TestResult<()> {
+    bounded_peer_test(run_case(MalformedCase::ZeroMaximumFrameSize)).await
+}
+
+#[tokio::test]
+async fn excessive_maximum_frame_size_emits_one_protocol_error() -> TestResult<()> {
+    bounded_peer_test(run_case(MalformedCase::ExcessiveMaximumFrameSize)).await
+}
+
+#[tokio::test]
+async fn empty_continuation_flood_emits_one_calm_error() -> TestResult<()> {
+    bounded_peer_test(run_case(MalformedCase::EmptyContinuationFlood)).await
+}
+
+#[tokio::test]
+async fn cumulative_header_abuse_emits_one_calm_error() -> TestResult<()> {
+    bounded_peer_test(run_case(MalformedCase::CumulativeHeaderAbuse)).await
+}
+
+#[tokio::test]
+async fn encoded_header_block_abuse_emits_one_calm_error() -> TestResult<()> {
+    bounded_peer_test(run_case(MalformedCase::EncodedHeaderBlockAbuse)).await
+}
+
+#[tokio::test]
+async fn nonempty_continuation_flood_emits_one_calm_error() -> TestResult<()> {
+    bounded_peer_test(run_case(MalformedCase::NonemptyContinuationFlood)).await
+}
+
 async fn run_case(case: MalformedCase) -> TestResult<()> {
     let (client, server) = duplex(64 * 1024);
     let peer = tokio::spawn(run_malformed_peer(server, case));
-    let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+    let settings = settings_for(case)?;
+    let connection = Http2Connection::connect(client, &settings).await?;
 
     if connection
         .send_get("example.test", target()?, Vec::new())
@@ -55,6 +86,22 @@ async fn run_case(case: MalformedCase) -> TestResult<()> {
         return Err(format!("{} did not close the connection", case.name()).into());
     }
     Ok(())
+}
+
+fn settings_for(case: MalformedCase) -> TestResult<Http2Settings> {
+    let mut settings = v152_macos_http2();
+    if case.uses_small_header_budget() {
+        let maximum = settings
+            .initial_settings
+            .iter_mut()
+            .find_map(|setting| match setting {
+                Http2Setting::MaxHeaderListSize(maximum) => Some(maximum),
+                _ => None,
+            })
+            .ok_or("Chrome HTTP/2 fixture omitted MAX_HEADER_LIST_SIZE")?;
+        *maximum = 1_024;
+    }
+    Ok(settings)
 }
 
 async fn run_malformed_peer(mut stream: DuplexStream, case: MalformedCase) -> TestResult<()> {
@@ -76,12 +123,30 @@ async fn run_malformed_peer(mut stream: DuplexStream, case: MalformedCase) -> Te
     if frame.payload.len() < 8 {
         return Err(format!("{} produced a truncated GOAWAY", case.name()).into());
     }
+    let last_stream_id = u32::from_be_bytes(frame.payload[..4].try_into()?);
+    if last_stream_id != 0 {
+        return Err(format!(
+            "{} produced GOAWAY last-stream ID {last_stream_id}, expected 0",
+            case.name()
+        )
+        .into());
+    }
     let reason = u32::from_be_bytes(frame.payload[4..8].try_into()?);
     if reason != case.expected_reason() {
         return Err(format!(
             "{} produced GOAWAY code {reason}, expected {}",
             case.name(),
             case.expected_reason()
+        )
+        .into());
+    }
+    let expected = case.expected_debug_data();
+    if &frame.payload[8..] != expected {
+        return Err(format!(
+            "{} produced GOAWAY debug data {:?}, expected {:?}",
+            case.name(),
+            &frame.payload[8..],
+            expected
         )
         .into());
     }
@@ -152,6 +217,53 @@ async fn write_fault(stream: &mut DuplexStream, case: MalformedCase) -> TestResu
             write_frame(stream, 0x01, 0, 1, &[0x88]).await?;
             write_frame(stream, 0x00, 0x01, 1, &[]).await?;
         }
+        MalformedCase::ZeroMaximumFrameSize => {
+            write_setting(stream, 0x05, 0).await?;
+        }
+        MalformedCase::ExcessiveMaximumFrameSize => {
+            write_setting(stream, 0x05, 0x0100_0000).await?;
+        }
+        MalformedCase::EmptyContinuationFlood => {
+            write_frame(stream, 0x01, 0, 1, &[0x88]).await?;
+            for _ in 0..17 {
+                write_frame(stream, 0x09, 0, 1, &[]).await?;
+            }
+        }
+        MalformedCase::CumulativeHeaderAbuse => {
+            write_cumulative_header_abuse(stream).await?;
+        }
+        MalformedCase::EncodedHeaderBlockAbuse => {
+            let payload = vec![0; 4_109];
+            write_frame(stream, 0x01, 0x04, 1, &payload).await?;
+        }
+        MalformedCase::NonemptyContinuationFlood => {
+            write_frame(stream, 0x01, 0, 1, &[0x00, 0x01, b'x', 0xe4]).await?;
+            for _ in 0..17 {
+                write_frame(stream, 0x09, 0, 1, &[0]).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn write_setting(stream: &mut DuplexStream, identifier: u16, value: u32) -> TestResult<()> {
+    let mut payload = [0_u8; 6];
+    payload[..2].copy_from_slice(&identifier.to_be_bytes());
+    payload[2..].copy_from_slice(&value.to_be_bytes());
+    write_frame(stream, 0x04, 0, 0, &payload).await
+}
+
+async fn write_cumulative_header_abuse(stream: &mut DuplexStream) -> TestResult<()> {
+    // Each five-byte block is the legal HPACK literal `x: a`; the value uses
+    // the static Huffman code for `a`. Its decoded header-list cost is 34 bytes.
+    const HUFFMAN_FIELD: &[u8] = &[0x00, 0x01, b'x', 0x81, 0x1f];
+    const FIELDS_PER_FRAGMENT: usize = 40;
+    const CONTINUATION_FRAGMENTS: usize = 3;
+
+    write_frame(stream, 0x01, 0, 1, &[0x88]).await?;
+    let fragment = HUFFMAN_FIELD.repeat(FIELDS_PER_FRAGMENT);
+    for _ in 0..CONTINUATION_FRAGMENTS {
+        write_frame(stream, 0x09, 0, 1, &fragment).await?;
     }
     Ok(())
 }
@@ -192,7 +304,7 @@ async fn read_frame(stream: &mut DuplexStream) -> TestResult<Option<RawFrame>> {
     Ok(Some(RawFrame {
         frame_type: header[3],
         flags: header[4],
-        stream_id: u32::from_be_bytes(header[5..9].try_into()?) & 0x7fff_ffff,
+        stream_id: u32::from_be_bytes(header[5..9].try_into()?),
         payload,
     }))
 }
@@ -205,6 +317,12 @@ enum MalformedCase {
     PingOnStream,
     InvalidHuffmanEos,
     InterruptedHeaderBlock,
+    ZeroMaximumFrameSize,
+    ExcessiveMaximumFrameSize,
+    EmptyContinuationFlood,
+    CumulativeHeaderAbuse,
+    EncodedHeaderBlockAbuse,
+    NonemptyContinuationFlood,
 }
 
 impl MalformedCase {
@@ -216,15 +334,48 @@ impl MalformedCase {
             Self::PingOnStream => "PING on stream 1",
             Self::InvalidHuffmanEos => "invalid HPACK Huffman EOS",
             Self::InterruptedHeaderBlock => "interrupted header block",
+            Self::ZeroMaximumFrameSize => "zero SETTINGS_MAX_FRAME_SIZE",
+            Self::ExcessiveMaximumFrameSize => "excessive SETTINGS_MAX_FRAME_SIZE",
+            Self::EmptyContinuationFlood => "empty CONTINUATION flood",
+            Self::CumulativeHeaderAbuse => "cumulative header-list abuse",
+            Self::EncodedHeaderBlockAbuse => "encoded header-block abuse",
+            Self::NonemptyContinuationFlood => "nonempty CONTINUATION flood",
         }
     }
 
     fn expected_reason(self) -> u32 {
         match self {
             Self::SettingsAckPayload | Self::PingWrongLength => 6,
-            Self::SettingsOnStream | Self::PingOnStream | Self::InterruptedHeaderBlock => 1,
+            Self::SettingsOnStream
+            | Self::PingOnStream
+            | Self::InterruptedHeaderBlock
+            | Self::ZeroMaximumFrameSize
+            | Self::ExcessiveMaximumFrameSize => 1,
             Self::InvalidHuffmanEos => 9,
+            Self::EmptyContinuationFlood
+            | Self::CumulativeHeaderAbuse
+            | Self::EncodedHeaderBlockAbuse
+            | Self::NonemptyContinuationFlood => 11,
         }
+    }
+
+    fn expected_debug_data(self) -> &'static [u8] {
+        match self {
+            Self::EmptyContinuationFlood => b"too_many_empty_continuations",
+            Self::CumulativeHeaderAbuse => b"header_list_way_too_large",
+            Self::EncodedHeaderBlockAbuse => b"header_block_too_large",
+            Self::NonemptyContinuationFlood => b"too_many_continuations",
+            _ => b"",
+        }
+    }
+
+    fn uses_small_header_budget(self) -> bool {
+        matches!(
+            self,
+            Self::CumulativeHeaderAbuse
+                | Self::EncodedHeaderBlockAbuse
+                | Self::NonemptyContinuationFlood
+        )
     }
 }
 

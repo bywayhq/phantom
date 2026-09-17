@@ -12,8 +12,6 @@ claim.
 
 | Failure class and evidence | Current boundary | Required regression |
 | --- | --- | --- |
-| Invalid H2 maximum frame size spins a connection ([Go GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918)) | The vendored engine validates the RFC range. | Exact zero and excessive peer SETTINGS values complete within a deadline, produce one protocol shutdown, and never spin. |
-| H2 CONTINUATION flood consumes CPU or memory ([Go CVE-2023-45288](https://pkg.go.dev/vuln/GO-2024-2687)) | Continuation count is derived from the configured header-list limit. | Over-limit empty and expensive Huffman fragments terminate within deterministic CPU/memory bounds. |
 | Mixed-case or unusual cookie domain bypasses PSL policy ([curl CVE-2023-46218](https://curl.se/docs/CVE-2023-46218.html)) | PSL checks and lowercase public-suffix rejection are covered. | Add mixed-case PSL, IDNA, trailing-dot, and public-suffix-equals-request-host cases. |
 | Protocol racing bypasses route policy or shares mutable request state ([tls-client releases](https://github.com/bogdanfinn/tls-client/releases)) | Phantom has no general racing/fallback and rejects unsupported H3 proxy routes before I/O. | Any future Auto, Alt-Svc, or racing leg inherits the exact route capability check and owns immutable request state. |
 
@@ -59,6 +57,22 @@ claim.
   bound is a canonical `wreq-proto` patch whose crates.io replay and focused
   commands are maintenance-tested. This covers the resource-exhaustion class
   in [curl CVE-2023-38039](https://curl.se/docs/CVE-2023-38039.html).
+- Peer HTTP/2 `SETTINGS_MAX_FRAME_SIZE` values of zero and 16,777,216 are
+  rejected on the live public connection path. Each case completes within the
+  hostile-peer deadline, emits one `PROTOCOL_ERROR` GOAWAY, closes the
+  connection, and never reaches the writer's zero-progress DATA path. This
+  covers the failure class in
+  [Go GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918).
+- HTTP/2 header-block continuation work is bounded from the configured receive
+  header-list limit using separate encoded-byte, total-fragment, empty-fragment,
+  and cumulative decoded-size ceilings. Encoded-byte overflow, seventeen empty
+  fragments, seventeen tiny nonempty fragments, and a decoded `4x` overrun
+  spread across legal Huffman fields each produce one specifically asserted
+  `ENHANCE_YOUR_CALM` shutdown under an absolute deadline. A valid 65,535-byte
+  decoded header list whose near-maximum Huffman representation spans fourteen
+  frames remains accepted, and the connection serves a later stream. This
+  covers the unbounded-processing class in
+  [Go CVE-2023-45288](https://pkg.go.dev/vuln/GO-2024-2687).
 - Cross-origin redirects strip `Authorization`, `Proxy-Authorization`, and
   caller cookies; session cookies are reconstructed for the new origin.
 - HTTP Basic proxy credentials are validated before I/O and sent only after a

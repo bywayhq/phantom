@@ -377,6 +377,14 @@ Upgrade responses. The chunk-line seam is carried as a canonical vendored
 `wreq-proto` patch with checksum-bound candidate replay and focused maintenance
 gates.
 
+HTTP/2 hostile-peer coverage now proves that zero and excessive peer maximum
+frame sizes terminate with one protocol shutdown before reaching the writer,
+and that empty and cumulative decoded CONTINUATION abuse terminate within a
+fixed deadline and configured work bound. The engine tracks encoded bytes,
+total and empty fragments, and decoded size independently; a valid fourteen-
+frame near-maximum-expansion Huffman response remains accepted and the
+connection remains reusable.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.
