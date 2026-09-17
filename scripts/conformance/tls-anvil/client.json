@@ -1,0 +1,34 @@
+{
+  "anvilTestConfig": {
+    "profiles": [
+      "phantom-smoke"
+    ],
+    "profileFolder": "/config/profiles",
+    "tags": [],
+    "ignoreCache": true,
+    "outputFolder": "/output/suite",
+    "parallelTests": 1,
+    "restartServerAfter": 0,
+    "timeoutActionCommand": [
+      "/bin/true"
+    ],
+    "identifier": "phantom-tls-client-smoke",
+    "strength": 1,
+    "connectionTimeout": 3000,
+    "prettyPrintJSON": true,
+    "networkInterface": "lo",
+    "disableTcpDump": true,
+    "doZip": false,
+    "generalPcapFilter": "",
+    "expectedResults": "/config/expected.json"
+  },
+  "clientConfig": {
+    "port": 8443,
+    "triggerScriptCommand": [
+      "/bin/sh",
+      "/config/trigger.sh"
+    ]
+  },
+  "exportTraces": true,
+  "parallelHandshakes": 1
+}

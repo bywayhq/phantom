@@ -12,7 +12,7 @@ reported as client conformance.
 | [QUIC Interop Runner](https://github.com/quic-interop/quic-interop-runner) | Run the public Phantom client against an independent H3 server through the upstream network simulator. The endpoint declares only the applicable `http3` case. | Endpoint-image build on relevant changes; pinned `http3` run on a Linux schedule and before releases. |
 | [Web Platform Tests](https://github.com/web-platform-tests/wpt) | Execute selected EventSource resources from a pinned sparse checkout, adapting their assertions through Phantom's public API. Run the original JavaScript tests against real browsers only when gathering browser behavior. | Eleven-case smoke set on relevant pull requests; 29 selected scenarios on a schedule and before releases. |
 | [curl tests](https://curl.se/dev/runtests.html) | Mine mature HTTP, proxy, redirect, authentication, timeout, and connection-reuse scenarios. Re-express applicable cases through Phantom's API and bounded peers. | Public-session regressions on pull requests; periodic upstream-delta review. |
-| [TLS-Anvil](https://github.com/tls-attacker/TLS-Anvil) | Trigger a fresh Phantom client connection for its TLS 1.2/1.3 client cases. Start with a pinned, bounded profile and expand scheduled coverage after failures have stable classification. | Small pinned profile on pull requests after the adapter lands; fuller combinatorial run on a schedule. |
+| [TLS-Anvil](https://github.com/tls-attacker/TLS-Anvil) | Trigger a fresh Phantom client connection for its TLS 1.2/1.3 client cases. Start with a pinned, bounded profile and expand scheduled coverage after failures have stable classification. | Two upstream happy-flow cases on relevant pull requests and a schedule; fuller combinatorial coverage after stable triage. |
 | [BoringSSL runner](https://boringssl.googlesource.com/boringssl/+/master/ssl/test/) | Validate the pinned TLS engine and patches with its native protocol suite. Phantom continues to test its configuration and callback glue separately. | Pin-update and scheduled vendor job. |
 | [h2spec](https://github.com/summerwind/h2spec) and [h3spec](https://github.com/kazu-yamamoto/h3spec) | Use their error cases as inputs to Phantom's client-side hostile peers. Both tools primarily target servers, so they are not direct Phantom pass/fail gates. | Upstream-delta review plus deterministic adapted regressions. |
 
@@ -44,6 +44,10 @@ test hooks in production crates or bypass normal request validation.
   ephemeral loopback port. Its short-lived CA is passed through the ordinary
   additional-root API; it does not alter DNS, OS trust, or production code.
   Original WPT paths remain the case identifiers.
+- The TLS-Anvil adapter opens one bounded TCP TLS connection per trigger
+  through `Http1TlsConnector`. TLS-Anvil deliberately synthesizes certificate
+  chains, so the adapter explicitly selects disabled server authentication;
+  normal clients remain WebPKI-verified by default.
 - WPT and curl imports record the upstream revision and original case path.
   Generated protocol data remains separate from handwritten test intent.
 
@@ -51,10 +55,11 @@ test hooks in production crates or bypass normal request validation.
 
 Pull-request gates stay deterministic, loopback-only, and bounded. They include
 adapted regressions and a short Autobahn subset once its adapter is stable.
-Once their adapters land, Docker-heavy matrices, network emulation, full
-Autobahn, full TLS-Anvil, the QUIC Interop Runner, and the BoringSSL runner will
-execute on a schedule. Live public endpoints remain supplemental because their
-behavior and availability are not controlled by this repository.
+Docker-heavy matrices, network emulation, full Autobahn, expanded TLS-Anvil,
+the QUIC Interop Runner, and the BoringSSL runner execute on schedules or
+manually as their runtime cost warrants. Live public endpoints remain
+supplemental because their behavior and availability are not controlled by
+this repository.
 
 Every external failure is triaged into one of three outcomes:
 
@@ -117,6 +122,33 @@ unsupported-case contract. Scheduled and manually dispatched jobs run the
 pinned `http3` case against the pinned quic-go endpoint. CI retains only the
 bounded runner output, result, summary, and revision metadata; its temporary
 pcaps, qlogs, container files, and TLS secrets are discarded.
+
+## TLS-Anvil execution
+
+The initial profile contains TLS-Anvil's documented TLS 1.2 and TLS 1.3 client
+happy flows. The suite is pinned by both its v1.5.2 source revision and its
+Linux/AMD64 container digest. A pinned builder image compiles the one-shot
+adapter into the suite image, so the same command works on Linux directly and
+through container emulation on other Docker hosts:
+
+```console
+python3 scripts/conformance/tls_anvil.py
+```
+
+TLS-Anvil starts a fresh adapter process before every connection. Each process
+uses the public H1 TLS connector, sends SNI, performs one bounded handshake,
+and exits without sending an HTTP request. Disabled server authentication is
+an explicit connection policy because the suite generates and mutates test
+certificate chains; it is not part of the browser profile and does not alter
+the default client policy.
+
+The runner disables stale feature caching, serialization races, and packet
+capture for this smoke tier. It enforces both adapter and orchestration
+timeouts, supplies strict expected results, and then independently rejects a
+running, incomplete, missing, disabled, conceptual, failed, or suite-error
+result. CI retains bounded suite and adapter logs, the aggregate report, result
+map, sanitized summary, revision metadata, and the two selected tests' trace
+JSON. Packet captures, scanner dumps, and TLS key logs remain local.
 
 ## BoringSSL native execution
 

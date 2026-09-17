@@ -1,0 +1,88 @@
+name: TLS-Anvil client conformance
+
+on:
+  pull_request:
+    paths:
+      - .dockerignore
+      - .github/workflows/tls-anvil.yml
+      - Cargo.lock
+      - Cargo.toml
+      - rust-toolchain.toml
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - crates/phantom-quic-btls/**
+      - crates/phantom-testkit/**
+      - scripts/conformance/tls-anvil/**
+      - scripts/conformance/tls_anvil.py
+      - scripts/conformance/tests/test_tls_anvil.py
+      - vendor/btls/**
+      - vendor/h3/**
+      - vendor/http2/**
+      - vendor/quinn-proto/**
+  push:
+    branches: [main]
+    paths:
+      - .dockerignore
+      - .github/workflows/tls-anvil.yml
+      - Cargo.lock
+      - Cargo.toml
+      - rust-toolchain.toml
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - crates/phantom-quic-btls/**
+      - crates/phantom-testkit/**
+      - scripts/conformance/tls-anvil/**
+      - scripts/conformance/tls_anvil.py
+      - scripts/conformance/tests/test_tls_anvil.py
+      - vendor/btls/**
+      - vendor/h3/**
+      - vendor/http2/**
+      - vendor/quinn-proto/**
+  schedule:
+    - cron: "23 7 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tls-anvil-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
+jobs:
+  conformance:
+    name: TLS 1.2 and TLS 1.3 client smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.10"
+
+      - name: Check runner prerequisites
+        run: docker version
+
+      - name: Run pinned TLS-Anvil client suite
+        run: python3 scripts/conformance/tls_anvil.py
+
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tls-anvil-smoke-${{ github.sha }}
+          path: |
+            target/tls-anvil/**/adapter.log
+            target/tls-anvil/**/container.log
+            target/tls-anvil/**/metadata.json
+            target/tls-anvil/**/summary.json
+            target/tls-anvil/**/suite/report.json
+            target/tls-anvil/**/suite/result_map.json
+            target/tls-anvil/**/suite/results/**/_testRun.json
+          if-no-files-found: warn
+          retention-days: 30
