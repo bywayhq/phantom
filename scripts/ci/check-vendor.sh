@@ -44,6 +44,54 @@ check_http2_patch_replay() {
     "$candidate" vendor/http2
 }
 
+check_wreq_proto_patch_replay() {
+  local staging archive candidate actual_checksum patch source normalized
+  local listed_patches stored_patches
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-wreq-proto-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  archive="$staging/wreq-proto-0.2.5.crate"
+  curl --fail --location --silent --show-error --retry 3 \
+    --output "$archive" \
+    https://static.crates.io/crates/wreq-proto/wreq-proto-0.2.5.crate
+  if command -v shasum >/dev/null 2>&1; then
+    actual_checksum=$(shasum -a 256 "$archive" | awk '{print $1}')
+  else
+    actual_checksum=$(sha256sum "$archive" | awk '{print $1}')
+  fi
+  [[ "$actual_checksum" == a43942f024bb303f1042c9aa3c87fa1d9149f507c65db6e5220a11ccdb207387 ]]
+  tar -xzf "$archive" -C "$staging"
+  candidate="$staging/wreq-proto-0.2.5"
+  # The published archive uses CRLF. Normalize the five patched Rust sources
+  # before replay so the canonical patch stays reviewable and deterministic.
+  for source in \
+    src/error.rs \
+    src/proto/http1.rs \
+    src/conn/http1.rs \
+    src/proto/http1/conn.rs \
+    src/proto/http1/decode.rs; do
+    normalized="$staging/$(basename "$source").lf"
+    tr -d '\r' < "$candidate/$source" > "$normalized"
+    mv "$normalized" "$candidate/$source"
+  done
+  listed_patches=$(LC_ALL=C sort vendor/wreq-proto/patches/series)
+  stored_patches=$(find vendor/wreq-proto/patches -maxdepth 1 -type f \
+    -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+  if [[ "$listed_patches" != "$stored_patches" ]]; then
+    echo "wreq-proto patch series does not list every canonical patch exactly once" >&2
+    return 1
+  fi
+  while IFS= read -r patch; do
+    if [[ -z "$patch" ]]; then
+      echo "wreq-proto patch series contains an empty entry" >&2
+      return 1
+    fi
+    git -C "$candidate" apply --check "$PWD/vendor/wreq-proto/patches/$patch"
+    git -C "$candidate" apply "$PWD/vendor/wreq-proto/patches/$patch"
+  done < vendor/wreq-proto/patches/series
+  diff -qr --exclude=.cargo-ok --exclude=PHANTOM.md --exclude=patches \
+    --exclude=target "$candidate" vendor/wreq-proto
+}
+
 check_quinn_proto_patch_replay() {
   local staging archive candidate actual_checksum patch
   staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-quinn-proto-replay.XXXXXX")
@@ -232,8 +280,20 @@ case "${1:-}" in
     cargo test --manifest-path vendor/tungstenite/Cargo.toml \
       --lib --all-features --locked
     ;;
+  wreq-proto)
+    check_wreq_proto_patch_replay
+    cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check
+    cargo clippy --manifest-path vendor/wreq-proto/Cargo.toml \
+      --all-targets --all-features --locked -- \
+      -D warnings \
+      -A clippy::question_mark \
+      -A clippy::result_large_err \
+      -A clippy::useless_borrows_in_formatting
+    cargo test --manifest-path vendor/wreq-proto/Cargo.toml \
+      --lib --all-features --locked
+    ;;
   *)
-    echo "usage: $0 {btls|http2|quinn-proto|h3|tungstenite}" >&2
+    echo "usage: $0 {btls|http2|quinn-proto|h3|tungstenite|wreq-proto}" >&2
     exit 2
     ;;
 esac

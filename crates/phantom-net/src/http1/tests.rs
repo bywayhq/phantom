@@ -71,5 +71,6 @@ fn host() -> RequestHeader {
 mod driver_lifecycle;
 mod request_wire;
 mod response_body;
+mod response_limits;
 mod reuse;
 mod upgrade;

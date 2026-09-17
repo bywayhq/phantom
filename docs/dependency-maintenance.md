@@ -24,15 +24,19 @@ running its focused tests, then running the workspace gates. The reviewed pin
 changes only after that evidence is available. Automated dependency updates may
 open review work; they do not silently rewrite a wire profile or vendor tree.
 
-The current `btls`, `http2`, and H3 copies follow this contract. The HTTP/2 and
-H3 patches also retain decoded ordinary response fields before `HeaderMap`
-normalization loses their global order. The H3 source is selected by the root
-workspace for the direct request path. Its disposable probe checksum-binds an
-exact Hyperium revision, reapplies the ordered-SETTINGS, QPACK-runtime,
-ordered-response, and cancel-safe receive patches, and runs the focused H3 and
-`h3-quinn` gates. Chrome's nonzero inbound QPACK settings are enabled with
-bounded decode and feedback state. Outbound dynamic QPACK, WebTransport, and
-extension-specific datagram APIs remain separate capabilities.
+The current `wreq-proto`, `btls`, `http2`, and H3 copies follow this contract.
+The `wreq-proto` patch adds Phantom's opt-in HTTP/1 chunk-size-line bound while
+preserving the stock default; its disposable probe checksum-binds the crates.io
+archive, reapplies the canonical patch, and runs the vendored crate plus
+workspace gates. The HTTP/2 and H3 patches also retain decoded ordinary
+response fields before `HeaderMap` normalization loses their global order. The
+H3 source is selected by the root workspace for the direct request path. Its
+disposable probe checksum-binds an exact Hyperium revision, reapplies the
+ordered-SETTINGS, QPACK-runtime, ordered-response, and cancel-safe receive
+patches, and runs the focused H3 and `h3-quinn` gates. Chrome's nonzero inbound
+QPACK settings are enabled with bounded decode and feedback state. Outbound
+dynamic QPACK, WebTransport, and extension-specific datagram APIs remain
+separate capabilities.
 
 A dependency patch may also be justified by a concrete provider-contract
 failure even when it does not alter the intended wire image. Quinn 0.11.18's
@@ -92,7 +96,7 @@ cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.85.0 check --workspace --all-targets --locked
 scripts/ci/test-upstream-freshness.sh
-for package in btls http2 quinn-proto h3; do
+for package in wreq-proto btls http2 quinn-proto h3 tungstenite; do
   scripts/ci/check-vendor.sh "$package"
 done
 ```

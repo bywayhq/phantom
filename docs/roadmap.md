@@ -370,6 +370,13 @@ SOCKS5, pool keys, cookies, redirects, and client-hint origin state. Direct H1
 and H3 plus H1/H2 CONNECT and SOCKS5H fixtures prove the emitted canonical
 authority; equivalent Unicode and ASCII inputs share session state and reuse.
 
+HTTP/1 response parsing now owns fixed aggregate-head, field-count, and
+chunk-size-line limits. Exact-boundary regressions prove acceptance at each
+ceiling, typed overflow, and connection discard for ordinary and rejected
+Upgrade responses. The chunk-line seam is carried as a canonical vendored
+`wreq-proto` patch with checksum-bound candidate replay and focused maintenance
+gates.
+
 Acceptance:
 
 - Forced H1, H2, and H3 never silently negotiate or retry another protocol.

@@ -12,7 +12,6 @@ claim.
 
 | Failure class and evidence | Current boundary | Required regression |
 | --- | --- | --- |
-| Oversized H1 response head or chunk metadata exhausts memory ([curl CVE-2023-38039](https://curl.se/docs/CVE-2023-38039.html)) | The engine parser currently applies a default response-head limit; outbound framing is strict. | Phantom owns explicit field/byte limits and tests oversized status lines, aggregate fields, field count, chunk-size lines, and extensions with typed failure and connection discard. |
 | Invalid H2 maximum frame size spins a connection ([Go GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918)) | The vendored engine validates the RFC range. | Exact zero and excessive peer SETTINGS values complete within a deadline, produce one protocol shutdown, and never spin. |
 | H2 CONTINUATION flood consumes CPU or memory ([Go CVE-2023-45288](https://pkg.go.dev/vuln/GO-2024-2687)) | Continuation count is derived from the configured header-list limit. | Over-limit empty and expensive Huffman fragments terminate within deterministic CPU/memory bounds. |
 | Mixed-case or unusual cookie domain bypasses PSL policy ([curl CVE-2023-46218](https://curl.se/docs/CVE-2023-46218.html)) | PSL checks and lowercase public-suffix rejection are covered. | Add mixed-case PSL, IDNA, trailing-dot, and public-suffix-equals-request-host cases. |
@@ -53,6 +52,13 @@ claim.
   while positive TLS 1.2 and TLS 1.3 resumption tests remain in place. This
   covers the state-contamination class in
   [curl CVE-2024-0853](https://curl.se/docs/CVE-2024-0853.html).
+- HTTP/1 response parsing owns a 32-KiB aggregate head limit, a 100-field
+  limit, and a 16-KiB per-chunk size-line limit. Exact-boundary and overflow
+  regressions cover aggregate heads, field count, whitespace and extensions in
+  chunk-size lines, typed failures, and connection discard. The chunk-line
+  bound is a canonical `wreq-proto` patch whose crates.io replay and focused
+  commands are maintenance-tested. This covers the resource-exhaustion class
+  in [curl CVE-2023-38039](https://curl.se/docs/CVE-2023-38039.html).
 - Cross-origin redirects strip `Authorization`, `Proxy-Authorization`, and
   caller cookies; session cookies are reconstructed for the new origin.
 - HTTP Basic proxy credentials are validated before I/O and sent only after a

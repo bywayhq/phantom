@@ -9,7 +9,10 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::{OrderedResponseHeaders, ResponseHeader};
 
-const MAX_RESPONSE_HEADERS: usize = 100;
+use super::{
+    Http1Error,
+    limits::{MAX_RESPONSE_HEAD_BYTES, MAX_RESPONSE_HEADERS},
+};
 
 pub(super) struct ResponseHeadObserver {
     state: Arc<Mutex<ResponseHeadState>>,
@@ -34,6 +37,7 @@ impl ResponseHeadObserver {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.buffered.clear();
         state.headers = None;
+        state.limit_error = None;
         state.armed = true;
     }
 
@@ -43,6 +47,15 @@ impl ResponseHeadObserver {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .headers
             .take()
+    }
+
+    pub(super) fn take_limit_error(&self) -> Option<Http1Error> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .limit_error
+            .take()
+            .map(ResponseHeadLimitError::into_http1_error)
     }
 }
 
@@ -55,7 +68,27 @@ pub(super) struct ObservedStream<T> {
 struct ResponseHeadState {
     buffered: Vec<u8>,
     headers: Option<OrderedResponseHeaders>,
+    limit_error: Option<ResponseHeadLimitError>,
     armed: bool,
+}
+
+#[derive(Clone, Copy)]
+enum ResponseHeadLimitError {
+    HeaderCount,
+    HeadBytes,
+}
+
+impl ResponseHeadLimitError {
+    fn into_http1_error(self) -> Http1Error {
+        match self {
+            Self::HeaderCount => Http1Error::TooManyResponseHeaders {
+                maximum: MAX_RESPONSE_HEADERS,
+            },
+            Self::HeadBytes => Http1Error::ResponseHeadTooLarge {
+                maximum: MAX_RESPONSE_HEAD_BYTES,
+            },
+        }
+    }
 }
 
 impl ResponseHeadState {
@@ -63,14 +96,30 @@ impl ResponseHeadState {
         if !self.armed {
             return;
         }
-        self.buffered.extend_from_slice(bytes);
-
+        let mut remaining = bytes;
         loop {
             let mut slots = [httparse::EMPTY_HEADER; MAX_RESPONSE_HEADERS];
             let mut response = httparse::Response::new(&mut slots);
             let head_length = match response.parse(&self.buffered) {
-                Ok(httparse::Status::Partial) => return,
+                Ok(httparse::Status::Partial) => {
+                    if self.buffered.len() == MAX_RESPONSE_HEAD_BYTES {
+                        self.fail(ResponseHeadLimitError::HeadBytes);
+                        return;
+                    }
+                    if remaining.is_empty() {
+                        return;
+                    }
+                    let available = MAX_RESPONSE_HEAD_BYTES - self.buffered.len();
+                    let observed = available.min(remaining.len());
+                    self.buffered.extend_from_slice(&remaining[..observed]);
+                    remaining = &remaining[observed..];
+                    continue;
+                }
                 Ok(httparse::Status::Complete(length)) => length,
+                Err(httparse::Error::TooManyHeaders) => {
+                    self.fail(ResponseHeadLimitError::HeaderCount);
+                    return;
+                }
                 Err(_) => {
                     // The protocol parser reports the actual request error.
                     self.buffered.clear();
@@ -78,6 +127,10 @@ impl ResponseHeadState {
                     return;
                 }
             };
+            if head_length > MAX_RESPONSE_HEAD_BYTES {
+                self.fail(ResponseHeadLimitError::HeadBytes);
+                return;
+            }
             let status = response.code.unwrap_or_default();
             let headers = response
                 .headers
@@ -87,7 +140,7 @@ impl ResponseHeadState {
 
             if (100..200).contains(&status) && status != 101 {
                 self.buffered.drain(..head_length);
-                if self.buffered.is_empty() {
+                if self.buffered.is_empty() && remaining.is_empty() {
                     return;
                 }
                 continue;
@@ -98,6 +151,12 @@ impl ResponseHeadState {
             self.armed = false;
             return;
         }
+    }
+
+    fn fail(&mut self, error: ResponseHeadLimitError) {
+        self.buffered.clear();
+        self.limit_error = Some(error);
+        self.armed = false;
     }
 }
 

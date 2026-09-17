@@ -117,12 +117,86 @@ case "$dependency" in
   wreq-proto)
     [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] \
       || die "invalid wreq-proto candidate '$candidate'"
+    [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] \
+      || die "invalid wreq-proto archive checksum"
+    [[ -f vendor/wreq-proto/PHANTOM.md ]] \
+      || die "vendored wreq-proto provenance is required"
+    [[ -f vendor/wreq-proto/patches/series ]] \
+      || die "vendored wreq-proto patch series is required"
+    wreq_patches=()
+    while IFS= read -r patch; do
+      [[ -n "$patch" ]] || die "vendored wreq-proto patch series contains an empty entry"
+      wreq_patches+=("$patch")
+    done < vendor/wreq-proto/patches/series
+    [[ ${#wreq_patches[@]} -gt 0 ]] \
+      || die "vendored wreq-proto patch series is empty"
+    for patch in "${wreq_patches[@]}"; do
+      [[ -f "vendor/wreq-proto/patches/$patch" ]] \
+        || die "vendored wreq-proto canonical patch $patch is required"
+    done
+    listed_wreq_patches=$(printf '%s\n' "${wreq_patches[@]}" | LC_ALL=C sort)
+    stored_wreq_patches=$(find vendor/wreq-proto/patches -maxdepth 1 -type f \
+      -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+    [[ "$listed_wreq_patches" == "$stored_wreq_patches" ]] \
+      || die "vendored wreq-proto patch series does not list every canonical patch exactly once"
+
     wreq_current=$(sed -nE 's/.*wreq-proto = "=([^"]+)".*/\1/p' \
       crates/phantom-net/Cargo.toml)
     [[ -n "$wreq_current" ]] || die "wreq-proto is not tracked by phantom-net"
+
+    probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-wreq-proto-candidate.XXXXXX")
+    archive="$probe_staging/wreq-proto-$candidate.crate"
+    fetch "https://static.crates.io/crates/wreq-proto/wreq-proto-$candidate.crate" > "$archive"
+    actual=$(sha256 "$archive")
+    [[ "$actual" == "$checksum" ]] \
+      || die "wreq-proto $candidate checksum mismatch: expected $checksum, found $actual"
+    tar -xzf "$archive" -C "$probe_staging"
+    candidate_dir="$probe_staging/wreq-proto-$candidate"
+    [[ -f "$candidate_dir/Cargo.toml" ]] \
+      || die "wreq-proto candidate archive has an unexpected layout"
+
+    # The reviewed 0.2.5 archive stores these sources with CRLF. Normalize
+    # before replay so the canonical patch is independent of archive line endings.
+    for source in \
+      src/error.rs \
+      src/proto/http1.rs \
+      src/conn/http1.rs \
+      src/proto/http1/conn.rs \
+      src/proto/http1/decode.rs
+    do
+      sed $'s/\r$//' "$candidate_dir/$source" > "$candidate_dir/$source.lf"
+      mv "$candidate_dir/$source.lf" "$candidate_dir/$source"
+    done
+
+    for patch in "${wreq_patches[@]}"; do
+      patch_file="$repo_root/vendor/wreq-proto/patches/$patch"
+      if ! git -C "$candidate_dir" apply --check "$patch_file"; then
+        die "wreq-proto patch $patch does not apply to candidate $candidate"
+      fi
+      git -C "$candidate_dir" apply "$patch_file"
+    done
+    cp vendor/wreq-proto/PHANTOM.md "$candidate_dir/PHANTOM.md"
+    mkdir -p "$candidate_dir/patches"
+    cp vendor/wreq-proto/patches/series "$candidate_dir/patches/series"
+    for patch in "${wreq_patches[@]}"; do
+      cp "$repo_root/vendor/wreq-proto/patches/$patch" "$candidate_dir/patches/"
+    done
+    mv vendor/wreq-proto "$probe_staging/wreq-proto.previous"
+    mv "$candidate_dir" vendor/wreq-proto
+
     replace_exact crates/phantom-net/Cargo.toml \
       "wreq-proto = \"=$wreq_current\"" "wreq-proto = \"=$candidate\"" 1
     cargo update -p wreq-proto --precise "$candidate"
+
+    cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check
+    cargo clippy --manifest-path vendor/wreq-proto/Cargo.toml \
+      --all-targets --all-features -- \
+      -D warnings \
+      -A clippy::question_mark \
+      -A clippy::result_large_err \
+      -A clippy::useless_borrows_in_formatting
+    cargo test --manifest-path vendor/wreq-proto/Cargo.toml \
+      --lib --all-features
     ;;
   btls)
     [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || die "invalid btls revision '$candidate'"

@@ -97,7 +97,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [btls, http2, quinn-proto, h3, tungstenite]
+        package: [btls, http2, quinn-proto, h3, tungstenite, wreq-proto]
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

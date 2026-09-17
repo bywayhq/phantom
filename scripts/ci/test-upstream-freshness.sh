@@ -327,6 +327,9 @@ case "$url" in
   https://codeload.github.com/hyperium/h3/tar.gz/*)
     command cat "${MOCK_H3_ARCHIVE:?}"
     ;;
+  https://static.crates.io/crates/wreq-proto/*)
+    command cat "${MOCK_WREQ_ARCHIVE:?}"
+    ;;
   https://static.crates.io/crates/http2/*)
     command cat "${MOCK_HTTP2_ARCHIVE:?}"
     ;;
@@ -466,6 +469,132 @@ if grep -F -q \
   exit 1
 fi
 [[ -z $(find "$darwin_tmp" -mindepth 1 -print -quit) ]]
+
+wreq_version=$(sed -nE 's/.*wreq-proto = "=([^"]+)".*/\1/p' \
+  crates/phantom-net/Cargo.toml)
+[[ -n "$wreq_version" ]]
+wreq_source_root="$test_root/wreq-source"
+mkdir -p "$wreq_source_root"
+copy_vendor_fixture vendor/wreq-proto \
+  "$wreq_source_root/wreq-proto-$wreq_version"
+wreq_patches=()
+while IFS= read -r patch; do
+  [[ -n "$patch" ]]
+  wreq_patches+=("$patch")
+done < vendor/wreq-proto/patches/series
+for ((index = ${#wreq_patches[@]} - 1; index >= 0; index--)); do
+  patch=${wreq_patches[$index]}
+  git -C "$wreq_source_root/wreq-proto-$wreq_version" apply --reverse \
+    "$repo_root/vendor/wreq-proto/patches/$patch"
+done
+rm -rf "$wreq_source_root/wreq-proto-$wreq_version/patches"
+rm "$wreq_source_root/wreq-proto-$wreq_version/PHANTOM.md"
+# Match the published crate's line endings so the mocked crates.io download
+# exercises the probe's archive-normalization step before patch replay.
+perl -0777 -Mopen=IO,:raw -pi -e 's/\r?\n/\r\n/g' \
+  "$wreq_source_root/wreq-proto-$wreq_version/src/error.rs" \
+  "$wreq_source_root/wreq-proto-$wreq_version/src/proto/http1.rs" \
+  "$wreq_source_root/wreq-proto-$wreq_version/src/conn/http1.rs" \
+  "$wreq_source_root/wreq-proto-$wreq_version/src/proto/http1/conn.rs" \
+  "$wreq_source_root/wreq-proto-$wreq_version/src/proto/http1/decode.rs"
+wreq_archive="$test_root/wreq-proto-$wreq_version.crate"
+tar -czf "$wreq_archive" -C "$wreq_source_root" \
+  "wreq-proto-$wreq_version"
+wreq_checksum=$(shasum -a 256 "$wreq_archive" | awk '{print $1}')
+
+wreq_drift_root="$test_root/wreq-drift-source"
+mkdir -p "$wreq_drift_root"
+cp -R "$wreq_source_root/wreq-proto-$wreq_version" \
+  "$wreq_drift_root/wreq-proto-$wreq_version"
+wreq_patch_target=$(sed -nE 's|^\+\+\+ b/(.+)$|\1|p' \
+  vendor/wreq-proto/patches/chunk-size-line-limit.patch | head -1)
+[[ -n "$wreq_patch_target" ]]
+: > "$wreq_drift_root/wreq-proto-$wreq_version/$wreq_patch_target"
+wreq_drift_archive="$test_root/wreq-proto-drift-$wreq_version.crate"
+tar -czf "$wreq_drift_archive" -C "$wreq_drift_root" \
+  "wreq-proto-$wreq_version"
+wreq_drift_checksum=$(shasum -a 256 "$wreq_drift_archive" | awk '{print $1}')
+
+wreq_checkout="$test_root/wreq-checkout"
+mkdir -p \
+  "$wreq_checkout/scripts/ci" \
+  "$wreq_checkout/vendor" \
+  "$wreq_checkout/crates/phantom-net"
+cp Cargo.toml Cargo.lock "$wreq_checkout/"
+cp crates/phantom-net/Cargo.toml "$wreq_checkout/crates/phantom-net/"
+copy_vendor_fixture vendor/wreq-proto "$wreq_checkout/vendor/wreq-proto"
+cp scripts/ci/probe-upstream-candidate.sh \
+  "$wreq_checkout/scripts/ci/probe-upstream-candidate.sh"
+git -C "$wreq_checkout" init --quiet
+git -C "$wreq_checkout" config user.name 'Phantom CI'
+git -C "$wreq_checkout" config user.email 'ci@invalid.example'
+git -C "$wreq_checkout" add .
+git -C "$wreq_checkout" commit --quiet -m fixture
+
+wreq_tmp="$test_root/wreq-tmp"
+mkdir -p "$wreq_tmp"
+if (
+  cd "$wreq_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$wreq_tmp" \
+    MOCK_WREQ_ARCHIVE="$wreq_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh wreq-proto "$wreq_version" \
+      0000000000000000000000000000000000000000000000000000000000000000
+) >"$test_root/wreq-checksum.stdout" 2>"$test_root/wreq-checksum.stderr"; then
+  echo "wreq-proto probe unexpectedly accepted the wrong archive checksum" >&2
+  exit 1
+fi
+grep -F -q 'checksum mismatch' "$test_root/wreq-checksum.stderr"
+[[ -z $(git -C "$wreq_checkout" status --porcelain) ]]
+[[ -z $(find "$wreq_tmp" -mindepth 1 -print -quit) ]]
+
+if (
+  cd "$wreq_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$wreq_tmp" \
+    MOCK_WREQ_ARCHIVE="$wreq_drift_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh wreq-proto "$wreq_version" \
+      "$wreq_drift_checksum"
+) >"$test_root/wreq-drift.stdout" 2>"$test_root/wreq-drift.stderr"; then
+  echo "drifted wreq-proto probe unexpectedly accepted the canonical patch" >&2
+  exit 1
+fi
+grep -F -q \
+  "wreq-proto patch chunk-size-line-limit.patch does not apply to candidate $wreq_version" \
+  "$test_root/wreq-drift.stderr"
+[[ -z $(git -C "$wreq_checkout" status --porcelain) ]]
+[[ -z $(find "$wreq_tmp" -mindepth 1 -print -quit) ]]
+
+wreq_command_log="$test_root/wreq-commands.log"
+(
+  cd "$wreq_checkout"
+  PATH="$mock_bin:$PATH" \
+    TMPDIR="$wreq_tmp" \
+    COMMAND_LOG="$wreq_command_log" \
+    MOCK_WREQ_ARCHIVE="$wreq_archive" \
+    PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
+    scripts/ci/probe-upstream-candidate.sh wreq-proto "$wreq_version" \
+      "$wreq_checksum"
+)
+grep -F -x -q \
+  "cargo update -p wreq-proto --precise $wreq_version" \
+  "$wreq_command_log"
+grep -F -x -q \
+  'cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check' \
+  "$wreq_command_log"
+grep -F -x -q \
+  'cargo clippy --manifest-path vendor/wreq-proto/Cargo.toml --all-targets --all-features -- -D warnings -A clippy::question_mark -A clippy::result_large_err -A clippy::useless_borrows_in_formatting' \
+  "$wreq_command_log"
+grep -F -x -q \
+  'cargo test --manifest-path vendor/wreq-proto/Cargo.toml --lib --all-features' \
+  "$wreq_command_log"
+grep -F -x -q 'cargo tree -i wreq-proto --locked' "$wreq_command_log"
+git -C "$wreq_checkout/vendor/wreq-proto" apply --reverse --check \
+  patches/chunk-size-line-limit.patch
+[[ -f "$wreq_checkout/vendor/wreq-proto/PHANTOM.md" ]]
+[[ -z $(find "$wreq_tmp" -mindepth 1 -print -quit) ]]
 
 http2_source_root="$test_root/http2-source"
 mkdir -p "$http2_source_root"

@@ -24,6 +24,7 @@ use wreq_proto::conn::http1;
 use super::{
     Http1Body, Http1Error, OperationOutcome, PreparedRequest,
     driver::{DriverSignal, DriverTask},
+    limits::connection_builder,
     response_head::ResponseHeadObserver,
 };
 
@@ -47,7 +48,7 @@ impl Http1Connection {
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
-        let (sender, connection) = http1::Builder::default()
+        let (sender, connection) = connection_builder()
             .handshake::<_, Full<Bytes>>(stream)
             .await?;
         Ok(Self {
@@ -144,9 +145,17 @@ impl Http1Connection {
                 Ok(response) => response,
                 Err(error) => {
                     in_flight.stop(DriverSignal::ProtocolError);
-                    return Err(Http1Error::Protocol(error.into_error()));
+                    return Err(self
+                        .inner
+                        .observer
+                        .take_limit_error()
+                        .unwrap_or_else(|| error.into_error().into()));
                 }
             };
+            if let Some(error) = self.inner.observer.take_limit_error() {
+                in_flight.stop(DriverSignal::ProtocolError);
+                return Err(error);
+            }
             in_flight.complete();
             drop(sender);
 
@@ -186,7 +195,12 @@ impl Http1Connection {
         .await;
         let terminal_outcome = match &result {
             Ok(_) => "ok",
-            Err(Http1Error::AmbiguousResponseFraming) => "invalid_response",
+            Err(
+                Http1Error::AmbiguousResponseFraming
+                | Http1Error::TooManyResponseHeaders { .. }
+                | Http1Error::ResponseHeadTooLarge { .. }
+                | Http1Error::ChunkSizeLineTooLarge { .. },
+            ) => "invalid_response",
             Err(Http1Error::Protocol(_) | Http1Error::ConnectionClosed) => "protocol_error",
             Err(_) => "request_error",
         };

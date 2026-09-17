@@ -12,6 +12,7 @@ exclude = [
     "vendor/http2",
     "vendor/quinn-proto",
     "vendor/tungstenite",
+    "vendor/wreq-proto",
 ]
 resolver = "3"
 
@@ -40,6 +41,7 @@ h3-quinn = { path = "vendor/h3/h3-quinn" }
 http2 = { path = "vendor/http2" }
 quinn-proto = { path = "vendor/quinn-proto" }
 tungstenite = { path = "vendor/tungstenite" }
+wreq-proto = { path = "vendor/wreq-proto" }
 
 [patch."https://github.com/0xARYA/btls"]
 btls = { path = "vendor/btls" }

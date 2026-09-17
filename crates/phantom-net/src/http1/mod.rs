@@ -41,6 +41,21 @@ pub enum Http1Error {
         /// Maximum accepted aggregate bytes.
         maximum: usize,
     },
+    /// The response contained more fields than the fixed safety bound.
+    TooManyResponseHeaders {
+        /// Maximum accepted number of response fields.
+        maximum: usize,
+    },
+    /// One response head exceeded the fixed wire-byte safety bound.
+    ResponseHeadTooLarge {
+        /// Maximum accepted bytes from the status line through the empty line.
+        maximum: usize,
+    },
+    /// One chunk-size line exceeded the fixed wire-byte safety bound.
+    ChunkSizeLineTooLarge {
+        /// Maximum accepted bytes in one chunk-size line.
+        maximum: usize,
+    },
     /// A request field name was not an HTTP token.
     InvalidHeaderName {
         /// Position in the ordered header list.
@@ -99,6 +114,20 @@ impl fmt::Display for Http1Error {
                 formatter,
                 "request field names and values total {bytes} bytes; maximum is {maximum}"
             ),
+            Self::TooManyResponseHeaders { maximum } => {
+                write!(
+                    formatter,
+                    "response has more than {maximum} header fields; connection discarded"
+                )
+            }
+            Self::ResponseHeadTooLarge { maximum } => write!(
+                formatter,
+                "response head exceeds {maximum} wire bytes; connection discarded"
+            ),
+            Self::ChunkSizeLineTooLarge { maximum } => write!(
+                formatter,
+                "response chunk-size line exceeds {maximum} wire bytes; connection discarded"
+            ),
             Self::InvalidHeaderName { index } => {
                 write!(
                     formatter,
@@ -155,7 +184,13 @@ impl StdError for Http1Error {
 
 impl From<wreq_proto::Error> for Http1Error {
     fn from(error: wreq_proto::Error) -> Self {
-        Self::Protocol(error)
+        if error.is_chunk_size_line_too_large() {
+            Self::ChunkSizeLineTooLarge {
+                maximum: limits::MAX_CHUNK_SIZE_LINE_BYTES,
+            }
+        } else {
+            Self::Protocol(error)
+        }
     }
 }
 
@@ -164,6 +199,9 @@ impl Http1Error {
         match self {
             Self::TooManyHeaders { .. } => "too_many_headers",
             Self::HeadersTooLarge { .. } => "headers_too_large",
+            Self::TooManyResponseHeaders { .. } => "too_many_response_headers",
+            Self::ResponseHeadTooLarge { .. } => "response_head_too_large",
+            Self::ChunkSizeLineTooLarge { .. } => "chunk_size_line_too_large",
             Self::InvalidHeaderName { .. } => "invalid_header_name",
             Self::InvalidHeaderValue { .. } => "invalid_header_value",
             Self::MissingHost => "missing_host",
@@ -316,6 +354,7 @@ mod tests;
 mod body;
 mod connection;
 mod driver;
+mod limits;
 mod request;
 mod response_head;
 mod tls;

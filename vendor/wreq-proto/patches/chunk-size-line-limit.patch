@@ -1,0 +1,643 @@
+diff --git a/src/conn/http1.rs b/src/conn/http1.rs
+index 4e7427b..8677512 100644
+--- a/src/conn/http1.rs
++++ b/src/conn/http1.rs
+@@ -282,6 +282,10 @@ impl Builder {
+             conn.set_http1_max_headers(max_headers);
+         }
+ 
++        if let Some(maximum) = self.opts.h1_max_chunk_size_line_bytes {
++            conn.set_http1_max_chunk_size_line_bytes(maximum);
++        }
++
+         // Enable HTTP/0.9 responses if requested
+         if self.opts.h09_responses {
+             conn.set_h09_responses();
+diff --git a/src/error.rs b/src/error.rs
+index 7c7bc17..28f6ab5 100644
+--- a/src/error.rs
++++ b/src/error.rs
+@@ -1,5 +1,5 @@
+ //! Error and Result module.
+-use std::{error::Error as StdError, fmt};
++use std::{error::Error as StdError, fmt, io};
+ 
+ /// Result type often returned from methods that can have crate::core: `Error`s.
+ pub type Result<T, E = Error> = std::result::Result<T, E>;
+@@ -103,6 +103,10 @@ pub(super) enum User {
+ #[derive(Debug)]
+ pub(super) struct TimedOut;
+ 
++// Sentinel type to distinguish the configured HTTP/1 chunk-size line limit.
++#[derive(Debug)]
++struct ChunkSizeLineTooLarge;
++
+ impl Error {
+     /// Returns true if this was an HTTP parse error.
+     #[inline]
+@@ -153,6 +157,16 @@ impl Error {
+         self.find_source::<TimedOut>().is_some()
+     }
+ 
++    /// Returns true if an HTTP/1 chunk-size metadata line exceeded its configured byte limit.
++    #[inline]
++    pub fn is_chunk_size_line_too_large(&self) -> bool {
++        self.find_source::<ChunkSizeLineTooLarge>().is_some()
++            || self
++                .find_source::<io::Error>()
++                .and_then(io::Error::get_ref)
++                .is_some_and(|source| source.is::<ChunkSizeLineTooLarge>())
++    }
++
+     #[inline]
+     pub(super) fn new(kind: Kind) -> Error {
+         Error {
+@@ -420,6 +434,20 @@ impl fmt::Display for TimedOut {
+ 
+ impl StdError for TimedOut {}
+ 
++// ===== impl ChunkSizeLineTooLarge =====
++
++impl fmt::Display for ChunkSizeLineTooLarge {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        f.write_str("HTTP/1 chunk-size line exceeded configured limit")
++    }
++}
++
++impl StdError for ChunkSizeLineTooLarge {}
++
++pub(crate) fn chunk_size_line_too_large() -> io::Error {
++    io::Error::new(io::ErrorKind::InvalidData, ChunkSizeLineTooLarge)
++}
++
+ #[cfg(test)]
+ mod tests {
+     use std::mem;
+@@ -457,4 +485,11 @@ mod tests {
+         let svc_err = Error::new_user_service(recvd);
+         assert_eq!(svc_err.h2_reason(), http2::Reason::HTTP_1_1_REQUIRED);
+     }
++
++    #[test]
++    fn chunk_size_line_limit_has_stable_discrimination() {
++        let error = Error::new_body(chunk_size_line_too_large());
++        assert!(error.is_chunk_size_line_too_large());
++        assert!(!Error::new_closed().is_chunk_size_line_too_large());
++    }
+ }
+diff --git a/src/proto/http1.rs b/src/proto/http1.rs
+index 848c582..88c2719 100644
+--- a/src/proto/http1.rs
++++ b/src/proto/http1.rs
+@@ -111,6 +111,9 @@ pub struct Http1Options {
+     /// Maximum number of headers allowed in HTTP/1 responses.
+     pub h1_max_headers: Option<usize>,
+ 
++    /// Maximum bytes allowed in each chunk-size metadata line, including its terminating CRLF.
++    pub h1_max_chunk_size_line_bytes: Option<usize>,
++
+     /// Exact size of the read buffer to use for HTTP/1 connections.
+     pub h1_read_buf_exact_size: Option<usize>,
+ 
+@@ -172,6 +175,16 @@ impl Http1OptionsBuilder {
+         self
+     }
+ 
++    /// Set the maximum byte length of each HTTP/1 chunk-size metadata line.
++    ///
++    /// The count starts at the first size digit and includes whitespace, extensions, and the
++    /// terminating CRLF. By default no per-line limit is applied.
++    #[inline]
++    pub fn max_chunk_size_line_bytes(mut self, maximum: usize) -> Self {
++        self.opts.h1_max_chunk_size_line_bytes = Some(maximum);
++        self
++    }
++
+     /// Sets the exact size of the read buffer to *always* use.
+     ///
+     /// Note that setting this option unsets the `max_buf_size` option.
+@@ -264,3 +277,20 @@ impl Http1Options {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::Http1Options;
++
++    #[test]
++    fn chunk_size_line_limit_is_opt_in() {
++        assert_eq!(Http1Options::default().h1_max_chunk_size_line_bytes, None);
++        assert_eq!(
++            Http1Options::builder()
++                .max_chunk_size_line_bytes(4096)
++                .build()
++                .h1_max_chunk_size_line_bytes,
++            Some(4096)
++        );
++    }
++}
+diff --git a/src/proto/http1/conn.rs b/src/proto/http1/conn.rs
+index f4bf545..47f7f32 100644
+--- a/src/proto/http1/conn.rs
++++ b/src/proto/http1/conn.rs
+@@ -56,6 +56,7 @@ where
+                 method: None,
+                 h1_parser_config: ParserConfig::default(),
+                 h1_max_headers: None,
++                h1_max_chunk_size_line_bytes: None,
+                 h09_responses: false,
+                 on_informational: None,
+                 notify_read: false,
+@@ -106,6 +107,11 @@ where
+         self.state.h1_max_headers = Some(val);
+     }
+ 
++    #[inline]
++    pub(crate) fn set_http1_max_chunk_size_line_bytes(&mut self, val: usize) {
++        self.state.h1_max_chunk_size_line_bytes = Some(val);
++    }
++
+     #[inline]
+     pub(super) fn into_inner(self) -> (I, Bytes) {
+         self.io.into_inner()
+@@ -215,6 +221,7 @@ where
+                 msg.decode,
+                 self.state.h1_max_headers,
+                 h1_max_header_size,
++                self.state.h1_max_chunk_size_line_bytes,
+             ));
+             wants = wants.add(Wants::EXPECT);
+         } else {
+@@ -224,6 +231,7 @@ where
+                 msg.decode,
+                 self.state.h1_max_headers,
+                 h1_max_header_size,
++                self.state.h1_max_chunk_size_line_bytes,
+             ));
+         }
+ 
+@@ -807,6 +815,7 @@ struct State {
+     method: Option<Method>,
+     h1_parser_config: ParserConfig,
+     h1_max_headers: Option<usize>,
++    h1_max_chunk_size_line_bytes: Option<usize>,
+     h09_responses: bool,
+     /// If set, called with each 1xx informational response received for
+     /// the current request. MUST be unset after a non-1xx response is
+diff --git a/src/proto/http1/decode.rs b/src/proto/http1/decode.rs
+index b1edb74..b79badd 100644
+--- a/src/proto/http1/decode.rs
++++ b/src/proto/http1/decode.rs
+@@ -10,6 +10,7 @@ use http_body::Frame;
+ 
+ use self::Kind::{Chunked, Eof, Length};
+ use super::{io::MemRead, role::DEFAULT_MAX_HEADERS, DecodedLength};
++use crate::error::chunk_size_line_too_large;
+ 
+ /// Maximum amount of bytes allowed in chunked extensions.
+ ///
+@@ -38,11 +39,13 @@ enum Kind {
+     Chunked {
+         state: ChunkedState,
+         chunk_len: u64,
++        chunk_size_line_bytes: usize,
+         extensions_cnt: u64,
+         trailers_buf: Option<BytesMut>,
+         trailers_cnt: usize,
+         h1_max_headers: Option<usize>,
+         h1_max_header_size: Option<usize>,
++        h1_max_chunk_size_line_bytes: Option<usize>,
+     },
+     /// A Reader used for responses that don't indicate a length or chunked.
+     ///
+@@ -82,12 +85,14 @@ enum ChunkedState {
+ 
+ struct StepArgs<'a> {
+     chunk_size: &'a mut u64,
++    chunk_size_line_bytes: &'a mut usize,
+     chunk_buf: &'a mut Option<Bytes>,
+     extensions_cnt: &'a mut u64,
+     trailers_buf: &'a mut Option<BytesMut>,
+     trailers_cnt: &'a mut usize,
+     max_headers_cnt: usize,
+     max_headers_bytes: usize,
++    max_chunk_size_line_bytes: Option<usize>,
+ }
+ 
+ // ===== impl Decoder =====
+@@ -108,16 +113,22 @@ impl Decoder {
+     }
+ 
+     #[inline]
+-    fn chunked(h1_max_headers: Option<usize>, h1_max_header_size: Option<usize>) -> Decoder {
++    fn chunked(
++        h1_max_headers: Option<usize>,
++        h1_max_header_size: Option<usize>,
++        h1_max_chunk_size_line_bytes: Option<usize>,
++    ) -> Decoder {
+         Decoder {
+             kind: Kind::Chunked {
+                 state: ChunkedState::new(),
+                 chunk_len: 0,
++                chunk_size_line_bytes: 0,
+                 extensions_cnt: 0,
+                 trailers_buf: None,
+                 trailers_cnt: 0,
+                 h1_max_headers,
+                 h1_max_header_size,
++                h1_max_chunk_size_line_bytes,
+             },
+         }
+     }
+@@ -126,9 +137,14 @@ impl Decoder {
+         len: DecodedLength,
+         h1_max_headers: Option<usize>,
+         h1_max_header_size: Option<usize>,
++        h1_max_chunk_size_line_bytes: Option<usize>,
+     ) -> Self {
+         match len {
+-            DecodedLength::CHUNKED => Decoder::chunked(h1_max_headers, h1_max_header_size),
++            DecodedLength::CHUNKED => Decoder::chunked(
++                h1_max_headers,
++                h1_max_header_size,
++                h1_max_chunk_size_line_bytes,
++            ),
+             DecodedLength::CLOSE_DELIMITED => Decoder::eof(),
+             length => Decoder::length(length.danger_len()),
+         }
+@@ -177,11 +193,13 @@ impl Decoder {
+             Chunked {
+                 ref mut state,
+                 ref mut chunk_len,
++                ref mut chunk_size_line_bytes,
+                 ref mut extensions_cnt,
+                 ref mut trailers_buf,
+                 ref mut trailers_cnt,
+                 ref h1_max_headers,
+                 ref h1_max_header_size,
++                h1_max_chunk_size_line_bytes,
+             } => {
+                 let h1_max_headers = h1_max_headers.unwrap_or(DEFAULT_MAX_HEADERS);
+                 let h1_max_header_size = h1_max_header_size.unwrap_or(TRAILER_LIMIT);
+@@ -193,12 +211,14 @@ impl Decoder {
+                         body,
+                         StepArgs {
+                             chunk_size: chunk_len,
++                            chunk_size_line_bytes,
+                             extensions_cnt,
+                             chunk_buf: &mut buf,
+                             trailers_buf,
+                             trailers_cnt,
+                             max_headers_cnt: h1_max_headers,
+                             max_headers_bytes: h1_max_header_size,
++                            max_chunk_size_line_bytes: h1_max_chunk_size_line_bytes,
+                         }
+                     ))?;
+                     if *state == ChunkedState::End {
+@@ -315,11 +335,40 @@ impl ChunkedState {
+     ) -> Poll<Result<ChunkedState, io::Error>> {
+         use self::ChunkedState::*;
+         match *self {
+-            Start => ChunkedState::read_start(cx, body, step.chunk_size),
+-            Size => ChunkedState::read_size(cx, body, step.chunk_size),
+-            SizeLws => ChunkedState::read_size_lws(cx, body),
+-            Extension => ChunkedState::read_extension(cx, body, step.extensions_cnt),
+-            SizeLf => ChunkedState::read_size_lf(cx, body, *step.chunk_size),
++            Start => ChunkedState::read_start(
++                cx,
++                body,
++                step.chunk_size,
++                step.chunk_size_line_bytes,
++                step.max_chunk_size_line_bytes,
++            ),
++            Size => ChunkedState::read_size(
++                cx,
++                body,
++                step.chunk_size,
++                step.chunk_size_line_bytes,
++                step.max_chunk_size_line_bytes,
++            ),
++            SizeLws => ChunkedState::read_size_lws(
++                cx,
++                body,
++                step.chunk_size_line_bytes,
++                step.max_chunk_size_line_bytes,
++            ),
++            Extension => ChunkedState::read_extension(
++                cx,
++                body,
++                step.extensions_cnt,
++                step.chunk_size_line_bytes,
++                step.max_chunk_size_line_bytes,
++            ),
++            SizeLf => ChunkedState::read_size_lf(
++                cx,
++                body,
++                *step.chunk_size,
++                step.chunk_size_line_bytes,
++                step.max_chunk_size_line_bytes,
++            ),
+             Body => ChunkedState::read_body(cx, body, step.chunk_size, step.chunk_buf),
+             BodyCr => ChunkedState::read_body_cr(cx, body),
+             BodyLf => ChunkedState::read_body_lf(cx, body),
+@@ -340,15 +389,38 @@ impl ChunkedState {
+         }
+     }
+ 
++    fn read_chunk_size_line_byte<R: MemRead>(
++        cx: &mut Context<'_>,
++        rdr: &mut R,
++        line_bytes: &mut usize,
++        maximum: Option<usize>,
++    ) -> Poll<Result<u8, io::Error>> {
++        let byte = byte!(rdr, cx);
++        if let Some(maximum) = maximum {
++            *line_bytes = line_bytes
++                .checked_add(1)
++                .ok_or_else(chunk_size_line_too_large)?;
++            if *line_bytes > maximum {
++                return Poll::Ready(Err(chunk_size_line_too_large()));
++            }
++        }
++        Poll::Ready(Ok(byte))
++    }
++
+     fn read_start<R: MemRead>(
+         cx: &mut Context<'_>,
+         rdr: &mut R,
+         size: &mut u64,
++        line_bytes: &mut usize,
++        maximum: Option<usize>,
+     ) -> Poll<Result<ChunkedState, io::Error>> {
+         trace!("Read chunk start");
+ 
++        *line_bytes = 0;
+         let radix = 16;
+-        match byte!(rdr, cx) {
++        match ready!(Self::read_chunk_size_line_byte(
++            cx, rdr, line_bytes, maximum
++        ))? {
+             b @ b'0'..=b'9' => {
+                 *size = or_overflow!(size.checked_mul(radix));
+                 *size = or_overflow!(size.checked_add((b - b'0') as u64));
+@@ -376,11 +448,15 @@ impl ChunkedState {
+         cx: &mut Context<'_>,
+         rdr: &mut R,
+         size: &mut u64,
++        line_bytes: &mut usize,
++        maximum: Option<usize>,
+     ) -> Poll<Result<ChunkedState, io::Error>> {
+         trace!("Read chunk hex size");
+ 
+         let radix = 16;
+-        match byte!(rdr, cx) {
++        match ready!(Self::read_chunk_size_line_byte(
++            cx, rdr, line_bytes, maximum
++        ))? {
+             b @ b'0'..=b'9' => {
+                 *size = or_overflow!(size.checked_mul(radix));
+                 *size = or_overflow!(size.checked_add((b - b'0') as u64));
+@@ -408,9 +484,13 @@ impl ChunkedState {
+     fn read_size_lws<R: MemRead>(
+         cx: &mut Context<'_>,
+         rdr: &mut R,
++        line_bytes: &mut usize,
++        maximum: Option<usize>,
+     ) -> Poll<Result<ChunkedState, io::Error>> {
+         trace!("read_size_lws");
+-        match byte!(rdr, cx) {
++        match ready!(Self::read_chunk_size_line_byte(
++            cx, rdr, line_bytes, maximum
++        ))? {
+             // LWS can follow the chunk size, but no more digits can come
+             b'\t' | b' ' => Poll::Ready(Ok(ChunkedState::SizeLws)),
+             b';' => Poll::Ready(Ok(ChunkedState::Extension)),
+@@ -425,6 +505,8 @@ impl ChunkedState {
+         cx: &mut Context<'_>,
+         rdr: &mut R,
+         extensions_cnt: &mut u64,
++        line_bytes: &mut usize,
++        maximum: Option<usize>,
+     ) -> Poll<Result<ChunkedState, io::Error>> {
+         trace!("read_extension");
+         // We don't care about extensions really at all. Just ignore them.
+@@ -433,7 +515,9 @@ impl ChunkedState {
+         // However, some implementations may not check for the CR, so to save
+         // them from themselves, we reject extensions containing plain LF as
+         // well.
+-        match byte!(rdr, cx) {
++        match ready!(Self::read_chunk_size_line_byte(
++            cx, rdr, line_bytes, maximum
++        ))? {
+             b'\r' => Poll::Ready(Ok(ChunkedState::SizeLf)),
+             b'\n' => Poll::Ready(Err(io::Error::new(
+                 io::ErrorKind::InvalidData,
+@@ -456,9 +540,13 @@ impl ChunkedState {
+         cx: &mut Context<'_>,
+         rdr: &mut R,
+         size: u64,
++        line_bytes: &mut usize,
++        maximum: Option<usize>,
+     ) -> Poll<Result<ChunkedState, io::Error>> {
+         trace!("Chunk size is {:?}", size);
+-        match byte!(rdr, cx) {
++        match ready!(Self::read_chunk_size_line_byte(
++            cx, rdr, line_bytes, maximum
++        ))? {
+             b'\n' => {
+                 if size == 0 {
+                     Poll::Ready(Ok(ChunkedState::EndCr))
+@@ -738,6 +826,7 @@ mod tests {
+             let mut state = ChunkedState::new();
+             let rdr = &mut s.as_bytes();
+             let mut size = 0;
++            let mut line_bytes = 0;
+             let mut ext_cnt = 0;
+             let mut trailers_cnt = 0;
+             loop {
+@@ -747,12 +836,14 @@ mod tests {
+                         rdr,
+                         StepArgs {
+                             chunk_size: &mut size,
++                            chunk_size_line_bytes: &mut line_bytes,
+                             extensions_cnt: &mut ext_cnt,
+                             chunk_buf: &mut None,
+                             trailers_buf: &mut None,
+                             trailers_cnt: &mut trailers_cnt,
+                             max_headers_cnt: DEFAULT_MAX_HEADERS,
+                             max_headers_bytes: TRAILER_LIMIT,
++                            max_chunk_size_line_bytes: None,
+                         },
+                     )
+                 })
+@@ -770,6 +861,7 @@ mod tests {
+             let mut state = ChunkedState::new();
+             let rdr = &mut s.as_bytes();
+             let mut size = 0;
++            let mut line_bytes = 0;
+             let mut ext_cnt = 0;
+             let mut trailers_cnt = 0;
+             loop {
+@@ -779,12 +871,14 @@ mod tests {
+                         rdr,
+                         StepArgs {
+                             chunk_size: &mut size,
++                            chunk_size_line_bytes: &mut line_bytes,
+                             extensions_cnt: &mut ext_cnt,
+                             chunk_buf: &mut None,
+                             trailers_buf: &mut None,
+                             trailers_cnt: &mut trailers_cnt,
+                             max_headers_cnt: DEFAULT_MAX_HEADERS,
+                             max_headers_bytes: TRAILER_LIMIT,
++                            max_chunk_size_line_bytes: None,
+                         },
+                     )
+                 })
+@@ -869,7 +963,7 @@ mod tests {
+             9\r\n\
+             foo bar\
+         "[..];
+-        let mut decoder = Decoder::chunked(None, None);
++        let mut decoder = Decoder::chunked(None, None, None);
+         assert_eq!(
+             decoder
+                 .decode_fut(&mut bytes)
+@@ -884,10 +978,64 @@ mod tests {
+         assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
+     }
+ 
++    #[tokio::test]
++    async fn chunk_size_line_limit_is_inclusive_and_opt_in() {
++        let mut exact = &b"0\r\n\r\n"[..];
++        let frame = Decoder::chunked(None, None, Some(3))
++            .decode_fut(&mut exact)
++            .await
++            .expect("three-byte chunk-size line should be accepted");
++        assert_eq!(frame.data_ref().map(Bytes::len), Some(0));
++
++        let mut over = &b"00\r\n\r\n"[..];
++        let error = Decoder::chunked(None, None, Some(3))
++            .decode_fut(&mut over)
++            .await
++            .expect_err("four-byte chunk-size line should be rejected");
++        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
++        assert_eq!(
++            error.to_string(),
++            "HTTP/1 chunk-size line exceeded configured limit"
++        );
++
++        let mut unlimited = vec![b'0'; 1024];
++        unlimited.extend_from_slice(b"\r\n\r\n");
++        Decoder::chunked(None, None, None)
++            .decode_fut(&mut Bytes::from(unlimited))
++            .await
++            .expect("unset per-line limit should preserve existing behavior");
++    }
++
++    #[tokio::test]
++    async fn chunk_size_line_limit_counts_metadata_and_resets_per_chunk() {
++        for line in [&b"1 \r\n"[..], &b"1;x\r\n"[..]] {
++            let mut input = Bytes::copy_from_slice(line);
++            let error = Decoder::chunked(None, None, Some(line.len() - 1))
++                .decode_fut(&mut input)
++                .await
++                .expect_err("all chunk-size metadata bytes should count");
++            assert_eq!(error.kind(), io::ErrorKind::InvalidData);
++        }
++
++        let mut input = &b"1;x\r\nA\r\n1;y\r\nB\r\n0\r\n\r\n"[..];
++        let mut decoder = Decoder::chunked(None, None, Some(5));
++        for expected in *b"AB" {
++            let frame = decoder
++                .decode_fut(&mut input)
++                .await
++                .expect("each chunk-size line should get a fresh byte budget");
++            assert_eq!(frame.data_ref().map(|bytes| bytes[0]), Some(expected));
++        }
++        decoder
++            .decode_fut(&mut input)
++            .await
++            .expect("terminal chunk-size line should get a fresh byte budget");
++    }
++
+     #[tokio::test]
+     async fn test_read_chunked_single_read() {
+         let mut mock_buf = &b"10\r\n1234567890abcdef\r\n0\r\n"[..];
+-        let buf = Decoder::chunked(None, None)
++        let buf = Decoder::chunked(None, None, None)
+             .decode_fut(&mut mock_buf)
+             .await
+             .expect("decode")
+@@ -902,7 +1050,7 @@ mod tests {
+     async fn test_read_chunked_with_missing_zero_digit() {
+         // After reading a valid chunk, the ending is missing a zero.
+         let mut mock_buf = &b"1\r\nZ\r\n\r\n\r\n"[..];
+-        let mut decoder = Decoder::chunked(None, None);
++        let mut decoder = Decoder::chunked(None, None, None);
+         let buf = decoder
+             .decode_fut(&mut mock_buf)
+             .await
+@@ -932,7 +1080,7 @@ mod tests {
+         scratch.extend(b"0\r\n\r\n");
+         let mut mock_buf = Bytes::from(scratch);
+ 
+-        let mut decoder = Decoder::chunked(None, None);
++        let mut decoder = Decoder::chunked(None, None, None);
+         let buf1 = decoder
+             .decode_fut(&mut mock_buf)
+             .await
+@@ -952,7 +1100,7 @@ mod tests {
+     #[tokio::test]
+     async fn test_read_chunked_trailer_with_missing_lf() {
+         let mut mock_buf = &b"10\r\n1234567890abcdef\r\n0\r\nbad\r\r\n"[..];
+-        let mut decoder = Decoder::chunked(None, None);
++        let mut decoder = Decoder::chunked(None, None, None);
+         decoder.decode_fut(&mut mock_buf).await.expect("decode");
+         let e = decoder.decode_fut(&mut mock_buf).await.unwrap_err();
+         assert_eq!(e.kind(), io::ErrorKind::InvalidInput);
+@@ -961,7 +1109,7 @@ mod tests {
+     #[tokio::test]
+     async fn test_read_chunked_after_eof() {
+         let mut mock_buf = &b"10\r\n1234567890abcdef\r\n0\r\n\r\n"[..];
+-        let mut decoder = Decoder::chunked(None, None);
++        let mut decoder = Decoder::chunked(None, None, None);
+ 
+         // normal read
+         let buf = decoder
+@@ -1049,7 +1197,7 @@ mod tests {
+     async fn test_read_chunked_async() {
+         let content = "3\r\nfoo\r\n3\r\nbar\r\n0\r\n\r\n";
+         let expected = "foobar";
+-        all_async_cases(content, expected, Decoder::chunked(None, None)).await;
++        all_async_cases(content, expected, Decoder::chunked(None, None, None)).await;
+     }
+ 
+     #[tokio::test]
+@@ -1084,7 +1232,7 @@ mod tests {
+         scratch.extend(b"\r\n");
+         let mut mock_buf = Bytes::from(scratch);
+ 
+-        let mut decoder = Decoder::chunked(Some(h1_max_headers), None);
++        let mut decoder = Decoder::chunked(Some(h1_max_headers), None, None);
+ 
+         // ready chunked body
+         let buf = decoder
+@@ -1112,7 +1260,7 @@ mod tests {
+         scratch.extend(b"\r\n");
+         let mut mock_buf = Bytes::from(scratch);
+ 
+-        let mut decoder = Decoder::chunked(None, Some(max_header_size));
++        let mut decoder = Decoder::chunked(None, Some(max_header_size), None);
+ 
+         // ready chunked body
+         let buf = decoder
+@@ -1145,7 +1293,7 @@ mod tests {
+         scratch.extend(b"\r\n");
+         let mut mock_buf = Bytes::from(scratch);
+ 
+-        let mut decoder = Decoder::chunked(None, Some(max_headers * header_size));
++        let mut decoder = Decoder::chunked(None, Some(max_headers * header_size), None);
+ 
+         // ready chunked body
+         let buf = decoder

@@ -153,8 +153,12 @@ impl Body for Http1Body {
                 Poll::Ready(Some(Err(error))) => {
                     self.finished = true;
                     self.stop(DriverSignal::ProtocolError);
-                    self.trace.finish("protocol_error");
-                    Poll::Ready(Some(Err(Http1Error::Protocol(error))))
+                    let error = Http1Error::from(error);
+                    self.trace.finish(match &error {
+                        Http1Error::ChunkSizeLineTooLarge { .. } => "invalid_response",
+                        _ => "protocol_error",
+                    });
+                    Poll::Ready(Some(Err(error)))
                 }
                 Poll::Ready(None) => {
                     self.finished = true;

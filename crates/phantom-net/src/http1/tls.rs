@@ -1183,7 +1183,11 @@ impl Http1TlsConnector {
                 "http_protocol_error"
             }
             Err(Http1TlsError::Http1(
-                Http1Error::AmbiguousResponseFraming | Http1Error::UnexpectedUpgrade,
+                Http1Error::AmbiguousResponseFraming
+                | Http1Error::UnexpectedUpgrade
+                | Http1Error::TooManyResponseHeaders { .. }
+                | Http1Error::ResponseHeadTooLarge { .. }
+                | Http1Error::ChunkSizeLineTooLarge { .. },
             )) => "invalid_response",
             Err(Http1TlsError::Http1(Http1Error::MissingResponseHeaderOrder)) => {
                 "http_protocol_error"
@@ -1221,7 +1225,11 @@ impl Http1TlsConnector {
                 "http_protocol_error"
             }
             Err(Http1TlsError::Http1(
-                Http1Error::AmbiguousResponseFraming | Http1Error::UnexpectedUpgrade,
+                Http1Error::AmbiguousResponseFraming
+                | Http1Error::UnexpectedUpgrade
+                | Http1Error::TooManyResponseHeaders { .. }
+                | Http1Error::ResponseHeadTooLarge { .. }
+                | Http1Error::ChunkSizeLineTooLarge { .. },
             )) => "invalid_response",
             Err(Http1TlsError::Http1(Http1Error::MissingResponseHeaderOrder)) => {
                 "http_protocol_error"

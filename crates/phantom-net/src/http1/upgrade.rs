@@ -14,11 +14,12 @@ use http::{
 use http_body_util::Empty;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::{Instrument, Span, debug, debug_span, field};
-use wreq_proto::{conn::http1, upgrade};
+use wreq_proto::upgrade;
 
 use super::{
     Http1Body, Http1Error, OperationOutcome, PreparedGet,
     driver::{DriverSignal, DriverTask},
+    limits::connection_builder,
     response_head::ResponseHeadObserver,
 };
 
@@ -117,16 +118,25 @@ where
         debug!("HTTP/1 Upgrade transaction started");
         let (stream, observed_headers) = ResponseHeadObserver::wrap(stream);
         observed_headers.begin();
-        let (mut sender, connection) = http1::Builder::default()
+        let (mut sender, connection) = connection_builder()
             .handshake::<_, Empty<Bytes>>(stream)
             .await?;
         let driver = DriverTask::spawn(connection.with_upgrades());
 
         sender.ready().await?;
-        let mut response = sender
-            .try_send_request(prepared.into_request())
-            .await
-            .map_err(|error| Http1Error::Protocol(error.into_error()))?;
+        let mut response = match sender.try_send_request(prepared.into_request()).await {
+            Ok(response) => response,
+            Err(error) => {
+                driver.finish(DriverSignal::ProtocolError);
+                return Err(observed_headers
+                    .take_limit_error()
+                    .unwrap_or_else(|| error.into_error().into()));
+            }
+        };
+        if let Some(error) = observed_headers.take_limit_error() {
+            driver.finish(DriverSignal::ProtocolError);
+            return Err(error);
+        }
         drop(sender);
 
         Span::current().record("status", response.status().as_u16());
@@ -165,7 +175,12 @@ where
         Ok(Http1UpgradeOutcome::Upgraded(_)) => "upgraded",
         Ok(Http1UpgradeOutcome::Rejected(_)) => "rejected",
         Err(Http1Error::Protocol(_)) => "protocol_error",
-        Err(Http1Error::AmbiguousResponseFraming) => "invalid_response",
+        Err(
+            Http1Error::AmbiguousResponseFraming
+            | Http1Error::TooManyResponseHeaders { .. }
+            | Http1Error::ResponseHeadTooLarge { .. }
+            | Http1Error::ChunkSizeLineTooLarge { .. },
+        ) => "invalid_response",
         Err(_) => "request_error",
     });
     result
