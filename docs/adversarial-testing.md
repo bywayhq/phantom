@@ -162,9 +162,9 @@ bounded 421 replay regression.
   DATA-activity idle deadlines, terminal timeout, and 204 termination. Broader
   retained browser and H2/H3 reconnect matrices remain future work.
 - WebSocket covers fragmented UTF-8 with interleaved Ping/Pong, simultaneous
-  Close, RSV misuse, and invalid control frames. The current handshake rejects
-  extensions; `permessage-deflate` and compression context-takeover coverage
-  remain future work.
+  Close, RSV misuse, invalid control frames, bounded empty-fragment floods, and
+  terminal transport release after a fragment-count violation. Typed opt-in
+  `permessage-deflate` covers context takeover and decompression bounds.
 
 Renderer behavior is out of scope for the raw transport client. For example,
 preloading a `Link` from a 103 response and synthesizing `Sec-Fetch-*` require

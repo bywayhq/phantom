@@ -19,7 +19,9 @@ TLS connectors, and public types are not exposed. The pinned engine carries a
 replayable narrow patch so dependency logs never contain frames or messages and
 client mask entropy failure is returned as a typed error instead of panicking.
 The ordered patch series also carries the compression frame state machine;
-Phantom continues to own the exact opening fields and response boundary.
+its final default-preserving patch adds the fragment-count seam used by
+Phantom. Phantom continues to own the exact opening fields and response
+boundary.
 
 ```rust,no_run
 use futures_util::{SinkExt, StreamExt};
@@ -73,7 +75,15 @@ ordered fields.
 frames are reassembled by the engine. Client frames are masked. Incoming Ping
 and Close replies are flushed before the event is yielded. The default limits
 are 16 MiB per frame and 64 MiB per reassembled message, with a bounded write
-buffer; callers can provide a validated `WebSocketLimits` value.
+buffer. One message may contain at most 131,072 data frames by default. The
+initial text or binary frame and every continuation count, including empty
+fragments; interleaved control frames do not. Callers can replace all three
+receive bounds through a validated `WebSocketLimits` value.
+
+Fragment-count overflow is rejected before decompression or reassembly, returns
+`WebSocketErrorKind::Capacity`, and closes the transport. This prevents a peer
+from replacing a byte-size attack with unbounded work over tiny or empty
+frames.
 
 `receive` is cancellation-safe. A cancelled send has normal asynchronous-write
 ambiguity and must not be retried blindly. `WebSocket` implements standard

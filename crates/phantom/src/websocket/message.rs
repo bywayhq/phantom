@@ -12,17 +12,25 @@ const CONTROL_PAYLOAD_MAX: usize = 125;
 const CLOSE_REASON_MAX: usize = 123;
 pub(super) const WRITE_BUFFER_SIZE: usize = 128 * 1024;
 const FRAME_OVERHEAD_MAX: usize = 14;
+const DEFAULT_MAX_MESSAGE_FRAGMENTS: NonZeroUsize = match NonZeroUsize::new(128 * 1024) {
+    Some(value) => value,
+    None => NonZeroUsize::MIN,
+};
 
-/// Bounds applied to one WebSocket connection.
+/// Frame, message, fragment-count, and write-buffer bounds for one connection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WebSocketLimits {
     max_frame_size: NonZeroUsize,
     max_message_size: NonZeroUsize,
+    max_message_fragments: NonZeroUsize,
     max_write_buffer_size: usize,
 }
 
 impl WebSocketLimits {
     /// Creates validated frame and reassembled-message bounds.
+    ///
+    /// The fragment-count bound starts at 131,072 data frames per message and
+    /// can be replaced with [`Self::with_max_message_fragments`].
     ///
     /// # Errors
     ///
@@ -47,8 +55,19 @@ impl WebSocketLimits {
         Ok(Self {
             max_frame_size,
             max_message_size,
+            max_message_fragments: DEFAULT_MAX_MESSAGE_FRAGMENTS,
             max_write_buffer_size,
         })
+    }
+
+    /// Sets the maximum number of data frames accepted for one message.
+    ///
+    /// The initial text or binary frame and every continuation frame count;
+    /// interleaved Ping, Pong, and Close frames do not.
+    #[must_use]
+    pub const fn with_max_message_fragments(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_message_fragments = maximum;
+        self
     }
 
     /// Returns the maximum accepted frame payload size.
@@ -61,6 +80,12 @@ impl WebSocketLimits {
     #[must_use]
     pub fn max_message_size(self) -> NonZeroUsize {
         self.max_message_size
+    }
+
+    /// Returns the maximum number of data frames accepted for one message.
+    #[must_use]
+    pub const fn max_message_fragments(self) -> NonZeroUsize {
+        self.max_message_fragments
     }
 
     pub(super) fn max_write_buffer_size(self) -> usize {
@@ -81,6 +106,7 @@ impl Default for WebSocketLimits {
         Self {
             max_frame_size: FRAME,
             max_message_size: MESSAGE,
+            max_message_fragments: DEFAULT_MAX_MESSAGE_FRAGMENTS,
             max_write_buffer_size: MESSAGE.get() + WRITE_BUFFER_SIZE + FRAME_OVERHEAD_MAX,
         }
     }

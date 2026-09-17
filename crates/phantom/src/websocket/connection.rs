@@ -78,6 +78,7 @@ impl WebSocket {
             .max_write_buffer_size(limits.max_write_buffer_size())
             .max_message_size(Some(limits.max_message_size().get()))
             .max_frame_size(Some(limits.max_frame_size().get()))
+            .max_message_fragments(Some(limits.max_message_fragments().get()))
             .accept_unmasked_frames(false)
     }
 

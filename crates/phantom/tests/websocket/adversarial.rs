@@ -214,6 +214,67 @@ async fn invalid_utf8_error_does_not_disclose_fragment_bytes() -> TestResult<()>
     .await
 }
 
+#[tokio::test]
+async fn fragment_count_limit_ignores_control_frames_and_closes_transport() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_tls(listener, acceptor).await?;
+            write_handshake_response(&mut stream).await?;
+            let mut frames = Vec::new();
+            append_server_frame(&mut frames, false, 0x1, &[]);
+            append_server_frame(&mut frames, true, 0x9, b"still-alive");
+            append_server_frame(&mut frames, false, 0x0, &[]);
+            append_server_frame(&mut frames, true, 0x0, &[]);
+            stream.write_all(&frames).await?;
+            stream.flush().await?;
+
+            let pong = read_client_frame(&mut stream).await?;
+            let mut byte = [0_u8; 1];
+            let closed = match timeout(TEST_TIMEOUT, stream.read(&mut byte)).await {
+                Ok(Ok(0) | Err(_)) => true,
+                Ok(Ok(_)) | Err(_) => false,
+            };
+            Ok::<_, Box<dyn Error + Send + Sync>>((pong, closed))
+        });
+
+        let maximum = NonZeroUsize::new(2).ok_or("nonzero construction failed")?;
+        let limits = WebSocketLimits::default().with_max_message_fragments(maximum);
+        assert_eq!(limits.max_message_fragments(), maximum);
+        let client = test_client(&identity, false)?;
+        let mut socket = client
+            .websocket(&format!("wss://{address}/"))?
+            .limits(limits)
+            .connect()
+            .await?;
+
+        assert_eq!(
+            socket.receive().await?,
+            WebSocketMessage::Ping(Bytes::from_static(b"still-alive"))
+        );
+        let error = match socket.receive().await {
+            Ok(_) => return Err("excessively fragmented message was accepted".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), WebSocketErrorKind::Capacity);
+        let closed_error = match socket.receive().await {
+            Ok(_) => return Err("receive succeeded after fragment-limit failure".into()),
+            Err(error) => error,
+        };
+        assert_eq!(closed_error.kind(), WebSocketErrorKind::Closed);
+
+        let (pong, closed) = server.await??;
+        assert_eq!(pong.opcode, 0xA);
+        assert_eq!(pong.payload, b"still-alive");
+        assert!(closed, "fragment-limit failure retained the transport");
+        Ok(())
+    })
+    .await
+}
+
 async fn write_handshake_response(
     stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
 ) -> TestResult<()> {

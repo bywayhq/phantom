@@ -472,9 +472,11 @@ ordinary response when the server rejects the Upgrade, strictly validates the
 message types through both methods and standard `Stream`/`Sink` traits.
 Sessions contribute cookies without retaining the exclusive upgraded socket.
 The framing engine is `tokio-tungstenite` with its HTTP/TLS handshake disabled.
-Typed opt-in `permessage-deflate` is supported. Other extensions, reconnect
-policy, RFC 8441, H3 extended CONNECT, and named browser WebSocket recipes wait
-for retained wire evidence.
+Typed opt-in `permessage-deflate` is supported. A default-on, caller-adjustable
+data-fragment count now stops tiny or empty fragment floods before decompression
+or reassembly and closes the offending transport. Other extensions, reconnect
+policy, message-idle policy, RFC 8441, H3 extended CONNECT, and named browser
+WebSocket recipes wait for retained wire evidence.
 
 ## Phase 8: production hardening and profiling — in progress
 

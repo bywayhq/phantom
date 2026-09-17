@@ -157,6 +157,14 @@ pub enum CapacityError {
         /// The maximum allowed message size.
         max_size: usize,
     },
+    /// A message contains more data fragments than the configured limit.
+    #[error("Message has too many fragments: {fragments} > {max_fragments}")]
+    MessageTooFragmented {
+        /// The number of fragments observed, including the initial data frame.
+        fragments: usize,
+        /// The maximum allowed number of fragments in one message.
+        max_fragments: usize,
+    },
 }
 
 /// Indicates the specific type/cause of a subprotocol header error.

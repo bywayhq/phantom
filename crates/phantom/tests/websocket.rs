@@ -268,6 +268,10 @@ async fn invalid_template_and_limits_fail_before_network_io() -> TestResult<()> 
     listener.set_nonblocking(true)?;
     let address = listener.local_addr()?;
     let client = test_client(&identity, false)?;
+    assert_eq!(
+        WebSocketLimits::default().max_message_fragments().get(),
+        128 * 1024
+    );
     let debug = format!(
         "{:?}",
         client

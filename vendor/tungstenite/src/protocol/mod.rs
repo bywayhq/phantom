@@ -103,6 +103,10 @@ pub struct WebSocketConfig {
     /// be reasonably big for all normal use-cases but small enough to prevent memory eating
     /// by a malicious user.
     pub max_frame_size: Option<usize>,
+    /// The maximum number of data frames in one incoming message, including the initial
+    /// text or binary frame. Interleaved control frames are not counted. `None` means no
+    /// fragment-count limit, which is the default.
+    pub max_message_fragments: Option<usize>,
     /// When set to `true`, the server will accept and handle unmasked frames
     /// from the client. According to the RFC 6455, the server must close the
     /// connection to the client in such cases, however it seems like there are
@@ -154,6 +158,7 @@ impl Default for WebSocketConfig {
             max_write_buffer_size: usize::MAX,
             max_message_size: Some(64 << 20),
             max_frame_size: Some(16 << 20),
+            max_message_fragments: None,
             accept_unmasked_frames: false,
             #[cfg(feature = "deflate")]
             deflate: None,
@@ -377,6 +382,12 @@ impl WebSocketConfig {
     /// Set [`Self::max_frame_size`].
     pub fn max_frame_size(mut self, max_frame_size: Option<usize>) -> Self {
         self.max_frame_size = max_frame_size;
+        self
+    }
+
+    /// Set [`Self::max_message_fragments`].
+    pub fn max_message_fragments(mut self, max_message_fragments: Option<usize>) -> Self {
+        self.max_message_fragments = max_message_fragments;
         self
     }
 
@@ -621,6 +632,8 @@ pub struct WebSocketContext {
     state: WebSocketState,
     /// Receive: an incomplete message being processed.
     incomplete: Option<IncompleteMessage>,
+    /// Number of data frames accepted for the incomplete message.
+    incomplete_fragment_count: usize,
     /// Send in addition to regular messages E.g. "pong" or "close".
     additional_send: Option<Frame>,
     /// True indicates there is an additional message (like a pong)
@@ -673,6 +686,7 @@ impl WebSocketContext {
             frame,
             state: WebSocketState::Active,
             incomplete: None,
+            incomplete_fragment_count: 0,
             additional_send: None,
             unflushed_additional: false,
             config,
@@ -1000,6 +1014,33 @@ impl WebSocketContext {
         }
     }
 
+    /// Checks one valid data-frame transition before decompression or buffering.
+    fn check_message_fragment_count(&mut self, continuing: bool) -> Result<usize> {
+        let fragments = if continuing {
+            self.incomplete_fragment_count.saturating_add(1)
+        } else {
+            1
+        };
+        if let Some(max_fragments) = self.config.max_message_fragments {
+            if fragments > max_fragments {
+                self.incomplete = None;
+                self.incomplete_fragment_count = 0;
+                self.state = WebSocketState::Terminated;
+                #[cfg(feature = "deflate")]
+                {
+                    self.compressed_incomplete = false;
+                    self.compression_unusable = true;
+                }
+                return Err(CapacityError::MessageTooFragmented {
+                    fragments,
+                    max_fragments,
+                }
+                .into());
+            }
+        }
+        Ok(fragments)
+    }
+
     /// Try to decode one message frame. May return None.
     fn read_message_frame(&mut self, stream: &mut impl Read) -> Result<Option<Message>> {
         let read = self
@@ -1068,6 +1109,16 @@ impl WebSocketContext {
             self.fail_compression_on_discarded_frame(&frame);
             return Err(Error::Protocol(ProtocolError::MaskedFrameFromServer));
         }
+
+        let fragment_count = match frame.header().opcode {
+            OpCode::Data(OpData::Text | OpData::Binary) if self.incomplete.is_none() => {
+                Some(self.check_message_fragment_count(false)?)
+            }
+            OpCode::Data(OpData::Continue) if self.incomplete.is_some() => {
+                Some(self.check_message_fragment_count(true)?)
+            }
+            _ => None,
+        };
 
         // The fragment-sequence check that rejects an illegal opcode transition lives in
         // the assembly match below, so test the same condition here: a frame that does not
@@ -1148,7 +1199,7 @@ impl WebSocketContext {
                     (OpData::Reserved(i), _) => Err(ProtocolError::UnknownDataFrameType(i)),
                 }?;
 
-                match (payload, fin) {
+                let result = match (payload, fin) {
                     (None, true) => Ok(Some(self.incomplete.take().unwrap().complete()?)),
                     (None, false) => Ok(None),
                     (Some((payload, t)), true) => {
@@ -1164,7 +1215,13 @@ impl WebSocketContext {
                         self.incomplete = Some(incomplete);
                         Ok(None)
                     }
+                };
+                if result.is_ok() {
+                    if let Some(count) = fragment_count {
+                        self.incomplete_fragment_count = if fin { 0 } else { count };
+                    }
                 }
+                result
             }
         } // match opcode
     }
@@ -1381,14 +1438,53 @@ mod tests {
     }
 
     #[test]
+    fn fragment_count_limit_is_terminal_and_counts_empty_fragments() {
+        let incoming = Cursor::new(vec![0x01, 0x00, 0x00, 0x00, 0x80, 0x00]);
+        let limit = WebSocketConfig {
+            max_message_fragments: Some(2),
+            ..WebSocketConfig::default()
+        };
+        let mut socket = WebSocket::from_raw_socket(WriteMoc(incoming), Role::Client, Some(limit));
+
+        assert!(matches!(
+            socket.read(),
+            Err(Error::Capacity(CapacityError::MessageTooFragmented {
+                fragments: 3,
+                max_fragments: 2,
+            }))
+        ));
+        assert!(matches!(socket.read(), Err(Error::AlreadyClosed)));
+    }
+
+    #[test]
+    fn control_frames_do_not_consume_the_fragment_count() {
+        let incoming = Cursor::new(vec![
+            0x01, 0x03, b'h', b'e', b'l', 0x89, 0x00, 0x80, 0x02, b'l', b'o',
+        ]);
+        let limit = WebSocketConfig {
+            max_message_fragments: Some(2),
+            ..WebSocketConfig::default()
+        };
+        let mut socket = WebSocket::from_raw_socket(WriteMoc(incoming), Role::Client, Some(limit));
+
+        assert_eq!(socket.read().unwrap(), Message::Ping(Vec::new().into()));
+        assert_eq!(socket.read().unwrap(), Message::Text("hello".into()));
+    }
+
+    #[test]
     fn set_config_changes_the_configuration() {
         let mut socket =
             WebSocket::from_raw_socket(WriteMoc(Cursor::new(Vec::<u8>::new())), Role::Client, None);
         assert_eq!(socket.get_config().max_message_size, Some(64 << 20));
+        assert_eq!(socket.get_config().max_message_fragments, None);
 
-        socket.set_config(|config| config.max_message_size = Some(1024));
+        socket.set_config(|config| {
+            config.max_message_size = Some(1024);
+            config.max_message_fragments = Some(32);
+        });
 
         assert_eq!(socket.get_config().max_message_size, Some(1024));
+        assert_eq!(socket.get_config().max_message_fragments, Some(32));
     }
 
     /// The feature-on arm applies the callback to a copy, so what survives a panic depends

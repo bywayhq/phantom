@@ -20,9 +20,9 @@ claim.
 - Exercise thousands of H2 HEADERS/RST cycles and verify stream state returns
   to baseline while a healthy sibling continues. This covers the class in
   [h2 GHSA-f8vr-r385-rh5r](https://github.com/advisories/GHSA-f8vr-r385-rh5r).
-- Bound endless tiny or empty WebSocket fragments by count, rate, or idle
-  policy, not only cumulative message bytes. Add a no-panic unsolicited
-  subprotocol regression. See
+- Add a no-panic unsolicited WebSocket subprotocol regression. Tiny and empty
+  fragment floods now have a separate count bound; a later message-idle policy
+  should cover slow arrival rate independently. See
   [Undici GHSA-vxpw-j846-p89q](https://github.com/nodejs/undici/security/advisories/GHSA-vxpw-j846-p89q)
   and
   [GHSA-rfgv-xxqx-mfg5](https://github.com/nodejs/undici/security/advisories/GHSA-rfgv-xxqx-mfg5).
@@ -89,6 +89,11 @@ claim.
 - Proxy TLS roots, hostname policy, ticket cache, and origin TLS state remain
   separate.
 - WebSocket decompression enforces the message bound during inflation.
+- WebSocket message assembly independently bounds data-frame count. The engine
+  counts the initial frame and empty continuations, ignores interleaved control
+  frames, rejects overflow before decompression or buffering, and enters a
+  terminal receive state. Public integration proves the typed capacity error,
+  automatic Pong behavior, and transport release.
 - H3 tests cover missing/duplicate SETTINGS, invalid GOAWAY, QPACK blocking,
   critical-stream failure, and active bodies after GOAWAY.
 

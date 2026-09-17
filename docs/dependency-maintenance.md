@@ -24,7 +24,8 @@ running its focused tests, then running the workspace gates. The reviewed pin
 changes only after that evidence is available. Automated dependency updates may
 open review work; they do not silently rewrite a wire profile or vendor tree.
 
-The current `wreq-proto`, `btls`, `http2`, and H3 copies follow this contract.
+The current `wreq-proto`, `btls`, `http2`, H3, and `tungstenite` copies follow
+this contract.
 The `wreq-proto` patch adds Phantom's opt-in HTTP/1 chunk-size-line bound while
 preserving the stock default; its disposable probe checksum-binds the crates.io
 archive, reapplies the canonical patch, and runs the vendored crate plus
@@ -37,6 +38,13 @@ patches, and runs the focused H3 and `h3-quinn` gates. Chrome's nonzero inbound
 QPACK settings are enabled with bounded decode and feedback state. Outbound
 dynamic QPACK, WebTransport, and extension-specific datagram APIs remain
 separate capabilities.
+
+The `tungstenite` series preserves stock defaults while exposing the narrow
+frame-engine controls Phantom needs. Its fragment-count patch remains disabled
+in the engine by default; Phantom selects a bounded public default. The
+checksum-bound replay gate applies the ordered series to the crates.io archive,
+compares the full vendored tree, and runs no-default, deflate, and all-feature
+tests.
 
 A dependency patch may also be justified by a concrete provider-contract
 failure even when it does not alter the intended wire image. Quinn 0.11.18's
