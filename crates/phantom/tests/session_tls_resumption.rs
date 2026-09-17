@@ -55,7 +55,7 @@ async fn tls13_resumption_is_scoped_to_one_session() -> TestResult<()> {
 
             let second = accept_tls(&listener, &acceptor).await?;
             assert_tls(second.ssl(), SslVersion::TLS1_3, b"h2", true);
-            serve_one(second, "/.well-known/reaper/resume").await?;
+            serve_one(second, "/.well-known/phantom/resume").await?;
 
             let isolated = accept_tls(&listener, &acceptor).await?;
             assert_tls(isolated.ssl(), SslVersion::TLS1_3, b"h2", false);
@@ -71,7 +71,7 @@ async fn tls13_resumption_is_scoped_to_one_session() -> TestResult<()> {
         send(
             &session,
             HttpProtocol::Http2,
-            format!("https://{address}/.well-known/reaper/resume"),
+            format!("https://{address}/.well-known/phantom/resume"),
         )
         .await?;
         drop(session);

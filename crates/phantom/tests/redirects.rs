@@ -36,7 +36,7 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
-async fn session_matches_reaper_redirect_contract() -> TestResult<()> {
+async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -45,13 +45,13 @@ async fn session_matches_reaper_redirect_contract() -> TestResult<()> {
         let (first_drained, wait_for_first_drain) = oneshot::channel();
         let server = tokio::spawn(async move {
             let first = accept_tls(&listener, &acceptor).await?;
-            serve_reaper_redirect(first, StatusCode::FOUND, b"reaper-302").await?;
+            serve_redirect_probe(first, StatusCode::FOUND, b"probe-302").await?;
             first_drained
                 .send(())
                 .map_err(|_| "client stopped before the first connection drained")?;
 
             let replacement = accept_tls(&listener, &acceptor).await?;
-            serve_reaper_redirect(replacement, StatusCode::TEMPORARY_REDIRECT, b"reaper-307").await
+            serve_redirect_probe(replacement, StatusCode::TEMPORARY_REDIRECT, b"probe-307").await
         });
 
         let one = NonZeroUsize::MIN;
@@ -60,11 +60,11 @@ async fn session_matches_reaper_redirect_contract() -> TestResult<()> {
             .redirect_policy(RedirectPolicy::limited(one))
             .build();
 
-        let found = send_reaper_probe(&session, address, 302, b"reaper-302").await?;
+        let found = send_redirect_probe(&session, address, 302, b"probe-302").await?;
         assert_eq!(found.status(), StatusCode::OK);
         assert_response_info(
             &found,
-            &format!("https://{address}/.well-known/reaper/redirect/302/final"),
+            &format!("https://{address}/.well-known/phantom/redirect/302/final"),
         )?;
         found.into_body().collect().await?;
 
@@ -72,11 +72,11 @@ async fn session_matches_reaper_redirect_contract() -> TestResult<()> {
             .await
             .map_err(|_| "server stopped before the first connection drained")?;
 
-        let temporary = send_reaper_probe(&session, address, 307, b"reaper-307").await?;
+        let temporary = send_redirect_probe(&session, address, 307, b"probe-307").await?;
         assert_eq!(temporary.status(), StatusCode::OK);
         assert_response_info(
             &temporary,
-            &format!("https://{address}/.well-known/reaper/redirect/307/final"),
+            &format!("https://{address}/.well-known/phantom/redirect/307/final"),
         )?;
         temporary.into_body().collect().await?;
 
@@ -215,11 +215,11 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn reaper_h3_redirect_follows_before_response_fin_on_same_connection() -> TestResult<()> {
+async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = h3_support::server_endpoint(&identity)?;
-        let callback = "/.well-known/reaper/h3-redirect/0123456789abcdef0123456789abcdef";
+        let callback = "/.well-known/phantom/h3-redirect/0123456789abcdef0123456789abcdef";
         let (client_done, wait_for_client) = oneshot::channel();
         let server = tokio::spawn(async move {
             let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
@@ -229,7 +229,7 @@ async fn reaper_h3_redirect_follows_before_response_fin_on_same_connection() -> 
 
             let (initial, mut initial_stream) = accept_h3_request(&mut connection).await?;
             assert_eq!(initial.method(), Method::GET);
-            assert_eq!(initial.uri().path(), "/.well-known/reaper/h3-redirect");
+            assert_eq!(initial.uri().path(), "/.well-known/phantom/h3-redirect");
             assert!(collect_h3_body(&mut initial_stream).await?.is_empty());
             initial_stream
                 .send_response(
@@ -266,7 +266,7 @@ async fn reaper_h3_redirect_follows_before_response_fin_on_same_connection() -> 
         let response = session
             .get(
                 HttpProtocol::Http3,
-                &format!("https://{address}/.well-known/reaper/h3-redirect"),
+                &format!("https://{address}/.well-known/phantom/h3-redirect"),
             )?
             .send()
             .await?;
@@ -283,7 +283,7 @@ async fn reaper_h3_redirect_follows_before_response_fin_on_same_connection() -> 
     .await
 }
 
-async fn send_reaper_probe(
+async fn send_redirect_probe(
     session: &phantom::Session,
     address: std::net::SocketAddr,
     status: u16,
@@ -293,22 +293,22 @@ async fn send_reaper_probe(
         .request(
             HttpProtocol::Http2,
             Method::POST,
-            &format!("https://{address}/.well-known/reaper/redirect/{status}/start"),
+            &format!("https://{address}/.well-known/phantom/redirect/{status}/start"),
         )?
         .body(Bytes::from_static(body))
         .send()
         .await
 }
 
-async fn serve_reaper_redirect(
+async fn serve_redirect_probe(
     stream: SslStream<TcpStream>,
     status: StatusCode,
     expected_body: &'static [u8],
 ) -> TestResult<()> {
     let status_number = status.as_u16();
-    let start_path = format!("/.well-known/reaper/redirect/{status_number}/start");
-    let final_path = format!("/.well-known/reaper/redirect/{status_number}/final");
-    let location = format!("/.well-known/reaper/redirect/{status_number}/a/%2e%2e/final");
+    let start_path = format!("/.well-known/phantom/redirect/{status_number}/start");
+    let final_path = format!("/.well-known/phantom/redirect/{status_number}/final");
+    let location = format!("/.well-known/phantom/redirect/{status_number}/a/%2e%2e/final");
     let mut connection = ::http2::server::handshake(stream).await?;
 
     let (initial, mut initial_response) = accept_request(&mut connection).await?;

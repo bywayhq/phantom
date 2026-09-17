@@ -29,7 +29,7 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
-async fn reaper_secondary_authority_uses_a_dedicated_connection() -> TestResult<()> {
+async fn secondary_authority_uses_a_dedicated_connection() -> TestResult<()> {
     bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;
@@ -58,7 +58,7 @@ async fn reaper_secondary_authority_uses_a_dedicated_connection() -> TestResult<
         let secondary = session
             .get(
                 HttpProtocol::Http2,
-                &format!("https://{secondary_authority}/.well-known/reaper/421?key=fixed"),
+                &format!("https://{secondary_authority}/.well-known/phantom/421?key=fixed"),
             )?
             .send()
             .await?;
@@ -72,7 +72,7 @@ async fn reaper_secondary_authority_uses_a_dedicated_connection() -> TestResult<
         assert_eq!(secondary.authority, secondary_authority);
         assert_eq!(
             secondary.path_and_query,
-            "/.well-known/reaper/421?key=fixed"
+            "/.well-known/phantom/421?key=fixed"
         );
         Ok(())
     })
@@ -96,7 +96,7 @@ async fn dedicated_421_is_returned_without_hidden_replay() -> TestResult<()> {
         let response = session
             .get(
                 HttpProtocol::Http2,
-                &format!("https://{address}/.well-known/reaper/421?key=fixed"),
+                &format!("https://{address}/.well-known/phantom/421?key=fixed"),
             )?
             .send()
             .await?;
@@ -109,7 +109,7 @@ async fn dedicated_421_is_returned_without_hidden_replay() -> TestResult<()> {
         let request = server.await??;
         drop(session);
         assert_eq!(request.authority, address.to_string());
-        assert_eq!(request.path_and_query, "/.well-known/reaper/421?key=fixed");
+        assert_eq!(request.path_and_query, "/.well-known/phantom/421?key=fixed");
         Ok(())
     })
     .await

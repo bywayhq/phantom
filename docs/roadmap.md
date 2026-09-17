@@ -310,10 +310,10 @@ and a missing length is appended only for a non-empty body. H2 and H3 uploads
 obey transport flow control; early final responses, STOP_SENDING, cancellation,
 and sibling-stream reuse have deterministic tests. Finite opt-in session
 redirects replay owned bodies where required and apply the same policy above
-H1, H2, and H3. The current Reaper H2 70,000-byte request-flow and 302/307
-redirect recipes are retained regressions rather than deferred capability
-gates. General streaming request bodies and their replay factories, retries,
-request trailers, and extended CONNECT remain separate slices.
+H1, H2, and H3. The 70,000-byte H2 request-flow and 302/307 redirect recipes
+are retained regressions rather than deferred capability gates. General
+streaming request bodies and their replay factories, retries, request trailers,
+and extended CONNECT remain separate slices.
 
 The response-header client-hint slice is landed for H1, H2, and H3. Profiles
 own ordered default and negotiated fields; sessions own a bounded exact-origin

@@ -56,7 +56,7 @@ async fn fragmented_tls13_records_preserve_body_and_connection_reuse() -> TestRe
         let followup = connection
             .send_get(
                 TEST_AUTHORITY,
-                OriginForm::parse("/.well-known/reaper/record-shape")?,
+                OriginForm::parse("/.well-known/phantom/record-shape")?,
                 Vec::new(),
             )
             .await?;
@@ -160,7 +160,7 @@ fn serve_record_shape_probe(
 
 fn record_shape_body() -> Vec<u8> {
     let mut body = Vec::from(
-        "<!doctype html><meta charset=utf-8><pre id=result>waiting…</pre><script>fetch('/.well-known/reaper/record-shape',{cache:'no-store'}).then(r=>r.text()).then(t=>result.textContent=t).catch(e=>result.textContent='probe failed: '+e)</script><!--"
+        "<!doctype html><meta charset=utf-8><pre id=result>waiting…</pre><script>fetch('/.well-known/phantom/record-shape',{cache:'no-store'}).then(r=>r.text()).then(t=>result.textContent=t).catch(e=>result.textContent='probe failed: '+e)</script><!--"
             .as_bytes(),
     );
     body.resize(RESPONSE_BODY_LEN, b'R');

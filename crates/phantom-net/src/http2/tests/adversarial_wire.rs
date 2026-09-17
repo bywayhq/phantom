@@ -10,7 +10,7 @@ use super::{TestResult, bounded_peer_test, target};
 use crate::http2::Http2Connection;
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-const PING_PAYLOAD: &[u8] = b"REAPER01";
+const PING_PAYLOAD: &[u8] = b"PHANTM01";
 const MAX_PEER_FRAME_LEN: usize = 64 * 1024;
 
 #[tokio::test]

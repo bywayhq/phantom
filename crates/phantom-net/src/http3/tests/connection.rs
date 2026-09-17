@@ -1,5 +1,5 @@
 use bytes::{Buf, Bytes};
-use http::{Request, Response, StatusCode};
+use http::{HeaderMap, HeaderValue, Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use tokio::{sync::oneshot, time::timeout};
 
@@ -46,6 +46,76 @@ async fn sequential_requests_share_one_connection() -> TestResult<()> {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(collect_body(response.into_body()).await?, expected);
     }
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn response_trailers_preserve_body_and_connection_reuse() -> TestResult<()> {
+    const TOKEN: &str = "0123456789abcdef0123456789abcdef";
+    const RESOURCE: &str = "/.well-known/phantom/h3-trailers-body/0123456789abcdef0123456789abcdef";
+    const CALLBACK: &str = "/.well-known/phantom/h3-trailers/0123456789abcdef0123456789abcdef";
+
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut stream) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), RESOURCE);
+        stream
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+        stream
+            .send_data(Bytes::from_static(b"phantom-h3-response-trailers-v1\n"))
+            .await?;
+        let mut trailers = HeaderMap::new();
+        trailers.insert("x-phantom-trailer-token", HeaderValue::from_static(TOKEN));
+        stream.send_trailers(trailers).await?;
+        stream.finish().await?;
+
+        let (request, mut callback) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), CALLBACK);
+        send_response(&mut callback, "complete").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let response = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(test_request(address.port(), RESOURCE)?, None),
+    )
+    .await
+    .map_err(|_| "HTTP/3 trailers response timed out")??;
+    let body = timeout(TEST_TIMEOUT, response.into_body().collect())
+        .await
+        .map_err(|_| "HTTP/3 trailers body timed out")??;
+    assert_eq!(
+        body.trailers()
+            .and_then(|trailers| trailers.get("x-phantom-trailer-token")),
+        Some(&HeaderValue::from_static(TOKEN))
+    );
+    assert_eq!(
+        body.to_bytes(),
+        Bytes::from_static(b"phantom-h3-response-trailers-v1\n")
+    );
+
+    let callback = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(test_request(address.port(), CALLBACK)?, None),
+    )
+    .await
+    .map_err(|_| "request after HTTP/3 trailers timed out")??;
+    assert_eq!(collect_body(callback.into_body()).await?, "complete");
 
     let _ = client_done.send(());
     join_server(server).await

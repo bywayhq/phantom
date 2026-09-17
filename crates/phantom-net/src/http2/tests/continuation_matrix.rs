@@ -14,7 +14,7 @@ const MAX_CLIENT_FRAME_LEN: usize = 64 * 1024;
 const MAX_CLIENT_FRAMES: usize = 32;
 const MAX_CLIENT_BYTES: usize = 256 * 1024;
 
-// Exact HPACK blocks emitted by Reaper's equivalence_matrix_v3 recipe.
+// Equivalent HPACK blocks using distinct legal representations and splits.
 const RAW_103: &[u8] = &[0x08, 0x03, b'1', b'0', b'3'];
 const HUFFMAN_103: &[u8] = &[0x08, 0x82, 0x08, 0x19];
 const INCREMENTAL_103: &[u8] = &[0x48, 0x03, b'1', b'0', b'3'];
@@ -26,7 +26,7 @@ const FINAL_HTML: &[u8] = &[
 const FINAL_BODY: &[u8] = b"continuation matrix accepted";
 
 #[tokio::test]
-async fn reaper_continuation_matrix_preserves_final_response_and_reuse() -> TestResult<()> {
+async fn continuation_matrix_preserves_final_response_and_reuse() -> TestResult<()> {
     bounded_peer_test(async {
         let (client, server) = duplex(64 * 1024);
         let (finish_tx, finish_rx) = oneshot::channel();

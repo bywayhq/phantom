@@ -22,7 +22,7 @@ use super::{
 use crate::http2::{Http2Connection, OriginForm};
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-const PING_PAYLOAD: &[u8] = b"REAPERKU";
+const PING_PAYLOAD: &[u8] = b"PHANTOMK";
 const REQUESTED_KEY_UPDATE: &[u8] = &[24, 0, 0, 1, 1];
 const NOT_REQUESTED_KEY_UPDATE: &[u8] = &[24, 0, 0, 1, 0];
 const MAX_FRAME_LENGTH: usize = 64 * 1024;

@@ -27,7 +27,7 @@ const PHASE_STALL: Duration = Duration::from_millis(40);
 const MAX_CAPTURE_BYTES: usize = 128 * 1024;
 
 #[tokio::test]
-async fn reaper_request_body_obeys_ordered_flow_control_and_reuses_connection() -> TestResult<()> {
+async fn request_body_obeys_ordered_flow_control_and_reuses_connection() -> TestResult<()> {
     bounded_peer_test(async {
         let (client, server) = duplex(256 * 1024);
         let (finish_tx, finish_rx) = oneshot::channel();
@@ -44,7 +44,7 @@ async fn reaper_request_body_obeys_ordered_flow_control_and_reuses_connection() 
             .send_request(
                 Method::POST,
                 "example.test",
-                OriginForm::parse("/.well-known/reaper/flow")?,
+                OriginForm::parse("/.well-known/phantom/flow")?,
                 Vec::new(),
                 Some(Bytes::from(vec![b'R'; BODY_LEN])),
             )
@@ -108,7 +108,7 @@ async fn run_flow_control_peer(
         .map_err(|_| "flow-control request headers timed out")?
         .ok_or("connection closed before the flow-control request")??;
     assert_eq!(request.method(), Method::POST);
-    assert_eq!(request.uri().path(), "/.well-known/reaper/flow");
+    assert_eq!(request.uri().path(), "/.well-known/phantom/flow");
     assert_eq!(
         request
             .headers()

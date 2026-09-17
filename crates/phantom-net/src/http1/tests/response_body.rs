@@ -111,8 +111,8 @@ async fn decodes_fragmented_chunk_extensions_and_trailers_then_reuses_connection
             for fragment in [
                 b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Final\r\n\r\n"
                     .as_slice(),
-                b"2;reaper=alpha;flag\r",
-                b"\nhe\r\n3;reaper=ome",
+                b"2;probe=alpha;flag\r",
+                b"\nhe\r\n3;probe=ome",
                 b"ga\r\nllo\r",
                 b"\n0;terminal=yes\r",
                 b"\nX-Final:",

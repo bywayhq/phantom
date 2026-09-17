@@ -59,21 +59,22 @@ route-aware H2 tunnel reuse, WSS routing, and the same no-direct-fallback
 proof. It also includes
 H1 `100 Continue`, chained `103`/`100`, legal chunk extensions fragmented at
 syntax boundaries, declared-length surplus isolation, H2 `RST_STREAM`, H2
-`GOAWAY`, and a Reaper-derived valid H2 sequence combining an unknown setting,
+`GOAWAY`, and a valid H2 sequence combining an unknown setting,
 unknown frame, exact PING acknowledgement, fragmented HPACK with an empty
 `CONTINUATION`, response DATA, and a same-connection follow-up. A separate H2
 sequence covers repeated `103`, `102`, final headers, DATA, trailers, and
 same-connection reuse without leaking interim fields. It also covers
-Reaper's current legal HPACK equivalence matrix: four `103` blocks using raw,
-Huffman, incremental, and dynamic-indexed representations, followed by final
-`200` headers, with exact empty and non-empty `CONTINUATION` splits and stream
-3 reuse. Coverage also includes H3 missing or duplicate SETTINGS, forbidden
-control-stream frames,
+an HPACK equivalence matrix: four `103` blocks using raw, Huffman, incremental,
+and dynamic-indexed representations, followed by final `200` headers, with
+exact empty and non-empty `CONTINUATION` splits and stream 3 reuse. Coverage
+also includes H3 missing or duplicate SETTINGS, forbidden control-stream frames,
 reserved streams and frames, increasing GOAWAY rejection with `H3_ID_ERROR`,
 blocked inbound QPACK release and decoder acknowledgement, peer encoder-stream
 closure with `H3_CLOSED_CRITICAL_STREAM`, one valid QUIC Retry, chained
 informational responses through final DATA and trailers, rejection of HTTP/3
-`101`, and peer-observed request-stream cancellation. H3 ALPS coverage retains
+`101`, peer-observed request-stream cancellation, byte-exact static and
+literal-name-reference QPACK redirects, and response trailers followed by
+same-connection reuse. H3 ALPS coverage retains
 the authenticated absent/empty/nonempty states, rejects malformed or forbidden
 payloads before stream startup, applies peer QPACK limits before a request, and
 accepts a compatible first wire SETTINGS while rejecting late frames,
@@ -81,67 +82,29 @@ reductions, and conflicts. The remaining H3 cases
 extend that focused loopback peer rather than introducing a speculative
 universal peer framework.
 
-Reaper is a reference corpus, not a runtime dependency. Its production lane is
-mirrored as bounded Phantom-owned fixtures only when the stimulus is valid and
-the client reaction is directly observed. Its malformed lane uses a fresh
-connection per case and asserts protocol error codes without treating malformed
-behavior as a browser-parity target. Reaper's current H3 Retry, reserved
-extension, QPACK block/unblock, informational response, and trailer probes
-overlap existing Phantom fixtures. Its isolated malformed H2 matrix is also
-retained with exact `PROTOCOL_ERROR`, `FRAME_SIZE_ERROR`, and
-`COMPRESSION_ERROR` reactions. A TLS 1.3 P-384 peer authenticates
-HelloRetryRequest and retains both ClientHellos to check the permitted session,
-cipher, extension-order, and key-share delta. Requested `KeyUpdate` and the
-client's exact non-requested response are authenticated through BoringSSL's
-message callback while an open response body crosses the key change and stream
-3 proves same-connection reuse. Reaper's TLS 1.3 record-shaping recipe is
-retained with its 1024-byte rustls fragment bound: the fixture checks the
-derived 1036-byte ciphertext-payload ceiling, reconstructs the exact 8 KiB
-response, and proves stream 3 reuse. Reaper's zero-only and ordered `0 → 4096`
-header-table recipes are also retained as bounded raw peers. They require the
-SETTINGS and exact PING acknowledgements, reassemble HEADERS/CONTINUATION, prove
-streams 1 and 3 share a connection, and assert the required HPACK prefixes.
-Its current request-flow-control recipe is retained against Phantom's real H2
-request path: a 70,000-byte POST exhausts the initial stream and connection
-windows independently, advances only after the corresponding credits, retains
-the observed DATA-frame sequence, and then proves same-connection reuse. Upload
-cancellation is separately stream-scoped and leaves a sibling stream usable.
-An early final response with no remaining upload credit is raced against the
-upload, surfaced immediately, and followed by a request on the same connection.
+Every case is a bounded Phantom-owned fixture. Valid stimuli exercise the
+production request path; malformed stimuli use a fresh connection and assert
+exact protocol error categories without treating error behavior as browser
+parity. The TLS 1.3 P-384 peer authenticates HelloRetryRequest and retains both
+ClientHellos to check the permitted session, cipher, extension-order, and
+key-share delta. Requested `KeyUpdate` and the client's exact non-requested
+response are authenticated through BoringSSL's message callback while an open
+response body crosses the key change and stream 3 proves same-connection reuse.
+The TLS 1.3 record-shaping fixture enforces a 1024-byte plaintext fragment bound,
+checks the derived 1036-byte ciphertext-payload ceiling, reconstructs the exact
+8 KiB response, and proves stream 3 reuse.
 
-The retained 2026-09-16 Reaper snapshot has 22 active, non-passive probes.
-Phantom has production-path regressions for the raw-client transport behavior
-exercised by all 22. This is stimulus and reaction coverage, not a claim that
-every fixture is byte-identical or that Phantom implements browser renderer
-side effects. The
-[machine-checked mapping](../fixtures/adversarial/reaper/2026-09-16/coverage.json)
-records the source-manifest digest and exact Rust test names. CI validates that
-local inventory with:
+The H2 zero-only and ordered `0 → 4096` header-table cases require SETTINGS and
+exact PING acknowledgements, reassemble HEADERS/CONTINUATION, prove streams 1
+and 3 share a connection, and assert the required HPACK prefixes. A 70,000-byte
+POST exhausts the initial stream and connection windows independently, advances
+only after the corresponding credits, retains the observed DATA-frame sequence,
+and then proves same-connection reuse. Upload cancellation is separately
+stream-scoped and leaves a sibling usable. An early final response with no
+remaining upload credit is surfaced immediately and followed by a request on
+the same connection.
 
-```console
-python scripts/capture/reaper_coverage.py check \
-  fixtures/adversarial/reaper/2026-09-16/coverage.json
-```
-
-When the matching Reaper source tree is available, audit its manifest directly:
-
-```console
-python scripts/capture/reaper_coverage.py check \
-  fixtures/adversarial/reaper/2026-09-16/coverage.json \
-  --source-manifest ../reaper/harness/manifest.json
-```
-
-The direct audit checks the byte-exact digest and reports added, removed, or
-reordered active probes after a deliberate digest refresh. A changed manifest
-requires a source review and new Phantom regressions before updating the
-snapshot; it is never accepted by changing the digest alone.
-
-The repository-only CI gate detects missing, renamed, or ignored Phantom
-regressions; it does not discover changes to an upstream probe recipe without a
-source manifest. Refreshing the snapshot therefore requires a deliberate Reaper
-source and retained-browser audit. Reaper and browser executables are not CI
-dependencies.
-In addition to the cases above, those regressions cover:
+Additional regressions cover:
 
 - a six-write H1 response split across the status line, fields, header/body
   boundary, and body, followed by `Connection: close` replacement;
@@ -151,20 +114,20 @@ In addition to the cases above, those regressions cover:
 - authenticated QUIC Retry with original-destination connection-ID continuity;
 - ALPS `HEADER_TABLE_SIZE` final-value behavior carried through TLS, H2 state,
   and the first HPACK block without a synthetic wire acknowledgement;
-- Reaper's current three-profile ALPS sequence ending in
+- a three-profile ALPS sequence ending in
   `MAX_CONCURRENT_STREAMS=0`, which emits no request HEADERS until a wire
   SETTINGS update releases capacity, followed by connection reuse; and
 - TLS 1.3 resumption after a complete H2 response and graceful H2 shutdown on
   the replacement connection at
-  `/.well-known/reaper/resume`, absence of an early-data offer, and a full
+  `/.well-known/phantom/resume`, absence of an early-data offer, and a full
   handshake from a separate Phantom session.
 
-Reaper's H2 redirect pair is retained through the public session path. Its 302
-case rewrites POST to a bodyless GET, while its 307 case preserves the POST and
-owned body. Both resolve an encoded dot segment to the canonical final path
-and complete the request stream. The fixture also closes the first H2
-generation before the second transaction, exercising pool replacement without
-claiming that connection identity is part of Reaper's observation.
+The H2 redirect pair runs through the public session path. Its 302 case rewrites
+POST to a bodyless GET, while its 307 case preserves the POST and owned body.
+Both resolve an encoded dot segment to the canonical final path and complete
+the request stream. The fixture also closes the first H2 generation before the
+second transaction, exercising pool replacement without making connection
+identity part of the contract.
 
 The H3 redirect chronology probe is also retained through the public session
 path. Phantom follows the 302 on the same H3 connection after response headers
@@ -172,16 +135,12 @@ and before the peer finishes the initial response stream, then exposes only the
 terminal response. The peer keeps the first stream unfinished so this is an
 observable ordering assertion rather than an ordinary redirect success test.
 
-Reaper's current secondary-authority probe records `not_coalesced` for its
-Chrome and Firefox controls; Safari did not establish the dual-authority test
-precondition. Phantom retains that observed connection choice with two
-authorities covered by one trusted certificate and routed to the same peer.
-The secondary authority receives a dedicated H2 connection, matching Reaper's
-current no-challenge outcome. A separate regression proves that a 421 received
-on a dedicated connection is returned without hidden replay. Phantom does not
-claim the unobserved recovery branch: future opt-in coalescing must carry
-certificate, DNS, route, and peer-address proof plus one bounded 421 replay
-regression.
+The authority-isolation regression uses two authorities covered by one trusted
+certificate and routed to the same peer. The secondary authority receives a
+dedicated H2 connection. A separate regression proves that a 421 received on a
+dedicated connection is returned without hidden replay. Future opt-in
+coalescing must carry certificate, DNS, route, and peer-address proof plus one
+bounded 421 replay regression.
 
 ## Later client and streaming corpus
 
@@ -242,7 +201,6 @@ bounded decoders on scheduled jobs.
 ## Evidence
 
 - [NIST: browser fingerprinting using server message sequences](https://www.nist.gov/publications/browser-fingerprinting-using-combinatorial-sequence-testing)
-- Reaper's versioned local probe corpus and raw-reaction methodology
 - [Two-step TLS browser fingerprinting study](https://doi.org/10.1016/j.cose.2021.102575)
 - [TLS 1.3 post-handshake messages](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.6)
 - [HTTP/1.1 message parsing](https://www.rfc-editor.org/rfc/rfc9112.html)

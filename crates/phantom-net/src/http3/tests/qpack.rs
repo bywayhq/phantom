@@ -1,6 +1,7 @@
 use std::{error::Error, time::Duration};
 
 use http::{HeaderMap, HeaderValue, Request, StatusCode};
+use http_body_util::BodyExt;
 use phantom_profile::{
     Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings,
 };
@@ -8,7 +9,7 @@ use tokio::{sync::oneshot, time::timeout};
 
 use super::{
     Http3ErrorKind, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, client_config,
-    join_server, server_endpoint,
+    join_server, server_endpoint, test_settings,
 };
 
 const CONTROL_STREAM: u8 = 0x00;
@@ -18,6 +19,21 @@ const SETTINGS_FRAME: u8 = 0x04;
 const HEADERS_FRAME: u8 = 0x01;
 const PEER_SETTINGS: &[u8] = &[CONTROL_STREAM, SETTINGS_FRAME, 0x00];
 const PENDING_WINDOW: Duration = Duration::from_millis(100);
+const QPACK_CALLBACK: &str = "/.well-known/phantom/h3-qpack/0123456789abcdef0123456789abcdef";
+
+#[tokio::test(flavor = "current_thread")]
+async fn static_and_literal_status_encodings_decode_equivalently() -> TestResult<()> {
+    for (initial_path, status_field) in [
+        ("/.well-known/phantom/h3-qpack-static", &[0xff, 0x03][..]),
+        (
+            "/.well-known/phantom/h3-qpack-literal",
+            &[0x5f, 0x33, 0x03, b'3', b'0', b'2'][..],
+        ),
+    ] {
+        assert_qpack_layout(initial_path, status_field).await?;
+    }
+    Ok(())
+}
 
 #[tokio::test(flavor = "current_thread")]
 async fn blocked_response_waits_for_insertion_and_acknowledges_headers() -> TestResult<()> {
@@ -159,6 +175,75 @@ async fn closing_peer_qpack_encoder_closes_connection_and_fails_request() -> Tes
     join_server(server).await
 }
 
+async fn assert_qpack_layout(
+    initial_path: &'static str,
+    status_field: &'static [u8],
+) -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        timeout(TEST_TIMEOUT, async move {
+            let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+            let connection = incoming.await?;
+            let mut control = connection.open_uni().await?;
+            control.write_all(PEER_SETTINGS).await?;
+
+            let (mut initial_response, mut initial_request) = connection.accept_bi().await?;
+            let _ = initial_request.read_to_end(64 * 1024).await?;
+            write_headers(&mut initial_response, &qpack_redirect(status_field)?).await?;
+            initial_response.finish()?;
+
+            let (mut callback_response, mut callback_request) = connection.accept_bi().await?;
+            let _ = callback_request.read_to_end(64 * 1024).await?;
+            write_headers(&mut callback_response, &[0x00, 0x00, 0xd9]).await?;
+            callback_response.finish()?;
+
+            done_received
+                .await
+                .map_err(|_| "client did not finish QPACK equivalence validation")?;
+            connection.close(quinn::VarInt::from_u32(0), b"");
+            drop(control);
+            Ok::<(), Box<dyn Error + Send + Sync>>(())
+        })
+        .await
+        .map_err(|_| "QPACK equivalence server timed out")?
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let initial = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(request(address, initial_path)?, None),
+    )
+    .await
+    .map_err(|_| "QPACK response timed out")??;
+    assert_eq!(initial.status(), StatusCode::FOUND);
+    assert_eq!(
+        initial.headers().get("location"),
+        Some(&HeaderValue::from_static(QPACK_CALLBACK))
+    );
+    assert!(initial.into_body().collect().await?.to_bytes().is_empty());
+
+    let callback = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(request(address, QPACK_CALLBACK)?, None),
+    )
+    .await
+    .map_err(|_| "request after QPACK response timed out")??;
+    assert_eq!(callback.status(), StatusCode::OK);
+    assert!(callback.into_body().collect().await?.to_bytes().is_empty());
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
 fn dynamic_settings() -> Http3Settings {
     Http3Settings {
         initial_settings: vec![
@@ -189,12 +274,27 @@ fn dynamic_response() -> TestResult<(Vec<u8>, Vec<u8>)> {
     Ok((instructions, field_section))
 }
 
+fn qpack_redirect(status_field: &[u8]) -> TestResult<Vec<u8>> {
+    let callback_len = u8::try_from(QPACK_CALLBACK.len())?;
+    let mut field_section = Vec::with_capacity(5 + status_field.len() + callback_len as usize);
+    field_section.extend_from_slice(&[0x00, 0x00]);
+    field_section.extend_from_slice(status_field);
+    field_section.extend_from_slice(&[0x5c, callback_len]);
+    field_section.extend_from_slice(QPACK_CALLBACK.as_bytes());
+    Ok(field_section)
+}
+
 async fn write_headers(stream: &mut quinn::SendStream, field_section: &[u8]) -> TestResult<()> {
-    let length = u8::try_from(field_section.len())?;
-    if length >= 64 {
-        return Err("test field section no longer fits a one-byte QUIC varint".into());
+    let length = u16::try_from(field_section.len())?;
+    stream.write_all(&[HEADERS_FRAME]).await?;
+    if length < 64 {
+        stream.write_all(&[u8::try_from(length)?]).await?;
+    } else if length < 16_384 {
+        let [high, low] = length.to_be_bytes();
+        stream.write_all(&[0x40 | high, low]).await?;
+    } else {
+        return Err("test field section exceeds the two-byte QUIC varint bound".into());
     }
-    stream.write_all(&[HEADERS_FRAME, length]).await?;
     stream.write_all(field_section).await?;
     Ok(())
 }
