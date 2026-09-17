@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +14,7 @@ from scripts.capture.reaper_coverage import (
     CoverageError,
     load_coverage,
     validate_coverage,
+    validate_source_manifest,
 )
 
 
@@ -115,6 +118,57 @@ class ReaperCoverageTests(unittest.TestCase):
         )
 
         self.assertEqual(validate_coverage(load_coverage(coverage), repository), 22)
+
+    def test_accepts_exact_reaper_source_manifest(self) -> None:
+        manifest = {
+            "schema": SOURCE_SCHEMA,
+            "snapshot_date": SNAPSHOT_DATE,
+            "probes": ["passive", *EXPECTED_PROBE_IDS],
+        }
+        payload = json.dumps(manifest, separators=(",", ":")).encode()
+        source = {
+            "schema": SOURCE_SCHEMA,
+            "snapshot_date": SNAPSHOT_DATE,
+            "manifest_sha256": hashlib.sha256(payload).hexdigest(),
+        }
+
+        self.assertEqual(
+            validate_source_manifest(payload, source), len(EXPECTED_PROBE_IDS)
+        )
+
+    def test_rejects_changed_reaper_source_manifest(self) -> None:
+        manifest = {
+            "schema": SOURCE_SCHEMA,
+            "snapshot_date": SNAPSHOT_DATE,
+            "probes": ["passive", *EXPECTED_PROBE_IDS, "h3-new-probe"],
+        }
+        payload = json.dumps(manifest, separators=(",", ":")).encode()
+        source = {
+            "schema": SOURCE_SCHEMA,
+            "snapshot_date": SNAPSHOT_DATE,
+            "manifest_sha256": "0" * 64,
+        }
+
+        with self.assertRaisesRegex(CoverageError, "digest differs"):
+            validate_source_manifest(payload, source)
+
+    def test_reports_added_reaper_probe_after_digest_refresh(self) -> None:
+        manifest = {
+            "schema": SOURCE_SCHEMA,
+            "snapshot_date": SNAPSHOT_DATE,
+            "probes": ["passive", *EXPECTED_PROBE_IDS, "h3-new-probe"],
+        }
+        payload = json.dumps(manifest, separators=(",", ":")).encode()
+        source = {
+            "schema": SOURCE_SCHEMA,
+            "snapshot_date": SNAPSHOT_DATE,
+            "manifest_sha256": hashlib.sha256(payload).hexdigest(),
+        }
+
+        with self.assertRaisesRegex(
+            CoverageError, "Reaper source added probe IDs: h3-new-probe"
+        ):
+            validate_source_manifest(payload, source)
 
 
 if __name__ == "__main__":

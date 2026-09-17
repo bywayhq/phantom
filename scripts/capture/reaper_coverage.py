@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -165,6 +166,49 @@ def validate_coverage(document: object, repo_root: Path) -> int:
     return regression_count
 
 
+def validate_source_manifest(payload: bytes, source_metadata: object) -> int:
+    """Validate the exact Reaper manifest used by a coverage snapshot."""
+
+    source = _mapping_with_keys(source_metadata, _SOURCE_KEYS, "source metadata")
+    digest = hashlib.sha256(payload).hexdigest()
+    if digest != source["manifest_sha256"]:
+        raise CoverageError(
+            "Reaper source manifest digest differs from the retained snapshot"
+        )
+
+    try:
+        manifest = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CoverageError(f"cannot parse Reaper source manifest: {error}") from error
+    if not isinstance(manifest, dict):
+        raise CoverageError("Reaper source manifest must be an object")
+    if manifest.get("schema") != source["schema"]:
+        raise CoverageError("Reaper source manifest schema differs from the snapshot")
+    if manifest.get("snapshot_date") != source["snapshot_date"]:
+        raise CoverageError("Reaper source manifest date differs from the snapshot")
+
+    probes = manifest.get("probes")
+    if not isinstance(probes, list) or not all(
+        isinstance(probe_id, str) and probe_id for probe_id in probes
+    ):
+        raise CoverageError("Reaper source manifest probes must be non-empty strings")
+    if len(probes) != len(set(probes)):
+        raise CoverageError("Reaper source manifest has duplicate probe IDs")
+    if probes.count("passive") != 1:
+        raise CoverageError("Reaper source manifest must contain one passive probe")
+
+    active_probe_ids = tuple(probe_id for probe_id in probes if probe_id != "passive")
+    missing = sorted(set(EXPECTED_PROBE_IDS) - set(active_probe_ids))
+    added = sorted(set(active_probe_ids) - set(EXPECTED_PROBE_IDS))
+    if missing:
+        raise CoverageError(f"Reaper source removed probe IDs: {', '.join(missing)}")
+    if added:
+        raise CoverageError(f"Reaper source added probe IDs: {', '.join(added)}")
+    if active_probe_ids != EXPECTED_PROBE_IDS:
+        raise CoverageError("Reaper source probe order differs from the snapshot")
+    return len(active_probe_ids)
+
+
 def load_coverage(path: Path) -> object:
     """Read a UTF-8 JSON coverage document."""
 
@@ -172,6 +216,15 @@ def load_coverage(path: Path) -> object:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise CoverageError(f"cannot read coverage document: {error}") from error
+
+
+def load_source_manifest(path: Path) -> bytes:
+    """Read a Reaper source manifest without normalizing its retained digest."""
+
+    try:
+        return path.read_bytes()
+    except OSError as error:
+        raise CoverageError(f"cannot read Reaper source manifest: {error}") from error
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -184,19 +237,33 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=Path(__file__).resolve().parents[2],
     )
+    check.add_argument(
+        "--source-manifest",
+        type=Path,
+        help="audit the exact Reaper manifest that produced the snapshot",
+    )
     arguments = parser.parse_args(argv)
 
     try:
-        regression_count = validate_coverage(
-            load_coverage(arguments.coverage), arguments.repo_root
-        )
+        coverage = load_coverage(arguments.coverage)
+        regression_count = validate_coverage(coverage, arguments.repo_root)
+        if arguments.source_manifest is not None:
+            source = _mapping_with_keys(coverage, _TOP_LEVEL_KEYS, "coverage document")[
+                "source"
+            ]
+            validate_source_manifest(
+                load_source_manifest(arguments.source_manifest), source
+            )
     except CoverageError as error:
         parser.exit(1, f"error: {error}\n")
 
-    print(
+    message = (
         f"Reaper coverage OK: {len(EXPECTED_PROBE_IDS)} probes, "
         f"{regression_count} regressions"
     )
+    if arguments.source_manifest is not None:
+        message += "; source manifest matches"
+    print(message)
     return 0
 
 

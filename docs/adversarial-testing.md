@@ -118,11 +118,24 @@ python scripts/capture/reaper_coverage.py check \
   fixtures/adversarial/reaper/2026-09-16/coverage.json
 ```
 
-This gate detects missing or renamed Phantom regressions; it does not discover
-changes to an upstream probe recipe. Refreshing the snapshot therefore requires
-a deliberate Reaper source and retained-browser audit. Reaper and browser
-executables are not CI dependencies. In addition to the cases above, those
-regressions cover:
+When the matching Reaper source tree is available, audit its manifest directly:
+
+```console
+python scripts/capture/reaper_coverage.py check \
+  fixtures/adversarial/reaper/2026-09-16/coverage.json \
+  --source-manifest ../reaper/harness/manifest.json
+```
+
+The direct audit checks the byte-exact digest and reports added, removed, or
+reordered active probes after a deliberate digest refresh. A changed manifest
+requires a source review and new Phantom regressions before updating the
+snapshot; it is never accepted by changing the digest alone.
+
+The repository-only CI gate detects missing or renamed Phantom regressions; it
+does not discover changes to an upstream probe recipe without a source manifest.
+Refreshing the snapshot therefore requires a deliberate Reaper source and
+retained-browser audit. Reaper and browser executables are not CI dependencies.
+In addition to the cases above, those regressions cover:
 
 - a six-write H1 response split across the status line, fields, header/body
   boundary, and body, followed by `Connection: close` replacement;
