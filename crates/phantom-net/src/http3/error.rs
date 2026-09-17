@@ -69,6 +69,14 @@ impl Http3Error {
         }
     }
 
+    pub(super) fn request_body(source: crate::request::RequestBodyError) -> Self {
+        Self::with_source(
+            Http3ErrorKind::Request,
+            "HTTP/3 request body failed",
+            source,
+        )
+    }
+
     /// Returns the stable failure category.
     #[must_use]
     pub const fn kind(&self) -> Http3ErrorKind {

@@ -12,13 +12,14 @@ use http::{
 use phantom_profile::{Http3PseudoHeader, Http3RequestSettings};
 
 use super::{Http3Error, Http3ErrorKind, OriginForm, RequestHeader};
+use crate::request::{RequestBody, RequestBodyMetadata};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 
 pub(super) struct PreparedRequest {
     request: Request<()>,
-    body: Option<Bytes>,
+    body: Option<RequestBody>,
 }
 
 impl PreparedRequest {
@@ -26,15 +27,17 @@ impl PreparedRequest {
         self.request.method()
     }
 
-    pub(super) fn body_len(&self) -> usize {
-        self.body.as_ref().map_or(0, Bytes::len)
+    pub(super) fn body_len(&self) -> Option<u64> {
+        self.body
+            .as_ref()
+            .and_then(|body| body.metadata().exact_length())
     }
 
     pub(super) fn has_body(&self) -> bool {
         self.body.is_some()
     }
 
-    pub(super) fn into_parts(self) -> (Request<()>, Option<Bytes>) {
+    pub(super) fn into_parts(self) -> (Request<()>, Option<RequestBody>) {
         (self.request, self.body)
     }
 }
@@ -65,6 +68,62 @@ pub(super) fn prepare_profiled_request(
     headers: Vec<RequestHeader>,
     body: Option<Bytes>,
 ) -> Result<PreparedRequest, Http3Error> {
+    prepare_profiled_request_body(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        body.map(RequestBody::from_bytes),
+    )
+}
+
+pub(super) fn prepare_profiled_request_body(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+) -> Result<PreparedRequest, Http3Error> {
+    let request = prepare_profiled_request_head(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        body.as_ref().map(RequestBody::metadata),
+    )?;
+    Ok(PreparedRequest { request, body })
+}
+
+pub(super) fn validate_profiled_request_body(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    metadata: Option<RequestBodyMetadata>,
+) -> Result<(), Http3Error> {
+    prepare_profiled_request_head(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        metadata,
+    )
+    .map(drop)
+}
+
+fn prepare_profiled_request_head(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    metadata: Option<RequestBodyMetadata>,
+) -> Result<Request<()>, Http3Error> {
     if authority.as_bytes().contains(&b'@') {
         return Err(invalid("HTTP/3 request authority contains userinfo"));
     }
@@ -77,7 +136,7 @@ pub(super) fn prepare_profiled_request(
         .path_and_query(target.into_path_and_query())
         .build()
         .map_err(|_| invalid("HTTP/3 request URI is invalid"))?;
-    let headers = ValidatedHeaders::new(headers, body.as_ref().map_or(0, Bytes::len))?;
+    let headers = ValidatedHeaders::new(headers, metadata)?;
 
     let mut request = Request::new(());
     *request.method_mut() = method;
@@ -90,22 +149,34 @@ pub(super) fn prepare_profiled_request(
     request
         .extensions_mut()
         .insert(pseudo_header_order(request_settings)?);
-    prepare_request(request, body)
+    validate_request(&request)?;
+    validate_ordered_headers(&request)?;
+    validate_pseudo_header_order(&request)?;
+    Ok(request)
 }
 
 pub(super) fn prepare_request(
-    mut request: Request<()>,
+    request: Request<()>,
     body: Option<Bytes>,
 ) -> Result<PreparedRequest, Http3Error> {
-    apply_content_length(&mut request, body.as_ref().map_or(0, Bytes::len))?;
+    prepare_request_body(request, body.map(RequestBody::from_bytes))
+}
+
+pub(super) fn prepare_request_body(
+    mut request: Request<()>,
+    body: Option<RequestBody>,
+) -> Result<PreparedRequest, Http3Error> {
+    apply_content_length(&mut request, body.as_ref().map(RequestBody::metadata))?;
     validate_request(&request)?;
     validate_ordered_headers(&request)?;
     validate_pseudo_header_order(&request)?;
     Ok(PreparedRequest { request, body })
 }
 
-fn apply_content_length(request: &mut Request<()>, body_len: usize) -> Result<(), Http3Error> {
-    let expected = body_len.to_string();
+fn apply_content_length(
+    request: &mut Request<()>,
+    metadata: Option<RequestBodyMetadata>,
+) -> Result<(), Http3Error> {
     let values = request.headers().get_all(CONTENT_LENGTH);
     let mut values = values.iter();
     if let Some(value) = values.next() {
@@ -114,6 +185,8 @@ fn apply_content_length(request: &mut Request<()>, body_len: usize) -> Result<()
                 "HTTP/3 request contains multiple content-length fields",
             ));
         }
+        let body_len = exact_body_length(metadata)?;
+        let expected = body_len.to_string();
         if value.as_bytes() != expected.as_bytes() {
             return Err(invalid(
                 "HTTP/3 request content-length does not match the request body",
@@ -121,10 +194,14 @@ fn apply_content_length(request: &mut Request<()>, body_len: usize) -> Result<()
         }
         return Ok(());
     }
+    let Some(body_len) = metadata.and_then(RequestBodyMetadata::exact_length) else {
+        return Ok(());
+    };
     if body_len == 0 {
         return Ok(());
     }
 
+    let expected = body_len.to_string();
     let value = HeaderValue::from_bytes(expected.as_bytes())
         .map_err(|_| invalid("HTTP/3 request content-length is invalid"))?;
     request.headers_mut().append(CONTENT_LENGTH, value.clone());
@@ -135,6 +212,15 @@ fn apply_content_length(request: &mut Request<()>, body_len: usize) -> Result<()
         request.extensions_mut().insert(ordered);
     }
     Ok(())
+}
+
+fn exact_body_length(metadata: Option<RequestBodyMetadata>) -> Result<u64, Http3Error> {
+    match metadata {
+        None => Ok(0),
+        Some(metadata) => metadata.exact_length().ok_or_else(|| {
+            invalid("HTTP/3 request content-length requires an exact request body length")
+        }),
+    }
 }
 
 fn validate_request(request: &Request<()>) -> Result<(), Http3Error> {
@@ -267,8 +353,10 @@ struct ValidatedHeaders {
 }
 
 impl ValidatedHeaders {
-    fn new(mut headers: Vec<RequestHeader>, body_len: usize) -> Result<Self, Http3Error> {
-        let expected = body_len.to_string();
+    fn new(
+        mut headers: Vec<RequestHeader>,
+        metadata: Option<RequestBodyMetadata>,
+    ) -> Result<Self, Http3Error> {
         let content_length_count = headers
             .iter()
             .filter(|header| header.name().eq_ignore_ascii_case(CONTENT_LENGTH.as_str()))
@@ -282,13 +370,17 @@ impl ValidatedHeaders {
             .iter()
             .find(|header| header.name().eq_ignore_ascii_case(CONTENT_LENGTH.as_str()))
         {
+            let body_len = exact_body_length(metadata)?;
+            let expected = body_len.to_string();
             if header.value() != expected.as_bytes() {
                 return Err(invalid(
                     "HTTP/3 request content-length does not match the request body",
                 ));
             }
-        } else if body_len != 0 {
-            headers.push(RequestHeader::new("content-length", expected));
+        } else if let Some(body_len) = metadata.and_then(RequestBodyMetadata::exact_length)
+            && body_len != 0
+        {
+            headers.push(RequestHeader::new("content-length", body_len.to_string()));
         }
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(invalid("HTTP/3 request has too many headers"));

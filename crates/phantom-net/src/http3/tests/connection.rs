@@ -1,5 +1,13 @@
+use std::{
+    collections::VecDeque,
+    error::Error as _,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use bytes::{Buf, Bytes};
 use http::{HeaderMap, HeaderValue, Request, Response, StatusCode};
+use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use tokio::{sync::oneshot, time::timeout};
 
@@ -7,6 +15,7 @@ use super::{
     TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, client_config, join_server,
     server_endpoint, test_settings,
 };
+use crate::request::{RequestBody, RequestBodyError, RequestBodyErrorKind};
 
 type ServerConnection = h3::server::Connection<h3_quinn::Connection, Bytes>;
 type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
@@ -172,6 +181,139 @@ async fn owned_body_is_flow_controlled_and_received_exactly() -> TestResult<()> 
     .await
     .map_err(|_| "HTTP/3 upload timed out")??;
     assert_eq!(collect_body(response.into_body()).await?, "accepted");
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn streaming_body_frames_are_received_exactly_without_content_length() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut stream) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/stream-upload");
+        assert!(request.headers().get("content-length").is_none());
+        assert_eq!(collect_request_body(&mut stream).await?, "alphabetagamma");
+        send_response(&mut stream, "accepted").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let request = Request::post(format!(
+        "https://{TEST_SERVER_NAME}:{}/stream-upload",
+        address.port()
+    ))
+    .body(())?;
+    let body = RequestBody::streaming(TestBody::data([
+        Bytes::from_static(b"alpha"),
+        Bytes::from_static(b"beta"),
+        Bytes::from_static(b"gamma"),
+    ]));
+    let prepared = crate::http3::request::prepare_request_body(request, Some(body))?;
+    let response = timeout(TEST_TIMEOUT, connection.send_prepared_request(prepared))
+        .await
+        .map_err(|_| "streaming HTTP/3 upload timed out")??;
+    assert_eq!(collect_body(response.into_body()).await?, "accepted");
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn streaming_body_failures_reset_only_their_streams() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        for expected_path in ["/source-error", "/trailers", "/length-mismatch"] {
+            let (request, mut failed) = accept_stream(&mut connection).await?;
+            assert_eq!(request.uri().path(), expected_path);
+            loop {
+                match failed.recv_data().await {
+                    Ok(Some(_)) => {}
+                    Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                        if code == h3::error::Code::H3_REQUEST_CANCELLED =>
+                    {
+                        break;
+                    }
+                    Ok(None) => return Err("failed streaming upload completed normally".into()),
+                    Err(error) => {
+                        return Err(format!("unexpected upload failure: {error}").into());
+                    }
+                }
+            }
+        }
+
+        let (request, mut later) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/after-source-error");
+        send_response(&mut later, "reused").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    for (path, body, expected_kind) in [
+        (
+            "/source-error",
+            RequestBody::streaming(TestBody::source_error()),
+            RequestBodyErrorKind::Source,
+        ),
+        (
+            "/trailers",
+            RequestBody::streaming(TestBody::trailers()),
+            RequestBodyErrorKind::TrailersUnsupported,
+        ),
+        (
+            "/length-mismatch",
+            RequestBody::streaming(TestBody::length_mismatch()),
+            RequestBodyErrorKind::LengthMismatch,
+        ),
+    ] {
+        let request = Request::post(format!(
+            "https://{TEST_SERVER_NAME}:{}{path}",
+            address.port()
+        ))
+        .body(())?;
+        let prepared = crate::http3::request::prepare_request_body(request, Some(body))?;
+        let error = timeout(TEST_TIMEOUT, connection.send_prepared_request(prepared))
+            .await
+            .map_err(|_| "streaming body error timed out")?
+            .err()
+            .ok_or("invalid streaming body was accepted")?;
+        assert_eq!(error.kind(), super::super::Http3ErrorKind::Request);
+        let body_error = error
+            .source()
+            .and_then(|source| source.downcast_ref::<RequestBodyError>())
+            .ok_or("HTTP/3 error omitted typed request-body source")?;
+        assert_eq!(body_error.kind(), expected_kind);
+    }
+
+    let later = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(test_request(address.port(), "/after-source-error")?, None),
+    )
+    .await
+    .map_err(|_| "request after body source error timed out")??;
+    assert_eq!(collect_body(later.into_body()).await?, "reused");
 
     let _ = client_done.send(());
     join_server(server).await
@@ -508,6 +650,71 @@ async fn collect_body(body: super::super::Http3Body) -> TestResult<Bytes> {
         .await
         .map_err(|_| "HTTP/3 response body timed out")??;
     Ok(body.to_bytes())
+}
+
+async fn collect_request_body(stream: &mut ServerStream) -> TestResult<Bytes> {
+    let mut body = Vec::new();
+    while let Some(mut chunk) = stream.recv_data().await? {
+        let remaining = chunk.remaining();
+        body.extend_from_slice(&chunk.copy_to_bytes(remaining));
+    }
+    Ok(Bytes::from(body))
+}
+
+struct TestBody {
+    frames: VecDeque<Result<Frame<Bytes>, std::io::Error>>,
+    exact_length: Option<u64>,
+}
+
+impl TestBody {
+    fn data<const N: usize>(chunks: [Bytes; N]) -> Self {
+        Self {
+            frames: chunks.into_iter().map(Frame::data).map(Ok).collect(),
+            exact_length: None,
+        }
+    }
+
+    fn source_error() -> Self {
+        Self {
+            frames: [
+                Ok(Frame::data(Bytes::from_static(b"prefix"))),
+                Err(std::io::Error::other("synthetic request body failure")),
+            ]
+            .into(),
+            exact_length: None,
+        }
+    }
+
+    fn trailers() -> Self {
+        Self {
+            frames: [Ok(Frame::trailers(HeaderMap::new()))].into(),
+            exact_length: None,
+        }
+    }
+
+    fn length_mismatch() -> Self {
+        Self {
+            frames: [Ok(Frame::data(Bytes::from_static(b"short")))].into(),
+            exact_length: Some(7),
+        }
+    }
+}
+
+impl Body for TestBody {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.frames.pop_front())
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        self.exact_length
+            .map_or_else(SizeHint::default, SizeHint::with_exact)
+    }
 }
 
 fn test_request(port: u16, path: &str) -> TestResult<Request<()>> {

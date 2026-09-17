@@ -16,7 +16,7 @@ use tracing::{debug, debug_span, field};
 
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask};
-use request::{PreparedRequest, prepare_profiled_request, prepare_request};
+use request::{PreparedRequest, prepare_profiled_request_body, prepare_request};
 use tokio::runtime::Handle;
 
 use crate::direct::{RuntimeUnavailable, poll_tokio_io};
@@ -79,20 +79,41 @@ fn prepare_traced_request(
     headers: Vec<RequestHeader>,
     body: Option<Bytes>,
 ) -> Result<PreparedRequest, Http3Error> {
-    let body_bytes = body.as_ref().map_or(0, Bytes::len);
+    prepare_traced_request_body(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        body.map(crate::request::RequestBody::from_bytes),
+    )
+}
+
+fn prepare_traced_request_body(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<crate::request::RequestBody>,
+) -> Result<PreparedRequest, Http3Error> {
+    let body_bytes = body
+        .as_ref()
+        .and_then(|body| body.metadata().exact_length());
     let has_body = body.is_some();
     let span = debug_span!(
         "http3.request.prepare",
         method = %method,
         protocol = "h3",
-        body_bytes,
+        body_bytes = body_bytes.unwrap_or(0),
+        body_length_known = body_bytes.is_some(),
         has_body,
         outcome = field::Empty,
         error_kind = field::Empty,
     );
     let request = {
         let _entered = span.enter();
-        prepare_profiled_request(request_settings, method, authority, target, headers, body)
+        prepare_profiled_request_body(request_settings, method, authority, target, headers, body)
     };
     match &request {
         Ok(_) => {
@@ -385,6 +406,7 @@ async fn receive_response_head(
 }
 
 enum ResponseHeadError {
+    RequestBody(Http3Error),
     Stream(h3::error::StreamError),
     UnsupportedDatagram,
     SwitchingProtocols,

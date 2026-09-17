@@ -1,8 +1,15 @@
-use std::{error::Error, sync::Arc};
+use std::{
+    convert::Infallible,
+    error::Error,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 use bytes::{Bytes, BytesMut};
 use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{HeaderValue, Request, Response, StatusCode};
+use http_body::{Body, Frame, SizeHint};
 use phantom_profile::{
     Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting,
     Http3SettingOrder, Http3Settings, chromium,
@@ -15,6 +22,7 @@ use super::{
 };
 use crate::{
     http3::{Http3ErrorKind, OriginForm, RequestHeader},
+    request::RequestBody,
     tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity},
     tracing_test::OutcomeSubscriber,
 };
@@ -187,7 +195,11 @@ fn prepared_body_request_preserves_method_and_content_length_order() -> TestResu
     let (request, body) = prepared.into_parts();
 
     assert_eq!(request.method(), http::Method::PATCH);
-    assert_eq!(body, Some(Bytes::from_static(b"payload")));
+    assert_eq!(
+        body.as_ref()
+            .and_then(|body| body.metadata().exact_length()),
+        Some(7)
+    );
     assert_eq!(
         request.headers().get("content-length"),
         Some(&HeaderValue::from_static("7"))
@@ -223,8 +235,69 @@ fn explicit_empty_body_remains_distinct_without_synthesized_length() -> TestResu
     let (request, body) = prepared.into_parts();
 
     assert!(request.headers().get("content-length").is_none());
-    assert_eq!(body, Some(Bytes::new()));
+    assert_eq!(
+        body.as_ref()
+            .and_then(|body| body.metadata().exact_length()),
+        Some(0)
+    );
     Ok(())
+}
+
+#[test]
+fn unknown_length_stream_omits_content_length() -> TestResult<()> {
+    let prepared = crate::http3::request::prepare_profiled_request_body(
+        &chromium::v152_macos_http3_request(),
+        http::Method::POST,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/stream")?,
+        vec![RequestHeader::new("x-before", "value")],
+        Some(RequestBody::streaming(UnknownBody)),
+    )?;
+    let (request, _) = prepared.into_parts();
+
+    assert!(request.headers().get("content-length").is_none());
+    let ordered = request
+        .extensions()
+        .get::<OrderedHeaders>()
+        .ok_or("streaming request omitted ordered headers")?;
+    assert_eq!(ordered.as_slice().len(), 1);
+    assert_eq!(ordered.as_slice()[0].0.as_str(), "x-before");
+    Ok(())
+}
+
+#[test]
+fn unknown_length_stream_rejects_caller_content_length() -> TestResult<()> {
+    let error = crate::http3::request::prepare_profiled_request_body(
+        &chromium::v152_macos_http3_request(),
+        http::Method::POST,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/stream")?,
+        vec![RequestHeader::new("content-length", "7")],
+        Some(RequestBody::streaming(UnknownBody)),
+    )
+    .err()
+    .ok_or("unknown-length stream accepted content-length")?;
+
+    assert_eq!(error.kind(), Http3ErrorKind::Request);
+    Ok(())
+}
+
+struct UnknownBody;
+
+impl Body for UnknownBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Pending
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
 }
 
 #[test]

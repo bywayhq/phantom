@@ -16,10 +16,11 @@ use phantom_quic_btls::{
 use super::request::PreparedRequest;
 use super::{
     Http3Body, Http3Connection, Http3Error, Http3ErrorKind, OriginForm, RequestHeader,
-    connect_bound, prepare_traced_request, settings,
+    connect_bound, prepare_traced_request, prepare_traced_request_body, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
+    request::{RequestBody, RequestBodyMetadata},
     tls::{TlsConnector, TlsError, TlsErrorKind},
 };
 
@@ -229,7 +230,32 @@ impl Http3Connector {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http3Body>, Http3ConnectorError> {
-        let request = prepare_traced_request(
+        self.send_request_body_on(
+            connection,
+            method,
+            authority,
+            target,
+            headers,
+            body.map(RequestBody::from_bytes),
+        )
+        .await
+    }
+
+    /// Sends one profiled request body over a connection opened by this connector.
+    ///
+    /// The body is pulled only as HTTP/3 flow control accepts each preceding
+    /// DATA frame. Request trailers are rejected by [`RequestBody`].
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_body_on(
+        &self,
+        connection: &Http3Connection,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+    ) -> Result<Response<Http3Body>, Http3ConnectorError> {
+        let request = prepare_traced_request_body(
             &self.request_settings,
             method,
             authority,
@@ -274,15 +300,32 @@ impl Http3Connector {
         headers: &[RequestHeader],
         body: Option<&Bytes>,
     ) -> Result<(), Http3ConnectorError> {
-        prepare_traced_request(
+        self.validate_request_body(
+            method,
+            authority,
+            target,
+            headers,
+            body.map(|body| RequestBody::from_bytes(body.clone()).metadata()),
+        )
+    }
+
+    /// Validates one profiled request and body framing without polling a body.
+    pub fn validate_request_body(
+        &self,
+        method: Method,
+        authority: &str,
+        target: &OriginForm,
+        headers: &[RequestHeader],
+        body: Option<RequestBodyMetadata>,
+    ) -> Result<(), Http3ConnectorError> {
+        super::request::validate_profiled_request_body(
             &self.request_settings,
             method,
             authority,
             target.clone(),
             headers.to_vec(),
-            body.cloned(),
+            body,
         )
-        .map(drop)
         .map_err(Http3ConnectorError::transaction)
     }
 

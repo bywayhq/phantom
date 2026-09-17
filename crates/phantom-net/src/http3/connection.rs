@@ -8,6 +8,7 @@ use h3::ConnectionState;
 #[cfg(test)]
 use http::Request;
 use http::Response;
+use http_body_util::BodyExt as _;
 use tokio::{runtime::Handle, sync::Mutex};
 use tracing::{Instrument, debug_span, field};
 
@@ -18,6 +19,7 @@ use super::{
     PendingRequest, RequestRecvStream, RequestSendStream, ResponseHeadError, body,
     receive_response, request::PreparedRequest,
 };
+use crate::request::RequestBody;
 
 type RequestSender = h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>;
 const REQUEST_BODY_CHUNK_BYTES: usize = 64 * 1024;
@@ -97,7 +99,8 @@ impl Http3Connection {
             "http3.response_head",
             method = %method,
             protocol = "h3",
-            body_bytes,
+            body_bytes = body_bytes.unwrap_or(0),
+            body_length_known = body_bytes.is_some(),
             has_body,
             status = field::Empty,
             outcome = field::Empty,
@@ -127,6 +130,7 @@ impl Http3Connection {
             };
             let response = match exchange_result {
                 Ok(response) => response,
+                Err(ResponseHeadError::RequestBody(error)) => return Err(error),
                 Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
                 Err(ResponseHeadError::UnsupportedDatagram) => {
                     datagrams.take();
@@ -209,7 +213,7 @@ impl Http3Connection {
 async fn exchange(
     send: &mut RequestSendStream,
     recv: &mut RequestRecvStream,
-    body: Option<Bytes>,
+    body: Option<RequestBody>,
     datagrams: Option<&mut super::DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
     let Some(body) = body else {
@@ -232,7 +236,8 @@ async fn exchange(
         upload = &mut upload => {
             match upload {
                 Ok(()) => response.await,
-                Err(upload_error) => match response.await {
+                Err(UploadError::Body(error)) => Err(ResponseHeadError::RequestBody(error)),
+                Err(UploadError::Stream(upload_error)) => match response.await {
                     Ok(response) => Ok(response),
                     Err(ResponseHeadError::Stream(_)) => {
                         Err(ResponseHeadError::Stream(upload_error))
@@ -244,19 +249,34 @@ async fn exchange(
     }
 }
 
-async fn send_body(
-    send: &mut RequestSendStream,
-    mut body: Bytes,
-) -> Result<(), h3::error::StreamError> {
-    if body.is_empty() {
-        send.send_data(body).await?;
-    } else {
-        while !body.is_empty() {
-            let chunk_len = body.len().min(REQUEST_BODY_CHUNK_BYTES);
-            send.send_data(body.split_to(chunk_len)).await?;
+async fn send_body(send: &mut RequestSendStream, mut body: RequestBody) -> Result<(), UploadError> {
+    while let Some(frame) = body.frame().await {
+        let frame = frame
+            .map_err(Http3Error::request_body)
+            .map_err(UploadError::Body)?;
+        let mut data = frame.into_data().map_err(|_| {
+            UploadError::Body(Http3Error::without_source(
+                Http3ErrorKind::Request,
+                "HTTP/3 request trailers are not supported",
+            ))
+        })?;
+        if data.is_empty() {
+            send.send_data(data).await.map_err(UploadError::Stream)?;
+        } else {
+            while !data.is_empty() {
+                let chunk_len = data.len().min(REQUEST_BODY_CHUNK_BYTES);
+                send.send_data(data.split_to(chunk_len))
+                    .await
+                    .map_err(UploadError::Stream)?;
+            }
         }
     }
-    send.finish().await
+    send.finish().await.map_err(UploadError::Stream)
+}
+
+enum UploadError {
+    Body(Http3Error),
+    Stream(h3::error::StreamError),
 }
 
 impl std::fmt::Debug for Http3Connection {
