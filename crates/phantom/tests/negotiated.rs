@@ -142,6 +142,88 @@ async fn negotiated_request_selects_http2_once() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn concurrent_negotiated_http2_requests_share_one_tls_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let stream = accept_tls_stream(tcp, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let mut requests = Vec::with_capacity(2);
+            let mut responders = Vec::with_capacity(2);
+            for _ in 0..2 {
+                let (request, respond) = connection
+                    .accept()
+                    .await
+                    .ok_or("connection closed before both negotiated requests")??;
+                requests.push((respond.stream_id().as_u32(), request.uri().path().to_owned()));
+                responders.push(respond);
+            }
+            for mut respond in responders {
+                respond.send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(())?,
+                    true,
+                )?;
+            }
+            let had_no_second_connection = tokio::select! {
+                closed = poll_fn(|context| connection.poll_closed(context)) => {
+                    closed?;
+                    return Err("negotiated HTTP/2 connection closed during reuse observation".into());
+                }
+                second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()) => second.is_err(),
+            };
+            Ok::<_, Box<dyn Error + Send + Sync>>((requests, had_no_second_connection))
+        });
+
+        let client = test_client(&identity, true)?;
+        let first_client = client.clone();
+        let first = tokio::spawn(async move {
+            let response = first_client
+                .get_negotiated(&format!("https://{address}/first"))?
+                .send()
+                .await?;
+            let protocol = response_protocol(&response)?;
+            response.into_body().collect().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(protocol)
+        });
+        let second_client = client.clone();
+        let second = tokio::spawn(async move {
+            let response = second_client
+                .get_negotiated(&format!("https://{address}/second"))?
+                .send()
+                .await?;
+            let protocol = response_protocol(&response)?;
+            response.into_body().collect().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(protocol)
+        });
+
+        assert_eq!(first.await??, HttpProtocol::Http2);
+        assert_eq!(second.await??, HttpProtocol::Http2);
+        let (requests, had_no_second_connection) = server.await??;
+        let mut stream_ids = requests
+            .iter()
+            .map(|(stream_id, _)| *stream_id)
+            .collect::<Vec<_>>();
+        stream_ids.sort_unstable();
+        let mut paths = requests
+            .into_iter()
+            .map(|(_, path)| path)
+            .collect::<Vec<_>>();
+        paths.sort_unstable();
+        assert_eq!(stream_ids, [1, 3]);
+        assert_eq!(paths, ["/first", "/second"]);
+        assert!(had_no_second_connection);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn negotiated_http2_streams_unknown_length_request_body() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
@@ -195,6 +277,98 @@ async fn negotiated_http2_streams_unknown_length_request_body() -> TestResult<()
 #[tokio::test]
 async fn negotiated_request_selects_http1_once() -> TestResult<()> {
     negotiated_http1_case(true).await
+}
+
+#[tokio::test]
+async fn sequential_negotiated_http1_requests_reuse_one_tls_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let mut stream = accept_tls_stream(tcp, acceptor).await?;
+            let first = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nfirst")
+                .await?;
+            let second = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            let replacement = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
+            Ok::<_, Box<dyn Error + Send + Sync>>((first, second, replacement.is_err()))
+        });
+
+        let client = test_client(&identity, true)?;
+        let first = client
+            .get_negotiated(&format!("https://{address}/first"))?
+            .send()
+            .await?;
+        assert_eq!(response_protocol(&first)?, HttpProtocol::Http1);
+        assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
+
+        let second = client
+            .get_negotiated(&format!("https://{address}/second"))?
+            .send()
+            .await?;
+        assert_eq!(response_protocol(&second)?, HttpProtocol::Http1);
+        assert!(second.into_body().collect().await?.to_bytes().is_empty());
+
+        let (first, second, had_no_replacement) = server.await??;
+        assert!(first.starts_with(b"GET /first HTTP/1.1\r\n"));
+        assert!(second.starts_with(b"GET /second HTTP/1.1\r\n"));
+        assert!(had_no_replacement);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn negotiated_http1_replaces_nonreusable_connection_without_replay() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let first_acceptor = identity.acceptor(H1_ALPN)?;
+        let second_acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (first_tcp, _) = listener.accept().await?;
+            let mut first = accept_tls_stream(first_tcp, first_acceptor).await?;
+            let first_head = read_head(&mut first).await?;
+            first
+                .write_all(b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            drop(first);
+
+            let (second_tcp, _) = listener.accept().await?;
+            let mut second = accept_tls_stream(second_tcp, second_acceptor).await?;
+            let second_head = read_head(&mut second).await?;
+            second
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            let third = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
+            Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head, third.is_err()))
+        });
+
+        let client = test_client(&identity, true)?;
+        for path in ["first", "second"] {
+            let response = client
+                .get_negotiated(&format!("https://{address}/{path}"))?
+                .send()
+                .await?;
+            assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+            response.into_body().collect().await?;
+        }
+
+        let (first, second, had_no_third_connection) = server.await??;
+        assert!(first.starts_with(b"GET /first HTTP/1.1\r\n"));
+        assert!(second.starts_with(b"GET /second HTTP/1.1\r\n"));
+        assert!(had_no_third_connection);
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test]
