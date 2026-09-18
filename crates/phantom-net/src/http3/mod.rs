@@ -294,7 +294,16 @@ async fn send_prepared_request(
 ) -> Result<Response<Http3Body>, Http3Error> {
     Handle::try_current().map_err(|_| runtime_unavailable())?;
     poll_tokio_io(|| async {
-        let connection = connect(remote, server_name, crypto, settings, diagnostics, None).await?;
+        let connection = connect(
+            remote,
+            server_name,
+            crypto,
+            settings,
+            diagnostics,
+            None,
+            None,
+        )
+        .await?;
         connection.send_prepared_request(request).await
     })
     .await
@@ -322,6 +331,7 @@ pub(super) async fn connect_direct(
         settings,
         ConnectionDiagnostics::default(),
         None,
+        None,
     )
     .await
 }
@@ -340,6 +350,27 @@ pub(super) async fn connect_bound(
         settings,
         ConnectionDiagnostics::default(),
         Some(connector_identity),
+        None,
+    )
+    .await
+}
+
+pub(super) async fn connect_bound_with_socket(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    connector_identity: Arc<()>,
+    socket: Arc<dyn quinn::AsyncUdpSocket>,
+) -> Result<Http3Connection, Http3Error> {
+    connect(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        ConnectionDiagnostics::default(),
+        Some(connector_identity),
+        Some(socket),
     )
     .await
 }
@@ -351,9 +382,10 @@ async fn connect(
     settings: &Http3Settings,
     diagnostics: ConnectionDiagnostics,
     connector_identity: Option<Arc<()>>,
+    socket: Option<Arc<dyn quinn::AsyncUdpSocket>>,
 ) -> Result<Http3Connection, Http3Error> {
     let mut builder = settings::builder(settings, &crypto)?;
-    let endpoint = endpoint(remote, crypto, diagnostics)?;
+    let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket)?;
 
     debug!("QUIC connection started");
     let connection = endpoint
@@ -473,10 +505,20 @@ enum ResponseHeadError {
     SwitchingProtocols,
 }
 
+#[cfg(test)]
 fn endpoint(
     remote: SocketAddr,
     crypto: Arc<QuicClientConfig>,
     diagnostics: ConnectionDiagnostics,
+) -> Result<quinn::Endpoint, Http3Error> {
+    endpoint_with_socket(remote, crypto, diagnostics, None)
+}
+
+fn endpoint_with_socket(
+    remote: SocketAddr,
+    crypto: Arc<QuicClientConfig>,
+    diagnostics: ConnectionDiagnostics,
+    socket: Option<Arc<dyn quinn::AsyncUdpSocket>>,
 ) -> Result<quinn::Endpoint, Http3Error> {
     #[cfg(not(feature = "qlog"))]
     let _ = diagnostics;
@@ -506,15 +548,22 @@ fn endpoint(
     }
     let mut client_config = quinn::ClientConfig::new(crypto);
     client_config.transport_config(Arc::new(transport_config));
-    let bind_address = match remote.ip() {
-        IpAddr::V4(_) => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
-        IpAddr::V6(_) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
+    let runtime = Arc::new(quinn::TokioRuntime);
+    let mut endpoint = match socket {
+        Some(socket) => {
+            quinn::Endpoint::new_with_abstract_socket(endpoint_config, None, socket, runtime)
+                .map_err(endpoint_error)?
+        }
+        None => {
+            let bind_address = match remote.ip() {
+                IpAddr::V4(_) => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
+                IpAddr::V6(_) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
+            };
+            let socket = UdpSocket::bind(bind_address).map_err(endpoint_error)?;
+            socket.set_nonblocking(true).map_err(endpoint_error)?;
+            quinn::Endpoint::new(endpoint_config, None, socket, runtime).map_err(endpoint_error)?
+        }
     };
-    let socket = UdpSocket::bind(bind_address).map_err(endpoint_error)?;
-    socket.set_nonblocking(true).map_err(endpoint_error)?;
-    let mut endpoint =
-        quinn::Endpoint::new(endpoint_config, None, socket, Arc::new(quinn::TokioRuntime))
-            .map_err(endpoint_error)?;
     endpoint.set_default_client_config(client_config);
     Ok(endpoint)
 }

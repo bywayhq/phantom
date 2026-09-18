@@ -16,10 +16,12 @@ use phantom_quic_btls::{
 use super::request::PreparedRequest;
 use super::{
     Http3Body, Http3Connection, Http3Error, Http3ErrorKind, OriginForm, RequestHeader,
-    connect_bound, prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
+    connect_bound, connect_bound_with_socket, prepare_traced_request,
+    prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
+    proxy::{Socks5Auth, Socks5Error, associate_socks5_udp_local_with_auth},
     request::{RequestBody, RequestBodyMetadata},
     tls::{TlsConnector, TlsError, TlsErrorKind},
 };
@@ -199,6 +201,63 @@ impl Http3Connector {
                 .map_err(Http3ConnectorError::resolve)?
                 .collect::<Vec<_>>();
             self.connect_to_addresses(addresses, server_name).await
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+    }
+
+    /// Opens one reusable HTTP/3 connection through a SOCKS5 UDP association.
+    ///
+    /// The target is resolved locally, and each resolved address receives a
+    /// fresh UDP association attempt. The proxy never receives a domain target,
+    /// and failure never falls back to a direct route or another protocol.
+    pub async fn connect_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        self.connect_socks5_local_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+        )
+        .await
+    }
+
+    /// Opens one reusable HTTP/3 connection through an authenticated SOCKS5 UDP association.
+    ///
+    /// The server name, connector profile, and authentication are validated
+    /// before target DNS or proxy I/O. Target DNS remains local. A pre-handshake
+    /// QUIC failure advances to the next resolved address using a new
+    /// association; proxy failures and all other failures are terminal.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        QuicClientConfig::validate_server_name(server_name)
+            .map_err(Http3ConnectorError::invalid_server_name)?;
+        let auth = auth.validate().map_err(Http3ConnectorError::proxy)?;
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+        poll_tokio_io(|| async {
+            let addresses = tokio::net::lookup_host((target_host, target_port))
+                .await
+                .map_err(Http3ConnectorError::resolve)?
+                .collect::<Vec<_>>();
+            self.connect_socks5_to_addresses(proxy_host, proxy_port, auth, addresses, server_name)
+                .await
         })
         .await
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
@@ -452,6 +511,46 @@ impl Http3Connector {
             }
         }
     }
+
+    async fn connect_socks5_to_addresses(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        addresses: Vec<std::net::SocketAddr>,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        let mut addresses = addresses.into_iter();
+        let mut remote = addresses
+            .next()
+            .ok_or_else(Http3ConnectorError::no_address)?;
+        loop {
+            let association =
+                associate_socks5_udp_local_with_auth(proxy_host, proxy_port, remote, auth)
+                    .await
+                    .map_err(Http3ConnectorError::proxy)?;
+            let (socket, logical_remote) = association.into_parts();
+            match connect_bound_with_socket(
+                logical_remote,
+                server_name,
+                Arc::clone(&self.crypto),
+                &self.settings,
+                Arc::clone(&self.identity),
+                socket,
+            )
+            .await
+            {
+                Ok(connection) => return Ok(connection),
+                Err(error) if should_try_next_address(&error) => {
+                    let Some(next) = addresses.next() else {
+                        return Err(Http3ConnectorError::transaction(error));
+                    };
+                    remote = next;
+                }
+                Err(error) => return Err(Http3ConnectorError::transaction(error)),
+            }
+        }
+    }
 }
 
 fn should_try_next_address(error: &Http3Error) -> bool {
@@ -471,7 +570,7 @@ fn validate_quic_runtime(crypto: &Arc<QuicClientConfig>) -> Result<(), Http3Conn
         .map_err(Http3ConnectorError::quic_runtime)
 }
 
-/// Stable category of a direct HTTP/3 connector failure.
+/// Stable category of an HTTP/3 connector failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http3ConnectorErrorKind {
@@ -485,6 +584,8 @@ pub enum Http3ConnectorErrorKind {
     RuntimeUnavailable,
     /// DNS resolution failed or returned no addresses.
     Resolve,
+    /// Connecting to or negotiating with the configured proxy failed.
+    Proxy,
     /// The request cannot be represented by the current HTTP/3 path.
     Request,
     /// The local UDP or QUIC endpoint could not be initialized.
@@ -591,6 +692,14 @@ impl Http3ConnectorError {
         )
     }
 
+    fn proxy(source: Socks5Error) -> Self {
+        Self::with_source(
+            Http3ConnectorErrorKind::Proxy,
+            "HTTP/3 SOCKS5 proxy setup failed",
+            source,
+        )
+    }
+
     fn invalid_server_name(source: InvalidServerName) -> Self {
         Self::with_source(
             Http3ConnectorErrorKind::Request,
@@ -663,5 +772,83 @@ impl StdError for Http3ConnectorError {
         self.source
             .as_deref()
             .map(|source| source as &(dyn StdError + 'static))
+    }
+}
+
+#[cfg(test)]
+mod socks5_tests {
+    use std::{
+        error::Error,
+        future::Future,
+        task::{Context, Poll, Waker},
+    };
+
+    use phantom_profile::chromium;
+
+    use super::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
+    use crate::proxy::{Socks5Auth, Socks5Error, Socks5ErrorKind};
+
+    #[test]
+    fn invalid_socks5_auth_precedes_runtime_dns_and_proxy_io() -> Result<(), Box<dyn Error>> {
+        let connector = connector()?;
+        let request = connector.connect_socks5_local_with_auth(
+            "does-not-resolve.invalid",
+            1080,
+            Socks5Auth::UsernamePassword {
+                username: "",
+                password: "password",
+            },
+            "does-not-resolve.invalid",
+            443,
+            "example.test",
+        );
+        let mut request = std::pin::pin!(request);
+        let mut context = Context::from_waker(Waker::noop());
+        let result = match request.as_mut().poll(&mut context) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return Err("invalid authentication reached runtime or I/O".into()),
+        };
+        let error = result.err().ok_or("invalid authentication was accepted")?;
+        assert_eq!(error.kind(), Http3ConnectorErrorKind::Proxy);
+        let source = error
+            .source()
+            .and_then(|source| source.downcast_ref::<Socks5Error>())
+            .ok_or("proxy connector error omitted its SOCKS5 source")?;
+        assert_eq!(source.kind(), Socks5ErrorKind::InvalidAuthentication);
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_server_name_precedes_socks5_auth_validation() -> Result<(), Box<dyn Error>> {
+        let connector = connector()?;
+        let request = connector.connect_socks5_local_with_auth(
+            "does-not-resolve.invalid",
+            1080,
+            Socks5Auth::UsernamePassword {
+                username: "",
+                password: "password",
+            },
+            "does-not-resolve.invalid",
+            443,
+            "absolute.example.",
+        );
+        let mut request = std::pin::pin!(request);
+        let mut context = Context::from_waker(Waker::noop());
+        let result = match request.as_mut().poll(&mut context) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return Err("invalid server name reached runtime or I/O".into()),
+        };
+        let error = result.err().ok_or("invalid server name was accepted")?;
+        assert_eq!(error.kind(), Http3ConnectorErrorKind::Request);
+        Ok(())
+    }
+
+    fn connector() -> Result<Http3Connector, Http3ConnectorError> {
+        Http3Connector::new(
+            &chromium::v152_macos_http3_tls(),
+            &chromium::v152_macos_quic(),
+            &chromium::v152_macos_http3(),
+            &chromium::v152_macos_http3_request(),
+        )
     }
 }

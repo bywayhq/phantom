@@ -84,7 +84,8 @@ final origin response.
 
 This evidence does not claim browser-capture fidelity, redirects, negotiated
 H1/H2 forwarding, H2 proxy transport, other authentication schemes, forwarding
-an HTTPS origin, H3 proxy support, or UDP-capable proxying.
+an HTTPS origin, or H3 through an HTTP forward proxy. H3's separate SOCKS5 UDP
+evidence is described below.
 
 The WebSocket route regressions apply the same contract to plaintext `ws://`
 Upgrade through plaintext and TLS-encrypted forward proxies. They assert the
@@ -101,6 +102,33 @@ SOCKS5 WebSocket regressions cover plaintext `ws://` as well as TLS-backed
 local-DNS address resolution, username/password negotiation, an origin-form
 Upgrade with no origin TLS, and delivery of a WebSocket frame coalesced with
 the `101` response.
+
+## H3 SOCKS5 UDP evidence
+
+Public exact-H3 loopback regressions cover local-DNS `socks5://` through RFC
+1928 UDP ASSOCIATE, both without authentication and with RFC 1929
+username/password authentication. They verify end-to-end H3 traffic to a fixed
+IP target, reuse of one route-keyed H3 connection and association across
+requests, and retention of the TCP control connection for the client-owned
+association lifetime. The transport fixture verifies that each association
+receives only a fixed IP target; hostname-resolution behavior remains a code
+boundary rather than a separate resolver-injected integration proof. Rejected
+and malformed association replies produce typed proxy errors without origin
+datagrams, direct fallback, or protocol fallback. Unsupported `socks5h://`,
+HTTP forwarding, and HTTP CONNECT routes fail before proxy or origin I/O.
+
+Transport-focused tests assert the exact authentication and UDP ASSOCIATE
+exchanges, fixed IPv4 and IPv6 target headers, zero RSV and FRAG fields, and
+fragment rejection. The adapter bounds operation to one datagram per send or
+receive and accepts only packets from the negotiated relay carrying the fixed
+target; malformed, fragmented, spoofed-relay, or wrong-target datagrams are
+discarded by that boundary. Relay-reply tests cover the compatibility rule that
+substitutes only the established TCP proxy peer IP for an unspecified
+BND.ADDR, and rejection of domain BND.ADDR or a zero BND.PORT.
+
+This evidence does not claim remote-DNS SOCKS5 UDP, HTTP proxy or CONNECT
+routing for H3, CONNECT-UDP/MASQUE, Alt-Svc/H3 upgrade, extended CONNECT, or
+browser-capture fidelity for a proxied H3 route.
 
 ## Connection-retry evidence
 

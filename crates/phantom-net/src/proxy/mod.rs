@@ -5,6 +5,7 @@ mod error;
 mod http_connect;
 mod https_connect;
 mod socks5;
+mod socks5_udp;
 mod tunnel;
 
 pub use authentication::{HttpBasicCredentials, validate_basic_proxy_challenge};
@@ -19,6 +20,7 @@ pub use socks5::{
     connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local,
     connect_socks5_tunnel_local_with_auth,
 };
+pub(crate) use socks5_udp::associate_socks5_udp_local_with_auth;
 pub use tunnel::TunnelStream;
 
 #[cfg(test)]

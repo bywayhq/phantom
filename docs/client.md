@@ -58,7 +58,8 @@ Pool and client-hint limits have finite defaults and can be tightened on
 - `get` and `request` select exactly H1, H2, or H3.
 - `get_negotiated` and `request_negotiated` perform one direct TLS handshake
   and select H2 for `h2`, or H1 for `http/1.1` or absent ALPN.
-- H3 uses a separate QUIC path and accepts direct routes only.
+- H3 uses a separate QUIC path and accepts direct routes or local-DNS
+  `socks5://` through RFC 1928 UDP ASSOCIATE.
 
 Unsupported combinations fail explicitly before another protocol or route is
 attempted.
@@ -168,8 +169,24 @@ typed proxy error. Challenge state is not retained, so the next logical request
 starts anonymously again.
 
 The complete route participates in pool identity. Proxy failure never falls
-back direct, and H3 rejects TCP-only proxy routes before network I/O. Proxy
-credentials are validated before I/O and excluded from diagnostics.
+back direct. For exact H3, local-DNS `socks5://` resolves the origin locally,
+opens an RFC 1928 UDP ASSOCIATE for one resolved IP target, and keeps the TCP
+control connection alive for the association lifetime. H3 connections and
+associations are retained through the normal route-keyed pool, so compatible
+requests can reuse them. Optional username/password authentication uses RFC
+1929. Proxy authentication, negotiation, and rejection failures are typed and
+are not address-fallback candidates. Proxy TCP and QUIC connection setup may
+advance or retry only through a fresh association on the same configured
+route, under the documented exact-H3 setup policy; no failure selects another
+route or protocol.
+
+An H3 SOCKS5 relay reply must provide a nonzero port. Phantom uses a concrete
+IP relay address directly; for an unspecified relay address, it substitutes
+only the established TCP proxy peer IP and retains the returned port. Domain
+relay addresses are rejected. Exact H3 rejects remote-DNS `socks5h://`, HTTP
+forwarding, and HTTP CONNECT before origin I/O. CONNECT-UDP/MASQUE, Alt-Svc/H3
+upgrade, and extended CONNECT remain planned. Proxy credentials are validated
+before I/O and excluded from diagnostics.
 
 The credential-bearing route below works for either an HTTPS origin through
 CONNECT or an `http://` origin through exact-H1 forwarding. In both cases Basic

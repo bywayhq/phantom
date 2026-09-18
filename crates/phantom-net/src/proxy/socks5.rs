@@ -26,7 +26,7 @@ pub enum Socks5ErrorKind {
     Negotiation,
     /// The proxy rejected authentication or offered no supported method.
     Authentication,
-    /// The proxy returned a SOCKS5 CONNECT failure reply.
+    /// The proxy returned a failure reply for the requested SOCKS5 command.
     Rejected,
 }
 
@@ -50,8 +50,15 @@ impl Socks5Error {
         self.kind
     }
 
-    const fn without_source(kind: Socks5ErrorKind) -> Self {
+    pub(super) const fn without_source(kind: Socks5ErrorKind) -> Self {
         Self { kind, source: None }
+    }
+
+    pub(super) fn io(kind: Socks5ErrorKind, source: std::io::Error) -> Self {
+        Self {
+            kind,
+            source: Some(Socks5ErrorSource::Io(source)),
+        }
     }
 
     fn connect(source: std::io::Error) -> Self {
@@ -75,7 +82,7 @@ impl Socks5Error {
         }
     }
 
-    const fn invalid_authentication() -> Self {
+    pub(super) const fn invalid_authentication() -> Self {
         Self::without_source(Socks5ErrorKind::InvalidAuthentication)
     }
 
@@ -116,7 +123,7 @@ impl fmt::Display for Socks5Error {
             Socks5ErrorKind::Resolve => "SOCKS5 target DNS resolution failed",
             Socks5ErrorKind::Negotiation => "SOCKS5 negotiation failed",
             Socks5ErrorKind::Authentication => "SOCKS5 proxy authentication failed",
-            Socks5ErrorKind::Rejected => "SOCKS5 proxy rejected CONNECT",
+            Socks5ErrorKind::Rejected => "SOCKS5 proxy rejected the requested command",
         })
     }
 }
@@ -172,7 +179,7 @@ impl fmt::Debug for Socks5Auth<'_> {
 }
 
 impl Socks5Auth<'_> {
-    fn validate(self) -> Result<Self, Socks5Error> {
+    pub(crate) fn validate(self) -> Result<Self, Socks5Error> {
         if let Self::UsernamePassword { username, password } = self {
             let username_valid = (1..=255).contains(&username.len());
             let password_valid = (1..=255).contains(&password.len());
@@ -409,7 +416,7 @@ impl Socks5Error {
     }
 }
 
-async fn connect_proxy(
+pub(super) async fn connect_proxy(
     proxy_host: &str,
     proxy_port: u16,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
@@ -423,7 +430,7 @@ async fn connect_proxy(
         })
 }
 
-async fn trace_connect<F, S>(dns: &'static str, operation: F) -> Result<S, Socks5Error>
+pub(super) async fn trace_connect<F, S>(dns: &'static str, operation: F) -> Result<S, Socks5Error>
 where
     F: Future<Output = Result<S, Socks5Error>>,
 {

@@ -5,7 +5,7 @@ use phantom_net::{
     http1_or_2::{Http1Or2TlsError, Http1Or2TlsErrorKind},
     http2::{Http2Error, Http2TlsError},
     http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
-    proxy::{HttpConnectError, HttpConnectErrorKind, Socks5ErrorKind},
+    proxy::{HttpConnectError, HttpConnectErrorKind, Socks5Error, Socks5ErrorKind},
     request::RequestBodyError,
 };
 use phantom_profile::{InvalidClientHintSettings, InvalidTlsSettings};
@@ -625,6 +625,13 @@ impl RequestError {
             match source.kind() {
                 Http3ConnectorErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
                 Http3ConnectorErrorKind::Resolve => RequestErrorKind::Resolve,
+                Http3ConnectorErrorKind::Proxy => match http3_proxy_kind(&source) {
+                    Some(Socks5ErrorKind::RuntimeUnavailable) => {
+                        RequestErrorKind::RuntimeUnavailable
+                    }
+                    Some(Socks5ErrorKind::Resolve) => RequestErrorKind::Resolve,
+                    _ => RequestErrorKind::Proxy,
+                },
                 Http3ConnectorErrorKind::Endpoint | Http3ConnectorErrorKind::Connect => {
                     RequestErrorKind::Connect
                 }
@@ -641,7 +648,12 @@ impl RequestError {
     }
 
     pub(crate) fn http3_connection_setup(source: Http3ConnectorError) -> Self {
-        let retryable = is_retryable_http3_connection_setup_kind(source.kind());
+        let retryable = match source.kind() {
+            Http3ConnectorErrorKind::Proxy => {
+                http3_proxy_kind(&source).is_some_and(is_retryable_socks5_kind)
+            }
+            kind => is_retryable_http3_connection_setup_kind(kind),
+        };
         let mut error = Self::http3(source);
         if retryable {
             error.retryability = RequestRetryability::ConnectionSetup;
@@ -760,6 +772,13 @@ fn is_retryable_http3_connection_setup_kind(kind: Http3ConnectorErrorKind) -> bo
             | Http3ConnectorErrorKind::Connect
             | Http3ConnectorErrorKind::Connection
     )
+}
+
+fn http3_proxy_kind(error: &Http3ConnectorError) -> Option<Socks5ErrorKind> {
+    error
+        .source()
+        .and_then(|source| source.downcast_ref::<Socks5Error>())
+        .map(Socks5Error::kind)
 }
 
 fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {

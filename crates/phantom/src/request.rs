@@ -519,17 +519,17 @@ fn ensure_request_supported(
             _ => Err(RequestError::unsupported_scheme()),
         },
         Some("https") => match selection {
-            ProtocolSelection::Exact(protocol)
-                if protocol == HttpProtocol::Http3 && !matches!(route, Route::Direct) =>
-            {
-                Err(RequestError::unsupported_route(protocol))
-            }
+            ProtocolSelection::Exact(HttpProtocol::Http3) => match route {
+                Route::Direct => Ok(()),
+                Route::Socks5(proxy) if proxy.dns_mode() == crate::Socks5DnsMode::Local => Ok(()),
+                Route::HttpProxy(_) | Route::Socks5(_) => {
+                    Err(RequestError::unsupported_route(HttpProtocol::Http3))
+                }
+            },
             ProtocolSelection::Http1Or2 if !matches!(route, Route::Direct) => {
                 Err(RequestError::unsupported_negotiated_route())
             }
-            ProtocolSelection::Exact(
-                HttpProtocol::Http1 | HttpProtocol::Http2 | HttpProtocol::Http3,
-            )
+            ProtocolSelection::Exact(HttpProtocol::Http1 | HttpProtocol::Http2)
             | ProtocolSelection::Http1Or2 => Ok(()),
         },
         _ => Err(RequestError::unsupported_scheme()),
@@ -682,8 +682,8 @@ mod tests {
     }
 
     #[test]
-    fn tcp_proxy_routes_reject_http3_without_network_io() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn unsupported_proxy_routes_reject_http3_without_network_io()
+    -> Result<(), Box<dyn std::error::Error>> {
         let routes = [
             Route::http_connect(HttpProxy::new("http://127.0.0.1:9")?),
             Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:9")?),
@@ -703,6 +703,22 @@ mod tests {
             assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
             assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
         }
+        Ok(())
+    }
+
+    #[test]
+    fn local_dns_socks5_route_accepts_http3() -> Result<(), Box<dyn std::error::Error>> {
+        let route = Route::socks5(Socks5Proxy::new("socks5://127.0.0.1:9")?);
+        let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
+
+        assert!(
+            ensure_request_supported(
+                ProtocolSelection::Exact(HttpProtocol::Http3),
+                &route,
+                &request,
+            )
+            .is_ok()
+        );
         Ok(())
     }
 

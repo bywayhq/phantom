@@ -12,7 +12,7 @@ use super::{
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
-    HttpProtocol, RequestError, ResponseBody, Route,
+    HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode,
     authority::Endpoint,
     retry::{ConnectionSetupRetryState, acquire_with_retries},
 };
@@ -79,10 +79,6 @@ impl Http3Pool {
                 &trailers,
             )
             .map_err(RequestError::http3)?;
-        if !matches!(route, Route::Direct) {
-            return Err(RequestError::unsupported_route(HttpProtocol::Http3));
-        }
-
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
         let permit = timeout_budget
@@ -93,7 +89,7 @@ impl Http3Pool {
             )
             .await?;
         let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
-            entry.acquire(connector, endpoint).await
+            entry.acquire(connector, endpoint, route).await
         })
         .await?;
         let sent_headers = match client_hints {
@@ -225,6 +221,7 @@ impl PoolEntry {
         &self,
         connector: &Http3Connector,
         endpoint: &Endpoint,
+        route: &Route,
     ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
         if let Some(slot) = current.as_ref() {
@@ -238,10 +235,29 @@ impl PoolEntry {
         }
 
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
-        let connection = connector
-            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
-            .await
-            .map_err(RequestError::http3_connection_setup)?;
+        let connection = match route {
+            Route::Direct => {
+                connector
+                    .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                    .await
+            }
+            Route::Socks5(proxy) if proxy.dns_mode() == Socks5DnsMode::Local => {
+                connector
+                    .connect_socks5_local_with_auth(
+                        proxy.host(),
+                        proxy.port(),
+                        proxy.auth(),
+                        endpoint.host(),
+                        endpoint.port(),
+                        endpoint.host(),
+                    )
+                    .await
+            }
+            Route::HttpProxy(_) | Route::Socks5(_) => {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http3));
+            }
+        }
+        .map_err(RequestError::http3_connection_setup)?;
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),

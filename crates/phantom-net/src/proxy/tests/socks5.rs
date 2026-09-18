@@ -252,7 +252,10 @@ async fn rejected_connect_is_typed_and_traced_without_peer_payload() -> TestResu
     };
 
     assert_eq!(error.kind(), Socks5ErrorKind::Rejected);
-    assert_eq!(error.to_string(), "SOCKS5 proxy rejected CONNECT");
+    assert_eq!(
+        error.to_string(),
+        "SOCKS5 proxy rejected the requested command"
+    );
     assert_eq!(subscriber.outcomes_for("proxy.socks5"), ["error"]);
     assert_eq!(subscriber.error_kinds_for("proxy.socks5"), ["rejected"]);
     server.await??;
