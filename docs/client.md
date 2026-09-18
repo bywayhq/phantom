@@ -9,7 +9,7 @@ choices that affect requests; packet-level details live elsewhere.
 | --- | --- |
 | Profile | Immutable TLS, HTTP/2, HTTP/3, QUIC, and client-hint wire settings |
 | Client | Pools, route defaults, trust, limits, redirects, cookies, learned hints, and TLS sessions |
-| Request | Method, URL, ordered fields, body, protocol, route override, and timeout override |
+| Request | Method, URL, ordered fields and static trailers, body, protocol, route override, and timeout override |
 
 Built-in and custom profiles use the same typed model. A recipe name records
 capture provenance; it does not make the runtime branch on browser family or
@@ -31,9 +31,37 @@ attempted.
 global order. Ordinary methods can carry owned bytes or a pull-driven
 `http_body::Body<Data = Bytes>`.
 
-`RequestBuilder::trailers` adds an ordered static trailer block after the body
-on H1, H2, or H3. Trailers produced dynamically by a streaming body remain
-unsupported.
+`RequestBuilder::trailers` adds an ordered static trailer block after successful
+body completion. It works with exact H1, H2, and H3 requests and negotiated
+H1/H2 requests:
+
+```rust
+use phantom::{Client, HttpProtocol, Method, RequestHeader};
+
+async fn send(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .request(HttpProtocol::Http2, Method::POST, "https://example.com/upload")?
+        .body("payload")
+        .trailers(vec![
+            RequestHeader::new("x-checksum", "first"),
+            RequestHeader::new("x-token", "secret").sensitive(),
+            RequestHeader::new("x-checksum", "second"),
+        ])
+        .send()
+        .await?;
+
+    drop(response);
+    Ok(())
+}
+```
+
+Trailer order, duplicate interleaving, and sensitivity are preserved. H1 also
+preserves field-name spelling, uses chunked framing, and generates the
+`Trailer` declaration; H2 and H3 require lowercase field names. Negotiated
+requests must satisfy both H1 and H2 rules, so their trailer names must be
+lowercase. Invalid or forbidden trailers fail before network I/O or body
+polling. A body error suppresses the trailer block. Trailers produced
+dynamically by a streaming body's `Frame::trailers` remain unsupported.
 
 Owned bodies can be replayed where a configured redirect requires it.
 Streaming bodies are one-shot. Phantom validates a supplied `Content-Length`;

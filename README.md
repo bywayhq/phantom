@@ -19,7 +19,8 @@ state are observable too.
 Phantom treats captured wire behavior as the specification:
 
 - profiles control concrete TLS, H2, H3, QUIC, and client-hint behavior;
-- request fields, duplicates, pseudo-headers, and settings retain their order;
+- request fields, duplicates, pseudo-headers, static trailers, and settings
+  retain their order;
 - exact protocol and route choices never silently fall back;
 - client-owned state and admission queues are bounded; and
 - compatibility claims name the captured layer and supporting differential.
@@ -31,7 +32,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 
 | Area | Available today |
 | --- | --- |
-| Protocols | Ordered streaming H1, multiplexed H2, direct H3 over QUIC, and one-handshake direct H1/H2 negotiation |
+| Protocols | Ordered streaming H1, multiplexed H2, direct H3 over QUIC, one-handshake direct H1/H2 negotiation, and ordered static request trailers |
 | Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
 | Routing | Direct, HTTP forwarding, HTTP/HTTPS CONNECT, and local- or remote-DNS SOCKS5 with optional credentials |
 | State | Isolated bounded pools, redirects, timeouts, client hints, TLS sessions, and opt-in cookies |

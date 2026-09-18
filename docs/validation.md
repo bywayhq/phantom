@@ -41,6 +41,20 @@ Malformed traffic is a robustness test: safety and bounds take precedence over
 reproducing unsafe behavior. Minimized failures become ordinary regressions;
 fuzzing expands the corpus on a schedule.
 
+## Ordered request-trailer evidence
+
+Static request trailers are covered through the public client on exact H1, H2,
+and H3 paths and on negotiated H1/H2 paths. The regressions assert raw H1 bytes,
+including casing, declaration, order, and interleaved duplicates; ordered H2
+trailing fields and the HPACK never-indexed representation for sensitive
+values; and H3 trailing HEADERS encoded through the connection's stateful QPACK
+encoder. Lifecycle tests cover trailer-only, owned, and streaming bodies,
+pre-I/O validation, and suppression after a body error.
+
+This evidence proves that Phantom emits the caller-selected trailer block with
+the documented protocol semantics. It does not claim that a built-in browser
+profile emits those application-defined trailers by default.
+
 ## External suites
 
 External projects are witnesses, not pass badges:

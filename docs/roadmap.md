@@ -7,8 +7,8 @@ current support lives in [Coverage](coverage.md).
 
 - Complete the remaining client and proxy-route work without introducing
   direct or cross-protocol fallback.
-- Add replay, retry, and trailer behavior only with explicit ownership and
-  bounded lifecycle rules.
+- Add replay, retry, and streaming-body-produced trailer behavior only with
+  explicit ownership and bounded lifecycle rules.
 - Finish browser-backed SSE reconnect evidence and the current WebSocket
   hardening slice.
 
@@ -32,6 +32,7 @@ current support lives in [Coverage](coverage.md).
 ## Completed foundation
 
 The workspace, capture testkit, TLS and ordered H1 path, H2 path, initial
-browser-family profiles, and forced H3 path have passed their phase acceptance
+browser-family profiles, forced H3 path, and ordered static request trailers on
+exact H1/H2/H3 and negotiated H1/H2 have passed their phase acceptance
 criteria. Code, tests, [Design](design.md), and [Validation](validation.md) are
 the maintained record of those decisions.
