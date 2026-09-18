@@ -34,7 +34,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | --- | --- |
 | Protocols | Ordered streaming H1, multiplexed H2, direct H3 over QUIC, one-handshake direct H1/H2 negotiation, and ordered static request trailers |
 | Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
-| Routing | Direct; unauthenticated HTTP/1.1 forwarding over plaintext or independently trusted TLS proxies for `http://` origins; HTTP/HTTPS CONNECT; and local- or remote-DNS SOCKS5 |
+| Routing | Direct; unauthenticated HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins; HTTP/HTTPS CONNECT; and local- or remote-DNS SOCKS5 |
 | State | Isolated bounded pools, redirects, timeouts, client hints, TLS sessions, and opt-in cookies |
 | Optional APIs | Server-sent events, H1 WebSocket, and opt-in `permessage-deflate` |
 | Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |

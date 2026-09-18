@@ -114,12 +114,13 @@ plaintext or TLS-encrypted proxy, HTTP/HTTPS CONNECT, and SOCKS5 with local or
 proxy-owned DNS and optional credentials.
 
 Forwarding is limited to exact HTTP/1.1 requests for `http://` origins. An
-`https://` proxy endpoint verifies the proxy certificate and hostname with the
-independent proxy trust store, then carries the absolute-form request inside
-that TLS connection; the origin itself is still plain HTTP. Forwarding never changes to CONNECT,
-negotiated H1/H2, H2, H3, or a direct route. Proxy credentials are not yet
-accepted for forwarding. Unsupported combinations fail explicitly instead of
-selecting another route or protocol.
+`https://` proxy endpoint uses the independent proxy authentication policy,
+which verifies the proxy certificate and hostname by default, then carries the
+absolute-form request inside that TLS connection; the origin itself is still
+plain HTTP. Forwarding never changes to CONNECT, negotiated H1/H2, H2, H3, or a
+direct route. Proxy credentials are not yet accepted for forwarding.
+Unsupported combinations fail explicitly instead of selecting another route
+or protocol.
 
 The complete route participates in pool identity. Proxy failure never falls
 back direct, and H3 rejects TCP-only proxy routes before network I/O. Proxy

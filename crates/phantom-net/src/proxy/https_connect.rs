@@ -13,7 +13,7 @@ use crate::{
     tls::{ServerAuthentication, TlsConnector, TlsStream},
 };
 
-/// Reusable TLS configuration for HTTP/1.1 CONNECT through an HTTPS proxy.
+/// Reusable TLS configuration for HTTP/1.1 forwarding or CONNECT through an HTTPS proxy.
 #[derive(Clone, Debug)]
 pub struct HttpsProxyConnector {
     tls: TlsConnector,

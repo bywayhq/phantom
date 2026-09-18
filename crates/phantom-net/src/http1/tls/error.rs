@@ -13,7 +13,7 @@ pub enum Http1TlsError {
     Connect(std::io::Error),
     /// Establishing the plaintext HTTP forward-proxy connection failed.
     ForwardProxyConnect(std::io::Error),
-    /// HTTP CONNECT proxy negotiation failed.
+    /// HTTP proxy connection setup or negotiation failed.
     Proxy(HttpConnectError),
     /// SOCKS5 proxy negotiation failed.
     Socks5Proxy(Socks5Error),

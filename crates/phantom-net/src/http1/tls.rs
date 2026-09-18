@@ -676,10 +676,12 @@ impl Http1TlsConnector {
         result
     }
 
-    /// Opens one HTTP/1.1 connection to a forward proxy over verified TLS.
+    /// Opens one HTTP/1.1 connection to a forward proxy over TLS.
     ///
-    /// TLS terminates at the proxy. This method does not issue CONNECT, perform
-    /// origin TLS, connect directly to the origin, or fall back to another route.
+    /// The proxy connector's independent authentication policy applies to the
+    /// TLS handshake. TLS terminates at the proxy. This method does not issue
+    /// CONNECT, perform origin TLS, connect directly to the origin, or fall back
+    /// to another route.
     pub async fn connect_https_forward_proxy(
         &self,
         proxy_connector: &HttpsProxyConnector,

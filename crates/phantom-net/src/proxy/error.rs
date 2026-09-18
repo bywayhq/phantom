@@ -2,7 +2,7 @@ use std::{error::Error as StdError, fmt};
 
 use crate::tls::TlsError;
 
-/// Stable category of HTTP CONNECT failure.
+/// Stable category of HTTP proxy setup or negotiation failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum HttpConnectErrorKind {
@@ -28,7 +28,7 @@ pub enum HttpConnectErrorKind {
     Rejected,
 }
 
-/// Error returned before an HTTP CONNECT tunnel is established.
+/// Error returned while establishing or negotiating an HTTP proxy connection.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum HttpConnectError {
@@ -88,7 +88,7 @@ pub enum HttpConnectError {
     Connect(std::io::Error),
     /// Establishing TLS with the proxy failed.
     ProxyTls(TlsError),
-    /// The TLS proxy selected a protocol this CONNECT implementation cannot use.
+    /// The TLS proxy selected a protocol this HTTP proxy operation cannot use.
     UnsupportedAlpn {
         /// Exact ALPN protocol selected by the proxy.
         selected: Box<[u8]>,
