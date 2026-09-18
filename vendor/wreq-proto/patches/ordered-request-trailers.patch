@@ -24,10 +24,10 @@ new file mode 100644
 index 0000000..98f22b1
 --- /dev/null
 +++ b/src/ext/preserve_trailer.rs
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,36 @@
 +use std::{ops::Deref, sync::Arc};
 +
-+use http::HeaderValue;
++use http::{HeaderMap, HeaderValue};
 +
 +/// Registers a callback that preserves request-trailer order and field-name casing.
 +#[inline]
@@ -43,7 +43,11 @@ index 0000000..98f22b1
 +pub trait OnPreserveTrailerCallback: Sync + Send + 'static {
 +    /// Emits each request trailer using its caller-supplied field-name bytes.
 +    #[allow(clippy::type_complexity)]
-+    fn call_visit(&self, destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue));
++    fn call_visit(
++        &self,
++        trailers: &HeaderMap,
++        destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue),
++    );
 +}
 +
 +#[derive(Clone)]
@@ -124,7 +128,7 @@ index 5388cae..c94cd31 100644
          trace!("encoding trailers");
 +        if let Some(preserved) = &self.preserved_trailers {
 +            let mut buf = Vec::new();
-+            preserved.call_visit(&mut |name, value| {
++            preserved.call_visit(&trailers, &mut |name, value| {
 +                buf.extend_from_slice(name.as_ref());
 +                if value.is_empty() {
 +                    buf.extend_from_slice(b":\r\n");

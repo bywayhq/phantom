@@ -26,9 +26,23 @@ pub(super) async fn send_body(
                 break;
             };
             let frame = frame.map_err(Http2Error::RequestBody)?;
-            let mut data = frame
-                .into_data()
-                .map_err(|_| Http2Error::UnsupportedRequestBodyFrame)?;
+            let mut data = match frame.into_data() {
+                Ok(data) => data,
+                Err(frame) => {
+                    frame
+                        .into_trailers()
+                        .map_err(|_| Http2Error::UnsupportedRequestBodyFrame)?;
+                    let ordered = body
+                        .take_ordered_trailers()
+                        .ok_or(Http2Error::UnsupportedRequestBodyFrame)?;
+                    let trailers = PreparedRequestTrailers::new(ordered)?
+                        .ok_or(Http2Error::UnsupportedRequestBodyFrame)?;
+                    let (semantic, ordered) = trailers.into_parts();
+                    return stream
+                        .send_ordered_trailers(semantic, ordered)
+                        .map_err(Http2Error::protocol);
+                }
+            };
             let body_ended = body.is_end_stream();
 
             if data.is_empty() {

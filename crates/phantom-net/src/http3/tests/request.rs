@@ -416,6 +416,23 @@ fn prepared_trailers_retain_order_duplicates_and_sensitivity() -> TestResult<()>
 
 #[test]
 fn invalid_static_trailers_fail_during_preparation() -> TestResult<()> {
+    let body = crate::request::RequestBody::streaming_with_trailers(
+        http_body_util::Empty::<Bytes>::new(),
+        vec![crate::request::RequestTrailerName::new("x-dynamic")],
+    );
+    let error = crate::http3::request::validate_profiled_request_body_with_trailers(
+        &chromium::v152_macos_http3_request(),
+        http::Method::POST,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/trailers")?,
+        Vec::new(),
+        Some(body.metadata()),
+        Vec::new(),
+    )
+    .err()
+    .ok_or("metadata-only validation accepted body-produced trailers")?;
+    assert_eq!(error.kind(), Http3ErrorKind::Request);
+
     for trailer in [
         RequestHeader::new("Uppercase", "value"),
         RequestHeader::new("bad name", "value"),

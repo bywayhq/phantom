@@ -114,6 +114,10 @@ pub enum Http1Error {
         /// Position of the conflicting field.
         index: usize,
     },
+    /// Static trailers and body-produced trailers were configured together.
+    ConflictingRequestTrailers,
+    /// Body-produced trailers were passed to a metadata-only validator.
+    BodyTrailerPlanRequired,
     /// No `Host` field was supplied.
     MissingHost,
     /// More than one `Host` field was supplied.
@@ -222,6 +226,11 @@ impl fmt::Display for Http1Error {
                 formatter,
                 "request Content-Length at index {index} conflicts with request trailers"
             ),
+            Self::ConflictingRequestTrailers => formatter.write_str(
+                "static request trailers cannot be combined with body-produced trailers",
+            ),
+            Self::BodyTrailerPlanRequired => formatter
+                .write_str("body-produced request trailers require source-aware validation"),
             Self::MissingHost => {
                 formatter.write_str("request must contain exactly one Host header")
             }
@@ -303,6 +312,8 @@ impl Http1Error {
             Self::ForbiddenTrailer { .. } => "forbidden_trailer",
             Self::InvalidTrailerDeclaration { .. } => "invalid_trailer_declaration",
             Self::RequestTrailersWithContentLength { .. } => "request_trailers_with_content_length",
+            Self::ConflictingRequestTrailers => "conflicting_request_trailers",
+            Self::BodyTrailerPlanRequired => "body_trailer_plan_required",
             Self::MissingHost => "missing_host",
             Self::MultipleHost => "multiple_host",
             Self::MismatchedHost { .. } => "mismatched_host",
@@ -578,7 +589,28 @@ pub fn validate_request_body_with_trailers(
     body: Option<RequestBodyMetadata>,
     trailers: &[RequestHeader],
 ) -> Result<(), Http1Error> {
+    if body.is_some_and(RequestBodyMetadata::has_trailers) {
+        return Err(Http1Error::BodyTrailerPlanRequired);
+    }
     PreparedRequest::validate_with_trailers(
+        method.clone(),
+        target.clone(),
+        headers.to_vec(),
+        body,
+        trailers.to_vec(),
+    )
+}
+
+/// Validates an HTTP/1.1 request, its body source, and ordered static or
+/// body-produced trailers without performing I/O.
+pub fn validate_request_body_source_with_trailers(
+    method: &Method,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<&RequestBody>,
+    trailers: &[RequestHeader],
+) -> Result<(), Http1Error> {
+    PreparedRequest::validate_source_with_trailers(
         method.clone(),
         target.clone(),
         headers.to_vec(),
@@ -620,7 +652,28 @@ pub fn validate_forward_request_body_with_trailers(
     body: Option<RequestBodyMetadata>,
     trailers: &[RequestHeader],
 ) -> Result<(), Http1Error> {
+    if body.is_some_and(RequestBodyMetadata::has_trailers) {
+        return Err(Http1Error::BodyTrailerPlanRequired);
+    }
     PreparedRequest::validate_forward_with_trailers(
+        method.clone(),
+        target.clone(),
+        headers.to_vec(),
+        body,
+        trailers.to_vec(),
+    )
+}
+
+/// Validates an absolute-form request, its body source, and ordered static or
+/// body-produced trailers without performing I/O.
+pub fn validate_forward_request_body_source_with_trailers(
+    method: &Method,
+    target: &AbsoluteForm,
+    headers: &[RequestHeader],
+    body: Option<&RequestBody>,
+    trailers: &[RequestHeader],
+) -> Result<(), Http1Error> {
+    PreparedRequest::validate_forward_source_with_trailers(
         method.clone(),
         target.clone(),
         headers.to_vec(),

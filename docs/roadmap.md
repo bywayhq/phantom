@@ -14,8 +14,6 @@ work has exposed the real architectural boundaries.
   direct or cross-protocol fallback.
 - Extend the current exact-protocol, pre-dispatch connection retry policy only
   when another replay class has explicit ownership and bounded lifecycle rules.
-- Add streaming-body-produced trailers only through a declared, ordered
-  representation that preserves H1 spelling and cross-name duplicate order.
 - Complete browser-backed SSE reconnect evidence and remaining WebSocket
   protocol functionality before broad robustness work.
 - Expand the Chromium, Firefox, and Safari protocol/profile matrix only from
@@ -66,7 +64,9 @@ work has exposed the real architectural boundaries.
 The workspace, capture testkit, TLS and ordered H1 path, H2 path, initial
 browser-family profiles, forced H3 path, and ordered static request trailers on
 exact H1/H2/H3 and negotiated H1/H2 have passed their phase acceptance
-criteria. H1 WebSocket supports direct plaintext `ws://` alongside routed
+criteria. Declared streaming-body-produced request trailers preserve H1
+spelling and cross-name duplicate order across exact H1/H2/H3 and negotiated
+H1/H2. H1 WebSocket supports direct plaintext `ws://` alongside routed
 TLS-backed `wss://`; plaintext `ws://` also supports plaintext and TLS-encrypted
 HTTP forward proxies with strict challenge-driven Basic authentication. These
 paths share the same ordered opening handshake, strict validation, and bounded

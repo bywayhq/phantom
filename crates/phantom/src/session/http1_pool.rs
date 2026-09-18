@@ -7,7 +7,7 @@ use std::{
 use http::Method;
 use phantom_net::http1::{
     AbsoluteForm, Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm, RequestHeader,
-    validate_forward_request_body_with_trailers, validate_request_body_with_trailers,
+    validate_forward_request_body_source_with_trailers, validate_request_body_source_with_trailers,
 };
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
@@ -70,23 +70,22 @@ impl Http1Pool {
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
-        let body_metadata = body.as_ref().map(RequestBody::metadata);
         let mut authenticated_headers = None;
         let validation: Result<(), phantom_net::http1::Http1Error> = (|| {
             if mode != Http1ConnectionMode::Forward {
-                return validate_request_body_with_trailers(
+                return validate_request_body_source_with_trailers(
                     &method,
                     &target,
                     &headers,
-                    body_metadata,
+                    body.as_ref(),
                     &trailers,
                 );
             }
-            validate_forward_request_body_with_trailers(
+            validate_forward_request_body_source_with_trailers(
                 &method,
                 &absolute_target,
                 &headers,
-                body_metadata,
+                body.as_ref(),
                 &trailers,
             )?;
             if let Some(credentials) = route
@@ -95,11 +94,11 @@ impl Http1Pool {
             {
                 let mut candidate = headers.clone();
                 candidate.push(credentials.proxy_authorization_header());
-                validate_forward_request_body_with_trailers(
+                validate_forward_request_body_source_with_trailers(
                     &method,
                     &absolute_target,
                     &candidate,
-                    body_metadata,
+                    body.as_ref(),
                     &trailers,
                 )?;
                 authenticated_headers = Some(candidate);

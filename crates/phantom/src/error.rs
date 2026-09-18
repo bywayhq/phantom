@@ -340,6 +340,13 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn ambiguous_request_trailers() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestBody,
+            "static and streaming-body-produced request trailers cannot be combined",
+        )
+    }
+
     pub(crate) fn unsupported_scheme() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedScheme,

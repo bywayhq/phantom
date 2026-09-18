@@ -9,7 +9,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use http::Method;
+use http::{HeaderMap, HeaderValue, Method};
 use http_body::{Body, Frame};
 use http_body_util::{BodyExt, Full};
 use tokio::{
@@ -52,11 +52,35 @@ impl Body for ErrorBody {
     }
 }
 
+struct MismatchedTrailerBody(u8);
+
+impl Body for MismatchedTrailerBody {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        match self.0 {
+            0 => {
+                self.0 = 1;
+                return Poll::Ready(Some(Ok(Frame::data(Bytes::from_static(b"data")))));
+            }
+            1 => self.0 = 2,
+            _ => return Poll::Ready(None),
+        }
+        let mut trailers = HeaderMap::new();
+        trailers.insert("x-other", HeaderValue::from_static("must-not-appear"));
+        Poll::Ready(Some(Ok(Frame::trailers(trailers))))
+    }
+}
+
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
     http1::{Http1Connection, RequestHeader},
-    request::RequestBody,
+    request::{RequestBody, RequestTrailerName},
 };
 
 #[test]
@@ -426,6 +450,44 @@ async fn streaming_body_error_suppresses_static_trailers_and_invalidates_connect
                 .windows(b"X-Must-Not-Appear: no".len())
                 .any(|window| window == b"X-Must-Not-Appear: no")
         );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn mismatched_body_trailers_write_no_trailer_block_and_invalidate_connection() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            let mut observed = Vec::new();
+            server.read_to_end(&mut observed).await?;
+            Ok::<_, std::io::Error>(observed)
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        let result = connection
+            .send_request_body_with_trailers(
+                Method::POST,
+                target()?,
+                vec![host()],
+                Some(RequestBody::streaming_with_trailers(
+                    MismatchedTrailerBody(0),
+                    vec![RequestTrailerName::new("X-Expected")],
+                )),
+                Vec::new(),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(!connection.is_reusable());
+
+        let observed = server_task.await??;
+        assert!(
+            !observed
+                .windows(b"must-not-appear".len())
+                .any(|window| window == b"must-not-appear")
+        );
+        assert!(!observed.windows(3).any(|window| window == b"0\r\n"));
         Ok(())
     })
     .await

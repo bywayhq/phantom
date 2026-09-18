@@ -9,7 +9,7 @@ choices that affect requests; packet-level details live elsewhere.
 | --- | --- |
 | Profile | Immutable TLS, HTTP/2, HTTP/3, QUIC, and client-hint wire settings |
 | Client | Pools, route defaults, trust, limits, redirects, connection retries, cookies, learned hints, and TLS sessions |
-| Request | Method, URL, ordered fields and static trailers, body, protocol, route, retry, and timeout overrides |
+| Request | Method, URL, ordered fields and trailers, body, protocol, route, retry, and timeout overrides |
 
 Built-in and custom profiles use the same typed model. A recipe name records
 capture provenance; it does not make the runtime branch on browser family or
@@ -98,8 +98,15 @@ preserves field-name spelling, uses chunked framing, and generates the
 `Trailer` declaration; H2 and H3 require lowercase field names. Negotiated
 requests must satisfy both H1 and H2 rules, so their trailer names must be
 lowercase. Invalid or forbidden trailers fail before network I/O or body
-polling. A body error suppresses the trailer block. Trailers produced
-dynamically by a streaming body's `Frame::trailers` remain unsupported.
+polling. A body error suppresses the trailer block.
+
+For values computed while streaming, use
+`RequestBuilder::streaming_body_with_trailers` and declare the exact ordered
+name plan with `RequestTrailerName`. The terminal `Frame::trailers` must match
+that plan's normalized names and multiplicities. H1 writes the declared casing;
+H2 and H3 require lowercase names. Static and body-produced trailers cannot be
+combined, and the streaming body remains one-shot across redirects, retries,
+and proxy-authentication replays.
 
 Owned bodies can be replayed where a configured redirect requires it.
 Streaming bodies are one-shot. Phantom validates a supplied `Content-Length`;

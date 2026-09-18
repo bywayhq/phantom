@@ -70,12 +70,12 @@ impl Http3Pool {
             client_hints.map(|context| context.prepare(headers.clone(), None));
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
         connector
-            .validate_request_body_with_trailers(
+            .validate_request_body_source_with_trailers(
                 method.clone(),
                 authority,
                 &target,
                 validation_headers,
-                body.as_ref().map(RequestBody::metadata),
+                body.as_ref(),
                 &trailers,
             )
             .map_err(RequestError::http3)?;

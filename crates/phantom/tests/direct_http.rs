@@ -18,11 +18,12 @@ use std::{
 };
 
 use bytes::Bytes;
-use http::{Method, StatusCode};
+use http::{HeaderMap, HeaderValue, Method, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, RequestHeader, ResponseInfo, Route, Socks5Proxy,
+    Client, HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo, Route,
+    Socks5Proxy,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
 };
 use tokio::{
@@ -94,7 +95,7 @@ async fn direct_http1_preserves_origin_form_order_and_streaming_body() -> TestRe
 }
 
 #[tokio::test]
-async fn public_builder_sends_exact_ordered_http1_request_trailers() -> TestResult<()> {
+async fn public_builder_sends_exact_ordered_dynamic_http1_request_trailers() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -113,19 +114,30 @@ async fn public_builder_sends_exact_ordered_http1_request_trailers() -> TestResu
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, framed))
         });
 
-        let response = http1_client()?
+        let client = http1_client()?;
+        let Err(conflict) = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("http://{address}/conflicting-trailers"),
+            )?
+            .streaming_body_with_trailers(trailer_body(), trailer_names())
+            .trailers(vec![RequestHeader::new("X-Static", "value")])
+            .send()
+            .await
+        else {
+            return Err("static and dynamic trailers must conflict".into());
+        };
+        assert_eq!(conflict.kind(), RequestErrorKind::RequestBody);
+
+        let response = client
             .request(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("http://{address}/trailers"),
             )?
             .header(RequestHeader::new("X-Before", "head"))
-            .body(Bytes::from_static(b"payload"))
-            .trailers(vec![
-                RequestHeader::new("X-Repeat", "alpha"),
-                RequestHeader::new("X-Middle", "between"),
-                RequestHeader::new("X-Repeat", "beta"),
-            ])
+            .streaming_body_with_trailers(trailer_body(), trailer_names())
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -146,6 +158,44 @@ async fn public_builder_sends_exact_ordered_http1_request_trailers() -> TestResu
         Ok(())
     })
     .await
+}
+
+fn trailer_names() -> Vec<RequestTrailerName> {
+    vec![
+        RequestTrailerName::new("X-Repeat"),
+        RequestTrailerName::new("X-Middle"),
+        RequestTrailerName::new("X-Repeat"),
+    ]
+}
+
+fn trailer_body() -> TrailerBody {
+    let mut trailers = HeaderMap::new();
+    trailers.append("x-repeat", HeaderValue::from_static("alpha"));
+    trailers.insert("x-middle", HeaderValue::from_static("between"));
+    trailers.append("x-repeat", HeaderValue::from_static("beta"));
+    TrailerBody {
+        frames: [
+            Frame::data(Bytes::from_static(b"payload")),
+            Frame::trailers(trailers),
+        ]
+        .into(),
+    }
+}
+
+struct TrailerBody {
+    frames: VecDeque<Frame<Bytes>>,
+}
+
+impl Body for TrailerBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.frames.pop_front().map(Ok))
+    }
 }
 
 #[tokio::test]

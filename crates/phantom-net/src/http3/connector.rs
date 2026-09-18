@@ -267,10 +267,11 @@ impl Http3Connector {
         .await
     }
 
-    /// Sends one profiled request body followed by exact ordered static trailers.
+    /// Sends one profiled request body followed by exact ordered trailers.
     ///
-    /// Trailer fields are validated before a stream opens or the body is polled.
-    /// Body-produced trailers remain unsupported.
+    /// Static trailer fields and a streaming body's declared trailer-name plan
+    /// are validated before a stream opens or the body is polled. They cannot
+    /// be combined on one request.
     #[allow(clippy::too_many_arguments)]
     pub async fn send_request_body_with_trailers_on(
         &self,
@@ -371,6 +372,31 @@ impl Http3Connector {
         trailers: &[RequestHeader],
     ) -> Result<(), Http3ConnectorError> {
         super::request::validate_profiled_request_body_with_trailers(
+            &self.request_settings,
+            method,
+            authority,
+            target.clone(),
+            headers.to_vec(),
+            body,
+            trailers.to_vec(),
+        )
+        .map_err(Http3ConnectorError::transaction)
+    }
+
+    /// Validates one profiled request, a body-produced trailer plan, and static trailers.
+    ///
+    /// This does not open a connection, stream, or poll the request body.
+    #[allow(clippy::too_many_arguments)]
+    pub fn validate_request_body_source_with_trailers(
+        &self,
+        method: Method,
+        authority: &str,
+        target: &OriginForm,
+        headers: &[RequestHeader],
+        body: Option<&RequestBody>,
+        trailers: &[RequestHeader],
+    ) -> Result<(), Http3ConnectorError> {
+        super::request::validate_profiled_request_body_source_with_trailers(
             &self.request_settings,
             method,
             authority,

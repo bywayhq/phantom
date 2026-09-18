@@ -98,7 +98,8 @@ H3 is direct-only. Caller-configured exact-H3 retries may repeat typed DNS,
 endpoint, or QUIC connection setup before request dispatch while preserving one
 route and total deadline. Status, protocol, post-dispatch, and negotiated
 upgrade retry policies remain unsupported. UDP proxy routes, Alt-Svc upgrade,
-trailers produced by a streaming request body, and extension-specific datagrams
-remain planned. See
+and extension-specific datagrams remain planned. Static and declared
+streaming-body-produced request trailers use the same ordered,
+connection-owned QPACK path. See
 [Coverage](coverage.md) for the current contract and [Validation](validation.md)
 for evidence requirements.

@@ -1,7 +1,7 @@
 //! HTTP/1.1 request preparation and ordered field serialization.
 
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     pin::Pin,
     task::{Context, Poll},
 };
@@ -62,6 +62,16 @@ impl PreparedRequest {
         Self::validate_uri(method, headers, body, trailers, None)
     }
 
+    pub(super) fn validate_source_with_trailers(
+        method: Method,
+        _target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<&RequestBody>,
+        trailers: Vec<RequestHeader>,
+    ) -> Result<(), Http1Error> {
+        Self::validate_source_uri(method, headers, body, trailers, None)
+    }
+
     pub(super) fn validate_forward(
         method: Method,
         target: AbsoluteForm,
@@ -81,6 +91,16 @@ impl PreparedRequest {
         Self::validate_uri(method, headers, body, trailers, Some(target.authority()))
     }
 
+    pub(super) fn validate_forward_source_with_trailers(
+        method: Method,
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+        body: Option<&RequestBody>,
+        trailers: Vec<RequestHeader>,
+    ) -> Result<(), Http1Error> {
+        Self::validate_source_uri(method, headers, body, trailers, Some(target.authority()))
+    }
+
     fn validate_uri(
         method: Method,
         headers: Vec<RequestHeader>,
@@ -93,6 +113,26 @@ impl PreparedRequest {
         }
         let trailers = ValidatedTrailers::new(trailers)?;
         ValidatedHeaders::new(headers, body, expected_host, trailers.as_ref()).map(drop)
+    }
+
+    fn validate_source_uri(
+        method: Method,
+        headers: Vec<RequestHeader>,
+        body: Option<&RequestBody>,
+        trailers: Vec<RequestHeader>,
+        expected_host: Option<&str>,
+    ) -> Result<(), Http1Error> {
+        if method == Method::CONNECT {
+            return Err(Http1Error::ConnectUnsupported);
+        }
+        let trailers = ValidatedTrailers::from_sources(trailers, body)?;
+        ValidatedHeaders::new(
+            headers,
+            body.map(RequestBody::metadata),
+            expected_host,
+            trailers.as_ref(),
+        )
+        .map(drop)
     }
 
     pub(super) fn new(
@@ -246,9 +286,10 @@ impl PreparedRequest {
             metadata,
         } = body;
         let body_len = metadata.and_then(RequestBodyMetadata::exact_length);
-        let trailers = ValidatedTrailers::new(trailers)?;
+        let trailers = ValidatedTrailers::from_sources(trailers, Some(&body))?;
         let headers = ValidatedHeaders::new(headers, metadata, expected_host, trailers.as_ref())?;
-        let mut request = Request::new(Http1RequestBody::new(body, trailers.is_some()));
+        let static_trailer_marker = trailers.as_ref().is_some_and(|trailers| !trailers.dynamic);
+        let mut request = Request::new(Http1RequestBody::new(body, static_trailer_marker));
         *request.method_mut() = method;
         *request.uri_mut() = target;
         *request.version_mut() = Version::HTTP_11;
@@ -590,9 +631,18 @@ fn trim_ascii_whitespace(value: &[u8]) -> &[u8] {
 
 #[derive(Clone)]
 struct ValidatedTrailers {
-    ordered: Vec<(Box<[u8]>, HeaderValue)>,
+    ordered: Vec<ValidatedTrailer>,
     declared_names: Vec<HeaderName>,
     declaration: String,
+    dynamic: bool,
+}
+
+#[derive(Clone)]
+struct ValidatedTrailer {
+    wire_name: Box<[u8]>,
+    name: HeaderName,
+    ordinal: usize,
+    value: Option<HeaderValue>,
 }
 
 impl ValidatedTrailers {
@@ -611,6 +661,7 @@ impl ValidatedTrailers {
         let mut ordered = Vec::with_capacity(trailers.len());
         let mut declared_names = Vec::new();
         let mut seen = HashSet::new();
+        let mut occurrences = HashMap::new();
         let mut declaration_names = Vec::new();
         for (index, trailer) in trailers.into_iter().enumerate() {
             total_bytes = total_bytes
@@ -648,18 +699,108 @@ impl ValidatedTrailers {
                 }
             })?;
             value.set_sensitive(trailer.is_sensitive());
+            let ordinal = occurrences.entry(name.clone()).or_insert(0);
             if seen.insert(name.clone()) {
-                declared_names.push(name);
+                declared_names.push(name.clone());
                 declaration_names.push(trailer.name().to_owned());
             }
-            ordered.push((trailer.name().as_bytes().into(), value));
+            ordered.push(ValidatedTrailer {
+                wire_name: trailer.name().as_bytes().into(),
+                name,
+                ordinal: *ordinal,
+                value: Some(value),
+            });
+            *ordinal += 1;
         }
 
         Ok(Some(Self {
             ordered,
             declared_names,
             declaration: declaration_names.join(", "),
+            dynamic: false,
         }))
+    }
+
+    fn from_sources(
+        trailers: Vec<RequestHeader>,
+        body: Option<&RequestBody>,
+    ) -> Result<Option<Self>, Http1Error> {
+        let static_trailers = Self::new(trailers)?;
+        let dynamic_trailers = body
+            .filter(|body| !body.trailer_names().is_empty())
+            .map(Self::from_body)
+            .transpose()?;
+        match (static_trailers, dynamic_trailers) {
+            (Some(_), Some(_)) => Err(Http1Error::ConflictingRequestTrailers),
+            (Some(trailers), None) | (None, Some(trailers)) => Ok(Some(trailers)),
+            (None, None) => Ok(None),
+        }
+    }
+
+    fn from_body(body: &RequestBody) -> Result<Self, Http1Error> {
+        let trailers = body.trailer_names();
+        if trailers.len() > MAX_REQUEST_TRAILERS {
+            return Err(Http1Error::TooManyTrailers {
+                count: trailers.len(),
+                maximum: MAX_REQUEST_TRAILERS,
+            });
+        }
+
+        let mut total_bytes = 0usize;
+        let mut ordered = Vec::with_capacity(trailers.len());
+        let mut declared_names = Vec::new();
+        let mut seen = HashSet::new();
+        let mut occurrences = HashMap::new();
+        let mut declaration_names = Vec::new();
+        for (index, trailer) in trailers.iter().enumerate() {
+            let wire_name = trailer.name();
+            total_bytes =
+                total_bytes
+                    .checked_add(wire_name.len())
+                    .ok_or(Http1Error::TrailersTooLarge {
+                        bytes: usize::MAX,
+                        maximum: MAX_REQUEST_TRAILER_BYTES,
+                    })?;
+            if total_bytes > MAX_REQUEST_TRAILER_BYTES {
+                return Err(Http1Error::TrailersTooLarge {
+                    bytes: total_bytes,
+                    maximum: MAX_REQUEST_TRAILER_BYTES,
+                });
+            }
+            let name = HeaderName::from_bytes(wire_name.as_bytes())
+                .map_err(|_| Http1Error::InvalidTrailerName { index })?;
+            if !wire_name
+                .as_bytes()
+                .eq_ignore_ascii_case(name.as_str().as_bytes())
+            {
+                return Err(Http1Error::InvalidTrailerName { index });
+            }
+            if is_forbidden_trailer(&name) {
+                return Err(Http1Error::ForbiddenTrailer {
+                    index,
+                    name: wire_name.into(),
+                });
+            }
+            let ordinal = occurrences.entry(name.clone()).or_insert(0);
+            if seen.insert(name.clone()) {
+                declared_names.push(name.clone());
+                declaration_names.push(wire_name.to_owned());
+            }
+            ordered.push(ValidatedTrailer {
+                wire_name: wire_name.as_bytes().into(),
+                name,
+                ordinal: *ordinal,
+                value: None,
+            });
+            *ordinal += 1;
+        }
+
+        Ok(Self {
+            ordered,
+            declared_names,
+            declaration: declaration_names.join(", "),
+            dynamic: true,
+        })
     }
 }
 
@@ -685,9 +826,20 @@ fn is_forbidden_trailer(name: &HeaderName) -> bool {
 }
 
 impl OnPreserveTrailerCallback for ValidatedTrailers {
-    fn call_visit(&self, destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue)) {
-        for (name, value) in &self.ordered {
-            destination(name, value);
+    fn call_visit(
+        &self,
+        trailers: &HeaderMap,
+        destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue),
+    ) {
+        for trailer in &self.ordered {
+            let value = if self.dynamic {
+                trailers.get_all(&trailer.name).iter().nth(trailer.ordinal)
+            } else {
+                trailer.value.as_ref()
+            };
+            if let Some(value) = value {
+                destination(&trailer.wire_name, value);
+            }
         }
     }
 }

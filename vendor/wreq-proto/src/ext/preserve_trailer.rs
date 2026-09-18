@@ -1,6 +1,6 @@
 use std::{ops::Deref, sync::Arc};
 
-use http::HeaderValue;
+use http::{HeaderMap, HeaderValue};
 
 /// Registers a callback that preserves request-trailer order and field-name casing.
 #[inline]
@@ -16,7 +16,11 @@ where
 pub trait OnPreserveTrailerCallback: Sync + Send + 'static {
     /// Emits each request trailer using its caller-supplied field-name bytes.
     #[allow(clippy::type_complexity)]
-    fn call_visit(&self, destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue));
+    fn call_visit(
+        &self,
+        trailers: &HeaderMap,
+        destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue),
+    );
 }
 
 #[derive(Clone)]

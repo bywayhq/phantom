@@ -7,7 +7,7 @@ use std::{
 use http::Method;
 use phantom_net::http2::{
     Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector, Http2TlsError,
-    OriginForm, RequestHeader, validate_request_body_with_trailers,
+    OriginForm, RequestHeader, validate_request_body_source_with_trailers,
 };
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
@@ -78,12 +78,12 @@ impl Http2Pool {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
-        validate_request_body_with_trailers(
+        validate_request_body_source_with_trailers(
             &method,
             authority,
             &target,
             validation_headers,
-            body.as_ref().map(RequestBody::metadata),
+            body.as_ref(),
             &trailers,
         )
         .map_err(Http2TlsError::from)

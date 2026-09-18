@@ -7,6 +7,7 @@ mod tls_support;
 mod tracing_support;
 
 use std::{
+    collections::VecDeque,
     convert::Infallible,
     error::Error,
     future::{Future, poll_fn},
@@ -22,7 +23,10 @@ use http::{HeaderMap, Method, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt, Full};
 use phantom::profile::{ClientProfile, chromium};
-use phantom::{HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, ResponseInfo, Route};
+use phantom::{
+    HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
+    Route,
+};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
@@ -143,7 +147,7 @@ async fn negotiated_request_selects_http2_once() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn negotiated_http1_sends_exact_static_request_trailers() -> TestResult<()> {
+async fn negotiated_http1_sends_exact_dynamic_request_trailers() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -167,12 +171,7 @@ async fn negotiated_http1_sends_exact_static_request_trailers() -> TestResult<()
 
         let response = test_client(&identity, true)?
             .request_negotiated(Method::POST, &format!("https://{address}/trailers-h1"))?
-            .body(Bytes::from_static(b"payload"))
-            .trailers(vec![
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("x-middle", "between"),
-                RequestHeader::new("x-repeat", "beta"),
-            ])
+            .streaming_body_with_trailers(dynamic_trailer_body(), dynamic_trailer_names())
             .send()
             .await?;
         assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
@@ -196,7 +195,7 @@ async fn negotiated_http1_sends_exact_static_request_trailers() -> TestResult<()
 }
 
 #[tokio::test]
-async fn negotiated_http2_sends_static_request_trailers() -> TestResult<()> {
+async fn negotiated_http2_sends_dynamic_request_trailers() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -231,12 +230,7 @@ async fn negotiated_http2_sends_static_request_trailers() -> TestResult<()> {
 
         let response = test_client(&identity, true)?
             .request_negotiated(Method::POST, &format!("https://{address}/trailers-h2"))?
-            .body(Bytes::from_static(b"payload"))
-            .trailers(vec![
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("x-middle", "between").sensitive(),
-                RequestHeader::new("x-repeat", "beta"),
-            ])
+            .streaming_body_with_trailers(dynamic_trailer_body(), dynamic_trailer_names())
             .send()
             .await?;
         assert_eq!(response_protocol(&response)?, HttpProtocol::Http2);
@@ -261,6 +255,46 @@ async fn negotiated_http2_sends_static_request_trailers() -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+fn dynamic_trailer_names() -> Vec<RequestTrailerName> {
+    vec![
+        RequestTrailerName::new("x-repeat"),
+        RequestTrailerName::new("x-middle"),
+        RequestTrailerName::new("x-repeat"),
+    ]
+}
+
+fn dynamic_trailer_body() -> DynamicTrailerBody {
+    let mut trailers = HeaderMap::new();
+    trailers.append("x-repeat", http::HeaderValue::from_static("alpha"));
+    let mut middle = http::HeaderValue::from_static("between");
+    middle.set_sensitive(true);
+    trailers.insert("x-middle", middle);
+    trailers.append("x-repeat", http::HeaderValue::from_static("beta"));
+    DynamicTrailerBody {
+        frames: [
+            Frame::data(Bytes::from_static(b"payload")),
+            Frame::trailers(trailers),
+        ]
+        .into(),
+    }
+}
+
+struct DynamicTrailerBody {
+    frames: VecDeque<Frame<Bytes>>,
+}
+
+impl Body for DynamicTrailerBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.frames.pop_front().map(Ok))
+    }
 }
 
 #[tokio::test]

@@ -9,13 +9,17 @@ use std::{
 
 use bytes::Bytes;
 use http::{
-    Uri,
+    HeaderMap, Uri,
+    header::HeaderName,
     uri::{Authority, PathAndQuery},
 };
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt as _, combinators::UnsyncBoxBody};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
+
+const MAX_REQUEST_TRAILERS: usize = 100;
+const MAX_REQUEST_TRAILER_BYTES: usize = 32 * 1024;
 
 /// Stable category of a caller-provided request-body failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -27,6 +31,12 @@ pub enum RequestBodyErrorKind {
     LengthMismatch,
     /// The body emitted trailers, which this request slice does not support.
     TrailersUnsupported,
+    /// The body ended without the declared trailer frame.
+    TrailersMissing,
+    /// The body-produced trailer names or multiplicities did not match their declaration.
+    TrailersMismatch,
+    /// The body-produced trailer block exceeded the supported field or byte limit.
+    TrailersTooLarge,
 }
 
 /// Error produced while pulling a caller-provided request body.
@@ -53,6 +63,27 @@ impl RequestBodyError {
     fn trailers_unsupported() -> Self {
         Self {
             kind: RequestBodyErrorKind::TrailersUnsupported,
+            source: None,
+        }
+    }
+
+    fn trailers_missing() -> Self {
+        Self {
+            kind: RequestBodyErrorKind::TrailersMissing,
+            source: None,
+        }
+    }
+
+    fn trailers_mismatch() -> Self {
+        Self {
+            kind: RequestBodyErrorKind::TrailersMismatch,
+            source: None,
+        }
+    }
+
+    fn trailers_too_large() -> Self {
+        Self {
+            kind: RequestBodyErrorKind::TrailersTooLarge,
             source: None,
         }
     }
@@ -84,6 +115,15 @@ impl fmt::Display for RequestBodyError {
             RequestBodyErrorKind::TrailersUnsupported => {
                 formatter.write_str("request trailers are not supported")
             }
+            RequestBodyErrorKind::TrailersMissing => {
+                formatter.write_str("request body ended without its declared trailers")
+            }
+            RequestBodyErrorKind::TrailersMismatch => {
+                formatter.write_str("request body trailers did not match their declaration")
+            }
+            RequestBodyErrorKind::TrailersTooLarge => {
+                formatter.write_str("request body trailers exceeded the supported limit")
+            }
         }
     }
 }
@@ -100,6 +140,7 @@ impl StdError for RequestBodyError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RequestBodyMetadata {
     exact_length: Option<u64>,
+    has_trailers: bool,
 }
 
 impl RequestBodyMetadata {
@@ -108,23 +149,66 @@ impl RequestBodyMetadata {
     pub const fn exact_length(self) -> Option<u64> {
         self.exact_length
     }
+
+    /// Returns whether the body declared a terminal trailer frame.
+    #[must_use]
+    pub const fn has_trailers(self) -> bool {
+        self.has_trailers
+    }
+}
+
+/// One declared request-trailer name retaining its exact wire spelling.
+///
+/// Construction is intentionally infallible. The selected transport validates
+/// the complete ordered name plan before network I/O or body polling.
+#[derive(Clone, Eq, PartialEq)]
+pub struct RequestTrailerName {
+    name: Box<str>,
+}
+
+impl RequestTrailerName {
+    /// Creates a trailer name to be validated when the request is sent.
+    #[must_use]
+    pub fn new(name: impl Into<Box<str>>) -> Self {
+        Self { name: name.into() }
+    }
+
+    /// Returns the exact field-name spelling that will be written.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl fmt::Debug for RequestTrailerName {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RequestTrailerName")
+            .field("name", &self.name)
+            .finish()
+    }
 }
 
 /// One pull-driven request body consumed by exactly one transport attempt.
 ///
 /// The body retains at most the frame currently returned by its source. Exact
-/// size hints are enforced while frames are pulled. Trailer frames emitted by
-/// the source fail explicitly; transports accept ordered static trailers
-/// separately from this body.
+/// size hints are enforced while frames are pulled. A body constructed with an
+/// ordered trailer-name plan accepts exactly one terminal trailer frame and
+/// reconstructs its values in the declared cross-name order.
 pub struct RequestBody {
     inner: UnsyncBoxBody<Bytes, RequestBodyError>,
     exact_length: Option<u64>,
+    trailer_names: Vec<RequestTrailerName>,
+    ordered_trailers: Option<Vec<RequestHeader>>,
     emitted: u64,
     finished: bool,
 }
 
 impl RequestBody {
     /// Erases a caller-provided pull body for one request attempt.
+    ///
+    /// Trailer frames fail with [`RequestBodyErrorKind::TrailersUnsupported`].
+    /// Use [`Self::streaming_with_trailers`] to declare body-produced trailers.
     pub fn streaming<B>(body: B) -> Self
     where
         B: Body<Data = Bytes> + Send + 'static,
@@ -134,9 +218,28 @@ impl RequestBody {
         Self {
             inner: body.map_err(RequestBodyError::source).boxed_unsync(),
             exact_length,
+            trailer_names: Vec::new(),
+            ordered_trailers: None,
             emitted: 0,
             finished: false,
         }
+    }
+
+    /// Erases a caller-provided pull body with one declared terminal trailer frame.
+    ///
+    /// A nonempty `trailer_names` list is the exact wire order, including duplicate positions.
+    /// HTTP/1 may preserve mixed-case spelling; HTTP/2 and HTTP/3 require
+    /// lowercase names. The body-produced trailer map must contain exactly the
+    /// declared normalized names and multiplicities. An empty list does not
+    /// enable trailer frames.
+    pub fn streaming_with_trailers<B>(body: B, trailer_names: Vec<RequestTrailerName>) -> Self
+    where
+        B: Body<Data = Bytes> + Send + 'static,
+        B::Error: StdError + Send + Sync + 'static,
+    {
+        let mut body = Self::streaming(body);
+        body.trailer_names = trailer_names;
+        body
     }
 
     /// Wraps one complete replayable byte body for a transport attempt.
@@ -147,10 +250,19 @@ impl RequestBody {
 
     /// Returns framing metadata without polling the body.
     #[must_use]
-    pub const fn metadata(&self) -> RequestBodyMetadata {
+    pub fn metadata(&self) -> RequestBodyMetadata {
         RequestBodyMetadata {
             exact_length: self.exact_length,
+            has_trailers: !self.trailer_names.is_empty(),
         }
+    }
+
+    pub(crate) fn trailer_names(&self) -> &[RequestTrailerName] {
+        &self.trailer_names
+    }
+
+    pub(crate) fn take_ordered_trailers(&mut self) -> Option<Vec<RequestHeader>> {
+        self.ordered_trailers.take()
     }
 }
 
@@ -159,6 +271,8 @@ impl fmt::Debug for RequestBody {
         formatter
             .debug_struct("RequestBody")
             .field("exact_length", &self.exact_length)
+            .field("trailer_name_count", &self.trailer_names.len())
+            .field("has_ordered_trailers", &self.ordered_trailers.is_some())
             .field("emitted", &self.emitted)
             .field("finished", &self.finished)
             .finish_non_exhaustive()
@@ -195,9 +309,27 @@ impl Body for RequestBody {
                     self.emitted = emitted;
                     Poll::Ready(Some(Ok(Frame::data(data))))
                 }
-                Err(_frame) => {
+                Err(frame) => {
                     self.finished = true;
-                    Poll::Ready(Some(Err(RequestBodyError::trailers_unsupported())))
+                    if self.trailer_names.is_empty() {
+                        return Poll::Ready(Some(Err(RequestBodyError::trailers_unsupported())));
+                    }
+                    if self
+                        .exact_length
+                        .is_some_and(|expected| self.emitted != expected)
+                    {
+                        return Poll::Ready(Some(Err(RequestBodyError::length_mismatch())));
+                    }
+                    let Ok(trailers) = frame.into_trailers() else {
+                        return Poll::Ready(Some(Err(RequestBodyError::trailers_mismatch())));
+                    };
+                    match order_body_trailers(&self.trailer_names, &trailers) {
+                        Ok(ordered) => {
+                            self.ordered_trailers = Some(ordered);
+                            Poll::Ready(Some(Ok(Frame::trailers(trailers))))
+                        }
+                        Err(error) => Poll::Ready(Some(Err(error))),
+                    }
                 }
             },
             Poll::Ready(None) => {
@@ -207,6 +339,8 @@ impl Body for RequestBody {
                     .is_some_and(|expected| self.emitted != expected)
                 {
                     Poll::Ready(Some(Err(RequestBodyError::length_mismatch())))
+                } else if !self.trailer_names.is_empty() {
+                    Poll::Ready(Some(Err(RequestBodyError::trailers_missing())))
                 } else {
                     Poll::Ready(None)
                 }
@@ -216,7 +350,8 @@ impl Body for RequestBody {
 
     fn is_end_stream(&self) -> bool {
         self.finished
-            || (self.inner.is_end_stream()
+            || (self.trailer_names.is_empty()
+                && self.inner.is_end_stream()
                 && self
                     .exact_length
                     .is_none_or(|expected| self.emitted == expected))
@@ -228,6 +363,48 @@ impl Body for RequestBody {
             None => self.inner.size_hint(),
         }
     }
+}
+
+fn order_body_trailers(
+    plan: &[RequestTrailerName],
+    trailers: &HeaderMap,
+) -> Result<Vec<RequestHeader>, RequestBodyError> {
+    if plan.len() > MAX_REQUEST_TRAILERS {
+        return Err(RequestBodyError::trailers_too_large());
+    }
+    if trailers.len() != plan.len() {
+        return Err(RequestBodyError::trailers_mismatch());
+    }
+
+    let mut total_bytes = 0usize;
+    let mut ordered = Vec::with_capacity(plan.len());
+    for (index, planned) in plan.iter().enumerate() {
+        let name = HeaderName::from_bytes(planned.name().as_bytes())
+            .map_err(|_| RequestBodyError::trailers_mismatch())?;
+        let occurrence = plan[..index]
+            .iter()
+            .filter(|earlier| earlier.name().eq_ignore_ascii_case(name.as_str()))
+            .count();
+        let value = trailers
+            .get_all(&name)
+            .iter()
+            .nth(occurrence)
+            .ok_or_else(RequestBodyError::trailers_mismatch)?;
+        total_bytes = total_bytes
+            .checked_add(planned.name().len())
+            .and_then(|size| size.checked_add(value.len()))
+            .ok_or_else(RequestBodyError::trailers_too_large)?;
+        if total_bytes > MAX_REQUEST_TRAILER_BYTES {
+            return Err(RequestBodyError::trailers_too_large());
+        }
+        let header = RequestHeader::new(planned.name().to_owned(), value.as_bytes());
+        ordered.push(if value.is_sensitive() {
+            header.sensitive()
+        } else {
+            header
+        });
+    }
+    Ok(ordered)
 }
 
 /// An HTTP absolute-form request target such as `http://example.test/search?q=rust`.
@@ -412,13 +589,13 @@ mod tests {
     use std::{collections::VecDeque, io, pin::Pin, task::Poll};
 
     use bytes::Bytes;
-    use http::HeaderMap;
+    use http::{HeaderMap, HeaderValue};
     use http_body::{Body, Frame, SizeHint};
     use http_body_util::BodyExt as _;
 
     use super::{
         AbsoluteForm, InvalidAbsoluteForm, InvalidOriginForm, OriginForm, RequestBody,
-        RequestBodyErrorKind, RequestHeader,
+        RequestBodyErrorKind, RequestHeader, RequestTrailerName,
     };
 
     struct TestBody {
@@ -504,7 +681,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn request_body_enforces_exact_length_and_rejects_trailers() {
+    async fn request_body_enforces_exact_length_and_rejects_undeclared_trailers() {
         let body = TestBody {
             frames: VecDeque::from([Ok(Frame::data(Bytes::from_static(b"short")))]),
             hint: SizeHint::with_exact(8),
@@ -525,5 +702,161 @@ mod tests {
             panic!("request trailers must fail explicitly");
         };
         assert_eq!(error.kind(), RequestBodyErrorKind::TrailersUnsupported);
+
+        let body = TestBody {
+            frames: VecDeque::from([Ok(Frame::trailers(HeaderMap::new()))]),
+            hint: SizeHint::default(),
+        };
+        let Err(error) = RequestBody::streaming_with_trailers(body, Vec::new())
+            .frame()
+            .await
+            .transpose()
+        else {
+            panic!("an empty plan must not enable request trailers");
+        };
+        assert_eq!(error.kind(), RequestBodyErrorKind::TrailersUnsupported);
+    }
+
+    #[tokio::test]
+    async fn request_body_reconstructs_declared_trailer_order_spelling_and_sensitivity() {
+        let mut trailers = HeaderMap::new();
+        let mut first = HeaderValue::from_static("first-secret");
+        first.set_sensitive(true);
+        trailers.append("x-repeat", first);
+        trailers.append("x-repeat", HeaderValue::from_static("second"));
+        trailers.insert("x-middle", HeaderValue::from_static("between"));
+        let body = TestBody {
+            frames: VecDeque::from([
+                Ok(Frame::data(Bytes::from_static(b"body"))),
+                Ok(Frame::trailers(trailers)),
+            ]),
+            hint: SizeHint::with_exact(4),
+        };
+        let mut body = RequestBody::streaming_with_trailers(
+            body,
+            vec![
+                RequestTrailerName::new("X-Repeat"),
+                RequestTrailerName::new("X-Middle"),
+                RequestTrailerName::new("x-repeat"),
+            ],
+        );
+
+        assert!(body.metadata().has_trailers());
+        assert_eq!(body.trailer_names()[0].name(), "X-Repeat");
+        assert!(!body.is_end_stream());
+        assert!(body.frame().await.transpose().is_ok());
+        let Some(Ok(frame)) = body.frame().await else {
+            panic!("declared trailer frame must be present and valid");
+        };
+        assert!(frame.is_trailers());
+        assert!(body.is_end_stream());
+        assert!(body.frame().await.is_none());
+
+        let Some(ordered) = body.take_ordered_trailers() else {
+            panic!("ordered trailers must be retained for the transport");
+        };
+        assert_eq!(
+            ordered.iter().map(RequestHeader::name).collect::<Vec<_>>(),
+            ["X-Repeat", "X-Middle", "x-repeat"]
+        );
+        assert_eq!(ordered[0].value(), b"first-secret");
+        assert!(ordered[0].is_sensitive());
+        assert_eq!(ordered[1].value(), b"between");
+        assert_eq!(ordered[2].value(), b"second");
+        assert!(body.take_ordered_trailers().is_none());
+
+        let debug = format!("{body:?}");
+        assert!(debug.contains("trailer_name_count: 3"));
+        assert!(!debug.contains("first-secret"));
+        assert!(!debug.contains("between"));
+    }
+
+    #[tokio::test]
+    async fn request_body_reports_missing_or_mismatched_declared_trailers() {
+        let missing = TestBody {
+            frames: VecDeque::new(),
+            hint: SizeHint::default(),
+        };
+        let mut missing =
+            RequestBody::streaming_with_trailers(missing, vec![RequestTrailerName::new("x-final")]);
+        let Some(Err(error)) = missing.frame().await else {
+            panic!("planned EOF must report missing trailers");
+        };
+        assert_eq!(error.kind(), RequestBodyErrorKind::TrailersMissing);
+
+        let mut wrong_name = HeaderMap::new();
+        wrong_name.insert("x-other", HeaderValue::from_static("value"));
+        let mut wrong_multiplicity = HeaderMap::new();
+        wrong_multiplicity.append("x-final", HeaderValue::from_static("one"));
+        wrong_multiplicity.append("x-final", HeaderValue::from_static("two"));
+        for trailers in [wrong_name, wrong_multiplicity] {
+            let body = TestBody {
+                frames: VecDeque::from([Ok(Frame::trailers(trailers))]),
+                hint: SizeHint::default(),
+            };
+            let mut body = RequestBody::streaming_with_trailers(
+                body,
+                vec![RequestTrailerName::new("x-final")],
+            );
+            let Some(Err(error)) = body.frame().await else {
+                panic!("name or multiplicity mismatch must fail");
+            };
+            assert_eq!(error.kind(), RequestBodyErrorKind::TrailersMismatch);
+            assert!(body.take_ordered_trailers().is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn request_body_checks_length_before_declared_trailers() {
+        let mut trailers = HeaderMap::new();
+        trailers.insert("x-final", HeaderValue::from_static("value"));
+        let body = TestBody {
+            frames: VecDeque::from([Ok(Frame::trailers(trailers))]),
+            hint: SizeHint::with_exact(4),
+        };
+        let mut body =
+            RequestBody::streaming_with_trailers(body, vec![RequestTrailerName::new("x-final")]);
+        let Some(Err(error)) = body.frame().await else {
+            panic!("trailers before the exact body length must fail");
+        };
+        assert_eq!(error.kind(), RequestBodyErrorKind::LengthMismatch);
+        assert!(body.take_ordered_trailers().is_none());
+    }
+
+    #[tokio::test]
+    async fn request_body_bounds_dynamic_trailer_fields_and_bytes() {
+        let mut trailers = HeaderMap::new();
+        let Ok(large) = HeaderValue::from_bytes(&vec![b'a'; super::MAX_REQUEST_TRAILER_BYTES])
+        else {
+            panic!("ASCII value must be valid");
+        };
+        trailers.insert("x", large);
+        let body = TestBody {
+            frames: VecDeque::from([Ok(Frame::trailers(trailers))]),
+            hint: SizeHint::default(),
+        };
+        let mut body =
+            RequestBody::streaming_with_trailers(body, vec![RequestTrailerName::new("x")]);
+        let Some(Err(error)) = body.frame().await else {
+            panic!("oversized trailer values must fail");
+        };
+        assert_eq!(error.kind(), RequestBodyErrorKind::TrailersTooLarge);
+
+        let mut trailers = HeaderMap::new();
+        for _ in 0..=super::MAX_REQUEST_TRAILERS {
+            trailers.append("x", HeaderValue::from_static("v"));
+        }
+        let body = TestBody {
+            frames: VecDeque::from([Ok(Frame::trailers(trailers))]),
+            hint: SizeHint::default(),
+        };
+        let mut body = RequestBody::streaming_with_trailers(
+            body,
+            vec![RequestTrailerName::new("x"); super::MAX_REQUEST_TRAILERS + 1],
+        );
+        let Some(Err(error)) = body.frame().await else {
+            panic!("too many trailer fields must fail");
+        };
+        assert_eq!(error.kind(), RequestBodyErrorKind::TrailersTooLarge);
     }
 }

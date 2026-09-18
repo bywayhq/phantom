@@ -5,7 +5,7 @@ use http::{Method, Response, Uri};
 use http_body::Body;
 use phantom_net::{
     http1::{AbsoluteForm, OriginForm},
-    request::{RequestBody, RequestHeader},
+    request::{RequestBody, RequestHeader, RequestTrailerName},
 };
 use tracing::{Instrument, Span, debug, debug_span, field};
 
@@ -129,7 +129,8 @@ impl RequestBuilder {
     /// Static trailers are emitted only after the request body completes
     /// successfully. HTTP/1.1 preserves field-name spelling; HTTP/2 and
     /// HTTP/3 require lowercase names. Every protocol preserves field order,
-    /// duplicate positions, values, and sensitivity.
+    /// duplicate positions, values, and sensitivity. A nonempty static list
+    /// cannot be combined with body-produced trailers.
     pub fn trailers(mut self, trailers: Vec<RequestHeader>) -> Self {
         self.trailers = trailers;
         self
@@ -156,14 +157,37 @@ impl RequestBuilder {
     /// This body is not replayable. A redirect, client-hint retry, or other
     /// policy that requires a second body-bearing attempt returns a typed
     /// request-body error before starting that attempt. Trailer frames emitted
-    /// by the source remain unsupported; use [`Self::trailers`] for ordered
-    /// static request trailers.
+    /// by the source remain unsupported; use [`Self::streaming_body_with_trailers`]
+    /// when the body produces trailers, or [`Self::trailers`] for static ones.
     pub fn streaming_body<B>(mut self, body: B) -> Self
     where
         B: Body<Data = Bytes> + Send + 'static,
         B::Error: StdError + Send + Sync + 'static,
     {
         self.body = RequestBodySource::Streaming(Some(RequestBody::streaming(body)));
+        self
+    }
+
+    /// Sets one pull-driven request body with a declared terminal trailer frame.
+    ///
+    /// `trailer_names` declares the exact wire order, including duplicate
+    /// positions. The body's terminal `Frame::trailers` must contain exactly
+    /// those normalized names and multiplicities. HTTP/1 preserves declared
+    /// spelling; HTTP/2 and HTTP/3 require lowercase names. This body is
+    /// one-shot and cannot be combined with nonempty [`Self::trailers`].
+    pub fn streaming_body_with_trailers<B>(
+        mut self,
+        body: B,
+        trailer_names: Vec<RequestTrailerName>,
+    ) -> Self
+    where
+        B: Body<Data = Bytes> + Send + 'static,
+        B::Error: StdError + Send + Sync + 'static,
+    {
+        self.body = RequestBodySource::Streaming(Some(RequestBody::streaming_with_trailers(
+            body,
+            trailer_names,
+        )));
         self
     }
 
@@ -270,6 +294,9 @@ impl RequestBuilder {
         let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
         if !retry_policy.validate() {
             return Err(RequestError::invalid_retry_delay());
+        }
+        if !self.trailers.is_empty() && self.body.has_trailers() {
+            return Err(RequestError::ambiguous_request_trailers());
         }
         if self
             .headers
@@ -416,6 +443,13 @@ pub(crate) enum RequestBodySource {
 }
 
 impl RequestBodySource {
+    fn has_trailers(&self) -> bool {
+        match self {
+            Self::Streaming(Some(body)) => body.metadata().has_trailers(),
+            Self::Absent | Self::Bytes(_) | Self::Streaming(None) => false,
+        }
+    }
+
     pub(crate) fn next_attempt(&mut self) -> Result<Option<RequestBody>, RequestError> {
         match self {
             Self::Absent => Ok(None),

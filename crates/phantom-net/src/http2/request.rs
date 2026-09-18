@@ -11,7 +11,7 @@ use http::{
     uri::Authority,
 };
 
-use super::{Http2Error, OriginForm, RequestBodyMetadata, RequestHeader};
+use super::{Http2Error, OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -85,6 +85,25 @@ impl PreparedRequestTrailers {
 
     pub(super) fn into_parts(self) -> (HeaderMap, OrderedHeaders) {
         (self.semantic, self.ordered)
+    }
+
+    pub(super) fn validate_body_plan(
+        body: Option<&RequestBody>,
+        static_trailers: &[RequestHeader],
+    ) -> Result<(), Http2Error> {
+        let Some(body) = body.filter(|body| !body.trailer_names().is_empty()) else {
+            return Ok(());
+        };
+        if !static_trailers.is_empty() {
+            return Err(Http2Error::ConflictingRequestTrailers);
+        }
+        Self::new(
+            body.trailer_names()
+                .iter()
+                .map(|name| RequestHeader::new(name.name(), []))
+                .collect(),
+        )
+        .map(drop)
     }
 }
 

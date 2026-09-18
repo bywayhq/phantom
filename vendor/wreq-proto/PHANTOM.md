@@ -42,8 +42,11 @@ spelling, global ordering, and interleaved duplicates. The stock request-body
 path reduces trailers to `HeaderMap`, which cannot represent that wire image.
 `on_preserve_trailer` adds a request extension parallel to the existing ordered
 header callback. It is consulted only when a declared chunked trailer block is
-encoded; callers remain responsible for validating trailer semantics before
-I/O. The canonical delta is `patches/ordered-request-trailers.patch`.
+encoded and receives the terminal body `HeaderMap`, allowing a validated caller
+to combine its declared spelling and cross-name order with values produced by a
+streaming body. Callers remain responsible for validating trailer semantics and
+multiplicity before the callback runs. The canonical delta is
+`patches/ordered-request-trailers.patch`.
 
 ## Refreshing the vendor copy
 

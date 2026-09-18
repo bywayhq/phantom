@@ -16,7 +16,7 @@ use super::{
     server_endpoint, test_settings,
 };
 use crate::request::RequestHeader;
-use crate::request::{RequestBody, RequestBodyError, RequestBodyErrorKind};
+use crate::request::{RequestBody, RequestBodyError, RequestBodyErrorKind, RequestTrailerName};
 
 type ServerConnection = h3::server::Connection<h3_quinn::Connection, Bytes>;
 type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
@@ -128,6 +128,62 @@ async fn static_trailers_follow_data_and_support_trailer_only_requests() -> Test
             .map_err(|_| "static request trailers timed out")??;
         assert_eq!(collect_body(response.into_body()).await?, "accepted");
     }
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn body_produced_trailers_follow_the_declared_order_and_sensitivity() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut stream) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/dynamic-trailers");
+        assert_eq!(collect_request_body(&mut stream).await?, b"data".as_slice());
+        let trailers = stream
+            .recv_trailers()
+            .await?
+            .ok_or("dynamic trailers missing")?;
+        assert_eq!(
+            trailers
+                .get_all("x-repeat")
+                .iter()
+                .map(HeaderValue::as_bytes)
+                .collect::<Vec<_>>(),
+            [b"first".as_slice(), b"second".as_slice()]
+        );
+        assert!(
+            trailers
+                .get("x-middle")
+                .is_some_and(HeaderValue::is_sensitive)
+        );
+        send_response(&mut stream, "accepted").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let request = Request::post(format!(
+        "https://{TEST_SERVER_NAME}:{}/dynamic-trailers",
+        address.port()
+    ))
+    .body(())?;
+    let prepared =
+        crate::http3::request::prepare_request_body(request, Some(dynamic_trailer_body(false)))?;
+    let response = timeout(TEST_TIMEOUT, connection.send_prepared_request(prepared))
+        .await
+        .map_err(|_| "dynamic request trailers timed out")??;
+    assert_eq!(collect_body(response.into_body()).await?, "accepted");
 
     let _ = client_done.send(());
     join_server(server).await
@@ -332,7 +388,7 @@ async fn streaming_body_failures_reset_only_their_streams() -> TestResult<()> {
             }
             assert!(matches!(
                 request.uri().path(),
-                "/source-error" | "/trailers" | "/length-mismatch"
+                "/source-error" | "/trailers" | "/trailer-mismatch" | "/length-mismatch"
             ));
             loop {
                 match failed.recv_data().await {
@@ -375,16 +431,26 @@ async fn streaming_body_failures_reset_only_their_streams() -> TestResult<()> {
             RequestBody::streaming(TestBody::length_mismatch()),
             RequestBodyErrorKind::LengthMismatch,
         ),
+        (
+            "/trailer-mismatch",
+            dynamic_trailer_body(true),
+            RequestBodyErrorKind::TrailersMismatch,
+        ),
     ] {
         let request = Request::post(format!(
             "https://{TEST_SERVER_NAME}:{}{path}",
             address.port()
         ))
         .body(())?;
+        let static_trailers = if path == "/trailer-mismatch" {
+            Vec::new()
+        } else {
+            vec![RequestHeader::new("x-must-not-arrive", "value")]
+        };
         let prepared = crate::http3::request::prepare_request_body_with_trailers(
             request,
             Some(body),
-            vec![RequestHeader::new("x-must-not-arrive", "value")],
+            static_trailers,
         )?;
         let error = timeout(TEST_TIMEOUT, connection.send_prepared_request(prepared))
             .await
@@ -790,6 +856,34 @@ impl TestBody {
             exact_length: Some(7),
         }
     }
+}
+
+fn dynamic_trailer_body(mismatch: bool) -> RequestBody {
+    let mut trailers = HeaderMap::new();
+    let mut middle = HeaderValue::from_static("between");
+    middle.set_sensitive(true);
+    trailers.append("x-repeat", HeaderValue::from_static("first"));
+    if mismatch {
+        trailers.insert("x-other", middle);
+    } else {
+        trailers.insert("x-middle", middle);
+    }
+    trailers.append("x-repeat", HeaderValue::from_static("second"));
+    RequestBody::streaming_with_trailers(
+        TestBody {
+            frames: [
+                Ok(Frame::data(Bytes::from_static(b"data"))),
+                Ok(Frame::trailers(trailers)),
+            ]
+            .into(),
+            exact_length: None,
+        },
+        vec![
+            RequestTrailerName::new("x-repeat"),
+            RequestTrailerName::new("x-middle"),
+            RequestTrailerName::new("x-repeat"),
+        ],
+    )
 }
 
 impl Body for TestBody {

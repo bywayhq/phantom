@@ -8,7 +8,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use http::Method;
+use http::{HeaderMap, HeaderValue, Method};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use tokio::io::{
@@ -24,9 +24,10 @@ use crate::{
         MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS, RequestHeader, send_forward_request,
         send_forward_request_body, send_get, send_request, send_request_body,
         send_request_body_with_trailers, validate_forward_request, validate_request,
-        validate_request_body, validate_request_body_with_trailers,
+        validate_request_body, validate_request_body_source_with_trailers,
+        validate_request_body_with_trailers,
     },
-    request::RequestBody,
+    request::{RequestBody, RequestTrailerName},
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
 
@@ -94,6 +95,26 @@ impl Body for PollCountingBody {
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Poll::Pending
+    }
+}
+
+struct BodyProducedTrailers {
+    data: Option<Bytes>,
+    trailers: Option<HeaderMap>,
+}
+
+impl Body for BodyProducedTrailers {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        if let Some(data) = self.data.take() {
+            return Poll::Ready(Some(Ok(Frame::data(data))));
+        }
+        Poll::Ready(self.trailers.take().map(Frame::trailers).map(Ok))
     }
 }
 
@@ -280,6 +301,52 @@ async fn writes_exact_order_casing_and_interleaved_duplicate_trailers() -> TestR
 }
 
 #[tokio::test]
+async fn body_produced_trailers_use_declared_order_and_spelling() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let mut trailers = HeaderMap::new();
+        trailers.append("x-repeat", HeaderValue::from_static("alpha"));
+        trailers.append("x-repeat", HeaderValue::from_static("omega"));
+        trailers.insert("x-middle", HeaderValue::from_static("between"));
+        let body = RequestBody::streaming_with_trailers(
+            BodyProducedTrailers {
+                data: Some(Bytes::from_static(b"payload")),
+                trailers: Some(trailers),
+            },
+            vec![
+                RequestTrailerName::new("X-Repeat"),
+                RequestTrailerName::new("X-Middle"),
+                RequestTrailerName::new("x-repeat"),
+            ],
+        );
+        let transaction = tokio::spawn(send_request_body_with_trailers(
+            client,
+            Method::POST,
+            target()?,
+            vec![host()],
+            Some(body),
+            Vec::new(),
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\nTrailer: X-Repeat, X-Middle\r\n\r\n"
+        );
+        let expected = b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nx-repeat: omega\r\n\r\n";
+        let mut wire = vec![0_u8; expected.len()];
+        server.read_exact(&mut wire).await?;
+        assert_eq!(wire, expected);
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn trailer_only_request_still_uses_chunked_framing() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
@@ -395,6 +462,38 @@ fn validates_trailer_fields_declaration_and_limits() -> TestResult {
             )],
         ),
         Err(Http1Error::TrailersTooLarge { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn rejects_static_and_body_produced_trailers_together() -> TestResult {
+    let body = RequestBody::streaming_with_trailers(
+        BodyProducedTrailers {
+            data: None,
+            trailers: Some(HeaderMap::new()),
+        },
+        vec![RequestTrailerName::new("X-Dynamic")],
+    );
+    assert!(matches!(
+        validate_request_body_with_trailers(
+            &Method::POST,
+            &target()?,
+            &[host()],
+            Some(body.metadata()),
+            &[],
+        ),
+        Err(Http1Error::BodyTrailerPlanRequired)
+    ));
+    assert!(matches!(
+        validate_request_body_source_with_trailers(
+            &Method::POST,
+            &target()?,
+            &[host()],
+            Some(&body),
+            &[RequestHeader::new("X-Static", "value")],
+        ),
+        Err(Http1Error::ConflictingRequestTrailers)
     ));
     Ok(())
 }

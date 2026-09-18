@@ -8,12 +8,12 @@ use http::{Method, Response};
 use phantom_net::{
     http1::{
         Http1Connection,
-        validate_request_body_with_trailers as validate_http1_request_body_with_trailers,
+        validate_request_body_source_with_trailers as validate_http1_request_body_source_with_trailers,
     },
     http1_or_2::{Http1Or2Connection, Http1Or2TlsConnector},
     http2::{
         Http2Connection, Http2Error, Http2ProtocolErrorKind,
-        validate_request_body_with_trailers as validate_http2_request_body_with_trailers,
+        validate_request_body_source_with_trailers as validate_http2_request_body_source_with_trailers,
     },
     request::{OriginForm, RequestBody, RequestHeader},
 };
@@ -78,21 +78,20 @@ impl Http1Or2Pool {
             endpoint.authority().as_str().as_bytes(),
         ));
         http1_wire_headers.extend(http1_sent_headers.clone());
-        let body_metadata = body.as_ref().map(RequestBody::metadata);
-        validate_http1_request_body_with_trailers(
+        validate_http1_request_body_source_with_trailers(
             &method,
             &target,
             &http1_wire_headers,
-            body_metadata,
+            body.as_ref(),
             &trailers,
         )
         .map_err(RequestError::negotiated_http1_validation)?;
-        validate_http2_request_body_with_trailers(
+        validate_http2_request_body_source_with_trailers(
             &method,
             endpoint.authority().as_str(),
             &target,
             &http2_validation_headers,
-            body_metadata,
+            body.as_ref(),
             &trailers,
         )
         .map_err(RequestError::negotiated_http2_validation)?;

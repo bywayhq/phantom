@@ -28,7 +28,7 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RedirectPolicy, RequestErrorKind,
-    RequestHeader, ResponseInfo, ServerAuthentication,
+    RequestHeader, RequestTrailerName, ResponseInfo, ServerAuthentication,
     profile::{
         ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, Http3ClientSettings,
         chromium,
@@ -508,7 +508,7 @@ async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn public_builder_sends_http2_request_trailers_after_data() -> TestResult<()> {
+async fn public_builder_sends_dynamic_http2_request_trailers_after_data() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -547,22 +547,14 @@ async fn public_builder_sends_http2_request_trailers_after_data() -> TestResult<
                 Method::POST,
                 &format!("https://{address}/request-trailers"),
             )?
-            .body(Bytes::from_static(b"payload"))
-            .trailers(vec![
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("x-middle", "between").sensitive(),
-                RequestHeader::new("x-repeat", "beta"),
-            ])
+            .streaming_body_with_trailers(dynamic_trailer_body(), dynamic_trailer_names())
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
 
         let (length, body, trailers) = server.await??;
-        assert_eq!(
-            length.as_ref().and_then(|value| value.to_str().ok()),
-            Some("7")
-        );
+        assert_eq!(length.as_ref().and_then(|value| value.to_str().ok()), None);
         assert_eq!(body, "payload");
         assert_eq!(
             trailers
@@ -581,6 +573,46 @@ async fn public_builder_sends_http2_request_trailers_after_data() -> TestResult<
         Ok(())
     })
     .await
+}
+
+fn dynamic_trailer_names() -> Vec<RequestTrailerName> {
+    vec![
+        RequestTrailerName::new("x-repeat"),
+        RequestTrailerName::new("x-middle"),
+        RequestTrailerName::new("x-repeat"),
+    ]
+}
+
+fn dynamic_trailer_body() -> DynamicTrailerBody {
+    let mut trailers = HeaderMap::new();
+    trailers.append("x-repeat", http::HeaderValue::from_static("alpha"));
+    let mut middle = http::HeaderValue::from_static("between");
+    middle.set_sensitive(true);
+    trailers.insert("x-middle", middle);
+    trailers.append("x-repeat", http::HeaderValue::from_static("beta"));
+    DynamicTrailerBody {
+        frames: [
+            Frame::data(Bytes::from_static(b"payload")),
+            Frame::trailers(trailers),
+        ]
+        .into(),
+    }
+}
+
+struct DynamicTrailerBody {
+    frames: VecDeque<Frame<Bytes>>,
+}
+
+impl Body for DynamicTrailerBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(self.frames.pop_front().map(Ok))
+    }
 }
 
 #[tokio::test]

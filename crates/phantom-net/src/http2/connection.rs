@@ -124,7 +124,8 @@ impl Http2Connection {
     ///
     /// The body's initial exact size hint controls `Content-Length`
     /// validation. Unknown-length bodies omit an automatic length and reject a
-    /// caller-supplied one. Request trailers fail explicitly.
+    /// caller-supplied one. Body-produced trailers require a declared ordered
+    /// name plan on [`RequestBody`].
     ///
     /// # Errors
     ///
@@ -142,10 +143,10 @@ impl Http2Connection {
             .await
     }
 
-    /// Sends one pull-driven request body followed by exact ordered static trailers.
+    /// Sends one pull-driven request body followed by exact ordered trailers.
     ///
-    /// Static trailers are validated before the connection or body is touched.
-    /// Trailers produced by `body` remain unsupported.
+    /// Static trailers or the body's declared trailer-name plan are validated
+    /// before the connection or body is touched. They cannot be combined.
     ///
     /// # Errors
     ///
@@ -160,6 +161,7 @@ impl Http2Connection {
         body: Option<RequestBody>,
         trailers: Vec<RequestHeader>,
     ) -> Result<Response<Http2Body>, Http2Error> {
+        PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
         let metadata = body.as_ref().map(RequestBody::metadata);
         let request = prepare_request(method, authority, target, headers, metadata)?;
         let trailers = PreparedRequestTrailers::new(trailers)?;

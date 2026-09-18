@@ -120,6 +120,7 @@ pub(super) fn prepare_profiled_request_body_with_trailers(
     body: Option<RequestBody>,
     trailers: Vec<RequestHeader>,
 ) -> Result<PreparedRequest, Http3Error> {
+    PreparedTrailers::validate_body_plan(body.as_ref(), &trailers)?;
     let request = prepare_profiled_request_head(
         request_settings,
         method,
@@ -164,6 +165,11 @@ pub(super) fn validate_profiled_request_body_with_trailers(
     metadata: Option<RequestBodyMetadata>,
     trailers: Vec<RequestHeader>,
 ) -> Result<(), Http3Error> {
+    if metadata.is_some_and(RequestBodyMetadata::has_trailers) {
+        return Err(invalid(
+            "body-produced HTTP/3 request trailers require source-aware validation",
+        ));
+    }
     prepare_profiled_request_head(
         request_settings,
         method,
@@ -171,6 +177,28 @@ pub(super) fn validate_profiled_request_body_with_trailers(
         target,
         headers,
         metadata,
+    )?;
+    PreparedTrailers::new(trailers).map(drop)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn validate_profiled_request_body_source_with_trailers(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<&RequestBody>,
+    trailers: Vec<RequestHeader>,
+) -> Result<(), Http3Error> {
+    PreparedTrailers::validate_body_plan(body, &trailers)?;
+    prepare_profiled_request_head(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        body.map(RequestBody::metadata),
     )?;
     PreparedTrailers::new(trailers).map(drop)
 }
@@ -233,6 +261,7 @@ pub(super) fn prepare_request_body_with_trailers(
     body: Option<RequestBody>,
     trailers: Vec<RequestHeader>,
 ) -> Result<PreparedRequest, Http3Error> {
+    PreparedTrailers::validate_body_plan(body.as_ref(), &trailers)?;
     apply_content_length(&mut request, body.as_ref().map(RequestBody::metadata))?;
     validate_request(&request)?;
     validate_ordered_headers(&request)?;
@@ -492,7 +521,7 @@ impl ValidatedHeaders {
 }
 
 impl PreparedTrailers {
-    fn new(trailers: Vec<RequestHeader>) -> Result<Option<Self>, Http3Error> {
+    pub(super) fn new(trailers: Vec<RequestHeader>) -> Result<Option<Self>, Http3Error> {
         if trailers.is_empty() {
             return Ok(None);
         }
@@ -550,6 +579,27 @@ impl PreparedTrailers {
             fields,
             ordered: OrderedHeaders::new(ordered),
         }))
+    }
+
+    fn validate_body_plan(
+        body: Option<&RequestBody>,
+        static_trailers: &[RequestHeader],
+    ) -> Result<(), Http3Error> {
+        let Some(body) = body.filter(|body| !body.trailer_names().is_empty()) else {
+            return Ok(());
+        };
+        if !static_trailers.is_empty() {
+            return Err(invalid(
+                "static and streaming-body-produced HTTP/3 request trailers cannot be combined",
+            ));
+        }
+        Self::new(
+            body.trailer_names()
+                .iter()
+                .map(|name| RequestHeader::new(name.name(), []))
+                .collect(),
+        )
+        .map(drop)
     }
 }
 

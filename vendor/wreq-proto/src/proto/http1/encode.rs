@@ -167,7 +167,7 @@ impl Encoder {
         trace!("encoding trailers");
         if let Some(preserved) = &self.preserved_trailers {
             let mut buf = Vec::new();
-            preserved.call_visit(&mut |name, value| {
+            preserved.call_visit(&trailers, &mut |name, value| {
                 buf.extend_from_slice(name.as_ref());
                 if value.is_empty() {
                     buf.extend_from_slice(b":\r\n");

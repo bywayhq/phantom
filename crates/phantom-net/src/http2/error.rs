@@ -133,6 +133,10 @@ pub enum Http2Error {
         /// Maximum accepted aggregate bytes.
         maximum: usize,
     },
+    /// Static trailers and body-produced trailers were configured together.
+    ConflictingRequestTrailers,
+    /// Body-produced trailers were passed to a metadata-only validator.
+    BodyTrailerPlanRequired,
     /// A request field name was invalid or not entirely lowercase.
     InvalidHeaderName {
         /// Position in the ordered header list.
@@ -239,6 +243,11 @@ impl fmt::Display for Http2Error {
                 formatter,
                 "request trailer field names and values total {bytes} bytes; maximum is {maximum}"
             ),
+            Self::ConflictingRequestTrailers => formatter.write_str(
+                "static and streaming-body-produced HTTP/2 request trailers cannot be combined",
+            ),
+            Self::BodyTrailerPlanRequired => formatter
+                .write_str("body-produced HTTP/2 request trailers require source-aware validation"),
             Self::InvalidHeaderName { index } => write!(
                 formatter,
                 "request header at index {index} has an invalid or non-lowercase field name"
@@ -332,6 +341,8 @@ impl Http2Error {
             Self::HeadersTooLarge { .. } => "headers_too_large",
             Self::TooManyTrailers { .. } => "too_many_trailers",
             Self::TrailersTooLarge { .. } => "trailers_too_large",
+            Self::ConflictingRequestTrailers => "conflicting_request_trailers",
+            Self::BodyTrailerPlanRequired => "body_trailer_plan_required",
             Self::InvalidHeaderName { .. } => "invalid_header_name",
             Self::InvalidHeaderValue { .. } => "invalid_header_value",
             Self::InvalidTrailerName { .. } => "invalid_trailer_name",

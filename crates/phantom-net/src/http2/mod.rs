@@ -100,12 +100,36 @@ pub fn validate_request_body_with_trailers(
     body: Option<RequestBodyMetadata>,
     trailers: &[RequestHeader],
 ) -> Result<(), Http2Error> {
+    if body.is_some_and(RequestBodyMetadata::has_trailers) {
+        return Err(Http2Error::BodyTrailerPlanRequired);
+    }
     prepare_request(
         method.clone(),
         authority,
         target.clone(),
         headers.to_vec(),
         body,
+    )
+    .map(drop)?;
+    PreparedRequestTrailers::new(trailers.to_vec()).map(drop)
+}
+
+/// Validates an HTTP/2 request, body-produced trailer plan, and static trailers.
+pub fn validate_request_body_source_with_trailers(
+    method: &Method,
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<&RequestBody>,
+    trailers: &[RequestHeader],
+) -> Result<(), Http2Error> {
+    PreparedRequestTrailers::validate_body_plan(body, trailers)?;
+    prepare_request(
+        method.clone(),
+        authority,
+        target.clone(),
+        headers.to_vec(),
+        body.map(RequestBody::metadata),
     )
     .map(drop)?;
     PreparedRequestTrailers::new(trailers.to_vec()).map(drop)
@@ -243,10 +267,11 @@ where
     .await
 }
 
-/// Sends a pull-driven request body followed by exact ordered static trailers.
+/// Sends a pull-driven request body followed by exact ordered trailers.
 ///
-/// Request and trailer validation completes before the stream or body is
-/// touched. Trailers produced by the body remain unsupported.
+/// Request and static-trailer or body trailer-plan validation completes before
+/// the stream or body is touched. Static and body-produced trailers cannot be
+/// combined.
 ///
 /// # Errors
 ///
@@ -353,6 +378,7 @@ impl PreparedRequest {
     ) -> Result<Self, Http2Error> {
         settings.validate().map_err(Http2Error::InvalidSettings)?;
         let client = translate_settings(settings)?;
+        PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
         let metadata = body.as_ref().map(RequestBody::metadata);
         let request = build_request(method, authority, target, headers, metadata)?;
         let trailers = PreparedRequestTrailers::new(trailers)?;

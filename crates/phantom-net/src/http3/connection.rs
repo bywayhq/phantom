@@ -264,12 +264,36 @@ async fn send_body(
             let frame = frame
                 .map_err(Http3Error::request_body)
                 .map_err(UploadError::Body)?;
-            let mut data = frame.into_data().map_err(|_| {
-                UploadError::Body(Http3Error::without_source(
-                    Http3ErrorKind::Request,
-                    "HTTP/3 request trailers are not supported",
-                ))
-            })?;
+            let mut data = match frame.into_data() {
+                Ok(data) => data,
+                Err(frame) => {
+                    frame.into_trailers().map_err(|_| {
+                        UploadError::Body(Http3Error::without_source(
+                            Http3ErrorKind::Request,
+                            "HTTP/3 request body produced an unsupported frame",
+                        ))
+                    })?;
+                    let ordered = body.take_ordered_trailers().ok_or_else(|| {
+                        UploadError::Body(Http3Error::without_source(
+                            Http3ErrorKind::Request,
+                            "HTTP/3 request body omitted its ordered trailer values",
+                        ))
+                    })?;
+                    let trailers = super::request::PreparedTrailers::new(ordered)
+                        .map_err(UploadError::Body)?
+                        .ok_or_else(|| {
+                            UploadError::Body(Http3Error::without_source(
+                                Http3ErrorKind::Request,
+                                "HTTP/3 request body produced an empty trailer block",
+                            ))
+                        })?;
+                    let (fields, ordered) = trailers.into_parts();
+                    send.send_ordered_trailers(fields, ordered)
+                        .await
+                        .map_err(UploadError::Stream)?;
+                    return send.finish().await.map_err(UploadError::Stream);
+                }
+            };
             if data.is_empty() {
                 send.send_data(data).await.map_err(UploadError::Stream)?;
             } else {
