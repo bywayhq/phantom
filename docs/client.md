@@ -101,6 +101,11 @@ Streaming bodies are one-shot. Phantom validates a supplied `Content-Length`;
 unknown-length H1 uploads use chunked transfer coding, while H2 and H3 omit the
 field.
 
+Method-preserving redirects replay owned static trailers with the body. A
+redirect that rewrites the request to GET clears both, and a cross-origin
+redirect removes credential-bearing header and trailer fields before the next
+attempt.
+
 ## Routes and proxies
 
 Set a default route on `ClientBuilder`, or override it on one request. Supported
