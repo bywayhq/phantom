@@ -29,7 +29,7 @@ use crate::tls::test_support::{
 };
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 use crate::{
-    http1::{OriginForm, RequestHeader},
+    http1::{Http1UpgradeOutcome, OriginForm, RequestHeader},
     proxy::{HttpConnectError, HttpsProxyConnector},
 };
 
@@ -454,6 +454,85 @@ async fn plaintext_direct_connect_failure_is_not_a_proxy_error() -> TestResult<(
         ["connect_error"]
     );
     Ok(())
+}
+
+#[tokio::test]
+async fn plaintext_direct_upgrade_preserves_request_and_session_bytes() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let connector = test_connector(&identity)?;
+        let subscriber = OutcomeSubscriber::default();
+        let (address, listener) = loopback_listener().await?;
+        let server_task = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let request = read_plaintext_head(&mut stream).await?;
+            stream
+                .write_all(
+                    b"HTTP/1.1 101 Switching Protocols\r\n\
+                      Upgrade: websocket\r\n\
+                      Connection: Upgrade\r\n\r\n\
+                      server-frame",
+                )
+                .await?;
+            stream.flush().await?;
+            let mut client_frame = [0_u8; 12];
+            stream.read_exact(&mut client_frame).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((request, client_frame))
+        });
+
+        let outcome = connector
+            .upgrade_get_plaintext_direct(
+                "127.0.0.1",
+                address.port(),
+                OriginForm::parse("/socket?encoding=json")?,
+                vec![
+                    RequestHeader::new("Host", "127.0.0.1"),
+                    RequestHeader::new("Connection", "Upgrade"),
+                    RequestHeader::new("Upgrade", "websocket"),
+                    RequestHeader::new("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ=="),
+                    RequestHeader::new("Sec-WebSocket-Version", "13"),
+                    RequestHeader::new("X-Order", "last"),
+                ],
+            )
+            .with_subscriber(Dispatch::new(subscriber.clone()))
+            .await?;
+        let Http1UpgradeOutcome::Upgraded(response) = outcome else {
+            return Err("101 response was not upgraded".into());
+        };
+        assert_eq!(response.status(), 101);
+
+        let mut upgraded = response.into_body();
+        let mut server_frame = [0_u8; 12];
+        upgraded.read_exact(&mut server_frame).await?;
+        assert_eq!(&server_frame, b"server-frame");
+        upgraded.write_all(b"client-frame").await?;
+        upgraded.flush().await?;
+
+        let (request, client_frame) = server_task.await??;
+        assert_eq!(
+            request,
+            b"GET /socket?encoding=json HTTP/1.1\r\n\
+              Host: 127.0.0.1\r\n\
+              Connection: Upgrade\r\n\
+              Upgrade: websocket\r\n\
+              Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
+              Sec-WebSocket-Version: 13\r\n\
+              X-Order: last\r\n\r\n"
+        );
+        assert_eq!(&client_frame, b"client-frame");
+        assert_eq!(
+            subscriber.outcomes_for("http1.direct.upgrade_response_head"),
+            ["upgraded"]
+        );
+        assert!(
+            subscriber
+                .outcomes_for("http1.tls.upgrade_response_head")
+                .is_empty(),
+            "plaintext Upgrade emitted a TLS wrapper outcome"
+        );
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test]

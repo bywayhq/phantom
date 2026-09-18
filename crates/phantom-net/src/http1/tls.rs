@@ -955,6 +955,49 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Sends one HTTP/1.1 Upgrade GET over a new direct plaintext TCP connection.
+    ///
+    /// A `101 Switching Protocols` response yields the upgraded byte stream.
+    /// Any other status remains an ordinary streaming HTTP response. The
+    /// complete request is validated before DNS resolution or TCP I/O. This
+    /// method performs no TLS handshake and never routes through a proxy.
+    pub async fn upgrade_get_plaintext_direct(
+        &self,
+        host: &str,
+        port: u16,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        let span = debug_span!(
+            "http1.direct.upgrade_response_head",
+            method = "GET",
+            transport = "tcp",
+            route = "direct",
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = connect_tcp(host, port).await.map_err(|error| match error {
+                DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+            })?;
+            debug!("HTTP/1 plaintext Upgrade request prepared");
+            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let status = match &outcome {
+                Http1UpgradeOutcome::Upgraded(response) => response.status(),
+                Http1UpgradeOutcome::Rejected(response) => response.status(),
+            };
+            Span::current().record("status", status.as_u16());
+            Ok(outcome)
+        }
+        .instrument(span.clone())
+        .await;
+        outcome_guard.finish(upgrade_outcome(&result));
+        result
+    }
+
     /// Sends one HTTP/1.1 Upgrade GET through a plaintext HTTP CONNECT proxy.
     ///
     /// Origin and proxy requests are validated before proxy or origin I/O.
@@ -1341,36 +1384,37 @@ impl Http1TlsConnector {
         );
         let outcome_guard = OperationOutcome::new(&span);
         let result = operation.instrument(span.clone()).await;
-        let outcome = match &result {
-            Ok(Http1UpgradeOutcome::Upgraded(_)) => "upgraded",
-            Ok(Http1UpgradeOutcome::Rejected(_)) => "rejected",
-            Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
-            Err(Http1TlsError::Connect(_)) => "connect_error",
-            Err(
-                Http1TlsError::ForwardProxyConnect(_)
-                | Http1TlsError::Proxy(_)
-                | Http1TlsError::Socks5Proxy(_),
-            ) => "proxy_error",
-            Err(Http1TlsError::Tls(_)) => "tls_error",
-            Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
-                "http_protocol_error"
-            }
-            Err(Http1TlsError::Http1(
-                Http1Error::AmbiguousResponseFraming
-                | Http1Error::UnexpectedUpgrade
-                | Http1Error::TooManyResponseHeaders { .. }
-                | Http1Error::ResponseHeadTooLarge { .. }
-                | Http1Error::ChunkSizeLineTooLarge { .. },
-            )) => "invalid_response",
-            Err(Http1TlsError::Http1(Http1Error::MissingResponseHeaderOrder)) => {
-                "http_protocol_error"
-            }
-            Err(Http1TlsError::Http1(_)) => "http_preparation_error",
-            Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
-            Err(Http1TlsError::MissingHttp1Alpn) => "invalid_configuration",
-        };
-        outcome_guard.finish(outcome);
+        outcome_guard.finish(upgrade_outcome(&result));
         result
+    }
+}
+
+fn upgrade_outcome(result: &Result<Http1UpgradeOutcome, Http1TlsError>) -> &'static str {
+    match result {
+        Ok(Http1UpgradeOutcome::Upgraded(_)) => "upgraded",
+        Ok(Http1UpgradeOutcome::Rejected(_)) => "rejected",
+        Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
+        Err(Http1TlsError::Connect(_)) => "connect_error",
+        Err(
+            Http1TlsError::ForwardProxyConnect(_)
+            | Http1TlsError::Proxy(_)
+            | Http1TlsError::Socks5Proxy(_),
+        ) => "proxy_error",
+        Err(Http1TlsError::Tls(_)) => "tls_error",
+        Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
+            "http_protocol_error"
+        }
+        Err(Http1TlsError::Http1(
+            Http1Error::AmbiguousResponseFraming
+            | Http1Error::UnexpectedUpgrade
+            | Http1Error::TooManyResponseHeaders { .. }
+            | Http1Error::ResponseHeadTooLarge { .. }
+            | Http1Error::ChunkSizeLineTooLarge { .. },
+        )) => "invalid_response",
+        Err(Http1TlsError::Http1(Http1Error::MissingResponseHeaderOrder)) => "http_protocol_error",
+        Err(Http1TlsError::Http1(_)) => "http_preparation_error",
+        Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
+        Err(Http1TlsError::MissingHttp1Alpn) => "invalid_configuration",
     }
 }
 
