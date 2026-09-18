@@ -192,7 +192,7 @@ async fn handshake_preserves_interleaved_ordered_sensitive_trailers() {
         let mismatch = send
             .send_ordered_trailers(semantic.clone(), OrderedHeaders::new(ordered[..2].to_vec()))
             .expect_err("mismatched ordered trailers were accepted");
-        assert_eq!(mismatch.to_string(), "malformed headers");
+        assert_eq!(mismatch.to_string(), "user error: malformed headers");
         send.send_ordered_trailers(semantic, OrderedHeaders::new(ordered.clone()))
             .expect("ordered trailers were rejected");
 
