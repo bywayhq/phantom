@@ -28,6 +28,7 @@ pub(crate) struct OutcomeSubscriber {
 #[derive(Default)]
 struct CaptureState {
     span_names: HashMap<u64, &'static str>,
+    span_fields: Vec<(&'static str, &'static str, String)>,
     outcomes: Vec<(&'static str, String)>,
     error_kinds: Vec<(&'static str, String)>,
     tls_versions: Vec<(&'static str, String)>,
@@ -50,6 +51,15 @@ impl OutcomeSubscriber {
             .iter()
             .filter(|(name, _)| *name == span_name)
             .map(|(_, outcome)| outcome.clone())
+            .collect()
+    }
+
+    pub(crate) fn field_values_for(&self, span_name: &str, field_name: &str) -> Vec<String> {
+        self.state()
+            .span_fields
+            .iter()
+            .filter(|(name, field, _)| *name == span_name && *field == field_name)
+            .map(|(_, _, value)| value.clone())
             .collect()
     }
 
@@ -164,9 +174,17 @@ impl Subscriber for OutcomeSubscriber {
 
     fn new_span(&self, attributes: &Attributes<'_>) -> Id {
         let id = self.next_span_id.fetch_add(1, Ordering::Relaxed) + 1;
-        self.state()
-            .span_names
-            .insert(id, attributes.metadata().name());
+        let span_name = attributes.metadata().name();
+        let mut visitor = SpanFieldVisitor::default();
+        attributes.record(&mut visitor);
+        let mut state = self.state();
+        state.span_names.insert(id, span_name);
+        state.span_fields.extend(
+            visitor
+                .fields
+                .into_iter()
+                .map(|(field, value)| (span_name, field, value)),
+        );
         Id::from_u64(id)
     }
 
@@ -248,6 +266,19 @@ impl Subscriber for OutcomeSubscriber {
     }
 
     fn exit(&self, _span: &Id) {}
+}
+
+#[derive(Default)]
+struct SpanFieldVisitor {
+    fields: Vec<(&'static str, String)>,
+}
+
+impl Visit for SpanFieldVisitor {
+    fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
+
+    fn record_str(&mut self, field: &Field, value: &str) {
+        self.fields.push((field.name(), value.to_owned()));
+    }
 }
 
 #[derive(Default)]

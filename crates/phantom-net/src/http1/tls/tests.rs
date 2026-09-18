@@ -500,6 +500,14 @@ async fn https_forward_proxy_uses_dns_sni_and_accepts_http1_alpn() -> TestResult
             b"GET /through-proxy HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
         );
         assert_eq!(subscriber.outcomes_for("http1.proxy.connect"), ["ok"]);
+        assert_eq!(
+            subscriber.field_values_for("http1.proxy.connect", "transport"),
+            ["tls"]
+        );
+        assert_eq!(
+            subscriber.field_values_for("http1.proxy.connect", "proxy_kind"),
+            ["forward"]
+        );
         Ok(())
     })
     .await
@@ -596,6 +604,14 @@ async fn https_forward_proxy_rejects_h2_without_writing_http_bytes() -> TestResu
         assert_eq!(
             subscriber.outcomes_for("http1.proxy.connect"),
             ["proxy_error"]
+        );
+        assert_eq!(
+            subscriber.field_values_for("http1.proxy.connect", "transport"),
+            ["tls"]
+        );
+        assert_eq!(
+            subscriber.field_values_for("http1.proxy.connect", "proxy_kind"),
+            ["forward"]
         );
 
         let (sni, selected_alpn, plaintext) = server_task.await??;
