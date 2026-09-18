@@ -125,7 +125,14 @@ impl Http1Pool {
         let lease = timeout_budget
             .run(TimeoutPhase::Connect, Some(HttpProtocol::Http1), async {
                 entry
-                    .acquire(connector, https_proxy, endpoint, route, mode)
+                    .acquire(
+                        connector,
+                        https_proxy,
+                        endpoint,
+                        route,
+                        mode,
+                        forward_authorization,
+                    )
                     .await
             })
             .await?;
@@ -270,16 +277,24 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
         mode: Http1ConnectionMode,
+        force_new_connection: bool,
     ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
-        if let Some(slot) = current.as_ref() {
-            if slot.connection.is_reusable() {
-                debug!(
-                    outcome = "hit",
-                    "HTTP/1 connection acquired from client pool"
-                );
-                return Ok(slot.lease());
+        if !force_new_connection {
+            if let Some(slot) = current.as_ref() {
+                if slot.connection.is_reusable() {
+                    debug!(
+                        outcome = "hit",
+                        "HTTP/1 connection acquired from client pool"
+                    );
+                    return Ok(slot.lease());
+                }
             }
+        } else if current.take().is_some() {
+            debug!(
+                outcome = "authentication_retry",
+                "HTTP/1 pooled connection retired before authenticated retry"
+            );
         }
 
         debug!(outcome = "connect", "HTTP/1 client pool opening connection");

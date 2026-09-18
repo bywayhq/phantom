@@ -73,7 +73,11 @@ owned-body and static-trailer replay, and failure before opening a retry
 connection for a one-shot streaming body. A second `407` and malformed or
 unsupported challenges return typed proxy errors without direct or protocol
 fallback. A subsequent logical request begins anonymously, proving that no
-challenge state is learned.
+challenge state is learned. Lifecycle cases also cover a nonempty challenge
+body, a queued request installing an intervening pooled connection without
+capturing the authenticated retry, one total deadline spanning both attempts,
+and suppression of challenge-response cookies while retaining cookies from the
+final origin response.
 
 This evidence does not claim browser-capture fidelity, redirects, negotiated
 H1/H2 forwarding, H2 proxy transport, other authentication schemes, forwarding

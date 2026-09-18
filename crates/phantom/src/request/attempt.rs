@@ -104,6 +104,10 @@ async fn send_once_exact(
             .zip(client_hint_origin.as_deref())
             .map(|(settings, origin)| client.client_hint_context(endpoint, origin, settings));
         let attempt_body = body.next_attempt()?;
+        if retried_proxy_authentication {
+            request_span.record("proxy_authentication_retry", true);
+            request_span.record("proxy_attempts", 2_u64);
+        }
         let dispatched = dispatch(
             client,
             request,
@@ -133,8 +137,6 @@ async fn send_once_exact(
             validate_basic_proxy_challenge(response.headers())
                 .map_err(proxy_authentication_error)?;
             retried_proxy_authentication = true;
-            request_span.record("proxy_authentication_retry", true);
-            request_span.record("proxy_attempts", 2_u64);
             tracing::debug!(
                 retry = 1,
                 reason = "proxy_authentication",
