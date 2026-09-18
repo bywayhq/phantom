@@ -13,8 +13,9 @@ work has exposed the real architectural boundaries.
 - The initial external-root source distribution is documented and manually
   build-proven: one revision-pinned vendorable layout and its complete root
   patch stanza resolve every patched package from the retained trees. Missing
-  substitutions fail at compile time. An automated external-root gate and
-  direct-fork distribution remain before one-line installation can be claimed.
+  substitutions fail at compile time, and CI repeats the external-root
+  resolution and all-features check. Direct-fork distribution remains before
+  one-line installation can be claimed.
 - Add opt-in streaming response decompression for caller-advertised `gzip`,
   `deflate`, `br`, and `zstd`, with decoded-byte limits and fail-closed coding
   semantics. Phantom must not invent an `Accept-Encoding` field or its ordered

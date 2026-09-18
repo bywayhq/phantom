@@ -91,5 +91,7 @@ cargo build --all-features --locked
 
 These commands verify that the committed lockfile resolves the pinned path and
 patch graph and that all enabled Phantom capabilities compile in the consumer.
-They are validation instructions, not a claim that a particular downstream
-repository has been tested.
+Phantom's Linux quality gate repeats this external-root resolution and
+all-features check through `scripts/ci/check-downstream.sh`. A downstream
+repository must still run the commands against its own committed lockfile and
+toolchain.

@@ -66,6 +66,9 @@ jobs:
           cargo check -p phantom-quic-btls --no-default-features --locked
           cargo check -p phantom-quic-btls --no-default-features --features keylog --locked
 
+      - name: Check downstream vendored consumption
+        run: scripts/ci/check-downstream.sh
+
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
