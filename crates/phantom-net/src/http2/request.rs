@@ -5,8 +5,8 @@ use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
         AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
-        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING,
-        UPGRADE,
+        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE, TRAILER,
+        TRANSFER_ENCODING, UPGRADE,
     },
     uri::Authority,
 };
@@ -264,6 +264,7 @@ fn is_forbidden_trailer(name: &HeaderName) -> bool {
         || name == CONTENT_RANGE
         || name == CONTENT_TYPE
         || name == MAX_FORWARDS
+        || name == PROXY_AUTHORIZATION
         || name == SET_COOKIE
         || name == TE
         || name == TRANSFER_ENCODING

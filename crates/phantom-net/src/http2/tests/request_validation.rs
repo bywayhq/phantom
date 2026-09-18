@@ -282,6 +282,7 @@ async fn invalid_static_trailers_never_touch_stream() -> TestResult<()> {
         "host",
         "keep-alive",
         "max-forwards",
+        "proxy-authorization",
         "proxy-connection",
         "set-cookie",
         "te",

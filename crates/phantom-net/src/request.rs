@@ -113,8 +113,9 @@ impl RequestBodyMetadata {
 /// One pull-driven request body consumed by exactly one transport attempt.
 ///
 /// The body retains at most the frame currently returned by its source. Exact
-/// size hints are enforced while frames are pulled, and trailers fail
-/// explicitly until Phantom has an ordered request-trailer representation.
+/// size hints are enforced while frames are pulled. Trailer frames emitted by
+/// the source fail explicitly; transports accept ordered static trailers
+/// separately from this body.
 pub struct RequestBody {
     inner: UnsyncBoxBody<Bytes, RequestBodyError>,
     exact_length: Option<u64>,

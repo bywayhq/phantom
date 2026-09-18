@@ -345,7 +345,13 @@ fn validates_trailer_fields_declaration_and_limits() -> TestResult {
         ),
         Err(Http1Error::ForbiddenTrailer { index: 0, .. })
     ));
-    for name in ["connection", "upgrade", "keep-alive", "proxy-connection"] {
+    for name in [
+        "connection",
+        "upgrade",
+        "keep-alive",
+        "proxy-connection",
+        "proxy-authorization",
+    ] {
         assert!(matches!(
             validate_request_body_with_trailers(
                 &Method::POST,

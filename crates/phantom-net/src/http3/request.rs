@@ -533,6 +533,7 @@ impl PreparedTrailers {
                         | "content-range"
                         | "content-type"
                         | "max-forwards"
+                        | "proxy-authorization"
                         | "set-cookie"
                 )
             {

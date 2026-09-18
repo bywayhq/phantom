@@ -11,8 +11,8 @@ use http::{
     HeaderMap, HeaderValue, Method, Request, Version,
     header::{
         AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
-        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING,
-        UPGRADE,
+        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE, TRAILER,
+        TRANSFER_ENCODING, UPGRADE,
     },
 };
 use http_body::{Body, Frame, SizeHint};
@@ -658,6 +658,7 @@ fn is_forbidden_trailer(name: &HeaderName) -> bool {
             | CONTENT_TYPE
             | HOST
             | MAX_FORWARDS
+            | PROXY_AUTHORIZATION
             | SET_COOKIE
             | TRAILER
             | TRANSFER_ENCODING

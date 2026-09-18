@@ -429,6 +429,7 @@ fn invalid_static_trailers_fail_during_preparation() -> TestResult<()> {
         RequestHeader::new("content-range", "bytes 0-1/2"),
         RequestHeader::new("content-type", "text/plain"),
         RequestHeader::new("max-forwards", "1"),
+        RequestHeader::new("proxy-authorization", "Basic c2VjcmV0"),
         RequestHeader::new("set-cookie", "a=b"),
     ] {
         let error = crate::http3::request::prepare_profiled_request_body_with_trailers(
