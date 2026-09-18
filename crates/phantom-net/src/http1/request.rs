@@ -505,17 +505,20 @@ impl ValidatedHeaders {
         }
 
         if let Some(trailers) = trailers.filter(|_| trailer_declaration_index.is_none()) {
+            let declaration_index = semantic.len();
+            let declaration =
+                HeaderValue::from_bytes(trailers.declaration.as_bytes()).map_err(|_| {
+                    Http1Error::InvalidTrailerDeclaration {
+                        index: declaration_index,
+                    }
+                })?;
             append_generated_header(
                 &mut semantic,
                 &mut ordered,
                 &mut total_bytes,
                 TRAILER,
                 b"Trailer",
-                HeaderValue::from_bytes(trailers.declaration.as_bytes()).map_err(|_| {
-                    Http1Error::InvalidTrailerDeclaration {
-                        index: semantic.len(),
-                    }
-                })?,
+                declaration,
             )?;
         }
 

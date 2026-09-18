@@ -508,6 +508,82 @@ async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn public_builder_sends_http2_request_trailers_after_data() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(listener, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before request")??;
+            let length = request.headers().get("content-length").cloned();
+            let mut incoming = request.into_body();
+            let mut body = Vec::new();
+            while let Some(chunk) = next_h2_request_data(&mut connection, &mut incoming).await? {
+                body.extend_from_slice(&chunk);
+                incoming.flow_control().release_capacity(chunk.len())?;
+            }
+            let trailers = next_h2_request_trailers(&mut connection, &mut incoming)
+                .await?
+                .ok_or("request omitted trailers")?;
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((length, Bytes::from(body), trailers))
+        });
+
+        let response = test_client(&identity, true)?
+            .request(
+                HttpProtocol::Http2,
+                Method::POST,
+                &format!("https://{address}/request-trailers"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .trailers(vec![
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("x-middle", "between").sensitive(),
+                RequestHeader::new("x-repeat", "beta"),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        let (length, body, trailers) = server.await??;
+        assert_eq!(
+            length.as_ref().and_then(|value| value.to_str().ok()),
+            Some("7")
+        );
+        assert_eq!(body, "payload");
+        assert_eq!(
+            trailers
+                .get_all("x-repeat")
+                .iter()
+                .map(http::HeaderValue::as_bytes)
+                .collect::<Vec<_>>(),
+            [b"alpha".as_slice(), b"beta".as_slice()]
+        );
+        assert_eq!(
+            trailers
+                .get("x-middle")
+                .and_then(|value| value.to_str().ok()),
+            Some("between")
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn public_client_streams_unknown_length_http2_request_body() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
@@ -1041,6 +1117,27 @@ where
     poll_fn(|context| {
         if let Poll::Ready(item) = body.poll_data(context) {
             return Poll::Ready(item.transpose());
+        }
+        match connection.poll_closed(context) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
+    .map_err(Into::into)
+}
+
+async fn next_h2_request_trailers<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+    body: &mut ::http2::RecvStream,
+) -> TestResult<Option<HeaderMap>>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    poll_fn(|context| {
+        if let Poll::Ready(item) = body.poll_trailers(context) {
+            return Poll::Ready(item);
         }
         match connection.poll_closed(context) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),

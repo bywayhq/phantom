@@ -46,6 +46,7 @@ pub(crate) struct RedirectState {
     current_url: Url,
     method: Method,
     headers: Vec<RequestHeader>,
+    trailers: Vec<RequestHeader>,
     body: RequestBodySource,
     followed: usize,
 }
@@ -56,6 +57,7 @@ impl RedirectState {
         current_url: Url,
         method: Method,
         headers: Vec<RequestHeader>,
+        trailers: Vec<RequestHeader>,
         body: RequestBodySource,
     ) -> Self {
         Self {
@@ -63,6 +65,7 @@ impl RedirectState {
             current_url,
             method,
             headers,
+            trailers,
             body,
             followed: 0,
         }
@@ -78,6 +81,10 @@ impl RedirectState {
 
     pub(crate) fn headers(&self) -> &[RequestHeader] {
         &self.headers
+    }
+
+    pub(crate) fn trailers(&self) -> &[RequestHeader] {
+        &self.trailers
     }
 
     #[cfg(test)]
@@ -137,11 +144,14 @@ impl RedirectState {
         if changes_to_get(response.status(), &self.method) {
             self.method = Method::GET;
             self.body.clear();
+            self.trailers.clear();
             self.headers.retain(|header| !is_body_header(header.name()));
         }
         let same_origin = self.current_url.origin() == next_url.origin();
         if !same_origin {
             self.headers
+                .retain(|header| !is_credential_header(header.name()));
+            self.trailers
                 .retain(|header| !is_credential_header(header.name()));
         }
 

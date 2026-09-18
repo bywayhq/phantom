@@ -29,6 +29,10 @@ fn state(method: Method) -> Result<RedirectState, Box<dyn Error>> {
             RequestHeader::new("cookie2", "legacy=secret"),
             RequestHeader::new("x-ordered", "one"),
         ],
+        vec![
+            RequestHeader::new("authorization", "trailer-secret"),
+            RequestHeader::new("x-trailer", "one"),
+        ],
         RequestBodySource::Bytes(Bytes::from_static(b"body")),
     ))
 }
@@ -50,6 +54,7 @@ fn found_rewrites_post_and_normalizes_relative_dot_segments() -> TestResult {
 
     assert_eq!(state.method(), Method::GET);
     assert!(state.body().is_none());
+    assert!(state.trailers().is_empty());
     assert_eq!(state.current_url().as_str(), "https://example.test/final");
     assert_eq!(
         state
@@ -73,6 +78,14 @@ fn temporary_redirect_preserves_method_body_and_header_order() -> TestResult {
 
     assert_eq!(state.method(), Method::POST);
     assert_eq!(state.body(), Some(&Bytes::from_static(b"body")));
+    assert_eq!(
+        state
+            .trailers()
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>(),
+        ["authorization", "x-trailer"]
+    );
     assert_eq!(
         state
             .headers()
@@ -103,6 +116,14 @@ fn cross_origin_redirect_strips_credentials_only() -> TestResult {
             .map(RequestHeader::name)
             .collect::<Vec<_>>(),
         ["content-type", "x-ordered"]
+    );
+    assert_eq!(
+        state
+            .trailers()
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>(),
+        ["x-trailer"]
     );
     Ok(())
 }
@@ -242,6 +263,11 @@ fn redirect_statuses_apply_the_browser_method_and_body_matrix() -> TestResult {
 
         assert_eq!(state.method(), expected, "status {status}");
         assert_eq!(state.body().is_some(), preserves_body, "status {status}");
+        assert_eq!(
+            !state.trailers().is_empty(),
+            preserves_body,
+            "status {status}"
+        );
     }
     Ok(())
 }

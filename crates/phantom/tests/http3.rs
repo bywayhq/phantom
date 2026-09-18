@@ -199,6 +199,81 @@ async fn public_client_sends_owned_http3_request_body() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn public_builder_sends_http3_request_trailers_after_data() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let (client_done, done_received) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+            let length = request.headers().get("content-length").cloned();
+            let mut body = Vec::new();
+            while let Some(mut chunk) = stream.recv_data().await? {
+                let remaining = chunk.remaining();
+                body.extend_from_slice(&chunk.copy_to_bytes(remaining));
+            }
+            let trailers = stream
+                .recv_trailers()
+                .await?
+                .ok_or("HTTP/3 request omitted trailers")?;
+            stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(())?,
+                )
+                .await?;
+            stream.finish().await?;
+            done_received.await.map_err(io::Error::other)?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((length, body, trailers))
+        });
+
+        let response = test_client(&identity)?
+            .request(
+                HttpProtocol::Http3,
+                Method::POST,
+                &format!("https://{address}/request-trailers"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .trailers(vec![
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("x-middle", "between").sensitive(),
+                RequestHeader::new("x-repeat", "beta"),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/3 server stopped before client completion")?;
+        let (length, body, trailers) = server.await??;
+        assert_eq!(
+            length.as_ref().and_then(|value| value.to_str().ok()),
+            Some("7")
+        );
+        assert_eq!(body, b"payload");
+        assert_eq!(
+            trailers
+                .get_all("x-repeat")
+                .iter()
+                .map(HeaderValue::as_bytes)
+                .collect::<Vec<_>>(),
+            [b"alpha".as_slice(), b"beta".as_slice()]
+        );
+        assert_eq!(
+            trailers
+                .get("x-middle")
+                .and_then(|value| value.to_str().ok()),
+            Some("between")
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn public_client_streams_unknown_length_http3_request_body() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;

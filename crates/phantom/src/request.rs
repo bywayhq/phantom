@@ -27,6 +27,7 @@ pub struct RequestBuilder {
     selection: ProtocolSelection,
     method: Method,
     headers: Vec<RequestHeader>,
+    trailers: Vec<RequestHeader>,
     body: RequestBodySource,
     route: Option<Route>,
     timeouts: Option<RequestTimeouts>,
@@ -40,6 +41,7 @@ impl fmt::Debug for RequestBuilder {
             .field("protocol_selection", &self.selection)
             .field("method", &self.method)
             .field("header_count", &self.headers.len())
+            .field("trailer_count", &self.trailers.len())
             .field("body_kind", &self.body.trace_kind())
             .field("body_len", &self.body.exact_length().unwrap_or(0))
             .field("route_override", &self.route.is_some())
@@ -97,6 +99,7 @@ impl RequestBuilder {
             selection,
             method,
             headers: Vec::new(),
+            trailers: Vec::new(),
             body: RequestBodySource::Absent,
             route: None,
             timeouts: None,
@@ -113,6 +116,17 @@ impl RequestBuilder {
     /// Replaces the complete ordered request-field list.
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
         self.headers = headers;
+        self
+    }
+
+    /// Replaces the complete ordered request-trailer list.
+    ///
+    /// Static trailers are emitted only after the request body completes
+    /// successfully. HTTP/1.1 preserves field-name spelling; HTTP/2 and
+    /// HTTP/3 require lowercase names. Every protocol preserves field order,
+    /// duplicate positions, values, and sensitivity.
+    pub fn trailers(mut self, trailers: Vec<RequestHeader>) -> Self {
+        self.trailers = trailers;
         self
     }
 
@@ -136,8 +150,9 @@ impl RequestBuilder {
     ///
     /// This body is not replayable. A redirect, client-hint retry, or other
     /// policy that requires a second body-bearing attempt returns a typed
-    /// request-body error before starting that attempt. Request trailers are
-    /// rejected until Phantom exposes an ordered trailer representation.
+    /// request-body error before starting that attempt. Trailer frames emitted
+    /// by the source remain unsupported; use [`Self::trailers`] for ordered
+    /// static request trailers.
     pub fn streaming_body<B>(mut self, body: B) -> Self
     where
         B: Body<Data = Bytes> + Send + 'static,
@@ -203,6 +218,7 @@ impl RequestBuilder {
             method = %self.method,
             body_bytes = self.body.exact_length(),
             body_kind = self.body.trace_kind(),
+            trailer_fields = self.trailers.len(),
             protocol = self.selection.trace_name(),
             selected_protocol = field::Empty,
             route = route.request_trace_name(self.request.uri.scheme_str()),
@@ -246,6 +262,7 @@ impl RequestBuilder {
             selection,
             method,
             headers: request_headers,
+            trailers: request_trailers,
             body,
             route,
             timeouts: _,
@@ -275,6 +292,7 @@ impl RequestBuilder {
                 AttemptRequest {
                     method,
                     headers: request_headers,
+                    trailers: request_trailers,
                     body: &mut body,
                 },
                 route,
@@ -294,8 +312,14 @@ impl RequestBuilder {
             return Ok(response);
         }
 
-        let mut redirect =
-            RedirectState::new(policy, request.url.clone(), method, request_headers, body);
+        let mut redirect = RedirectState::new(
+            policy,
+            request.url.clone(),
+            method,
+            request_headers,
+            request_trailers,
+            body,
+        );
         let mut resolved = request;
 
         loop {
@@ -307,6 +331,7 @@ impl RequestBuilder {
                 AttemptRequest {
                     method: redirect.method().clone(),
                     headers: redirect.headers().to_vec(),
+                    trailers: redirect.trailers().to_vec(),
                     body: redirect.body_mut(),
                 },
                 route,

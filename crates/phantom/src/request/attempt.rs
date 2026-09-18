@@ -11,6 +11,7 @@ use crate::session::{client_hints::ClientHintContext, http1_pool::Http1Connectio
 pub(super) struct AttemptRequest<'a> {
     pub(super) method: Method,
     pub(super) headers: Vec<RequestHeader>,
+    pub(super) trailers: Vec<RequestHeader>,
     pub(super) body: &'a mut RequestBodySource,
 }
 
@@ -52,6 +53,7 @@ async fn send_once_exact(
     let AttemptRequest {
         method,
         headers: request_headers,
+        trailers: request_trailers,
         body,
     } = attempt;
     let endpoint = &request.endpoint;
@@ -83,6 +85,7 @@ async fn send_once_exact(
             protocol,
             method.clone(),
             prepared_headers,
+            request_trailers.clone(),
             client_hints,
             attempt_body,
             route,
@@ -134,6 +137,7 @@ async fn send_once_negotiated(
     let AttemptRequest {
         method,
         headers: request_headers,
+        trailers: request_trailers,
         body,
     } = attempt;
     if !matches!(route, Route::Direct) {
@@ -188,6 +192,7 @@ async fn send_once_negotiated(
                 request.target.clone(),
                 http1_request_headers,
                 http2_request_headers,
+                request_trailers.clone(),
                 client_hints,
                 attempt_body,
                 timeout_budget,
@@ -272,6 +277,7 @@ async fn dispatch(
     protocol: HttpProtocol,
     method: Method,
     request_headers: Vec<RequestHeader>,
+    request_trailers: Vec<RequestHeader>,
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<RequestBody>,
     route: &Route,
@@ -312,6 +318,7 @@ async fn dispatch(
                     target,
                     request.absolute_target.clone(),
                     headers,
+                    request_trailers,
                     body,
                     timeout_budget,
                 )
@@ -339,6 +346,7 @@ async fn dispatch(
                     endpoint.authority().as_str(),
                     target,
                     request_headers,
+                    request_trailers,
                     client_hints,
                     body,
                     timeout_budget,
@@ -366,6 +374,7 @@ async fn dispatch(
                     endpoint.authority().as_str(),
                     target,
                     request_headers,
+                    request_trailers,
                     client_hints,
                     body,
                     timeout_budget,

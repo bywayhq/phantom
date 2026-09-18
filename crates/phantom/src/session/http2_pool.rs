@@ -7,7 +7,7 @@ use std::{
 use http::Method;
 use phantom_net::http2::{
     Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector, Http2TlsError,
-    OriginForm, RequestHeader, validate_request_body,
+    OriginForm, RequestHeader, validate_request_body_with_trailers,
 };
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
@@ -65,6 +65,7 @@ impl Http2Pool {
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
@@ -72,12 +73,13 @@ impl Http2Pool {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
-        validate_request_body(
+        validate_request_body_with_trailers(
             &method,
             authority,
             &target,
             validation_headers,
             body.as_ref().map(RequestBody::metadata),
+            &trailers,
         )
         .map_err(Http2TlsError::from)
         .map_err(RequestError::http2)?;
@@ -93,7 +95,7 @@ impl Http2Pool {
                 entry.admit(),
             )
             .await?;
-        let retryable_request = method == Method::GET && body.is_none();
+        let retryable_request = method == Method::GET && body.is_none() && trailers.is_empty();
         let mut body = body;
         let mut retried_graceful_goaway = false;
         let response_timeout =
@@ -119,12 +121,13 @@ impl Http2Pool {
                     Ok::<_, RequestError>(
                         lease
                             .connection
-                            .send_request_body(
+                            .send_request_body_with_trailers(
                                 method.clone(),
                                 authority,
                                 target.clone(),
                                 sent_headers.clone(),
                                 body.take(),
+                                trailers.clone(),
                             )
                             .await,
                     )

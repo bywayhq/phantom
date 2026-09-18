@@ -6,11 +6,14 @@ use std::{
 
 use http::{Method, Response};
 use phantom_net::{
-    http1::{Http1Connection, validate_request_body as validate_http1_request_body},
+    http1::{
+        Http1Connection,
+        validate_request_body_with_trailers as validate_http1_request_body_with_trailers,
+    },
     http1_or_2::{Http1Or2Connection, Http1Or2TlsConnector},
     http2::{
         Http2Connection, Http2Error, Http2ProtocolErrorKind,
-        validate_request_body as validate_http2_request_body,
+        validate_request_body_with_trailers as validate_http2_request_body_with_trailers,
     },
     request::{OriginForm, RequestBody, RequestHeader},
 };
@@ -62,6 +65,7 @@ impl Http1Or2Pool {
         target: OriginForm,
         http1_headers: Vec<RequestHeader>,
         http2_headers: Vec<RequestHeader>,
+        trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
@@ -75,14 +79,21 @@ impl Http1Or2Pool {
         ));
         http1_wire_headers.extend(http1_sent_headers.clone());
         let body_metadata = body.as_ref().map(RequestBody::metadata);
-        validate_http1_request_body(&method, &target, &http1_wire_headers, body_metadata)
-            .map_err(RequestError::negotiated_http1_validation)?;
-        validate_http2_request_body(
+        validate_http1_request_body_with_trailers(
+            &method,
+            &target,
+            &http1_wire_headers,
+            body_metadata,
+            &trailers,
+        )
+        .map_err(RequestError::negotiated_http1_validation)?;
+        validate_http2_request_body_with_trailers(
             &method,
             endpoint.authority().as_str(),
             &target,
             &http2_validation_headers,
             body_metadata,
+            &trailers,
         )
         .map_err(RequestError::negotiated_http2_validation)?;
 
@@ -119,7 +130,13 @@ impl Http1Or2Pool {
                         async {
                             Ok::<_, RequestError>(
                                 connection
-                                    .send_request_body(method, target, http1_wire_headers, body)
+                                    .send_request_body_with_trailers(
+                                        method,
+                                        target,
+                                        http1_wire_headers,
+                                        body,
+                                        trailers,
+                                    )
                                     .await,
                             )
                         },
@@ -165,12 +182,13 @@ impl Http1Or2Pool {
                         async {
                             Ok::<_, RequestError>(
                                 connection
-                                    .send_request_body(
+                                    .send_request_body_with_trailers(
                                         method,
                                         endpoint.authority().as_str(),
                                         target,
                                         sent_headers.clone(),
                                         body,
+                                        trailers,
                                     )
                                     .await,
                             )

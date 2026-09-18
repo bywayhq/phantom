@@ -56,6 +56,7 @@ impl Http3Pool {
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
+        trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
@@ -64,12 +65,13 @@ impl Http3Pool {
             client_hints.map(|context| context.prepare(headers.clone(), None));
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
         connector
-            .validate_request_body(
+            .validate_request_body_with_trailers(
                 method.clone(),
                 authority,
                 &target,
                 validation_headers,
                 body.as_ref().map(RequestBody::metadata),
+                &trailers,
             )
             .map_err(RequestError::http3)?;
         if !matches!(route, Route::Direct) {
@@ -104,13 +106,14 @@ impl Http3Pool {
                 async {
                     Ok::<_, RequestError>(
                         connector
-                            .send_request_body_on(
+                            .send_request_body_with_trailers_on(
                                 &lease.connection,
                                 method,
                                 authority,
                                 target,
                                 sent_headers.clone(),
                                 body,
+                                trailers,
                             )
                             .await,
                     )

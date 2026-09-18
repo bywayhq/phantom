@@ -91,6 +91,7 @@ pub(super) fn prepare_profiled_request(
     )
 }
 
+#[cfg(test)]
 pub(super) fn prepare_profiled_request_body(
     request_settings: &Http3RequestSettings,
     method: Method,

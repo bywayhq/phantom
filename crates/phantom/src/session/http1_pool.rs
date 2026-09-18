@@ -7,7 +7,7 @@ use std::{
 use http::Method;
 use phantom_net::http1::{
     AbsoluteForm, Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm, RequestHeader,
-    validate_forward_request_body, validate_request_body,
+    validate_forward_request_body_with_trailers, validate_request_body_with_trailers,
 };
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
@@ -60,22 +60,25 @@ impl Http1Pool {
         target: OriginForm,
         absolute_target: AbsoluteForm,
         headers: Vec<RequestHeader>,
+        trailers: Vec<RequestHeader>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
         if mode == Http1ConnectionMode::PlaintextForward {
-            validate_forward_request_body(
+            validate_forward_request_body_with_trailers(
                 &method,
                 &absolute_target,
                 &headers,
                 body.as_ref().map(RequestBody::metadata),
+                &trailers,
             )
         } else {
-            validate_request_body(
+            validate_request_body_with_trailers(
                 &method,
                 &target,
                 &headers,
                 body.as_ref().map(RequestBody::metadata),
+                &trailers,
             )
         }
         .map_err(Http1TlsError::from)
@@ -107,12 +110,20 @@ impl Http1Pool {
                     Ok(if mode == Http1ConnectionMode::PlaintextForward {
                         lease
                             .connection
-                            .send_forward_request_body(method, absolute_target, headers, body)
+                            .send_forward_request_body_with_trailers(
+                                method,
+                                absolute_target,
+                                headers,
+                                body,
+                                trailers,
+                            )
                             .await
                     } else {
                         lease
                             .connection
-                            .send_request_body(method, target, headers, body)
+                            .send_request_body_with_trailers(
+                                method, target, headers, body, trailers,
+                            )
                             .await
                     })
                 },

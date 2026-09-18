@@ -94,6 +94,61 @@ async fn direct_http1_preserves_origin_form_order_and_streaming_body() -> TestRe
 }
 
 #[tokio::test]
+async fn public_builder_sends_exact_ordered_http1_request_trailers() -> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let head = read_head(&mut stream).await?;
+            let mut framed = Vec::new();
+            while !framed.ends_with(b"\r\n\r\n") {
+                let mut byte = [0_u8; 1];
+                stream.read_exact(&mut byte).await?;
+                framed.push(byte[0]);
+            }
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, framed))
+        });
+
+        let response = http1_client()?
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("http://{address}/trailers"),
+            )?
+            .header(RequestHeader::new("X-Before", "head"))
+            .body(Bytes::from_static(b"payload"))
+            .trailers(vec![
+                RequestHeader::new("X-Repeat", "alpha"),
+                RequestHeader::new("X-Middle", "between"),
+                RequestHeader::new("X-Repeat", "beta"),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        let (head, framed) = server.await??;
+        assert_eq!(
+            head,
+            format!(
+                "POST /trailers HTTP/1.1\r\nHost: {address}\r\nX-Before: head\r\nTransfer-Encoding: chunked\r\nTrailer: X-Repeat, X-Middle\r\n\r\n"
+            )
+            .as_bytes()
+        );
+        assert_eq!(
+            framed,
+            b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nX-Repeat: beta\r\n\r\n"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn direct_http1_reuses_same_origin_connection() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

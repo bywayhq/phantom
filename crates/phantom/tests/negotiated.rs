@@ -18,7 +18,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use http::{Method, Response, StatusCode};
+use http::{HeaderMap, Method, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt, Full};
 use phantom::profile::{ClientProfile, chromium};
@@ -137,6 +137,127 @@ async fn negotiated_request_selects_http2_once() -> TestResult<()> {
         let (uri, had_no_second_connection) = server.await??;
         assert_eq!(uri.path(), "/selected-h2");
         assert!(had_no_second_connection);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn negotiated_http1_sends_exact_static_request_trailers() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let mut stream = accept_tls_stream(tcp, acceptor).await?;
+            let head = read_head(&mut stream).await?;
+            let mut framed = Vec::new();
+            while !framed.ends_with(b"\r\n\r\n") {
+                let mut byte = [0_u8; 1];
+                stream.read_exact(&mut byte).await?;
+                framed.push(byte[0]);
+            }
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((head, framed))
+        });
+
+        let response = test_client(&identity, true)?
+            .request_negotiated(Method::POST, &format!("https://{address}/trailers-h1"))?
+            .body(Bytes::from_static(b"payload"))
+            .trailers(vec![
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("x-middle", "between"),
+                RequestHeader::new("x-repeat", "beta"),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+        response.into_body().collect().await?;
+
+        let (head, framed) = server.await??;
+        assert_eq!(
+            head,
+            format!(
+                "POST /trailers-h1 HTTP/1.1\r\nHost: {address}\r\nTransfer-Encoding: chunked\r\nTrailer: x-repeat, x-middle\r\n\r\n"
+            )
+            .as_bytes()
+        );
+        assert_eq!(
+            framed,
+            b"7\r\npayload\r\n0\r\nx-repeat: alpha\r\nx-middle: between\r\nx-repeat: beta\r\n\r\n"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn negotiated_http2_sends_static_request_trailers() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let stream = accept_tls_stream(tcp, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before negotiated request")??;
+            let mut incoming = request.into_body();
+            let mut body = Vec::new();
+            while let Some(chunk) = next_h2_request_data(&mut connection, &mut incoming).await? {
+                body.extend_from_slice(&chunk);
+                incoming.flow_control().release_capacity(chunk.len())?;
+            }
+            let trailers = next_h2_request_trailers(&mut connection, &mut incoming)
+                .await?
+                .ok_or("negotiated request omitted trailers")?;
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((body, trailers))
+        });
+
+        let response = test_client(&identity, true)?
+            .request_negotiated(Method::POST, &format!("https://{address}/trailers-h2"))?
+            .body(Bytes::from_static(b"payload"))
+            .trailers(vec![
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("x-middle", "between").sensitive(),
+                RequestHeader::new("x-repeat", "beta"),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http2);
+        response.into_body().collect().await?;
+
+        let (body, trailers) = server.await??;
+        assert_eq!(body, b"payload");
+        assert_eq!(
+            trailers
+                .get_all("x-repeat")
+                .iter()
+                .map(http::HeaderValue::as_bytes)
+                .collect::<Vec<_>>(),
+            [b"alpha".as_slice(), b"beta".as_slice()]
+        );
+        assert_eq!(
+            trailers
+                .get("x-middle")
+                .and_then(|value| value.to_str().ok()),
+            Some("between")
+        );
         Ok(())
     })
     .await
@@ -725,6 +846,27 @@ where
     poll_fn(|context| {
         if let Poll::Ready(item) = body.poll_data(context) {
             return Poll::Ready(item.transpose());
+        }
+        match connection.poll_closed(context) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
+    .map_err(Into::into)
+}
+
+async fn next_h2_request_trailers<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+    body: &mut ::http2::RecvStream,
+) -> TestResult<Option<HeaderMap>>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    poll_fn(|context| {
+        if let Poll::Ready(item) = body.poll_trailers(context) {
+            return Poll::Ready(item);
         }
         match connection.poll_closed(context) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
