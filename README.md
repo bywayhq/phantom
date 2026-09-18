@@ -44,25 +44,25 @@ at each layer.
 
 ## A first request
 
-```rust,no_run
+```rust
 use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, HttpProtocol, RequestHeader};
 
-# async fn run() -> Result<(), Box<dyn std::error::Error>> {
-let profile = ClientProfile::new(chromium::v152_macos_tls())
-    .with_http2(chromium::v152_macos_http2())
-    .with_client_hints(chromium::v152_macos_client_hints());
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = ClientProfile::new(chromium::v152_macos_tls())
+        .with_http2(chromium::v152_macos_http2())
+        .with_client_hints(chromium::v152_macos_client_hints());
 
-let client = Client::builder(profile).build()?;
-let response = client
-    .get(HttpProtocol::Http2, "https://example.com/")?
-    .header(RequestHeader::new("accept", "*/*"))
-    .send()
-    .await?;
+    let client = Client::builder(profile).build()?;
+    let response = client
+        .get(HttpProtocol::Http2, "https://example.com/")?
+        .header(RequestHeader::new("accept", "*/*"))
+        .send()
+        .await?;
 
-println!("{}", response.status());
-# Ok(())
-# }
+    println!("{}", response.status());
+    Ok(())
+}
 ```
 
 This request selects exactly HTTP/2. `get_negotiated` instead performs one

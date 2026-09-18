@@ -13,6 +13,7 @@ Use the shortest path that matches your role.
 | Contributor | [Validation](validation.md) | Evidence, fixtures, adversarial tests, external suites, and gates |
 | H3 specialist | [HTTP/3 internals](http3.md) | QUIC, QPACK, capture, diagnostics, and vendored seams |
 | Following development | [Roadmap](roadmap.md) | Now, next, and later |
+| Security reporter | [Security policy](../SECURITY.md) | Private reporting, supported versions, and disclosure expectations |
 
 ## Writing contract
 
@@ -25,4 +26,5 @@ Use the shortest path that matches your role.
 - Content is linked rather than repeated.
 
 Contributor workflow and commands live in [CONTRIBUTING.md](../CONTRIBUTING.md)
-and [AGENTS.md](../AGENTS.md).
+and [AGENTS.md](../AGENTS.md). Reproducible bugs use the repository's
+[bug-report form](https://github.com/bywayhq/phantom/issues/new?template=bug_report.yml).

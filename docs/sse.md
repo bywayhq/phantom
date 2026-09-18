@@ -4,45 +4,45 @@ The optional `sse` feature adds a pull-based decoder and a client-owned,
 bounded reconnect controller over Phantom's existing streaming response body.
 Neither API creates a background task, channel, or event queue.
 
-```rust,no_run
+```rust
 use phantom::{Client, HttpProtocol, SseStream};
 
-# async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-let response = client
-    .get(HttpProtocol::Http2, "https://example.com/events")?
-    .send()
-    .await?;
-let mut events = SseStream::from_response(response)?.into_body();
+async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .get(HttpProtocol::Http2, "https://example.com/events")?
+        .send()
+        .await?;
+    let mut events = SseStream::from_response(response)?.into_body();
 
-while let Some(event) = events.next_event().await? {
-    println!("{}: {}", event.event(), event.data());
+    while let Some(event) = events.next_event().await? {
+        println!("{}: {}", event.event(), event.data());
+    }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 Use `Client::event_source` when reconnect behavior is required:
 
-```rust,no_run
+```rust
 use std::time::Duration;
 
 use phantom::{Client, HttpProtocol};
 
-# async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-let response = client
-    .event_source(HttpProtocol::Http2, "https://example.com/events")?
-    .idle_timeout(Duration::from_secs(30))
-    .initial_retry(Duration::from_secs(3))
-    .max_reconnects(4)
-    .connect()
-    .await?;
-let mut events = response.into_body();
+async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .event_source(HttpProtocol::Http2, "https://example.com/events")?
+        .idle_timeout(Duration::from_secs(30))
+        .initial_retry(Duration::from_secs(3))
+        .max_reconnects(4)
+        .connect()
+        .await?;
+    let mut events = response.into_body();
 
-while let Some(event) = events.next_event().await? {
-    println!("{}: {}", event.event(), event.data());
+    while let Some(event) = events.next_event().await? {
+        println!("{}: {}", event.event(), event.data());
+    }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 The EventSource builder starts with ordered `Accept: text/event-stream` and

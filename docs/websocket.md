@@ -22,25 +22,25 @@ its final default-preserving patch adds the fragment-count seam used by
 Phantom. Phantom continues to own the exact opening fields and response
 boundary.
 
-```rust,no_run
+```rust
 use futures_util::{SinkExt, StreamExt};
 use phantom::{Client, WebSocketMessage};
 
-# async fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-let socket = client
-    .websocket("wss://example.com/events")?
-    .connect()
-    .await?;
-let (mut sender, mut receiver) = socket.split();
+async fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let socket = client
+        .websocket("wss://example.com/events")?
+        .connect()
+        .await?;
+    let (mut sender, mut receiver) = socket.split();
 
-sender
-    .send(WebSocketMessage::Text("hello".into()))
-    .await?;
-if let Some(message) = receiver.next().await {
-    println!("{:?}", message?);
+    sender
+        .send(WebSocketMessage::Text("hello".into()))
+        .await?;
+    if let Some(message) = receiver.next().await {
+        println!("{:?}", message?);
+    }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 ## Ordered opening fields
