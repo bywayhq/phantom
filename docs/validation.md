@@ -131,8 +131,31 @@ tests cover exact-domain replies, case-insensitive domain comparison,
 same-port IP-form replies, and a stable logical Quinn peer.
 
 This evidence does not claim HTTP proxy or CONNECT routing for H3,
-CONNECT-UDP/MASQUE, Alt-Svc/H3 upgrade, extended CONNECT, or browser-capture
-fidelity for a proxied H3 route.
+CONNECT-UDP/MASQUE, extended CONNECT, or browser-capture fidelity for a proxied
+H3 route. Alt-Svc upgrade has separate direct-route evidence below.
+
+## Alt-Svc HTTP/3 upgrade evidence
+
+An authenticated loopback H2 origin and H3 alternative share one test
+identity while listening on distinct transport locations. Public negotiated
+requests prove default-off and explicit bounded activation, learning from the
+ordered response fields, an H2 first response followed by H3, retention of the
+original authority and certificate identity, and selected-protocol metadata.
+Parser regressions cover ordered duplicate fields, canonical host forms,
+default and explicit `ma`, `Age` subtraction and expiry, replacement, `clear`,
+unsupported alternatives, malformed-field retention, bounded LRU eviction,
+and explicit removal.
+
+Failure regressions close the authenticated alternative before request
+dispatch and prove a typed H3 error, no same-request H1/H2 fallback, eviction,
+and recovery through the origin on a later request. A `421` remains visible as
+an H3 response, evicts the advertisement, and cannot cause the alternative
+connection generation to be reused for the origin transport location. Manual
+clearing is covered through the public client.
+
+This evidence does not claim browser policy, connection racing, persistence,
+`Alt-Used`, H2 ALTSVC frames, proxy-route upgrades, or multiple-alternative
+racing.
 
 ## Connection-retry evidence
 

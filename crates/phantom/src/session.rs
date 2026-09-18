@@ -5,13 +5,14 @@ use crate::{Client, RedirectPolicy, RequestTimeouts, RetryPolicy, client::Client
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
 mod admission;
+pub(crate) mod alt_svc;
 pub(crate) mod client_hints;
 #[cfg(feature = "cookies")]
 mod cookies;
 pub(crate) mod http1_or_2_pool;
 pub(crate) mod http1_pool;
 mod http2_pool;
-mod http3_pool;
+pub(crate) mod http3_pool;
 
 #[cfg(feature = "cookies")]
 pub use cookies::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
@@ -47,7 +48,6 @@ const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64
     Some(value) => value,
     None => NonZeroUsize::MIN,
 };
-
 pub(crate) struct ClientOptions {
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) retry_policy: RetryPolicy,
@@ -61,6 +61,7 @@ pub(crate) struct ClientOptions {
     pub(crate) max_concurrent_http3_requests_per_origin: NonZeroUsize,
     pub(crate) max_pending_http3_requests_per_origin: NonZeroUsize,
     pub(crate) max_client_hint_origins: NonZeroUsize,
+    pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
     #[cfg(feature = "cookies")]
     pub(crate) cookie_jar: Option<CookieJar>,
 }
@@ -82,6 +83,7 @@ impl Default for ClientOptions {
                 DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
             max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
             max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
+            max_alt_svc_origins: None,
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }
@@ -100,6 +102,7 @@ pub(crate) struct ClientState {
     pub(crate) http1_or_2: http1_or_2_pool::Http1Or2Pool,
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: http3_pool::Http3Pool,
+    alt_svc: Option<alt_svc::AltSvcStore>,
     client_hints: Option<client_hints::ClientHintStore>,
     #[cfg(feature = "cookies")]
     pub(crate) cookies: Option<Arc<CookieJar>>,
@@ -132,6 +135,7 @@ impl ClientOptions {
                 self.max_concurrent_http3_requests_per_origin,
                 self.max_pending_http3_requests_per_origin,
             ),
+            alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
             client_hints: inner
                 .client_hints
                 .is_some()
@@ -184,6 +188,46 @@ impl Client {
             })
     }
 
+    pub(crate) fn alt_svc_location(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+    ) -> Option<(Box<str>, u16, u64)> {
+        self.state.alt_svc.as_ref()?.get(endpoint).map(|selection| {
+            (
+                Box::<str>::from(selection.location().host()),
+                selection.location().port(),
+                selection.generation(),
+            )
+        })
+    }
+
+    pub(crate) fn learn_alt_svc<B>(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        response: &http::Response<B>,
+    ) {
+        let Some(store) = &self.state.alt_svc else {
+            return;
+        };
+        let Some(headers) = response
+            .extensions()
+            .get::<phantom_net::OrderedResponseHeaders>()
+        else {
+            return;
+        };
+        store.learn(endpoint, headers);
+    }
+
+    pub(crate) fn remove_alt_svc_if_current(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        generation: u64,
+    ) {
+        if let Some(store) = &self.state.alt_svc {
+            store.remove_if_current(endpoint, generation);
+        }
+    }
+
     /// Starts a bounded server-sent event source using this client's state.
     ///
     /// Reconnects use exactly `protocol`, the same route, ordered caller fields,
@@ -213,6 +257,13 @@ impl Client {
     pub fn clear_client_hints(&self) {
         if let Some(client_hints) = &self.state.client_hints {
             client_hints.clear();
+        }
+    }
+
+    /// Clears all alternative services learned by this client.
+    pub fn clear_alt_svc(&self) {
+        if let Some(alt_svc) = &self.state.alt_svc {
+            alt_svc.clear();
         }
     }
 }
@@ -267,6 +318,15 @@ impl fmt::Debug for Client {
                 }
             })
             .field("client_hints_enabled", &self.state.client_hints.is_some())
+            .field("alt_svc_enabled", &self.state.alt_svc.is_some())
+            .field(
+                "max_alt_svc_origins",
+                &self
+                    .state
+                    .alt_svc
+                    .as_ref()
+                    .map(alt_svc::AltSvcStore::capacity),
+            )
             .field(
                 "max_client_hint_origins",
                 &self
@@ -393,6 +453,13 @@ impl SessionBuilder {
         self
     }
 
+    /// Enables bounded, isolated Alt-Svc learning for negotiated HTTPS requests.
+    #[must_use]
+    pub fn alt_svc(mut self, maximum_origins: NonZeroUsize) -> Self {
+        self.options.max_alt_svc_origins = Some(maximum_origins);
+        self
+    }
+
     /// Enables an isolated in-memory cookie jar with default bounds.
     #[cfg(feature = "cookies")]
     #[must_use]
@@ -462,6 +529,7 @@ impl fmt::Debug for SessionBuilder {
                 "max_client_hint_origins",
                 &self.options.max_client_hint_origins,
             )
+            .field("max_alt_svc_origins", &self.options.max_alt_svc_origins)
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {

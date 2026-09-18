@@ -8,7 +8,7 @@ choices that affect requests; packet-level details live elsewhere.
 | Layer | Owns |
 | --- | --- |
 | Profile | Immutable TLS, HTTP/2, HTTP/3, QUIC, and client-hint wire settings |
-| Client | Pools, route defaults, trust, limits, redirects, connection retries, cookies, learned hints, and TLS sessions |
+| Client | Pools, route defaults, trust, limits, redirects, connection retries, cookies, learned hints and alternatives, and TLS sessions |
 | Request | Method, URL, ordered fields and trailers, body, protocol, route, retry, and timeout overrides |
 
 Built-in and custom profiles use the same typed model. A recipe name records
@@ -57,7 +57,8 @@ Pool and client-hint limits have finite defaults and can be tightened on
 
 - `get` and `request` select exactly H1, H2, or H3.
 - `get_negotiated` and `request_negotiated` perform one direct TLS handshake
-  and select H2 for `h2`, or H1 for `http/1.1` or absent ALPN.
+  and select H2 for `h2`, or H1 for `http/1.1` or absent ALPN. With bounded
+  Alt-Svc enabled, a later negotiated request can select a learned H3 endpoint.
 - H3 uses a separate QUIC path and accepts direct routes or local-/remote-DNS
   SOCKS5 through RFC 1928 UDP ASSOCIATE.
 
@@ -188,9 +189,9 @@ only the established TCP proxy peer IP and retains the returned port. Domain
 relay addresses are rejected. Remote-DNS replies may identify the target by
 the exact canonical domain or by a same-port IP, while Quinn sees one stable
 logical peer and authenticates the QUIC connection. Exact H3 rejects HTTP
-forwarding and HTTP CONNECT before origin I/O. CONNECT-UDP/MASQUE, Alt-Svc/H3
-upgrade, and extended CONNECT remain planned. Proxy credentials are validated
-before I/O and excluded from diagnostics.
+forwarding and HTTP CONNECT before origin I/O. CONNECT-UDP/MASQUE and extended
+CONNECT remain planned. Proxy credentials are validated before I/O and excluded
+from diagnostics.
 
 The credential-bearing route below works for either an HTTPS origin through
 CONNECT or an `http://` origin through exact-H1 forwarding. In both cases Basic
@@ -225,6 +226,19 @@ clients do not.
 - Connection retries are disabled until a finite policy is configured.
 - Cookies require the `cookies` feature and explicit builder activation.
 - Learned `Accept-CH` state is bounded and scoped to the exact secure origin.
+- Alt-Svc is disabled by default. `ClientBuilder::alt_svc` enables a bounded,
+  in-memory exact-origin store for negotiated HTTPS requests, and
+  `Client::clear_alt_svc` clears it.
+
+An authenticated negotiated H1/H2 response can advertise `h3`. Phantom
+applies `Age` to `ma`, replaces the origin's previous alternatives, and uses
+the first fresh canonical `h3` alternative on the next negotiated request.
+The alternative changes only the QUIC network location: URI, authority, TLS
+identity, cookies, client hints, route key, and timeouts remain those of the
+origin. Alternative setup failure is a typed H3 failure for that request and
+evicts the advertisement; it never silently falls back. A visible `421`
+response also evicts it. Racing, persistence, `Alt-Used`, H2 ALTSVC frames,
+multiple-alternative racing, and proxy-route upgrades are not implemented.
 
 ## Timeouts
 

@@ -115,8 +115,12 @@ negotiation, and rejection failures are typed and are not address-fallback
 candidates. Proxy TCP and QUIC connection setup may advance or retry only
 through a fresh association on the same configured route, under the exact-H3
 setup policy; no failure can change the route or protocol. HTTP proxy and
-CONNECT routes for H3, CONNECT-UDP/MASQUE, Alt-Svc/H3 upgrade, extended
-CONNECT, and extension-specific datagram APIs remain planned.
+CONNECT routes for H3, CONNECT-UDP/MASQUE, extended CONNECT, and
+extension-specific datagram APIs remain planned. Negotiated direct HTTPS
+requests can opt into a bounded Alt-Svc store and use a fresh canonical `h3`
+alternative on a later request. The QUIC dial location changes, while origin
+authority and certificate identity do not; setup failure is terminal and
+evicts the advertisement without an H1/H2 fallback.
 
 Caller-configured exact-H3 retries may repeat typed DNS, endpoint, or QUIC
 connection setup before request dispatch while preserving one route and total

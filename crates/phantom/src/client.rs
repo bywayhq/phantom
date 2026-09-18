@@ -43,8 +43,8 @@ impl HttpProtocol {
 /// Cloneable owner of transport configuration and bounded cross-request state.
 ///
 /// Clones share connection pools, cookies when enabled, redirect policy, TLS
-/// sessions, and negotiated client-hint state. Independently built clients
-/// share none of that mutable state.
+/// sessions, negotiated client-hint state, and optional Alt-Svc state.
+/// Independently built clients share none of that mutable state.
 #[derive(Clone)]
 pub struct Client {
     pub(crate) inner: Arc<ClientInner>,
@@ -106,14 +106,16 @@ impl Client {
         RequestBuilder::new_client(self.clone(), protocol, method, uri)
     }
 
-    /// Starts one direct GET that selects HTTP/2 or HTTP/1.1 from TLS ALPN.
+    /// Starts one direct GET that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
     /// The client opens at most one current direct TCP/TLS generation per
     /// origin and reuses the ALPN-selected protocol while that generation is
     /// eligible. Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN
     /// selects HTTP/1.1.
-    /// It does not race, perform transport retries, or consult Alt-Svc. Any
-    /// non-direct configured or per-request route is rejected before I/O.
+    /// It does not race or perform transport retries. When bounded Alt-Svc
+    /// learning is enabled, a fresh `h3` advertisement from an earlier
+    /// negotiated response selects HTTP/3 without changing the origin identity.
+    /// Any non-direct configured or per-request route is rejected before I/O.
     /// [`crate::ResponseInfo::protocol`]
     /// reports the selected protocol. Client cookies and learned client hints
     /// apply. Negotiated generations are isolated from the exact-protocol
@@ -121,13 +123,14 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::RequestError`] when the profile cannot negotiate both
-    /// protocols or the URI, authority, or request target is invalid.
+    /// Returns [`crate::RequestError`] when the profile cannot negotiate H1/H2,
+    /// a selected H3 alternative is unavailable, or the URI, authority, or
+    /// request target is invalid.
     pub fn get_negotiated(&self, uri: &str) -> Result<RequestBuilder, crate::RequestError> {
         self.request_negotiated(Method::GET, uri)
     }
 
-    /// Starts one direct request that selects HTTP/2 or HTTP/1.1 from TLS ALPN.
+    /// Starts one direct request that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
     /// This has the same pooled-generation selection contract as
     /// [`Self::get_negotiated`]. The request must be representable by both HTTP
@@ -135,8 +138,9 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::RequestError`] when the profile cannot negotiate both
-    /// protocols or the URI, authority, or request target is invalid.
+    /// Returns [`crate::RequestError`] when the profile cannot negotiate H1/H2,
+    /// a selected H3 alternative is unavailable, or the URI, authority, or
+    /// request target is invalid.
     pub fn request_negotiated(
         &self,
         method: Method,
@@ -247,6 +251,7 @@ impl fmt::Debug for ClientBuilder {
                 "max_client_hint_origins",
                 &self.options.max_client_hint_origins,
             )
+            .field("max_alt_svc_origins", &self.options.max_alt_svc_origins)
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {
@@ -405,6 +410,17 @@ impl ClientBuilder {
         self
     }
 
+    /// Enables bounded, in-memory Alt-Svc learning for negotiated HTTPS requests.
+    ///
+    /// A fresh `h3` alternative is used by a later negotiated request without
+    /// changing its origin identity. Alternative setup failure is terminal for
+    /// that request and never falls back implicitly to H1 or H2.
+    #[must_use]
+    pub fn alt_svc(mut self, maximum_origins: NonZeroUsize) -> Self {
+        self.options.max_alt_svc_origins = Some(maximum_origins);
+        self
+    }
+
     /// Enables a bounded in-memory cookie jar owned by the client.
     #[cfg(feature = "cookies")]
     #[must_use]
@@ -547,6 +563,11 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http3)?;
+        if self.options.max_alt_svc_origins.is_some() && (http1_or_2.is_none() || http3.is_none()) {
+            return Err(BuildError::invalid_policy(
+                "Alt-Svc requires negotiated HTTP/1.1+HTTP/2 and HTTP/3 profiles",
+            ));
+        }
         let secure_proxy_requested = self
             .route
             .as_http_proxy()
@@ -591,7 +612,9 @@ impl ClientBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phantom_profile::{ClientProfile, chromium};
+    use std::num::NonZeroUsize;
+
+    use phantom_profile::{ClientProfile, Http3ClientSettings, chromium};
 
     use super::{Client, HttpProtocol};
     use crate::{BuildErrorKind, HttpProxy, Route, ServerAuthentication};
@@ -646,6 +669,35 @@ mod tests {
             .ok_or("HTTPS proxy accepted TLS settings without HTTP/1.1 ALPN")?;
 
         assert_eq!(error.kind(), BuildErrorKind::ProtocolConfiguration);
+        Ok(())
+    }
+
+    #[test]
+    fn alt_svc_requires_negotiated_http1_or_2_and_http3() -> Result<(), &'static str> {
+        let capacity = NonZeroUsize::MIN;
+        let without_http3 =
+            ClientProfile::new(chromium::v152_macos_tls()).with_http2(chromium::v152_macos_http2());
+        let error = Client::builder(without_http3)
+            .alt_svc(capacity)
+            .build()
+            .err()
+            .ok_or("Alt-Svc was accepted without HTTP/3")?;
+        assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+
+        let http3 = Http3ClientSettings::new(
+            chromium::v152_macos_http3_tls(),
+            chromium::v152_macos_quic(),
+            chromium::v152_macos_http3(),
+            chromium::v152_macos_http3_request(),
+        );
+        let without_negotiation =
+            ClientProfile::new(chromium::v152_macos_http3_tls()).with_http3(http3);
+        let error = Client::builder(without_negotiation)
+            .alt_svc(capacity)
+            .build()
+            .err()
+            .ok_or("Alt-Svc was accepted without negotiated HTTP/1.1 and HTTP/2")?;
+        assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
         Ok(())
     }
 }

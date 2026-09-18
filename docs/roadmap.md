@@ -26,8 +26,12 @@ work has exposed the real architectural boundaries.
   slice without silent fallback.
 - The SOCKS5 UDP proxy slice is complete: exact H3 supports local-DNS
   `socks5://` and remote-DNS `socks5h://` through RFC 1928 UDP ASSOCIATE.
-  CONNECT-UDP/MASQUE remains in Phase 1 alongside H3 upgrade and extended
-  CONNECT.
+- The first H3 upgrade slice is complete: negotiated direct HTTPS requests can
+  opt into bounded Alt-Svc learning, preserve origin identity while dialing an
+  advertised `h3` location, and apply explicit failure and `421` eviction
+  semantics without fallback. Racing, persistence, `Alt-Used`, and H2 ALTSVC
+  frames remain later Phase 1 functionality.
+- CONNECT-UDP/MASQUE and extended CONNECT remain in Phase 1.
 
 ## Phase 2 — Ergonomics
 

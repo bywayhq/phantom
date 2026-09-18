@@ -50,8 +50,8 @@ H1 admits one exchange and never pipelines. H2 and H3 admit concurrent streams
 within local and peer limits. Waiters are bounded, cancellation is
 stream-scoped where possible, and draining connections accept no new work.
 
-Cookies, client hints, redirects, TLS sessions, and future DNS or Alt-Svc state
-remain client-scoped rather than process-global.
+Cookies, client hints, Alt-Svc advertisements, redirects, TLS sessions, and
+future DNS state remain client-scoped rather than process-global.
 
 Connection retries are also request-scoped. One finite budget spans every
 redirect hop and internal replacement connection. Exact H1, H2, and H3 pools
@@ -97,6 +97,10 @@ failures return typed errors; runtime library code must not panic.
   a domain while presenting one stable logical peer to Quinn. All paths
   preserve the route selected before setup; proxy or QUIC failure cannot select
   a different route or protocol.
+- An Alt-Svc upgrade changes only the H3 transport location. Pool identity,
+  request authority, TLS authentication name, cookies, client hints, and
+  request policy remain attached to the original HTTPS origin. A different
+  transport location cannot reuse the previous H3 connection generation.
 - Every transport returns the standard `http::Response` view plus ordered
   response fields.
 - A streaming request body declares its complete ordered trailer-name plan

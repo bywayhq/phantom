@@ -719,6 +719,31 @@ impl RequestError {
         self.retryability == RequestRetryability::ConnectionSetup
     }
 
+    pub(crate) fn invalidates_alt_svc(&self) -> bool {
+        match self.kind {
+            RequestErrorKind::Resolve | RequestErrorKind::Connect | RequestErrorKind::Tls => true,
+            RequestErrorKind::Timeout => matches!(
+                self.timeout_phase,
+                Some(TimeoutPhase::Connect | TimeoutPhase::ResponseHead)
+            ),
+            RequestErrorKind::Http3 => self
+                .source
+                .as_deref()
+                .and_then(|source| source.downcast_ref::<Http3ConnectorError>())
+                .is_some_and(|error| {
+                    matches!(
+                        error.kind(),
+                        Http3ConnectorErrorKind::Endpoint
+                            | Http3ConnectorErrorKind::Connect
+                            | Http3ConnectorErrorKind::Connection
+                            | Http3ConnectorErrorKind::Handshake
+                            | Http3ConnectorErrorKind::Protocol
+                    )
+                }),
+            _ => false,
+        }
+    }
+
     /// Returns the stable failure category.
     #[must_use]
     pub fn kind(&self) -> RequestErrorKind {
@@ -823,7 +848,7 @@ mod tests {
         RequestError, RequestErrorKind, is_retryable_http_connect_kind,
         is_retryable_http3_connection_setup_kind, is_retryable_socks5_kind,
     };
-    use crate::HttpProtocol;
+    use crate::{HttpProtocol, TimeoutPhase};
 
     fn io_error() -> std::io::Error {
         std::io::Error::other("test connection failure")
@@ -837,6 +862,16 @@ mod tests {
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
         assert!(std::error::Error::source(&error).is_none());
         assert!(!error.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn only_alternative_service_failures_trigger_alt_svc_eviction() {
+        assert!(!RequestError::request_body_not_replayable().invalidates_alt_svc());
+        assert!(!RequestError::capacity(HttpProtocol::Http3).invalidates_alt_svc());
+        assert!(
+            RequestError::timeout(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http3))
+                .invalidates_alt_svc()
+        );
     }
 
     #[test]

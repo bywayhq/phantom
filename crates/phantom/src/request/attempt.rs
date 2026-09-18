@@ -8,11 +8,15 @@ use tracing::Span;
 
 use crate::timeout::TimeoutBudget;
 use crate::{
-    Client, HttpProtocol, RequestError, ResponseBody, Route, retry::ConnectionSetupRetryState,
+    Client, HttpProtocol, RequestError, ResponseBody, RetryPolicy, Route,
+    retry::ConnectionSetupRetryState,
 };
 
 use super::{ProtocolSelection, RequestBodySource, ResolvedRequest};
-use crate::session::{client_hints::ClientHintContext, http1_pool::Http1ConnectionMode};
+use crate::session::{
+    client_hints::ClientHintContext, http1_pool::Http1ConnectionMode,
+    http3_pool::Http3TransportTarget,
+};
 
 pub(super) struct AttemptRequest<'a> {
     pub(super) method: Method,
@@ -120,6 +124,7 @@ async fn send_once_exact(
             client_hints,
             attempt_body,
             route,
+            None,
             retried_proxy_authentication,
             timeout_budget,
             retries,
@@ -188,21 +193,35 @@ async fn send_once_negotiated(
     request_span: &Span,
     timeout_budget: TimeoutBudget,
 ) -> Result<AttemptOutcome, RequestError> {
+    if !matches!(route, Route::Direct) {
+        return Err(RequestError::unsupported_negotiated_route());
+    }
+    let endpoint = &request.endpoint;
+    if let Some((host, port, generation)) = client.alt_svc_location(endpoint) {
+        return send_once_alt_svc(
+            client,
+            request,
+            attempt,
+            route,
+            request_span,
+            timeout_budget,
+            host,
+            port,
+            generation,
+        )
+        .await;
+    }
     let AttemptRequest {
         method,
         headers: request_headers,
         trailers: request_trailers,
         body,
     } = attempt;
-    if !matches!(route, Route::Direct) {
-        return Err(RequestError::unsupported_negotiated_route());
-    }
     let connector = client
         .inner
         .http1_or_2
         .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
-    let endpoint = &request.endpoint;
     #[cfg(feature = "cookies")]
     let cookie_jar = client.state.cookies.as_deref();
     let client_hint_origin = client
@@ -258,6 +277,8 @@ async fn send_once_negotiated(
             jar.store_response_headers(&request.url, response.headers());
         }
 
+        client.learn_alt_svc(endpoint, &response);
+
         let critical_retry_requested = request.uri.scheme_str() == Some("https")
             && client.inner.client_hints.as_ref().is_some_and(|settings| {
                 client.learn_client_hints_and_should_retry(
@@ -281,6 +302,117 @@ async fn send_once_negotiated(
             continue;
         }
         return Ok(AttemptOutcome { response, protocol });
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn send_once_alt_svc(
+    client: &Client,
+    request: &ResolvedRequest,
+    attempt: AttemptRequest<'_>,
+    route: &Route,
+    request_span: &Span,
+    timeout_budget: TimeoutBudget,
+    alternative_host: Box<str>,
+    alternative_port: u16,
+    alternative_generation: u64,
+) -> Result<AttemptOutcome, RequestError> {
+    let AttemptRequest {
+        method,
+        headers: request_headers,
+        trailers: request_trailers,
+        body,
+    } = attempt;
+    let endpoint = &request.endpoint;
+    let transport = Http3TransportTarget::new(&alternative_host, alternative_port);
+    #[cfg(feature = "cookies")]
+    let cookie_jar = client.state.cookies.as_deref();
+    let client_hint_origin = client
+        .inner
+        .client_hints
+        .as_ref()
+        .filter(|_| request.uri.scheme_str() == Some("https"))
+        .map(|_| request.url.origin().ascii_serialization());
+    let mut retried_critical_hints = false;
+
+    loop {
+        let mut prepared_headers = request_headers.clone();
+        inject_cookie(client, request, HttpProtocol::Http3, &mut prepared_headers);
+        let client_hints = client
+            .inner
+            .client_hints
+            .as_ref()
+            .zip(client_hint_origin.as_deref())
+            .map(|(settings, origin)| client.client_hint_context(endpoint, origin, settings));
+        let attempt_body = body.next_attempt()?;
+        let mut retries = ConnectionSetupRetryState::new(RetryPolicy::none(), request_span.clone());
+        let dispatched = dispatch(
+            client,
+            request,
+            HttpProtocol::Http3,
+            method.clone(),
+            prepared_headers,
+            request_trailers.clone(),
+            client_hints,
+            attempt_body,
+            route,
+            Some(transport),
+            false,
+            timeout_budget,
+            &mut retries,
+        )
+        .await;
+        let dispatched = match dispatched {
+            Ok(dispatched) => dispatched,
+            Err(error) => {
+                if error.invalidates_alt_svc() {
+                    client.remove_alt_svc_if_current(endpoint, alternative_generation);
+                }
+                return Err(error);
+            }
+        };
+        let response = dispatched.response;
+        let sent_headers = dispatched.sent_headers;
+
+        #[cfg(feature = "cookies")]
+        if let Some(jar) = cookie_jar {
+            jar.store_response_headers(&request.url, response.headers());
+        }
+
+        if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
+            client.remove_alt_svc_if_current(endpoint, alternative_generation);
+            return Ok(AttemptOutcome {
+                response,
+                protocol: HttpProtocol::Http3,
+            });
+        }
+        client.learn_alt_svc(endpoint, &response);
+
+        let critical_retry_requested = client.inner.client_hints.as_ref().is_some_and(|settings| {
+            client.learn_client_hints_and_should_retry(
+                endpoint,
+                settings,
+                response.headers(),
+                &sent_headers,
+            )
+        });
+        if !retried_critical_hints
+            && critical_retry_requested
+            && critical_hint_retry_eligible(&method)
+        {
+            retried_critical_hints = true;
+            tracing::debug!(
+                retry = 1,
+                reason = "critical_client_hints",
+                "retrying alternative-service request with client hints"
+            );
+            drop(response);
+            continue;
+        }
+        return Ok(AttemptOutcome {
+            response,
+            protocol: HttpProtocol::Http3,
+        });
     }
 }
 
@@ -335,6 +467,7 @@ async fn dispatch(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<RequestBody>,
     route: &Route,
+    http3_transport: Option<Http3TransportTarget<'_>>,
     forward_authorization: bool,
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
@@ -429,6 +562,7 @@ async fn dispatch(
                     connector,
                     endpoint,
                     route,
+                    http3_transport,
                     method,
                     endpoint.authority().as_str(),
                     target,

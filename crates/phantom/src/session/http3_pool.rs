@@ -17,6 +17,26 @@ use crate::{
     retry::{ConnectionSetupRetryState, acquire_with_retries},
 };
 
+/// Borrowed network location used to reach an HTTP/3 origin.
+///
+/// The origin endpoint still owns TLS authentication, request authority, pool
+/// identity, and route policy. This value changes only where QUIC is sent.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct Http3TransportTarget<'a> {
+    host: &'a str,
+    port: u16,
+}
+
+impl<'a> Http3TransportTarget<'a> {
+    pub(crate) const fn new(host: &'a str, port: u16) -> Self {
+        Self { host, port }
+    }
+
+    fn for_origin(endpoint: &'a Endpoint) -> Self {
+        Self::new(endpoint.host(), endpoint.port())
+    }
+}
+
 pub(crate) struct Http3Pool {
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
@@ -56,6 +76,7 @@ impl Http3Pool {
         connector: &Http3Connector,
         endpoint: &Endpoint,
         route: &Route,
+        alternative: Option<Http3TransportTarget<'_>>,
         method: Method,
         authority: &str,
         target: OriginForm,
@@ -81,6 +102,7 @@ impl Http3Pool {
             .map_err(RequestError::http3)?;
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
+        let transport = alternative.unwrap_or_else(|| Http3TransportTarget::for_origin(endpoint));
         let permit = timeout_budget
             .run(
                 TimeoutPhase::PoolAdmission,
@@ -89,7 +111,7 @@ impl Http3Pool {
             )
             .await?;
         let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
-            entry.acquire(connector, endpoint, route).await
+            entry.acquire(connector, endpoint, route, transport).await
         })
         .await?;
         let sent_headers = match client_hints {
@@ -184,6 +206,21 @@ impl PoolState {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+struct TransportLocation {
+    host: Box<str>,
+    port: u16,
+}
+
+impl TransportLocation {
+    fn new(target: Http3TransportTarget<'_>) -> Self {
+        Self {
+            host: target.host.to_ascii_lowercase().into(),
+            port: target.port,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct PoolKey {
     host: Box<str>,
     port: u16,
@@ -222,10 +259,12 @@ impl PoolEntry {
         connector: &Http3Connector,
         endpoint: &Endpoint,
         route: &Route,
+        transport: Http3TransportTarget<'_>,
     ) -> Result<ConnectionLease, RequestError> {
+        let location = TransportLocation::new(transport);
         let mut current = self.current.lock().await;
         if let Some(slot) = current.as_ref() {
-            if connector.can_reuse(&slot.connection).await {
+            if slot.location == location && connector.can_reuse(&slot.connection).await {
                 debug!(
                     outcome = "hit",
                     "HTTP/3 connection acquired from client pool"
@@ -238,7 +277,7 @@ impl PoolEntry {
         let connection = match route {
             Route::Direct => {
                 connector
-                    .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                    .connect_direct(transport.host, transport.port, endpoint.host())
                     .await
             }
             Route::Socks5(proxy) if proxy.dns_mode() == Socks5DnsMode::Local => {
@@ -247,8 +286,8 @@ impl PoolEntry {
                         proxy.host(),
                         proxy.port(),
                         proxy.auth(),
-                        endpoint.host(),
-                        endpoint.port(),
+                        transport.host,
+                        transport.port,
                         endpoint.host(),
                     )
                     .await
@@ -259,8 +298,8 @@ impl PoolEntry {
                         proxy.host(),
                         proxy.port(),
                         proxy.auth(),
-                        endpoint.host(),
-                        endpoint.port(),
+                        transport.host,
+                        transport.port,
                         endpoint.host(),
                     )
                     .await
@@ -273,6 +312,7 @@ impl PoolEntry {
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),
+            location,
         };
         let lease = slot.lease();
         *current = Some(slot);
@@ -297,6 +337,7 @@ impl PoolEntry {
 struct ConnectionSlot {
     connection: Http3Connection,
     token: Arc<()>,
+    location: TransportLocation,
 }
 
 impl ConnectionSlot {
@@ -317,7 +358,7 @@ struct ConnectionLease {
 mod tests {
     use std::{num::NonZeroUsize, sync::Arc};
 
-    use super::{Http3Pool, PoolKey};
+    use super::{Http3Pool, Http3TransportTarget, PoolKey, TransportLocation};
     use crate::{Route, authority::Endpoint};
 
     #[tokio::test]
@@ -338,6 +379,21 @@ mod tests {
         assert_eq!(replacement.admission.available_active(), 0);
         drop(permit);
         assert_eq!(replacement.admission.available_active(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn transport_location_is_separate_from_origin_pool_identity()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let key = PoolKey::new(&endpoint, &Route::Direct);
+        let alternative = TransportLocation::new(Http3TransportTarget::new("Alt.Test", 8443));
+        let matching = TransportLocation::new(Http3TransportTarget::new("alt.test", 8443));
+        let origin = TransportLocation::new(Http3TransportTarget::for_origin(&endpoint));
+
+        assert_eq!(key, PoolKey::new(&endpoint, &Route::Direct));
+        assert_eq!(alternative, matching);
+        assert_ne!(alternative, origin);
         Ok(())
     }
 }
