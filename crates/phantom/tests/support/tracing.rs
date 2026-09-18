@@ -29,6 +29,8 @@ struct CaptureState {
     selected_protocols: Vec<(&'static str, String)>,
     proxy_authentication_retries: Vec<(&'static str, bool)>,
     proxy_attempts: Vec<(&'static str, u64)>,
+    retries_performed: Vec<(&'static str, u64)>,
+    retry_reasons: Vec<(&'static str, String)>,
 }
 
 impl OutcomeSubscriber {
@@ -91,6 +93,26 @@ impl OutcomeSubscriber {
             .collect()
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn retries_performed_for(&self, span_name: &str) -> Vec<u64> {
+        self.state()
+            .retries_performed
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, retries)| *retries)
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn retry_reasons_for(&self, span_name: &str) -> Vec<String> {
+        self.state()
+            .retry_reasons
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, reason)| reason.clone())
+            .collect()
+    }
+
     fn state(&self) -> MutexGuard<'_, CaptureState> {
         match self.state.lock() {
             Ok(state) => state,
@@ -150,6 +172,8 @@ impl Subscriber for OutcomeSubscriber {
             && visitor.selected_protocol.is_none()
             && visitor.proxy_authentication_retry.is_none()
             && visitor.proxy_attempts.is_none()
+            && visitor.retries_performed.is_none()
+            && visitor.retry_reason.is_none()
         {
             return;
         }
@@ -170,6 +194,12 @@ impl Subscriber for OutcomeSubscriber {
             if let Some(attempts) = visitor.proxy_attempts {
                 state.proxy_attempts.push((name, attempts));
             }
+            if let Some(retries) = visitor.retries_performed {
+                state.retries_performed.push((name, retries));
+            }
+            if let Some(reason) = visitor.retry_reason {
+                state.retry_reasons.push((name, reason));
+            }
         }
     }
 
@@ -189,6 +219,8 @@ struct OutcomeVisitor {
     selected_protocol: Option<String>,
     proxy_authentication_retry: Option<bool>,
     proxy_attempts: Option<u64>,
+    retries_performed: Option<u64>,
+    retry_reason: Option<String>,
 }
 
 impl Visit for OutcomeVisitor {
@@ -197,6 +229,8 @@ impl Visit for OutcomeVisitor {
             self.outcome = Some(value.to_owned());
         } else if field.name() == "selected_protocol" {
             self.selected_protocol = Some(value.to_owned());
+        } else if field.name() == "retry_reason" {
+            self.retry_reason = Some(value.to_owned());
         }
     }
 
@@ -215,6 +249,8 @@ impl Visit for OutcomeVisitor {
     fn record_u64(&mut self, field: &Field, value: u64) {
         if field.name() == "proxy_attempts" {
             self.proxy_attempts = Some(value);
+        } else if field.name() == "retries_performed" {
+            self.retries_performed = Some(value);
         }
     }
 }
