@@ -23,12 +23,15 @@ use tokio_btls::SslStream as BoringStream;
 use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{Http1TlsConnector, Http1TlsError, ServerAuthentication};
-use crate::http1::{OriginForm, RequestHeader};
 use crate::tls::test_support::{
     TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, TouchCountingStream,
     accept_tls, loopback_listener,
 };
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
+use crate::{
+    http1::{OriginForm, RequestHeader},
+    proxy::{HttpConnectError, HttpsProxyConnector},
+};
 
 async fn bounded_tls_test<F>(future: F) -> TestResult<()>
 where
@@ -454,6 +457,157 @@ async fn plaintext_direct_connect_failure_is_not_a_proxy_error() -> TestResult<(
 }
 
 #[tokio::test]
+async fn https_forward_proxy_uses_dns_sni_and_accepts_http1_alpn() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
+        let server_task = tokio::spawn(async move {
+            let (mut stream, sni) = accept_tls(listener, acceptor).await?;
+            let selected_alpn = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
+            let request = read_head(&mut stream).await?;
+            stream.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((sni, selected_alpn, request))
+        });
+
+        let connector = test_connector(&identity)?;
+        let proxy_connector = test_proxy_connector(&identity)?;
+        let subscriber = OutcomeSubscriber::default();
+        let connection = connector
+            .connect_https_forward_proxy(
+                &proxy_connector,
+                "127.0.0.1",
+                address.port(),
+                TEST_SERVER_NAME,
+            )
+            .with_subscriber(subscriber.dispatch())
+            .await?;
+        let response = connection
+            .send_get(
+                OriginForm::parse("/through-proxy")?,
+                vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+            )
+            .await?;
+        assert_eq!(response.status(), 204);
+        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+
+        let (sni, selected_alpn, request) = server_task.await??;
+        assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
+        assert_eq!(selected_alpn.as_deref(), Some(b"http/1.1".as_slice()));
+        assert_eq!(
+            request,
+            b"GET /through-proxy HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
+        );
+        assert_eq!(subscriber.outcomes_for("http1.proxy.connect"), ["ok"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn https_forward_proxy_accepts_absent_alpn() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = identity.acceptor(TestServerAlpn::None)?;
+        let server_task = tokio::spawn(async move {
+            let (mut stream, sni) = accept_tls(listener, acceptor).await?;
+            let selected_alpn = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
+            let request = read_head(&mut stream).await?;
+            stream.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((sni, selected_alpn, request))
+        });
+
+        let connector = test_connector(&identity)?;
+        let proxy_connector = test_proxy_connector(&identity)?;
+        let subscriber = OutcomeSubscriber::default();
+        let connection = connector
+            .connect_https_forward_proxy(
+                &proxy_connector,
+                "127.0.0.1",
+                address.port(),
+                TEST_SERVER_NAME,
+            )
+            .with_subscriber(subscriber.dispatch())
+            .await?;
+        let response = connection
+            .send_get(
+                OriginForm::parse("/without-alpn")?,
+                vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+            )
+            .await?;
+        assert_eq!(response.status(), 204);
+        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+
+        let (sni, selected_alpn, request) = server_task.await??;
+        assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
+        assert_eq!(selected_alpn, None);
+        assert_eq!(
+            request,
+            b"GET /without-alpn HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
+        );
+        assert_eq!(subscriber.outcomes_for("http1.proxy.connect"), ["ok"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn https_forward_proxy_rejects_h2_without_writing_http_bytes() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = identity.acceptor(TestServerAlpn::H2)?;
+        let server_task = tokio::spawn(async move {
+            let (mut stream, sni) = accept_tls(listener, acceptor).await?;
+            let selected_alpn = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
+            let mut plaintext = Vec::new();
+            if let Err(error) = stream.read_to_end(&mut plaintext).await {
+                if !plaintext.is_empty() {
+                    return Err(error.into());
+                }
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>((sni, selected_alpn, plaintext))
+        });
+
+        let connector = test_connector(&identity)?;
+        let proxy_connector = test_proxy_connector(&identity)?;
+        let subscriber = OutcomeSubscriber::default();
+        let result = connector
+            .connect_https_forward_proxy(
+                &proxy_connector,
+                "127.0.0.1",
+                address.port(),
+                TEST_SERVER_NAME,
+            )
+            .with_subscriber(subscriber.dispatch())
+            .await;
+        let error = match result {
+            Ok(_) => return Err("h2 proxy selection unexpectedly entered HTTP/1".into()),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            error,
+            Http1TlsError::Proxy(HttpConnectError::UnsupportedAlpn { ref selected })
+                if selected.as_ref() == b"h2"
+        ));
+        assert_eq!(
+            subscriber.outcomes_for("http1.proxy.connect"),
+            ["proxy_error"]
+        );
+
+        let (sni, selected_alpn, plaintext) = server_task.await??;
+        assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
+        assert_eq!(selected_alpn.as_deref(), Some(b"h2".as_slice()));
+        assert!(plaintext.is_empty(), "HTTP/1 bytes followed h2 selection");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn handshake_failure_has_tls_wrapper_outcome() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = test_connector(&identity)?;
@@ -532,6 +686,13 @@ fn tls_settings() -> TlsSettings {
 
 fn test_connector(identity: &TestIdentity) -> TestResult<Http1TlsConnector> {
     Ok(Http1TlsConnector::new_with_roots(
+        &tls_settings(),
+        [identity.root_der()],
+    )?)
+}
+
+fn test_proxy_connector(identity: &TestIdentity) -> TestResult<HttpsProxyConnector> {
+    Ok(HttpsProxyConnector::new_with_additional_roots(
         &tls_settings(),
         [identity.root_der()],
     )?)
