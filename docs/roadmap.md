@@ -10,6 +10,22 @@ work has exposed the real architectural boundaries.
 
 ## Phase 1 — Functionality (current)
 
+- The initial external-root source distribution is documented and manually
+  build-proven: one revision-pinned vendorable layout and its complete root
+  patch stanza resolve every patched package from the retained trees. Missing
+  substitutions fail at compile time. An automated external-root gate and
+  direct-fork distribution remain before one-line installation can be claimed.
+- Add opt-in streaming response decompression for caller-advertised `gzip`,
+  `deflate`, `br`, and `zstd`, with decoded-byte limits and fail-closed coding
+  semantics. Phantom must not invent an `Accept-Encoding` field or its ordered
+  wire position.
+- Add the repository license file and Cargo license metadata after the
+  maintainers select the license; do not infer a legal choice from code or
+  dependency licenses.
+- Bounded response-body collection is complete: its inclusive cap applies to
+  bytes returned to the caller, abandons an over-limit stream, and has a stable
+  error category. The same cap must count decoded bytes when decompression is
+  added.
 - Complete the remaining client and proxy-route work without introducing
   direct or cross-protocol fallback.
 - Extend the current exact-protocol, pre-dispatch connection retry policy only
@@ -39,23 +55,40 @@ work has exposed the real architectural boundaries.
   recipes remain capture-gated.
 - CONNECT-UDP/MASQUE, proxy-carried or H3 extended CONNECT, and named-browser
   H2 WebSocket recipes remain in Phase 1.
+- The Chrome 152 H2 WebSocket recipe requires a retained browser capture of
+  the extended-CONNECT opening handshake, including pseudo-header and ordinary
+  field order, priority, compression offer, and failure behavior. The generic
+  configurable H2 implementation is not evidence for that named recipe.
+- Chrome `152.0.7977.64` is expected to share the retained `.83` transport
+  fingerprint under the major-version policy. Exact full-version client hints
+  remain persona data and must not inherit `.83` values accidentally.
 
 ## Phase 2 — Ergonomics
 
 - Make supported profile, route, timeout, body, trailer, SSE, and WebSocket
   combinations easier to discover and configure without hiding wire choices.
+- Move transport recipe names to browser/version identity while retaining
+  platform and exact-build qualifiers only for data that actually differs,
+  such as client hints. Keep capture OS and build provenance in fixtures and
+  documentation, with compatibility aliases for existing public names.
 - Keep stable error categories, examples, and diagnostics aligned with every
   completed functionality slice.
 
 ## Phase 3 — Hardening
 
 - Expand cross-platform debug and release gates.
+- Deny `unwrap_used` and `expect_used` after remaining recoverable runtime paths
+  have typed errors; a panic aborts embedders that compile with `panic =
+  "abort"`.
 - Broaden fuzzing, sanitizer coverage, lifecycle regressions, and soak tests.
 - Keep vendored patches reproducible and review dependency updates in
   isolation.
 
 ## Phase 4 — Profiling and optimization
 
+- Measure cold `Client::builder(profile).build()` cost for the supported
+  profiles and keep independently built clients isolated: no shared cookies,
+  connection pools, or TLS tickets across sessions.
 - Profile representative cold and warm connections, proxy routes,
   multiplexing, streaming bodies, SSE, and WebSocket workloads.
 - Optimize only measured bottlenecks while preserving packet, frame, ordering,

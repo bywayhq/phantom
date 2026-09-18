@@ -33,7 +33,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | Area | Available today |
 | --- | --- |
 | Protocols | Ordered streaming H1, multiplexed H2, exact H3 over direct or SOCKS5-carried QUIC, one-handshake direct H1/H2 negotiation with opt-in bounded Alt-Svc upgrade to H3 and canonical explicit-port `Alt-Used` only on that managed attempt, and ordered static or streaming-body-produced request trailers |
-| Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
+| Profiles | Chrome 152 transport recipes across TLS, H2, H3, and QUIC retained from macOS captures, plus separate macOS client hints; Firefox 154 TLS/H2 and Safari 18.5 TLS retained from macOS captures |
 | Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; local- or remote-DNS SOCKS5 for H1/H2; and exact H3 over local- or remote-DNS SOCKS5 using RFC 1928 UDP ASSOCIATE |
 | State | Isolated bounded pools, redirects, opt-in exact-protocol setup retries, timeouts, client hints, TLS sessions, bounded opt-in Alt-Svc, and opt-in cookies |
 | Optional APIs | Server-sent events; H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable; exact direct H2 WebSocket extended CONNECT for explicitly configured profiles; and opt-in `permessage-deflate` |
@@ -73,6 +73,8 @@ routing or local-/remote-DNS SOCKS5 through RFC 1928 UDP ASSOCIATE.
 
 Every response uses the standard `http::Response` view and carries
 `ResponseInfo` plus `OrderedResponseHeaders` in its extensions.
+`ResponseBody::collect_with_limit` provides an inclusive cap for callers that
+need to abandon hostile or unexpectedly large bodies.
 
 [Getting started](docs/getting-started.md) covers the source build and feature
 flags. [Using the client](docs/client.md) covers profiles, routes, state,
