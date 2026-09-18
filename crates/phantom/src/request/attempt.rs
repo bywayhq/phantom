@@ -302,7 +302,7 @@ async fn dispatch(
             headers.extend(sent_headers.clone());
             let mode = match (request.uri.scheme_str(), route) {
                 (Some("http"), Route::Direct) => Http1ConnectionMode::PlaintextOrigin,
-                (Some("http"), Route::HttpProxy(_)) => Http1ConnectionMode::PlaintextForward,
+                (Some("http"), Route::HttpProxy(_)) => Http1ConnectionMode::Forward,
                 _ => Http1ConnectionMode::TlsOrigin,
             };
             let response = client

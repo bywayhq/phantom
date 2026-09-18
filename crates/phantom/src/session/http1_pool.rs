@@ -22,7 +22,7 @@ use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint
 pub(crate) enum Http1ConnectionMode {
     TlsOrigin,
     PlaintextOrigin,
-    PlaintextForward,
+    Forward,
 }
 
 pub(crate) struct Http1Pool {
@@ -64,7 +64,7 @@ impl Http1Pool {
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
-        if mode == Http1ConnectionMode::PlaintextForward {
+        if mode == Http1ConnectionMode::Forward {
             validate_forward_request_body_with_trailers(
                 &method,
                 &absolute_target,
@@ -107,7 +107,7 @@ impl Http1Pool {
                 TimeoutPhase::ResponseHead,
                 Some(HttpProtocol::Http1),
                 async {
-                    Ok(if mode == Http1ConnectionMode::PlaintextForward {
+                    Ok(if mode == Http1ConnectionMode::Forward {
                         lease
                             .connection
                             .send_forward_request_body_with_trailers(
@@ -245,14 +245,31 @@ impl PoolEntry {
 
         debug!(outcome = "connect", "HTTP/1 client pool opening connection");
         let connection = match mode {
-            Http1ConnectionMode::PlaintextForward => {
+            Http1ConnectionMode::Forward => {
                 let Route::HttpProxy(proxy) = route else {
                     return Err(RequestError::unsupported_route(HttpProtocol::Http1));
                 };
-                connector
-                    .connect_forward_proxy(proxy.host(), proxy.port())
-                    .await
-                    .map_err(RequestError::http1)?
+                if proxy.uses_tls() {
+                    let base = https_proxy
+                        .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
+                    let proxy_connector = self
+                        .https_proxy
+                        .get_or_init(|| base.with_isolated_session_cache());
+                    connector
+                        .connect_https_forward_proxy(
+                            proxy_connector,
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.host(),
+                        )
+                        .await
+                        .map_err(RequestError::http1)?
+                } else {
+                    connector
+                        .connect_forward_proxy(proxy.host(), proxy.port())
+                        .await
+                        .map_err(RequestError::http1)?
+                }
             }
             Http1ConnectionMode::PlaintextOrigin => {
                 if !matches!(route, Route::Direct) {

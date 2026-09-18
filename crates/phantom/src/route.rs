@@ -67,10 +67,10 @@ impl Route {
     }
 
     pub(crate) fn request_trace_name(&self, scheme: Option<&str>) -> &'static str {
-        if scheme == Some("http") && matches!(self, Self::HttpProxy(_)) {
-            "http_forward"
-        } else {
-            self.trace_name()
+        match (scheme, self) {
+            (Some("http"), Self::HttpProxy(proxy)) if proxy.uses_tls() => "https_forward",
+            (Some("http"), Self::HttpProxy(_)) => "http_forward",
+            _ => self.trace_name(),
         }
     }
 
@@ -124,7 +124,7 @@ impl HttpProxy {
     /// The first CONNECT request omits credentials. Phantom sends them only
     /// after a valid Basic proxy challenge and retries once on a fresh proxy
     /// connection. URI credentials remain unsupported. Configured credentials
-    /// are currently incompatible with plaintext forwarding and fail before I/O.
+    /// are currently incompatible with forward proxying and fail before I/O.
     ///
     /// Basic credentials sent to a plaintext `http://` proxy have no transport
     /// confidentiality. Use an `https://` proxy for sensitive credentials.
@@ -220,8 +220,8 @@ impl HttpProxy {
         self.credentials.as_ref()
     }
 
-    pub(crate) const fn supports_plaintext_forwarding(&self) -> bool {
-        matches!(self.transport, HttpProxyTransport::Plaintext) && self.credentials.is_none()
+    pub(crate) const fn supports_forwarding(&self) -> bool {
+        self.credentials.is_none()
     }
 }
 
@@ -421,11 +421,22 @@ mod tests {
             Route::http_proxy(proxy.clone()),
             Route::http_connect(proxy.clone())
         );
-        assert!(proxy.supports_plaintext_forwarding());
+        assert!(proxy.supports_forwarding());
+        assert!(HttpProxy::new("https://proxy.example:8443")?.supports_forwarding());
         assert!(
             !proxy
                 .with_basic_auth("user", "secret")?
-                .supports_plaintext_forwarding()
+                .supports_forwarding()
+        );
+        assert_eq!(
+            Route::http_proxy(HttpProxy::new("http://proxy.example")?)
+                .request_trace_name(Some("http")),
+            "http_forward"
+        );
+        assert_eq!(
+            Route::http_proxy(HttpProxy::new("https://proxy.example")?)
+                .request_trace_name(Some("http")),
+            "https_forward"
         );
         Ok(())
     }

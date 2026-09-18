@@ -438,7 +438,7 @@ fn ensure_request_supported(
         Some("http") => match (selection, route) {
             (ProtocolSelection::Exact(HttpProtocol::Http1), Route::Direct) => Ok(()),
             (ProtocolSelection::Exact(HttpProtocol::Http1), Route::HttpProxy(proxy))
-                if proxy.supports_plaintext_forwarding() =>
+                if proxy.supports_forwarding() =>
             {
                 Ok(())
             }
