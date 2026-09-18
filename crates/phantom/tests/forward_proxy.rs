@@ -23,7 +23,10 @@ use tokio::{
 };
 
 use h3_support::client_settings;
-use tls_support::{TestIdentity, TestResult, client_builder, read_head, tls_settings};
+use tls_support::{
+    H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
+    read_head, tls_settings,
+};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -246,6 +249,177 @@ async fn session_isolates_forward_connections_by_origin() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection() -> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate()?;
+        let proxy_identity = TestIdentity::generate()?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
+        let proxy = tokio::spawn(async move {
+            let (tcp, _) = proxy_listener.accept().await?;
+            let mut stream = accept_tls_stream(tcp, proxy_acceptor).await?;
+            let first = read_head(&mut stream).await?;
+            let mut framed = Vec::new();
+            while !framed.ends_with(b"\r\n\r\n") {
+                let mut byte = [0_u8; 1];
+                stream.read_exact(&mut byte).await?;
+                framed.push(byte[0]);
+            }
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nthrough")
+                .await?;
+
+            let second = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            let opened_another = timeout(Duration::from_millis(100), proxy_listener.accept())
+                .await
+                .is_ok();
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((
+                first,
+                framed,
+                second,
+                opened_another,
+            ))
+        });
+
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let client = client_builder(&origin_identity, false)
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(route)
+            .build()?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                "http://BÜCHER.Example:8080/upload?part=%2f",
+            )?
+            .headers(vec![
+                RequestHeader::new("X-First", "one"),
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("X-Repeat", "beta"),
+            ])
+            .body(Bytes::from_static(b"payload"))
+            .trailers(vec![
+                RequestHeader::new("X-Checksum", "first"),
+                RequestHeader::new("X-Middle", "between"),
+                RequestHeader::new("X-Checksum", "second"),
+            ])
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
+
+        let response = client
+            .get(
+                HttpProtocol::Http1,
+                "http://BÜCHER.Example:8080/reused",
+            )?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+
+        let (first, framed, second, opened_another) = proxy.await??;
+        assert_eq!(
+            first,
+            b"POST http://xn--bcher-kva.example:8080/upload?part=%2f HTTP/1.1\r\nHost: xn--bcher-kva.example:8080\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum, X-Middle\r\n\r\n"
+        );
+        assert_eq!(
+            framed,
+            b"7\r\npayload\r\n0\r\nX-Checksum: first\r\nX-Middle: between\r\nX-Checksum: second\r\n\r\n"
+        );
+        assert_eq!(
+            second,
+            b"GET http://xn--bcher-kva.example:8080/reused HTTP/1.1\r\nHost: xn--bcher-kva.example:8080\r\n\r\n"
+        );
+        assert!(!opened_another);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn untrusted_tls_forward_proxy_fails_without_direct_fallback() -> TestResult<()> {
+    bounded(async {
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin_identity = TestIdentity::generate()?;
+        let proxy_identity = TestIdentity::generate()?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
+        let proxy = tokio::spawn(async move {
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
+                accept_tls(proxy_listener, proxy_acceptor).await.is_err(),
+            )
+        });
+
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let error = client_builder(&origin_identity, false)
+            .route(route)
+            .build()?
+            .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
+            .send()
+            .await
+            .err()
+            .ok_or("untrusted TLS forward proxy unexpectedly succeeded")?;
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
+        assert!(proxy.await??, "proxy TLS unexpectedly authenticated");
+        assert!(
+            timeout(Duration::from_millis(100), origin_listener.accept())
+                .await
+                .is_err(),
+            "TLS proxy failure fell back to the origin"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn tls_forward_proxy_rejects_h2_alpn_without_direct_fallback() -> TestResult<()> {
+    bounded(async {
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin_identity = TestIdentity::generate()?;
+        let proxy_identity = TestIdentity::generate()?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy_acceptor = proxy_identity.acceptor(H2_ALPN)?;
+        let proxy = tokio::spawn(async move {
+            let stream = accept_tls(proxy_listener, proxy_acceptor).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
+                stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec),
+            )
+        });
+
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let error = client_builder(&origin_identity, true)
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(route)
+            .build()?
+            .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
+            .send()
+            .await
+            .err()
+            .ok_or("TLS forward proxy unexpectedly accepted h2 ALPN")?;
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
+        assert_eq!(proxy.await??.as_deref(), Some(b"h2".as_slice()));
+        assert!(
+            timeout(Duration::from_millis(100), origin_listener.accept())
+                .await
+                .is_err(),
+            "proxy ALPN failure fell back to the origin"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -302,17 +476,6 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .err()
             .ok_or("HTTP/3 forwarding unexpectedly succeeded")?;
         assert_eq!(h3_error.kind(), RequestErrorKind::UnsupportedRoute);
-
-        let secure_route = Route::http_proxy(HttpProxy::new(&format!("https://{address}"))?);
-        let secure_error = client_builder(&identity, false)
-            .route(secure_route)
-            .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/")?
-            .send()
-            .await
-            .err()
-            .ok_or("TLS forward proxy unexpectedly succeeded")?;
-        assert_eq!(secure_error.kind(), RequestErrorKind::UnsupportedRoute);
 
         let authenticated_route =
             Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_basic_auth("user", "secret")?);
