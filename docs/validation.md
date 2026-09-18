@@ -55,19 +55,29 @@ This evidence proves that Phantom emits the caller-selected trailer block with
 the documented protocol semantics. It does not claim that a built-in browser
 profile emits those application-defined trailers by default.
 
-## TLS forward-proxy evidence
+## Forward-proxy evidence
 
 The public exact-H1 route tests cover an `http://` origin forwarded in absolute
-form through a TLS-encrypted proxy. The fixture proves that Phantom verifies the
-proxy certificate and hostname with the independent proxy trust store, emits
-the request directly after the proxy TLS handshake without a CONNECT exchange,
-and returns the proxied response through the normal streaming body path. Negative cases cover
-missing proxy trust, forwarding credentials, non-H1 selections, and proxy
-failure without direct-route fallback.
+form through plaintext and TLS-encrypted proxies. The TLS fixture proves that
+Phantom verifies the proxy certificate and hostname with the independent proxy
+trust store, emits the request directly after the proxy TLS handshake without a
+CONNECT exchange, and returns the proxied response through the normal streaming
+body path. Negative cases cover missing proxy trust, non-H1 selections, and
+proxy failure without direct-route fallback.
 
-This evidence is limited to unauthenticated HTTP/1.1 forwarding. It does not
-claim authenticated forwarding, negotiated H1/H2 forwarding, H2 proxy
-transport, forwarding an HTTPS origin, or H3 proxy support.
+Authentication regressions prove that every logical request is first sent
+without credentials; only a strict, valid Basic `407` challenge triggers one
+replay on a fresh same-route connection. They assert the generated sensitive
+`Proxy-Authorization` position after caller fields and before framing, exact
+owned-body and static-trailer replay, and failure before opening a retry
+connection for a one-shot streaming body. A second `407` and malformed or
+unsupported challenges return typed proxy errors without direct or protocol
+fallback. A subsequent logical request begins anonymously, proving that no
+challenge state is learned.
+
+This evidence does not claim browser-capture fidelity, redirects, negotiated
+H1/H2 forwarding, H2 proxy transport, other authentication schemes, forwarding
+an HTTPS origin, H3 proxy support, or UDP-capable proxying.
 
 ## External suites
 

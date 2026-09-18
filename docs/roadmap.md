@@ -12,8 +12,6 @@ work has exposed the real architectural boundaries.
 
 - Complete the remaining client and proxy-route work without introducing
   direct or cross-protocol fallback.
-- Add authenticated forwarding only with an explicit challenge and credential
-  lifecycle; TLS-encrypted unauthenticated H1 forwarding is complete.
 - Add replay and general retry behavior only with explicit ownership and
   bounded lifecycle rules.
 - Add streaming-body-produced trailers only through a declared, ordered
@@ -68,8 +66,10 @@ work has exposed the real architectural boundaries.
 The workspace, capture testkit, TLS and ordered H1 path, H2 path, initial
 browser-family profiles, forced H3 path, and ordered static request trailers on
 exact H1/H2/H3 and negotiated H1/H2 have passed their phase acceptance
-criteria. Unauthenticated HTTP/1.1 absolute-form forwarding for `http://`
-origins is available over plaintext and TLS proxies with an independent proxy
-authentication policy, with no CONNECT or direct fallback. Code, tests,
-[Design](design.md), and
-[Validation](validation.md) are the maintained record of those decisions.
+criteria. HTTP/1.1 absolute-form forwarding for `http://` origins is available
+over plaintext and TLS proxies with independent proxy authentication and trust
+policies. Challenge-driven Basic starts each logical request anonymously and
+permits one replay on a fresh same-route connection, with no learned challenge
+state, CONNECT conversion, protocol fallback, or direct fallback. Code, tests,
+[Design](design.md), and [Validation](validation.md) are the maintained record
+of those decisions.

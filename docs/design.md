@@ -88,6 +88,16 @@ failures return typed errors; runtime library code must not panic.
 - SSE and WebSocket reuse client contracts without hiding their distinct
   lifecycles.
 
+Forward-proxy Basic authentication is request-scoped rather than learned
+client state. Every logical exact-H1 forwarding request starts anonymously. A
+strict, valid Basic `407` challenge permits one replay on a fresh connection
+with the same complete route; a second `407` or an unusable challenge is a
+typed proxy failure. The generated sensitive credential field follows caller
+fields and precedes generated framing. Owned bodies and static trailers remain
+replayable, while a one-shot streaming body fails before a retry connection is
+opened. This lifecycle never changes the selected protocol or route and never
+falls back direct.
+
 ## Dependency policy
 
 A vendored change must name its upstream revision, explain the missing seam,

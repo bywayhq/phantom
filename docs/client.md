@@ -109,26 +109,36 @@ attempt.
 ## Routes and proxies
 
 Set a default route on `ClientBuilder`, or override it on one request. Supported
-TCP routes are direct, unauthenticated HTTP/1.1 absolute-form forwarding over a
-plaintext or TLS-encrypted proxy, HTTP/HTTPS CONNECT, and SOCKS5 with local or
-proxy-owned DNS and optional credentials.
+TCP routes are direct, HTTP/1.1 absolute-form forwarding over a plaintext or
+TLS-encrypted proxy, HTTP/HTTPS CONNECT, and SOCKS5 with local or proxy-owned DNS
+and optional credentials.
 
 Forwarding is limited to exact HTTP/1.1 requests for `http://` origins. An
 `https://` proxy endpoint uses the independent proxy authentication policy,
 which verifies the proxy certificate and hostname by default, then carries the
 absolute-form request inside that TLS connection; the origin itself is still
 plain HTTP. Forwarding never changes to CONNECT, negotiated H1/H2, H2, H3, or a
-direct route. Proxy credentials are not yet accepted for forwarding.
-Unsupported combinations fail explicitly instead of selecting another route
-or protocol.
+direct route. Unsupported combinations fail explicitly instead of selecting
+another route or protocol.
+
+When Basic credentials are configured, each logical forwarding request begins
+without `Proxy-Authorization`. A strict, valid Basic `407` challenge permits
+exactly one replay on a fresh connection for the same complete route. The
+generated sensitive `Proxy-Authorization` field follows all caller fields and
+precedes generated framing fields. Owned bodies and their static trailers are
+replayed exactly. A one-shot streaming body cannot be replayed: after a valid
+challenge it returns a typed request-body error before opening the retry
+connection. A second `407`, or a malformed or unsupported challenge, returns a
+typed proxy error. Challenge state is not retained, so the next logical request
+starts anonymously again.
 
 The complete route participates in pool identity. Proxy failure never falls
 back direct, and H3 rejects TCP-only proxy routes before network I/O. Proxy
 credentials are validated before I/O and excluded from diagnostics.
 
-This credential-bearing example applies to an HTTPS origin, where the route
-uses CONNECT. The same credentials are rejected for an `http://` forwarding
-request.
+The credential-bearing route below works for either an HTTPS origin through
+CONNECT or an `http://` origin through exact-H1 forwarding. In both cases Basic
+credentials are sent only after a valid proxy challenge.
 
 ```rust
 use phantom::{HttpProxy, Route};
