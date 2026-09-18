@@ -79,7 +79,7 @@ async fn body_produced_trailers_fail_before_static_trailers_and_preserve_connect
         let peer = tokio::spawn(run_body_trailer_peer(server));
         let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
 
-        let error = connection
+        let Err(error) = connection
             .send_request_body_with_trailers(
                 Method::POST,
                 "example.test",
@@ -89,7 +89,9 @@ async fn body_produced_trailers_fail_before_static_trailers_and_preserve_connect
                 vec![RequestHeader::new("x-must-not-arrive", "static")],
             )
             .await
-            .expect_err("body-produced trailers were accepted");
+        else {
+            return Err("body-produced trailers were accepted".into());
+        };
         assert!(matches!(
             error,
             Http2Error::RequestBody(ref error)
@@ -194,11 +196,13 @@ async fn run_body_trailer_peer(stream: tokio::io::DuplexStream) -> TestResult<()
         .await
         .ok_or("connection closed before body-produced trailers")??;
     let mut body = request.into_body();
-    let error = body
+    let result = body
         .data()
         .await
-        .ok_or("body-produced trailers ended without a reset")?
-        .expect_err("body-produced trailers emitted DATA");
+        .ok_or("body-produced trailers ended without a reset")?;
+    let Err(error) = result else {
+        return Err("body-produced trailers emitted DATA".into());
+    };
     assert!(error.is_reset());
     assert_eq!(error.reason(), Some(::http2::Reason::CANCEL));
 
@@ -251,7 +255,7 @@ impl Body for BodyTrailer {
         _context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let mut trailers = HeaderMap::new();
-        trailers.insert("x-from-body", "unsupported".parse().expect("valid value"));
+        trailers.insert("x-from-body", http::HeaderValue::from_static("unsupported"));
         Poll::Ready(Some(Ok(Frame::trailers(trailers))))
     }
 }

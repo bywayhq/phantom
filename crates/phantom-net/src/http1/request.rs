@@ -36,6 +36,12 @@ pub(super) struct PreparedRequest {
     has_body: bool,
 }
 
+struct PreparedBody {
+    body: RequestBody,
+    has_body: bool,
+    metadata: Option<RequestBodyMetadata>,
+}
+
 impl PreparedRequest {
     pub(super) fn validate(
         method: Method,
@@ -112,9 +118,11 @@ impl PreparedRequest {
             method,
             target.into_uri(),
             headers,
-            body,
-            has_body,
-            Some(metadata),
+            PreparedBody {
+                body,
+                has_body,
+                metadata: Some(metadata),
+            },
             trailers,
             None,
         )
@@ -143,9 +151,11 @@ impl PreparedRequest {
             method,
             target.into_uri(),
             headers,
-            body,
-            has_body,
-            metadata,
+            PreparedBody {
+                body,
+                has_body,
+                metadata,
+            },
             trailers,
             None,
         )
@@ -175,9 +185,11 @@ impl PreparedRequest {
             method,
             target.into_uri(),
             headers,
-            body,
-            has_body,
-            Some(metadata),
+            PreparedBody {
+                body,
+                has_body,
+                metadata: Some(metadata),
+            },
             trailers,
             Some(&authority),
         )
@@ -207,9 +219,11 @@ impl PreparedRequest {
             method,
             target.into_uri(),
             headers,
-            body,
-            has_body,
-            metadata,
+            PreparedBody {
+                body,
+                has_body,
+                metadata,
+            },
             trailers,
             Some(&authority),
         )
@@ -219,15 +233,18 @@ impl PreparedRequest {
         method: Method,
         target: http::Uri,
         headers: Vec<RequestHeader>,
-        body: RequestBody,
-        has_body: bool,
-        metadata: Option<RequestBodyMetadata>,
+        body: PreparedBody,
         trailers: Vec<RequestHeader>,
         expected_host: Option<&str>,
     ) -> Result<Self, Http1Error> {
         if method == Method::CONNECT {
             return Err(Http1Error::ConnectUnsupported);
         }
+        let PreparedBody {
+            body,
+            has_body,
+            metadata,
+        } = body;
         let body_len = metadata.and_then(RequestBodyMetadata::exact_length);
         let trailers = ValidatedTrailers::new(trailers)?;
         let headers = ValidatedHeaders::new(headers, metadata, expected_host, trailers.as_ref())?;
