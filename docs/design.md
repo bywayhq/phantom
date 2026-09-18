@@ -92,9 +92,11 @@ failures return typed errors; runtime library code must not panic.
   and serialization.
 - H3 has a separate QUIC path because its transport, diagnostics, and
   fingerprint controls differ materially.
-- The H3 QUIC socket is either direct UDP or Phantom's local-DNS SOCKS5 UDP
-  ASSOCIATE adapter. Both preserve the route selected before setup; proxy or
-  QUIC failure cannot select a different route or protocol.
+- The H3 QUIC socket is either direct UDP or Phantom's local-/remote-DNS
+  SOCKS5 UDP ASSOCIATE adapter. The remote-DNS adapter keeps the wire target as
+  a domain while presenting one stable logical peer to Quinn. All paths
+  preserve the route selected before setup; proxy or QUIC failure cannot select
+  a different route or protocol.
 - Every transport returns the standard `http::Response` view plus ordered
   response fields.
 - A streaming request body declares its complete ordered trailer-name plan

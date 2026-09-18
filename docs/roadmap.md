@@ -24,9 +24,9 @@ work has exposed the real architectural boundaries.
 - Within Phase 1, prove route and failure semantics end to end for H3 upgrade,
   UDP-capable proxying, and extended CONNECT, then implement each vertical
   slice without silent fallback.
-- The first UDP proxy slice is complete: exact H3 supports local-DNS
-  `socks5://` through RFC 1928 UDP ASSOCIATE. Remote-DNS SOCKS5 UDP and
-  CONNECT-UDP/MASQUE remain in Phase 1 alongside H3 upgrade and extended
+- The SOCKS5 UDP proxy slice is complete: exact H3 supports local-DNS
+  `socks5://` and remote-DNS `socks5h://` through RFC 1928 UDP ASSOCIATE.
+  CONNECT-UDP/MASQUE remains in Phase 1 alongside H3 upgrade and extended
   CONNECT.
 
 ## Phase 2 — Ergonomics
@@ -83,8 +83,8 @@ origins is available over plaintext and TLS proxies with independent proxy
 authentication and trust policies. Challenge-driven Basic starts each logical
 request anonymously and permits one replay on a fresh same-route connection,
 with no learned challenge state, CONNECT conversion, protocol fallback, or
-direct fallback. Exact H3 supports local-DNS `socks5://` through an optionally
-authenticated RFC 1928 UDP ASSOCIATE, retains its TCP control connection, and
-reuses the route-keyed H3 connection without direct or protocol fallback. Code,
-tests, [Design](design.md), and
+direct fallback. Exact H3 supports local- or remote-DNS SOCKS5 through an
+optionally authenticated RFC 1928 UDP ASSOCIATE, retains its TCP control
+connection, and reuses the route-keyed H3 connection without direct or protocol
+fallback. Code, tests, [Design](design.md), and
 [Validation](validation.md) are the maintained record of those decisions.

@@ -16,7 +16,7 @@ Phantom's H3 path combines:
   policy.
 
 The public API exposes Phantom types rather than Quinn, BoringSSL, or `h3`
-types. Direct H3 uses Quinn's UDP transport. Local-DNS `socks5://` uses a
+types. Direct H3 uses Quinn's UDP transport. Local-/remote-DNS SOCKS5 uses a
 Phantom-owned RFC 1928 UDP ASSOCIATE adapter while retaining the association's
 TCP control connection. H3 is not routed through a generic TCP transport
 abstraction and does not fall back to H2 or H1.
@@ -96,24 +96,27 @@ The QUIC key-schedule vectors are reproduced and asserted in
 
 ## Current limits
 
-H3 accepts direct routes and local-DNS `socks5://`. The SOCKS5 path resolves the
-origin locally, establishes an optionally RFC 1929-authenticated RFC 1928 UDP
-ASSOCIATE for one IP target, and retains the TCP control connection for the
-association lifetime. A concrete relay address is used directly. An
+H3 accepts direct routes plus local-DNS `socks5://` and remote-DNS
+`socks5h://`. The local-DNS path resolves the origin locally and fixes one IP
+target. The remote-DNS path performs no local origin lookup and sends the
+canonical hostname in each RFC 1928 UDP request. Both establish an optionally
+RFC 1929-authenticated UDP ASSOCIATE and retain the TCP control connection for
+the association lifetime. A concrete relay address is used directly. An
 unspecified relay address is replaced only with the established TCP proxy peer
 IP while retaining the returned nonzero port; domain relay addresses and zero
 ports are rejected. The adapter rejects fragmented, malformed, wrong-target,
-and non-relay datagrams.
+and non-relay datagrams. For remote DNS, exact-domain or same-port IP replies
+are accepted, and the adapter maps accepted replies to one stable logical peer
+for Quinn.
 
 The complete route remains part of pool identity, and compatible requests can
 reuse the H3 connection and its association. Proxy authentication,
 negotiation, and rejection failures are typed and are not address-fallback
 candidates. Proxy TCP and QUIC connection setup may advance or retry only
 through a fresh association on the same configured route, under the exact-H3
-setup policy; no failure can change the route or protocol. Remote-DNS
-`socks5h://`, HTTP proxy and CONNECT routes for H3, CONNECT-UDP/MASQUE,
-Alt-Svc/H3 upgrade, extended CONNECT, and extension-specific datagram APIs
-remain planned.
+setup policy; no failure can change the route or protocol. HTTP proxy and
+CONNECT routes for H3, CONNECT-UDP/MASQUE, Alt-Svc/H3 upgrade, extended
+CONNECT, and extension-specific datagram APIs remain planned.
 
 Caller-configured exact-H3 retries may repeat typed DNS, endpoint, or QUIC
 connection setup before request dispatch while preserving one route and total

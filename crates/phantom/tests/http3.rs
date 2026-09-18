@@ -32,12 +32,15 @@ use tokio::{net::TcpListener, sync::oneshot, time::timeout};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use socks5_udp_support::{
     ObservedSocks5UdpAuthentication, Socks5UdpAssociateReply, Socks5UdpAuthentication,
-    Socks5UdpScript, forward_one_authenticated_socks5_udp_associate,
-    forward_one_socks5_udp_associate, serve_one_socks5_udp_associate,
+    Socks5UdpScript, Socks5UdpTarget, forward_one_authenticated_remote_dns_socks5_udp_associate,
+    forward_one_authenticated_socks5_udp_associate, forward_one_remote_dns_socks5_udp_associate,
+    forward_one_socks5_udp_associate, serve_one_remote_dns_socks5_udp_associate,
+    serve_one_socks5_udp_associate,
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+const REMOTE_ORIGIN: &str = "origin.phantom.invalid";
 
 #[tokio::test]
 async fn public_client_canonicalizes_host_and_streams_http3_data_and_trailers() -> TestResult<()> {
@@ -586,6 +589,168 @@ async fn local_dns_socks5_http3_uses_rfc1929_credentials() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn remote_dns_socks5_reuses_one_http3_association_and_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(REMOTE_ORIGIN)?;
+        let (origin_address, endpoint) = server_endpoint(&identity)?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let mut proxy = tokio::spawn(forward_one_remote_dns_socks5_udp_associate(
+            proxy_listener,
+            origin_address,
+            REMOTE_ORIGIN.to_owned(),
+            origin_address.port(),
+        ));
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let incoming = endpoint.accept().await.ok_or("HTTP/3 endpoint closed")?;
+            let connection = incoming.await?;
+            let mut connection =
+                h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection))
+                    .await?;
+            let mut paths = Vec::new();
+            for _ in 0..2 {
+                let resolver = connection
+                    .accept()
+                    .await?
+                    .ok_or("remote-DNS HTTP/3 connection closed before request")?;
+                let (request, mut stream) = resolver.resolve_request().await?;
+                paths.push(request.uri().path().to_owned());
+                stream
+                    .send_response(
+                        Response::builder()
+                            .status(StatusCode::NO_CONTENT)
+                            .body(())?,
+                    )
+                    .await?;
+                stream.finish().await?;
+            }
+            wait_for_client
+                .await
+                .map_err(|_| "client stopped before remote-DNS HTTP/3 completion")?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(paths)
+        });
+
+        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+        let client = client_builder(&identity).route(route).build()?;
+        for path in ["/first", "/second"] {
+            client
+                .get(
+                    HttpProtocol::Http3,
+                    &format!("https://{REMOTE_ORIGIN}:{}{path}", origin_address.port()),
+                )?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+        }
+
+        assert!(
+            timeout(Duration::from_millis(100), &mut proxy)
+                .await
+                .is_err(),
+            "remote-DNS SOCKS5 UDP control closed while the client was live"
+        );
+        drop(client);
+        client_done
+            .send(())
+            .map_err(|_| "remote-DNS HTTP/3 server stopped before client drop")?;
+
+        assert_eq!(server.await??, ["/first", "/second"]);
+        let observed = proxy.await??;
+        assert_eq!(observed.authentication, None);
+        assert_eq!(
+            observed.target,
+            Some(Socks5UdpTarget::Domain {
+                host: REMOTE_ORIGIN.to_owned(),
+                port: origin_address.port(),
+            })
+        );
+        assert!(observed.client_datagrams > 0);
+        assert!(observed.origin_datagrams > 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn remote_dns_socks5_http3_uses_rfc1929_credentials() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(REMOTE_ORIGIN)?;
+        let (origin_address, endpoint) = server_endpoint(&identity)?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let mut proxy = tokio::spawn(forward_one_authenticated_remote_dns_socks5_udp_associate(
+            proxy_listener,
+            origin_address,
+            REMOTE_ORIGIN.to_owned(),
+            origin_address.port(),
+        ));
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+            let path = request.uri().path().to_owned();
+            stream
+                .send_response(Response::builder().status(StatusCode::OK).body(())?)
+                .await?;
+            stream.send_data(Bytes::from_static(b"proxied")).await?;
+            stream.finish().await?;
+            wait_for_client
+                .await
+                .map_err(|_| "client stopped before authenticated remote-DNS completion")?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(path)
+        });
+
+        let route = Route::socks5(
+            Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?
+                .with_username_password("agent", "secret")?,
+        );
+        let client = client_builder(&identity).route(route).build()?;
+        let response = client
+            .get(
+                HttpProtocol::Http3,
+                &format!(
+                    "https://{REMOTE_ORIGIN}:{}/authenticated",
+                    origin_address.port()
+                ),
+            )?
+            .send()
+            .await?;
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "proxied");
+        assert!(
+            timeout(Duration::from_millis(100), &mut proxy)
+                .await
+                .is_err(),
+            "authenticated remote-DNS control closed while the client was live"
+        );
+        drop(client);
+        client_done
+            .send(())
+            .map_err(|_| "authenticated remote-DNS server stopped before client drop")?;
+
+        assert_eq!(server.await??, "/authenticated");
+        let observed = proxy.await??;
+        assert_eq!(
+            observed.authentication,
+            Some(ObservedSocks5UdpAuthentication {
+                username: "agent".to_owned(),
+                password: "secret".to_owned(),
+            })
+        );
+        assert_eq!(
+            observed.target,
+            Some(Socks5UdpTarget::Domain {
+                host: REMOTE_ORIGIN.to_owned(),
+                port: origin_address.port(),
+            })
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn failed_socks5_udp_association_has_proxy_category_without_direct_fallback() -> TestResult<()>
 {
     bounded(async {
@@ -619,6 +784,57 @@ async fn failed_socks5_udp_association_has_proxy_category_without_direct_fallbac
                 .await
                 .err()
                 .ok_or("failed SOCKS5 UDP association unexpectedly sent HTTP/3")?;
+
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+            let observed = proxy.await??;
+            assert_eq!(observed.client_datagrams, 0);
+            assert_eq!(observed.origin_datagrams, 0);
+            assert_udp_untouched(&origin)?;
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn failed_remote_dns_socks5_udp_association_has_no_origin_or_direct_io() -> TestResult<()> {
+    bounded(async {
+        for reply in [
+            Socks5UdpAssociateReply::Reject(5),
+            Socks5UdpAssociateReply::Malformed,
+        ] {
+            let identity = TestIdentity::generate_for_dns(REMOTE_ORIGIN)?;
+            let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+            origin.set_nonblocking(true)?;
+            let origin_address = origin.local_addr()?;
+            let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy_address = proxy_listener.local_addr()?;
+            let proxy = tokio::spawn(serve_one_remote_dns_socks5_udp_associate(
+                proxy_listener,
+                origin_address,
+                REMOTE_ORIGIN.to_owned(),
+                origin_address.port(),
+                Socks5UdpScript {
+                    authentication: Socks5UdpAuthentication::None,
+                    reply,
+                },
+            ));
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let error = client_builder(&identity)
+                .route(route)
+                .build()?
+                .get(
+                    HttpProtocol::Http3,
+                    &format!(
+                        "https://{REMOTE_ORIGIN}:{}/failed-association",
+                        origin_address.port()
+                    ),
+                )?
+                .send()
+                .await
+                .err()
+                .ok_or("failed remote-DNS SOCKS5 association unexpectedly sent HTTP/3")?;
 
             assert_eq!(error.kind(), RequestErrorKind::Proxy);
             assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
@@ -680,7 +896,6 @@ async fn tcp_proxy_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
     let routes = [
         Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?),
         Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?),
-        Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?),
     ];
 
     for route in routes {

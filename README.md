@@ -34,7 +34,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | --- | --- |
 | Protocols | Ordered streaming H1, multiplexed H2, exact H3 over direct or SOCKS5-carried QUIC, one-handshake direct H1/H2 negotiation, and ordered static or streaming-body-produced request trailers |
 | Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
-| Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; local- or remote-DNS SOCKS5 for H1/H2; and exact H3 over local-DNS `socks5://` using RFC 1928 UDP ASSOCIATE |
+| Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; local- or remote-DNS SOCKS5 for H1/H2; and exact H3 over local- or remote-DNS SOCKS5 using RFC 1928 UDP ASSOCIATE |
 | State | Isolated bounded pools, redirects, opt-in exact-protocol setup retries, timeouts, client hints, TLS sessions, and opt-in cookies |
 | Optional APIs | Server-sent events, H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable, and opt-in `permessage-deflate` |
 | Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
@@ -67,7 +67,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 This request selects exactly HTTP/2. `get_negotiated` instead performs one
 direct TLS handshake and may select H1 or H2. H3 uses a separate QUIC profile
-and supports direct routing or local-DNS `socks5://` through RFC 1928 UDP
+and supports direct routing or local-/remote-DNS SOCKS5 through RFC 1928 UDP
 ASSOCIATE.
 
 Every response uses the standard `http::Response` view and carries
@@ -87,12 +87,12 @@ timeouts, bodies, and responses.
   and permits one challenge-driven replay on a fresh same-route connection; no
   challenge state is learned across requests. The same lifecycle applies to
   plaintext WebSocket Upgrade requests sent through a forward proxy.
-- H3 accepts only direct or local-DNS `socks5://` routes. It rejects
-  `socks5h://`, HTTP forwarding, and HTTP CONNECT before origin I/O.
+- H3 accepts direct, local-DNS `socks5://`, or remote-DNS `socks5h://` routes.
+  It rejects HTTP forwarding and HTTP CONNECT before origin I/O.
 - Streaming request bodies are one-shot and are not replayed implicitly.
 - Broader status, post-dispatch, and negotiated-protocol retry policies;
-  remote-DNS SOCKS5 UDP; CONNECT-UDP/MASQUE; Alt-Svc/H3 upgrade; extended
-  CONNECT; and H2/H3 WebSocket remain planned.
+  CONNECT-UDP/MASQUE; Alt-Svc/H3 upgrade; extended CONNECT; and H2/H3
+  WebSocket remain planned.
 
 These limits make Phantom narrower than a general-purpose client, but keep its
 behavior explicit and testable.

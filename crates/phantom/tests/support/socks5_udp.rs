@@ -58,10 +58,17 @@ pub(crate) struct ObservedSocks5UdpAssociation {
     pub(crate) relay_address: SocketAddr,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum Socks5UdpTarget {
+    Ip(SocketAddr),
+    Domain { host: String, port: u16 },
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ObservedSocks5UdpRelay {
     pub(crate) authentication: Option<ObservedSocks5UdpAuthentication>,
     pub(crate) association: ObservedSocks5UdpAssociation,
+    pub(crate) target: Option<Socks5UdpTarget>,
     pub(crate) client_datagrams: usize,
     pub(crate) origin_datagrams: usize,
 }
@@ -80,9 +87,67 @@ pub(crate) async fn forward_one_authenticated_socks5_udp_associate(
     serve_one_socks5_udp_associate(listener, origin, Socks5UdpScript::username_password()).await
 }
 
+pub(crate) async fn forward_one_remote_dns_socks5_udp_associate(
+    listener: TcpListener,
+    origin: SocketAddr,
+    host: String,
+    port: u16,
+) -> TestResult<ObservedSocks5UdpRelay> {
+    serve_one_remote_dns_socks5_udp_associate(
+        listener,
+        origin,
+        host,
+        port,
+        Socks5UdpScript::no_auth(),
+    )
+    .await
+}
+
+pub(crate) async fn forward_one_authenticated_remote_dns_socks5_udp_associate(
+    listener: TcpListener,
+    origin: SocketAddr,
+    host: String,
+    port: u16,
+) -> TestResult<ObservedSocks5UdpRelay> {
+    serve_one_remote_dns_socks5_udp_associate(
+        listener,
+        origin,
+        host,
+        port,
+        Socks5UdpScript::username_password(),
+    )
+    .await
+}
+
 pub(crate) async fn serve_one_socks5_udp_associate(
     listener: TcpListener,
     origin: SocketAddr,
+    script: Socks5UdpScript,
+) -> TestResult<ObservedSocks5UdpRelay> {
+    serve_one_socks5_udp_associate_for_target(listener, origin, Socks5UdpTarget::Ip(origin), script)
+        .await
+}
+
+pub(crate) async fn serve_one_remote_dns_socks5_udp_associate(
+    listener: TcpListener,
+    origin: SocketAddr,
+    host: String,
+    port: u16,
+    script: Socks5UdpScript,
+) -> TestResult<ObservedSocks5UdpRelay> {
+    serve_one_socks5_udp_associate_for_target(
+        listener,
+        origin,
+        Socks5UdpTarget::Domain { host, port },
+        script,
+    )
+    .await
+}
+
+async fn serve_one_socks5_udp_associate_for_target(
+    listener: TcpListener,
+    origin: SocketAddr,
+    expected_target: Socks5UdpTarget,
     script: Socks5UdpScript,
 ) -> TestResult<ObservedSocks5UdpRelay> {
     if !listener.local_addr()?.ip().is_loopback() || !origin.ip().is_loopback() {
@@ -92,6 +157,7 @@ pub(crate) async fn serve_one_socks5_udp_associate(
         )
         .into());
     }
+    validate_expected_target(&expected_target)?;
 
     let (mut control, _) = listener.accept().await?;
     let authentication = match script.authentication {
@@ -128,6 +194,7 @@ pub(crate) async fn serve_one_socks5_udp_associate(
             return Ok(ObservedSocks5UdpRelay {
                 authentication,
                 association,
+                target: None,
                 client_datagrams: 0,
                 origin_datagrams: 0,
             });
@@ -138,25 +205,78 @@ pub(crate) async fn serve_one_socks5_udp_associate(
             return Ok(ObservedSocks5UdpRelay {
                 authentication,
                 association,
+                target: None,
                 client_datagrams: 0,
                 origin_datagrams: 0,
             });
         }
     }
 
-    relay_until_control_closes(control, relay, origin, authentication, association).await
+    relay_until_control_closes(
+        control,
+        relay,
+        origin,
+        expected_target,
+        authentication,
+        association,
+    )
+    .await
+}
+
+fn validate_expected_target(target: &Socks5UdpTarget) -> io::Result<()> {
+    match target {
+        Socks5UdpTarget::Ip(address) if address.port() != 0 => Ok(()),
+        Socks5UdpTarget::Ip(_) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "SOCKS5 UDP fixture target port must be nonzero",
+        )),
+        Socks5UdpTarget::Domain { host, port }
+            if *port != 0
+                && !host.is_empty()
+                && host.len() <= usize::from(u8::MAX)
+                && is_canonical_domain(host) =>
+        {
+            Ok(())
+        }
+        Socks5UdpTarget::Domain { .. } => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "SOCKS5 UDP fixture domain target must be canonical ASCII with a nonzero port",
+        )),
+    }
+}
+
+fn is_canonical_domain(host: &str) -> bool {
+    let host = host.strip_suffix('.').unwrap_or(host);
+    !host.is_empty()
+        && host.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+                && label
+                    .as_bytes()
+                    .first()
+                    .is_some_and(u8::is_ascii_alphanumeric)
+                && label
+                    .as_bytes()
+                    .last()
+                    .is_some_and(u8::is_ascii_alphanumeric)
+        })
 }
 
 async fn relay_until_control_closes(
     mut control: TcpStream,
     relay: UdpSocket,
     origin: SocketAddr,
+    expected_target: Socks5UdpTarget,
     authentication: Option<ObservedSocks5UdpAuthentication>,
     association: ObservedSocks5UdpAssociation,
 ) -> TestResult<ObservedSocks5UdpRelay> {
     let mut packet = vec![0_u8; MAX_UDP_PACKET_BYTES];
     let mut control_byte = [0_u8; 1];
     let mut client_peer = None;
+    let mut target = None;
     let mut client_datagrams = 0_usize;
     let mut origin_datagrams = 0_usize;
 
@@ -204,12 +324,13 @@ async fn relay_until_control_closes(
                     Some(_) => {}
                 }
                 let request = parse_udp_packet(&packet[..length])?;
-                if request.target != origin {
+                if request.target != expected_target {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         "SOCKS5 UDP packet targeted an unexpected origin",
                     ).into());
                 }
+                target.get_or_insert_with(|| request.target.clone());
                 let sent = relay.send_to(request.payload, origin).await?;
                 if sent != request.payload.len() {
                     return Err(io::Error::new(
@@ -225,6 +346,7 @@ async fn relay_until_control_closes(
     Ok(ObservedSocks5UdpRelay {
         authentication,
         association,
+        target,
         client_datagrams,
         origin_datagrams,
     })
@@ -343,7 +465,7 @@ async fn write_associate_reply(
 }
 
 struct ParsedUdpPacket<'a> {
-    target: SocketAddr,
+    target: Socks5UdpTarget,
     payload: &'a [u8],
 }
 
@@ -354,15 +476,65 @@ fn parse_udp_packet(packet: &[u8]) -> io::Result<ParsedUdpPacket<'_>> {
             "invalid SOCKS5 UDP reserved or fragment field",
         ));
     }
-    let (ip, port_index) = match packet[3] {
-        1 if packet.len() >= 10 => (
-            IpAddr::V4(Ipv4Addr::new(packet[4], packet[5], packet[6], packet[7])),
-            8,
-        ),
+    let (target, payload_index) = match packet[3] {
+        1 if packet.len() >= 10 => {
+            let ip = IpAddr::V4(Ipv4Addr::new(packet[4], packet[5], packet[6], packet[7]));
+            let port = u16::from_be_bytes([packet[8], packet[9]]);
+            (Socks5UdpTarget::Ip(SocketAddr::new(ip, port)), 10)
+        }
         4 if packet.len() >= 22 => {
             let mut address = [0_u8; 16];
             address.copy_from_slice(&packet[4..20]);
-            (IpAddr::V6(Ipv6Addr::from(address)), 20)
+            let ip = IpAddr::V6(Ipv6Addr::from(address));
+            let port = u16::from_be_bytes([packet[20], packet[21]]);
+            (Socks5UdpTarget::Ip(SocketAddr::new(ip, port)), 22)
+        }
+        3 if packet.len() >= 5 => {
+            let host_length = usize::from(packet[4]);
+            if host_length == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "SOCKS5 UDP domain target was empty",
+                ));
+            }
+            let host_end = 5_usize.checked_add(host_length).ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "SOCKS5 UDP domain length overflow",
+                )
+            })?;
+            let payload_index = host_end.checked_add(2).ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "SOCKS5 UDP target length overflow",
+                )
+            })?;
+            if packet.len() < payload_index {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "truncated SOCKS5 UDP domain target",
+                ));
+            }
+            let host = std::str::from_utf8(&packet[5..host_end]).map_err(|_| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "SOCKS5 UDP domain target was not UTF-8",
+                )
+            })?;
+            if !host.is_ascii() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "SOCKS5 UDP domain target was not ASCII",
+                ));
+            }
+            let port = u16::from_be_bytes([packet[host_end], packet[host_end + 1]]);
+            (
+                Socks5UdpTarget::Domain {
+                    host: host.to_owned(),
+                    port,
+                },
+                payload_index,
+            )
         }
         1 | 4 => {
             return Err(io::Error::new(
@@ -370,17 +542,22 @@ fn parse_udp_packet(packet: &[u8]) -> io::Result<ParsedUdpPacket<'_>> {
                 "truncated SOCKS5 UDP target address",
             ));
         }
+        3 => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "truncated SOCKS5 UDP domain target",
+            ));
+        }
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                "SOCKS5 UDP packet requires an IP target address",
+                "SOCKS5 UDP packet used an unsupported target address",
             ));
         }
     };
-    let port = u16::from_be_bytes([packet[port_index], packet[port_index + 1]]);
     Ok(ParsedUdpPacket {
-        target: SocketAddr::new(ip, port),
-        payload: &packet[port_index + 2..],
+        target,
+        payload: &packet[payload_index..],
     })
 }
 
@@ -436,4 +613,39 @@ fn increment(value: usize) -> io::Result<usize> {
             "SOCKS5 UDP datagram count overflow",
         )
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Socks5UdpTarget, parse_udp_packet};
+
+    #[test]
+    fn parses_domain_target_and_preserves_payload_boundary()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut packet = vec![0, 0, 0, 3, 14];
+        packet.extend_from_slice(b"origin.invalid");
+        packet.extend_from_slice(&443_u16.to_be_bytes());
+        packet.extend_from_slice(b"payload");
+
+        let parsed = parse_udp_packet(&packet)?;
+        assert_eq!(
+            parsed.target,
+            Socks5UdpTarget::Domain {
+                host: "origin.invalid".to_owned(),
+                port: 443,
+            }
+        );
+        assert_eq!(parsed.payload, b"payload");
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_empty_and_truncated_domain_targets() {
+        for packet in [
+            &[0, 0, 0, 3, 0, 1, 187][..],
+            &[0, 0, 0, 3, 4, b't', b'e'][..],
+        ] {
+            assert!(parse_udp_packet(packet).is_err());
+        }
+    }
 }

@@ -20,7 +20,10 @@ pub use socks5::{
     connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local,
     connect_socks5_tunnel_local_with_auth,
 };
-pub(crate) use socks5_udp::associate_socks5_udp_local_with_auth;
+pub(crate) use socks5_udp::{
+    associate_socks5_udp_local_with_auth, associate_socks5_udp_remote_with_auth,
+    prepare_socks5_udp_remote_target,
+};
 pub use tunnel::TunnelStream;
 
 #[cfg(test)]

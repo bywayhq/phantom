@@ -105,30 +105,34 @@ the `101` response.
 
 ## H3 SOCKS5 UDP evidence
 
-Public exact-H3 loopback regressions cover local-DNS `socks5://` through RFC
-1928 UDP ASSOCIATE, both without authentication and with RFC 1929
-username/password authentication. They verify end-to-end H3 traffic to a fixed
-IP target, reuse of one route-keyed H3 connection and association across
-requests, and retention of the TCP control connection for the client-owned
-association lifetime. The transport fixture verifies that each association
-receives only a fixed IP target; hostname-resolution behavior remains a code
-boundary rather than a separate resolver-injected integration proof. Rejected
-and malformed association replies produce typed proxy errors without origin
-datagrams, direct fallback, or protocol fallback. Unsupported `socks5h://`,
-HTTP forwarding, and HTTP CONNECT routes fail before proxy or origin I/O.
+Public exact-H3 loopback regressions cover local-DNS `socks5://` and
+remote-DNS `socks5h://` through RFC 1928 UDP ASSOCIATE, both without
+authentication and with RFC 1929 username/password authentication. They verify
+end-to-end H3 traffic, reuse of one route-keyed H3 connection and association
+across requests, and retention of the TCP control connection for the
+client-owned association lifetime. The local path fixes an IP target. The
+remote path uses an intentionally unresolvable `.invalid` origin, proves the
+exact canonical DOMAIN target on the proxy wire, and forwards it only through
+the fixture's proxy-owned mapping. Rejected and malformed association replies
+produce typed proxy errors without origin datagrams, direct fallback, or
+protocol fallback. HTTP forwarding and HTTP CONNECT routes fail before proxy
+or origin I/O.
 
 Transport-focused tests assert the exact authentication and UDP ASSOCIATE
 exchanges, fixed IPv4 and IPv6 target headers, zero RSV and FRAG fields, and
 fragment rejection. The adapter bounds operation to one datagram per send or
-receive and accepts only packets from the negotiated relay carrying the fixed
-target; malformed, fragmented, spoofed-relay, or wrong-target datagrams are
-discarded by that boundary. Relay-reply tests cover the compatibility rule that
+receive and accepts only packets from the negotiated relay carrying the
+configured target; malformed, fragmented, spoofed-relay, wrong-domain, or
+wrong-port datagrams are discarded by that boundary. Relay-reply tests cover the
+compatibility rule that
 substitutes only the established TCP proxy peer IP for an unspecified
-BND.ADDR, and rejection of domain BND.ADDR or a zero BND.PORT.
+BND.ADDR, and rejection of domain BND.ADDR or a zero BND.PORT. Remote-target
+tests cover exact-domain replies, case-insensitive domain comparison,
+same-port IP-form replies, and a stable logical Quinn peer.
 
-This evidence does not claim remote-DNS SOCKS5 UDP, HTTP proxy or CONNECT
-routing for H3, CONNECT-UDP/MASQUE, Alt-Svc/H3 upgrade, extended CONNECT, or
-browser-capture fidelity for a proxied H3 route.
+This evidence does not claim HTTP proxy or CONNECT routing for H3,
+CONNECT-UDP/MASQUE, Alt-Svc/H3 upgrade, extended CONNECT, or browser-capture
+fidelity for a proxied H3 route.
 
 ## Connection-retry evidence
 

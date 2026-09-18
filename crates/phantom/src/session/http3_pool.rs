@@ -253,7 +253,19 @@ impl PoolEntry {
                     )
                     .await
             }
-            Route::HttpProxy(_) | Route::Socks5(_) => {
+            Route::Socks5(proxy) => {
+                connector
+                    .connect_socks5_remote_with_auth(
+                        proxy.host(),
+                        proxy.port(),
+                        proxy.auth(),
+                        endpoint.host(),
+                        endpoint.port(),
+                        endpoint.host(),
+                    )
+                    .await
+            }
+            Route::HttpProxy(_) => {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http3));
             }
         }

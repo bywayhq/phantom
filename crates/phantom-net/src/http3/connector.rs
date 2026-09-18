@@ -21,7 +21,10 @@ use super::{
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
-    proxy::{Socks5Auth, Socks5Error, associate_socks5_udp_local_with_auth},
+    proxy::{
+        Socks5Auth, Socks5Error, associate_socks5_udp_local_with_auth,
+        associate_socks5_udp_remote_with_auth, prepare_socks5_udp_remote_target,
+    },
     request::{RequestBody, RequestBodyMetadata},
     tls::{TlsConnector, TlsError, TlsErrorKind},
 };
@@ -201,6 +204,74 @@ impl Http3Connector {
                 .map_err(Http3ConnectorError::resolve)?
                 .collect::<Vec<_>>();
             self.connect_to_addresses(addresses, server_name).await
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+    }
+
+    /// Opens one reusable HTTP/3 connection through a SOCKS5 UDP association.
+    ///
+    /// Domain targets remain domain names for proxy-owned resolution. This
+    /// method never resolves the target locally or falls back to a direct route
+    /// or another protocol.
+    pub async fn connect_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        self.connect_socks5_remote_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            server_name,
+        )
+        .await
+    }
+
+    /// Opens one reusable HTTP/3 connection through an authenticated SOCKS5 UDP association.
+    ///
+    /// The server name, authentication, and remote target are validated before
+    /// the Tokio runtime is checked or proxy I/O begins. The target is sent to
+    /// the proxy without local DNS resolution. Proxy and QUIC failures are
+    /// terminal for this connection attempt.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        QuicClientConfig::validate_server_name(server_name)
+            .map_err(Http3ConnectorError::invalid_server_name)?;
+        let auth = auth.validate().map_err(Http3ConnectorError::proxy)?;
+        let target = prepare_socks5_udp_remote_target(target_host, target_port)
+            .map_err(Http3ConnectorError::proxy)?;
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+        poll_tokio_io(|| async {
+            let association =
+                associate_socks5_udp_remote_with_auth(proxy_host, proxy_port, target, auth)
+                    .await
+                    .map_err(Http3ConnectorError::proxy)?;
+            let (socket, logical_remote) = association.into_parts();
+            connect_bound_with_socket(
+                logical_remote,
+                server_name,
+                Arc::clone(&self.crypto),
+                &self.settings,
+                Arc::clone(&self.identity),
+                socket,
+            )
+            .await
+            .map_err(Http3ConnectorError::transaction)
         })
         .await
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
@@ -840,6 +911,62 @@ mod socks5_tests {
         };
         let error = result.err().ok_or("invalid server name was accepted")?;
         assert_eq!(error.kind(), Http3ConnectorErrorKind::Request);
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_remote_socks5_auth_precedes_target_validation() -> Result<(), Box<dyn Error>> {
+        let connector = connector()?;
+        let request = connector.connect_socks5_remote_with_auth(
+            "does-not-resolve.invalid",
+            1080,
+            Socks5Auth::UsernamePassword {
+                username: "",
+                password: "password",
+            },
+            "invalid target",
+            0,
+            "example.test",
+        );
+        let mut request = std::pin::pin!(request);
+        let mut context = Context::from_waker(Waker::noop());
+        let result = match request.as_mut().poll(&mut context) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return Err("invalid authentication reached runtime or I/O".into()),
+        };
+        let error = result.err().ok_or("invalid authentication was accepted")?;
+        assert_eq!(error.kind(), Http3ConnectorErrorKind::Proxy);
+        let source = error
+            .source()
+            .and_then(|source| source.downcast_ref::<Socks5Error>())
+            .ok_or("proxy connector error omitted its SOCKS5 source")?;
+        assert_eq!(source.kind(), Socks5ErrorKind::InvalidAuthentication);
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_remote_socks5_target_precedes_runtime_and_proxy_io() -> Result<(), Box<dyn Error>> {
+        let connector = connector()?;
+        let request = connector.connect_socks5_remote(
+            "does-not-resolve.invalid",
+            1080,
+            "invalid target",
+            443,
+            "example.test",
+        );
+        let mut request = std::pin::pin!(request);
+        let mut context = Context::from_waker(Waker::noop());
+        let result = match request.as_mut().poll(&mut context) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return Err("invalid target reached runtime or proxy I/O".into()),
+        };
+        let error = result.err().ok_or("invalid remote target was accepted")?;
+        assert_eq!(error.kind(), Http3ConnectorErrorKind::Proxy);
+        let source = error
+            .source()
+            .and_then(|source| source.downcast_ref::<Socks5Error>())
+            .ok_or("proxy connector error omitted its SOCKS5 source")?;
+        assert_eq!(source.kind(), Socks5ErrorKind::InvalidTarget);
         Ok(())
     }
 
