@@ -1,6 +1,9 @@
 use std::fmt;
 
+use http::{HeaderMap, header::PROXY_AUTHENTICATE};
+
 use super::{HttpConnectError, http_connect::MAX_CONNECT_HEAD_BYTES};
+use crate::request::RequestHeader;
 
 const BASIC_PREFIX: &[u8] = b"Basic ";
 const MAX_AUTH_PARAMS_PER_CHALLENGE: usize = 64;
@@ -70,6 +73,15 @@ impl HttpBasicCredentials {
     pub(super) fn authorization(&self) -> &[u8] {
         &self.authorization
     }
+
+    /// Produces the canonical authorization field for a validated Basic challenge.
+    ///
+    /// The returned field is marked sensitive so its value is redacted from
+    /// diagnostics and cannot be indexed by compression-based HTTP protocols.
+    #[must_use]
+    pub fn proxy_authorization_header(&self) -> RequestHeader {
+        RequestHeader::new("Proxy-Authorization", &self.authorization).sensitive()
+    }
 }
 
 impl fmt::Debug for HttpBasicCredentials {
@@ -81,14 +93,43 @@ impl fmt::Debug for HttpBasicCredentials {
 pub(super) fn has_valid_basic_challenge(
     headers: &[httparse::Header<'_>],
 ) -> Result<(), HttpConnectError> {
+    validate_basic_challenge_values(headers.iter().filter_map(|header| {
+        header
+            .name
+            .eq_ignore_ascii_case("Proxy-Authenticate")
+            .then_some(header.value)
+    }))
+}
+
+/// Validates the `Proxy-Authenticate` fields from an HTTP 407 response.
+///
+/// At least one syntactically valid Basic challenge with a realm is required.
+/// Every `Proxy-Authenticate` field is parsed strictly, including challenges
+/// for other schemes. Field values are borrowed and are never included in
+/// returned errors or diagnostics.
+///
+/// # Errors
+///
+/// Returns [`HttpConnectError`] when the response contains no supported Basic
+/// challenge or any authentication challenge is malformed.
+pub fn validate_basic_proxy_challenge(headers: &HeaderMap) -> Result<(), HttpConnectError> {
+    validate_basic_challenge_values(
+        headers
+            .get_all(PROXY_AUTHENTICATE)
+            .iter()
+            .map(http::HeaderValue::as_bytes),
+    )
+}
+
+fn validate_basic_challenge_values<'a>(
+    values: impl IntoIterator<Item = &'a [u8]>,
+) -> Result<(), HttpConnectError> {
     let mut saw_authenticate = false;
     let mut saw_basic = false;
-    for header in headers {
-        if header.name.eq_ignore_ascii_case("Proxy-Authenticate") {
-            saw_authenticate = true;
-            parse_challenge_list(header.value, &mut saw_basic)
-                .map_err(|()| HttpConnectError::MalformedAuthenticationChallenge)?;
-        }
+    for value in values {
+        saw_authenticate = true;
+        parse_challenge_list(value, &mut saw_basic)
+            .map_err(|()| HttpConnectError::MalformedAuthenticationChallenge)?;
     }
     if saw_authenticate && saw_basic {
         Ok(())

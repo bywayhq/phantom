@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use http::{HeaderMap, HeaderValue, header::PROXY_AUTHENTICATE};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -11,7 +12,7 @@ use crate::{
     proxy::{
         HttpBasicCredentials, HttpConnectError, HttpConnectErrorKind, HttpConnectHeader,
         connect_http_tunnel, connect_http_tunnel_direct_with_basic_auth,
-        http_connect::PreparedBasicConnect,
+        http_connect::PreparedBasicConnect, validate_basic_proxy_challenge,
     },
     request::RequestHeader,
 };
@@ -52,6 +53,75 @@ fn validates_credentials_and_redacts_debug() -> TestResult {
             assert!(!format!("{error:?}").contains(username));
         }
         assert!(!error.to_string().contains(password));
+    }
+    Ok(())
+}
+
+#[test]
+fn generated_proxy_authorization_is_canonical_sensitive_and_redacted() -> TestResult {
+    let header =
+        HttpBasicCredentials::new("marker-user", "marker-secret")?.proxy_authorization_header();
+
+    assert_eq!(header.name(), "Proxy-Authorization");
+    assert_eq!(
+        header.value(),
+        b"Basic bWFya2VyLXVzZXI6bWFya2VyLXNlY3JldA=="
+    );
+    assert!(header.is_sensitive());
+    let debug = format!("{header:?}");
+    assert!(!debug.contains("marker-user"));
+    assert!(!debug.contains("marker-secret"));
+    assert!(!debug.contains("bWFya2Vy"));
+    assert!(debug.contains("<redacted>"));
+    Ok(())
+}
+
+#[test]
+fn header_map_accepts_repeated_and_mixed_basic_challenges() -> TestResult {
+    let mut headers = HeaderMap::new();
+    headers.append(
+        PROXY_AUTHENTICATE,
+        HeaderValue::from_static("Digest realm=\"other\", nonce=\"value\""),
+    );
+    headers.append(
+        PROXY_AUTHENTICATE,
+        HeaderValue::from_static("Bearer token==, Basic realm=\"proxy\", charset=\"UTF-8\""),
+    );
+
+    validate_basic_proxy_challenge(&headers)?;
+    Ok(())
+}
+
+#[test]
+fn header_map_rejects_missing_unsupported_and_malformed_challenges() -> TestResult {
+    let cases = [
+        (None, HttpConnectError::UnsupportedAuthenticationChallenge),
+        (
+            Some("Digest realm=\"private unsupported realm\""),
+            HttpConnectError::UnsupportedAuthenticationChallenge,
+        ),
+        (
+            Some("Basic realm=\"private malformed realm"),
+            HttpConnectError::MalformedAuthenticationChallenge,
+        ),
+    ];
+
+    for (challenge, expected) in cases {
+        let mut headers = HeaderMap::new();
+        if let Some(challenge) = challenge {
+            headers.insert(PROXY_AUTHENTICATE, HeaderValue::from_str(challenge)?);
+        }
+        let error = validate_basic_proxy_challenge(&headers)
+            .err()
+            .ok_or("unusable HeaderMap challenge was accepted")?;
+        assert_eq!(error.kind(), HttpConnectErrorKind::Authentication);
+        assert_eq!(
+            std::mem::discriminant(&error),
+            std::mem::discriminant(&expected)
+        );
+        let diagnostic = format!("{error:?} {error}");
+        assert!(!diagnostic.contains("private unsupported realm"));
+        assert!(!diagnostic.contains("private malformed realm"));
     }
     Ok(())
 }

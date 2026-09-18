@@ -7,7 +7,7 @@ mod https_connect;
 mod socks5;
 mod tunnel;
 
-pub use authentication::HttpBasicCredentials;
+pub use authentication::{HttpBasicCredentials, validate_basic_proxy_challenge};
 pub use error::{HttpConnectError, HttpConnectErrorKind};
 pub use http_connect::{
     HttpConnectHeader, connect_http_tunnel, connect_http_tunnel_direct,
