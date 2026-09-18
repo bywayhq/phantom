@@ -1,6 +1,7 @@
 use std::{
     collections::VecDeque,
     convert::Infallible,
+    future::poll_fn,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -139,14 +140,33 @@ async fn run_static_trailer_peer(stream: tokio::io::DuplexStream) -> TestResult<
         );
         let mut body = request.into_body();
         let mut data = Vec::new();
-        while let Some(chunk) = body.data().await {
+        while let Some(chunk) = poll_fn(|context| {
+            if let Poll::Ready(item) = body.poll_data(context) {
+                return Poll::Ready(Ok(item));
+            }
+            match connection.poll_closed(context) {
+                Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+                Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+                Poll::Pending => Poll::Pending,
+            }
+        })
+        .await?
+        {
             data.extend_from_slice(&chunk?);
         }
         assert_eq!(data, expected_data);
-        let trailers = body
-            .trailers()
-            .await?
-            .ok_or("request ended without static trailers")?;
+        let trailers = poll_fn(|context| {
+            if let Poll::Ready(result) = body.poll_trailers(context) {
+                return Poll::Ready(result);
+            }
+            match connection.poll_closed(context) {
+                Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+                Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+                Poll::Pending => Poll::Pending,
+            }
+        })
+        .await?
+        .ok_or("request ended without static trailers")?;
         assert_eq!(
             trailers
                 .get_all("x-repeat")
@@ -163,7 +183,7 @@ async fn run_static_trailer_peer(stream: tokio::io::DuplexStream) -> TestResult<
         );
         respond.send_response(Response::builder().status(204).body(())?, true)?;
     }
-    std::future::poll_fn(|context| connection.poll_closed(context)).await?;
+    poll_fn(|context| connection.poll_closed(context)).await?;
     Ok(())
 }
 
@@ -188,7 +208,7 @@ async fn run_body_trailer_peer(stream: tokio::io::DuplexStream) -> TestResult<()
         .ok_or("connection closed before follow-up")??;
     assert_eq!(followup.uri().path(), "/after-body-trailers");
     respond.send_response(Response::builder().status(204).body(())?, true)?;
-    std::future::poll_fn(|context| connection.poll_closed(context)).await?;
+    poll_fn(|context| connection.poll_closed(context)).await?;
     Ok(())
 }
 
