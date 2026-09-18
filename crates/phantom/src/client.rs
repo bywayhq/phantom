@@ -10,7 +10,8 @@ use phantom_profile::{ClientHintSettings, ClientProfile};
 #[cfg(feature = "cookies")]
 use crate::CookieJar;
 use crate::{
-    BuildError, RedirectPolicy, RequestBuilder, RequestTimeouts, Route, Session, SessionBuilder,
+    BuildError, RedirectPolicy, RequestBuilder, RequestTimeouts, RetryPolicy, Route, Session,
+    SessionBuilder,
     session::{ClientOptions, ClientState},
 };
 #[cfg(feature = "websocket")]
@@ -208,6 +209,7 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("route", &self.route)
             .field("redirect_policy", &self.options.redirect_policy)
+            .field("retry_policy", &self.options.retry_policy)
             .field("request_timeouts", &self.options.request_timeouts)
             .field(
                 "max_retained_http1_connections",
@@ -311,6 +313,15 @@ impl ClientBuilder {
     #[must_use]
     pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
         self.options.redirect_policy = policy;
+        self
+    }
+
+    /// Sets the policy for retrying connection-establishment failures.
+    ///
+    /// Connection retries are disabled by default.
+    #[must_use]
+    pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.options.retry_policy = policy;
         self
     }
 

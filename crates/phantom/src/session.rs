@@ -1,6 +1,6 @@
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
-use crate::{Client, RedirectPolicy, RequestTimeouts, client::ClientInner};
+use crate::{Client, RedirectPolicy, RequestTimeouts, RetryPolicy, client::ClientInner};
 #[cfg(feature = "sse")]
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
@@ -50,6 +50,7 @@ const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64
 
 pub(crate) struct ClientOptions {
     pub(crate) redirect_policy: RedirectPolicy,
+    pub(crate) retry_policy: RetryPolicy,
     pub(crate) request_timeouts: RequestTimeouts,
     pub(crate) max_retained_http1_connections: NonZeroUsize,
     pub(crate) max_pending_http1_requests_per_origin: NonZeroUsize,
@@ -68,6 +69,7 @@ impl Default for ClientOptions {
     fn default() -> Self {
         Self {
             redirect_policy: RedirectPolicy::none(),
+            retry_policy: RetryPolicy::none(),
             request_timeouts: RequestTimeouts::default(),
             max_retained_http1_connections: DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS,
             max_pending_http1_requests_per_origin: DEFAULT_MAX_PENDING_HTTP1_REQUESTS_PER_ORIGIN,
@@ -92,6 +94,7 @@ pub type Session = Client;
 
 pub(crate) struct ClientState {
     pub(crate) redirect_policy: RedirectPolicy,
+    pub(crate) retry_policy: RetryPolicy,
     pub(crate) request_timeouts: RequestTimeouts,
     pub(crate) http1: http1_pool::Http1Pool,
     pub(crate) http1_or_2: http1_or_2_pool::Http1Or2Pool,
@@ -106,6 +109,7 @@ impl ClientOptions {
     pub(crate) fn build(self, inner: &ClientInner) -> Arc<ClientState> {
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
+            retry_policy: self.retry_policy,
             request_timeouts: self.request_timeouts,
             http1: http1_pool::Http1Pool::new(
                 self.max_retained_http1_connections,
@@ -139,6 +143,12 @@ impl ClientOptions {
 }
 
 impl Client {
+    /// Returns the policy for retrying connection-establishment failures.
+    #[must_use]
+    pub fn retry_policy(&self) -> RetryPolicy {
+        self.state.retry_policy
+    }
+
     /// Returns the default timeout policy for ordinary requests.
     #[must_use]
     pub fn request_timeouts(&self) -> RequestTimeouts {
@@ -212,6 +222,7 @@ impl fmt::Debug for Client {
         formatter
             .debug_struct("Client")
             .field("redirect_policy", &self.state.redirect_policy)
+            .field("retry_policy", &self.state.retry_policy)
             .field("request_timeouts", &self.state.request_timeouts)
             .field(
                 "max_retained_http1_connections",
@@ -289,6 +300,15 @@ impl SessionBuilder {
     #[must_use]
     pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
         self.options.redirect_policy = policy;
+        self
+    }
+
+    /// Sets the policy for retrying connection-establishment failures.
+    ///
+    /// Connection retries are disabled by default.
+    #[must_use]
+    pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.options.retry_policy = policy;
         self
     }
 
@@ -404,6 +424,7 @@ impl fmt::Debug for SessionBuilder {
         formatter
             .debug_struct("SessionBuilder")
             .field("redirect_policy", &self.options.redirect_policy)
+            .field("retry_policy", &self.options.retry_policy)
             .field(
                 "max_retained_http1_connections",
                 &self.options.max_retained_http1_connections,
