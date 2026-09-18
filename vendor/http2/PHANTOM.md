@@ -83,17 +83,24 @@ after the peer's initial settings. A peer that disables RFC 7540 priorities
 suppresses both PRIORITY frames and the priority fields on HEADERS from the
 first request onward.
 
+The client sender also exposes a race-free readiness future for RFC 8441. It
+distinguishes an initial peer setting that disables extended CONNECT from a
+peer whose initial settings have not arrived yet, resolves immediately for an
+ALPS seed, and wakes every waiter when wire settings are applied or the
+connection fails. The existing synchronous setting snapshot remains available
+for callers that do not need that lifecycle guarantee.
+
 The canonical patch changes these files:
 
 - `.cargo-ok`: preserves the marker in the active Cargo-vendored snapshot.
 - `Cargo.toml` and `Cargo.toml.orig`: enable Tokio's test-only `time` feature.
 - `src/ext.rs`: define the owned ordered-header extension used by outbound and
   inbound messages, plus the outbound semantic check.
-- `src/client.rs`: configure initial peer settings, preserve ordered headers,
-  and start idle close only after polling the open connection.
+- `src/client.rs`: configure and await initial peer settings, preserve ordered
+  headers, and start idle close only after polling the open connection.
 - `src/client/tests.rs`: contain focused semantic, wire, and lifecycle
-  regressions for ordered headers and trailers, idle close, and peer SETTINGS
-  transitions.
+  regressions for ordered headers and trailers, idle close, peer SETTINGS
+  transitions, and extended-CONNECT readiness.
 - `src/codec/framed_read.rs`: preserve RFC connection error codes for malformed
   frame lengths and HPACK decoding failures, and bound complete header-block
   work without rejecting maximum-expansion Huffman values that fit the decoded
@@ -114,7 +121,8 @@ The canonical patch changes these files:
   requests, final responses, and informational responses.
 - `src/proto/streams/streams.rs`: retain ordered headers across extension
   cleanup, enqueue verified ordered request trailers, apply seeded limits before
-  stream 1, and suppress RFC 7540 priority output when directed by the peer.
+  stream 1, wake initial-peer-settings waiters, and suppress RFC 7540 priority
+  output when directed by the peer.
 - `src/share.rs`: expose the additive ordered-trailer send operation.
 
 The canonical source, manifest, and test deltas are listed in
@@ -123,8 +131,9 @@ lifecycle work. `rfc-error-codes.patch` maps invalid SETTINGS and PING lengths
 to `FRAME_SIZE_ERROR` and HPACK decoding failures to `COMPRESSION_ERROR`, as
 required by RFC 9113. The patches remain separate from the complete vendor
 snapshot so a candidate release can be tested without reconstructing changes
-by hand. `ordered-header-table-updates.patch` preserves repeated peer table
-limits through the next HPACK field block. `continuation-bounds.patch`
+by hand. `extended-connect-readiness.patch` adds the initial-peer-settings
+waiter used to gate RFC 8441 requests. `ordered-header-table-updates.patch`
+preserves repeated peer table limits through the next HPACK field block. `continuation-bounds.patch`
 separates header-block resource ceilings and fixes cumulative decoded-size
 accounting across CONTINUATION frames.
 

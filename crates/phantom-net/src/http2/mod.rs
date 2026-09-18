@@ -17,12 +17,15 @@ mod alps;
 mod upload;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
-use request::{PreparedRequestTrailers, prepare_request as build_request};
+use request::{
+    PreparedRequestTrailers, prepare_extended_connect, prepare_request as build_request,
+};
 
 pub use crate::request::{OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
 pub use body::Http2Body;
 pub use connection::Http2Connection;
 pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
+pub use tunnel::{Http2ExtendedConnectOutcome, Http2ExtendedConnectStream};
 
 /// Validates one empty-body HTTP/2 GET without touching a connection.
 ///
@@ -40,6 +43,31 @@ pub fn validate_get(
     headers: &[RequestHeader],
 ) -> Result<(), Http2Error> {
     validate_request(&Method::GET, authority, target, headers, None)
+}
+
+/// Validates one WebSocket extended CONNECT request without I/O.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when the authority, origin-form target, or ordered
+/// HTTP/2 fields are invalid.
+pub fn validate_extended_connect(
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+) -> Result<(), Http2Error> {
+    prepare_extended_connect(authority, target.clone(), headers.to_vec()).map(drop)
+}
+
+/// Validates settings for an exact extended CONNECT connection without I/O.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when settings are invalid or omit an observed
+/// five-field extended CONNECT pseudo-header order.
+pub fn validate_extended_connect_settings(settings: &Http2Settings) -> Result<(), Http2Error> {
+    settings.validate().map_err(Http2Error::InvalidSettings)?;
+    translate_extended_connect_settings(settings).map(drop)
 }
 
 /// Validates one HTTP/2 request without touching a connection.
@@ -458,6 +486,24 @@ impl Drop for OperationOutcome {
 }
 
 pub(crate) fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2Error> {
+    translate_settings_with_pseudo_order(settings, &settings.pseudo_header_order, false)
+}
+
+pub(crate) fn translate_extended_connect_settings(
+    settings: &Http2Settings,
+) -> Result<client::Builder, Http2Error> {
+    let order = settings
+        .extended_connect_pseudo_header_order
+        .as_deref()
+        .ok_or(Http2Error::MissingExtendedConnectPseudoHeaderOrder)?;
+    translate_settings_with_pseudo_order(settings, order, true)
+}
+
+fn translate_settings_with_pseudo_order(
+    settings: &Http2Settings,
+    configured_pseudo_order: &[Http2PseudoHeader],
+    extended_connect: bool,
+) -> Result<client::Builder, Http2Error> {
     if settings
         .headers_priority
         .is_some_and(|priority| priority.dependency_stream_id == 1)
@@ -508,12 +554,14 @@ pub(crate) fn translate_settings(settings: &Http2Settings) -> Result<client::Bui
     }
 
     let mut pseudo_order = PseudoOrder::builder();
-    for header in &settings.pseudo_header_order {
+    for header in configured_pseudo_order {
         let id = match header {
             Http2PseudoHeader::Method => PseudoId::Method,
             Http2PseudoHeader::Authority => PseudoId::Authority,
             Http2PseudoHeader::Scheme => PseudoId::Scheme,
             Http2PseudoHeader::Path => PseudoId::Path,
+            Http2PseudoHeader::Protocol if extended_connect => PseudoId::Protocol,
+            Http2PseudoHeader::Protocol => return Err(Http2Error::UnsupportedSetting),
             _ => return Err(Http2Error::UnsupportedSetting),
         };
         pseudo_order = pseudo_order.push(id);
@@ -538,6 +586,7 @@ mod driver;
 mod error;
 mod request;
 mod tls;
+mod tunnel;
 
 pub use tls::{Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
 pub(crate) use tls::{connect_selected, validate_http2};

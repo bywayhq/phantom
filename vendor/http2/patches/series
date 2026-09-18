@@ -1,4 +1,5 @@
 ordered-headers.patch
+extended-connect-readiness.patch
 ordered-request-trailers.patch
 rfc-error-codes.patch
 ordered-header-table-updates.patch

@@ -11,13 +11,14 @@ use phantom_net::{
         AbsoluteForm, Http1TlsConnector, Http1TlsError, Http1UpgradeOutcome, OriginForm,
         validate_forward_request_body,
     },
+    http2::Http2ExtendedConnectOutcome,
     proxy::{HttpConnectError, validate_basic_proxy_challenge},
     request::RequestHeader,
 };
 use tracing::{Instrument, Span, debug_span, field};
 
 use crate::{
-    Client, RequestError, ResponseBody, Route,
+    Client, HttpProtocol, RequestError, ResponseBody, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
 };
 
@@ -38,13 +39,17 @@ pub use error::{WebSocketError, WebSocketErrorKind};
 pub use handshake::WebSocketHeader;
 pub use message::{WebSocketCloseFrame, WebSocketLimits, WebSocketMessage};
 
-use handshake::{default_headers, prepare, validate_response};
+use handshake::{
+    default_headers, default_http2_headers, prepare, prepare_http2, validate_http2_response,
+    validate_response,
+};
 use trace::OperationOutcome;
 
 /// Builder for one ordered WebSocket opening handshake.
 #[must_use = "WebSocket builders do nothing until connect is awaited"]
 pub struct WebSocketRequestBuilder {
     client: Client,
+    protocol: HttpProtocol,
     request: ResolvedWebSocket,
     headers: Vec<WebSocketHeader>,
     limits: WebSocketLimits,
@@ -58,6 +63,7 @@ impl fmt::Debug for WebSocketRequestBuilder {
         let mut debug = formatter.debug_struct("WebSocketRequestBuilder");
         debug
             .field("header_count", &self.headers.len())
+            .field("protocol", &self.protocol)
             .field("limits", &self.limits)
             .field("route_override", &self.route.is_some());
         #[cfg(feature = "websocket-deflate")]
@@ -68,17 +74,35 @@ impl fmt::Debug for WebSocketRequestBuilder {
 
 impl WebSocketRequestBuilder {
     pub(crate) fn new_client(client: Client, uri: &str) -> Result<Self, WebSocketError> {
-        Self::new(client, uri)
+        Self::new(client, HttpProtocol::Http1, uri)
     }
 
-    fn new(client: Client, uri: &str) -> Result<Self, WebSocketError> {
-        if client.inner.http1.is_none() {
-            return Err(WebSocketError::protocol_unavailable());
+    pub(crate) fn new_client_with_protocol(
+        client: Client,
+        protocol: HttpProtocol,
+        uri: &str,
+    ) -> Result<Self, WebSocketError> {
+        Self::new(client, protocol, uri)
+    }
+
+    fn new(client: Client, protocol: HttpProtocol, uri: &str) -> Result<Self, WebSocketError> {
+        let available = match protocol {
+            HttpProtocol::Http1 => client.inner.http1.is_some(),
+            HttpProtocol::Http2 => client.inner.http2.is_some(),
+            HttpProtocol::Http3 => false,
+        };
+        if !available {
+            return Err(WebSocketError::protocol_unavailable(protocol));
         }
         Ok(Self {
             client,
+            protocol,
             request: ResolvedWebSocket::new(uri)?,
-            headers: default_headers(),
+            headers: match protocol {
+                HttpProtocol::Http1 => default_headers(),
+                HttpProtocol::Http2 => default_http2_headers(),
+                HttpProtocol::Http3 => return Err(WebSocketError::protocol_unavailable(protocol)),
+            },
             limits: WebSocketLimits::default(),
             route: None,
             #[cfg(feature = "websocket-deflate")]
@@ -121,7 +145,7 @@ impl WebSocketRequestBuilder {
         self
     }
 
-    /// Performs the ordered H1 Upgrade handshake.
+    /// Performs the ordered opening handshake over the selected exact protocol.
     ///
     /// Dropping this future cancels the in-flight operation. There are no
     /// implicit redirects, reconnects, or protocol fallbacks. Configured Basic
@@ -136,7 +160,7 @@ impl WebSocketRequestBuilder {
         let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
         let span = debug_span!(
             "websocket.connect",
-            protocol = "http/1.1",
+            protocol = self.protocol.trace_name(),
             route = self.request.route_trace_name(route),
             proxy_authentication_retry = field::Empty,
             proxy_attempts = field::Empty,
@@ -153,8 +177,17 @@ impl WebSocketRequestBuilder {
     }
 
     async fn connect_inner(self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
+        match self.protocol {
+            HttpProtocol::Http1 => self.connect_http1(request_span).await,
+            HttpProtocol::Http2 => self.connect_http2().await,
+            HttpProtocol::Http3 => Err(WebSocketError::protocol_unavailable(HttpProtocol::Http3)),
+        }
+    }
+
+    async fn connect_http1(self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
         let Self {
             client,
+            protocol: _,
             request,
             headers,
             limits,
@@ -192,7 +225,7 @@ impl WebSocketRequestBuilder {
             .inner
             .http1
             .as_ref()
-            .ok_or_else(WebSocketError::protocol_unavailable)?;
+            .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
         let outcome = match request.transport {
             WebSocketTransport::Plaintext => match route {
                 Route::Direct => {
@@ -403,9 +436,110 @@ impl WebSocketRequestBuilder {
                 }
                 let (parts, stream) = response.into_parts();
                 let handshake = Response::from_parts(parts, ());
-                Ok(WebSocket::new(
+                Ok(WebSocket::new_http1(
                     stream,
                     handshake,
+                    selected_protocol,
+                    limits,
+                    engine_config,
+                    #[cfg(feature = "websocket-deflate")]
+                    negotiated,
+                )
+                .await)
+            }
+        }
+    }
+
+    async fn connect_http2(self) -> Result<WebSocket, WebSocketError> {
+        let Self {
+            client,
+            protocol: _,
+            request,
+            headers,
+            limits,
+            route,
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate,
+        } = self;
+        let route = route.as_ref().unwrap_or(&client.inner.route);
+        if !matches!(route, Route::Direct) || request.transport != WebSocketTransport::Tls {
+            return Err(WebSocketError::request(RequestError::unsupported_route(
+                HttpProtocol::Http2,
+            )));
+        }
+
+        #[cfg(feature = "cookies")]
+        let cookie_jar = client.state.cookies.as_ref().map(Arc::clone);
+        #[cfg(feature = "cookies")]
+        let cookie_value = cookie_jar
+            .as_deref()
+            .and_then(|jar| jar.request_value_for_url(&request.cookie_url));
+        #[cfg(not(feature = "cookies"))]
+        let cookie_value: Option<String> = None;
+
+        let engine_config = WebSocket::engine_config(limits);
+        #[cfg(feature = "websocket-deflate")]
+        let engine_config =
+            permessage_deflate.map_or(Ok(engine_config), |policy| policy.apply(engine_config))?;
+        #[cfg(feature = "websocket-deflate")]
+        let extension_offer = engine_config.deflate_offer();
+        #[cfg(not(feature = "websocket-deflate"))]
+        let extension_offer: Option<http::HeaderValue> = None;
+        let prepared = prepare_http2(
+            headers,
+            cookie_value.as_deref(),
+            extension_offer.as_ref().map(http::HeaderValue::as_bytes),
+        )?;
+        let connector = client
+            .inner
+            .http2
+            .as_ref()
+            .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
+        let outcome = connector
+            .send_extended_connect_direct(
+                request.endpoint.host(),
+                request.endpoint.port(),
+                request.endpoint.host(),
+                request.endpoint.authority().as_str(),
+                request.target,
+                prepared.headers,
+            )
+            .await
+            .map_err(RequestError::http2)
+            .map_err(WebSocketError::request)?;
+
+        match outcome {
+            Http2ExtendedConnectOutcome::Rejected(response) => {
+                let (parts, body) = response.into_parts();
+                let response = Response::from_parts(parts, ResponseBody::http2(body));
+                #[cfg(feature = "cookies")]
+                if let Some(jar) = cookie_jar.as_deref() {
+                    jar.store_response_headers(&request.cookie_url, response.headers());
+                }
+                Err(WebSocketError::rejected(response))
+            }
+            Http2ExtendedConnectOutcome::Accepted { response, stream } => {
+                let selected_protocol = validate_http2_response(
+                    response.version(),
+                    response.headers(),
+                    &prepared.offered_protocols,
+                    extension_offer.is_some(),
+                )?;
+                #[cfg(feature = "websocket-deflate")]
+                let engine_config = engine_config
+                    .accept_deflate_response(response.headers())
+                    .map_err(WebSocketError::invalid_handshake_source)?;
+                #[cfg(feature = "websocket-deflate")]
+                let negotiated = engine_config
+                    .permessage_deflate()
+                    .map(NegotiatedPerMessageDeflate::from_engine);
+                #[cfg(feature = "cookies")]
+                if let Some(jar) = cookie_jar.as_deref() {
+                    jar.store_response_headers(&request.cookie_url, response.headers());
+                }
+                Ok(WebSocket::new_http2(
+                    stream,
+                    response,
                     selected_protocol,
                     limits,
                     engine_config,

@@ -111,7 +111,9 @@ failures return typed errors; runtime library code must not panic.
 - Setup retries remain inside exact-protocol pools and cannot absorb TLS,
   proxy negotiation, response, or post-dispatch failures.
 - SSE and WebSocket reuse client contracts without hiding their distinct
-  lifecycles.
+  lifecycles. H2 WebSocket uses a dedicated extended-CONNECT connection so its
+  five-field pseudo-header order cannot alter ordinary pooled H2 requests; the
+  accepted stream retains both DATA directions and the connection driver.
 
 Forward-proxy Basic authentication is request-scoped rather than learned
 client state. Every logical exact-H1 forwarding request starts anonymously. A

@@ -405,6 +405,147 @@ async fn seeded_peer_limits_apply_to_the_first_request() {
 }
 
 #[tokio::test]
+async fn extended_connect_readiness_is_immediate_for_enabled_seed() {
+    let (client_io, _peer_io) = duplex(16 * 1024);
+    let mut peer_settings = Settings::default();
+    peer_settings.set_enable_connect_protocol(Some(1));
+    let mut builder = super::Builder::new();
+    builder.initial_peer_settings(peer_settings);
+    let (mut sender, _connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+
+    let mut context = Context::from_waker(Waker::noop());
+    assert!(matches!(
+        sender.poll_extended_connect_protocol_ready(&mut context),
+        Poll::Ready(Ok(true))
+    ));
+}
+
+#[tokio::test]
+async fn extended_connect_readiness_waits_for_wire_settings_and_wakes() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (mut sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let wake_count = Arc::new(AtomicUsize::new(0));
+        let waker = Waker::from(Arc::new(CountWake(Arc::clone(&wake_count))));
+        let mut context = Context::from_waker(&waker);
+        assert!(sender
+            .poll_extended_connect_protocol_ready(&mut context)
+            .is_pending());
+
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer_io).await;
+        let initial = read_raw_frame(&mut peer_io).await;
+        assert_eq!((initial.kind, initial.flags), (4, 0));
+        write_raw_frame(&mut peer_io, 4, 0, 0, &settings_payload(&[(8, 1)])).await;
+        let ack = read_raw_frame(&mut peer_io).await;
+        assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
+        assert!(wake_count.load(Ordering::SeqCst) > 0);
+        assert!(matches!(
+            sender.poll_extended_connect_protocol_ready(&mut context),
+            Poll::Ready(Ok(true))
+        ));
+        driver.abort();
+    })
+    .await
+    .expect("wire readiness test timed out");
+}
+
+#[tokio::test]
+async fn extended_connect_readiness_reports_wire_default_false() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (mut sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer_io).await;
+        let initial = read_raw_frame(&mut peer_io).await;
+        assert_eq!((initial.kind, initial.flags), (4, 0));
+        write_raw_frame(&mut peer_io, 4, 0, 0, &[]).await;
+        let ack = read_raw_frame(&mut peer_io).await;
+        assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
+        assert!(!sender
+            .extended_connect_protocol_ready()
+            .await
+            .expect("readiness failed"));
+        driver.abort();
+    })
+    .await
+    .expect("wire disabled-readiness test timed out");
+}
+
+#[tokio::test]
+async fn extended_connect_readiness_wakes_with_connection_error() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (mut sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let wake_count = Arc::new(AtomicUsize::new(0));
+        let waker = Waker::from(Arc::new(CountWake(Arc::clone(&wake_count))));
+        let mut context = Context::from_waker(&waker);
+        assert!(sender
+            .poll_extended_connect_protocol_ready(&mut context)
+            .is_pending());
+
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer_io).await;
+        let initial = read_raw_frame(&mut peer_io).await;
+        assert_eq!((initial.kind, initial.flags), (4, 0));
+        write_raw_frame(&mut peer_io, 6, 0, 0, &[0; 8]).await;
+        driver
+            .await
+            .expect("client driver task panicked")
+            .expect_err("non-SETTINGS first peer frame was accepted");
+        assert!(wake_count.load(Ordering::SeqCst) > 0);
+        assert!(matches!(
+            sender.poll_extended_connect_protocol_ready(&mut context),
+            Poll::Ready(Err(_))
+        ));
+    })
+    .await
+    .expect("readiness connection-error test timed out");
+}
+
+#[tokio::test]
+async fn extended_connect_readiness_wakes_when_peer_closes_before_settings() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (mut sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let wake_count = Arc::new(AtomicUsize::new(0));
+        let waker = Waker::from(Arc::new(CountWake(Arc::clone(&wake_count))));
+        let mut context = Context::from_waker(&waker);
+        assert!(sender
+            .poll_extended_connect_protocol_ready(&mut context)
+            .is_pending());
+
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer_io).await;
+        let initial = read_raw_frame(&mut peer_io).await;
+        assert_eq!((initial.kind, initial.flags), (4, 0));
+        drop(peer_io);
+        driver
+            .await
+            .expect("client driver task panicked")
+            .expect_err("clean EOF before peer settings was accepted");
+        assert!(wake_count.load(Ordering::SeqCst) > 0);
+        assert!(matches!(
+            sender.poll_extended_connect_protocol_ready(&mut context),
+            Poll::Ready(Err(_))
+        ));
+    })
+    .await
+    .expect("readiness EOF test timed out");
+}
+
+#[tokio::test]
 async fn seeded_peer_settings_change_first_headers_without_an_ack() {
     timeout(Duration::from_secs(2), async {
         let (client_io, mut peer_io) = duplex(16 * 1024);

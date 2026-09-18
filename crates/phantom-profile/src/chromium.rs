@@ -182,6 +182,7 @@ pub fn v152_macos_http2() -> Http2Settings {
             Http2PseudoHeader::Scheme,
             Http2PseudoHeader::Path,
         ],
+        extended_connect_pseudo_header_order: None,
         headers_priority: Some(Http2Priority {
             dependency_stream_id: 0,
             weight: 256,

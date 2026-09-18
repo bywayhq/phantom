@@ -13,6 +13,7 @@ fn settings() -> Http2Settings {
             Http2PseudoHeader::Scheme,
             Http2PseudoHeader::Path,
         ],
+        extended_connect_pseudo_header_order: None,
         headers_priority: None,
     }
 }
@@ -100,6 +101,47 @@ fn requires_each_request_pseudo_header_once() {
     let mut duplicate = settings();
     duplicate.pseudo_header_order[3] = Http2PseudoHeader::Method;
     assert_field(duplicate.validate(), "pseudo_header_order");
+
+    let mut extended = settings();
+    extended.pseudo_header_order[3] = Http2PseudoHeader::Protocol;
+    assert_field(extended.validate(), "pseudo_header_order");
+}
+
+#[test]
+fn accepts_custom_extended_connect_pseudo_header_order() -> Result<(), Box<dyn std::error::Error>> {
+    let mut settings = settings();
+    settings.extended_connect_pseudo_header_order = Some(vec![
+        Http2PseudoHeader::Method,
+        Http2PseudoHeader::Protocol,
+        Http2PseudoHeader::Authority,
+        Http2PseudoHeader::Scheme,
+        Http2PseudoHeader::Path,
+    ]);
+
+    settings.validate()?;
+    Ok(())
+}
+
+#[test]
+fn requires_each_extended_connect_pseudo_header_once() {
+    let mut missing = settings();
+    missing.extended_connect_pseudo_header_order = Some(vec![
+        Http2PseudoHeader::Method,
+        Http2PseudoHeader::Authority,
+        Http2PseudoHeader::Scheme,
+        Http2PseudoHeader::Path,
+    ]);
+    assert_field(missing.validate(), "extended_connect_pseudo_header_order");
+
+    let mut duplicate = settings();
+    duplicate.extended_connect_pseudo_header_order = Some(vec![
+        Http2PseudoHeader::Method,
+        Http2PseudoHeader::Authority,
+        Http2PseudoHeader::Scheme,
+        Http2PseudoHeader::Path,
+        Http2PseudoHeader::Method,
+    ]);
+    assert_field(duplicate.validate(), "extended_connect_pseudo_header_order");
 }
 
 #[test]

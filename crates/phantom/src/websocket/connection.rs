@@ -6,7 +6,8 @@ use std::{
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use http::Response;
-use phantom_net::http1::Http1Upgrade;
+use phantom_net::{http1::Http1Upgrade, http2::Http2ExtendedConnectStream};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_tungstenite::{
     WebSocketStream,
     tungstenite::protocol::{Role, WebSocketConfig},
@@ -27,7 +28,7 @@ use super::{
 /// value closes the transport immediately; use [`WebSocket::close`] to send a
 /// graceful Close frame first.
 pub struct WebSocket {
-    socket: Option<WebSocketStream<Http1Upgrade>>,
+    socket: Option<WebSocketStream<WebSocketIo>>,
     handshake: Response<()>,
     selected_protocol: Option<Box<str>>,
     limits: WebSocketLimits,
@@ -50,8 +51,52 @@ impl fmt::Debug for WebSocket {
 }
 
 impl WebSocket {
-    pub(super) async fn new(
+    pub(super) async fn new_http1(
         stream: Http1Upgrade,
+        handshake: Response<()>,
+        selected_protocol: Option<Box<str>>,
+        limits: WebSocketLimits,
+        config: WebSocketConfig,
+        #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
+            NegotiatedPerMessageDeflate,
+        >,
+    ) -> Self {
+        Self::new(
+            WebSocketIo::Http1(stream),
+            handshake,
+            selected_protocol,
+            limits,
+            config,
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate,
+        )
+        .await
+    }
+
+    pub(super) async fn new_http2(
+        stream: Http2ExtendedConnectStream,
+        handshake: Response<()>,
+        selected_protocol: Option<Box<str>>,
+        limits: WebSocketLimits,
+        config: WebSocketConfig,
+        #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
+            NegotiatedPerMessageDeflate,
+        >,
+    ) -> Self {
+        Self::new(
+            WebSocketIo::Http2(stream),
+            handshake,
+            selected_protocol,
+            limits,
+            config,
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate,
+        )
+        .await
+    }
+
+    async fn new(
+        stream: WebSocketIo,
         handshake: Response<()>,
         selected_protocol: Option<Box<str>>,
         limits: WebSocketLimits,
@@ -82,7 +127,9 @@ impl WebSocket {
             .accept_unmasked_frames(false)
     }
 
-    /// Returns the validated `101` response and its ordered-header extension.
+    /// Returns the validated H1 `101` or H2 2xx opening response.
+    ///
+    /// Its extensions retain the exact ordered response fields.
     #[must_use]
     pub fn handshake_response(&self) -> &Response<()> {
         &self.handshake
@@ -190,6 +237,66 @@ impl WebSocket {
     }
 }
 
+enum WebSocketIo {
+    Http1(Http1Upgrade),
+    Http2(Http2ExtendedConnectStream),
+}
+
+impl AsyncRead for WebSocketIo {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        output: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        match &mut *self {
+            Self::Http1(stream) => Pin::new(stream).poll_read(context, output),
+            Self::Http2(stream) => Pin::new(stream).poll_read(context, output),
+        }
+    }
+}
+
+impl AsyncWrite for WebSocketIo {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        input: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        match &mut *self {
+            Self::Http1(stream) => Pin::new(stream).poll_write(context, input),
+            Self::Http2(stream) => Pin::new(stream).poll_write(context, input),
+        }
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        match &mut *self {
+            Self::Http1(stream) => Pin::new(stream).poll_flush(context),
+            Self::Http2(stream) => Pin::new(stream).poll_flush(context),
+        }
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        match &mut *self {
+            Self::Http1(stream) => Pin::new(stream).poll_shutdown(context),
+            Self::Http2(stream) => Pin::new(stream).poll_shutdown(context),
+        }
+    }
+}
+
+impl WebSocketIo {
+    fn poll_shutdown_http2(&mut self, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self {
+            Self::Http1(_) => Poll::Ready(Ok(())),
+            Self::Http2(stream) => Pin::new(stream).poll_shutdown(context),
+        }
+    }
+}
+
 impl Stream for WebSocket {
     type Item = Result<WebSocketMessage, WebSocketError>;
 
@@ -239,10 +346,23 @@ fn poll_pending_incoming(
         socket.pending_incoming = None;
         return Poll::Ready(Some(Err(WebSocketError::closed())));
     };
-    match Pin::new(engine).poll_flush(context) {
-        Poll::Ready(Ok(())) => Poll::Ready(Some(socket.pending_incoming.take().ok_or_else(|| {
-            WebSocketError::protocol("WebSocket control-reply state lost its pending message")
-        }))),
+    match Pin::new(&mut *engine).poll_flush(context) {
+        Poll::Ready(Ok(())) => {
+            let is_close = matches!(socket.pending_incoming, Some(WebSocketMessage::Close(_)));
+            if is_close {
+                match Pin::new(engine.get_mut())
+                    .poll_shutdown_http2(context)
+                    .map_err(WebSocketError::engine_io)
+                {
+                    Poll::Ready(Ok(())) => {}
+                    Poll::Ready(Err(error)) => return Poll::Ready(Some(Err(error))),
+                    Poll::Pending => return Poll::Pending,
+                }
+            }
+            Poll::Ready(Some(socket.pending_incoming.take().ok_or_else(|| {
+                WebSocketError::protocol("WebSocket control-reply state lost its pending message")
+            })))
+        }
         Poll::Ready(Err(error)) => {
             socket.socket = None;
             socket.pending_incoming = None;
@@ -295,8 +415,12 @@ impl Sink<WebSocketMessage> for WebSocket {
         let Some(socket) = self.get_mut().socket.as_mut() else {
             return Poll::Ready(Err(WebSocketError::closed()));
         };
-        Pin::new(socket)
-            .poll_close(context)
-            .map_err(WebSocketError::engine)
+        match Pin::new(&mut *socket).poll_close(context) {
+            Poll::Ready(Ok(())) => Pin::new(socket.get_mut())
+                .poll_shutdown_http2(context)
+                .map_err(WebSocketError::engine_io),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(WebSocketError::engine(error))),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }

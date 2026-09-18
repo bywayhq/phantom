@@ -106,6 +106,7 @@ fn chrome_152_macos_http2_settings_match_retained_pingly_observation()
         initial_settings,
         initial_connection_window_size,
         pseudo_header_order,
+        extended_connect_pseudo_header_order: None,
         headers_priority: Some(headers_priority),
     };
     observed.validate()?;

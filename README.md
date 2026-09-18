@@ -36,7 +36,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
 | Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; local- or remote-DNS SOCKS5 for H1/H2; and exact H3 over local- or remote-DNS SOCKS5 using RFC 1928 UDP ASSOCIATE |
 | State | Isolated bounded pools, redirects, opt-in exact-protocol setup retries, timeouts, client hints, TLS sessions, bounded opt-in Alt-Svc, and opt-in cookies |
-| Optional APIs | Server-sent events, H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable, and opt-in `permessage-deflate` |
+| Optional APIs | Server-sent events; H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable; exact direct H2 WebSocket extended CONNECT for explicitly configured profiles; and opt-in `permessage-deflate` |
 | Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
 
 See [Coverage](docs/coverage.md) for the exact supported and planned lifecycle
@@ -93,7 +93,7 @@ timeouts, bodies, and responses.
 - Streaming request bodies are one-shot and are not replayed implicitly.
 - Broader status, post-dispatch, and negotiated-protocol retry policies;
   CONNECT-UDP/MASQUE; Alt-Svc connection racing, persistence, `Alt-Used`, and
-  H2 ALTSVC frames; extended CONNECT; and H2/H3 WebSocket remain planned.
+  H2 ALTSVC frames; proxy-carried extended CONNECT; and H3 WebSocket remain planned.
 
 These limits make Phantom narrower than a general-purpose client, but keep its
 behavior explicit and testable.

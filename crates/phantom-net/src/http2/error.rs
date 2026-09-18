@@ -103,6 +103,12 @@ pub enum Http2Error {
     AuthorityContainsUserinfo,
     /// Standard CONNECT cannot be represented by an origin-form target.
     ConnectUnsupported,
+    /// The profile has no verified extended CONNECT pseudo-header order.
+    MissingExtendedConnectPseudoHeaderOrder,
+    /// This connection was not created with the extended CONNECT pseudo-header order.
+    ExtendedConnectConnectionRequired,
+    /// The peer did not enable extended CONNECT in its initial settings.
+    ExtendedConnectProtocolDisabled,
     /// The internally composed HTTPS request URI was rejected.
     InvalidRequestUri(http::Error),
     /// The request contained more headers than the fixed safety bound.
@@ -220,6 +226,15 @@ impl fmt::Display for Http2Error {
             Self::ConnectUnsupported => {
                 formatter.write_str("HTTP/2 CONNECT requires an authority-form request API")
             }
+            Self::MissingExtendedConnectPseudoHeaderOrder => formatter.write_str(
+                "HTTP/2 profile does not configure an extended CONNECT pseudo-header order",
+            ),
+            Self::ExtendedConnectConnectionRequired => formatter.write_str(
+                "HTTP/2 connection was not configured for exact extended CONNECT pseudo-header order",
+            ),
+            Self::ExtendedConnectProtocolDisabled => formatter.write_str(
+                "HTTP/2 peer did not enable extended CONNECT in its initial settings",
+            ),
             Self::InvalidRequestUri(_) => {
                 formatter.write_str("failed to compose the absolute HTTPS request URI")
             }
@@ -336,6 +351,11 @@ impl Http2Error {
             Self::InvalidAuthority(_) => "invalid_authority",
             Self::AuthorityContainsUserinfo => "authority_contains_userinfo",
             Self::ConnectUnsupported => "connect_unsupported",
+            Self::MissingExtendedConnectPseudoHeaderOrder => {
+                "missing_extended_connect_pseudo_header_order"
+            }
+            Self::ExtendedConnectConnectionRequired => "extended_connect_connection_required",
+            Self::ExtendedConnectProtocolDisabled => "extended_connect_protocol_disabled",
             Self::InvalidRequestUri(_) => "invalid_request_uri",
             Self::TooManyHeaders { .. } => "too_many_headers",
             Self::HeadersTooLarge { .. } => "headers_too_large",

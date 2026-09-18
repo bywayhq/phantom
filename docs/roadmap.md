@@ -31,7 +31,13 @@ work has exposed the real architectural boundaries.
   advertised `h3` location, and apply explicit failure and `421` eviction
   semantics without fallback. Racing, persistence, `Alt-Used`, and H2 ALTSVC
   frames remain later Phase 1 functionality.
-- CONNECT-UDP/MASQUE and extended CONNECT remain in Phase 1.
+- The first extended CONNECT slice is complete: explicitly configured custom
+  H2 profiles can open exact direct `wss://` WebSockets after peer SETTINGS
+  opt-in, with a dedicated five-pseudo-header order, duplex flow control,
+  streamed rejection bodies, clean close, and no fallback. Named-browser
+  recipes remain capture-gated.
+- CONNECT-UDP/MASQUE, proxy-carried or H3 extended CONNECT, and named-browser
+  H2 WebSocket recipes remain in Phase 1.
 
 ## Phase 2 — Ergonomics
 

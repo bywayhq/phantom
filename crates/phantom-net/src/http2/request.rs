@@ -1,6 +1,6 @@
 //! Request construction and HTTP/2 field validation.
 
-use ::http2::ext::OrderedHeaders;
+use ::http2::ext::{OrderedHeaders, Protocol};
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
@@ -148,6 +148,39 @@ pub(super) fn prepare_request(
     request
         .extensions_mut()
         .insert(OrderedHeaders::new(headers.ordered));
+    Ok(request)
+}
+
+pub(super) fn prepare_extended_connect(
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Request<()>, Http2Error> {
+    if authority.as_bytes().contains(&b'@') {
+        return Err(Http2Error::AuthorityContainsUserinfo);
+    }
+    let authority = authority
+        .parse::<Authority>()
+        .map_err(Http2Error::InvalidAuthority)?;
+    let uri = Uri::builder()
+        .scheme("https")
+        .authority(authority)
+        .path_and_query(target.into_path_and_query())
+        .build()
+        .map_err(Http2Error::InvalidRequestUri)?;
+    let headers = ValidatedHeaders::new(headers, None)?;
+
+    let mut request = Request::new(());
+    *request.method_mut() = Method::CONNECT;
+    *request.uri_mut() = uri;
+    *request.version_mut() = Version::HTTP_2;
+    headers.populate(request.headers_mut())?;
+    request
+        .extensions_mut()
+        .insert(OrderedHeaders::new(headers.ordered));
+    request
+        .extensions_mut()
+        .insert(Protocol::from_static("websocket"));
     Ok(request)
 }
 

@@ -72,6 +72,10 @@ pub enum Http2PseudoHeader {
     Scheme,
     /// `:path`.
     Path,
+    /// `:protocol`.
+    ///
+    /// This pseudo-header is present only on extended CONNECT requests.
+    Protocol,
 }
 
 /// Priority information carried by each outgoing request HEADERS frame.
@@ -101,6 +105,12 @@ pub struct Http2Settings {
     pub initial_connection_window_size: u32,
     /// Wire order of `:method`, `:authority`, `:scheme`, and `:path`.
     pub pseudo_header_order: Vec<Http2PseudoHeader>,
+    /// Wire order of pseudo-headers on an extended CONNECT request.
+    ///
+    /// When configured, this must contain `:method`, `:authority`, `:scheme`,
+    /// `:path`, and `:protocol` exactly once. `None` means that the profile
+    /// does not claim an observed extended CONNECT pseudo-header order.
+    pub extended_connect_pseudo_header_order: Option<Vec<Http2PseudoHeader>>,
     /// Optional priority fields carried by each request HEADERS frame.
     pub headers_priority: Option<Http2Priority>,
 }
@@ -120,6 +130,9 @@ impl Http2Settings {
         }
 
         validate_pseudo_header_order(&self.pseudo_header_order)?;
+        if let Some(order) = &self.extended_connect_pseudo_header_order {
+            validate_extended_connect_pseudo_header_order(order)?;
+        }
 
         if let Some(priority) = self.headers_priority {
             if priority.dependency_stream_id > MAX_STREAM_ID {
@@ -232,11 +245,50 @@ fn validate_pseudo_header_order(order: &[Http2PseudoHeader]) -> Result<(), Inval
             Http2PseudoHeader::Authority => 1,
             Http2PseudoHeader::Scheme => 2,
             Http2PseudoHeader::Path => 3,
+            Http2PseudoHeader::Protocol => {
+                return Err(InvalidHttp2Settings::new(
+                    "pseudo_header_order",
+                    "ordinary requests must not contain protocol",
+                ));
+            }
         };
         if present[index] {
             return Err(InvalidHttp2Settings::new(
                 "pseudo_header_order",
                 "order must contain method, authority, scheme, and path exactly once",
+            ));
+        }
+        present[index] = true;
+    }
+
+    Ok(())
+}
+
+fn validate_extended_connect_pseudo_header_order(
+    order: &[Http2PseudoHeader],
+) -> Result<(), InvalidHttp2Settings> {
+    const REQUIRED_COUNT: usize = 5;
+    const FIELD: &str = "extended_connect_pseudo_header_order";
+    if order.len() != REQUIRED_COUNT {
+        return Err(InvalidHttp2Settings::new(
+            FIELD,
+            "order must contain method, authority, scheme, path, and protocol exactly once",
+        ));
+    }
+
+    let mut present = [false; REQUIRED_COUNT];
+    for header in order {
+        let index = match header {
+            Http2PseudoHeader::Method => 0,
+            Http2PseudoHeader::Authority => 1,
+            Http2PseudoHeader::Scheme => 2,
+            Http2PseudoHeader::Path => 3,
+            Http2PseudoHeader::Protocol => 4,
+        };
+        if present[index] {
+            return Err(InvalidHttp2Settings::new(
+                FIELD,
+                "order must contain method, authority, scheme, path, and protocol exactly once",
             ));
         }
         present[index] = true;

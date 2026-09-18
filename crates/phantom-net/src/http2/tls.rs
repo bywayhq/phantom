@@ -9,8 +9,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http2Body, Http2Connection, Http2Error, OperationOutcome, OriginForm, PreparedRequest,
-    RequestHeader, alps, translate_settings,
+    Http2Body, Http2Connection, Http2Error, Http2ExtendedConnectOutcome, OperationOutcome,
+    OriginForm, PreparedRequest, RequestHeader, alps, translate_extended_connect_settings,
+    translate_settings, validate_extended_connect,
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
@@ -166,6 +167,43 @@ impl Http2TlsConnector {
             self.connect_prepared(stream, server_name, client).await
         })
         .await
+    }
+
+    /// Opens one direct WebSocket extended CONNECT stream over exact HTTP/2.
+    ///
+    /// Settings and the complete ordered request fields are validated before
+    /// DNS or TCP I/O. The connection is configured with the profile's
+    /// dedicated five-field pseudo-header order and never falls back to H1.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when the profile has no extended CONNECT
+    /// order, request validation fails, connection setup fails, the peer does
+    /// not advertise support, or the HTTP/2 stream fails.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_direct(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        self.http2.validate().map_err(Http2Error::InvalidSettings)?;
+        let client = translate_extended_connect_settings(&self.http2)?;
+        validate_extended_connect(authority, &target, &headers)?;
+        let stream = connect_tcp(host, port).await.map_err(|error| match error {
+            DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
+            DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
+        })?;
+        let connection = self
+            .connect_prepared_extended(stream, server_name, client)
+            .await?;
+        connection
+            .send_extended_connect(authority, target, headers)
+            .await
+            .map_err(Into::into)
     }
 
     /// Establishes HTTP/2 through a plaintext HTTP CONNECT proxy.
@@ -922,6 +960,33 @@ impl Http2TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        self.connect_prepared_kind(stream, server_name, client, false)
+            .await
+    }
+
+    async fn connect_prepared_extended<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        client: ::http2::client::Builder,
+    ) -> Result<Http2Connection, Http2TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        self.connect_prepared_kind(stream, server_name, client, true)
+            .await
+    }
+
+    async fn connect_prepared_kind<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        client: ::http2::client::Builder,
+        extended_connect: bool,
+    ) -> Result<Http2Connection, Http2TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
         let stream = self.tls.connect(server_name, stream).await?;
         let negotiated = stream.negotiated_alpn();
         Span::current().record("negotiated_alpn", trace_alpn(negotiated));
@@ -939,7 +1004,7 @@ impl Http2TlsConnector {
             }
         }
 
-        connect_selected(stream, client).await
+        connect_selected_kind(stream, client, extended_connect).await
     }
 
     async fn trace_connect<F>(&self, operation: F) -> Result<Http2Connection, Http2TlsError>
@@ -999,7 +1064,18 @@ impl Http2TlsConnector {
 
 pub(crate) async fn connect_selected<S>(
     stream: TlsStream<S>,
+    client: ::http2::client::Builder,
+) -> Result<Http2Connection, Http2TlsError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    connect_selected_kind(stream, client, false).await
+}
+
+async fn connect_selected_kind<S>(
+    stream: TlsStream<S>,
     mut client: ::http2::client::Builder,
+    extended_connect: bool,
 ) -> Result<Http2Connection, Http2TlsError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -1029,9 +1105,15 @@ where
         client.initial_peer_settings(settings);
     }
 
-    Http2Connection::connect_with_builder_and_accept_ch(stream, client, accept_ch)
-        .await
-        .map_err(Into::into)
+    if extended_connect {
+        Http2Connection::connect_extended_with_builder_and_accept_ch(stream, client, accept_ch)
+            .await
+            .map_err(Into::into)
+    } else {
+        Http2Connection::connect_with_builder_and_accept_ch(stream, client, accept_ch)
+            .await
+            .map_err(Into::into)
+    }
 }
 
 fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'static str {

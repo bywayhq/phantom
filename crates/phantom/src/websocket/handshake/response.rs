@@ -53,6 +53,37 @@ pub(in crate::websocket) fn validate_response(
         ));
     }
 
+    validate_selected_fields(headers, offered_protocols, allow_extensions)
+}
+
+pub(in crate::websocket) fn validate_http2_response(
+    version: Version,
+    headers: &HeaderMap,
+    offered_protocols: &[Box<str>],
+    allow_extensions: bool,
+) -> Result<Option<Box<str>>, WebSocketError> {
+    if version != Version::HTTP_2 {
+        return Err(WebSocketError::invalid_handshake(
+            "extended CONNECT response must use HTTP/2",
+        ));
+    }
+    if headers.contains_key(CONNECTION)
+        || headers.contains_key(UPGRADE)
+        || headers.contains_key(TRANSFER_ENCODING)
+        || headers.contains_key(ACCEPT_NAME)
+    {
+        return Err(WebSocketError::invalid_handshake(
+            "extended CONNECT response contains an HTTP/1-only field",
+        ));
+    }
+    validate_selected_fields(headers, offered_protocols, allow_extensions)
+}
+
+fn validate_selected_fields(
+    headers: &HeaderMap,
+    offered_protocols: &[Box<str>],
+    allow_extensions: bool,
+) -> Result<Option<Box<str>>, WebSocketError> {
     if !allow_extensions && headers.contains_key(EXTENSIONS_NAME) {
         return Err(WebSocketError::invalid_handshake(
             "server selected an unsupported WebSocket extension",
@@ -107,7 +138,7 @@ fn response_tokens<'a>(
 mod tests {
     use http::{HeaderMap, Version};
 
-    use super::validate_response;
+    use super::{validate_http2_response, validate_response};
 
     #[test]
     fn offered_protocol_may_remain_unselected() -> Result<(), Box<dyn std::error::Error>> {
@@ -143,6 +174,27 @@ mod tests {
         assert!(validate_response(Version::HTTP_11, &headers, "expected", &[], false).is_err());
         headers.remove("sec-websocket-extensions");
         assert!(validate_response(Version::HTTP_10, &headers, "expected", &[], false).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn validates_http2_fields_without_http1_acceptance_headers()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut headers = HeaderMap::new();
+        headers.insert("sec-websocket-protocol", "chat".parse()?);
+        assert_eq!(
+            validate_http2_response(Version::HTTP_2, &headers, &["chat".into()], false)?,
+            Some("chat".into())
+        );
+
+        headers.insert("sec-websocket-accept", "forbidden".parse()?);
+        assert!(
+            validate_http2_response(Version::HTTP_2, &headers, &["chat".into()], false).is_err()
+        );
+        headers.remove("sec-websocket-accept");
+        assert!(
+            validate_http2_response(Version::HTTP_11, &headers, &["chat".into()], false).is_err()
+        );
         Ok(())
     }
 }

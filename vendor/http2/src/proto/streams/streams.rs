@@ -100,6 +100,13 @@ struct Inner {
 
     /// Whether the peer declared that it ignores RFC 7540 priority signals.
     peer_ignores_rfc7540_priorities: bool,
+
+    /// Whether the peer's initial settings have been applied, either from a
+    /// transport seed or the wire.
+    has_received_initial_peer_settings: bool,
+
+    /// Tasks waiting to observe the peer's initial extended CONNECT setting.
+    initial_peer_settings_waiters: Vec<Waker>,
 }
 
 #[derive(Debug)]
@@ -232,7 +239,14 @@ where
             &mut me.store,
             &mut me.counts,
             &mut me.actions.task,
-        )
+        )?;
+        if is_initial {
+            me.has_received_initial_peer_settings = true;
+            for waiter in me.initial_peer_settings_waiters.drain(..) {
+                waiter.wake();
+            }
+        }
+        Ok(())
     }
 
     pub fn apply_local_settings(&mut self, frame: &frame::Settings) -> Result<(), Error> {
@@ -480,6 +494,8 @@ impl Inner {
             headers_pseudo_order: config.headers_pseudo_order,
             priorities: config.priorities,
             peer_ignores_rfc7540_priorities: false,
+            has_received_initial_peer_settings: false,
+            initial_peer_settings_waiters: Vec::new(),
         }))
     }
 
@@ -794,6 +810,9 @@ impl Inner {
         });
 
         actions.conn_error = Some(err);
+        for waiter in self.initial_peer_settings_waiters.drain(..) {
+            waiter.wake();
+        }
 
         last_processed_id
     }
@@ -964,6 +983,9 @@ impl Inner {
         });
 
         actions.clear_queues(clear_pending_accept, &mut self.store, counts);
+        for waiter in self.initial_peer_settings_waiters.drain(..) {
+            waiter.wake();
+        }
         Ok(())
     }
 
@@ -1056,6 +1078,27 @@ impl<B> Streams<B, client::Peer>
 where
     B: Buf,
 {
+    pub fn poll_extended_connect_protocol_ready(
+        &mut self,
+        cx: &Context<'_>,
+    ) -> Poll<Result<bool, crate::Error>> {
+        let mut me = self.inner.lock();
+        let me = &mut *me;
+
+        me.actions.ensure_no_conn_error()?;
+        if me.has_received_initial_peer_settings {
+            return Poll::Ready(Ok(me.actions.send.is_extended_connect_protocol_enabled()));
+        }
+        if !me
+            .initial_peer_settings_waiters
+            .iter()
+            .any(|waiter| waiter.will_wake(cx.waker()))
+        {
+            me.initial_peer_settings_waiters.push(cx.waker().clone());
+        }
+        Poll::Pending
+    }
+
     pub fn poll_pending_open(
         &mut self,
         cx: &Context,

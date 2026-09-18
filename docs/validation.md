@@ -103,6 +103,16 @@ local-DNS address resolution, username/password negotiation, an origin-form
 Upgrade with no origin TLS, and delivery of a WebSocket frame coalesced with
 the `101` response.
 
+Direct H2 WebSocket regressions use an authenticated loopback peer that
+advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL`. They assert that Phantom waits
+for the initial peer SETTINGS before dispatch, emits CONNECT with
+`:protocol = websocket` and the configured five-field pseudo order, omits H1
+Upgrade/key fields, preserves ordered ordinary fields, and exchanges framed
+messages over simultaneous request/response DATA. Negative cases cover an
+absent peer setting without CONNECT dispatch or H1 fallback, non-2xx streaming
+rejection responses, direct-`wss://` route validation, and stream-scoped reset.
+These are standards-level deterministic fixtures, not named-browser evidence.
+
 ## H3 SOCKS5 UDP evidence
 
 Public exact-H3 loopback regressions cover local-DNS `socks5://` and
@@ -131,8 +141,8 @@ tests cover exact-domain replies, case-insensitive domain comparison,
 same-port IP-form replies, and a stable logical Quinn peer.
 
 This evidence does not claim HTTP proxy or CONNECT routing for H3,
-CONNECT-UDP/MASQUE, extended CONNECT, or browser-capture fidelity for a proxied
-H3 route. Alt-Svc upgrade has separate direct-route evidence below.
+CONNECT-UDP/MASQUE, H3 extended CONNECT, or browser-capture fidelity for a
+proxied H3 route. Alt-Svc upgrade has separate direct-route evidence below.
 
 ## Alt-Svc HTTP/3 upgrade evidence
 

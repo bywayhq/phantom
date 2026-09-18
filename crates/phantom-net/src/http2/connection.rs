@@ -17,8 +17,10 @@ use crate::accept_ch::AcceptCh;
 use crate::request::{RequestBody, RequestBodyMetadata};
 
 use super::{
-    Http2Body, Http2Error, OperationOutcome, OriginForm, RequestHeader, driver::DriverTask,
-    prepare_request, request::PreparedRequestTrailers, translate_settings, upload::send_body,
+    Http2Body, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
+    OperationOutcome, OriginForm, RequestHeader, driver::DriverTask, prepare_extended_connect,
+    prepare_request, request::PreparedRequestTrailers, translate_extended_connect_settings,
+    translate_settings, upload::send_body,
 };
 
 /// An established HTTP/2 connection that can open concurrent request streams.
@@ -46,6 +48,28 @@ impl Http2Connection {
         settings.validate().map_err(Http2Error::InvalidSettings)?;
         let client = translate_settings(settings)?;
         Self::connect_with_builder(stream, client).await
+    }
+
+    /// Establishes HTTP/2 for exact extended CONNECT requests.
+    ///
+    /// This requires a separately configured five-field pseudo-header order.
+    /// Ordinary pooled connections cannot be silently reused because their
+    /// connection-wide encoder order omits `:protocol`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] when the profile has no verified extended
+    /// CONNECT order, settings validation fails, or the handshake fails.
+    pub async fn connect_extended<T>(
+        stream: T,
+        settings: &Http2Settings,
+    ) -> Result<Self, Http2Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        settings.validate().map_err(Http2Error::InvalidSettings)?;
+        let client = translate_extended_connect_settings(settings)?;
+        Self::connect_with_builder_kind(stream, client, true).await
     }
 
     /// Sends one empty-body GET on this connection.
@@ -168,6 +192,98 @@ impl Http2Connection {
         self.send_prepared_request(request, body, trailers).await
     }
 
+    /// Opens a WebSocket extended CONNECT stream without protocol fallback.
+    ///
+    /// The request is validated before the connection is touched. This waits
+    /// for the peer's initial settings and does not send request HEADERS unless
+    /// `SETTINGS_ENABLE_CONNECT_PROTOCOL` was enabled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] for invalid request fields, a connection not
+    /// created with [`Self::connect_extended`], absent peer capability, or a
+    /// protocol-driver failure.
+    pub async fn send_extended_connect(
+        &self,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
+        let request = prepare_extended_connect(authority, target, headers)?;
+        if !self.inner.extended_connect {
+            return Err(Http2Error::ExtendedConnectConnectionRequired);
+        }
+
+        let span = debug_span!(
+            "http2.extended_connect.response_head",
+            method = "CONNECT",
+            protocol = "h2",
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            let mut sender = self
+                .inner
+                .sender()
+                .ok_or_else(connection_closed)
+                .map_err(Http2Error::protocol)?
+                .clone();
+            if !sender
+                .extended_connect_protocol_ready()
+                .await
+                .map_err(Http2Error::protocol)?
+            {
+                return Err(Http2Error::ExtendedConnectProtocolDisabled);
+            }
+            let mut sender = sender.ready().await.map_err(Http2Error::protocol)?;
+            let (response, send) = sender
+                .send_request(request, false)
+                .map_err(Http2Error::protocol)?;
+            let mut send = RequestStreamGuard::new(send);
+            let response = response.await.map_err(Http2Error::protocol)?;
+            span.record("status", response.status().as_u16());
+
+            let accepted = response.status().is_success();
+            let (mut parts, incoming) = response.into_parts();
+            let ordered_headers = parts
+                .extensions
+                .remove::<::http2::ext::OrderedHeaders>()
+                .map(|headers| {
+                    crate::OrderedResponseHeaders::from_normalized_fields(headers.as_slice())
+                })
+                .ok_or(Http2Error::MissingResponseHeaderOrder)?;
+            parts.extensions.insert(ordered_headers);
+
+            if accepted {
+                let stream =
+                    Http2ExtendedConnectStream::new(incoming, send.disarm()?, self.lease());
+                Ok(Http2ExtendedConnectOutcome::Accepted {
+                    response: Response::from_parts(parts, ()),
+                    stream,
+                })
+            } else {
+                send.stream_mut()?
+                    .send_data(Bytes::new(), true)
+                    .map_err(Http2Error::protocol)?;
+                Ok(Http2ExtendedConnectOutcome::Rejected(Response::from_parts(
+                    parts,
+                    Http2Body::new(incoming, send.disarm()?, self.lease()),
+                )))
+            }
+        }
+        .instrument(span.clone())
+        .await;
+        let terminal_outcome = match &result {
+            Ok(Http2ExtendedConnectOutcome::Accepted { .. }) => "accepted",
+            Ok(Http2ExtendedConnectOutcome::Rejected(_)) => "rejected",
+            Err(Http2Error::Protocol(_)) => "protocol_error",
+            Err(_) => "request_error",
+        };
+        outcome.finish(terminal_outcome);
+        result
+    }
+
     /// Returns whether the connection driver has stopped.
     ///
     /// A connection may become closed between this observation and a later
@@ -221,6 +337,46 @@ impl Http2Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, false).await
+    }
+
+    pub(super) async fn connect_extended_with_builder_and_accept_ch<T>(
+        stream: T,
+        client: client::Builder,
+        accept_ch: AcceptCh,
+    ) -> Result<Self, Http2Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, true).await
+    }
+
+    async fn connect_with_builder_kind<T>(
+        stream: T,
+        client: client::Builder,
+        extended_connect: bool,
+    ) -> Result<Self, Http2Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        Self::connect_with_builder_kind_and_accept_ch(
+            stream,
+            client,
+            AcceptCh::default(),
+            extended_connect,
+        )
+        .await
+    }
+
+    async fn connect_with_builder_kind_and_accept_ch<T>(
+        stream: T,
+        client: client::Builder,
+        accept_ch: AcceptCh,
+        extended_connect: bool,
+    ) -> Result<Self, Http2Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
         let (sender, connection) = client
             .handshake(stream)
             .await
@@ -231,6 +387,7 @@ impl Http2Connection {
                 sender: Some(sender),
                 driver,
                 accept_ch,
+                extended_connect,
             }),
         })
     }
@@ -374,6 +531,7 @@ struct ConnectionInner {
     sender: Option<client::SendRequest<Bytes>>,
     driver: DriverTask,
     accept_ch: AcceptCh,
+    extended_connect: bool,
 }
 
 impl ConnectionInner {

@@ -155,6 +155,20 @@ impl Client {
         WebSocketRequestBuilder::new_client(self.clone(), uri)
     }
 
+    /// Starts one ordered WebSocket opening handshake using exactly `protocol`.
+    ///
+    /// HTTP/2 uses RFC 8441 extended CONNECT and currently supports direct
+    /// `wss://` only. It requires an explicit extended-CONNECT pseudo-header
+    /// order in the HTTP/2 profile and never falls back to HTTP/1.1.
+    #[cfg(feature = "websocket")]
+    pub fn websocket_with_protocol(
+        &self,
+        protocol: HttpProtocol,
+        uri: &str,
+    ) -> Result<WebSocketRequestBuilder, WebSocketError> {
+        WebSocketRequestBuilder::new_client_with_protocol(self.clone(), protocol, uri)
+    }
+
     /// Creates an isolated compatibility client with default bounded state.
     #[must_use]
     #[doc(hidden)]

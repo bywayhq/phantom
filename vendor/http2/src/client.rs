@@ -567,6 +567,27 @@ where
         self.inner.is_extended_connect_protocol_enabled()
     }
 
+    /// Polls until the peer's initial extended CONNECT setting is known.
+    ///
+    /// This resolves after the initial peer settings have been applied, whether
+    /// they were seeded through a transport parameter or received on the wire.
+    /// It resolves to an error if the connection fails first.
+    pub fn poll_extended_connect_protocol_ready(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<bool, crate::Error>> {
+        self.inner.poll_extended_connect_protocol_ready(cx)
+    }
+
+    /// Waits until the peer's initial extended CONNECT setting is known.
+    ///
+    /// The returned boolean is `true` only when the peer enabled
+    /// `SETTINGS_ENABLE_CONNECT_PROTOCOL` in settings learned before or during
+    /// the HTTP/2 handshake.
+    pub async fn extended_connect_protocol_ready(&mut self) -> Result<bool, crate::Error> {
+        crate::poll_fn(|cx| self.poll_extended_connect_protocol_ready(cx)).await
+    }
+
     /// Returns the current max send streams
     pub fn current_max_send_streams(&self) -> usize {
         self.inner.current_max_send_streams()

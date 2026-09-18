@@ -18,7 +18,7 @@ const EXTENSIONS_NAME: &str = "sec-websocket-extensions";
 mod response;
 mod syntax;
 
-pub(super) use response::validate_response;
+pub(super) use response::{validate_http2_response, validate_response};
 use syntax::{is_token, split_tokens, trim_ows};
 
 /// One field or generated-value placeholder in the opening handshake.
@@ -121,6 +121,11 @@ pub(super) struct PreparedHandshake {
     pub(super) offered_protocols: Vec<Box<str>>,
 }
 
+pub(super) struct PreparedHttp2Handshake {
+    pub(super) headers: Vec<RequestHeader>,
+    pub(super) offered_protocols: Vec<Box<str>>,
+}
+
 pub(super) fn default_headers() -> Vec<WebSocketHeader> {
     vec![
         WebSocketHeader::authority("Host"),
@@ -132,6 +137,51 @@ pub(super) fn default_headers() -> Vec<WebSocketHeader> {
         WebSocketHeader::permessage_deflate("Sec-WebSocket-Extensions"),
         WebSocketHeader::client_cookies("Cookie"),
     ]
+}
+
+pub(super) fn default_http2_headers() -> Vec<WebSocketHeader> {
+    vec![
+        WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
+        #[cfg(feature = "websocket-deflate")]
+        WebSocketHeader::permessage_deflate("sec-websocket-extensions"),
+        WebSocketHeader::client_cookies("cookie"),
+    ]
+}
+
+pub(super) fn prepare_http2(
+    templates: Vec<WebSocketHeader>,
+    session_cookie: Option<&str>,
+    extension_offer: Option<&[u8]>,
+) -> Result<PreparedHttp2Handshake, WebSocketError> {
+    let validation = validate_http2_templates(&templates, extension_offer.is_some())?;
+    let mut headers = Vec::with_capacity(templates.len());
+    for template in templates {
+        match template {
+            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
+                if !validation.has_literal_cookie {
+                    if let Some(value) = session_cookie {
+                        headers.push(RequestHeader::new(name, value).sensitive());
+                    }
+                }
+            }
+            #[cfg(feature = "websocket-deflate")]
+            WebSocketHeader::PerMessageDeflate { name } => {
+                if let Some(value) = extension_offer {
+                    headers.push(RequestHeader::new(name, value));
+                }
+            }
+            WebSocketHeader::Field(header) => headers.push(header),
+            WebSocketHeader::Authority { .. } | WebSocketHeader::Key { .. } => {
+                return Err(WebSocketError::invalid_request(
+                    "HTTP/2 WebSocket fields must not contain authority or key placeholders",
+                ));
+            }
+        }
+    }
+    Ok(PreparedHttp2Handshake {
+        headers,
+        offered_protocols: validation.offered_protocols,
+    })
 }
 
 pub(super) fn prepare(
@@ -182,6 +232,110 @@ pub(super) fn prepare(
 struct TemplateValidation {
     has_literal_cookie: bool,
     offered_protocols: Vec<Box<str>>,
+}
+
+fn validate_http2_templates(
+    templates: &[WebSocketHeader],
+    extension_required: bool,
+) -> Result<TemplateValidation, WebSocketError> {
+    let mut cookie_placeholder_count = 0;
+    let mut version_count = 0;
+    let mut protocol_count = 0;
+    #[cfg(feature = "websocket-deflate")]
+    let mut extension_placeholder_count = 0;
+    #[cfg(not(feature = "websocket-deflate"))]
+    let extension_placeholder_count = 0;
+    let mut has_literal_cookie = false;
+    let mut offered_protocols = Vec::new();
+
+    for template in templates {
+        match template {
+            WebSocketHeader::Authority { .. } | WebSocketHeader::Key { .. } => {
+                return Err(WebSocketError::invalid_request(
+                    "HTTP/2 WebSocket fields must not contain authority or key placeholders",
+                ));
+            }
+            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
+                validate_http2_placeholder_name(name, "cookie")?;
+                cookie_placeholder_count += 1;
+            }
+            #[cfg(feature = "websocket-deflate")]
+            WebSocketHeader::PerMessageDeflate { name } => {
+                validate_http2_placeholder_name(name, EXTENSIONS_NAME)?;
+                extension_placeholder_count += 1;
+            }
+            WebSocketHeader::Field(header) => {
+                let name = header.name();
+                if name.as_bytes().iter().any(u8::is_ascii_uppercase) {
+                    return Err(WebSocketError::invalid_request(
+                        "HTTP/2 WebSocket field names must be lowercase",
+                    ));
+                }
+                if name.eq_ignore_ascii_case(HOST.as_str())
+                    || name.eq_ignore_ascii_case(KEY_NAME)
+                    || name.eq_ignore_ascii_case(UPGRADE.as_str())
+                    || name.eq_ignore_ascii_case(CONNECTION.as_str())
+                {
+                    return Err(WebSocketError::invalid_request(
+                        "HTTP/2 WebSocket request contains an HTTP/1-only field",
+                    ));
+                }
+                if name.eq_ignore_ascii_case(PROXY_AUTHORIZATION.as_str()) {
+                    return Err(WebSocketError::invalid_request(
+                        "literal Proxy-Authorization is forbidden; configure proxy credentials on the route",
+                    ));
+                }
+                if name.eq_ignore_ascii_case(VERSION_NAME) {
+                    version_count += 1;
+                    if trim_ows(header.value()) != b"13" {
+                        return Err(WebSocketError::invalid_request(
+                            "opening handshake requires Sec-WebSocket-Version 13",
+                        ));
+                    }
+                } else if name.eq_ignore_ascii_case(EXTENSIONS_NAME) {
+                    return Err(WebSocketError::invalid_request(
+                        "literal WebSocket extensions are forbidden without a matching typed codec",
+                    ));
+                } else if name.eq_ignore_ascii_case(PROTOCOL_NAME) {
+                    protocol_count += 1;
+                    offered_protocols = parse_protocols(header.value())?;
+                } else if name.eq_ignore_ascii_case("cookie") {
+                    has_literal_cookie = true;
+                }
+            }
+        }
+    }
+
+    if version_count != 1 {
+        return Err(WebSocketError::invalid_request(
+            "HTTP/2 opening handshake requires one Sec-WebSocket-Version field",
+        ));
+    }
+    if cookie_placeholder_count > 1 || protocol_count > 1 || extension_placeholder_count > 1 {
+        return Err(WebSocketError::invalid_request(
+            "HTTP/2 opening handshake contains a duplicate singleton field",
+        ));
+    }
+    if extension_required && extension_placeholder_count != 1 {
+        return Err(WebSocketError::invalid_request(
+            "enabled WebSocket compression requires one extension placeholder",
+        ));
+    }
+
+    Ok(TemplateValidation {
+        has_literal_cookie,
+        offered_protocols,
+    })
+}
+
+fn validate_http2_placeholder_name(name: &str, expected: &str) -> Result<(), WebSocketError> {
+    validate_placeholder_name(name, expected)?;
+    if name.as_bytes().iter().any(u8::is_ascii_uppercase) {
+        return Err(WebSocketError::invalid_request(
+            "HTTP/2 WebSocket placeholder names must be lowercase",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_templates(
@@ -373,7 +527,9 @@ fn accept_for_key(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::accept_for_key;
+    use phantom_net::request::RequestHeader;
+
+    use super::{WebSocketHeader, accept_for_key, default_http2_headers, prepare_http2};
 
     #[test]
     fn derives_the_rfc_accept_value() {
@@ -381,5 +537,25 @@ mod tests {
             accept_for_key("dGhlIHNhbXBsZSBub25jZQ=="),
             "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
         );
+    }
+
+    #[test]
+    fn http2_template_omits_http1_only_fields_and_requires_lowercase()
+    -> Result<(), super::WebSocketError> {
+        let prepared = prepare_http2(default_http2_headers(), None, None)?;
+        assert_eq!(prepared.headers.len(), 1);
+        assert_eq!(prepared.headers[0].name(), "sec-websocket-version");
+
+        let uppercase = vec![WebSocketHeader::field(RequestHeader::new(
+            "Sec-WebSocket-Version",
+            "13",
+        ))];
+        assert!(prepare_http2(uppercase, None, None).is_err());
+        let key = vec![
+            WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
+            WebSocketHeader::key("sec-websocket-key"),
+        ];
+        assert!(prepare_http2(key, None, None).is_err());
+        Ok(())
     }
 }

@@ -1,7 +1,14 @@
 # WebSocket
 
-The optional `websocket` feature provides WebSocket connections over an
-HTTP/1.1 Upgrade. Direct routes accept plaintext `ws://` or TLS-backed `wss://`;
+The optional `websocket` feature provides exact HTTP/1.1 Upgrade and
+[RFC 8441](https://www.rfc-editor.org/rfc/rfc8441.html) HTTP/2 extended CONNECT
+connections. `Client::websocket` remains the HTTP/1.1
+shorthand; `Client::websocket_with_protocol` selects an exact protocol without
+fallback. Direct H2 currently accepts `wss://` only and requires an explicit
+five-field extended-CONNECT pseudo-header order in the HTTP/2 profile. Named
+browser profiles leave that order unset until browser captures prove it.
+
+For H1, direct routes accept plaintext `ws://` or TLS-backed `wss://`;
 HTTP forward proxies accept plaintext `ws://` over either plaintext or
 independently authenticated proxy TLS. Local- and remote-DNS SOCKS5 routes
 accept both `ws://` and `wss://`; HTTP-CONNECT routes accept `wss://`.
@@ -47,9 +54,29 @@ async fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+An H2 connection is explicit:
+
+```rust
+use phantom::{Client, HttpProtocol};
+
+async fn h2_example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let socket = client
+        .websocket_with_protocol(HttpProtocol::Http2, "wss://example.com/events")?
+        .connect()
+        .await?;
+    assert_eq!(socket.handshake_response().version(), http::Version::HTTP_2);
+    Ok(())
+}
+```
+
+This succeeds only when the custom HTTP/2 profile configures
+`extended_connect_pseudo_header_order` and the server's initial SETTINGS enables
+extended CONNECT. An absent or zero setting is a terminal typed H2 error;
+Phantom does not send CONNECT HEADERS or retry as H1.
+
 ## Ordered opening fields
 
-The default opening sequence contains typed placeholders for the URI authority,
+The default H1 opening sequence contains typed placeholders for the URI authority,
 fresh random key, and client cookies. `WebSocketRequestBuilder::headers`
 replaces the complete sequence with `WebSocketHeader` values, allowing callers
 to control placement and field-name spelling without supplying dynamic values.
@@ -73,6 +100,16 @@ strictly parsed before the frame codec is installed; duplicate, malformed,
 unknown, or contradictory selections fail the handshake. An ordinary non-`101` response
 is available through `WebSocketError::response` with its streaming body and
 ordered fields.
+
+The H2 opening sequence is deliberately separate. The method, authority,
+scheme, path, and `:protocol = websocket` pseudo-fields come from the request
+and profile; ordinary fields default to lowercase `sec-websocket-version: 13`,
+the typed compression placeholder when enabled, and the client-cookie
+placeholder. H2 rejects authority/key placeholders, Host, Upgrade, Connection,
+`Sec-WebSocket-Key`, uppercase names, and literal extension fields before I/O.
+The server accepts with a 2xx response. H2 response validation rejects H1-only
+Upgrade, Connection, transfer-coding, and `Sec-WebSocket-Accept` fields while
+retaining the same strict subprotocol and extension checks.
 
 ## Messages and ownership
 
@@ -98,8 +135,13 @@ a Phantom background task. Dropping the connection closes the transport;
 receiving until the peer replies.
 
 WebSocket connections are exclusive and are never inserted into the client's
-HTTP pool. There are no implicit redirects, reconnects, heartbeats, protocol
-fallbacks, or direct-route fallback after a proxy failure. The only retry is the
+ordinary HTTP pool. An H2 WebSocket uses a dedicated connection so its exact
+five-field pseudo-header order cannot alter ordinary H2 traffic. DATA frames
+provide simultaneous reads and writes; receive-window capacity is returned as
+bytes are consumed, graceful shutdown sends END_STREAM, and premature drop
+resets only the CONNECT stream. There are no implicit redirects, reconnects,
+heartbeats, protocol fallbacks, or direct-route fallback after a proxy failure.
+The only retry is the
 configured Basic proxy-authentication replay described here. A plaintext
 `ws://` request through an HTTP proxy uses an RFC 6455-compatible normalized
 `http://` absolute-form target and never changes to CONNECT. With Basic
@@ -137,6 +179,9 @@ Callers can reproduce retained ordered handshake fields and compression-offer
 parameters through the public typed templates. Named compression recipes,
 codec-output parity, and browser send-selection heuristics remain
 capture-driven profile work; the generic policy compresses every text and
-binary message after negotiation. H2 extended CONNECT and H3 WebSocket require
-browser captures and protocol-reaction differentials before they become
-profile data.
+binary message after negotiation. H2 extended CONNECT is available for
+explicitly configured custom profiles with deterministic standards-level
+fixtures. It is not populated in named Chrome, Firefox, or Safari recipes
+because browser request ordering, fields, priority, and failure reactions still
+require captures and differentials. H3 WebSocket remains unimplemented pending
+the same evidence.

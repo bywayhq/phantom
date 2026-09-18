@@ -3,7 +3,7 @@ use std::{error::Error as StdError, fmt};
 use http::Response;
 use tokio_tungstenite::tungstenite::{Error as EngineError, error::ProtocolError};
 
-use crate::{RequestError, RequestErrorKind, ResponseBody};
+use crate::{HttpProtocol, RequestError, RequestErrorKind, ResponseBody};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
 
@@ -19,7 +19,7 @@ pub enum WebSocketErrorKind {
     InvalidAuthority,
     /// The ordered opening-handshake fields are invalid.
     InvalidRequest,
-    /// The client profile cannot negotiate HTTP/1.1.
+    /// The client profile cannot use the selected WebSocket protocol.
     ProtocolUnavailable,
     /// The selected route does not support this WebSocket transport.
     UnsupportedRoute,
@@ -33,6 +33,8 @@ pub enum WebSocketErrorKind {
     Tls,
     /// The HTTP/1.1 opening handshake could not be completed.
     Http1,
+    /// The HTTP/2 extended CONNECT handshake could not be completed.
+    Http2,
     /// Generating the opening-handshake nonce failed.
     Random,
     /// The server returned an ordinary HTTP response instead of upgrading.
@@ -85,11 +87,15 @@ impl WebSocketError {
         Self::new(WebSocketErrorKind::InvalidRequest, message)
     }
 
-    pub(super) fn protocol_unavailable() -> Self {
-        Self::new(
-            WebSocketErrorKind::ProtocolUnavailable,
-            "client profile cannot negotiate HTTP/1.1 for WebSocket",
-        )
+    pub(super) fn protocol_unavailable(protocol: HttpProtocol) -> Self {
+        let message = match protocol {
+            HttpProtocol::Http1 => "client profile cannot use HTTP/1.1 for WebSocket",
+            HttpProtocol::Http2 => {
+                "client profile cannot use HTTP/2 extended CONNECT for WebSocket"
+            }
+            HttpProtocol::Http3 => "HTTP/3 WebSocket is not implemented",
+        };
+        Self::new(WebSocketErrorKind::ProtocolUnavailable, message)
     }
 
     pub(super) fn random(source: btls::error::ErrorStack) -> Self {
@@ -119,10 +125,13 @@ impl WebSocketError {
             RequestErrorKind::RuntimeUnavailable => WebSocketErrorKind::RuntimeUnavailable,
             RequestErrorKind::Capacity => WebSocketErrorKind::Capacity,
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
-            RequestErrorKind::Http1
-            | RequestErrorKind::Http2
-            | RequestErrorKind::Http3
-            | RequestErrorKind::Timeout => WebSocketErrorKind::Http1,
+            RequestErrorKind::Http1 => WebSocketErrorKind::Http1,
+            RequestErrorKind::Http2 => WebSocketErrorKind::Http2,
+            RequestErrorKind::Http3 => WebSocketErrorKind::Protocol,
+            RequestErrorKind::Timeout => match source.protocol() {
+                Some(HttpProtocol::Http2) => WebSocketErrorKind::Http2,
+                _ => WebSocketErrorKind::Http1,
+            },
         };
         Self::with_source(kind, "WebSocket transport failed", source)
     }
@@ -179,6 +188,10 @@ impl WebSocketError {
             EngineError::Http(_) | EngineError::HttpFormat(_) => WebSocketErrorKind::Protocol,
         };
         Self::with_source(kind, "WebSocket operation failed", source)
+    }
+
+    pub(super) fn engine_io(source: std::io::Error) -> Self {
+        Self::engine(EngineError::Io(source))
     }
 
     pub(super) fn closed() -> Self {
