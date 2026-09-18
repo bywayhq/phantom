@@ -179,10 +179,10 @@ async fn handshake_preserves_interleaved_ordered_sensitive_trailers() {
             .send_request(request_with_headers(), false)
             .expect("request was rejected");
 
-        let a1 = HeaderValue::from_static("a1");
+        let mut a1 = HeaderValue::from_static("secret-a1");
+        a1.set_sensitive(true);
         let b1 = HeaderValue::from_static("b1");
-        let mut a2 = HeaderValue::from_static("a2");
-        a2.set_sensitive(true);
+        let a2 = HeaderValue::from_static("a2");
         let ordered = vec![(A, a1.clone()), (B, b1.clone()), (A, a2.clone())];
         let mut semantic = HeaderMap::new();
         semantic.append(A, a1);
@@ -224,11 +224,15 @@ async fn handshake_preserves_interleaved_ordered_sensitive_trailers() {
 
         assert_eq!(blocks[0].0 & 0x1, 0, "initial HEADERS ended the stream");
         assert_eq!(blocks[1].0 & 0x1, 0x1, "trailers omitted END_STREAM");
+        assert_eq!(
+            blocks[1].1.first().expect("trailer block was empty") & 0xf0,
+            0x10,
+            "sensitive first trailer was not encoded as never-indexed"
+        );
         let mut decoder = Decoder::new(4096);
         let _ = decode_header_block_with(&mut decoder, &blocks[0].1);
         let trailers = decode_header_block_with(&mut decoder, &blocks[1].1);
         assert_eq!(trailers, ordered);
-        assert!(trailers[2].1.is_sensitive());
 
         driver.abort();
     })

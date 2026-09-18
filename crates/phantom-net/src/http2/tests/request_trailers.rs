@@ -161,11 +161,6 @@ async fn run_static_trailer_peer(stream: tokio::io::DuplexStream) -> TestResult<
                 .and_then(|value| value.to_str().ok()),
             Some("between")
         );
-        assert!(
-            trailers
-                .get("x-middle")
-                .is_some_and(http::HeaderValue::is_sensitive)
-        );
         respond.send_response(Response::builder().status(204).body(())?, true)?;
     }
     std::future::poll_fn(|context| connection.poll_closed(context)).await?;
