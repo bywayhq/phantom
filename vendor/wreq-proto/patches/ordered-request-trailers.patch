@@ -24,7 +24,7 @@ new file mode 100644
 index 0000000..98f22b1
 --- /dev/null
 +++ b/src/ext/preserve_trailer.rs
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,32 @@
 +use std::{ops::Deref, sync::Arc};
 +
 +use http::HeaderValue;
@@ -42,6 +42,7 @@ index 0000000..98f22b1
 +/// Visits request trailers in their exact wire order.
 +pub trait OnPreserveTrailerCallback: Sync + Send + 'static {
 +    /// Emits each request trailer using its caller-supplied field-name bytes.
++    #[allow(clippy::type_complexity)]
 +    fn call_visit(&self, destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue));
 +}
 +
@@ -188,6 +189,18 @@ diff --git a/src/proto/http1/encode.rs b/src/proto/http1/encode.rs
 +            | UPGRADE
 +    ) && !matches!(name.as_str(), "keep-alive" | "proxy-connection")
  }
+@@ -439,8 +439,9 @@ mod tests {
+     use bytes::BufMut;
+     use http::{
+         header::{
+-            AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
+-            CONTENT_TYPE, HOST, MAX_FORWARDS, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING,
++            AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH,
++            CONTENT_RANGE, CONTENT_TYPE, HOST, MAX_FORWARDS, SET_COOKIE, TE, TRAILER,
++            TRANSFER_ENCODING, UPGRADE,
+         },
+         HeaderMap, HeaderName, HeaderValue,
+     };
 @@ -554,10 +556,14 @@ mod tests {
          let trailers = vec![
              AUTHORIZATION,

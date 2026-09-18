@@ -15,6 +15,7 @@ where
 /// Visits request trailers in their exact wire order.
 pub trait OnPreserveTrailerCallback: Sync + Send + 'static {
     /// Emits each request trailer using its caller-supplied field-name bytes.
+    #[allow(clippy::type_complexity)]
     fn call_visit(&self, destination: &mut dyn FnMut(&dyn AsRef<[u8]>, &HeaderValue));
 }
 
