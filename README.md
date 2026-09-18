@@ -36,7 +36,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
 | Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; and local- or remote-DNS SOCKS5 |
 | State | Isolated bounded pools, redirects, opt-in exact-protocol setup retries, timeouts, client hints, TLS sessions, and opt-in cookies |
-| Optional APIs | Server-sent events, direct plaintext or routed TLS H1 WebSocket, and opt-in `permessage-deflate` |
+| Optional APIs | Server-sent events, H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable, and opt-in `permessage-deflate` |
 | Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
 
 See [Coverage](docs/coverage.md) for the exact supported and planned lifecycle
@@ -84,7 +84,8 @@ timeouts, bodies, and responses.
   switch to CONNECT, negotiated H1/H2, H2, or H3.
 - Basic forward-proxy authentication starts every logical request anonymously
   and permits one challenge-driven replay on a fresh same-route connection; no
-  challenge state is learned across requests.
+  challenge state is learned across requests. The same lifecycle applies to
+  plaintext WebSocket Upgrade requests sent through a forward proxy.
 - H3 rejects TCP-only proxy routes before network I/O.
 - Streaming request bodies are one-shot and are not replayed implicitly.
 - Broader status, post-dispatch, and negotiated-protocol retry policies;

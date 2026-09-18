@@ -67,8 +67,10 @@ The workspace, capture testkit, TLS and ordered H1 path, H2 path, initial
 browser-family profiles, forced H3 path, and ordered static request trailers on
 exact H1/H2/H3 and negotiated H1/H2 have passed their phase acceptance
 criteria. H1 WebSocket supports direct plaintext `ws://` alongside routed
-TLS-backed `wss://`, with the same ordered opening handshake, strict validation,
-and bounded message lifecycle. Exact H1/H2/H3 requests can opt into bounded
+TLS-backed `wss://`; plaintext `ws://` also supports plaintext and TLS-encrypted
+HTTP forward proxies with strict challenge-driven Basic authentication. These
+paths share the same ordered opening handshake, strict validation, and bounded
+message lifecycle. Exact H1/H2/H3 requests can opt into bounded
 typed connection-setup retries without changing route or protocol or replaying
 request bytes. HTTP/1.1 absolute-form forwarding for `http://`
 origins is available over plaintext and TLS proxies with independent proxy

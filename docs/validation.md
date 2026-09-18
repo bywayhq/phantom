@@ -83,6 +83,16 @@ This evidence does not claim browser-capture fidelity, redirects, negotiated
 H1/H2 forwarding, H2 proxy transport, other authentication schemes, forwarding
 an HTTPS origin, H3 proxy support, or UDP-capable proxying.
 
+The WebSocket route regressions apply the same contract to plaintext `ws://`
+Upgrade through plaintext and TLS-encrypted forward proxies. They assert the
+normalized absolute-form request target, caller-selected opening-field order,
+the absence of CONNECT and direct-origin traffic, independent proxy trust,
+coalesced upgraded bytes, and Ping/Pong traffic. Authentication cases prove an
+anonymous first attempt, one fresh-connection replay with the same WebSocket
+key and generated credentials appended after caller fields, no learned state,
+and terminal behavior for malformed or repeated challenges. A caller-supplied
+`Proxy-Authorization` is rejected before proxy or origin I/O.
+
 ## Connection-retry evidence
 
 The shared exact-protocol acquisition state uses scripted typed setup failures

@@ -29,7 +29,7 @@ use crate::tls::test_support::{
 };
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 use crate::{
-    http1::{Http1UpgradeOutcome, OriginForm, RequestHeader},
+    http1::{AbsoluteForm, Http1UpgradeOutcome, OriginForm, RequestHeader},
     proxy::{HttpConnectError, HttpsProxyConnector},
 };
 
@@ -529,6 +529,126 @@ async fn plaintext_direct_upgrade_preserves_request_and_session_bytes() -> TestR
                 .outcomes_for("http1.tls.upgrade_response_head")
                 .is_empty(),
             "plaintext Upgrade emitted a TLS wrapper outcome"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn plaintext_forward_upgrade_preserves_absolute_form_and_coalesced_bytes() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let connector = test_connector(&identity)?;
+        let (address, listener) = loopback_listener().await?;
+        let server_task = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let request = read_plaintext_head(&mut stream).await?;
+            stream
+                .write_all(
+                    b"HTTP/1.1 101 Switching Protocols\r\n\
+                      Upgrade: websocket\r\n\
+                      Connection: Upgrade\r\n\r\n\
+                      proxy-frame",
+                )
+                .await?;
+            stream.flush().await?;
+            let mut client_frame = [0_u8; 12];
+            stream.read_exact(&mut client_frame).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((request, client_frame))
+        });
+
+        let outcome = connector
+            .upgrade_get_forward_proxy(
+                "127.0.0.1",
+                address.port(),
+                AbsoluteForm::parse("http://origin.phantom.test/socket?encoding=json")?,
+                vec![
+                    RequestHeader::new("Host", "origin.phantom.test"),
+                    RequestHeader::new("Connection", "Upgrade"),
+                    RequestHeader::new("Upgrade", "websocket"),
+                    RequestHeader::new("X-Order", "last"),
+                ],
+            )
+            .await?;
+        let Http1UpgradeOutcome::Upgraded(response) = outcome else {
+            return Err("forward proxy 101 response was not upgraded".into());
+        };
+        let mut upgraded = response.into_body();
+        let mut proxy_frame = [0_u8; 11];
+        upgraded.read_exact(&mut proxy_frame).await?;
+        assert_eq!(&proxy_frame, b"proxy-frame");
+        upgraded.write_all(b"client-frame").await?;
+        upgraded.flush().await?;
+
+        let (request, client_frame) = server_task.await??;
+        assert_eq!(
+            request,
+            b"GET http://origin.phantom.test/socket?encoding=json HTTP/1.1\r\n\
+              Host: origin.phantom.test\r\n\
+              Connection: Upgrade\r\n\
+              Upgrade: websocket\r\n\
+              X-Order: last\r\n\r\n"
+        );
+        assert_eq!(&client_frame, b"client-frame");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn https_forward_upgrade_uses_proxy_tls_and_preserves_absolute_form() -> TestResult<()> {
+    bounded_tls_test(async {
+        let identity = TestIdentity::generate()?;
+        let (address, listener) = loopback_listener().await?;
+        let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
+        let server_task = tokio::spawn(async move {
+            let (mut stream, sni) = accept_tls(listener, acceptor).await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(
+                    b"HTTP/1.1 101 Switching Protocols\r\n\
+                      Upgrade: websocket\r\n\
+                      Connection: Upgrade\r\n\r\n\
+                      tls-proxy-frame",
+                )
+                .await?;
+            stream.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((sni, request))
+        });
+
+        let connector = test_connector(&identity)?;
+        let proxy_connector = test_proxy_connector(&identity)?;
+        let outcome = connector
+            .upgrade_get_https_forward_proxy(
+                &proxy_connector,
+                "127.0.0.1",
+                address.port(),
+                TEST_SERVER_NAME,
+                AbsoluteForm::parse("https://origin.phantom.test/socket")?,
+                vec![
+                    RequestHeader::new("Host", "origin.phantom.test"),
+                    RequestHeader::new("Connection", "Upgrade"),
+                    RequestHeader::new("Upgrade", "websocket"),
+                ],
+            )
+            .await?;
+        let Http1UpgradeOutcome::Upgraded(response) = outcome else {
+            return Err("HTTPS forward proxy 101 response was not upgraded".into());
+        };
+        let mut upgraded = response.into_body();
+        let mut proxy_frame = [0_u8; 15];
+        upgraded.read_exact(&mut proxy_frame).await?;
+        assert_eq!(&proxy_frame, b"tls-proxy-frame");
+
+        let (sni, request) = server_task.await??;
+        assert_eq!(sni.as_deref(), Some(TEST_SERVER_NAME));
+        assert_eq!(
+            request,
+            b"GET https://origin.phantom.test/socket HTTP/1.1\r\n\
+              Host: origin.phantom.test\r\n\
+              Connection: Upgrade\r\n\
+              Upgrade: websocket\r\n\r\n"
         );
         Ok(())
     })

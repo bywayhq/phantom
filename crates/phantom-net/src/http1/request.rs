@@ -294,10 +294,26 @@ pub(super) struct PreparedGet {
 
 impl PreparedGet {
     pub(super) fn new(target: OriginForm, headers: Vec<RequestHeader>) -> Result<Self, Http1Error> {
-        let headers = ValidatedHeaders::new(headers, None, None, None)?;
+        Self::from_uri(target.into_uri(), headers, None)
+    }
+
+    pub(super) fn new_forward(
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Self, Http1Error> {
+        let authority = target.authority().to_owned();
+        Self::from_uri(target.into_uri(), headers, Some(&authority))
+    }
+
+    fn from_uri(
+        target: http::Uri,
+        headers: Vec<RequestHeader>,
+        expected_host: Option<&str>,
+    ) -> Result<Self, Http1Error> {
+        let headers = ValidatedHeaders::new(headers, None, expected_host, None)?;
         let mut request = Request::new(Empty::<Bytes>::new());
         *request.method_mut() = Method::GET;
-        *request.uri_mut() = target.into_uri();
+        *request.uri_mut() = target;
         *request.version_mut() = Version::HTTP_11;
 
         headers.populate(request.headers_mut());

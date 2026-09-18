@@ -5,12 +5,16 @@ use std::fmt;
 #[cfg(feature = "cookies")]
 use std::sync::Arc;
 
-use http::Response;
+use http::{Method, Response};
 use phantom_net::{
-    http1::{Http1UpgradeOutcome, OriginForm},
+    http1::{
+        AbsoluteForm, Http1TlsConnector, Http1TlsError, Http1UpgradeOutcome, OriginForm,
+        validate_forward_request_body,
+    },
+    proxy::{HttpConnectError, validate_basic_proxy_challenge},
     request::RequestHeader,
 };
-use tracing::{Instrument, debug_span, field};
+use tracing::{Instrument, Span, debug_span, field};
 
 use crate::{
     Client, RequestError, ResponseBody, Route,
@@ -120,7 +124,9 @@ impl WebSocketRequestBuilder {
     /// Performs the ordered H1 Upgrade handshake.
     ///
     /// Dropping this future cancels the in-flight operation. There are no
-    /// implicit redirects, retries, reconnects, or protocol fallbacks.
+    /// implicit redirects, reconnects, or protocol fallbacks. Configured Basic
+    /// forward-proxy authentication permits one challenge-driven retry on a
+    /// fresh connection.
     ///
     /// # Errors
     ///
@@ -131,12 +137,14 @@ impl WebSocketRequestBuilder {
         let span = debug_span!(
             "websocket.connect",
             protocol = "http/1.1",
-            route = route.trace_name(),
+            route = self.request.route_trace_name(route),
+            proxy_authentication_retry = field::Empty,
+            proxy_attempts = field::Empty,
             outcome = field::Empty,
             error_kind = field::Empty,
         );
         let outcome = OperationOutcome::new(&span);
-        let result = self.connect_inner().instrument(span.clone()).await;
+        let result = self.connect_inner(&span).instrument(span.clone()).await;
         match &result {
             Ok(_) => outcome.finish("ok", None),
             Err(error) => outcome.finish("error", Some(error.kind())),
@@ -144,7 +152,7 @@ impl WebSocketRequestBuilder {
         result
     }
 
-    async fn connect_inner(self) -> Result<WebSocket, WebSocketError> {
+    async fn connect_inner(self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
         let Self {
             client,
             request,
@@ -197,7 +205,29 @@ impl WebSocketRequestBuilder {
                         )
                         .await
                 }
-                Route::HttpProxy(_) | Route::Socks5(_) => {
+                Route::HttpProxy(proxy) => {
+                    let transport = if proxy.uses_tls() {
+                        ForwardProxyTransport::Tls(client.inner.https_proxy.as_ref().ok_or_else(
+                            || {
+                                WebSocketError::request(RequestError::unsupported_route(
+                                    crate::HttpProtocol::Http1,
+                                ))
+                            },
+                        )?)
+                    } else {
+                        ForwardProxyTransport::Plaintext
+                    };
+                    forward_upgrade(
+                        connector,
+                        transport,
+                        proxy,
+                        request.absolute_target.clone(),
+                        prepared.headers.clone(),
+                        request_span,
+                    )
+                    .await
+                }
+                Route::Socks5(_) => {
                     return Err(WebSocketError::request(RequestError::unsupported_route(
                         crate::HttpProtocol::Http1,
                     )));
@@ -368,6 +398,7 @@ impl WebSocketRequestBuilder {
 struct ResolvedWebSocket {
     endpoint: Endpoint,
     target: OriginForm,
+    absolute_target: AbsoluteForm,
     transport: WebSocketTransport,
     #[cfg(feature = "cookies")]
     cookie_url: url::Url,
@@ -400,6 +431,14 @@ impl ResolvedWebSocket {
             .map_err(|error| WebSocketError::invalid_authority(error.message()))?;
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
             .map_err(|_| WebSocketError::invalid_request("invalid WebSocket request target"))?;
+        let absolute_target = format!(
+            "{cookie_scheme}://{}{}",
+            endpoint.authority(),
+            uri.path_and_query().map_or("/", |value| value.as_str())
+        );
+        let absolute_target = AbsoluteForm::parse(&absolute_target).map_err(|_| {
+            WebSocketError::invalid_request("invalid WebSocket proxy request target")
+        })?;
         #[cfg(feature = "cookies")]
         let cookie_url = {
             let mut url = url::Url::parse(&uri.to_string()).map_err(|_| {
@@ -418,11 +457,113 @@ impl ResolvedWebSocket {
         Ok(Self {
             endpoint,
             target,
+            absolute_target,
             transport,
             #[cfg(feature = "cookies")]
             cookie_url,
         })
     }
+
+    fn route_trace_name(&self, route: &Route) -> &'static str {
+        route.request_trace_name(Some(match self.transport {
+            WebSocketTransport::Plaintext => "http",
+            WebSocketTransport::Tls => "https",
+        }))
+    }
+}
+
+async fn forward_upgrade(
+    connector: &Http1TlsConnector,
+    transport: ForwardProxyTransport<'_>,
+    proxy: &crate::HttpProxy,
+    target: AbsoluteForm,
+    headers: Vec<RequestHeader>,
+    request_span: &Span,
+) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+    let authenticated_headers = proxy
+        .basic_credentials()
+        .map(|credentials| {
+            let mut authenticated = headers.clone();
+            authenticated.push(credentials.proxy_authorization_header());
+            validate_forward_request_body(&Method::GET, &target, &authenticated, None)?;
+            Ok::<_, Http1TlsError>(authenticated)
+        })
+        .transpose()?;
+    if authenticated_headers.is_some() {
+        request_span.record("proxy_authentication_retry", false);
+        request_span.record("proxy_attempts", 1_u64);
+    }
+
+    let first =
+        send_forward_upgrade(connector, transport, proxy, target.clone(), headers.clone()).await?;
+    let Some(authenticated_headers) = authenticated_headers else {
+        return Ok(first);
+    };
+    let response = match first {
+        Http1UpgradeOutcome::Rejected(response) => response,
+        upgraded @ Http1UpgradeOutcome::Upgraded(_) => return Ok(upgraded),
+    };
+    if response.status() != http::StatusCode::PROXY_AUTHENTICATION_REQUIRED {
+        return Ok(Http1UpgradeOutcome::Rejected(response));
+    }
+
+    validate_basic_proxy_challenge(response.headers()).map_err(Http1TlsError::Proxy)?;
+    drop(response);
+    request_span.record("proxy_authentication_retry", true);
+    request_span.record("proxy_attempts", 2_u64);
+    tracing::debug!(
+        retry = 1,
+        reason = "proxy_authentication",
+        "retrying forward WebSocket handshake with proxy credentials"
+    );
+
+    let outcome =
+        send_forward_upgrade(connector, transport, proxy, target, authenticated_headers).await?;
+    if matches!(
+        &outcome,
+        Http1UpgradeOutcome::Rejected(response)
+            if response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
+    ) {
+        drop(outcome);
+        return Err(Http1TlsError::Proxy(
+            HttpConnectError::AuthenticationRejected,
+        ));
+    }
+    Ok(outcome)
+}
+
+async fn send_forward_upgrade(
+    connector: &Http1TlsConnector,
+    transport: ForwardProxyTransport<'_>,
+    proxy: &crate::HttpProxy,
+    target: AbsoluteForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+    match transport {
+        ForwardProxyTransport::Tls(proxy_connector) => {
+            connector
+                .upgrade_get_https_forward_proxy(
+                    proxy_connector,
+                    proxy.host(),
+                    proxy.port(),
+                    proxy.host(),
+                    target,
+                    headers,
+                )
+                .await
+        }
+        ForwardProxyTransport::Plaintext => {
+            connector
+                .upgrade_get_forward_proxy(proxy.host(), proxy.port(), target, headers)
+                .await
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ForwardProxyTransport<'a> {
+    Plaintext,
+    Tls(&'a phantom_net::proxy::HttpsProxyConnector),
 }
 
 #[cfg(test)]

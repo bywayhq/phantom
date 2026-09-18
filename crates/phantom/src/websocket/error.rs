@@ -27,7 +27,7 @@ pub enum WebSocketErrorKind {
     RuntimeUnavailable,
     /// Establishing the direct network connection failed.
     Connect,
-    /// HTTP CONNECT proxy negotiation failed.
+    /// HTTP forward- or CONNECT-proxy setup, negotiation, or authentication failed.
     Proxy,
     /// TLS setup or negotiation failed.
     Tls,

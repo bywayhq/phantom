@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt};
 
 use http::{
     HeaderName,
-    header::{CONNECTION, HOST, UPGRADE},
+    header::{CONNECTION, HOST, PROXY_AUTHORIZATION, UPGRADE},
 };
 use phantom_net::request::RequestHeader;
 
@@ -226,6 +226,11 @@ fn validate_templates(
                 if name.eq_ignore_ascii_case(HOST.as_str()) {
                     return Err(WebSocketError::invalid_request(
                         "literal Host is forbidden; use the authority placeholder",
+                    ));
+                }
+                if name.eq_ignore_ascii_case(PROXY_AUTHORIZATION.as_str()) {
+                    return Err(WebSocketError::invalid_request(
+                        "literal Proxy-Authorization is forbidden; configure proxy credentials on the route",
                     ));
                 }
                 if name.eq_ignore_ascii_case(KEY_NAME) {

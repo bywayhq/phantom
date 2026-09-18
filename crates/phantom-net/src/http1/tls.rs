@@ -998,6 +998,98 @@ impl Http1TlsConnector {
         result
     }
 
+    /// Sends one absolute-form HTTP/1.1 Upgrade GET to a plaintext forward proxy.
+    ///
+    /// A `101 Switching Protocols` response yields the upgraded proxy byte
+    /// stream. Request validation completes before DNS resolution or proxy I/O.
+    /// This method does not issue CONNECT, negotiate origin TLS, connect directly
+    /// to the origin, or fall back to another route.
+    pub async fn upgrade_get_forward_proxy(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        let span = debug_span!(
+            "http1.proxy.forward.upgrade_response_head",
+            method = "GET",
+            transport = "tcp",
+            route = "forward_proxy",
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = async {
+            let prepared = PreparedGet::new_forward(target, headers)?;
+            let stream =
+                connect_tcp(proxy_host, proxy_port)
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => {
+                            Http1TlsError::ForwardProxyConnect(error)
+                        }
+                    })?;
+            debug!("HTTP/1 plaintext forward-proxy Upgrade request prepared");
+            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let status = match &outcome {
+                Http1UpgradeOutcome::Upgraded(response) => response.status(),
+                Http1UpgradeOutcome::Rejected(response) => response.status(),
+            };
+            Span::current().record("status", status.as_u16());
+            Ok(outcome)
+        }
+        .instrument(span.clone())
+        .await;
+        outcome_guard.finish(upgrade_outcome(&result));
+        result
+    }
+
+    /// Sends one absolute-form HTTP/1.1 Upgrade GET to a forward proxy over TLS.
+    ///
+    /// TLS terminates at the proxy and uses the proxy connector's authentication
+    /// policy. A `101 Switching Protocols` response yields the upgraded proxy byte
+    /// stream. This method does not issue CONNECT, negotiate origin TLS, connect
+    /// directly to the origin, or fall back to another route.
+    pub async fn upgrade_get_https_forward_proxy(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        let span = debug_span!(
+            "http1.proxy.forward.upgrade_response_head",
+            method = "GET",
+            transport = "tls",
+            route = "forward_proxy",
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = async {
+            let prepared = PreparedGet::new_forward(target, headers)?;
+            let stream = proxy_connector
+                .connect_forward(proxy_host, proxy_port, proxy_server_name)
+                .await?;
+            debug!("HTTP/1 HTTPS forward-proxy Upgrade request prepared");
+            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let status = match &outcome {
+                Http1UpgradeOutcome::Upgraded(response) => response.status(),
+                Http1UpgradeOutcome::Rejected(response) => response.status(),
+            };
+            Span::current().record("status", status.as_u16());
+            Ok(outcome)
+        }
+        .instrument(span.clone())
+        .await;
+        outcome_guard.finish(upgrade_outcome(&result));
+        result
+    }
+
     /// Sends one HTTP/1.1 Upgrade GET through a plaintext HTTP CONNECT proxy.
     ///
     /// Origin and proxy requests are validated before proxy or origin I/O.

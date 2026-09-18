@@ -2,7 +2,9 @@
 
 The optional `websocket` feature provides WebSocket connections over an
 HTTP/1.1 Upgrade. Direct routes accept plaintext `ws://` or TLS-backed `wss://`;
-HTTP-CONNECT and local-/remote-DNS SOCKS5 routes currently accept `wss://` only.
+HTTP forward proxies accept plaintext `ws://` over either plaintext or
+independently authenticated proxy TLS; HTTP-CONNECT and local-/remote-DNS
+SOCKS5 routes currently accept `wss://` only.
 Secure connections reuse Phantom's BoringSSL TLS profile. Both transports reuse
 the ordered HTTP/1 serializer, ordered response metadata, client cookies,
 runtime errors, and tracing lifecycle.
@@ -57,8 +59,10 @@ other fields retain their caller-provided order and casing.
 Validation finishes before network I/O. The sequence must contain exactly one
 authority and key placeholder, one valid Upgrade field, one Connection field
 containing the Upgrade token, and version 13. Literal Host and key fields are
-rejected. Literal extension fields remain forbidden so an offer cannot diverge
-from the installed codec. With `websocket-deflate`, the typed
+rejected. Literal `Proxy-Authorization` is also rejected; credentials belong to
+the selected proxy route so they cannot leak to a direct origin or bypass the
+bounded authentication lifecycle. Literal extension fields remain forbidden so
+an offer cannot diverge from the installed codec. With `websocket-deflate`, the typed
 `WebSocketHeader::permessage_deflate` placeholder emits the generated offer at
 the caller-selected position and field-name spelling.
 
@@ -94,9 +98,14 @@ a Phantom background task. Dropping the connection closes the transport;
 receiving until the peer replies.
 
 WebSocket connections are exclusive and are never inserted into the client's
-HTTP pool. There are no implicit redirects, retries, reconnects, heartbeats, or
-direct-route fallback after a proxy failure. Plaintext `ws://` is deliberately
-direct-only; selecting a proxy route is rejected without opening a connection.
+HTTP pool. There are no implicit redirects, reconnects, heartbeats, protocol
+fallbacks, or direct-route fallback after a proxy failure. The only retry is the
+configured Basic proxy-authentication replay described here. A plaintext
+`ws://` request through an HTTP proxy uses an RFC 6455-compatible normalized
+`http://` absolute-form target and never changes to CONNECT. With Basic
+credentials configured, each logical connection starts anonymously and may
+replay once, on a fresh same-route connection, only after a strict `407` Basic
+challenge. No challenge state is learned. Plaintext SOCKS5 remains unsupported.
 
 ## Compression
 

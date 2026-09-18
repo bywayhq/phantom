@@ -9,8 +9,60 @@ use tokio::{
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
-    http1::{Http1Error, Http1UpgradeOutcome, PreparedGet, send_get, send_prepared_upgrade},
+    http1::{
+        AbsoluteForm, Http1Error, Http1UpgradeOutcome, PreparedGet, RequestHeader, send_get,
+        send_prepared_upgrade,
+    },
 };
+
+#[tokio::test]
+async fn forward_upgrade_serializes_exact_absolute_form_and_ordered_fields() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let prepared = PreparedGet::new_forward(
+            AbsoluteForm::parse("http://example.test:8080/socket?encoding=json")?,
+            vec![
+                RequestHeader::new("Host", "example.test:8080"),
+                RequestHeader::new("Connection", "Upgrade"),
+                RequestHeader::new("Upgrade", "websocket"),
+                RequestHeader::new("X-Order", "last"),
+            ],
+        )?;
+        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared));
+
+        let request = read_head(&mut server).await?;
+        assert_eq!(
+            request,
+            b"GET http://example.test:8080/socket?encoding=json HTTP/1.1\r\n\
+              Host: example.test:8080\r\n\
+              Connection: Upgrade\r\n\
+              Upgrade: websocket\r\n\
+              X-Order: last\r\n\r\n"
+        );
+        server
+            .write_all(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n\r\n")
+            .await?;
+        assert!(matches!(
+            transaction.await??,
+            Http1UpgradeOutcome::Upgraded(_)
+        ));
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn forward_upgrade_rejects_mismatched_host_before_io() -> TestResult {
+    let result = PreparedGet::new_forward(
+        AbsoluteForm::parse("https://example.test/socket")?,
+        vec![RequestHeader::new("Host", "other.test")],
+    );
+    assert!(matches!(
+        result,
+        Err(Http1Error::MismatchedHost { index: 0 })
+    ));
+    Ok(())
+}
 
 #[tokio::test]
 async fn upgrade_retains_ordered_head_and_coalesced_protocol_bytes() -> TestResult {
