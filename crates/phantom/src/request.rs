@@ -10,14 +10,16 @@ use phantom_net::{
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    Client, HttpProtocol, RequestError, RequestTimeouts, ResponseBody, ResponseInfo, Route,
+    Client, HttpProtocol, RequestError, RequestTimeouts, ResponseBody, ResponseInfo, RetryPolicy,
+    Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
     redirect::{RedirectAction, RedirectState},
+    retry::ConnectionSetupRetryState,
 };
 
 mod attempt;
 
-use attempt::{AttemptRequest, send_once};
+use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 
 /// Builder for one exact-protocol request with an optional owned body.
 #[must_use = "request builders do nothing until send is awaited"]
@@ -31,6 +33,7 @@ pub struct RequestBuilder {
     body: RequestBodySource,
     route: Option<Route>,
     timeouts: Option<RequestTimeouts>,
+    retry_policy: Option<RetryPolicy>,
     response_body_timeouts: bool,
 }
 
@@ -46,6 +49,7 @@ impl fmt::Debug for RequestBuilder {
             .field("body_len", &self.body.exact_length().unwrap_or(0))
             .field("route_override", &self.route.is_some())
             .field("timeout_override", &self.timeouts.is_some())
+            .field("retry_policy_override", &self.retry_policy.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -103,6 +107,7 @@ impl RequestBuilder {
             body: RequestBodySource::Absent,
             route: None,
             timeouts: None,
+            retry_policy: None,
             response_body_timeouts: true,
         })
     }
@@ -176,6 +181,15 @@ impl RequestBuilder {
         self
     }
 
+    /// Replaces the client's connection-establishment retry policy for this request.
+    ///
+    /// The policy applies only to exact H1, H2, or H3 connection acquisition
+    /// before request dispatch. Negotiated H1/H2 requests are not retried.
+    pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.retry_policy = Some(policy);
+        self
+    }
+
     #[cfg(feature = "sse")]
     pub(crate) fn without_response_body_timeouts(mut self) -> Self {
         self.response_body_timeouts = false;
@@ -188,7 +202,8 @@ impl RequestBuilder {
     /// connections. A bodyless HTTP/2 GET rejected by `GOAWAY(NO_ERROR)` is
     /// retried once on the client's replacement connection. Dropping this
     /// future cancels the in-flight operation; returned bodies retain protocol
-    /// cancellation.
+    /// cancellation. An opt-in [`RetryPolicy`] can retry eligible exact-protocol
+    /// connection setup without replaying request bytes or body frames.
     ///
     /// # Errors
     ///
@@ -224,6 +239,8 @@ impl RequestBuilder {
             route = route.request_trace_name(self.request.uri.scheme_str()),
             proxy_authentication_retry = field::Empty,
             proxy_attempts = field::Empty,
+            retries_performed = 0_u64,
+            retry_reason = field::Empty,
             timeout_phase = field::Empty,
             outcome = field::Empty,
         );
@@ -250,6 +267,10 @@ impl RequestBuilder {
         let timeout_budget = crate::timeout::TimeoutBudget::new(
             self.timeouts.unwrap_or(self.client.state.request_timeouts),
         )?;
+        let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
+        if !retry_policy.validate() {
+            return Err(RequestError::invalid_retry_delay());
+        }
         if self
             .headers
             .iter()
@@ -268,9 +289,11 @@ impl RequestBuilder {
             body,
             route,
             timeouts: _,
+            retry_policy: _,
             response_body_timeouts,
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
+        let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         ensure_request_supported(selection, route, &request)?;
         let is_plaintext_http = request.uri.scheme_str() == Some("http");
         if is_plaintext_http
@@ -298,8 +321,11 @@ impl RequestBuilder {
                     body: &mut body,
                 },
                 route,
-                request_span,
-                timeout_budget,
+                AttemptLifecycle {
+                    request_span,
+                    timeout_budget,
+                    retries: &mut retries,
+                },
             )
             .await?;
             let mut response = outcome.response;
@@ -308,9 +334,12 @@ impl RequestBuilder {
                     .body_mut()
                     .apply_timeouts(timeout_budget, outcome.protocol)?;
             }
-            response
-                .extensions_mut()
-                .insert(ResponseInfo::new(request.uri, 0, outcome.protocol));
+            response.extensions_mut().insert(ResponseInfo::new(
+                request.uri,
+                0,
+                retries.performed(),
+                outcome.protocol,
+            ));
             return Ok(response);
         }
 
@@ -337,8 +366,11 @@ impl RequestBuilder {
                     body: redirect.body_mut(),
                 },
                 route,
-                request_span,
-                timeout_budget,
+                AttemptLifecycle {
+                    request_span,
+                    timeout_budget,
+                    retries: &mut retries,
+                },
             )
             .await?;
             let mut response = outcome.response;
@@ -352,6 +384,7 @@ impl RequestBuilder {
                     response.extensions_mut().insert(ResponseInfo::new(
                         resolved.uri.clone(),
                         redirect.followed(),
+                        retries.performed(),
                         outcome.protocol,
                     ));
                     return Ok(response);

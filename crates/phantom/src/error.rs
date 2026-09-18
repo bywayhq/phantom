@@ -426,6 +426,13 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn invalid_retry_delay() -> Self {
+        Self::without_source(
+            RequestErrorKind::InvalidTimeout,
+            "connection retry delay exceeds the runtime clock range",
+        )
+    }
+
     pub(crate) fn timeout(phase: TimeoutPhase, protocol: Option<HttpProtocol>) -> Self {
         let message = match phase {
             TimeoutPhase::PoolAdmission => "request pool admission timed out",
@@ -787,8 +794,8 @@ mod tests {
     };
 
     use super::{
-        is_retryable_http3_connection_setup_kind, is_retryable_http_connect_kind,
-        is_retryable_socks5_kind, RequestError, RequestErrorKind,
+        RequestError, RequestErrorKind, is_retryable_http_connect_kind,
+        is_retryable_http3_connection_setup_kind, is_retryable_socks5_kind,
     };
     use crate::HttpProtocol;
 

@@ -11,7 +11,11 @@ use super::{
     client_hints::ClientHintContext,
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
-use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
+use crate::{
+    HttpProtocol, RequestError, ResponseBody, Route,
+    authority::Endpoint,
+    retry::{ConnectionSetupRetryState, acquire_with_retries},
+};
 
 pub(crate) struct Http3Pool {
     capacity: NonZeroUsize,
@@ -60,6 +64,7 @@ impl Http3Pool {
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
@@ -87,11 +92,10 @@ impl Http3Pool {
                 entry.admit(),
             )
             .await?;
-        let lease = timeout_budget
-            .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
-                entry.acquire(connector, endpoint).await
-            })
-            .await?;
+        let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
+            entry.acquire(connector, endpoint).await
+        })
+        .await?;
         let sent_headers = match client_hints {
             Some(context) => context.prepare(
                 headers,
@@ -237,7 +241,7 @@ impl PoolEntry {
         let connection = connector
             .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
             .await
-            .map_err(RequestError::http3)?;
+            .map_err(RequestError::http3_connection_setup)?;
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),

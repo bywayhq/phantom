@@ -318,7 +318,8 @@ impl ClientBuilder {
 
     /// Sets the policy for retrying connection-establishment failures.
     ///
-    /// Connection retries are disabled by default.
+    /// Connection retries are disabled by default and apply only to
+    /// exact-protocol requests before dispatch.
     #[must_use]
     pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.options.retry_policy = policy;
@@ -432,6 +433,11 @@ impl ClientBuilder {
         if !self.options.request_timeouts.validate() {
             return Err(BuildError::invalid_policy(
                 "request timeout exceeds the runtime clock range",
+            ));
+        }
+        if !self.options.retry_policy.validate() {
+            return Err(BuildError::invalid_policy(
+                "connection retry delay exceeds the runtime clock range",
             ));
         }
         self.profile

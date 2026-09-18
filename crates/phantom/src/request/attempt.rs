@@ -7,7 +7,9 @@ use phantom_net::{
 use tracing::Span;
 
 use crate::timeout::TimeoutBudget;
-use crate::{Client, HttpProtocol, RequestError, ResponseBody, Route};
+use crate::{
+    Client, HttpProtocol, RequestError, ResponseBody, Route, retry::ConnectionSetupRetryState,
+};
 
 use super::{ProtocolSelection, RequestBodySource, ResolvedRequest};
 use crate::session::{client_hints::ClientHintContext, http1_pool::Http1ConnectionMode};
@@ -19,27 +21,23 @@ pub(super) struct AttemptRequest<'a> {
     pub(super) body: &'a mut RequestBodySource,
 }
 
+pub(super) struct AttemptLifecycle<'a> {
+    pub(super) request_span: &'a Span,
+    pub(super) timeout_budget: TimeoutBudget,
+    pub(super) retries: &'a mut ConnectionSetupRetryState,
+}
+
 pub(super) async fn send_once(
     client: &Client,
     request: &ResolvedRequest,
     selection: ProtocolSelection,
     attempt: AttemptRequest<'_>,
     route: &Route,
-    request_span: &Span,
-    timeout_budget: TimeoutBudget,
+    lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
     match selection {
         ProtocolSelection::Exact(protocol) => {
-            send_once_exact(
-                client,
-                request,
-                protocol,
-                attempt,
-                route,
-                request_span,
-                timeout_budget,
-            )
-            .await
+            send_once_exact(client, request, protocol, attempt, route, lifecycle).await
         }
         ProtocolSelection::Http1Or2 => {
             send_once_negotiated(
@@ -47,8 +45,8 @@ pub(super) async fn send_once(
                 request,
                 attempt,
                 route,
-                request_span,
-                timeout_budget,
+                lifecycle.request_span,
+                lifecycle.timeout_budget,
             )
             .await
         }
@@ -61,9 +59,13 @@ async fn send_once_exact(
     protocol: HttpProtocol,
     attempt: AttemptRequest<'_>,
     route: &Route,
-    request_span: &Span,
-    timeout_budget: TimeoutBudget,
+    lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
+    let AttemptLifecycle {
+        request_span,
+        timeout_budget,
+        retries,
+    } = lifecycle;
     let AttemptRequest {
         method,
         headers: request_headers,
@@ -120,6 +122,7 @@ async fn send_once_exact(
             route,
             retried_proxy_authentication,
             timeout_budget,
+            retries,
         )
         .await?;
         let response = dispatched.response;
@@ -334,6 +337,7 @@ async fn dispatch(
     route: &Route,
     forward_authorization: bool,
     timeout_budget: TimeoutBudget,
+    retries: &mut ConnectionSetupRetryState,
 ) -> Result<DispatchOutcome, RequestError> {
     let endpoint = &request.endpoint;
     let target = request.target.clone();
@@ -374,6 +378,7 @@ async fn dispatch(
                     body,
                     forward_authorization,
                     timeout_budget,
+                    retries,
                 )
                 .await?;
             Ok(DispatchOutcome {
@@ -403,6 +408,7 @@ async fn dispatch(
                     client_hints,
                     body,
                     timeout_budget,
+                    retries,
                 )
                 .await
                 .map(|(response, sent_headers)| DispatchOutcome {
@@ -431,6 +437,7 @@ async fn dispatch(
                     client_hints,
                     body,
                     timeout_budget,
+                    retries,
                 )
                 .await
                 .map(|(response, sent_headers)| DispatchOutcome {

@@ -19,7 +19,11 @@ use super::{
     client_hints::ClientHintContext,
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
-use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
+use crate::{
+    HttpProtocol, RequestError, ResponseBody, Route,
+    authority::Endpoint,
+    retry::{ConnectionSetupRetryState, acquire_with_retries},
+};
 
 pub(crate) struct Http2Pool {
     capacity: NonZeroUsize,
@@ -69,6 +73,7 @@ impl Http2Pool {
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
         let prepared_validation_headers =
             client_hints.map(|context| context.prepare(headers.clone(), None));
@@ -98,15 +103,15 @@ impl Http2Pool {
         let retryable_request = method == Method::GET && body.is_none() && trailers.is_empty();
         let mut body = body;
         let mut retried_graceful_goaway = false;
-        let response_timeout =
-            timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
 
         loop {
-            let lease = timeout_budget
-                .run(TimeoutPhase::Connect, Some(HttpProtocol::Http2), async {
+            let lease =
+                acquire_with_retries(HttpProtocol::Http2, timeout_budget, retries, || async {
                     entry.acquire(connector, https_proxy, endpoint, route).await
                 })
                 .await?;
+            let response_timeout =
+                timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
             let sent_headers = client_hints.map_or_else(
                 || headers.clone(),
                 |context| {
@@ -281,7 +286,7 @@ impl PoolEntry {
             Route::Direct => connector
                 .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
                 .await
-                .map_err(RequestError::http2)?,
+                .map_err(RequestError::http2_connection_setup)?,
             Route::HttpProxy(proxy) => {
                 let connect_authority = endpoint.tunnel_authority();
                 if proxy.uses_tls() {
@@ -304,7 +309,7 @@ impl PoolEntry {
                             endpoint.host(),
                         ))
                         .await
-                        .map_err(RequestError::http2)?
+                        .map_err(RequestError::http2_connection_setup)?
                     } else {
                         connector
                             .connect_https_connect(
@@ -317,7 +322,7 @@ impl PoolEntry {
                                 endpoint.host(),
                             )
                             .await
-                            .map_err(RequestError::http2)?
+                            .map_err(RequestError::http2_connection_setup)?
                     }
                 } else {
                     if let Some(credentials) = proxy.basic_credentials() {
@@ -331,7 +336,7 @@ impl PoolEntry {
                             endpoint.host(),
                         ))
                         .await
-                        .map_err(RequestError::http2)?
+                        .map_err(RequestError::http2_connection_setup)?
                     } else {
                         connector
                             .connect_http_connect(
@@ -342,7 +347,7 @@ impl PoolEntry {
                                 endpoint.host(),
                             )
                             .await
-                            .map_err(RequestError::http2)?
+                            .map_err(RequestError::http2_connection_setup)?
                     }
                 }
             }
@@ -357,7 +362,7 @@ impl PoolEntry {
                         endpoint.host(),
                     )
                     .await
-                    .map_err(RequestError::http2)?,
+                    .map_err(RequestError::http2_connection_setup)?,
                 crate::Socks5DnsMode::Remote => connector
                     .connect_socks5_remote_with_auth(
                         proxy.host(),
@@ -368,7 +373,7 @@ impl PoolEntry {
                         endpoint.host(),
                     )
                     .await
-                    .map_err(RequestError::http2)?,
+                    .map_err(RequestError::http2_connection_setup)?,
             },
         };
         let slot = ConnectionSlot {

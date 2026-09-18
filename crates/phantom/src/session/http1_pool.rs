@@ -16,7 +16,11 @@ use tracing::debug;
 
 use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
-use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
+use crate::{
+    HttpProtocol, RequestError, ResponseBody, Route,
+    authority::Endpoint,
+    retry::{ConnectionSetupRetryState, acquire_with_retries},
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Http1ConnectionMode {
@@ -64,6 +68,7 @@ impl Http1Pool {
         body: Option<RequestBody>,
         forward_authorization: bool,
         timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
         let body_metadata = body.as_ref().map(RequestBody::metadata);
         let mut authenticated_headers = None;
@@ -122,20 +127,19 @@ impl Http1Pool {
                 entry.admit(),
             )
             .await?;
-        let lease = timeout_budget
-            .run(TimeoutPhase::Connect, Some(HttpProtocol::Http1), async {
-                entry
-                    .acquire(
-                        connector,
-                        https_proxy,
-                        endpoint,
-                        route,
-                        mode,
-                        forward_authorization,
-                    )
-                    .await
-            })
-            .await?;
+        let lease = acquire_with_retries(HttpProtocol::Http1, timeout_budget, retries, || async {
+            entry
+                .acquire(
+                    connector,
+                    https_proxy,
+                    endpoint,
+                    route,
+                    mode,
+                    forward_authorization,
+                )
+                .await
+        })
+        .await?;
         let result = timeout_budget
             .run(
                 TimeoutPhase::ResponseHead,
@@ -317,12 +321,12 @@ impl PoolEntry {
                             proxy.host(),
                         )
                         .await
-                        .map_err(RequestError::http1)?
+                        .map_err(RequestError::http1_connection_setup)?
                 } else {
                     connector
                         .connect_forward_proxy(proxy.host(), proxy.port())
                         .await
-                        .map_err(RequestError::http1)?
+                        .map_err(RequestError::http1_connection_setup)?
                 }
             }
             Http1ConnectionMode::PlaintextOrigin => {
@@ -332,7 +336,7 @@ impl PoolEntry {
                 connector
                     .connect_plaintext_direct(endpoint.host(), endpoint.port())
                     .await
-                    .map_err(RequestError::http1)?
+                    .map_err(RequestError::http1_connection_setup)?
             }
             Http1ConnectionMode::TlsOrigin => {
                 let connector = self
@@ -342,7 +346,7 @@ impl PoolEntry {
                     Route::Direct => connector
                         .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
                         .await
-                        .map_err(RequestError::http1)?,
+                        .map_err(RequestError::http1_connection_setup)?,
                     Route::HttpProxy(proxy) => {
                         let connect_authority = endpoint.tunnel_authority();
                         if proxy.uses_tls() {
@@ -366,7 +370,7 @@ impl PoolEntry {
                                     endpoint.host(),
                                 ))
                                 .await
-                                .map_err(RequestError::http1)?
+                                .map_err(RequestError::http1_connection_setup)?
                             } else {
                                 connector
                                     .connect_https_connect(
@@ -379,7 +383,7 @@ impl PoolEntry {
                                         endpoint.host(),
                                     )
                                     .await
-                                    .map_err(RequestError::http1)?
+                                    .map_err(RequestError::http1_connection_setup)?
                             }
                         } else {
                             if let Some(credentials) = proxy.basic_credentials() {
@@ -392,7 +396,7 @@ impl PoolEntry {
                                     endpoint.host(),
                                 ))
                                 .await
-                                .map_err(RequestError::http1)?
+                                .map_err(RequestError::http1_connection_setup)?
                             } else {
                                 connector
                                     .connect_http_connect(
@@ -403,7 +407,7 @@ impl PoolEntry {
                                         endpoint.host(),
                                     )
                                     .await
-                                    .map_err(RequestError::http1)?
+                                    .map_err(RequestError::http1_connection_setup)?
                             }
                         }
                     }
@@ -418,7 +422,7 @@ impl PoolEntry {
                                 endpoint.host(),
                             )
                             .await
-                            .map_err(RequestError::http1)?,
+                            .map_err(RequestError::http1_connection_setup)?,
                         crate::Socks5DnsMode::Remote => connector
                             .connect_socks5_remote_with_auth(
                                 proxy.host(),
@@ -429,7 +433,7 @@ impl PoolEntry {
                                 endpoint.host(),
                             )
                             .await
-                            .map_err(RequestError::http1)?,
+                            .map_err(RequestError::http1_connection_setup)?,
                     },
                 }
             }

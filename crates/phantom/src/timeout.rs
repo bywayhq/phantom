@@ -15,9 +15,10 @@ const TOKIO_TIME_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but time
 
 /// Time limits for one ordinary HTTP request operation.
 ///
-/// Every limit is disabled by default. Phase limits restart for each redirect
-/// or bounded internal replay. The total limit is one absolute deadline shared
-/// by every attempt and the final response body.
+/// Every limit is disabled by default. Phase limits restart for each redirect,
+/// connection retry, or bounded internal replay. The total limit is one
+/// absolute deadline shared by every attempt, retry delay, and the final
+/// response body.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RequestTimeouts {
     pool_admission: Option<Duration>,
@@ -207,6 +208,33 @@ impl TimeoutBudget {
             return Ok(None);
         }
         ResponseTimeouts::new(self.policy.read_idle, self.total_deadline, protocol).map(Some)
+    }
+
+    pub(crate) async fn delay(
+        self,
+        duration: Duration,
+        protocol: HttpProtocol,
+    ) -> Result<(), RequestError> {
+        let now = Instant::now();
+        if self.total_deadline.is_some_and(|deadline| deadline <= now) {
+            return Err(RequestError::timeout(TimeoutPhase::Total, Some(protocol)));
+        }
+        if duration.is_zero() {
+            return Ok(());
+        }
+        let delay_deadline = now
+            .checked_add(duration)
+            .ok_or_else(RequestError::invalid_timeout)?;
+        let (deadline, total_expires_first) = match self.total_deadline {
+            Some(total_deadline) if total_deadline <= delay_deadline => (total_deadline, true),
+            Some(_) | None => (delay_deadline, false),
+        };
+        let mut timer = DeadlineTimer::new(deadline)?;
+        poll_fn(|context| timer.poll_expired(context)).await?;
+        if total_expires_first {
+            return Err(RequestError::timeout(TimeoutPhase::Total, Some(protocol)));
+        }
+        Ok(())
     }
 
     fn deadline(self, phase: TimeoutPhase) -> Result<Option<Deadline>, RequestError> {
