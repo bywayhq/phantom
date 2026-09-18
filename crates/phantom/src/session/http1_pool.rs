@@ -62,27 +62,54 @@ impl Http1Pool {
         headers: Vec<RequestHeader>,
         trailers: Vec<RequestHeader>,
         body: Option<RequestBody>,
+        forward_authorization: bool,
         timeout_budget: TimeoutBudget,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
-        if mode == Http1ConnectionMode::Forward {
+        let body_metadata = body.as_ref().map(RequestBody::metadata);
+        let mut authenticated_headers = None;
+        let validation: Result<(), phantom_net::http1::Http1Error> = (|| {
+            if mode != Http1ConnectionMode::Forward {
+                return validate_request_body_with_trailers(
+                    &method,
+                    &target,
+                    &headers,
+                    body_metadata,
+                    &trailers,
+                );
+            }
             validate_forward_request_body_with_trailers(
                 &method,
                 &absolute_target,
                 &headers,
-                body.as_ref().map(RequestBody::metadata),
+                body_metadata,
                 &trailers,
-            )
+            )?;
+            if let Some(credentials) = route
+                .as_http_proxy()
+                .and_then(crate::HttpProxy::basic_credentials)
+            {
+                let mut candidate = headers.clone();
+                candidate.push(credentials.proxy_authorization_header());
+                validate_forward_request_body_with_trailers(
+                    &method,
+                    &absolute_target,
+                    &candidate,
+                    body_metadata,
+                    &trailers,
+                )?;
+                authenticated_headers = Some(candidate);
+            }
+            Ok(())
+        })();
+        validation
+            .map_err(Http1TlsError::from)
+            .map_err(RequestError::http1)?;
+        let headers = if forward_authorization {
+            authenticated_headers
+                .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?
         } else {
-            validate_request_body_with_trailers(
-                &method,
-                &target,
-                &headers,
-                body.as_ref().map(RequestBody::metadata),
-                &trailers,
-            )
-        }
-        .map_err(Http1TlsError::from)
-        .map_err(RequestError::http1)?;
+            headers
+        };
         if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         }
@@ -131,6 +158,18 @@ impl Http1Pool {
             .await;
         match result {
             Ok(Ok(response)) => {
+                if mode == Http1ConnectionMode::Forward
+                    && route
+                        .as_http_proxy()
+                        .and_then(crate::HttpProxy::basic_credentials)
+                        .is_some()
+                    && response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
+                {
+                    // A zero-length 407 may already have released its transport
+                    // lease as reusable. Retire the generation before exposing
+                    // the response so an authentication retry must reconnect.
+                    entry.invalidate(&lease.token).await;
+                }
                 let (parts, body) = response.into_parts();
                 Ok(http::Response::from_parts(
                     parts,

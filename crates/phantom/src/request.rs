@@ -222,6 +222,8 @@ impl RequestBuilder {
             protocol = self.selection.trace_name(),
             selected_protocol = field::Empty,
             route = route.request_trace_name(self.request.uri.scheme_str()),
+            proxy_authentication_retry = field::Empty,
+            proxy_attempts = field::Empty,
             timeout_phase = field::Empty,
             outcome = field::Empty,
         );
@@ -437,11 +439,7 @@ fn ensure_request_supported(
     match request.uri.scheme_str() {
         Some("http") => match (selection, route) {
             (ProtocolSelection::Exact(HttpProtocol::Http1), Route::Direct) => Ok(()),
-            (ProtocolSelection::Exact(HttpProtocol::Http1), Route::HttpProxy(proxy))
-                if proxy.supports_forwarding() =>
-            {
-                Ok(())
-            }
+            (ProtocolSelection::Exact(HttpProtocol::Http1), Route::HttpProxy(_)) => Ok(()),
             (ProtocolSelection::Exact(protocol), Route::HttpProxy(_)) => {
                 Err(RequestError::unsupported_route(protocol))
             }

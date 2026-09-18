@@ -121,10 +121,9 @@ impl HttpProxy {
 
     /// Configures challenge-driven HTTP Basic proxy authentication.
     ///
-    /// The first CONNECT request omits credentials. Phantom sends them only
+    /// The first proxy request omits credentials. Phantom sends them only
     /// after a valid Basic proxy challenge and retries once on a fresh proxy
-    /// connection. URI credentials remain unsupported. Configured credentials
-    /// are currently incompatible with forward proxying and fail before I/O.
+    /// connection. URI credentials remain unsupported.
     ///
     /// Basic credentials sent to a plaintext `http://` proxy have no transport
     /// confidentiality. Use an `https://` proxy for sensitive credentials.
@@ -218,10 +217,6 @@ impl HttpProxy {
 
     pub(crate) fn basic_credentials(&self) -> Option<&HttpBasicCredentials> {
         self.credentials.as_ref()
-    }
-
-    pub(crate) const fn supports_forwarding(&self) -> bool {
-        self.credentials.is_none()
     }
 }
 
@@ -420,13 +415,6 @@ mod tests {
         assert_eq!(
             Route::http_proxy(proxy.clone()),
             Route::http_connect(proxy.clone())
-        );
-        assert!(proxy.supports_forwarding());
-        assert!(HttpProxy::new("https://proxy.example:8443")?.supports_forwarding());
-        assert!(
-            !proxy
-                .with_basic_auth("user", "secret")?
-                .supports_forwarding()
         );
         assert_eq!(
             Route::http_proxy(HttpProxy::new("http://proxy.example")?)

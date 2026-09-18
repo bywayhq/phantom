@@ -6,6 +6,8 @@ mod h3_support;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
+#[path = "support/tracing.rs"]
+mod tracing_support;
 
 use std::{future::Future, net::Ipv4Addr, num::NonZeroUsize, time::Duration};
 
@@ -21,12 +23,14 @@ use tokio::{
     net::TcpListener,
     time::timeout,
 };
+use tracing::instrument::WithSubscriber;
 
 use h3_support::client_settings;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
     read_head, tls_settings,
 };
+use tracing_support::OutcomeSubscriber;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -154,6 +158,7 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_a_fresh_plaintext_co
             HttpProxy::new(&format!("http://{address}"))?
                 .with_basic_auth("alice", "secret")?,
         );
+        let subscriber = OutcomeSubscriber::default();
         let response = client_builder(&identity, false)
             .route(route)
             .build()?
@@ -174,6 +179,7 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_a_fresh_plaintext_co
                 RequestHeader::new("X-Checksum", "second"),
             ])
             .send()
+            .with_subscriber(subscriber.dispatch())
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
@@ -193,6 +199,11 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_a_fresh_plaintext_co
         assert_eq!(anonymous_body, expected_body);
         assert_eq!(authenticated_body, expected_body);
         assert!(!third);
+        assert_eq!(
+            subscriber.proxy_authentication_retries_for("client.request"),
+            [false, true]
+        );
+        assert_eq!(subscriber.proxy_attempts_for("client.request"), [1, 2]);
         Ok(())
     })
     .await
@@ -483,6 +494,80 @@ async fn configured_basic_credentials_are_omitted_without_a_challenge() -> TestR
             b"GET http://origin.test/public HTTP/1.1\r\nHost: origin.test\r\n\r\n"
         );
         assert!(!opened_another);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn basic_challenge_state_is_not_learned_across_logical_requests() -> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut anonymous, _) = listener.accept().await?;
+            let first_anonymous = read_head(&mut anonymous).await?;
+            anonymous
+                .write_all(
+                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+                      Proxy-Authenticate: Basic realm=forward\r\n\
+                      Content-Length: 0\r\n\r\n",
+                )
+                .await?;
+
+            let (mut authenticated, _) = listener.accept().await?;
+            let first_authenticated = read_head(&mut authenticated).await?;
+            authenticated
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            let second_anonymous = read_head(&mut authenticated).await?;
+            authenticated
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            let third_connection = timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_ok();
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((
+                first_anonymous,
+                first_authenticated,
+                second_anonymous,
+                third_connection,
+            ))
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+        for path in ["first", "second"] {
+            let response = client
+                .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+        }
+
+        let (first_anonymous, first_authenticated, second_anonymous, third_connection) =
+            proxy.await??;
+        assert!(!contains_ascii_case_insensitive(
+            &first_anonymous,
+            b"proxy-authorization"
+        ));
+        assert!(contains_ascii_case_insensitive(
+            &first_authenticated,
+            b"proxy-authorization: basic ywxpy2u6c2vjcmv0"
+        ));
+        assert!(
+            second_anonymous
+                .starts_with(b"GET http://origin.test/second HTTP/1.1\r\nHost: origin.test\r\n")
+        );
+        assert!(!contains_ascii_case_insensitive(
+            &second_anonymous,
+            b"proxy-authorization"
+        ));
+        assert!(!third_connection);
         Ok(())
     })
     .await

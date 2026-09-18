@@ -27,6 +27,8 @@ struct CaptureState {
     outcomes: Vec<(&'static str, String)>,
     error_kinds: Vec<(&'static str, String)>,
     selected_protocols: Vec<(&'static str, String)>,
+    proxy_authentication_retries: Vec<(&'static str, bool)>,
+    proxy_attempts: Vec<(&'static str, u64)>,
 }
 
 impl OutcomeSubscriber {
@@ -66,6 +68,26 @@ impl OutcomeSubscriber {
             .iter()
             .filter(|(name, _)| *name == span_name)
             .map(|(_, protocol)| protocol.clone())
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn proxy_authentication_retries_for(&self, span_name: &str) -> Vec<bool> {
+        self.state()
+            .proxy_authentication_retries
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, retried)| *retried)
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn proxy_attempts_for(&self, span_name: &str) -> Vec<u64> {
+        self.state()
+            .proxy_attempts
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, attempts)| *attempts)
             .collect()
     }
 
@@ -126,6 +148,8 @@ impl Subscriber for OutcomeSubscriber {
         if visitor.outcome.is_none()
             && visitor.error_kind.is_none()
             && visitor.selected_protocol.is_none()
+            && visitor.proxy_authentication_retry.is_none()
+            && visitor.proxy_attempts.is_none()
         {
             return;
         }
@@ -139,6 +163,12 @@ impl Subscriber for OutcomeSubscriber {
             }
             if let Some(protocol) = visitor.selected_protocol {
                 state.selected_protocols.push((name, protocol));
+            }
+            if let Some(retried) = visitor.proxy_authentication_retry {
+                state.proxy_authentication_retries.push((name, retried));
+            }
+            if let Some(attempts) = visitor.proxy_attempts {
+                state.proxy_attempts.push((name, attempts));
             }
         }
     }
@@ -157,6 +187,8 @@ struct OutcomeVisitor {
     outcome: Option<String>,
     error_kind: Option<String>,
     selected_protocol: Option<String>,
+    proxy_authentication_retry: Option<bool>,
+    proxy_attempts: Option<u64>,
 }
 
 impl Visit for OutcomeVisitor {
@@ -171,6 +203,18 @@ impl Visit for OutcomeVisitor {
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         if field.name() == "error_kind" {
             self.error_kind = Some(format!("{value:?}"));
+        }
+    }
+
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        if field.name() == "proxy_authentication_retry" {
+            self.proxy_authentication_retry = Some(value);
+        }
+    }
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        if field.name() == "proxy_attempts" {
+            self.proxy_attempts = Some(value);
         }
     }
 }

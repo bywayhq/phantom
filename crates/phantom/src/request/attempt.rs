@@ -1,5 +1,9 @@
 use http::{Method, Response};
-use phantom_net::request::{RequestBody, RequestHeader};
+use phantom_net::{
+    http1::Http1TlsError,
+    proxy::{HttpConnectError, validate_basic_proxy_challenge},
+    request::{RequestBody, RequestHeader},
+};
 use tracing::Span;
 
 use crate::timeout::TimeoutBudget;
@@ -26,7 +30,16 @@ pub(super) async fn send_once(
 ) -> Result<AttemptOutcome, RequestError> {
     match selection {
         ProtocolSelection::Exact(protocol) => {
-            send_once_exact(client, request, protocol, attempt, route, timeout_budget).await
+            send_once_exact(
+                client,
+                request,
+                protocol,
+                attempt,
+                route,
+                request_span,
+                timeout_budget,
+            )
+            .await
         }
         ProtocolSelection::Http1Or2 => {
             send_once_negotiated(
@@ -48,6 +61,7 @@ async fn send_once_exact(
     protocol: HttpProtocol,
     attempt: AttemptRequest<'_>,
     route: &Route,
+    request_span: &Span,
     timeout_budget: TimeoutBudget,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptRequest {
@@ -60,6 +74,17 @@ async fn send_once_exact(
     #[cfg(feature = "cookies")]
     let cookie_jar = client.state.cookies.as_deref();
     let mut retried_critical_hints = false;
+    let has_forward_credentials = protocol == HttpProtocol::Http1
+        && request.uri.scheme_str() == Some("http")
+        && route
+            .as_http_proxy()
+            .and_then(crate::HttpProxy::basic_credentials)
+            .is_some();
+    let mut retried_proxy_authentication = false;
+    if has_forward_credentials {
+        request_span.record("proxy_authentication_retry", false);
+        request_span.record("proxy_attempts", 1_u64);
+    }
     let client_hint_origin = client
         .inner
         .client_hints
@@ -89,11 +114,35 @@ async fn send_once_exact(
             client_hints,
             attempt_body,
             route,
+            retried_proxy_authentication,
             timeout_budget,
         )
         .await?;
         let response = dispatched.response;
         let sent_headers = dispatched.sent_headers;
+
+        if has_forward_credentials
+            && response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
+        {
+            if retried_proxy_authentication {
+                drop(response);
+                return Err(proxy_authentication_error(
+                    HttpConnectError::AuthenticationRejected,
+                ));
+            }
+            validate_basic_proxy_challenge(response.headers())
+                .map_err(proxy_authentication_error)?;
+            retried_proxy_authentication = true;
+            request_span.record("proxy_authentication_retry", true);
+            request_span.record("proxy_attempts", 2_u64);
+            tracing::debug!(
+                retry = 1,
+                reason = "proxy_authentication",
+                "retrying forward request with proxy credentials"
+            );
+            drop(response);
+            continue;
+        }
 
         #[cfg(feature = "cookies")]
         if let Some(jar) = cookie_jar {
@@ -281,6 +330,7 @@ async fn dispatch(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<RequestBody>,
     route: &Route,
+    forward_authorization: bool,
     timeout_budget: TimeoutBudget,
 ) -> Result<DispatchOutcome, RequestError> {
     let endpoint = &request.endpoint;
@@ -320,6 +370,7 @@ async fn dispatch(
                     headers,
                     request_trailers,
                     body,
+                    forward_authorization,
                     timeout_budget,
                 )
                 .await?;
@@ -386,6 +437,10 @@ async fn dispatch(
                 })
         }
     }
+}
+
+fn proxy_authentication_error(error: HttpConnectError) -> RequestError {
+    RequestError::http1(Http1TlsError::Proxy(error))
 }
 fn prepare_headers(
     client_hints: Option<ClientHintContext<'_>>,
