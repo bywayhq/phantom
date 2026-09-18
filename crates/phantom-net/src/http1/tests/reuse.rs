@@ -397,6 +397,41 @@ async fn streaming_body_error_invalidates_connection() -> TestResult {
 }
 
 #[tokio::test]
+async fn streaming_body_error_suppresses_static_trailers_and_invalidates_connection() -> TestResult
+{
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            let mut observed = Vec::new();
+            server.read_to_end(&mut observed).await?;
+            Ok::<_, std::io::Error>(observed)
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        let result = connection
+            .send_request_body_with_trailers(
+                Method::POST,
+                target()?,
+                vec![host()],
+                Some(RequestBody::streaming(ErrorBody)),
+                vec![RequestHeader::new("X-Must-Not-Appear", "no")],
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(!connection.is_reusable());
+
+        let observed = server_task.await??;
+        assert!(
+            !observed
+                .windows(b"X-Must-Not-Appear: no".len())
+                .any(|window| window == b"X-Must-Not-Appear: no")
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn request_connection_close_prevents_reuse() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);

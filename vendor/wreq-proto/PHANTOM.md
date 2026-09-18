@@ -29,6 +29,14 @@ The canonical source and regression-test delta is
 order. `PHANTOM.md` and `patches/` are packaging metadata and are not part of
 the patch.
 
+Phantom also needs request trailers to retain caller-supplied field-name
+spelling, global ordering, and interleaved duplicates. The stock request-body
+path reduces trailers to `HeaderMap`, which cannot represent that wire image.
+`on_preserve_trailer` adds a request extension parallel to the existing ordered
+header callback. It is consulted only when a declared chunked trailer block is
+encoded; callers remain responsible for validating trailer semantics before
+I/O. The canonical delta is `patches/ordered-request-trailers.patch`.
+
 ## Refreshing the vendor copy
 
 Download the reviewed crates.io archive into an isolated directory and verify
@@ -57,8 +65,11 @@ for source in \
   src/error.rs \
   src/proto/http1.rs \
   src/conn/http1.rs \
-  src/proto/http1/conn.rs \
-  src/proto/http1/decode.rs; do
+    src/proto/http1/conn.rs \
+    src/proto/http1/decode.rs \
+    src/ext.rs \
+    src/proto/http1/encode.rs \
+    src/proto/http1/role.rs; do
   normalized="$refresh_dir/$(basename "$source").lf"
   tr -d '\r' < "$candidate/$source" > "$normalized"
   mv "$normalized" "$candidate/$source"

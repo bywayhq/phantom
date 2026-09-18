@@ -20,6 +20,7 @@ use tokio::{
 use tracing::{Instrument, Span, debug, debug_span, field};
 use wreq_proto::conn::http1;
 
+use super::request::Http1RequestBody;
 use super::{
     Http1Body, Http1Error, OperationOutcome, PreparedRequest,
     driver::{DriverSignal, DriverTask},
@@ -49,7 +50,7 @@ impl Http1Connection {
     {
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
         let (sender, connection) = connection_builder()
-            .handshake::<_, RequestBody>(stream)
+            .handshake::<_, Http1RequestBody>(stream)
             .await?;
         Ok(Self {
             inner: Arc::new(ConnectionInner {
@@ -111,6 +112,21 @@ impl Http1Connection {
             .await
     }
 
+    /// Sends one pull-driven request body followed by exact ordered trailers.
+    pub async fn send_request_body_with_trailers(
+        &self,
+        method: Method,
+        target: super::OriginForm,
+        headers: Vec<super::RequestHeader>,
+        body: Option<RequestBody>,
+        trailers: Vec<super::RequestHeader>,
+    ) -> Result<Response<Http1Body>, Http1Error> {
+        self.send_prepared_request(PreparedRequest::new_body_with_trailers(
+            method, target, headers, body, trailers,
+        )?)
+        .await
+    }
+
     /// Sends one request with an absolute-form target to an HTTP forward proxy.
     ///
     /// The `Host` field must match the target authority. The complete request
@@ -139,6 +155,21 @@ impl Http1Connection {
     ) -> Result<Response<Http1Body>, Http1Error> {
         self.send_prepared_request(PreparedRequest::new_forward_body(
             method, target, headers, body,
+        )?)
+        .await
+    }
+
+    /// Sends an absolute-form request body followed by exact ordered trailers.
+    pub async fn send_forward_request_body_with_trailers(
+        &self,
+        method: Method,
+        target: super::AbsoluteForm,
+        headers: Vec<super::RequestHeader>,
+        body: Option<RequestBody>,
+        trailers: Vec<super::RequestHeader>,
+    ) -> Result<Response<Http1Body>, Http1Error> {
+        self.send_prepared_request(PreparedRequest::new_forward_body_with_trailers(
+            method, target, headers, body, trailers,
         )?)
         .await
     }
@@ -299,7 +330,7 @@ impl ConnectionLease {
 }
 
 struct ConnectionInner {
-    sender: Mutex<http1::SendRequest<RequestBody>>,
+    sender: Mutex<http1::SendRequest<Http1RequestBody>>,
     request_permit: Arc<Semaphore>,
     observer: ResponseHeadObserver,
     driver: DriverTask,

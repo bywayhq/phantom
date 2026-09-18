@@ -14,7 +14,7 @@ use super::{Encode, Encoder, Http1Transaction, ParseContext, ParsedMessage};
 use crate::{
     body::DecodedLength,
     error::Parse,
-    ext::{OnPreserveHeader, ReasonPhrase},
+    ext::{OnPreserveHeader, OnPreserveTrailer, ReasonPhrase},
     proto::{headers, BodyLength, MessageHead, RequestHead, RequestLine},
     Error, Result,
 };
@@ -494,7 +494,11 @@ impl Client {
                     .collect();
 
                 if !allowed_trailer_fields.is_empty() {
-                    return enc.into_chunked_with_trailing_fields(allowed_trailer_fields);
+                    let enc = enc.into_chunked_with_trailing_fields(allowed_trailer_fields);
+                    if let Some(trailers) = head.extensions.get::<OnPreserveTrailer>() {
+                        return enc.with_preserved_trailers(trailers.clone());
+                    }
+                    return enc;
                 }
             }
 

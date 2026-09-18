@@ -20,9 +20,11 @@ use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
     http1::{
-        AbsoluteForm, Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader,
-        send_forward_request, send_forward_request_body, send_get, send_request, send_request_body,
-        validate_forward_request, validate_request, validate_request_body,
+        AbsoluteForm, Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS,
+        MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS, RequestHeader, send_forward_request,
+        send_forward_request_body, send_get, send_request, send_request_body,
+        send_request_body_with_trailers, validate_forward_request, validate_request,
+        validate_request_body, validate_request_body_with_trailers,
     },
     request::RequestBody,
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
@@ -240,6 +242,155 @@ async fn unknown_stream_preserves_generated_chunked_framing_order() -> TestResul
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn writes_exact_order_casing_and_interleaved_duplicate_trailers() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let transaction = tokio::spawn(send_request_body_with_trailers(
+            client,
+            Method::POST,
+            target()?,
+            vec![host(), RequestHeader::new("X-Order", "before-framing")],
+            Some(RequestBody::from_bytes(Bytes::from_static(b"payload"))),
+            vec![
+                RequestHeader::new("X-Repeat", "alpha"),
+                RequestHeader::new("X-Middle", "between"),
+                RequestHeader::new("x-repeat", "omega"),
+            ],
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-framing\r\nTransfer-Encoding: chunked\r\nTrailer: X-Repeat, X-Middle\r\n\r\n"
+        );
+        let expected = b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nx-repeat: omega\r\n\r\n";
+        let mut body = vec![0_u8; expected.len()];
+        server.read_exact(&mut body).await?;
+        assert_eq!(body, expected);
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn trailer_only_request_still_uses_chunked_framing() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let transaction = tokio::spawn(send_request_body_with_trailers(
+            client,
+            Method::POST,
+            target()?,
+            vec![host()],
+            None,
+            vec![RequestHeader::new("X-Final", "yes")],
+        ));
+
+        let head = read_head(&mut server).await?;
+        assert_eq!(
+            head,
+            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\nTrailer: X-Final\r\n\r\n"
+        );
+        let expected = b"0\r\nX-Final: yes\r\n\r\n";
+        let mut body = vec![0_u8; expected.len()];
+        server.read_exact(&mut body).await?;
+        assert_eq!(body, expected);
+        server
+            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+            .await?;
+        transaction.await??.into_body().collect().await?;
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn validates_trailer_fields_declaration_and_limits() -> TestResult {
+    let target = target()?;
+    let metadata = RequestBody::from_bytes(Bytes::new()).metadata();
+    let trailer = RequestHeader::new("x-final", "yes");
+    assert!(matches!(
+        validate_request_body_with_trailers(
+            &Method::POST,
+            &target,
+            &[host(), RequestHeader::new("Content-Length", "0")],
+            Some(metadata),
+            std::slice::from_ref(&trailer),
+        ),
+        Err(Http1Error::RequestTrailersWithContentLength { index: 1 })
+    ));
+    assert!(matches!(
+        validate_request_body_with_trailers(
+            &Method::POST,
+            &target,
+            &[host(), RequestHeader::new("Trailer", "x-other")],
+            Some(metadata),
+            std::slice::from_ref(&trailer),
+        ),
+        Err(Http1Error::InvalidTrailerDeclaration { index: 1 })
+    ));
+    assert!(matches!(
+        validate_request_body_with_trailers(
+            &Method::POST,
+            &target,
+            &[host()],
+            Some(metadata),
+            &[RequestHeader::new("Content-Type", "text/plain")],
+        ),
+        Err(Http1Error::ForbiddenTrailer { index: 0, .. })
+    ));
+    for name in ["connection", "upgrade", "keep-alive", "proxy-connection"] {
+        assert!(matches!(
+            validate_request_body_with_trailers(
+                &Method::POST,
+                &target,
+                &[host()],
+                Some(metadata),
+                &[RequestHeader::new(name, "value")],
+            ),
+            Err(Http1Error::ForbiddenTrailer { index: 0, .. })
+        ));
+    }
+    assert!(matches!(
+        validate_request_body_with_trailers(
+            &Method::POST,
+            &target,
+            &[host()],
+            Some(metadata),
+            &[RequestHeader::new("bad name", "value")],
+        ),
+        Err(Http1Error::InvalidTrailerName { index: 0 })
+    ));
+    assert!(matches!(
+        validate_request_body_with_trailers(
+            &Method::POST,
+            &target,
+            &[host()],
+            Some(metadata),
+            &vec![RequestHeader::new("x-many", "value"); MAX_REQUEST_TRAILERS + 1],
+        ),
+        Err(Http1Error::TooManyTrailers { .. })
+    ));
+    assert!(matches!(
+        validate_request_body_with_trailers(
+            &Method::POST,
+            &target,
+            &[host()],
+            Some(metadata),
+            &[RequestHeader::new(
+                "x-large",
+                vec![b'a'; MAX_REQUEST_TRAILER_BYTES]
+            )],
+        ),
+        Err(Http1Error::TrailersTooLarge { .. })
+    ));
+    Ok(())
 }
 
 #[tokio::test]
@@ -492,6 +643,34 @@ async fn unknown_stream_framing_error_never_polls_body_or_touches_stream() -> Te
     assert!(matches!(
         result,
         Err(Http1Error::RequestFramingHeader { .. })
+    ));
+    assert_eq!(polls.load(Ordering::SeqCst), 0);
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_trailer_never_polls_body_or_touches_stream() -> TestResult {
+    let writes = Arc::new(AtomicUsize::new(0));
+    let polls = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let body = RequestBody::streaming(PollCountingBody(Arc::clone(&polls)));
+    let result = send_request_body_with_trailers(
+        WriteCountingStream {
+            inner: client,
+            writes: Arc::clone(&writes),
+        },
+        Method::POST,
+        target()?,
+        vec![host()],
+        Some(body),
+        vec![RequestHeader::new("X-Bad", b"ok\r\nInjected: yes")],
+    )
+    .await;
+
+    assert!(matches!(
+        result,
+        Err(Http1Error::InvalidTrailerValue { index: 0, .. })
     ));
     assert_eq!(polls.load(Ordering::SeqCst), 0);
     assert_eq!(writes.load(Ordering::SeqCst), 0);

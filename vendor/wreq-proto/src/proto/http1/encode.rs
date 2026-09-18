@@ -6,21 +6,34 @@ use bytes::{
 };
 use http::{
     header::{
-        AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
-        CONTENT_TYPE, HOST, MAX_FORWARDS, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING,
+        AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
+        CONTENT_TYPE, HOST, MAX_FORWARDS, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING, UPGRADE,
     },
     HeaderMap, HeaderName,
 };
 
 use super::{io::WriteBuf, role::write_headers};
+use crate::ext::OnPreserveTrailer;
 
 type StaticBuf = &'static [u8];
 
 /// Encoders to handle different Transfer-Encodings.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub(crate) struct Encoder {
     kind: Kind,
     is_last: bool,
+    preserved_trailers: Option<OnPreserveTrailer>,
+}
+
+impl fmt::Debug for Encoder {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Encoder")
+            .field("kind", &self.kind)
+            .field("is_last", &self.is_last)
+            .field("has_preserved_trailers", &self.preserved_trailers.is_some())
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -56,6 +69,7 @@ impl Encoder {
         Encoder {
             kind,
             is_last: false,
+            preserved_trailers: None,
         }
     }
 
@@ -75,9 +89,18 @@ impl Encoder {
             Kind::Chunked(_) => Encoder {
                 kind: Kind::Chunked(Some(trailers)),
                 is_last: self.is_last,
+                preserved_trailers: self.preserved_trailers,
             },
             _ => self,
         }
+    }
+
+    #[inline]
+    pub(crate) fn with_preserved_trailers(mut self, trailers: OnPreserveTrailer) -> Encoder {
+        if self.is_chunked() {
+            self.preserved_trailers = Some(trailers);
+        }
+        self
     }
 
     #[inline]
@@ -142,6 +165,22 @@ impl Encoder {
 
     pub(crate) fn encode_trailers<B>(&self, trailers: HeaderMap) -> Option<EncodedBuf<B>> {
         trace!("encoding trailers");
+        if let Some(preserved) = &self.preserved_trailers {
+            let mut buf = Vec::new();
+            preserved.call_visit(&mut |name, value| {
+                buf.extend_from_slice(name.as_ref());
+                if value.is_empty() {
+                    buf.extend_from_slice(b":\r\n");
+                } else {
+                    buf.extend_from_slice(b": ");
+                    buf.extend_from_slice(value.as_bytes());
+                    buf.extend_from_slice(b"\r\n");
+                }
+            });
+            return Some(EncodedBuf {
+                kind: BufKind::Trailers(b"0\r\n".chain(Bytes::from(buf)).chain(b"\r\n")),
+            });
+        }
         match &self.kind {
             Kind::Chunked(Some(allowed_trailer_fields)) => {
                 let allowed_set: HashSet<&HeaderName> = allowed_trailer_fields.iter().collect();
@@ -242,7 +281,9 @@ fn is_valid_trailer_field(name: &HeaderName) -> bool {
             | TRAILER
             | TRANSFER_ENCODING
             | TE
-    )
+            | CONNECTION
+            | UPGRADE
+    ) && !matches!(name.as_str(), "keep-alive" | "proxy-connection")
 }
 
 impl<B> Buf for EncodedBuf<B>
@@ -534,16 +575,21 @@ mod tests {
         let trailers = vec![
             AUTHORIZATION,
             CACHE_CONTROL,
+            CONNECTION,
             CONTENT_ENCODING,
             TRAILER,
             TRANSFER_ENCODING,
             TE,
+            UPGRADE,
+            HeaderName::from_static("keep-alive"),
+            HeaderName::from_static("proxy-connection"),
         ];
         let encoder = encoder.into_chunked_with_trailing_fields(trailers);
 
         let mut headers = HeaderMap::new();
         headers.insert(AUTHORIZATION, HeaderValue::from_static("header data"));
         headers.insert(CACHE_CONTROL, HeaderValue::from_static("header data"));
+        headers.insert(CONNECTION, HeaderValue::from_static("header data"));
         headers.insert(CONTENT_ENCODING, HeaderValue::from_static("header data"));
         headers.insert(CONTENT_LENGTH, HeaderValue::from_static("header data"));
         headers.insert(CONTENT_RANGE, HeaderValue::from_static("header data"));
@@ -554,6 +600,15 @@ mod tests {
         headers.insert(TRAILER, HeaderValue::from_static("header data"));
         headers.insert(TRANSFER_ENCODING, HeaderValue::from_static("header data"));
         headers.insert(TE, HeaderValue::from_static("header data"));
+        headers.insert(UPGRADE, HeaderValue::from_static("header data"));
+        headers.insert(
+            HeaderName::from_static("keep-alive"),
+            HeaderValue::from_static("header data"),
+        );
+        headers.insert(
+            HeaderName::from_static("proxy-connection"),
+            HeaderValue::from_static("header data"),
+        );
 
         assert!(encoder.encode_trailers::<&[u8]>(headers).is_none());
     }

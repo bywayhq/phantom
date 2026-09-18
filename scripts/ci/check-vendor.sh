@@ -68,7 +68,10 @@ check_wreq_proto_patch_replay() {
     src/proto/http1.rs \
     src/conn/http1.rs \
     src/proto/http1/conn.rs \
-    src/proto/http1/decode.rs; do
+    src/proto/http1/decode.rs \
+    src/ext.rs \
+    src/proto/http1/encode.rs \
+    src/proto/http1/role.rs; do
     normalized="$staging/$(basename "$source").lf"
     tr -d '\r' < "$candidate/$source" > "$normalized"
     mv "$normalized" "$candidate/$source"

@@ -16,7 +16,9 @@ use request::{PreparedGet, PreparedRequest};
 use upgrade::send_prepared_upgrade;
 
 #[cfg(test)]
-use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
+use request::{
+    MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS,
+};
 
 pub use crate::request::{AbsoluteForm, InvalidAbsoluteForm, OriginForm, RequestHeader};
 use crate::request::{RequestBody, RequestBodyMetadata};
@@ -37,6 +39,20 @@ pub enum Http1Error {
     },
     /// The aggregate request header bytes exceeded the fixed safety bound.
     HeadersTooLarge {
+        /// Number of supplied field-name and field-value bytes.
+        bytes: usize,
+        /// Maximum accepted aggregate bytes.
+        maximum: usize,
+    },
+    /// The request contained more trailers than the fixed safety bound.
+    TooManyTrailers {
+        /// Number of supplied trailers.
+        count: usize,
+        /// Maximum accepted number of trailers.
+        maximum: usize,
+    },
+    /// Aggregate request-trailer bytes exceeded the fixed safety bound.
+    TrailersTooLarge {
         /// Number of supplied field-name and field-value bytes.
         bytes: usize,
         /// Maximum accepted aggregate bytes.
@@ -68,6 +84,35 @@ pub enum Http1Error {
         index: usize,
         /// Field name supplied at that position.
         name: Box<str>,
+    },
+    /// A request-trailer field name was not an HTTP token.
+    InvalidTrailerName {
+        /// Position in the ordered trailer list.
+        index: usize,
+    },
+    /// A request-trailer value contained bytes forbidden by HTTP.
+    InvalidTrailerValue {
+        /// Position in the ordered trailer list.
+        index: usize,
+        /// Field name supplied at that position.
+        name: Box<str>,
+    },
+    /// A request trailer is forbidden by HTTP semantics.
+    ForbiddenTrailer {
+        /// Position in the ordered trailer list.
+        index: usize,
+        /// Forbidden field name.
+        name: Box<str>,
+    },
+    /// The explicit `Trailer` declaration did not match the supplied trailers.
+    InvalidTrailerDeclaration {
+        /// Position of the inconsistent declaration.
+        index: usize,
+    },
+    /// A request with trailers also supplied `Content-Length`.
+    RequestTrailersWithContentLength {
+        /// Position of the conflicting field.
+        index: usize,
     },
     /// No `Host` field was supplied.
     MissingHost,
@@ -125,6 +170,14 @@ impl fmt::Display for Http1Error {
                 formatter,
                 "request field names and values total {bytes} bytes; maximum is {maximum}"
             ),
+            Self::TooManyTrailers { count, maximum } => write!(
+                formatter,
+                "request has {count} trailers; maximum is {maximum}"
+            ),
+            Self::TrailersTooLarge { bytes, maximum } => write!(
+                formatter,
+                "request trailer names and values total {bytes} bytes; maximum is {maximum}"
+            ),
             Self::TooManyResponseHeaders { maximum } => {
                 write!(
                     formatter,
@@ -148,6 +201,26 @@ impl fmt::Display for Http1Error {
             Self::InvalidHeaderValue { index, name } => write!(
                 formatter,
                 "request header {name:?} at index {index} has an invalid field value"
+            ),
+            Self::InvalidTrailerName { index } => write!(
+                formatter,
+                "request trailer at index {index} has an invalid field name"
+            ),
+            Self::InvalidTrailerValue { index, name } => write!(
+                formatter,
+                "request trailer {name:?} at index {index} has an invalid field value"
+            ),
+            Self::ForbiddenTrailer { index, name } => write!(
+                formatter,
+                "request trailer {name:?} at index {index} is forbidden"
+            ),
+            Self::InvalidTrailerDeclaration { index } => write!(
+                formatter,
+                "request Trailer declaration at index {index} does not match the supplied trailers"
+            ),
+            Self::RequestTrailersWithContentLength { index } => write!(
+                formatter,
+                "request Content-Length at index {index} conflicts with request trailers"
             ),
             Self::MissingHost => {
                 formatter.write_str("request must contain exactly one Host header")
@@ -218,11 +291,18 @@ impl Http1Error {
         match self {
             Self::TooManyHeaders { .. } => "too_many_headers",
             Self::HeadersTooLarge { .. } => "headers_too_large",
+            Self::TooManyTrailers { .. } => "too_many_trailers",
+            Self::TrailersTooLarge { .. } => "trailers_too_large",
             Self::TooManyResponseHeaders { .. } => "too_many_response_headers",
             Self::ResponseHeadTooLarge { .. } => "response_head_too_large",
             Self::ChunkSizeLineTooLarge { .. } => "chunk_size_line_too_large",
             Self::InvalidHeaderName { .. } => "invalid_header_name",
             Self::InvalidHeaderValue { .. } => "invalid_header_value",
+            Self::InvalidTrailerName { .. } => "invalid_trailer_name",
+            Self::InvalidTrailerValue { .. } => "invalid_trailer_value",
+            Self::ForbiddenTrailer { .. } => "forbidden_trailer",
+            Self::InvalidTrailerDeclaration { .. } => "invalid_trailer_declaration",
+            Self::RequestTrailersWithContentLength { .. } => "request_trailers_with_content_length",
             Self::MissingHost => "missing_host",
             Self::MultipleHost => "multiple_host",
             Self::MismatchedHost { .. } => "mismatched_host",
@@ -341,6 +421,25 @@ where
     send_prepared_request(stream, prepared).await
 }
 
+/// Sends one pull-driven HTTP/1.1 body followed by exact ordered trailers.
+///
+/// Validation completes before the body is polled or the stream is touched.
+pub async fn send_request_body_with_trailers<T>(
+    stream: T,
+    method: Method,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+    trailers: Vec<RequestHeader>,
+) -> Result<Response<Http1Body>, Http1Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let prepared =
+        PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)?;
+    send_prepared_request(stream, prepared).await
+}
+
 /// Sends one HTTP/1.1 request with an absolute-form target over an
 /// already-connected forward-proxy stream.
 ///
@@ -422,6 +521,25 @@ where
     send_prepared_request(stream, prepared).await
 }
 
+/// Sends an absolute-form body followed by exact ordered trailers.
+///
+/// Validation completes before the body is polled or the stream is touched.
+pub async fn send_forward_request_body_with_trailers<T>(
+    stream: T,
+    method: Method,
+    target: AbsoluteForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+    trailers: Vec<RequestHeader>,
+) -> Result<Response<Http1Body>, Http1Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let prepared =
+        PreparedRequest::new_forward_body_with_trailers(method, target, headers, body, trailers)?;
+    send_prepared_request(stream, prepared).await
+}
+
 /// Validates an empty-body HTTP/1.1 GET without performing I/O.
 pub fn validate_get(target: &OriginForm, headers: &[RequestHeader]) -> Result<(), Http1Error> {
     validate_request(&Method::GET, target, headers, None)
@@ -452,6 +570,23 @@ pub fn validate_request_body(
     PreparedRequest::validate(method.clone(), target.clone(), headers.to_vec(), body)
 }
 
+/// Validates an HTTP/1.1 request, body framing, and exact ordered trailers.
+pub fn validate_request_body_with_trailers(
+    method: &Method,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<RequestBodyMetadata>,
+    trailers: &[RequestHeader],
+) -> Result<(), Http1Error> {
+    PreparedRequest::validate_with_trailers(
+        method.clone(),
+        target.clone(),
+        headers.to_vec(),
+        body,
+        trailers.to_vec(),
+    )
+}
+
 /// Validates an HTTP/1.1 absolute-form request without performing I/O.
 pub fn validate_forward_request(
     method: &Method,
@@ -475,6 +610,23 @@ pub fn validate_forward_request_body(
     body: Option<RequestBodyMetadata>,
 ) -> Result<(), Http1Error> {
     PreparedRequest::validate_forward(method.clone(), target.clone(), headers.to_vec(), body)
+}
+
+/// Validates an absolute-form request, body framing, and ordered trailers.
+pub fn validate_forward_request_body_with_trailers(
+    method: &Method,
+    target: &AbsoluteForm,
+    headers: &[RequestHeader],
+    body: Option<RequestBodyMetadata>,
+    trailers: &[RequestHeader],
+) -> Result<(), Http1Error> {
+    PreparedRequest::validate_forward_with_trailers(
+        method.clone(),
+        target.clone(),
+        headers.to_vec(),
+        body,
+        trailers.to_vec(),
+    )
 }
 
 async fn send_prepared_request<T>(
