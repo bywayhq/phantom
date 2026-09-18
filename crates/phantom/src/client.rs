@@ -144,7 +144,7 @@ impl Client {
         RequestBuilder::new_client_negotiated(self.clone(), method, uri)
     }
 
-    /// Starts one ordered secure WebSocket opening handshake over HTTP/1.1.
+    /// Starts one ordered WebSocket opening handshake over HTTP/1.1.
     #[cfg(feature = "websocket")]
     pub fn websocket(&self, uri: &str) -> Result<WebSocketRequestBuilder, WebSocketError> {
         WebSocketRequestBuilder::new_client(self.clone(), uri)

@@ -1,9 +1,11 @@
 # WebSocket
 
-The optional `websocket` feature provides secure WebSocket connections over an
-HTTP/1.1 Upgrade. It reuses Phantom's BoringSSL TLS profile, exact direct,
-HTTP-CONNECT, or local-/remote-DNS SOCKS5 route, ordered HTTP/1 serializer, ordered
-response metadata, client cookies, runtime errors, and tracing lifecycle.
+The optional `websocket` feature provides WebSocket connections over an
+HTTP/1.1 Upgrade. Direct routes accept plaintext `ws://` or TLS-backed `wss://`;
+HTTP-CONNECT and local-/remote-DNS SOCKS5 routes currently accept `wss://` only.
+Secure connections reuse Phantom's BoringSSL TLS profile. Both transports reuse
+the ordered HTTP/1 serializer, ordered response metadata, client cookies,
+runtime errors, and tracing lifecycle.
 
 The public client is exercised against a pinned Autobahn fuzzing server. See
 [Validation](validation.md#external-suites) for how external suites are used.
@@ -93,7 +95,8 @@ receiving until the peer replies.
 
 WebSocket connections are exclusive and are never inserted into the client's
 HTTP pool. There are no implicit redirects, retries, reconnects, heartbeats, or
-direct-route fallback after a proxy failure.
+direct-route fallback after a proxy failure. Plaintext `ws://` is deliberately
+direct-only; selecting a proxy route is rejected without opening a connection.
 
 ## Compression
 

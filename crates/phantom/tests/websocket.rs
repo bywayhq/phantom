@@ -1,4 +1,4 @@
-//! Secure WebSocket facade integration tests.
+//! WebSocket facade integration tests.
 #![cfg(feature = "websocket")]
 
 #[path = "websocket/adversarial.rs"]
@@ -32,6 +32,60 @@ use tls_support::{
 };
 use tracing_support::OutcomeSubscriber;
 use websocket_support::*;
+
+#[tokio::test]
+async fn plaintext_direct_preserves_order_and_upgraded_bytes() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            let key = header_value(&request, "sec-websocket-key")
+                .ok_or("opening handshake omitted Sec-WebSocket-Key")?;
+            let accept = websocket_accept(key);
+            let mut response = format!(
+                "HTTP/1.1 101 Switching Protocols\r\n\
+                 Upgrade: websocket\r\n\
+                 Connection: Upgrade\r\n\
+                 Sec-WebSocket-Accept: {accept}\r\n\r\n"
+            )
+            .into_bytes();
+            append_server_frame(&mut response, true, 0x9, b"plaintext");
+            stream.write_all(&response).await?;
+            stream.flush().await?;
+            let pong = read_client_frame(&mut stream).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((request, pong))
+        });
+
+        let client = test_client(&identity, false)?;
+        let mut socket = client
+            .websocket(&format!("ws://{address}/events?transport=plain"))?
+            .connect()
+            .await?;
+        assert_eq!(
+            socket.receive().await?,
+            WebSocketMessage::Ping(Bytes::from_static(b"plaintext"))
+        );
+        drop(socket);
+
+        let (request, pong) = server.await??;
+        let authority = address.to_string();
+        assert!(request.starts_with(b"GET /events?transport=plain HTTP/1.1\r\n"));
+        assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
+        assert_eq!(
+            pong,
+            ClientFrame {
+                rsv1: false,
+                opcode: 0xA,
+                payload: b"plaintext".to_vec(),
+            }
+        );
+        Ok(())
+    })
+    .await
+}
 
 #[tokio::test]
 async fn ordered_handshake_and_bounded_message_lifecycle() -> TestResult<()> {

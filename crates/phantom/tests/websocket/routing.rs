@@ -1,6 +1,33 @@
 use super::*;
 
 #[tokio::test]
+async fn plaintext_proxy_route_is_rejected_before_network_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    origin.set_nonblocking(true)?;
+    let origin_address = origin.local_addr()?;
+    let proxy = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    proxy.set_nonblocking(true)?;
+    let proxy_address = proxy.local_addr()?;
+    let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+    let client = client_builder(&identity, false).route(route).build()?;
+
+    let error = match client
+        .websocket(&format!("ws://{origin_address}/"))?
+        .connect()
+        .await
+    {
+        Ok(_) => return Err("plaintext proxied WebSocket connection succeeded".into()),
+        Err(error) => error,
+    };
+
+    assert_eq!(error.kind(), WebSocketErrorKind::ProtocolUnavailable);
+    assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
+    assert!(matches!(proxy.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
+    Ok(())
+}
+
+#[tokio::test]
 async fn connects_through_http_connect_without_origin_fallback() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;

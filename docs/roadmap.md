@@ -66,10 +66,12 @@ work has exposed the real architectural boundaries.
 The workspace, capture testkit, TLS and ordered H1 path, H2 path, initial
 browser-family profiles, forced H3 path, and ordered static request trailers on
 exact H1/H2/H3 and negotiated H1/H2 have passed their phase acceptance
-criteria. HTTP/1.1 absolute-form forwarding for `http://` origins is available
-over plaintext and TLS proxies with independent proxy authentication and trust
-policies. Challenge-driven Basic starts each logical request anonymously and
-permits one replay on a fresh same-route connection, with no learned challenge
-state, CONNECT conversion, protocol fallback, or direct fallback. Code, tests,
-[Design](design.md), and [Validation](validation.md) are the maintained record
-of those decisions.
+criteria. H1 WebSocket supports direct plaintext `ws://` alongside routed
+TLS-backed `wss://`, with the same ordered opening handshake, strict validation,
+and bounded message lifecycle. HTTP/1.1 absolute-form forwarding for `http://`
+origins is available over plaintext and TLS proxies with independent proxy
+authentication and trust policies. Challenge-driven Basic starts each logical
+request anonymously and permits one replay on a fresh same-route connection,
+with no learned challenge state, CONNECT conversion, protocol fallback, or
+direct fallback. Code, tests, [Design](design.md), and
+[Validation](validation.md) are the maintained record of those decisions.

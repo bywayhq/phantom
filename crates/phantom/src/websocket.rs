@@ -37,7 +37,7 @@ pub use message::{WebSocketCloseFrame, WebSocketLimits, WebSocketMessage};
 use handshake::{default_headers, prepare, validate_response};
 use trace::OperationOutcome;
 
-/// Builder for one ordered secure WebSocket opening handshake.
+/// Builder for one ordered WebSocket opening handshake.
 #[must_use = "WebSocket builders do nothing until connect is awaited"]
 pub struct WebSocketRequestBuilder {
     client: Client,
@@ -117,7 +117,7 @@ impl WebSocketRequestBuilder {
         self
     }
 
-    /// Performs the ordered H1 Upgrade handshake over the selected TLS route.
+    /// Performs the ordered H1 Upgrade handshake.
     ///
     /// Dropping this future cancels the in-flight operation. There are no
     /// implicit redirects, retries, reconnects, or protocol fallbacks.
@@ -185,114 +185,134 @@ impl WebSocketRequestBuilder {
             .http1
             .as_ref()
             .ok_or_else(WebSocketError::protocol_unavailable)?;
-        let outcome = match route {
-            Route::Direct => {
-                connector
-                    .upgrade_get_direct(
-                        request.endpoint.host(),
-                        request.endpoint.port(),
-                        request.endpoint.host(),
-                        request.target,
-                        prepared.headers,
-                    )
-                    .await
-            }
-            Route::HttpProxy(proxy) => {
-                let authority = request.endpoint.tunnel_authority();
-                if proxy.uses_tls() {
-                    let proxy_connector = client.inner.https_proxy.as_ref().ok_or_else(|| {
-                        WebSocketError::request(RequestError::unsupported_route(
-                            crate::HttpProtocol::Http1,
-                        ))
-                    })?;
-                    if let Some(credentials) = proxy.basic_credentials() {
-                        // Keep the challenge/retry state machine out of the
-                        // ordinary WebSocket connection future's stack frame.
-                        Box::pin(connector.upgrade_get_https_connect_with_basic_auth(
-                            proxy_connector,
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.host(),
-                            &authority,
-                            proxy.ordered_connect_headers(),
-                            credentials,
+        let outcome = match request.transport {
+            WebSocketTransport::Plaintext => match route {
+                Route::Direct => {
+                    connector
+                        .upgrade_get_plaintext_direct(
+                            request.endpoint.host(),
+                            request.endpoint.port(),
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                }
+                Route::HttpProxy(_) | Route::Socks5(_) => {
+                    return Err(WebSocketError::request(RequestError::unsupported_route(
+                        crate::HttpProtocol::Http1,
+                    )));
+                }
+            },
+            WebSocketTransport::Tls => match route {
+                Route::Direct => {
+                    connector
+                        .upgrade_get_direct(
+                            request.endpoint.host(),
+                            request.endpoint.port(),
                             request.endpoint.host(),
                             request.target,
                             prepared.headers,
-                        ))
+                        )
                         .await
-                    } else {
-                        connector
-                            .upgrade_get_https_connect(
+                }
+                Route::HttpProxy(proxy) => {
+                    let authority = request.endpoint.tunnel_authority();
+                    if proxy.uses_tls() {
+                        let proxy_connector =
+                            client.inner.https_proxy.as_ref().ok_or_else(|| {
+                                WebSocketError::request(RequestError::unsupported_route(
+                                    crate::HttpProtocol::Http1,
+                                ))
+                            })?;
+                        if let Some(credentials) = proxy.basic_credentials() {
+                            // Keep the challenge/retry state machine out of the
+                            // ordinary WebSocket connection future's stack frame.
+                            Box::pin(connector.upgrade_get_https_connect_with_basic_auth(
                                 proxy_connector,
                                 proxy.host(),
                                 proxy.port(),
                                 proxy.host(),
                                 &authority,
                                 proxy.ordered_connect_headers(),
+                                credentials,
                                 request.endpoint.host(),
                                 request.target,
                                 prepared.headers,
-                            )
+                            ))
                             .await
-                    }
-                } else {
-                    if let Some(credentials) = proxy.basic_credentials() {
-                        Box::pin(connector.upgrade_get_http_connect_with_basic_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            &authority,
-                            proxy.ordered_connect_headers(),
-                            credentials,
-                            request.endpoint.host(),
-                            request.target,
-                            prepared.headers,
-                        ))
-                        .await
+                        } else {
+                            connector
+                                .upgrade_get_https_connect(
+                                    proxy_connector,
+                                    proxy.host(),
+                                    proxy.port(),
+                                    proxy.host(),
+                                    &authority,
+                                    proxy.ordered_connect_headers(),
+                                    request.endpoint.host(),
+                                    request.target,
+                                    prepared.headers,
+                                )
+                                .await
+                        }
                     } else {
-                        connector
-                            .upgrade_get_http_connect(
+                        if let Some(credentials) = proxy.basic_credentials() {
+                            Box::pin(connector.upgrade_get_http_connect_with_basic_auth(
                                 proxy.host(),
                                 proxy.port(),
                                 &authority,
                                 proxy.ordered_connect_headers(),
+                                credentials,
+                                request.endpoint.host(),
+                                request.target,
+                                prepared.headers,
+                            ))
+                            .await
+                        } else {
+                            connector
+                                .upgrade_get_http_connect(
+                                    proxy.host(),
+                                    proxy.port(),
+                                    &authority,
+                                    proxy.ordered_connect_headers(),
+                                    request.endpoint.host(),
+                                    request.target,
+                                    prepared.headers,
+                                )
+                                .await
+                        }
+                    }
+                }
+                Route::Socks5(proxy) => match proxy.dns_mode() {
+                    crate::Socks5DnsMode::Local => {
+                        connector
+                            .upgrade_get_socks5_local_with_auth(
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.auth(),
+                                request.endpoint.host(),
+                                request.endpoint.port(),
                                 request.endpoint.host(),
                                 request.target,
                                 prepared.headers,
                             )
                             .await
                     }
-                }
-            }
-            Route::Socks5(proxy) => match proxy.dns_mode() {
-                crate::Socks5DnsMode::Local => {
-                    connector
-                        .upgrade_get_socks5_local_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            request.endpoint.host(),
-                            request.endpoint.port(),
-                            request.endpoint.host(),
-                            request.target,
-                            prepared.headers,
-                        )
-                        .await
-                }
-                crate::Socks5DnsMode::Remote => {
-                    connector
-                        .upgrade_get_socks5_remote_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            request.endpoint.host(),
-                            request.endpoint.port(),
-                            request.endpoint.host(),
-                            request.target,
-                            prepared.headers,
-                        )
-                        .await
-                }
+                    crate::Socks5DnsMode::Remote => {
+                        connector
+                            .upgrade_get_socks5_remote_with_auth(
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.auth(),
+                                request.endpoint.host(),
+                                request.endpoint.port(),
+                                request.endpoint.host(),
+                                request.target,
+                                prepared.headers,
+                            )
+                            .await
+                    }
+                },
             },
         }
         .map_err(RequestError::http1)
@@ -348,8 +368,15 @@ impl WebSocketRequestBuilder {
 struct ResolvedWebSocket {
     endpoint: Endpoint,
     target: OriginForm,
+    transport: WebSocketTransport,
     #[cfg(feature = "cookies")]
     cookie_url: url::Url,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WebSocketTransport {
+    Plaintext,
+    Tls,
 }
 
 impl ResolvedWebSocket {
@@ -361,13 +388,15 @@ impl ResolvedWebSocket {
                 WebSocketError::invalid_request("WebSocket URI must not contain a fragment")
             }
         })?;
-        if uri.scheme_str() != Some("wss") {
-            return Err(WebSocketError::unsupported_scheme());
-        }
+        let (transport, default_port, cookie_scheme) = match uri.scheme_str() {
+            Some("ws") => (WebSocketTransport::Plaintext, 80, "http"),
+            Some("wss") => (WebSocketTransport::Tls, 443, "https"),
+            _ => return Err(WebSocketError::unsupported_scheme()),
+        };
         let authority = uri.authority().cloned().ok_or_else(|| {
             WebSocketError::invalid_authority("WebSocket URI must include an authority")
         })?;
-        let endpoint = Endpoint::new(authority, 443)
+        let endpoint = Endpoint::new(authority, default_port)
             .map_err(|error| WebSocketError::invalid_authority(error.message()))?;
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
             .map_err(|_| WebSocketError::invalid_request("invalid WebSocket request target"))?;
@@ -378,7 +407,7 @@ impl ResolvedWebSocket {
                     "WebSocket URI cannot be represented for cookie policy",
                 )
             })?;
-            url.set_scheme("https").map_err(|()| {
+            url.set_scheme(cookie_scheme).map_err(|()| {
                 WebSocketError::invalid_request(
                     "WebSocket URI cannot be represented for cookie policy",
                 )
@@ -389,6 +418,7 @@ impl ResolvedWebSocket {
         Ok(Self {
             endpoint,
             target,
+            transport,
             #[cfg(feature = "cookies")]
             cookie_url,
         })
@@ -397,7 +427,19 @@ impl ResolvedWebSocket {
 
 #[cfg(test)]
 mod tests {
-    use super::{OriginForm, ResolvedWebSocket};
+    use super::{OriginForm, ResolvedWebSocket, WebSocketTransport};
+
+    #[test]
+    fn resolves_plaintext_websocket_with_default_port() -> Result<(), Box<dyn std::error::Error>> {
+        let request = ResolvedWebSocket::new("ws://example.com/events")?;
+
+        assert_eq!(request.transport, WebSocketTransport::Plaintext);
+        assert_eq!(request.endpoint.port(), 80);
+        assert_eq!(request.endpoint.authority().as_str(), "example.com");
+        #[cfg(feature = "cookies")]
+        assert_eq!(request.cookie_url.scheme(), "http");
+        Ok(())
+    }
 
     #[test]
     fn canonicalizes_websocket_host_without_reserializing_the_target()

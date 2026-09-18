@@ -36,7 +36,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
 | Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; and local- or remote-DNS SOCKS5 |
 | State | Isolated bounded pools, redirects, timeouts, client hints, TLS sessions, and opt-in cookies |
-| Optional APIs | Server-sent events, H1 WebSocket, and opt-in `permessage-deflate` |
+| Optional APIs | Server-sent events, direct plaintext or routed TLS H1 WebSocket, and opt-in `permessage-deflate` |
 | Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
 
 See [Coverage](docs/coverage.md) for the exact supported and planned lifecycle

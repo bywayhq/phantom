@@ -13,7 +13,7 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 pub enum WebSocketErrorKind {
     /// The WebSocket URI is syntactically invalid.
     InvalidUri,
-    /// The URI does not use the secure WebSocket scheme.
+    /// The URI does not use the `ws` or `wss` WebSocket scheme.
     UnsupportedScheme,
     /// The URI authority is missing or invalid.
     InvalidAuthority,
@@ -71,7 +71,7 @@ impl WebSocketError {
     pub(super) fn unsupported_scheme() -> Self {
         Self::new(
             WebSocketErrorKind::UnsupportedScheme,
-            "WebSocket URI must use WSS",
+            "WebSocket URI must use WS or WSS",
         )
     }
 
