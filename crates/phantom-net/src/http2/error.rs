@@ -119,6 +119,20 @@ pub enum Http2Error {
         /// Maximum accepted aggregate bytes.
         maximum: usize,
     },
+    /// The request contained more trailer fields than the fixed safety bound.
+    TooManyTrailers {
+        /// Number of supplied trailer fields.
+        count: usize,
+        /// Maximum accepted number of trailer fields.
+        maximum: usize,
+    },
+    /// The aggregate request trailer bytes exceeded the fixed safety bound.
+    TrailersTooLarge {
+        /// Number of supplied trailer field-name and field-value bytes.
+        bytes: usize,
+        /// Maximum accepted aggregate bytes.
+        maximum: usize,
+    },
     /// A request field name was invalid or not entirely lowercase.
     InvalidHeaderName {
         /// Position in the ordered header list.
@@ -131,9 +145,26 @@ pub enum Http2Error {
         /// Field name supplied at that position.
         name: Box<str>,
     },
+    /// A request trailer name was invalid or not entirely lowercase.
+    InvalidTrailerName {
+        /// Position in the ordered trailer list.
+        index: usize,
+    },
+    /// A request trailer value contained bytes forbidden by HTTP.
+    InvalidTrailerValue {
+        /// Position in the ordered trailer list.
+        index: usize,
+        /// Field name supplied at that position.
+        name: Box<str>,
+    },
     /// A field forbidden in an HTTP/2 request was supplied.
     ForbiddenHeader {
         /// Forbidden field name.
+        name: Box<str>,
+    },
+    /// A field forbidden in an HTTP/2 trailer block was supplied.
+    ForbiddenTrailer {
+        /// Forbidden trailer field name.
         name: Box<str>,
     },
     /// `TE` had a value other than the exact token `trailers`.
@@ -198,6 +229,16 @@ impl fmt::Display for Http2Error {
                 formatter,
                 "request field names and values total {bytes} bytes; maximum is {maximum}"
             ),
+            Self::TooManyTrailers { count, maximum } => {
+                write!(
+                    formatter,
+                    "request has {count} trailer fields; maximum is {maximum}"
+                )
+            }
+            Self::TrailersTooLarge { bytes, maximum } => write!(
+                formatter,
+                "request trailer field names and values total {bytes} bytes; maximum is {maximum}"
+            ),
             Self::InvalidHeaderName { index } => write!(
                 formatter,
                 "request header at index {index} has an invalid or non-lowercase field name"
@@ -206,8 +247,22 @@ impl fmt::Display for Http2Error {
                 formatter,
                 "request header {name:?} at index {index} has an invalid field value"
             ),
+            Self::InvalidTrailerName { index } => write!(
+                formatter,
+                "request trailer at index {index} has an invalid or non-lowercase field name"
+            ),
+            Self::InvalidTrailerValue { index, name } => write!(
+                formatter,
+                "request trailer {name:?} at index {index} has an invalid field value"
+            ),
             Self::ForbiddenHeader { name } => {
                 write!(formatter, "{name} is not allowed on this HTTP/2 request")
+            }
+            Self::ForbiddenTrailer { name } => {
+                write!(
+                    formatter,
+                    "{name} is not allowed in HTTP/2 request trailers"
+                )
             }
             Self::InvalidTe => {
                 formatter.write_str("HTTP/2 TE must have the exact value `trailers`")
@@ -275,9 +330,14 @@ impl Http2Error {
             Self::InvalidRequestUri(_) => "invalid_request_uri",
             Self::TooManyHeaders { .. } => "too_many_headers",
             Self::HeadersTooLarge { .. } => "headers_too_large",
+            Self::TooManyTrailers { .. } => "too_many_trailers",
+            Self::TrailersTooLarge { .. } => "trailers_too_large",
             Self::InvalidHeaderName { .. } => "invalid_header_name",
             Self::InvalidHeaderValue { .. } => "invalid_header_value",
+            Self::InvalidTrailerName { .. } => "invalid_trailer_name",
+            Self::InvalidTrailerValue { .. } => "invalid_trailer_value",
             Self::ForbiddenHeader { .. } => "forbidden_header",
+            Self::ForbiddenTrailer { .. } => "forbidden_trailer",
             Self::InvalidTe => "invalid_te",
             Self::InvalidContentLength { .. } => "invalid_content_length",
             Self::DuplicateContentLength { .. } => "duplicate_content_length",

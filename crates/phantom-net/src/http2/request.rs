@@ -4,7 +4,9 @@ use ::http2::ext::OrderedHeaders;
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
-        CONNECTION, CONTENT_LENGTH, HOST, HeaderName, TE, TRAILER, TRANSFER_ENCODING, UPGRADE,
+        AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
+        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING,
+        UPGRADE,
     },
     uri::Authority,
 };
@@ -13,6 +15,78 @@ use super::{Http2Error, OriginForm, RequestBodyMetadata, RequestHeader};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
+
+pub(super) struct PreparedRequestTrailers {
+    semantic: HeaderMap,
+    ordered: OrderedHeaders,
+}
+
+impl PreparedRequestTrailers {
+    pub(super) fn new(trailers: Vec<RequestHeader>) -> Result<Option<Self>, Http2Error> {
+        if trailers.is_empty() {
+            return Ok(None);
+        }
+        if trailers.len() > MAX_REQUEST_HEADERS {
+            return Err(Http2Error::TooManyTrailers {
+                count: trailers.len(),
+                maximum: MAX_REQUEST_HEADERS,
+            });
+        }
+
+        let mut total_bytes = 0usize;
+        let mut semantic = HeaderMap::new();
+        let mut ordered = Vec::with_capacity(trailers.len());
+        for (index, trailer) in trailers.into_iter().enumerate() {
+            total_bytes = total_bytes
+                .checked_add(trailer.name().len())
+                .and_then(|size| size.checked_add(trailer.value().len()))
+                .ok_or(Http2Error::TrailersTooLarge {
+                    bytes: usize::MAX,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                })?;
+            if total_bytes > MAX_REQUEST_HEADER_BYTES {
+                return Err(Http2Error::TrailersTooLarge {
+                    bytes: total_bytes,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                });
+            }
+            if !trailer
+                .name()
+                .bytes()
+                .all(|byte| !byte.is_ascii_uppercase())
+            {
+                return Err(Http2Error::InvalidTrailerName { index });
+            }
+            let name = HeaderName::from_bytes(trailer.name().as_bytes())
+                .map_err(|_| Http2Error::InvalidTrailerName { index })?;
+            if is_forbidden_trailer(&name) {
+                return Err(Http2Error::ForbiddenTrailer {
+                    name: trailer.name().into(),
+                });
+            }
+            let mut value = HeaderValue::from_bytes(trailer.value()).map_err(|_| {
+                Http2Error::InvalidTrailerValue {
+                    index,
+                    name: trailer.name().into(),
+                }
+            })?;
+            value.set_sensitive(trailer.is_sensitive());
+            semantic
+                .try_append(name.clone(), value.clone())
+                .map_err(|_| Http2Error::HeaderMapCapacity)?;
+            ordered.push((name, value));
+        }
+
+        Ok(Some(Self {
+            semantic,
+            ordered: OrderedHeaders::new(ordered),
+        }))
+    }
+
+    pub(super) fn into_parts(self) -> (HeaderMap, OrderedHeaders) {
+        (self.semantic, self.ordered)
+    }
+}
 
 #[cfg(test)]
 pub(super) fn prepare_get(
@@ -173,6 +247,25 @@ impl ValidatedHeaders {
 fn is_forbidden_header(name: &HeaderName) -> bool {
     name == HOST
         || name == CONNECTION
+        || name == TRANSFER_ENCODING
+        || name == UPGRADE
+        || name == TRAILER
+        || name.as_str() == "keep-alive"
+        || name.as_str() == "proxy-connection"
+}
+
+fn is_forbidden_trailer(name: &HeaderName) -> bool {
+    name == HOST
+        || name == AUTHORIZATION
+        || name == CACHE_CONTROL
+        || name == CONNECTION
+        || name == CONTENT_ENCODING
+        || name == CONTENT_LENGTH
+        || name == CONTENT_RANGE
+        || name == CONTENT_TYPE
+        || name == MAX_FORWARDS
+        || name == SET_COOKIE
+        || name == TE
         || name == TRANSFER_ENCODING
         || name == UPGRADE
         || name == TRAILER

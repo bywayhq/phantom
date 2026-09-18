@@ -15,12 +15,16 @@ client from reproducing an observed browser order such as `x-a: a1`, `x-b: b1`,
 
 The patch adds `http2::ext::OrderedHeaders`, consumes it when a client request
 is converted into its initial HEADERS frame, and emits the supplied ordinary
-fields after the configured pseudo-headers. Before encoding, a reconstructed
+fields after the configured pseudo-headers. The additive
+`SendStream::send_ordered_trailers` path applies the same representation to
+trailing HEADERS, including interleaved duplicates and never-indexed sensitive
+values. Before encoding, a reconstructed
 `HeaderMap` must equal the request's post-middleware semantic map. This checks
 names, values, duplicate counts, and per-name value order while intentionally
 ignoring global name order that `HeaderMap` cannot represent. A mismatch uses
 the existing `UserError::MalformedHeaders` path. Requests without the extension
-and all trailer frames retain the upstream `HeaderMap` iterator.
+and trailers sent through the original method retain the upstream `HeaderMap`
+iterator.
 
 The ordinary `SendRequest` path clears request extensions before converting
 the request into a frame. It now retains `OrderedHeaders` across that cleanup;
@@ -79,8 +83,9 @@ The canonical patch changes these files:
   inbound messages, plus the outbound semantic check.
 - `src/client.rs`: configure initial peer settings, preserve ordered headers,
   and start idle close only after polling the open connection.
-- `src/client/tests.rs`: contain the 13 focused semantic, wire, and lifecycle
-  regressions for ordered headers, idle close, and peer SETTINGS transitions.
+- `src/client/tests.rs`: contain focused semantic, wire, and lifecycle
+  regressions for ordered headers and trailers, idle close, and peer SETTINGS
+  transitions.
 - `src/codec/framed_read.rs`: preserve RFC connection error codes for malformed
   frame lengths and HPACK decoding failures, and bound complete header-block
   work without rejecting maximum-expansion Huffman values that fit the decoded
@@ -100,8 +105,9 @@ The canonical patch changes these files:
 - `src/proto/streams/recv.rs`: attach decoded ordinary-field order to received
   requests, final responses, and informational responses.
 - `src/proto/streams/streams.rs`: retain ordered headers across extension
-  cleanup, apply seeded limits before stream 1, and suppress RFC 7540 priority
-  output when directed by the peer.
+  cleanup, enqueue verified ordered request trailers, apply seeded limits before
+  stream 1, and suppress RFC 7540 priority output when directed by the peer.
+- `src/share.rs`: expose the additive ordered-trailer send operation.
 
 The canonical source, manifest, and test deltas are listed in
 `patches/series`. `ordered-headers.patch` contains the observable-order and

@@ -907,7 +907,7 @@ impl Http2TlsConnector {
             .connect_prepared(stream, server_name, prepared.client)
             .await?;
         let response = connection
-            .send_prepared_request(prepared.request, prepared.body)
+            .send_prepared_request(prepared.request, prepared.body, prepared.trailers)
             .await?;
         Span::current().record("status", response.status().as_u16());
         Ok(response)

@@ -12,7 +12,7 @@ use std::{
 };
 
 use bytes::{BufMut, Bytes, BytesMut};
-use http::{HeaderName, HeaderValue, Method, Request, Response, Version};
+use http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Response, Version};
 use tokio::{
     io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf},
     time::timeout,
@@ -163,6 +163,77 @@ async fn handshake_preserves_interleaved_ordered_headers() {
     })
     .await
     .expect("ordered-header handshake test timed out");
+}
+
+#[tokio::test]
+async fn handshake_preserves_interleaved_ordered_sensitive_trailers() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let (sender, connection) = super::handshake(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+
+        let mut sender = sender.ready().await.expect("sender never became ready");
+        let (_response, mut send) = sender
+            .send_request(request_with_headers(), false)
+            .expect("request was rejected");
+
+        let a1 = HeaderValue::from_static("a1");
+        let b1 = HeaderValue::from_static("b1");
+        let mut a2 = HeaderValue::from_static("a2");
+        a2.set_sensitive(true);
+        let ordered = vec![(A, a1.clone()), (B, b1.clone()), (A, a2.clone())];
+        let mut semantic = HeaderMap::new();
+        semantic.append(A, a1);
+        semantic.append(B, b1);
+        semantic.append(A, a2);
+
+        let mismatch = send
+            .send_ordered_trailers(semantic.clone(), OrderedHeaders::new(ordered[..2].to_vec()))
+            .expect_err("mismatched ordered trailers were accepted");
+        assert_eq!(mismatch.to_string(), "malformed headers");
+        send.send_ordered_trailers(semantic, OrderedHeaders::new(ordered.clone()))
+            .expect("ordered trailers were rejected");
+
+        let mut preface = [0_u8; 24];
+        peer_io
+            .read_exact(&mut preface)
+            .await
+            .expect("client preface was truncated");
+        assert_eq!(&preface, b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
+
+        let mut blocks = Vec::new();
+        while blocks.len() < 2 {
+            let mut head = [0_u8; 9];
+            peer_io
+                .read_exact(&mut head)
+                .await
+                .expect("frame header was truncated");
+            let length =
+                (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+            let mut payload = vec![0_u8; length];
+            peer_io
+                .read_exact(&mut payload)
+                .await
+                .expect("frame payload was truncated");
+            if head[3] == 1 {
+                blocks.push((head[4], payload));
+            }
+        }
+
+        assert_eq!(blocks[0].0 & 0x1, 0, "initial HEADERS ended the stream");
+        assert_eq!(blocks[1].0 & 0x1, 0x1, "trailers omitted END_STREAM");
+        let mut decoder = Decoder::new(4096);
+        let _ = decode_header_block_with(&mut decoder, &blocks[0].1);
+        let trailers = decode_header_block_with(&mut decoder, &blocks[1].1);
+        assert_eq!(trailers, ordered);
+        assert!(trailers[2].1.is_sensitive());
+
+        driver.abort();
+    })
+    .await
+    .expect("ordered-trailer handshake test timed out");
 }
 
 #[tokio::test]
@@ -653,9 +724,16 @@ fn decode_ordinary_fields(headers: Headers) -> Vec<(HeaderName, HeaderValue)> {
 }
 
 fn decode_header_block(encoded: &[u8]) -> Vec<(HeaderName, HeaderValue)> {
+    let mut decoder = Decoder::new(4096);
+    decode_header_block_with(&mut decoder, encoded)
+}
+
+fn decode_header_block_with(
+    decoder: &mut Decoder,
+    encoded: &[u8],
+) -> Vec<(HeaderName, HeaderValue)> {
     let mut payload = BytesMut::from(encoded);
     let mut cursor = Cursor::new(&mut payload);
-    let mut decoder = Decoder::new(4096);
     let mut fields = Vec::new();
     decoder
         .decode(&mut cursor, |header| {

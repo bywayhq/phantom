@@ -123,6 +123,7 @@ mod request_body_early_response;
 mod request_body_error;
 mod request_body_flow;
 mod request_body_validation;
+mod request_trailers;
 mod request_validation;
 mod request_wire;
 mod reset_churn;

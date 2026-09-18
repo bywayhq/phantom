@@ -18,7 +18,7 @@ use crate::request::{RequestBody, RequestBodyMetadata};
 
 use super::{
     Http2Body, Http2Error, OperationOutcome, OriginForm, RequestHeader, driver::DriverTask,
-    prepare_request, translate_settings, upload::send_body,
+    prepare_request, request::PreparedRequestTrailers, translate_settings, upload::send_body,
 };
 
 /// An established HTTP/2 connection that can open concurrent request streams.
@@ -87,12 +87,35 @@ impl Http2Connection {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http2Body>, Http2Error> {
-        self.send_request_body(
+        self.send_request_with_trailers(method, authority, target, headers, body, Vec::new())
+            .await
+    }
+
+    /// Sends one owned request body followed by exact ordered static trailers.
+    ///
+    /// Trailer validation completes before the connection is touched. Trailer
+    /// fields do not contribute to `Content-Length`, which describes DATA only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] when request or trailer validation, upload, or
+    /// response processing fails.
+    pub async fn send_request_with_trailers(
+        &self,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+        trailers: Vec<RequestHeader>,
+    ) -> Result<Response<Http2Body>, Http2Error> {
+        self.send_request_body_with_trailers(
             method,
             authority,
             target,
             headers,
             body.map(RequestBody::from_bytes),
+            trailers,
         )
         .await
     }
@@ -115,9 +138,32 @@ impl Http2Connection {
         headers: Vec<RequestHeader>,
         body: Option<RequestBody>,
     ) -> Result<Response<Http2Body>, Http2Error> {
+        self.send_request_body_with_trailers(method, authority, target, headers, body, Vec::new())
+            .await
+    }
+
+    /// Sends one pull-driven request body followed by exact ordered static trailers.
+    ///
+    /// Static trailers are validated before the connection or body is touched.
+    /// Trailers produced by `body` remain unsupported.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] when request or trailer validation, body
+    /// production, upload, or response processing fails.
+    pub async fn send_request_body_with_trailers(
+        &self,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+        trailers: Vec<RequestHeader>,
+    ) -> Result<Response<Http2Body>, Http2Error> {
         let metadata = body.as_ref().map(RequestBody::metadata);
         let request = prepare_request(method, authority, target, headers, metadata)?;
-        self.send_prepared_request(request, body).await
+        let trailers = PreparedRequestTrailers::new(trailers)?;
+        self.send_prepared_request(request, body, trailers).await
     }
 
     /// Returns whether the connection driver has stopped.
@@ -191,6 +237,7 @@ impl Http2Connection {
         &self,
         request: Request<()>,
         body: Option<RequestBody>,
+        trailers: Option<PreparedRequestTrailers>,
     ) -> Result<Response<Http2Body>, Http2Error> {
         let method = request.method().clone();
         let body_bytes = body
@@ -217,16 +264,17 @@ impl Http2Connection {
                 .ready()
                 .await
                 .map_err(Http2Error::protocol)?;
-            let end_of_stream = body.is_none();
+            let end_of_stream = body.is_none() && trailers.is_none();
             let (response, reset) = sender
                 .send_request(request, end_of_stream)
                 .map_err(Http2Error::protocol)?;
             let mut response = Box::pin(response);
             let mut early_response = None;
-            let reset = if let Some(body) = body {
+            let reset = if !end_of_stream {
                 let mut upload = RequestStreamGuard::new(reset);
                 {
-                    let mut upload_future = Box::pin(send_body(upload.stream_mut()?, body));
+                    let mut upload_future =
+                        Box::pin(send_body(upload.stream_mut()?, body, trailers));
                     tokio::select! {
                         biased;
                         result = &mut response => {

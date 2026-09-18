@@ -7,6 +7,7 @@ use std::{
     task::{Context, Poll},
 };
 
+use http::Method;
 use phantom_profile::chromium::v152_macos_http2;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex};
 use tracing::instrument::WithSubscriber;
@@ -14,6 +15,7 @@ use tracing::instrument::WithSubscriber;
 use super::{TestResult, prime_request_trace_callsites, target};
 use crate::http2::{
     Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader, send_get,
+    send_request_body_with_trailers,
 };
 use crate::tracing_test::OutcomeSubscriber;
 
@@ -260,6 +262,55 @@ async fn invalid_request_is_traced_before_stream_io() -> TestResult<()> {
         ["authority_contains_userinfo"]
     );
     assert!(subscriber.outcomes_for("http2.response_head").is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_static_trailers_never_touch_stream() -> TestResult<()> {
+    let mut cases = vec![
+        vec![RequestHeader::new("Uppercase", "value")],
+        vec![RequestHeader::new("x-bad", b"ok\r\ninjected")],
+    ];
+    for name in [
+        "authorization",
+        "cache-control",
+        "connection",
+        "content-encoding",
+        "content-length",
+        "content-range",
+        "content-type",
+        "host",
+        "keep-alive",
+        "max-forwards",
+        "proxy-connection",
+        "set-cookie",
+        "te",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+    ] {
+        cases.push(vec![RequestHeader::new(name, "value")]);
+    }
+    for trailers in cases {
+        let touches = Arc::new(AtomicUsize::new(0));
+        let (client, _server) = duplex(128);
+        let result = send_request_body_with_trailers(
+            TouchCountingStream {
+                inner: client,
+                touches: Arc::clone(&touches),
+            },
+            &v152_macos_http2(),
+            Method::POST,
+            "example.test",
+            target()?,
+            Vec::new(),
+            None,
+            trailers,
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(touches.load(Ordering::SeqCst), 0);
+    }
     Ok(())
 }
 

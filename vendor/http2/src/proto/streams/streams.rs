@@ -1212,6 +1212,33 @@ impl<B> StreamRef<B> {
         })
     }
 
+    pub fn send_ordered_trailers(
+        &mut self,
+        trailers: HeaderMap,
+        ordered: OrderedHeaders,
+    ) -> Result<(), UserError> {
+        if !ordered.agrees_with(&trailers) {
+            return Err(UserError::MalformedHeaders);
+        }
+
+        let mut me = self.opaque.inner.lock();
+        let me = &mut *me;
+
+        let stream = me.store.resolve(self.opaque.key);
+        let actions = &mut me.actions;
+        let mut send_buffer = self.send_buffer.inner.lock();
+        let send_buffer = &mut *send_buffer;
+
+        me.counts.transition(stream, |counts, stream| {
+            let mut frame = frame::Headers::trailers(stream.id, trailers);
+            frame.set_ordered_fields(ordered.into_inner());
+
+            actions
+                .send
+                .send_trailers(frame, send_buffer, stream, counts, &mut actions.task)
+        })
+    }
+
     pub fn send_reset(&mut self, reason: Reason) {
         let mut me = self.opaque.inner.lock();
         let me = &mut *me;

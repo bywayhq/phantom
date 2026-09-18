@@ -15,9 +15,9 @@ use tracing::{Span, debug_span, field};
 
 mod alps;
 mod upload;
-use request::prepare_request as build_request;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
+use request::{PreparedRequestTrailers, prepare_request as build_request};
 
 pub use crate::request::{OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
 pub use body::Http2Body;
@@ -80,6 +80,26 @@ pub fn validate_request_body(
     headers: &[RequestHeader],
     body: Option<RequestBodyMetadata>,
 ) -> Result<(), Http2Error> {
+    validate_request_body_with_trailers(method, authority, target, headers, body, &[])
+}
+
+/// Validates one HTTP/2 request body and ordered static trailer list without I/O.
+///
+/// Trailer fields must have lowercase names and may not contain message framing
+/// or connection-specific fields. `Content-Length` describes DATA only.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when the request or trailer fields cannot be
+/// represented by this HTTP/2 transport.
+pub fn validate_request_body_with_trailers(
+    method: &Method,
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    body: Option<RequestBodyMetadata>,
+    trailers: &[RequestHeader],
+) -> Result<(), Http2Error> {
     prepare_request(
         method.clone(),
         authority,
@@ -87,7 +107,8 @@ pub fn validate_request_body(
         headers.to_vec(),
         body,
     )
-    .map(drop)
+    .map(drop)?;
+    PreparedRequestTrailers::new(trailers.to_vec()).map(drop)
 }
 
 /// Sends one empty-body HTTP/2 GET over an already-connected stream.
@@ -141,7 +162,40 @@ pub async fn send_request<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    send_request_body(
+    send_request_with_trailers(
+        stream,
+        settings,
+        method,
+        authority,
+        target,
+        headers,
+        body,
+        Vec::new(),
+    )
+    .await
+}
+
+/// Sends one owned request body followed by exact ordered static trailers.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when request or trailer validation, connection
+/// setup, upload, or response processing fails.
+#[allow(clippy::too_many_arguments)]
+pub async fn send_request_with_trailers<T>(
+    stream: T,
+    settings: &Http2Settings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<Bytes>,
+    trailers: Vec<RequestHeader>,
+) -> Result<Response<Http2Body>, Http2Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    send_request_body_with_trailers(
         stream,
         settings,
         method,
@@ -149,6 +203,7 @@ where
         target,
         headers,
         body.map(RequestBody::from_bytes),
+        trailers,
     )
     .await
 }
@@ -175,6 +230,42 @@ pub async fn send_request_body<T>(
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    send_request_body_with_trailers(
+        stream,
+        settings,
+        method,
+        authority,
+        target,
+        headers,
+        body,
+        Vec::new(),
+    )
+    .await
+}
+
+/// Sends a pull-driven request body followed by exact ordered static trailers.
+///
+/// Request and trailer validation completes before the stream or body is
+/// touched. Trailers produced by the body remain unsupported.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] when request or trailer validation, connection
+/// setup, body production, upload, or response processing fails.
+#[allow(clippy::too_many_arguments)]
+pub async fn send_request_body_with_trailers<T>(
+    stream: T,
+    settings: &Http2Settings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+    trailers: Vec<RequestHeader>,
+) -> Result<Response<Http2Body>, Http2Error>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     let body_bytes = body
         .as_ref()
         .map(RequestBody::metadata)
@@ -190,7 +281,9 @@ where
     let outcome = OperationOutcome::new(&span);
     let prepared = {
         let _entered = span.enter();
-        PreparedRequest::new_body(settings, method, authority, target, headers, body)
+        PreparedRequest::new_body_with_trailers(
+            settings, method, authority, target, headers, body, trailers,
+        )
     };
     match &prepared {
         Ok(_) => outcome.finish("ok"),
@@ -199,13 +292,14 @@ where
     let prepared = prepared?;
     let connection = Http2Connection::connect_with_builder(stream, prepared.client).await?;
     connection
-        .send_prepared_request(prepared.request, prepared.body)
+        .send_prepared_request(prepared.request, prepared.body, prepared.trailers)
         .await
 }
 
 struct PreparedRequest {
     request: Request<()>,
     body: Option<RequestBody>,
+    trailers: Option<PreparedRequestTrailers>,
     client: client::Builder,
 }
 
@@ -236,14 +330,37 @@ impl PreparedRequest {
         headers: Vec<RequestHeader>,
         body: Option<RequestBody>,
     ) -> Result<Self, Http2Error> {
+        Self::new_body_with_trailers(
+            settings,
+            method,
+            authority,
+            target,
+            headers,
+            body,
+            Vec::new(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_body_with_trailers(
+        settings: &Http2Settings,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+        trailers: Vec<RequestHeader>,
+    ) -> Result<Self, Http2Error> {
         settings.validate().map_err(Http2Error::InvalidSettings)?;
         let client = translate_settings(settings)?;
         let metadata = body.as_ref().map(RequestBody::metadata);
         let request = build_request(method, authority, target, headers, metadata)?;
+        let trailers = PreparedRequestTrailers::new(trailers)?;
 
         Ok(Self {
             request,
             body,
+            trailers,
             client,
         })
     }

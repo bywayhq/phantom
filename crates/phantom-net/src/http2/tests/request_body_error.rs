@@ -14,7 +14,7 @@ use tokio::time::timeout;
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
 use crate::{
-    http2::{Http2Connection, Http2Error, OriginForm, RequestBody},
+    http2::{Http2Connection, Http2Error, OriginForm, RequestBody, RequestHeader},
     request::RequestBodyErrorKind,
 };
 
@@ -40,12 +40,13 @@ async fn request_body_error_resets_only_that_stream_and_preserves_connection() -
         let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
 
         let error = match connection
-            .send_request_body(
+            .send_request_body_with_trailers(
                 Method::POST,
                 "example.test",
                 OriginForm::parse("/failing-upload")?,
                 Vec::new(),
                 Some(RequestBody::streaming(FailingBody)),
+                vec![RequestHeader::new("x-must-not-arrive", "trailer")],
             )
             .await
         {

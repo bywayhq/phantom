@@ -1,4 +1,5 @@
 use crate::codec::UserError;
+use crate::ext::OrderedHeaders;
 use crate::frame::Reason;
 use crate::proto::{self, WindowSize};
 
@@ -343,6 +344,21 @@ impl<B: Buf> SendStream<B> {
     /// is closed, no more data can be sent.
     pub fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), crate::Error> {
         self.inner.send_trailers(trailers).map_err(Into::into)
+    }
+
+    /// Sends trailers in an exact ordinary-field order.
+    ///
+    /// `ordered` must describe the same semantic multimap as `trailers`,
+    /// including duplicate values and their per-name order. Sensitive values in
+    /// `ordered` are encoded as never-indexed literals.
+    pub fn send_ordered_trailers(
+        &mut self,
+        trailers: HeaderMap,
+        ordered: OrderedHeaders,
+    ) -> Result<(), crate::Error> {
+        self.inner
+            .send_ordered_trailers(trailers, ordered)
+            .map_err(Into::into)
     }
 
     /// Resets the stream.

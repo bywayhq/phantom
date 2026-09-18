@@ -8,56 +8,69 @@ use http_body::{Body as _, Frame};
 
 use crate::request::RequestBody;
 
-use super::Http2Error;
+use super::{Http2Error, request::PreparedRequestTrailers};
 
 const MAX_FLOW_CONTROL_WINDOW: usize = 0x7fff_ffff;
 
 pub(super) async fn send_body(
     stream: &mut SendStream<Bytes>,
-    mut body: RequestBody,
+    body: Option<RequestBody>,
+    trailers: Option<PreparedRequestTrailers>,
 ) -> Result<(), Http2Error> {
-    loop {
-        let Some(frame) = next_frame_or_reset(stream, &mut body).await? else {
-            return Ok(());
-        };
-        let Some(frame) = frame else {
-            return stream
-                .send_data(Bytes::new(), true)
-                .map_err(Http2Error::protocol);
-        };
-        let frame = frame.map_err(Http2Error::RequestBody)?;
-        let mut data = frame
-            .into_data()
-            .map_err(|_| Http2Error::UnsupportedRequestBodyFrame)?;
-        let body_ended = body.is_end_stream();
-
-        if data.is_empty() {
-            stream
-                .send_data(data, body_ended)
-                .map_err(Http2Error::protocol)?;
-            if body_ended {
-                return Ok(());
-            }
-            continue;
-        }
-
-        while !data.is_empty() {
-            stream.reserve_capacity(data.len().min(MAX_FLOW_CONTROL_WINDOW));
-            let Some(capacity) = next_capacity_or_reset(stream).await? else {
+    if let Some(mut body) = body {
+        loop {
+            let Some(frame) = next_frame_or_reset(stream, &mut body).await? else {
                 return Ok(());
             };
-            if capacity == 0 {
-                return Err(Http2Error::RequestBodyClosed);
+            let Some(frame) = frame else {
+                break;
+            };
+            let frame = frame.map_err(Http2Error::RequestBody)?;
+            let mut data = frame
+                .into_data()
+                .map_err(|_| Http2Error::UnsupportedRequestBodyFrame)?;
+            let body_ended = body.is_end_stream();
+
+            if data.is_empty() {
+                let end_of_stream = body_ended && trailers.is_none();
+                stream
+                    .send_data(data, end_of_stream)
+                    .map_err(Http2Error::protocol)?;
+                if end_of_stream {
+                    return Ok(());
+                }
+                continue;
             }
-            let chunk_len = capacity.min(data.len());
-            let end_of_stream = body_ended && chunk_len == data.len();
-            stream
-                .send_data(data.split_to(chunk_len), end_of_stream)
-                .map_err(Http2Error::protocol)?;
-            if end_of_stream {
-                return Ok(());
+
+            while !data.is_empty() {
+                stream.reserve_capacity(data.len().min(MAX_FLOW_CONTROL_WINDOW));
+                let Some(capacity) = next_capacity_or_reset(stream).await? else {
+                    return Ok(());
+                };
+                if capacity == 0 {
+                    return Err(Http2Error::RequestBodyClosed);
+                }
+                let chunk_len = capacity.min(data.len());
+                let end_of_stream = trailers.is_none() && body_ended && chunk_len == data.len();
+                stream
+                    .send_data(data.split_to(chunk_len), end_of_stream)
+                    .map_err(Http2Error::protocol)?;
+                if end_of_stream {
+                    return Ok(());
+                }
             }
         }
+    }
+
+    if let Some(trailers) = trailers {
+        let (semantic, ordered) = trailers.into_parts();
+        stream
+            .send_ordered_trailers(semantic, ordered)
+            .map_err(Http2Error::protocol)
+    } else {
+        stream
+            .send_data(Bytes::new(), true)
+            .map_err(Http2Error::protocol)
     }
 }
 
