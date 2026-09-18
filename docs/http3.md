@@ -94,8 +94,11 @@ The QUIC key-schedule vectors are reproduced and asserted in
 
 ## Current limits
 
-H3 is direct-only. UDP proxy routes, Alt-Svc upgrade, trailers produced by a
-streaming request body, extension-specific datagrams, and general retry policy
+H3 is direct-only. Caller-configured exact-H3 retries may repeat typed DNS,
+endpoint, or QUIC connection setup before request dispatch while preserving one
+route and total deadline. Status, protocol, post-dispatch, and negotiated
+upgrade retry policies remain unsupported. UDP proxy routes, Alt-Svc upgrade,
+trailers produced by a streaming request body, and extension-specific datagrams
 remain planned. See
 [Coverage](coverage.md) for the current contract and [Validation](validation.md)
 for evidence requirements.

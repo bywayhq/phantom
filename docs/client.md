@@ -8,8 +8,8 @@ choices that affect requests; packet-level details live elsewhere.
 | Layer | Owns |
 | --- | --- |
 | Profile | Immutable TLS, HTTP/2, HTTP/3, QUIC, and client-hint wire settings |
-| Client | Pools, route defaults, trust, limits, redirects, cookies, learned hints, and TLS sessions |
-| Request | Method, URL, ordered fields and static trailers, body, protocol, route override, and timeout override |
+| Client | Pools, route defaults, trust, limits, redirects, connection retries, cookies, learned hints, and TLS sessions |
+| Request | Method, URL, ordered fields and static trailers, body, protocol, route, retry, and timeout overrides |
 
 Built-in and custom profiles use the same typed model. A recipe name records
 capture provenance; it does not make the runtime branch on browser family or
@@ -24,7 +24,7 @@ documented per-request settings.
 use std::{num::NonZeroUsize, time::Duration};
 
 use phantom::profile::{chromium, ClientProfile};
-use phantom::{Client, RedirectPolicy, RequestTimeouts};
+use phantom::{Client, RedirectPolicy, RequestTimeouts, RetryPolicy};
 
 fn build() -> Result<Client, Box<dyn std::error::Error>> {
     let profile = ClientProfile::new(chromium::v152_macos_tls())
@@ -39,14 +39,19 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
         .redirect_policy(RedirectPolicy::limited(
             NonZeroUsize::new(5).expect("five is nonzero"),
         ))
+        .retry_policy(RetryPolicy::connection_failures(
+            NonZeroUsize::new(2).expect("two is nonzero"),
+            Duration::from_millis(100),
+        ))
         .request_timeouts(timeouts)
         .build()?;
     Ok(client)
 }
 ```
 
-Every timeout and redirect is disabled until configured. Pool and client-hint
-limits have finite defaults and can be tightened on `ClientBuilder`.
+Every timeout, redirect, and connection retry is disabled until configured.
+Pool and client-hint limits have finite defaults and can be tightened on
+`ClientBuilder`.
 
 ## Choose a protocol
 
@@ -105,6 +110,29 @@ Method-preserving redirects replay owned static trailers with the body. A
 redirect that rewrites the request to GET clears both, and a cross-origin
 redirect removes credential-bearing header and trailer fields before the next
 attempt.
+
+## Connection retries
+
+`RetryPolicy::connection_failures` opts exact H1, H2, and H3 requests into a
+finite number of connection-setup retries with a constant caller-selected
+delay. The default is `RetryPolicy::none()`. A request-level policy replaces
+the client's default.
+
+The retry boundary is inside the selected protocol pool, after admission and
+before origin request dispatch. DNS, direct TCP, forward-proxy TCP, proxy TCP,
+SOCKS TCP/local resolution, and direct QUIC setup failures are eligible only
+when their typed error proves that dispatch has not begun. TLS, certificate,
+ALPN, proxy negotiation/authentication/rejection, timeouts, HTTP responses,
+and protocol or post-dispatch failures remain terminal. The route and exact
+protocol never change, and exhaustion returns the last original error.
+
+Because a setup retry occurs before the body is polled or moved to a protocol
+stream, it is safe for every method and for one-shot streaming bodies; Phantom
+does not replay request bytes. One retry budget spans redirects, proxy-auth or
+client-hint connection attempts, and H2 replacement connections. Each setup
+attempt receives a fresh connect-phase timeout, while the total timeout remains
+absolute across delays and attempts. Negotiated H1/H2 is deliberately excluded
+until it has bounded pre-selection admission.
 
 ## Routes and proxies
 
@@ -166,6 +194,7 @@ clients do not.
 - Pool admission and retained connections are bounded per origin and route.
 - Dropping one H2 or H3 request cancels its stream, not unrelated work.
 - Redirects are disabled until a finite policy is configured.
+- Connection retries are disabled until a finite policy is configured.
 - Cookies require the `cookies` feature and explicit builder activation.
 - Learned `Accept-CH` state is bounded and scoped to the exact secure origin.
 
@@ -173,15 +202,17 @@ clients do not.
 
 Timeouts are disabled by default. Client or request policy can bound pool
 admission, connection setup, response head, response-body inactivity, and the
-whole operation across redirects and bounded replays. Errors identify the
-phase and selected protocol.
+whole operation across redirects, retry delays, connection attempts, and
+bounded replays. Phase limits restart for each attempt; the total deadline does
+not. Errors identify the phase and selected protocol.
 
 ## Responses
 
 Every successful request returns `http::Response<ResponseBody>`. Its extensions
 include `ResponseInfo` and `OrderedResponseHeaders`. The latter preserves
 duplicate interleaving on every protocol and original field-name spelling on
-H1.
+H1. `ResponseInfo::retries_performed` reports successful connection-setup
+retries separately from redirects.
 
 The body is streaming and backpressured. Consume it to completion when you want
 the connection to remain eligible for reuse.
@@ -222,7 +253,8 @@ evidence is required.
 - Select only profile components listed in [Coverage](coverage.md).
 - Run inside Tokio with I/O and time enabled.
 - Configure route, origin trust, and proxy trust explicitly.
-- Choose redirect and timeout policy; neither is inferred from a browser name.
+- Choose redirect, connection-retry, and timeout policy; none is inferred from
+  a browser name.
 - Treat streaming request bodies as one-shot and consume response bodies when
   reuse matters.
 - Handle non-exhaustive error categories and avoid logging sensitive inputs.

@@ -83,6 +83,26 @@ This evidence does not claim browser-capture fidelity, redirects, negotiated
 H1/H2 forwarding, H2 proxy transport, other authentication schemes, forwarding
 an HTTPS origin, H3 proxy support, or UDP-capable proxying.
 
+## Connection-retry evidence
+
+The shared exact-protocol acquisition state uses scripted typed setup failures
+to prove its finite request-wide budget across separate acquisitions, fresh
+connect-phase deadlines, timeout exclusion, protocol-labelled timeout
+behavior, last-error preservation, and one total deadline across retry delay.
+Error-classification tables cover direct,
+forward-proxy, CONNECT-proxy, SOCKS5, and QUIC setup variants while excluding
+TLS, authentication, rejection, timeout, protocol, and post-dispatch failures.
+Public loopback H1 and H2 regressions start their servers only after observing
+the first refused setup, then verify the final request and response metadata.
+The H1 case uses a one-shot streaming POST with static trailers. A negotiated
+H1/H2 refusal proves that configured exact-protocol retries remain excluded.
+Live H3 recovery is not claimed: H3 coverage currently consists of the typed
+QUIC classification table, shared acquisition lifecycle tests, static pool
+wiring review, and the workspace gates.
+
+These tests prove lifecycle and routing behavior, not browser retry policy.
+Retries are caller-configured and do not become part of a named browser recipe.
+
 ## External suites
 
 External projects are witnesses, not pass badges:

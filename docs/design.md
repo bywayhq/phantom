@@ -53,6 +53,16 @@ stream-scoped where possible, and draining connections accept no new work.
 Cookies, client hints, redirects, TLS sessions, and future DNS or Alt-Svc state
 remain client-scoped rather than process-global.
 
+Connection retries are also request-scoped. One finite budget spans every
+redirect hop and internal replacement connection. Exact H1, H2, and H3 pools
+may consume that budget only around typed connection acquisition, before the
+origin request body is polled or request bytes are dispatched. The admission
+permit remains held across the delay, but no pool-entry connection lock does.
+This keeps bounds and queue order stable while allowing another multiplexed
+request to install a compatible generation. Retry never changes the route or
+protocol, and negotiated H1/H2 remains excluded until pre-selection admission
+has an explicit owner.
+
 ## Async and features
 
 Phantom is async-first and targets Tokio. Library code does not create a global
@@ -85,6 +95,8 @@ failures return typed errors; runtime library code must not panic.
 - Every transport returns the standard `http::Response` view plus ordered
   response fields.
 - Routing resolves before connection setup and is part of pool identity.
+- Setup retries remain inside exact-protocol pools and cannot absorb TLS,
+  proxy negotiation, response, or post-dispatch failures.
 - SSE and WebSocket reuse client contracts without hiding their distinct
   lifecycles.
 

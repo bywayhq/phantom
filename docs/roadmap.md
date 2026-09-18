@@ -12,8 +12,8 @@ work has exposed the real architectural boundaries.
 
 - Complete the remaining client and proxy-route work without introducing
   direct or cross-protocol fallback.
-- Add replay and general retry behavior only with explicit ownership and
-  bounded lifecycle rules.
+- Extend the current exact-protocol, pre-dispatch connection retry policy only
+  when another replay class has explicit ownership and bounded lifecycle rules.
 - Add streaming-body-produced trailers only through a declared, ordered
   representation that preserves H1 spelling and cross-name duplicate order.
 - Complete browser-backed SSE reconnect evidence and remaining WebSocket
@@ -68,7 +68,9 @@ browser-family profiles, forced H3 path, and ordered static request trailers on
 exact H1/H2/H3 and negotiated H1/H2 have passed their phase acceptance
 criteria. H1 WebSocket supports direct plaintext `ws://` alongside routed
 TLS-backed `wss://`, with the same ordered opening handshake, strict validation,
-and bounded message lifecycle. HTTP/1.1 absolute-form forwarding for `http://`
+and bounded message lifecycle. Exact H1/H2/H3 requests can opt into bounded
+typed connection-setup retries without changing route or protocol or replaying
+request bytes. HTTP/1.1 absolute-form forwarding for `http://`
 origins is available over plaintext and TLS proxies with independent proxy
 authentication and trust policies. Challenge-driven Basic starts each logical
 request anonymously and permits one replay on a fresh same-route connection,
