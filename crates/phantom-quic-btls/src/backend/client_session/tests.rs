@@ -219,7 +219,7 @@ fn fragmented_peer_input_completes_and_copies_transport_parameters() {
     assert_eq!(client_progress, HandshakeProgress::Complete);
     // SAFETY: the client SSL is live and its handshake completed.
     let verification = unsafe { ffi::SSL_get_verify_result(client.ssl.as_ptr()) };
-    assert_eq!(verification, i64::from(ffi::X509_V_OK));
+    assert_eq!(verification, std::ffi::c_long::from(ffi::X509_V_OK));
 
     let copied = test_ok(client.peer_transport_parameters(), "peer parameters");
     let mut copied = test_some(copied, "server parameters");
@@ -266,7 +266,9 @@ fn unsupported_read_levels_are_rejected() {
     ] {
         assert_eq!(
             encryption_level(raw),
-            Err(CallbackError::UnsupportedEncryptionLevel { raw: raw.0 })
+            Err(CallbackError::UnsupportedEncryptionLevel {
+                raw: i64::from(raw.0),
+            })
         );
     }
 }

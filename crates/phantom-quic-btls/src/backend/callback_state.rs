@@ -34,7 +34,7 @@ pub(super) enum CallbackError {
         len: usize,
     },
     UnsupportedEncryptionLevel {
-        raw: u32,
+        raw: i64,
     },
     EarlyDataUnsupported,
     SecretAtInitialLevel,

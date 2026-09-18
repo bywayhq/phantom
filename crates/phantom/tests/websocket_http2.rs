@@ -65,6 +65,7 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
+        let (done_tx, done_rx) = oneshot::channel();
         let server = tokio::spawn(async move {
             let stream = accept_tls(listener, acceptor).await?;
             let recorded = Arc::new(Mutex::new(Vec::new()));
@@ -125,6 +126,9 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
                     return Err("client ended extended CONNECT with trailers".into());
                 }
                 send.send_data(Bytes::new(), true)?;
+                done_rx
+                    .await
+                    .map_err(|_| "client dropped completion signal")?;
 
                 Ok::<_, Box<dyn Error + Send + Sync>>(ExtendedConnectRequest {
                     method,
@@ -194,6 +198,9 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
             Err(error) => error,
         };
         assert_eq!(terminal.kind(), WebSocketErrorKind::Closed);
+        done_tx
+            .send(())
+            .map_err(|()| "server dropped completion receiver")?;
         drop(socket);
 
         let request = server.await??;

@@ -403,7 +403,10 @@ async fn serve_redirect_probe(
     )?;
 
     connection.graceful_shutdown();
-    poll_fn(|context| connection.poll_closed(context)).await?;
+    // The final response and graceful GOAWAY are the fixture's completion
+    // boundary. The client may close its side while retiring this generation;
+    // the next accepted connection below proves that it replaced the drain.
+    let _ = poll_fn(|context| connection.poll_closed(context)).await;
     Ok(())
 }
 

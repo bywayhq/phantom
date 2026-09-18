@@ -188,7 +188,9 @@ fn encryption_level(raw: ffi::ssl_encryption_level_t) -> Result<EncryptionLevel,
         }
         ffi::ssl_encryption_level_t::ssl_encryption_handshake => Ok(EncryptionLevel::Handshake),
         ffi::ssl_encryption_level_t::ssl_encryption_application => Ok(EncryptionLevel::Application),
-        _ => Err(CallbackError::UnsupportedEncryptionLevel { raw: raw.0 }),
+        _ => Err(CallbackError::UnsupportedEncryptionLevel {
+            raw: i64::from(raw.0),
+        }),
     }
 }
 

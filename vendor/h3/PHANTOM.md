@@ -183,8 +183,11 @@ including publication and cancellation accounting for multiple sections on one
 request stream. Stateless configurations keep their existing encoder path.
 
 The canonical source and test deltas are stored in the exact application order
-listed by `patches/series`. `PHANTOM.md`, the series file, and the patch files
-are packaging metadata and are deliberately excluded from those patches.
+listed by `patches/series`. `PHANTOM.md`, the series file, the patch files, and
+the tracked standalone-workspace `Cargo.lock` are packaging metadata and are
+deliberately excluded from those patches. The lockfile is force-added because
+the upstream snapshot ignores workspace lockfiles; vendor CI still requires it
+with `--locked` so dependency resolution remains reproducible.
 
 ## Refreshing the vendor copy
 

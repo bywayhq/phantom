@@ -32,6 +32,7 @@ STRICT_STATUSES = frozenset({"OK", "INFORMATIONAL"})
 WARNING_BEHAVIORS = frozenset({"NON-STRICT"})
 WARNING_CLOSE_BEHAVIORS = frozenset({"NON-STRICT", "WRONG CODE", "FAILED BY CLIENT"})
 MODE_TIMEOUT_SECONDS = {"smoke": 180, "compression": 1800, "full": 2400}
+BUILD_TIMEOUT_SECONDS = 1800
 EXPECTED_CASE_COUNTS = {"smoke": 8, "compression": 216, "full": 463}
 
 
@@ -149,15 +150,51 @@ def _available_port() -> int:
 
 
 def _run(
-    command: list[str], *, timeout: int | None = None, quiet: bool = False
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: int | None = None,
+    quiet: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         check=True,
+        cwd=cwd,
         text=True,
         timeout=timeout,
         capture_output=quiet,
     )
+
+
+def _build_adapter(repository: Path) -> Path:
+    # Compilation is intentionally separate from the protocol-suite deadline.
+    target_directory = repository / "target"
+    _run(
+        [
+            "cargo",
+            "build",
+            "--release",
+            "--locked",
+            "--target-dir",
+            str(target_directory),
+            "-p",
+            "phantom",
+            "--example",
+            "autobahn-client",
+            "--features",
+            "websocket-deflate",
+        ],
+        cwd=repository,
+        timeout=BUILD_TIMEOUT_SECONDS,
+    )
+    executable = target_directory / "release" / "examples" / "autobahn-client"
+    if os.name == "nt":
+        executable = executable.with_suffix(".exe")
+    if not executable.is_file():
+        raise RuntimeError(
+            f"Cargo did not produce the Autobahn adapter at {executable}"
+        )
+    return executable
 
 
 def _wait_for_tls(port: int, container_name: str) -> None:
@@ -258,6 +295,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
         encoding="utf-8",
     )
 
+    adapter_executable = _build_adapter(repository)
     container_name = f"phantom-autobahn-{os.getpid()}-{int(time.time())}"
     container_started = False
     try:
@@ -293,18 +331,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
             container_started = True
             _wait_for_tls(port, container_name)
             adapter_command = [
-                "cargo",
-                "run",
-                "--quiet",
-                "--release",
-                "--locked",
-                "-p",
-                "phantom",
-                "--example",
-                "autobahn-client",
-                "--features",
-                "websocket-deflate",
-                "--",
+                str(adapter_executable),
                 "--url",
                 f"wss://127.0.0.1:{port}/",
                 "--ca-der",

@@ -1,3 +1,4 @@
+use std::ffi::c_long;
 use std::fmt;
 use std::net::IpAddr;
 use std::ptr::{self, NonNull};
@@ -441,7 +442,7 @@ impl ClientSession {
         // SAFETY: the SSL is live and its handshake completed. A permissive
         // verification callback can allow completion while retaining a failure result.
         let verification = unsafe { ffi::SSL_get_verify_result(self.ssl.as_ptr()) };
-        if verification != i64::from(ffi::X509_V_OK) {
+        if verification != c_long::from(ffi::X509_V_OK) {
             return Err(ClientSessionError::PeerVerificationFailed);
         }
         // SAFETY: the SSL is live and its handshake completed.
@@ -549,7 +550,9 @@ fn encryption_level(level: ffi::ssl_encryption_level_t) -> Result<EncryptionLeve
         ffi::ssl_encryption_level_t::ssl_encryption_initial => Ok(EncryptionLevel::Initial),
         ffi::ssl_encryption_level_t::ssl_encryption_handshake => Ok(EncryptionLevel::Handshake),
         ffi::ssl_encryption_level_t::ssl_encryption_application => Ok(EncryptionLevel::Application),
-        _ => Err(CallbackError::UnsupportedEncryptionLevel { raw: level.0 }),
+        _ => Err(CallbackError::UnsupportedEncryptionLevel {
+            raw: i64::from(level.0),
+        }),
     }
 }
 
