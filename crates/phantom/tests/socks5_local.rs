@@ -15,6 +15,8 @@ use std::{
 
 use http::Response;
 use http_body_util::BodyExt;
+#[cfg(feature = "websocket")]
+use phantom::WebSocketMessage;
 use phantom::{HttpProtocol, RequestHeader, Route, Socks5Proxy};
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
@@ -191,6 +193,82 @@ async fn session_reuses_one_http2_connection_and_local_dns_tunnel() -> TestResul
             [(1, "/first".to_owned()), (3, "/second".to_owned())]
         );
         assert_local_target(proxy.await??, origin_address.port())?;
+        Ok(())
+    })
+    .await
+}
+
+#[cfg(feature = "websocket")]
+#[tokio::test]
+async fn authenticated_plaintext_websocket_uses_local_dns_route() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin = tokio::spawn(async move {
+            let (mut stream, _) = origin_listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+            let accept = websocket_accept(key);
+            let mut response = format!(
+                "HTTP/1.1 101 Switching Protocols\r\n\
+                 Upgrade: websocket\r\n\
+                 Connection: Upgrade\r\n\
+                 Sec-WebSocket-Accept: {accept}\r\n\r\n"
+            )
+            .into_bytes();
+            response.extend_from_slice(&[0x81, 5]);
+            response.extend_from_slice(b"local");
+            stream.write_all(&response).await?;
+            stream.flush().await?;
+            let mut byte = [0_u8; 1];
+            let read = tokio::io::AsyncReadExt::read(&mut stream, &mut byte).await?;
+            if read != 0 {
+                return Err("WebSocket sent unexpected data before drop".into());
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+        });
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(forward_one_authenticated_socks5(
+            proxy_listener,
+            origin_address,
+        ));
+        let route = Route::socks5(
+            Socks5Proxy::new(&format!("socks5://{proxy_address}"))?
+                .with_username_password("ws-user", "ws-password")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+        let mut socket = client
+            .websocket(&format!(
+                "ws://{ORIGIN_NAME}:{}/plain",
+                origin_address.port()
+            ))?
+            .connect()
+            .await?;
+        assert_eq!(
+            socket.receive().await?,
+            WebSocketMessage::Text("local".into())
+        );
+        drop(socket);
+        drop(client);
+
+        let request = origin.await??;
+        assert!(request.starts_with(b"GET /plain HTTP/1.1\r\n"));
+        assert_eq!(header_value(&request, "upgrade"), Some("websocket"));
+        assert_eq!(header_value(&request, "connection"), Some("Upgrade"));
+        let authority = format!("{ORIGIN_NAME}:{}", origin_address.port());
+        assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
+        let observed = proxy.await??;
+        assert_eq!(
+            observed.authentication,
+            ObservedSocks5Authentication {
+                username: "ws-user".to_owned(),
+                password: "ws-password".to_owned(),
+            }
+        );
+        assert_local_target(observed.connect, origin_address.port())?;
         Ok(())
     })
     .await

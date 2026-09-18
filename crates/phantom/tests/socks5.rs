@@ -13,6 +13,8 @@ use std::{future::Future, io, net::Ipv4Addr, time::Duration};
 use http::Response;
 use http_body_util::BodyExt;
 use phantom::{HttpProtocol, RequestErrorKind, RequestHeader, Route, Socks5Proxy};
+#[cfg(feature = "websocket")]
+use phantom::{WebSocketErrorKind, WebSocketMessage};
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use socks5_support::{ObservedSocks5Connect, forward_one_socks5, reject_one_socks5};
@@ -226,6 +228,143 @@ fn io_disabled_runtime_returns_typed_error() -> TestResult<()> {
         Err(error) => error,
     };
     assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
+    Ok(())
+}
+
+#[cfg(feature = "websocket")]
+#[tokio::test]
+async fn plaintext_websocket_canonicalizes_host_through_remote_dns() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin = tokio::spawn(async move {
+            let (mut stream, _) = origin_listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+            let accept = websocket_accept(key);
+            let mut response = format!(
+                "HTTP/1.1 101 Switching Protocols\r\n\
+                 Upgrade: websocket\r\n\
+                 Connection: Upgrade\r\n\
+                 Sec-WebSocket-Accept: {accept}\r\n\r\n"
+            )
+            .into_bytes();
+            response.extend_from_slice(&[0x81, 6]);
+            response.extend_from_slice(b"remote");
+            stream.write_all(&response).await?;
+            stream.flush().await?;
+            let mut byte = [0_u8; 1];
+            let read = tokio::io::AsyncReadExt::read(&mut stream, &mut byte).await?;
+            if read != 0 {
+                return Err("WebSocket sent unexpected data before drop".into());
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+        });
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+        let mut socket = client
+            .websocket(&format!(
+                "ws://{UNICODE_ORIGIN_NAME}:{}/plain",
+                origin_address.port()
+            ))?
+            .connect()
+            .await?;
+        assert_eq!(
+            socket.receive().await?,
+            WebSocketMessage::Text("remote".into())
+        );
+        drop(socket);
+        drop(client);
+
+        let request = origin.await??;
+        assert!(request.starts_with(b"GET /plain HTTP/1.1\r\n"));
+        assert_eq!(header_value(&request, "upgrade"), Some("websocket"));
+        assert_eq!(header_value(&request, "connection"), Some("Upgrade"));
+        let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
+        assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
+        assert_eq!(
+            proxy.await??,
+            ObservedSocks5Connect {
+                host: ASCII_ORIGIN_NAME.to_owned(),
+                port: origin_address.port(),
+            }
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[cfg(feature = "websocket")]
+#[tokio::test]
+async fn rejected_plaintext_websocket_never_falls_back_direct() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+        let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+        origin.set_nonblocking(true)?;
+        let origin_address = origin.local_addr()?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(reject_one_socks5(proxy_listener, 5));
+        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let error = match client
+            .websocket(&format!(
+                "ws://{ORIGIN_NAME}:{}/rejected",
+                origin_address.port()
+            ))?
+            .connect()
+            .await
+        {
+            Ok(_) => return Err("rejected SOCKS5 WebSocket succeeded".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+        assert!(matches!(
+            origin.accept(),
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock
+        ));
+        assert_eq!(
+            proxy.await??,
+            ObservedSocks5Connect {
+                host: ORIGIN_NAME.to_owned(),
+                port: origin_address.port(),
+            }
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[cfg(feature = "websocket")]
+#[tokio::test]
+async fn invalid_plaintext_websocket_field_fails_before_socks5_io() -> TestResult<()> {
+    let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+    let proxy = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    proxy.set_nonblocking(true)?;
+    let proxy_address = proxy.local_addr()?;
+    let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+    let client = client_builder(&identity, false).route(route).build()?;
+
+    let error = match client
+        .websocket(&format!("ws://{ORIGIN_NAME}/"))?
+        .header(RequestHeader::new("Bad Header", "invalid"))
+        .connect()
+        .await
+    {
+        Ok(_) => return Err("invalid WebSocket field touched the SOCKS5 proxy".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), WebSocketErrorKind::Http1);
+    assert!(matches!(
+        proxy.accept(),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock
+    ));
     Ok(())
 }
 

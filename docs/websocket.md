@@ -3,8 +3,8 @@
 The optional `websocket` feature provides WebSocket connections over an
 HTTP/1.1 Upgrade. Direct routes accept plaintext `ws://` or TLS-backed `wss://`;
 HTTP forward proxies accept plaintext `ws://` over either plaintext or
-independently authenticated proxy TLS; HTTP-CONNECT and local-/remote-DNS
-SOCKS5 routes currently accept `wss://` only.
+independently authenticated proxy TLS. Local- and remote-DNS SOCKS5 routes
+accept both `ws://` and `wss://`; HTTP-CONNECT routes accept `wss://`.
 Secure connections reuse Phantom's BoringSSL TLS profile. Both transports reuse
 the ordered HTTP/1 serializer, ordered response metadata, client cookies,
 runtime errors, and tracing lifecycle.
@@ -105,7 +105,11 @@ configured Basic proxy-authentication replay described here. A plaintext
 `http://` absolute-form target and never changes to CONNECT. With Basic
 credentials configured, each logical connection starts anonymously and may
 replay once, on a fresh same-route connection, only after a strict `407` Basic
-challenge. No challenge state is learned. Plaintext SOCKS5 remains unsupported.
+challenge. No challenge state is learned. Plaintext `ws://` over SOCKS5 uses
+the same origin-form Upgrade as a direct connection after the proxy tunnel is
+established. `socks5://` resolves the origin locally, while `socks5h://` sends
+the canonical DNS name to the proxy; configured username/password
+authentication applies only to SOCKS negotiation.
 
 ## Compression
 

@@ -1215,6 +1215,131 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Sends one plaintext HTTP/1.1 Upgrade GET through a remote-DNS SOCKS5 proxy.
+    ///
+    /// The origin request is validated before proxy I/O. The established tunnel
+    /// remains plaintext: this method performs no origin TLS handshake. Proxy
+    /// failure never falls back to a direct connection.
+    pub async fn upgrade_get_plaintext_socks5_remote(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.upgrade_get_plaintext_socks5_remote_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            target,
+            headers,
+        )
+        .await
+    }
+
+    /// Sends one plaintext Upgrade GET through a remote-DNS SOCKS5 proxy.
+    ///
+    /// The configured authentication is applied only to the SOCKS5 negotiation.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_plaintext_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_plaintext_socks5_upgrade("socks5_remote_dns", async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = connect_socks5_tunnel_direct_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
+            debug!("HTTP/1 plaintext SOCKS5 Upgrade request prepared");
+            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let status = match &outcome {
+                Http1UpgradeOutcome::Upgraded(response) => response.status(),
+                Http1UpgradeOutcome::Rejected(response) => response.status(),
+            };
+            Span::current().record("status", status.as_u16());
+            Ok(outcome)
+        })
+        .await
+    }
+
+    /// Sends one plaintext HTTP/1.1 Upgrade GET through a local-DNS SOCKS5 proxy.
+    ///
+    /// The origin request is validated before target DNS resolution or proxy
+    /// I/O. The established tunnel remains plaintext: this method performs no
+    /// origin TLS handshake. Proxy failure never falls back to a direct
+    /// connection.
+    pub async fn upgrade_get_plaintext_socks5_local(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        target_host: &str,
+        target_port: u16,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.upgrade_get_plaintext_socks5_local_with_auth(
+            proxy_host,
+            proxy_port,
+            Socks5Auth::None,
+            target_host,
+            target_port,
+            target,
+            headers,
+        )
+        .await
+    }
+
+    /// Sends one plaintext Upgrade GET through a local-DNS SOCKS5 proxy.
+    ///
+    /// The configured authentication is applied only to the SOCKS5 negotiation.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_plaintext_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_plaintext_socks5_upgrade("socks5_local_dns", async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = connect_socks5_tunnel_local_with_auth(
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
+            debug!("HTTP/1 plaintext SOCKS5 Upgrade request prepared");
+            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let status = match &outcome {
+                Http1UpgradeOutcome::Upgraded(response) => response.status(),
+                Http1UpgradeOutcome::Rejected(response) => response.status(),
+            };
+            Span::current().record("status", status.as_u16());
+            Ok(outcome)
+        })
+        .await
+    }
+
     /// Sends one HTTP/1.1 Upgrade GET through a remote-DNS SOCKS5 proxy.
     ///
     /// The origin request is validated before proxy I/O. Proxy failure never
@@ -1471,6 +1596,28 @@ impl Http1TlsConnector {
             method = "GET",
             transport = "tls",
             negotiated_alpn = field::Empty,
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = operation.instrument(span.clone()).await;
+        outcome_guard.finish(upgrade_outcome(&result));
+        result
+    }
+
+    async fn trace_plaintext_socks5_upgrade<F>(
+        &self,
+        route: &'static str,
+        operation: F,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError>
+    where
+        F: Future<Output = Result<Http1UpgradeOutcome, Http1TlsError>>,
+    {
+        let span = debug_span!(
+            "http1.proxy.socks5.upgrade_response_head",
+            method = "GET",
+            transport = "tcp",
+            route,
             status = field::Empty,
             outcome = field::Empty,
         );

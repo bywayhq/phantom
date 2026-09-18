@@ -96,6 +96,12 @@ key and generated credentials appended after caller fields, no learned state,
 and terminal behavior for malformed or repeated challenges. A caller-supplied
 `Proxy-Authorization` is rejected before proxy or origin I/O.
 
+SOCKS5 WebSocket regressions cover plaintext `ws://` as well as TLS-backed
+`wss://`. The plaintext cases prove remote-DNS Unicode canonicalization,
+local-DNS address resolution, username/password negotiation, an origin-form
+Upgrade with no origin TLS, and delivery of a WebSocket frame coalesced with
+the `101` response.
+
 ## Connection-retry evidence
 
 The shared exact-protocol acquisition state uses scripted typed setup failures

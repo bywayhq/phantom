@@ -227,11 +227,34 @@ impl WebSocketRequestBuilder {
                     )
                     .await
                 }
-                Route::Socks5(_) => {
-                    return Err(WebSocketError::request(RequestError::unsupported_route(
-                        crate::HttpProtocol::Http1,
-                    )));
-                }
+                Route::Socks5(proxy) => match proxy.dns_mode() {
+                    crate::Socks5DnsMode::Local => {
+                        connector
+                            .upgrade_get_plaintext_socks5_local_with_auth(
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.auth(),
+                                request.endpoint.host(),
+                                request.endpoint.port(),
+                                request.target,
+                                prepared.headers,
+                            )
+                            .await
+                    }
+                    crate::Socks5DnsMode::Remote => {
+                        connector
+                            .upgrade_get_plaintext_socks5_remote_with_auth(
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.auth(),
+                                request.endpoint.host(),
+                                request.endpoint.port(),
+                                request.target,
+                                prepared.headers,
+                            )
+                            .await
+                    }
+                },
             },
             WebSocketTransport::Tls => match route {
                 Route::Direct => {

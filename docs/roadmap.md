@@ -21,8 +21,9 @@ work has exposed the real architectural boundaries.
   from browser-family names.
 - Add further browser versions, platforms, and non-browser profiles only from
   fresh capture evidence.
-- Add H3 upgrade, UDP-capable proxying, and extended CONNECT after their route
-  and failure semantics are proven end to end.
+- Within Phase 1, prove route and failure semantics end to end for H3 upgrade,
+  UDP-capable proxying, and extended CONNECT, then implement each vertical
+  slice without silent fallback.
 
 ## Phase 2 — Ergonomics
 
@@ -68,9 +69,10 @@ criteria. Declared streaming-body-produced request trailers preserve H1
 spelling and cross-name duplicate order across exact H1/H2/H3 and negotiated
 H1/H2. H1 WebSocket supports direct plaintext `ws://` alongside routed
 TLS-backed `wss://`; plaintext `ws://` also supports plaintext and TLS-encrypted
-HTTP forward proxies with strict challenge-driven Basic authentication. These
-paths share the same ordered opening handshake, strict validation, and bounded
-message lifecycle. Exact H1/H2/H3 requests can opt into bounded
+HTTP forward proxies with strict challenge-driven Basic authentication and
+authenticated local- or remote-DNS SOCKS5 tunnels. These paths share the same
+ordered opening handshake, strict validation, and bounded message lifecycle.
+Exact H1/H2/H3 requests can opt into bounded
 typed connection-setup retries without changing route or protocol or replaying
 request bytes. HTTP/1.1 absolute-form forwarding for `http://`
 origins is available over plaintext and TLS proxies with independent proxy
