@@ -5,7 +5,7 @@ use phantom_net::{
     http1_or_2::{Http1Or2TlsError, Http1Or2TlsErrorKind},
     http2::{Http2Error, Http2TlsError},
     http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
-    proxy::HttpConnectError,
+    proxy::{HttpConnectError, HttpConnectErrorKind, Socks5ErrorKind},
     request::RequestBodyError,
 };
 use phantom_profile::{InvalidClientHintSettings, InvalidTlsSettings};
@@ -249,8 +249,16 @@ pub struct RequestError {
     kind: RequestErrorKind,
     protocol: Option<HttpProtocol>,
     timeout_phase: Option<TimeoutPhase>,
+    retryability: RequestRetryability,
     message: &'static str,
     source: Option<BoxError>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum RequestRetryability {
+    #[default]
+    Never,
+    ConnectionSetup,
 }
 
 impl RequestError {
@@ -369,6 +377,7 @@ impl RequestError {
             kind: RequestErrorKind::ProtocolUnavailable,
             protocol: Some(protocol),
             timeout_phase: None,
+            retryability: RequestRetryability::Never,
             message: "requested protocol is absent from the client profile",
             source: None,
         }
@@ -386,6 +395,7 @@ impl RequestError {
             kind: RequestErrorKind::UnsupportedRoute,
             protocol: Some(protocol),
             timeout_phase: None,
+            retryability: RequestRetryability::Never,
             message: "selected route does not support the requested protocol",
             source: None,
         }
@@ -403,6 +413,7 @@ impl RequestError {
             kind: RequestErrorKind::Capacity,
             protocol: Some(protocol),
             timeout_phase: None,
+            retryability: RequestRetryability::Never,
             message: "request admission capacity is exhausted",
             source: None,
         }
@@ -427,6 +438,7 @@ impl RequestError {
             kind: RequestErrorKind::Timeout,
             protocol,
             timeout_phase: Some(phase),
+            retryability: RequestRetryability::Never,
             message,
             source: None,
         }
@@ -496,6 +508,15 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn http1_connection_setup(source: Http1TlsError) -> Self {
+        let retryable = is_retryable_http1_connection_setup(&source);
+        let mut error = Self::http1(source);
+        if retryable {
+            error.retryability = RequestRetryability::ConnectionSetup;
+        }
+        error
+    }
+
     pub(crate) fn http2(source: Http2TlsError) -> Self {
         let kind = if error_chain_contains_request_body(&source) {
             RequestErrorKind::RequestBody
@@ -530,6 +551,15 @@ impl RequestError {
             "HTTP/2 request failed",
             source,
         )
+    }
+
+    pub(crate) fn http2_connection_setup(source: Http2TlsError) -> Self {
+        let retryable = is_retryable_http2_connection_setup(&source);
+        let mut error = Self::http2(source);
+        if retryable {
+            error.retryability = RequestRetryability::ConnectionSetup;
+        }
+        error
     }
 
     pub(crate) fn http1_or_2(source: Http1Or2TlsError) -> Self {
@@ -596,6 +626,15 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn http3_connection_setup(source: Http3ConnectorError) -> Self {
+        let retryable = is_retryable_http3_connection_setup_kind(source.kind());
+        let mut error = Self::http3(source);
+        if retryable {
+            error.retryability = RequestRetryability::ConnectionSetup;
+        }
+        error
+    }
+
     pub(crate) fn http1_body(source: Http1Error) -> Self {
         Self::with_source(
             RequestErrorKind::Http1,
@@ -628,6 +667,7 @@ impl RequestError {
             kind,
             protocol: None,
             timeout_phase: None,
+            retryability: RequestRetryability::Never,
             message,
             source: None,
         }
@@ -643,9 +683,14 @@ impl RequestError {
             kind,
             protocol,
             timeout_phase: None,
+            retryability: RequestRetryability::Never,
             message,
             source: Some(Box::new(source)),
         }
+    }
+
+    pub(crate) fn is_retryable_connection_setup(&self) -> bool {
+        self.retryability == RequestRetryability::ConnectionSetup
     }
 
     /// Returns the stable failure category.
@@ -665,6 +710,42 @@ impl RequestError {
     pub fn timeout_phase(&self) -> Option<TimeoutPhase> {
         self.timeout_phase
     }
+}
+
+fn is_retryable_http1_connection_setup(source: &Http1TlsError) -> bool {
+    match source {
+        Http1TlsError::Connect(_) | Http1TlsError::ForwardProxyConnect(_) => true,
+        Http1TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
+        Http1TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
+        _ => false,
+    }
+}
+
+fn is_retryable_http2_connection_setup(source: &Http2TlsError) -> bool {
+    match source {
+        Http2TlsError::Connect(_) => true,
+        Http2TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
+        Http2TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
+        _ => false,
+    }
+}
+
+fn is_retryable_http_connect_kind(kind: HttpConnectErrorKind) -> bool {
+    kind == HttpConnectErrorKind::Connect
+}
+
+fn is_retryable_socks5_kind(kind: Socks5ErrorKind) -> bool {
+    matches!(kind, Socks5ErrorKind::Connect | Socks5ErrorKind::Resolve)
+}
+
+fn is_retryable_http3_connection_setup_kind(kind: Http3ConnectorErrorKind) -> bool {
+    matches!(
+        kind,
+        Http3ConnectorErrorKind::Resolve
+            | Http3ConnectorErrorKind::Endpoint
+            | Http3ConnectorErrorKind::Connect
+            | Http3ConnectorErrorKind::Connection
+    )
 }
 
 fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {
@@ -698,8 +779,22 @@ impl StdError for RequestError {
 
 #[cfg(test)]
 mod tests {
-    use super::{RequestError, RequestErrorKind};
+    use phantom_net::{
+        http1::Http1TlsError,
+        http2::Http2TlsError,
+        http3::Http3ConnectorErrorKind,
+        proxy::{HttpConnectError, HttpConnectErrorKind, Socks5ErrorKind},
+    };
+
+    use super::{
+        is_retryable_http3_connection_setup_kind, is_retryable_http_connect_kind,
+        is_retryable_socks5_kind, RequestError, RequestErrorKind,
+    };
     use crate::HttpProtocol;
+
+    fn io_error() -> std::io::Error {
+        std::io::Error::other("test connection failure")
+    }
 
     #[test]
     fn unsupported_route_preserves_the_requested_protocol() {
@@ -708,5 +803,117 @@ mod tests {
         assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
         assert!(std::error::Error::source(&error).is_none());
+        assert!(!error.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn http1_connection_setup_marks_only_pre_transport_connection_failures() {
+        let direct = RequestError::http1_connection_setup(Http1TlsError::Connect(io_error()));
+        assert_eq!(direct.kind(), RequestErrorKind::Connect);
+        assert_eq!(direct.protocol(), Some(HttpProtocol::Http1));
+        assert!(std::error::Error::source(&direct).is_some());
+        assert!(direct.is_retryable_connection_setup());
+
+        let forward =
+            RequestError::http1_connection_setup(Http1TlsError::ForwardProxyConnect(io_error()));
+        assert_eq!(forward.kind(), RequestErrorKind::Proxy);
+        assert!(forward.is_retryable_connection_setup());
+
+        let proxy = RequestError::http1_connection_setup(Http1TlsError::Proxy(
+            HttpConnectError::Connect(io_error()),
+        ));
+        assert_eq!(proxy.kind(), RequestErrorKind::Proxy);
+        assert!(proxy.is_retryable_connection_setup());
+
+        let authentication = RequestError::http1_connection_setup(Http1TlsError::Proxy(
+            HttpConnectError::AuthenticationRejected,
+        ));
+        assert_eq!(authentication.kind(), RequestErrorKind::Proxy);
+        assert!(!authentication.is_retryable_connection_setup());
+
+        let ordinary = RequestError::http1(Http1TlsError::Connect(io_error()));
+        assert!(!ordinary.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn http2_connection_setup_marks_only_pre_transport_connection_failures() {
+        let direct = RequestError::http2_connection_setup(Http2TlsError::Connect(io_error()));
+        assert_eq!(direct.kind(), RequestErrorKind::Connect);
+        assert_eq!(direct.protocol(), Some(HttpProtocol::Http2));
+        assert!(std::error::Error::source(&direct).is_some());
+        assert!(direct.is_retryable_connection_setup());
+
+        let proxy = RequestError::http2_connection_setup(Http2TlsError::Proxy(
+            HttpConnectError::Connect(io_error()),
+        ));
+        assert_eq!(proxy.kind(), RequestErrorKind::Proxy);
+        assert!(proxy.is_retryable_connection_setup());
+
+        let authentication = RequestError::http2_connection_setup(Http2TlsError::Proxy(
+            HttpConnectError::AuthenticationRejected,
+        ));
+        assert_eq!(authentication.kind(), RequestErrorKind::Proxy);
+        assert!(!authentication.is_retryable_connection_setup());
+
+        let ordinary = RequestError::http2(Http2TlsError::Connect(io_error()));
+        assert!(!ordinary.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn proxy_and_socks_retry_allowlists_exclude_negotiation_failures() {
+        assert!(is_retryable_http_connect_kind(
+            HttpConnectErrorKind::Connect
+        ));
+        for kind in [
+            HttpConnectErrorKind::InvalidConfiguration,
+            HttpConnectErrorKind::InvalidRequest,
+            HttpConnectErrorKind::Authentication,
+            HttpConnectErrorKind::RuntimeUnavailable,
+            HttpConnectErrorKind::Tls,
+            HttpConnectErrorKind::UnsupportedProtocol,
+            HttpConnectErrorKind::Io,
+            HttpConnectErrorKind::InvalidResponse,
+            HttpConnectErrorKind::Rejected,
+        ] {
+            assert!(!is_retryable_http_connect_kind(kind), "{kind:?}");
+        }
+
+        for kind in [Socks5ErrorKind::Connect, Socks5ErrorKind::Resolve] {
+            assert!(is_retryable_socks5_kind(kind), "{kind:?}");
+        }
+        for kind in [
+            Socks5ErrorKind::InvalidTarget,
+            Socks5ErrorKind::InvalidAuthentication,
+            Socks5ErrorKind::RuntimeUnavailable,
+            Socks5ErrorKind::Negotiation,
+            Socks5ErrorKind::Authentication,
+            Socks5ErrorKind::Rejected,
+        ] {
+            assert!(!is_retryable_socks5_kind(kind), "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn http3_connection_setup_retry_allowlist_excludes_non_connection_failures() {
+        for kind in [
+            Http3ConnectorErrorKind::Resolve,
+            Http3ConnectorErrorKind::Endpoint,
+            Http3ConnectorErrorKind::Connect,
+            Http3ConnectorErrorKind::Connection,
+        ] {
+            assert!(is_retryable_http3_connection_setup_kind(kind), "{kind:?}");
+        }
+        for kind in [
+            Http3ConnectorErrorKind::InvalidProfile,
+            Http3ConnectorErrorKind::TrustStore,
+            Http3ConnectorErrorKind::ProtocolConfiguration,
+            Http3ConnectorErrorKind::RuntimeUnavailable,
+            Http3ConnectorErrorKind::Request,
+            Http3ConnectorErrorKind::Handshake,
+            Http3ConnectorErrorKind::Protocol,
+            Http3ConnectorErrorKind::Local,
+        ] {
+            assert!(!is_retryable_http3_connection_setup_kind(kind), "{kind:?}");
+        }
     }
 }
