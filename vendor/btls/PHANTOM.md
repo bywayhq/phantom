@@ -1,4 +1,12 @@
-# Phantom patch notes
+# Phantom vendor notes: btls
+
+**Audience:** maintainers auditing or refreshing Phantom's TLS dependency.
+This file records provenance, the reason for each local deviation, the refresh
+procedure, and required checks. It is not integration documentation.
+
+The files listed in `patches/series` are the canonical local changes, in
+application order. Change those patches and replay them; do not make an
+unrecorded edit to the vendored wrapper.
 
 This directory is the `btls` wrapper package from the exact upstream commit
 recorded below plus the canonical wrapper patches recorded here. It deliberately

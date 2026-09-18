@@ -1,4 +1,12 @@
-# Phantom patch notes
+# Phantom vendor notes: wreq-proto
+
+**Audience:** maintainers auditing or refreshing Phantom's HTTP/1 dependency.
+This file records provenance, local behavior changes, the refresh procedure,
+and focused checks. It is not integration documentation.
+
+The files listed in `patches/series` are the canonical local changes, in
+application order. Change those patches and replay them; do not make an
+unrecorded edit to the vendored crate.
 
 This directory is the complete crates.io source for `wreq-proto` version
 `0.2.5`.

@@ -1,4 +1,12 @@
-# Phantom patch notes
+# Phantom vendor notes: quinn-proto
+
+**Audience:** maintainers auditing or refreshing Phantom's QUIC dependency.
+This file records provenance, local behavior changes, the refresh procedure,
+and focused checks. It is not integration documentation.
+
+The three files in `patches/` are the canonical local changes and must be
+applied in the order used by `scripts/ci/check-vendor.sh`. Change those patches
+and replay them; do not make an unrecorded edit to the vendored crate.
 
 This directory is the complete crates.io source for `quinn-proto` version
 `0.11.18`.
