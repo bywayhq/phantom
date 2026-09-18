@@ -15,6 +15,7 @@ use super::{
     TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, client_config, join_server,
     server_endpoint, test_settings,
 };
+use crate::request::RequestHeader;
 use crate::request::{RequestBody, RequestBodyError, RequestBodyErrorKind};
 
 type ServerConnection = h3::server::Connection<h3_quinn::Connection, Bytes>;
@@ -54,6 +55,78 @@ async fn sequential_requests_share_one_connection() -> TestResult<()> {
         .map_err(|_| "sequential HTTP/3 request timed out")??;
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(collect_body(response.into_body()).await?, expected);
+    }
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn static_trailers_follow_data_and_support_trailer_only_requests() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        for (path, expected_body) in [
+            ("/data-and-trailers", Bytes::from_static(b"payload")),
+            ("/trailers-only", Bytes::new()),
+        ] {
+            let (request, mut stream) = accept_stream(&mut connection).await?;
+            assert_eq!(request.uri().path(), path);
+            assert_eq!(collect_request_body(&mut stream).await?, expected_body);
+            let trailers = stream.recv_trailers().await?.ok_or("trailers missing")?;
+            assert_eq!(
+                trailers
+                    .get_all("x-repeat")
+                    .iter()
+                    .map(HeaderValue::as_bytes)
+                    .collect::<Vec<_>>(),
+                [b"alpha".as_slice(), b"beta".as_slice()]
+            );
+            assert!(
+                trailers
+                    .get("x-secret")
+                    .is_some_and(HeaderValue::is_sensitive)
+            );
+            send_response(&mut stream, "accepted").await?;
+        }
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    for (path, body) in [
+        (
+            "/data-and-trailers",
+            Some(RequestBody::from_bytes(Bytes::from_static(b"payload"))),
+        ),
+        ("/trailers-only", None),
+    ] {
+        let prepared = crate::http3::request::prepare_profiled_request_body_with_trailers(
+            &phantom_profile::chromium::v152_macos_http3_request(),
+            http::Method::POST,
+            TEST_SERVER_NAME,
+            crate::http3::OriginForm::parse(path)?,
+            Vec::new(),
+            body,
+            vec![
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("x-secret", "value").sensitive(),
+                RequestHeader::new("x-repeat", "beta"),
+            ],
+        )?;
+        let response = timeout(TEST_TIMEOUT, connection.send_prepared_request(prepared))
+            .await
+            .map_err(|_| "static request trailers timed out")??;
+        assert_eq!(collect_body(response.into_body()).await?, "accepted");
     }
 
     let _ = client_done.send(());
@@ -308,7 +381,11 @@ async fn streaming_body_failures_reset_only_their_streams() -> TestResult<()> {
             address.port()
         ))
         .body(())?;
-        let prepared = crate::http3::request::prepare_request_body(request, Some(body))?;
+        let prepared = crate::http3::request::prepare_request_body_with_trailers(
+            request,
+            Some(body),
+            vec![RequestHeader::new("x-must-not-arrive", "value")],
+        )?;
         let error = timeout(TEST_TIMEOUT, connection.send_prepared_request(prepared))
             .await
             .map_err(|_| "streaming body error timed out")?

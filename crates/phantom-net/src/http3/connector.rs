@@ -16,7 +16,7 @@ use phantom_quic_btls::{
 use super::request::PreparedRequest;
 use super::{
     Http3Body, Http3Connection, Http3Error, Http3ErrorKind, OriginForm, RequestHeader,
-    connect_bound, prepare_traced_request, prepare_traced_request_body, settings,
+    connect_bound, prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
@@ -255,13 +255,41 @@ impl Http3Connector {
         headers: Vec<RequestHeader>,
         body: Option<RequestBody>,
     ) -> Result<Response<Http3Body>, Http3ConnectorError> {
-        let request = prepare_traced_request_body(
+        self.send_request_body_with_trailers_on(
+            connection,
+            method,
+            authority,
+            target,
+            headers,
+            body,
+            Vec::new(),
+        )
+        .await
+    }
+
+    /// Sends one profiled request body followed by exact ordered static trailers.
+    ///
+    /// Trailer fields are validated before a stream opens or the body is polled.
+    /// Body-produced trailers remain unsupported.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_body_with_trailers_on(
+        &self,
+        connection: &Http3Connection,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+        trailers: Vec<RequestHeader>,
+    ) -> Result<Response<Http3Body>, Http3ConnectorError> {
+        let request = prepare_traced_request_body_with_trailers(
             &self.request_settings,
             method,
             authority,
             target,
             headers,
             body,
+            trailers,
         )
         .map_err(Http3ConnectorError::transaction)?;
         if !connection.belongs_to(&self.identity) {
@@ -325,6 +353,31 @@ impl Http3Connector {
             target.clone(),
             headers.to_vec(),
             body,
+        )
+        .map_err(Http3ConnectorError::transaction)
+    }
+
+    /// Validates one profiled request, body framing, and static trailers.
+    ///
+    /// This does not open a connection, stream, or poll the request body.
+    #[allow(clippy::too_many_arguments)]
+    pub fn validate_request_body_with_trailers(
+        &self,
+        method: Method,
+        authority: &str,
+        target: &OriginForm,
+        headers: &[RequestHeader],
+        body: Option<RequestBodyMetadata>,
+        trailers: &[RequestHeader],
+    ) -> Result<(), Http3ConnectorError> {
+        super::request::validate_profiled_request_body_with_trailers(
+            &self.request_settings,
+            method,
+            authority,
+            target.clone(),
+            headers.to_vec(),
+            body,
+            trailers.to_vec(),
         )
         .map_err(Http3ConnectorError::transaction)
     }

@@ -192,7 +192,7 @@ fn prepared_body_request_preserves_method_and_content_length_order() -> TestResu
         vec![RequestHeader::new("x-before", "value")],
         Some(Bytes::from_static(b"payload")),
     )?;
-    let (request, body) = prepared.into_parts();
+    let (request, body, trailers) = prepared.into_parts();
 
     assert_eq!(request.method(), http::Method::PATCH);
     assert_eq!(
@@ -200,6 +200,7 @@ fn prepared_body_request_preserves_method_and_content_length_order() -> TestResu
             .and_then(|body| body.metadata().exact_length()),
         Some(7)
     );
+    assert!(trailers.is_none());
     assert_eq!(
         request.headers().get("content-length"),
         Some(&HeaderValue::from_static("7"))
@@ -232,7 +233,7 @@ fn explicit_empty_body_remains_distinct_without_synthesized_length() -> TestResu
         Vec::new(),
         Some(Bytes::new()),
     )?;
-    let (request, body) = prepared.into_parts();
+    let (request, body, trailers) = prepared.into_parts();
 
     assert!(request.headers().get("content-length").is_none());
     assert_eq!(
@@ -240,6 +241,7 @@ fn explicit_empty_body_remains_distinct_without_synthesized_length() -> TestResu
             .and_then(|body| body.metadata().exact_length()),
         Some(0)
     );
+    assert!(trailers.is_none());
     Ok(())
 }
 
@@ -253,7 +255,7 @@ fn unknown_length_stream_omits_content_length() -> TestResult<()> {
         vec![RequestHeader::new("x-before", "value")],
         Some(RequestBody::streaming(UnknownBody)),
     )?;
-    let (request, _) = prepared.into_parts();
+    let (request, _, _) = prepared.into_parts();
 
     assert!(request.headers().get("content-length").is_none());
     let ordered = request
@@ -339,7 +341,7 @@ fn exact_caller_content_length_keeps_its_ordered_position() -> TestResult<()> {
         ],
         Some(Bytes::from_static(b"payload")),
     )?;
-    let (request, _) = prepared.into_parts();
+    let (request, _, _) = prepared.into_parts();
     let ordered = request
         .extensions()
         .get::<OrderedHeaders>()
@@ -368,6 +370,102 @@ fn sensitive_fields_reach_semantic_and_ordered_qpack_inputs() -> TestResult<()> 
 
     assert!(semantic.is_sensitive());
     assert!(ordered.as_slice()[0].1.is_sensitive());
+    Ok(())
+}
+
+#[test]
+fn prepared_trailers_retain_order_duplicates_and_sensitivity() -> TestResult<()> {
+    let prepared = crate::http3::request::prepare_profiled_request_body_with_trailers(
+        &chromium::v152_macos_http3_request(),
+        http::Method::POST,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/trailers")?,
+        Vec::new(),
+        None,
+        vec![
+            RequestHeader::new("x-repeat", "alpha"),
+            RequestHeader::new("x-middle", "secret").sensitive(),
+            RequestHeader::new("x-repeat", "beta"),
+        ],
+    )?;
+    let (_, body, trailers) = prepared.into_parts();
+    assert!(body.is_none());
+    let (fields, ordered) = trailers
+        .ok_or("prepared request omitted trailers")?
+        .into_parts();
+    assert_eq!(
+        ordered
+            .as_slice()
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_bytes(), value.is_sensitive()))
+            .collect::<Vec<_>>(),
+        [
+            ("x-repeat", b"alpha".as_slice(), false),
+            ("x-middle", b"secret".as_slice(), true),
+            ("x-repeat", b"beta".as_slice(), false),
+        ]
+    );
+    assert_eq!(fields.get_all("x-repeat").iter().count(), 2);
+    assert!(
+        fields
+            .get("x-middle")
+            .is_some_and(HeaderValue::is_sensitive)
+    );
+    Ok(())
+}
+
+#[test]
+fn invalid_static_trailers_fail_during_preparation() -> TestResult<()> {
+    for trailer in [
+        RequestHeader::new("Uppercase", "value"),
+        RequestHeader::new("bad name", "value"),
+        RequestHeader::new("x-field", b"value\r\ninjected"),
+        RequestHeader::new("content-length", "0"),
+        RequestHeader::new("te", "trailers"),
+        RequestHeader::new("connection", "close"),
+        RequestHeader::new("authorization", "secret"),
+        RequestHeader::new("cache-control", "no-cache"),
+        RequestHeader::new("content-encoding", "gzip"),
+        RequestHeader::new("content-range", "bytes 0-1/2"),
+        RequestHeader::new("content-type", "text/plain"),
+        RequestHeader::new("max-forwards", "1"),
+        RequestHeader::new("set-cookie", "a=b"),
+    ] {
+        let error = crate::http3::request::prepare_profiled_request_body_with_trailers(
+            &chromium::v152_macos_http3_request(),
+            http::Method::POST,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/trailers")?,
+            Vec::new(),
+            None,
+            vec![trailer],
+        )
+        .err()
+        .ok_or("invalid static trailer was accepted")?;
+        assert_eq!(error.kind(), Http3ErrorKind::Request);
+    }
+
+    let too_many = (0..=crate::http3::request::MAX_REQUEST_HEADERS)
+        .map(|index| RequestHeader::new(format!("x-trailer-{index}"), "v"))
+        .collect();
+    let too_large = vec![RequestHeader::new(
+        "x-large",
+        vec![b'a'; crate::http3::request::MAX_REQUEST_HEADER_BYTES],
+    )];
+    for trailers in [too_many, too_large] {
+        let error = crate::http3::request::prepare_profiled_request_body_with_trailers(
+            &chromium::v152_macos_http3_request(),
+            http::Method::POST,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/trailers")?,
+            Vec::new(),
+            None,
+            trailers,
+        )
+        .err()
+        .ok_or("oversized static trailers were accepted")?;
+        assert_eq!(error.kind(), Http3ErrorKind::Request);
+    }
     Ok(())
 }
 

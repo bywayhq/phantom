@@ -20,6 +20,12 @@ pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
 pub(super) struct PreparedRequest {
     request: Request<()>,
     body: Option<RequestBody>,
+    trailers: Option<PreparedTrailers>,
+}
+
+pub(super) struct PreparedTrailers {
+    fields: HeaderMap,
+    ordered: OrderedHeaders,
 }
 
 impl PreparedRequest {
@@ -37,8 +43,14 @@ impl PreparedRequest {
         self.body.is_some()
     }
 
-    pub(super) fn into_parts(self) -> (Request<()>, Option<RequestBody>) {
-        (self.request, self.body)
+    pub(super) fn into_parts(self) -> (Request<()>, Option<RequestBody>, Option<PreparedTrailers>) {
+        (self.request, self.body, self.trailers)
+    }
+}
+
+impl PreparedTrailers {
+    pub(super) fn into_parts(self) -> (HeaderMap, OrderedHeaders) {
+        (self.fields, self.ordered)
     }
 }
 
@@ -87,6 +99,26 @@ pub(super) fn prepare_profiled_request_body(
     headers: Vec<RequestHeader>,
     body: Option<RequestBody>,
 ) -> Result<PreparedRequest, Http3Error> {
+    prepare_profiled_request_body_with_trailers(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        body,
+        Vec::new(),
+    )
+}
+
+pub(super) fn prepare_profiled_request_body_with_trailers(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+    trailers: Vec<RequestHeader>,
+) -> Result<PreparedRequest, Http3Error> {
     let request = prepare_profiled_request_head(
         request_settings,
         method,
@@ -95,7 +127,12 @@ pub(super) fn prepare_profiled_request_body(
         headers,
         body.as_ref().map(RequestBody::metadata),
     )?;
-    Ok(PreparedRequest { request, body })
+    let trailers = PreparedTrailers::new(trailers)?;
+    Ok(PreparedRequest {
+        request,
+        body,
+        trailers,
+    })
 }
 
 pub(super) fn validate_profiled_request_body(
@@ -106,6 +143,26 @@ pub(super) fn validate_profiled_request_body(
     headers: Vec<RequestHeader>,
     metadata: Option<RequestBodyMetadata>,
 ) -> Result<(), Http3Error> {
+    validate_profiled_request_body_with_trailers(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        metadata,
+        Vec::new(),
+    )
+}
+
+pub(super) fn validate_profiled_request_body_with_trailers(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    metadata: Option<RequestBodyMetadata>,
+    trailers: Vec<RequestHeader>,
+) -> Result<(), Http3Error> {
     prepare_profiled_request_head(
         request_settings,
         method,
@@ -113,8 +170,8 @@ pub(super) fn validate_profiled_request_body(
         target,
         headers,
         metadata,
-    )
-    .map(drop)
+    )?;
+    PreparedTrailers::new(trailers).map(drop)
 }
 
 fn prepare_profiled_request_head(
@@ -164,14 +221,26 @@ pub(super) fn prepare_request(
 }
 
 pub(super) fn prepare_request_body(
+    request: Request<()>,
+    body: Option<RequestBody>,
+) -> Result<PreparedRequest, Http3Error> {
+    prepare_request_body_with_trailers(request, body, Vec::new())
+}
+
+pub(super) fn prepare_request_body_with_trailers(
     mut request: Request<()>,
     body: Option<RequestBody>,
+    trailers: Vec<RequestHeader>,
 ) -> Result<PreparedRequest, Http3Error> {
     apply_content_length(&mut request, body.as_ref().map(RequestBody::metadata))?;
     validate_request(&request)?;
     validate_ordered_headers(&request)?;
     validate_pseudo_header_order(&request)?;
-    Ok(PreparedRequest { request, body })
+    Ok(PreparedRequest {
+        request,
+        body,
+        trailers: PreparedTrailers::new(trailers)?,
+    })
 }
 
 fn apply_content_length(
@@ -418,6 +487,67 @@ impl ValidatedHeaders {
                 .map_err(|_| invalid("HTTP/3 request headers exceed HeaderMap capacity"))?;
         }
         Ok(())
+    }
+}
+
+impl PreparedTrailers {
+    fn new(trailers: Vec<RequestHeader>) -> Result<Option<Self>, Http3Error> {
+        if trailers.is_empty() {
+            return Ok(None);
+        }
+        if trailers.len() > MAX_REQUEST_HEADERS {
+            return Err(invalid("HTTP/3 request has too many trailer fields"));
+        }
+
+        let mut total_bytes = 0usize;
+        let mut fields = HeaderMap::with_capacity(trailers.len());
+        let mut ordered = Vec::with_capacity(trailers.len());
+        for trailer in trailers {
+            total_bytes = total_bytes
+                .checked_add(trailer.name().len())
+                .and_then(|size| size.checked_add(trailer.value().len()))
+                .ok_or_else(|| invalid("HTTP/3 request trailers are too large"))?;
+            if total_bytes > MAX_REQUEST_HEADER_BYTES {
+                return Err(invalid("HTTP/3 request trailers are too large"));
+            }
+            if !trailer
+                .name()
+                .bytes()
+                .all(|byte| !byte.is_ascii_uppercase())
+            {
+                return Err(invalid("HTTP/3 request trailer names must be lowercase"));
+            }
+            let name = HeaderName::from_bytes(trailer.name().as_bytes())
+                .map_err(|_| invalid("HTTP/3 request trailer name is invalid"))?;
+            let mut value = HeaderValue::from_bytes(trailer.value())
+                .map_err(|_| invalid("HTTP/3 request trailer value is invalid"))?;
+            value.set_sensitive(trailer.is_sensitive());
+            if name == CONTENT_LENGTH
+                || name == TE
+                || matches!(
+                    name.as_str(),
+                    "authorization"
+                        | "cache-control"
+                        | "content-encoding"
+                        | "content-range"
+                        | "content-type"
+                        | "max-forwards"
+                        | "set-cookie"
+                )
+            {
+                return Err(invalid("HTTP/3 request contains a forbidden trailer field"));
+            }
+            validate_field(&name, &value)
+                .map_err(|_| invalid("HTTP/3 request contains a forbidden trailer field"))?;
+            fields
+                .try_append(&name, value.clone())
+                .map_err(|_| invalid("HTTP/3 request trailers exceed HeaderMap capacity"))?;
+            ordered.push((name, value));
+        }
+        Ok(Some(Self {
+            fields,
+            ordered: OrderedHeaders::new(ordered),
+        }))
     }
 }
 

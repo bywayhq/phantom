@@ -305,6 +305,7 @@ where
                 self.send_grease_frame,
             ),
             response_headers: None,
+            outbound_qpack: self.outbound_qpack.clone(),
         };
         // send the grease frame only once
         self.send_grease_frame = false;

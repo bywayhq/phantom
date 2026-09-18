@@ -106,7 +106,7 @@ impl Http3Connection {
             outcome = field::Empty,
         );
         let result = async {
-            let (request, body) = prepared.into_parts();
+            let (request, body, trailers) = prepared.into_parts();
             let stream = {
                 let mut sender = self.inner.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(|| {
@@ -126,7 +126,7 @@ impl Http3Connection {
                 .map(|router| router.monitor(stream_id));
             let exchange_result = {
                 let (send, recv) = pending.streams_mut()?;
-                exchange(send, recv, body, datagrams.as_mut()).await
+                exchange(send, recv, body, trailers, datagrams.as_mut()).await
             };
             let response = match exchange_result {
                 Ok(response) => response,
@@ -214,14 +214,15 @@ async fn exchange(
     send: &mut RequestSendStream,
     recv: &mut RequestRecvStream,
     body: Option<RequestBody>,
+    trailers: Option<super::request::PreparedTrailers>,
     datagrams: Option<&mut super::DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
-    let Some(body) = body else {
+    if body.is_none() && trailers.is_none() {
         send.finish().await.map_err(ResponseHeadError::Stream)?;
         return receive_response(recv, datagrams).await;
-    };
+    }
 
-    let mut upload = Box::pin(send_body(send, body));
+    let mut upload = Box::pin(send_body(send, body, trailers));
     let mut response = Box::pin(receive_response(recv, datagrams));
 
     tokio::select! {
@@ -253,27 +254,39 @@ async fn exchange(
     }
 }
 
-async fn send_body(send: &mut RequestSendStream, mut body: RequestBody) -> Result<(), UploadError> {
-    while let Some(frame) = body.frame().await {
-        let frame = frame
-            .map_err(Http3Error::request_body)
-            .map_err(UploadError::Body)?;
-        let mut data = frame.into_data().map_err(|_| {
-            UploadError::Body(Http3Error::without_source(
-                Http3ErrorKind::Request,
-                "HTTP/3 request trailers are not supported",
-            ))
-        })?;
-        if data.is_empty() {
-            send.send_data(data).await.map_err(UploadError::Stream)?;
-        } else {
-            while !data.is_empty() {
-                let chunk_len = data.len().min(REQUEST_BODY_CHUNK_BYTES);
-                send.send_data(data.split_to(chunk_len))
-                    .await
-                    .map_err(UploadError::Stream)?;
+async fn send_body(
+    send: &mut RequestSendStream,
+    body: Option<RequestBody>,
+    trailers: Option<super::request::PreparedTrailers>,
+) -> Result<(), UploadError> {
+    if let Some(mut body) = body {
+        while let Some(frame) = body.frame().await {
+            let frame = frame
+                .map_err(Http3Error::request_body)
+                .map_err(UploadError::Body)?;
+            let mut data = frame.into_data().map_err(|_| {
+                UploadError::Body(Http3Error::without_source(
+                    Http3ErrorKind::Request,
+                    "HTTP/3 request trailers are not supported",
+                ))
+            })?;
+            if data.is_empty() {
+                send.send_data(data).await.map_err(UploadError::Stream)?;
+            } else {
+                while !data.is_empty() {
+                    let chunk_len = data.len().min(REQUEST_BODY_CHUNK_BYTES);
+                    send.send_data(data.split_to(chunk_len))
+                        .await
+                        .map_err(UploadError::Stream)?;
+                }
             }
         }
+    }
+    if let Some(trailers) = trailers {
+        let (fields, ordered) = trailers.into_parts();
+        send.send_ordered_trailers(fields, ordered)
+            .await
+            .map_err(UploadError::Stream)?;
     }
     send.finish().await.map_err(UploadError::Stream)
 }

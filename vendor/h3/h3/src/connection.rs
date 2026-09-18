@@ -1670,6 +1670,12 @@ where
         Ok(())
     }
 
+    pub(crate) async fn send_encoded_trailers(&mut self, block: Bytes) -> Result<(), StreamError> {
+        stream::write(&mut self.stream, Frame::Headers(block))
+            .await
+            .map_err(|error| self.handle_quic_stream_error(error))
+    }
+
     /// Stops a stream with an error code
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub fn stop_stream(&mut self, code: Code) {

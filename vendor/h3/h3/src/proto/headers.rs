@@ -97,6 +97,22 @@ impl Header {
         }
     }
 
+    /// Creates trailer fields with an exact ordinary-field order.
+    pub fn ordered_trailer(
+        fields: HeaderMap,
+        ordered_fields: OrderedHeaders,
+    ) -> Result<Self, HeaderError> {
+        if !ordered_fields.agrees_with(&fields) {
+            return Err(HeaderError::ContradictedOrderedHeaders);
+        }
+        Ok(Self {
+            pseudo: Pseudo::default(),
+            pseudo_order: None,
+            fields,
+            ordered_fields: Some(ordered_fields.into_inner()),
+        })
+    }
+
     pub fn into_request_parts(
         self,
     ) -> Result<(Method, Uri, Option<Protocol>, HeaderMap), HeaderError> {
@@ -755,6 +771,43 @@ mod tests {
                 0xa3, 0x4f, 0x84, 0x1d, 0x15, 0xce, 0x3f, 0x2e, 0xf2, 0xb5, 0x85, 0xac, 0xa3, 0x4f,
                 0x83, 0x8c, 0xa9, 0x1f, 0x2e, 0xf2, 0xb5, 0x26, 0x92, 0x4a, 0x0b, 0x85, 0x8c, 0xa9,
                 0xf0, 0x52, 0xd5,
+            ]
+        );
+    }
+
+    #[test]
+    fn ordered_trailers_preserve_cross_name_order_and_sensitivity() {
+        let mut fields = HeaderMap::new();
+        fields.append("x-repeat", HeaderValue::from_static("alpha"));
+        let mut secret = HeaderValue::from_static("secret");
+        secret.set_sensitive(true);
+        fields.insert("x-secret", secret.clone());
+        fields.append("x-repeat", HeaderValue::from_static("beta"));
+        let ordered = OrderedHeaders::new(vec![
+            (
+                HeaderName::from_static("x-repeat"),
+                HeaderValue::from_static("alpha"),
+            ),
+            (HeaderName::from_static("x-secret"), secret),
+            (
+                HeaderName::from_static("x-repeat"),
+                HeaderValue::from_static("beta"),
+            ),
+        ]);
+
+        let emitted = Header::ordered_trailer(fields, ordered)
+            .expect("ordered trailers must agree")
+            .into_iter()
+            .collect::<Vec<_>>();
+        assert_eq!(
+            emitted
+                .iter()
+                .map(|field| (field.name.as_ref(), field.value.as_ref(), field.sensitive))
+                .collect::<Vec<_>>(),
+            [
+                (b"x-repeat".as_slice(), b"alpha".as_slice(), false),
+                (b"x-secret".as_slice(), b"secret".as_slice(), true),
+                (b"x-repeat".as_slice(), b"beta".as_slice(), false),
             ]
         );
     }

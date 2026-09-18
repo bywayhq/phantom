@@ -168,6 +168,12 @@ feedback exists. Header and feedback bytes share one bounded poll budget, and
 only feedback bytes advance QPACK accounting. The default remains upstream's
 eager stream type.
 
+Ordered request trailers retain duplicate and cross-name field order plus
+sensitivity markers. Their trailing HEADERS section uses the same bounded,
+connection-owned outbound QPACK command path as the initial request section,
+including publication and cancellation accounting for multiple sections on one
+request stream. Stateless configurations keep their existing encoder path.
+
 The canonical source and test deltas are stored in the exact application order
 listed by `patches/series`. `PHANTOM.md`, the series file, and the patch files
 are packaging metadata and are deliberately excluded from those patches.

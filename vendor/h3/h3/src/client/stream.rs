@@ -5,6 +5,7 @@ use quic::StreamId;
 #[cfg(feature = "tracing")]
 use tracing::instrument;
 
+use super::outbound_qpack;
 use crate::{
     connection::{self},
     error::{
@@ -12,6 +13,7 @@ use crate::{
         internal_error::InternalConnectionError,
         Code, StreamError,
     },
+    ext::OrderedHeaders,
     proto::{frame::Frame, headers::Header},
     qpack,
     quic::{self},
@@ -77,6 +79,7 @@ use std::{
 pub struct RequestStream<S, B> {
     pub(super) inner: connection::RequestStream<S, B>,
     pub(super) response_headers: Option<Bytes>,
+    pub(super) outbound_qpack: Option<outbound_qpack::Sender>,
 }
 
 impl<S, B> ConnectionState for RequestStream<S, B> {
@@ -114,7 +117,7 @@ where
                             Code::H3_FRAME_UNEXPECTED,
                             "Stream finished without receiving response headers".to_string(),
                         ),
-                    )))
+                    )));
                 }
                 Err(error) => {
                     self.inner.stream.cancel_request();
@@ -280,6 +283,108 @@ where
         self.inner.send_trailers(trailers).await
     }
 
+    /// Send trailers with an exact ordinary-field order.
+    ///
+    /// Dynamic QPACK uses the connection-owned encoder state also used by the
+    /// initial request field section. [`RequestStream::finish()`] must still be
+    /// called to finalize the request.
+    pub async fn send_ordered_trailers(
+        &mut self,
+        trailers: HeaderMap,
+        ordered: OrderedHeaders,
+    ) -> Result<(), StreamError> {
+        let headers = Header::ordered_trailer(trailers, ordered)
+            .map_err(|error| StreamError::InvalidRequest(error.to_string()))?;
+
+        if let Some(mut outbound) = self.outbound_qpack.clone() {
+            let fields = headers.into_iter().collect::<Vec<_>>();
+            let mem_size = fields.iter().try_fold(0_u64, |size, field| {
+                u64::try_from(field.mem_size())
+                    .ok()
+                    .and_then(|field_size| size.checked_add(field_size))
+            });
+            let Some(mem_size) = mem_size else {
+                return Err(StreamError::InvalidRequest(
+                    "trailer field-section size is not representable".to_string(),
+                ));
+            };
+
+            outbound
+                .wait_ready()
+                .await
+                .map_err(|_| self.outbound_qpack_closed())?;
+            if let Some(error) = self.check_peer_connection_closing() {
+                return Err(error);
+            }
+            let max_size = self.settings().max_field_section_size;
+            if mem_size > max_size {
+                return Err(StreamError::HeaderTooBig {
+                    actual_size: mem_size,
+                    max_size,
+                });
+            }
+
+            let permit = outbound
+                .reserve()
+                .await
+                .map_err(|_| self.outbound_qpack_closed())?;
+            if let Some(error) = self.check_peer_connection_closing() {
+                return Err(error);
+            }
+            let stream_id = quic::SendStream::send_id(&self.inner.stream).into_inner();
+            let (command, encoded) = outbound_qpack::EncodeCommand::new(stream_id, fields);
+            let _ = permit.send(command);
+            let encoded = encoded
+                .await
+                .map_err(|_| self.outbound_qpack_closed())?
+                .map_err(|error| self.map_outbound_qpack_error(error))?;
+            let outbound_qpack::Encoded { block, publication } = encoded;
+            self.inner.send_encoded_trailers(block).await?;
+            publication.published();
+            return Ok(());
+        }
+
+        let mut block = bytes::BytesMut::new();
+        let mem_size = qpack::encode_stateless(&mut block, headers).map_err(|_| {
+            self.handle_connection_error_on_stream(InternalConnectionError {
+                code: Code::H3_INTERNAL_ERROR,
+                message: "Failed to encode ordered trailers".to_string(),
+            })
+        })?;
+        let max_size = self.settings().max_field_section_size;
+        if mem_size > max_size {
+            return Err(StreamError::HeaderTooBig {
+                actual_size: mem_size,
+                max_size,
+            });
+        }
+        self.inner.send_encoded_trailers(block.freeze()).await
+    }
+
+    fn outbound_qpack_closed(&mut self) -> StreamError {
+        self.existing_connection_error().unwrap_or_else(|| {
+            self.handle_connection_error_on_stream(InternalConnectionError::new(
+                Code::H3_INTERNAL_ERROR,
+                "outbound QPACK driver stopped".to_string(),
+            ))
+        })
+    }
+
+    fn map_outbound_qpack_error(&mut self, error: outbound_qpack::EncodeError) -> StreamError {
+        let message = error.to_string();
+        match error {
+            outbound_qpack::EncodeError::InstructionsTooLarge { .. } => {
+                StreamError::InvalidRequest(message)
+            }
+            outbound_qpack::EncodeError::Codec(_) => {
+                self.handle_connection_error_on_stream(InternalConnectionError::new(
+                    Code::H3_INTERNAL_ERROR,
+                    format!("failed to encode trailer fields with QPACK: {message}"),
+                ))
+            }
+        }
+    }
+
     /// End the request without trailers.
     ///
     /// [`RequestStream::finish()`] must be called to finalize a request.
@@ -314,10 +419,12 @@ where
             RequestStream {
                 inner: send,
                 response_headers: None,
+                outbound_qpack: self.outbound_qpack,
             },
             RequestStream {
                 inner: recv,
                 response_headers: self.response_headers,
+                outbound_qpack: None,
             },
         )
     }

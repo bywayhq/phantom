@@ -16,7 +16,10 @@ use tracing::{debug, debug_span, field};
 
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask};
-use request::{PreparedRequest, prepare_profiled_request_body, prepare_request};
+use request::{
+    PreparedRequest, prepare_profiled_request_body_with_trailers, prepare_request,
+    prepare_request_body_with_trailers,
+};
 use tokio::runtime::Handle;
 
 use crate::direct::{RuntimeUnavailable, poll_tokio_io};
@@ -97,6 +100,26 @@ fn prepare_traced_request_body(
     headers: Vec<RequestHeader>,
     body: Option<crate::request::RequestBody>,
 ) -> Result<PreparedRequest, Http3Error> {
+    prepare_traced_request_body_with_trailers(
+        request_settings,
+        method,
+        authority,
+        target,
+        headers,
+        body,
+        Vec::new(),
+    )
+}
+
+fn prepare_traced_request_body_with_trailers(
+    request_settings: &Http3RequestSettings,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<crate::request::RequestBody>,
+    trailers: Vec<RequestHeader>,
+) -> Result<PreparedRequest, Http3Error> {
     let body_bytes = body
         .as_ref()
         .and_then(|body| body.metadata().exact_length());
@@ -113,7 +136,15 @@ fn prepare_traced_request_body(
     );
     let request = {
         let _entered = span.enter();
-        prepare_profiled_request_body(request_settings, method, authority, target, headers, body)
+        prepare_profiled_request_body_with_trailers(
+            request_settings,
+            method,
+            authority,
+            target,
+            headers,
+            body,
+            trailers,
+        )
     };
     match &request {
         Ok(_) => {
@@ -157,6 +188,36 @@ pub async fn send_request_with_body(
     body: Option<Bytes>,
 ) -> Result<Response<Http3Body>, Http3Error> {
     let request = prepare_request(request, body)?;
+    send_prepared_request(
+        remote,
+        server_name,
+        crypto,
+        settings,
+        request,
+        ConnectionDiagnostics::default(),
+    )
+    .await
+}
+
+/// Sends one request with an optional owned body and exact ordered static trailers.
+///
+/// Trailer fields are validated before the UDP endpoint is created. Duplicate
+/// fields, cross-name order, and sensitivity markers are preserved.
+#[allow(clippy::too_many_arguments)]
+pub async fn send_request_with_body_and_trailers(
+    remote: SocketAddr,
+    server_name: &str,
+    crypto: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    request: Request<()>,
+    body: Option<Bytes>,
+    trailers: Vec<RequestHeader>,
+) -> Result<Response<Http3Body>, Http3Error> {
+    let request = prepare_request_body_with_trailers(
+        request,
+        body.map(crate::request::RequestBody::from_bytes),
+        trailers,
+    )?;
     send_prepared_request(
         remote,
         server_name,
