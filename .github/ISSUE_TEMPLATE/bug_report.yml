@@ -1,0 +1,50 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Phantom
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report vulnerabilities here. Follow `SECURITY.md` and use private vulnerability reporting.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Observed behavior
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest code, command, peer behavior, or fixture that reproduces the issue.
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Phantom commit
+      placeholder: Full commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, architecture, Rust version, feature flags, protocol, route, and profile where relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add sanitized errors, traces, captures, or fixture differences. Do not include credentials, secrets, or payloads.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I checked the current coverage contract and existing issues.
+          required: true
+        - label: This report contains no vulnerability details or sensitive data.
+          required: true

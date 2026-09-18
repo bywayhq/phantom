@@ -6,8 +6,7 @@ HTTP-CONNECT, or local-/remote-DNS SOCKS5 route, ordered HTTP/1 serializer, orde
 response metadata, client cookies, runtime errors, and tracing lifecycle.
 
 The public client is exercised against a pinned Autobahn fuzzing server. See
-[`external-conformance.md`](external-conformance.md#autobahn-execution) for the
-smoke and scheduled-suite boundaries.
+[Validation](validation.md#external-suites) for how external suites are used.
 
 The additive `websocket-deflate` feature compiles RFC 7692 support. It does not
 change the wire by itself: each connection must opt in through

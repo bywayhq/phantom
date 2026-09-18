@@ -1,0 +1,37 @@
+name: Change proposal
+description: Propose a feature, profile, protocol behavior, or design change
+title: "proposal: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or protocol problem needs to be solved?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Observable outcome
+      description: Describe the behavior a user or peer would observe.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Link specifications, captures, fixtures, or ecosystem evidence that support the change.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: Identify the smallest complete slice and what it intentionally excludes.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: How should the change be proven without relying only on a live service?
+    validations:
+      required: true

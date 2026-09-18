@@ -1,0 +1,98 @@
+# Design
+
+This document is for maintainers and reviewers. It defines Phantom's stable
+ownership and safety boundaries; user configuration belongs in
+[Using the client](client.md).
+
+## Principles
+
+1. Wire evidence is the specification.
+2. Profiles describe clients; transports consume settings without branching on
+   browser-family names.
+3. Observable ordering stays ordered through serialization.
+4. Unsupported behavior returns an error instead of silently changing
+   protocol, route, or fingerprint.
+5. Public configuration exists only when it is applied and observable in a
+   test.
+6. Mutable state has one owner and a finite bound.
+
+## Runtime shape
+
+```mermaid
+flowchart LR
+    App --> Client
+    Profile --> Client
+    Route --> Client
+    Client --> H1
+    Client --> H2
+    Client --> H3
+    H1 --> TLS
+    H2 --> TLS
+    H3 --> QUIC
+    QUIC --> BoringSSL
+```
+
+`phantom` owns request policy and client state. `phantom-profile` owns typed
+wire settings. `phantom-net` owns concrete protocol and routing mechanisms.
+`phantom-quic-btls` isolates the BoringSSL provider for Quinn.
+`phantom-testkit` is test-only capture infrastructure.
+
+Phantom reuses mature protocol engines, with narrow patches only when their
+public APIs cannot preserve measured behavior or required failure semantics.
+
+## State and connections
+
+The client owns connections and cross-request state. Pool keys include origin,
+route, protocol, and wire-profile identity, preventing reuse across security or
+fingerprint boundaries.
+
+H1 admits one exchange and never pipelines. H2 and H3 admit concurrent streams
+within local and peer limits. Waiters are bounded, cancellation is
+stream-scoped where possible, and draining connections accept no new work.
+
+Cookies, client hints, redirects, TLS sessions, and future DNS or Alt-Svc state
+remain client-scoped rather than process-global.
+
+## Async and features
+
+Phantom is async-first and targets Tokio. Library code does not create a global
+runtime or install a tracing subscriber. A runtime abstraction requires a
+second implementation that preserves cancellation, timer, socket, DNS, and
+driver-lifecycle behavior.
+
+Optional Cargo features add coherent public capabilities, not backend toggles.
+
+## TLS boundary
+
+A TLS profile is an ordered wire offer, not a security grade. Connection policy
+separately decides whether to accept a peer.
+
+By default, Phantom verifies the certificate chain and hostname. Additional
+DER roots are additive. HTTPS-proxy trust and origin trust are independent.
+The explicit disabled-verification mode is limited to controlled TCP TLS
+conformance, cannot be combined with additional roots or HTTP/3, and does not
+rewrite the profile.
+
+Profile-policy conflicts fail before I/O. Recoverable input and network
+failures return typed errors; runtime library code must not panic.
+
+## Protocol boundaries
+
+- H1 and H2 share TCP/TLS construction but retain protocol-specific lifecycle
+  and serialization.
+- H3 has a separate QUIC path because its transport, diagnostics, and
+  fingerprint controls differ materially.
+- Every transport returns the standard `http::Response` view plus ordered
+  response fields.
+- Routing resolves before connection setup and is part of pool identity.
+- SSE and WebSocket reuse client contracts without hiding their distinct
+  lifecycles.
+
+## Dependency policy
+
+A vendored change must name its upstream revision, explain the missing seam,
+carry a reproducible patch, preserve stock defaults, and include focused tests.
+`scripts/ci/check-vendor.sh` verifies each patched package.
+
+Backend types remain private, and runtime crates never depend on the testkit.
+See [HTTP/3 internals](http3.md) for its specialized boundaries.

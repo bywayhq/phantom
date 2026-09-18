@@ -1,213 +1,104 @@
 # Phantom
 
-Phantom is an experimental Rust HTTP client focused on observable,
-profile-driven wire behavior across TLS, HTTP/1.1, HTTP/2, QUIC, and HTTP/3.
+**A wire-evidenced, browser-compatible HTTP client for Rust.**
 
-The current vertical slices implement certificate- and hostname-checked TLS,
-ordered streaming HTTP/1.1, and reusable multiplexed HTTP/2 and direct HTTP/3.
-A cheap-clone public `Client` retains compatible H1, H2, and H3 connections by
-exact origin and route. Independently built clients remain isolated. Chrome 152
-macOS has TLS and HTTP/2 recipes with direct retained
-fixture differentials. Safari 18.5 and Firefox 154 macOS now have retained TLS
-recipes; Firefox also has an HTTP/2 startup recipe. Safari HTTP/2 remains
-uncaptured. The forced HTTP/3 slice performs direct requests over the
-BoringSSL Quinn provider, verifies exact `h3` ALPN, multiplexes client-owned
-streams, propagates stream-scoped cancellation, and applies a capture-backed
-Chrome QUIC transport recipe to live Quinn state and the exact TLS extension
-bytes. Its separate Chrome H3 TLS recipe emits the retained ClientHello shape,
-including the final H3 ALPS codepoint, and carries authenticated peer
-application settings into the H3 engine. A typed Chrome H3 recipe emits the
-captured nonzero QPACK limits,
-maximum field-section size, H3 DATAGRAM setting, ascending setting order, and
-randomized GREASE. The receive path bounds dynamic QPACK state and treats a
-datagram on an ordinary request as an H3 protocol error. The isolated outbound
-dynamic QPACK encoder reproduces the retained Chrome request bytes. Its live
-connection-owned path now waits for peer SETTINGS, applies bounded
-backpressure, sends encoder instructions before dependent HEADERS, and matches
-the retained Chrome encoder-stream and HEADERS bytes. Captured pseudo-header
-order, ordinary-field order, duplicates, and sensitivity survive request
-construction and QPACK encoding. The public `phantom::Client` now provides a
-small facade for exact H1, H2, or direct H3 requests, plus direct one-handshake
-H1/H2 ALPN selection for negotiated requests, additive private trust
-roots, typed direct HTTPS and plaintext HTTP/1.1, HTTP/1.1 forwarding,
-HTTP/HTTPS CONNECT, and
-local- or remote-DNS SOCKS5 routes with optional credentials, and one unified
-streaming response body. Disabled-by-default phase-aware timeouts cover pool
-admission, connection setup, response head, response-body inactivity, and a
-whole-operation deadline with typed phase reporting. HTTP Basic
-proxy credentials are sent only after a valid challenge on a fresh connection;
-SOCKS5 supports RFC 1929 username/password negotiation. HTTPS-proxy certificate
-policy and additive roots are independent from origin trust. CONNECT fields
-preserve caller-declared order, proxy rejection never falls back direct, and
-coalesced tunnel bytes survive negotiation. The
-SOCKS5 URI scheme selects explicit DNS ownership; credentials
-are configured with `Socks5Proxy::with_username_password`, validated before
-I/O, and excluded from diagnostics. H3 uses a separate protocol-specific TLS
-profile and rejects TCP-only proxy routes before network I/O. The optional
-`cookies` capability adds a bounded, explicit client-owned jar with public-suffix,
-prefix, expiry, and deterministic ordering rules. Profiles may also define
-ordered client-hint fields; clients retain bounded exact-origin response
-`Accept-CH` state, H2/H3 connections apply peer ALPS `ACCEPT_CH` metadata during
-request preparation, and safe methods perform at most one `Critical-CH` replay.
-Feature-gated SSE support provides both a bounded
-single-response decoder and a finite, pull-driven client-owned reconnect controller
-without a background task. Feature-gated WebSocket support performs an exact ordered H1
-Upgrade over the same TLS and selected TCP route, then exposes bounded message
-I/O through Phantom-owned types, including typed opt-in `permessage-deflate`.
-Plaintext HTTP/1.1 is supported directly with an origin-form target and through
-the same HTTP-proxy route with an absolute-form target. Both retain bounded
-sequential reuse and the existing ordered request representation.
-Other HTTP-proxy authentication schemes, authenticated forwarding,
-UDP-capable proxies, general retry policy, other WebSocket extensions, and
-extended CONNECT remain planned.
-The project does not make broad client-compatibility claims.
+Phantom gives applications explicit control over observable TLS, HTTP/1.1,
+HTTP/2, QUIC, and HTTP/3 behavior. Browser behavior lives in typed, validated
+profiles rather than hidden transport branches.
 
-## Principles
+> **Status:** Phantom is experimental, under active development, and not
+> published to crates.io. It supports source-based evaluation and integration;
+> it does not claim complete browser impersonation.
 
-- Wire evidence is the specification.
-- Browser behavior is represented by validated profiles rather than transport conditionals.
-- Built-in and user-customized profiles use the same typed model.
-- Unsupported behavior produces an explicit error instead of a silent fallback.
-- Features land as small, runnable vertical slices.
+## Why Phantom?
 
-## Current client slice
+A matching TLS ClientHello is only one part of a client's wire identity. HTTP
+settings, header order, QUIC parameters, connection reuse, and cross-request
+state are observable too.
+
+Phantom treats captured wire behavior as the specification:
+
+- profiles control concrete TLS, H2, H3, QUIC, and client-hint behavior;
+- request fields, duplicates, pseudo-headers, and settings retain their order;
+- exact protocol and route choices never silently fall back;
+- client-owned state and admission queues are bounded; and
+- compatibility claims name the captured layer and supporting differential.
+
+Phantom is an HTTP client, not a browser engine. It does not emulate the DOM,
+JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
+
+## Current support
+
+| Area | Available today |
+| --- | --- |
+| Protocols | Ordered streaming H1, multiplexed H2, direct H3 over QUIC, and one-handshake direct H1/H2 negotiation |
+| Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
+| Routing | Direct, HTTP forwarding, HTTP/HTTPS CONNECT, and local- or remote-DNS SOCKS5 with optional credentials |
+| State | Isolated bounded pools, redirects, timeouts, client hints, TLS sessions, and opt-in cookies |
+| Optional APIs | Server-sent events, H1 WebSocket, and opt-in `permessage-deflate` |
+| Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
+
+See [Coverage](docs/coverage.md) for the exact supported and planned lifecycle
+at each layer.
+
+## A first request
 
 ```rust,no_run
-use phantom::{Client, HttpProtocol, Method, RequestHeader};
-use phantom::profile::{ClientProfile, chromium};
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{Client, HttpProtocol, RequestHeader};
 
-# async fn example() -> Result<(), Box<dyn std::error::Error>> {
+# async fn run() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ClientProfile::new(chromium::v152_macos_tls())
     .with_http2(chromium::v152_macos_http2())
     .with_client_hints(chromium::v152_macos_client_hints());
+
 let client = Client::builder(profile).build()?;
 let response = client
-    .get(HttpProtocol::Http2, "https://example.com/resource")?
+    .get(HttpProtocol::Http2, "https://example.com/")?
     .header(RequestHeader::new("accept", "*/*"))
     .send()
     .await?;
 
 println!("{}", response.status());
-
-let upload = client
-    .request(HttpProtocol::Http2, Method::POST, "https://example.com/upload")?
-    .body("payload")
-    .send()
-    .await?;
-println!("{}", upload.status());
-
-// HeaderMap remains available for semantic lookup. This extension retains
-// global field order, duplicates, and HTTP/1 field-name spelling.
-let ordered = response
-    .extensions()
-    .get::<phantom::OrderedResponseHeaders>()
-    .expect("Phantom responses contain ordered fields");
-for field in ordered.iter() {
-    println!("{}", field.name());
-}
 # Ok(())
 # }
 ```
 
-The protocol-taking methods select exactly that protocol. Bare-client
-`get_negotiated` and `request_negotiated` instead keep one current direct
-TCP/TLS generation per origin and select H2 for `h2`, or H1 for `http/1.1` or
-absent ALPN. Eligible H1 generations serve sequential requests and H2
-generations multiplex requests; they do not race, use a proxy, or consider H3.
-Client cookies, learned client hints, and bounded redirect policy still apply,
-and the negotiated pool remains isolated from exact-protocol pools.
-`ResponseInfo::protocol` reports the protocol that produced every ordinary
-response.
-`get` is convenience sugar for `request` with `Method::GET`; ordinary
-non-CONNECT methods may carry an owned byte body or a pull-driven
-`http_body::Body<Data = Bytes>` through `streaming_body`. Phantom validates a
-caller-supplied `Content-Length` against exact size hints; unknown-length H1
-uploads use chunked transfer coding while H2 and H3 omit the field. Streams are
-one-shot and fail with `RequestErrorKind::RequestBody` before a body-preserving
-redirect or internal replay starts a second attempt. Replay factories, request
-trailers, and a configurable general retry policy remain unavailable.
-The client retries one bodyless H2 GET when `GOAWAY(NO_ERROR)` identifies it as
-unprocessed; the replacement keeps the same origin, route, protocol, and
-ordered fields. Redirects are an explicit client policy configured with
-`RedirectPolicy::limited`; they keep the selected protocol and route, apply a
-finite hop budget, and replay only owned byte bodies. Every
-successful response includes `OrderedResponseHeaders` and `ResponseInfo` in
-its extensions; the ordinary `HeaderMap` remains the normalized semantic view.
-The ordered view retains
-duplicate interleaving on every protocol and received HTTP/1 field-name
-spelling. HTTP/2 and HTTP/3 names are lowercase by protocol. `Client` reuses
-eligible HTTP/1.1, HTTP/2, and direct HTTP/3 connections by default. Enable
-bounded cookie state explicitly with `Client::builder(profile).cookies().build()`
-when the `cookies` feature is compiled. A profile with client hints emits
-default fields, and the client retains exact-origin response `Accept-CH` state. H2/H3
-request preparation also applies matching connection-scoped ALPS `ACCEPT_CH`
-metadata. Use
-`ClientBuilder::route` for an immutable default route or
-`RequestBuilder::route` for an owned per-request override.
+This request selects exactly HTTP/2. `get_negotiated` instead performs one
+direct TLS handshake and may select H1 or H2. H3 uses a separate QUIC profile
+and remains direct-only.
 
-## Current workspace
+Every response uses the standard `http::Response` view and carries
+`ResponseInfo` plus `OrderedResponseHeaders` in its extensions.
 
-- `phantom`: the public exact-protocol client facade, direct one-handshake H1/H2
-  ALPN selection, client-owned H1, H2, and H3 reuse,
-  direct routes, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
-  credential-capable local- or remote-DNS SOCKS5 for H1/H2 and H1 WebSocket,
-  opt-in bounded redirects,
-  streaming responses, and optional bounded cookie and client-hint state, plus
-  SSE and WebSocket capabilities
-- `phantom-profile`: browser-neutral profile identity, public typed TLS,
-  HTTP/2, HTTP/3, and QUIC settings, and narrow
-  fixture-backed Chrome, Safari, and Firefox recipes
-- `phantom-net`: ordered streaming HTTP/1.1, reusable multiplexed HTTP/2 with
-  exact-`h2` TLS and ALPS, and reusable direct forced-H3 connections with streaming
-  response bodies, lossless ordinary response-field ordering, and bounded
-  cancellation
-- `phantom-quic-btls`: the isolated, audited BoringSSL crypto provider for
-  Quinn, including verified TLS 1.3 handshakes, owned peer identity and QUIC
-  parameters, Initial and Retry handling, packet/header protection, endpoint
-  HMAC, exporters, and repeated traffic-key updates
-- `phantom-testkit`: bounded TLS ClientHello and HTTP/2 frame capture with
-  strict decoding for deterministic differentials
+[Getting started](docs/getting-started.md) covers the source build and feature
+flags. [Using the client](docs/client.md) covers profiles, routes, state,
+timeouts, bodies, and responses.
 
-The provenance-tracked H3 fork is an active runtime dependency for ordered
-SETTINGS, bounded dynamic QPACK receive support, immediate stream cancellation
-through the Quinn adapter, and bounded connection-owned outbound dynamic QPACK
-with capture-matching live request bytes. Stateless encoding remains the
-default for profiles that do not opt into the dynamic policy.
+## Deliberate limits
 
-See [the roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
-[validation model](docs/validation.md),
-[configuration model](docs/configuration.md),
-[proxy routing](docs/proxy-routing.md),
-[TLS security boundary](docs/tls-security-boundary.md),
-[scope and coverage](docs/scope-and-coverage.md),
-[async and feature policy](docs/async-and-features.md),
-[client state and pooling](docs/session.md),
-[SSE decoder](docs/sse.md),
-[WebSocket](docs/websocket.md),
-[Rust quality review](docs/rust-quality.md),
-[adversarial testing](docs/adversarial-testing.md),
-[external conformance and interoperability](docs/external-conformance.md),
-[dynamic QPACK design](docs/qpack-design.md),
-[ecosystem lessons](docs/ecosystem-review.md),
-[ecosystem architecture and API audit](docs/ecosystem-architecture-pr-audit.md),
-and
-[performance guide](docs/performance.md). Dependency forks and the Linux,
-macOS, and Windows gates are described in
-[dependency maintenance](docs/dependency-maintenance.md).
+- Exact-protocol requests never downgrade.
+- Proxy failure never falls back direct.
+- H3 rejects TCP-only proxy routes before network I/O.
+- Streaming request bodies are one-shot and are not replayed implicitly.
+- General retry policy, trailers produced dynamically by streaming bodies,
+  UDP-capable proxies, and H2/H3 WebSocket remain planned.
 
-## Development
+These limits make Phantom narrower than a general-purpose client, but keep its
+behavior explicit and testable.
 
-```sh
-cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-targets --all-features --locked
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
-cargo +1.85.0 check --workspace --all-targets --locked
-uvx ruff@0.16.7 check scripts/capture
-uvx ruff@0.16.7 format --check scripts/capture
-uv run --no-project --python 3.10 --with aioquic==1.3.0 \
-  python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
-```
+## Documentation
 
-Vendored patch checks are available through
-`scripts/ci/check-vendor.sh {btls|http2|quinn-proto|h3}` and run in CI.
+The [documentation map](docs/README.md) routes readers by audience and task.
+
+- [Getting started](docs/getting-started.md) — first build and request
+- [Using the client](docs/client.md) — integration guide
+- [Coverage](docs/coverage.md) — authoritative support contract
+- [Design](docs/design.md) — architecture and invariants
+- [Validation](docs/validation.md) — evidence and contributor gates
+- [HTTP/3 internals](docs/http3.md) — QUIC, QPACK, capture, and diagnostics
+- [Roadmap](docs/roadmap.md) — now, next, and later
+
+SSE and WebSocket have focused guides under [`docs/`](docs/). Contributors
+should read [CONTRIBUTING.md](CONTRIBUTING.md); suspected vulnerabilities follow
+[SECURITY.md](SECURITY.md).

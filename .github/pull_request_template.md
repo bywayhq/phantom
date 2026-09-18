@@ -2,6 +2,11 @@
 
 What observable behavior changes?
 
+## Acceptance criteria
+
+- [ ] The intended behavior is stated in observable terms
+- [ ] The affected protocol, route, profile, or client-state boundary is clear
+
 ## Non-goals
 
 What is intentionally excluded?
@@ -13,6 +18,9 @@ What is intentionally excluded?
 - [ ] Documentation updated, when public behavior changes
 - [ ] Performance evidence, when the hot path changes
 
-## Risk
+List the exact commands run and their results.
 
-List new dependencies, patches, unsafe code, fallbacks, or unresolved uncertainty. Write `None` when there are none.
+## Risk and uncertainty
+
+List new dependencies, patches, unsafe code, fallbacks, security implications,
+or unresolved uncertainty. Write `None` when there are none.
