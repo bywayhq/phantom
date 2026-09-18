@@ -5,7 +5,7 @@
 use std::{
     collections::VecDeque,
     io,
-    net::{Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     pin::Pin,
     sync::{
         Arc, Mutex, MutexGuard,
@@ -169,6 +169,7 @@ pub(crate) struct UpgradeScript {
     origin_responses: Vec<PlannedResponse>,
     alternative_behavior: AlternativeBehavior,
     advertisement: AltSvcAdvertisement,
+    alternative_ip: IpAddr,
 }
 
 impl UpgradeScript {
@@ -180,6 +181,7 @@ impl UpgradeScript {
             origin_responses: origin_responses.into_iter().collect(),
             alternative_behavior,
             advertisement: AltSvcAdvertisement::default(),
+            alternative_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         }
     }
 
@@ -187,6 +189,17 @@ impl UpgradeScript {
         self.advertisement = advertisement;
         self
     }
+
+    pub(crate) fn alternative_ip(mut self, alternative_ip: IpAddr) -> Self {
+        self.alternative_ip = alternative_ip;
+        self
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ObservedField {
+    pub(crate) name: String,
+    pub(crate) value: Vec<u8>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -195,6 +208,7 @@ pub(crate) struct ObservedRequest {
     pub(crate) authority: Option<String>,
     pub(crate) path_and_query: Option<String>,
     pub(crate) server_name: Option<String>,
+    pub(crate) fields: Vec<ObservedField>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -234,7 +248,7 @@ impl Http3UpgradeFixture {
         let origin_name = origin_name.into();
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = listener.local_addr()?;
-        let alternative_endpoint = h3_endpoint(identity)?;
+        let alternative_endpoint = h3_endpoint(identity, script.alternative_ip)?;
         let alternative_address = alternative_endpoint.local_addr()?;
         let alt_svc = script.advertisement.value(alternative_address)?;
         let observations = Arc::new(SharedObservations::default());
@@ -512,7 +526,35 @@ fn observe_request<B>(request: &http::Request<B>, server_name: &Option<String>) 
         authority: request.uri().authority().map(ToString::to_string),
         path_and_query: request.uri().path_and_query().map(ToString::to_string),
         server_name: server_name.clone(),
+        fields: ordered_fields(request),
     }
+}
+
+fn ordered_fields<B>(request: &http::Request<B>) -> Vec<ObservedField> {
+    if let Some(ordered) = request.extensions().get::<h3::ext::OrderedHeaders>() {
+        return observed_fields(ordered.as_slice());
+    }
+    if let Some(ordered) = request.extensions().get::<http2::ext::OrderedHeaders>() {
+        return observed_fields(ordered.as_slice());
+    }
+    request
+        .headers()
+        .iter()
+        .map(|(name, value)| ObservedField {
+            name: name.as_str().to_owned(),
+            value: value.as_bytes().to_vec(),
+        })
+        .collect()
+}
+
+fn observed_fields(fields: &[(http::HeaderName, HeaderValue)]) -> Vec<ObservedField> {
+    fields
+        .iter()
+        .map(|(name, value)| ObservedField {
+            name: name.as_str().to_owned(),
+            value: value.as_bytes().to_vec(),
+        })
+        .collect()
 }
 
 fn snapshot(observations: &SharedObservations) -> TestResult<UpgradeObservations> {
@@ -530,7 +572,7 @@ fn lock<T>(mutex: &Mutex<T>) -> TestResult<MutexGuard<'_, T>> {
         .map_err(|_| io::Error::other("HTTP/3 upgrade fixture mutex poisoned").into())
 }
 
-fn h3_endpoint(identity: &TestIdentity) -> TestResult<Endpoint> {
+fn h3_endpoint(identity: &TestIdentity, bind_ip: IpAddr) -> TestResult<Endpoint> {
     let provider = rustls::crypto::ring::default_provider();
     let mut crypto = rustls::ServerConfig::builder_with_provider(provider.into())
         .with_protocol_versions(&[&rustls::version::TLS13])?
@@ -547,6 +589,6 @@ fn h3_endpoint(identity: &TestIdentity) -> TestResult<Endpoint> {
     ));
     Ok(Endpoint::server(
         server_config,
-        SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
+        SocketAddr::new(bind_ip, 0),
     )?)
 }

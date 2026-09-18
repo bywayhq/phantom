@@ -235,10 +235,17 @@ applies `Age` to `ma`, replaces the origin's previous alternatives, and uses
 the first fresh canonical `h3` alternative on the next negotiated request.
 The alternative changes only the QUIC network location: URI, authority, TLS
 identity, cookies, client hints, route key, and timeouts remain those of the
-origin. Alternative setup failure is a typed H3 failure for that request and
-evicts the advertisement; it never silently falls back. A visible `421`
-response also evicts it. Racing, persistence, `Alt-Used`, H2 ALTSVC frames,
-multiple-alternative racing, and proxy-route upgrades are not implemented.
+origin. On that managed Alt-Svc H3 attempt, Phantom automatically sends one
+canonical `Alt-Used` value naming the alternative with an explicit port. It
+does not add `Alt-Used` to exact H3 requests or ordinary negotiated H1/H2
+requests. Caller-supplied `Alt-Used` request fields and trailers are reserved
+and rejected before network I/O. This support makes no browser-specific
+field-order claim.
+
+Alternative setup failure is a typed H3 failure for that request and evicts
+the advertisement; it never silently falls back. A visible `421` response also
+evicts it. Racing, persistence, H2 ALTSVC frames, multiple-alternative racing,
+and proxy-route upgrades are not implemented.
 
 ## Timeouts
 

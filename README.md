@@ -32,7 +32,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 
 | Area | Available today |
 | --- | --- |
-| Protocols | Ordered streaming H1, multiplexed H2, exact H3 over direct or SOCKS5-carried QUIC, one-handshake direct H1/H2 negotiation with opt-in bounded Alt-Svc upgrade to H3, and ordered static or streaming-body-produced request trailers |
+| Protocols | Ordered streaming H1, multiplexed H2, exact H3 over direct or SOCKS5-carried QUIC, one-handshake direct H1/H2 negotiation with opt-in bounded Alt-Svc upgrade to H3 and canonical explicit-port `Alt-Used` only on that managed attempt, and ordered static or streaming-body-produced request trailers |
 | Profiles | Chrome 152 macOS across TLS, H2, H3, QUIC, and client hints; Firefox 154 macOS TLS and H2; Safari 18.5 macOS TLS |
 | Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; local- or remote-DNS SOCKS5 for H1/H2; and exact H3 over local- or remote-DNS SOCKS5 using RFC 1928 UDP ASSOCIATE |
 | State | Isolated bounded pools, redirects, opt-in exact-protocol setup retries, timeouts, client hints, TLS sessions, bounded opt-in Alt-Svc, and opt-in cookies |
@@ -92,8 +92,8 @@ timeouts, bodies, and responses.
   It rejects HTTP forwarding and HTTP CONNECT before origin I/O.
 - Streaming request bodies are one-shot and are not replayed implicitly.
 - Broader status, post-dispatch, and negotiated-protocol retry policies;
-  CONNECT-UDP/MASQUE; Alt-Svc connection racing, persistence, `Alt-Used`, and
-  H2 ALTSVC frames; proxy-carried extended CONNECT; and H3 WebSocket remain planned.
+  CONNECT-UDP/MASQUE; Alt-Svc connection racing, persistence, and H2 ALTSVC
+  frames; proxy-carried extended CONNECT; and H3 WebSocket remain planned.
 
 These limits make Phantom narrower than a general-purpose client, but keep its
 behavior explicit and testable.

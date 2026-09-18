@@ -56,6 +56,14 @@ impl AltSvcLocation {
     pub(super) const fn port(&self) -> u16 {
         self.port
     }
+
+    pub(super) fn authority(&self) -> Box<str> {
+        if self.host.parse::<Ipv6Addr>().is_ok() {
+            format!("[{}]:{}", self.host, self.port).into()
+        } else {
+            format!("{}:{}", self.host, self.port).into()
+        }
+    }
 }
 
 pub(super) struct AltSvcStore {

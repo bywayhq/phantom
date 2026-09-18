@@ -191,14 +191,19 @@ impl Client {
     pub(crate) fn alt_svc_location(
         &self,
         endpoint: &crate::authority::Endpoint,
-    ) -> Option<(Box<str>, u16, u64)> {
+    ) -> Option<(Box<str>, u16, Box<str>, u64)> {
         self.state.alt_svc.as_ref()?.get(endpoint).map(|selection| {
             (
                 Box::<str>::from(selection.location().host()),
                 selection.location().port(),
+                selection.location().authority(),
                 selection.generation(),
             )
         })
+    }
+
+    pub(crate) fn alt_svc_enabled(&self) -> bool {
+        self.state.alt_svc.is_some()
     }
 
     pub(crate) fn learn_alt_svc<B>(

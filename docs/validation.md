@@ -150,7 +150,17 @@ An authenticated loopback H2 origin and H3 alternative share one test
 identity while listening on distinct transport locations. Public negotiated
 requests prove default-off and explicit bounded activation, learning from the
 ordered response fields, an H2 first response followed by H3, retention of the
-original authority and certificate identity, and selected-protocol metadata.
+original authority, SNI, and certificate identity, and selected-protocol
+metadata. The managed H3 attempt carries one automatically generated
+`Alt-Used` value with the canonical alternative host and explicit port.
+Regressions prove that exact H3 requests and the tested negotiated H2 origin
+request do not receive the field. A request-field regression proves that
+caller-supplied `Alt-Used` is rejected before any network I/O. `Alt-Used` is
+reserved in both request fields and trailers; the trailer rule is part of the
+pre-I/O validation contract, not additional protocol coverage claimed here.
+This evidence verifies the field's value and scope, not a browser-specific
+position among ordinary request fields.
+
 Parser regressions cover ordered duplicate fields, canonical host forms,
 default and explicit `ma`, `Age` subtraction and expiry, replacement, `clear`,
 unsupported alternatives, malformed-field retention, bounded LRU eviction,
@@ -163,9 +173,9 @@ an H3 response, evicts the advertisement, and cannot cause the alternative
 connection generation to be reused for the origin transport location. Manual
 clearing is covered through the public client.
 
-This evidence does not claim browser policy, connection racing, persistence,
-`Alt-Used`, H2 ALTSVC frames, proxy-route upgrades, or multiple-alternative
-racing.
+This evidence does not claim browser policy or `Alt-Used` ordering, connection
+racing, persistence, H2 ALTSVC frames, proxy-route upgrades, or
+multiple-alternative racing.
 
 ## Connection-retry evidence
 

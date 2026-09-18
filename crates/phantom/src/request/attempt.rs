@@ -197,7 +197,7 @@ async fn send_once_negotiated(
         return Err(RequestError::unsupported_negotiated_route());
     }
     let endpoint = &request.endpoint;
-    if let Some((host, port, generation)) = client.alt_svc_location(endpoint) {
+    if let Some((host, port, authority, generation)) = client.alt_svc_location(endpoint) {
         return send_once_alt_svc(
             client,
             request,
@@ -207,6 +207,7 @@ async fn send_once_negotiated(
             timeout_budget,
             host,
             port,
+            authority,
             generation,
         )
         .await;
@@ -315,6 +316,7 @@ async fn send_once_alt_svc(
     timeout_budget: TimeoutBudget,
     alternative_host: Box<str>,
     alternative_port: u16,
+    alternative_authority: Box<str>,
     alternative_generation: u64,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptRequest {
@@ -338,6 +340,10 @@ async fn send_once_alt_svc(
     loop {
         let mut prepared_headers = request_headers.clone();
         inject_cookie(client, request, HttpProtocol::Http3, &mut prepared_headers);
+        prepared_headers.push(RequestHeader::new(
+            "alt-used",
+            alternative_authority.as_bytes(),
+        ));
         let client_hints = client
             .inner
             .client_hints

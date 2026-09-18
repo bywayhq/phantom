@@ -372,6 +372,13 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn alt_used_header() -> Self {
+        Self::without_source(
+            RequestErrorKind::InvalidHeader,
+            "Alt-Used is managed by the negotiated Alt-Svc client and must not be supplied",
+        )
+    }
+
     pub(crate) fn forward_proxy_authorization_header() -> Self {
         Self::without_source(
             RequestErrorKind::InvalidHeader,

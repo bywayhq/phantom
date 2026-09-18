@@ -26,11 +26,12 @@ work has exposed the real architectural boundaries.
   slice without silent fallback.
 - The SOCKS5 UDP proxy slice is complete: exact H3 supports local-DNS
   `socks5://` and remote-DNS `socks5h://` through RFC 1928 UDP ASSOCIATE.
-- The first H3 upgrade slice is complete: negotiated direct HTTPS requests can
-  opt into bounded Alt-Svc learning, preserve origin identity while dialing an
-  advertised `h3` location, and apply explicit failure and `421` eviction
-  semantics without fallback. Racing, persistence, `Alt-Used`, and H2 ALTSVC
-  frames remain later Phase 1 functionality.
+- The current H3 upgrade slices are complete: negotiated direct HTTPS requests
+  can opt into bounded Alt-Svc learning, preserve origin authority and SNI while
+  dialing an advertised `h3` location, send canonical explicit-port `Alt-Used`
+  only on that managed attempt, and apply explicit failure and `421` eviction
+  semantics without fallback. Racing, persistence, and H2 ALTSVC frames remain
+  later Phase 1 functionality.
 - The first extended CONNECT slice is complete: explicitly configured custom
   H2 profiles can open exact direct `wss://` WebSockets after peer SETTINGS
   opt-in, with a dedicated five-pseudo-header order, duplex flow control,

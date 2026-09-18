@@ -35,6 +35,7 @@ pub struct RequestBuilder {
     timeouts: Option<RequestTimeouts>,
     retry_policy: Option<RetryPolicy>,
     response_body_timeouts: bool,
+    body_declares_alt_used_trailer: bool,
 }
 
 impl fmt::Debug for RequestBuilder {
@@ -109,6 +110,7 @@ impl RequestBuilder {
             timeouts: None,
             retry_policy: None,
             response_body_timeouts: true,
+            body_declares_alt_used_trailer: false,
         })
     }
 
@@ -143,6 +145,7 @@ impl RequestBuilder {
     /// and exact.
     pub fn body(mut self, body: impl Into<Bytes>) -> Self {
         self.body = RequestBodySource::Bytes(body.into());
+        self.body_declares_alt_used_trailer = false;
         self
     }
 
@@ -165,6 +168,7 @@ impl RequestBuilder {
         B::Error: StdError + Send + Sync + 'static,
     {
         self.body = RequestBodySource::Streaming(Some(RequestBody::streaming(body)));
+        self.body_declares_alt_used_trailer = false;
         self
     }
 
@@ -184,6 +188,7 @@ impl RequestBuilder {
         B: Body<Data = Bytes> + Send + 'static,
         B::Error: StdError + Send + Sync + 'static,
     {
+        self.body_declares_alt_used_trailer = declares_alt_used_trailer(&trailer_names);
         self.body = RequestBodySource::Streaming(Some(RequestBody::streaming_with_trailers(
             body,
             trailer_names,
@@ -305,6 +310,15 @@ impl RequestBuilder {
         {
             return Err(RequestError::authority_header());
         }
+        if self.client.alt_svc_enabled()
+            && contains_caller_alt_used(
+                &self.headers,
+                &self.trailers,
+                self.body_declares_alt_used_trailer,
+            )
+        {
+            return Err(RequestError::alt_used_header());
+        }
 
         let Self {
             client,
@@ -318,6 +332,7 @@ impl RequestBuilder {
             timeouts: _,
             retry_policy: _,
             response_body_timeouts,
+            body_declares_alt_used_trailer: _,
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
@@ -434,6 +449,28 @@ impl RequestBuilder {
             }
         }
     }
+}
+
+fn is_alt_used_name(name: &str) -> bool {
+    name.eq_ignore_ascii_case("alt-used")
+}
+
+fn declares_alt_used_trailer(trailers: &[RequestTrailerName]) -> bool {
+    trailers
+        .iter()
+        .any(|trailer| is_alt_used_name(trailer.name()))
+}
+
+fn contains_caller_alt_used(
+    headers: &[RequestHeader],
+    trailers: &[RequestHeader],
+    body_declares_alt_used_trailer: bool,
+) -> bool {
+    headers
+        .iter()
+        .chain(trailers)
+        .any(|header| is_alt_used_name(header.name()))
+        || body_declares_alt_used_trailer
 }
 
 pub(crate) enum RequestBodySource {
@@ -659,9 +696,12 @@ impl Drop for RequestOutcome {
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
-    use phantom_net::request::RequestBody;
+    use phantom_net::request::{RequestBody, RequestHeader, RequestTrailerName};
 
-    use super::{ProtocolSelection, RequestBodySource, ResolvedRequest, ensure_request_supported};
+    use super::{
+        ProtocolSelection, RequestBodySource, ResolvedRequest, contains_caller_alt_used,
+        declares_alt_used_trailer, ensure_request_supported,
+    };
     use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
 
     #[test]
@@ -676,6 +716,29 @@ mod tests {
             Err(error) => error,
         };
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+    }
+
+    #[test]
+    fn recognizes_alt_used_in_each_caller_controlled_field_source() {
+        assert!(contains_caller_alt_used(
+            &[RequestHeader::new("ALT-USED", "alt.example:443")],
+            &[],
+            false,
+        ));
+        assert!(contains_caller_alt_used(
+            &[],
+            &[RequestHeader::new("Alt-Used", "alt.example:443")],
+            false,
+        ));
+        assert!(declares_alt_used_trailer(&[RequestTrailerName::new(
+            "alt-used",
+        )]));
+        assert!(contains_caller_alt_used(&[], &[], true));
+        assert!(!contains_caller_alt_used(
+            &[RequestHeader::new("x-field", "value")],
+            &[RequestHeader::new("x-trailer", "value")],
+            false,
+        ));
     }
 
     #[test]

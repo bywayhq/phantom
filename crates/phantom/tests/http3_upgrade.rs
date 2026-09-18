@@ -10,23 +10,33 @@ mod http3_upgrade_support;
 mod tls_support;
 
 use std::{
+    convert::Infallible,
     future::Future,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
     num::NonZeroUsize,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    task::{Context, Poll},
     time::Duration,
 };
 
-use http::StatusCode;
+use bytes::Bytes;
+use http::{HeaderValue, Method, StatusCode};
+use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, ResponseInfo,
-    profile::{ClientProfile, chromium},
+    Client, HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
+    profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
 };
 use tokio::time::timeout;
 
 use h3_support::client_settings;
 use http3_upgrade_support::{
-    AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse, UpgradeScript,
+    AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, ObservedRequest,
+    PlannedResponse, UpgradeScript,
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
 
@@ -53,6 +63,7 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
         )
         .await?;
         let origin_authority = format!("localhost:{}", fixture.origin_address().port());
+        let alternative_authority = format!("127.0.0.1:{}", fixture.alternative_address().port());
         assert_ne!(fixture.origin_address(), fixture.alternative_address());
         let client = upgrade_client(&identity)?;
 
@@ -65,6 +76,10 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
 
         let second = client
             .get_negotiated(&fixture.origin_url("/upgrade"))?
+            .headers(vec![
+                RequestHeader::new("x-before", "first"),
+                RequestHeader::new("x-after", "second"),
+            ])
             .send()
             .await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http3);
@@ -77,6 +92,7 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_requests.len(), 1);
         assert_eq!(observed.alternative_requests.len(), 1);
+        assert!(header_values(&observed.origin_requests[0], "alt-used").is_empty());
         assert_eq!(
             observed.alternative_requests[0].authority.as_deref(),
             Some(origin_authority.as_str())
@@ -84,6 +100,158 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
         assert_eq!(
             observed.alternative_requests[0].path_and_query.as_deref(),
             Some("/upgrade")
+        );
+        assert_eq!(
+            observed.alternative_requests[0].server_name.as_deref(),
+            Some("localhost")
+        );
+        assert_eq!(
+            field_pairs(&observed.alternative_requests[0]),
+            [
+                ("x-before", b"first".as_slice()),
+                ("x-after", b"second".as_slice()),
+                ("alt-used", alternative_authority.as_bytes()),
+            ]
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn exact_http3_does_not_emit_alt_used() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([PlannedResponse::new(StatusCode::OK)]),
+            ),
+        )
+        .await?;
+        let client = upgrade_client(&identity)?;
+        let response = client
+            .get(
+                HttpProtocol::Http3,
+                &format!("https://{}/exact", fixture.alternative_address()),
+            )?
+            .header(RequestHeader::new("x-exact", "only"))
+            .send()
+            .await?;
+        assert_eq!(protocol(&response)?, HttpProtocol::Http3);
+        drain(response).await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert!(observed.origin_requests.is_empty());
+        assert_eq!(observed.alternative_requests.len(), 1);
+        assert_eq!(
+            field_pairs(&observed.alternative_requests[0]),
+            [("x-exact", b"only".as_slice())]
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn caller_supplied_alt_used_fields_and_trailers_are_rejected_before_io() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new([], AlternativeBehavior::responses([])),
+        )
+        .await?;
+        let client = upgrade_client(&identity)?;
+        let error = client
+            .get_negotiated(&fixture.origin_url("/rejected"))?
+            .header(RequestHeader::new("Alt-Used", "caller.invalid:443"))
+            .send()
+            .await
+            .err()
+            .ok_or("caller-supplied Alt-Used unexpectedly succeeded")?;
+        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+
+        let error = client
+            .request_negotiated(Method::POST, &fixture.origin_url("/static-trailer"))?
+            .body("payload")
+            .trailers(vec![RequestHeader::new("Alt-Used", "caller.invalid:443")])
+            .send()
+            .await
+            .err()
+            .ok_or("caller-supplied static Alt-Used trailer unexpectedly succeeded")?;
+        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+
+        let body_polls = Arc::new(AtomicUsize::new(0));
+        let error = client
+            .request_negotiated(Method::POST, &fixture.origin_url("/dynamic-trailer"))?
+            .streaming_body_with_trailers(
+                PollCountingBody::new(Arc::clone(&body_polls)),
+                vec![RequestTrailerName::new("alt-used")],
+            )
+            .send()
+            .await
+            .err()
+            .ok_or("declared body-produced Alt-Used trailer unexpectedly succeeded")?;
+        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+        assert_eq!(body_polls.load(Ordering::SeqCst), 0);
+
+        let snapshot = fixture.snapshot()?;
+        assert_eq!(snapshot.origin_connections, 0);
+        assert_eq!(snapshot.alternative_connections, 0);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert!(observed.origin_requests.is_empty());
+        assert!(observed.alternative_requests.is_empty());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn ipv6_alternative_uses_bracketed_canonical_alt_used_authority() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns("localhost")?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            "localhost",
+            UpgradeScript::new(
+                [PlannedResponse::new(StatusCode::OK).advertise_alternative()],
+                AlternativeBehavior::responses([PlannedResponse::new(StatusCode::OK)]),
+            )
+            .alternative_ip(IpAddr::V6(Ipv6Addr::LOCALHOST))
+            .advertisement(AltSvcAdvertisement::default().host("[::1]")),
+        )
+        .await?;
+        let expected = format!("[::1]:{}", fixture.alternative_address().port());
+        let client = upgrade_client(&identity)?;
+
+        drain(
+            client
+                .get_negotiated(&fixture.origin_url("/learn"))?
+                .send()
+                .await?,
+        )
+        .await?;
+        drain(
+            client
+                .get_negotiated(&fixture.origin_url("/ipv6"))?
+                .send()
+                .await?,
+        )
+        .await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.alternative_requests.len(), 1);
+        assert_eq!(
+            header_values(&observed.alternative_requests[0], "alt-used"),
+            [expected.as_bytes()]
         );
         assert_eq!(
             observed.alternative_requests[0].server_name.as_deref(),
@@ -187,7 +355,7 @@ async fn alternative_setup_failure_is_terminal_and_evicts_the_advertisement() ->
 }
 
 #[tokio::test]
-async fn misdirected_alternative_is_visible_and_evicts_its_state() -> TestResult<()> {
+async fn misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let fixture = Http3UpgradeFixture::spawn(
@@ -200,6 +368,10 @@ async fn misdirected_alternative_is_visible_and_evicts_its_state() -> TestResult
                 ],
                 AlternativeBehavior::responses([PlannedResponse::new(
                     StatusCode::MISDIRECTED_REQUEST,
+                )
+                .header(
+                    http::header::ALT_SVC,
+                    HeaderValue::from_static("h3=\":1\"; ma=86400"),
                 )]),
             ),
         )
@@ -232,6 +404,82 @@ async fn misdirected_alternative_is_visible_and_evicts_its_state() -> TestResult
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_requests.len(), 2);
         assert_eq!(observed.alternative_requests.len(), 1);
+        assert!(header_values(&observed.origin_requests[1], "alt-used").is_empty());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn critical_ch_replay_keeps_one_stable_alt_used_field() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [PlannedResponse::new(StatusCode::OK).advertise_alternative()],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK)
+                        .header("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"))
+                        .header("critical-ch", HeaderValue::from_static("Sec-CH-UA-Arch"))
+                        .header(
+                            http::header::ALT_SVC,
+                            HeaderValue::from_static("h3=\":1\"; ma=86400"),
+                        ),
+                    PlannedResponse::new(StatusCode::NO_CONTENT),
+                ]),
+            ),
+        )
+        .await?;
+        let expected = format!("127.0.0.1:{}", fixture.alternative_address().port());
+        let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(chromium::v152_macos_http2())
+            .with_http3(client_settings())
+            .with_client_hints(ClientHintSettings::new(vec![ClientHint::new(
+                "sec-ch-ua-arch",
+                "\"arm\"",
+                ClientHintDelivery::AcceptCh,
+            )]));
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .alt_svc(maximum_origins)
+            .build()?;
+
+        drain(
+            client
+                .get_negotiated(&fixture.origin_url("/learn"))?
+                .send()
+                .await?,
+        )
+        .await?;
+        let response = client
+            .get_negotiated(&fixture.origin_url("/critical"))?
+            .header(RequestHeader::new("x-stable", "caller"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        drain(response).await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.alternative_requests.len(), 2);
+        assert_eq!(
+            field_pairs(&observed.alternative_requests[0]),
+            [
+                ("x-stable", b"caller".as_slice()),
+                ("alt-used", expected.as_bytes()),
+            ]
+        );
+        assert_eq!(
+            field_pairs(&observed.alternative_requests[1]),
+            [
+                ("sec-ch-ua-arch", b"\"arm\"".as_slice()),
+                ("x-stable", b"caller".as_slice()),
+                ("alt-used", expected.as_bytes()),
+            ]
+        );
         Ok(())
     })
     .await
@@ -304,6 +552,50 @@ fn protocol<B>(response: &http::Response<B>) -> TestResult<HttpProtocol> {
 async fn drain(response: http::Response<phantom::ResponseBody>) -> TestResult<()> {
     response.into_body().collect().await?;
     Ok(())
+}
+
+fn header_values<'a>(request: &'a ObservedRequest, name: &str) -> Vec<&'a [u8]> {
+    request
+        .fields
+        .iter()
+        .filter(|field| field.name == name)
+        .map(|field| field.value.as_slice())
+        .collect()
+}
+
+fn field_pairs(request: &ObservedRequest) -> Vec<(&str, &[u8])> {
+    request
+        .fields
+        .iter()
+        .map(|field| (field.name.as_str(), field.value.as_slice()))
+        .collect()
+}
+
+struct PollCountingBody {
+    polls: Arc<AtomicUsize>,
+}
+
+impl PollCountingBody {
+    fn new(polls: Arc<AtomicUsize>) -> Self {
+        Self { polls }
+    }
+}
+
+impl Body for PollCountingBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        self.polls.fetch_add(1, Ordering::SeqCst);
+        Poll::Ready(None)
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
