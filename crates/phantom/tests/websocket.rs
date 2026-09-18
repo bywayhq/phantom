@@ -72,8 +72,16 @@ async fn plaintext_direct_preserves_order_and_upgraded_bytes() -> TestResult<()>
 
         let (request, pong) = server.await??;
         let authority = address.to_string();
-        assert!(request.starts_with(b"GET /events?transport=plain HTTP/1.1\r\n"));
-        assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
+        let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+        let expected = format!(
+            "GET /events?transport=plain HTTP/1.1\r\n\
+             Host: {authority}\r\n\
+             Upgrade: websocket\r\n\
+             Connection: Upgrade\r\n\
+             Sec-WebSocket-Key: {key}\r\n\
+             Sec-WebSocket-Version: 13\r\n\r\n"
+        );
+        assert_eq!(request, expected.as_bytes());
         assert_eq!(
             pong,
             ClientFrame {

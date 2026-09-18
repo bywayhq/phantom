@@ -21,7 +21,7 @@ async fn plaintext_proxy_route_is_rejected_before_network_io() -> TestResult<()>
         Err(error) => error,
     };
 
-    assert_eq!(error.kind(), WebSocketErrorKind::ProtocolUnavailable);
+    assert_eq!(error.kind(), WebSocketErrorKind::UnsupportedRoute);
     assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
     assert!(matches!(proxy.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
     Ok(())

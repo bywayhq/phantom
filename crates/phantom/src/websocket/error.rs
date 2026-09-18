@@ -21,6 +21,8 @@ pub enum WebSocketErrorKind {
     InvalidRequest,
     /// The client profile cannot negotiate HTTP/1.1.
     ProtocolUnavailable,
+    /// The selected route does not support this WebSocket transport.
+    UnsupportedRoute,
     /// The current Tokio runtime cannot perform network I/O.
     RuntimeUnavailable,
     /// Establishing the direct network connection failed.
@@ -110,9 +112,8 @@ impl WebSocketError {
             | RequestErrorKind::InvalidTimeout
             | RequestErrorKind::RequestBody
             | RequestErrorKind::Redirect => WebSocketErrorKind::InvalidRequest,
-            RequestErrorKind::ProtocolUnavailable | RequestErrorKind::UnsupportedRoute => {
-                WebSocketErrorKind::ProtocolUnavailable
-            }
+            RequestErrorKind::ProtocolUnavailable => WebSocketErrorKind::ProtocolUnavailable,
+            RequestErrorKind::UnsupportedRoute => WebSocketErrorKind::UnsupportedRoute,
             RequestErrorKind::Resolve | RequestErrorKind::Connect => WebSocketErrorKind::Connect,
             RequestErrorKind::Proxy => WebSocketErrorKind::Proxy,
             RequestErrorKind::RuntimeUnavailable => WebSocketErrorKind::RuntimeUnavailable,
