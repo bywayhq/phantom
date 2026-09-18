@@ -233,6 +233,8 @@ pub enum RequestErrorKind {
     Timeout,
     /// A caller-provided body failed or could not be replayed safely.
     RequestBody,
+    /// A response body exceeded the caller's configured collection limit.
+    ResponseBodyLimit,
     /// TLS setup or negotiation failed.
     Tls,
     /// HTTP/1 request or response processing failed.
@@ -337,6 +339,13 @@ impl RequestError {
         Self::without_source(
             RequestErrorKind::RequestBody,
             "one-shot request body cannot be replayed for another wire attempt",
+        )
+    }
+
+    pub(crate) fn response_body_limit() -> Self {
+        Self::without_source(
+            RequestErrorKind::ResponseBodyLimit,
+            "response body exceeded the configured byte limit",
         )
     }
 

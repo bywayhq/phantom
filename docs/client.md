@@ -269,6 +269,15 @@ the connection to remain eligible for reuse.
 `ResponseBody` implements `http_body::Body<Data = Bytes>`. Body errors use the
 same `RequestError` type as request establishment. Dropping an incomplete H1
 body may retire that connection; dropping an H2 or H3 body cancels its stream.
+`ResponseBody::collect_with_limit` consumes the stream with an inclusive byte
+cap and returns `RequestErrorKind::ResponseBodyLimit` before retaining a chunk
+that would exceed it. Trailers are consumed and discarded by this convenience
+operation.
+
+Response data is currently the encoded wire body. Phantom does not decode
+`Content-Encoding` and does not insert `Accept-Encoding`; callers that add an
+ordered encoding field must currently decode the response themselves. Opt-in
+streaming decoding is tracked as Phase 1 work.
 
 ## Handle stable error categories
 

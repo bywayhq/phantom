@@ -95,6 +95,52 @@ async fn direct_http1_preserves_origin_form_order_and_streaming_body() -> TestRe
 }
 
 #[tokio::test]
+async fn bounded_collection_accepts_exact_limit_and_rejects_excess() -> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().await?;
+                read_head(&mut stream).await?;
+                stream
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\ndirect",
+                    )
+                    .await?;
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let client = http1_client()?;
+        let exact = client
+            .get(HttpProtocol::Http1, &format!("http://{address}/exact"))?
+            .send()
+            .await?
+            .into_body()
+            .collect_with_limit(6)
+            .await?;
+        assert_eq!(exact, "direct");
+
+        let Err(error) = client
+            .get(HttpProtocol::Http1, &format!("http://{address}/excess"))?
+            .send()
+            .await?
+            .into_body()
+            .collect_with_limit(5)
+            .await
+        else {
+            return Err("body larger than the collection limit was accepted".into());
+        };
+        assert_eq!(error.kind(), RequestErrorKind::ResponseBodyLimit);
+
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn public_builder_sends_exact_ordered_dynamic_http1_request_trailers() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

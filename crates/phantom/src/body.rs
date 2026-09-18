@@ -1,5 +1,6 @@
 use std::{
     fmt,
+    future::poll_fn,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -8,7 +9,7 @@ use crate::{
     HttpProtocol, RequestError,
     timeout::{ResponseTimeouts, TimeoutBudget},
 };
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use http_body::{Body, Frame, SizeHint};
 use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
 
@@ -29,6 +30,34 @@ enum ResponseBodyInner {
 }
 
 impl ResponseBody {
+    /// Collects this response body while enforcing an inclusive byte limit.
+    ///
+    /// Trailers are consumed and discarded. If the data exceeds
+    /// `maximum_bytes`, the body is dropped immediately so the selected
+    /// protocol can cancel the incomplete stream.
+    pub async fn collect_with_limit(mut self, maximum_bytes: usize) -> Result<Bytes, RequestError> {
+        let mut collected = BytesMut::new();
+        let mut length = 0usize;
+
+        while let Some(frame) = poll_fn(|context| Pin::new(&mut self).poll_frame(context)).await {
+            let frame = frame?;
+            let Ok(data) = frame.into_data() else {
+                continue;
+            };
+            length = match checked_body_length(length, data.len(), maximum_bytes) {
+                Ok(length) => length,
+                Err(error) => {
+                    self.inner.take();
+                    self.timeouts.take();
+                    return Err(error);
+                }
+            };
+            collected.extend_from_slice(&data);
+        }
+
+        Ok(collected.freeze())
+    }
+
     pub(crate) fn http1(body: Http1Body) -> Self {
         Self {
             inner: Some(ResponseBodyInner::Http1(body)),
@@ -84,6 +113,17 @@ impl ResponseBody {
         }
         Ok(())
     }
+}
+
+fn checked_body_length(
+    current: usize,
+    additional: usize,
+    maximum: usize,
+) -> Result<usize, RequestError> {
+    current
+        .checked_add(additional)
+        .filter(|length| *length <= maximum)
+        .ok_or_else(RequestError::response_body_limit)
 }
 
 impl fmt::Debug for ResponseBody {
@@ -175,5 +215,30 @@ impl Body for ResponseBody {
             Some(ResponseBodyInner::Http3(body)) => body.size_hint(),
             None => SizeHint::with_exact(0),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::checked_body_length;
+    use crate::RequestErrorKind;
+
+    #[test]
+    fn collection_limit_is_inclusive() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(checked_body_length(3, 2, 5)?, 5);
+        Ok(())
+    }
+
+    #[test]
+    fn collection_limit_rejects_excess_and_arithmetic_overflow() {
+        let Err(excess) = checked_body_length(3, 3, 5) else {
+            panic!("excess length was accepted");
+        };
+        assert_eq!(excess.kind(), RequestErrorKind::ResponseBodyLimit);
+
+        let Err(overflow) = checked_body_length(usize::MAX, 1, usize::MAX) else {
+            panic!("overflowing length was accepted");
+        };
+        assert_eq!(overflow.kind(), RequestErrorKind::ResponseBodyLimit);
     }
 }

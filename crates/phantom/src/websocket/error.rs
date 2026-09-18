@@ -117,6 +117,7 @@ impl WebSocketError {
             | RequestErrorKind::InvalidHeader
             | RequestErrorKind::InvalidTimeout
             | RequestErrorKind::RequestBody
+            | RequestErrorKind::ResponseBodyLimit
             | RequestErrorKind::Redirect => WebSocketErrorKind::InvalidRequest,
             RequestErrorKind::ProtocolUnavailable => WebSocketErrorKind::ProtocolUnavailable,
             RequestErrorKind::UnsupportedRoute => WebSocketErrorKind::UnsupportedRoute,
