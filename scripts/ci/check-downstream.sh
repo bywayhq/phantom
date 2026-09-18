@@ -17,7 +17,7 @@ mkdir -p "$consumer_root/vendor/phantom" "$consumer_root/src"
 # documented vendored layout without pulling .git or any local target trees
 # into the temporary consumer root.
 git -C "$repository_root" ls-files --cached --others --exclude-standard -z |
-  tar --null --files-from=- --create --directory="$repository_root" |
+  tar --create --directory="$repository_root" --null --files-from=- |
   tar --extract --directory="$consumer_root/vendor/phantom"
 
 cat >"$consumer_root/Cargo.toml" <<'EOF'
