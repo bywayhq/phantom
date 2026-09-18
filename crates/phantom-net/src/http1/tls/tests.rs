@@ -437,11 +437,14 @@ async fn plaintext_direct_connect_failure_is_not_a_proxy_error() -> TestResult<(
     let (address, listener) = loopback_listener().await?;
     drop(listener);
 
-    let error = connector
+    let result = connector
         .connect_plaintext_direct("127.0.0.1", address.port())
         .with_subscriber(Dispatch::new(subscriber.clone()))
-        .await
-        .expect_err("closed loopback port unexpectedly accepted a connection");
+        .await;
+    let error = match result {
+        Err(error) => error,
+        Ok(_) => return Err("closed loopback port unexpectedly accepted a connection".into()),
+    };
     assert!(matches!(error, Http1TlsError::Connect(_)));
     assert_eq!(
         subscriber.outcomes_for("http1.direct.connect"),
