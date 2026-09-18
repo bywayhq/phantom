@@ -58,6 +58,16 @@ impl HttpsProxyConnector {
         }
     }
 
+    pub(crate) async fn connect_forward(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+    ) -> Result<TlsStream<tokio::net::TcpStream>, HttpConnectError> {
+        self.connect_proxy(proxy_host, proxy_port, proxy_server_name)
+            .await
+    }
+
     pub(crate) async fn connect_tunnel(
         &self,
         proxy_host: &str,

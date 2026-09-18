@@ -676,6 +676,36 @@ impl Http1TlsConnector {
         result
     }
 
+    /// Opens one HTTP/1.1 connection to a forward proxy over verified TLS.
+    ///
+    /// TLS terminates at the proxy. This method does not issue CONNECT, perform
+    /// origin TLS, connect directly to the origin, or fall back to another route.
+    pub async fn connect_https_forward_proxy(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        let span = debug_span!(
+            "http1.proxy.connect",
+            transport = "tls",
+            proxy_kind = "forward",
+            outcome = field::Empty,
+        );
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            let stream = proxy_connector
+                .connect_forward(proxy_host, proxy_port, proxy_server_name)
+                .await?;
+            Http1Connection::connect(stream).await.map_err(Into::into)
+        }
+        .instrument(span.clone())
+        .await;
+        outcome.finish(connection_outcome(&result));
+        result
+    }
+
     /// Opens one HTTP CONNECT tunnel and establishes HTTP/1.1 over TLS.
     ///
     /// # Errors
