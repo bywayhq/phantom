@@ -43,8 +43,9 @@ The facade grows through three ordinary levels:
   cookies, client-hint storage, and redirect policy.
 - `RequestBuilder` currently owns an exact protocol, an HTTP or HTTPS target,
   ordered fields, and an optional complete timeout-policy override. Plaintext
-  HTTP is accepted only for exact H1 forwarding through a plaintext HTTP
-  proxy. It may also own a route override; general retry policy remains absent.
+  HTTP is accepted for exact H1 over a direct route or through a plaintext HTTP
+  forward proxy. It may also own a route override; general retry policy remains
+  absent.
 - `ClientProfile` owns required TCP TLS, optional H2 settings, optional ordered
   client-hint data, and an optional atomic H3 bundle containing its own TLS,
   QUIC transport, H3 connection, and H3 request settings. Typed values can be
@@ -70,11 +71,12 @@ rejected before either proxy TCP or origin UDP is opened. The response body
 implements `http_body::Body` and retains the existing protocol cancellation
 behavior when dropped.
 
-For an HTTP origin and a plaintext `HttpProxy`, the H1 request instead uses an
-absolute-form target on the proxy connection. The same canonical URI authority
-produces the leading `Host` field. Forwarding is reusable only for the same
-origin and route. Direct HTTP, proxy TLS,
-forwarding credentials, redirects, H2/H3, and negotiated H1/H2 are rejected
+For an HTTP origin, exact H1 over `Route::Direct` uses an origin-form target on
+a direct plaintext TCP connection. A plaintext `HttpProxy` instead receives an
+absolute-form target. The same canonical URI authority produces the leading
+`Host` field in both cases. Reuse remains isolated by origin, route, and direct
+versus forwarding mode. Proxy TLS, forwarding credentials, plaintext
+redirects, H2/H3, negotiated H1/H2, and plaintext HTTP over SOCKS are rejected
 before I/O. Plaintext responses neither receive generated Client Hints nor
 seed the client's `Accept-CH` state.
 

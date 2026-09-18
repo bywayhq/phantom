@@ -392,17 +392,19 @@ SOCKS5, pool keys, cookies, redirects, and client-hint origin state. Direct H1
 and H3 plus H1/H2 CONNECT and SOCKS5H fixtures prove the emitted canonical
 authority; equivalent Unicode and ASCII inputs share session state and reuse.
 
-The plaintext HTTP forwarding slice is landed for exact HTTP/1.1 through a
-plaintext `HttpProxy`. The canonical absolute-form target and leading `Host`
-share one authority, while caller field spelling, order, duplicates, and owned
-body framing remain unchanged. The initial API kept bare clients one-shot and
+The plaintext HTTP slice is landed for exact HTTP/1.1 over a direct TCP route
+or through a plaintext `HttpProxy`. Direct requests use origin-form; forwarded
+requests use canonical absolute-form. Both share the same leading `Host`
+authority while preserving caller field spelling, order, duplicates, and body
+framing. Direct and forwarded connections retain separate pool identities.
+The initial forwarding API kept bare clients one-shot and
 put reuse on sessions; the pooled-owner migration below supersedes that split.
 Reuse remains limited to same-origin, same-route connections and retains the
-existing no-pipelining contract. Direct HTTP, proxy TLS, forwarding credentials and redirects,
-negotiated H1/H2, H2, H3, and caller `Proxy-Authorization` fail before proxy
-I/O. Plaintext responses neither receive generated Client Hints nor seed
-`Accept-CH` state. Low-level validation also rejects a `Connection` field that
-names `Host` or a framing field.
+existing no-pipelining contract. Proxy TLS, forwarding credentials, plaintext
+redirects, negotiated H1/H2, H2, H3, plaintext SOCKS routes, and caller
+`Proxy-Authorization` fail before I/O. Plaintext responses neither receive
+generated Client Hints nor seed `Accept-CH` state. Low-level validation also
+rejects a `Connection` field that names `Host` or a framing field.
 
 The pooled-owner API migration is landed after the original session slices.
 `Client` is now the cheap-clone pooled owner for H1, H2, H3, cookies, learned

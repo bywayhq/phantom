@@ -6,7 +6,7 @@ use crate::timeout::TimeoutBudget;
 use crate::{Client, HttpProtocol, RequestError, ResponseBody, Route};
 
 use super::{ProtocolSelection, RequestBodySource, ResolvedRequest};
-use crate::session::client_hints::ClientHintContext;
+use crate::session::{client_hints::ClientHintContext, http1_pool::Http1ConnectionMode};
 
 pub(super) struct AttemptRequest<'a> {
     pub(super) method: Method,
@@ -294,6 +294,11 @@ async fn dispatch(
                 endpoint.authority().as_str().as_bytes(),
             ));
             headers.extend(sent_headers.clone());
+            let mode = match (request.uri.scheme_str(), route) {
+                (Some("http"), Route::Direct) => Http1ConnectionMode::PlaintextOrigin,
+                (Some("http"), Route::HttpProxy(_)) => Http1ConnectionMode::PlaintextForward,
+                _ => Http1ConnectionMode::TlsOrigin,
+            };
             let response = client
                 .state
                 .http1
@@ -302,7 +307,7 @@ async fn dispatch(
                     client.inner.https_proxy.as_ref(),
                     endpoint,
                     route,
-                    request.uri.scheme_str() == Some("http"),
+                    mode,
                     method,
                     target,
                     request.absolute_target.clone(),

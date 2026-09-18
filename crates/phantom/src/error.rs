@@ -318,10 +318,10 @@ impl RequestError {
         Self::without_source(RequestErrorKind::Redirect, "redirect limit was exhausted")
     }
 
-    pub(crate) fn forward_redirect_policy() -> Self {
+    pub(crate) fn plaintext_redirect_policy() -> Self {
         Self::without_source(
             RequestErrorKind::Redirect,
-            "redirect following is not yet supported for plaintext forwarding",
+            "redirect following is not yet supported for plaintext HTTP requests",
         )
     }
 
@@ -335,7 +335,7 @@ impl RequestError {
     pub(crate) fn unsupported_scheme() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedScheme,
-            "request URI must use HTTPS unless HTTP/1.1 is sent through an HTTP forward proxy",
+            "request URI must use HTTPS unless exact HTTP/1.1 is selected for plaintext HTTP",
         )
     }
 
@@ -360,7 +360,7 @@ impl RequestError {
     pub(crate) fn forward_proxy_authorization_header() -> Self {
         Self::without_source(
             RequestErrorKind::InvalidHeader,
-            "Proxy-Authorization is not supported for plaintext forwarding",
+            "Proxy-Authorization is not supported for plaintext HTTP requests",
         )
     }
 

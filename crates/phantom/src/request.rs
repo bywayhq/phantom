@@ -253,8 +253,8 @@ impl RequestBuilder {
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
         ensure_request_supported(selection, route, &request)?;
-        let is_forwarded = request.uri.scheme_str() == Some("http");
-        if is_forwarded
+        let is_plaintext_http = request.uri.scheme_str() == Some("http");
+        if is_plaintext_http
             && request_headers
                 .iter()
                 .any(|header| header.name().eq_ignore_ascii_case("proxy-authorization"))
@@ -262,8 +262,8 @@ impl RequestBuilder {
             return Err(RequestError::forward_proxy_authorization_header());
         }
         let policy = client.state.redirect_policy;
-        if is_forwarded && policy.max_hops().is_some() {
-            return Err(RequestError::forward_redirect_policy());
+        if is_plaintext_http && policy.max_hops().is_some() {
+            return Err(RequestError::plaintext_redirect_policy());
         }
 
         if policy.max_hops().is_none() {
@@ -411,6 +411,7 @@ fn ensure_request_supported(
 ) -> Result<(), RequestError> {
     match request.uri.scheme_str() {
         Some("http") => match (selection, route) {
+            (ProtocolSelection::Exact(HttpProtocol::Http1), Route::Direct) => Ok(()),
             (ProtocolSelection::Exact(HttpProtocol::Http1), Route::HttpProxy(proxy))
                 if proxy.supports_plaintext_forwarding() =>
             {
@@ -421,6 +422,9 @@ fn ensure_request_supported(
             }
             (ProtocolSelection::Http1Or2, Route::HttpProxy(_)) => {
                 Err(RequestError::unsupported_negotiated_route())
+            }
+            (ProtocolSelection::Exact(HttpProtocol::Http1), _) => {
+                Err(RequestError::unsupported_route(HttpProtocol::Http1))
             }
             _ => Err(RequestError::unsupported_scheme()),
         },

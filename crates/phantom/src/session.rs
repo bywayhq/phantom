@@ -9,7 +9,7 @@ pub(crate) mod client_hints;
 #[cfg(feature = "cookies")]
 mod cookies;
 pub(crate) mod http1_or_2_pool;
-mod http1_pool;
+pub(crate) mod http1_pool;
 mod http2_pool;
 mod http3_pool;
 

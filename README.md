@@ -29,7 +29,8 @@ order, ordinary-field order, duplicates, and sensitivity survive request
 construction and QPACK encoding. The public `phantom::Client` now provides a
 small facade for exact H1, H2, or direct H3 requests, plus direct one-handshake
 H1/H2 ALPN selection for negotiated requests, additive private trust
-roots, typed direct, plaintext HTTP/1.1 forwarding, HTTP/HTTPS CONNECT, and
+roots, typed direct HTTPS and plaintext HTTP/1.1, HTTP/1.1 forwarding,
+HTTP/HTTPS CONNECT, and
 local- or remote-DNS SOCKS5 routes with optional credentials, and one unified
 streaming response body. Disabled-by-default phase-aware timeouts cover pool
 admission, connection setup, response head, response-body inactivity, and a
@@ -53,7 +54,9 @@ single-response decoder and a finite, pull-driven client-owned reconnect control
 without a background task. Feature-gated WebSocket support performs an exact ordered H1
 Upgrade over the same TLS and selected TCP route, then exposes bounded message
 I/O through Phantom-owned types, including typed opt-in `permessage-deflate`.
-Plaintext HTTP/1.1 forwarding is supported through the same HTTP-proxy route.
+Plaintext HTTP/1.1 is supported directly with an origin-form target and through
+the same HTTP-proxy route with an absolute-form target. Both retain bounded
+sequential reuse and the existing ordered request representation.
 Other HTTP-proxy authentication schemes, authenticated forwarding,
 UDP-capable proxies, general retry policy, other WebSocket extensions, and
 extended CONNECT remain planned.

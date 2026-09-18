@@ -20,7 +20,8 @@ use crate::{WebSocketError, WebSocketRequestBuilder};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum HttpProtocol {
-    /// HTTP/1.1 over TLS or plaintext forwarding to an HTTP proxy.
+    /// HTTP/1.1 over TLS, direct plaintext TCP, or plaintext forwarding to an
+    /// HTTP proxy.
     Http1,
     /// HTTP/2 over TLS.
     Http2,

@@ -18,6 +18,13 @@ use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Http1ConnectionMode {
+    TlsOrigin,
+    PlaintextOrigin,
+    PlaintextForward,
+}
+
 pub(crate) struct Http1Pool {
     capacity: NonZeroUsize,
     max_pending: NonZeroUsize,
@@ -48,7 +55,7 @@ impl Http1Pool {
         https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
-        forwarded: bool,
+        mode: Http1ConnectionMode,
         method: Method,
         target: OriginForm,
         absolute_target: AbsoluteForm,
@@ -56,7 +63,7 @@ impl Http1Pool {
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
-        if forwarded {
+        if mode == Http1ConnectionMode::PlaintextForward {
             validate_forward_request_body(
                 &method,
                 &absolute_target,
@@ -76,7 +83,7 @@ impl Http1Pool {
         if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         }
-        let key = PoolKey::new(endpoint, route, forwarded);
+        let key = PoolKey::new(endpoint, route, mode);
         let entry = self.entry(key).await;
         let permit = timeout_budget
             .run(
@@ -88,7 +95,7 @@ impl Http1Pool {
         let lease = timeout_budget
             .run(TimeoutPhase::Connect, Some(HttpProtocol::Http1), async {
                 entry
-                    .acquire(connector, https_proxy, endpoint, route, forwarded)
+                    .acquire(connector, https_proxy, endpoint, route, mode)
                     .await
             })
             .await?;
@@ -97,7 +104,7 @@ impl Http1Pool {
                 TimeoutPhase::ResponseHead,
                 Some(HttpProtocol::Http1),
                 async {
-                    Ok(if forwarded {
+                    Ok(if mode == Http1ConnectionMode::PlaintextForward {
                         lease
                             .connection
                             .send_forward_request_body(method, absolute_target, headers, body)
@@ -171,16 +178,16 @@ struct PoolKey {
     host: Box<str>,
     port: u16,
     route: Route,
-    forwarded: bool,
+    mode: Http1ConnectionMode,
 }
 
 impl PoolKey {
-    fn new(endpoint: &Endpoint, route: &Route, forwarded: bool) -> Self {
+    fn new(endpoint: &Endpoint, route: &Route, mode: Http1ConnectionMode) -> Self {
         Self {
             host: endpoint.host().to_ascii_lowercase().into(),
             port: endpoint.port(),
             route: route.clone(),
-            forwarded,
+            mode,
         }
     }
 }
@@ -212,7 +219,7 @@ impl PoolEntry {
         https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
-        forwarded: bool,
+        mode: Http1ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
         if let Some(slot) = current.as_ref() {
@@ -226,110 +233,123 @@ impl PoolEntry {
         }
 
         debug!(outcome = "connect", "HTTP/1 client pool opening connection");
-        let connection = if forwarded {
-            let Route::HttpProxy(proxy) = route else {
-                return Err(RequestError::unsupported_route(HttpProtocol::Http1));
-            };
-            connector
-                .connect_forward_proxy(proxy.host(), proxy.port())
-                .await
-                .map_err(RequestError::http1)?
-        } else {
-            let connector = self
-                .connector
-                .get_or_init(|| connector.with_isolated_session_cache());
-            match route {
-                Route::Direct => connector
-                    .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+        let connection = match mode {
+            Http1ConnectionMode::PlaintextForward => {
+                let Route::HttpProxy(proxy) = route else {
+                    return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+                };
+                connector
+                    .connect_forward_proxy(proxy.host(), proxy.port())
                     .await
-                    .map_err(RequestError::http1)?,
-                Route::HttpProxy(proxy) => {
-                    let connect_authority = endpoint.tunnel_authority();
-                    if proxy.uses_tls() {
-                        let base = https_proxy
-                            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
-                        let proxy_connector = self
-                            .https_proxy
-                            .get_or_init(|| base.with_isolated_session_cache());
-                        if let Some(credentials) = proxy.basic_credentials() {
-                            // Bound the challenge/retry state machine without
-                            // adding allocation to unauthenticated connections.
-                            Box::pin(connector.connect_https_connect_with_basic_auth(
-                                proxy_connector,
-                                proxy.host(),
-                                proxy.port(),
-                                proxy.host(),
-                                &connect_authority,
-                                proxy.ordered_connect_headers(),
-                                credentials,
-                                endpoint.host(),
-                            ))
-                            .await
-                            .map_err(RequestError::http1)?
-                        } else {
-                            connector
-                                .connect_https_connect(
+                    .map_err(RequestError::http1)?
+            }
+            Http1ConnectionMode::PlaintextOrigin => {
+                if !matches!(route, Route::Direct) {
+                    return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+                }
+                connector
+                    .connect_plaintext_direct(endpoint.host(), endpoint.port())
+                    .await
+                    .map_err(RequestError::http1)?
+            }
+            Http1ConnectionMode::TlsOrigin => {
+                let connector = self
+                    .connector
+                    .get_or_init(|| connector.with_isolated_session_cache());
+                match route {
+                    Route::Direct => connector
+                        .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                        .await
+                        .map_err(RequestError::http1)?,
+                    Route::HttpProxy(proxy) => {
+                        let connect_authority = endpoint.tunnel_authority();
+                        if proxy.uses_tls() {
+                            let base = https_proxy.ok_or_else(|| {
+                                RequestError::unsupported_route(HttpProtocol::Http1)
+                            })?;
+                            let proxy_connector = self
+                                .https_proxy
+                                .get_or_init(|| base.with_isolated_session_cache());
+                            if let Some(credentials) = proxy.basic_credentials() {
+                                // Bound the challenge/retry state machine without
+                                // adding allocation to unauthenticated connections.
+                                Box::pin(connector.connect_https_connect_with_basic_auth(
                                     proxy_connector,
                                     proxy.host(),
                                     proxy.port(),
                                     proxy.host(),
                                     &connect_authority,
                                     proxy.ordered_connect_headers(),
+                                    credentials,
                                     endpoint.host(),
-                                )
+                                ))
                                 .await
                                 .map_err(RequestError::http1)?
-                        }
-                    } else {
-                        if let Some(credentials) = proxy.basic_credentials() {
-                            Box::pin(connector.connect_http_connect_with_basic_auth(
-                                proxy.host(),
-                                proxy.port(),
-                                &connect_authority,
-                                proxy.ordered_connect_headers(),
-                                credentials,
-                                endpoint.host(),
-                            ))
-                            .await
-                            .map_err(RequestError::http1)?
+                            } else {
+                                connector
+                                    .connect_https_connect(
+                                        proxy_connector,
+                                        proxy.host(),
+                                        proxy.port(),
+                                        proxy.host(),
+                                        &connect_authority,
+                                        proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                    )
+                                    .await
+                                    .map_err(RequestError::http1)?
+                            }
                         } else {
-                            connector
-                                .connect_http_connect(
+                            if let Some(credentials) = proxy.basic_credentials() {
+                                Box::pin(connector.connect_http_connect_with_basic_auth(
                                     proxy.host(),
                                     proxy.port(),
                                     &connect_authority,
                                     proxy.ordered_connect_headers(),
+                                    credentials,
                                     endpoint.host(),
-                                )
+                                ))
                                 .await
                                 .map_err(RequestError::http1)?
+                            } else {
+                                connector
+                                    .connect_http_connect(
+                                        proxy.host(),
+                                        proxy.port(),
+                                        &connect_authority,
+                                        proxy.ordered_connect_headers(),
+                                        endpoint.host(),
+                                    )
+                                    .await
+                                    .map_err(RequestError::http1)?
+                            }
                         }
                     }
+                    Route::Socks5(proxy) => match proxy.dns_mode() {
+                        crate::Socks5DnsMode::Local => connector
+                            .connect_socks5_local_with_auth(
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.auth(),
+                                endpoint.host(),
+                                endpoint.port(),
+                                endpoint.host(),
+                            )
+                            .await
+                            .map_err(RequestError::http1)?,
+                        crate::Socks5DnsMode::Remote => connector
+                            .connect_socks5_remote_with_auth(
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.auth(),
+                                endpoint.host(),
+                                endpoint.port(),
+                                endpoint.host(),
+                            )
+                            .await
+                            .map_err(RequestError::http1)?,
+                    },
                 }
-                Route::Socks5(proxy) => match proxy.dns_mode() {
-                    crate::Socks5DnsMode::Local => connector
-                        .connect_socks5_local_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            endpoint.host(),
-                            endpoint.port(),
-                            endpoint.host(),
-                        )
-                        .await
-                        .map_err(RequestError::http1)?,
-                    crate::Socks5DnsMode::Remote => connector
-                        .connect_socks5_remote_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            endpoint.host(),
-                            endpoint.port(),
-                            endpoint.host(),
-                        )
-                        .await
-                        .map_err(RequestError::http1)?,
-                },
             }
         };
         let slot = ConnectionSlot {
@@ -379,7 +399,7 @@ struct ConnectionLease {
 mod tests {
     use std::{num::NonZeroUsize, sync::Arc};
 
-    use super::{Http1Pool, PoolKey};
+    use super::{Http1ConnectionMode, Http1Pool, PoolKey};
     use crate::{Route, authority::Endpoint};
 
     #[tokio::test]
@@ -391,14 +411,26 @@ mod tests {
         let second = Endpoint::new("second.test:443".parse()?, 443)?;
 
         let first_entry = pool
-            .entry(PoolKey::new(&first, &Route::Direct, false))
+            .entry(PoolKey::new(
+                &first,
+                &Route::Direct,
+                Http1ConnectionMode::TlsOrigin,
+            ))
             .await;
         let permit = first_entry.admit().await?;
-        pool.entry(PoolKey::new(&second, &Route::Direct, false))
-            .await;
+        pool.entry(PoolKey::new(
+            &second,
+            &Route::Direct,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await;
         drop(first_entry);
         let replacement = pool
-            .entry(PoolKey::new(&first, &Route::Direct, false))
+            .entry(PoolKey::new(
+                &first,
+                &Route::Direct,
+                Http1ConnectionMode::TlsOrigin,
+            ))
             .await;
 
         assert!(Arc::ptr_eq(permit.admission(), &replacement.admission));

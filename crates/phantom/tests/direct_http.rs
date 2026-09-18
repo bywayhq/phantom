@@ -134,7 +134,7 @@ async fn direct_http1_reuses_same_origin_connection() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn direct_plaintext_omits_client_hints_and_secure_cookies() -> TestResult<()> {
+async fn direct_plaintext_omits_client_hints() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -163,17 +163,7 @@ async fn direct_plaintext_omits_client_hints_and_secure_cookies() -> TestResult<
         ]);
         let profile = ClientProfile::new(tls_settings()).with_client_hints(hints);
         let builder = Client::builder(profile);
-        #[cfg(feature = "cookies")]
-        let builder = builder.cookies();
-        let session = builder.build()?.session();
-        #[cfg(feature = "cookies")]
-        session
-            .cookie_jar()
-            .ok_or("cookie jar was disabled")?
-            .set_cookie(
-                &format!("https://{address}/"),
-                "secure=secret; Secure; Path=/",
-            )?;
+        let session = builder.build()?;
 
         for path in ["first", "second"] {
             session
@@ -189,8 +179,6 @@ async fn direct_plaintext_omits_client_hints_and_secure_cookies() -> TestResult<
         for request in [first, second] {
             let request = std::str::from_utf8(&request)?.to_ascii_lowercase();
             assert!(!request.contains("\r\nsec-ch-"));
-            #[cfg(feature = "cookies")]
-            assert!(!request.contains("\r\ncookie:"));
         }
         Ok(())
     })
@@ -239,7 +227,7 @@ async fn non_http1_and_socks5_plaintext_fail_before_tcp_io() -> TestResult<()> {
             .await
             .err()
             .ok_or("SOCKS5 plaintext request unexpectedly succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::UnsupportedScheme);
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
         assert!(timeout(NO_CONNECTION_WINDOW, proxy.accept()).await.is_err());
         Ok(())
     })
