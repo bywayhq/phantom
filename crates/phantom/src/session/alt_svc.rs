@@ -249,19 +249,10 @@ impl AltSvcStore {
 /// Endpoint hosts are already canonical, so this matches
 /// `url::Url::origin().ascii_serialization()` for the same origin.
 fn canonical_origin(endpoint: &Endpoint) -> String {
-    let host = endpoint.host().to_ascii_lowercase();
-    let mut origin = if host.contains(':') {
-        format!("https://[{host}]")
-    } else {
-        format!("https://{host}")
-    };
-    if endpoint.port() != 443 {
-        origin.push_str(&format!(":{}", endpoint.port()));
-    }
-    origin
+    OriginKey::new(endpoint).serialize()
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct OriginKey {
     host: Box<str>,
     port: u16,
@@ -273,6 +264,20 @@ impl OriginKey {
             host: endpoint.host().to_ascii_lowercase().into(),
             port: endpoint.port(),
         }
+    }
+
+    /// Returns the WHATWG ASCII serialization of this HTTPS origin.
+    fn serialize(&self) -> String {
+        let host = &*self.host;
+        let mut origin = if host.contains(':') {
+            format!("https://[{host}]")
+        } else {
+            format!("https://{host}")
+        };
+        if self.port != 443 {
+            origin.push_str(&format!(":{}", self.port));
+        }
+        origin
     }
 }
 
@@ -644,6 +649,11 @@ pub(crate) fn invalidates_alternative(error: &RequestError) -> bool {
         _ => false,
     }
 }
+
+mod snapshot;
+pub use snapshot::{
+    AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+};
 
 #[cfg(test)]
 mod tests;

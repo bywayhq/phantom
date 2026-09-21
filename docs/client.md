@@ -244,8 +244,9 @@ clients do not.
 - Cookies require the `cookies` feature and explicit builder activation.
 - Learned `Accept-CH` state is bounded and scoped to the exact secure origin.
 - Alt-Svc is disabled by default. `ClientBuilder::alt_svc` enables a bounded,
-  in-memory exact-origin store for negotiated HTTPS requests, and
-  `Client::clear_alt_svc` clears it.
+  in-memory exact-origin store for negotiated HTTPS requests,
+  `Client::clear_alt_svc` clears it, and `Client::export_alt_svc` and
+  `Client::import_alt_svc` move it through caller-owned storage.
 
 An authenticated negotiated H1/H2 response can advertise `h3`. Phantom
 applies `Age` to `ma`, replaces the origin's previous alternatives, and uses
@@ -267,6 +268,21 @@ is exactly the request's canonical ASCII origin, such as
 stream applies to the request origin. Malformed frames, frames for another
 origin, frames on exact H2 requests, and frames received while Alt-Svc is
 disabled change nothing. Each connection keeps at most 16 undelivered frames.
+
+Alt-Svc state stays in memory unless the caller persists it.
+`Client::export_alt_svc` returns an `AltSvcSnapshot`, or `None` when Alt-Svc is
+disabled. Each entry holds only the canonical origin, the alternative host and
+port, and an absolute `SystemTime` expiry rounded down to a whole second, least
+recently used first. Phantom provides no serialization format. Rebuild entries
+with `AltSvcSnapshotEntry::new` and pass them to `Client::import_alt_svc`,
+which revalidates every entry and rejects the whole snapshot with a typed
+`AltSvcSnapshotError` if one origin or alternative is not canonical. Import
+drops expired entries, clamps lifetimes without extending them, gives
+already-held alternatives precedence, and keeps the most recently used entries
+within the store capacity. The store is keyed by origin for direct routes, so
+a snapshot describes direct-route alternatives only. It never contains TLS
+tickets, connections, routes, cookies, or credentials, and its `Debug` output
+omits hosts.
 
 Alternative setup failure is a typed H3 failure for that request and evicts
 the advertisement; it never silently falls back. A visible `421` response also

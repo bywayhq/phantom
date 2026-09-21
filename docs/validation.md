@@ -184,8 +184,19 @@ upgrade the next negotiated request, while frames for another origin, frames
 on exact H2 requests, and frames with Alt-Svc disabled do not. A frame followed
 by a `clear` field on the same response proves arrival-order application.
 
+Persistence tests use only the public client API. A learned `ma=3600`
+alternative exports its canonical origin, location, and remaining lifetime;
+importing that export into a fresh client upgrades its first negotiated
+request without contacting the origin, while an independent client without an
+import learns nothing. Constructed snapshots prove expired-entry removal,
+non-increasing expiry across repeated export/import round trips, far-future
+clamping, capacity retention of the newest entries with held entries winning,
+all-or-nothing typed rejection of noncanonical origins and alternatives, the
+disabled-store error, and host-free `Debug` output.
+
 This evidence does not claim browser policy or `Alt-Used` ordering, connection
-racing, persistence, proxy-route upgrades, or multiple-alternative racing.
+racing, proxy-route upgrades, proxy-route snapshots, or multiple-alternative
+racing.
 
 ## Connection-retry evidence
 

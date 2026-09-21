@@ -172,7 +172,8 @@ CONNECT routes for H3, CONNECT-UDP/MASQUE, and extension-specific datagram
 APIs remain planned. Negotiated direct HTTPS
 requests can opt into a bounded Alt-Svc store, learned from response fields
 and exact-origin H2 ALTSVC frames, and use a fresh canonical `h3` alternative
-on a later request. The QUIC dial location changes, while origin
+on a later request. Callers may export and re-import that direct-route state;
+Phantom never persists it or QUIC tickets itself. The QUIC dial location changes, while origin
 authority and certificate identity do not; setup failure is terminal and
 evicts the advertisement without an H1/H2 fallback.
 

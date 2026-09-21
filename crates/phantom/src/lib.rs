@@ -29,6 +29,9 @@ pub use route::{
     HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route, Socks5DnsMode, Socks5Proxy,
     Socks5ProxyConfigError, Socks5ProxyConfigErrorKind,
 };
+pub use session::{
+    AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+};
 #[cfg(feature = "cookies")]
 pub use session::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
 #[doc(hidden)]

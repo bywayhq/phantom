@@ -16,6 +16,9 @@ pub(crate) mod http1_pool;
 mod http2_pool;
 pub(crate) mod http3_pool;
 
+pub use alt_svc::{
+    AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+};
 #[cfg(feature = "cookies")]
 pub use cookies::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
 
@@ -297,6 +300,47 @@ impl Client {
         if let Some(alt_svc) = &self.state.alt_svc {
             alt_svc.clear();
         }
+    }
+
+    /// Exports this client's unexpired Alt-Svc alternatives for caller-owned
+    /// persistence, least recently used first.
+    ///
+    /// Returns `None` when the client was built without
+    /// [`ClientBuilder::alt_svc`](crate::ClientBuilder::alt_svc). Expiry is
+    /// the remaining lifetime as wall-clock time, rounded down to a second.
+    /// Snapshots describe direct-route alternatives only.
+    #[must_use]
+    pub fn export_alt_svc(&self) -> Option<AltSvcSnapshot> {
+        self.state
+            .alt_svc
+            .as_ref()
+            .map(alt_svc::AltSvcStore::export)
+    }
+
+    /// Imports alternatives from a previously exported or caller-built snapshot.
+    ///
+    /// Every entry is revalidated first; one invalid entry rejects the whole
+    /// snapshot without changing state. Expired entries are dropped, a later
+    /// entry for the same origin wins, and lifetimes are clamped and never
+    /// extended. Alternatives this client already holds take precedence and
+    /// imported entries rank as least recently used, so capacity keeps held
+    /// entries and then the most recently used snapshot entries. Every
+    /// imported entry receives a fresh generation, like a learned one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AltSvcSnapshotError`] with
+    /// [`AltSvcSnapshotErrorKind::Disabled`] when Alt-Svc is not enabled,
+    /// [`AltSvcSnapshotErrorKind::NoncanonicalOrigin`] for an origin that is
+    /// not a canonical HTTPS origin serialization, or
+    /// [`AltSvcSnapshotErrorKind::InvalidAlternative`] for a noncanonical
+    /// host or zero port.
+    pub fn import_alt_svc(&self, snapshot: &AltSvcSnapshot) -> Result<(), AltSvcSnapshotError> {
+        self.state
+            .alt_svc
+            .as_ref()
+            .ok_or_else(AltSvcSnapshotError::disabled)?
+            .import(snapshot)
     }
 }
 
