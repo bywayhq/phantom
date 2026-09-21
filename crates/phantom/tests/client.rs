@@ -670,6 +670,58 @@ async fn public_client_streams_unknown_length_http2_request_body() -> TestResult
 }
 
 #[tokio::test]
+async fn upload_failure_after_early_http2_response_has_request_body_category() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (fail_upload, upload_failure) = oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(listener, acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            if let Some(Ok((request, mut respond))) = connection.accept().await {
+                // The response head arrives before the upload finishes, so the
+                // client keeps uploading beside the response body.
+                let _response =
+                    respond.send_response(Response::builder().status(200).body(())?, false)?;
+                let mut incoming = request.into_body();
+                while let Ok(Some(chunk)) =
+                    next_h2_request_data(&mut connection, &mut incoming).await
+                {
+                    incoming.flow_control().release_capacity(chunk.len())?;
+                }
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .request(
+                HttpProtocol::Http2,
+                Method::POST,
+                &format!("https://{address}/late-upload-failure"),
+            )?
+            .streaming_body(GatedErrorBody::new(upload_failure))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        // Fail the upload only after the client has returned the response head.
+        let _ = fail_upload.send(());
+        let error = match response.into_body().collect().await {
+            Ok(_) => return Err("late request body failure was not reported".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+        drop(client);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn public_http2_body_source_error_has_request_body_category() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
@@ -1131,6 +1183,47 @@ impl Body for UnknownBody {
         _context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         Poll::Ready(self.chunks.pop_front().map(Frame::data).map(Ok))
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
+}
+
+/// Yields one chunk, then fails once the test signals that the response head
+/// was returned.
+struct GatedErrorBody {
+    sent_prefix: bool,
+    failure: oneshot::Receiver<()>,
+}
+
+impl GatedErrorBody {
+    fn new(failure: oneshot::Receiver<()>) -> Self {
+        Self {
+            sent_prefix: false,
+            failure,
+        }
+    }
+}
+
+impl Body for GatedErrorBody {
+    type Data = Bytes;
+    type Error = io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        if !self.sent_prefix {
+            self.sent_prefix = true;
+            return Poll::Ready(Some(Ok(Frame::data(Bytes::from_static(b"prefix")))));
+        }
+        match Pin::new(&mut self.failure).poll(context) {
+            Poll::Ready(_) => Poll::Ready(Some(Err(io::Error::other(
+                "synthetic late request body failure",
+            )))),
+            Poll::Pending => Poll::Pending,
+        }
     }
 
     fn size_hint(&self) -> SizeHint {

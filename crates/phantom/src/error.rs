@@ -761,7 +761,7 @@ impl RequestError {
 
     pub(crate) fn http1_body(source: Http1Error) -> Self {
         Self::with_source(
-            RequestErrorKind::Http1,
+            body_error_kind(RequestErrorKind::Http1, &source),
             Some(HttpProtocol::Http1),
             "HTTP/1 response body failed",
             source,
@@ -770,7 +770,7 @@ impl RequestError {
 
     pub(crate) fn http2_body(source: Http2Error) -> Self {
         Self::with_source(
-            RequestErrorKind::Http2,
+            body_error_kind(RequestErrorKind::Http2, &source),
             Some(HttpProtocol::Http2),
             "HTTP/2 response body failed",
             source,
@@ -779,7 +779,7 @@ impl RequestError {
 
     pub(crate) fn http3_body(source: Http3Error) -> Self {
         Self::with_source(
-            RequestErrorKind::Http3,
+            body_error_kind(RequestErrorKind::Http3, &source),
             Some(HttpProtocol::Http3),
             "HTTP/3 response body failed",
             source,
@@ -924,6 +924,19 @@ fn is_retryable_connect_udp_kind(kind: ConnectUdpErrorKind) -> bool {
         kind,
         ConnectUdpErrorKind::Resolve | ConnectUdpErrorKind::Connect
     )
+}
+
+/// A request-body failure can surface through the response body when the
+/// upload continues after an early response head.
+fn body_error_kind(
+    protocol_kind: RequestErrorKind,
+    source: &(dyn StdError + 'static),
+) -> RequestErrorKind {
+    if error_chain_contains_request_body(source) {
+        RequestErrorKind::RequestBody
+    } else {
+        protocol_kind
+    }
 }
 
 fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {

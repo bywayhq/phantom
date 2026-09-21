@@ -394,6 +394,7 @@ impl ResponseTimeouts {
 }
 
 /// Waits until `deadline`, or fails when the current runtime cannot time it.
+#[cfg(feature = "sse")]
 pub(crate) async fn sleep_until(deadline: Instant) -> Result<(), RequestError> {
     let mut timer = DeadlineTimer::new(deadline)?;
     poll_fn(|context| timer.poll_expired(context)).await
