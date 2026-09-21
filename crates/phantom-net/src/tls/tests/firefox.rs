@@ -1,6 +1,6 @@
 //! Firefox-specific TLS differential tests.
 
-use phantom_profile::firefox::v154_macos_tls;
+use phantom_profile::firefox::v154_tls;
 use phantom_testkit::tls::ClientHelloSummary;
 
 use super::{capture_client_hello_from_server_name, client_hello_fixture};
@@ -47,8 +47,7 @@ async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestRes
     }
     assert_eq!(captured, [AES_128_GCM, CHACHA20_POLY1305]);
 
-    let actual =
-        capture_client_hello_from_server_name(&v154_macos_tls(), FIREFOX_SERVER_NAME).await?;
+    let actual = capture_client_hello_from_server_name(&v154_tls(), FIREFOX_SERVER_NAME).await?;
     assert_eq!(
         client_hello_fixture::ech_cipher_suite(actual.handshake_bytes())?,
         AES_128_GCM
@@ -59,7 +58,7 @@ async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestRes
 async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
     let expected_capture = client_hello_fixture::capture(fixture).await?;
     let actual_capture =
-        capture_client_hello_from_server_name(&v154_macos_tls(), FIREFOX_SERVER_NAME).await?;
+        capture_client_hello_from_server_name(&v154_tls(), FIREFOX_SERVER_NAME).await?;
 
     assert_eq!(actual_capture.records().len(), 1);
     assert_eq!(

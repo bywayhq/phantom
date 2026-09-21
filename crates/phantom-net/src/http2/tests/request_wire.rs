@@ -3,7 +3,7 @@ use std::future::poll_fn;
 use http::Response;
 use http_body_util::BodyExt;
 use phantom_profile::{
-    Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, chromium::v152_macos_http2,
+    Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, chromium::v152_http2,
 };
 use phantom_testkit::http2::{
     CLIENT_CONNECTION_PREFACE, CaptureCompletion, CaptureLimits, capture_client_frames,
@@ -48,15 +48,9 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult<()>
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let result = send_get(
-            client,
-            &v152_macos_http2(),
-            "example.test",
-            target()?,
-            Vec::new(),
-        )
-        .with_subscriber(subscriber.dispatch())
-        .await;
+        let result = send_get(client, &v152_http2(), "example.test", target()?, Vec::new())
+            .with_subscriber(subscriber.dispatch())
+            .await;
         assert!(matches!(result, Err(Http2Error::Protocol(_))));
         assert_eq!(
             subscriber.outcomes_for("http2.response_head"),
@@ -85,14 +79,7 @@ async fn peer_reset_preserves_stream_error_classification() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let result = send_get(
-            client,
-            &v152_macos_http2(),
-            "example.test",
-            target()?,
-            Vec::new(),
-        )
-        .await;
+        let result = send_get(client, &v152_http2(), "example.test", target()?, Vec::new()).await;
         let error = match result {
             Ok(_) => return Err("peer RST_STREAM was accepted as a response".into()),
             Err(error) => error,
@@ -140,14 +127,7 @@ async fn peer_goaway_preserves_connection_error_classification() -> TestResult<(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let result = send_get(
-            client,
-            &v152_macos_http2(),
-            "example.test",
-            target()?,
-            Vec::new(),
-        )
-        .await;
+        let result = send_get(client, &v152_http2(), "example.test", target()?, Vec::new()).await;
         let error = match result {
             Ok(_) => return Err("peer GOAWAY was accepted as a response".into()),
             Err(error) => error,
@@ -250,7 +230,7 @@ async fn emits_every_supported_setting_in_declared_order() -> TestResult<()> {
 #[tokio::test]
 async fn emits_chrome_preface_settings_and_connection_window() -> TestResult<()> {
     bounded_peer_test(async {
-        let settings = v152_macos_http2();
+        let settings = v152_http2();
         let request_target = target()?;
         let (client, mut server) = duplex(64 * 1024);
         let transaction = tokio::spawn(async move {
@@ -297,7 +277,7 @@ async fn emits_chrome_preface_settings_and_connection_window() -> TestResult<()>
 #[tokio::test]
 async fn headers_carry_chrome_priority_and_pseudo_order() -> TestResult<()> {
     bounded_peer_test(async {
-        let settings = v152_macos_http2();
+        let settings = v152_http2();
         let request_target = OriginForm::parse("/")?;
         let (client, mut server) = duplex(64 * 1024);
         let transaction = tokio::spawn(async move {
@@ -346,7 +326,7 @@ async fn headers_carry_chrome_priority_and_pseudo_order() -> TestResult<()> {
 #[tokio::test]
 async fn content_length_zero_is_emitted_in_declared_wire_order() -> TestResult<()> {
     bounded_peer_test(async {
-        let settings = v152_macos_http2();
+        let settings = v152_http2();
         let request_target = OriginForm::parse("/")?;
         let (client, mut server) = duplex(64 * 1024);
         let transaction = tokio::spawn(async move {
@@ -405,7 +385,7 @@ async fn accepts_bracketed_ipv6_authority_with_port() -> TestResult<()> {
         let server = tokio::spawn(uri_observing_server(server));
         let response = send_get(
             client,
-            &v152_macos_http2(),
+            &v152_http2(),
             "[2001:db8::1]:8443",
             OriginForm::parse("/ipv6")?,
             vec![],

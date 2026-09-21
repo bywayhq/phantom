@@ -1186,10 +1186,10 @@ mod socks5_tests {
 
     fn connector() -> Result<Http3Connector, Http3ConnectorError> {
         Http3Connector::new(
-            &chromium::v152_macos_http3_tls(),
-            &chromium::v152_macos_quic(),
-            &chromium::v152_macos_http3(),
-            &chromium::v152_macos_http3_request(),
+            &chromium::v152_http3_tls(),
+            &chromium::v152_quic(),
+            &chromium::v152_http3(),
+            &chromium::v152_http3_request(),
         )
     }
 }

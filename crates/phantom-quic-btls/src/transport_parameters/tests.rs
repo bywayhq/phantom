@@ -15,7 +15,7 @@ const CAPTURED_PARAMETERS: &str = "070480600000050480600000110c00000001000000013
 fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v152_macos_quic())?;
+    let profile = TransportParameterProfile::new(chromium::v152_quic())?;
     let mut entropy = fixture_entropy();
 
     let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy)?;
@@ -28,7 +28,7 @@ fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn 
 fn entropy_changes_order_without_changing_profile_semantics() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let settings = chromium::v152_macos_quic();
+    let settings = chromium::v152_quic();
     let profile = TransportParameterProfile::new(settings.clone())?;
     let expected_shape = parameter_shape(&captured)?;
     let captured = ParsedTransportParameters::from_encoded(&captured)?;
@@ -56,7 +56,7 @@ fn live_semantic_mismatch_fails_closed() -> Result<(), Box<dyn Error>> {
         .ok_or("missing max-data fixture value")?;
     captured[max_data + 3] = 1;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v152_macos_quic())?;
+    let profile = TransportParameterProfile::new(chromium::v152_quic())?;
     let mut entropy = fixture_entropy();
 
     let error = match profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy) {
@@ -73,7 +73,7 @@ fn unprofiled_live_parameter_fails_closed() -> Result<(), Box<dyn Error>> {
     let mut captured = decode_hex(CAPTURED_PARAMETERS)?;
     captured.extend_from_slice(&[0x0c, 0x00]);
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v152_macos_quic())?;
+    let profile = TransportParameterProfile::new(chromium::v152_quic())?;
     let mut entropy = fixture_entropy();
 
     let error = match profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy) {
@@ -96,7 +96,7 @@ fn strict_parser_rejects_truncation_and_duplicates() {
 
 #[test]
 fn constructor_rejects_quinn_incompatible_stream_windows() {
-    let mut settings = chromium::v152_macos_quic();
+    let mut settings = chromium::v152_quic();
     settings.initial_max_stream_data_bidi_remote -= 1;
 
     let error = match TransportParameterProfile::new(settings) {
@@ -109,7 +109,7 @@ fn constructor_rejects_quinn_incompatible_stream_windows() {
 
 #[test]
 fn constructor_preserves_backend_neutral_validation_field() {
-    let mut settings = chromium::v152_macos_quic();
+    let mut settings = chromium::v152_quic();
     settings.max_udp_payload_size = 1_199;
 
     let error = match TransportParameterProfile::new(settings) {

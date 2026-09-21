@@ -217,7 +217,7 @@ async fn negotiated(
 
 fn client(identity: &TestIdentity, alt_svc: bool) -> TestResult<Client> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v152_macos_http2())
+        .with_http2(chromium::v152_http2())
         .with_http3(client_settings());
     let builder = Client::builder(profile).add_root_certificate_der(identity.root_der.clone());
     let builder = if alt_svc {

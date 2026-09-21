@@ -4,7 +4,7 @@ use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput};
 use http_body_util::BodyExt;
 use phantom_net::http2::{OriginForm, RequestHeader, send_get};
-use phantom_profile::{Http2Settings, chromium::v152_macos_http2};
+use phantom_profile::{Http2Settings, chromium::v152_http2};
 use tokio::runtime::Builder;
 use tracing::{Dispatch, instrument::WithSubscriber};
 
@@ -28,7 +28,7 @@ pub(super) fn register(criterion: &mut Criterion) {
 fn response_head(criterion: &mut Criterion) {
     let runtime = runtime();
     let response = response_head_replay();
-    let settings = v152_macos_http2();
+    let settings = v152_http2();
     let target = target();
     let headers = twelve_ordered_headers();
     let supervisor = DriverSupervisor::new();
@@ -57,7 +57,7 @@ fn response_head(criterion: &mut Criterion) {
 fn streaming_body(criterion: &mut Criterion) {
     let runtime = runtime();
     let response = streaming_body_replay();
-    let settings = v152_macos_http2();
+    let settings = v152_http2();
     let target = target();
     let supervisor = DriverSupervisor::new();
     let mut group = criterion.benchmark_group("http2/streaming_body");

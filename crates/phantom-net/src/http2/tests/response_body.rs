@@ -3,7 +3,7 @@ use std::{error::Error, future::poll_fn};
 use bytes::Bytes;
 use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::chromium::v152_http2;
 use tokio::{
     io::{DuplexStream, duplex},
     sync::oneshot,
@@ -23,14 +23,8 @@ async fn streams_data_then_trailers_without_buffering_later_data() -> TestResult
         let (release_tx, release_rx) = oneshot::channel();
         let server_task = tokio::spawn(streaming_server(server, release_rx));
 
-        let response = send_get(
-            client,
-            &v152_macos_http2(),
-            "example.test",
-            target()?,
-            headers(),
-        )
-        .await?;
+        let response =
+            send_get(client, &v152_http2(), "example.test", target()?, headers()).await?;
         assert_eq!(response.status(), 206);
         let mut body = response.into_body();
         let first = next_nonempty_data(&mut body).await?;
@@ -86,14 +80,8 @@ async fn terminal_data_completes_without_an_extra_body_poll() -> TestResult<()> 
         let server_task = tokio::spawn(terminal_data_server(server));
 
         async {
-            let response = send_get(
-                client,
-                &v152_macos_http2(),
-                "example.test",
-                target()?,
-                vec![],
-            )
-            .await?;
+            let response =
+                send_get(client, &v152_http2(), "example.test", target()?, vec![]).await?;
             let mut body = response.into_body();
             let frame = body
                 .frame()
@@ -121,7 +109,7 @@ async fn informational_sequence_preserves_final_body_trailers_and_reuse() -> Tes
     bounded_peer_test(async {
         let (client, server) = duplex(64 * 1024);
         let server_task = tokio::spawn(informational_server(server));
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
 
         let response = connection
             .send_get("example.test", target()?, Vec::new())

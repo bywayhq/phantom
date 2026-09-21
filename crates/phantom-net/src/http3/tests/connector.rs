@@ -22,10 +22,10 @@ use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
 #[test]
 fn constructor_rejects_tcp_tls_recipe() {
     let result = Http3Connector::new(
-        &chromium::v152_macos_tls(),
-        &chromium::v152_macos_quic(),
-        &chromium::v152_macos_http3(),
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_tls(),
+        &chromium::v152_quic(),
+        &chromium::v152_http3(),
+        &chromium::v152_http3_request(),
     );
     let error = result
         .err()
@@ -35,13 +35,13 @@ fn constructor_rejects_tcp_tls_recipe() {
 
 #[test]
 fn datagram_mismatch_is_an_invalid_profile() {
-    let mut quic = chromium::v152_macos_quic();
+    let mut quic = chromium::v152_quic();
     quic.max_datagram_frame_size = Some(0);
     let result = Http3Connector::new(
         &h3_tls_settings(),
         &quic,
-        &chromium::v152_macos_http3(),
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_http3(),
+        &chromium::v152_http3_request(),
     );
     let error = result
         .err()
@@ -54,9 +54,9 @@ fn invalid_additional_root_is_a_trust_store_failure() {
     let invalid_root = [0_u8];
     let result = Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v152_macos_quic(),
-        &chromium::v152_macos_http3(),
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_quic(),
+        &chromium::v152_http3(),
+        &chromium::v152_http3_request(),
         [&invalid_root[..]],
     );
     let error = result
@@ -200,9 +200,9 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
     let identity = TestIdentity::generate()?;
     let connector = Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v152_macos_quic(),
-        &chromium::v152_macos_http3(),
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_quic(),
+        &chromium::v152_http3(),
+        &chromium::v152_http3_request(),
         [identity.root_der()],
     )?;
     let (address, endpoint) = server_endpoint(&identity)?;
@@ -235,7 +235,7 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
         Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
     });
     let request = super::super::prepare_traced_request(
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/")?,
@@ -260,9 +260,9 @@ async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
     let build_connector = || {
         Http3Connector::new_with_additional_roots(
             &h3_tls_settings(),
-            &chromium::v152_macos_quic(),
-            &chromium::v152_macos_http3(),
-            &chromium::v152_macos_http3_request(),
+            &chromium::v152_quic(),
+            &chromium::v152_http3(),
+            &chromium::v152_http3_request(),
             [identity.root_der()],
         )
     };
@@ -408,9 +408,9 @@ async fn spawn_parked_get(
 fn trusting_connector(identity: &TestIdentity) -> Result<Http3Connector, Http3ConnectorError> {
     Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v152_macos_quic(),
-        &chromium::v152_macos_http3(),
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_quic(),
+        &chromium::v152_http3(),
+        &chromium::v152_http3_request(),
         [identity.root_der()],
     )
 }
@@ -418,14 +418,14 @@ fn trusting_connector(identity: &TestIdentity) -> Result<Http3Connector, Http3Co
 fn connector() -> Result<Http3Connector, Http3ConnectorError> {
     Http3Connector::new(
         &h3_tls_settings(),
-        &chromium::v152_macos_quic(),
-        &chromium::v152_macos_http3(),
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_quic(),
+        &chromium::v152_http3(),
+        &chromium::v152_http3_request(),
     )
 }
 
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    chromium::v152_macos_http3_tls()
+    chromium::v152_http3_tls()
 }
 
 const CHROME_H3_STARTUP: &str = include_str!(concat!(

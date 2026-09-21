@@ -609,7 +609,7 @@ async fn cloned_clients_share_client_hints_while_new_clients_are_isolated() -> T
 
 fn client(identity: &TestIdentity) -> TestResult<Client> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v152_macos_http2())
+        .with_http2(chromium::v152_http2())
         .with_http3(client_settings())
         .with_client_hints(client_hint_settings());
     Ok(Client::builder(profile)
@@ -629,7 +629,7 @@ fn alps_client(identity: &TestIdentity) -> TestResult<Client> {
         use_new_codepoint: true,
     });
     let profile = ClientProfile::new(tls)
-        .with_http2(chromium::v152_macos_http2())
+        .with_http2(chromium::v152_http2())
         .with_client_hints(client_hint_settings());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())

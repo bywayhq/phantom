@@ -248,7 +248,7 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
         let _ = done_received.await;
         Ok::<(), Box<dyn Error + Send + Sync>>(())
     });
-    let settings = chromium::v152_macos_http3();
+    let settings = chromium::v152_http3();
     let response = timeout(
         TEST_TIMEOUT,
         super::send_request(
@@ -256,7 +256,7 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
             TEST_SERVER_NAME,
             client,
             &settings,
-            &chromium::v152_macos_http3_request(),
+            &chromium::v152_http3_request(),
             Method::GET,
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             super::OriginForm::parse("/profiled")?,
@@ -307,7 +307,7 @@ async fn bounded_qlog_completes_without_recording_request_headers() -> TestResul
             TEST_SERVER_NAME,
             client,
             &test_settings(),
-            &chromium::v152_macos_http3_request(),
+            &chromium::v152_http3_request(),
             Method::GET,
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             super::OriginForm::parse("/qlog")?,
@@ -549,7 +549,7 @@ fn assert_complete_json_seq(bytes: &[u8]) -> TestResult<()> {
 }
 
 fn profiled_client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {
-    client_config_with_profile(identity, chromium::v152_macos_quic())
+    client_config_with_profile(identity, chromium::v152_quic())
 }
 
 fn client_config_with_profile(

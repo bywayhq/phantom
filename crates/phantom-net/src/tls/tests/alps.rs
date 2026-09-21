@@ -8,7 +8,7 @@ use std::{
 };
 
 use btls::ssl::{AlpnError, Ssl, SslVersion, select_next_proto};
-use phantom_profile::chromium::v152_macos_tls;
+use phantom_profile::chromium::v152_tls;
 use tokio::task::JoinHandle;
 use tokio_btls::SslStream as BoringStream;
 use tracing::{
@@ -33,7 +33,7 @@ const H2: &[u8] = b"h2";
 async fn absent_alps_is_distinct_from_negotiated_empty_settings() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_alps_server(&identity, None).await?;
-    let connector = TlsConnector::new_with_roots(&v152_macos_tls(), [identity.root_der()])?;
+    let connector = TlsConnector::new_with_roots(&v152_tls(), [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(H2));
@@ -62,7 +62,7 @@ async fn nonempty_alps_settings_round_trip_exactly() -> TestResult<()> {
 
 #[test]
 fn oversized_alps_settings_fail_before_stream_io() -> TestResult<()> {
-    let mut settings = v152_macos_tls();
+    let mut settings = v152_tls();
     settings
         .alps
         .as_mut()
@@ -103,7 +103,7 @@ async fn round_trip(
 ) -> TestResult<(Option<Vec<u8>>, Option<Vec<u8>>)> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_alps_server(&identity, Some(server_settings)).await?;
-    let mut settings = v152_macos_tls();
+    let mut settings = v152_tls();
     settings
         .alps
         .as_mut()

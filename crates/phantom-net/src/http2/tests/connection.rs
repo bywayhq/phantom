@@ -3,7 +3,7 @@ use std::{future::poll_fn, time::Duration};
 use bytes::Bytes;
 use http::Response;
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::chromium::v152_http2;
 use tokio::{io::duplex, sync::oneshot, time::timeout};
 
 use super::{TestResult, bounded_peer_test, next_nonempty_data, target};
@@ -36,7 +36,7 @@ async fn sequential_requests_reuse_one_connection() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(stream_ids)
         });
 
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
         for _ in 0..2 {
             let response = connection
                 .send_get("example.test", target()?, vec![])
@@ -76,7 +76,7 @@ async fn cloned_connection_opens_concurrent_streams() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(stream_ids)
         });
 
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
         let first = connection.clone();
         let second = connection.clone();
         let first = tokio::spawn(async move {
@@ -152,7 +152,7 @@ async fn dropped_stream_does_not_close_connection() -> TestResult<()> {
             ))
         });
 
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
         let mut abandoned = connection
             .send_get("example.test", target()?, vec![])
             .await?
@@ -233,7 +233,7 @@ async fn cancelled_response_head_resets_only_its_stream() -> TestResult<()> {
             ))
         });
 
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
         let request_connection = connection.clone();
         let request_target = target()?;
         let request = tokio::spawn(async move {
@@ -295,7 +295,7 @@ async fn remote_close_is_observable() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
         connection
             .send_get("example.test", target()?, vec![])
             .await?

@@ -374,15 +374,15 @@ impl Drop for ConnectOutcome {
 
 #[cfg(test)]
 mod tests {
-    use phantom_profile::chromium::{v152_macos_http2, v152_macos_tls};
+    use phantom_profile::chromium::{v152_http2, v152_tls};
 
     use super::{Http1Or2TlsErrorKind, validate_settings};
 
     #[test]
     fn negotiation_requires_both_alpn_protocols() {
-        let http2 = v152_macos_http2();
+        let http2 = v152_http2();
 
-        let mut tls = v152_macos_tls();
+        let mut tls = v152_tls();
         tls.alpn_protocols
             .retain(|protocol| protocol.as_ref() != b"http/1.1");
         let error = match validate_settings(&tls, &http2) {
@@ -391,7 +391,7 @@ mod tests {
         };
         assert_eq!(error.kind(), Http1Or2TlsErrorKind::InvalidConfiguration);
 
-        let mut tls = v152_macos_tls();
+        let mut tls = v152_tls();
         tls.alpn_protocols
             .retain(|protocol| protocol.as_ref() != b"h2");
         let error = match validate_settings(&tls, &http2) {

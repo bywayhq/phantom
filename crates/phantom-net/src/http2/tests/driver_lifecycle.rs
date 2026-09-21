@@ -5,7 +5,7 @@ use std::{
 };
 
 use http_body::Body as _;
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::chromium::v152_http2;
 use tokio::{io::duplex, runtime::Builder, time::timeout};
 use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
@@ -21,14 +21,8 @@ async fn incomplete_body_drop_flushes_reset_and_driver_closes() -> TestResult<()
         let server_task = tokio::spawn(reset_observing_server(server));
 
         async {
-            let response = send_get(
-                client,
-                &v152_macos_http2(),
-                "example.test",
-                target()?,
-                vec![],
-            )
-            .await?;
+            let response =
+                send_get(client, &v152_http2(), "example.test", target()?, vec![]).await?;
             let mut body = response.into_body();
             assert_eq!(next_nonempty_data(&mut body).await?, "partial");
             drop(body);
@@ -60,14 +54,8 @@ fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
             let (client, server) = duplex(64 * 1024);
             let server_task = tokio::spawn(reset_observing_server(server));
             let body = async {
-                let response = send_get(
-                    client,
-                    &v152_macos_http2(),
-                    "example.test",
-                    target()?,
-                    vec![],
-                )
-                .await?;
+                let response =
+                    send_get(client, &v152_http2(), "example.test", target()?, vec![]).await?;
                 let mut body = response.into_body();
                 assert_eq!(next_nonempty_data(&mut body).await?, "partial");
                 Ok::<_, Box<dyn Error + Send + Sync>>(body)
@@ -112,14 +100,8 @@ async fn cross_thread_body_poll_uses_originating_dispatcher() -> TestResult<()> 
         let (client, server) = duplex(64 * 1024);
         let server_task = tokio::spawn(reset_observing_server(server));
         let body = async {
-            let response = send_get(
-                client,
-                &v152_macos_http2(),
-                "example.test",
-                target()?,
-                vec![],
-            )
-            .await?;
+            let response =
+                send_get(client, &v152_http2(), "example.test", target()?, vec![]).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(response.into_body())
         }
         .with_subscriber(origin.clone())
@@ -157,7 +139,7 @@ async fn cross_thread_body_poll_uses_originating_dispatcher() -> TestResult<()> 
 async fn cancelled_response_head_records_outcome_once() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     let (client, _server) = duplex(4096);
-    let settings = v152_macos_http2();
+    let settings = v152_http2();
     let pending = poll_once_then_drop(
         send_get(client, &settings, "example.test", target()?, vec![]),
         subscriber.clone(),
@@ -176,7 +158,7 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult<()> {
 #[test]
 fn polling_outside_tokio_returns_runtime_unavailable() -> TestResult<()> {
     let (client, _server) = duplex(64);
-    let settings = v152_macos_http2();
+    let settings = v152_http2();
     let mut request = Box::pin(send_get(
         client,
         &settings,

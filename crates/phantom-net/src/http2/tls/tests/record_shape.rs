@@ -6,7 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::{NamedGroup, TlsVersion, chromium::v152_macos_http2};
+use phantom_profile::{NamedGroup, TlsVersion, chromium::v152_http2};
 use rustls::{
     ServerConfig, ServerConnection, StreamOwned,
     pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
@@ -102,7 +102,7 @@ fn tls13_connector(identity: &TestIdentity) -> TestResult<Http2TlsConnector> {
     tls.key_shares = vec![NamedGroup::X25519];
     Ok(Http2TlsConnector::new_with_roots(
         &tls,
-        &v152_macos_http2(),
+        &v152_http2(),
         [identity.root_der()],
     )?)
 }

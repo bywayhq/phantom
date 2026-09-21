@@ -12,7 +12,7 @@ use std::{
 
 use http::Response;
 use http_body::Body as _;
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::chromium::v152_http2;
 use tokio::{
     io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex},
     runtime::Builder,
@@ -44,7 +44,7 @@ fn body_drop_after_originating_runtime_shutdown_records_driver_outcome() -> Test
                     inner: client,
                     control,
                 },
-                &v152_macos_http2(),
+                &v152_http2(),
                 "example.test",
                 target()?,
                 vec![],
@@ -75,14 +75,8 @@ fn body_shutdown_completes_without_a_tokio_time_driver() -> TestResult<()> {
         async {
             let (client, server) = duplex(64 * 1024);
             let server_task = tokio::spawn(terminal_response_server(server));
-            let response = send_get(
-                client,
-                &v152_macos_http2(),
-                "example.test",
-                target()?,
-                vec![],
-            )
-            .await?;
+            let response =
+                send_get(client, &v152_http2(), "example.test", target()?, vec![]).await?;
             let body = response.into_body();
             assert!(body.is_end_stream());
             drop(body);
@@ -109,7 +103,7 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
                     inner: client,
                     control: control.clone(),
                 },
-                &v152_macos_http2(),
+                &v152_http2(),
                 "example.test",
                 target()?,
                 vec![],
@@ -150,7 +144,7 @@ async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResu
                     inner: client,
                     control: control.clone(),
                 },
-                &v152_macos_http2(),
+                &v152_http2(),
                 "example.test",
                 target()?,
                 vec![],

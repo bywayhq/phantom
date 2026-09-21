@@ -13,9 +13,9 @@ use crate::tls_support::{TestIdentity, TestResult};
 pub(crate) fn client_settings() -> Http3ClientSettings {
     Http3ClientSettings::new(
         tls_settings(),
-        chromium::v152_macos_quic(),
-        chromium::v152_macos_http3(),
-        chromium::v152_macos_http3_request(),
+        chromium::v152_quic(),
+        chromium::v152_http3(),
+        chromium::v152_http3_request(),
     )
 }
 

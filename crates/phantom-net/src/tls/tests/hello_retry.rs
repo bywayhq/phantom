@@ -5,7 +5,7 @@ use std::{
 };
 
 use btls::ssl::{AlpnError, Ssl, SslVersion, select_next_proto};
-use phantom_profile::{TlsVersion, chromium::v152_macos_tls};
+use phantom_profile::{TlsVersion, chromium::v152_tls};
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::TcpStream,
@@ -48,7 +48,7 @@ async fn authenticated_hello_retry_has_only_permitted_client_hello_delta() -> Te
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((used_hrr, bytes))
     });
 
-    let mut settings = v152_macos_tls();
+    let mut settings = v152_tls();
     settings.min_version = TlsVersion::Tls13;
     settings.max_version = TlsVersion::Tls13;
     let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?;

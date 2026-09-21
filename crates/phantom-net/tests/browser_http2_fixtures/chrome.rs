@@ -1,4 +1,4 @@
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::chromium::v152_http2;
 
 use super::{
     TestResult, assert_public_startup_matches_fixture, assert_raw_startup, fixture::Fixture,
@@ -37,7 +37,7 @@ async fn chrome_fixture_retains_exact_metadata_and_startup_bytes() -> TestResult
 #[tokio::test]
 async fn phantom_chrome_startup_matches_retained_browser_frames_exactly() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
-    assert_public_startup_matches_fixture(&fixture, v152_macos_http2()).await
+    assert_public_startup_matches_fixture(&fixture, v152_http2()).await
 }
 
 const WINDOWS_FIXTURE_TEXT: &str = include_str!(concat!(
@@ -49,5 +49,5 @@ const WINDOWS_FIXTURE_TEXT: &str = include_str!(concat!(
 async fn chrome_152_http2_recipe_matches_windows_chrome_for_testing_capture() -> TestResult<()> {
     let fixture = Fixture::parse(WINDOWS_FIXTURE_TEXT)?;
     assert_raw_startup(&fixture).await?;
-    assert_public_startup_matches_fixture(&fixture, v152_macos_http2()).await
+    assert_public_startup_matches_fixture(&fixture, v152_http2()).await
 }

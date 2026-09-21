@@ -45,8 +45,8 @@ async fn rejects_invalid_profile_before_connecting() -> TestResult<()> {
 #[tokio::test(flavor = "current_thread")]
 async fn rejects_invalid_pseudo_layout_before_connecting() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let settings = chromium::v152_macos_http3();
-    let mut request_settings = chromium::v152_macos_http3_request();
+    let settings = chromium::v152_http3();
+    let mut request_settings = chromium::v152_http3_request();
     request_settings.pseudo_header_order[3] = phantom_profile::Http3PseudoHeader::Method;
     let result = super::super::send_get(
         "127.0.0.1:9".parse()?,
@@ -70,7 +70,7 @@ async fn rejects_invalid_pseudo_layout_before_connecting() -> TestResult<()> {
 #[tokio::test(flavor = "current_thread")]
 async fn rejects_http_datagrams_when_quic_datagrams_are_disabled() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let mut quic = chromium::v152_macos_quic();
+    let mut quic = chromium::v152_quic();
     quic.max_datagram_frame_size = None;
     quic.wire_parameters.retain(|parameter| {
         !matches!(
@@ -79,7 +79,7 @@ async fn rejects_http_datagrams_when_quic_datagrams_are_disabled() -> TestResult
         )
     });
     let request = Request::get("https://server.phantom.test/").body(())?;
-    let settings = chromium::v152_macos_http3();
+    let settings = chromium::v152_http3();
     let result = super::send_request_head(
         "127.0.0.1:9".parse()?,
         TEST_SERVER_NAME,
@@ -100,7 +100,7 @@ async fn rejects_http_datagrams_when_quic_datagrams_are_disabled() -> TestResult
 
 #[test]
 fn chrome_profile_materializes_randomized_grease_from_entropy() -> TestResult<()> {
-    let profile = chromium::v152_macos_http3();
+    let profile = chromium::v152_http3();
     for (identifier_seed, value) in [
         (0, 0),
         (1, 63),
@@ -139,7 +139,7 @@ async fn chrome_profile_emits_capture_backed_control_stream_shape() -> TestResul
     let identity = TestIdentity::generate()?;
     let client = profiled_client_config(&identity)?;
     let (address, endpoint) = server_endpoint(&identity)?;
-    let settings = chromium::v152_macos_http3();
+    let settings = chromium::v152_http3();
     let request = Request::get(format!(
         "https://{TEST_SERVER_NAME}:{}/control-stream",
         address.port()
@@ -259,7 +259,7 @@ async fn capture_seeded_control_stream(entropy: [u8; 8]) -> TestResult<Vec<u8>> 
     .map_err(|_| "QUIC handshake timed out")??;
     super::super::require_h3(&client_connection)?;
 
-    let settings = chromium::v152_macos_http3();
+    let settings = chromium::v152_http3();
     let mut builder = super::super::settings::builder_for_test(&settings, &crypto, entropy)?;
     let (mut driver, sender) = builder
         .build::<_, _, Bytes>(h3_quinn::Connection::new(client_connection.clone()))

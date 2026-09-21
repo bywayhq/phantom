@@ -21,12 +21,12 @@ async fn main() -> CaptureResult<()> {
     require_loopback(arguments.remote)?;
 
     let certificate = X509::from_pem(&fs::read(&arguments.trust_root)?)?.to_der()?;
-    let tls = chromium::v152_macos_http3_tls();
+    let tls = chromium::v152_http3_tls();
     let connector = Http3Connector::new_with_additional_roots(
         &tls,
-        &chromium::v152_macos_quic(),
-        &chromium::v152_macos_http3(),
-        &chromium::v152_macos_http3_request(),
+        &chromium::v152_quic(),
+        &chromium::v152_http3(),
+        &chromium::v152_http3_request(),
         std::iter::once(certificate.as_slice()),
     )?;
 

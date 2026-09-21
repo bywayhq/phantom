@@ -1,5 +1,5 @@
 use http::{Method, Version, header::CONNECTION};
-use phantom_profile::{Http2PseudoHeader, chromium::v152_macos_http2};
+use phantom_profile::{Http2PseudoHeader, chromium::v152_http2};
 
 use super::super::{
     Http2Error, OriginForm, RequestHeader, prepare_extended_connect,
@@ -67,7 +67,7 @@ fn rejects_forbidden_and_non_lowercase_fields_before_io() -> Result<(), Box<dyn 
 
 #[test]
 fn exact_extended_connect_order_is_explicit() -> Result<(), Box<dyn std::error::Error>> {
-    let mut settings = v152_macos_http2();
+    let mut settings = v152_http2();
     assert!(matches!(
         translate_extended_connect_settings(&settings),
         Err(Http2Error::MissingExtendedConnectPseudoHeaderOrder)

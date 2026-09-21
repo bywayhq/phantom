@@ -13,7 +13,7 @@ use btls::ssl::{
 };
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::{NamedGroup, TlsVersion, chromium::v152_macos_http2};
+use phantom_profile::{NamedGroup, TlsVersion, chromium::v152_http2};
 
 use super::{
     H2_ALPN_WIRE, Http2TlsConnector, TEST_AUTHORITY, TEST_SERVER_NAME, TestIdentity, TestResult,
@@ -100,7 +100,7 @@ fn tls13_connector(identity: &TestIdentity) -> TestResult<Http2TlsConnector> {
     tls.key_shares = vec![NamedGroup::X25519];
     Ok(Http2TlsConnector::new_with_roots(
         &tls,
-        &v152_macos_http2(),
+        &v152_http2(),
         [identity.root_der()],
     )?)
 }

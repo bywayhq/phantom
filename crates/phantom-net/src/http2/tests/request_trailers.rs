@@ -10,7 +10,7 @@ use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Method, Response};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt as _;
-use phantom_profile::chromium::v152_macos_http2;
+use phantom_profile::chromium::v152_http2;
 
 use super::{TestResult, bounded_peer_test};
 use crate::{
@@ -26,7 +26,7 @@ async fn static_trailers_follow_trailer_only_owned_and_streaming_bodies() -> Tes
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
         let peer = tokio::spawn(run_static_trailer_peer(server));
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
 
         let trailer_only = connection
             .send_request_body_with_trailers(
@@ -79,7 +79,7 @@ async fn body_produced_trailers_follow_the_declared_order_and_sensitivity() -> T
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
         let peer = tokio::spawn(run_dynamic_trailer_peer(server));
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
         let response = connection
             .send_request_body(
                 Method::POST,
@@ -103,7 +103,7 @@ async fn body_produced_trailer_failures_are_request_local() -> TestResult<()> {
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
         let peer = tokio::spawn(run_body_trailer_peer(server));
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
 
         for (path, body, expected_kind) in [
             (
@@ -155,7 +155,7 @@ async fn invalid_dynamic_trailer_plans_fail_before_opening_a_stream() -> TestRes
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
         let peer = tokio::spawn(run_prevalidation_peer(server));
-        let connection = Http2Connection::connect(client, &v152_macos_http2()).await?;
+        let connection = Http2Connection::connect(client, &v152_http2()).await?;
 
         let metadata_only = dynamic_trailer_body(false);
         assert!(matches!(

@@ -1,6 +1,6 @@
 //! Chrome-specific TLS differential tests.
 
-use phantom_profile::chromium::v152_macos_tls;
+use phantom_profile::chromium::v152_tls;
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
 use super::{capture_client_hello_from, client_hello_fixture};
@@ -23,9 +23,7 @@ async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
     let expected = client_hello_fixture::capture(CHROME_FIXTURE)
         .await?
         .summary()?;
-    let actual = capture_client_hello_from(&v152_macos_tls())
-        .await?
-        .summary()?;
+    let actual = capture_client_hello_from(&v152_tls()).await?.summary()?;
     assert_eq!(
         actual.requested_trust_anchor_ids(),
         expected.requested_trust_anchor_ids()
@@ -40,7 +38,7 @@ async fn chrome_152_tls_recipe_matches_windows_chrome_for_testing_capture() -> T
 
 async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
     let expected_capture = client_hello_fixture::capture(fixture).await?;
-    let actual_capture = capture_client_hello_from(&v152_macos_tls()).await?;
+    let actual_capture = capture_client_hello_from(&v152_tls()).await?;
 
     assert_eq!(
         actual_capture.records().len(),
@@ -121,7 +119,7 @@ async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
 
 #[tokio::test]
 async fn omitted_trust_anchor_ids_omit_the_extension() -> TestResult<()> {
-    let mut settings = v152_macos_tls();
+    let mut settings = v152_tls();
     settings.requested_trust_anchor_ids = None;
 
     let summary = capture_client_hello_from(&settings).await?.summary()?;

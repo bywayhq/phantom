@@ -4,7 +4,7 @@ use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput};
 use http_body_util::BodyExt;
 use phantom_net::http1::{Http1Connection, Http1TlsConnector, OriginForm, RequestHeader, send_get};
-use phantom_profile::chromium::v152_macos_tls;
+use phantom_profile::chromium::v152_tls;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 
 use super::{BODY_BYTES, replay_stream::ReplayStream, runtime};
@@ -74,7 +74,7 @@ async fn serve_warm_requests(mut stream: DuplexStream) -> std::io::Result<()> {
 }
 
 fn tls_connector(criterion: &mut Criterion) {
-    let settings = v152_macos_tls();
+    let settings = v152_tls();
     criterion.bench_function("tls_connector/chromium_reference", |bencher| {
         bencher.iter(|| match Http1TlsConnector::new(black_box(&settings)) {
             Ok(connector) => black_box(connector),
