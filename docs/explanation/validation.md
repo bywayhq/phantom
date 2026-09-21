@@ -235,9 +235,62 @@ on a second port. Alternating requests between the two locations prove one
 QUIC connection per location in the same pool entry rather than a replacement
 on every switch.
 
-This evidence does not claim browser policy or `Alt-Used` ordering, connection
-racing, proxy-route upgrades, proxy-route snapshots, or multiple-alternative
-racing.
+This evidence does not claim browser `Alt-Used` ordering, proxy-route
+upgrades, proxy-route snapshots, or multiple-alternative racing. Racing has
+its own evidence below.
+
+## Alt-Svc racing evidence
+
+Chrome 153.0.8010.48 on Windows 11 26200 was captured with
+`scripts/capture/alt_svc_race.py` against one loopback origin serving H2 over
+TCP and H3 over UDP on the same port, advertised as `h3=":<port>"; ma=86400`.
+Fixtures are in
+[`fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/`](../fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/),
+ten headless runs per scenario (two for `broken-backoff`), each on a fresh
+profile, with every other host name unresolvable so browser background
+traffic neither leaves the machine nor records QUIC success. The
+certificate's SPKI is allowed with `--ignore-certificate-errors-spki-list`;
+because Chromium's QUIC proof verifier rejects unknown roots for hosts not
+named by `--origin-to-force-quic-on` (`net/quic/crypto/proof_verifier_chromium.cc`
+line 430), the capture names the same host on a decoy port that is never
+requested. Every race in the NetLogs is an `alternative` job created from
+`ALT_SVC_FOUND`, never a forced-QUIC main job. Chrome 153 keeps
+`HappyEyeballsV3` disabled (`net/base/features.cc` line 124), so these are
+`HttpStreamFactory::JobController` decisions. Source citations are to tag
+`153.0.8010.48`.
+
+| Question | Observation | Source cross-check |
+| --- | --- | --- |
+| First new connection after learning (`race-after-learning`) | QUIC job starts first; main TCP job logs `should_wait:true`, then `HTTP_STREAM_JOB_DELAYED delay:0` and resumes 1-2 ms later; first TCP connect 0-1 ms after the first QUIC packet (server: 1.4-1.6 ms after the first datagram, one 11.9 ms outlier). QUIC bound 10/10; the main job was cancelled 10/10, yet its connection was still established and stayed idle without a request. | Main job blocked while an alternative job exists (`http_stream_factory_job_controller.cc` line 1084); wait is 0 while QUIC has never worked on the network (`quic_session_pool.cc` line 1590) |
+| After QUIC worked (`race-after-quic-worked`, second race) | `HTTP_STREAM_JOB_DELAYED` 3-8 ms (median 7.5); QUIC connected within the wait, the main job never started, QUIC bound 10/10. | Wait is 1.5 x smoothed RTT, or 300 ms without RTT stats, plus a non-Android 0 ms additional delay (`quic_session_pool.cc` lines 1606-1616), capped at 3 s (`http_stream_factory_job_controller.cc` line 143); the RTT-dependent value is only what loopback produced |
+| UDP blackhole (`udp-blackhole`) | TCP starts 0-1 ms after QUIC (fresh profile) and wins 10/10; the orphaned QUIC job fails with `-356` after the 4 s handshake idle timeout; the next request logs `is_broken:true` and creates only a main job; polled expiry 299-300 s after the failure. | Orphaned alternative runs to completion to report brokenness (lines 1160-1167); marked broken only when the main job succeeded (lines 1257-1302) |
+| QUIC certificate failure (`quic-bad-certificate`) | QUIC fails in about 1 ms; TCP wins 10/10; broken for 299-300 s; the next request does not use QUIC. | Same reporting path |
+| QUIC ALPN failure (`quic-bad-alpn`) | Same as the certificate failure: broken 10/10 for 299-300 s. | Same reporting path |
+| Existing H2 session (`existing-h2-session`) | The request after learning uses the existing H2 session at once (wait 0) 10/10 while the alternative job keeps running and connects QUIC; the next two same-page requests use that QUIC session 10/10. | Zero wait with an available SPDY session unless `delay_main_job_with_available_spdy_session` (`http_stream_factory_job_controller.cc` line 744; default false, `net/quic/quic_context.h` line 238) |
+| Broken expiry and backoff (`broken-backoff`) | About 290 s after the first failure the alternative is still broken; about 305 s after it QUIC is tried again, fails, and is broken for 599 s, both runs. | `ComputeBrokenAlternativeServiceExpirationDelay`: 300 s initial, `initial << broken_count`, capped at 2 days (`net/http/broken_alternative_services.cc` lines 22, 58, 62; `net/base/features.cc` lines 1027 and 1037; `exponential_backoff_on_initial_delay_` defaults to true in `broken_alternative_services.h` line 236) |
+
+Phantom's opt-in `AltSvcPolicy::race` implements the parts these rows pin
+down: alternative setup first and origin setup after a delay or at once on
+alternative failure, one request on the winner, an unfinished losing
+alternative that continues and is pooled or marked broken, no marking when
+both fail, no racing while broken, and doubling brokenness with a cap
+(`AltSvcBrokenBackoff::CHROMIUM_153` holds 300 s, doubling, two days). The
+origin delay is caller-supplied because Chromium's depends on QUIC history and
+measured RTT. Phantom cancels a losing origin setup instead of keeping its
+connection idle, does not persist brokenness, does not reset brokenness on a
+network change, and has no DNS HTTPS-record (`dns_alpn_h3`) job.
+
+Deterministic unit tests with a paused clock cover the race coordinator
+(origin start at the configured delay, immediate start after an alternative
+failure, cancellation of both candidates, at most one admitted setup per
+candidate, and connect and total deadlines) and the store (brokenness per
+origin and alternative, expiry, doubling with a cap, and clearing on success
+or `clear`). Loopback integration tests in
+`crates/phantom/tests/alt_svc_race.rs` cover the default sequential terminal
+failure, one dispatch per request with background pooling of the losing
+alternative, a one-shot streaming body sent only by the winner, a blackholed
+alternative that loses after the origin delay and is then not raced, and
+route preservation.
 
 ## Connection-retry evidence
 
