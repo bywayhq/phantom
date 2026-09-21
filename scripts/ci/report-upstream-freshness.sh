@@ -108,8 +108,27 @@ write_output() {
   fi
 }
 
+# Browser profiles are versioned by major release (docs/coverage.md), so only a
+# major-version change is transport drift; a new build within the recipe's
+# major is expected to share its fingerprint.
+chrome_major_drift() {
+  local recipe=$1 latest=$2
+  [[ "$recipe" =~ ^[0-9]+(\.[0-9]+){3}$ && "$latest" =~ ^[0-9]+(\.[0-9]+){3}$ ]] \
+    || die "Chrome versions must have four numeric components"
+  if [[ "${recipe%%.*}" == "${latest%%.*}" ]]; then
+    echo false
+  else
+    echo true
+  fi
+}
+
 if [[ "${1:-}" == --select-latest ]]; then
   select_latest_registry_record
+  exit
+fi
+
+if [[ "${1:-}" == --chrome-drift ]]; then
+  chrome_major_drift "${2:-}" "${3:-}"
   exit
 fi
 
@@ -251,11 +270,7 @@ fi
 [[ "$http2_current" == "$http2_latest" ]] && http2_drift=false || http2_drift=true
 [[ "$btls_current" == "$btls_latest" ]] && btls_drift=false || btls_drift=true
 [[ "$h3_current" == "$h3_latest" ]] && h3_drift=false || h3_drift=true
-if [[ "$chrome_recipe_version" == "$chrome_latest" ]]; then
-  chrome_drift=false
-else
-  chrome_drift=true
-fi
+chrome_drift=$(chrome_major_drift "$chrome_recipe_version" "$chrome_latest")
 if [[ "$wreq_drift" == true || "$http2_drift" == true \
   || "$btls_drift" == true || "$h3_drift" == true \
   || "$chrome_drift" == true ]]; then
@@ -369,7 +384,7 @@ change a dependency or browser fingerprint.
 | vendored http2 | \`$http2_current\` | \`$http2_latest\` (MSRV \`${http2_rust_version:-unspecified}\`) | $http2_drift |
 | btls ($btls_provenance) | \`$btls_current\` | \`$btls_latest\` | $btls_drift |
 | vendored h3 | \`$h3_current\` | \`$h3_latest\` | $h3_drift |
-| Chrome $chrome_platform | recipe + exact TLS/H2 fixtures \`$chrome_recipe_version\` | stable \`$chrome_latest\` (revision \`$chrome_revision\`) | $chrome_drift |
+| Chrome $chrome_platform | recipe + exact TLS/H2 fixtures \`$chrome_recipe_version\` | stable \`$chrome_latest\` (revision \`$chrome_revision\`) | $chrome_drift (major version) |
 
 Registry checksums and exact fixture paths are in \`report.json\`.
 Browser drift requires a reviewed browser capture and packet differential; this

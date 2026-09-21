@@ -28,6 +28,20 @@ EOF
 )
 [[ "$only_prereleases" == null ]]
 
+# Chrome drift follows the major-version profile policy.
+chrome_drift() {
+  scripts/ci/report-upstream-freshness.sh --chrome-drift "$1" "$2"
+}
+[[ $(chrome_drift 152.0.7977.83 152.0.7977.83) == false ]]
+[[ $(chrome_drift 152.0.7977.83 152.0.7977.64) == false ]]
+[[ $(chrome_drift 152.0.7977.83 152.1.8000.10) == false ]]
+[[ $(chrome_drift 152.0.7977.83 153.0.7990.5) == true ]]
+[[ $(chrome_drift 152.0.7977.83 99.0.1.1) == true ]]
+if chrome_drift 152.0.7977.83 153 >/dev/null 2>&1; then
+  echo "malformed Chrome version was accepted" >&2
+  exit 1
+fi
+
 replace_fixture_line() {
   local file=$1 old=$2 new=$3
   grep -F -x -q "$old" "$file" \
