@@ -1,14 +1,23 @@
 [package]
-name = "h3-datagram"
-version = "0.0.2"
+name = "phantom-h3-datagram"
+version = "0.0.2-phantom.1"
 edition = "2021"
-documentation = "https://docs.rs/h3-datagram"
-repository = "https://github.com/hyperium/h3"
+repository = "https://github.com/bywayhq/phantom"
 readme = "readme.md"
-description = "rfc9297 extension for the h3 crate"
+description = "Phantom fork of h3-datagram 0.0.2; not a general-purpose replacement"
 keywords = ["http3", "quic", "rfc9297"]
 categories = ["network-programming", "web-programming"]
 license = "MIT"
+exclude = [
+    ".cargo_vcs_info.json",
+    ".cargo-ok",
+    "Cargo.toml.orig",
+]
+
+[package.metadata.phantom]
+upstream-package = "h3-datagram"
+upstream-version = "0.0.2"
+upstream-source = "https://codeload.github.com/hyperium/h3/tar.gz/1f3d5295833ad454343f25d55633fb6bee1027b2"
 
 
 [dependencies]
@@ -20,6 +29,10 @@ tracing = { version = "0.1.40", optional = true }
 tracing = ["dep:tracing"]
 
 [dependencies.h3]
-version = "0.0.8"
+package = "phantom-h3"
+version = "=0.0.8-phantom.1"
 path = "../h3"
 features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]
+
+[lib]
+name = "h3_datagram"

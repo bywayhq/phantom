@@ -1,0 +1,50 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index cca5b3c..333964a 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,16 +1,23 @@
+ [package]
+-name = "tokio-btls"
+-version = "0.5.6"
++name = "phantom-tokio-btls"
++version = "0.5.6-phantom.1"
+ authors = ["0x676e67 <gngppz@gmail.com>", "Alex Crichton <alex@alexcrichton.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
+ license = "MIT OR Apache-2.0"
+ edition = "2021"
+ rust-version = "1.85"
+-repository = "https://github.com/0x676e67/btls"
++repository = "https://github.com/bywayhq/phantom"
+ homepage = "https://github.com/0x676e67/btls"
+-documentation = "https://docs.rs/tokio-btls"
+-description = """
+-An implementation of SSL streams for Tokio backed by BoringSSL
+-"""
++description = "Phantom fork of tokio-btls 0.5.6; not a general-purpose replacement"
++exclude = [
++    ".cargo_vcs_info.json",
++    ".cargo-ok",
++    "Cargo.toml.orig",
++]
++
++[package.metadata.phantom]
++upstream-package = "tokio-btls"
++upstream-version = "0.5.6"
++upstream-source = "https://codeload.github.com/0xARYA/btls/tar.gz/50e72407ac1f89cea14003004429ecf579541b6f"
+ 
+ [package.metadata.docs.rs]
+ rustdoc-args = ["--cfg", "docsrs"]
+@@ -29,10 +36,13 @@ rpk = ["btls/rpk"]
+ prefix-symbols = ["btls/prefix-symbols"]
+ 
+ [dependencies]
+-btls = { version = "0.5.6", path = "../btls" }
++btls = { package = "phantom-btls", version = "=0.5.6-phantom.1", path = "../btls" }
+ tokio = "1.52.1"
+ 
+ [dev-dependencies]
+ futures = "0.3"
+ tokio = { version = "1.52.1", features = [ "full" ] }
+ anyhow = "1"
++
++[lib]
++name = "tokio_btls"

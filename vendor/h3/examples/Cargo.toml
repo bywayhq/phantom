@@ -10,11 +10,11 @@ edition = "2021"
 anyhow = "1.0"
 bytes = "1"
 futures = "0.3"
-h3 = { path = "../h3", features = ["tracing"] }
-h3-quinn = { path = "../h3-quinn", features = ["tracing", "datagram"] }
+h3 = { package = "phantom-h3", version = "=0.0.8-phantom.1", path = "../h3", features = ["tracing"] }
+h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.1", path = "../h3-quinn", features = ["tracing", "datagram"] }
 h3-webtransport = { path = "../h3-webtransport" }
 http = "1"
-quinn = { version = "0.11", default-features = false, features = [
+quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "../../quinn", default-features = false, features = [
     "runtime-tokio",
     "rustls",
     "ring",
@@ -39,7 +39,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 octets = "0.3.0"
 
 tracing-tree = { version = "0.4" }
-h3-datagram = { path = "../h3-datagram" }
+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.1", path = "../h3-datagram" }
 
 [features]
 tree = []

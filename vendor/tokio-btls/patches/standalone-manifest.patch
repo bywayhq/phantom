@@ -1,0 +1,36 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 4a81db2..cca5b3c 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,11 +1,11 @@
+ [package]
+ name = "tokio-btls"
+-version = { workspace = true }
++version = "0.5.6"
+ authors = ["0x676e67 <gngppz@gmail.com>", "Alex Crichton <alex@alexcrichton.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
+ license = "MIT OR Apache-2.0"
+-edition = { workspace = true }
+-rust-version = { workspace = true }
+-repository = { workspace = true }
++edition = "2021"
++rust-version = "1.85"
++repository = "https://github.com/0x676e67/btls"
+ homepage = "https://github.com/0x676e67/btls"
+ documentation = "https://docs.rs/tokio-btls"
+ description = """
+@@ -29,10 +29,10 @@ rpk = ["btls/rpk"]
+ prefix-symbols = ["btls/prefix-symbols"]
+ 
+ [dependencies]
+-btls = { workspace = true }
+-tokio = { workspace = true }
++btls = { version = "0.5.6", path = "../btls" }
++tokio = "1.52.1"
+ 
+ [dev-dependencies]
+-futures = { workspace = true }
+-tokio = { workspace = true, features = [ "full" ] }
+-anyhow = { workspace = true }
++futures = "0.3"
++tokio = { version = "1.52.1", features = [ "full" ] }
++anyhow = "1"

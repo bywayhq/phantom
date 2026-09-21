@@ -25,10 +25,12 @@ sha256_stream() {
   fi
 }
 
-package_version() {
+# Renamed forks record the upstream release they were built from.
+upstream_version() {
   awk '
-    /^\[package\]$/ { package = 1; next }
-    package && /^version = / {
+    /^\[package\.metadata\.phantom\]$/ { metadata = 1; next }
+    metadata && /^\[/ { exit }
+    metadata && /^upstream-version = / {
       sub(/^[^"]*"/, "")
       sub(/".*/, "")
       print
@@ -114,8 +116,7 @@ fi
 output_dir=${1:-target/upstream-freshness}
 mkdir -p "$output_dir"
 
-wreq_current=$(sed -nE 's/.*wreq-proto = "=([^"]+)".*/\1/p' \
-  crates/phantom-net/Cargo.toml)
+wreq_current=$(upstream_version vendor/wreq-proto/Cargo.toml 2>/dev/null || true)
 if [[ -n "$wreq_current" ]]; then
   wreq_tracked=true
   wreq_display=$wreq_current
@@ -124,7 +125,7 @@ else
   wreq_display=untracked
 fi
 
-http2_current=$(package_version vendor/http2/Cargo.toml)
+http2_current=$(upstream_version vendor/http2/Cargo.toml)
 [[ -n "$http2_current" ]] || die "could not derive the vendored http2 version"
 
 [[ -f vendor/h3/PHANTOM.md ]] \

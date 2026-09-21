@@ -1,0 +1,7 @@
+phantom-wreq-proto
+
+This package is a modified copy of wreq-proto 0.2.5
+(https://github.com/0x676e67/wreq-proto), distributed under the Apache
+License, Version 2.0; see LICENSE. The Phantom project modified the files
+changed by the patches listed in patches/series, and PHANTOM.md describes each
+change.

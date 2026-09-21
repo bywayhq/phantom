@@ -1,6 +1,70 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+sha256_of() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    sha256sum "$1" | awk '{print $1}'
+  fi
+}
+
+# Replay every patch in <vendor-dir>/patches/series onto <candidate>, after
+# proving that the series lists each stored patch exactly once.
+apply_series() {
+  local candidate=$1 vendor_dir=$2 patch listed_patches stored_patches
+  listed_patches=$(LC_ALL=C sort "$vendor_dir/patches/series")
+  stored_patches=$(find "$vendor_dir/patches" -maxdepth 1 -type f \
+    -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
+  if [[ "$listed_patches" != "$stored_patches" ]]; then
+    echo "$vendor_dir patch series does not list every canonical patch exactly once" >&2
+    return 1
+  fi
+  while IFS= read -r patch; do
+    if [[ -z "$patch" ]]; then
+      echo "$vendor_dir patch series contains an empty entry" >&2
+      return 1
+    fi
+    git -C "$candidate" apply --check "$PWD/$vendor_dir/patches/$patch"
+    git -C "$candidate" apply "$PWD/$vendor_dir/patches/$patch"
+  done < "$vendor_dir/patches/series"
+}
+
+# Replay a rename-only crates.io fork: download the checksummed archive, apply
+# its series, and compare the result with the vendored directory.
+check_crate_archive_replay() {
+  local name=$1 version=$2 checksum=$3 staging archive candidate
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-$name-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  archive="$staging/$name-$version.crate"
+  curl --fail --location --silent --show-error --retry 3 \
+    --output "$archive" \
+    "https://static.crates.io/crates/$name/$name-$version.crate"
+  [[ "$(sha256_of "$archive")" == "$checksum" ]]
+  tar -xzf "$archive" -C "$staging"
+  candidate="$staging/$name-$version"
+  apply_series "$candidate" "vendor/$name"
+  diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
+    --exclude=patches --exclude=target "$candidate" "vendor/$name"
+}
+
+check_tokio_btls_patch_replay() {
+  local staging archive candidate
+  local revision=50e72407ac1f89cea14003004429ecf579541b6f
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-tokio-btls-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  archive="$staging/btls-$revision.tar.gz"
+  curl --fail --location --silent --show-error --retry 3 \
+    --output "$archive" \
+    "https://codeload.github.com/0xARYA/btls/tar.gz/$revision"
+  [[ "$(sha256_of "$archive")" == f5a243c26b334b816792bb0cae92a5d3e4e13d68f3055807315be7005d58aff0 ]]
+  tar -xzf "$archive" -C "$staging"
+  candidate="$staging/btls-$revision/tokio-btls"
+  apply_series "$candidate" vendor/tokio-btls
+  diff -qr --exclude=Cargo.lock --exclude=PHANTOM.md --exclude=patches \
+    --exclude=target "$candidate" vendor/tokio-btls
+}
+
 check_http2_patch_replay() {
   local staging archive candidate actual_checksum patch
   local listed_patches stored_patches
@@ -40,8 +104,8 @@ check_http2_patch_replay() {
       git -C "$candidate" apply "$PWD/vendor/http2/patches/$patch"
     fi
   done < vendor/http2/patches/series
-  diff -qr --exclude=PHANTOM.md --exclude=patches --exclude=target \
-    "$candidate" vendor/http2
+  diff -qr --exclude=Cargo.lock --exclude=PHANTOM.md --exclude=patches \
+    --exclude=target "$candidate" vendor/http2
 }
 
 check_wreq_proto_patch_replay() {
@@ -91,12 +155,13 @@ check_wreq_proto_patch_replay() {
     git -C "$candidate" apply --check "$PWD/vendor/wreq-proto/patches/$patch"
     git -C "$candidate" apply "$PWD/vendor/wreq-proto/patches/$patch"
   done < vendor/wreq-proto/patches/series
-  diff -qr --exclude=.cargo-ok --exclude=PHANTOM.md --exclude=patches \
-    --exclude=target "$candidate" vendor/wreq-proto
+  diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=NOTICE \
+    --exclude=PHANTOM.md --exclude=patches --exclude=target \
+    "$candidate" vendor/wreq-proto
 }
 
 check_quinn_proto_patch_replay() {
-  local staging archive candidate actual_checksum patch
+  local staging archive candidate actual_checksum
   staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-quinn-proto-replay.XXXXXX")
   trap 'rm -rf "$staging"' RETURN
   archive="$staging/quinn-proto-0.11.18.crate"
@@ -111,16 +176,9 @@ check_quinn_proto_patch_replay() {
   [[ "$actual_checksum" == a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/quinn-proto-0.11.18"
-  for patch in \
-    vendor/quinn-proto/patches/fallible-key-updates.patch \
-    vendor/quinn-proto/patches/fallible-initial-keys.patch \
-    vendor/quinn-proto/patches/profiled-transport-parameters.patch
-  do
-    git -C "$candidate" apply --check "$PWD/$patch"
-    git -C "$candidate" apply "$PWD/$patch"
-  done
-  diff -qr --exclude=.cargo-ok --exclude=PHANTOM.md --exclude=patches --exclude=target \
-    "$candidate" vendor/quinn-proto
+  apply_series "$candidate" vendor/quinn-proto
+  diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
+    --exclude=patches --exclude=target "$candidate" vendor/quinn-proto
 }
 
 check_h3_patch_replay() {
@@ -283,6 +341,31 @@ case "${1:-}" in
     cargo test --manifest-path vendor/tungstenite/Cargo.toml \
       --lib --all-features --locked
     ;;
+  quinn)
+    check_crate_archive_replay quinn 0.11.12 \
+      4051e23e9185c255a7e33ef59cdbca87a22d359052eecd22fc6b901fb37d9d11
+    cargo check --manifest-path vendor/quinn/Cargo.toml \
+      --all-targets --locked
+    cargo check --manifest-path vendor/quinn/Cargo.toml \
+      --no-default-features --features runtime-tokio --locked
+    ;;
+  tokio-tungstenite)
+    check_crate_archive_replay tokio-tungstenite 0.30.0 \
+      17a073bfed563fa236697a068031408a93cd9522e08abf9933ead3e73411bd71
+    cargo check --manifest-path vendor/tokio-tungstenite/Cargo.toml \
+      --no-default-features --locked
+    cargo check --manifest-path vendor/tokio-tungstenite/Cargo.toml \
+      --lib --locked
+    ;;
+  tokio-btls)
+    check_tokio_btls_patch_replay
+    case "$(uname -s)" in
+      Darwin|MINGW*|MSYS*|CYGWIN*) tokio_btls_features=(--features default) ;;
+      *) tokio_btls_features=(--features prefix-symbols) ;;
+    esac
+    cargo check --manifest-path vendor/tokio-btls/Cargo.toml \
+      --all-targets "${tokio_btls_features[@]}" --locked
+    ;;
   wreq-proto)
     check_wreq_proto_patch_replay
     cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check
@@ -296,7 +379,7 @@ case "${1:-}" in
       --lib --all-features --locked
     ;;
   *)
-    echo "usage: $0 {btls|http2|quinn-proto|h3|tungstenite|wreq-proto}" >&2
+    echo "usage: $0 {btls|h3|http2|quinn|quinn-proto|tokio-btls|tokio-tungstenite|tungstenite|wreq-proto}" >&2
     exit 2
     ;;
 esac

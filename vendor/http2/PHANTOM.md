@@ -14,6 +14,24 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 - Upstream repository: <https://github.com/0x676e67/http2>
 - Upstream crate license and readme remain in `LICENSE` and `README.md`.
 
+## Publish identity
+
+`publish-identity.patch` is always the last entry in `patches/series`. It
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.1`),
+keeps the upstream library name so source, tests, and examples are unchanged,
+and points the repository metadata at Phantom. It removes the upstream
+documentation link, keeps Cargo's reserved archive files out of the packaged
+crate, and records the upstream package, version, and source archive under
+`[package.metadata.phantom]`. The standalone `Cargo.lock` is packaging metadata
+outside the patches and follows the renamed package. It changes no Rust source.
+
+Phantom depends on this package only through the renamed package with an exact
+version and a path, so the stock package cannot be selected in its place and no
+root `[patch]` table is required. When refreshing, regenerate this patch after
+the source patches. Increase the `-phantom.N` suffix whenever the fork's
+content changes without an upstream version change, and update the exact pins
+in the root `Cargo.toml` and in every renamed dependent.
+
 ## Why this patch exists
 
 `http::HeaderMap` preserves duplicate values for a field name but cannot retain
@@ -139,9 +157,9 @@ accounting across CONTINUATION frames.
 
 ## Refreshing the vendor copy
 
-The workspace's active `[patch.crates-io]` entry prevents `cargo fetch` from
-fetching the registry source. Download the exact crates.io archive directly so
-the patch can remain enabled throughout the refresh.
+Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never
+downloads the upstream registry source. Download the exact crates.io archive
+directly.
 
 1. Choose the reviewed version and its checksum from the crates.io index. For
    the currently vendored release, create an isolated staging directory and
@@ -208,17 +226,18 @@ the patch can remain enabled throughout the refresh.
    mv vendor/http2.next vendor/http2
    ```
 
-4. Refresh the workspace lock entry while the path patch is active, prove the
+4. Update the exact `phantom-http2` pins in the root `Cargo.toml` and in
+   `vendor/wreq-proto`'s identity patch, refresh the lockfiles, prove the
    selected source, and run the required checks:
 
    ```sh
-   cargo update -p http2 --precise "$http2_version"
-   cargo tree -i http2 --locked
+   cargo metadata --format-version 1 >/dev/null
+   cargo tree -i phantom-http2 --locked
    ```
 
-   `cargo tree` must show `http2 v$http2_version` at `vendor/http2`, below
-   `wreq-proto`. Confirm that the `Cargo.lock` diff changes only the `http2`
-   package entry before committing. If any check fails, move the failed
+   `cargo tree` must show `phantom-http2 v$http2_version-phantom.N` at
+   `vendor/http2`, below `phantom-wreq-proto`. Confirm that the `Cargo.lock`
+   diff changes only the `phantom-http2` package entry before committing. If any check fails, move the failed
    `vendor/http2` directory aside, move `$refresh_dir/http2.previous` back to
    `vendor/http2`, and restore the reviewed lockfile change before retrying.
 
@@ -230,7 +249,7 @@ cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
 cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features --locked
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features client::tests
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features --lib -- --skip hpack::test::fixture
-cargo tree -i http2 --locked
+cargo tree -i phantom-http2 --locked
 cargo +1.85.0 check --workspace --all-targets --locked
 ```
 

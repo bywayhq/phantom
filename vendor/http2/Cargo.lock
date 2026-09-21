@@ -186,35 +186,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "http2"
-version = "0.5.20"
-dependencies = [
- "atomic-waker",
- "bytes",
- "env_logger",
- "fnv",
- "futures-core",
- "futures-sink",
- "h2",
- "hex",
- "http",
- "indexmap",
- "parking_lot",
- "quickcheck",
- "rand 0.8.7",
- "serde",
- "serde_json",
- "slab",
- "smallvec",
- "tokio",
- "tokio-rustls",
- "tokio-util",
- "tracing",
- "walkdir",
- "webpki-roots",
-]
-
-[[package]]
 name = "indexmap"
 version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -305,6 +276,35 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
+]
+
+[[package]]
+name = "phantom-http2"
+version = "0.5.20-phantom.1"
+dependencies = [
+ "atomic-waker",
+ "bytes",
+ "env_logger",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "h2",
+ "hex",
+ "http",
+ "indexmap",
+ "parking_lot",
+ "quickcheck",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "slab",
+ "smallvec",
+ "tokio",
+ "tokio-rustls",
+ "tokio-util",
+ "tracing",
+ "walkdir",
+ "webpki-roots",
 ]
 
 [[package]]

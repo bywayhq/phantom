@@ -269,13 +269,13 @@ dependencies = [
  "anyhow",
  "bytes",
  "futures",
- "h3",
- "h3-datagram",
- "h3-quinn",
  "h3-webtransport",
  "http",
  "octets",
- "quinn",
+ "phantom-h3",
+ "phantom-h3-datagram",
+ "phantom-h3-quinn",
+ "phantom-quinn",
  "rcgen",
  "rustls",
  "rustls-native-certs",
@@ -432,59 +432,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "h3"
-version = "0.0.8"
-dependencies = [
- "assert_matches",
- "bytes",
- "fastrand",
- "futures",
- "futures-util",
- "h3-datagram",
- "http",
- "pin-project-lite",
- "proptest",
- "quinn",
- "quinn-proto",
- "rcgen",
- "rustls",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "h3-datagram"
-version = "0.0.2"
-dependencies = [
- "bytes",
- "h3",
- "tracing",
-]
-
-[[package]]
-name = "h3-quinn"
-version = "0.0.10"
-dependencies = [
- "bytes",
- "futures-util",
- "h3",
- "h3-datagram",
- "quinn",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
 name = "h3-webtransport"
 version = "0.1.2"
 dependencies = [
  "bytes",
  "futures-util",
- "h3",
- "h3-datagram",
  "http",
+ "phantom-h3",
+ "phantom-h3-datagram",
  "pin-project-lite",
  "tokio",
  "tracing",
@@ -720,6 +675,90 @@ dependencies = [
 ]
 
 [[package]]
+name = "phantom-h3"
+version = "0.0.8-phantom.1"
+dependencies = [
+ "assert_matches",
+ "bytes",
+ "fastrand",
+ "futures",
+ "futures-util",
+ "http",
+ "phantom-h3-datagram",
+ "phantom-quinn",
+ "phantom-quinn-proto",
+ "pin-project-lite",
+ "proptest",
+ "rcgen",
+ "rustls",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "phantom-h3-datagram"
+version = "0.0.2-phantom.1"
+dependencies = [
+ "bytes",
+ "phantom-h3",
+ "tracing",
+]
+
+[[package]]
+name = "phantom-h3-quinn"
+version = "0.0.10-phantom.1"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "phantom-h3",
+ "phantom-h3-datagram",
+ "phantom-quinn",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "phantom-quinn"
+version = "0.11.12-phantom.1"
+dependencies = [
+ "bytes",
+ "cfg_aliases",
+ "futures-io",
+ "phantom-quinn-proto",
+ "pin-project-lite",
+ "quinn-udp",
+ "rustc-hash",
+ "rustls",
+ "socket2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "web-time",
+]
+
+[[package]]
+name = "phantom-quinn-proto"
+version = "0.11.18-phantom.1"
+dependencies = [
+ "bytes",
+ "getrandom 0.4.3",
+ "lru-slab",
+ "rand 0.10.2",
+ "rand_pcg",
+ "ring",
+ "rustc-hash",
+ "rustls",
+ "rustls-pki-types",
+ "slab",
+ "thiserror",
+ "tinyvec",
+ "tracing",
+ "web-time",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -797,49 +836,6 @@ name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
-
-[[package]]
-name = "quinn"
-version = "0.11.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4051e23e9185c255a7e33ef59cdbca87a22d359052eecd22fc6b901fb37d9d11"
-dependencies = [
- "bytes",
- "cfg_aliases",
- "futures-io",
- "pin-project-lite",
- "quinn-proto",
- "quinn-udp",
- "rustc-hash",
- "rustls",
- "socket2",
- "thiserror",
- "tokio",
- "tracing",
- "web-time",
-]
-
-[[package]]
-name = "quinn-proto"
-version = "0.11.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc"
-dependencies = [
- "bytes",
- "getrandom 0.4.3",
- "lru-slab",
- "rand 0.10.2",
- "rand_pcg",
- "ring",
- "rustc-hash",
- "rustls",
- "rustls-pki-types",
- "slab",
- "thiserror",
- "tinyvec",
- "tracing",
- "web-time",
-]
 
 [[package]]
 name = "quinn-udp"

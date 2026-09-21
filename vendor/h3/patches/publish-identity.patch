@@ -1,0 +1,209 @@
+diff --git a/examples/Cargo.toml b/examples/Cargo.toml
+index 16446da..4d753e8 100644
+--- a/examples/Cargo.toml
++++ b/examples/Cargo.toml
+@@ -10,11 +10,11 @@ edition = "2021"
+ anyhow = "1.0"
+ bytes = "1"
+ futures = "0.3"
+-h3 = { path = "../h3", features = ["tracing"] }
+-h3-quinn = { path = "../h3-quinn", features = ["tracing", "datagram"] }
++h3 = { package = "phantom-h3", version = "=0.0.8-phantom.1", path = "../h3", features = ["tracing"] }
++h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.1", path = "../h3-quinn", features = ["tracing", "datagram"] }
+ h3-webtransport = { path = "../h3-webtransport" }
+ http = "1"
+-quinn = { version = "0.11", default-features = false, features = [
++quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "../../quinn", default-features = false, features = [
+     "runtime-tokio",
+     "rustls",
+     "ring",
+@@ -39,7 +39,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
+ octets = "0.3.0"
+ 
+ tracing-tree = { version = "0.4" }
+-h3-datagram = { path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.1", path = "../h3-datagram" }
+ 
+ [features]
+ tree = []
+diff --git a/h3-datagram/Cargo.toml b/h3-datagram/Cargo.toml
+index a2cdbf1..39e4199 100644
+--- a/h3-datagram/Cargo.toml
++++ b/h3-datagram/Cargo.toml
+@@ -1,14 +1,23 @@
+ [package]
+-name = "h3-datagram"
+-version = "0.0.2"
++name = "phantom-h3-datagram"
++version = "0.0.2-phantom.1"
+ edition = "2021"
+-documentation = "https://docs.rs/h3-datagram"
+-repository = "https://github.com/hyperium/h3"
++repository = "https://github.com/bywayhq/phantom"
+ readme = "readme.md"
+-description = "rfc9297 extension for the h3 crate"
++description = "Phantom fork of h3-datagram 0.0.2; not a general-purpose replacement"
+ keywords = ["http3", "quic", "rfc9297"]
+ categories = ["network-programming", "web-programming"]
+ license = "MIT"
++exclude = [
++    ".cargo_vcs_info.json",
++    ".cargo-ok",
++    "Cargo.toml.orig",
++]
++
++[package.metadata.phantom]
++upstream-package = "h3-datagram"
++upstream-version = "0.0.2"
++upstream-source = "https://codeload.github.com/hyperium/h3/tar.gz/1f3d5295833ad454343f25d55633fb6bee1027b2"
+ 
+ 
+ [dependencies]
+@@ -20,6 +29,10 @@ tracing = { version = "0.1.40", optional = true }
+ tracing = ["dep:tracing"]
+ 
+ [dependencies.h3]
+-version = "0.0.8"
++package = "phantom-h3"
++version = "=0.0.8-phantom.1"
+ path = "../h3"
+ features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]
++
++[lib]
++name = "h3_datagram"
+diff --git a/h3-quinn/Cargo.toml b/h3-quinn/Cargo.toml
+index bbb8914..d250f5c 100644
+--- a/h3-quinn/Cargo.toml
++++ b/h3-quinn/Cargo.toml
+@@ -1,28 +1,40 @@
+ [package]
+-name = "h3-quinn"
+-version = "0.0.10"
++name = "phantom-h3-quinn"
++version = "0.0.10-phantom.1"
+ rust-version = "1.74"
+ authors = ["Jean-Christophe BEGUE <jc.begue@pm.me>"]
+ edition = "2021"
+-documentation = "https://docs.rs/h3-quinn"
+-repository = "https://github.com/hyperium/h3"
++repository = "https://github.com/bywayhq/phantom"
+ readme = "README.md"
+-description = "QUIC transport implementation based on Quinn."
++description = "Phantom fork of h3-quinn 0.0.10; not a general-purpose replacement"
+ keywords = ["http3", "quic", "h3"]
+ categories = ["network-programming", "web-programming"]
+ license = "MIT"
++exclude = [
++    ".cargo_vcs_info.json",
++    ".cargo-ok",
++    "Cargo.toml.orig",
++]
++
++[package.metadata.phantom]
++upstream-package = "h3-quinn"
++upstream-version = "0.0.10"
++upstream-source = "https://codeload.github.com/hyperium/h3/tar.gz/1f3d5295833ad454343f25d55633fb6bee1027b2"
+ 
+ [dependencies]
+-h3 = { version = "0.0.8", path = "../h3" }
++h3 = { package = "phantom-h3", version = "=0.0.8-phantom.1", path = "../h3" }
+ bytes = "1"
+-quinn = { version = "0.11.7", default-features = false, features = [
++quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "../../quinn", default-features = false, features = [
+     "futures-io",
+ ] }
+ tokio-util = { version = "0.7.9" }
+ futures-util = { version = "0.3.28", default-features = false }
+-h3-datagram = {version = "0.0.2", path = "../h3-datagram", optional = true }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.1", path = "../h3-datagram", optional = true }
+ tracing = { version = "0.1.40", optional = true }
+ 
+ [features]
+ tracing = ["dep:tracing"]
+ datagram = ["dep:h3-datagram"]
++
++[lib]
++name = "h3_quinn"
+diff --git a/h3-webtransport/Cargo.toml b/h3-webtransport/Cargo.toml
+index 28009d6..9adbbcf 100644
+--- a/h3-webtransport/Cargo.toml
++++ b/h3-webtransport/Cargo.toml
+@@ -19,9 +19,10 @@ http = "1"
+ pin-project-lite = { version = "0.2", default-features = false }
+ tracing = "0.1.37"
+ tokio = { version = "1.28", default-features = false }
+-h3-datagram = { version = "0.0.2", path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.1", path = "../h3-datagram" }
+ 
+ [dependencies.h3]
+-version = "0.0.8"
++package = "phantom-h3"
++version = "=0.0.8-phantom.1"
+ path = "../h3"
+ features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]
+diff --git a/h3/Cargo.toml b/h3/Cargo.toml
+index c6767a4..abc5ee8 100644
+--- a/h3/Cargo.toml
++++ b/h3/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+-name = "h3"
+-version = "0.0.8"
++name = "phantom-h3"
++version = "0.0.8-phantom.1"
+ rust-version = "1.74"
+ authors = [
+     "Sean McArthur <sean@seanmonstar.com>",
+@@ -8,16 +8,25 @@ authors = [
+ ]
+ license = "MIT"
+ edition = "2021"
+-documentation = "https://docs.rs/h3"
+-repository = "https://github.com/hyperium/h3"
++repository = "https://github.com/bywayhq/phantom"
+ readme = "../README.md"
+-description = "An async HTTP/3 implementation."
++description = "Phantom fork of h3 0.0.8; not a general-purpose replacement"
+ keywords = ["http3", "quic", "h3"]
+ categories = [
+     "network-programming",
+     "web-programming::http-client",
+     "web-programming::http-server",
+ ]
++exclude = [
++    ".cargo_vcs_info.json",
++    ".cargo-ok",
++    "Cargo.toml.orig",
++]
++
++[package.metadata.phantom]
++upstream-package = "h3"
++upstream-version = "0.0.8"
++upstream-source = "https://codeload.github.com/hyperium/h3/tar.gz/1f3d5295833ad454343f25d55633fb6bee1027b2"
+ 
+ [features]
+ i-implement-a-third-party-backend-and-opt-into-breaking-changes = []
+@@ -36,12 +45,12 @@ fastrand = "2.0.1"
+ assert_matches = "1.5.0"
+ futures-util = { version = "0.3", default-features = false, features = ["io"] }
+ proptest = "1"
+-quinn = { version = "0.11", default-features = false, features = [
++quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "../../quinn", default-features = false, features = [
+     "runtime-tokio",
+     "rustls",
+     "ring",
+ ] }
+-quinn-proto = { version = "0.11", default-features = false }
++quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.1", path = "../../quinn-proto", default-features = false }
+ rcgen = "0.14"
+ rustls = { version = "0.23", default-features = false, features = ["logging", "ring", "std"] }
+ tokio = { version = "1", features = ["rt", "macros", "io-util", "io-std"] }
+@@ -54,4 +63,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
+ ] }
+ futures = { version = "0.3.28" }
+ tokio-util = { version = "0.7.9" }
+-h3-datagram = {path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.1", path = "../h3-datagram" }
++
++[lib]
++name = "h3"

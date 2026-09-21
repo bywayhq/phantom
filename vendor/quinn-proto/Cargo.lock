@@ -757,6 +757,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "phantom-quinn-proto"
+version = "0.11.18-phantom.1"
+dependencies = [
+ "arbitrary",
+ "assert_matches",
+ "aws-lc-rs",
+ "bytes",
+ "fastbloom",
+ "getrandom 0.4.3",
+ "hex-literal",
+ "lazy_static",
+ "lru-slab",
+ "qlog",
+ "rand",
+ "rand_pcg",
+ "rcgen",
+ "ring",
+ "rustc-hash",
+ "rustls",
+ "rustls-pki-types",
+ "rustls-platform-verifier",
+ "slab",
+ "thiserror",
+ "tinyvec",
+ "tracing",
+ "tracing-subscriber",
+ "wasm-bindgen-test",
+ "web-time",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -803,37 +834,6 @@ dependencies = [
  "serde_json",
  "serde_with",
  "smallvec",
-]
-
-[[package]]
-name = "quinn-proto"
-version = "0.11.18"
-dependencies = [
- "arbitrary",
- "assert_matches",
- "aws-lc-rs",
- "bytes",
- "fastbloom",
- "getrandom 0.4.3",
- "hex-literal",
- "lazy_static",
- "lru-slab",
- "qlog",
- "rand",
- "rand_pcg",
- "rcgen",
- "ring",
- "rustc-hash",
- "rustls",
- "rustls-pki-types",
- "rustls-platform-verifier",
- "slab",
- "thiserror",
- "tinyvec",
- "tracing",
- "tracing-subscriber",
- "wasm-bindgen-test",
- "web-time",
 ]
 
 [[package]]

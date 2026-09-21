@@ -4,9 +4,9 @@
 This file records provenance, local behavior changes, the refresh procedure,
 and focused checks. It is not integration documentation.
 
-The three files in `patches/` are the canonical local changes and must be
-applied in the order used by `scripts/ci/check-vendor.sh`. Change those patches
-and replay them; do not make an unrecorded edit to the vendored crate.
+The files listed in `patches/series` are the canonical local changes, in
+application order. Change those patches and replay them; do not make an
+unrecorded edit to the vendored crate.
 
 This directory is the complete crates.io source for `quinn-proto` version
 `0.11.18`.
@@ -17,6 +17,25 @@ This directory is the complete crates.io source for `quinn-proto` version
   <https://static.crates.io/crates/quinn-proto/quinn-proto-0.11.18.crate>
 - Upstream repository: <https://github.com/quinn-rs/quinn>
 - Upstream crate licenses remain in `LICENSE-APACHE` and `LICENSE-MIT`.
+
+## Publish identity
+
+`publish-identity.patch` is always the last entry in `patches/series`. It
+renames the package (`quinn-proto` becomes `phantom-quinn-proto` at
+`0.11.18-phantom.1`), keeps the upstream library name so source, tests, and
+examples are unchanged, and points the repository metadata at Phantom. It
+removes the upstream documentation link, keeps Cargo's reserved archive files
+out of the packaged crate, and records the upstream package, version, and
+source archive under `[package.metadata.phantom]`. The standalone `Cargo.lock`
+is packaging metadata outside the patches and follows the renamed package. It
+changes no Rust source.
+
+Phantom depends on this package only through the renamed package with an exact
+version and a path, so the stock package cannot be selected in its place and no
+root `[patch]` table is required. When refreshing, regenerate this patch after
+the source patches. Increase the `-phantom.N` suffix whenever the fork's
+content changes without an upstream version change, and update the exact pins
+in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
 
@@ -94,16 +113,12 @@ patches.
    rejected hunks.
 
    ```sh
-   for patch in \
-     fallible-key-updates.patch \
-     fallible-initial-keys.patch \
-     profiled-transport-parameters.patch
-   do
+   while IFS= read -r patch; do
      git -C "$candidate" apply --check \
        "$PWD/vendor/quinn-proto/patches/$patch"
      git -C "$candidate" apply \
        "$PWD/vendor/quinn-proto/patches/$patch"
-   done
+   done < "$PWD/vendor/quinn-proto/patches/series"
    ```
 
 3. Copy the patched candidate to `vendor/quinn-proto.next`, then copy this file
@@ -114,8 +129,8 @@ patches.
 4. Refresh and inspect the workspace selection:
 
    ```sh
-   cargo update -p quinn-proto --precise "$quinn_proto_version"
-   cargo tree -i quinn-proto --locked
+   cargo metadata --format-version 1 >/dev/null
+   cargo tree -i phantom-quinn-proto --locked
    ```
 
    The tree must select `quinn-proto v$quinn_proto_version` from

@@ -72,19 +72,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "btls"
-version = "0.5.6"
-dependencies = [
- "bitflags",
- "brotli",
- "btls-sys",
- "foreign-types",
- "hex",
- "libc",
- "openssl-macros",
-]
-
-[[package]]
 name = "btls-sys"
 version = "0.5.6"
 source = "git+https://github.com/0xARYA/btls?rev=50e72407ac1f89cea14003004429ecf579541b6f#50e72407ac1f89cea14003004429ecf579541b6f"
@@ -263,6 +250,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "phantom-btls"
+version = "0.5.6-phantom.1"
+dependencies = [
+ "bitflags",
+ "brotli",
+ "btls-sys",
+ "foreign-types",
+ "hex",
+ "libc",
+ "openssl-macros",
 ]
 
 [[package]]

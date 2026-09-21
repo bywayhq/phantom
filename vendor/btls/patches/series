@@ -5,3 +5,4 @@ delegated-credentials.patch
 concurrent-aead.patch
 tls-key-update.patch
 scoped-client-sessions.patch
+publish-identity.patch

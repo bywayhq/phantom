@@ -17,6 +17,25 @@ This directory is the complete crates.io source for `wreq-proto` version
 - Upstream repository: <https://github.com/0x676e67/wreq-proto>
 - The upstream Apache-2.0 license remains in `LICENSE`.
 
+## Publish identity
+
+`publish-identity.patch` is always the last entry in `patches/series`. It
+renames the package (`wreq-proto` becomes `phantom-wreq-proto` at
+`0.2.5-phantom.1`), keeps the upstream library name so source, tests, and
+examples are unchanged, and points the repository metadata at Phantom. It
+removes the upstream documentation link, keeps Cargo's reserved archive files
+out of the packaged crate, and records the upstream package, version, and
+source archive under `[package.metadata.phantom]`. Its `http2` dependency is
+`phantom-http2` from `../http2`. The standalone `Cargo.lock` is packaging
+metadata outside the patches and follows that path. It changes no Rust source.
+
+Phantom depends on this package only through the renamed package with an exact
+version and a path, so the stock package cannot be selected in its place and no
+root `[patch]` table is required. When refreshing, regenerate this patch after
+the source patches. Increase the `-phantom.N` suffix whenever the fork's
+content changes without an upstream version change, and update the exact pins
+in the root `Cargo.toml` and in every renamed dependent.
+
 ## Why this patch exists
 
 The stock chunked-body decoder bounds cumulative extension bytes but does not
@@ -100,9 +119,9 @@ done < "$PWD/vendor/wreq-proto/patches/series"
 scripts/ci/check-vendor.sh wreq-proto
 ```
 
-Refresh the root lockfile only after the path patch selects the reviewed
-candidate. The `wreq-proto` lock entry should have no registry source or
-checksum while the path patch is active.
+Refresh the root lockfile only after the renamed path dependency selects the
+reviewed candidate. The `phantom-wreq-proto` lock entry has no registry source
+or checksum.
 
 ## Focused checks
 

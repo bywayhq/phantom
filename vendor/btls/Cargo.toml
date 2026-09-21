@@ -1,16 +1,25 @@
 [package]
-name = "btls"
-version = "0.5.6"
+name = "phantom-btls"
+version = "0.5.6-phantom.1"
 authors = ["0x676e67 <gngppz@gmail.com>", "Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "Apache-2.0"
-description = "BoringSSL bindings"
-repository = "https://github.com/0x676e67/btls"
-documentation = "https://docs.rs/btls"
+description = "Phantom fork of btls 0.5.6; not a general-purpose replacement"
+repository = "https://github.com/bywayhq/phantom"
 readme = "README.md"
 keywords = ["tls", "ssl", "dtls", "post-quantum", "fips"]
 categories = ["cryptography", "api-bindings"]
 edition = "2021"
 rust-version = "1.85"
+exclude = [
+    ".cargo_vcs_info.json",
+    ".cargo-ok",
+    "Cargo.toml.orig",
+]
+
+[package.metadata.phantom]
+upstream-package = "btls"
+upstream-version = "0.5.6"
+upstream-source = "https://codeload.github.com/0x676e67/btls/tar.gz/129887582a538b8f4dcf371d15c953335312ca37"
 
 [package.metadata.docs.rs]
 features = ["rpk", "underscore-wildcards", "mlkem", "mldsa"]
@@ -71,3 +80,6 @@ btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "5
 [dev-dependencies]
 hex = "0.4"
 brotli = "8.0.2"
+
+[lib]
+name = "btls"

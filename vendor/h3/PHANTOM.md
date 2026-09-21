@@ -22,6 +22,28 @@ and focused package tests work without packaging rewrites.
 - Package versions: `h3 0.0.8`, `h3-quinn 0.0.10`
 - The upstream MIT license remains in `LICENSE`.
 
+## Publish identity
+
+`publish-identity.patch` is always the last entry in `patches/series`. It
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.1`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.1`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.1`), keeps the upstream library
+name so source, tests, and examples are unchanged, and points the repository
+metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
+reserved archive files out of the packaged crate, and records the upstream
+package, version, and source archive under `[package.metadata.phantom]`.
+Internal `h3`, `h3-datagram`, `quinn`, and `quinn-proto` dependencies,
+including those of the unpublished `h3-webtransport` and `examples` members and
+`h3`'s test dependencies, point at the renamed packages so the standalone
+workspace exercises the same QUIC stack as Phantom. It changes no Rust source.
+
+Phantom depends on this package only through the renamed package with an exact
+version and a path, so the stock package cannot be selected in its place and no
+root `[patch]` table is required. When refreshing, regenerate this patch after
+the source patches. Increase the `-phantom.N` suffix whenever the fork's
+content changes without an upstream version change, and update the exact pins
+in the root `Cargo.toml` and in every renamed dependent.
+
 ## Why this patch exists
 
 Upstream builds the outbound SETTINGS frame from individual builder fields in
@@ -276,7 +298,7 @@ with `--locked` so dependency resolution remains reproducible.
    commit, archive URL, checksum, and package versions above.
 
 4. Run the focused checks below. After workspace integration, also prove the
-   lockfile selects `h3` and `h3-quinn` from this directory and inspect the
+   lockfile selects `phantom-h3` and `phantom-h3-quinn` from this directory and inspect the
    lockfile diff before committing.
 
 ## Focused checks

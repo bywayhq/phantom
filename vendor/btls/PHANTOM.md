@@ -25,6 +25,25 @@ size limit, and delegated-credential patches.
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
 
+## Publish identity
+
+`publish-identity.patch` is always the last entry in `patches/series`. It
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.1`), keeps
+the upstream library name so source, tests, and examples are unchanged, and
+points the repository metadata at Phantom. It removes the upstream
+documentation link, keeps Cargo's reserved archive files out of the packaged
+crate, and records the upstream package, version, and source archive under
+`[package.metadata.phantom]`. The `btls-sys` dependency still resolves from the
+reviewed fork revision by git; publishing it under a Phantom name, with its own
+`links` key, is a later release step. It changes no Rust source.
+
+Phantom depends on this package only through the renamed package with an exact
+version and a path, so the stock package cannot be selected in its place and no
+root `[patch]` table is required. When refreshing, regenerate this patch after
+the source patches. Increase the `-phantom.N` suffix whenever the fork's
+content changes without an upstream version change, and update the exact pins
+in the root `Cargo.toml` and in every renamed dependent.
+
 ## Why this patch exists
 
 The upstream safe wrapper can enable ALPS only with an empty application
@@ -182,9 +201,9 @@ machine.
    to the reviewed dependency-fork revision:
 
    ```sh
-   cargo tree -i btls --locked
+   cargo tree -i phantom-btls --locked
    cargo tree -i btls-sys --locked
-   cargo tree -i tokio-btls --locked
+   cargo tree -i phantom-tokio-btls --locked
    ```
 
 ## Required checks

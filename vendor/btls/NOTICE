@@ -1,0 +1,8 @@
+phantom-btls
+
+This package is a modified copy of the btls wrapper crate
+(https://github.com/0x676e67/btls, commit
+129887582a538b8f4dcf371d15c953335312ca37), distributed under the Apache
+License, Version 2.0; see LICENSE. The Phantom project modified the files
+changed by the patches listed in patches/series, and PHANTOM.md describes each
+change.

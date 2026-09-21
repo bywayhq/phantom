@@ -12,15 +12,20 @@
 [package]
 edition = "2021"
 rust-version = "1.85"
-name = "quinn-proto"
-version = "0.11.18"
+name = "phantom-quinn-proto"
+version = "0.11.18-phantom.1"
 build = false
+exclude = [
+    ".cargo_vcs_info.json",
+    ".cargo-ok",
+    "Cargo.toml.orig",
+]
 autolib = false
 autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "State machine for the QUIC transport protocol"
+description = "Phantom fork of quinn-proto 0.11.18; not a general-purpose replacement"
 readme = false
 keywords = ["quic"]
 categories = [
@@ -28,7 +33,12 @@ categories = [
     "asynchronous",
 ]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/quinn-rs/quinn"
+repository = "https://github.com/bywayhq/phantom"
+
+[package.metadata.phantom]
+upstream-package = "quinn-proto"
+upstream-version = "0.11.18"
+upstream-source = "https://static.crates.io/crates/quinn-proto/quinn-proto-0.11.18.crate"
 
 [package.metadata.docs.rs]
 features = [

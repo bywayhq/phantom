@@ -291,25 +291,6 @@ cat > "$mock_bin/cargo" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'cargo %s\n' "$*" >> "$COMMAND_LOG"
-if [[ " $* " == *' update '* && -n ${MOCK_CANDIDATE_REPOSITORY:-} ]]; then
-  awk -v repository="$MOCK_CANDIDATE_REPOSITORY" \
-      -v revision="$MOCK_CANDIDATE_REVISION" '
-    /^\[\[package\]\]$/ { in_package = 1; name = ""; print; next }
-    in_package && /^name = / {
-      name = $0
-      sub(/^[^"]*"/, "", name)
-      sub(/".*/, "", name)
-      print
-      next
-    }
-    in_package && name == "tokio-btls" && /^source = / {
-      print "source = \"git+" repository "?rev=" revision "#" revision "\""
-      next
-    }
-    { print }
-  ' Cargo.lock > Cargo.lock.next
-  mv Cargo.lock.next Cargo.lock
-fi
 EOF
 cat > "$mock_bin/rustup" <<'EOF'
 #!/usr/bin/env bash
@@ -402,18 +383,17 @@ mkdir -p "$darwin_tmp"
   PATH="$linux_bin:$PATH" \
     TMPDIR="$probe_tmp" \
     COMMAND_LOG="$command_log" \
-    MOCK_CANDIDATE_REVISION="$candidate_revision" \
-    MOCK_CANDIDATE_REPOSITORY="$candidate_repo" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
 )
-[[ $(grep -F -o "rev = \"$candidate_revision\"" \
-  "$probe_checkout/Cargo.toml" | wc -l | tr -d ' ') == 2 ]]
-grep -F -q "rev = \"$candidate_revision\"" \
-  "$probe_checkout/Cargo.toml"
+# The wrapper candidate replaces vendor/btls only; root dependency sources and
+# the vendored tokio-btls fork stay pinned to the reviewed revision.
+git -C "$probe_checkout" diff --quiet -- Cargo.toml
 grep -F -q 'rev = "50e72407ac1f89cea14003004429ecf579541b6f"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
+grep -F -x -q 'cargo update -p phantom-btls' "$command_log"
+grep -F -x -q 'cargo tree -i phantom-btls --locked' "$command_log"
 grep -F -x -q \
   'cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols ssl::test::alps' \
   "$command_log"
@@ -441,8 +421,6 @@ grep -F -q 'browser_client_hello_fixtures' "$command_log"
   PATH="$darwin_bin:$PATH" \
     TMPDIR="$darwin_tmp" \
     COMMAND_LOG="$darwin_command_log" \
-    MOCK_CANDIDATE_REVISION="$candidate_revision" \
-    MOCK_CANDIDATE_REPOSITORY="$candidate_repo" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
     PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
@@ -470,8 +448,15 @@ if grep -F -q \
 fi
 [[ -z $(find "$darwin_tmp" -mindepth 1 -print -quit) ]]
 
-wreq_version=$(sed -nE 's/.*wreq-proto = "=([^"]+)".*/\1/p' \
-  crates/phantom-net/Cargo.toml)
+wreq_version=$(awk '
+  /^\[package\.metadata\.phantom\]$/ { metadata = 1; next }
+  metadata && /^upstream-version = / {
+    sub(/^[^"]*"/, "")
+    sub(/".*/, "")
+    print
+    exit
+  }
+' vendor/wreq-proto/Cargo.toml)
 [[ -n "$wreq_version" ]]
 wreq_source_root="$test_root/wreq-source"
 mkdir -p "$wreq_source_root"
@@ -578,9 +563,7 @@ wreq_command_log="$test_root/wreq-commands.log"
     scripts/ci/probe-upstream-candidate.sh wreq-proto "$wreq_version" \
       "$wreq_checksum"
 )
-grep -F -x -q \
-  "cargo update -p wreq-proto --precise $wreq_version" \
-  "$wreq_command_log"
+grep -F -x -q 'cargo update -p phantom-wreq-proto' "$wreq_command_log"
 grep -F -x -q \
   'cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check' \
   "$wreq_command_log"
@@ -590,7 +573,7 @@ grep -F -x -q \
 grep -F -x -q \
   'cargo test --manifest-path vendor/wreq-proto/Cargo.toml --lib --all-features' \
   "$wreq_command_log"
-grep -F -x -q 'cargo tree -i wreq-proto --locked' "$wreq_command_log"
+grep -F -x -q 'cargo tree -i phantom-wreq-proto --locked' "$wreq_command_log"
 git -C "$wreq_checkout/vendor/wreq-proto" apply --reverse --check \
   patches/chunk-size-line-limit.patch
 [[ -f "$wreq_checkout/vendor/wreq-proto/PHANTOM.md" ]]
@@ -660,7 +643,6 @@ grep -F -q 'checksum mismatch' "$test_root/http2-failure.stderr"
   PATH="$mock_bin:$PATH" \
     TMPDIR="$http2_tmp" \
     COMMAND_LOG="$command_log" \
-    MOCK_CANDIDATE_REVISION="$candidate_revision" \
     MOCK_HTTP2_ARCHIVE="$http2_archive" \
     PHANTOM_DISPOSABLE_CANDIDATE_CHECKOUT=1 \
     scripts/ci/probe-upstream-candidate.sh http2 0.5.20 "$http2_checksum"

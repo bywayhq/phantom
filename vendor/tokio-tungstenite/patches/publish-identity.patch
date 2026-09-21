@@ -1,0 +1,59 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 4306355..c447707 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -12,8 +12,8 @@
+ [package]
+ edition = "2018"
+ rust-version = "1.85"
+-name = "tokio-tungstenite"
+-version = "0.30.0"
++name = "phantom-tokio-tungstenite"
++version = "0.30.0-phantom.1"
+ authors = [
+     "Daniel Abramov <dabramov@snapview.de>",
+     "Alexey Galakhov <agalakhov@snapview.de>",
+@@ -25,15 +25,16 @@ include = [
+     "LICENSE",
+     "README.md",
+     "CHANGELOG.md",
++    "PHANTOM.md",
++    "patches/*",
+ ]
+ autolib = false
+ autobins = false
+ autoexamples = false
+ autotests = false
+ autobenches = false
+-description = "Tokio binding for Tungstenite, the Lightweight stream-based WebSocket implementation"
++description = "Phantom fork of tokio-tungstenite 0.30.0; not a general-purpose replacement"
+ homepage = "https://github.com/snapview/tokio-tungstenite"
+-documentation = "https://docs.rs/tokio-tungstenite/0.30.0"
+ readme = "README.md"
+ keywords = [
+     "websocket",
+@@ -47,7 +48,12 @@ categories = [
+     "concurrency",
+ ]
+ license = "MIT"
+-repository = "https://github.com/snapview/tokio-tungstenite"
++repository = "https://github.com/bywayhq/phantom"
++
++[package.metadata.phantom]
++upstream-package = "tokio-tungstenite"
++upstream-version = "0.30.0"
++upstream-source = "https://static.crates.io/crates/tokio-tungstenite/tokio-tungstenite-0.30.0.crate"
+ 
+ [package.metadata.docs.rs]
+ all-features = true
+@@ -182,7 +188,9 @@ optional = true
+ default-features = false
+ 
+ [dependencies.tungstenite]
+-version = "0.30.0"
++version = "=0.30.0-phantom.1"
++package = "phantom-tungstenite"
++path = "../tungstenite"
+ default-features = false
+ 
+ [dependencies.webpki-roots]

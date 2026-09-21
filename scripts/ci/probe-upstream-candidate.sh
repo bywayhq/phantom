@@ -49,18 +49,6 @@ replace_exact() {
   rm "$file.bak"
 }
 
-replace_exact_line() {
-  local file=$1 old=$2 new=$3 expected=$4
-  local count
-  count=$(awk -v old="$old" '$0 == old { count++ } END { print count + 0 }' "$file")
-  [[ "$count" == "$expected" ]] \
-    || die "expected $expected lines equal to '$old' in $file, found $count"
-  awk -v old="$old" -v replacement="$new" \
-    '{ print ($0 == old ? replacement : $0) }' "$file" \
-    > "$file.next"
-  mv "$file.next" "$file"
-}
-
 locked_git_source() {
   local package=$1
   awk -v package="$package" '
@@ -79,6 +67,55 @@ locked_git_source() {
       exit
     }
   ' Cargo.lock
+}
+
+package_version() {
+  awk '
+    /^\[package\]$/ { package = 1; next }
+    package && /^\[/ { exit }
+    package && /^version = / {
+      sub(/^[^"]*"/, "")
+      sub(/".*/, "")
+      print
+      exit
+    }
+  ' "$1"
+}
+
+upstream_version() {
+  awk '
+    /^\[package\.metadata\.phantom\]$/ { metadata = 1; next }
+    metadata && /^\[/ { exit }
+    metadata && /^upstream-version = / {
+      sub(/^[^"]*"/, "")
+      sub(/".*/, "")
+      print
+      exit
+    }
+  ' "$1"
+}
+
+# Print the publish-identity patch rewritten from the current upstream version
+# to a candidate version. The fork suffix restarts at 1 for a new upstream.
+retarget_identity_patch() {
+  local patch=$1 current=$2 candidate=$3 current_pattern
+  current_pattern=${current//./\\.}
+  sed -E \
+    -e "s/\"(=?)$current_pattern-phantom\.[0-9]+\"/\"\1$candidate-phantom.1\"/g" \
+    -e "s/\"$current_pattern\"/\"$candidate\"/g" \
+    -e "s/ $current_pattern; / $candidate; /g" \
+    -e "s/-$current_pattern\.crate/-$candidate.crate/g" \
+    "$patch"
+}
+
+# Point every exact pin on a renamed fork at its new version.
+repin_fork() {
+  local current_pin=$1 candidate_pin=$2 manifest
+  [[ "$current_pin" != "$candidate_pin" ]] || return 0
+  while IFS= read -r manifest; do
+    replace_exact "$manifest" "\"=$current_pin\"" "\"=$candidate_pin\"" 1
+  done < <(grep -F -l "\"=$current_pin\"" Cargo.toml vendor/*/Cargo.toml \
+    vendor/h3/*/Cargo.toml 2>/dev/null || true)
 }
 
 installed_msrv=
@@ -140,9 +177,9 @@ case "$dependency" in
     [[ "$listed_wreq_patches" == "$stored_wreq_patches" ]] \
       || die "vendored wreq-proto patch series does not list every canonical patch exactly once"
 
-    wreq_current=$(sed -nE 's/.*wreq-proto = "=([^"]+)".*/\1/p' \
-      crates/phantom-net/Cargo.toml)
-    [[ -n "$wreq_current" ]] || die "wreq-proto is not tracked by phantom-net"
+    wreq_current=$(upstream_version vendor/wreq-proto/Cargo.toml)
+    [[ -n "$wreq_current" ]] || die "vendored wreq-proto has no upstream version"
+    wreq_current_pin=$(package_version vendor/wreq-proto/Cargo.toml)
 
     probe_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-wreq-proto-candidate.XXXXXX")
     archive="$probe_staging/wreq-proto-$candidate.crate"
@@ -170,6 +207,11 @@ case "$dependency" in
 
     for patch in "${wreq_patches[@]}"; do
       patch_file="$repo_root/vendor/wreq-proto/patches/$patch"
+      if [[ "$patch" == publish-identity.patch ]]; then
+        retarget_identity_patch "$patch_file" "$wreq_current" "$candidate" \
+          > "$probe_staging/$patch"
+        patch_file="$probe_staging/$patch"
+      fi
       if ! git -C "$candidate_dir" apply --check "$patch_file"; then
         die "wreq-proto patch $patch does not apply to candidate $candidate"
       fi
@@ -184,9 +226,8 @@ case "$dependency" in
     mv vendor/wreq-proto "$probe_staging/wreq-proto.previous"
     mv "$candidate_dir" vendor/wreq-proto
 
-    replace_exact crates/phantom-net/Cargo.toml \
-      "wreq-proto = \"=$wreq_current\"" "wreq-proto = \"=$candidate\"" 1
-    cargo update -p wreq-proto --precise "$candidate"
+    repin_fork "$wreq_current_pin" "$(package_version vendor/wreq-proto/Cargo.toml)"
+    cargo update -p phantom-wreq-proto
 
     cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check
     cargo clippy --manifest-path vendor/wreq-proto/Cargo.toml \
@@ -207,20 +248,6 @@ case "$dependency" in
       -name '*.patch' -exec basename {} \; | LC_ALL=C sort)
     [[ "$listed_patches" == "$stored_patches" ]] \
       || die "btls patch series does not list every canonical patch exactly once"
-    btls_sources=$(sed -nE \
-      's/^(btls|tokio-btls) = .*git = "([^"]+)".*rev = "([0-9a-f]{40})".*/\2\t\3/p' \
-      Cargo.toml)
-    btls_revs=$(printf '%s\n' "$btls_sources" | cut -f2)
-    [[ $(printf '%s\n' "$btls_revs" | sed '/^$/d' | wc -l | tr -d ' ') == 2 ]] \
-      || die "btls and tokio-btls must each use an exact revision"
-    [[ $(printf '%s\n' "$btls_revs" | sort -u | wc -l | tr -d ' ') == 1 ]] \
-      || die "btls and tokio-btls must use the same revision"
-    btls_current=$(printf '%s\n' "$btls_revs" | head -1)
-    btls_current_repository=$(printf '%s\n' "$btls_sources" | cut -f1 | sort -u)
-    [[ $(printf '%s\n' "$btls_current_repository" | sed '/^$/d' | wc -l | tr -d ' ') == 1 ]] \
-      || die "btls and tokio-btls must use the same git repository"
-    candidate_repository=${PHANTOM_BTLS_REPOSITORY:-https://github.com/0x676e67/btls.git}
-    candidate_cargo_repository=${candidate_repository%.git}
     btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/0xARYA/btls}
     btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-50e72407ac1f89cea14003004429ecf579541b6f}
     [[ "$btls_sys_revision" =~ ^[0-9a-f]{40}$ ]] \
@@ -239,23 +266,12 @@ case "$dependency" in
     done < vendor/btls/patches/series
     cp vendor/btls/patches/series "$candidate_dir/patches/series"
 
-    replace_exact_line Cargo.toml \
-      "btls = { git = \"$btls_current_repository\", rev = \"$btls_current\", default-features = false }" \
-      "btls = { git = \"$candidate_cargo_repository\", rev = \"$candidate\", default-features = false }" 1
-    replace_exact_line Cargo.toml \
-      "tokio-btls = { git = \"$btls_current_repository\", rev = \"$btls_current\", default-features = false }" \
-      "tokio-btls = { git = \"$candidate_cargo_repository\", rev = \"$candidate\", default-features = false }" 1
-    replace_exact_line Cargo.toml \
-      "[patch.\"$btls_current_repository\"]" \
-      "[patch.\"$candidate_cargo_repository\"]" 1
+    btls_current_pin=$(package_version vendor/btls/Cargo.toml)
     mv vendor/btls "$probe_staging/btls.previous"
     mv "$candidate_dir" vendor/btls
-    cargo update -p btls-sys -p tokio-btls
+    repin_fork "$btls_current_pin" "$(package_version vendor/btls/Cargo.toml)"
+    cargo update -p phantom-btls
 
-    expected_source="git+$candidate_cargo_repository?rev=$candidate#$candidate"
-    actual_source=$(locked_git_source tokio-btls)
-    [[ "$actual_source" == "$expected_source" ]] \
-      || die "tokio-btls lock source is '$actual_source', expected exact candidate $candidate"
     expected_source="git+$btls_sys_repository?rev=$btls_sys_revision#$btls_sys_revision"
     actual_source=$(locked_git_source btls-sys)
     [[ "$actual_source" == "$expected_source" ]] \
@@ -338,10 +354,18 @@ case "$dependency" in
       || die "http2 $candidate checksum mismatch: expected $checksum, found $actual"
     tar -xzf "$archive" -C "$probe_staging"
     candidate_dir="$probe_staging/http2-$candidate"
+    http2_current=$(upstream_version vendor/http2/Cargo.toml)
+    [[ -n "$http2_current" ]] || die "vendored http2 has no upstream version"
+    http2_current_pin=$(package_version vendor/http2/Cargo.toml)
 
     # Apply while the canonical patches are still in the checked-out vendor tree.
     for patch in "${http2_patches[@]}"; do
       patch_file="$repo_root/vendor/http2/patches/$patch"
+      if [[ "$patch" == publish-identity.patch ]]; then
+        retarget_identity_patch "$patch_file" "$http2_current" "$candidate" \
+          > "$probe_staging/$patch"
+        patch_file="$probe_staging/$patch"
+      fi
       if [[ "$patch" == ordered-headers.patch ]]; then
         git -C "$candidate_dir" apply --check --unidiff-zero "$patch_file"
         git -C "$candidate_dir" apply --unidiff-zero "$patch_file"
@@ -352,7 +376,8 @@ case "$dependency" in
     done
     mv vendor/http2 "$probe_staging/http2.previous"
     mv "$candidate_dir" vendor/http2
-    cargo update -p http2 --precise "$candidate"
+    repin_fork "$http2_current_pin" "$(package_version vendor/http2/Cargo.toml)"
+    cargo update -p phantom-http2
 
     cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
     cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features
@@ -441,6 +466,6 @@ case "$dependency" in
 esac
 
 if [[ "$run_workspace_gates" == true ]]; then
-  cargo tree -i "$dependency" --locked
+  cargo tree -i "phantom-$dependency" --locked
   workspace_gates
 fi

@@ -10,7 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "=0.4.13"
 phantom-testkit = { path = "../crates/phantom-testkit" }
-quinn-proto = { path = "../vendor/quinn-proto", default-features = false }
+quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.1", path = "../vendor/quinn-proto", default-features = false }
 
 [[bin]]
 name = "client_hello"

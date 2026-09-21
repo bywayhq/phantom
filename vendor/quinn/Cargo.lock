@@ -1320,6 +1320,62 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
+name = "phantom-quinn"
+version = "0.11.12-phantom.1"
+dependencies = [
+ "anyhow",
+ "async-io",
+ "async-std",
+ "bencher",
+ "bytes",
+ "cfg_aliases",
+ "clap",
+ "crc",
+ "directories-next",
+ "futures-io",
+ "phantom-quinn-proto",
+ "pin-project-lite",
+ "quinn-udp",
+ "rand",
+ "rcgen",
+ "rustc-hash",
+ "rustls",
+ "smol",
+ "socket2 0.5.10",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber",
+ "url",
+ "web-time",
+]
+
+[[package]]
+name = "phantom-quinn-proto"
+version = "0.11.18-phantom.1"
+dependencies = [
+ "aws-lc-rs",
+ "bytes",
+ "fastbloom",
+ "getrandom 0.4.3",
+ "lru-slab",
+ "qlog",
+ "rand",
+ "rand_pcg",
+ "ring",
+ "rustc-hash",
+ "rustls",
+ "rustls-pki-types",
+ "rustls-platform-verifier",
+ "slab",
+ "thiserror 2.0.18",
+ "tinyvec",
+ "tracing",
+ "web-time",
+]
+
+[[package]]
 name = "pin-project"
 version = "1.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1426,64 +1482,6 @@ dependencies = [
  "serde_json",
  "serde_with",
  "smallvec",
-]
-
-[[package]]
-name = "quinn"
-version = "0.11.12"
-dependencies = [
- "anyhow",
- "async-io",
- "async-std",
- "bencher",
- "bytes",
- "cfg_aliases",
- "clap",
- "crc",
- "directories-next",
- "futures-io",
- "pin-project-lite",
- "quinn-proto",
- "quinn-udp",
- "rand",
- "rcgen",
- "rustc-hash",
- "rustls",
- "smol",
- "socket2 0.5.10",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-futures",
- "tracing-subscriber",
- "url",
- "web-time",
-]
-
-[[package]]
-name = "quinn-proto"
-version = "0.11.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc"
-dependencies = [
- "aws-lc-rs",
- "bytes",
- "fastbloom",
- "getrandom 0.4.3",
- "lru-slab",
- "qlog",
- "rand",
- "rand_pcg",
- "ring",
- "rustc-hash",
- "rustls",
- "rustls-pki-types",
- "rustls-platform-verifier",
- "slab",
- "thiserror 2.0.18",
- "tinyvec",
- "tracing",
- "web-time",
 ]
 
 [[package]]

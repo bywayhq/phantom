@@ -169,8 +169,27 @@ name = "phantom-fuzz"
 version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
+ "phantom-quinn-proto",
  "phantom-testkit",
- "quinn-proto",
+]
+
+[[package]]
+name = "phantom-quinn-proto"
+version = "0.11.18-phantom.1"
+dependencies = [
+ "bytes",
+ "getrandom 0.4.3",
+ "lru-slab",
+ "rand",
+ "rand_pcg",
+ "ring",
+ "rustc-hash",
+ "rustls-pki-types",
+ "slab",
+ "thiserror",
+ "tinyvec",
+ "tracing",
+ "web-time",
 ]
 
 [[package]]
@@ -193,25 +212,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "quinn-proto"
-version = "0.11.18"
-dependencies = [
- "bytes",
- "getrandom 0.4.3",
- "lru-slab",
- "rand",
- "rand_pcg",
- "ring",
- "rustc-hash",
- "rustls-pki-types",
- "slab",
- "thiserror",
- "tinyvec",
- "tracing",
- "web-time",
 ]
 
 [[package]]

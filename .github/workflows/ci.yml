@@ -99,7 +99,7 @@ jobs:
   downstream:
     name: Downstream
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -115,8 +115,16 @@ jobs:
             command -v "$tool"
           done
 
-      - name: Check downstream vendored consumption
-        run: scripts/ci/check-downstream.sh
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2.87.17
+        with:
+          tool: cargo-deny@0.19.6
+
+      - name: Reject stock patched dependencies
+        run: cargo deny --locked check bans
+
+      - name: Check path and git downstream consumers
+        run: scripts/ci/check-downstream.sh path git
 
   vendor:
     name: Vendor (${{ matrix.package }})
@@ -125,7 +133,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [btls, http2, quinn-proto, h3, tungstenite, wreq-proto]
+        package:
+          - btls
+          - h3
+          - http2
+          - quinn
+          - quinn-proto
+          - tokio-btls
+          - tokio-tungstenite
+          - tungstenite
+          - wreq-proto
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

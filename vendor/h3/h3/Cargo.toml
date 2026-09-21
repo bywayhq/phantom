@@ -1,6 +1,6 @@
 [package]
-name = "h3"
-version = "0.0.8"
+name = "phantom-h3"
+version = "0.0.8-phantom.1"
 rust-version = "1.74"
 authors = [
     "Sean McArthur <sean@seanmonstar.com>",
@@ -8,16 +8,25 @@ authors = [
 ]
 license = "MIT"
 edition = "2021"
-documentation = "https://docs.rs/h3"
-repository = "https://github.com/hyperium/h3"
+repository = "https://github.com/bywayhq/phantom"
 readme = "../README.md"
-description = "An async HTTP/3 implementation."
+description = "Phantom fork of h3 0.0.8; not a general-purpose replacement"
 keywords = ["http3", "quic", "h3"]
 categories = [
     "network-programming",
     "web-programming::http-client",
     "web-programming::http-server",
 ]
+exclude = [
+    ".cargo_vcs_info.json",
+    ".cargo-ok",
+    "Cargo.toml.orig",
+]
+
+[package.metadata.phantom]
+upstream-package = "h3"
+upstream-version = "0.0.8"
+upstream-source = "https://codeload.github.com/hyperium/h3/tar.gz/1f3d5295833ad454343f25d55633fb6bee1027b2"
 
 [features]
 i-implement-a-third-party-backend-and-opt-into-breaking-changes = []
@@ -36,12 +45,12 @@ fastrand = "2.0.1"
 assert_matches = "1.5.0"
 futures-util = { version = "0.3", default-features = false, features = ["io"] }
 proptest = "1"
-quinn = { version = "0.11", default-features = false, features = [
+quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "../../quinn", default-features = false, features = [
     "runtime-tokio",
     "rustls",
     "ring",
 ] }
-quinn-proto = { version = "0.11", default-features = false }
+quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.1", path = "../../quinn-proto", default-features = false }
 rcgen = "0.14"
 rustls = { version = "0.23", default-features = false, features = ["logging", "ring", "std"] }
 tokio = { version = "1", features = ["rt", "macros", "io-util", "io-std"] }
@@ -54,4 +63,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 ] }
 futures = { version = "0.3.28" }
 tokio-util = { version = "0.7.9" }
-h3-datagram = {path = "../h3-datagram" }
+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.1", path = "../h3-datagram" }
+
+[lib]
+name = "h3"

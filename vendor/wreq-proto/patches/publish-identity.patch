@@ -1,0 +1,61 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 17b559e..3942a6d 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -12,8 +12,8 @@
+ [package]
+ edition = "2021"
+ rust-version = "1.85"
+-name = "wreq-proto"
+-version = "0.2.5"
++name = "phantom-wreq-proto"
++version = "0.2.5-phantom.1"
+ authors = [
+     "0x676e67 <gngppz@gmail.com>",
+     "Sean McArthur <sean@seanmonstar.com>",
+@@ -23,14 +23,16 @@ include = [
+     "README.md",
+     "LICENSE",
+     "src/**/*.rs",
++    "PHANTOM.md",
++    "patches/*",
++    "NOTICE",
+ ]
+ autolib = false
+ autobins = false
+ autoexamples = false
+ autotests = false
+ autobenches = false
+-description = "Protocol utilities for wreq"
+-documentation = "https://docs.rs/wreq-proto"
++description = "Phantom fork of wreq-proto 0.2.5; not a general-purpose replacement"
+ readme = "README.md"
+ keywords = [
+     "http",
+@@ -38,9 +40,14 @@ keywords = [
+ ]
+ categories = ["web-programming::http-client"]
+ license = "Apache-2.0"
+-repository = "https://github.com/0x676e67/wreq-proto"
++repository = "https://github.com/bywayhq/phantom"
+ resolver = "3"
+ 
++[package.metadata.phantom]
++upstream-package = "wreq-proto"
++upstream-version = "0.2.5"
++upstream-source = "https://static.crates.io/crates/wreq-proto/wreq-proto-0.2.5.crate"
++
+ [package.metadata.docs.rs]
+ all-features = true
+ rustdoc-args = [
+@@ -79,7 +86,9 @@ version = "1.4.0"
+ version = "1.0.1"
+ 
+ [dependencies.http2]
+-version = "0.5.16"
++version = "=0.5.20-phantom.1"
++package = "phantom-http2"
++path = "../http2"
+ features = ["unstable"]
+ 
+ [dependencies.httparse]

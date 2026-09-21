@@ -8,6 +8,23 @@ The files listed in `patches/series` are the canonical local changes, in
 application order. Change those patches and replay them; do not make an
 unrecorded edit to the vendored crate.
 
+## Publish identity
+
+`publish-identity.patch` is always the last entry in `patches/series`. It
+renames the package (`tungstenite` becomes `phantom-tungstenite` at
+`0.30.0-phantom.1`), keeps the upstream library name so source, tests, and
+examples are unchanged, and points the repository metadata at Phantom. It
+removes the upstream documentation link, keeps Cargo's reserved archive files
+out of the packaged crate, and records the upstream package, version, and
+source archive under `[package.metadata.phantom]`. It changes no Rust source.
+
+Phantom depends on this package only through the renamed package with an exact
+version and a path, so the stock package cannot be selected in its place and no
+root `[patch]` table is required. When refreshing, regenerate this patch after
+the source patches. Increase the `-phantom.N` suffix whenever the fork's
+content changes without an upstream version change, and update the exact pins
+in the root `Cargo.toml` and in every renamed dependent.
+
 ## Upstream baseline
 
 Upstream: `tungstenite` 0.30.0 from crates.io.

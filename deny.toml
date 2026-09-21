@@ -1,0 +1,26 @@
+# Dependency-graph policy checked by `cargo deny check bans` in CI.
+#
+# Phantom's patched dependencies are renamed forks under `vendor/`. The stock
+# packages below must never enter the graph: each would silently replace the
+# patched behavior that Phantom's wire fingerprint depends on, or pull such a
+# package transitively. Depend on the `phantom-*` fork instead.
+
+[graph]
+all-features = true
+
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
+deny = [
+    { crate = "btls", reason = "use the phantom-btls fork" },
+    { crate = "h3", reason = "use the phantom-h3 fork" },
+    { crate = "h3-datagram", reason = "use the phantom-h3-datagram fork" },
+    { crate = "h3-quinn", reason = "use the phantom-h3-quinn fork" },
+    { crate = "http2", reason = "use the phantom-http2 fork" },
+    { crate = "quinn", reason = "use the phantom-quinn fork" },
+    { crate = "quinn-proto", reason = "use the phantom-quinn-proto fork" },
+    { crate = "tokio-btls", reason = "use the phantom-tokio-btls fork" },
+    { crate = "tokio-tungstenite", reason = "use the phantom-tokio-tungstenite fork" },
+    { crate = "tungstenite", reason = "use the phantom-tungstenite fork" },
+    { crate = "wreq-proto", reason = "use the phantom-wreq-proto fork" },
+]
