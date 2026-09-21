@@ -1,9 +1,23 @@
 use std::{num::NonZeroUsize, time::Duration};
 
-use super::{AltSvcLocation, AltSvcStore};
-use crate::authority::Endpoint;
+use super::{AltSvcLocation, AltSvcStore, invalidates_alternative};
+use crate::{HttpProtocol, RequestError, TimeoutPhase, authority::Endpoint};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
+#[test]
+fn only_alternative_service_failures_trigger_alt_svc_eviction() {
+    assert!(!invalidates_alternative(
+        &RequestError::request_body_not_replayable()
+    ));
+    assert!(!invalidates_alternative(&RequestError::capacity(
+        HttpProtocol::Http3
+    )));
+    assert!(invalidates_alternative(&RequestError::timeout(
+        TimeoutPhase::ResponseHead,
+        Some(HttpProtocol::Http3)
+    )));
+}
 
 #[test]
 fn selects_first_fresh_h3_and_canonicalizes_its_location() -> TestResult {

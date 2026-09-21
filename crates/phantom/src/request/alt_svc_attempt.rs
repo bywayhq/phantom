@@ -7,8 +7,9 @@ use super::{
     replay::ReplayClass,
 };
 use crate::{
-    Client, HttpProtocol, RequestError, RetryPolicy, Route, retry::ConnectionSetupRetryState,
-    session::http3_pool::Http3TransportTarget,
+    Client, HttpProtocol, RequestError, RetryPolicy, Route,
+    retry::ConnectionSetupRetryState,
+    session::{alt_svc::invalidates_alternative, http3_pool::Http3TransportTarget},
 };
 use phantom_net::request::RequestHeader;
 
@@ -81,7 +82,7 @@ pub(super) async fn send_once_alt_svc(
         let dispatched = match dispatched {
             Ok(dispatched) => dispatched,
             Err(error) => {
-                if error.invalidates_alt_svc() {
+                if invalidates_alternative(&error) {
                     client.remove_alt_svc_if_current(endpoint, alternative_generation);
                 }
                 return Err(error);

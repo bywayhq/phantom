@@ -9,10 +9,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use phantom_net::OrderedResponseHeaders;
+use phantom_net::{
+    OrderedResponseHeaders,
+    http3::{Http3ConnectorError, Http3ConnectorErrorKind},
+};
 use tracing::debug;
 
-use crate::authority::Endpoint;
+use crate::{RequestError, RequestErrorKind, TimeoutPhase, authority::Endpoint};
 
 const DEFAULT_MAX_AGE: u64 = 24 * 60 * 60;
 const MAX_DELTA_SECONDS: u64 = 1 << 31;
@@ -563,6 +566,30 @@ fn is_token_byte(byte: u8) -> bool {
                 | b'|'
                 | b'~'
         )
+}
+
+/// Returns whether a failed alternative-service attempt invalidates the advertisement it used.
+pub(crate) fn invalidates_alternative(error: &RequestError) -> bool {
+    match error.kind() {
+        RequestErrorKind::Resolve | RequestErrorKind::Connect | RequestErrorKind::Tls => true,
+        RequestErrorKind::Timeout => matches!(
+            error.timeout_phase(),
+            Some(TimeoutPhase::Connect | TimeoutPhase::ResponseHead)
+        ),
+        RequestErrorKind::Http3 => std::error::Error::source(error)
+            .and_then(|source| source.downcast_ref::<Http3ConnectorError>())
+            .is_some_and(|error| {
+                matches!(
+                    error.kind(),
+                    Http3ConnectorErrorKind::Endpoint
+                        | Http3ConnectorErrorKind::Connect
+                        | Http3ConnectorErrorKind::Connection
+                        | Http3ConnectorErrorKind::Handshake
+                        | Http3ConnectorErrorKind::Protocol
+                )
+            }),
+        _ => false,
+    }
 }
 
 #[cfg(test)]
