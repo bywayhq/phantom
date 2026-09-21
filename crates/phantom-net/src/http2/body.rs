@@ -4,6 +4,7 @@ use std::{
     any::Any,
     fmt,
     pin::Pin,
+    sync::Mutex,
     task::{Context, Poll},
 };
 
@@ -12,17 +13,25 @@ use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
 
-use super::{Http2Error, connection::ConnectionLease};
+use super::{
+    Http2Error,
+    connection::{ConnectionLease, PendingUpload},
+};
 
 /// Streaming response body for one HTTP/2 stream.
 ///
-/// DATA and trailers are yielded as received. If this body is dropped before
-/// the stream ends, it resets only this stream with `CANCEL`. The connection
+/// DATA and trailers are yielded as received. When the server answered before
+/// the request body was sent, polling this body also continues that upload.
+/// If this body is dropped before the stream ends, it resets only this stream
+/// with `CANCEL`. The connection
 /// stays alive while another connection handle or response-body lease exists.
 #[must_use = "response bodies must be read or deliberately dropped"]
 pub struct Http2Body {
     incoming: Option<RecvStream>,
     reset: Option<SendStream<Bytes>>,
+    // `Mutex` makes the unsynchronized future `Sync`; it is only accessed
+    // through `&mut self`, so it never blocks.
+    upload: Option<Mutex<PendingUpload>>,
     lease: Option<ConnectionLease>,
     stream_guard: Option<Box<dyn Any + Send + Sync>>,
     finished: bool,
@@ -35,6 +44,29 @@ impl Http2Body {
         reset: SendStream<Bytes>,
         lease: ConnectionLease,
     ) -> Self {
+        Self::from_parts(incoming, Some(reset), None, lease)
+    }
+
+    /// Builds a body for a complete response whose upload was abandoned.
+    pub(super) fn without_upload(incoming: RecvStream, lease: ConnectionLease) -> Self {
+        Self::from_parts(incoming, None, None, lease)
+    }
+
+    /// Builds a body that keeps sending the request body while it is read.
+    pub(super) fn with_pending_upload(
+        incoming: RecvStream,
+        upload: PendingUpload,
+        lease: ConnectionLease,
+    ) -> Self {
+        Self::from_parts(incoming, None, Some(upload), lease)
+    }
+
+    fn from_parts(
+        incoming: RecvStream,
+        reset: Option<SendStream<Bytes>>,
+        upload: Option<PendingUpload>,
+        lease: ConnectionLease,
+    ) -> Self {
         let finished = incoming.is_end_stream();
         let mut trace = BodyTrace::new();
         if finished {
@@ -42,7 +74,8 @@ impl Http2Body {
         }
         Self {
             incoming: (!finished).then_some(incoming),
-            reset: (!finished).then_some(reset),
+            reset: reset.filter(|_| !finished),
+            upload: upload.filter(|_| !finished).map(Mutex::new),
             lease: (!finished).then_some(lease),
             stream_guard: None,
             finished,
@@ -63,6 +96,7 @@ impl Http2Body {
 
     fn finish_stream(&mut self) {
         self.incoming.take();
+        self.upload.take();
         self.reset.take();
         self.lease.take();
         self.stream_guard.take();
@@ -74,6 +108,25 @@ impl Http2Body {
     ) -> Poll<Option<Result<Frame<Bytes>, Http2Error>>> {
         if self.finished {
             return Poll::Ready(None);
+        }
+
+        if let Some(upload) = self.upload.as_mut() {
+            let upload = upload
+                .get_mut()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match upload.as_mut().poll(context) {
+                Poll::Ready(Ok(stream)) => {
+                    self.upload = None;
+                    self.reset = Some(stream);
+                }
+                Poll::Ready(Err(error)) => {
+                    self.finished = true;
+                    self.finish_stream();
+                    self.trace.finish("request_body_error");
+                    return Poll::Ready(Some(Err(error)));
+                }
+                Poll::Pending => {}
+            }
         }
 
         let Some(incoming) = self.incoming.as_mut() else {
@@ -173,6 +226,7 @@ impl Drop for Http2Body {
             if let Some(mut reset) = self.reset.take() {
                 reset.send_reset(Reason::CANCEL);
             }
+            self.upload.take();
             self.incoming.take();
             self.lease.take();
             self.trace.finish("dropped");

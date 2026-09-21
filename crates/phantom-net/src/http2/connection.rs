@@ -2,6 +2,8 @@
 
 use std::{
     fmt,
+    future::Future,
+    pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
 };
@@ -430,23 +432,26 @@ impl Http2Connection {
                 .send_request(request, end_of_stream)
                 .map_err(Http2Error::protocol)?;
             let mut response = Box::pin(response);
-            let mut early_response = None;
-            let reset = if !end_of_stream {
-                let mut upload = RequestStreamGuard::new(reset);
-                {
-                    let mut upload_future =
-                        Box::pin(send_body(upload.stream_mut()?, body, trailers));
-                    tokio::select! {
-                        biased;
-                        result = &mut response => {
-                            early_response = Some(result.map_err(Http2Error::protocol)?);
-                        }
-                        result = &mut upload_future => result?,
-                    }
-                }
-                upload.disarm()?
+            let (stream, early_response) = if end_of_stream {
+                (RequestStream::Complete(reset), None)
             } else {
-                reset
+                let mut upload = upload_request_body(reset, body, trailers);
+                tokio::select! {
+                    biased;
+                    result = &mut response => {
+                        let early = result.map_err(Http2Error::protocol)?;
+                        // RFC 9113 section 8.1: only a complete response lets
+                        // the client stop sending. Otherwise the server may
+                        // still read the body, so the upload continues.
+                        let stream = if early.body().is_end_stream() {
+                            RequestStream::Abandoned(upload)
+                        } else {
+                            RequestStream::Uploading(upload)
+                        };
+                        (stream, Some(early))
+                    }
+                    result = &mut upload => (RequestStream::Complete(result?), None),
+                }
             };
             let response = match early_response {
                 Some(response) => response,
@@ -464,10 +469,20 @@ impl Http2Connection {
                 })
                 .ok_or(Http2Error::MissingResponseHeaderOrder)?;
             parts.extensions.insert(ordered_headers);
-            Ok(Response::from_parts(
-                parts,
-                Http2Body::new(incoming, reset, self.lease()),
-            ))
+            let body = match stream {
+                RequestStream::Complete(reset) => Http2Body::new(incoming, reset, self.lease()),
+                RequestStream::Abandoned(upload) => {
+                    // Read the completed response state before dropping the
+                    // unfinished upload resets the stream with CANCEL.
+                    let body = Http2Body::without_upload(incoming, self.lease());
+                    drop(upload);
+                    body
+                }
+                RequestStream::Uploading(upload) => {
+                    Http2Body::with_pending_upload(incoming, upload, self.lease())
+                }
+            };
+            Ok(Response::from_parts(parts, body))
         }
         .instrument(span.clone())
         .await;
@@ -485,6 +500,32 @@ impl Http2Connection {
             _inner: Arc::clone(&self.inner),
         }
     }
+}
+
+/// Request-side state when the response head is returned.
+enum RequestStream {
+    Complete(SendStream<Bytes>),
+    Abandoned(PendingUpload),
+    Uploading(PendingUpload),
+}
+
+pub(super) type PendingUpload =
+    Pin<Box<dyn Future<Output = Result<SendStream<Bytes>, Http2Error>> + Send>>;
+
+/// Sends the request body on an owned stream.
+///
+/// Dropping the returned future before it completes resets the stream with
+/// `CANCEL`; completion returns the stream for response-body cancellation.
+fn upload_request_body(
+    stream: SendStream<Bytes>,
+    body: Option<RequestBody>,
+    trailers: Option<PreparedRequestTrailers>,
+) -> PendingUpload {
+    Box::pin(async move {
+        let mut upload = RequestStreamGuard::new(stream);
+        send_body(upload.stream_mut()?, body, trailers).await?;
+        upload.disarm()
+    })
 }
 
 struct RequestStreamGuard {
