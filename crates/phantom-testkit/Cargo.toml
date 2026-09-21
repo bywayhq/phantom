@@ -3,6 +3,7 @@ name = "phantom-testkit"
 description = "Deterministic wire capture helpers for Phantom tests"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 publish = false

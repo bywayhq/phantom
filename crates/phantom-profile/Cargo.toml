@@ -3,9 +3,9 @@ name = "phantom-profile"
 description = "Browser-neutral wire profile types for Phantom"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
-publish = false
 
 [lints]
 workspace = true

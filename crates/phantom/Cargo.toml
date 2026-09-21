@@ -3,9 +3,9 @@ name = "phantom"
 description = "A wire-evidenced browser-compatible HTTP client"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
-publish = false
 
 [features]
 default = []
@@ -26,8 +26,8 @@ http = "1.4.0"
 http-body = "1.0.1"
 futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["sink", "std"] }
 parking_lot = { version = "=0.12.5", optional = true }
-phantom-net = { path = "../phantom-net" }
-phantom-profile = { path = "../phantom-profile" }
+phantom-net = { version = "=0.1.0", path = "../phantom-net" }
+phantom-profile = { version = "=0.1.0", path = "../phantom-profile" }
 psl = { version = "=2.1.232", optional = true }
 sfv.workspace = true
 tokio = { version = "1.53.1", features = ["sync", "time"] }

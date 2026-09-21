@@ -3,9 +3,9 @@ name = "phantom-quic-btls"
 description = "Private BoringSSL cryptography primitives for Phantom QUIC"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
-publish = false
 
 [features]
 default = []
@@ -14,7 +14,7 @@ keylog = []
 [dependencies]
 bytes.workspace = true
 foreign-types = "=0.5.0"
-phantom-profile = { path = "../phantom-profile" }
+phantom-profile = { version = "=0.1.0", path = "../phantom-profile" }
 quinn-proto.workspace = true
 rustls-pki-types = "=1.15.1"
 zeroize.workspace = true
