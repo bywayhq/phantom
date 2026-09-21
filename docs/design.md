@@ -78,6 +78,19 @@ fresh connection with the same route, and outside the setup-retry budget. The
 evidence is Chrome's single restart after `ERR_CONNECTION_CLOSED` on a reused
 socket. Firefox also restarts on fresh connections, which Phantom does not.
 
+Status retry is caller policy, not browser behavior, so it lives on
+`RetryPolicy` and never in a profile. It runs per hop after proxy
+authentication and Critical-CH handling, so an intermediate response has
+already updated cookies, client hints, and Alt-Svc. Only idempotent methods
+with absent or owned bodies repeat, and only for 408, 425, 429, 500, 502,
+503, or 504; 421 is rejected at configuration because repeating it on the
+same target cannot succeed. One request-scoped budget spans redirects,
+separate from the setup-retry budget. Delays run through the total deadline,
+and an honored `Retry-After` above the caller's cap returns the response
+rather than waiting. The intermediate body is dropped unread instead of
+drained, so an unbounded body cannot stall the retry. The route, protocol,
+and any Alt-Svc alternative in use never change.
+
 ## Async and features
 
 Phantom is async-first and targets Tokio. Library code does not create a global

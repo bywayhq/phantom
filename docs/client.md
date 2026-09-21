@@ -179,6 +179,53 @@ redirect hop, adds no delay, and does not consume the setup-retry budget;
 negotiated replay retires the failed H1 generation and is admitted and
 selected by ALPN again, like the negotiated `GOAWAY` replay.
 
+`RetryPolicy::with_status_retry` opts into repeating a request after a
+retryable response status. This is caller policy, off by default and never
+part of a browser profile. `StatusRetry::new` takes the statuses to retry,
+a request-wide maximum, and a constant delay; it accepts only 408, 425, 429,
+500, 502, 503, and 504 and returns `StatusRetryError` for anything else,
+including 421, or for an empty list.
+
+```rust
+use std::{num::NonZeroUsize, time::Duration};
+
+use http::StatusCode;
+use phantom::{RetryPolicy, StatusRetry};
+
+fn policy() -> Result<RetryPolicy, phantom::StatusRetryError> {
+    let status_retry = StatusRetry::new(
+        &[StatusCode::SERVICE_UNAVAILABLE, StatusCode::TOO_MANY_REQUESTS],
+        NonZeroUsize::new(2).expect("two is nonzero"),
+        Duration::from_millis(250),
+    )?
+    .honor_retry_after(Duration::from_secs(10));
+    Ok(RetryPolicy::none().with_status_retry(status_retry))
+}
+```
+
+A response is retried only when its status is listed, the method is
+idempotent (RFC 9110, section 9.2.2), and the body is absent or owned bytes;
+otherwise, including for a one-shot streaming body, it is returned
+unchanged. The check runs after forward-proxy `407` and Critical-CH handling
+for the same response, and the intermediate response updates cookies, client
+hints, and Alt-Svc exactly as a returned response would. Its body is then
+dropped unread, so an incomplete H1 body retires that connection and an H2 or
+H3 body cancels its stream. One budget spans every redirect hop, and
+exhaustion returns the last response. The retry keeps the route, the exact
+protocol or negotiated selection rule, and an Alt-Svc alternative already in
+use.
+
+Each retry waits for the constant delay under the total timeout; a delay that
+outlasts the total deadline fails with `TimeoutPhase::Total`.
+`honor_retry_after(maximum)` instead uses a valid `Retry-After` field, either
+delta-seconds or an IMF-fixdate converted against the system clock (RFC 9110,
+section 10.2.3). A requested delay above `maximum` returns the response
+immediately. A missing, repeated, malformed, or obsolete RFC 850 or asctime
+value falls back to the constant delay. `ResponseInfo::retries_performed`
+still counts only setup retries; the `client.request` span records
+`status_retries`, and each retry emits a debug event with its status and
+delay.
+
 ## Routes and proxies
 
 Set a default route on `ClientBuilder`, or override it on one request. Supported
