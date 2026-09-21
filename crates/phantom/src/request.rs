@@ -255,8 +255,10 @@ impl RequestBuilder {
     /// Sends the request using the selected route and owner.
     ///
     /// The client may reuse compatible HTTP/1.1, HTTP/2, and direct HTTP/3
-    /// connections. A bodyless HTTP/2 GET rejected by `GOAWAY(NO_ERROR)` is
-    /// retried once on the client's replacement connection. Dropping this
+    /// connections. A bodyless HTTP/2 GET without trailers rejected by
+    /// `GOAWAY(NO_ERROR)`, whether exact or negotiated, is retried once on the
+    /// client's replacement connection; a negotiated replacement repeats ALPN
+    /// selection under the same negotiated rule. Dropping this
     /// future cancels the in-flight operation; returned bodies retain protocol
     /// cancellation. An opt-in [`RetryPolicy`] can retry eligible exact-protocol
     /// or pre-ALPN negotiated connection setup without replaying request bytes

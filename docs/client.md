@@ -153,6 +153,13 @@ attempt receives a fresh connect-phase timeout, while the total timeout remains
 absolute across delays and attempts. Negotiated requests share the same
 budget, including across redirects and client-hint replays.
 
+Independently of `RetryPolicy`, a bodyless GET without trailers whose H2
+stream is refused by `GOAWAY(NO_ERROR)` is repeated once on a replacement
+connection. This applies to exact H2 and to negotiated requests that selected
+H2; the negotiated replacement is admitted and selected by ALPN again. The
+replay does not consume the setup-retry budget, and any other method, a
+request body, trailers, or a second `GOAWAY` returns the typed H2 error.
+
 ## Routes and proxies
 
 Set a default route on `ClientBuilder`, or override it on one request. Supported

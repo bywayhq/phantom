@@ -1,6 +1,9 @@
 //! Direct HTTP/1.1-or-HTTP/2 ALPN negotiation tests.
 
 #[allow(dead_code)]
+#[path = "support/h2.rs"]
+mod h2_support;
+#[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
 #[path = "support/tracing.rs"]
@@ -35,6 +38,7 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use h2_support::{accept_client_preface, read_request_headers, write_frame};
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, test_client,
 };
@@ -916,6 +920,121 @@ where
     })
     .await
     .map_err(Into::into)
+}
+
+#[tokio::test]
+async fn negotiated_graceful_goaway_retries_a_bodyless_get_once_on_a_replacement() -> TestResult<()>
+{
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let replacement_acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let mut first = accept_tls_stream(tcp, acceptor).await?;
+            accept_client_preface(&mut first).await?;
+            read_request_headers(&mut first, 1).await?;
+            // GOAWAY(NO_ERROR) with last-stream-id 0: stream 1 was not processed.
+            write_frame(&mut first, 0x7, 0, 0, &[0, 0, 0, 0, 0, 0, 0, 0]).await?;
+            first.flush().await?;
+            first.shutdown().await?;
+
+            let (tcp, _) = listener.accept().await?;
+            let replacement = accept_tls_stream(tcp, replacement_acceptor).await?;
+            let mut connection = ::http2::server::handshake(replacement).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("replacement closed before the retried request")??;
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            let path = request.uri().path().to_owned();
+            drop(request);
+            drop(respond);
+            poll_fn(|context| connection.poll_closed(context)).await?;
+            let third = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
+            Ok::<_, Box<dyn Error + Send + Sync>>((path, third.is_err()))
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .get_negotiated(&format!("https://{address}/failed"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http2);
+        let info = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response omitted metadata")?;
+        assert_eq!(info.retries_performed(), 0);
+        response.into_body().collect().await?;
+        drop(client);
+
+        let (path, had_no_third_connection) = server.await??;
+        assert_eq!(path, "/failed");
+        assert!(had_no_third_connection);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn negotiated_graceful_goaway_does_not_replay_another_method() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (client_done_tx, client_done_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let mut stream = accept_tls_stream(tcp, acceptor).await?;
+            accept_client_preface(&mut stream).await?;
+            read_request_headers(&mut stream, 1).await?;
+            write_frame(&mut stream, 0x7, 0, 0, &[0, 0, 0, 0, 0, 0, 0, 0]).await?;
+            stream.flush().await?;
+            stream.shutdown().await?;
+
+            tokio::select! {
+                biased;
+                accepted = listener.accept() => {
+                    accepted?;
+                    Ok::<_, Box<dyn Error + Send + Sync>>(false)
+                }
+                completed = client_done_rx => {
+                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    Ok(true)
+                }
+            }
+        });
+
+        let client = test_client(&identity, true)?;
+        let result = client
+            .request_negotiated(Method::POST, &format!("https://{address}/post"))?
+            .send()
+            .await;
+        let error = match result {
+            Ok(_) => return Err("POST was replayed after GOAWAY".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Http2);
+        client_done_tx
+            .send(())
+            .map_err(|_| "server stopped before client completion")?;
+        assert!(
+            server.await??,
+            "ineligible replay opened a replacement connection"
+        );
+        Ok(())
+    })
+    .await
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>

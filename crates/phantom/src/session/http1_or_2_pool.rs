@@ -23,6 +23,7 @@ use tracing::{Span, debug};
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
+    http2_pool::is_graceful_goaway,
 };
 use crate::{
     HttpProtocol, RequestError, ResponseBody,
@@ -71,7 +72,7 @@ impl Http1Or2Pool {
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
-    ) -> Result<(Response<ResponseBody>, HttpProtocol, Vec<RequestHeader>), RequestError> {
+    ) -> Result<NegotiatedResponse, RequestError> {
         let http1_sent_headers = prepare_headers(client_hints, http1_headers, None);
         let http2_validation_headers = prepare_headers(client_hints, http2_headers.clone(), None);
         let mut http1_wire_headers = Vec::with_capacity(http1_sent_headers.len() + 1);
@@ -99,6 +100,10 @@ impl Http1Or2Pool {
         .map_err(RequestError::negotiated_http2_validation)?;
 
         let entry = self.entry(PoolKey::new(endpoint)).await;
+        // Same eligibility as the exact HTTP/2 pool: only a bodyless GET
+        // without trailers may repeat after GOAWAY(NO_ERROR).
+        let graceful_goaway_replayable =
+            method == Method::GET && body.is_none() && trailers.is_empty();
         let request = NegotiatedRequest {
             method,
             authority: endpoint.authority().as_str(),
@@ -108,29 +113,51 @@ impl Http1Or2Pool {
             http2_headers,
             trailers,
             client_hints,
-            body,
         };
+        let mut retried_graceful_goaway = false;
 
-        let selection = timeout_budget
-            .run(
-                TimeoutPhase::PoolAdmission,
-                None,
-                entry.admit_before_selection(),
-            )
-            .await?;
-        let (lease, permit) = entry
-            .acquire_selected(
-                connector,
-                endpoint,
-                request_span,
-                selection,
-                timeout_budget,
-                retries,
-            )
-            .await?;
-        entry
-            .dispatch_on_lease(lease, permit, request, timeout_budget)
-            .await
+        loop {
+            let selection = timeout_budget
+                .run(
+                    TimeoutPhase::PoolAdmission,
+                    None,
+                    entry.admit_before_selection(),
+                )
+                .await?;
+            let (lease, permit) = entry
+                .acquire_selected(
+                    connector,
+                    endpoint,
+                    request_span,
+                    selection,
+                    timeout_budget,
+                    retries,
+                )
+                .await?;
+            if !graceful_goaway_replayable || retried_graceful_goaway {
+                return entry
+                    .dispatch_on_lease(lease, permit, request, body, timeout_budget)
+                    .await
+                    .map_err(RequestError::from);
+            }
+            match entry
+                .dispatch_on_lease(lease, permit, request.clone(), None, timeout_budget)
+                .await
+            {
+                Ok(response) => return Ok(response),
+                Err(DispatchFailure::Request(error)) => return Err(error),
+                Err(DispatchFailure::GracefulGoaway(_)) => {
+                    // The protocol admission was released with the refused
+                    // stream; the replacement is admitted and negotiated anew.
+                    retried_graceful_goaway = true;
+                    debug!(
+                        retry = 1,
+                        reason = "graceful_goaway",
+                        "retrying negotiated request on a replacement connection"
+                    );
+                }
+            }
+        }
     }
 
     /// Bounds requests that hold no protocol-specific admission yet.
@@ -291,8 +318,9 @@ impl PoolEntry {
         lease: ConnectionLease,
         permit: AdmissionPermit,
         request: NegotiatedRequest<'_>,
+        body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
-    ) -> Result<(Response<ResponseBody>, HttpProtocol, Vec<RequestHeader>), RequestError> {
+    ) -> Result<NegotiatedResponse, DispatchFailure> {
         let NegotiatedRequest {
             method,
             authority,
@@ -302,7 +330,6 @@ impl PoolEntry {
             http2_headers,
             trailers,
             client_hints,
-            body,
         } = request;
         let ConnectionLease { connection, token } = lease;
 
@@ -344,12 +371,12 @@ impl PoolEntry {
                         if !connection.is_reusable() {
                             self.invalidate(&token).await;
                         }
-                        Err(RequestError::http1(error.into()))
+                        Err(RequestError::http1(error.into()).into())
                     }
                     Err(error) => {
                         drop(permit);
                         self.invalidate(&token).await;
-                        Err(error)
+                        Err(error.into())
                     }
                 }
             }
@@ -397,11 +424,14 @@ impl PoolEntry {
                         if invalidates_http2_connection(&error) {
                             self.invalidate(&token).await;
                         }
-                        Err(RequestError::http2(error.into()))
+                        if is_graceful_goaway(&error) {
+                            return Err(DispatchFailure::GracefulGoaway(error));
+                        }
+                        Err(RequestError::http2(error.into()).into())
                     }
                     Err(error) => {
                         drop(permit);
-                        Err(error)
+                        Err(error.into())
                     }
                 }
             }
@@ -465,7 +495,8 @@ impl PoolEntry {
     }
 }
 
-/// One negotiated request prepared for either selected protocol.
+/// One negotiated request, without its body, prepared for either protocol.
+#[derive(Clone)]
 struct NegotiatedRequest<'a> {
     method: Method,
     authority: &'a str,
@@ -475,7 +506,29 @@ struct NegotiatedRequest<'a> {
     http2_headers: Vec<RequestHeader>,
     trailers: Vec<RequestHeader>,
     client_hints: Option<ClientHintContext<'a>>,
-    body: Option<RequestBody>,
+}
+
+type NegotiatedResponse = (Response<ResponseBody>, HttpProtocol, Vec<RequestHeader>);
+
+enum DispatchFailure {
+    /// The peer refused the stream with `GOAWAY(NO_ERROR)` before processing it.
+    GracefulGoaway(Http2Error),
+    Request(RequestError),
+}
+
+impl From<RequestError> for DispatchFailure {
+    fn from(error: RequestError) -> Self {
+        Self::Request(error)
+    }
+}
+
+impl From<DispatchFailure> for RequestError {
+    fn from(failure: DispatchFailure) -> Self {
+        match failure {
+            DispatchFailure::GracefulGoaway(error) => Self::http2(error.into()),
+            DispatchFailure::Request(error) => error,
+        }
+    }
 }
 
 enum PooledConnection {

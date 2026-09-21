@@ -213,7 +213,7 @@ fn invalidates_connection(error: &Http2Error) -> bool {
     )
 }
 
-fn is_graceful_goaway(error: &Http2Error) -> bool {
+pub(super) fn is_graceful_goaway(error: &Http2Error) -> bool {
     matches!(
         error,
         Http2Error::Protocol(error)

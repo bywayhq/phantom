@@ -65,6 +65,9 @@ admission after ALPN. The admission permit remains held across the delay, but
 no pool-entry connection lock does. This keeps bounds and queue order stable
 while allowing another request to install a compatible generation. Retry
 never changes the route, the exact protocol, or the negotiated selection rule.
+The one graceful-`GOAWAY` replay of a bodyless H2 GET follows the same rule:
+exact H2 keeps its admission for the replacement, while a negotiated request
+releases its H2 admission and re-enters pre-selection admission and ALPN.
 
 ## Async and features
 
