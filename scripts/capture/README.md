@@ -192,3 +192,71 @@ for Edge. Firefox sends no client hints and records an empty list.
 `chrome_http3.py` records one browser HTTP/3 startup against an aioquic
 server. [Validation](../../docs/explanation/validation.md) lists its retained fixtures and
 the launch commands used for them.
+
+## Alt-Svc racing
+
+`alt_svc_race.py` records how Chromium races a learned `h3` alternative
+against its origin and writes one `format=phantom-alt-svc-race-v1` fixture
+per scenario. Each run serves `server.phantom.test` over TLS/TCP with ALPN
+`h2` and over QUIC/UDP on the same port number (UDP is bound first), loads a
+scripted page in a fresh profile, and writes a Chrome NetLog to
+`--netlog-dir`. NetLogs are not retained; the fixture keeps derived decisions
+only. `chrome_netlog.py` reads a NetLog, including one truncated by a killed
+browser.
+
+The page learns `Alt-Svc: h3=":<port>"; ma=86400` from `/learn` (or
+`/learn-retire`, which also sends `GOAWAY` on its connection so the next
+request needs a new one), and `/retire` retires every open connection. A
+`/hold` image keeps the load event pending until `/done`, so `--dump-dom`
+exits cleanly and the NetLog ends with `polledData`, whose Alt-Svc mappings
+name each broken alternative's expiry.
+
+Chromium receives `--enable-quic`, the certificate's
+`--ignore-certificate-errors-spki-list`, `--log-net-log`,
+`--net-log-capture-mode=Everything`, and
+`--host-resolver-rules=MAP server.phantom.test <listen>, MAP * ~NOTFOUND`,
+which keeps browser background traffic off the network and out of QUIC
+history. QUIC rejects a certificate from an unknown root unless its host is
+named by `--origin-to-force-quic-on`, so the tool passes
+`--origin-to-force-quic-on=server.phantom.test:9`: a decoy port that is never
+requested, so the captured origin is not forced onto QUIC and every alternative
+job comes from Alt-Svc (the NetLog shows `ALT_SVC_FOUND` and an `alternative`
+job for each race).
+
+For each run the fixture keeps the page's per-step status and
+`nextHopProtocol`, the transport of each scripted request as seen by the
+server, connection counts, the gap between the first UDP datagram and the
+race's TCP accept, and for every post-learning job controller: whether the
+alternative was broken, the jobs created, the main job's wait and resume
+times, the first QUIC packet and TCP connect attempt, each job's outcome, and
+the bound job. Brokenness lifetimes are measured from the failed controller's
+end to the polled expiry. Aggregates summarize each request path.
+
+| Scenario | QUIC listener | Question |
+| --- | --- | --- |
+| `race-after-learning` | serves H3 | First new connection after learning on a fresh profile |
+| `race-after-quic-worked` | serves H3 | Main-job delay once QUIC has worked and its sessions closed |
+| `udp-blackhole` | drops datagrams | When TCP starts; brokenness of a blackholed alternative |
+| `quic-bad-certificate` | untrusted certificate | Whether a QUIC certificate failure marks the alternative broken |
+| `quic-bad-alpn` | no common ALPN | Whether a QUIC ALPN failure marks the alternative broken |
+| `existing-h2-session` | serves H3 | Requests while an H2 session exists when h3 is learned |
+| `broken-backoff` | drops datagrams | Brokenness expiry and the period after a second failure (about 5.5 minutes per run) |
+
+Capture Chrome on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+  python -m scripts.capture.alt_svc_race \
+  --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 153.0.8010.48 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --scenario race-after-learning race-after-quic-worked udp-blackhole \
+    quic-bad-certificate quic-bad-alpn existing-h2-session \
+  --repeat 10 --netlog-dir <scratch-directory> \
+  --output-dir fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200
+```
+
+The retained `broken-backoff` fixture used `--scenario broken-backoff --repeat 2`.
+Loopback has no added latency, so RTT-dependent delays appear only as the
+values Chrome logged.
