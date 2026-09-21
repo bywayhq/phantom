@@ -1,8 +1,16 @@
 use std::collections::BTreeMap;
 
-use super::{v152_http2, v152_http3_tls, v152_macos_client_hints, v152_tls};
-use crate::client_hints::ClientHintDelivery;
-use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
+use super::{
+    v152_http2, v152_http3_tls, v152_macos_client_hints, v152_tls, v153_http2, v153_http3_tls,
+    v153_tls, v153_windows_client_hints,
+};
+use crate::client_hints::{
+    ClientHintDelivery,
+    navigation_capture::{NavigationCapture, profile_hints},
+};
+use crate::http2::{
+    Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, session_capture::SessionCapture,
+};
 
 const PINGLY_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -12,6 +20,18 @@ const INITIAL_CONNECTION_WINDOW: u32 = 65_535;
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/client-hints/chrome/152.0.7977.83/macos-15.5/navigation.txt"
+));
+const V153_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/client-hints/chrome/153.0.8010.48/windows-11-26200/navigation.txt"
+));
+const V153_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/tls/chrome/153.0.8010.48/windows-11-26200/trust-anchor-orders.txt"
+));
+const V153_SESSION_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/websocket/chrome/153.0.8010.48/windows-11-26200/accept.txt"
 ));
 
 #[test]
@@ -290,4 +310,170 @@ fn chrome_152_compatibility_aliases_return_the_renamed_recipes() {
         super::v152_http3_request()
     );
     assert_eq!(super::v152_macos_quic(), super::v152_quic());
+}
+
+#[test]
+fn chrome_153_windows_client_hints_match_navigation_capture()
+-> Result<(), Box<dyn std::error::Error>> {
+    let settings = v153_windows_client_hints();
+    settings.validate()?;
+    let capture = NavigationCapture::parse(V153_CLIENT_HINT_FIXTURE)?;
+    assert_eq!(capture.value("client")?, "Google Chrome");
+    assert_eq!(capture.value("client_version")?, "153.0.8010.48");
+    assert_eq!(
+        capture.value("operating_system")?,
+        "Windows 11 Home 10.0.26200 x64"
+    );
+    assert_eq!(capture.value("launch_mode")?, "headless");
+    assert_eq!(capture.value("repeat_count")?, "3");
+    capture.assert_runs_agree()?;
+    assert_eq!(profile_hints(&settings), capture.hints()?);
+    Ok(())
+}
+
+#[test]
+fn chrome_153_client_hints_keep_the_152_names_order_and_delivery() {
+    let names = |settings: crate::ClientHintSettings| {
+        settings
+            .hints()
+            .iter()
+            .map(|hint| (hint.name().to_owned(), hint.delivery()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        names(v153_windows_client_hints()),
+        names(v152_macos_client_hints())
+    );
+}
+
+#[test]
+fn chrome_153_tls_recipe_changes_only_trust_anchor_ids_from_152()
+-> Result<(), Box<dyn std::error::Error>> {
+    let settings = v153_tls();
+    settings.validate()?;
+    let mut expected = v152_tls();
+    expected.requested_trust_anchor_ids = settings.requested_trust_anchor_ids.clone();
+    assert_eq!(settings, expected);
+
+    let mut http3 = v152_http3_tls();
+    http3.requested_trust_anchor_ids = settings.requested_trust_anchor_ids.clone();
+    assert_eq!(v153_http3_tls(), http3);
+    v153_http3_tls().validate()?;
+
+    // Chrome 153 dropped four `d67909xx` IDs and added none.
+    let ids = settings
+        .requested_trust_anchor_ids
+        .ok_or("Chrome 153 recipe omitted trust-anchor IDs")?;
+    let previous = v152_tls()
+        .requested_trust_anchor_ids
+        .ok_or("Chrome 152 recipe omitted trust-anchor IDs")?;
+    let mut removed = previous
+        .iter()
+        .filter(|id| !ids.contains(id))
+        .map(|id| id.to_vec())
+        .collect::<Vec<_>>();
+    removed.sort_unstable();
+    assert_eq!(
+        removed,
+        [
+            [0xd6, 0x79, 0x09, 0x02],
+            [0xd6, 0x79, 0x09, 0x03],
+            [0xd6, 0x79, 0x09, 0x09],
+            [0xd6, 0x79, 0x09, 0x0e],
+        ]
+    );
+    assert!(ids.iter().all(|id| previous.contains(id)));
+    Ok(())
+}
+
+/// Chrome fixes one trust-anchor order per browser process. The recipe keeps
+/// the order seen in the most fresh processes, which must be a strict mode.
+#[test]
+fn chrome_153_tls_trust_anchor_order_is_the_most_frequent_process_order()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fields = V153_TRUST_ANCHOR_ORDERS
+        .lines()
+        .map(|line| line.split_once('=').ok_or("fixture line is missing `=`"))
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    assert_eq!(
+        fields.get("format"),
+        Some(&"phantom-trust-anchor-orders-v1")
+    );
+    assert_eq!(fields.get("browser"), Some(&"Google Chrome"));
+    assert_eq!(fields.get("browser_version"), Some(&"153.0.8010.48"));
+    let processes: usize = required(&fields, "process_count")?.parse()?;
+    let distinct: usize = required(&fields, "distinct_order_count")?.parse()?;
+    let sequence = required(&fields, "process_orders")?
+        .split(',')
+        .map(str::parse::<usize>)
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(sequence.len(), processes);
+
+    let mut counts = Vec::with_capacity(distinct);
+    let mut orders = Vec::with_capacity(distinct);
+    for index in 0..distinct {
+        let order = required(&fields, &format!("order_{index}"))?;
+        let (count, ids) = order
+            .strip_prefix("count:")
+            .and_then(|rest| rest.split_once(",ids:"))
+            .ok_or("order line is malformed")?;
+        let count: usize = count.parse()?;
+        assert_eq!(
+            count,
+            sequence.iter().filter(|&&order| order == index).count()
+        );
+        counts.push(count);
+        orders.push(
+            ids.split(',')
+                .map(decode_hex)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+    }
+    assert_eq!(counts.iter().sum::<usize>(), processes);
+    assert!(counts[0] > counts[1], "most frequent order is not unique");
+    let mut membership = orders[0].clone();
+    membership.sort_unstable();
+    for order in &orders {
+        let mut sorted = order.clone();
+        sorted.sort_unstable();
+        assert_eq!(sorted, membership);
+    }
+
+    let recipe = v153_tls()
+        .requested_trust_anchor_ids
+        .ok_or("Chrome 153 recipe omitted trust-anchor IDs")?
+        .iter()
+        .map(|id| id.to_vec())
+        .collect::<Vec<_>>();
+    assert_eq!(recipe, orders[0]);
+    Ok(())
+}
+
+#[test]
+fn chrome_153_http2_recipe_matches_windows_session_capture()
+-> Result<(), Box<dyn std::error::Error>> {
+    let capture = SessionCapture::parse(V153_SESSION_FIXTURE)?;
+    assert_eq!(capture.value("client")?, "Google Chrome");
+    assert_eq!(capture.value("client_version")?, "153.0.8010.48");
+    assert_eq!(capture.value("scenario")?, "accept");
+
+    let settings = v153_http2();
+    settings.validate()?;
+    let observed = capture.navigation_settings()?;
+    assert_eq!(observed.len(), 3);
+    for run in observed {
+        assert_eq!(run, settings);
+    }
+    assert_eq!(settings, v152_http2());
+    Ok(())
+}
+
+fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    if value.len() % 2 != 0 {
+        return Err("odd-length hexadecimal value".into());
+    }
+    (0..value.len())
+        .step_by(2)
+        .map(|index| Ok(u8::from_str_radix(&value[index..index + 2], 16)?))
+        .collect()
 }

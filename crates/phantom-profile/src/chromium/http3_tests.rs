@@ -1,24 +1,85 @@
 use crate::{
-    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder,
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
+    Http3Setting, Http3SettingOrder, Http3Settings,
 };
 
-use super::{v152_http3, v152_http3_request};
+use super::{v152_http3, v152_http3_request, v153_http3, v153_http3_request};
 
 const FIXTURE: &str =
     include_str!("../../../../fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt");
 const WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/chrome/152.0.7977.83/windows-11-26200/client-startup.txt"
 );
+const V153_WINDOWS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/chrome/153.0.8010.48/windows-11-26200/client-startup.txt"
+);
+const EDGE_153_WINDOWS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt"
+);
 
 #[test]
 fn v152_http3_settings_match_retained_control_stream() -> Result<(), Box<dyn std::error::Error>> {
-    assert_settings_match_control_stream(FIXTURE)
+    assert_settings_match_control_stream(FIXTURE, v152_http3(), v152_http3_request())
 }
 
 #[test]
 fn chrome_152_http3_recipe_matches_windows_chrome_for_testing_capture()
 -> Result<(), Box<dyn std::error::Error>> {
-    assert_settings_match_control_stream(WINDOWS_FIXTURE)
+    assert_settings_match_control_stream(WINDOWS_FIXTURE, v152_http3(), v152_http3_request())
+}
+
+#[test]
+fn chrome_153_http3_recipe_matches_windows_capture() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(
+        fixture_field(V153_WINDOWS_FIXTURE, "client")?,
+        "Google Chrome"
+    );
+    assert_eq!(
+        fixture_field(V153_WINDOWS_FIXTURE, "client_version")?,
+        "153.0.8010.48"
+    );
+    assert_settings_match_control_stream(V153_WINDOWS_FIXTURE, v153_http3(), v153_http3_request())?;
+    assert_eq!(v153_http3(), v152_http3());
+    assert_eq!(v153_http3_request(), v152_http3_request());
+    Ok(())
+}
+
+/// The recipe models only the pseudo-header order; ordinary request fields
+/// come from the caller. Chrome 153 keeps the 152 field order and every
+/// non-persona value.
+#[test]
+fn chrome_153_windows_h3_request_fields_match_152_capture_except_persona_values()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_request_fields_match_except_persona(WINDOWS_FIXTURE, V153_WINDOWS_FIXTURE)
+}
+
+/// Edge 153 shares the Chrome 153 H3 control stream and request order; only
+/// persona values differ.
+#[test]
+fn chrome_153_http3_recipe_matches_windows_edge_capture() -> Result<(), Box<dyn std::error::Error>>
+{
+    assert_eq!(
+        fixture_field(EDGE_153_WINDOWS_FIXTURE, "client")?,
+        "Microsoft Edge"
+    );
+    assert_eq!(
+        fixture_field(EDGE_153_WINDOWS_FIXTURE, "client_version")?,
+        "153.0.4234.48"
+    );
+    assert_settings_match_control_stream(
+        EDGE_153_WINDOWS_FIXTURE,
+        v153_http3(),
+        v153_http3_request(),
+    )?;
+    assert_request_fields_match_except_persona(V153_WINDOWS_FIXTURE, EDGE_153_WINDOWS_FIXTURE)
+}
+
+fn fixture_field<'a>(fixture: &'a str, key: &str) -> Result<&'a str, Box<dyn std::error::Error>> {
+    let prefix = format!("{key}=");
+    fixture
+        .lines()
+        .find_map(|line| line.strip_prefix(prefix.as_str()))
+        .ok_or_else(|| format!("fixture omitted {key}").into())
 }
 
 /// The recipe models only the pseudo-header order; ordinary request fields
@@ -26,14 +87,21 @@ fn chrome_152_http3_recipe_matches_windows_chrome_for_testing_capture()
 #[test]
 fn chrome_152_windows_h3_request_fields_match_macos_capture_except_persona_values()
 -> Result<(), Box<dyn std::error::Error>> {
+    assert_request_fields_match_except_persona(FIXTURE, WINDOWS_FIXTURE)
+}
+
+fn assert_request_fields_match_except_persona(
+    reference: &str,
+    candidate: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     const PERSONA_FIELDS: [&str; 4] = [
         "user-agent",
         "sec-ch-ua",
         "sec-ch-ua-mobile",
         "sec-ch-ua-platform",
     ];
-    let macos = request_fields(FIXTURE)?;
-    let windows = request_fields(WINDOWS_FIXTURE)?;
+    let macos = request_fields(reference)?;
+    let windows = request_fields(candidate)?;
     assert_eq!(macos.len(), 17);
     assert_eq!(windows.len(), macos.len());
     for ((macos_name, macos_value), (windows_name, windows_value)) in macos.iter().zip(&windows) {
@@ -74,8 +142,11 @@ fn decode_ascii_hex(encoded: &str) -> Result<String, Box<dyn std::error::Error>>
     Ok(String::from_utf8(bytes)?)
 }
 
-fn assert_settings_match_control_stream(fixture: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let profile = v152_http3();
+fn assert_settings_match_control_stream(
+    fixture: &str,
+    profile: Http3Settings,
+    request: Http3RequestSettings,
+) -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(profile.setting_order, Http3SettingOrder::Ascending);
     assert_eq!(profile.qpack_encoding, Http3QpackEncoding::Dynamic);
     assert_eq!(
@@ -83,7 +154,7 @@ fn assert_settings_match_control_stream(fixture: &str) -> Result<(), Box<dyn std
         Http3QpackDecoderStream::OnFeedback
     );
     assert_eq!(
-        v152_http3_request().pseudo_header_order,
+        request.pseudo_header_order,
         [
             Http3PseudoHeader::Method,
             Http3PseudoHeader::Authority,
@@ -149,6 +220,10 @@ fn fixture_value(fixture: &str, index: usize) -> u64 {
 fn named_http3_recipes_leave_extended_connect_order_unset() {
     assert_eq!(
         v152_http3_request().extended_connect_pseudo_header_order,
+        None
+    );
+    assert_eq!(
+        v153_http3_request().extended_connect_pseudo_header_order,
         None
     );
 }

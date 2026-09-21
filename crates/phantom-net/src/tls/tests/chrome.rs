@@ -1,6 +1,10 @@
-//! Chrome-specific TLS differential tests.
+//! Chromium-family (Chrome and Edge) TLS differential tests.
 
-use phantom_profile::chromium::v152_tls;
+use phantom_profile::{
+    TlsSettings,
+    chromium::{v152_tls, v153_tls},
+    edge,
+};
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
 use super::{capture_client_hello_from, client_hello_fixture};
@@ -14,12 +18,24 @@ const WINDOWS_CHROME_FOR_TESTING_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome/152.0.7977.83/",
     "windows-11-26200/client-hello.txt"
 ));
+const CHROME_153_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome/153.0.8010.48/",
+    "windows-11-26200/client-hello.txt"
+));
+const CHROME_153_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome/153.0.8010.48/",
+    "windows-11-26200/trust-anchor-orders.txt"
+));
+const EDGE_153_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/edge/153.0.4234.48/",
+    "windows-11-26200/client-hello.txt"
+));
 const GREASE_SENTINEL: u16 = 0x0a0a;
 const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
 
 #[tokio::test]
 async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
-    assert_recipe_matches_fixture(CHROME_FIXTURE).await?;
+    assert_recipe_matches_fixture(CHROME_FIXTURE, &v152_tls(), Some(32)).await?;
     let expected = client_hello_fixture::capture(CHROME_FIXTURE)
         .await?
         .summary()?;
@@ -33,12 +49,56 @@ async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
 
 #[tokio::test]
 async fn chrome_152_tls_recipe_matches_windows_chrome_for_testing_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(WINDOWS_CHROME_FOR_TESTING_FIXTURE).await
+    assert_recipe_matches_fixture(WINDOWS_CHROME_FOR_TESTING_FIXTURE, &v152_tls(), Some(32)).await
 }
 
-async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
+#[tokio::test]
+async fn chrome_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(CHROME_153_FIXTURE, &v153_tls(), Some(28)).await
+}
+
+/// Each Chrome process fixes one trust-anchor order; the recipe emits the
+/// order observed in the most fresh processes (`order_0`).
+#[tokio::test]
+async fn chrome_153_tls_recipe_emits_the_most_frequent_trust_anchor_order() -> TestResult<()> {
+    let encoded = CHROME_153_TRUST_ANCHOR_ORDERS
+        .lines()
+        .find_map(|line| line.strip_prefix("order_0="))
+        .and_then(|order| order.split_once(",ids:"))
+        .map(|(_, ids)| ids)
+        .ok_or("trust-anchor order fixture omitted order_0")?;
+    let expected = encoded
+        .split(',')
+        .map(|id| {
+            (0..id.len())
+                .step_by(2)
+                .map(|index| u8::from_str_radix(&id[index..index + 2], 16))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let actual = capture_client_hello_from(&v153_tls()).await?.summary()?;
+    let actual = actual
+        .requested_trust_anchor_ids()
+        .ok_or("Chrome 153 recipe omitted trust-anchor IDs")?
+        .to_vec();
+    assert_eq!(actual, expected);
+    Ok(())
+}
+
+/// Edge 153 sends the Chrome 153 ClientHello without trust-anchor IDs.
+#[tokio::test]
+async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(EDGE_153_FIXTURE, &edge::v153_tls(), None).await
+}
+
+async fn assert_recipe_matches_fixture(
+    fixture: &str,
+    settings: &TlsSettings,
+    trust_anchor_id_count: Option<usize>,
+) -> TestResult<()> {
     let expected_capture = client_hello_fixture::capture(fixture).await?;
-    let actual_capture = capture_client_hello_from(&v152_tls()).await?;
+    let actual_capture = capture_client_hello_from(settings).await?;
 
     assert_eq!(
         actual_capture.records().len(),
@@ -87,7 +147,7 @@ async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
     );
     assert_eq!(
         actual.requested_trust_anchor_ids().map(<[_]>::len),
-        Some(32)
+        trust_anchor_id_count
     );
     // Every retained Chrome sample uses HKDF-SHA256 with AES-128-GCM.
     assert_eq!(
@@ -113,7 +173,10 @@ async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
         stable_extension_layout(&actual),
         stable_extension_layout(&expected)
     );
-    assert!(actual.extension_types().contains(&TRUST_ANCHORS_EXTENSION));
+    assert_eq!(
+        actual.extension_types().contains(&TRUST_ANCHORS_EXTENSION),
+        trust_anchor_id_count.is_some()
+    );
     Ok(())
 }
 

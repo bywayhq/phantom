@@ -2,6 +2,7 @@
 
 pub mod chromium;
 pub mod client_hints;
+pub mod edge;
 pub mod firefox;
 pub mod http2;
 pub mod http3;

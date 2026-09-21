@@ -54,6 +54,40 @@ const V152_TRUST_ANCHOR_IDS: &[&[u8]] = &[
     &[0xd6, 0x79, 0x09, 0x0b],
 ];
 
+// The most frequent of 35 distinct per-process orders in 60 fresh Chrome
+// 153.0.8010.48 processes (6 occurrences; next 5). The four `d67909xx` IDs
+// 02, 03, 09, and 0e that Chrome 152 advertised are absent.
+const V153_TRUST_ANCHOR_IDS: &[&[u8]] = &[
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x08],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0a],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x07],
+    &[0xd6, 0x79, 0x09, 0x0c],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0d],
+    &[0xd6, 0x79, 0x09, 0x06],
+    &[0x82, 0xdf, 0x13, 0x02, 0x0e],
+    &[0x82, 0xdf, 0x13, 0x02, 0x0d],
+    &[0xd6, 0x79, 0x09, 0x0a],
+    &[0x82, 0xdf, 0x13, 0x02, 0x01],
+    &[0x82, 0xdf, 0x13, 0x02, 0x06],
+    &[0xd6, 0x79, 0x09, 0x0b],
+    &[0x82, 0xdf, 0x13, 0x02, 0x13],
+    &[0xd6, 0x79, 0x09, 0x0d],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x13],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0b],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x12],
+    &[0xd6, 0x79, 0x09, 0x07],
+    &[0x82, 0xdf, 0x13, 0x02, 0x14],
+    &[0x82, 0xdf, 0x13, 0x02, 0x0f],
+    &[0x82, 0xdf, 0x13, 0x02, 0x12],
+    &[0xd6, 0x79, 0x09, 0x08],
+    &[0xd6, 0x79, 0x09, 0x05],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0c],
+    &[0xd6, 0x79, 0x09, 0x0f],
+    &[0xd6, 0x79, 0x09, 0x01],
+    &[0xd6, 0x79, 0x09, 0x04],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x09],
+];
+
 /// Returns client-hint fields observed from Chrome 152 on macOS 15.5 arm64.
 ///
 /// Field values and relative order come from an isolated navigation capture.
@@ -146,12 +180,7 @@ pub fn v152_tls() -> TlsSettings {
         certificate_compression: vec![CertificateCompression::Brotli],
         session_tickets: true,
         record_size_limit: None,
-        requested_trust_anchor_ids: Some(
-            V152_TRUST_ANCHOR_IDS
-                .iter()
-                .map(|id| Box::from(*id))
-                .collect(),
-        ),
+        requested_trust_anchor_ids: Some(trust_anchor_ids(V152_TRUST_ANCHOR_IDS)),
         grease: true,
         grease_signature_algorithms: true,
         extension_order: ClientHelloExtensionOrder::Permuted,
@@ -367,6 +396,114 @@ pub fn v152_quic() -> QuicTransportSettings {
         ],
         parameter_order: QuicTransportParameterOrder::Permuted,
     }
+}
+
+/// Returns client-hint fields observed from Chrome 153 on Windows 11 x64.
+///
+/// Field values, relative order, and delivery come from a fresh-profile
+/// navigation capture: fields on the first navigation are sent by default,
+/// the rest only after the origin requests them through `Accept-CH`. The
+/// values carry the exact 153.0.8010.48 build and Windows platform data. The
+/// returned value is owned and may be customized before client creation.
+#[must_use]
+pub fn v153_windows_client_hints() -> ClientHintSettings {
+    use ClientHintDelivery::{AcceptCh, Default};
+
+    ClientHintSettings::new(vec![
+        ClientHint::new(
+            "sec-ch-ua",
+            r#""Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
+            Default,
+        ),
+        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
+        ClientHint::new("sec-ch-ua-full-version", r#""153.0.8010.48""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-arch", r#""x86""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-platform", r#""Windows""#, Default),
+        ClientHint::new("sec-ch-ua-platform-version", r#""19.0.0""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
+        ClientHint::new(
+            "sec-ch-ua-full-version-list",
+            r#""Google Chrome";v="153.0.8010.48", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.8010.48""#,
+            AcceptCh,
+        ),
+        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
+    ])
+}
+
+/// Returns TLS settings captured from Chrome 153.0.8010.48 on Windows 11.
+///
+/// Captured from branded Chrome 153.0.8010.48 on Windows 11 (build 26200)
+/// with the retained Chrome launch flags and its default field-trial
+/// configuration. Every compared field matches [`v152_tls`] except the
+/// requested trust-anchor IDs, so this reuses that recipe and replaces only
+/// the ID list: 28 IDs instead of 32. Chrome keeps one ID order per browser
+/// process; this recipe carries the most frequent order observed across 60
+/// fresh processes. The returned value is an ordinary owned [`TlsSettings`].
+#[must_use]
+pub fn v153_tls() -> TlsSettings {
+    let mut settings = v152_tls();
+    settings.requested_trust_anchor_ids = Some(trust_anchor_ids(V153_TRUST_ANCHOR_IDS));
+    settings
+}
+
+/// Returns HTTP/2 settings observed from Chrome 153.0.8010.48 on Windows 11.
+///
+/// Branded Chrome 153.0.8010.48 on Windows 11 (build 26200) matches
+/// [`v152_http2`] on every compared field, so this returns that recipe
+/// unchanged. The initial SETTINGS and connection window come from a raw
+/// startup-frame capture; the request pseudo-header order and HEADERS priority
+/// come from local navigation captures of the retained H2 session set.
+#[must_use]
+pub fn v153_http2() -> Http2Settings {
+    v152_http2()
+}
+
+/// Returns HTTP/3 settings observed from Chrome 153.0.8010.48 on Windows 11.
+///
+/// Branded Chrome 153.0.8010.48 on Windows 11 (build 26200) matches
+/// [`v152_http3`] on every compared control-stream field, so this returns
+/// that recipe unchanged.
+#[must_use]
+pub fn v153_http3() -> Http3Settings {
+    v152_http3()
+}
+
+/// Returns TLS settings for the Chrome 153.0.8010.48 HTTP/3 offer on Windows 11.
+///
+/// The QUIC ClientHellos of branded Chrome 153.0.8010.48 on Windows 11 (build
+/// 26200) match [`v152_http3_tls`] except for the requested trust-anchor IDs,
+/// which change exactly as in [`v153_tls`]. This reuses the 152 recipe and
+/// replaces only that list.
+#[must_use]
+pub fn v153_http3_tls() -> TlsSettings {
+    let mut settings = v152_http3_tls();
+    settings.requested_trust_anchor_ids = v153_tls().requested_trust_anchor_ids;
+    settings
+}
+
+/// Returns HTTP/3 request ordering observed from Chrome 153.0.8010.48 on Windows 11.
+///
+/// Branded Chrome 153.0.8010.48 on Windows 11 (build 26200) matches
+/// [`v152_http3_request`], so this returns that recipe unchanged.
+#[must_use]
+pub fn v153_http3_request() -> Http3RequestSettings {
+    v152_http3_request()
+}
+
+/// Returns QUIC transport settings observed from Chrome 153.0.8010.48 on Windows 11.
+///
+/// Branded Chrome 153.0.8010.48 on Windows 11 (build 26200) matches
+/// [`v152_quic`] on every compared transport parameter, width, and value, so
+/// this returns that recipe unchanged. Use it with [`v153_http3`].
+#[must_use]
+pub fn v153_quic() -> QuicTransportSettings {
+    v152_quic()
+}
+
+fn trust_anchor_ids(ids: &[&[u8]]) -> Vec<Box<[u8]>> {
+    ids.iter().map(|id| Box::from(*id)).collect()
 }
 
 // Compatibility aliases for the names used before the Windows parity

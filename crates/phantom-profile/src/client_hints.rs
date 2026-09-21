@@ -188,5 +188,7 @@ impl fmt::Display for InvalidClientHintSettings {
 impl Error for InvalidClientHintSettings {}
 
 #[cfg(test)]
+pub(crate) mod navigation_capture;
+#[cfg(test)]
 #[path = "client_hints/tests.rs"]
 mod tests;

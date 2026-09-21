@@ -298,4 +298,6 @@ fn validate_extended_connect_pseudo_header_order(
 }
 
 #[cfg(test)]
+pub(crate) mod session_capture;
+#[cfg(test)]
 mod tests;

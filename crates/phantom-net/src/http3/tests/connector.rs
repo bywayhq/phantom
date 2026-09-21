@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::chromium;
+use phantom_profile::{chromium, edge};
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
@@ -67,20 +67,61 @@ fn invalid_additional_root_is_a_trust_store_failure() {
 
 #[test]
 fn production_connector_emits_supported_chrome_h3_client_hello_fields() -> TestResult<()> {
-    assert_connector_matches_quic_client_hello(CHROME_H3_STARTUP, CHROME_H3_CLIENT_HELLO)
+    assert_connector_matches_quic_client_hello(
+        &connector()?,
+        CHROME_H3_STARTUP,
+        CHROME_H3_CLIENT_HELLO,
+    )
 }
 
 #[test]
 fn chrome_152_quic_client_hello_recipe_matches_windows_chrome_for_testing_capture() -> TestResult<()>
 {
     assert_connector_matches_quic_client_hello(
+        &connector()?,
         WINDOWS_CHROME_H3_STARTUP,
         WINDOWS_CHROME_H3_CLIENT_HELLO,
     )
 }
 
-fn assert_connector_matches_quic_client_hello(startup: &str, client_hello: &str) -> TestResult<()> {
-    let connector = connector()?;
+#[test]
+fn chrome_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &chromium::v153_http3_tls(),
+        &chromium::v153_quic(),
+        &chromium::v153_http3(),
+        &chromium::v153_http3_request(),
+    )?;
+    for client_hello in [CHROME_153_H3_CLIENT_HELLO_1, CHROME_153_H3_CLIENT_HELLO_2] {
+        assert_connector_matches_quic_client_hello(
+            &connector,
+            CHROME_153_H3_STARTUP,
+            client_hello,
+        )?;
+    }
+    Ok(())
+}
+
+/// Edge 153 offers the Chrome 153 QUIC ClientHello without trust-anchor IDs.
+#[test]
+fn edge_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &edge::v153_http3_tls(),
+        &chromium::v153_quic(),
+        &chromium::v153_http3(),
+        &chromium::v153_http3_request(),
+    )?;
+    for client_hello in [EDGE_153_H3_CLIENT_HELLO_1, EDGE_153_H3_CLIENT_HELLO_2] {
+        assert_connector_matches_quic_client_hello(&connector, EDGE_153_H3_STARTUP, client_hello)?;
+    }
+    Ok(())
+}
+
+fn assert_connector_matches_quic_client_hello(
+    connector: &Http3Connector,
+    startup: &str,
+    client_hello: &str,
+) -> TestResult<()> {
     let parameters = TransportParameters::read(
         Side::Server,
         &mut Cursor::new(fixture_hex(startup, "transport_parameters_hex")?),
@@ -443,6 +484,30 @@ const WINDOWS_CHROME_H3_STARTUP: &str = include_str!(concat!(
 const WINDOWS_CHROME_H3_CLIENT_HELLO: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/152.0.7977.83/",
     "windows-11-26200/quic-client-hello-1.txt"
+));
+const CHROME_153_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/153.0.8010.48/",
+    "windows-11-26200/client-startup.txt"
+));
+const CHROME_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/153.0.8010.48/",
+    "windows-11-26200/quic-client-hello-1.txt"
+));
+const CHROME_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/153.0.8010.48/",
+    "windows-11-26200/quic-client-hello-2.txt"
+));
+const EDGE_153_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge/153.0.4234.48/",
+    "windows-11-26200/client-startup.txt"
+));
+const EDGE_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge/153.0.4234.48/",
+    "windows-11-26200/quic-client-hello-1.txt"
+));
+const EDGE_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge/153.0.4234.48/",
+    "windows-11-26200/quic-client-hello-2.txt"
 ));
 
 fn fixture_hex(

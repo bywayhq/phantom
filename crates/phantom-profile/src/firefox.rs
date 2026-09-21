@@ -152,6 +152,42 @@ pub fn v154_http2() -> Http2Settings {
     }
 }
 
+/// Returns TLS settings captured from Firefox 156.0 on Windows 11.
+///
+/// Captured from Firefox 156.0 (Windows 11 build 26200) in twelve fresh
+/// processes. It reuses [`v154_tls`] and changes only the two fields that
+/// differ from Firefox 154: the supported groups no longer offer FFDHE-2048 or
+/// FFDHE-3072, and the ECH GREASE payload is 240 bytes instead of 239. Every
+/// other compared field, including the fixed extension order, matches 154.
+/// Firefox still picks its ECH GREASE AEAD per connection; this recipe emits
+/// only AES-128-GCM for the reason given on [`v154_tls`]. The returned value
+/// is an ordinary owned [`TlsSettings`].
+#[must_use]
+pub fn v156_tls() -> TlsSettings {
+    let mut settings = v154_tls();
+    settings.groups = vec![
+        NamedGroup::X25519MlKem768,
+        NamedGroup::X25519,
+        NamedGroup::Secp256r1,
+        NamedGroup::Secp384r1,
+        NamedGroup::Secp521r1,
+    ];
+    settings.ech_grease_payload_length = Some(240);
+    settings
+}
+
+/// Returns HTTP/2 settings observed from Firefox 156.0 on Windows 11.
+///
+/// Firefox 156.0 (Windows 11 build 26200) matches [`v154_http2`] on every
+/// compared field, so this returns that recipe unchanged. The initial
+/// SETTINGS, connection window, request pseudo-header order, and HEADERS
+/// priority come from the retained local H2 session captures of the WebSocket
+/// fixture set, three fresh-profile runs.
+#[must_use]
+pub fn v156_http2() -> Http2Settings {
+    v154_http2()
+}
+
 // Compatibility aliases for the names used before the Windows parity
 // captures showed these transport recipes are platform-independent.
 

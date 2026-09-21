@@ -1,6 +1,9 @@
 //! Firefox-specific TLS differential tests.
 
-use phantom_profile::firefox::v154_tls;
+use phantom_profile::{
+    TlsSettings,
+    firefox::{v154_tls, v156_tls},
+};
 use phantom_testkit::tls::ClientHelloSummary;
 
 use super::{capture_client_hello_from_server_name, client_hello_fixture};
@@ -14,7 +17,18 @@ const WINDOWS_FIREFOX_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/firefox/154.0/",
     "windows-11-26200/client-hello.txt"
 ));
+const WINDOWS_FIREFOX_156_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/firefox/156.0/",
+    "windows-11-26200/client-hello.txt"
+));
+const WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/firefox/156.0/",
+    "windows-11-26200/client-hello-chacha20-ech.txt"
+));
 const FIREFOX_SERVER_NAME: &str = "localhost";
+// ECHClientHello type outer (0), HKDF-SHA256 (0x0001), then the AEAD.
+const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
+const CHACHA20_POLY1305: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x03];
 const DELEGATED_CREDENTIAL_EXTENSION: u16 = 0x0022;
 const RECORD_SIZE_LIMIT_EXTENSION: u16 = 0x001c;
 const CERTIFICATE_COMPRESSION_EXTENSION: u16 = 0x001b;
@@ -22,12 +36,23 @@ const ENCRYPTED_CLIENT_HELLO_EXTENSION: u16 = 0xfe0d;
 
 #[tokio::test]
 async fn firefox_154_macos_matches_retained_client_hello() -> TestResult<()> {
-    assert_recipe_matches_fixture(FIREFOX_FIXTURE).await
+    assert_recipe_matches_fixture(FIREFOX_FIXTURE, &v154_tls(), 281).await
 }
 
 #[tokio::test]
 async fn firefox_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(WINDOWS_FIREFOX_FIXTURE).await
+    assert_recipe_matches_fixture(WINDOWS_FIREFOX_FIXTURE, &v154_tls(), 281).await
+}
+
+#[tokio::test]
+async fn firefox_156_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(WINDOWS_FIREFOX_156_FIXTURE, &v156_tls(), 282).await
+}
+
+#[tokio::test]
+async fn firefox_156_tls_recipe_matches_windows_capture_with_chacha20_ech_grease() -> TestResult<()>
+{
+    assert_recipe_matches_fixture(WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE, &v156_tls(), 282).await
 }
 
 /// Firefox picks AES-128-GCM or ChaCha20-Poly1305 for each ECH GREASE
@@ -35,11 +60,33 @@ async fn firefox_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
 /// reproduces only the AES-128-GCM branch.
 #[tokio::test]
 async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestResult<()> {
-    // ECHClientHello type outer (0), HKDF-SHA256 (0x0001), then the AEAD.
-    const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
-    const CHACHA20_POLY1305: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x03];
+    assert_recipe_emits_aes_128_gcm_ech_grease(
+        [FIREFOX_FIXTURE, WINDOWS_FIREFOX_FIXTURE],
+        &v154_tls(),
+    )
+    .await
+}
+
+/// Firefox 156 still picks the ECH GREASE AEAD per connection (7 AES-128-GCM
+/// and 5 ChaCha20-Poly1305 of 12 Windows samples); one of each is retained.
+#[tokio::test]
+async fn firefox_156_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestResult<()> {
+    assert_recipe_emits_aes_128_gcm_ech_grease(
+        [
+            WINDOWS_FIREFOX_156_FIXTURE,
+            WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE,
+        ],
+        &v156_tls(),
+    )
+    .await
+}
+
+async fn assert_recipe_emits_aes_128_gcm_ech_grease(
+    fixtures: [&str; 2],
+    settings: &TlsSettings,
+) -> TestResult<()> {
     let mut captured = Vec::new();
-    for fixture in [FIREFOX_FIXTURE, WINDOWS_FIREFOX_FIXTURE] {
+    for fixture in fixtures {
         let capture = client_hello_fixture::capture(fixture).await?;
         captured.push(client_hello_fixture::ech_cipher_suite(
             capture.handshake_bytes(),
@@ -47,7 +94,7 @@ async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestRes
     }
     assert_eq!(captured, [AES_128_GCM, CHACHA20_POLY1305]);
 
-    let actual = capture_client_hello_from_server_name(&v154_tls(), FIREFOX_SERVER_NAME).await?;
+    let actual = capture_client_hello_from_server_name(settings, FIREFOX_SERVER_NAME).await?;
     assert_eq!(
         client_hello_fixture::ech_cipher_suite(actual.handshake_bytes())?,
         AES_128_GCM
@@ -55,10 +102,14 @@ async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestRes
     Ok(())
 }
 
-async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
+async fn assert_recipe_matches_fixture(
+    fixture: &str,
+    settings: &TlsSettings,
+    ech_extension_length: usize,
+) -> TestResult<()> {
     let expected_capture = client_hello_fixture::capture(fixture).await?;
     let actual_capture =
-        capture_client_hello_from_server_name(&v154_tls(), FIREFOX_SERVER_NAME).await?;
+        capture_client_hello_from_server_name(settings, FIREFOX_SERVER_NAME).await?;
 
     assert_eq!(actual_capture.records().len(), 1);
     assert_eq!(
@@ -128,7 +179,7 @@ async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
                 ENCRYPTED_CLIENT_HELLO_EXTENSION,
             )?
             .len(),
-            281
+            ech_extension_length
         );
     }
 

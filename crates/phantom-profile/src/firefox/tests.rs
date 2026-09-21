@@ -1,5 +1,7 @@
-use super::{v154_http2, v154_tls};
-use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting};
+use super::{v154_http2, v154_tls, v156_http2, v156_tls};
+use crate::http2::{
+    Http2Priority, Http2PseudoHeader, Http2Setting, session_capture::SessionCapture,
+};
 use crate::tls::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
     NamedGroup, SignatureScheme, TlsVersion,
@@ -16,6 +18,10 @@ const PEET_FIXTURE: &str = include_str!(concat!(
 const PINGLY_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http2/firefox/154.0/macos-15.5/pingly-api-all.txt"
+));
+const V156_SESSION_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/websocket/firefox/156.0/windows-11-26200/accept.txt"
 ));
 
 #[test]
@@ -227,4 +233,46 @@ fn fixture_value<'a>(
 fn firefox_154_compatibility_aliases_return_the_renamed_recipes() {
     assert_eq!(super::v154_macos_tls(), super::v154_tls());
     assert_eq!(super::v154_macos_http2(), super::v154_http2());
+}
+
+#[test]
+fn firefox_156_tls_recipe_changes_only_groups_and_ech_payload_from_154()
+-> Result<(), Box<dyn std::error::Error>> {
+    let settings = v156_tls();
+    settings.validate()?;
+
+    let mut expected = v154_tls();
+    expected.groups = vec![
+        NamedGroup::X25519MlKem768,
+        NamedGroup::X25519,
+        NamedGroup::Secp256r1,
+        NamedGroup::Secp384r1,
+        NamedGroup::Secp521r1,
+    ];
+    expected.ech_grease_payload_length = Some(240);
+    assert_eq!(settings, expected);
+    Ok(())
+}
+
+#[test]
+fn firefox_156_http2_recipe_matches_windows_session_capture()
+-> Result<(), Box<dyn std::error::Error>> {
+    let capture = SessionCapture::parse(V156_SESSION_FIXTURE)?;
+    assert_eq!(capture.value("client")?, "Mozilla Firefox");
+    assert_eq!(capture.value("client_version")?, "156.0");
+    assert_eq!(
+        capture.value("operating_system")?,
+        "Windows 11 Home 10.0.26200 x64"
+    );
+    assert_eq!(capture.value("scenario")?, "accept");
+
+    let settings = v156_http2();
+    settings.validate()?;
+    let observed = capture.navigation_settings()?;
+    assert_eq!(observed.len(), 3);
+    for run in observed {
+        assert_eq!(run, settings);
+    }
+    assert_eq!(settings, v154_http2());
+    Ok(())
 }
