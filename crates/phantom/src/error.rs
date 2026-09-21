@@ -676,13 +676,10 @@ impl RequestError {
             match source.kind() {
                 Http3ConnectorErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
                 Http3ConnectorErrorKind::Resolve => RequestErrorKind::Resolve,
-                Http3ConnectorErrorKind::Proxy => match http3_proxy_kind(&source) {
-                    Some(Socks5ErrorKind::RuntimeUnavailable) => {
-                        RequestErrorKind::RuntimeUnavailable
-                    }
-                    Some(Socks5ErrorKind::Resolve) => RequestErrorKind::Resolve,
-                    _ => RequestErrorKind::Proxy,
-                },
+                Http3ConnectorErrorKind::Proxy => http3_proxy_failure(&source).map_or(
+                    RequestErrorKind::Proxy,
+                    Http3ProxyFailure::request_error_kind,
+                ),
                 Http3ConnectorErrorKind::Endpoint | Http3ConnectorErrorKind::Connect => {
                     RequestErrorKind::Connect
                 }
@@ -700,9 +697,8 @@ impl RequestError {
 
     pub(crate) fn http3_connection_setup(source: Http3ConnectorError) -> Self {
         let retryable = match source.kind() {
-            Http3ConnectorErrorKind::Proxy => {
-                http3_proxy_kind(&source).is_some_and(is_retryable_socks5_kind)
-            }
+            Http3ConnectorErrorKind::Proxy => http3_proxy_failure(&source)
+                .is_some_and(Http3ProxyFailure::is_retryable_connection_setup),
             kind => is_retryable_http3_connection_setup_kind(kind),
         };
         let mut error = Self::http3(source);
@@ -825,11 +821,35 @@ fn is_retryable_http3_connection_setup_kind(kind: Http3ConnectorErrorKind) -> bo
     )
 }
 
-fn http3_proxy_kind(error: &Http3ConnectorError) -> Option<Socks5ErrorKind> {
-    error
-        .source()
-        .and_then(|source| source.downcast_ref::<Socks5Error>())
-        .map(Socks5Error::kind)
+/// Typed proxy failure carried as the source of an HTTP/3 connector error.
+#[derive(Clone, Copy)]
+enum Http3ProxyFailure {
+    Socks5(Socks5ErrorKind),
+}
+
+impl Http3ProxyFailure {
+    fn request_error_kind(self) -> RequestErrorKind {
+        match self {
+            Self::Socks5(Socks5ErrorKind::RuntimeUnavailable) => {
+                RequestErrorKind::RuntimeUnavailable
+            }
+            Self::Socks5(Socks5ErrorKind::Resolve) => RequestErrorKind::Resolve,
+            Self::Socks5(_) => RequestErrorKind::Proxy,
+        }
+    }
+
+    fn is_retryable_connection_setup(self) -> bool {
+        match self {
+            Self::Socks5(kind) => is_retryable_socks5_kind(kind),
+        }
+    }
+}
+
+fn http3_proxy_failure(error: &Http3ConnectorError) -> Option<Http3ProxyFailure> {
+    let source = error.source()?;
+    source
+        .downcast_ref::<Socks5Error>()
+        .map(|error| Http3ProxyFailure::Socks5(error.kind()))
 }
 
 fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {
