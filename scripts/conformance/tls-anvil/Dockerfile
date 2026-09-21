@@ -8,6 +8,6 @@ WORKDIR /source
 COPY . .
 RUN cargo build --release --locked -p phantom-net --example tls_anvil_client
 
-FROM ghcr.io/tls-attacker/tlsanvil@sha256:a8a4bb924b09453926ccb4721028c68051c7b61168829469a28f5af47df311d4
+FROM ghcr.io/tls-attacker/tlsanvil@sha256:29015a008c0def6e5ac495f9ac3d4d7f250dc8f7d0d393633f2f37c45245c4c2
 
 COPY --from=builder /source/target/release/examples/tls_anvil_client /adapter/phantom-tls-anvil
