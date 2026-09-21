@@ -178,7 +178,7 @@ def _build_adapter(repository: Path) -> Path:
             "--target-dir",
             str(target_directory),
             "-p",
-            "phantom",
+            "phantom-http",
             "--example",
             "autobahn-client",
             "--features",

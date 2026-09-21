@@ -28,13 +28,13 @@ for native build prerequisites.
 ```console
 git clone https://github.com/bywayhq/phantom.git
 cd phantom
-cargo build -p phantom --all-features --locked
+cargo build -p phantom-http --all-features --locked
 ```
 
 Build and open the API reference locally with:
 
 ```console
-cargo doc -p phantom --all-features --no-deps --open
+cargo doc -p phantom-http --all-features --no-deps --open
 ```
 
 ## Send a request

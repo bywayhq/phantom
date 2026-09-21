@@ -4,9 +4,9 @@
 # patched dependency to Phantom's renamed fork and none to the stock package.
 #
 # Usage: check-downstream.sh [path|git|registry VERSION]...
-#   path      phantom = { path = ... }             (vendored checkout layout)
-#   git       phantom = { git = ..., rev = ... }   (from a local commit)
-#   registry  phantom = "=VERSION"                 (after publishing)
+#   path      phantom = { package = "phantom-http", path = ... }
+#   git       phantom = { package = "phantom-http", git = ..., rev = ... }
+#   registry  phantom = { package = "phantom-http", version = "=VERSION" }
 # With no arguments, the path and git modes run.
 set -euo pipefail
 
@@ -151,7 +151,7 @@ check_path() {
   local consumer="$work_root/path"
   copy_checkout "$consumer/vendor/phantom"
   write_consumer "$consumer" \
-    'phantom = { path = "vendor/phantom/crates/phantom", features = ["full"] }'
+    'phantom = { package = "phantom-http", path = "vendor/phantom/crates/phantom", features = ["full"] }'
   check_consumer "$consumer" path
 }
 
@@ -164,14 +164,14 @@ check_git() {
     -c commit.gpgsign=false commit --quiet --message snapshot
   revision=$(git -C "$source" rev-parse HEAD)
   write_consumer "$consumer" \
-    "phantom = { git = \"$(file_url "$source")\", rev = \"$revision\", features = [\"full\"] }"
+    "phantom = { package = \"phantom-http\", git = \"$(file_url "$source")\", rev = \"$revision\", features = [\"full\"] }"
   check_consumer "$consumer" git
 }
 
 check_registry() {
   local version=$1 consumer="$work_root/registry"
   write_consumer "$consumer" \
-    "phantom = { version = \"=$version\", features = [\"full\"] }"
+    "phantom = { package = \"phantom-http\", version = \"=$version\", features = [\"full\"] }"
   check_consumer "$consumer" registry
 }
 

@@ -1,11 +1,16 @@
 [package]
-name = "phantom"
+name = "phantom-http"
 description = "A wire-evidenced browser-compatible HTTP client"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
+
+# The package name `phantom` is taken on crates.io; the library keeps the
+# `phantom` crate name.
+[lib]
+name = "phantom"
 
 [features]
 default = []

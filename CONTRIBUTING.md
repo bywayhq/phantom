@@ -19,7 +19,7 @@ prerequisite checks.
 Build the public crate before making a change:
 
 ```console
-cargo check -p phantom --all-features --locked
+cargo check -p phantom-http --all-features --locked
 ```
 
 ## Before implementation

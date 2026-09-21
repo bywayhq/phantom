@@ -299,7 +299,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                 "--quiet",
                 "--locked",
                 "-p",
-                "phantom",
+                "phantom-http",
                 "--example",
                 "wpt-eventsource-client",
                 "--features",

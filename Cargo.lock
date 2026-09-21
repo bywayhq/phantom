@@ -1064,40 +1064,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
-name = "phantom"
-version = "0.1.0"
-dependencies = [
- "brotli",
- "bytes",
- "cookie",
- "cookie_store",
- "flate2",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "parking_lot",
- "phantom-btls",
- "phantom-h3",
- "phantom-h3-quinn",
- "phantom-http2",
- "phantom-net",
- "phantom-profile",
- "phantom-quinn",
- "phantom-tokio-btls",
- "phantom-tokio-tungstenite",
- "phantom-tungstenite",
- "psl",
- "rcgen",
- "rustls",
- "sfv",
- "tokio",
- "tracing",
- "url",
- "zstd",
-]
-
-[[package]]
 name = "phantom-btls"
 version = "0.5.6-phantom.1"
 dependencies = [
@@ -1151,6 +1117,40 @@ dependencies = [
  "phantom-quinn",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "phantom-http"
+version = "0.1.0"
+dependencies = [
+ "brotli",
+ "bytes",
+ "cookie",
+ "cookie_store",
+ "flate2",
+ "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
+ "parking_lot",
+ "phantom-btls",
+ "phantom-h3",
+ "phantom-h3-quinn",
+ "phantom-http2",
+ "phantom-net",
+ "phantom-profile",
+ "phantom-quinn",
+ "phantom-tokio-btls",
+ "phantom-tokio-tungstenite",
+ "phantom-tungstenite",
+ "psl",
+ "rcgen",
+ "rustls",
+ "sfv",
+ "tokio",
+ "tracing",
+ "url",
+ "zstd",
 ]
 
 [[package]]

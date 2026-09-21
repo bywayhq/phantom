@@ -8,7 +8,7 @@ RUN apt-get update \
 
 WORKDIR /source
 COPY . .
-RUN cargo build --release --locked -p phantom --example quic-interop-client
+RUN cargo build --release --locked -p phantom-http --example quic-interop-client
 
 FROM martenseemann/quic-network-simulator-endpoint@sha256:3b2b9e6fa317da238c8140a7b6d2bf8d4d45a8464b873eecac3ff2a32520b71a
 

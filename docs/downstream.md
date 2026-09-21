@@ -8,7 +8,9 @@ version and path, so a downstream build needs no `[patch]` table and the stock
 packages can never replace them.
 
 Phantom is not yet published to crates.io. The supported ways to depend on it
-are a pinned git revision or a pinned path checkout.
+are a pinned git revision or a pinned path checkout. The package is named
+`phantom-http` because `phantom` is taken on crates.io; the library crate is
+still `phantom`, so the dependency key below keeps `use phantom::...` working.
 
 ## Git dependency
 
@@ -16,7 +18,7 @@ Pin an exact commit:
 
 ```toml
 [dependencies]
-phantom = { git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
+phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
 ```
 
 Cargo resolves every `phantom-*` fork from the same commit, because Phantom's
@@ -37,7 +39,7 @@ git add .gitmodules vendor/phantom
 
 ```toml
 [dependencies]
-phantom = { path = "vendor/phantom/crates/phantom", features = ["full"] }
+phantom = { package = "phantom-http", path = "vendor/phantom/crates/phantom", features = ["full"] }
 ```
 
 Earlier Phantom revisions required copying a root `[patch]` table into the
