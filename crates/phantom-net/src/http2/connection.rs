@@ -247,7 +247,15 @@ impl Http2Connection {
                 .send_request(request, false)
                 .map_err(Http2Error::protocol)?;
             let mut send = RequestStreamGuard::new(send);
-            let response = response.await.map_err(Http2Error::protocol)?;
+            let response = match response.await {
+                Ok(response) => response,
+                Err(error) => {
+                    // A failed response already ended the stream; an explicit
+                    // reset would only queue a frame on a dead connection.
+                    drop(send.disarm());
+                    return Err(Http2Error::protocol(error));
+                }
+            };
             span.record("status", response.status().as_u16());
 
             let accepted = response.status().is_success();
