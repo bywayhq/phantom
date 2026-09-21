@@ -184,6 +184,9 @@ impl SseRequestBuilder {
         let response = loop {
             match self.request.send("").await {
                 Ok(response) => break response,
+                Err(error) if !super::is_reconnectable(&error) => {
+                    return Err(SseError::request(error));
+                }
                 Err(_) if reconnects < self.max_reconnects => {
                     reconnects += 1;
                     debug!(

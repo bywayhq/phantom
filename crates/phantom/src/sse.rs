@@ -161,6 +161,13 @@ impl SseError {
         )
     }
 
+    fn unrepresentable_last_event_id() -> Self {
+        Self::without_source(
+            SseErrorKind::Request,
+            "committed SSE event ID cannot be sent as a Last-Event-ID field value",
+        )
+    }
+
     fn invalid_request_header() -> Self {
         Self::without_source(
             SseErrorKind::InvalidRequestHeader,

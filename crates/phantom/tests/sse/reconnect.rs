@@ -243,6 +243,78 @@ async fn event_source_reports_the_last_initial_failure_after_exhaustion() -> Tes
     Ok(())
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn deterministic_initial_request_failure_is_not_retried() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let started = Instant::now();
+
+    let error = test_client(&identity, false)?
+        .session()
+        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+        .header(RequestHeader::new("Host", "caller.example"))
+        .max_reconnects(3)
+        .connect()
+        .await
+        .err()
+        .ok_or("caller-owned Host field was accepted")?;
+
+    assert_eq!(error.kind(), SseErrorKind::Request);
+    assert_eq!(Instant::now(), started, "a reconnect delay elapsed");
+    assert!(
+        timeout(Duration::ZERO, listener.accept()).await.is_err(),
+        "the rejected request reached the network"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn unrepresentable_last_event_id_ends_reconnects_with_request_error() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let server = tokio::spawn(async move {
+        let mut stream = accept_tls_reusable(&listener, &acceptor).await?;
+        read_head(&mut stream).await?;
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\n\
+                  Content-Type: text/event-stream\r\n\
+                  Connection: close\r\n\r\n\
+                  id: a\x01b\ndata: one\n\n",
+            )
+            .await?;
+        stream.shutdown().await?;
+        let second = timeout(Duration::from_secs(60), listener.accept()).await;
+        Ok::<_, Box<dyn Error + Send + Sync>>(second.is_err())
+    });
+
+    let mut source = test_client(&identity, false)?
+        .session()
+        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+        .initial_retry(Duration::ZERO)
+        .max_reconnects(3)
+        .connect()
+        .await?
+        .into_body();
+    let event = source
+        .next_event()
+        .await?
+        .ok_or("first event was not decoded")?;
+    assert_eq!(event.data(), "one");
+    let error = source
+        .next_event()
+        .await
+        .err()
+        .ok_or("reconnect with an unrepresentable ID succeeded")?;
+
+    assert_eq!(error.kind(), SseErrorKind::Request);
+    assert!(server.await??, "a reconnect reached the network");
+    Ok(())
+}
+
 #[tokio::test]
 async fn invalid_initial_retry_fails_before_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;

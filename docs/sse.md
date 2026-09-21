@@ -70,7 +70,12 @@ read, including an active idle deadline, and retains an in-flight reconnect
 request for the next read. It carries committed `id` and `retry` state across
 responses, adds one `Last-Event-ID` field when the committed ID is nonempty,
 and stops permanently on 204. Initial transport failures, later disconnects,
-and idle responses use the same finite attempt budget. Reconnects use the same
+and idle responses use the same finite attempt budget. Only resolution,
+connection, proxy, capacity, timeout, TLS, and protocol failures are retried;
+input, policy, route, and runtime failures return `SseErrorKind::Request` at
+once, because repeating the same request would fail identically. A committed
+event ID that cannot be sent as a `Last-Event-ID` field value also ends the
+source with `SseErrorKind::Request` before another request. Reconnects use the same
 exact protocol, client cookies, redirect policy, ordered caller fields, and
 route. A caller-supplied `Last-Event-ID` is rejected so reconnects cannot emit
 duplicates.

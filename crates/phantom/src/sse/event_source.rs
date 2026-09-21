@@ -1,10 +1,10 @@
 use std::{fmt, future::Future, pin::Pin, time::Duration};
 
-use http::{Response, StatusCode};
+use http::{HeaderValue, Response, StatusCode};
 use tokio::time::{Instant, sleep_until};
 use tracing::{Instrument, debug, debug_span, field};
 
-use crate::{RequestError, ResponseBody};
+use crate::{RequestError, RequestErrorKind, ResponseBody};
 
 use super::{SseError, SseErrorKind, SseEvent, SseLimits, SseOutcome, SseStream};
 
@@ -15,6 +15,37 @@ pub use request::SseRequestBuilder;
 
 type ReconnectFuture =
     Pin<Box<dyn Future<Output = Result<Response<ResponseBody>, RequestError>> + Send + 'static>>;
+
+/// Returns whether a failed attempt may succeed on a later reconnect.
+///
+/// Input, policy, and route failures are deterministic: repeating the same
+/// request would fail identically, so they end the event source at once.
+fn is_reconnectable(error: &RequestError) -> bool {
+    match error.kind() {
+        RequestErrorKind::Resolve
+        | RequestErrorKind::Connect
+        | RequestErrorKind::Proxy
+        | RequestErrorKind::Capacity
+        | RequestErrorKind::Timeout
+        | RequestErrorKind::Tls
+        | RequestErrorKind::Http1
+        | RequestErrorKind::Http2
+        | RequestErrorKind::Http3 => true,
+        RequestErrorKind::InvalidUri
+        | RequestErrorKind::UnsupportedScheme
+        | RequestErrorKind::InvalidAuthority
+        | RequestErrorKind::AuthorityHeader
+        | RequestErrorKind::InvalidHeader
+        | RequestErrorKind::ProtocolUnavailable
+        | RequestErrorKind::UnsupportedRoute
+        | RequestErrorKind::InvalidTarget
+        | RequestErrorKind::Redirect
+        | RequestErrorKind::RuntimeUnavailable
+        | RequestErrorKind::InvalidTimeout
+        | RequestErrorKind::RequestBody
+        | RequestErrorKind::ResponseBodyLimit => false,
+    }
+}
 
 #[derive(Debug)]
 enum ReconnectFailure {
@@ -255,6 +286,10 @@ impl SseEventSource {
                 maximum = self.max_reconnects,
                 "reconnecting SSE event source"
             );
+            if HeaderValue::from_bytes(self.last_event_id.as_bytes()).is_err() {
+                self.closed = true;
+                return Err(SseError::unrepresentable_last_event_id());
+            }
             self.reconnect_request = Some(self.request.send_owned(self.last_event_id.clone()));
         }
 
@@ -267,10 +302,15 @@ impl SseEventSource {
         };
         let response = match response {
             Ok(response) => response,
-            Err(error) => {
+            Err(error) if is_reconnectable(&error) => {
                 self.reconnect_request = None;
                 self.last_failure = Some(ReconnectFailure::Request(error));
                 return Ok(true);
+            }
+            Err(error) => {
+                self.reconnect_request = None;
+                self.closed = true;
+                return Err(SseError::request(error));
             }
         };
         self.reconnect_request = None;
