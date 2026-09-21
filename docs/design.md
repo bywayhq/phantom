@@ -69,6 +69,15 @@ The one graceful-`GOAWAY` replay of a bodyless H2 GET follows the same rule:
 exact H2 keeps its admission for the replacement, while a negotiated request
 releases its H2 admission and re-enters pre-selection admission and ALPN.
 
+Replaying bytes that may have reached the origin is a separate, opt-in class.
+The H1 transport reports a reused keep-alive connection that closed or reset
+before any response byte as its own typed error; a fresh connection or a
+partial response keeps the ordinary protocol error. The facade replays only an
+idempotent method whose body is absent or owned bytes, once per hop, on a
+fresh connection with the same route, and outside the setup-retry budget. The
+evidence is Chrome's single restart after `ERR_CONNECTION_CLOSED` on a reused
+socket. Firefox also restarts on fresh connections, which Phantom does not.
+
 ## Async and features
 
 Phantom is async-first and targets Tokio. Library code does not create a global

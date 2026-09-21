@@ -160,6 +160,25 @@ H2; the negotiated replacement is admitted and selected by ALPN again. The
 replay does not consume the setup-retry budget, and any other method, a
 request body, trailers, or a second `GOAWAY` returns the typed H2 error.
 
+`RetryPolicy::with_reused_connection_replay(true)` opts into one post-dispatch
+replay class, off by default. An HTTP/1.1 request, exact or negotiated, is
+sent once more on a fresh connection over the same route when all of these
+hold: it was written to a keep-alive connection that had already delivered a
+response, that connection closed or was reset before any byte of the new
+response arrived, the method is idempotent (RFC 9110, section 9.2.2: GET,
+HEAD, OPTIONS, TRACE, PUT, or DELETE), and the body is absent or owned bytes.
+Chrome 153 restarts such a request once on a new connection (see
+[validation](validation.md#sse-browser-reconnect-evidence)). The request may
+already have reached the origin, which is why the class is opt-in and limited
+to idempotent methods. A request on a fresh connection, a failure after any
+response byte, a one-shot streaming body, POST or PATCH, and a second close
+return the original typed HTTP/1 error. The replay happens at most once per
+redirect hop, adds no delay, and does not consume the setup-retry budget;
+`ResponseInfo::retries_performed` still counts only setup retries. The
+`client.request` span records the count as `reused_connection_replays`. A
+negotiated replay retires the failed H1 generation and is admitted and
+selected by ALPN again, like the negotiated `GOAWAY` replay.
+
 ## Routes and proxies
 
 Set a default route on `ClientBuilder`, or override it on one request. Supported
