@@ -535,7 +535,10 @@ impl RequestError {
             RequestErrorKind::RequestBody
         } else {
             match &source {
-                Http1TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+                Http1TlsError::RuntimeUnavailable
+                | Http1TlsError::Http1(Http1Error::RuntimeUnavailable) => {
+                    RequestErrorKind::RuntimeUnavailable
+                }
                 Http1TlsError::Connect(_) => RequestErrorKind::Connect,
                 Http1TlsError::ForwardProxyConnect(_) => RequestErrorKind::Proxy,
                 Http1TlsError::Proxy(error)
@@ -581,7 +584,10 @@ impl RequestError {
             RequestErrorKind::RequestBody
         } else {
             match &source {
-                Http2TlsError::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+                Http2TlsError::RuntimeUnavailable
+                | Http2TlsError::Http2(Http2Error::RuntimeUnavailable) => {
+                    RequestErrorKind::RuntimeUnavailable
+                }
                 Http2TlsError::Connect(_) => RequestErrorKind::Connect,
                 Http2TlsError::Proxy(error)
                     if error.kind()
@@ -858,8 +864,8 @@ impl StdError for RequestError {
 #[cfg(test)]
 mod tests {
     use phantom_net::{
-        http1::Http1TlsError,
-        http2::Http2TlsError,
+        http1::{Http1Error, Http1TlsError},
+        http2::{Http2Error, Http2TlsError},
         http3::Http3ConnectorErrorKind,
         proxy::{HttpConnectError, HttpConnectErrorKind, Socks5ErrorKind},
     };
@@ -872,6 +878,17 @@ mod tests {
 
     fn io_error() -> std::io::Error {
         std::io::Error::other("test connection failure")
+    }
+
+    #[test]
+    fn missing_runtime_inside_http1_and_http2_maps_to_runtime_unavailable() {
+        let http1 = RequestError::http1(Http1TlsError::Http1(Http1Error::RuntimeUnavailable));
+        assert_eq!(http1.kind(), RequestErrorKind::RuntimeUnavailable);
+        assert_eq!(http1.protocol(), Some(HttpProtocol::Http1));
+
+        let http2 = RequestError::http2(Http2TlsError::Http2(Http2Error::RuntimeUnavailable));
+        assert_eq!(http2.kind(), RequestErrorKind::RuntimeUnavailable);
+        assert_eq!(http2.protocol(), Some(HttpProtocol::Http2));
     }
 
     #[test]
