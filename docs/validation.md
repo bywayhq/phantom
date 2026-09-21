@@ -282,9 +282,10 @@ restarted three times after `NS_BASE_STREAM_CLOSED` on fresh connections; the
 `204` answered that same channel, so the EventSource never scheduled a
 reconnect. The logs were kept outside the repository; the fixture timings of
 these runs matched the retained captures. Phantom's event source already waits
-the retry delay after each failure, like Chrome's. Its HTTP/1 layer does not
-resend a request after a reused connection closes before a response, and
-that request-layer policy is outside the SSE controller.
+the retry delay after each failure, like Chrome's. By default its HTTP/1 layer
+does not resend a request after a reused connection closes before a response;
+`RetryPolicy::with_reused_connection_replay` opts into Chrome's single resend.
+That request-layer policy is outside the SSE controller.
 
 A five-run headless and headful Chrome comparison of `retry-750`, retained
 under `launch-mode/`, gave medians within 1 ms of each other, so headless

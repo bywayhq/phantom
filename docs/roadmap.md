@@ -28,10 +28,9 @@ work has exposed the real architectural boundaries.
   ownership and bounded lifecycle rules.
 - Browser-backed SSE reconnect evidence exists for Chrome 153 and Firefox 156
   on Windows over HTTP/1.1, and Phantom reproduces it through
-  `SseHeader::last_event_id` and `min_retry`. The remaining gap is
-  request-layer: resending a request after a reused keep-alive connection
-  closes before any response, which belongs in an explicit, bounded retry
-  class. Complete the remaining WebSocket protocol functionality before broad
+  `SseHeader::last_event_id` and `min_retry`. Chrome's single
+  resend after a reused keep-alive connection closes before any response is
+  available as opt-in reused-connection replay. Complete the remaining WebSocket protocol functionality before broad
   robustness work.
 - Expand the Chromium, Firefox, and Safari protocol/profile matrix only from
   fresh captures; do not infer missing H2, H3, QUIC, WebSocket, or SSE behavior

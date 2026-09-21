@@ -158,8 +158,9 @@ differences are listed here.
   requests the browsers made are HTTP-stack resends inside one EventSource
   request, not EventSource reconnects: Chrome resends once after a reused
   keep-alive connection closes before a response, and Firefox restarts the
-  transaction on fresh connections too. Phantom's HTTP/1 layer does not resend
-  a request after such a close, so the next request waits the retry delay.
+  transaction on fresh connections too. By default Phantom's HTTP/1 layer does
+  not resend a request after such a close, so the next request waits the retry
+  delay; `RetryPolicy::with_reused_connection_replay` opts into one resend.
 - **Redirected streams.** Phantom reconnects to the original URL and follows
   the client redirect policy again, as Firefox does. Chrome reconnects to the
   redirected URL.
