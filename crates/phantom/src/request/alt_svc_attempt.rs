@@ -2,9 +2,9 @@ use super::{
     ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, attempt_headers,
-        client_hint_origin, critical_hint_retry_eligible, dispatch, observe_response,
-        prepare_attempt, store_cookies,
+        client_hint_origin, dispatch, observe_response, prepare_attempt, store_cookies,
     },
+    replay::ReplayClass,
 };
 use crate::{
     Client, HttpProtocol, RequestError, RetryPolicy, Route, retry::ConnectionSetupRetryState,
@@ -39,6 +39,7 @@ pub(super) async fn send_once_alt_svc(
         request_span,
         timeout_budget,
         retries: _,
+        replays,
     } = lifecycle;
     let (alternative_host, alternative_port, alternative_authority, alternative_generation) =
         alternative;
@@ -51,7 +52,6 @@ pub(super) async fn send_once_alt_svc(
     let endpoint = &request.endpoint;
     let transport = Http3TransportTarget::new(&alternative_host, alternative_port);
     let client_hint_origin = client_hint_origin(client, request);
-    let mut retried_critical_hints = false;
 
     loop {
         let mut prepared_headers =
@@ -106,11 +106,8 @@ pub(super) async fn send_once_alt_svc(
             &sent_headers,
             AttemptPath::Alternative,
         );
-        if !retried_critical_hints
-            && critical_retry_requested
-            && critical_hint_retry_eligible(&method)
+        if critical_retry_requested && replays.try_begin(ReplayClass::CriticalClientHints, &method)
         {
-            retried_critical_hints = true;
             tracing::debug!(
                 retry = 1,
                 reason = "critical_client_hints",

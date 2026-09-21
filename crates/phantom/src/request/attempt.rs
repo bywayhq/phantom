@@ -14,6 +14,7 @@ use crate::{
 use super::{
     ProtocolSelection, RequestBodySource, ResolvedRequest,
     alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc},
+    replay::{ReplayClass, ReplayState},
 };
 use crate::session::{
     client_hints::ClientHintContext, http1_pool::Http1ConnectionMode,
@@ -31,6 +32,7 @@ pub(super) struct AttemptLifecycle<'a> {
     pub(super) request_span: &'a Span,
     pub(super) timeout_budget: TimeoutBudget,
     pub(super) retries: &'a mut ConnectionSetupRetryState,
+    pub(super) replays: &'a mut ReplayState,
 }
 
 pub(super) async fn send_once(
@@ -41,6 +43,7 @@ pub(super) async fn send_once(
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
+    lifecycle.replays.start_hop();
     match selection {
         ProtocolSelection::Exact(protocol) => {
             send_once_exact(client, request, protocol, attempt, route, lifecycle).await
@@ -63,6 +66,7 @@ async fn send_once_exact(
         request_span,
         timeout_budget,
         retries,
+        replays,
     } = lifecycle;
     let AttemptRequest {
         method,
@@ -70,14 +74,12 @@ async fn send_once_exact(
         trailers: request_trailers,
         body,
     } = attempt;
-    let mut retried_critical_hints = false;
     let has_forward_credentials = protocol == HttpProtocol::Http1
         && request.uri.scheme_str() == Some("http")
         && route
             .as_http_proxy()
             .and_then(crate::HttpProxy::basic_credentials)
             .is_some();
-    let mut retried_proxy_authentication = false;
     if has_forward_credentials {
         request_span.record("proxy_authentication_retry", false);
         request_span.record("proxy_attempts", 1_u64);
@@ -87,7 +89,7 @@ async fn send_once_exact(
     loop {
         let prepared_headers = attempt_headers(client, request, protocol, &request_headers);
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
-        if retried_proxy_authentication {
+        if replays.performed(ReplayClass::ProxyAuthentication) {
             request_span.record("proxy_authentication_retry", true);
             request_span.record("proxy_attempts", 2_u64);
         }
@@ -102,7 +104,7 @@ async fn send_once_exact(
             prepared.body,
             route,
             None,
-            retried_proxy_authentication,
+            replays.performed(ReplayClass::ProxyAuthentication),
             timeout_budget,
             retries,
         )
@@ -113,7 +115,7 @@ async fn send_once_exact(
         if has_forward_credentials
             && response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
         {
-            if retried_proxy_authentication {
+            if !replays.try_begin(ReplayClass::ProxyAuthentication, &method) {
                 drop(response);
                 return Err(proxy_authentication_error(
                     HttpConnectError::AuthenticationRejected,
@@ -121,7 +123,6 @@ async fn send_once_exact(
             }
             validate_basic_proxy_challenge(response.headers())
                 .map_err(proxy_authentication_error)?;
-            retried_proxy_authentication = true;
             tracing::debug!(
                 retry = 1,
                 reason = "proxy_authentication",
@@ -138,11 +139,8 @@ async fn send_once_exact(
             &sent_headers,
             AttemptPath::Exact,
         );
-        if !retried_critical_hints
-            && critical_retry_requested
-            && critical_hint_retry_eligible(&method)
+        if critical_retry_requested && replays.try_begin(ReplayClass::CriticalClientHints, &method)
         {
-            retried_critical_hints = true;
             tracing::debug!(
                 retry = 1,
                 reason = "critical_client_hints",
@@ -176,6 +174,7 @@ async fn send_once_negotiated(
         request_span,
         timeout_budget,
         retries: _,
+        replays,
     } = lifecycle;
     let endpoint = &request.endpoint;
     let AttemptRequest {
@@ -190,7 +189,6 @@ async fn send_once_negotiated(
         .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
     let client_hint_origin = client_hint_origin(client, request);
-    let mut retried_critical_hints = false;
 
     loop {
         let http1_request_headers =
@@ -223,11 +221,8 @@ async fn send_once_negotiated(
             &sent_headers,
             AttemptPath::Negotiated,
         );
-        if !retried_critical_hints
-            && critical_retry_requested
-            && critical_hint_retry_eligible(&method)
+        if critical_retry_requested && replays.try_begin(ReplayClass::CriticalClientHints, &method)
         {
-            retried_critical_hints = true;
             tracing::debug!(
                 retry = 1,
                 reason = "critical_client_hints",
@@ -360,10 +355,6 @@ fn inject_cookie(
 
     #[cfg(not(feature = "cookies"))]
     let _ = (client, request, protocol, headers);
-}
-
-pub(super) fn critical_hint_retry_eligible(method: &Method) -> bool {
-    method.is_safe()
 }
 
 pub(super) struct DispatchOutcome {
@@ -513,22 +504,5 @@ fn prepare_headers(
     match client_hints {
         Some(context) => context.prepare(headers, connection_accept_ch),
         None => headers,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use http::Method;
-
-    use super::critical_hint_retry_eligible;
-
-    #[test]
-    fn critical_hint_replay_requires_a_safe_method() {
-        for method in [Method::GET, Method::HEAD, Method::OPTIONS, Method::TRACE] {
-            assert!(critical_hint_retry_eligible(&method));
-        }
-        for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
-            assert!(!critical_hint_retry_eligible(&method));
-        }
     }
 }

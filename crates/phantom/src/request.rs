@@ -20,8 +20,10 @@ use crate::{
 
 mod alt_svc_attempt;
 mod attempt;
+mod replay;
 
 use attempt::{AttemptLifecycle, AttemptRequest, send_once};
+use replay::ReplayState;
 
 /// Builder for one exact-protocol request with an optional owned body.
 #[must_use = "request builders do nothing until send is awaited"]
@@ -366,6 +368,7 @@ impl RequestBuilder {
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
+        let mut replays = ReplayState::new();
         ensure_request_supported(selection, route, &request)?;
         let is_plaintext_http = request.uri.scheme_str() == Some("http");
         if is_plaintext_http
@@ -398,6 +401,7 @@ impl RequestBuilder {
                     request_span,
                     timeout_budget,
                     retries: &mut retries,
+                    replays: &mut replays,
                 },
             )
             .await?;
@@ -445,6 +449,7 @@ impl RequestBuilder {
                     request_span,
                     timeout_budget,
                     retries: &mut retries,
+                    replays: &mut replays,
                 },
             )
             .await?;
