@@ -1,9 +1,19 @@
-//! BoringSSL-backed QUIC cryptography primitives for Phantom.
+//! BoringSSL-backed QUIC cryptography for Phantom.
 //!
 //! This crate is an internal adapter, not a general-purpose cryptography API.
-//! Its checked concrete types are deliberately separate from Quinn's
-//! infallible Quinn traits. The full QUIC session provider can adapt them once
-//! it owns the protocol invariants required by those traits.
+//! [`QuicClientConfig`] implements Quinn's client crypto provider: it drives a
+//! BoringSSL QUIC TLS 1.3 handshake from a typed TLS profile, applies the
+//! profile's QUIC transport parameters, and derives packet, header, key-update,
+//! Retry-integrity, and stateless-reset keys. The concrete key types also
+//! offer checked methods that return [`CryptoError`]; their Quinn trait
+//! implementations, which have no error channel, fail closed instead.
+//!
+//! All `unsafe` code is confined to the private `backend` module, the
+//! BoringSSL FFI boundary. The rest of the crate denies `unsafe_code`, and
+//! every unsafe block in `backend` carries a `SAFETY` comment required by
+//! `clippy::undocumented_unsafe_blocks`. The optional `keylog` feature emits
+//! NSS key-log lines through a bounded queue for Phantom's capture tooling;
+//! the `phantom-http` facade does not expose it.
 
 #![deny(unsafe_code)]
 

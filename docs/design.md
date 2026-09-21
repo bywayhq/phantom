@@ -166,3 +166,20 @@ carry a reproducible patch, preserve stock defaults, and include focused tests.
 
 Backend types remain private, and runtime crates never depend on the testkit.
 See [HTTP/3 internals](http3.md) for its specialized boundaries.
+
+## Unsafe code
+
+The workspace forbids `unsafe_code`. The single exception is
+`phantom-quic-btls`, the audited FFI crate that drives BoringSSL's QUIC TLS
+API for Quinn. It overrides the workspace lint with `unsafe_code = "deny"`
+and `unsafe_op_in_unsafe_fn = "deny"`, and allows unsafe code only in its
+private `backend` module, the complete FFI boundary. Every unsafe block there
+must carry a `SAFETY` comment (`clippy::undocumented_unsafe_blocks` is
+denied). No raw pointer or `btls-sys` item crosses the crate's public API;
+callers supply only the safe `btls` `SslContext` wrapper.
+Safe protocol code in the crate cannot add unsafe operations without moving
+them into `backend`, where review concentrates. Changes to that module need
+the same scrutiny as a vendored patch: a stated invariant for every unsafe
+block and tests that exercise the failure paths. The macOS and Windows CI
+jobs also run the crate's unit tests in release mode to check the native
+link.

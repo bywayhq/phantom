@@ -106,7 +106,8 @@ fuzz failures into ordinary regressions.
 | Dependency or vendor patch | Canonical patch replay, focused upstream tests, and provenance update |
 | Hot path | Representative benchmark or profile with the claimed scope stated |
 
-Run the primary gates from the repository root:
+Run the primary gates from the repository root. They are the Cargo half of
+the integration gate in [AGENTS.md](AGENTS.md); keep the two lists in step.
 
 ```console
 cargo fmt --check
@@ -115,6 +116,12 @@ cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.85.0 check --workspace --all-targets --locked
 ```
+
+`cargo test` includes doctests that compile the Rust examples in `README.md`,
+`docs/getting-started.md`, `docs/client.md`, `docs/sse.md`, and
+`docs/websocket.md`; a guide example that no longer compiles fails the gate.
+The MSRV line is CI's `MSRV` job; that job also checks each optional
+`phantom-http` feature combination on Rust 1.85.
 
 Changes under `scripts/capture` or `scripts/conformance` also run the commands
 below. CI installs the same test dependencies from the hash-pinned
