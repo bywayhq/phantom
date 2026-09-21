@@ -71,7 +71,10 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --lock
 cargo +1.85.0 check --workspace --all-targets --locked
 ```
 
-Changes under `scripts/capture` or `scripts/conformance` also run:
+Changes under `scripts/capture` or `scripts/conformance` also run the commands
+below. CI installs the same test dependencies from the hash-pinned
+`scripts/requirements.txt`, generated from `scripts/requirements.in` with the
+command recorded in its header; keep the `--with` pins here in step with it.
 
 ```console
 uvx ruff@0.16.7 check scripts/capture scripts/conformance

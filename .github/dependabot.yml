@@ -32,7 +32,9 @@ updates:
   # Dependabot's pip support reads `*.txt` requirement files and keeps their
   # `--hash` pins current.
   - package-ecosystem: pip
-    directory: /scripts/conformance/quic-interop
+    directories:
+      - /scripts
+      - /scripts/conformance/quic-interop
     schedule:
       interval: weekly
     open-pull-requests-limit: 2

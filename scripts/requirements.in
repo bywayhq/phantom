@@ -1,0 +1,5 @@
+# Test dependencies for scripts/capture and scripts/conformance.
+# Regenerate scripts/requirements.txt with the command recorded in its header.
+aioquic==1.3.0
+h2==4.4.1
+hpack==4.2.0
