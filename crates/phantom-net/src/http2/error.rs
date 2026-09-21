@@ -70,6 +70,27 @@ impl Http2ProtocolError {
     pub fn reason_code(&self) -> Option<u32> {
         self.reason_code
     }
+
+    /// Returns whether a frame received from the peer ended this operation.
+    ///
+    /// This is `true` for a received `RST_STREAM` (kind
+    /// [`StreamReset`](Http2ProtocolErrorKind::StreamReset)) or a received
+    /// `GOAWAY` (kind [`ConnectionError`](Http2ProtocolErrorKind::ConnectionError)).
+    /// Locally detected protocol errors, transport failures, and a reset
+    /// observed while uploading the request body, whose initiator is not
+    /// recorded, are `false`.
+    ///
+    /// A received `GOAWAY` fails a request only when its stream identifier is
+    /// above the frame's last-stream-id, or when the request was refused
+    /// before its stream opened; RFC 9113, sections 6.8 and 8.7, state that
+    /// such streams were not processed. Streams at or below the
+    /// last-stream-id keep running, and a later connection close fails them
+    /// as [`Transport`](Http2ProtocolErrorKind::Transport), never as a remote
+    /// `GOAWAY`.
+    #[must_use]
+    pub fn is_remote(&self) -> bool {
+        self.source.is_remote()
+    }
 }
 
 impl fmt::Display for Http2ProtocolError {
