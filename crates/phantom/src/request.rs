@@ -18,6 +18,7 @@ use crate::{
     retry::ConnectionSetupRetryState,
 };
 
+mod alt_svc_attempt;
 mod attempt;
 
 use attempt::{AttemptLifecycle, AttemptRequest, send_once};
