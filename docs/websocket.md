@@ -16,7 +16,9 @@ accept both `ws://` and `wss://`; HTTP-CONNECT routes accept `wss://`,
 including through an HTTPS proxy reached over HTTP/2
 (`HttpProxy::with_http2_transport`). That proxy transport cannot forward
 plaintext requests, so H1 `ws://` through it fails before proxy I/O instead of
-switching to CONNECT or HTTP/1.1.
+switching to CONNECT or HTTP/1.1. The
+[combination table](client.md#supported-scheme-protocol-and-route-combinations)
+summarizes every scheme, protocol, and route.
 Secure connections reuse Phantom's BoringSSL TLS profile. Both transports reuse
 the ordered HTTP/1 serializer, ordered response metadata, client cookies,
 runtime errors, and tracing lifecycle.
@@ -59,12 +61,29 @@ async fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-An H2 connection is explicit:
+The example uses `futures-util` for `SinkExt` and `StreamExt`; add it to your
+own `Cargo.toml` to call those traits.
+
+An H2 connection is explicit, and needs a custom HTTP/2 profile because named
+recipes leave the extended-CONNECT pseudo-header order unset. The order below
+is illustrative, not a browser capture:
 
 ```rust
+use phantom::profile::{chromium, ClientProfile, Http2PseudoHeader};
 use phantom::{Client, HttpProtocol};
 
-async fn h2_example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+async fn h2_example() -> Result<(), Box<dyn std::error::Error>> {
+    let mut http2 = chromium::v152_http2();
+    http2.extended_connect_pseudo_header_order = Some(vec![
+        Http2PseudoHeader::Method,
+        Http2PseudoHeader::Authority,
+        Http2PseudoHeader::Scheme,
+        Http2PseudoHeader::Path,
+        Http2PseudoHeader::Protocol,
+    ]);
+    let profile = ClientProfile::new(chromium::v152_tls()).with_http2(http2);
+    let client = Client::builder(profile).build()?;
+
     let socket = client
         .websocket_with_protocol(HttpProtocol::Http2, "wss://example.com/events")?
         .connect()
@@ -74,7 +93,10 @@ async fn h2_example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-This succeeds only when the custom HTTP/2 profile configures
+`handshake_response` returns an `http::Response`, so comparing its version
+needs the `http` crate as a direct dependency of your crate.
+
+This succeeds only when the HTTP/2 profile configures
 `extended_connect_pseudo_header_order` and the server's initial SETTINGS enables
 extended CONNECT. An absent or zero setting is a terminal typed H2 error;
 Phantom does not send CONNECT HEADERS or retry as H1.
@@ -82,9 +104,11 @@ Phantom does not send CONNECT HEADERS or retry as H1.
 ## Ordered opening fields
 
 The default H1 opening sequence contains typed placeholders for the URI authority,
-fresh random key, and client cookies. `WebSocketRequestBuilder::headers`
-replaces the complete sequence with `WebSocketHeader` values, allowing callers
-to control placement and field-name spelling without supplying dynamic values.
+fresh random key, and client cookies. `WebSocketRequestBuilder::header` appends
+one literal field, and `WebSocketRequestBuilder::headers` replaces the complete
+sequence with `WebSocketHeader` values, allowing callers to control placement
+and field-name spelling without supplying dynamic values. The requirements
+below differ for H1 and H2.
 Literal Upgrade, Connection, version, subprotocol, Origin, fetch metadata, and
 other fields retain their caller-provided order and casing.
 
@@ -115,6 +139,19 @@ placeholder. H2 rejects authority/key placeholders, Host, Upgrade, Connection,
 The server accepts with a 2xx response. H2 response validation rejects H1-only
 Upgrade, Connection, transfer-coding, and `Sec-WebSocket-Accept` fields while
 retaining the same strict subprotocol and extension checks.
+
+## Timeouts and retries
+
+A WebSocket connect uses the client's profile, route, trust roots, and cookie
+jar, but none of its request policy. `RequestTimeouts`, `RetryPolicy`
+(connection-setup retries, status retries, and reused-connection replay),
+`RedirectPolicy`, client hints, and Alt-Svc do not apply to
+`WebSocketRequestBuilder::connect`, and the builder has no timeout or retry
+setter. A connect therefore waits as long as the network and peer allow; wrap
+the `connect` future in `tokio::time::timeout` to bound it, and dropping the
+future cancels the attempt. A redirect or other non-success response is
+returned through `WebSocketError::response`. The only replay is the Basic
+proxy-authentication retry described below.
 
 ## Messages and ownership
 

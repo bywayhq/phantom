@@ -50,8 +50,34 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 ```
 
 Every timeout, redirect, and connection retry is disabled until configured.
-Pool and client-hint limits have finite defaults and can be tightened on
-`ClientBuilder`.
+Pool and client-hint limits have finite defaults that `ClientBuilder` can
+replace with any nonzero value:
+
+| Bound | Default | Builder method |
+| --- | --- | --- |
+| Retained H1 pool entries | 32 | `max_retained_http1_connections` |
+| Waiting H1 requests per pool key | 100 | `max_pending_http1_requests_per_origin` |
+| Retained H2 pool entries | 32 | `max_retained_http2_connections` |
+| Active H2 requests per pool key | 100 | `max_concurrent_http2_requests_per_origin` |
+| Waiting H2 requests per pool key | 100 | `max_pending_http2_requests_per_origin` |
+| Retained H3 pool entries | 32 | `max_retained_http3_connections` |
+| Active H3 requests per pool key | 100 | `max_concurrent_http3_requests_per_origin` |
+| Waiting H3 requests per pool key | 100 | `max_pending_http3_requests_per_origin` |
+| Origins with learned `Accept-CH` state | 64 | `max_client_hint_origins` |
+| Origins with Alt-Svc state | disabled | `alt_svc(maximum_origins)` |
+
+A pool key is the origin plus the complete route; each retained entry holds
+that key's connection state, and the least recently used entry is evicted when
+the limit is reached. An H3 entry keeps connections for up to four transport
+locations so exact and Alt-Svc H3 do not replace each other. The negotiated
+H1/H2 pool retains at most the lower of the H1 and H2 retention limits, and
+its pre-selection admission uses the larger of their active and waiting
+limits. H2 and H3 active work is also limited by the peer's stream limit. The
+optional cookie jar defaults to 4,096 bytes per cookie, 180 cookies per
+domain, and 3,000 cookies in total (`CookieLimits`).
+
+`Client::retry_policy` and `Client::request_timeouts` return the configured
+client defaults.
 
 ## Choose a protocol
 
@@ -64,6 +90,32 @@ Pool and client-hint limits have finite defaults and can be tightened on
 
 Unsupported combinations fail explicitly before another protocol or route is
 attempted.
+
+### Supported scheme, protocol, and route combinations
+
+The table lists what each combination does. "Rejected" means a typed error
+before any proxy or origin I/O; nothing falls back to another row or column.
+"H1 proxy" is an `http://` or `https://` `HttpProxy` in its default HTTP/1.1
+mode, "H2 proxy" is an `https://` proxy with `with_http2_transport`, and
+SOCKS5 covers both local-DNS `socks5://` and remote-DNS `socks5h://`.
+
+| Request | Direct | H1 proxy | H2 proxy | SOCKS5 | CONNECT-UDP |
+| --- | --- | --- | --- | --- | --- |
+| `http://`, exact H1 | Plaintext TCP | Absolute-form forwarding | Rejected | Rejected | Rejected |
+| `http://`, exact H2 or H3, or negotiated | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
+| `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | Rejected | Rejected | Rejected | Rejected |
+| `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams |
+| `ws://`, H1 | Plaintext Upgrade | Absolute-form forwarded Upgrade | Rejected | Plaintext Upgrade in a TCP tunnel | Rejected |
+| `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
+| `ws://`, H2 | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `wss://`, H2 | Extended CONNECT on a dedicated connection | Extended CONNECT inside a CONNECT tunnel | Extended CONNECT inside a CONNECT stream | Extended CONNECT in a TCP tunnel | Rejected |
+| `ws://` or `wss://`, H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
+
+Every supported cell has a public loopback regression. WebSocket and SSE
+requests need the matching Cargo feature, and `ws://` or `wss://` over H3
+fails when the builder is created. SSE event sources follow the ordinary rows
+for their scheme and protocol.
 
 ## Preserve request intent
 
@@ -129,7 +181,8 @@ request-level policy replaces the client's default.
 
 The retry boundary is inside the selected protocol pool, after admission and
 before origin request dispatch. DNS, direct TCP, forward-proxy TCP, proxy TCP,
-SOCKS TCP/local resolution, and direct QUIC setup failures are eligible only
+SOCKS TCP/local resolution, direct or SOCKS5-carried QUIC setup, and
+CONNECT-UDP outer-proxy resolution and connection failures are eligible only
 when their typed error proves that dispatch has not begun. TLS, certificate,
 ALPN, proxy negotiation/authentication/rejection, timeouts, HTTP responses,
 and protocol or post-dispatch failures remain terminal. The route and exact
@@ -290,7 +343,9 @@ authentication, negotiation, and rejection failures are typed and are not
 address-fallback candidates. Proxy TCP and QUIC connection setup may advance
 or retry only through a fresh association on the same configured route, under
 the documented exact-H3 setup policy; no failure selects another route or
-protocol.
+protocol. Loopback tests retry a refused local-DNS proxy connect and a QUIC
+handshake refused through an established association, each through a new
+association (see [connection-retry evidence](validation.md#connection-retry-evidence)).
 
 An H3 SOCKS5 relay reply must provide a nonzero port. Phantom uses a concrete
 IP relay address directly; for an unspecified relay address, it substitutes
@@ -349,7 +404,29 @@ Add private DER roots with `add_root_certificate_der`; use
 `add_proxy_root_certificate_der` for an HTTPS proxy, including a TLS-encrypted
 forward proxy and the outer connection of a CONNECT-UDP proxy. The proxy and
 origin trust stores are independent. Certificate and hostname verification
-remain enabled by default.
+remain enabled by default. `ClientBuilder::server_authentication` and
+`proxy_server_authentication` accept `ServerAuthentication::Disabled` for
+controlled conformance work only: origin verification can be disabled for
+H1/H2 but not combined with additional roots or H3, and proxy verification
+cannot be disabled for a CONNECT-UDP route.
+
+Other route configuration:
+
+- `HttpProxy::header` appends an ordered CONNECT field after the default
+  leading `Host`, `headers` replaces the literal fields, and
+  `connect_headers` replaces the whole sequence with `HttpConnectHeader`
+  values, including the `Authority` placeholder that controls `Host`
+  placement. These fields apply to CONNECT tunnels, not to forwarded
+  requests.
+- `Route::http_connect` is an older name that builds the same
+  `Route::HttpProxy` as `Route::http_proxy`.
+- `Socks5Proxy::with_username_password` configures RFC 1929 credentials, and
+  `Socks5Proxy::dns_mode` reports whether the URI selected `socks5://`
+  (`Socks5DnsMode::Local`) or `socks5h://` (`Socks5DnsMode::Remote`).
+  Credentials inside the proxy URI are rejected.
+- Proxy, SOCKS5, and CONNECT-UDP configuration errors expose stable
+  `ProxyConfigErrorKind`, `Socks5ProxyConfigErrorKind`, and
+  `ConnectUdpProxyConfigErrorKind` categories.
 
 ## Client-owned state
 
@@ -368,6 +445,60 @@ clients do not.
   in-memory exact-origin store for negotiated HTTPS requests,
   `Client::clear_alt_svc` clears it, and `Client::export_alt_svc` and
   `Client::import_alt_svc` move it through caller-owned storage.
+
+`Client::clear_client_hints` discards learned `Accept-CH` selections. The
+client also retains bounded TLS session tickets for H1/H2 resumption, keyed by
+exact origin and route and never used for early data.
+
+### Redirects
+
+`RedirectPolicy::limited(n)` follows at most `n` redirect responses per
+logical request; `RedirectPolicy::none()`, the default, returns them to the
+caller. Following is HTTPS-only:
+
+- The request must use `https://`. While a client has a redirect policy,
+  every `http://` request fails with `RequestErrorKind::Redirect` before I/O,
+  even if the response would not redirect. Use a separate client without a
+  redirect policy for plaintext origins.
+- Only 301, 302, 303, 307, and 308 with a `Location` field are followed. A
+  redirect without `Location` is returned unchanged.
+- The resolved target must also be `https://`. A target with another scheme,
+  more than one `Location` field, an invalid location, or exhaustion of the
+  limit fails with `RequestErrorKind::Redirect`; the redirect response is not
+  returned.
+- 301 and 302 rewrite POST to GET, and 303 rewrites everything except GET and
+  HEAD; a rewrite drops the body, static trailers, and body-describing
+  fields. 307 and 308 preserve the method and replay an owned body, while a
+  one-shot streaming body fails with `RequestErrorKind::RequestBody`.
+- A cross-origin hop removes `Authorization`, `Cookie`, `Cookie2`, and
+  `Proxy-Authorization` fields and trailers and rebuilds client hints for the
+  new origin. Cookies from the jar are recomputed for every hop.
+- Every hop keeps the request's route and exact protocol or negotiated
+  selection rule, and one total timeout and retry budget span all hops.
+
+`ResponseInfo::effective_uri` and `ResponseInfo::redirects_followed` describe
+the final hop.
+
+### Cookies
+
+With the `cookies` feature, `ClientBuilder::cookies` enables a bounded
+in-memory jar and `ClientBuilder::cookie_jar` installs a caller-built
+`CookieJar` (for example one made with `CookieJar::with_limits`).
+`Client::cookie_jar` returns the active jar, whose `set_cookie`,
+`request_value`, `clear`, and `len` methods operate on the same state requests
+use. The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
+`__Secure-`/`__Host-` prefix, and deterministic ordering rules.
+
+The jar has no request-site or top-level-site context, so it rejects rather
+than stores cookies whose semantics depend on it: `SameSite=Lax`,
+`SameSite=Strict`, and `Partitioned` (CHIPS) cookies. It also rejects
+`SameSite=None` without `Secure` and any `Secure` cookie set by an `http://`
+URL. From a response, a rejected `Set-Cookie` is ignored and recorded only as a
+debug event; `CookieJar::set_cookie` returns `CookieErrorKind::UnsupportedPolicy`
+(or `InvalidPrefix` for prefix violations). Such cookies are therefore never
+sent back, which differs from a browser.
+
+### Alt-Svc
 
 An authenticated negotiated H1/H2 response can advertise `h3`. Phantom
 applies `Age` to `ma`, replaces the origin's previous alternatives, and uses
@@ -418,13 +549,26 @@ whole operation across redirects, retry delays, connection attempts, and
 bounded replays. Phase limits restart for each attempt; the total deadline does
 not. Errors identify the phase and selected protocol.
 
+`RequestTimeouts` sets these phases with `pool_admission`, `connect`,
+`response_head`, `read_idle`, and `total`; `RequestError::timeout_phase`
+returns the matching `TimeoutPhase`. `RequestBuilder::timeouts` replaces the
+client policy for one request. An SSE event source applies them per attempt
+and stops the read-idle and total timers once a stream is established (see
+[SSE](sse.md)). WebSocket connects apply none of them.
+
 ## Responses
 
 Every successful request returns `http::Response<ResponseBody>`. Its extensions
 include `ResponseInfo` and `OrderedResponseHeaders`. The latter preserves
 duplicate interleaving on every protocol and original field-name spelling on
-H1. `ResponseInfo::retries_performed` reports successful connection-setup
-retries separately from redirects.
+H1. `ResponseInfo` also reports the effective URI, the selected protocol,
+`redirects_followed`, and `decoded_content_codings`.
+`ResponseInfo::retries_performed` counts connection-setup retries: each time a
+failed setup was attempted again under `RetryPolicy::connection_failures`,
+summed across every redirect hop of the logical request. A retry is counted
+when it starts, whether or not that attempt succeeds. It excludes redirects,
+status retries, reused-connection and graceful-`GOAWAY` replays, proxy
+authentication replays, and `Critical-CH` retries.
 
 The body is streaming and backpressured. Consume it to completion when you want
 the connection to remain eligible for reuse.
@@ -529,7 +673,9 @@ evidence is required.
 - Run inside Tokio with I/O and time enabled.
 - Configure route, origin trust, and proxy trust explicitly.
 - Choose redirect, connection-retry, and timeout policy; none is inferred from
-  a browser name.
+  a browser name. A redirect policy makes `http://` requests fail, and
+  WebSocket connects apply none of these policies (see
+  [WebSocket](websocket.md#timeouts-and-retries)).
 - Treat streaming request bodies as one-shot and consume response bodies when
   reuse matters.
 - Handle non-exhaustive error categories and avoid logging sensitive inputs.

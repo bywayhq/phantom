@@ -65,8 +65,35 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 `get(HttpProtocol::Http2, ...)` selects exactly HTTP/2. It does not fall back.
 Use `get_negotiated` for one direct TLS handshake that may select H1 or H2.
-HTTP/3 requires the profile's separate H3 TLS, QUIC, HTTP/3, and request
-settings.
+
+HTTP/3 requires the profile's separate H3 TLS, QUIC transport, HTTP/3
+connection, and request settings, grouped as `Http3ClientSettings`:
+
+```rust
+use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
+use phantom::{Client, HttpProtocol};
+
+async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
+    let http3 = Http3ClientSettings::new(
+        chromium::v152_http3_tls(),
+        chromium::v152_quic(),
+        chromium::v152_http3(),
+        chromium::v152_http3_request(),
+    );
+    let profile = ClientProfile::new(chromium::v152_tls()).with_http3(http3);
+
+    let client = Client::builder(profile).build()?;
+    let response = client
+        .get(HttpProtocol::Http3, "https://example.com/")?
+        .send()
+        .await?;
+    println!("{}", response.status());
+    Ok(())
+}
+```
+
+The TCP TLS settings passed to `ClientProfile::new` stay separate from the H3
+TLS settings; each protocol uses only its own.
 
 The snippet must run inside a Tokio runtime. If you construct the runtime
 manually, enable both I/O and time; otherwise requests fail with
@@ -78,9 +105,13 @@ manually, enable both I/O and time; otherwise requests fail with
 | --- | --- |
 | `cookies` | Bounded client-owned cookie storage |
 | `sse` | SSE decoding and finite reconnect control |
-| `websocket` | WebSocket over an ordered H1 Upgrade |
+| `websocket` | WebSocket over an ordered H1 Upgrade, or H2 extended CONNECT with a custom HTTP/2 profile |
 | `websocket-deflate` | Opt-in `permessage-deflate`; also enables `websocket` |
 | `full` | All capabilities above |
+
+The QUIC diagnostics features, `qlog` on `phantom-net` and `keylog` on
+`phantom-quic-btls`, belong to internal crates used by capture tooling and
+tests. `phantom-http` does not re-export them or any API to enable them.
 
 Next, read [Using the client](client.md). Check [Coverage](coverage.md) before
 depending on a protocol, route, or browser profile in production-like work.
