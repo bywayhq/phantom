@@ -1,0 +1,521 @@
+//! Public opt-in racing of a learned HTTP/3 alternative against its origin.
+
+#[allow(dead_code)]
+#[path = "support/h3.rs"]
+mod h3_support;
+#[path = "support/http3_upgrade.rs"]
+mod http3_upgrade_support;
+#[allow(dead_code)]
+#[path = "support/tls.rs"]
+mod tls_support;
+
+use std::{
+    convert::Infallible,
+    future::Future,
+    net::{IpAddr, Ipv4Addr},
+    num::NonZeroUsize,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    task::{Context, Poll},
+    time::{Duration, Instant, SystemTime},
+};
+
+use bytes::Bytes;
+use http::{Method, StatusCode};
+use http_body::{Body, Frame, SizeHint};
+use http_body_util::BodyExt;
+use phantom::{
+    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry, Client,
+    HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseInfo, Route, Socks5Proxy,
+    profile::{ClientProfile, chromium},
+};
+use tokio::{net::UdpSocket, task::JoinHandle, time::timeout};
+
+use h3_support::client_settings;
+use http3_upgrade_support::{
+    AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse, UpgradeScript,
+};
+use tls_support::{TestIdentity, TestResult, tls_settings};
+
+const TEST_TIMEOUT: Duration = Duration::from_secs(10);
+const ORIGIN_NAME: &str = "localhost";
+const ALTERNATIVE_HOST: &str = "127.0.0.1";
+
+#[tokio::test]
+async fn race_is_disabled_by_default_and_sequential_failure_stays_terminal() -> TestResult<()> {
+    bounded(async {
+        assert_eq!(AltSvcPolicy::default(), AltSvcPolicy::sequential());
+        assert_eq!(AltSvcPolicy::default().race_settings(), None);
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).advertise_alternative(),
+                    PlannedResponse::new(StatusCode::OK).body("origin"),
+                ],
+                AlternativeBehavior::close_after_handshake(0x100, b"closed".to_vec()),
+            )
+            .advertisement(AltSvcAdvertisement::default().host(ALTERNATIVE_HOST)),
+        )
+        .await?;
+        let client = client_builder(&identity)?.build()?;
+
+        let learned = client
+            .get_negotiated(&fixture.origin_url("/learn"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&learned)?, HttpProtocol::Http2);
+        drain(learned).await?;
+
+        let error = client
+            .get_negotiated(&fixture.origin_url("/terminal"))?
+            .send()
+            .await
+            .err()
+            .ok_or("the failed alternative must not fall back to the origin")?;
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+        assert_eq!(fixture.snapshot()?.origin_request_count, 1);
+
+        // Sequential use evicts the failed advertisement, so the next request
+        // is an ordinary origin request.
+        let recovered = client
+            .get_negotiated(&fixture.origin_url("/recovered"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&recovered)?, HttpProtocol::Http2);
+        drain(recovered).await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        assert_eq!(observed.alternative_connections, 1);
+        assert!(observed.alternative_requests.is_empty());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn race_dispatches_request_on_exactly_one_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).advertise_alternative(),
+                    PlannedResponse::new(StatusCode::OK).body("origin"),
+                ],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK).body("alternative")
+                ]),
+            )
+            .advertisement(AltSvcAdvertisement::default().host(ALTERNATIVE_HOST)),
+        )
+        .await?;
+        let client = client_builder(&identity)?
+            .alt_svc_policy(race_policy(Duration::ZERO)?)
+            .build()?;
+
+        let learned = client
+            .get_negotiated(&fixture.origin_url("/learn"))?
+            .send()
+            .await?;
+        drain(learned).await?;
+
+        // The learning H2 connection is still pooled, so the origin candidate
+        // is ready at once and carries the request; alternative setup goes on.
+        let raced = client
+            .get_negotiated(&fixture.origin_url("/raced"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&raced)?, HttpProtocol::Http2);
+        assert_eq!(raced.into_body().collect().await?.to_bytes(), "origin");
+        let after_origin = fixture.snapshot()?;
+        assert_eq!(after_origin.origin_request_count, 2);
+        assert!(after_origin.alternative_requests.is_empty());
+
+        // The unfinished alternative connects in the background and is pooled,
+        // so the next race finds it ready and it carries the request.
+        wait_until(|| Ok(fixture.snapshot()?.alternative_connections == 1)).await?;
+        let pooled = client
+            .get_negotiated(&fixture.origin_url("/pooled"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&pooled)?, HttpProtocol::Http3);
+        assert_eq!(
+            pooled.into_body().collect().await?.to_bytes(),
+            "alternative"
+        );
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        assert_eq!(observed.origin_connections, 1);
+        assert_eq!(observed.alternative_connections, 1);
+        let paths: Vec<_> = observed
+            .alternative_requests
+            .iter()
+            .filter_map(|request| request.path_and_query.as_deref())
+            .collect();
+        assert_eq!(paths, ["/pooled"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn one_shot_streaming_body_is_polled_only_by_the_winner() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK).body("alternative")
+                ]),
+            ),
+        )
+        .await?;
+        // A long origin delay lets the alternative win deterministically.
+        let client = client_builder(&identity)?
+            .alt_svc_policy(race_policy(Duration::from_secs(30))?)
+            .build()?;
+        import_alternative(&client, &fixture, fixture.alternative_address().port())?;
+
+        let polls = Arc::new(AtomicUsize::new(0));
+        let response = client
+            .request_negotiated(Method::POST, &fixture.origin_url("/upload"))?
+            .streaming_body(ChunkedBody::new(Arc::clone(&polls), &["one", "two"]))
+            .send()
+            .await?;
+        assert_eq!(protocol(&response)?, HttpProtocol::Http3);
+        drain(response).await?;
+        // Two data frames and the end of the body: one pass by one attempt.
+        assert_eq!(polls.load(Ordering::SeqCst), 3);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_connections, 0);
+        assert_eq!(observed.origin_request_count, 0);
+        assert_eq!(observed.alternative_requests.len(), 1);
+        assert_eq!(observed.alternative_requests[0].method, Method::POST);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn blackholed_quic_loses_after_configured_delay_and_marks_alternative_broken()
+-> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            // An IP origin avoids a slow refused `::1` attempt on Windows.
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ],
+                AlternativeBehavior::responses([]),
+            ),
+        )
+        .await?;
+        let blackhole = Blackhole::bind().await?;
+        let origin_delay = Duration::from_millis(150);
+        let client = client_builder(&identity)?
+            .alt_svc_policy(race_policy(origin_delay)?)
+            .request_timeouts(RequestTimeouts::new().connect(Duration::from_millis(600)))
+            .build()?;
+        import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
+
+        let started = Instant::now();
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        let elapsed = started.elapsed();
+        assert_eq!(protocol(&first)?, HttpProtocol::Http2);
+        assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
+        // QUIC went first and the origin started only after the delay.
+        assert!(blackhole.datagrams() > 0);
+        assert!(elapsed >= origin_delay, "origin won after {elapsed:?}");
+
+        // The unfinished alternative fails its connect deadline in the
+        // background and is marked broken; its datagrams stop.
+        wait_until(|| Ok(started.elapsed() > Duration::from_millis(900))).await?;
+        let after_failure = blackhole.datagrams();
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http2);
+        assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(blackhole.datagrams(), after_failure);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        assert_eq!(observed.alternative_connections, 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn race_never_changes_route() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK).body("alternative")
+                ]),
+            ),
+        )
+        .await?;
+        let blackhole = Blackhole::bind().await?;
+        let client = client_builder(&identity)?
+            .alt_svc_policy(race_policy(Duration::ZERO)?)
+            .build()?;
+        import_alternative(&client, &fixture, fixture.alternative_address().port())?;
+
+        // A proxy route is never swapped for a direct race; negotiation
+        // rejects it before either candidate performs I/O.
+        let proxy = Route::socks5(Socks5Proxy::new(&format!(
+            "socks5://127.0.0.1:{}",
+            blackhole.port
+        ))?);
+        let error = client
+            .get_negotiated(&fixture.origin_url("/proxied"))?
+            .route(proxy)
+            .send()
+            .await
+            .err()
+            .ok_or("a raced request must keep its proxy route")?;
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+        assert_eq!(fixture.snapshot()?.alternative_connections, 0);
+
+        // On the direct route the winning alternative keeps the origin's
+        // authority and TLS name; only the QUIC location differs.
+        let response = client
+            .get_negotiated(&fixture.origin_url("/direct"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&response)?, HttpProtocol::Http3);
+        drain(response).await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(blackhole.datagrams(), 0);
+        let authority = format!("{ORIGIN_NAME}:{}", fixture_port(&observed)?);
+        let request = observed
+            .alternative_requests
+            .first()
+            .ok_or("the alternative saw no request")?;
+        assert_eq!(request.authority.as_deref(), Some(authority.as_str()));
+        assert_eq!(request.server_name.as_deref(), Some(ORIGIN_NAME));
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn racing_requires_an_alt_svc_store_and_a_valid_backoff() -> TestResult<()> {
+    assert!(AltSvcBrokenBackoff::new(Duration::ZERO, Duration::from_secs(1)).is_err());
+    assert!(AltSvcBrokenBackoff::new(Duration::from_secs(2), Duration::from_secs(1)).is_err());
+    let identity = identity()?;
+    let error = Client::builder(profile())
+        .add_root_certificate_der(identity.root_der.clone())
+        .alt_svc_policy(race_policy(Duration::ZERO)?)
+        .build()
+        .err()
+        .ok_or("racing without an Alt-Svc store must be rejected")?;
+    assert_eq!(error.kind(), phantom::BuildErrorKind::InvalidPolicy);
+    Ok(())
+}
+
+#[test]
+fn chromium_broken_backoff_matches_captured_and_sourced_values() {
+    let backoff = AltSvcBrokenBackoff::CHROMIUM_153;
+    assert_eq!(backoff.period(0), Duration::from_secs(300));
+    assert_eq!(backoff.period(1), Duration::from_secs(600));
+    assert_eq!(backoff.period(9), Duration::from_secs(153_600));
+    assert_eq!(backoff.period(10), Duration::from_secs(172_800));
+    assert_eq!(backoff.period(u32::MAX), Duration::from_secs(172_800));
+}
+
+fn identity() -> TestResult<TestIdentity> {
+    TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)
+}
+
+fn profile() -> ClientProfile {
+    ClientProfile::new(tls_settings())
+        .with_http2(chromium::v152_http2())
+        .with_http3(client_settings())
+}
+
+fn client_builder(identity: &TestIdentity) -> TestResult<phantom::ClientBuilder> {
+    let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
+    Ok(Client::builder(profile())
+        .add_root_certificate_der(identity.root_der.clone())
+        .alt_svc(maximum_origins))
+}
+
+fn race_policy(origin_delay: Duration) -> TestResult<AltSvcPolicy> {
+    let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
+    Ok(AltSvcPolicy::race(AltSvcRace::new(origin_delay, backoff)))
+}
+
+/// Seeds the alternative without an origin request, so no H2 connection is
+/// pooled before the race.
+fn import_alternative(client: &Client, fixture: &Http3UpgradeFixture, port: u16) -> TestResult<()> {
+    import_alternative_for(client, ORIGIN_NAME, fixture, port)
+}
+
+fn import_alternative_for(
+    client: &Client,
+    origin_name: &str,
+    fixture: &Http3UpgradeFixture,
+    port: u16,
+) -> TestResult<()> {
+    let origin = format!("https://{origin_name}:{}", fixture.origin_address().port());
+    let expires_at = SystemTime::now() + Duration::from_secs(3600);
+    client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
+        origin,
+        ALTERNATIVE_HOST,
+        port,
+        expires_at,
+    )]))?;
+    Ok(())
+}
+
+fn fixture_port(observed: &http3_upgrade_support::UpgradeObservations) -> TestResult<u16> {
+    observed
+        .alternative_requests
+        .first()
+        .and_then(|request| request.authority.as_deref())
+        .and_then(|authority| authority.rsplit_once(':'))
+        .and_then(|(_, port)| port.parse().ok())
+        .ok_or_else(|| "the alternative request had no authority port".into())
+}
+
+fn protocol<B>(response: &http::Response<B>) -> TestResult<HttpProtocol> {
+    response
+        .extensions()
+        .get::<ResponseInfo>()
+        .map(ResponseInfo::protocol)
+        .ok_or_else(|| "response omitted protocol metadata".into())
+}
+
+async fn drain(response: http::Response<phantom::ResponseBody>) -> TestResult<()> {
+    response.into_body().collect().await?;
+    Ok(())
+}
+
+async fn wait_until(mut condition: impl FnMut() -> TestResult<bool>) -> TestResult<()> {
+    while !condition()? {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    Ok(())
+}
+
+async fn bounded<F>(future: F) -> TestResult<()>
+where
+    F: Future<Output = TestResult<()>>,
+{
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(|_| "Alt-Svc race integration test exceeded its deadline")?
+}
+
+/// A UDP socket that counts and drops every datagram.
+struct Blackhole {
+    port: u16,
+    datagrams: Arc<AtomicUsize>,
+    task: JoinHandle<()>,
+}
+
+impl Blackhole {
+    async fn bind() -> TestResult<Self> {
+        let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let port = socket.local_addr()?.port();
+        let datagrams = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&datagrams);
+        let task = tokio::spawn(async move {
+            let mut buffer = [0_u8; 2048];
+            // Windows reports ICMP port-unreachable for earlier sends as a
+            // receive error; the blackhole ignores it and keeps listening.
+            loop {
+                if socket.recv_from(&mut buffer).await.is_ok() {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                }
+            }
+        });
+        Ok(Self {
+            port,
+            datagrams,
+            task,
+        })
+    }
+
+    fn datagrams(&self) -> usize {
+        self.datagrams.load(Ordering::SeqCst)
+    }
+}
+
+impl Drop for Blackhole {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+/// A one-shot body that yields `chunks` and counts every poll.
+struct ChunkedBody {
+    polls: Arc<AtomicUsize>,
+    chunks: Vec<Bytes>,
+}
+
+impl ChunkedBody {
+    fn new(polls: Arc<AtomicUsize>, chunks: &[&'static str]) -> Self {
+        Self {
+            polls,
+            chunks: chunks
+                .iter()
+                .rev()
+                .map(|chunk| Bytes::from(*chunk))
+                .collect(),
+        }
+    }
+}
+
+impl Body for ChunkedBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        self.polls.fetch_add(1, Ordering::SeqCst);
+        Poll::Ready(self.chunks.pop().map(|chunk| Ok(Frame::data(chunk))))
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::default()
+    }
+}

@@ -40,7 +40,7 @@ does not count.
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse | Parallel connection policy |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT | HPACK representation parity for extended CONNECT |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
-| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade | Alt-Svc racing, WebSocket over H3 |
+| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing | Multiple-alternative racing, WebSocket over H3 |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
 | SSE and WebSocket | Feature-gated, bounded, with browser comparisons and Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, proxy WebSocket captures |
 
@@ -186,6 +186,12 @@ Supported lifecycle:
 - Stream-scoped cancellation and bounded shutdown.
 - Single-connection bounded qlog behind the internal `phantom-net/qlog`
   feature (not exposed by `phantom-http`).
+- Opt-in Alt-Svc racing (`AltSvcPolicy::race`): alternative QUIC setup first,
+  origin H1/H2 setup after a caller-set delay or at once on alternative
+  failure, one dispatch on the winner, a losing alternative that keeps
+  connecting in the background for at most 10 seconds and is pooled or marked
+  broken, and Chromium 153 broken backoff (300 seconds, doubling, two-day
+  cap). See [Racing](../guides/http3.md#racing).
 
 Supported in `phantom-net` only (not exposed by the facade):
 
@@ -201,7 +207,8 @@ Planned:
 - Nonempty local H3 application settings.
 - Repeated fresh-browser packet differentials.
 - Extension-specific datagram APIs.
-- Alt-Svc racing.
+- Multiple-alternative Alt-Svc racing, an RTT-derived racing delay, and DNS
+  HTTPS-record (`dns_alpn_h3`) jobs.
 - WebSocket over H3.
 - Multiplexed CONNECT-UDP tunnels on one outer connection.
 - Browser-captured MASQUE recipes.
@@ -211,7 +218,9 @@ Planned:
 Supported:
 
 - A cheap-clone pooled exact-H1/H2/H3 facade.
-- Pooled direct H1/H2 selection with optional later Alt-Svc H3 selection.
+- Pooled direct H1/H2 selection with optional later Alt-Svc H3 selection,
+  sequential by default or raced against the origin by an evidence-backed
+  opt-in policy.
 - Owned request builders with explicit methods.
 - Ordered static or declared streaming-body-produced trailers on exact
   H1/H2/H3 and negotiated requests.
@@ -232,10 +241,6 @@ Supported:
 - Metadata for selected protocol, ordered fields, redirect count, and
   setup-retry count.
 - Typed errors.
-
-Planned:
-
-- An evidence-backed racing policy.
 
 Deliberately excluded:
 
@@ -266,6 +271,8 @@ Supported:
   any method with an absent or owned body, on a different connection with the
   same route and protocol.
 - Bounded H1/H2 TLS ticket retention.
+- Per-origin-and-alternative Alt-Svc broken state with doubling, capped
+  backoff, cleared by a successful alternative connection or `clear_alt_svc`.
 - An optional bounded cookie jar with deterministic path and creation order,
   PSL, prefix, and expiry checks, and explicit activation. It rejects rather
   than stores `SameSite=Lax`, `SameSite=Strict`, `Partitioned`, insecure
@@ -284,7 +291,8 @@ Planned:
 - SameSite request context and CHIPS.
 - Permissions and delegation context.
 - QUIC tickets and DNS state.
-- Alt-Svc racing and proxy-route snapshots.
+- Alt-Svc brokenness persistence and network-change reset, and proxy-route
+  snapshots.
 - Broader policy and retry classes.
 
 ## Server-sent events and WebSocket

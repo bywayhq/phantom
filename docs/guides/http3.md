@@ -152,16 +152,62 @@ connections under the same admission bounds instead of replacing each other.
 
 ### Failures
 
-Alternative setup failure is a typed H3 failure for that request and evicts
-the advertisement; it never silently falls back to H1 or H2. A visible `421`
-response also evicts it. `Client::clear_alt_svc` clears the whole store.
+By default (`AltSvcPolicy::sequential`), alternative setup failure is a typed
+H3 failure for that request and evicts the advertisement; it never silently
+falls back to H1 or H2. A visible `421` response also evicts it.
+`Client::clear_alt_svc` clears the whole store, including broken state.
+
+### Racing
+
+`ClientBuilder::alt_svc_policy(AltSvcPolicy::race(...))` opts into racing and
+requires `ClientBuilder::alt_svc`. Racing is a declared two-candidate
+connection choice, not a fallback:
+
+- Before any I/O, both the H3 and the H1/H2 forms of the request are
+  validated.
+- QUIC setup to the alternative starts first. Origin H1/H2 setup starts after
+  the caller's `AltSvcRace` origin delay, or at once if the alternative fails
+  first. Each candidate holds its own pool admission and at most one setup
+  attempt.
+- The first candidate to finish carries the request exactly once. The request
+  body, including a one-shot stream, is built only for the winner, and
+  `ResponseInfo` reports the winner's protocol.
+- Both candidates keep the request's origin authority, TLS name, and direct
+  route; racing never applies to a proxy route.
+- Cancelling the request before a winner cancels both setups. The connect and
+  total deadlines bound each setup and the whole race.
+
+When the alternative wins, a still-connecting origin setup is cancelled. When
+the origin wins, a still-connecting alternative continues in the background,
+like Chromium's orphaned alternative job: a finished connection is pooled for
+later requests, and a failure marks the alternative broken. That background
+setup runs only if it was already admitted to the H3 pool and for at most 10
+seconds (Chromium's QUIC handshake limit), or less under the request's connect
+and total deadlines; it is then cancelled without marking.
+
+An alternative that fails while the origin succeeds is marked broken for
+`AltSvcBrokenBackoff`: the first failure lasts `initial`, each later failure
+doubles it up to `maximum`, and a successful alternative connection clears the
+history. A broken alternative is not raced; the request goes to the origin.
+When both candidates fail, the origin's error is returned and nothing is
+marked. After a winner is chosen, retries and replays within the request stay
+on the winner's protocol, and a later failure on a won alternative evicts it
+as in sequential use.
+
+`AltSvcBrokenBackoff::CHROMIUM_153` is 300 seconds, doubling, capped at two
+days. Chromium's origin delay depends on QUIC history and measured RTT, so
+Phantom has no named delay and the caller chooses one. Brokenness is not part
+of `AltSvcSnapshot`.
 
 ## Not implemented
 
-- Alt-Svc connection racing and multiple-alternative racing.
+- Multiple-alternative racing and DNS HTTPS-record (`dns_alpn_h3`) jobs.
+- Persisting Alt-Svc brokenness, or clearing it on a network change.
+- An RTT-derived racing delay, and keeping a losing origin connection idle.
 - Alt-Svc upgrades on proxy routes, and proxy-route snapshots.
 - WebSocket over H3.
 - QUIC session tickets.
 
 [Alt-Svc evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence)
-lists the tests behind this behavior.
+and [Alt-Svc racing evidence](../explanation/validation.md#alt-svc-racing-evidence)
+list the tests and captures behind this behavior.

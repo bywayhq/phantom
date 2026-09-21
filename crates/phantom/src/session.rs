@@ -17,7 +17,8 @@ mod http2_pool;
 pub(crate) mod http3_pool;
 
 pub use alt_svc::{
-    AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
+    AltSvcSnapshotError, AltSvcSnapshotErrorKind,
 };
 #[cfg(feature = "cookies")]
 pub use cookies::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
@@ -67,6 +68,7 @@ pub(crate) struct ClientOptions {
     pub(crate) max_pending_http3_requests_per_origin: NonZeroUsize,
     pub(crate) max_client_hint_origins: NonZeroUsize,
     pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
+    pub(crate) alt_svc_policy: AltSvcPolicy,
     #[cfg(feature = "cookies")]
     pub(crate) cookie_jar: Option<CookieJar>,
 }
@@ -89,6 +91,7 @@ impl Default for ClientOptions {
             max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
             max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
             max_alt_svc_origins: None,
+            alt_svc_policy: AltSvcPolicy::sequential(),
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }
@@ -115,6 +118,7 @@ pub(crate) struct ClientState {
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: http3_pool::Http3Pool,
     alt_svc: Option<alt_svc::AltSvcStore>,
+    alt_svc_policy: AltSvcPolicy,
     client_hints: Option<client_hints::ClientHintStore>,
     #[cfg(feature = "cookies")]
     pub(crate) cookies: Option<Arc<CookieJar>>,
@@ -135,7 +139,12 @@ impl ClientOptions {
                 "Alt-Svc requires negotiated HTTP/1.1+HTTP/2 and HTTP/3 profiles",
             ));
         }
-        Ok(())
+        if self.alt_svc_policy.race_settings().is_some() && self.max_alt_svc_origins.is_none() {
+            return Err(BuildError::invalid_policy(
+                "Alt-Svc racing requires an Alt-Svc store",
+            ));
+        }
+        self.alt_svc_policy.validate()
     }
 
     pub(crate) fn build(self, inner: &ClientInner) -> Arc<ClientState> {
@@ -165,6 +174,7 @@ impl ClientOptions {
                 self.max_pending_http3_requests_per_origin,
             ),
             alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
+            alt_svc_policy: self.alt_svc_policy,
             client_hints: inner
                 .client_hints
                 .is_some()
@@ -252,15 +262,38 @@ impl Client {
     pub(crate) fn alt_svc_location(
         &self,
         endpoint: &crate::authority::Endpoint,
-    ) -> Option<(Box<str>, u16, Box<str>, u64)> {
-        self.state.alt_svc.as_ref()?.get(endpoint).map(|selection| {
-            (
-                Box::<str>::from(selection.location().host()),
-                selection.location().port(),
-                selection.location().authority(),
-                selection.generation(),
-            )
-        })
+    ) -> Option<alt_svc::AlternativeTarget> {
+        self.state
+            .alt_svc
+            .as_ref()?
+            .get(endpoint)
+            .map(|selection| alt_svc::AlternativeTarget::new(&selection))
+    }
+
+    /// Returns how negotiated requests use a learned alternative.
+    pub(crate) fn alt_svc_policy(&self) -> AltSvcPolicy {
+        self.state.alt_svc_policy
+    }
+
+    pub(crate) fn mark_alt_svc_broken(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        alternative: &alt_svc::AlternativeTarget,
+        backoff: AltSvcBrokenBackoff,
+    ) {
+        if let Some(store) = &self.state.alt_svc {
+            store.mark_broken(endpoint, alternative.location(), backoff);
+        }
+    }
+
+    pub(crate) fn confirm_alt_svc(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        alternative: &alt_svc::AlternativeTarget,
+    ) {
+        if let Some(store) = &self.state.alt_svc {
+            store.confirm(endpoint, alternative.location());
+        }
     }
 
     pub(crate) fn alt_svc_enabled(&self) -> bool {
@@ -442,6 +475,7 @@ impl fmt::Debug for Client {
                     .as_ref()
                     .map(alt_svc::AltSvcStore::capacity),
             )
+            .field("alt_svc_policy", &self.state.alt_svc_policy)
             .field(
                 "max_client_hint_origins",
                 &self
@@ -655,6 +689,7 @@ impl fmt::Debug for SessionBuilder {
                 &self.options.max_client_hint_origins,
             )
             .field("max_alt_svc_origins", &self.options.max_alt_svc_origins)
+            .field("alt_svc_policy", &self.options.alt_svc_policy)
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {

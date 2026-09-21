@@ -245,7 +245,7 @@ Chrome 153.0.8010.48 on Windows 11 26200 was captured with
 `scripts/capture/alt_svc_race.py` against one loopback origin serving H2 over
 TCP and H3 over UDP on the same port, advertised as `h3=":<port>"; ma=86400`.
 Fixtures are in
-[`fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/`](../fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/),
+[`fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/`](../../fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/),
 ten headless runs per scenario (two for `broken-backoff`), each on a fresh
 profile, with every other host name unresolvable so browser background
 traffic neither leaves the machine nor records QUIC success. The

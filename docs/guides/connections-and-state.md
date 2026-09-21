@@ -100,5 +100,7 @@ Learned `Accept-CH` state is bounded and scoped to the exact secure origin.
 Alt-Svc is disabled by default. `ClientBuilder::alt_svc` enables a bounded,
 in-memory exact-origin store for negotiated HTTPS requests,
 `Client::clear_alt_svc` clears it, and `Client::export_alt_svc` and
-`Client::import_alt_svc` move it through caller-owned storage. See
+`Client::import_alt_svc` move it through caller-owned storage.
+`ClientBuilder::alt_svc_policy` opts into racing a learned alternative against
+the origin, with broken-alternative backoff. See
 [HTTP/3 and Alt-Svc](http3.md#alt-svc).

@@ -146,6 +146,11 @@ failures return typed errors; runtime library code must not panic.
   request authority, TLS authentication name, cookies, client hints, and
   request policy remain attached to the original HTTPS origin. A different
   transport location cannot reuse the previous H3 connection generation.
+  Sequential use is the default; opt-in racing chooses between exactly two
+  pre-declared candidates (alternative QUIC, then delayed origin H1/H2) on the
+  same route and sends the request once, on the winner. A losing alternative
+  that fails is marked broken with bounded doubling backoff instead of being
+  evicted, as Chromium does.
 - Every transport returns the standard `http::Response` view plus ordered
   response fields.
 - Response content decoding is an opt-in facade body stage above every

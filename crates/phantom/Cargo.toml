@@ -35,7 +35,7 @@ phantom-net = { version = "=0.1.0", path = "../phantom-net" }
 phantom-profile = { version = "=0.1.0", path = "../phantom-profile" }
 psl = { version = "=2.1.233", optional = true }
 sfv.workspace = true
-tokio = { version = "1.53.1", features = ["sync", "time"] }
+tokio = { version = "1.53.1", features = ["rt", "sync", "time"] }
 tokio-tungstenite = { workspace = true, optional = true }
 tungstenite = { workspace = true, optional = true }
 tracing = "0.1.41"

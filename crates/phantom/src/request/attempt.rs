@@ -15,12 +15,12 @@ use crate::{
 
 use super::{
     ProtocolSelection, RequestBodySource, ResolvedRequest,
-    alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc},
+    alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc, send_once_raced},
     replay::{ReplayClass, ReplayState},
 };
 use crate::session::{
-    client_hints::ClientHintContext, http1_pool::Http1ConnectionMode,
-    http3_pool::Http3TransportTarget,
+    client_hints::ClientHintContext, http1_or_2_pool::NegotiatedLease,
+    http1_pool::Http1ConnectionMode, http3_pool::Http3TransportTarget,
 };
 
 pub(super) struct AttemptRequest<'a> {
@@ -192,11 +192,35 @@ async fn send_once_negotiated(
     }
     match plan(client, request) {
         NegotiatedPlan::Alternative(alternative) => {
-            return send_once_alt_svc(client, request, attempt, route, lifecycle, alternative)
-                .await;
+            send_once_alt_svc(client, request, attempt, route, lifecycle, alternative).await
         }
-        NegotiatedPlan::Origin => {}
+        NegotiatedPlan::Race(alternative, race) => {
+            send_once_raced(
+                client,
+                request,
+                attempt,
+                route,
+                lifecycle,
+                alternative,
+                race,
+            )
+            .await
+        }
+        NegotiatedPlan::Origin => send_once_origin(client, request, attempt, lifecycle, None).await,
     }
+}
+
+/// Sends a negotiated request to the origin over H1 or H2.
+///
+/// `leased` is a connection a race already admitted and established; the
+/// first attempt uses it, and later attempts acquire from the pool.
+pub(super) async fn send_once_origin(
+    client: &Client,
+    request: &ResolvedRequest,
+    attempt: AttemptRequest<'_>,
+    lifecycle: AttemptLifecycle<'_>,
+    mut leased: Option<NegotiatedLease>,
+) -> Result<AttemptOutcome, RequestError> {
     let AttemptLifecycle {
         request_span,
         timeout_budget,
@@ -239,6 +263,7 @@ async fn send_once_negotiated(
                 prepared.client_hints,
                 prepared.body,
                 std::mem::take(&mut fresh_http1_connection),
+                leased.take(),
                 timeout_budget,
                 retries,
             )

@@ -72,36 +72,27 @@ impl Http1Or2Pool {
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         fresh_http1_connection: bool,
+        leased: Option<NegotiatedLease>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<NegotiatedResponse, RequestError> {
-        let http1_sent_headers = prepare_headers(client_hints, http1_headers, None);
-        let http2_validation_headers = prepare_headers(client_hints, http2_headers.clone(), None);
-        let mut http1_wire_headers = Vec::with_capacity(http1_sent_headers.len() + 1);
-        http1_wire_headers.push(RequestHeader::new(
-            "Host",
-            endpoint.authority().as_str().as_bytes(),
-        ));
-        http1_wire_headers.extend(http1_sent_headers.clone());
-        validate_http1_request_body_source_with_trailers(
+        let (http1_wire_headers, http1_sent_headers) = validate_request(
+            endpoint,
             &method,
             &target,
-            &http1_wire_headers,
-            body.as_ref(),
+            http1_headers,
+            &http2_headers,
             &trailers,
-        )
-        .map_err(RequestError::negotiated_http1_validation)?;
-        validate_http2_request_body_source_with_trailers(
-            &method,
-            endpoint.authority().as_str(),
-            &target,
-            &http2_validation_headers,
+            client_hints,
             body.as_ref(),
-            &trailers,
-        )
-        .map_err(RequestError::negotiated_http2_validation)?;
+        )?;
 
-        let entry = self.entry(PoolKey::new(endpoint)).await;
+        // A raced connection was admitted by this pool for this endpoint.
+        let mut leased = leased;
+        let entry = match &leased {
+            Some(leased) => Arc::clone(&leased.entry),
+            None => self.entry(PoolKey::new(endpoint)).await,
+        };
         // Same eligibility as the exact HTTP/2 pool: only a bodyless GET
         // without trailers may repeat after GOAWAY(NO_ERROR).
         let graceful_goaway_replayable =
@@ -121,24 +112,29 @@ impl Http1Or2Pool {
         let mut fresh_http1_connection = fresh_http1_connection;
 
         loop {
-            let selection = timeout_budget
-                .run(
-                    TimeoutPhase::PoolAdmission,
-                    None,
-                    entry.admit_before_selection(),
-                )
-                .await?;
-            let (lease, permit) = entry
-                .acquire_selected(
-                    connector,
-                    endpoint,
-                    request_span,
-                    selection,
-                    std::mem::take(&mut fresh_http1_connection),
-                    timeout_budget,
-                    retries,
-                )
-                .await?;
+            let (lease, permit) = match leased.take() {
+                Some(leased) => (leased.lease, leased.permit),
+                None => {
+                    let selection = timeout_budget
+                        .run(
+                            TimeoutPhase::PoolAdmission,
+                            None,
+                            entry.admit_before_selection(),
+                        )
+                        .await?;
+                    entry
+                        .acquire_selected(
+                            connector,
+                            endpoint,
+                            request_span,
+                            selection,
+                            std::mem::take(&mut fresh_http1_connection),
+                            timeout_budget,
+                            retries,
+                        )
+                        .await?
+                }
+            };
             if !graceful_goaway_replayable || retried_graceful_goaway {
                 return entry
                     .dispatch_on_lease(
@@ -177,6 +173,42 @@ impl Http1Or2Pool {
                 }
             }
         }
+    }
+
+    /// Admits one request and acquires its ALPN-selected connection without
+    /// dispatching; the lease holds the selected protocol's admission.
+    pub(crate) async fn acquire_lease(
+        &self,
+        connector: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+        request_span: &Span,
+        timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
+    ) -> Result<NegotiatedLease, RequestError> {
+        let entry = self.entry(PoolKey::new(endpoint)).await;
+        let selection = timeout_budget
+            .run(
+                TimeoutPhase::PoolAdmission,
+                None,
+                entry.admit_before_selection(),
+            )
+            .await?;
+        let (lease, permit) = entry
+            .acquire_selected(
+                connector,
+                endpoint,
+                request_span,
+                selection,
+                false,
+                timeout_budget,
+                retries,
+            )
+            .await?;
+        Ok(NegotiatedLease {
+            entry,
+            lease,
+            permit,
+        })
     }
 
     /// Bounds requests that hold no protocol-specific admission yet.
@@ -590,6 +622,54 @@ impl PoolEntry {
             );
         }
     }
+}
+
+/// A negotiated connection admitted for one request and not yet dispatched.
+pub(crate) struct NegotiatedLease {
+    entry: Arc<PoolEntry>,
+    lease: ConnectionLease,
+    permit: AdmissionPermit,
+}
+
+/// Checks one negotiated request's H1 and H2 representations before any I/O
+/// and returns the H1 wire fields (with `Host`) and the H1 fields as sent.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn validate_request(
+    endpoint: &Endpoint,
+    method: &Method,
+    target: &OriginForm,
+    http1_headers: Vec<RequestHeader>,
+    http2_headers: &[RequestHeader],
+    trailers: &[RequestHeader],
+    client_hints: Option<ClientHintContext<'_>>,
+    body: Option<&RequestBody>,
+) -> Result<(Vec<RequestHeader>, Vec<RequestHeader>), RequestError> {
+    let http1_sent_headers = prepare_headers(client_hints, http1_headers, None);
+    let http2_validation_headers = prepare_headers(client_hints, http2_headers.to_vec(), None);
+    let mut http1_wire_headers = Vec::with_capacity(http1_sent_headers.len() + 1);
+    http1_wire_headers.push(RequestHeader::new(
+        "Host",
+        endpoint.authority().as_str().as_bytes(),
+    ));
+    http1_wire_headers.extend(http1_sent_headers.clone());
+    validate_http1_request_body_source_with_trailers(
+        method,
+        target,
+        &http1_wire_headers,
+        body,
+        trailers,
+    )
+    .map_err(RequestError::negotiated_http1_validation)?;
+    validate_http2_request_body_source_with_trailers(
+        method,
+        endpoint.authority().as_str(),
+        target,
+        &http2_validation_headers,
+        body,
+        trailers,
+    )
+    .map_err(RequestError::negotiated_http2_validation)?;
+    Ok((http1_wire_headers, http1_sent_headers))
 }
 
 /// One negotiated request, without its body, prepared for either protocol.

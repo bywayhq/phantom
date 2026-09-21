@@ -102,43 +102,84 @@ impl Http3Pool {
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
-        let prepared_validation_headers =
-            client_hints.map(|context| context.prepare(headers.clone(), None));
-        let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
-        connector
-            .validate_request_body_source_with_trailers(
-                method.clone(),
-                authority,
-                &target,
-                validation_headers,
-                body.as_ref(),
-                &trailers,
-            )
-            .map_err(RequestError::http3)?;
         let transport = alternative.unwrap_or_else(|| Http3TransportTarget::for_origin(endpoint));
-        if let Route::ConnectUdp(proxy) = route {
-            let path = connect_udp_path(proxy, transport)?;
-            match proxy.tcp_protocol() {
-                None => connect_udp_http3(connect_udp_proxy)?.validate_connect_udp_with_basic_auth(
-                    proxy.host(),
-                    proxy.authority(),
-                    &path,
-                    proxy.headers(),
-                    proxy.credentials(),
-                ),
-                Some(protocol) => Http3Connector::validate_connect_udp_over_tcp(
-                    connect_udp_tcp(connect_udp_proxy)?,
-                    protocol,
-                    proxy.authority(),
-                    &path,
-                    proxy.headers(),
-                    proxy.credentials(),
-                ),
-            }
-            .map_err(RequestError::http3)?;
-        }
-        let key = PoolKey::new(endpoint, route);
-        let entry = self.entry(key).await;
+        validate_request(
+            connector,
+            connect_udp_proxy,
+            route,
+            transport,
+            &method,
+            authority,
+            &target,
+            &headers,
+            &trailers,
+            client_hints,
+            body.as_ref(),
+        )?;
+        let leased = self
+            .acquire_lease(
+                connector,
+                connect_udp_proxy,
+                endpoint,
+                route,
+                transport,
+                timeout_budget,
+                retries,
+            )
+            .await?;
+        dispatch(
+            leased,
+            connector,
+            method,
+            authority,
+            target,
+            headers,
+            trailers,
+            client_hints,
+            body,
+            timeout_budget,
+            retries,
+        )
+        .await
+    }
+
+    /// Admits one request and acquires its connection without dispatching.
+    ///
+    /// The lease holds the request's admission permit until it is dispatched
+    /// or dropped; dropping it leaves an established connection pooled.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn acquire_lease(
+        &self,
+        connector: &Http3Connector,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
+        endpoint: &Endpoint,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+        timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
+    ) -> Result<Http3Lease, RequestError> {
+        self.admit(endpoint, route, timeout_budget)
+            .await?
+            .connect(
+                connector,
+                connect_udp_proxy,
+                endpoint,
+                route,
+                transport,
+                timeout_budget,
+                retries,
+            )
+            .await
+    }
+
+    /// Admits one request to its origin-and-route entry without connecting.
+    pub(crate) async fn admit(
+        &self,
+        endpoint: &Endpoint,
+        route: &Route,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<Http3Admission, RequestError> {
+        let entry = self.entry(PoolKey::new(endpoint, route)).await;
         let permit = timeout_budget
             .run(
                 TimeoutPhase::PoolAdmission,
@@ -146,65 +187,49 @@ impl Http3Pool {
                 entry.admit(),
             )
             .await?;
-        let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
-            entry
-                .acquire(connector, connect_udp_proxy, endpoint, route, transport)
-                .await
-        })
-        .await?;
-        let sent_headers = match client_hints {
-            Some(context) => context.prepare(
-                headers,
-                lease.connection.accept_ch_for_origin(context.origin()),
-            ),
-            None => headers,
-        };
-        let result = timeout_budget
-            .run(
-                TimeoutPhase::ResponseHead,
-                Some(HttpProtocol::Http3),
-                async {
-                    Ok::<_, RequestError>(
-                        connector
-                            .send_request_body_with_trailers_on(
-                                &lease.connection,
-                                method,
-                                authority,
-                                target,
-                                sent_headers.clone(),
-                                body,
-                                trailers,
-                            )
-                            .await,
-                    )
-                },
-            )
-            .await;
-        match result {
-            Ok(Ok(response)) => {
-                let (parts, body) = response.into_parts();
-                Ok((
-                    http::Response::from_parts(parts, ResponseBody::http3_with_guard(body, permit)),
-                    sent_headers,
-                ))
-            }
-            Ok(Err(error)) => {
-                drop(permit);
-                let error = RequestError::http3_stream(error);
-                // An unprocessed replay must use another connection, so one
-                // that rejected a request is retired when it is enabled.
-                if !connector.can_reuse(&lease.connection).await
-                    || (retries.replays_unprocessed_requests() && error.is_unprocessed_request())
-                {
-                    entry.invalidate(&lease.token).await;
-                }
-                Err(error)
-            }
-            Err(error) => {
-                drop(permit);
-                Err(error)
-            }
-        }
+        Ok(Http3Admission { entry, permit })
+    }
+
+    /// Validates, then dispatches one request on a lease from [`Self::acquire_lease`].
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn send_request_on_lease(
+        &self,
+        leased: Http3Lease,
+        connector: &Http3Connector,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        trailers: Vec<RequestHeader>,
+        client_hints: Option<ClientHintContext<'_>>,
+        body: Option<RequestBody>,
+        timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
+    ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+        validate_wire(
+            connector,
+            &method,
+            authority,
+            &target,
+            &headers,
+            &trailers,
+            client_hints,
+            body.as_ref(),
+        )?;
+        dispatch(
+            leased,
+            connector,
+            method,
+            authority,
+            target,
+            headers,
+            trailers,
+            client_hints,
+            body,
+            timeout_budget,
+            retries,
+        )
+        .await
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -428,6 +453,196 @@ impl PoolEntry {
                 outcome = "invalidated",
                 "HTTP/3 pool connection invalidated"
             );
+        }
+    }
+}
+
+/// One admitted request that has not acquired a connection yet.
+pub(crate) struct Http3Admission {
+    entry: Arc<PoolEntry>,
+    permit: AdmissionPermit,
+}
+
+impl Http3Admission {
+    /// Acquires this admission's connection, with setup retries.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn connect(
+        self,
+        connector: &Http3Connector,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
+        endpoint: &Endpoint,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+        timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
+    ) -> Result<Http3Lease, RequestError> {
+        let Self { entry, permit } = self;
+        let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
+            entry
+                .acquire(connector, connect_udp_proxy, endpoint, route, transport)
+                .await
+        })
+        .await?;
+        Ok(Http3Lease {
+            entry,
+            lease,
+            permit,
+        })
+    }
+}
+
+/// A pooled H3 connection admitted for one request and not yet dispatched.
+pub(crate) struct Http3Lease {
+    entry: Arc<PoolEntry>,
+    lease: ConnectionLease,
+    permit: AdmissionPermit,
+}
+
+/// Checks one request's H3 and route representation before any I/O.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn validate_request(
+    connector: &Http3Connector,
+    connect_udp_proxy: Option<&ConnectUdpConnectors>,
+    route: &Route,
+    transport: Http3TransportTarget<'_>,
+    method: &Method,
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    trailers: &[RequestHeader],
+    client_hints: Option<ClientHintContext<'_>>,
+    body: Option<&RequestBody>,
+) -> Result<(), RequestError> {
+    validate_wire(
+        connector,
+        method,
+        authority,
+        target,
+        headers,
+        trailers,
+        client_hints,
+        body,
+    )?;
+    if let Route::ConnectUdp(proxy) = route {
+        let path = connect_udp_path(proxy, transport)?;
+        match proxy.tcp_protocol() {
+            None => connect_udp_http3(connect_udp_proxy)?.validate_connect_udp_with_basic_auth(
+                proxy.host(),
+                proxy.authority(),
+                &path,
+                proxy.headers(),
+                proxy.credentials(),
+            ),
+            Some(protocol) => Http3Connector::validate_connect_udp_over_tcp(
+                connect_udp_tcp(connect_udp_proxy)?,
+                protocol,
+                proxy.authority(),
+                &path,
+                proxy.headers(),
+                proxy.credentials(),
+            ),
+        }
+        .map_err(RequestError::http3)?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_wire(
+    connector: &Http3Connector,
+    method: &Method,
+    authority: &str,
+    target: &OriginForm,
+    headers: &[RequestHeader],
+    trailers: &[RequestHeader],
+    client_hints: Option<ClientHintContext<'_>>,
+    body: Option<&RequestBody>,
+) -> Result<(), RequestError> {
+    let prepared_validation_headers =
+        client_hints.map(|context| context.prepare(headers.to_vec(), None));
+    let validation_headers = prepared_validation_headers.as_deref().unwrap_or(headers);
+    connector
+        .validate_request_body_source_with_trailers(
+            method.clone(),
+            authority,
+            target,
+            validation_headers,
+            body,
+            trailers,
+        )
+        .map_err(RequestError::http3)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn dispatch(
+    leased: Http3Lease,
+    connector: &Http3Connector,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    trailers: Vec<RequestHeader>,
+    client_hints: Option<ClientHintContext<'_>>,
+    body: Option<RequestBody>,
+    timeout_budget: TimeoutBudget,
+    retries: &ConnectionSetupRetryState,
+) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+    let Http3Lease {
+        entry,
+        lease,
+        permit,
+    } = leased;
+    let sent_headers = match client_hints {
+        Some(context) => context.prepare(
+            headers,
+            lease.connection.accept_ch_for_origin(context.origin()),
+        ),
+        None => headers,
+    };
+    let result = timeout_budget
+        .run(
+            TimeoutPhase::ResponseHead,
+            Some(HttpProtocol::Http3),
+            async {
+                Ok::<_, RequestError>(
+                    connector
+                        .send_request_body_with_trailers_on(
+                            &lease.connection,
+                            method,
+                            authority,
+                            target,
+                            sent_headers.clone(),
+                            body,
+                            trailers,
+                        )
+                        .await,
+                )
+            },
+        )
+        .await;
+    match result {
+        Ok(Ok(response)) => {
+            let (parts, body) = response.into_parts();
+            Ok((
+                http::Response::from_parts(parts, ResponseBody::http3_with_guard(body, permit)),
+                sent_headers,
+            ))
+        }
+        Ok(Err(error)) => {
+            drop(permit);
+            let error = RequestError::http3_stream(error);
+            // An unprocessed replay must use another connection, so one
+            // that rejected a request is retired when it is enabled.
+            if !connector.can_reuse(&lease.connection).await
+                || (retries.replays_unprocessed_requests() && error.is_unprocessed_request())
+            {
+                entry.invalidate(&lease.token).await;
+            }
+            Err(error)
+        }
+        Err(error) => {
+            drop(permit);
+            Err(error)
         }
     }
 }

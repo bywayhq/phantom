@@ -1,6 +1,6 @@
 use std::{num::NonZeroUsize, time::Duration};
 
-use super::{AltSvcLocation, AltSvcStore, invalidates_alternative};
+use super::{AltSvcBrokenBackoff, AltSvcLocation, AltSvcStore, invalidates_alternative};
 use crate::{HttpProtocol, RequestError, TimeoutPhase, authority::Endpoint};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -247,7 +247,7 @@ fn stale_failure_does_not_remove_a_newer_advertisement() -> TestResult {
     let stale_generation = store
         .get_at(&origin, now)
         .ok_or("first alternative missing")?
-        .generation();
+        .generation;
     learn(&store, &origin, b"h3=\":9443\"", now);
 
     store.remove_if_current(&origin, stale_generation);
@@ -380,5 +380,120 @@ fn stream_frames_apply_in_arrival_order() -> TestResult {
     );
     store.learn_frames_at(&origin, [(None, b"clear".as_slice())], now);
     assert!(store.get_at(&origin, now).is_none());
+    Ok(())
+}
+
+fn backoff() -> TestResult<AltSvcBrokenBackoff> {
+    Ok(AltSvcBrokenBackoff::new(
+        Duration::from_secs(10),
+        Duration::from_secs(60),
+    )?)
+}
+
+fn broken_at(store: &AltSvcStore, origin: &Endpoint, now: std::time::Instant) -> TestResult<bool> {
+    Ok(store
+        .get_at(origin, now)
+        .ok_or("alternative not learned")?
+        .is_broken())
+}
+
+fn location(
+    store: &AltSvcStore,
+    origin: &Endpoint,
+    now: std::time::Instant,
+) -> TestResult<AltSvcLocation> {
+    Ok(store
+        .get_at(origin, now)
+        .ok_or("alternative not learned")?
+        .location)
+}
+
+#[test]
+fn broken_alternative_is_not_raced_until_backoff_expires() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let other = endpoint("other.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::new(4).ok_or("zero capacity")?);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\"", now);
+    learn(&store, &other, b"h3=\":8443\"", now);
+    assert!(!broken_at(&store, &origin, now)?);
+
+    let broken = location(&store, &origin, now)?;
+    store.mark_broken_at(&origin, &broken, backoff()?, now);
+    assert!(broken_at(&store, &origin, now)?);
+    assert!(broken_at(
+        &store,
+        &origin,
+        now + Duration::from_millis(9_999)
+    )?);
+    // Brokenness belongs to the origin and alternative pair.
+    assert!(!broken_at(&store, &other, now)?);
+    // A repeated advertisement does not clear brokenness.
+    learn(
+        &store,
+        &origin,
+        b"h3=\":8443\"",
+        now + Duration::from_secs(1),
+    );
+    assert!(broken_at(&store, &origin, now + Duration::from_secs(1))?);
+    // A different alternative for the same origin is not broken.
+    learn(
+        &store,
+        &origin,
+        b"h3=\":9443\"",
+        now + Duration::from_secs(2),
+    );
+    assert!(!broken_at(&store, &origin, now + Duration::from_secs(2))?);
+    learn(
+        &store,
+        &origin,
+        b"h3=\":8443\"",
+        now + Duration::from_secs(3),
+    );
+    assert!(broken_at(&store, &origin, now + Duration::from_secs(3))?);
+
+    assert!(!broken_at(&store, &origin, now + Duration::from_secs(10))?);
+    Ok(())
+}
+
+#[test]
+fn broken_backoff_doubles_and_is_capped() -> TestResult {
+    let backoff = backoff()?;
+    assert_eq!(
+        (0..6)
+            .map(|failures| backoff.period(failures))
+            .collect::<Vec<_>>(),
+        [10, 20, 40, 60, 60, 60].map(Duration::from_secs)
+    );
+    assert_eq!(backoff.period(u32::MAX), Duration::from_secs(60));
+
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let mut now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\"; ma=86400", now);
+    let broken = location(&store, &origin, now)?;
+    for expected in [10, 20, 40, 60, 60] {
+        store.mark_broken_at(&origin, &broken, backoff, now);
+        let period = Duration::from_secs(expected);
+        assert!(broken_at(
+            &store,
+            &origin,
+            now + period - Duration::from_millis(1)
+        )?);
+        assert!(!broken_at(&store, &origin, now + period)?);
+        now += period;
+    }
+
+    // A successful alternative connection clears the failure history.
+    store.confirm(&origin, &broken);
+    assert!(!broken_at(&store, &origin, now)?);
+    store.mark_broken_at(&origin, &broken, backoff, now);
+    assert!(!broken_at(&store, &origin, now + Duration::from_secs(10))?);
+
+    // Clearing the store clears brokenness with the advertisements.
+    store.mark_broken_at(&origin, &broken, backoff, now);
+    store.clear();
+    learn(&store, &origin, b"h3=\":8443\"", now);
+    assert!(!broken_at(&store, &origin, now)?);
     Ok(())
 }

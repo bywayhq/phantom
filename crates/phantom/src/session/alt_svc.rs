@@ -24,15 +24,13 @@ const MAX_DELTA_SECONDS: u64 = 1 << 31;
 pub(super) struct AltSvcSelection {
     location: AltSvcLocation,
     generation: u64,
+    broken: bool,
 }
 
 impl AltSvcSelection {
-    pub(super) fn location(&self) -> &AltSvcLocation {
-        &self.location
-    }
-
-    pub(super) const fn generation(&self) -> u64 {
-        self.generation
+    #[cfg(test)]
+    const fn is_broken(&self) -> bool {
+        self.broken
     }
 
     #[cfg(test)]
@@ -43,6 +41,51 @@ impl AltSvcSelection {
     #[cfg(test)]
     const fn port(&self) -> u16 {
         self.location.port()
+    }
+}
+
+/// A learned alternative selected for one negotiated request.
+#[derive(Clone, Debug)]
+pub(crate) struct AlternativeTarget {
+    location: AltSvcLocation,
+    authority: Box<str>,
+    generation: u64,
+    broken: bool,
+}
+
+impl AlternativeTarget {
+    pub(super) fn new(selection: &AltSvcSelection) -> Self {
+        Self {
+            location: selection.location.clone(),
+            authority: selection.location.authority(),
+            generation: selection.generation,
+            broken: selection.broken,
+        }
+    }
+
+    pub(crate) fn host(&self) -> &str {
+        self.location.host()
+    }
+
+    pub(crate) const fn port(&self) -> u16 {
+        self.location.port()
+    }
+
+    /// Returns the canonical `Alt-Used` authority with an explicit port.
+    pub(crate) fn authority(&self) -> &str {
+        &self.authority
+    }
+
+    pub(crate) const fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub(crate) const fn is_broken(&self) -> bool {
+        self.broken
+    }
+
+    pub(super) const fn location(&self) -> &AltSvcLocation {
+        &self.location
     }
 }
 
@@ -73,6 +116,10 @@ impl AltSvcLocation {
 pub(super) struct AltSvcStore {
     capacity: NonZeroUsize,
     entries: Mutex<VecDeque<Entry>>,
+    /// Race failure history by origin and alternative, least recently marked
+    /// first. A record outlives its broken period so a later failure backs off
+    /// further; a successful alternative connection removes it.
+    broken: Mutex<VecDeque<BrokenRecord>>,
     next_generation: AtomicU64,
 }
 
@@ -81,6 +128,7 @@ impl AltSvcStore {
         Self {
             capacity,
             entries: Mutex::new(VecDeque::new()),
+            broken: Mutex::new(VecDeque::new()),
             next_generation: AtomicU64::new(1),
         }
     }
@@ -158,6 +206,84 @@ impl AltSvcStore {
 
     pub(super) fn clear(&self) {
         self.lock_entries().clear();
+        self.lock_broken().clear();
+    }
+
+    /// Marks `location` broken for `origin` after it failed a race the origin won.
+    pub(super) fn mark_broken(
+        &self,
+        origin: &Endpoint,
+        location: &AltSvcLocation,
+        backoff: AltSvcBrokenBackoff,
+    ) {
+        self.mark_broken_at(origin, location, backoff, Instant::now());
+    }
+
+    fn mark_broken_at(
+        &self,
+        origin: &Endpoint,
+        location: &AltSvcLocation,
+        backoff: AltSvcBrokenBackoff,
+        now: Instant,
+    ) {
+        let origin = OriginKey::new(origin);
+        let mut broken = self.lock_broken();
+        let mut record = match broken
+            .iter()
+            .position(|record| record.origin == origin && &record.location == location)
+            .and_then(|position| broken.remove(position))
+        {
+            Some(record) => record,
+            None => {
+                if broken.len() == self.capacity.get() {
+                    broken.pop_front();
+                }
+                BrokenRecord {
+                    origin,
+                    location: location.clone(),
+                    failures: 0,
+                    until: now,
+                }
+            }
+        };
+        let period = backoff.period(record.failures);
+        record.until = now
+            .checked_add(period)
+            .unwrap_or_else(|| expiration_at(now, MAX_DELTA_SECONDS));
+        record.failures = record.failures.saturating_add(1);
+        debug!(
+            outcome = "broken",
+            failures = record.failures,
+            broken_ms = u64::try_from(period.as_millis()).unwrap_or(u64::MAX),
+            "marked Alt-Svc alternative broken"
+        );
+        broken.push_back(record);
+    }
+
+    /// Clears the failure history of `location` after it connected.
+    pub(super) fn confirm(&self, origin: &Endpoint, location: &AltSvcLocation) {
+        let origin = OriginKey::new(origin);
+        let mut broken = self.lock_broken();
+        if let Some(position) = broken
+            .iter()
+            .position(|record| record.origin == origin && &record.location == location)
+        {
+            broken.remove(position);
+            debug!(outcome = "confirmed", "cleared Alt-Svc broken state");
+        }
+    }
+
+    fn is_broken_at(&self, origin: &OriginKey, location: &AltSvcLocation, now: Instant) -> bool {
+        self.lock_broken().iter().any(|record| {
+            &record.origin == origin && &record.location == location && record.until > now
+        })
+    }
+
+    fn lock_broken(&self) -> MutexGuard<'_, VecDeque<BrokenRecord>> {
+        match self.broken.lock() {
+            Ok(broken) => broken,
+            Err(poisoned) => poisoned.into_inner(),
+        }
     }
 
     fn learn_fields_at<'a>(
@@ -204,9 +330,11 @@ impl AltSvcStore {
             debug!(outcome = "expired", "removed expired Alt-Svc origin");
             return None;
         }
+        let broken = self.is_broken_at(&key, &entry.location, now);
         let selection = AltSvcSelection {
             location: entry.location.clone(),
             generation: entry.generation,
+            broken,
         };
         entries.push_back(entry);
         Some(selection)
@@ -279,6 +407,14 @@ impl OriginKey {
         }
         origin
     }
+}
+
+struct BrokenRecord {
+    origin: OriginKey,
+    location: AltSvcLocation,
+    /// Failures since the alternative last connected.
+    failures: u32,
+    until: Instant,
 }
 
 struct Entry {
@@ -649,6 +785,9 @@ pub(crate) fn invalidates_alternative(error: &RequestError) -> bool {
         _ => false,
     }
 }
+
+mod policy;
+pub use policy::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace};
 
 mod snapshot;
 pub use snapshot::{

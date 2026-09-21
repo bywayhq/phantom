@@ -313,6 +313,7 @@ impl fmt::Debug for ClientBuilder {
                 &self.options.max_client_hint_origins,
             )
             .field("max_alt_svc_origins", &self.options.max_alt_svc_origins)
+            .field("alt_svc_policy", &self.options.alt_svc_policy)
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {
@@ -487,6 +488,17 @@ impl ClientBuilder {
     #[must_use]
     pub fn alt_svc(mut self, maximum_origins: NonZeroUsize) -> Self {
         self.options.max_alt_svc_origins = Some(maximum_origins);
+        self
+    }
+
+    /// Selects how negotiated requests use a learned HTTP/3 alternative.
+    ///
+    /// The default is [`AltSvcPolicy::sequential`](crate::AltSvcPolicy::sequential).
+    /// A racing policy requires [`ClientBuilder::alt_svc`]; building without
+    /// it fails with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+    #[must_use]
+    pub fn alt_svc_policy(mut self, policy: crate::AltSvcPolicy) -> Self {
+        self.options.alt_svc_policy = policy;
         self
     }
 
