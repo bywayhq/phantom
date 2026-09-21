@@ -68,6 +68,11 @@ pub enum Http1Error {
         /// Maximum accepted bytes from the status line through the empty line.
         maximum: usize,
     },
+    /// The peer sent more interim `1xx` responses than the fixed bound.
+    TooManyInformationalResponses {
+        /// Maximum accepted interim responses before the final response.
+        maximum: usize,
+    },
     /// One chunk-size line exceeded the fixed wire-byte safety bound.
     ChunkSizeLineTooLarge {
         /// Maximum accepted bytes in one chunk-size line.
@@ -194,6 +199,10 @@ impl fmt::Display for Http1Error {
                 formatter,
                 "response head exceeds {maximum} wire bytes; connection discarded"
             ),
+            Self::TooManyInformationalResponses { maximum } => write!(
+                formatter,
+                "response sent more than {maximum} informational responses; connection discarded"
+            ),
             Self::ChunkSizeLineTooLarge { maximum } => write!(
                 formatter,
                 "response chunk-size line exceeds {maximum} wire bytes; connection discarded"
@@ -309,6 +318,7 @@ impl Http1Error {
             Self::TrailersTooLarge { .. } => "trailers_too_large",
             Self::TooManyResponseHeaders { .. } => "too_many_response_headers",
             Self::ResponseHeadTooLarge { .. } => "response_head_too_large",
+            Self::TooManyInformationalResponses { .. } => "too_many_informational_responses",
             Self::ChunkSizeLineTooLarge { .. } => "chunk_size_line_too_large",
             Self::InvalidHeaderName { .. } => "invalid_header_name",
             Self::InvalidHeaderValue { .. } => "invalid_header_value",

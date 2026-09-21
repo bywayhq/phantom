@@ -5,6 +5,9 @@ use wreq_proto::{conn::http1, http1::Http1Options};
 pub(super) const MAX_RESPONSE_HEAD_BYTES: usize = 32 * 1024;
 pub(super) const MAX_RESPONSE_HEADERS: usize = 100;
 pub(super) const MAX_CHUNK_SIZE_LINE_BYTES: usize = 16 * 1024;
+/// Interim responses accepted before one final response, matching the
+/// HTTP CONNECT exchange bound.
+pub(super) const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
 pub(super) fn connection_builder() -> http1::Builder {
     let options = Http1Options::builder()

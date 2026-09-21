@@ -11,7 +11,7 @@ use crate::{OrderedResponseHeaders, ResponseHeader};
 
 use super::{
     Http1Error,
-    limits::{MAX_RESPONSE_HEAD_BYTES, MAX_RESPONSE_HEADERS},
+    limits::{MAX_INFORMATIONAL_RESPONSES, MAX_RESPONSE_HEAD_BYTES, MAX_RESPONSE_HEADERS},
 };
 
 pub(super) struct ResponseHeadObserver {
@@ -38,6 +38,7 @@ impl ResponseHeadObserver {
         state.buffered.clear();
         state.headers = None;
         state.limit_error = None;
+        state.informational_responses = 0;
         state.armed = true;
     }
 
@@ -69,6 +70,7 @@ struct ResponseHeadState {
     buffered: Vec<u8>,
     headers: Option<OrderedResponseHeaders>,
     limit_error: Option<ResponseHeadLimitError>,
+    informational_responses: usize,
     armed: bool,
 }
 
@@ -76,6 +78,15 @@ struct ResponseHeadState {
 enum ResponseHeadLimitError {
     HeaderCount,
     HeadBytes,
+    InformationalResponses,
+}
+
+impl ResponseHeadLimitError {
+    /// The HTTP backend accepts any number of interim responses, so this limit
+    /// must end the read stream itself for the pending response to fail.
+    const fn ends_stream(self) -> bool {
+        matches!(self, Self::InformationalResponses)
+    }
 }
 
 impl ResponseHeadLimitError {
@@ -86,6 +97,9 @@ impl ResponseHeadLimitError {
             },
             Self::HeadBytes => Http1Error::ResponseHeadTooLarge {
                 maximum: MAX_RESPONSE_HEAD_BYTES,
+            },
+            Self::InformationalResponses => Http1Error::TooManyInformationalResponses {
+                maximum: MAX_INFORMATIONAL_RESPONSES,
             },
         }
     }
@@ -139,6 +153,11 @@ impl ResponseHeadState {
                 .collect();
 
             if (100..200).contains(&status) && status != 101 {
+                self.informational_responses += 1;
+                if self.informational_responses > MAX_INFORMATIONAL_RESPONSES {
+                    self.fail(ResponseHeadLimitError::InformationalResponses);
+                    return;
+                }
                 self.buffered.drain(..head_length);
                 if self.buffered.is_empty() && remaining.is_empty() {
                     return;
@@ -172,10 +191,20 @@ where
         let previous_length = buffer.filled().len();
         match Pin::new(&mut self.stream).poll_read(context, buffer) {
             Poll::Ready(Ok(())) => {
-                self.state
+                let mut state = self
+                    .state
                     .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .observe(&buffer.filled()[previous_length..]);
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                state.observe(&buffer.filled()[previous_length..]);
+                if state
+                    .limit_error
+                    .is_some_and(ResponseHeadLimitError::ends_stream)
+                {
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "HTTP/1 response exceeded its informational response limit",
+                    )));
+                }
                 Poll::Ready(Ok(()))
             }
             other => other,

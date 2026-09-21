@@ -8,7 +8,10 @@ use super::{TestResult, bounded_peer_test, host, read_head, target, wait_for_dri
 use crate::{
     http1::{
         Http1Connection, Http1Error, PreparedGet,
-        limits::{MAX_CHUNK_SIZE_LINE_BYTES, MAX_RESPONSE_HEAD_BYTES, MAX_RESPONSE_HEADERS},
+        limits::{
+            MAX_CHUNK_SIZE_LINE_BYTES, MAX_INFORMATIONAL_RESPONSES, MAX_RESPONSE_HEAD_BYTES,
+            MAX_RESPONSE_HEADERS,
+        },
         response_head::ResponseHeadObserver,
         send_get, send_prepared_upgrade,
     },
@@ -361,6 +364,77 @@ async fn rejected_upgrade_body_preserves_chunk_size_limit_error() -> TestResult 
         ));
         let mut byte = [0_u8; 1];
         assert_eq!(server.read(&mut byte).await?, 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn informational_responses_up_to_the_limit_reach_the_final_response() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(MAX_RESPONSE_HEAD_BYTES);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            for _ in 0..MAX_INFORMATIONAL_RESPONSES {
+                server
+                    .write_all(
+                        b"HTTP/1.1 103 Early Hints
+
+",
+                    )
+                    .await?;
+            }
+            server
+                .write_all(
+                    b"HTTP/1.1 204 No Content
+
+",
+                )
+                .await
+        });
+        let connection = Http1Connection::connect(client).await?;
+        let response = connection.send_get(target()?, vec![host()]).await?;
+        assert_eq!(response.status(), 204);
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn informational_flood_fails_typed_and_discards_the_connection() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(MAX_RESPONSE_HEAD_BYTES);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            // An unbounded peer would never send a final response.
+            for _ in 0..=MAX_INFORMATIONAL_RESPONSES {
+                server
+                    .write_all(
+                        b"HTTP/1.1 100 Continue
+
+",
+                    )
+                    .await?;
+            }
+            let mut byte = [0_u8; 1];
+            server.read(&mut byte).await
+        });
+        let connection = Http1Connection::connect(client).await?;
+        let error = match connection.send_get(target()?, vec![host()]).await {
+            Err(error) => error,
+            Ok(response) => {
+                return Err(format!("informational flood produced {}", response.status()).into());
+            }
+        };
+        assert!(matches!(
+            error,
+            Http1Error::TooManyInformationalResponses {
+                maximum: MAX_INFORMATIONAL_RESPONSES
+            }
+        ));
+        assert!(!connection.is_reusable());
+        assert_eq!(server_task.await??, 0);
         Ok(())
     })
     .await
