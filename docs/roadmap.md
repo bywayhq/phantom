@@ -23,8 +23,9 @@ work has exposed the real architectural boundaries.
   enabled, abandons an over-limit stream, and has a stable error category.
 - Complete the remaining client and proxy-route work without introducing
   direct or cross-protocol fallback.
-- Extend the current exact-protocol, pre-dispatch connection retry policy only
-  when another replay class has explicit ownership and bounded lifecycle rules.
+- Extend the current pre-dispatch connection retry policy (exact H1/H2/H3 and
+  negotiated pre-ALPN TCP setup) only when another replay class has explicit
+  ownership and bounded lifecycle rules.
 - Browser-backed SSE reconnect evidence exists for Chrome 153 and Firefox 156
   on Windows over HTTP/1.1, and Phantom reproduces it through
   `SseHeader::last_event_id` and `min_retry`. The remaining gap is
@@ -126,7 +127,7 @@ TLS-backed `wss://`; plaintext `ws://` also supports plaintext and TLS-encrypted
 HTTP forward proxies with strict challenge-driven Basic authentication and
 authenticated local- or remote-DNS SOCKS5 tunnels. These paths share the same
 ordered opening handshake, strict validation, and bounded message lifecycle.
-Exact H1/H2/H3 requests can opt into bounded
+Exact H1/H2/H3 and negotiated H1/H2 requests can opt into bounded
 typed connection-setup retries without changing route or protocol or replaying
 request bytes. HTTP/1.1 absolute-form forwarding for `http://`
 origins is available over plaintext and TLS proxies with independent proxy
