@@ -495,7 +495,7 @@ impl RequestError {
     pub(crate) fn invalid_retry_delay() -> Self {
         Self::without_source(
             RequestErrorKind::InvalidTimeout,
-            "connection retry delay exceeds the runtime clock range",
+            "retry delay or Retry-After limit exceeds the runtime clock range",
         )
     }
 
