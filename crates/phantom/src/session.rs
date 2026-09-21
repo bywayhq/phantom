@@ -390,7 +390,8 @@ impl SessionBuilder {
     /// Sets the policy for retrying connection-establishment failures.
     ///
     /// Connection retries are disabled by default and apply only to
-    /// exact-protocol requests before dispatch.
+    /// connection setup before dispatch: exact-protocol acquisition and
+    /// negotiated H1/H2 TCP setup before ALPN selection.
     #[must_use]
     pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.options.retry_policy = policy;

@@ -7,13 +7,13 @@ use crate::{
     timeout::{TimeoutBudget, TimeoutPhase},
 };
 
-/// Policy for retrying exact-protocol requests after connection-establishment failures.
+/// Policy for retrying requests after connection-establishment failures.
 ///
 /// Retries are disabled by default. An eligible retry occurs inside the
-/// selected H1, H2, or H3 pool before the origin request or body is dispatched,
-/// so methods and one-shot streaming bodies are not replayed. Negotiated H1/H2,
-/// TLS, proxy negotiation, timeouts, HTTP responses, and protocol failures are
-/// not retried.
+/// selected H1, H2, or H3 pool, or before ALPN selection in the negotiated
+/// H1/H2 pool, before the origin request or body is dispatched, so methods and
+/// one-shot streaming bodies are not replayed. TLS, ALPN, proxy negotiation,
+/// timeouts, HTTP responses, and protocol failures are not retried.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RetryPolicy {
     maximum_connection_failures: Option<NonZeroUsize>,
@@ -82,7 +82,7 @@ impl ConnectionSetupRetryState {
     pub(crate) async fn retry_after(
         &mut self,
         error: &RequestError,
-        protocol: HttpProtocol,
+        protocol: Option<HttpProtocol>,
         timeout_budget: TimeoutBudget,
     ) -> Result<bool, RequestError> {
         let Some(maximum) = self.policy.maximum_connection_failures else {
@@ -112,6 +112,32 @@ pub(crate) async fn acquire_with_retries<Output, Attempt, AttemptFuture>(
     protocol: HttpProtocol,
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
+    attempt: Attempt,
+) -> Result<Output, RequestError>
+where
+    Attempt: FnMut() -> AttemptFuture,
+    AttemptFuture: Future<Output = Result<Output, RequestError>>,
+{
+    acquire_with_retries_for(Some(protocol), timeout_budget, retries, attempt).await
+}
+
+/// Retries setup whose HTTP protocol is chosen later by ALPN.
+pub(crate) async fn acquire_unselected_with_retries<Output, Attempt, AttemptFuture>(
+    timeout_budget: TimeoutBudget,
+    retries: &mut ConnectionSetupRetryState,
+    attempt: Attempt,
+) -> Result<Output, RequestError>
+where
+    Attempt: FnMut() -> AttemptFuture,
+    AttemptFuture: Future<Output = Result<Output, RequestError>>,
+{
+    acquire_with_retries_for(None, timeout_budget, retries, attempt).await
+}
+
+async fn acquire_with_retries_for<Output, Attempt, AttemptFuture>(
+    protocol: Option<HttpProtocol>,
+    timeout_budget: TimeoutBudget,
+    retries: &mut ConnectionSetupRetryState,
     mut attempt: Attempt,
 ) -> Result<Output, RequestError>
 where
@@ -123,7 +149,7 @@ where
         // Keep that backend-specific future off this request future's stack.
         let attempt = Box::pin(attempt());
         let result = timeout_budget
-            .run(TimeoutPhase::Connect, Some(protocol), attempt)
+            .run(TimeoutPhase::Connect, protocol, attempt)
             .await;
         match result {
             Ok(output) => return Ok(output),

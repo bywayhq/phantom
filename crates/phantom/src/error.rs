@@ -660,6 +660,16 @@ impl RequestError {
         )
     }
 
+    /// Marks only pre-TLS connect failures as retryable; TLS and ALPN are terminal.
+    pub(crate) fn http1_or_2_connection_setup(source: Http1Or2TlsError) -> Self {
+        let retryable = source.kind() == Http1Or2TlsErrorKind::Connect;
+        let mut error = Self::http1_or_2(source);
+        if retryable {
+            error.retryability = RequestRetryability::ConnectionSetup;
+        }
+        error
+    }
+
     pub(crate) fn negotiated_http1_validation(source: Http1Error) -> Self {
         Self::with_source(
             RequestErrorKind::Http1,
@@ -894,6 +904,7 @@ impl StdError for RequestError {
 mod tests {
     use phantom_net::{
         http1::{Http1Error, Http1TlsError},
+        http1_or_2::Http1Or2TlsError,
         http2::{Http2Error, Http2TlsError},
         http3::Http3ConnectorErrorKind,
         proxy::{HttpConnectError, HttpConnectErrorKind, Socks5ErrorKind},
@@ -981,6 +992,40 @@ mod tests {
 
         let ordinary = RequestError::http2(Http2TlsError::Connect(io_error()));
         assert!(!ordinary.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn http1_or_2_connect_failure_is_retryable_connection_setup() {
+        let refused =
+            RequestError::http1_or_2_connection_setup(Http1Or2TlsError::Connect(io_error()));
+        assert_eq!(refused.kind(), RequestErrorKind::Connect);
+        assert_eq!(refused.protocol(), None);
+        assert!(std::error::Error::source(&refused).is_some());
+        assert!(refused.is_retryable_connection_setup());
+
+        let runtime =
+            RequestError::http1_or_2_connection_setup(Http1Or2TlsError::RuntimeUnavailable);
+        assert_eq!(runtime.kind(), RequestErrorKind::RuntimeUnavailable);
+        assert!(!runtime.is_retryable_connection_setup());
+
+        let ordinary = RequestError::http1_or_2(Http1Or2TlsError::Connect(io_error()));
+        assert!(!ordinary.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn http1_or_2_alpn_failure_is_not_retryable() {
+        let alpn = RequestError::http1_or_2_connection_setup(Http1Or2TlsError::UnsupportedAlpn {
+            selected: Box::from(&b"h3"[..]),
+        });
+        assert_eq!(alpn.kind(), RequestErrorKind::Tls);
+        assert!(!alpn.is_retryable_connection_setup());
+
+        // A connect error wrapped after selection belongs to the selected protocol.
+        let selected = RequestError::http1_or_2_connection_setup(Http1Or2TlsError::Http2(
+            Http2TlsError::Connect(io_error()),
+        ));
+        assert_eq!(selected.protocol(), Some(HttpProtocol::Http2));
+        assert!(!selected.is_retryable_connection_setup());
     }
 
     #[test]

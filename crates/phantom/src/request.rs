@@ -219,8 +219,9 @@ impl RequestBuilder {
 
     /// Replaces the client's connection-establishment retry policy for this request.
     ///
-    /// The policy applies only to exact H1, H2, or H3 connection acquisition
-    /// before request dispatch. Negotiated H1/H2 requests are not retried.
+    /// The policy applies to exact H1, H2, or H3 connection acquisition and to
+    /// negotiated H1/H2 TCP connection setup before ALPN selection, always
+    /// before request dispatch. Negotiated TLS and ALPN failures are terminal.
     pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.retry_policy = Some(policy);
         self
@@ -258,7 +259,8 @@ impl RequestBuilder {
     /// retried once on the client's replacement connection. Dropping this
     /// future cancels the in-flight operation; returned bodies retain protocol
     /// cancellation. An opt-in [`RetryPolicy`] can retry eligible exact-protocol
-    /// connection setup without replaying request bytes or body frames.
+    /// or pre-ALPN negotiated connection setup without replaying request bytes
+    /// or body frames.
     ///
     /// # Errors
     ///

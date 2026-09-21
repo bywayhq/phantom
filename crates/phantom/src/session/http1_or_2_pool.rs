@@ -27,6 +27,7 @@ use super::{
 use crate::{
     HttpProtocol, RequestError, ResponseBody,
     authority::Endpoint,
+    retry::{ConnectionSetupRetryState, acquire_unselected_with_retries},
     timeout::{TimeoutBudget, TimeoutPhase},
 };
 
@@ -69,6 +70,7 @@ impl Http1Or2Pool {
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
     ) -> Result<(Response<ResponseBody>, HttpProtocol, Vec<RequestHeader>), RequestError> {
         let http1_sent_headers = prepare_headers(client_hints, http1_headers, None);
         let http2_validation_headers = prepare_headers(client_hints, http2_headers.clone(), None);
@@ -117,7 +119,14 @@ impl Http1Or2Pool {
             )
             .await?;
         let (lease, permit) = entry
-            .acquire_selected(connector, endpoint, request_span, selection, timeout_budget)
+            .acquire_selected(
+                connector,
+                endpoint,
+                request_span,
+                selection,
+                timeout_budget,
+                retries,
+            )
             .await?;
         entry
             .dispatch_on_lease(lease, permit, request, timeout_budget)
@@ -241,8 +250,9 @@ impl PoolEntry {
 
     /// Phase two: acquires a selected-protocol lease and converts admission.
     ///
-    /// `selection` stays held until the selected protocol admits the request,
-    /// so the request is always counted by one bounded admission.
+    /// `selection` stays held across setup retry delays and until the selected
+    /// protocol admits the request, so the request is always counted by one
+    /// bounded admission. The connection lock is released before any delay.
     async fn acquire_selected(
         &self,
         connector: &Http1Or2TlsConnector,
@@ -250,15 +260,13 @@ impl PoolEntry {
         request_span: &Span,
         selection: AdmissionPermit,
         timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
     ) -> Result<(ConnectionLease, AdmissionPermit), RequestError> {
         loop {
-            let lease = timeout_budget
-                .run(
-                    TimeoutPhase::Connect,
-                    None,
-                    self.acquire(connector, endpoint),
-                )
-                .await?;
+            let lease = acquire_unselected_with_retries(timeout_budget, retries, || {
+                self.acquire(connector, endpoint)
+            })
+            .await?;
             let protocol = lease.protocol();
             request_span.record("selected_protocol", protocol.trace_name());
             let permit = timeout_budget
@@ -425,7 +433,7 @@ impl PoolEntry {
         let connection = connector
             .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
             .await
-            .map_err(RequestError::http1_or_2)?;
+            .map_err(RequestError::http1_or_2_connection_setup)?;
         let slot = ConnectionSlot {
             connection: connection.into(),
             token: Arc::new(()),

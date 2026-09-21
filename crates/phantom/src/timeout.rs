@@ -213,11 +213,11 @@ impl TimeoutBudget {
     pub(crate) async fn delay(
         self,
         duration: Duration,
-        protocol: HttpProtocol,
+        protocol: Option<HttpProtocol>,
     ) -> Result<(), RequestError> {
         let now = Instant::now();
         if self.total_deadline.is_some_and(|deadline| deadline <= now) {
-            return Err(RequestError::timeout(TimeoutPhase::Total, Some(protocol)));
+            return Err(RequestError::timeout(TimeoutPhase::Total, protocol));
         }
         if duration.is_zero() {
             return Ok(());
@@ -232,7 +232,7 @@ impl TimeoutBudget {
         let mut timer = DeadlineTimer::new(deadline)?;
         poll_fn(|context| timer.poll_expired(context)).await?;
         if total_expires_first {
-            return Err(RequestError::timeout(TimeoutPhase::Total, Some(protocol)));
+            return Err(RequestError::timeout(TimeoutPhase::Total, protocol));
         }
         Ok(())
     }

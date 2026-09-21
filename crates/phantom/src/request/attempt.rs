@@ -173,7 +173,7 @@ async fn send_once_negotiated(
     let AttemptLifecycle {
         request_span,
         timeout_budget,
-        retries: _,
+        retries,
         replays,
     } = lifecycle;
     let endpoint = &request.endpoint;
@@ -211,6 +211,7 @@ async fn send_once_negotiated(
                 prepared.client_hints,
                 prepared.body,
                 timeout_budget,
+                retries,
             )
             .await?;
 

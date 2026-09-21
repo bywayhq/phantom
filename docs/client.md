@@ -122,10 +122,10 @@ attempt.
 
 ## Connection retries
 
-`RetryPolicy::connection_failures` opts exact H1, H2, and H3 requests into a
-finite number of connection-setup retries with a constant caller-selected
-delay. The default is `RetryPolicy::none()`. A request-level policy replaces
-the client's default.
+`RetryPolicy::connection_failures` opts exact H1, H2, and H3 requests and
+negotiated H1/H2 requests into a finite number of connection-setup retries with
+a constant caller-selected delay. The default is `RetryPolicy::none()`. A
+request-level policy replaces the client's default.
 
 The retry boundary is inside the selected protocol pool, after admission and
 before origin request dispatch. DNS, direct TCP, forward-proxy TCP, proxy TCP,
@@ -135,13 +135,23 @@ ALPN, proxy negotiation/authentication/rejection, timeouts, HTTP responses,
 and protocol or post-dispatch failures remain terminal. The route and exact
 protocol never change, and exhaustion returns the last original error.
 
+A negotiated request retries only a direct TCP connect failure, before TLS
+starts and therefore before ALPN selects H1 or H2; the error reports no
+protocol. TLS, certificate, and ALPN failures are terminal. The request first
+takes a bounded per-origin pre-selection admission, whose active and waiting
+limits are the larger of the H1 and H2 limits, and keeps it across the retry
+delay. After ALPN it converts to the selected protocol's admission. A request
+beyond the pre-selection bound fails with `RequestErrorKind::Capacity` and no
+protocol. The connection lock is released during the delay, so another
+request may install a connection that the delayed request then reuses.
+
 Because a setup retry occurs before the body is polled or moved to a protocol
 stream, it is safe for every method and for one-shot streaming bodies; Phantom
 does not replay request bytes. One retry budget spans redirects, proxy-auth or
 client-hint connection attempts, and H2 replacement connections. Each setup
 attempt receives a fresh connect-phase timeout, while the total timeout remains
-absolute across delays and attempts. Negotiated H1/H2 is deliberately excluded
-until it has bounded pre-selection admission.
+absolute across delays and attempts. Negotiated requests share the same
+budget, including across redirects and client-hint replays.
 
 ## Routes and proxies
 

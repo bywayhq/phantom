@@ -56,12 +56,15 @@ future DNS state remain client-scoped rather than process-global.
 Connection retries are also request-scoped. One finite budget spans every
 redirect hop and internal replacement connection. Exact H1, H2, and H3 pools
 may consume that budget only around typed connection acquisition, before the
-origin request body is polled or request bytes are dispatched. The admission
-permit remains held across the delay, but no pool-entry connection lock does.
-This keeps bounds and queue order stable while allowing another multiplexed
-request to install a compatible generation. Retry never changes the route or
-protocol, and negotiated H1/H2 remains excluded until pre-selection admission
-has an explicit owner.
+origin request body is polled or request bytes are dispatched. The negotiated
+H1/H2 pool may consume it only for a TCP connect failure before TLS, so ALPN
+has not selected a protocol; TLS and ALPN failures stay terminal. A negotiated
+request first takes a bounded pre-selection admission, sized by the larger H1
+or H2 active and waiting limits, and converts it to the selected protocol's
+admission after ALPN. The admission permit remains held across the delay, but
+no pool-entry connection lock does. This keeps bounds and queue order stable
+while allowing another request to install a compatible generation. Retry
+never changes the route, the exact protocol, or the negotiated selection rule.
 
 ## Async and features
 
@@ -111,8 +114,9 @@ failures return typed errors; runtime library code must not panic.
   reconstructs ordered values; each transport validates and emits its own wire
   representation without permitting static/dynamic ambiguity or replay.
 - Routing resolves before connection setup and is part of pool identity.
-- Setup retries remain inside exact-protocol pools and cannot absorb TLS,
-  proxy negotiation, response, or post-dispatch failures.
+- Setup retries remain inside exact-protocol pools and the negotiated pool's
+  pre-TLS connect step, and cannot absorb TLS, ALPN, proxy negotiation,
+  response, or post-dispatch failures.
 - SSE and WebSocket reuse client contracts without hiding their distinct
   lifecycles. H2 WebSocket uses a dedicated extended-CONNECT connection so its
   five-field pseudo-header order cannot alter ordinary pooled H2 requests; the
