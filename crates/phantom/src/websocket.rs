@@ -142,10 +142,11 @@ impl WebSocketRequestBuilder {
 
     /// Performs the ordered opening handshake over the selected exact protocol.
     ///
-    /// HTTP/1.1 sends an Upgrade and requires `101`; HTTP/2 sends RFC 8441
-    /// extended CONNECT on a dedicated connection, requires a profile with an
-    /// extended-CONNECT pseudo-header order and a peer that enables it, and
-    /// accepts a 2xx response.
+    /// HTTP/1.1 sends an Upgrade and requires `101`. HTTP/2 sends RFC 8441
+    /// extended CONNECT on a dedicated connection, opened directly or through
+    /// an HTTP CONNECT or SOCKS5 tunnel; it requires `wss://`, a profile with
+    /// an extended-CONNECT pseudo-header order, and a peer that enables it,
+    /// and accepts a 2xx response.
     ///
     /// The client's [`RequestTimeouts`](crate::RequestTimeouts),
     /// [`RetryPolicy`](crate::RetryPolicy), and

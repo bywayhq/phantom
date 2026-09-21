@@ -164,9 +164,11 @@ impl Client {
 
     /// Starts one ordered WebSocket opening handshake using exactly `protocol`.
     ///
-    /// HTTP/2 uses RFC 8441 extended CONNECT and currently supports direct
-    /// `wss://` only. It requires an explicit extended-CONNECT pseudo-header
-    /// order in the HTTP/2 profile and never falls back to HTTP/1.1.
+    /// HTTP/2 uses RFC 8441 extended CONNECT and supports `wss://` only, over
+    /// direct, HTTP CONNECT, or SOCKS5 routes. It requires an explicit
+    /// extended-CONNECT pseudo-header order in the HTTP/2 profile and never
+    /// falls back to HTTP/1.1. HTTP/3 is rejected when the builder is created.
+    /// Client timeouts, retry, and redirect policy do not apply.
     #[cfg(feature = "websocket")]
     pub fn websocket_with_protocol(
         &self,
