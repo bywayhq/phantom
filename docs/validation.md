@@ -242,8 +242,9 @@ handshake refused with `CONNECTION_REFUSED` fails without a policy and
 succeeds with one retry. Over local-DNS SOCKS5, a refused proxy TCP connect is
 retried and the proxy is started only after the refusal is observed, and a
 QUIC handshake refused through an established UDP association is retried
-through a second association with a different relay address after the first
-has closed. Each successful response reports one setup retry. CONNECT-UDP
+through a second association with a different relay address; the fixture
+serves that association only after the first one's TCP control connection has
+closed. Each successful response reports one setup retry. CONNECT-UDP
 evidence is narrower: an unresolvable outer proxy consumes the whole budget,
 and proxy rejection and inner TLS failure are terminal, but recovery after a
 CONNECT-UDP retry is not exercised. Remote-DNS SOCKS5 H3 and DNS or local
