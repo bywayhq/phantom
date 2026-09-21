@@ -29,7 +29,7 @@ pub use body::Http3Body;
 pub use connect_udp::{ConnectUdpError, ConnectUdpErrorKind};
 pub use connection::Http3Connection;
 pub use connector::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
-pub use error::{Http3Error, Http3ErrorKind};
+pub use error::{Http3Error, Http3ErrorKind, Http3Unprocessed};
 pub use extended_connect::{
     Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol,
 };

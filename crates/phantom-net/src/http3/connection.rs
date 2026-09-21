@@ -120,7 +120,10 @@ impl Http3Connection {
             let (stream, mut datagrams) = {
                 let mut sender = self.inner.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
-                let stream = sender.send_request(request).await?;
+                let stream = sender
+                    .send_request(request)
+                    .await
+                    .map_err(Http3Error::request_open)?;
                 // Registering under the send lock keeps datagram monitors in
                 // stream-ID order, which the router relies on to drop
                 // datagrams for closed streams.
@@ -144,7 +147,9 @@ impl Http3Connection {
             let response = match exchange_result {
                 Ok(response) => response,
                 Err(ResponseHeadError::RequestBody(error)) => return Err(error),
-                Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
+                Err(ResponseHeadError::Stream(error)) => {
+                    return Err(Http3Error::request_stream(error));
+                }
                 Err(ResponseHeadError::UnsupportedDatagram) => {
                     datagrams.take();
                     let recv = pending.into_recv()?;

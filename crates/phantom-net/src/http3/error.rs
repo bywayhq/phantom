@@ -45,11 +45,33 @@ impl Http3ErrorKind {
     }
 }
 
+/// Peer signal that a request was not processed and may be sent again.
+///
+/// A request carrying this signal was either refused by the peer before any
+/// processing or never sent at all. No response head was received.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3Unprocessed {
+    /// The peer reset the request stream or stopped reading it with
+    /// `H3_REQUEST_REJECTED` before a response head. RFC 9114, section 4.1.1,
+    /// forbids that code for a request that was partially or fully processed.
+    RequestRejected,
+    /// The peer's `GOAWAY` was received before this request opened a stream,
+    /// so the request was never sent. RFC 9114, section 5.2, forbids new
+    /// requests on a connection after its `GOAWAY`.
+    ///
+    /// A request whose stream was already open when `GOAWAY` arrived is never
+    /// reported here: the HTTP/3 backend does not expose the `GOAWAY`
+    /// identifier needed to prove that its stream was not processed.
+    GoAway,
+}
+
 /// Error returned by a forced HTTP/3 transaction.
 #[derive(Debug)]
 pub struct Http3Error {
     kind: Http3ErrorKind,
     message: &'static str,
+    unprocessed: Option<Http3Unprocessed>,
     source: Option<Box<dyn StdError + Send + Sync>>,
 }
 
@@ -62,6 +84,7 @@ impl Http3Error {
         Self {
             kind,
             message,
+            unprocessed: None,
             source: Some(Box::new(source)),
         }
     }
@@ -70,6 +93,7 @@ impl Http3Error {
         Self {
             kind,
             message,
+            unprocessed: None,
             source: None,
         }
     }
@@ -82,15 +106,58 @@ impl Http3Error {
         )
     }
 
+    /// Classifies a failure to open a request stream.
+    ///
+    /// `RemoteClosing` here means the peer's `GOAWAY` arrived before the
+    /// stream was opened, so no request byte was sent.
+    pub(super) fn request_open(error: h3::error::StreamError) -> Self {
+        let unprocessed = match &error {
+            h3::error::StreamError::RemoteClosing => Some(Http3Unprocessed::GoAway),
+            _ => rejected(&error),
+        };
+        Self {
+            unprocessed,
+            ..Self::from(error)
+        }
+    }
+
+    /// Classifies a request-stream failure observed before any response head.
+    pub(super) fn request_stream(error: h3::error::StreamError) -> Self {
+        Self {
+            unprocessed: rejected(&error),
+            ..Self::from(error)
+        }
+    }
+
     /// Returns the stable failure category.
     #[must_use]
     pub const fn kind(&self) -> Http3ErrorKind {
         self.kind
     }
 
+    /// Returns the peer's signal that this request was not processed.
+    ///
+    /// Only a request that failed before its response head can carry a
+    /// signal. `None` means the request may have been processed.
+    #[must_use]
+    pub const fn unprocessed(&self) -> Option<Http3Unprocessed> {
+        self.unprocessed
+    }
+
     pub(super) const fn trace_kind(&self) -> &'static str {
         self.kind.trace_name()
     }
+}
+
+/// `RemoteTerminate` covers both a received `RESET_STREAM` and a received
+/// `STOP_SENDING` on the request stream.
+fn rejected(error: &h3::error::StreamError) -> Option<Http3Unprocessed> {
+    matches!(
+        error,
+        h3::error::StreamError::RemoteTerminate { code, .. }
+            if *code == h3::error::Code::H3_REQUEST_REJECTED
+    )
+    .then_some(Http3Unprocessed::RequestRejected)
 }
 
 impl fmt::Display for Http3Error {
