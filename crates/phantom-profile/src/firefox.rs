@@ -8,7 +8,10 @@ use crate::{
     },
 };
 
-/// Returns TLS settings captured from Firefox 154.0 on macOS 15.5.
+/// Returns TLS settings captured from Firefox 154.0 on macOS 15.5 and Windows 11.
+///
+/// Captures on both platforms (Windows 11 build 26200) match this recipe on
+/// every compared field, so the name carries no platform.
 ///
 /// The fixed extension order and exact ECH GREASE payload length retain the
 /// stable wire shape observed across the local captures. Firefox picks its ECH
@@ -20,7 +23,7 @@ use crate::{
 /// [`TlsSettings`], so callers can customize it before constructing a
 /// transport.
 #[must_use]
-pub fn v154_macos_tls() -> TlsSettings {
+pub fn v154_tls() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,
         max_version: TlsVersion::Tls13,
@@ -113,7 +116,10 @@ pub fn v154_macos_tls() -> TlsSettings {
     }
 }
 
-/// Returns HTTP/2 settings observed from Firefox 154.0 on macOS 15.5.
+/// Returns HTTP/2 settings observed from Firefox 154.0 on macOS 15.5 and Windows 11.
+///
+/// Captures on both platforms (Windows 11 build 26200) match this recipe on
+/// every compared field, so the name carries no platform.
 ///
 /// The initial SETTINGS and connection window come from the retained local raw
 /// startup-frame capture. Pseudo-header order and request priority come from
@@ -122,7 +128,7 @@ pub fn v154_macos_tls() -> TlsSettings {
 /// [`Http2Settings`], so callers can customize it before constructing a
 /// transport.
 #[must_use]
-pub fn v154_macos_http2() -> Http2Settings {
+pub fn v154_http2() -> Http2Settings {
     Http2Settings {
         initial_settings: vec![
             Http2Setting::HeaderTableSize(65_536),
@@ -144,6 +150,23 @@ pub fn v154_macos_http2() -> Http2Settings {
             exclusive: false,
         }),
     }
+}
+
+// Compatibility aliases for the names used before the Windows parity
+// captures showed these transport recipes are platform-independent.
+
+/// Compatibility alias for [`v154_tls`].
+#[doc(hidden)]
+#[must_use]
+pub fn v154_macos_tls() -> TlsSettings {
+    v154_tls()
+}
+
+/// Compatibility alias for [`v154_http2`].
+#[doc(hidden)]
+#[must_use]
+pub fn v154_macos_http2() -> Http2Settings {
+    v154_http2()
 }
 
 #[cfg(test)]

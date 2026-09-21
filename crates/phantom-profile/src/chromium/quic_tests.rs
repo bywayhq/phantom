@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::v152_macos_quic;
+use super::v152_quic;
 use crate::quic::{
     GoogleConnectionOption, QuicTransportParameterKind, QuicTransportParameterOrder,
     QuicVarIntWidth, QuicVersionGrease,
@@ -28,7 +28,7 @@ fn chrome_152_quic_recipe_matches_windows_chrome_for_testing_capture()
 }
 
 fn assert_quic_settings_match_startup(fixture: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v152_macos_quic();
+    let settings = v152_quic();
     settings.validate()?;
     let mut captured = parse_quic_transport_parameters(fixture)?;
 

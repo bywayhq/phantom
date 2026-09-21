@@ -2,7 +2,7 @@ use crate::{
     Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder,
 };
 
-use super::{v152_macos_http3, v152_macos_http3_request};
+use super::{v152_http3, v152_http3_request};
 
 const FIXTURE: &str =
     include_str!("../../../../fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt");
@@ -75,7 +75,7 @@ fn decode_ascii_hex(encoded: &str) -> Result<String, Box<dyn std::error::Error>>
 }
 
 fn assert_settings_match_control_stream(fixture: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let profile = v152_macos_http3();
+    let profile = v152_http3();
     assert_eq!(profile.setting_order, Http3SettingOrder::Ascending);
     assert_eq!(profile.qpack_encoding, Http3QpackEncoding::Dynamic);
     assert_eq!(
@@ -83,7 +83,7 @@ fn assert_settings_match_control_stream(fixture: &str) -> Result<(), Box<dyn std
         Http3QpackDecoderStream::OnFeedback
     );
     assert_eq!(
-        v152_macos_http3_request().pseudo_header_order,
+        v152_http3_request().pseudo_header_order,
         [
             Http3PseudoHeader::Method,
             Http3PseudoHeader::Authority,
@@ -148,7 +148,7 @@ fn fixture_value(fixture: &str, index: usize) -> u64 {
 #[test]
 fn named_http3_recipes_leave_extended_connect_order_unset() {
     assert_eq!(
-        v152_macos_http3_request().extended_connect_pseudo_header_order,
+        v152_http3_request().extended_connect_pseudo_header_order,
         None
     );
 }

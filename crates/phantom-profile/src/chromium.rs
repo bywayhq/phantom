@@ -19,7 +19,7 @@ use crate::quic::{
     QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
 };
 
-const V152_MACOS_TRUST_ANCHOR_IDS: &[&[u8]] = &[
+const V152_TRUST_ANCHOR_IDS: &[&[u8]] = &[
     &[0xd6, 0x79, 0x09, 0x06],
     &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x07],
     &[0xd6, 0x79, 0x09, 0x0c],
@@ -85,13 +85,17 @@ pub fn v152_macos_client_hints() -> ClientHintSettings {
     ])
 }
 
-/// Returns TLS settings captured from Chrome 152.0.7977.83 on macOS 15.5.
+/// Returns TLS settings captured from Chrome 152.0.7977.83 on macOS 15.5 and Windows 11.
+///
+/// The macOS capture is branded Chrome; the Windows 11 (build 26200) capture is
+/// Chrome for Testing launched with `--disable-field-trial-config`. Both match
+/// this recipe on every compared field, so the name carries no platform.
 ///
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport. Its wire-relevant defaults
 /// are checked against the retained ClientHello fixture in `phantom-net`.
 #[must_use]
-pub fn v152_macos_tls() -> TlsSettings {
+pub fn v152_tls() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,
         max_version: TlsVersion::Tls13,
@@ -143,7 +147,7 @@ pub fn v152_macos_tls() -> TlsSettings {
         session_tickets: true,
         record_size_limit: None,
         requested_trust_anchor_ids: Some(
-            V152_MACOS_TRUST_ANCHOR_IDS
+            V152_TRUST_ANCHOR_IDS
                 .iter()
                 .map(|id| Box::from(*id))
                 .collect(),
@@ -159,7 +163,11 @@ pub fn v152_macos_tls() -> TlsSettings {
     }
 }
 
-/// Returns HTTP/2 settings observed from Chrome 152.0.7977.83 on macOS 15.5.
+/// Returns HTTP/2 settings observed from Chrome 152.0.7977.83 on macOS 15.5 and Windows 11.
+///
+/// The macOS capture is branded Chrome; the Windows 11 (build 26200) capture is
+/// Chrome for Testing launched with `--disable-field-trial-config`. Both match
+/// this recipe on every compared field, so the name carries no platform.
 ///
 /// The initial SETTINGS and connection window are checked against a retained
 /// raw startup-frame capture. Pseudo-header order and request priority come
@@ -167,7 +175,7 @@ pub fn v152_macos_tls() -> TlsSettings {
 /// owned [`Http2Settings`], so callers can customize it before constructing a
 /// transport.
 #[must_use]
-pub fn v152_macos_http2() -> Http2Settings {
+pub fn v152_http2() -> Http2Settings {
     Http2Settings {
         initial_settings: vec![
             Http2Setting::HeaderTableSize(65_536),
@@ -191,13 +199,17 @@ pub fn v152_macos_http2() -> Http2Settings {
     }
 }
 
-/// Returns HTTP/3 settings observed from Chrome 152 on macOS 15.5.
+/// Returns HTTP/3 settings observed from Chrome 152.0.7977.83 on macOS 15.5 and Windows 11.
+///
+/// The macOS capture is branded Chrome; the Windows 11 (build 26200) capture is
+/// Chrome for Testing launched with `--disable-field-trial-config`. Both match
+/// this recipe on every compared field, so the name carries no platform.
 ///
 /// The fixed values, ascending order, and randomized reserved setting are
 /// checked against a retained raw control-stream capture. The returned value
 /// is owned and can be customized before constructing a transport.
 #[must_use]
-pub fn v152_macos_http3() -> Http3Settings {
+pub fn v152_http3() -> Http3Settings {
     Http3Settings {
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
@@ -212,14 +224,18 @@ pub fn v152_macos_http3() -> Http3Settings {
     }
 }
 
-/// Returns TLS settings for the Chrome 152 HTTP/3 offer on macOS 15.5.
+/// Returns TLS settings for the Chrome 152.0.7977.83 HTTP/3 offer on macOS 15.5 and Windows 11.
+///
+/// The macOS capture is branded Chrome; the Windows 11 (build 26200) capture is
+/// Chrome for Testing launched with `--disable-field-trial-config`. Both match
+/// this recipe on every compared field, so the name carries no platform.
 ///
 /// The wire-visible offer fields come from retained ClientHellos. The empty
 /// application-settings value follows Chromium's QUIC configuration. The
 /// returned value is owned and can be customized before transport setup.
 #[must_use]
-pub fn v152_macos_http3_tls() -> TlsSettings {
-    let mut settings = v152_macos_tls();
+pub fn v152_http3_tls() -> TlsSettings {
+    let mut settings = v152_tls();
     settings.min_version = TlsVersion::Tls13;
     settings.max_version = TlsVersion::Tls13;
     settings.cipher_suites = vec![
@@ -252,9 +268,14 @@ pub fn v152_macos_http3_tls() -> TlsSettings {
     settings
 }
 
-/// Returns HTTP/3 request ordering observed from Chrome 152 on macOS 15.5.
+/// Returns HTTP/3 request ordering observed from Chrome 152.0.7977.83 on macOS 15.5 and
+/// Windows 11.
+///
+/// The macOS capture is branded Chrome; the Windows 11 (build 26200) capture is
+/// Chrome for Testing launched with `--disable-field-trial-config`. Both match
+/// this recipe on every compared field, so the name carries no platform.
 #[must_use]
-pub fn v152_macos_http3_request() -> Http3RequestSettings {
+pub fn v152_http3_request() -> Http3RequestSettings {
     Http3RequestSettings {
         pseudo_header_order: vec![
             Http3PseudoHeader::Method,
@@ -266,15 +287,20 @@ pub fn v152_macos_http3_request() -> Http3RequestSettings {
     }
 }
 
-/// Returns QUIC transport settings observed from Chrome 152.0.7977.83 on macOS 15.5.
+/// Returns QUIC transport settings observed from Chrome 152.0.7977.83 on macOS 15.5 and
+/// Windows 11.
+///
+/// The macOS capture is branded Chrome; the Windows 11 (build 26200) capture is
+/// Chrome for Testing launched with `--disable-field-trial-config`. Both match
+/// this recipe on every compared field, so the name carries no platform.
 ///
 /// The parameter vector retains one captured order as a permutation template;
 /// Chrome varies that order between connections. Connection IDs, the reserved
 /// version, and the reserved transport parameter remain runtime-generated.
-/// This is a QUIC transport recipe; use it with [`v152_macos_http3`] for the
+/// This is a QUIC transport recipe; use it with [`v152_http3`] for the
 /// HTTP/3 application settings captured from the same client.
 #[must_use]
-pub fn v152_macos_quic() -> QuicTransportSettings {
+pub fn v152_quic() -> QuicTransportSettings {
     use QuicTransportParameterKind as Kind;
     use QuicVarIntWidth::{Eight, Four, One, Two};
 
@@ -341,6 +367,51 @@ pub fn v152_macos_quic() -> QuicTransportSettings {
         ],
         parameter_order: QuicTransportParameterOrder::Permuted,
     }
+}
+
+// Compatibility aliases for the names used before the Windows parity
+// captures showed these transport recipes are platform-independent.
+
+/// Compatibility alias for [`v152_tls`].
+#[doc(hidden)]
+#[must_use]
+pub fn v152_macos_tls() -> TlsSettings {
+    v152_tls()
+}
+
+/// Compatibility alias for [`v152_http2`].
+#[doc(hidden)]
+#[must_use]
+pub fn v152_macos_http2() -> Http2Settings {
+    v152_http2()
+}
+
+/// Compatibility alias for [`v152_http3`].
+#[doc(hidden)]
+#[must_use]
+pub fn v152_macos_http3() -> Http3Settings {
+    v152_http3()
+}
+
+/// Compatibility alias for [`v152_http3_tls`].
+#[doc(hidden)]
+#[must_use]
+pub fn v152_macos_http3_tls() -> TlsSettings {
+    v152_http3_tls()
+}
+
+/// Compatibility alias for [`v152_http3_request`].
+#[doc(hidden)]
+#[must_use]
+pub fn v152_macos_http3_request() -> Http3RequestSettings {
+    v152_http3_request()
+}
+
+/// Compatibility alias for [`v152_quic`].
+#[doc(hidden)]
+#[must_use]
+pub fn v152_macos_quic() -> QuicTransportSettings {
+    v152_quic()
 }
 
 #[cfg(test)]

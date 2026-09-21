@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::{v152_macos_client_hints, v152_macos_http2, v152_macos_http3_tls, v152_macos_tls};
+use super::{v152_http2, v152_http3_tls, v152_macos_client_hints, v152_tls};
 use crate::client_hints::ClientHintDelivery;
 use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
 
@@ -57,7 +57,7 @@ fn chrome_152_macos_client_hints_match_isolated_navigation_capture()
 
 #[test]
 fn chrome_152_macos_tls_settings_are_valid() -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v152_macos_tls();
+    let settings = v152_tls();
     settings.validate()?;
     let alps = settings.alps.ok_or("Chrome TLS profile omitted ALPS")?;
     assert_eq!(alps.protocol.as_ref(), b"h2");
@@ -68,7 +68,7 @@ fn chrome_152_macos_tls_settings_are_valid() -> Result<(), Box<dyn std::error::E
 
 #[test]
 fn chrome_152_macos_http3_tls_settings_are_valid() -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v152_macos_http3_tls();
+    let settings = v152_http3_tls();
     settings.validate()?;
     assert_eq!(settings.min_version, crate::tls::TlsVersion::Tls13);
     assert_eq!(settings.max_version, crate::tls::TlsVersion::Tls13);
@@ -111,7 +111,7 @@ fn chrome_152_macos_http2_settings_match_retained_pingly_observation()
     };
     observed.validate()?;
 
-    assert_eq!(v152_macos_http2(), observed);
+    assert_eq!(v152_http2(), observed);
     assert_eq!(window_increment, 15_663_105);
     assert_eq!(initial_connection_window_size, 15_728_640);
     assert_eq!(
@@ -277,4 +277,17 @@ fn parse_bool(value: &str) -> Result<bool, Box<dyn std::error::Error>> {
         "false" => Ok(false),
         _ => Err(format!("invalid boolean {value}").into()),
     }
+}
+
+#[test]
+fn chrome_152_compatibility_aliases_return_the_renamed_recipes() {
+    assert_eq!(super::v152_macos_tls(), super::v152_tls());
+    assert_eq!(super::v152_macos_http2(), super::v152_http2());
+    assert_eq!(super::v152_macos_http3(), super::v152_http3());
+    assert_eq!(super::v152_macos_http3_tls(), super::v152_http3_tls());
+    assert_eq!(
+        super::v152_macos_http3_request(),
+        super::v152_http3_request()
+    );
+    assert_eq!(super::v152_macos_quic(), super::v152_quic());
 }

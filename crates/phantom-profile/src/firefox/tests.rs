@@ -1,4 +1,4 @@
-use super::{v154_macos_http2, v154_macos_tls};
+use super::{v154_http2, v154_tls};
 use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting};
 use crate::tls::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
@@ -21,7 +21,7 @@ const PINGLY_FIXTURE: &str = include_str!(concat!(
 #[test]
 fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::error::Error>>
 {
-    let settings = v154_macos_tls();
+    let settings = v154_tls();
     settings.validate()?;
 
     assert_eq!(settings.min_version, TlsVersion::Tls12);
@@ -147,7 +147,7 @@ fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn 
 #[test]
 fn firefox_154_macos_http2_startup_matches_local_capture() -> Result<(), Box<dyn std::error::Error>>
 {
-    let settings = v154_macos_http2();
+    let settings = v154_http2();
     settings.validate()?;
 
     assert_eq!(
@@ -179,7 +179,7 @@ fn firefox_154_macos_http2_startup_matches_local_capture() -> Result<(), Box<dyn
 #[test]
 fn firefox_154_macos_request_shape_matches_supplemental_observations()
 -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v154_macos_http2();
+    let settings = v154_http2();
     let expected_order = [
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Path,
@@ -221,4 +221,10 @@ fn fixture_value<'a>(
             (key == expected_key).then_some(value)
         })
         .ok_or_else(|| format!("fixture omitted {expected_key}").into())
+}
+
+#[test]
+fn firefox_154_compatibility_aliases_return_the_renamed_recipes() {
+    assert_eq!(super::v154_macos_tls(), super::v154_tls());
+    assert_eq!(super::v154_macos_http2(), super::v154_http2());
 }

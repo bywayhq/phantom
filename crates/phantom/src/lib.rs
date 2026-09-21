@@ -79,13 +79,22 @@ pub mod profile {
     /// Chromium-family recipes implemented by the public facade.
     pub mod chromium {
         pub use phantom_profile::chromium::{
-            v152_macos_client_hints, v152_macos_http2, v152_macos_http3, v152_macos_http3_request,
-            v152_macos_http3_tls, v152_macos_quic, v152_macos_tls,
+            v152_http2, v152_http3, v152_http3_request, v152_http3_tls, v152_macos_client_hints,
+            v152_quic, v152_tls,
+        };
+
+        #[doc(hidden)]
+        pub use phantom_profile::chromium::{
+            v152_macos_http2, v152_macos_http3, v152_macos_http3_request, v152_macos_http3_tls,
+            v152_macos_quic, v152_macos_tls,
         };
     }
 
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
+        pub use phantom_profile::firefox::{v154_http2, v154_tls};
+
+        #[doc(hidden)]
         pub use phantom_profile::firefox::{v154_macos_http2, v154_macos_tls};
     }
 
