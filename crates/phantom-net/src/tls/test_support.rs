@@ -46,6 +46,10 @@ pub(crate) struct TestIdentity {
 
 impl TestIdentity {
     pub(crate) fn generate() -> TestResult<Self> {
+        Self::generate_for_names(&[TEST_SERVER_NAME])
+    }
+
+    pub(crate) fn generate_for_names(names: &[&str]) -> TestResult<Self> {
         let mut root_params = CertificateParams::new(Vec::<String>::new())?;
         root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
         root_params.key_usages = vec![
@@ -55,7 +59,12 @@ impl TestIdentity {
         ];
         let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
 
-        let mut leaf_params = CertificateParams::new(vec![TEST_SERVER_NAME.to_owned()])?;
+        let mut leaf_params = CertificateParams::new(
+            names
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect::<Vec<_>>(),
+        )?;
         leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
         leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
         leaf_params.use_authority_key_identifier_extension = true;

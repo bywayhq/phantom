@@ -325,11 +325,11 @@ impl TlsConnector {
             }
 
             let ssl = if let Some(cache) = &self.session_cache {
-                let session = cache.take();
+                let session = cache.take(server_name);
                 let reusable = session
                     .as_ref()
                     .is_some_and(|session| !session.should_be_single_use());
-                let capture = cache.begin_handshake();
+                let capture = cache.begin_handshake(server_name);
                 let callback_capture = capture.clone();
                 let ssl = configuration
                     .into_ssl_with_scoped_session(
@@ -379,7 +379,7 @@ impl TlsConnector {
                 if let (Some(cache), Some(session)) =
                     (&self.session_cache, attempted_reusable_session)
                 {
-                    cache.restore(session);
+                    cache.restore(server_name, session);
                 }
             }
             span.record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));

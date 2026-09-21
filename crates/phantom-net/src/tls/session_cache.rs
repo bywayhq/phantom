@@ -21,6 +21,7 @@ pub(super) struct TlsSessionCache {
 #[derive(Clone)]
 pub(super) struct TlsSessionCapture {
     cache: TlsSessionCache,
+    hostname: Arc<str>,
     state: Arc<Mutex<CaptureState>>,
 }
 
@@ -33,36 +34,50 @@ struct CaptureState {
 #[derive(Default)]
 struct CacheInner {
     scope: SslSessionScope,
-    sessions: Mutex<VecDeque<ScopedSslSession>>,
+    sessions: Mutex<VecDeque<CachedSession>>,
+}
+
+/// A session with the verified hostname that authenticated it.
+///
+/// The TLS backend attaches a session only for its own hostname, so lookup
+/// must select by hostname rather than recency.
+struct CachedSession {
+    hostname: Arc<str>,
+    session: ScopedSslSession,
 }
 
 impl TlsSessionCache {
-    pub(super) fn begin_handshake(&self) -> TlsSessionCapture {
+    pub(super) fn begin_handshake(&self, hostname: &str) -> TlsSessionCapture {
         TlsSessionCapture {
             cache: self.clone(),
+            hostname: hostname.into(),
             state: Arc::default(),
         }
     }
 
-    fn insert(&self, session: ScopedSslSession) {
+    fn insert(&self, hostname: Arc<str>, session: ScopedSslSession) {
         let now = unix_time();
         let mut sessions = self.sessions();
         prune_expired(&mut sessions, now);
         if sessions.len() == MAX_SESSIONS {
             sessions.pop_front();
         }
-        sessions.push_back(session);
+        sessions.push_back(CachedSession { hostname, session });
     }
 
-    pub(super) fn take(&self) -> Option<ScopedSslSession> {
+    /// Removes the most recent unexpired session for `hostname`.
+    pub(super) fn take(&self, hostname: &str) -> Option<ScopedSslSession> {
         let now = unix_time();
         let mut sessions = self.sessions();
         prune_expired(&mut sessions, now);
-        sessions.pop_back()
+        let position = sessions
+            .iter()
+            .rposition(|cached| hostnames_match(&cached.hostname, hostname))?;
+        sessions.remove(position).map(|cached| cached.session)
     }
 
-    pub(super) fn restore(&self, session: ScopedSslSession) {
-        self.insert(session);
+    pub(super) fn restore(&self, hostname: &str, session: ScopedSslSession) {
+        self.insert(hostname.into(), session);
     }
 
     pub(super) fn scope(&self) -> &SslSessionScope {
@@ -74,7 +89,7 @@ impl TlsSessionCache {
         self.sessions().len()
     }
 
-    fn sessions(&self) -> MutexGuard<'_, VecDeque<ScopedSslSession>> {
+    fn sessions(&self) -> MutexGuard<'_, VecDeque<CachedSession>> {
         self.inner
             .sessions
             .lock()
@@ -98,7 +113,7 @@ impl TlsSessionCapture {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if state.authenticated {
             drop(state);
-            self.cache.insert(session);
+            self.cache.insert(Arc::clone(&self.hostname), session);
         } else {
             state.pending.push(session);
         }
@@ -115,14 +130,27 @@ impl TlsSessionCapture {
         };
         let count = pending.len();
         for session in pending {
-            self.cache.insert(session);
+            self.cache.insert(Arc::clone(&self.hostname), session);
         }
         count
     }
 }
 
-fn prune_expired(sessions: &mut VecDeque<ScopedSslSession>, now: u64) {
-    sessions.retain(|session| !is_expired(session, now));
+fn prune_expired(sessions: &mut VecDeque<CachedSession>, now: u64) {
+    sessions.retain(|cached| !is_expired(&cached.session, now));
+}
+
+/// Mirrors the TLS backend's session hostname binding: IP literals compare as
+/// addresses and DNS names compare ASCII case-insensitively.
+fn hostnames_match(established: &str, requested: &str) -> bool {
+    match (
+        established.parse::<std::net::IpAddr>(),
+        requested.parse::<std::net::IpAddr>(),
+    ) {
+        (Ok(established), Ok(requested)) => established == requested,
+        (Err(_), Err(_)) => established.eq_ignore_ascii_case(requested),
+        _ => false,
+    }
 }
 
 fn is_expired(session: &ScopedSslSession, now: u64) -> bool {

@@ -84,8 +84,10 @@ async fn session_capture_requires_authenticated_commit() -> TestResult<()> {
         .session_cache
         .as_ref()
         .ok_or("isolated connector omitted its session cache")?;
-    let first_session = cache.take().ok_or("first handshake omitted its session")?;
-    let pending = cache.begin_handshake();
+    let first_session = cache
+        .take(TEST_SERVER_NAME)
+        .ok_or("first handshake omitted its session")?;
+    let pending = cache.begin_handshake(TEST_SERVER_NAME);
     pending.capture(Ok(first_session));
     assert_eq!(cache.len(), 0);
     drop(pending);
@@ -93,19 +95,54 @@ async fn session_capture_requires_authenticated_commit() -> TestResult<()> {
 
     let second = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     drop(second);
-    let second_session = cache.take().ok_or("second handshake omitted its session")?;
-    let pending = cache.begin_handshake();
+    let second_session = cache
+        .take(TEST_SERVER_NAME)
+        .ok_or("second handshake omitted its session")?;
+    let pending = cache.begin_handshake(TEST_SERVER_NAME);
     pending.capture(Ok(second_session));
     assert_eq!(cache.len(), 0);
     assert_eq!(pending.commit_authenticated(), 1);
     assert_eq!(cache.len(), 1);
 
-    let committed_session = cache.take().ok_or("committed session was not retained")?;
-    let committed = cache.begin_handshake();
+    let committed_session = cache
+        .take(TEST_SERVER_NAME)
+        .ok_or("committed session was not retained")?;
+    let committed = cache.begin_handshake(TEST_SERVER_NAME);
     assert_eq!(committed.commit_authenticated(), 0);
     committed.capture(Ok(committed_session));
     assert_eq!(cache.len(), 1);
     tokio::time::timeout(TEST_TIMEOUT, server).await???;
+    Ok(())
+}
+
+#[tokio::test]
+async fn alternating_hosts_resume_their_own_sessions_on_one_isolated_connector() -> TestResult<()> {
+    const FIRST_HOST: &str = "first.phantom.test";
+    const SECOND_HOST: &str = "second.phantom.test";
+    let identity = TestIdentity::generate_for_names(&[FIRST_HOST, SECOND_HOST])?;
+    let acceptor = tls12_acceptor(&identity)?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let server = tokio::spawn(async move {
+        let mut resumed = Vec::new();
+        for _ in 0..4 {
+            let stream = accept_tls_from(&listener, &acceptor).await?;
+            resumed.push(stream.ssl().session_reused());
+        }
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(resumed)
+    });
+
+    let connector = TlsConnector::new_with_roots(&tls12_settings(), [identity.root_der()])?
+        .with_isolated_session_cache();
+    let mut client_resumed = Vec::new();
+    for host in [FIRST_HOST, SECOND_HOST, FIRST_HOST, SECOND_HOST] {
+        let stream = connect_local(&connector, address, host).await??;
+        client_resumed.push(stream.session_reused());
+    }
+
+    let server_resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+    assert_eq!(client_resumed, [false, false, true, true]);
+    assert_eq!(server_resumed, client_resumed);
     Ok(())
 }
 
