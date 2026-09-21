@@ -70,9 +70,12 @@ async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
         )?;
         found.into_body().collect().await?;
 
-        wait_for_first_drain
-            .await
-            .map_err(|_| "server stopped before the first connection drained")?;
+        if wait_for_first_drain.await.is_err() {
+            // The server dropped the signal because its task failed; report
+            // that failure rather than the lost signal.
+            server.await??;
+            return Err("server stopped before the first connection drained".into());
+        }
 
         let temporary = send_redirect_probe(&session, address, 307, b"probe-307").await?;
         assert_eq!(temporary.status(), StatusCode::OK);
