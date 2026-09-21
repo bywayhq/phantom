@@ -757,7 +757,7 @@ async fn goaway_stops_new_requests_without_cancelling_an_existing_body() -> Test
     goaway_received.await?;
 
     timeout(TEST_TIMEOUT, async {
-        while connection.is_reusable().await {
+        while connection.is_reusable() {
             tokio::task::yield_now().await;
         }
     })

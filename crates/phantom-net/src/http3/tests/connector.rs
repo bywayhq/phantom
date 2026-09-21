@@ -13,7 +13,9 @@ use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
 use super::super::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
-use super::{TestResult, accept_request, server_endpoint};
+use super::{
+    TEST_TIMEOUT, TestResult, accept_request, server_endpoint, server_endpoint_with_bidi_limit,
+};
 use crate::request::{OriginForm, RequestHeader};
 use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
 
@@ -298,6 +300,119 @@ async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
     let _ = client_done.send(());
     server.await??;
     Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn reuse_check_is_prompt_while_a_request_waits_for_peer_settings() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = std::sync::Arc::new(trusting_connector(&identity)?);
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let _connection = incoming.await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let connection = tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+
+    let parked = spawn_parked_get(&connector, &connection, OriginForm::parse("/")?).await;
+    assert!(!parked.is_finished());
+    assert!(
+        tokio::time::timeout(REUSE_CHECK_BOUND, connector.can_reuse(&connection))
+            .await
+            .map_err(|_| "reuse check waited behind a request parked on peer SETTINGS")?
+    );
+
+    parked.abort();
+    drop(connection);
+    let _ = client_done.send(());
+    server.await??;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn reuse_check_is_prompt_while_a_request_waits_for_stream_credit() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = std::sync::Arc::new(trusting_connector(&identity)?);
+    let (address, endpoint) = server_endpoint_with_bidi_limit(&identity, 1)?;
+    let (first_seen, first_received) = tokio::sync::oneshot::channel();
+    let (client_done, done_received) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let connection = incoming.await?;
+        let mut connection: h3::server::Connection<_, Bytes> =
+            h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+        let resolver = connection
+            .accept()
+            .await?
+            .ok_or("client closed before sending a request")?;
+        let (_request, _held) = resolver.resolve_request().await?;
+        let _ = first_seen.send(());
+        let _ = done_received.await;
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let connection = tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+
+    let first = spawn_parked_get(&connector, &connection, OriginForm::parse("/")?).await;
+    tokio::time::timeout(TEST_TIMEOUT, first_received)
+        .await
+        .map_err(|_| "server did not receive the first request")??;
+    let parked = spawn_parked_get(&connector, &connection, OriginForm::parse("/")?).await;
+    assert!(!parked.is_finished());
+    assert!(
+        tokio::time::timeout(REUSE_CHECK_BOUND, connector.can_reuse(&connection))
+            .await
+            .map_err(|_| "reuse check waited behind a request parked on MAX_STREAMS")?
+    );
+
+    parked.abort();
+    first.abort();
+    drop(connection);
+    let _ = client_done.send(());
+    server.await??;
+    Ok(())
+}
+
+const REUSE_CHECK_BOUND: std::time::Duration = std::time::Duration::from_secs(1);
+
+async fn spawn_parked_get(
+    connector: &std::sync::Arc<Http3Connector>,
+    connection: &super::super::Http3Connection,
+    target: OriginForm,
+) -> tokio::task::JoinHandle<Result<(), Http3ConnectorError>> {
+    let connector = std::sync::Arc::clone(connector);
+    let connection = connection.clone();
+    let request = tokio::spawn(async move {
+        connector
+            .send_get_on(&connection, TEST_SERVER_NAME, target, Vec::new())
+            .await
+            .map(drop)
+    });
+    for _ in 0..8 {
+        tokio::task::yield_now().await;
+    }
+    request
+}
+
+fn trusting_connector(identity: &TestIdentity) -> Result<Http3Connector, Http3ConnectorError> {
+    Http3Connector::new_with_additional_roots(
+        &h3_tls_settings(),
+        &chromium::v152_macos_quic(),
+        &chromium::v152_macos_http3(),
+        &chromium::v152_macos_http3_request(),
+        [identity.root_der()],
+    )
 }
 
 fn connector() -> Result<Http3Connector, Http3ConnectorError> {

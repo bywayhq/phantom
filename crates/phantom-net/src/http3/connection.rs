@@ -7,7 +7,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use h3::ConnectionState;
+use h3::{ConnectionState, client::PeerSettings};
 use http::{Request, Response};
 use http_body_util::BodyExt as _;
 use tokio::{runtime::Handle, sync::Mutex};
@@ -37,7 +37,12 @@ pub struct Http3Connection {
 }
 
 struct ConnectionInner {
+    // Serializes `send_request` so stream IDs, QPACK encoder instructions, and
+    // datagram monitor registration follow call order. Health checks must not
+    // take this lock: `send_request` can wait for peer SETTINGS, QPACK
+    // admission, or MAX_STREAMS credit while holding it.
     sender: Mutex<Option<RequestSender>>,
+    state: PeerSettings,
     driver: DriverTask,
     datagrams: Option<DatagramRouter>,
     quinn: quinn::Connection,
@@ -58,6 +63,7 @@ impl Http3Connection {
     ) -> Self {
         Self {
             inner: Arc::new(ConnectionInner {
+                state: sender.peer_settings(),
                 sender: Mutex::new(Some(sender)),
                 driver,
                 datagrams,
@@ -296,7 +302,7 @@ impl Http3Connection {
         result
     }
 
-    pub(super) async fn is_reusable(&self) -> bool {
+    pub(super) fn is_reusable(&self) -> bool {
         if self.inner.quinn.close_reason().is_some() {
             return false;
         }
@@ -308,10 +314,7 @@ impl Http3Connection {
         {
             return false;
         }
-        let sender = self.inner.sender.lock().await;
-        sender
-            .as_ref()
-            .is_some_and(|sender| !sender.is_closing() && sender.get_conn_error().is_none())
+        !self.inner.state.is_closing() && self.inner.state.get_conn_error().is_none()
     }
 
     pub(super) fn belongs_to(&self, identity: &Arc<()>) -> bool {

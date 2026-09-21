@@ -550,6 +550,23 @@ fn server_endpoint_at(
     identity: &TestIdentity,
     bind_address: SocketAddr,
 ) -> TestResult<(SocketAddr, quinn::Endpoint)> {
+    server_endpoint_with_transport(identity, bind_address, quinn::TransportConfig::default())
+}
+
+fn server_endpoint_with_bidi_limit(
+    identity: &TestIdentity,
+    streams: u32,
+) -> TestResult<(SocketAddr, quinn::Endpoint)> {
+    let mut transport = quinn::TransportConfig::default();
+    transport.max_concurrent_bidi_streams(streams.into());
+    server_endpoint_with_transport(identity, "127.0.0.1:0".parse()?, transport)
+}
+
+fn server_endpoint_with_transport(
+    identity: &TestIdentity,
+    bind_address: SocketAddr,
+    transport: quinn::TransportConfig,
+) -> TestResult<(SocketAddr, quinn::Endpoint)> {
     let certificate = CertificateDer::from(identity.leaf_der().to_vec());
     let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
         identity.private_key_der().to_vec(),
@@ -559,10 +576,9 @@ fn server_endpoint_at(
         .with_single_cert(vec![certificate], private_key)?;
     tls.alpn_protocols = vec![b"h3".to_vec()];
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
-    let endpoint = quinn::Endpoint::server(
-        quinn::ServerConfig::with_crypto(Arc::new(crypto)),
-        bind_address,
-    )?;
+    let mut config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
+    config.transport_config(Arc::new(transport));
+    let endpoint = quinn::Endpoint::server(config, bind_address)?;
     Ok((endpoint.local_addr()?, endpoint))
 }
 

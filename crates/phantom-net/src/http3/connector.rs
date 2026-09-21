@@ -488,8 +488,10 @@ impl Http3Connector {
     ///
     /// This is a health snapshot for pool selection, not a reservation of peer
     /// stream capacity. A later send can still fail and is never replayed.
+    /// The check never waits behind a request that is still opening its
+    /// stream, for example while the peer withholds SETTINGS or stream credit.
     pub async fn can_reuse(&self, connection: &Http3Connection) -> bool {
-        connection.belongs_to(&self.identity) && connection.is_reusable().await
+        connection.belongs_to(&self.identity) && connection.is_reusable()
     }
 
     /// Validates an empty-body GET without opening a connection or stream.
