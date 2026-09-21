@@ -16,6 +16,7 @@ use crate::{
 mod authentication;
 mod https_connect;
 mod socks5;
+mod socks5_udp;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 

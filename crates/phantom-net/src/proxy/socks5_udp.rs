@@ -23,6 +23,9 @@ const IPV4: u8 = 1;
 const DOMAIN: u8 = 3;
 const IPV6: u8 = 4;
 const MAX_UDP_PACKET_BYTES: usize = 65_507;
+// Large enough for any non-jumbogram IPv4 or IPv6 UDP payload, so a relayed
+// datagram is never truncated and Windows never reports `WSAEMSGSIZE`.
+const MAX_RECEIVED_DATAGRAM_BYTES: usize = 65_535;
 const MAX_PACKETS_PER_POLL: usize = 32;
 const REMOTE_VIRTUAL_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
 
@@ -220,7 +223,7 @@ async fn establish_udp_association(
         target_header,
         receive_target,
         send_buffer: Mutex::new(Vec::with_capacity(MAX_UDP_PACKET_BYTES)),
-        receive_buffer: Mutex::new(vec![0; MAX_UDP_PACKET_BYTES]),
+        receive_buffer: Mutex::new(vec![0; MAX_RECEIVED_DATAGRAM_BYTES]),
     });
     Ok(Socks5UdpAssociation {
         socket,
@@ -312,11 +315,11 @@ impl AsyncUdpSocket for Socks5UdpSocket {
                 continue;
             }
             let payload = &received[header_len..];
+            // Quinn ends its endpoint driver on any receive error other than
+            // `ConnectionReset`, so an oversized relayed datagram is dropped
+            // like any other datagram QUIC cannot accept.
             if payload.len() > bufs[0].len() {
-                return Poll::Ready(Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "SOCKS5 UDP payload exceeds the QUIC receive buffer",
-                )));
+                continue;
             }
             bufs[0][..payload.len()].copy_from_slice(payload);
             meta[0] = udp::RecvMeta {
