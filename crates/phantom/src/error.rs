@@ -4,7 +4,10 @@ use phantom_net::{
     http1::{Http1Error, Http1TlsError, TlsErrorKind},
     http1_or_2::{Http1Or2TlsError, Http1Or2TlsErrorKind},
     http2::{Http2Error, Http2TlsError},
-    http3::{Http3ConnectorError, Http3ConnectorErrorKind, Http3Error},
+    http3::{
+        ConnectUdpError, ConnectUdpErrorKind, Http3ConnectorError, Http3ConnectorErrorKind,
+        Http3Error,
+    },
     proxy::{HttpConnectError, HttpConnectErrorKind, Socks5Error, Socks5ErrorKind},
     request::RequestBodyError,
 };
@@ -740,6 +743,22 @@ impl RequestError {
         error
     }
 
+    /// Classifies connection setup through a CONNECT-UDP route.
+    ///
+    /// Only outer proxy resolution or QUIC connection failures may retry; a
+    /// retry opens a fresh outer connection and CONNECT-UDP request on the
+    /// same route. Inner QUIC failures over an accepted tunnel are terminal.
+    pub(crate) fn http3_connect_udp_setup(source: Http3ConnectorError) -> Self {
+        let retryable = source.kind() == Http3ConnectorErrorKind::Proxy
+            && http3_proxy_failure(&source)
+                .is_some_and(Http3ProxyFailure::is_retryable_connection_setup);
+        let mut error = Self::http3(source);
+        if retryable {
+            error.retryability = RequestRetryability::ConnectionSetup;
+        }
+        error
+    }
+
     pub(crate) fn http1_body(source: Http1Error) -> Self {
         Self::with_source(
             RequestErrorKind::Http1,
@@ -863,6 +882,7 @@ fn is_retryable_http3_connection_setup_kind(kind: Http3ConnectorErrorKind) -> bo
 #[derive(Clone, Copy)]
 enum Http3ProxyFailure {
     Socks5(Socks5ErrorKind),
+    ConnectUdp(ConnectUdpErrorKind),
 }
 
 impl Http3ProxyFailure {
@@ -873,21 +893,37 @@ impl Http3ProxyFailure {
             }
             Self::Socks5(Socks5ErrorKind::Resolve) => RequestErrorKind::Resolve,
             Self::Socks5(_) => RequestErrorKind::Proxy,
+            Self::ConnectUdp(ConnectUdpErrorKind::RuntimeUnavailable) => {
+                RequestErrorKind::RuntimeUnavailable
+            }
+            Self::ConnectUdp(ConnectUdpErrorKind::Resolve) => RequestErrorKind::Resolve,
+            Self::ConnectUdp(_) => RequestErrorKind::Proxy,
         }
     }
 
     fn is_retryable_connection_setup(self) -> bool {
         match self {
             Self::Socks5(kind) => is_retryable_socks5_kind(kind),
+            Self::ConnectUdp(kind) => is_retryable_connect_udp_kind(kind),
         }
     }
 }
 
 fn http3_proxy_failure(error: &Http3ConnectorError) -> Option<Http3ProxyFailure> {
     let source = error.source()?;
+    if let Some(error) = source.downcast_ref::<ConnectUdpError>() {
+        return Some(Http3ProxyFailure::ConnectUdp(error.kind()));
+    }
     source
         .downcast_ref::<Socks5Error>()
         .map(|error| Http3ProxyFailure::Socks5(error.kind()))
+}
+
+fn is_retryable_connect_udp_kind(kind: ConnectUdpErrorKind) -> bool {
+    matches!(
+        kind,
+        ConnectUdpErrorKind::Resolve | ConnectUdpErrorKind::Connect
+    )
 }
 
 fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {
@@ -925,13 +961,14 @@ mod tests {
         http1::{Http1Error, Http1TlsError},
         http1_or_2::Http1Or2TlsError,
         http2::{Http2Error, Http2TlsError},
-        http3::Http3ConnectorErrorKind,
+        http3::{ConnectUdpErrorKind, Http3ConnectorErrorKind},
         proxy::{HttpConnectError, HttpConnectErrorKind, Socks5ErrorKind},
     };
 
     use super::{
-        RequestError, RequestErrorKind, is_retryable_http_connect_kind,
-        is_retryable_http3_connection_setup_kind, is_retryable_socks5_kind,
+        RequestError, RequestErrorKind, is_retryable_connect_udp_kind,
+        is_retryable_http_connect_kind, is_retryable_http3_connection_setup_kind,
+        is_retryable_socks5_kind,
     };
     use crate::HttpProtocol;
 
@@ -1090,6 +1127,26 @@ mod tests {
             Socks5ErrorKind::Rejected,
         ] {
             assert!(!is_retryable_socks5_kind(kind), "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn connect_udp_retry_allowlist_is_only_outer_resolve_and_connect() {
+        for kind in [ConnectUdpErrorKind::Resolve, ConnectUdpErrorKind::Connect] {
+            assert!(is_retryable_connect_udp_kind(kind), "{kind:?}");
+        }
+        for kind in [
+            ConnectUdpErrorKind::InvalidRequest,
+            ConnectUdpErrorKind::Configuration,
+            ConnectUdpErrorKind::RuntimeUnavailable,
+            ConnectUdpErrorKind::Handshake,
+            ConnectUdpErrorKind::ExtendedConnectUnavailable,
+            ConnectUdpErrorKind::DatagramUnavailable,
+            ConnectUdpErrorKind::DatagramCapacity,
+            ConnectUdpErrorKind::Rejected,
+            ConnectUdpErrorKind::Protocol,
+        ] {
+            assert!(!is_retryable_connect_udp_kind(kind), "{kind:?}");
         }
     }
 

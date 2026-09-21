@@ -70,6 +70,12 @@ impl WebSocketRequestBuilder {
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
         let outcome = match request.transport {
             WebSocketTransport::Plaintext => match route {
+                // CONNECT-UDP carries only QUIC; reject before any I/O.
+                Route::ConnectUdp(_) => {
+                    return Err(WebSocketError::request(RequestError::unsupported_route(
+                        HttpProtocol::Http1,
+                    )));
+                }
                 Route::Direct => {
                     connector
                         .upgrade_get_plaintext_direct(
@@ -136,6 +142,11 @@ impl WebSocketRequestBuilder {
                 },
             },
             WebSocketTransport::Tls => match route {
+                Route::ConnectUdp(_) => {
+                    return Err(WebSocketError::request(RequestError::unsupported_route(
+                        HttpProtocol::Http1,
+                    )));
+                }
                 Route::Direct => {
                     connector
                         .upgrade_get_direct(

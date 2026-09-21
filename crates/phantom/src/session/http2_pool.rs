@@ -283,6 +283,10 @@ impl PoolEntry {
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
         let connection = match route {
+            // Rejected before admission; never reinterpreted as TCP.
+            Route::ConnectUdp(_) => {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+            }
             Route::Direct => connector
                 .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
                 .await

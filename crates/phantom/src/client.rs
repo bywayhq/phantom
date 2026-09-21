@@ -57,6 +57,8 @@ pub(crate) struct ClientInner {
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
     pub(crate) http3: Option<Http3Connector>,
+    /// Outer HTTP/3 connector for CONNECT-UDP proxies, using proxy trust.
+    pub(crate) connect_udp_proxy: Option<Http3Connector>,
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     pub(crate) route: Route,
@@ -308,7 +310,8 @@ impl ClientBuilder {
     /// Adds a DER-encoded certificate to the HTTPS-proxy trust roots.
     ///
     /// Proxy trust is independent from origin trust. Certificate and hostname
-    /// verification remain enabled for the proxy.
+    /// verification remain enabled for the proxy. The roots also authenticate
+    /// the outer HTTP/3 connection of a [`Route::ConnectUdp`] route.
     #[must_use]
     pub fn add_proxy_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
         self.proxy_additional_roots.push(certificate.into());
@@ -318,7 +321,9 @@ impl ClientBuilder {
     /// Sets how an HTTPS proxy authenticates its TLS certificate.
     ///
     /// This policy applies only to the outer proxy connection. Origin TLS uses
-    /// [`Self::server_authentication`] and its own trust roots.
+    /// [`Self::server_authentication`] and its own trust roots. Disabled proxy
+    /// authentication is not supported for [`Route::ConnectUdp`], whose outer
+    /// connection is HTTP/3.
     #[must_use]
     pub fn proxy_server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.proxy_server_authentication = policy;
@@ -582,6 +587,28 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http3)?;
+        // CONNECT-UDP's outer connection authenticates the proxy with proxy
+        // trust roots; HTTP/3 cannot disable verification.
+        let connect_udp_proxy = self
+            .profile
+            .http3()
+            .filter(|_| !proxy_authentication_disabled)
+            .map(|settings| {
+                Http3Connector::new_with_additional_roots(
+                    settings.tls(),
+                    settings.quic_transport(),
+                    settings.http3(),
+                    settings.request(),
+                    self.proxy_additional_roots.iter().map(AsRef::as_ref),
+                )
+            })
+            .transpose()
+            .map_err(BuildError::http3)?;
+        if proxy_authentication_disabled && matches!(self.route, Route::ConnectUdp(_)) {
+            return Err(BuildError::invalid_policy(
+                "disabled proxy server authentication is not supported for CONNECT-UDP",
+            ));
+        }
         self.options
             .validate_protocols(http1_or_2.is_some(), http3.is_some())?;
         let secure_proxy_requested = self
@@ -621,6 +648,7 @@ impl ClientBuilder {
             http1_or_2,
             http2,
             http3,
+            connect_udp_proxy,
             https_proxy,
             client_hints,
             route: self.route,

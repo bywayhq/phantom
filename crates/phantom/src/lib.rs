@@ -26,7 +26,8 @@ pub use request::RequestBuilder;
 pub use response::ResponseInfo;
 pub use retry::RetryPolicy;
 pub use route::{
-    HttpProxy, ProxyConfigError, ProxyConfigErrorKind, Route, Socks5DnsMode, Socks5Proxy,
+    ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind, HttpProxy,
+    ProxyConfigError, ProxyConfigErrorKind, Route, Socks5DnsMode, Socks5Proxy,
     Socks5ProxyConfigError, Socks5ProxyConfigErrorKind,
 };
 pub use session::{

@@ -12,7 +12,7 @@ use super::{
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
-    HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode,
+    ConnectUdpProxy, HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode,
     authority::Endpoint,
     retry::{ConnectionSetupRetryState, acquire_with_retries},
 };
@@ -74,6 +74,7 @@ impl Http3Pool {
     pub(crate) async fn send_request(
         &self,
         connector: &Http3Connector,
+        connect_udp_proxy: Option<&Http3Connector>,
         endpoint: &Endpoint,
         route: &Route,
         alternative: Option<Http3TransportTarget<'_>>,
@@ -100,9 +101,15 @@ impl Http3Pool {
                 &trailers,
             )
             .map_err(RequestError::http3)?;
+        let transport = alternative.unwrap_or_else(|| Http3TransportTarget::for_origin(endpoint));
+        if let Route::ConnectUdp(proxy) = route {
+            let (proxy_connector, path) = connect_udp_target(connect_udp_proxy, proxy, transport)?;
+            proxy_connector
+                .validate_connect_udp(proxy.host(), proxy.authority(), &path, proxy.headers())
+                .map_err(RequestError::http3)?;
+        }
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
-        let transport = alternative.unwrap_or_else(|| Http3TransportTarget::for_origin(endpoint));
         let permit = timeout_budget
             .run(
                 TimeoutPhase::PoolAdmission,
@@ -111,7 +118,9 @@ impl Http3Pool {
             )
             .await?;
         let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
-            entry.acquire(connector, endpoint, route, transport).await
+            entry
+                .acquire(connector, connect_udp_proxy, endpoint, route, transport)
+                .await
         })
         .await?;
         let sent_headers = match client_hints {
@@ -265,6 +274,7 @@ impl PoolEntry {
     async fn acquire(
         &self,
         connector: &Http3Connector,
+        connect_udp_proxy: Option<&Http3Connector>,
         endpoint: &Endpoint,
         route: &Route,
         transport: Http3TransportTarget<'_>,
@@ -287,40 +297,54 @@ impl PoolEntry {
 
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
         let connection = match route {
-            Route::Direct => {
+            Route::Direct => connector
+                .connect_direct(transport.host, transport.port, endpoint.host())
+                .await
+                .map_err(RequestError::http3_connection_setup)?,
+            Route::Socks5(proxy) if proxy.dns_mode() == Socks5DnsMode::Local => connector
+                .connect_socks5_local_with_auth(
+                    proxy.host(),
+                    proxy.port(),
+                    proxy.auth(),
+                    transport.host,
+                    transport.port,
+                    endpoint.host(),
+                )
+                .await
+                .map_err(RequestError::http3_connection_setup)?,
+            Route::Socks5(proxy) => connector
+                .connect_socks5_remote_with_auth(
+                    proxy.host(),
+                    proxy.port(),
+                    proxy.auth(),
+                    transport.host,
+                    transport.port,
+                    endpoint.host(),
+                )
+                .await
+                .map_err(RequestError::http3_connection_setup)?,
+            Route::ConnectUdp(proxy) => {
+                // One fresh outer connection and CONNECT-UDP request per inner
+                // connection, including every retry on this route.
+                let (proxy_connector, path) =
+                    connect_udp_target(connect_udp_proxy, proxy, transport)?;
                 connector
-                    .connect_direct(transport.host, transport.port, endpoint.host())
-                    .await
-            }
-            Route::Socks5(proxy) if proxy.dns_mode() == Socks5DnsMode::Local => {
-                connector
-                    .connect_socks5_local_with_auth(
+                    .connect_connect_udp(
+                        proxy_connector,
                         proxy.host(),
                         proxy.port(),
-                        proxy.auth(),
-                        transport.host,
-                        transport.port,
+                        proxy.authority(),
+                        path,
+                        proxy.headers().to_vec(),
                         endpoint.host(),
                     )
                     .await
-            }
-            Route::Socks5(proxy) => {
-                connector
-                    .connect_socks5_remote_with_auth(
-                        proxy.host(),
-                        proxy.port(),
-                        proxy.auth(),
-                        transport.host,
-                        transport.port,
-                        endpoint.host(),
-                    )
-                    .await
+                    .map_err(RequestError::http3_connect_udp_setup)?
             }
             Route::HttpProxy(_) => {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http3));
             }
-        }
-        .map_err(RequestError::http3_connection_setup)?;
+        };
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),
@@ -348,6 +372,20 @@ impl PoolEntry {
             );
         }
     }
+}
+
+/// Resolves the outer connector and expanded CONNECT-UDP path before I/O.
+fn connect_udp_target<'a>(
+    connect_udp_proxy: Option<&'a Http3Connector>,
+    proxy: &ConnectUdpProxy,
+    transport: Http3TransportTarget<'_>,
+) -> Result<(&'a Http3Connector, OriginForm), RequestError> {
+    let proxy_connector =
+        connect_udp_proxy.ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http3))?;
+    let path = proxy
+        .expand(transport.host, transport.port)
+        .map_err(RequestError::invalid_target)?;
+    Ok((proxy_connector, path))
 }
 
 struct ConnectionSlot {

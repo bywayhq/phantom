@@ -571,6 +571,7 @@ async fn dispatch_attempt(
                 .http3
                 .send_request(
                     connector,
+                    client.inner.connect_udp_proxy.as_ref(),
                     endpoint,
                     route,
                     http3_transport,

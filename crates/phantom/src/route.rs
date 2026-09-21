@@ -7,8 +7,12 @@ use phantom_net::{
 
 use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
 
+mod connect_udp;
 mod socks5;
 
+pub use connect_udp::{
+    ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind,
+};
 pub use socks5::{Socks5DnsMode, Socks5Proxy, Socks5ProxyConfigError, Socks5ProxyConfigErrorKind};
 
 /// Route used to establish one origin connection.
@@ -22,6 +26,8 @@ pub enum Route {
     HttpProxy(HttpProxy),
     /// Tunnel TCP through a SOCKS5 proxy with explicit DNS ownership.
     Socks5(Socks5Proxy),
+    /// Tunnel exact HTTP/3 through an RFC 9298 CONNECT-UDP (MASQUE) proxy.
+    ConnectUdp(ConnectUdpProxy),
 }
 
 impl Route {
@@ -55,6 +61,15 @@ impl Route {
         Self::Socks5(proxy)
     }
 
+    /// Returns a CONNECT-UDP route for exact HTTP/3 requests.
+    ///
+    /// Every other protocol, negotiated requests, and WebSocket reject this
+    /// route before I/O.
+    #[must_use]
+    pub fn connect_udp(proxy: ConnectUdpProxy) -> Self {
+        Self::ConnectUdp(proxy)
+    }
+
     pub(crate) const fn trace_name(&self) -> &'static str {
         match self {
             Self::Direct => "direct",
@@ -63,6 +78,7 @@ impl Route {
                 Socks5DnsMode::Local => "socks5_local_dns",
                 Socks5DnsMode::Remote => "socks5_remote_dns",
             },
+            Self::ConnectUdp(_) => "connect_udp",
         }
     }
 
@@ -77,7 +93,7 @@ impl Route {
     pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
         match self {
             Self::HttpProxy(proxy) => Some(proxy),
-            Self::Direct | Self::Socks5(_) => None,
+            Self::Direct | Self::Socks5(_) | Self::ConnectUdp(_) => None,
         }
     }
 }

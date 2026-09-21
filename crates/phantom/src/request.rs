@@ -659,11 +659,17 @@ fn ensure_request_supported(
         },
         Some("https") => match selection {
             ProtocolSelection::Exact(HttpProtocol::Http3) => match route {
-                Route::Direct | Route::Socks5(_) => Ok(()),
+                Route::Direct | Route::Socks5(_) | Route::ConnectUdp(_) => Ok(()),
                 Route::HttpProxy(_) => Err(RequestError::unsupported_route(HttpProtocol::Http3)),
             },
             ProtocolSelection::Http1Or2 if !matches!(route, Route::Direct) => {
                 Err(RequestError::unsupported_negotiated_route())
+            }
+            // CONNECT-UDP carries only QUIC; TCP protocols never use it.
+            ProtocolSelection::Exact(protocol @ (HttpProtocol::Http1 | HttpProtocol::Http2))
+                if matches!(route, Route::ConnectUdp(_)) =>
+            {
+                Err(RequestError::unsupported_route(protocol))
             }
             ProtocolSelection::Exact(HttpProtocol::Http1 | HttpProtocol::Http2)
             | ProtocolSelection::Http1Or2 => Ok(()),
@@ -894,6 +900,50 @@ mod tests {
             )
             .is_ok()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn connect_udp_route_accepts_only_exact_http3() -> Result<(), Box<dyn std::error::Error>> {
+        let route = Route::connect_udp(crate::ConnectUdpProxy::new(
+            "https://127.0.0.1:9/masque/{target_host}/{target_port}/",
+        )?);
+        let secure = ResolvedRequest::new(&"https://example.test/".parse()?)?;
+        let plaintext = ResolvedRequest::new(&"http://example.test/".parse()?)?;
+
+        assert!(
+            ensure_request_supported(
+                ProtocolSelection::Exact(HttpProtocol::Http3),
+                &route,
+                &secure,
+            )
+            .is_ok()
+        );
+        for (selection, request, protocol) in [
+            (
+                ProtocolSelection::Exact(HttpProtocol::Http1),
+                &secure,
+                Some(HttpProtocol::Http1),
+            ),
+            (
+                ProtocolSelection::Exact(HttpProtocol::Http2),
+                &secure,
+                Some(HttpProtocol::Http2),
+            ),
+            (ProtocolSelection::Http1Or2, &secure, None),
+            (
+                ProtocolSelection::Exact(HttpProtocol::Http1),
+                &plaintext,
+                Some(HttpProtocol::Http1),
+            ),
+        ] {
+            let error = match ensure_request_supported(selection, &route, request) {
+                Ok(()) => panic!("CONNECT-UDP route accepted {selection:?}"),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+            assert_eq!(error.protocol(), protocol);
+        }
         Ok(())
     }
 
