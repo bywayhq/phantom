@@ -1,83 +1,67 @@
 # Downstream integration
 
-Phantom is not currently a one-line Git dependency. Its build depends on
-patched dependency sources, and Cargo only honors `[patch]` tables from the
-root manifest of the build. A downstream declaration such as
-`phantom = { git = "https://github.com/bywayhq/phantom" }` therefore does not
-inherit Phantom's patch table and is unsupported until the patched forks are
-available as direct dependencies.
+Phantom's patched dependencies are renamed forks that live in this repository
+under `vendor/`: `phantom-btls`, `phantom-h3`, `phantom-http2`,
+`phantom-quinn-proto`, and the other `phantom-*` packages listed in
+[Vendored forks](#vendored-forks). Phantom's manifests depend on them by exact
+version and path, so a downstream build needs no `[patch]` table and the stock
+packages can never replace them.
 
-The supported downstream layout is a revision-pinned Phantom submodule whose
-vendored dependency trees remain beside its crates:
+Phantom is not yet published to crates.io. The supported ways to depend on it
+are a pinned git revision or a pinned path checkout.
 
-```text
-consumer/
-|-- Cargo.lock
-|-- Cargo.toml
-|-- src/
-`-- vendor/
-    `-- phantom/                 # git submodule at one exact commit
-        |-- crates/
-        |   `-- phantom/
-        `-- vendor/
-            |-- btls/
-            |-- h3/
-            |-- http2/
-            |-- quinn-proto/
-            |-- tungstenite/
-            `-- wreq-proto/
+## Git dependency
+
+Pin an exact commit:
+
+```toml
+[dependencies]
+phantom = { git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
 ```
 
-For example, from the downstream repository root, pin the currently documented
-revision explicitly:
+Cargo resolves every `phantom-*` fork from the same commit, because Phantom's
+manifests refer to them by path inside that repository. Review Phantom changes
+before moving the revision, then commit the new `rev` together with the
+resulting `Cargo.lock` change.
+
+## Path dependency
+
+A revision-pinned submodule, or any other checkout of one exact commit, works
+the same way:
 
 ```console
 git submodule add https://github.com/bywayhq/phantom.git vendor/phantom
-git -C vendor/phantom checkout --detach 51a9ad03b0f1595a70a37e78c82609d54bf14ecf
+git -C vendor/phantom checkout --detach <commit>
 git add .gitmodules vendor/phantom
 ```
-
-The submodule gitlink is the dependency revision. Review Phantom changes before
-moving it, then commit the updated gitlink together with the resulting
-`Cargo.lock` change.
-
-## Root manifest
-
-Declare Phantom by path so its crates and vendored sources come from the same
-pinned checkout:
 
 ```toml
 [dependencies]
 phantom = { path = "vendor/phantom/crates/phantom", features = ["full"] }
 ```
 
-Copy the complete patch table below into the downstream workspace's root
-`Cargo.toml`. The paths are relative to that manifest and match the layout
-above.
+Earlier Phantom revisions required copying a root `[patch]` table into the
+consumer. That table is no longer needed; remove it when moving to a revision
+that uses the renamed forks, because it now patches packages that no longer
+appear in the graph.
 
-```toml
-[patch.crates-io]
-h3 = { path = "vendor/phantom/vendor/h3/h3" }
-h3-datagram = { path = "vendor/phantom/vendor/h3/h3-datagram" }
-h3-quinn = { path = "vendor/phantom/vendor/h3/h3-quinn" }
-http2 = { path = "vendor/phantom/vendor/http2" }
-quinn-proto = { path = "vendor/phantom/vendor/quinn-proto" }
-tungstenite = { path = "vendor/phantom/vendor/tungstenite" }
-wreq-proto = { path = "vendor/phantom/vendor/wreq-proto" }
+## Fingerprint safety
 
-[patch."https://github.com/0xARYA/btls"]
-btls = { path = "vendor/phantom/vendor/btls" }
-```
+The stock packages (`btls`, `tokio-btls`, `h3`, `h3-datagram`, `h3-quinn`,
+`http2`, `quinn`, `quinn-proto`, `tungstenite`, `tokio-tungstenite`, and
+`wreq-proto`) never appear in a Phantom graph. Another dependency of the
+consumer may still use one of them; it then compiles as a separate crate whose
+types are not interchangeable with Phantom's, and Phantom's behavior is
+unchanged.
 
-Keep the source URL in the `btls` patch exactly as shown: Cargo patch tables
-are scoped to a package source, and Phantom currently requests `btls` from that
-Git source at a pinned revision.
-
-The patch set is mandatory and versioned as one unit with Phantom. Current
-Phantom code uses patch-only APIs and ABI, so omitting the root patches fails
-compilation instead of falling back to a stock dependency with a different wire
-fingerprint. A partial patch table is unsupported; copy it in full and update it
-whenever the Phantom revision changes.
+`btls-sys` still resolves from the reviewed fork
+`https://github.com/0xARYA/btls` at a pinned revision. It declares
+`links = "boringssl"`, so a consumer cannot also link another package with the
+same `links` key, such as `boring-sys`; Cargo rejects that graph at resolution
+time. Publishing `btls-sys` under a Phantom name with its own `links` key is a
+planned release step. On Apple and Windows targets BoringSSL symbol prefixing
+is currently disabled, so linking two BoringSSL copies there would still fail
+at link time.
 
 ## Validate from the downstream root
 
@@ -89,9 +73,29 @@ cargo metadata --all-features --locked --format-version 1 > /dev/null
 cargo build --all-features --locked
 ```
 
-These commands verify that the committed lockfile resolves the pinned path and
-patch graph and that all enabled Phantom capabilities compile in the consumer.
-Phantom's Linux quality gate repeats this external-root resolution and
-all-features check through `scripts/ci/check-downstream.sh`. A downstream
-repository must still run the commands against its own committed lockfile and
-toolchain.
+Phantom's CI builds throwaway path and git consumers with
+`scripts/ci/check-downstream.sh`. Each consumer declares Phantom with one
+dependency line, and the script fails if any stock package appears or any
+`phantom-*` fork resolves from an unexpected source. The workspace itself runs
+`cargo deny check bans` against the same stock names (`deny.toml`). A
+downstream repository must still run the commands above against its own
+committed lockfile and toolchain.
+
+## Vendored forks
+
+| Package | Upstream | Changes |
+| --- | --- | --- |
+| `phantom-btls` | `btls` wrapper 0.5.6 | Source patches and identity; see `vendor/btls/PHANTOM.md` |
+| `phantom-tokio-btls` | `tokio-btls` 0.5.6 | Standalone manifest and identity only |
+| `phantom-h3`, `phantom-h3-datagram`, `phantom-h3-quinn` | Hyperium `h3` commit `1f3d529` | Source patches and identity; see `vendor/h3/PHANTOM.md` |
+| `phantom-http2` | `http2` 0.5.20 | Source patches and identity; see `vendor/http2/PHANTOM.md` |
+| `phantom-quinn` | `quinn` 0.11.12 | Identity only |
+| `phantom-quinn-proto` | `quinn-proto` 0.11.18 | Source patches and identity; see `vendor/quinn-proto/PHANTOM.md` |
+| `phantom-tungstenite` | `tungstenite` 0.30.0 | Source patches and identity; see `vendor/tungstenite/PHANTOM.md` |
+| `phantom-tokio-tungstenite` | `tokio-tungstenite` 0.30.0 | Identity only |
+| `phantom-wreq-proto` | `wreq-proto` 0.2.5 | Source patches and identity; see `vendor/wreq-proto/PHANTOM.md` |
+
+Every fork is its checksummed upstream source plus the ordered patches in its
+`patches/series`; `scripts/ci/check-vendor.sh <package>` replays and compares
+them. Each fork keeps its upstream license files and library name. Fork
+versions use the form `<upstream>-phantom.<n>` and are always pinned exactly.

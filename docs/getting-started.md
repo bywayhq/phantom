@@ -6,14 +6,9 @@ in [Using the client](client.md).
 
 ## Distribution status
 
-Phantom is not published to crates.io, and `phantom` has `publish = false`.
-There is no supported `cargo add phantom` or downstream git-dependency path yet:
-the workspace relies on root-level Cargo patches, and Cargo ignores patch tables
-declared by dependencies.
-
-The supported evaluation path is this repository checkout. Embedding Phantom in
-another workspace currently means carrying its complete pinned dependency and
-patch set using the [downstream integration](downstream.md) layout; that
+Phantom is not yet published to crates.io. Another workspace can depend on an
+exact git revision or a pinned checkout with one dependency line and no
+`[patch]` table; see [Downstream integration](downstream.md). The public
 interface is not stable. Phantom is dual-licensed under MIT or Apache-2.0;
 vendored dependencies keep their upstream licenses in `vendor/*/`.
 

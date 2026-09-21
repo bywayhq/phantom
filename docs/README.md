@@ -6,7 +6,7 @@ Use the shortest path that matches your role.
 | --- | --- | --- |
 | Evaluating Phantom | [Project README](../README.md) | Value, maturity, current highlights, first request, and key limits |
 | New user | [Getting started](getting-started.md) | Source build, minimal setup, protocol choice, and features |
-| Downstream integrator | [Downstream integration](downstream.md) | Revision-pinned submodule layout, mandatory root patches, and validation |
+| Downstream integrator | [Downstream integration](downstream.md) | Pinned git or path dependency, renamed dependency forks, and validation |
 | Integrator | [Using the client](client.md) | Profiles, requests, routes, pools, state, timeouts, and responses |
 | SSE or WebSocket user | [SSE](sse.md) · [WebSocket](websocket.md) | Feature-specific APIs and lifecycle boundaries |
 | Reviewer or maintainer | [Design](design.md) | Architecture, ownership, security, async, and dependency rules |

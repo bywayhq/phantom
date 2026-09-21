@@ -6,9 +6,10 @@ Phantom gives applications explicit control over observable TLS, HTTP/1.1,
 HTTP/2, QUIC, and HTTP/3 behavior. Browser behavior lives in typed, validated
 profiles rather than hidden transport branches.
 
-> **Status:** Phantom is experimental, under active development, and not
-> published to crates.io. It supports source-based evaluation and integration;
-> it does not claim complete browser impersonation.
+> **Status:** Phantom is experimental, under active development, and not yet
+> published to crates.io. Depend on a pinned git revision or checkout; see
+> [Downstream integration](docs/downstream.md). It does not claim complete
+> browser impersonation.
 
 ## Why Phantom?
 
