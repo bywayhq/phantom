@@ -23,7 +23,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
-    time::{sleep, timeout},
+    time::{Instant, sleep, timeout},
 };
 use tracing::instrument::WithSubscriber;
 
@@ -679,13 +679,15 @@ async fn authenticated_retry_opens_fresh_connection_after_queued_replacement() -
 
 #[tokio::test]
 async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()> {
+    const CHALLENGE_DELAY: Duration = Duration::from_millis(600);
+    const TOTAL_DEADLINE: Duration = Duration::from_millis(1_000);
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let proxy = tokio::spawn(async move {
             let (mut anonymous, _) = listener.accept().await?;
             let anonymous_head = read_head(&mut anonymous).await?;
-            sleep(Duration::from_millis(70)).await;
+            sleep(CHALLENGE_DELAY).await;
             anonymous
                 .write_all(
                     b"HTTP/1.1 407 Proxy Authentication Required\r\n\
@@ -696,10 +698,9 @@ async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()
 
             let (mut authenticated, _) = listener.accept().await?;
             let authenticated_head = read_head(&mut authenticated).await?;
-            sleep(Duration::from_millis(100)).await;
-            let _ = authenticated
-                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-                .await;
+            // Never answer the replay: only the client's deadline ends it.
+            let mut rest = Vec::new();
+            let _ = authenticated.read_to_end(&mut rest).await;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((anonymous_head, authenticated_head))
         });
 
@@ -707,16 +708,24 @@ async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()
         let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
         );
+        let started = Instant::now();
         let error = client_builder(&identity, false)
             .route(route)
             .build()?
             .get(HttpProtocol::Http1, "http://origin.test/deadline")?
-            .timeouts(RequestTimeouts::new().total(Duration::from_millis(120)))
+            .timeouts(RequestTimeouts::new().total(TOTAL_DEADLINE))
             .send()
             .await
             .err()
-            .ok_or("authentication retry reset the total deadline")?;
+            .ok_or("authentication replay completed without a response")?;
+        let elapsed = started.elapsed();
         assert_eq!(error.kind(), RequestErrorKind::Timeout);
+        // A deadline restarted by the replay would end no earlier than
+        // CHALLENGE_DELAY + TOTAL_DEADLINE after the first request.
+        assert!(
+            elapsed < CHALLENGE_DELAY + TOTAL_DEADLINE,
+            "authentication replay restarted the total deadline after {elapsed:?}"
+        );
 
         let (anonymous_head, authenticated_head) = proxy.await??;
         assert!(!contains_ascii_case_insensitive(
