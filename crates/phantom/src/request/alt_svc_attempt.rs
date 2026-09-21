@@ -2,7 +2,8 @@ use super::{
     ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, attempt_headers,
-        client_hint_origin, dispatch, observe_response, prepare_attempt, store_cookies,
+        begin_status_retry, client_hint_origin, dispatch, observe_response, prepare_attempt,
+        store_cookies,
     },
     replay::ReplayClass,
 };
@@ -39,7 +40,7 @@ pub(super) async fn send_once_alt_svc(
     let AttemptLifecycle {
         request_span,
         timeout_budget,
-        retries: _,
+        retries: request_retries,
         replays,
     } = lifecycle;
     let (alternative_host, alternative_port, alternative_authority, alternative_generation) =
@@ -62,7 +63,9 @@ pub(super) async fn send_once_alt_svc(
             alternative_authority.as_bytes(),
         ));
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
-        let mut retries = ConnectionSetupRetryState::new(RetryPolicy::none(), request_span.clone());
+        // Alternative setup failures evict the advertisement instead of retrying.
+        let mut setup_retries =
+            ConnectionSetupRetryState::new(RetryPolicy::none(), request_span.clone());
         let dispatched = dispatch(
             client,
             request,
@@ -76,7 +79,7 @@ pub(super) async fn send_once_alt_svc(
             Some(transport),
             false,
             timeout_budget,
-            &mut retries,
+            &mut setup_retries,
         )
         .await;
         let dispatched = match dispatched {
@@ -115,6 +118,15 @@ pub(super) async fn send_once_alt_svc(
                 "retrying alternative-service request with client hints"
             );
             drop(response);
+            continue;
+        }
+        // A status retry stays on this alternative; it never falls back.
+        if let Some(delay) = begin_status_retry(&response, &method, body, request_retries, replays)
+        {
+            drop(response);
+            timeout_budget
+                .delay(delay, Some(HttpProtocol::Http3))
+                .await?;
             continue;
         }
         return Ok(AttemptOutcome {

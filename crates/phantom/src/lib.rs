@@ -24,7 +24,7 @@ pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use redirect::RedirectPolicy;
 pub use request::RequestBuilder;
 pub use response::ResponseInfo;
-pub use retry::RetryPolicy;
+pub use retry::{RetryPolicy, StatusRetry, StatusRetryError};
 pub use route::{
     ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind, HttpProxy,
     ProxyConfigError, ProxyConfigErrorKind, Route, Socks5DnsMode, Socks5Proxy,

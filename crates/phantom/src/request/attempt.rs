@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use http::{Method, Response};
 use phantom_net::{
     http1::Http1TlsError,
@@ -163,6 +165,11 @@ async fn send_once_exact(
             drop(response);
             continue;
         }
+        if let Some(delay) = begin_status_retry(&response, &method, body, retries, replays) {
+            drop(response);
+            timeout_budget.delay(delay, Some(protocol)).await?;
+            continue;
+        }
         return Ok(AttemptOutcome { response, protocol });
     }
 }
@@ -258,6 +265,11 @@ async fn send_once_negotiated(
             drop(response);
             continue;
         }
+        if let Some(delay) = begin_status_retry(&response, &method, body, retries, replays) {
+            drop(response);
+            timeout_budget.delay(delay, Some(protocol)).await?;
+            continue;
+        }
         return Ok(AttemptOutcome { response, protocol });
     }
 }
@@ -286,6 +298,34 @@ fn begin_reused_connection_replay(
     }
     retries.record_reused_connection_replay();
     true
+}
+
+/// Starts one status retry after `response` was observed, returning the delay
+/// to wait before the next attempt, when policy, status, `Retry-After`,
+/// remaining budget, method, and body all permit it.
+///
+/// The caller drops the intermediate response body unread: an incomplete
+/// HTTP/1.1 body retires its connection, and an H2 or H3 body cancels its
+/// stream. A one-shot streaming body was moved into the first attempt, so the
+/// response is returned instead.
+pub(super) fn begin_status_retry(
+    response: &Response<ResponseBody>,
+    method: &Method,
+    body: &RequestBodySource,
+    retries: &mut ConnectionSetupRetryState,
+    replays: &mut ReplayState,
+) -> Option<Duration> {
+    let status = response.status();
+    let delay = retries.status_retry_delay(status, response.headers())?;
+    if !matches!(
+        body,
+        RequestBodySource::Absent | RequestBodySource::Bytes(_)
+    ) || !replays.try_begin(ReplayClass::Status, method)
+    {
+        return None;
+    }
+    retries.record_status_retry(status, delay);
+    Some(delay)
 }
 
 /// Response bookkeeping that differs by attempt path.

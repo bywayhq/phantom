@@ -7,6 +7,9 @@ pub(super) enum ReplayClass {
     ProxyAuthentication,
     /// A reused HTTP/1.1 connection closed before any response byte.
     ReusedConnection,
+    /// A caller-listed retryable response status; bounded by the
+    /// request-scoped status-retry budget rather than once per hop.
+    Status,
 }
 
 impl ReplayClass {
@@ -16,16 +19,18 @@ impl ReplayClass {
             Self::ProxyAuthentication => true,
             // RFC 9110, section 9.2.2: the request may already have reached
             // the origin, so only idempotent methods may be repeated.
-            Self::ReusedConnection => method.is_idempotent(),
+            Self::ReusedConnection | Self::Status => method.is_idempotent(),
         }
     }
 }
 
-/// Each class replays at most once per redirect hop.
+/// Every class except [`ReplayClass::Status`] replays at most once per
+/// redirect hop.
 pub(super) struct ReplayState {
     critical_client_hints: bool,
     proxy_authentication: bool,
     reused_connection: bool,
+    status: usize,
 }
 
 impl ReplayState {
@@ -34,6 +39,7 @@ impl ReplayState {
             critical_client_hints: false,
             proxy_authentication: false,
             reused_connection: false,
+            status: 0,
         }
     }
 
@@ -46,7 +52,15 @@ impl ReplayState {
         if !class.permits(method) {
             return false;
         }
-        let performed = self.performed_mut(class);
+        let performed = match class {
+            ReplayClass::CriticalClientHints => &mut self.critical_client_hints,
+            ReplayClass::ProxyAuthentication => &mut self.proxy_authentication,
+            ReplayClass::ReusedConnection => &mut self.reused_connection,
+            ReplayClass::Status => {
+                self.status += 1;
+                return true;
+            }
+        };
         if *performed {
             return false;
         }
@@ -60,14 +74,7 @@ impl ReplayState {
             ReplayClass::CriticalClientHints => self.critical_client_hints,
             ReplayClass::ProxyAuthentication => self.proxy_authentication,
             ReplayClass::ReusedConnection => self.reused_connection,
-        }
-    }
-
-    fn performed_mut(&mut self, class: ReplayClass) -> &mut bool {
-        match class {
-            ReplayClass::CriticalClientHints => &mut self.critical_client_hints,
-            ReplayClass::ProxyAuthentication => &mut self.proxy_authentication,
-            ReplayClass::ReusedConnection => &mut self.reused_connection,
+            ReplayClass::Status => self.status > 0,
         }
     }
 }
@@ -89,19 +96,21 @@ mod tests {
     }
 
     #[test]
-    fn reused_connection_replay_requires_an_idempotent_method() {
-        for method in [
-            Method::GET,
-            Method::HEAD,
-            Method::OPTIONS,
-            Method::TRACE,
-            Method::PUT,
-            Method::DELETE,
-        ] {
-            assert!(ReplayState::new().try_begin(ReplayClass::ReusedConnection, &method));
-        }
-        for method in [Method::POST, Method::PATCH, Method::CONNECT] {
-            assert!(!ReplayState::new().try_begin(ReplayClass::ReusedConnection, &method));
+    fn idempotent_replay_classes_require_an_idempotent_method() {
+        for class in [ReplayClass::ReusedConnection, ReplayClass::Status] {
+            for method in [
+                Method::GET,
+                Method::HEAD,
+                Method::OPTIONS,
+                Method::TRACE,
+                Method::PUT,
+                Method::DELETE,
+            ] {
+                assert!(ReplayState::new().try_begin(class, &method));
+            }
+            for method in [Method::POST, Method::PATCH, Method::CONNECT] {
+                assert!(!ReplayState::new().try_begin(class, &method));
+            }
         }
     }
 
@@ -112,5 +121,16 @@ mod tests {
         assert!(!replays.try_begin(ReplayClass::ReusedConnection, &Method::GET));
         replays.start_hop();
         assert!(replays.try_begin(ReplayClass::ReusedConnection, &Method::GET));
+    }
+
+    #[test]
+    fn status_replay_is_not_limited_per_hop() {
+        let mut replays = ReplayState::new();
+        assert!(!replays.performed(ReplayClass::Status));
+        assert!(replays.try_begin(ReplayClass::Status, &Method::GET));
+        assert!(replays.try_begin(ReplayClass::Status, &Method::GET));
+        assert!(replays.performed(ReplayClass::Status));
+        replays.start_hop();
+        assert!(!replays.performed(ReplayClass::Status));
     }
 }
