@@ -9,6 +9,7 @@ pub mod http3;
 pub mod quic;
 pub mod safari;
 pub mod tls;
+pub mod websocket;
 
 mod client;
 mod identity;
@@ -32,4 +33,8 @@ pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
     ClientHelloExtensionOrder, EchGreaseAead, InvalidTlsSettings, NamedGroup, SignatureScheme,
     TlsSettings, TlsVersion,
+};
+pub use websocket::{
+    InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+    WebSocketNewConnection, WebSocketSettings,
 };

@@ -139,6 +139,7 @@ impl<'a> SessionCapture<'a> {
                 .ok_or("connection window overflow")?,
             pseudo_header_order,
             extended_connect_pseudo_header_order: None,
+            extended_connect_priority: None,
             headers_priority: Some(headers_priority),
         })
     }

@@ -2,7 +2,7 @@
 
 use crate::{
     ClientHintSettings, Http2Settings, Http3RequestSettings, Http3Settings, TlsSettings,
-    quic::QuicTransportSettings,
+    WebSocketSettings, quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -63,6 +63,7 @@ pub struct ClientProfile {
     http2: Option<Http2Settings>,
     http3: Option<Http3ClientSettings>,
     client_hints: Option<ClientHintSettings>,
+    websocket: Option<WebSocketSettings>,
 }
 
 impl ClientProfile {
@@ -74,6 +75,7 @@ impl ClientProfile {
             http2: None,
             http3: None,
             client_hints: None,
+            websocket: None,
         }
     }
 
@@ -95,6 +97,13 @@ impl ClientProfile {
     #[must_use]
     pub fn with_client_hints(mut self, client_hints: ClientHintSettings) -> Self {
         self.client_hints = Some(client_hints);
+        self
+    }
+
+    /// Adds WebSocket opening templates and connection choice to the profile.
+    #[must_use]
+    pub fn with_websocket(mut self, websocket: WebSocketSettings) -> Self {
+        self.websocket = Some(websocket);
         self
     }
 
@@ -120,6 +129,12 @@ impl ClientProfile {
     #[must_use]
     pub fn client_hints(&self) -> Option<&ClientHintSettings> {
         self.client_hints.as_ref()
+    }
+
+    /// Returns the WebSocket settings when configured.
+    #[must_use]
+    pub fn websocket(&self) -> Option<&WebSocketSettings> {
+        self.websocket.as_ref()
     }
 }
 

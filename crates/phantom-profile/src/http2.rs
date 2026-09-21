@@ -113,6 +113,12 @@ pub struct Http2Settings {
     pub extended_connect_pseudo_header_order: Option<Vec<Http2PseudoHeader>>,
     /// Optional priority fields carried by each request HEADERS frame.
     pub headers_priority: Option<Http2Priority>,
+    /// Optional priority fields carried by extended CONNECT HEADERS frames.
+    ///
+    /// `None` means that extended CONNECT uses [`Self::headers_priority`].
+    /// A value applies only to the extended CONNECT request, including one sent
+    /// on a pooled connection opened for ordinary requests.
+    pub extended_connect_priority: Option<Http2Priority>,
 }
 
 impl Http2Settings {
@@ -135,22 +141,42 @@ impl Http2Settings {
         }
 
         if let Some(priority) = self.headers_priority {
-            if priority.dependency_stream_id > MAX_STREAM_ID {
-                return Err(InvalidHttp2Settings::new(
-                    "headers_priority.dependency_stream_id",
-                    "stream IDs use 31 bits",
-                ));
-            }
-            if !(1..=256).contains(&priority.weight) {
-                return Err(InvalidHttp2Settings::new(
-                    "headers_priority.weight",
-                    "priority weight must be in 1..=256",
-                ));
-            }
+            validate_priority(
+                priority,
+                "headers_priority.dependency_stream_id",
+                "headers_priority.weight",
+            )?;
+        }
+        if let Some(priority) = self.extended_connect_priority {
+            validate_priority(
+                priority,
+                "extended_connect_priority.dependency_stream_id",
+                "extended_connect_priority.weight",
+            )?;
         }
 
         Ok(())
     }
+}
+
+fn validate_priority(
+    priority: Http2Priority,
+    dependency_field: &'static str,
+    weight_field: &'static str,
+) -> Result<(), InvalidHttp2Settings> {
+    if priority.dependency_stream_id > MAX_STREAM_ID {
+        return Err(InvalidHttp2Settings::new(
+            dependency_field,
+            "stream IDs use 31 bits",
+        ));
+    }
+    if !(1..=256).contains(&priority.weight) {
+        return Err(InvalidHttp2Settings::new(
+            weight_field,
+            "priority weight must be in 1..=256",
+        ));
+    }
+    Ok(())
 }
 
 /// Error returned when HTTP/2 profile settings are internally inconsistent.

@@ -2,10 +2,12 @@
 //!
 //! Edge 153.0.4234.48 on Windows 11 (build 26200) matches Chrome
 //! 153.0.8010.48 on the H2 startup, request pseudo-header order and priority,
+//! extended CONNECT shape, WebSocket connection choice and opening fields,
 //! QUIC transport parameters, and H3 SETTINGS and request order. Use
-//! [`chromium::v153_http2`], [`chromium::v153_quic`],
-//! [`chromium::v153_http3`], and [`chromium::v153_http3_request`] for those
-//! layers. Only the TLS offers differ, so only they have Edge recipes here.
+//! [`chromium::v153_http2`], [`chromium::v153_websocket`],
+//! [`chromium::v153_quic`], [`chromium::v153_http3`], and
+//! [`chromium::v153_http3_request`] for those layers. Only the TLS offers
+//! differ, so only they have Edge recipes here.
 
 use crate::{
     chromium,

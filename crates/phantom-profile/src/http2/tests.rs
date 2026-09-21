@@ -14,6 +14,7 @@ fn settings() -> Http2Settings {
             Http2PseudoHeader::Path,
         ],
         extended_connect_pseudo_header_order: None,
+        extended_connect_priority: None,
         headers_priority: None,
     }
 }

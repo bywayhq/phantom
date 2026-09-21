@@ -6,6 +6,9 @@ use crate::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
         EchGreaseAead, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
     },
+    websocket::{
+        WebSocketConnectionPolicy, WebSocketField, WebSocketNewConnection, WebSocketSettings,
+    },
 };
 
 /// Returns TLS settings captured from Firefox 154.0 on macOS 15.5 and Windows 11.
@@ -145,6 +148,7 @@ pub fn v154_http2() -> Http2Settings {
             Http2PseudoHeader::Scheme,
         ],
         extended_connect_pseudo_header_order: None,
+        extended_connect_priority: None,
         headers_priority: Some(Http2Priority {
             dependency_stream_id: 0,
             weight: 42,
@@ -180,13 +184,96 @@ pub fn v156_tls() -> TlsSettings {
 /// Returns HTTP/2 settings observed from Firefox 156.0 on Windows 11.
 ///
 /// Firefox 156.0 (Windows 11 build 26200) matches [`v154_http2`] on every
-/// compared field, so this returns that recipe unchanged. The initial
-/// SETTINGS, connection window, request pseudo-header order, and HEADERS
-/// priority come from the retained local H2 session captures of the WebSocket
-/// fixture set, three fresh-profile runs.
+/// compared field, so this reuses that recipe. The initial SETTINGS,
+/// connection window, request pseudo-header order, and HEADERS priority come
+/// from the retained local H2 session captures of the WebSocket fixture set,
+/// three fresh-profile runs.
+///
+/// It adds the extended CONNECT shape from the same captures: `:method`,
+/// `:path`, `:authority`, `:scheme`, `:protocol`, and HEADERS priority
+/// non-exclusive on stream 0 with weight 22 instead of the navigation's 42.
 #[must_use]
 pub fn v156_http2() -> Http2Settings {
-    v154_http2()
+    let mut settings = v154_http2();
+    settings.extended_connect_pseudo_header_order = Some(vec![
+        Http2PseudoHeader::Method,
+        Http2PseudoHeader::Path,
+        Http2PseudoHeader::Authority,
+        Http2PseudoHeader::Scheme,
+        Http2PseudoHeader::Protocol,
+    ]);
+    settings.extended_connect_priority = Some(Http2Priority {
+        dependency_stream_id: 0,
+        weight: 22,
+        exclusive: false,
+    });
+    settings
+}
+
+/// Returns WebSocket settings observed from Firefox 156.0 on Windows 11.
+///
+/// From the retained Windows 11 (build 26200) WebSocket captures. A `wss://`
+/// WebSocket uses a pooled H2 session to the origin when its peer enabled
+/// extended CONNECT. With no H2 session, Firefox opens a new connection with
+/// its ordinary `h2,http/1.1` offer and sends extended CONNECT. When the
+/// session's peer did not enable extended CONNECT, it opens a new TLS
+/// connection offering only `http/1.1` and sends an HTTP/1.1 Upgrade. The
+/// captures record that connection's ALPN offer, not its complete
+/// ClientHello.
+///
+/// The opening templates keep the captured field order and spelling.
+/// `User-Agent`, `Accept-Language`, `Accept-Encoding`, `Origin`, and
+/// `Sec-Fetch-Site` are caller slots because their values are persona and
+/// page data; the H2 template also places `sec-fetch-storage-access`, which
+/// Firefox sent from a cross-site page. The captures carry no cookies, so the
+/// cookie placeholder's final position is not observed. The compression
+/// offer is bare `permessage-deflate`; Firefox always sends it, while Phantom
+/// sends it only when the caller enables compression.
+#[must_use]
+pub fn v156_websocket() -> WebSocketSettings {
+    WebSocketSettings {
+        connection: WebSocketConnectionPolicy {
+            without_http2_session: WebSocketNewConnection::Http2ExtendedConnect,
+            with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
+            http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
+        },
+        http1_fields: vec![
+            WebSocketField::authority("Host"),
+            WebSocketField::caller("User-Agent"),
+            WebSocketField::literal("Accept", "*/*"),
+            WebSocketField::caller("Accept-Language"),
+            WebSocketField::caller("Accept-Encoding"),
+            WebSocketField::literal("Sec-WebSocket-Version", "13"),
+            WebSocketField::caller("Origin"),
+            WebSocketField::permessage_deflate("Sec-WebSocket-Extensions"),
+            WebSocketField::key("Sec-WebSocket-Key"),
+            WebSocketField::literal("Connection", "Upgrade"),
+            WebSocketField::literal("Sec-Fetch-Dest", "empty"),
+            WebSocketField::literal("Sec-Fetch-Mode", "websocket"),
+            WebSocketField::caller("Sec-Fetch-Site"),
+            WebSocketField::literal("Pragma", "no-cache"),
+            WebSocketField::literal("Cache-Control", "no-cache"),
+            WebSocketField::literal("Upgrade", "websocket"),
+            WebSocketField::client_cookies("Cookie"),
+        ],
+        http2_fields: vec![
+            WebSocketField::caller("user-agent"),
+            WebSocketField::literal("accept", "*/*"),
+            WebSocketField::caller("accept-language"),
+            WebSocketField::caller("accept-encoding"),
+            WebSocketField::literal("sec-websocket-version", "13"),
+            WebSocketField::caller("origin"),
+            WebSocketField::permessage_deflate("sec-websocket-extensions"),
+            WebSocketField::caller("sec-fetch-storage-access"),
+            WebSocketField::literal("sec-fetch-dest", "empty"),
+            WebSocketField::literal("sec-fetch-mode", "websocket"),
+            WebSocketField::caller("sec-fetch-site"),
+            WebSocketField::literal("pragma", "no-cache"),
+            WebSocketField::literal("cache-control", "no-cache"),
+            WebSocketField::client_cookies("cookie"),
+        ],
+        permessage_deflate_offer: Vec::new(),
+    }
 }
 
 // Compatibility aliases for the names used before the Windows parity

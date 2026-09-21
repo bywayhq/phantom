@@ -138,6 +138,7 @@ fn chrome_152_macos_http2_settings_match_retained_pingly_observation()
         initial_connection_window_size,
         pseudo_header_order,
         extended_connect_pseudo_header_order: None,
+        extended_connect_priority: None,
         headers_priority: Some(headers_priority),
     };
     observed.validate()?;
@@ -470,12 +471,19 @@ fn chrome_153_http2_recipe_matches_windows_session_capture()
 
     let settings = v153_http2();
     settings.validate()?;
+    // Navigation HEADERS carry no extended CONNECT shape; the WebSocket
+    // recipe tests compare that shape with every captured CONNECT.
+    let navigation = Http2Settings {
+        extended_connect_pseudo_header_order: None,
+        extended_connect_priority: None,
+        ..settings
+    };
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
     for run in observed {
-        assert_eq!(run, settings);
+        assert_eq!(run, navigation);
     }
-    assert_eq!(settings, v152_http2());
+    assert_eq!(navigation, v152_http2());
     Ok(())
 }
 

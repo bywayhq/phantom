@@ -171,6 +171,7 @@ async fn emits_every_supported_setting_in_declared_order() -> TestResult<()> {
             Http2PseudoHeader::Method,
         ],
         extended_connect_pseudo_header_order: None,
+        extended_connect_priority: None,
         headers_priority: Some(Http2Priority {
             dependency_stream_id: 31,
             weight: 1,

@@ -11,6 +11,10 @@ use crate::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
     },
+    websocket::{
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+        WebSocketNewConnection, WebSocketSettings,
+    },
 };
 
 use crate::quic::{
@@ -221,6 +225,7 @@ pub fn v152_http2() -> Http2Settings {
             Http2PseudoHeader::Path,
         ],
         extended_connect_pseudo_header_order: None,
+        extended_connect_priority: None,
         headers_priority: Some(Http2Priority {
             dependency_stream_id: 0,
             weight: 256,
@@ -452,13 +457,86 @@ pub fn v153_tls() -> TlsSettings {
 /// Returns HTTP/2 settings observed from Chrome 153.0.8010.48 on Windows 11.
 ///
 /// Branded Chrome 153.0.8010.48 on Windows 11 (build 26200) matches
-/// [`v152_http2`] on every compared field, so this returns that recipe
-/// unchanged. The initial SETTINGS and connection window come from a raw
-/// startup-frame capture; the request pseudo-header order and HEADERS priority
-/// come from local navigation captures of the retained H2 session set.
+/// [`v152_http2`] on every compared field, so this reuses that recipe. The
+/// initial SETTINGS and connection window come from a raw startup-frame
+/// capture; the request pseudo-header order and HEADERS priority come from
+/// local navigation captures of the retained H2 session set.
+///
+/// It adds the extended CONNECT shape from the retained WebSocket captures,
+/// for which Chrome 152 has no evidence: `:method`, `:authority`, `:scheme`,
+/// `:path`, `:protocol`, and HEADERS priority exclusive on stream 0 with
+/// weight 147 instead of the navigation's 256.
 #[must_use]
 pub fn v153_http2() -> Http2Settings {
-    v152_http2()
+    let mut settings = v152_http2();
+    settings.extended_connect_pseudo_header_order = Some(vec![
+        Http2PseudoHeader::Method,
+        Http2PseudoHeader::Authority,
+        Http2PseudoHeader::Scheme,
+        Http2PseudoHeader::Path,
+        Http2PseudoHeader::Protocol,
+    ]);
+    settings.extended_connect_priority = Some(Http2Priority {
+        dependency_stream_id: 0,
+        weight: 147,
+        exclusive: true,
+    });
+    settings
+}
+
+/// Returns WebSocket settings observed from Chrome 153.0.8010.48 on Windows 11.
+///
+/// From the retained Windows 11 (build 26200) WebSocket captures. A `wss://`
+/// WebSocket uses a pooled H2 session to the origin only when its peer enabled
+/// extended CONNECT. Otherwise, with or without such a session, Chrome opens a
+/// new TLS connection offering only `http/1.1` and sends an HTTP/1.1 Upgrade;
+/// it never opens a new H2 connection for a WebSocket. The captures record
+/// that connection's ALPN offer, not its complete ClientHello.
+///
+/// The opening templates keep the captured field order and spelling.
+/// `User-Agent`, `Origin`, `Accept-Encoding`, and `Accept-Language` are
+/// caller slots because their values are persona and page data. The captures
+/// carry no cookies, so the cookie placeholder's final position is not
+/// observed. The compression offer is `permessage-deflate;
+/// client_max_window_bits`; Chrome always sends it, while Phantom sends it
+/// only when the caller enables compression. Edge 153.0.4234.48 matches this
+/// recipe on every compared field.
+#[must_use]
+pub fn v153_websocket() -> WebSocketSettings {
+    WebSocketSettings {
+        connection: WebSocketConnectionPolicy {
+            without_http2_session: WebSocketNewConnection::Http1Upgrade,
+            with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
+            http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
+        },
+        http1_fields: vec![
+            WebSocketField::authority("Host"),
+            WebSocketField::literal("Connection", "Upgrade"),
+            WebSocketField::literal("Pragma", "no-cache"),
+            WebSocketField::literal("Cache-Control", "no-cache"),
+            WebSocketField::caller("User-Agent"),
+            WebSocketField::literal("Upgrade", "websocket"),
+            WebSocketField::caller("Origin"),
+            WebSocketField::literal("Sec-WebSocket-Version", "13"),
+            WebSocketField::caller("Accept-Encoding"),
+            WebSocketField::caller("Accept-Language"),
+            WebSocketField::key("Sec-WebSocket-Key"),
+            WebSocketField::permessage_deflate("Sec-WebSocket-Extensions"),
+            WebSocketField::client_cookies("Cookie"),
+        ],
+        http2_fields: vec![
+            WebSocketField::literal("pragma", "no-cache"),
+            WebSocketField::literal("cache-control", "no-cache"),
+            WebSocketField::caller("user-agent"),
+            WebSocketField::caller("origin"),
+            WebSocketField::literal("sec-websocket-version", "13"),
+            WebSocketField::caller("accept-encoding"),
+            WebSocketField::caller("accept-language"),
+            WebSocketField::permessage_deflate("sec-websocket-extensions"),
+            WebSocketField::client_cookies("cookie"),
+        ],
+        permessage_deflate_offer: vec![WebSocketDeflateParameter::ClientMaxWindowBits(None)],
+    }
 }
 
 /// Returns HTTP/3 settings observed from Chrome 153.0.8010.48 on Windows 11.
