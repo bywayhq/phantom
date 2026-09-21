@@ -193,17 +193,21 @@ impl Http1Or2Pool {
         )
     }
 
-    /// Returns the current reusable HTTP/2 generation for this origin.
+    /// Admits one stream on the current reusable HTTP/2 generation for this
+    /// origin.
     ///
     /// This neither opens a connection nor creates a pool entry, and it does
-    /// not change eviction order. An HTTP/1.1 generation yields `None`. A
-    /// WebSocket stream opened on the returned connection is not counted by
-    /// this pool's per-origin admission.
+    /// not change eviction order. An HTTP/1.1 generation yields `None`. When
+    /// an HTTP/2 generation exists, the returned permit is the HTTP/2
+    /// admission a negotiated request holds once ALPN selected HTTP/2: it
+    /// waits at the active bound and fails with a typed capacity error when
+    /// the waiting bound is full. The generation is checked again after
+    /// admission because it may have been retired while the caller waited.
     #[cfg(feature = "websocket")]
-    pub(crate) async fn current_http2_connection(
+    pub(crate) async fn admit_current_http2_connection(
         &self,
         endpoint: &Endpoint,
-    ) -> Option<Http2Connection> {
+    ) -> Result<Option<(Http2Connection, AdmissionPermit)>, RequestError> {
         let key = PoolKey::new(endpoint);
         let entry = {
             let state = self.state.lock().await;
@@ -211,15 +215,19 @@ impl Http1Or2Pool {
                 .entries
                 .iter()
                 .find(|(candidate, _)| candidate == &key)
-                .map(|(_, entry)| Arc::clone(entry))?
+                .map(|(_, entry)| Arc::clone(entry))
         };
-        let current = entry.current.lock().await;
-        match current.as_ref().map(|slot| &slot.connection) {
-            Some(PooledConnection::Http2(connection)) if connection.is_reusable() => {
-                Some(connection.clone())
-            }
-            _ => None,
+        let Some(entry) = entry else {
+            return Ok(None);
+        };
+        if entry.current_reusable_http2().await.is_none() {
+            return Ok(None);
         }
+        let permit = entry.admit(HttpProtocol::Http2).await?;
+        Ok(entry
+            .current_reusable_http2()
+            .await
+            .map(|connection| (connection, permit)))
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -305,6 +313,17 @@ impl PoolEntry {
             http1_admission,
             http2_admission,
             connector: OnceLock::new(),
+        }
+    }
+
+    #[cfg(feature = "websocket")]
+    async fn current_reusable_http2(&self) -> Option<Http2Connection> {
+        let current = self.current.lock().await;
+        match current.as_ref().map(|slot| &slot.connection) {
+            Some(PooledConnection::Http2(connection)) if connection.is_reusable() => {
+                Some(connection.clone())
+            }
+            _ => None,
         }
     }
 

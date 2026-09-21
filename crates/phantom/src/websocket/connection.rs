@@ -75,6 +75,7 @@ impl WebSocket {
 
     pub(super) async fn new_http2(
         stream: Http2ExtendedConnectStream,
+        admission: Option<Box<dyn Send + Sync>>,
         handshake: Response<()>,
         selected_protocol: Option<Box<str>>,
         limits: WebSocketLimits,
@@ -84,7 +85,10 @@ impl WebSocket {
         >,
     ) -> Self {
         Self::new(
-            WebSocketIo::Http2(stream),
+            WebSocketIo::Http2 {
+                stream,
+                _admission: admission,
+            },
             handshake,
             selected_protocol,
             limits,
@@ -239,7 +243,15 @@ impl WebSocket {
 
 enum WebSocketIo {
     Http1(Http1Upgrade),
-    Http2(Http2ExtendedConnectStream),
+    Http2 {
+        stream: Http2ExtendedConnectStream,
+        /// Per-origin pool admission for a stream on a pooled session.
+        ///
+        /// It lives exactly as long as the stream, like an ordinary response
+        /// body's permit, so dropping the WebSocket or reaching a terminal
+        /// state (which drops the transport) releases it.
+        _admission: Option<Box<dyn Send + Sync>>,
+    },
 }
 
 impl AsyncRead for WebSocketIo {
@@ -250,7 +262,7 @@ impl AsyncRead for WebSocketIo {
     ) -> Poll<std::io::Result<()>> {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_read(context, output),
-            Self::Http2(stream) => Pin::new(stream).poll_read(context, output),
+            Self::Http2 { stream, .. } => Pin::new(stream).poll_read(context, output),
         }
     }
 }
@@ -263,7 +275,7 @@ impl AsyncWrite for WebSocketIo {
     ) -> Poll<std::io::Result<usize>> {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_write(context, input),
-            Self::Http2(stream) => Pin::new(stream).poll_write(context, input),
+            Self::Http2 { stream, .. } => Pin::new(stream).poll_write(context, input),
         }
     }
 
@@ -273,7 +285,7 @@ impl AsyncWrite for WebSocketIo {
     ) -> Poll<std::io::Result<()>> {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_flush(context),
-            Self::Http2(stream) => Pin::new(stream).poll_flush(context),
+            Self::Http2 { stream, .. } => Pin::new(stream).poll_flush(context),
         }
     }
 
@@ -283,7 +295,7 @@ impl AsyncWrite for WebSocketIo {
     ) -> Poll<std::io::Result<()>> {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_shutdown(context),
-            Self::Http2(stream) => Pin::new(stream).poll_shutdown(context),
+            Self::Http2 { stream, .. } => Pin::new(stream).poll_shutdown(context),
         }
     }
 }
@@ -292,7 +304,7 @@ impl WebSocketIo {
     fn poll_shutdown_http2(&mut self, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         match self {
             Self::Http1(_) => Poll::Ready(Ok(())),
-            Self::Http2(stream) => Pin::new(stream).poll_shutdown(context),
+            Self::Http2 { stream, .. } => Pin::new(stream).poll_shutdown(context),
         }
     }
 }

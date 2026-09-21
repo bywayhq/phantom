@@ -261,21 +261,23 @@ where
     Ok(())
 }
 
-/// Echoes the first client WebSocket frame, then drains until the client ends.
+/// Echoes each client WebSocket frame and ends the stream after the client.
 async fn echo_h2(mut body: ::http2::RecvStream, mut send: ::http2::SendStream<Bytes>) {
     let mut wire = Vec::new();
     while let Some(Ok(chunk)) = body.data().await {
         let _ = body.flow_control().release_capacity(chunk.len());
         wire.extend_from_slice(&chunk);
-        if let Some(payload) = client_frame_payload(&wire) {
+        if let Some((opcode, payload)) = client_frame(&wire) {
             let mut echo = Vec::new();
-            append_server_frame(&mut echo, true, 0x1, &payload);
+            append_server_frame(&mut echo, true, opcode, &payload);
             if send.send_data(Bytes::from(echo), false).is_err() {
                 return;
             }
             wire.clear();
         }
     }
+    // The client ended its side after the close handshake; end ours too.
+    let _ = send.send_data(Bytes::new(), true);
 }
 
 async fn serve_h1<T>(mut stream: T, index: usize, log: &Log, behavior: Behavior) -> TestResult<()>
@@ -351,7 +353,8 @@ fn decode_alpn(mut wire: &[u8]) -> Vec<String> {
 }
 
 /// Unmasks one complete client frame, or returns `None` until it is complete.
-fn client_frame_payload(wire: &[u8]) -> Option<Vec<u8>> {
+fn client_frame(wire: &[u8]) -> Option<(u8, Vec<u8>)> {
+    let opcode = wire.first()? & 0x0f;
     let (&second, mut rest) = wire.get(1..)?.split_first()?;
     let length = match second & 0x7f {
         126 => {
@@ -364,13 +367,14 @@ fn client_frame_payload(wire: &[u8]) -> Option<Vec<u8>> {
     };
     let (mask, tail) = rest.split_at_checked(4)?;
     let payload = tail.get(..length)?;
-    Some(
+    Some((
+        opcode,
         payload
             .iter()
             .enumerate()
             .map(|(index, byte)| byte ^ mask[index % 4])
             .collect(),
-    )
+    ))
 }
 
 /// Incremental parser for the client's side of an HTTP/2 connection.

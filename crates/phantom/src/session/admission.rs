@@ -98,7 +98,7 @@ impl Admission {
     }
 }
 
-pub(super) struct AdmissionPermit {
+pub(crate) struct AdmissionPermit {
     _admission: Arc<Admission>,
     _permit: OwnedSemaphorePermit,
 }

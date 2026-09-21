@@ -77,9 +77,13 @@ enum Http1UpgradeConnector {
 enum Http2Target {
     /// A new connection dedicated to this WebSocket.
     NewConnection,
-    /// A pooled session whose peer enabled extended CONNECT.
-    Session(Http2Connection),
+    /// A pooled session whose peer enabled extended CONNECT, with the
+    /// per-origin admission the WebSocket holds for its whole lifetime.
+    Session(Http2Connection, AdmissionGuard),
 }
+
+/// A pool admission permit held until the WebSocket transport is released.
+type AdmissionGuard = Box<dyn Send + Sync>;
 
 impl fmt::Debug for WebSocketRequestBuilder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -314,16 +318,21 @@ impl WebSocketRequestBuilder {
             WebSocketNewConnection::Http1Upgrade
         } else {
             let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+            // The stream takes the same per-origin admission as an ordinary
+            // request, waiting or failing with a typed capacity error.
             match self
                 .client
-                .current_http2_session(&self.request.endpoint, route)
+                .admit_http2_session(&self.request.endpoint, route)
                 .await
+                .map_err(WebSocketError::request)?
             {
-                Some(session) => match session.extended_connect_enabled().await {
+                Some((session, permit)) => match session.extended_connect_enabled().await {
                     Ok(true) => {
                         request_span.record("connection", "http2_session");
                         self.headers = std::mem::take(&mut self.http2_headers);
-                        return self.connect_http2(Http2Target::Session(session)).await;
+                        return self
+                            .connect_http2(Http2Target::Session(session, Box::new(permit)))
+                            .await;
                     }
                     Ok(false) => with_incapable_session,
                     // The session failed before its peer settings were known,

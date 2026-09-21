@@ -95,6 +95,13 @@ impl Default for ClientOptions {
     }
 }
 
+/// A pooled HTTP/2 connection and the per-origin admission for one stream.
+#[cfg(feature = "websocket")]
+pub(crate) type PooledHttp2Session = (
+    phantom_net::http2::Http2Connection,
+    admission::AdmissionPermit,
+);
+
 /// Compatibility name for the pooled [`Client`] owner.
 #[doc(hidden)]
 pub type Session = Client;
@@ -169,27 +176,36 @@ impl ClientOptions {
 }
 
 impl Client {
-    /// Returns a pooled, reusable HTTP/2 session to the origin on `route`.
+    /// Admits one stream on a pooled, reusable HTTP/2 session to the origin.
     ///
     /// The negotiated pool holds only direct sessions and is consulted first;
-    /// the exact HTTP/2 pool is keyed by route. Nothing is opened.
+    /// the exact HTTP/2 pool is keyed by route. Nothing is opened. The
+    /// returned permit is that pool's per-origin HTTP/2 admission; holding it
+    /// counts the stream against the origin's active bound until dropped.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed capacity error when the origin's waiting bound is full.
     #[cfg(feature = "websocket")]
-    pub(crate) async fn current_http2_session(
+    pub(crate) async fn admit_http2_session(
         &self,
         endpoint: &crate::authority::Endpoint,
         route: &crate::Route,
-    ) -> Option<phantom_net::http2::Http2Connection> {
+    ) -> Result<Option<PooledHttp2Session>, RequestError> {
         if matches!(route, crate::Route::Direct) {
-            if let Some(connection) = self
+            if let Some(session) = self
                 .state
                 .http1_or_2
-                .current_http2_connection(endpoint)
-                .await
+                .admit_current_http2_connection(endpoint)
+                .await?
             {
-                return Some(connection);
+                return Ok(Some(session));
             }
         }
-        self.state.http2.current_connection(endpoint, route).await
+        self.state
+            .http2
+            .admit_current_connection(endpoint, route)
+            .await
     }
 
     /// Returns the policy for retrying connection-establishment failures.

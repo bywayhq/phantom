@@ -16,9 +16,10 @@ mod tls_support;
 #[path = "support/websocket.rs"]
 mod websocket_support;
 
-use std::sync::Arc;
+use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use http::Version;
+use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, RequestHeader, WebSocket, WebSocketErrorKind, WebSocketHeader,
     WebSocketMessage, WebSocketRequestBuilder,
@@ -409,6 +410,114 @@ async fn profile_policy_rejects_a_replaced_field_sequence_before_io() -> TestRes
     .await
 }
 
+#[tokio::test]
+async fn websocket_on_pooled_session_counts_against_origin_admission() -> TestResult<()> {
+    for negotiated in [true, false] {
+        bounded(async {
+            let identity = Arc::new(TestIdentity::generate()?);
+            let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+            let client = bounded_client(&identity, NonZeroUsize::MIN, NonZeroUsize::MIN)?;
+            pooled_get(&client, &server, negotiated).await?;
+            let mut socket = websocket(&client, &server)?.connect().await?;
+            assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
+
+            // With one active slot per origin, the open WebSocket holds it.
+            let waiting = tokio::spawn({
+                let client = client.clone();
+                let address = server.address;
+                async move {
+                    pooled_get_at(&client, address, negotiated)
+                        .await
+                        .map_err(|error| error.to_string())
+                }
+            });
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            assert!(
+                !waiting.is_finished(),
+                "request bypassed the WebSocket's admission"
+            );
+            assert_eq!(methods(&server.connections()?[0]), ["GET", "CONNECT"]);
+
+            close_gracefully(&mut socket).await?;
+            waiting.await??;
+            assert_eq!(
+                methods(&server.connections()?[0]),
+                ["GET", "CONNECT", "GET"]
+            );
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn admission_released_when_pooled_websocket_closes() -> TestResult<()> {
+    bounded(async {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let client = bounded_client(&identity, NonZeroUsize::MIN, NonZeroUsize::MIN)?;
+        ordinary_get(&client, &server).await?;
+
+        // A graceful close releases the slot, so the next WebSocket and the
+        // next ordinary request are admitted without waiting.
+        let mut socket = websocket(&client, &server)?.connect().await?;
+        close_gracefully(&mut socket).await?;
+        drop(socket);
+        let socket = websocket(&client, &server)?.connect().await?;
+        exchange(socket).await?;
+        ordinary_get(&client, &server).await?;
+
+        // Dropping an open WebSocket also releases it.
+        let socket = websocket(&client, &server)?.connect().await?;
+        drop(socket);
+        ordinary_get(&client, &server).await?;
+
+        let connections = server.connections()?;
+        assert_eq!(connections.len(), 1);
+        assert_eq!(
+            methods(&connections[0]),
+            ["GET", "CONNECT", "CONNECT", "GET", "CONNECT", "GET"]
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn pooled_websocket_fails_with_capacity_when_origin_waiters_are_full() -> TestResult<()> {
+    bounded(async {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let client = bounded_client(&identity, NonZeroUsize::MIN, NonZeroUsize::MIN)?;
+        ordinary_get(&client, &server).await?;
+        let socket = websocket(&client, &server)?.connect().await?;
+
+        // The active slot is taken and one request fills the waiting bound.
+        let waiting = tokio::spawn({
+            let client = client.clone();
+            let address = server.address;
+            async move {
+                pooled_get_at(&client, address, true)
+                    .await
+                    .map_err(|error| error.to_string())
+            }
+        });
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let error = match websocket(&client, &server)?.connect().await {
+            Ok(_) => return Err("WebSocket exceeded the origin's waiting bound".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), WebSocketErrorKind::Capacity);
+
+        drop(socket);
+        waiting.await??;
+        assert_eq!(server.connections()?.len(), 1);
+        Ok(())
+    })
+    .await
+}
+
 #[test]
 fn websocket_policy_needs_an_extended_connect_order() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings())
@@ -624,12 +733,55 @@ fn profile_client(
 }
 
 async fn ordinary_get(client: &Client, server: &TestServer) -> TestResult<()> {
-    let response = client
-        .get_negotiated(&format!("https://{}/page", server.address))?
-        .send()
-        .await?;
+    pooled_get(client, server, true).await
+}
+
+async fn pooled_get(client: &Client, server: &TestServer, negotiated: bool) -> TestResult<()> {
+    pooled_get_at(client, server.address, negotiated).await
+}
+
+/// Sends one GET through the negotiated or the exact HTTP/2 pool and reads
+/// its body, which releases the request's admission.
+async fn pooled_get_at(
+    client: &Client,
+    address: std::net::SocketAddr,
+    negotiated: bool,
+) -> TestResult<()> {
+    let uri = format!("https://{address}/page");
+    let builder = if negotiated {
+        client.get_negotiated(&uri)?
+    } else {
+        client.get(phantom::HttpProtocol::Http2, &uri)?
+    };
+    let response = builder.send().await?;
     assert_eq!(response.status(), 200);
+    response.into_body().collect().await?;
     Ok(())
+}
+
+fn bounded_client(
+    identity: &TestIdentity,
+    max_active: NonZeroUsize,
+    max_pending: NonZeroUsize,
+) -> TestResult<Client> {
+    let profile = ClientProfile::new(tls_settings())
+        .with_http2(chromium::v153_http2())
+        .with_websocket(chromium::v153_websocket());
+    Ok(Client::builder(profile)
+        .add_root_certificate_der(identity.root_der.clone())
+        .max_concurrent_http2_requests_per_origin(max_active)
+        .max_pending_http2_requests_per_origin(max_pending)
+        .build()?)
+}
+
+async fn close_gracefully(socket: &mut WebSocket) -> TestResult<()> {
+    socket.close(None).await?;
+    assert_eq!(socket.receive().await?, WebSocketMessage::Close(None));
+    match socket.receive().await {
+        Ok(message) => Err(format!("WebSocket stayed open after Close: {message:?}").into()),
+        Err(error) if error.kind() == WebSocketErrorKind::Closed => Ok(()),
+        Err(error) => Err(error.into()),
+    }
 }
 
 fn websocket(client: &Client, server: &TestServer) -> TestResult<WebSocketRequestBuilder> {

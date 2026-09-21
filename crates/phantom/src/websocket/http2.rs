@@ -10,7 +10,7 @@ use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 #[cfg(feature = "websocket-deflate")]
 use super::NegotiatedPerMessageDeflate;
 use super::{
-    Http2Target, ResolvedWebSocket, WebSocket, WebSocketError, WebSocketLimits,
+    AdmissionGuard, Http2Target, ResolvedWebSocket, WebSocket, WebSocketError, WebSocketLimits,
     WebSocketRequestBuilder, WebSocketTransport,
     handshake::{prepare_http2, validate_http2_response},
 };
@@ -76,7 +76,7 @@ impl WebSocketRequestBuilder {
         let authority = request.endpoint.authority().as_str();
         // A pooled session already carries its route; a stream failure there
         // is terminal and never retried on another connection.
-        if let Http2Target::Session(session) = target {
+        if let Http2Target::Session(session, admission) = target {
             let outcome = connector
                 .send_extended_connect_on(
                     &session,
@@ -96,6 +96,7 @@ impl WebSocketRequestBuilder {
                 engine_config,
                 #[cfg(feature = "cookies")]
                 cookie_jar.as_deref(),
+                Some(admission),
             )
             .await;
         }
@@ -238,12 +239,14 @@ impl WebSocketRequestBuilder {
             engine_config,
             #[cfg(feature = "cookies")]
             cookie_jar.as_deref(),
+            None,
         )
         .await
     }
 }
 
 /// Validates the CONNECT response and installs the frame engine.
+#[allow(clippy::too_many_arguments)]
 async fn finish_http2(
     outcome: Http2ExtendedConnectOutcome,
     request: &ResolvedWebSocket,
@@ -252,6 +255,7 @@ async fn finish_http2(
     limits: WebSocketLimits,
     engine_config: WebSocketConfig,
     #[cfg(feature = "cookies")] cookie_jar: Option<&CookieJar>,
+    admission: Option<AdmissionGuard>,
 ) -> Result<WebSocket, WebSocketError> {
     #[cfg(not(feature = "cookies"))]
     let _ = request;
@@ -286,6 +290,7 @@ async fn finish_http2(
             }
             Ok(WebSocket::new_http2(
                 stream,
+                admission,
                 response,
                 selected_protocol,
                 limits,

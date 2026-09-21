@@ -191,8 +191,14 @@ ordinary HTTP pool. An exact H2 WebSocket uses a dedicated connection. Under a
 [profile policy](#profile-connection-policy) it may instead be one stream of
 a pooled H2 session; that stream carries the profile's extended-CONNECT
 pseudo-header order and priority, and the session's ordinary streams keep
-their own. The stream is bounded by the peer's concurrent-stream limit but is
-not counted by the client's per-origin H2 admission. DATA frames
+their own. Before sending CONNECT, the WebSocket takes the same per-origin H2
+admission an ordinary request on that pool takes: it waits while the origin
+is at `max_concurrent_http2_requests_per_origin` and fails with
+`WebSocketErrorKind::Capacity` when the waiting bound is also full. It holds
+that slot, and a lease on the session, for its whole lifetime, like a
+response body; the slot is released when the WebSocket is dropped or reaches
+a terminal state such as a completed close handshake. The peer's
+concurrent-stream limit still applies. DATA frames
 provide simultaneous reads and writes; receive-window capacity is returned as
 bytes are consumed, graceful shutdown sends END_STREAM, and premature drop
 resets only the CONNECT stream. There are no implicit redirects, reconnects,
