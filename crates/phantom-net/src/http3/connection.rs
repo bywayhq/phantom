@@ -115,18 +115,21 @@ impl Http3Connection {
         );
         let result = async {
             let (request, body, trailers) = prepared.into_parts();
-            let stream = {
+            let (stream, mut datagrams) = {
                 let mut sender = self.inner.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
-                sender.send_request(request).await?
+                let stream = sender.send_request(request).await?;
+                // Registering under the send lock keeps datagram monitors in
+                // stream-ID order, which the router relies on to drop
+                // datagrams for closed streams.
+                let datagrams = self
+                    .inner
+                    .datagrams
+                    .as_ref()
+                    .map(|router| router.monitor(stream.id()));
+                (stream, datagrams)
             };
-            let stream_id = stream.id();
             let mut pending = PendingRequest::new(stream);
-            let mut datagrams = self
-                .inner
-                .datagrams
-                .as_ref()
-                .map(|router| router.monitor(stream_id));
             let mut send = RequestSend::stream(pending.take_send()?);
             let exchange_result = exchange(
                 &mut send,
@@ -216,18 +219,21 @@ impl Http3Connection {
                     "HTTP/3 peer did not enable extended CONNECT",
                 ));
             }
-            let stream = {
+            let (stream, mut datagrams) = {
                 let mut sender = self.inner.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
-                sender.send_request(request).await?
+                let stream = sender.send_request(request).await?;
+                // Registering under the send lock keeps datagram monitors in
+                // stream-ID order, which the router relies on to drop
+                // datagrams for closed streams.
+                let datagrams = self
+                    .inner
+                    .datagrams
+                    .as_ref()
+                    .map(|router| router.monitor(stream.id()));
+                (stream, datagrams)
             };
-            let stream_id = stream.id();
             let mut pending = PendingRequest::new(stream);
-            let mut datagrams = self
-                .inner
-                .datagrams
-                .as_ref()
-                .map(|router| router.monitor(stream_id));
             let response = {
                 let (_, recv) = pending.streams_mut()?;
                 receive_response(recv, datagrams.as_mut()).await

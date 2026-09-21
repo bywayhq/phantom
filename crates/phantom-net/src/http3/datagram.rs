@@ -89,6 +89,9 @@ impl std::fmt::Debug for DatagramRouter {
 struct RouterState {
     next_token: u64,
     active: HashMap<u64, (u64, oneshot::Sender<()>)>,
+    // Request streams register in stream-ID order, so every client stream at
+    // or below this ID has been opened and is closed unless it is active.
+    highest_registered: Option<u64>,
     pending: VecDeque<PendingViolation>,
     stopped: bool,
     failed: bool,
@@ -100,6 +103,7 @@ impl RouterState {
         Self {
             next_token: 0,
             active: HashMap::new(),
+            highest_registered: None,
             pending: VecDeque::new(),
             stopped: false,
             failed: false,
@@ -122,12 +126,16 @@ impl RouterState {
         if self.stopped {
             return token;
         }
-        if let Some(position) = self
+        self.highest_registered = self.highest_registered.max(Some(stream_id));
+        let pending_violation = self
             .pending
             .iter()
-            .position(|candidate| candidate.stream_id == stream_id)
-        {
-            self.pending.remove(position);
+            .any(|candidate| candidate.stream_id == stream_id);
+        // Pending datagrams for lower IDs belong to streams that were opened
+        // but never registered; those streams are already closed.
+        self.pending
+            .retain(|candidate| candidate.stream_id > stream_id);
+        if pending_violation {
             let _ = sender.send(());
             return token;
         }
@@ -151,6 +159,15 @@ impl RouterState {
         }
         if let Some((_, sender)) = self.active.remove(&stream_id) {
             let _ = sender.send(());
+            return;
+        }
+        // RFC 9297 section 2.1: "If a datagram is received after the
+        // corresponding stream's receive side is closed, the received
+        // datagrams MUST be silently dropped."
+        if self
+            .highest_registered
+            .is_some_and(|highest| stream_id <= highest)
+        {
             return;
         }
         if self
@@ -315,6 +332,48 @@ mod tests {
 
         assert!(state.failed);
         assert!(state.pending.is_empty());
+    }
+
+    #[test]
+    fn datagram_for_a_closed_stream_is_dropped_without_failing() {
+        let lifetime = Duration::from_millis(10);
+        let now = Instant::now();
+        let mut state = RouterState::new(lifetime);
+        let (closed, _closed_rx) = oneshot::channel();
+        let closed_token = state.register_at(0, closed, now);
+        state.unregister(0, closed_token);
+
+        state.notify_at(0, now);
+        let (later, mut later_rx) = oneshot::channel();
+        state.register_at(4, later, now + lifetime);
+
+        assert!(!state.failed);
+        assert!(state.pending.is_empty());
+        assert!(matches!(
+            later_rx.try_recv(),
+            Err(oneshot::error::TryRecvError::Empty)
+        ));
+    }
+
+    #[test]
+    fn pending_datagram_for_a_stream_that_never_registered_is_dropped() {
+        let lifetime = Duration::from_millis(10);
+        let now = Instant::now();
+        let mut state = RouterState::new(lifetime);
+        state.notify_at(0, now);
+        let (later, mut later_rx) = oneshot::channel();
+
+        state.register_at(4, later, now);
+        state.notify_at(8, now + lifetime / 2);
+        let (next, _next_rx) = oneshot::channel();
+        state.register_at(12, next, now + lifetime);
+
+        assert!(!state.failed);
+        assert!(state.pending.is_empty());
+        assert!(matches!(
+            later_rx.try_recv(),
+            Err(oneshot::error::TryRecvError::Empty)
+        ));
     }
 
     #[test]
