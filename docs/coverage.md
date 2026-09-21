@@ -62,9 +62,10 @@ connection handoff, and shared request-selection tests; a live BoringSSL-server
 H3 request differential remains a separate validation gate.
 
 `Critical-CH` can cause one internal retry when a supported requested field was
-missing and the HTTP method is safe. The current request body is owned
-bytes and can be replayed exactly; the retry never changes protocol or route. A
-repeated demand cannot loop.
+missing and the HTTP method is safe. An owned-bytes request body is replayed
+exactly. A one-shot streaming body cannot be replayed, so the retry fails with
+`RequestErrorKind::RequestBody` and the original response is not returned. The
+retry never changes protocol or route, and a repeated demand cannot loop.
 Intermediate redirect responses are learned before the next hop, and
 configured caller hint fields are removed at a cross-origin boundary before
 the new origin's automatic set is built.
