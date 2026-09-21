@@ -49,12 +49,40 @@ async fn datagram_from_a_non_relay_source_is_dropped() -> TestResult {
     Ok(())
 }
 
+#[tokio::test]
+async fn closed_control_connection_ends_the_association() -> TestResult {
+    let mut association = Association::open().await?;
+    association.control(ControlAction::Close).await?;
+
+    let error = match association.receive().await {
+        Ok(payload) => return Err(format!("closed association received {payload:?}").into()),
+        Err(error) => error,
+    };
+    let error = error
+        .downcast::<io::Error>()
+        .map_err(|error| format!("unexpected receive failure: {error}"))?;
+    // Quinn ignores `ConnectionReset`; any other kind stops the endpoint.
+    assert_eq!(error.kind(), io::ErrorKind::NotConnected);
+    Ok(())
+}
+
+#[tokio::test]
+async fn control_connection_bytes_do_not_end_the_association() -> TestResult {
+    let mut association = Association::open().await?;
+    association.control(ControlAction::SendBytes).await?;
+    association.relay_to_client(b"still open").await?;
+
+    assert_eq!(association.receive().await?, b"still open");
+    Ok(())
+}
+
 struct Association {
     socket: Arc<dyn AsyncUdpSocket>,
     relay: UdpSocket,
     client: SocketAddr,
-    _close_control: oneshot::Sender<()>,
-    _proxy: JoinHandle<io::Result<()>>,
+    control: Option<oneshot::Sender<ControlAction>>,
+    proxy: JoinHandle<io::Result<Option<TcpStream>>>,
+    retained_control: Option<TcpStream>,
 }
 
 impl Association {
@@ -63,10 +91,10 @@ impl Association {
         let proxy_address = listener.local_addr()?;
         let relay = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let relay_address = relay.local_addr()?;
-        let (close_control, closed) = oneshot::channel();
+        let (control, action) = oneshot::channel();
         let proxy = tokio::spawn(async move {
             let (control, _) = listener.accept().await?;
-            serve_udp_associate(control, relay_address, closed).await
+            serve_udp_associate(control, relay_address, action).await
         });
 
         let association = associate_socks5_udp_local_with_auth(
@@ -82,8 +110,9 @@ impl Association {
             socket,
             relay,
             client,
-            _close_control: close_control,
-            _proxy: proxy,
+            control: Some(control),
+            proxy,
+            retained_control: None,
         })
     }
 
@@ -92,6 +121,16 @@ impl Association {
             .send_to(&relayed(payload), self.client)
             .await
             .map(drop)
+    }
+
+    async fn control(&mut self, action: ControlAction) -> TestResult {
+        if let Some(control) = self.control.take() {
+            control
+                .send(action)
+                .map_err(|_| "test proxy stopped before its control action")?;
+        }
+        self.retained_control = (&mut self.proxy).await??;
+        Ok(())
     }
 
     async fn receive(&self) -> TestResult<Vec<u8>> {
@@ -112,11 +151,17 @@ impl Association {
     }
 }
 
+#[derive(Debug)]
+enum ControlAction {
+    SendBytes,
+    Close,
+}
+
 async fn serve_udp_associate(
     mut control: TcpStream,
     relay: SocketAddr,
-    closed: oneshot::Receiver<()>,
-) -> io::Result<()> {
+    action: oneshot::Receiver<ControlAction>,
+) -> io::Result<Option<TcpStream>> {
     let mut greeting = [0; 3];
     control.read_exact(&mut greeting).await?;
     control.write_all(&[5, 0]).await?;
@@ -129,8 +174,16 @@ async fn serve_udp_associate(
     reply.extend_from_slice(&relay_ip.octets());
     reply.extend_from_slice(&relay.port().to_be_bytes());
     control.write_all(&reply).await?;
-    let _ = closed.await;
-    control.shutdown().await
+    match action.await {
+        Ok(ControlAction::SendBytes) => {
+            control.write_all(b"ignored control bytes").await?;
+            Ok(Some(control))
+        }
+        Ok(ControlAction::Close) | Err(_) => {
+            control.shutdown().await?;
+            Ok(None)
+        }
+    }
 }
 
 fn relayed(payload: &[u8]) -> Vec<u8> {

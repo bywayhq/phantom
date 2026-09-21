@@ -30,10 +30,12 @@ const MAX_RECEIVED_DATAGRAM_BYTES: usize = 65_535;
 const MAX_PACKETS_PER_POLL: usize = 32;
 const REMOTE_VIRTUAL_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
 const SEND_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(60);
+const MAX_CONTROL_READS_PER_POLL: usize = 16;
 
 /// One single-target SOCKS5 UDP association.
 ///
-/// The socket retains the TCP control connection for its complete lifetime.
+/// The socket retains the TCP control connection for its complete lifetime;
+/// when the proxy closes it, the association and its QUIC endpoint end.
 /// Its Quinn-facing address is a fixed logical target, while every physical
 /// datagram is sent only to the relay selected by the SOCKS5 peer.
 pub(crate) struct Socks5UdpAssociation {
@@ -218,7 +220,7 @@ async fn establish_udp_association(
     );
     let socket = Arc::new(Socks5UdpSocket {
         udp,
-        _control: control,
+        control,
         relay,
         logical_target,
         logical_local,
@@ -237,7 +239,7 @@ async fn establish_udp_association(
 #[derive(Debug)]
 struct Socks5UdpSocket {
     udp: UdpSocket,
-    _control: TcpStream,
+    control: TcpStream,
     relay: SocketAddr,
     logical_target: SocketAddr,
     logical_local: SocketAddr,
@@ -303,6 +305,9 @@ impl AsyncUdpSocket for Socks5UdpSocket {
         if bufs.is_empty() || meta.is_empty() {
             return Poll::Ready(Ok(0));
         }
+        if let Some(error) = self.poll_control_closed(context) {
+            return Poll::Ready(Err(error));
+        }
 
         for _ in 0..MAX_PACKETS_PER_POLL {
             let mut packet = lock(&self.receive_buffer);
@@ -354,6 +359,35 @@ impl AsyncUdpSocket for Socks5UdpSocket {
 }
 
 impl Socks5UdpSocket {
+    /// Reports the end of the association's TCP control connection.
+    ///
+    /// RFC 1928 section 7 ends a UDP association when its TCP connection
+    /// terminates. The returned error is not `ConnectionReset`, which Quinn
+    /// ignores, so the endpoint stops and its connections are not reused.
+    /// Bytes on the control connection have no meaning and are discarded.
+    fn poll_control_closed(&self, context: &mut Context<'_>) -> Option<io::Error> {
+        for _ in 0..MAX_CONTROL_READS_PER_POLL {
+            match self.control.poll_read_ready(context) {
+                Poll::Pending => return None,
+                Poll::Ready(Err(error)) => return Some(control_closed(error)),
+                Poll::Ready(Ok(())) => {}
+            }
+            let mut discarded = [0; 64];
+            match self.control.try_read(&mut discarded) {
+                Ok(0) => {
+                    return Some(control_closed(io::Error::from(
+                        io::ErrorKind::UnexpectedEof,
+                    )));
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {}
+                Err(error) => return Some(control_closed(error)),
+            }
+        }
+        context.waker().wake_by_ref();
+        None
+    }
+
     fn log_dropped_send(&self, error: &io::Error) {
         let now = Instant::now();
         let mut last = lock(&self.last_send_error_log);
@@ -362,6 +396,30 @@ impl Socks5UdpSocket {
         }
         *last = Some(now);
         tracing::warn!(%error, "dropped a SOCKS5 UDP datagram after a relay send error");
+    }
+}
+
+fn control_closed(source: io::Error) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::NotConnected,
+        ControlConnectionClosed { source },
+    )
+}
+
+#[derive(Debug)]
+struct ControlConnectionClosed {
+    source: io::Error,
+}
+
+impl std::fmt::Display for ControlConnectionClosed {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("SOCKS5 UDP association control connection closed")
+    }
+}
+
+impl std::error::Error for ControlConnectionClosed {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
     }
 }
 
