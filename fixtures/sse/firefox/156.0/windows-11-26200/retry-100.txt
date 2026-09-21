@@ -1,7 +1,7 @@
 format=phantom-sse-reconnect-v1
 captured_at_unix=1789979069
 client=Mozilla Firefox
-client_version=155.0.1
+client_version=156.0
 operating_system=Windows 11 Home 10.0.26200 x64
 listen_address=127.0.0.1:60860
 launch_mode=headless

@@ -2,7 +2,7 @@
 //!
 //! Each test replays a scenario from `fixtures/sse/` against Phantom over
 //! plaintext HTTP/1.1 with the same server stimuli, then compares the reconnect
-//! requests, delays, and termination with what Chrome 153 and Firefox 155 did.
+//! requests, delays, and termination with what Chrome 153 and Firefox 156 did.
 //! Delays are measured with a paused clock, so Phantom's values are exact and
 //! browser medians may exceed them by at most `TIMER_SLACK`.
 
@@ -44,7 +44,7 @@ impl Browser {
     fn directory(self) -> &'static str {
         match self {
             Self::Chrome => "chrome/153.0.8010.48/windows-11-26200",
-            Self::Firefox => "firefox/155.0.1/windows-11-26200",
+            Self::Firefox => "firefox/156.0/windows-11-26200",
         }
     }
 

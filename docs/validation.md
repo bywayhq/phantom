@@ -200,13 +200,20 @@ Retries are caller-configured and do not become part of a named browser recipe.
 ## SSE browser reconnect evidence
 
 `fixtures/sse/` retains HTTP/1.1 EventSource captures from headless Chrome
-153.0.8010.48 and Firefox 155.0.1 on Windows 11 (10.0.26200), recorded with
-`scripts/capture/sse_reconnect.py` against a plaintext loopback server. Each
-of the seventeen scenarios ran ten times on a fresh profile. Fixtures keep raw
-request lines and header lines in arrival order, connection reuse, and the
-delay from each server stimulus to the next request. The capture page and the
-exact launch arguments are recorded in each file; [the capture
-README](../scripts/capture/README.md) has the commands.
+153.0.8010.48 and Firefox 156.0 (build ID 20260909172920) on Windows 11
+(10.0.26200), recorded with `scripts/capture/sse_reconnect.py` against a
+plaintext loopback server. Each of the seventeen scenarios ran ten times on a
+fresh profile. Fixtures keep raw request lines and header lines in arrival
+order, connection reuse, and the delay from each server stimulus to the next
+request. The capture page and the exact launch arguments are recorded in each
+file; [the capture README](../scripts/capture/README.md) has the commands.
+
+The Firefox captures were first recorded under the label 155.0.1, which was
+passed to the capture tool by hand. Every Firefox request in them sends
+`Firefox/156.0` in its user-agent, and the machine's update history shows
+Firefox 156.0 (build ID 20260909172920) installed before the first Firefox
+capture, so they were moved to `firefox/156.0/` and their `client_version`
+corrected. Nothing else in them changed; they were not re-captured.
 
 Observed on both browsers:
 
@@ -226,7 +233,7 @@ Observed on both browsers:
 
 Where they differ:
 
-| Behavior | Chrome 153 | Firefox 155 |
+| Behavior | Chrome 153 | Firefox 156 |
 | --- | --- | --- |
 | Delay without `retry` | 3 s | 5 s |
 | `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to 500 ms (observed about 510 ms) |
@@ -240,7 +247,7 @@ that sent on a reused keep-alive socket, failed with `ERR_CONNECTION_CLOSED`,
 logged `HTTP_TRANSACTION_RESTART_AFTER_ERROR`, and resent on a new connection,
 where it failed with `ERR_EMPTY_RESPONSE`. Each later request was a new URL
 request about 3 s later, so Chrome's EventSource waited the retry delay after
-every failure. One run of Firefox 156.0 (the build then installed) with
+every failure. One run of the same Firefox 156.0 build with
 `MOZ_LOG=nsHttp:5,EventSource:5` showed one channel whose transaction
 restarted three times after `NS_BASE_STREAM_CLOSED` on fresh connections; the
 `204` answered that same channel, so the EventSource never scheduled a
@@ -266,7 +273,7 @@ delay. A template built from each browser's captured reconnect fields, with
 `SseHeader::last_event_id` at the captured position, reproduces the browser's
 field lines except the `Host` port.
 
-Other background traffic remained during the captures. Firefox 155 still
+Other background traffic remained during the captures. Firefox 156 still
 contacted Remote Settings, and Chrome contacted Google update and messaging
 services, because release builds ignore those services' test-only switches.
 That traffic used separate remote connections and never reached the loopback
@@ -341,7 +348,7 @@ Chromium opens idle speculative connections that never send a request; they
 remain in the fixtures. In one Chrome `refused-stream` run the page session
 closed before the socket opened, so that run used the `http/1.1`-only path
 instead of a refused stream. Firefox 156.0 is the build the machine had
-updated to; no Firefox 155 WebSocket capture is retained. These captures do not
+updated to. These captures do not
 cover subprotocols, H3, proxies, macOS, or Safari.
 
 ## Cross-platform transport parity
