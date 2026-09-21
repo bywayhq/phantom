@@ -1,8 +1,10 @@
-//! RFC 9298 CONNECT-UDP tunnels through an HTTP/3 proxy.
+//! RFC 9298 CONNECT-UDP tunnels through an HTTP/3, HTTP/2, or HTTP/1.1 proxy.
 //!
-//! One outer HTTP/3 connection carries exactly one CONNECT-UDP request. Its
-//! UDP payloads travel in HTTP Datagrams (QUIC DATAGRAM frames, RFC 9297
-//! section 2.1) with Context ID zero (RFC 9298 section 5). The inner QUIC
+//! One outer proxy connection carries exactly one CONNECT-UDP request. Over
+//! HTTP/3, UDP payloads travel in HTTP Datagrams (QUIC DATAGRAM frames,
+//! RFC 9297 section 2.1). Over HTTP/2 and HTTP/1.1 they travel in DATAGRAM
+//! capsules on the request's byte stream (RFC 9297 sections 3.2 and 3.5).
+//! Every payload uses Context ID zero (RFC 9298 section 5). The inner QUIC
 //! connection sees [`ConnectUdpSocket`] as one fixed logical peer.
 
 use std::{
@@ -22,14 +24,24 @@ use bytes::{Buf, Bytes, BytesMut};
 use h3::error::Code;
 use http::{Request, StatusCode};
 use quinn::{AsyncUdpSocket, SendDatagramError, UdpPoller, udp};
-use tracing::{Span, debug_span, field};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    runtime::Handle,
+    sync::mpsc,
+    task::JoinHandle,
+};
+use tracing::{Instrument, Span, debug_span, dispatcher, field, instrument::WithSubscriber};
 
 use super::{
     Http3Connection, Http3Error, Http3ErrorKind, RequestRecvStream, RequestSendStream,
-    capsule::{CapsuleDecoder, CapsuleError},
+    capsule::{self, CapsuleDecoder, CapsuleError},
     connection::ConnectUdpExchange,
-    datagram::{DatagramFlow, FlowCounters, FlowEnd, MAX_UDP_PAYLOAD_LEN},
+    datagram::{DatagramFlow, FlowCounters, FlowEnd, FlowShared, MAX_UDP_PAYLOAD_LEN},
     varint,
+};
+use crate::{
+    http2::{Http2Error, Http2TlsError},
+    proxy::{HttpConnectError, HttpConnectErrorKind, validate_basic_proxy_challenge},
 };
 
 /// Smallest UDP payload a QUIC client Initial occupies (RFC 9000 section 14.1).
@@ -55,6 +67,11 @@ pub(super) const MIN_OUTER_DATAGRAM_FRAME_SIZE: u64 =
 const LOGICAL_PEER_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
 const MAX_PACKETS_PER_POLL: usize = 32;
 const MAX_STREAM_READS_PER_POLL: usize = 16;
+/// Encoded DATAGRAM capsules queued for a byte-stream leg before new sends
+/// are dropped, like a full QUIC datagram send buffer.
+const MAX_QUEUED_CAPSULES: usize = 256;
+/// Bytes read from a byte-stream leg per capsule-decoder pass.
+const STREAM_READ_CHUNK: usize = 16 * 1024;
 
 /// Stable category of a CONNECT-UDP proxy failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -63,16 +80,22 @@ pub enum ConnectUdpErrorKind {
     /// The CONNECT-UDP request, proxy server name, or fields are invalid.
     InvalidRequest,
     /// The outer HTTP/3 profile cannot carry a full-size inner QUIC Initial in
-    /// one HTTP Datagram, or does not advertise HTTP Datagram support.
+    /// one HTTP Datagram, or does not advertise HTTP Datagram support; or an
+    /// HTTP/2 leg lacks an `h2` offer, HTTP/2 settings, or an extended
+    /// CONNECT pseudo-header order.
     Configuration,
     /// No current Tokio runtime with network I/O enabled was available.
     RuntimeUnavailable,
     /// Resolving the proxy host failed.
     Resolve,
-    /// The outer QUIC connection to the proxy could not be established.
+    /// The outer QUIC connection, or the TCP connection of an HTTP/1.1 or
+    /// HTTP/2 leg, could not be established.
     Connect,
-    /// The outer TLS handshake failed or did not negotiate `h3`.
+    /// The outer TLS handshake failed, or an HTTP/3 leg did not negotiate `h3`.
     Handshake,
+    /// The TLS handshake of an HTTP/1.1 or HTTP/2 leg selected an ALPN
+    /// protocol other than the configured leg's.
+    UnsupportedProtocol,
     /// The proxy did not send `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1`.
     ExtendedConnectUnavailable,
     /// The proxy did not enable HTTP/3 Datagrams in SETTINGS and QUIC
@@ -80,8 +103,12 @@ pub enum ConnectUdpErrorKind {
     DatagramUnavailable,
     /// The proxy's datagram limit cannot carry a full-size inner QUIC Initial.
     DatagramCapacity,
-    /// The proxy answered with a final non-2xx status.
+    /// The proxy answered with a final non-2xx status, or a final status
+    /// other than 101 over HTTP/1.1.
     Rejected,
+    /// The proxy's Basic challenge was malformed or unsupported, or it
+    /// answered the one authenticated retry with 407.
+    Authentication,
     /// The outer HTTP/3 exchange or tunnel failed.
     Protocol,
 }
@@ -95,10 +122,12 @@ impl ConnectUdpErrorKind {
             Self::Resolve => "resolve",
             Self::Connect => "connect",
             Self::Handshake => "handshake",
+            Self::UnsupportedProtocol => "unsupported_protocol",
             Self::ExtendedConnectUnavailable => "extended_connect_unavailable",
             Self::DatagramUnavailable => "datagram_unavailable",
             Self::DatagramCapacity => "datagram_capacity",
             Self::Rejected => "rejected",
+            Self::Authentication => "authentication",
             Self::Protocol => "protocol",
         }
     }
@@ -146,6 +175,104 @@ impl ConnectUdpError {
             message: "CONNECT-UDP proxy rejected the request",
             source: None,
         }
+    }
+
+    /// The authenticated retry was answered with 407.
+    pub(super) const fn authentication_rejected() -> Self {
+        Self {
+            kind: ConnectUdpErrorKind::Authentication,
+            status: Some(StatusCode::PROXY_AUTHENTICATION_REQUIRED),
+            message: "CONNECT-UDP proxy rejected HTTP Basic authentication",
+            source: None,
+        }
+    }
+
+    /// Maps an unusable Basic challenge on a 407 response.
+    fn challenge(error: HttpConnectError) -> Self {
+        Self::with_source(
+            ConnectUdpErrorKind::Authentication,
+            "CONNECT-UDP proxy sent an unusable authentication challenge",
+            error,
+        )
+    }
+
+    /// Maps a failure while opening an HTTP/1.1 or HTTP/2 proxy leg.
+    pub(super) fn proxy_leg(error: HttpConnectError) -> Self {
+        let (kind, message) = match &error {
+            HttpConnectError::Rejected { status } => match StatusCode::from_u16(*status) {
+                Ok(status) => return Self::rejected(status),
+                Err(_) => (
+                    ConnectUdpErrorKind::Protocol,
+                    "CONNECT-UDP proxy returned an invalid status",
+                ),
+            },
+            HttpConnectError::AuthenticationRejected => return Self::authentication_rejected(),
+            HttpConnectError::ProxyHttp2(inner)
+                if matches!(
+                    inner.as_ref(),
+                    Http2TlsError::Http2(Http2Error::ExtendedConnectProtocolDisabled)
+                ) =>
+            {
+                (
+                    ConnectUdpErrorKind::ExtendedConnectUnavailable,
+                    "CONNECT-UDP proxy did not enable extended CONNECT",
+                )
+            }
+            _ => match error.kind() {
+                HttpConnectErrorKind::InvalidConfiguration => (
+                    ConnectUdpErrorKind::Configuration,
+                    "CONNECT-UDP proxy connection is misconfigured",
+                ),
+                HttpConnectErrorKind::InvalidRequest => (
+                    ConnectUdpErrorKind::InvalidRequest,
+                    "CONNECT-UDP request is invalid",
+                ),
+                HttpConnectErrorKind::Authentication => (
+                    ConnectUdpErrorKind::Authentication,
+                    "CONNECT-UDP proxy sent an unusable authentication challenge",
+                ),
+                HttpConnectErrorKind::RuntimeUnavailable => (
+                    ConnectUdpErrorKind::RuntimeUnavailable,
+                    "CONNECT-UDP requires a Tokio runtime with network I/O enabled",
+                ),
+                HttpConnectErrorKind::Connect => (
+                    ConnectUdpErrorKind::Connect,
+                    "CONNECT-UDP proxy connection failed",
+                ),
+                HttpConnectErrorKind::Tls => (
+                    ConnectUdpErrorKind::Handshake,
+                    "CONNECT-UDP proxy handshake failed",
+                ),
+                HttpConnectErrorKind::UnsupportedProtocol => (
+                    ConnectUdpErrorKind::UnsupportedProtocol,
+                    "CONNECT-UDP proxy selected a different application protocol",
+                ),
+                _ => (
+                    ConnectUdpErrorKind::Protocol,
+                    "CONNECT-UDP proxy exchange failed",
+                ),
+            },
+        };
+        Self::with_source(kind, message, error)
+    }
+
+    /// Maps an invalid HTTP/1.1 or HTTP/2 leg request found before I/O.
+    pub(super) fn proxy_leg_request(error: HttpConnectError) -> Self {
+        Self::with_source(
+            ConnectUdpErrorKind::InvalidRequest,
+            "CONNECT-UDP request is invalid",
+            error,
+        )
+    }
+
+    /// Maps a leg configuration that cannot speak the selected protocol,
+    /// found before I/O.
+    pub(super) fn proxy_leg_configuration(error: HttpConnectError) -> Self {
+        Self::with_source(
+            ConnectUdpErrorKind::Configuration,
+            "CONNECT-UDP proxy connection is misconfigured",
+            error,
+        )
     }
 
     /// Maps a failure to establish or use the outer HTTP/3 connection.
@@ -250,11 +377,14 @@ pub(super) fn validate_outer_profile(profile: &OuterProfile) -> Result<(), Conne
 
 /// Creates the `proxy.connect_udp` span; it stays open for the tunnel's
 /// lifetime so drop counters are recorded when the tunnel ends.
-pub(super) fn span() -> Span {
+pub(super) fn span(proxy_leg: &'static str) -> Span {
     debug_span!(
         "proxy.connect_udp",
         proxy_protocol = "connect-udp",
+        proxy_leg,
         status = field::Empty,
+        authentication_retry = field::Empty,
+        proxy_attempts = field::Empty,
         outcome = field::Empty,
         error_kind = field::Empty,
         dropped_unknown_context = field::Empty,
@@ -274,7 +404,10 @@ pub(super) fn record_setup_outcome(span: &Span, result: &Result<(), &ConnectUdpE
         Err(error) => {
             span.record(
                 "outcome",
-                if error.kind == ConnectUdpErrorKind::Rejected {
+                if matches!(
+                    error.kind,
+                    ConnectUdpErrorKind::Rejected | ConnectUdpErrorKind::Authentication
+                ) {
                     "rejected"
                 } else {
                     "error"
@@ -285,17 +418,34 @@ pub(super) fn record_setup_outcome(span: &Span, result: &Result<(), &ConnectUdpE
     }
 }
 
+/// Records whether the one challenge-driven authenticated retry happened.
+pub(super) fn record_attempts(span: &Span, retried: bool) {
+    span.record("authentication_retry", retried);
+    span.record("proxy_attempts", if retried { 2_u64 } else { 1_u64 });
+}
+
+/// Result of one CONNECT-UDP request on a fresh proxy connection.
+pub(super) enum OpenOutcome {
+    /// The tunnel is open; the socket presents one fixed logical peer.
+    Tunnel(Arc<dyn AsyncUdpSocket>, SocketAddr),
+    /// The proxy sent 407 with a valid Basic challenge; retry once with
+    /// credentials on another fresh proxy connection.
+    Retry,
+}
+
 /// Opens the CONNECT-UDP stream on an established outer connection.
 ///
 /// Peer SETTINGS must enable extended CONNECT and HTTP/3 Datagrams, and the
 /// QUIC peer must accept DATAGRAM frames, before a request stream opens. No
 /// datagram is sent before the 2xx response (optimistic sending, permitted by
-/// RFC 9298 section 5, is not used).
+/// RFC 9298 section 5, is not used). With `inspect_challenge`, a 407 carrying
+/// a valid Basic challenge yields [`OpenOutcome::Retry`].
 pub(super) async fn open(
     outer: Http3Connection,
     request: Request<()>,
     span: Span,
-) -> Result<(Arc<dyn AsyncUdpSocket>, SocketAddr), ConnectUdpError> {
+    inspect_challenge: bool,
+) -> Result<OpenOutcome, ConnectUdpError> {
     let extensions = outer
         .peer_extensions()
         .await
@@ -325,8 +475,12 @@ pub(super) async fn open(
             recv,
             flow,
         } => (status, send, recv, flow),
-        ConnectUdpExchange::Rejected(status) => {
+        ConnectUdpExchange::Rejected { status, headers } => {
             span.record("status", status.as_u16());
+            if inspect_challenge && status == StatusCode::PROXY_AUTHENTICATION_REQUIRED {
+                validate_basic_proxy_challenge(&headers).map_err(ConnectUdpError::challenge)?;
+                return Ok(OpenOutcome::Retry);
+            }
             return Err(ConnectUdpError::rejected(status));
         }
     };
@@ -348,20 +502,120 @@ pub(super) async fn open(
             "CONNECT-UDP proxy datagram limit cannot carry a 1200-byte QUIC Initial",
         ));
     }
-    let logical_peer = SocketAddr::new(IpAddr::V4(LOGICAL_PEER_IP), 443);
-    let socket = Arc::new(ConnectUdpSocket {
-        quinn: outer.quinn().clone(),
-        datagram_prefix,
-        flow,
-        stream: Mutex::new(stream),
-        logical_peer,
-        logical_local: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
-        dropped_oversized: AtomicU64::new(0),
-        dropped_send: AtomicU64::new(0),
+    let socket = ConnectUdpSocket::new(
+        Transport::Datagram(DatagramTransport {
+            quinn: outer.quinn().clone(),
+            datagram_prefix,
+            flow,
+            stream: Mutex::new(stream),
+            _outer: outer,
+        }),
         span,
-        _outer: outer,
-    });
-    Ok((socket, logical_peer))
+    );
+    let logical_peer = socket.logical_peer;
+    Ok(OpenOutcome::Tunnel(Arc::new(socket), logical_peer))
+}
+
+/// Wraps an accepted HTTP/1.1 or HTTP/2 CONNECT-UDP byte stream.
+///
+/// Both directions carry DATAGRAM capsules (RFC 9297 section 3.5). A driver
+/// task owns the stream; dropping the socket stops the task and closes the
+/// stream, which closes the tunnel (RFC 9298 section 3.1). Capsules impose no
+/// datagram size limit beyond the 65 527-byte Context ID zero bound.
+pub(super) fn open_stream<S>(
+    stream: S,
+    span: Span,
+) -> Result<(Arc<dyn AsyncUdpSocket>, SocketAddr), ConnectUdpError>
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    let runtime = Handle::try_current().map_err(|_| {
+        ConnectUdpError::new(
+            ConnectUdpErrorKind::RuntimeUnavailable,
+            "CONNECT-UDP requires a Tokio runtime with network I/O enabled",
+        )
+    })?;
+    let flow = Arc::new(FlowShared::default());
+    let end = Arc::new(Mutex::new(None));
+    let (outbound, outbound_rx) = mpsc::channel(MAX_QUEUED_CAPSULES);
+    let dispatch = dispatcher::get_default(Clone::clone);
+    let task = runtime.spawn(
+        drive_capsule_stream(stream, outbound_rx, Arc::clone(&flow), Arc::clone(&end))
+            .instrument(debug_span!("proxy.connect_udp.capsules"))
+            .with_subscriber(dispatch),
+    );
+    let socket = ConnectUdpSocket::new(
+        Transport::Stream(StreamTransport {
+            flow,
+            outbound,
+            end,
+            task,
+        }),
+        span,
+    );
+    let logical_peer = socket.logical_peer;
+    Ok((Arc::new(socket), logical_peer))
+}
+
+/// Relays capsules until either direction ends, then records why.
+async fn drive_capsule_stream<S>(
+    stream: S,
+    mut outbound: mpsc::Receiver<Bytes>,
+    flow: Arc<FlowShared>,
+    end: Arc<Mutex<Option<TunnelEnd>>>,
+) where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    let (mut reader, mut writer) = tokio::io::split(stream);
+    let read = async {
+        let mut decoder = CapsuleDecoder::new();
+        let mut buffer = vec![0; STREAM_READ_CHUNK];
+        loop {
+            match reader.read(&mut buffer).await {
+                Ok(0) => {
+                    return match decoder.finish() {
+                        Ok(()) => TunnelEnd::Finished,
+                        Err(error) => TunnelEnd::Malformed(error),
+                    };
+                }
+                Ok(count) => {
+                    if let Err(error) = decoder.feed(&buffer[..count], |value| flow.deliver(value))
+                    {
+                        return TunnelEnd::Malformed(error);
+                    }
+                    // RFC 9298 section 5: an oversized Context ID zero payload
+                    // aborts the stream.
+                    if flow.received_oversized_payload() {
+                        return TunnelEnd::OversizedDatagram;
+                    }
+                }
+                Err(_) => return TunnelEnd::Reset,
+            }
+        }
+    };
+    let write = async {
+        while let Some(capsule) = outbound.recv().await {
+            if writer.write_all(&capsule).await.is_err() || writer.flush().await.is_err() {
+                return Some(TunnelEnd::Reset);
+            }
+        }
+        // The socket was dropped; closing the stream closes the tunnel.
+        None
+    };
+    let reason = tokio::select! {
+        reason = read => Some(reason),
+        reason = write => reason,
+    };
+    if let Some(reason) = reason {
+        lock(&end).get_or_insert(reason);
+    }
+    flow.end(FlowEnd::ConnectionClosed);
+}
+
+fn lock<T>(value: &Mutex<T>) -> MutexGuard<'_, T> {
+    value
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// The CONNECT-UDP request stream, whose lifetime bounds the tunnel
@@ -450,29 +704,52 @@ impl Drop for TunnelStream {
 /// Quinn socket that carries one inner QUIC connection over CONNECT-UDP.
 ///
 /// The inner connection sends to and receives from one fixed logical peer.
-/// Every payload leaves as a Context ID zero HTTP Datagram on the outer
-/// connection, which this socket keeps alive. Like `quinn-udp`, only
-/// `WouldBlock` would reach Quinn from a send; undeliverable or oversized
-/// datagrams are dropped and counted, and QUIC recovers the loss.
+/// Every payload leaves with Context ID zero, as an HTTP Datagram on an
+/// HTTP/3 leg or as a DATAGRAM capsule on an HTTP/2 or HTTP/1.1 leg. Like
+/// `quinn-udp`, only `WouldBlock` would reach Quinn from a send; undeliverable
+/// or oversized datagrams are dropped and counted, and QUIC recovers the loss.
 pub(super) struct ConnectUdpSocket {
-    quinn: quinn::Connection,
-    datagram_prefix: Vec<u8>,
-    flow: DatagramFlow,
-    stream: Mutex<TunnelStream>,
+    transport: Transport,
     logical_peer: SocketAddr,
     logical_local: SocketAddr,
     dropped_oversized: AtomicU64,
     dropped_send: AtomicU64,
     span: Span,
+}
+
+enum Transport {
+    Datagram(DatagramTransport),
+    Stream(StreamTransport),
+}
+
+/// HTTP/3 leg: QUIC DATAGRAM frames plus capsules on the request stream.
+struct DatagramTransport {
+    quinn: quinn::Connection,
+    datagram_prefix: Vec<u8>,
+    flow: DatagramFlow,
+    stream: Mutex<TunnelStream>,
     // Declared last: the outer connection lease outlives the stream and flow.
     _outer: Http3Connection,
 }
 
-impl ConnectUdpSocket {
+/// HTTP/2 or HTTP/1.1 leg: DATAGRAM capsules on one byte stream.
+struct StreamTransport {
+    flow: Arc<FlowShared>,
+    outbound: mpsc::Sender<Bytes>,
+    end: Arc<Mutex<Option<TunnelEnd>>>,
+    task: JoinHandle<()>,
+}
+
+impl Drop for StreamTransport {
+    fn drop(&mut self) {
+        // Stopping the driver drops the proxy stream and closes the tunnel.
+        self.task.abort();
+    }
+}
+
+impl DatagramTransport {
     fn lock_stream(&self) -> MutexGuard<'_, TunnelStream> {
-        self.stream
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        lock(&self.stream)
     }
 
     fn encode_datagram(&self, payload: &[u8]) -> Bytes {
@@ -483,11 +760,147 @@ impl ConnectUdpSocket {
     }
 }
 
+impl ConnectUdpSocket {
+    fn new(transport: Transport, span: Span) -> Self {
+        Self {
+            transport,
+            logical_peer: SocketAddr::new(IpAddr::V4(LOGICAL_PEER_IP), 443),
+            logical_local: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+            dropped_oversized: AtomicU64::new(0),
+            dropped_send: AtomicU64::new(0),
+            span,
+        }
+    }
+
+    fn send_datagram(&self, transport: &DatagramTransport, payload: &[u8]) {
+        match transport
+            .quinn
+            .send_datagram(transport.encode_datagram(payload))
+        {
+            Ok(()) => {}
+            Err(SendDatagramError::TooLarge) => {
+                self.dropped_oversized.fetch_add(1, Ordering::Relaxed);
+            }
+            Err(_) => {
+                self.dropped_send.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+
+    fn send_capsule(&self, transport: &StreamTransport, payload: &[u8]) {
+        let mut value = Vec::with_capacity(1 + payload.len());
+        value.push(0);
+        value.extend_from_slice(payload);
+        let capsule = Bytes::from(capsule::encode(capsule::DATAGRAM, &value));
+        if transport.outbound.try_send(capsule).is_err() {
+            self.dropped_send.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Copies one payload into Quinn's buffer; `None` drops an oversized one.
+    fn deliver(
+        &self,
+        payload: &[u8],
+        bufs: &mut [IoSliceMut<'_>],
+        meta: &mut [udp::RecvMeta],
+    ) -> Option<()> {
+        // Quinn ends its endpoint driver on any receive error other than
+        // `ConnectionReset`, so a payload that does not fit is dropped like
+        // any datagram QUIC cannot accept.
+        if payload.len() > bufs[0].len() {
+            self.dropped_oversized.fetch_add(1, Ordering::Relaxed);
+            return None;
+        }
+        bufs[0][..payload.len()].copy_from_slice(payload);
+        meta[0] = udp::RecvMeta {
+            addr: self.logical_peer,
+            len: payload.len(),
+            stride: payload.len(),
+            ecn: None,
+            dst_ip: None,
+        };
+        Some(())
+    }
+
+    fn poll_recv_datagram(
+        &self,
+        transport: &DatagramTransport,
+        context: &mut Context<'_>,
+        bufs: &mut [IoSliceMut<'_>],
+        meta: &mut [udp::RecvMeta],
+    ) -> Poll<io::Result<usize>> {
+        for _ in 0..MAX_PACKETS_PER_POLL {
+            match transport.flow.poll_recv(context) {
+                Poll::Ready(Ok(payload)) => {
+                    if self.deliver(&payload, bufs, meta).is_some() {
+                        return Poll::Ready(Ok(1));
+                    }
+                    continue;
+                }
+                Poll::Ready(Err(end)) => {
+                    if end == FlowEnd::OversizedPayload {
+                        // RFC 9298 section 5: such a datagram aborts the stream.
+                        transport.lock_stream().abort(TunnelEnd::OversizedDatagram);
+                    }
+                    return Poll::Ready(Err(tunnel_closed(end.into())));
+                }
+                Poll::Pending => {}
+            }
+            let mut stream = transport.lock_stream();
+            match stream.poll_capsules(context, &transport.flow) {
+                Poll::Ready(true) => {}
+                Poll::Ready(false) => {
+                    let end = stream.ended.unwrap_or(TunnelEnd::Reset);
+                    return Poll::Ready(Err(tunnel_closed(end.into())));
+                }
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+        context.waker().wake_by_ref();
+        Poll::Pending
+    }
+
+    fn poll_recv_stream(
+        &self,
+        transport: &StreamTransport,
+        context: &mut Context<'_>,
+        bufs: &mut [IoSliceMut<'_>],
+        meta: &mut [udp::RecvMeta],
+    ) -> Poll<io::Result<usize>> {
+        for _ in 0..MAX_PACKETS_PER_POLL {
+            match transport.flow.poll_recv(context) {
+                Poll::Ready(Ok(payload)) => {
+                    if self.deliver(&payload, bufs, meta).is_some() {
+                        return Poll::Ready(Ok(1));
+                    }
+                }
+                Poll::Ready(Err(FlowEnd::OversizedPayload)) => {
+                    return Poll::Ready(Err(tunnel_closed(TunnelEnd::OversizedDatagram.into())));
+                }
+                Poll::Ready(Err(_)) => {
+                    let end = lock(&transport.end).unwrap_or(TunnelEnd::Reset);
+                    return Poll::Ready(Err(tunnel_closed(end.into())));
+                }
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+        context.waker().wake_by_ref();
+        Poll::Pending
+    }
+}
+
 impl fmt::Debug for ConnectUdpSocket {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("ConnectUdpSocket")
             .field("logical_peer", &self.logical_peer)
+            .field(
+                "transport",
+                &match self.transport {
+                    Transport::Datagram(_) => "http_datagram",
+                    Transport::Stream(_) => "datagram_capsule",
+                },
+            )
             .finish_non_exhaustive()
     }
 }
@@ -510,21 +923,15 @@ impl AsyncUdpSocket for ConnectUdpSocket {
                 "CONNECT-UDP tunnel does not support segmented sends",
             ));
         }
+        // RFC 9298 section 5: Context ID zero never carries more than 65 527
+        // bytes, on either transport.
         if transmit.contents.len() > MAX_UDP_PAYLOAD_LEN {
             self.dropped_oversized.fetch_add(1, Ordering::Relaxed);
             return Ok(());
         }
-        match self
-            .quinn
-            .send_datagram(self.encode_datagram(transmit.contents))
-        {
-            Ok(()) => {}
-            Err(SendDatagramError::TooLarge) => {
-                self.dropped_oversized.fetch_add(1, Ordering::Relaxed);
-            }
-            Err(_) => {
-                self.dropped_send.fetch_add(1, Ordering::Relaxed);
-            }
+        match &self.transport {
+            Transport::Datagram(transport) => self.send_datagram(transport, transmit.contents),
+            Transport::Stream(transport) => self.send_capsule(transport, transmit.contents),
         }
         Ok(())
     }
@@ -538,47 +945,12 @@ impl AsyncUdpSocket for ConnectUdpSocket {
         if bufs.is_empty() || meta.is_empty() {
             return Poll::Ready(Ok(0));
         }
-        for _ in 0..MAX_PACKETS_PER_POLL {
-            match self.flow.poll_recv(context) {
-                Poll::Ready(Ok(payload)) => {
-                    // Quinn ends its endpoint driver on any receive error
-                    // other than `ConnectionReset`, so a payload that does not
-                    // fit is dropped like any datagram QUIC cannot accept.
-                    if payload.len() > bufs[0].len() {
-                        self.dropped_oversized.fetch_add(1, Ordering::Relaxed);
-                        continue;
-                    }
-                    bufs[0][..payload.len()].copy_from_slice(&payload);
-                    meta[0] = udp::RecvMeta {
-                        addr: self.logical_peer,
-                        len: payload.len(),
-                        stride: payload.len(),
-                        ecn: None,
-                        dst_ip: None,
-                    };
-                    return Poll::Ready(Ok(1));
-                }
-                Poll::Ready(Err(end)) => {
-                    if end == FlowEnd::OversizedPayload {
-                        // RFC 9298 section 5: such a datagram aborts the stream.
-                        self.lock_stream().abort(TunnelEnd::OversizedDatagram);
-                    }
-                    return Poll::Ready(Err(tunnel_closed(end.into())));
-                }
-                Poll::Pending => {}
+        match &self.transport {
+            Transport::Datagram(transport) => {
+                self.poll_recv_datagram(transport, context, bufs, meta)
             }
-            let mut stream = self.lock_stream();
-            match stream.poll_capsules(context, &self.flow) {
-                Poll::Ready(true) => {}
-                Poll::Ready(false) => {
-                    let end = stream.ended.unwrap_or(TunnelEnd::Reset);
-                    return Poll::Ready(Err(tunnel_closed(end.into())));
-                }
-                Poll::Pending => return Poll::Pending,
-            }
+            Transport::Stream(transport) => self.poll_recv_stream(transport, context, bufs, meta),
         }
-        context.waker().wake_by_ref();
-        Poll::Pending
     }
 
     fn local_addr(&self) -> io::Result<SocketAddr> {
@@ -602,7 +974,10 @@ impl Drop for ConnectUdpSocket {
             dropped_early,
             dropped_malformed,
             ..
-        } = self.flow.counters();
+        } = match &self.transport {
+            Transport::Datagram(transport) => transport.flow.counters(),
+            Transport::Stream(transport) => transport.flow.counters(),
+        };
         self.span
             .record("dropped_unknown_context", dropped_unknown_context);
         self.span.record("dropped_overflow", dropped_overflow);

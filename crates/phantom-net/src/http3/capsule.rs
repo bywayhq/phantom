@@ -178,8 +178,7 @@ fn parse_header(bytes: &[u8]) -> Option<(u64, u64)> {
     (type_len + length_len == bytes.len()).then_some((capsule_type, length))
 }
 
-/// Encodes one capsule; used by tests and test peers.
-#[cfg(test)]
+/// Encodes one capsule (RFC 9297 section 3.2).
 pub(super) fn encode(capsule_type: u64, value: &[u8]) -> Vec<u8> {
     let mut output = Vec::with_capacity(MAX_HEADER_LEN + value.len());
     varint::encode(capsule_type, &mut output);

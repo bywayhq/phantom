@@ -19,12 +19,14 @@ use super::request::PreparedRequest;
 use super::{
     ConnectUdpError, ConnectUdpErrorKind, Http3Body, Http3Connection, Http3Error, Http3ErrorKind,
     Http3ExtendedConnectOutcome, Http3ExtendedProtocol, OriginForm, RequestHeader, connect_bound,
-    connect_bound_with_socket, connect_udp, prepare_traced_request,
-    prepare_traced_request_body_with_trailers, settings,
+    connect_bound_with_socket,
+    connect_udp::{self, OpenOutcome},
+    prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
     proxy::{
+        HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol, PreparedConnectUdp,
         Socks5Auth, Socks5Error, associate_socks5_udp_local_with_auth,
         associate_socks5_udp_remote_with_auth, prepare_socks5_udp_remote_target,
     },
@@ -501,15 +503,49 @@ impl Http3Connector {
         headers: Vec<RequestHeader>,
         server_name: &str,
     ) -> Result<Http3Connection, Http3ConnectorError> {
+        self.connect_connect_udp_with_basic_auth(
+            proxy,
+            proxy_host,
+            proxy_port,
+            proxy_authority,
+            path,
+            headers,
+            None,
+            server_name,
+        )
+        .await
+    }
+
+    /// Opens one CONNECT-UDP connection over HTTP/3 with optional
+    /// challenge-driven HTTP Basic proxy authentication.
+    ///
+    /// This behaves like [`Self::connect_connect_udp`]. With `credentials`,
+    /// the first request omits them; a 407 carrying a valid Basic challenge
+    /// is retried exactly once on a fresh outer connection with a
+    /// never-indexed `proxy-authorization` field after `headers`. A second
+    /// 407 is [`ConnectUdpErrorKind::Authentication`]. Both request forms are
+    /// validated before I/O.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_connect_udp_with_basic_auth(
+        &self,
+        proxy: &Http3Connector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_authority: &str,
+        path: OriginForm,
+        headers: Vec<RequestHeader>,
+        credentials: Option<&HttpBasicCredentials>,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
         QuicClientConfig::validate_server_name(server_name)
             .map_err(Http3ConnectorError::invalid_server_name)?;
-        let request = proxy
-            .prepare_connect_udp(proxy_host, proxy_authority, path, headers)
+        let (anonymous, authenticated) = proxy
+            .prepare_connect_udp_requests(proxy_host, proxy_authority, path, headers, credentials)
             .map_err(Http3ConnectorError::connect_udp)?;
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let span = connect_udp::span();
+            let span = connect_udp::span("h3");
             let tunnel = async {
                 let addresses = tokio::net::lookup_host((proxy_host, proxy_port))
                     .await
@@ -527,6 +563,36 @@ impl Http3Connector {
                         "CONNECT-UDP proxy resolved to no addresses",
                     ));
                 }
+                let inspect_challenge = authenticated.is_some();
+                if inspect_challenge {
+                    connect_udp::record_attempts(&span, false);
+                }
+                let outer = proxy
+                    .connect_to_addresses_with_mtu(
+                        addresses.clone(),
+                        proxy_host,
+                        Some(connect_udp::OUTER_PATH_MTU),
+                    )
+                    .await
+                    .map_err(ConnectUdpError::outer)?;
+                let retry =
+                    match connect_udp::open(outer, anonymous, span.clone(), inspect_challenge)
+                        .await?
+                    {
+                        OpenOutcome::Tunnel(socket, logical_remote) => {
+                            return Ok((socket, logical_remote));
+                        }
+                        OpenOutcome::Retry => authenticated,
+                    };
+                let Some(authenticated) = retry else {
+                    return Err(ConnectUdpError::new(
+                        ConnectUdpErrorKind::Protocol,
+                        "CONNECT-UDP proxy challenged a request without credentials",
+                    ));
+                };
+                connect_udp::record_attempts(&span, true);
+                // The challenged outer connection is not reused: each tunnel
+                // owns one proxy connection, matching HTTP/1.1 and HTTP/2.
                 let outer = proxy
                     .connect_to_addresses_with_mtu(
                         addresses,
@@ -535,7 +601,98 @@ impl Http3Connector {
                     )
                     .await
                     .map_err(ConnectUdpError::outer)?;
-                connect_udp::open(outer, request, span.clone()).await
+                match connect_udp::open(outer, authenticated, span.clone(), false).await {
+                    Ok(OpenOutcome::Tunnel(socket, logical_remote)) => Ok((socket, logical_remote)),
+                    Ok(OpenOutcome::Retry) => Err(ConnectUdpError::new(
+                        ConnectUdpErrorKind::Protocol,
+                        "CONNECT-UDP proxy challenged the authenticated retry",
+                    )),
+                    Err(error)
+                        if error.status()
+                            == Some(http::StatusCode::PROXY_AUTHENTICATION_REQUIRED) =>
+                    {
+                        Err(ConnectUdpError::authentication_rejected())
+                    }
+                    Err(error) => Err(error),
+                }
+            }
+            .instrument(span.clone())
+            .await;
+            connect_udp::record_setup_outcome(&span, &tunnel.as_ref().map(drop));
+            let (socket, logical_remote) = tunnel.map_err(Http3ConnectorError::connect_udp)?;
+            connect_bound_with_socket(
+                logical_remote,
+                server_name,
+                Arc::clone(&self.crypto),
+                &self.settings,
+                Arc::clone(&self.identity),
+                socket,
+            )
+            .await
+            .map_err(Http3ConnectorError::transaction)
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+    }
+
+    /// Opens one reusable HTTP/3 connection through a CONNECT-UDP proxy
+    /// reached over TLS with HTTP/1.1 Upgrade or HTTP/2 extended CONNECT.
+    ///
+    /// `protocol` selects the proxy leg. [`HttpsProxyProtocol::Http1`] sends
+    /// RFC 9298 section 3.2 `GET` with `Upgrade: connect-udp` and requires a
+    /// 101 response; the proxy must select `http/1.1` or omit ALPN.
+    /// [`HttpsProxyProtocol::Http2`] sends RFC 9298 section 3.4 extended
+    /// CONNECT after the proxy enables `SETTINGS_ENABLE_CONNECT_PROTOCOL`;
+    /// the proxy must select `h2`, and the connector's HTTP/2 settings must
+    /// carry an extended CONNECT pseudo-header order. Any other ALPN
+    /// selection is [`ConnectUdpErrorKind::UnsupportedProtocol`].
+    ///
+    /// Generated `Host` (HTTP/1.1), `Connection`, `Upgrade`, and
+    /// `Capsule-Protocol: ?1` fields precede `headers`. UDP payloads travel
+    /// in DATAGRAM capsules on the request stream (RFC 9297 section 3.5), so
+    /// the inner connection has no outer datagram-size limit beyond the
+    /// 65 527-byte Context ID zero bound. Basic `credentials` follow the
+    /// same one-retry challenge flow as
+    /// [`Self::connect_connect_udp_with_basic_auth`], each attempt on a fresh
+    /// proxy connection. The request and leg configuration are validated
+    /// before I/O. Nothing falls back to another leg, route, or protocol.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_connect_udp_over_tcp(
+        &self,
+        proxy: &HttpsProxyConnector,
+        protocol: HttpsProxyProtocol,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_authority: &str,
+        path: OriginForm,
+        headers: Vec<RequestHeader>,
+        credentials: Option<&HttpBasicCredentials>,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        QuicClientConfig::validate_server_name(server_name)
+            .map_err(Http3ConnectorError::invalid_server_name)?;
+        let request = prepare_connect_udp_over_tcp(
+            proxy,
+            protocol,
+            proxy_authority,
+            &path,
+            &headers,
+            credentials,
+        )
+        .map_err(Http3ConnectorError::connect_udp)?;
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+        poll_tokio_io(|| async {
+            let span = connect_udp::span(match protocol {
+                HttpsProxyProtocol::Http2 => "h2",
+                _ => "http/1.1",
+            });
+            let tunnel = async {
+                let stream = proxy
+                    .connect_udp_tunnel(proxy_host, proxy_port, proxy_host, request, &span)
+                    .await
+                    .map_err(ConnectUdpError::proxy_leg)?;
+                connect_udp::open_stream(stream, span.clone())
             }
             .instrument(span.clone())
             .await;
@@ -565,9 +722,77 @@ impl Http3Connector {
         path: &OriginForm,
         headers: &[RequestHeader],
     ) -> Result<(), Http3ConnectorError> {
-        self.prepare_connect_udp(proxy_host, proxy_authority, path.clone(), headers.to_vec())
+        self.validate_connect_udp_with_basic_auth(proxy_host, proxy_authority, path, headers, None)
+    }
+
+    /// Validates both forms of an optionally authenticated HTTP/3
+    /// CONNECT-UDP request and this connector as its outer profile.
+    pub fn validate_connect_udp_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_authority: &str,
+        path: &OriginForm,
+        headers: &[RequestHeader],
+        credentials: Option<&HttpBasicCredentials>,
+    ) -> Result<(), Http3ConnectorError> {
+        self.prepare_connect_udp_requests(
+            proxy_host,
+            proxy_authority,
+            path.clone(),
+            headers.to_vec(),
+            credentials,
+        )
+        .map(drop)
+        .map_err(Http3ConnectorError::connect_udp)
+    }
+
+    /// Validates a CONNECT-UDP request for an HTTP/1.1 or HTTP/2 proxy leg
+    /// and the leg's configuration without opening a connection.
+    pub fn validate_connect_udp_over_tcp(
+        proxy: &HttpsProxyConnector,
+        protocol: HttpsProxyProtocol,
+        proxy_authority: &str,
+        path: &OriginForm,
+        headers: &[RequestHeader],
+        credentials: Option<&HttpBasicCredentials>,
+    ) -> Result<(), Http3ConnectorError> {
+        prepare_connect_udp_over_tcp(proxy, protocol, proxy_authority, path, headers, credentials)
             .map(drop)
             .map_err(Http3ConnectorError::connect_udp)
+    }
+
+    /// Prepares the anonymous request and, with credentials, the
+    /// challenge-response form that appends `proxy-authorization`.
+    fn prepare_connect_udp_requests(
+        &self,
+        proxy_host: &str,
+        proxy_authority: &str,
+        path: OriginForm,
+        headers: Vec<RequestHeader>,
+        credentials: Option<&HttpBasicCredentials>,
+    ) -> Result<(http::Request<()>, Option<http::Request<()>>), ConnectUdpError> {
+        let Some(credentials) = credentials else {
+            let request = self.prepare_connect_udp(proxy_host, proxy_authority, path, headers)?;
+            return Ok((request, None));
+        };
+        if headers
+            .iter()
+            .any(|header| header.name().eq_ignore_ascii_case("proxy-authorization"))
+        {
+            return Err(ConnectUdpError::new(
+                ConnectUdpErrorKind::InvalidRequest,
+                "CONNECT-UDP fields must not repeat the generated proxy-authorization field",
+            ));
+        }
+        let mut authenticated_headers = headers.clone();
+        authenticated_headers.push(
+            RequestHeader::new("proxy-authorization", credentials.authorization()).sensitive(),
+        );
+        let anonymous =
+            self.prepare_connect_udp(proxy_host, proxy_authority, path.clone(), headers)?;
+        let authenticated =
+            self.prepare_connect_udp(proxy_host, proxy_authority, path, authenticated_headers)?;
+        Ok((anonymous, Some(authenticated)))
     }
 
     fn prepare_connect_udp(
@@ -823,6 +1048,23 @@ impl Http3Connector {
             }
         }
     }
+}
+
+/// Validates an HTTP/1.1 or HTTP/2 CONNECT-UDP leg and builds its request.
+fn prepare_connect_udp_over_tcp(
+    proxy: &HttpsProxyConnector,
+    protocol: HttpsProxyProtocol,
+    proxy_authority: &str,
+    path: &OriginForm,
+    headers: &[RequestHeader],
+    credentials: Option<&HttpBasicCredentials>,
+) -> Result<PreparedConnectUdp, ConnectUdpError> {
+    let request = PreparedConnectUdp::new(protocol, proxy_authority, path, headers, credentials)
+        .map_err(ConnectUdpError::proxy_leg_request)?;
+    proxy
+        .validate_connect_udp_protocol(protocol)
+        .map_err(ConnectUdpError::proxy_leg_configuration)?;
+    Ok(request)
 }
 
 fn should_try_next_address(error: &Http3Error) -> bool {

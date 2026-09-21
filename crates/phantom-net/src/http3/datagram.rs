@@ -384,7 +384,7 @@ impl FlowShared {
 
     /// Accepts one HTTP Datagram Payload from a QUIC DATAGRAM frame or a
     /// DATAGRAM capsule. Delivery never blocks the connection's reader.
-    fn deliver(&self, mut payload: Bytes) {
+    pub(super) fn deliver(&self, mut payload: Bytes) {
         let mut state = self.lock();
         if state.end.is_some() {
             return;
@@ -414,7 +414,7 @@ impl FlowShared {
         wake(&mut state);
     }
 
-    fn end(&self, end: FlowEnd) {
+    pub(super) fn end(&self, end: FlowEnd) {
         let mut state = self.lock();
         if state.end.is_none() {
             state.end = Some(end);
@@ -424,6 +424,33 @@ impl FlowShared {
 
     fn record_early_drop(&self) {
         self.lock().counters.dropped_early += 1;
+    }
+
+    /// Reports whether a Context ID zero payload above 65 527 bytes ended
+    /// this flow (RFC 9298 section 5).
+    pub(super) fn received_oversized_payload(&self) -> bool {
+        self.lock().end == Some(FlowEnd::OversizedPayload)
+    }
+
+    pub(super) fn counters(&self) -> FlowCounters {
+        self.lock().counters
+    }
+
+    /// Returns the next queued UDP payload, or why the flow ended.
+    pub(super) fn poll_recv(&self, context: &mut Context<'_>) -> Poll<Result<Bytes, FlowEnd>> {
+        let mut state = self.lock();
+        if state.end == Some(FlowEnd::OversizedPayload) {
+            return Poll::Ready(Err(FlowEnd::OversizedPayload));
+        }
+        if let Some(payload) = state.queue.pop_front() {
+            state.counters.delivered += 1;
+            return Poll::Ready(Ok(payload));
+        }
+        if let Some(end) = state.end {
+            return Poll::Ready(Err(end));
+        }
+        state.waker = Some(context.waker().clone());
+        Poll::Pending
     }
 }
 
@@ -452,19 +479,7 @@ impl DatagramFlow {
 
     /// Returns the next queued UDP payload, or why the flow ended.
     pub(super) fn poll_recv(&self, context: &mut Context<'_>) -> Poll<Result<Bytes, FlowEnd>> {
-        let mut state = self.shared.lock();
-        if state.end == Some(FlowEnd::OversizedPayload) {
-            return Poll::Ready(Err(FlowEnd::OversizedPayload));
-        }
-        if let Some(payload) = state.queue.pop_front() {
-            state.counters.delivered += 1;
-            return Poll::Ready(Ok(payload));
-        }
-        if let Some(end) = state.end {
-            return Poll::Ready(Err(end));
-        }
-        state.waker = Some(context.waker().clone());
-        Poll::Pending
+        self.shared.poll_recv(context)
     }
 
     /// Delivers an HTTP Datagram Payload received in a DATAGRAM capsule.
@@ -473,7 +488,7 @@ impl DatagramFlow {
     }
 
     pub(super) fn counters(&self) -> FlowCounters {
-        self.shared.lock().counters
+        self.shared.counters()
     }
 }
 

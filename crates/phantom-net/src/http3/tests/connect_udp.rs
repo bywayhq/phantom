@@ -188,13 +188,16 @@ async fn open_tunnel(
             .map_err(|_| "invalid test path")?,
         Vec::new(),
     )?;
-    let tunnel = timeout(
+    let outcome = timeout(
         TEST_TIMEOUT,
-        connect_udp::open(outer, request, connect_udp::span()),
+        connect_udp::open(outer, request, connect_udp::span("h3"), false),
     )
     .await
     .map_err(|_| "CONNECT-UDP timed out")??;
-    Ok(tunnel)
+    match outcome {
+        connect_udp::OpenOutcome::Tunnel(socket, peer) => Ok((socket, peer)),
+        connect_udp::OpenOutcome::Retry => Err("anonymous CONNECT-UDP asked to retry".into()),
+    }
 }
 
 async fn recv(socket: &dyn AsyncUdpSocket) -> std::io::Result<(Vec<u8>, SocketAddr)> {
@@ -229,4 +232,77 @@ fn extended_request_settings() -> Http3RequestSettings {
         Http3PseudoHeader::Path,
     ]);
     settings
+}
+
+#[tokio::test]
+async fn stream_transport_carries_context_zero_payloads_in_datagram_capsules() -> TestResult<()> {
+    let (client, mut proxy) = tokio::io::duplex(64 * 1024);
+    let (socket, peer) = connect_udp::open_stream(client, connect_udp::span("http/1.1"))?;
+    assert_eq!(peer, SocketAddr::from((Ipv4Addr::new(192, 0, 2, 1), 443)));
+
+    let mut inbound = capsule::encode(0x2a, b"ignored");
+    inbound.extend(capsule::encode(capsule::DATAGRAM, b"\x02unknown-context"));
+    inbound.extend(capsule::encode(capsule::DATAGRAM, b"\x00from-capsule"));
+    tokio::io::AsyncWriteExt::write_all(&mut proxy, &inbound).await?;
+    let (payload, from) = timeout(TEST_TIMEOUT, recv(socket.as_ref()))
+        .await
+        .map_err(|_| "capsule payload timed out")??;
+    assert_eq!(payload, b"from-capsule");
+    assert_eq!(from, peer);
+
+    socket.try_send(&transmit(peer, b"to-target"))?;
+    let expected = capsule::encode(capsule::DATAGRAM, b"\x00to-target");
+    let mut written = vec![0; expected.len()];
+    timeout(
+        TEST_TIMEOUT,
+        tokio::io::AsyncReadExt::read_exact(&mut proxy, &mut written),
+    )
+    .await
+    .map_err(|_| "capsule write timed out")??;
+    assert_eq!(written, expected);
+
+    // A payload above the RFC 9298 section 5 bound is never encoded.
+    let oversized = vec![0; 65_528];
+    socket.try_send(&transmit(peer, &oversized))?;
+    drop(socket);
+    let mut rest = Vec::new();
+    timeout(
+        TEST_TIMEOUT,
+        tokio::io::AsyncReadExt::read_to_end(&mut proxy, &mut rest),
+    )
+    .await
+    .map_err(|_| "dropping the socket did not close the stream")??;
+    assert!(rest.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn stream_transport_ends_on_oversized_payload_truncation_or_fin() -> TestResult<()> {
+    let mut oversized = vec![0x00];
+    let mut length = Vec::new();
+    crate::http3::varint::encode(1 + 65_528, &mut length);
+    oversized.extend(length);
+    oversized.push(0);
+    oversized.extend(vec![0; 65_528]);
+    for (input, message) in [
+        (oversized, "65527"),
+        (
+            capsule::encode(capsule::DATAGRAM, b"\x00trunc")[..4].to_vec(),
+            "inside a capsule",
+        ),
+        (Vec::new(), "closed the request stream"),
+    ] {
+        let (client, mut proxy) = tokio::io::duplex(128 * 1024);
+        let (socket, _) = connect_udp::open_stream(client, connect_udp::span("h2"))?;
+        tokio::io::AsyncWriteExt::write_all(&mut proxy, &input).await?;
+        tokio::io::AsyncWriteExt::shutdown(&mut proxy).await?;
+        let error = timeout(TEST_TIMEOUT, recv(socket.as_ref()))
+            .await
+            .map_err(|_| "tunnel end timed out")?
+            .err()
+            .ok_or("ended tunnel delivered a payload")?;
+        assert_eq!(error.kind(), std::io::ErrorKind::NotConnected);
+        assert!(error.to_string().contains(message), "{error}");
+    }
+    Ok(())
 }

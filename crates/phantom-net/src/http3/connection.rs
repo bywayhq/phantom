@@ -394,7 +394,10 @@ impl Http3Connection {
         };
         let status = response.status();
         if !status.is_success() {
-            return Ok(ConnectUdpExchange::Rejected(status));
+            return Ok(ConnectUdpExchange::Rejected {
+                status,
+                headers: Box::new(response.headers().clone()),
+            });
         }
         // RFC 9297 section 3.2: a response that starts the Capsule Protocol
         // carries no content and is malformed with these statuses or fields.
@@ -470,7 +473,11 @@ pub(super) enum ConnectUdpExchange {
         recv: Box<RequestRecvStream>,
         flow: DatagramFlow,
     },
-    Rejected(http::StatusCode),
+    /// A final non-2xx response; its fields carry any proxy challenge.
+    Rejected {
+        status: http::StatusCode,
+        headers: Box<http::HeaderMap>,
+    },
 }
 
 async fn exchange(
