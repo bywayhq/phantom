@@ -149,6 +149,7 @@ http2_current=$(upstream_version vendor/http2/Cargo.toml)
 
 [[ -f vendor/h3/PHANTOM.md ]] \
   || die "vendored h3 is missing PHANTOM.md provenance"
+# shellcheck disable=SC2016 # Backticks are literal Markdown in the pattern.
 h3_revisions=$(sed -nE \
   's/.*[Uu]pstream (revision|commit):? `?([0-9a-f]{40})`?.*/\2/p' \
   vendor/h3/PHANTOM.md | sort -u)
@@ -157,6 +158,7 @@ h3_revisions=$(sed -nE \
 h3_current=$h3_revisions
 [[ "$h3_current" =~ ^[0-9a-f]{40}$ ]] \
   || die "vendored h3 revision is not an exact 40-hex commit"
+# shellcheck disable=SC2016 # Backticks are literal Markdown in the pattern.
 h3_source_checksums=$(sed -nE 's/.*`([0-9a-f]{64})`.*/\1/p' \
   vendor/h3/PHANTOM.md | sort -u)
 [[ $(printf '%s\n' "$h3_source_checksums" | sed '/^$/d' | wc -l | tr -d ' ') == 1 ]] \
@@ -166,6 +168,7 @@ h3_source_checksum=$h3_source_checksums
 if [[ -d vendor/btls ]]; then
   [[ -f vendor/btls/PHANTOM.md ]] \
     || die "vendored btls is missing PHANTOM.md provenance"
+  # shellcheck disable=SC2016 # Backticks are literal Markdown in the pattern.
   btls_revs=$(sed -nE \
     's/.*[Uu]pstream (revision|commit):? `?([0-9a-f]{40})`?.*/\2/p' \
     vendor/btls/PHANTOM.md | sort -u)

@@ -663,6 +663,7 @@ grep -F -q 'checksum mismatch' "$test_root/http2-failure.stderr"
 )
 [[ -z $(find "$http2_tmp" -mindepth 1 -print -quit) ]]
 
+# shellcheck disable=SC2016 # Backticks are literal Markdown in the pattern.
 h3_revision=$(sed -nE \
   's/.*[Uu]pstream (revision|commit):? `?([0-9a-f]{40})`?.*/\2/p' \
   vendor/h3/PHANTOM.md)
@@ -879,8 +880,10 @@ for ((index = ${#h3_patches[@]} - 1; index >= 0; index--)); do
     git -C "$h3_checkout/vendor/h3" apply --reverse "patches/$patch"
   fi
 done
+# shellcheck disable=SC2016 # GitHub expressions are matched literally.
 grep -F -q 'h3_latest: ${{ steps.freshness.outputs.h3_latest }}' \
   .github/workflows/upstream-freshness.yml
+# shellcheck disable=SC2016 # GitHub expressions are matched literally.
 grep -F -q 'h3_checksum: ${{ steps.freshness.outputs.h3_checksum }}' \
   .github/workflows/upstream-freshness.yml
 grep -F -q 'dependency: [wreq-proto, btls, http2, h3]' \

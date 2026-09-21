@@ -15,7 +15,7 @@ const MALFORMED_PARAMETERS: [&[u8]; 6] = [
 ];
 
 fn decode(side: Side, input: &[u8]) -> bool {
-    std::hint::black_box(TransportParameters::read(side, &mut input.as_ref())).is_ok()
+    std::hint::black_box(TransportParameters::read(side, &mut &*input)).is_ok()
 }
 
 fn perturb(seed: &[u8], input: &[u8]) -> Vec<u8> {

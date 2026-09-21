@@ -132,6 +132,10 @@ uv run --no-project --python 3.10 --with aioquic==1.3.0 \
 ```
 
 Run `scripts/ci/check-vendor.sh` for every vendored package you change.
+Shell changes under `scripts/ci` or `scripts/release` must pass ShellCheck
+0.11.0 (`shellcheck scripts/ci/*.sh scripts/release/*.sh`). Changes under
+`fuzz/` must pass `cargo fmt --manifest-path fuzz/Cargo.toml --check` and
+`cargo clippy --manifest-path fuzz/Cargo.toml --bins --locked -- -D warnings`.
 The optional-feature matrix and scheduled interoperability suites run in CI;
 run the affected feature combinations locally before requesting review.
 
