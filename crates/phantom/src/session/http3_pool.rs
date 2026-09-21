@@ -237,15 +237,23 @@ impl PoolKey {
     }
 }
 
+/// Transport locations that keep a connection within one origin-and-route entry.
+///
+/// Exact H3 dials the origin location while an Alt-Svc attempt dials the
+/// alternative; separate slots stop each switch from replacing the other's
+/// connection. The least recently used location is closed beyond this bound.
+const MAX_TRANSPORT_LOCATIONS_PER_ENTRY: usize = 4;
+
 struct PoolEntry {
-    current: Mutex<Option<ConnectionSlot>>,
+    /// Connections keyed by transport location, least recently used first.
+    slots: Mutex<VecDeque<ConnectionSlot>>,
     admission: Arc<Admission>,
 }
 
 impl PoolEntry {
     fn new(admission: Arc<Admission>) -> Self {
         Self {
-            current: Mutex::new(None),
+            slots: Mutex::new(VecDeque::new()),
             admission,
         }
     }
@@ -262,14 +270,18 @@ impl PoolEntry {
         transport: Http3TransportTarget<'_>,
     ) -> Result<ConnectionLease, RequestError> {
         let location = TransportLocation::new(transport);
-        let mut current = self.current.lock().await;
-        if let Some(slot) = current.as_ref() {
-            if slot.location == location && connector.can_reuse(&slot.connection).await {
-                debug!(
-                    outcome = "hit",
-                    "HTTP/3 connection acquired from client pool"
-                );
-                return Ok(slot.lease());
+        let mut slots = self.slots.lock().await;
+        if let Some(position) = slots.iter().position(|slot| slot.location == location) {
+            if let Some(slot) = slots.remove(position) {
+                if connector.can_reuse(&slot.connection).await {
+                    debug!(
+                        outcome = "hit",
+                        "HTTP/3 connection acquired from client pool"
+                    );
+                    let lease = slot.lease();
+                    slots.push_back(slot);
+                    return Ok(lease);
+                }
             }
         }
 
@@ -315,17 +327,21 @@ impl PoolEntry {
             location,
         };
         let lease = slot.lease();
-        *current = Some(slot);
+        if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
+            slots.pop_front();
+            debug!(outcome = "evicted", "HTTP/3 transport location evicted");
+        }
+        slots.push_back(slot);
         Ok(lease)
     }
 
     async fn invalidate(&self, token: &Arc<()>) {
-        let mut current = self.current.lock().await;
-        if current
-            .as_ref()
-            .is_some_and(|slot| Arc::ptr_eq(&slot.token, token))
+        let mut slots = self.slots.lock().await;
+        if let Some(position) = slots
+            .iter()
+            .position(|slot| Arc::ptr_eq(&slot.token, token))
         {
-            current.take();
+            slots.remove(position);
             debug!(
                 outcome = "invalidated",
                 "HTTP/3 pool connection invalidated"

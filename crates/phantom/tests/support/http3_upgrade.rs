@@ -192,9 +192,19 @@ pub(crate) struct UpgradeScript {
     alternative_behavior: AlternativeBehavior,
     advertisement: AltSvcAdvertisement,
     alternative_ip: IpAddr,
+    origin_http3_responses: Option<Vec<PlannedResponse>>,
 }
 
 impl UpgradeScript {
+    /// Also serve exact HTTP/3 on UDP at the origin's IPv4 loopback TCP port.
+    pub(crate) fn origin_http3(
+        mut self,
+        responses: impl IntoIterator<Item = PlannedResponse>,
+    ) -> Self {
+        self.origin_http3_responses = Some(responses.into_iter().collect());
+        self
+    }
+
     pub(crate) fn new(
         origin_responses: impl IntoIterator<Item = PlannedResponse>,
         alternative_behavior: AlternativeBehavior,
@@ -204,6 +214,7 @@ impl UpgradeScript {
             alternative_behavior,
             advertisement: AltSvcAdvertisement::default(),
             alternative_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+            origin_http3_responses: None,
         }
     }
 
@@ -241,6 +252,9 @@ pub(crate) struct UpgradeObservations {
     pub(crate) origin_request_count: usize,
     pub(crate) origin_requests: Vec<ObservedRequest>,
     pub(crate) alternative_requests: Vec<ObservedRequest>,
+    /// Exact-H3 service on the origin's own port, when scripted.
+    pub(crate) origin_http3_connections: usize,
+    pub(crate) origin_http3_requests: Vec<ObservedRequest>,
 }
 
 #[derive(Default)]
@@ -262,6 +276,14 @@ pub(crate) struct Http3UpgradeFixture {
     shutdown: watch::Sender<bool>,
     origin_task: JoinHandle<TestResult<()>>,
     alternative_task: JoinHandle<TestResult<()>>,
+    origin_http3: Option<OriginHttp3Service>,
+}
+
+/// Exact HTTP/3 served at the origin's transport location.
+struct OriginHttp3Service {
+    endpoint: Endpoint,
+    observations: Arc<SharedObservations>,
+    task: JoinHandle<TestResult<()>>,
 }
 
 impl Http3UpgradeFixture {
@@ -273,7 +295,8 @@ impl Http3UpgradeFixture {
         let origin_name = origin_name.into();
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = listener.local_addr()?;
-        let alternative_endpoint = h3_endpoint(identity, script.alternative_ip)?;
+        let alternative_endpoint =
+            h3_endpoint(identity, SocketAddr::new(script.alternative_ip, 0))?;
         let alternative_address = alternative_endpoint.local_addr()?;
         let alt_svc = script.advertisement.value(alternative_address)?;
         let raw_canonical_origin = script
@@ -296,6 +319,26 @@ impl Http3UpgradeFixture {
             Arc::clone(&observations),
             shutdown_rx.clone(),
         ));
+        let origin_http3 = match script.origin_http3_responses {
+            Some(responses) => {
+                // UDP and TCP port spaces are independent, so the H3 service
+                // can share the origin's transport location.
+                let endpoint = h3_endpoint(identity, origin_address)?;
+                let observations = Arc::new(SharedObservations::default());
+                let task = tokio::spawn(run_alternative(
+                    endpoint.clone(),
+                    AlternativeBehavior::Responses(responses),
+                    Arc::clone(&observations),
+                    shutdown_rx.clone(),
+                ));
+                Some(OriginHttp3Service {
+                    endpoint,
+                    observations,
+                    task,
+                })
+            }
+            None => None,
+        };
         let alternative_task = tokio::spawn(run_alternative(
             alternative_endpoint.clone(),
             script.alternative_behavior,
@@ -312,6 +355,7 @@ impl Http3UpgradeFixture {
             shutdown,
             origin_task,
             alternative_task,
+            origin_http3,
         })
     }
 
@@ -333,7 +377,12 @@ impl Http3UpgradeFixture {
     }
 
     pub(crate) fn snapshot(&self) -> TestResult<UpgradeObservations> {
-        snapshot(&self.observations)
+        snapshot(
+            &self.observations,
+            self.origin_http3
+                .as_ref()
+                .map(|service| &*service.observations),
+        )
     }
 
     pub(crate) async fn finish(self) -> TestResult<UpgradeObservations> {
@@ -342,7 +391,17 @@ impl Http3UpgradeFixture {
             .close(VarInt::from_u32(0), b"test complete");
         self.origin_task.await??;
         self.alternative_task.await??;
-        snapshot(&self.observations)
+        let origin_http3 = match self.origin_http3 {
+            Some(service) => {
+                service
+                    .endpoint
+                    .close(VarInt::from_u32(0), b"test complete");
+                service.task.await??;
+                Some(service.observations)
+            }
+            None => None,
+        };
+        snapshot(&self.observations, origin_http3.as_deref())
     }
 }
 
@@ -605,13 +664,23 @@ fn observed_fields(fields: &[(http::HeaderName, HeaderValue)]) -> Vec<ObservedFi
         .collect()
 }
 
-fn snapshot(observations: &SharedObservations) -> TestResult<UpgradeObservations> {
+fn snapshot(
+    observations: &SharedObservations,
+    origin_http3: Option<&SharedObservations>,
+) -> TestResult<UpgradeObservations> {
     Ok(UpgradeObservations {
         origin_connections: observations.origin_connections.load(Ordering::SeqCst),
         origin_request_count: observations.origin_request_count.load(Ordering::SeqCst),
         alternative_connections: observations.alternative_connections.load(Ordering::SeqCst),
         origin_requests: lock(&observations.origin_requests)?.clone(),
         alternative_requests: lock(&observations.alternative_requests)?.clone(),
+        origin_http3_connections: origin_http3.map_or(0, |observations| {
+            observations.alternative_connections.load(Ordering::SeqCst)
+        }),
+        origin_http3_requests: match origin_http3 {
+            Some(observations) => lock(&observations.alternative_requests)?.clone(),
+            None => Vec::new(),
+        },
     })
 }
 
@@ -621,7 +690,7 @@ fn lock<T>(mutex: &Mutex<T>) -> TestResult<MutexGuard<'_, T>> {
         .map_err(|_| io::Error::other("HTTP/3 upgrade fixture mutex poisoned").into())
 }
 
-fn h3_endpoint(identity: &TestIdentity, bind_ip: IpAddr) -> TestResult<Endpoint> {
+fn h3_endpoint(identity: &TestIdentity, bind: SocketAddr) -> TestResult<Endpoint> {
     let provider = rustls::crypto::ring::default_provider();
     let mut crypto = rustls::ServerConfig::builder_with_provider(provider.into())
         .with_protocol_versions(&[&rustls::version::TLS13])?
@@ -636,10 +705,7 @@ fn h3_endpoint(identity: &TestIdentity, bind_ip: IpAddr) -> TestResult<Endpoint>
     let server_config = quinn::ServerConfig::with_crypto(Arc::new(
         quinn::crypto::rustls::QuicServerConfig::try_from(crypto)?,
     ));
-    Ok(Endpoint::server(
-        server_config,
-        SocketAddr::new(bind_ip, 0),
-    )?)
+    Ok(Endpoint::server(server_config, bind)?)
 }
 
 #[derive(Clone)]

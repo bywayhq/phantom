@@ -194,6 +194,11 @@ clamping, capacity retention of the newest entries with held entries winning,
 all-or-nothing typed rejection of noncanonical origins and alternatives, the
 disabled-store error, and host-free `Debug` output.
 
+A loopback fixture serves exact H3 on the origin's own UDP port and Alt-Svc H3
+on a second port. Alternating requests between the two locations prove one
+QUIC connection per location in the same pool entry rather than a replacement
+on every switch.
+
 This evidence does not claim browser policy or `Alt-Used` ordering, connection
 racing, proxy-route upgrades, proxy-route snapshots, or multiple-alternative
 racing.

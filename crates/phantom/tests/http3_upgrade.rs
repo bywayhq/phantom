@@ -527,6 +527,66 @@ async fn clearing_alt_svc_forces_the_next_request_back_to_the_origin() -> TestRe
     .await
 }
 
+#[tokio::test]
+async fn exact_and_alternative_http3_keep_separate_connections_for_one_origin() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [PlannedResponse::new(StatusCode::OK).advertise_alternative()],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK),
+                    PlannedResponse::new(StatusCode::OK),
+                ]),
+            )
+            .origin_http3([
+                PlannedResponse::new(StatusCode::OK),
+                PlannedResponse::new(StatusCode::OK),
+            ]),
+        )
+        .await?;
+        let client = upgrade_client(&identity)?;
+
+        drain(
+            client
+                .get_negotiated(&fixture.origin_url("/learn"))?
+                .send()
+                .await?,
+        )
+        .await?;
+        // Alternate between the two transport locations of one pool entry.
+        for round in 0..2 {
+            let alternative = client
+                .get_negotiated(&fixture.origin_url(&format!("/alternative-{round}")))?
+                .send()
+                .await?;
+            assert_eq!(protocol(&alternative)?, HttpProtocol::Http3);
+            drain(alternative).await?;
+            let exact = client
+                .get(
+                    HttpProtocol::Http3,
+                    &fixture.origin_url(&format!("/exact-{round}")),
+                )?
+                .send()
+                .await?;
+            assert_eq!(protocol(&exact)?, HttpProtocol::Http3);
+            drain(exact).await?;
+        }
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.alternative_requests.len(), 2);
+        assert_eq!(observed.origin_http3_requests.len(), 2);
+        assert_eq!(observed.alternative_connections, 1);
+        assert_eq!(observed.origin_http3_connections, 1);
+        assert!(header_values(&observed.origin_http3_requests[1], "alt-used").is_empty());
+        Ok(())
+    })
+    .await
+}
+
 fn upgrade_client(identity: &TestIdentity) -> TestResult<Client> {
     let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
     Ok(upgrade_client_builder(identity)
