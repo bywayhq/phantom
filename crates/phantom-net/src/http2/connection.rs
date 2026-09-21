@@ -216,7 +216,7 @@ impl Http2Connection {
         headers: Vec<RequestHeader>,
     ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
         let request = prepare_extended_connect(authority, target, headers)?;
-        self.send_prepared_extended_connect(request).await
+        self.send_on_extended_connection(request).await
     }
 
     /// Sends one prepared RFC 9298 CONNECT-UDP extended CONNECT request.
@@ -227,10 +227,12 @@ impl Http2Connection {
         &self,
         request: Request<()>,
     ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
-        self.send_prepared_extended_connect(request).await
+        self.send_on_extended_connection(request).await
     }
 
-    async fn send_prepared_extended_connect(
+    /// Sends on a connection created for extended CONNECT, whose
+    /// connection-wide pseudo-header order includes `:protocol`.
+    async fn send_on_extended_connection(
         &self,
         request: Request<()>,
     ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
