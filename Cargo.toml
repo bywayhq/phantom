@@ -33,7 +33,7 @@ version = "0.1.0"
 # and the stock packages never enter the build graph. See docs/downstream.md.
 btls = { package = "phantom-btls", version = "=0.5.6-phantom.1", path = "vendor/btls", default-features = false }
 btls-sys = { git = "https://github.com/0xARYA/btls", rev = "ce81167653e2d8878f2e9b2218a15b9bc8351a53", default-features = false }
-brotli = "8.0.4"
+brotli = "9.0.0"
 bytes = "=1.12.1"
 flate2 = "1.1.9"
 h3 = { package = "phantom-h3", version = "=0.0.8-phantom.1", path = "vendor/h3/h3", default-features = false, features = ["tracing"] }
