@@ -440,10 +440,7 @@ async fn reject_one(
     }
     respond.send_response(response.body(())?, true)?;
     // The client abandons the connection after one final status.
-    while let Some(result) = connection.accept().await {
-        if result.is_err() {
-            break;
-        }
+    if let Some(Ok(_)) = connection.accept().await {
         return Err("client reused a rejected proxy connection".into());
     }
     Ok(())
