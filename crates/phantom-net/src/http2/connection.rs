@@ -355,9 +355,15 @@ impl Http2Connection {
                     stream,
                 })
             } else {
-                send.stream_mut()?
-                    .send_data(Bytes::new(), true)
-                    .map_err(Http2Error::protocol)?;
+                // A peer may reset or fully close the stream right after its
+                // final rejection response (RFC 9113 section 8.1). Ending an
+                // already closed stream then fails locally, but the rejection
+                // is still the outcome; only connection failures are errors.
+                if let Err(error) = send.stream_mut()?.send_data(Bytes::new(), true) {
+                    if error.is_io() || error.is_go_away() {
+                        return Err(Http2Error::protocol(error));
+                    }
+                }
                 Ok(Http2ExtendedConnectOutcome::Rejected(Response::from_parts(
                     parts,
                     Http2Body::new(incoming, send.disarm()?, self.lease()),
