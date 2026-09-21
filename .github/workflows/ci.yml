@@ -20,7 +20,7 @@ jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -66,9 +66,6 @@ jobs:
           cargo check -p phantom-quic-btls --no-default-features --locked
           cargo check -p phantom-quic-btls --no-default-features --features keylog --locked
 
-      - name: Check downstream vendored consumption
-        run: scripts/ci/check-downstream.sh
-
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
@@ -92,6 +89,28 @@ jobs:
 
       - name: Test dependency-maintenance tooling
         run: scripts/ci/test-upstream-freshness.sh
+
+  downstream:
+    name: Downstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Check native build prerequisites
+        run: |
+          for tool in git cmake clang c++ python3; do
+            command -v "$tool"
+          done
+
+      - name: Check downstream vendored consumption
+        run: scripts/ci/check-downstream.sh
 
   vendor:
     name: Vendor (${{ matrix.package }})
