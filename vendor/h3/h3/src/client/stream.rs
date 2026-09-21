@@ -268,6 +268,27 @@ where
         self.inner.send_data(buf).await
     }
 
+    /// Polls until the previously queued DATA frame has been written
+    ///
+    /// Together with [`Self::start_send_data`] and [`Self::poll_finish`],
+    /// this lets a caller drive the request body without owning a future
+    /// that borrows the stream.
+    pub fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), StreamError>> {
+        self.inner.poll_ready(cx)
+    }
+
+    /// Queues one DATA frame after [`Self::poll_ready`] returned ready
+    pub fn start_send_data(&mut self, buf: B) -> Result<(), StreamError> {
+        self.inner.start_send_data(buf)
+    }
+
+    /// Polls a graceful end of the request without trailers
+    ///
+    /// Unlike [`Self::finish`], this never sends a GREASE frame first.
+    pub fn poll_finish(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), StreamError>> {
+        self.inner.poll_finish(cx)
+    }
+
     /// Stop a stream with an error code
     ///
     /// The code can be [`Code::H3_NO_ERROR`].

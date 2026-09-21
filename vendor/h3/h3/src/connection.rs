@@ -1635,6 +1635,31 @@ where
         Ok(())
     }
 
+    /// Polls until the previously queued frame has been written to the stream
+    pub fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), StreamError>> {
+        match self.stream.poll_ready(cx) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(self.handle_quic_stream_error(error))),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+
+    /// Queues one DATA frame after [`Self::poll_ready`] returned ready
+    pub fn start_send_data(&mut self, buf: B) -> Result<(), StreamError> {
+        self.stream
+            .send_data(Frame::Data(buf))
+            .map_err(|error| self.handle_quic_stream_error(error))
+    }
+
+    /// Polls a graceful end of the send side without sending further frames
+    pub fn poll_finish(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), StreamError>> {
+        match self.stream.poll_finish(cx) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(self.handle_quic_stream_error(error))),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+
     /// Send a set of trailers to end the request.
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub async fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), StreamError> {

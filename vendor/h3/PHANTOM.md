@@ -206,6 +206,22 @@ after ALPS omitted it remains accepted. Default builder behavior is unchanged.
 `patches/extended-connect-readiness.patch` contains the engine and
 regression-test delta for this seam.
 
+## Poll-driven request DATA
+
+Upstream sends request DATA only through `async fn send_data`, which borrows
+the stream for the whole write. A byte-stream adapter implementing
+`AsyncWrite` would have to own that future and could no longer reset the
+stream when it is dropped mid-write.
+
+The client send half now also exposes `poll_ready`, `start_send_data`, and
+`poll_finish`. They are thin wrappers over the QUIC send stream: one DATA frame
+is queued only after the previous frame has been written, so at most one frame
+is buffered. `poll_finish` ends the stream without the GREASE frame that
+`finish` may send first. The async methods are unchanged.
+
+`patches/poll-send-data.patch` contains the engine and regression-test delta
+for this seam.
+
 The canonical source and test deltas are stored in the exact application order
 listed by `patches/series`. `PHANTOM.md`, the series file, the patch files, and
 the tracked standalone-workspace `Cargo.lock` are packaging metadata and are

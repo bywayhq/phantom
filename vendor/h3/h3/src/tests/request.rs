@@ -1594,3 +1594,76 @@ where
         assert_matches!(server_result_stream, Ok(()));
     }
 }
+
+#[tokio::test]
+async fn poll_send_data_writes_frames_then_finishes_without_trailers() {
+    init_tracing();
+    let mut pair = Pair::default();
+    let mut server = pair.server();
+
+    let client_fut = async {
+        let (mut driver, mut client) = client::new(pair.client().await).await.expect("client init");
+        let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let req_fut = async move {
+            let mut request_stream = client
+                .send_request(Request::get("http://localhost/salut").body(()).unwrap())
+                .await
+                .expect("request");
+
+            for chunk in ["first ", "second"] {
+                future::poll_fn(|cx| request_stream.poll_ready(cx))
+                    .await
+                    .expect("ready");
+                request_stream
+                    .start_send_data(Bytes::from_static(chunk.as_bytes()))
+                    .expect("queue data");
+            }
+            future::poll_fn(|cx| request_stream.poll_ready(cx))
+                .await
+                .expect("flush");
+            future::poll_fn(|cx| request_stream.poll_finish(cx))
+                .await
+                .expect("finish");
+
+            request_stream.recv_response().await.expect("recv response");
+        };
+        tokio::join!(req_fut, drive_fut);
+    };
+
+    let server_fut = async {
+        let conn = server.next().await;
+        let mut incoming_req = server::Connection::new(conn).await.unwrap();
+
+        let (_, mut request_stream) = get_stream_blocking(&mut incoming_req)
+            .await
+            .expect("accept");
+        let mut body = Vec::new();
+        while let Some(mut data) = request_stream.recv_data().await.expect("recv data") {
+            body.extend_from_slice(&data.copy_to_bytes(data.remaining()));
+        }
+        assert_eq!(body, b"first second");
+        assert!(request_stream
+            .recv_trailers()
+            .await
+            .expect("recv trailers")
+            .is_none());
+        request_stream
+            .send_response(
+                Response::builder()
+                    .status(200)
+                    .body(())
+                    .expect("build response"),
+            )
+            .await
+            .expect("send_response");
+        request_stream.finish().await.expect("server finish");
+
+        assert_matches!(
+            incoming_req.accept().await.err().unwrap(),
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose{error_code: code, ..})
+            if code == Code::H3_NO_ERROR.value()
+        );
+    };
+
+    tokio::join!(server_fut, client_fut);
+}
