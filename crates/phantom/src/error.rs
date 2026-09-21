@@ -969,6 +969,9 @@ fn body_error_kind(
         RequestErrorKind::RequestBody
     } else {
         protocol_kind
+    }
+}
+
 /// Returns whether the peer reported that an HTTP/2 request was not processed.
 ///
 /// RFC 9113, section 8.7: a stream reset with `REFUSED_STREAM` was closed

@@ -692,7 +692,7 @@ async fn h3_request_rejected_replays_on_same_route_and_location() -> TestResult 
 /// The deterministic proof that an observed `GOAWAY` tags a refused request
 /// is the phantom-net connection test that waits for the closing state.
 #[tokio::test]
-async fn h3_goaway_above_identifier_replays() -> TestResult {
+async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
