@@ -27,8 +27,8 @@ use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, RedirectPolicy, RequestTimeouts, RetryPolicy};
 
 fn build() -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v152_macos_tls())
-        .with_http2(chromium::v152_macos_http2());
+    let profile = ClientProfile::new(chromium::v152_tls())
+        .with_http2(chromium::v152_http2());
     let timeouts = RequestTimeouts::new()
         .connect(Duration::from_secs(10))
         .response_head(Duration::from_secs(20))

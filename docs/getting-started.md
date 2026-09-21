@@ -47,8 +47,8 @@ use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, HttpProtocol, RequestHeader};
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v152_macos_tls())
-        .with_http2(chromium::v152_macos_http2())
+    let profile = ClientProfile::new(chromium::v152_tls())
+        .with_http2(chromium::v152_http2())
         .with_client_hints(chromium::v152_macos_client_hints());
 
     let client = Client::builder(profile).build()?;
