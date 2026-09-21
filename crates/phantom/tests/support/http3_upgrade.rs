@@ -293,7 +293,12 @@ impl Http3UpgradeFixture {
         script: UpgradeScript,
     ) -> TestResult<Self> {
         let origin_name = origin_name.into();
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let (listener, origin_endpoint) = if script.origin_http3_responses.is_some() {
+            let (listener, endpoint) = bind_shared_origin_port(identity).await?;
+            (listener, Some(endpoint))
+        } else {
+            (TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?, None)
+        };
         let origin_address = listener.local_addr()?;
         let alternative_endpoint =
             h3_endpoint(identity, SocketAddr::new(script.alternative_ip, 0))?;
@@ -319,11 +324,8 @@ impl Http3UpgradeFixture {
             Arc::clone(&observations),
             shutdown_rx.clone(),
         ));
-        let origin_http3 = match script.origin_http3_responses {
-            Some(responses) => {
-                // UDP and TCP port spaces are independent, so the H3 service
-                // can share the origin's transport location.
-                let endpoint = h3_endpoint(identity, origin_address)?;
+        let origin_http3 = match (script.origin_http3_responses, origin_endpoint) {
+            (Some(responses), Some(endpoint)) => {
                 let observations = Arc::new(SharedObservations::default());
                 let task = tokio::spawn(run_alternative(
                     endpoint.clone(),
@@ -337,7 +339,7 @@ impl Http3UpgradeFixture {
                     task,
                 })
             }
-            None => None,
+            _ => None,
         };
         let alternative_task = tokio::spawn(run_alternative(
             alternative_endpoint.clone(),
@@ -894,4 +896,27 @@ mod raw_http2 {
         stream.flush().await?;
         Ok(())
     }
+}
+
+/// Binds the H3 service's UDP endpoint first, then the origin's TCP listener on
+/// the same port number, so both share one transport location.
+///
+/// Windows reserves blocks of UDP ports, so a UDP bind on an arbitrary
+/// ephemeral TCP port can fail; the reverse order retries a TCP collision.
+async fn bind_shared_origin_port(identity: &TestIdentity) -> TestResult<(TcpListener, Endpoint)> {
+    for _ in 0..32 {
+        let endpoint = h3_endpoint(identity, SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0))?;
+        let port = endpoint.local_addr()?.port();
+        match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
+            Ok(listener) => return Ok((listener, endpoint)),
+            Err(error)
+                if error.kind() == std::io::ErrorKind::AddrInUse
+                    || error.kind() == std::io::ErrorKind::PermissionDenied =>
+            {
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err("no loopback port was free for both TCP and UDP".into())
 }
