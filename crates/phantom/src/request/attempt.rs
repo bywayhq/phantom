@@ -76,9 +76,6 @@ async fn send_once_exact(
         trailers: request_trailers,
         body,
     } = attempt;
-    let endpoint = &request.endpoint;
-    #[cfg(feature = "cookies")]
-    let cookie_jar = client.state.cookies.as_deref();
     let mut retried_critical_hints = false;
     let has_forward_credentials = protocol == HttpProtocol::Http1
         && request.uri.scheme_str() == Some("http")
@@ -91,25 +88,11 @@ async fn send_once_exact(
         request_span.record("proxy_authentication_retry", false);
         request_span.record("proxy_attempts", 1_u64);
     }
-    let client_hint_origin = client
-        .inner
-        .client_hints
-        .as_ref()
-        .filter(|_| request.uri.scheme_str() == Some("https"))
-        .map(|_| request.url.origin().ascii_serialization());
+    let client_hint_origin = client_hint_origin(client, request);
 
     loop {
-        let mut prepared_headers = request_headers.clone();
-        inject_cookie(client, request, protocol, &mut prepared_headers);
-
-        let client_hints = client
-            .inner
-            .client_hints
-            .as_ref()
-            .filter(|_| request.uri.scheme_str() == Some("https"))
-            .zip(client_hint_origin.as_deref())
-            .map(|(settings, origin)| client.client_hint_context(endpoint, origin, settings));
-        let attempt_body = body.next_attempt()?;
+        let prepared_headers = attempt_headers(client, request, protocol, &request_headers);
+        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
         if retried_proxy_authentication {
             request_span.record("proxy_authentication_retry", true);
             request_span.record("proxy_attempts", 2_u64);
@@ -121,8 +104,8 @@ async fn send_once_exact(
             method.clone(),
             prepared_headers,
             request_trailers.clone(),
-            client_hints,
-            attempt_body,
+            prepared.client_hints,
+            prepared.body,
             route,
             None,
             retried_proxy_authentication,
@@ -154,24 +137,17 @@ async fn send_once_exact(
             continue;
         }
 
-        #[cfg(feature = "cookies")]
-        if let Some(jar) = cookie_jar {
-            jar.store_response_headers(&request.url, response.headers());
-        }
-
-        let critical_retry_requested = request.uri.scheme_str() == Some("https")
-            && client.inner.client_hints.as_ref().is_some_and(|settings| {
-                client.learn_client_hints_and_should_retry(
-                    endpoint,
-                    settings,
-                    response.headers(),
-                    &sent_headers,
-                )
-            });
-        let should_retry = !retried_critical_hints
+        let critical_retry_requested = observe_response(
+            client,
+            request,
+            &response,
+            &sent_headers,
+            AttemptPath::Exact,
+        );
+        if !retried_critical_hints
             && critical_retry_requested
-            && critical_hint_retry_eligible(&method);
-        if should_retry {
+            && critical_hint_retry_eligible(&method)
+        {
             retried_critical_hints = true;
             tracing::debug!(
                 retry = 1,
@@ -223,38 +199,15 @@ async fn send_once_negotiated(
         .http1_or_2
         .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
-    #[cfg(feature = "cookies")]
-    let cookie_jar = client.state.cookies.as_deref();
-    let client_hint_origin = client
-        .inner
-        .client_hints
-        .as_ref()
-        .filter(|_| request.uri.scheme_str() == Some("https"))
-        .map(|_| request.url.origin().ascii_serialization());
+    let client_hint_origin = client_hint_origin(client, request);
     let mut retried_critical_hints = false;
 
     loop {
-        let mut http1_request_headers = request_headers.clone();
-        inject_cookie(
-            client,
-            request,
-            HttpProtocol::Http1,
-            &mut http1_request_headers,
-        );
-        let mut http2_request_headers = request_headers.clone();
-        inject_cookie(
-            client,
-            request,
-            HttpProtocol::Http2,
-            &mut http2_request_headers,
-        );
-        let client_hints = client
-            .inner
-            .client_hints
-            .as_ref()
-            .zip(client_hint_origin.as_deref())
-            .map(|(settings, origin)| client.client_hint_context(endpoint, origin, settings));
-        let attempt_body = body.next_attempt()?;
+        let http1_request_headers =
+            attempt_headers(client, request, HttpProtocol::Http1, &request_headers);
+        let http2_request_headers =
+            attempt_headers(client, request, HttpProtocol::Http2, &request_headers);
+        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
         let (response, protocol, sent_headers) = client
             .state
             .http1_or_2
@@ -267,28 +220,19 @@ async fn send_once_negotiated(
                 http1_request_headers,
                 http2_request_headers,
                 request_trailers.clone(),
-                client_hints,
-                attempt_body,
+                prepared.client_hints,
+                prepared.body,
                 timeout_budget,
             )
             .await?;
 
-        #[cfg(feature = "cookies")]
-        if let Some(jar) = cookie_jar {
-            jar.store_response_headers(&request.url, response.headers());
-        }
-
-        client.learn_alt_svc(endpoint, &response);
-
-        let critical_retry_requested = request.uri.scheme_str() == Some("https")
-            && client.inner.client_hints.as_ref().is_some_and(|settings| {
-                client.learn_client_hints_and_should_retry(
-                    endpoint,
-                    settings,
-                    response.headers(),
-                    &sent_headers,
-                )
-            });
+        let critical_retry_requested = observe_response(
+            client,
+            request,
+            &response,
+            &sent_headers,
+            AttemptPath::Negotiated,
+        );
         if !retried_critical_hints
             && critical_retry_requested
             && critical_hint_retry_eligible(&method)
@@ -327,30 +271,17 @@ async fn send_once_alt_svc(
     } = attempt;
     let endpoint = &request.endpoint;
     let transport = Http3TransportTarget::new(&alternative_host, alternative_port);
-    #[cfg(feature = "cookies")]
-    let cookie_jar = client.state.cookies.as_deref();
-    let client_hint_origin = client
-        .inner
-        .client_hints
-        .as_ref()
-        .filter(|_| request.uri.scheme_str() == Some("https"))
-        .map(|_| request.url.origin().ascii_serialization());
+    let client_hint_origin = client_hint_origin(client, request);
     let mut retried_critical_hints = false;
 
     loop {
-        let mut prepared_headers = request_headers.clone();
-        inject_cookie(client, request, HttpProtocol::Http3, &mut prepared_headers);
+        let mut prepared_headers =
+            attempt_headers(client, request, HttpProtocol::Http3, &request_headers);
         prepared_headers.push(RequestHeader::new(
             "alt-used",
             alternative_authority.as_bytes(),
         ));
-        let client_hints = client
-            .inner
-            .client_hints
-            .as_ref()
-            .zip(client_hint_origin.as_deref())
-            .map(|(settings, origin)| client.client_hint_context(endpoint, origin, settings));
-        let attempt_body = body.next_attempt()?;
+        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
         let mut retries = ConnectionSetupRetryState::new(RetryPolicy::none(), request_span.clone());
         let dispatched = dispatch(
             client,
@@ -359,8 +290,8 @@ async fn send_once_alt_svc(
             method.clone(),
             prepared_headers,
             request_trailers.clone(),
-            client_hints,
-            attempt_body,
+            prepared.client_hints,
+            prepared.body,
             route,
             Some(transport),
             false,
@@ -380,28 +311,22 @@ async fn send_once_alt_svc(
         let response = dispatched.response;
         let sent_headers = dispatched.sent_headers;
 
-        #[cfg(feature = "cookies")]
-        if let Some(jar) = cookie_jar {
-            jar.store_response_headers(&request.url, response.headers());
-        }
-
         if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
+            store_cookies(client, request, &response);
             client.remove_alt_svc_if_current(endpoint, alternative_generation);
             return Ok(AttemptOutcome {
                 response,
                 protocol: HttpProtocol::Http3,
             });
         }
-        client.learn_alt_svc(endpoint, &response);
 
-        let critical_retry_requested = client.inner.client_hints.as_ref().is_some_and(|settings| {
-            client.learn_client_hints_and_should_retry(
-                endpoint,
-                settings,
-                response.headers(),
-                &sent_headers,
-            )
-        });
+        let critical_retry_requested = observe_response(
+            client,
+            request,
+            &response,
+            &sent_headers,
+            AttemptPath::Alternative,
+        );
         if !retried_critical_hints
             && critical_retry_requested
             && critical_hint_retry_eligible(&method)
@@ -420,6 +345,98 @@ async fn send_once_alt_svc(
             protocol: HttpProtocol::Http3,
         });
     }
+}
+
+/// Response bookkeeping that differs by attempt path.
+#[derive(Clone, Copy)]
+enum AttemptPath {
+    Exact,
+    Negotiated,
+    Alternative,
+}
+
+impl AttemptPath {
+    const fn learns_alt_svc(self) -> bool {
+        matches!(self, Self::Negotiated | Self::Alternative)
+    }
+
+    const fn requires_https_for_client_hints(self) -> bool {
+        matches!(self, Self::Exact | Self::Negotiated)
+    }
+}
+
+struct PreparedAttempt<'a> {
+    client_hints: Option<ClientHintContext<'a>>,
+    body: Option<RequestBody>,
+}
+
+fn client_hint_origin(client: &Client, request: &ResolvedRequest) -> Option<String> {
+    client
+        .inner
+        .client_hints
+        .as_ref()
+        .filter(|_| request.uri.scheme_str() == Some("https"))
+        .map(|_| request.url.origin().ascii_serialization())
+}
+
+fn attempt_headers(
+    client: &Client,
+    request: &ResolvedRequest,
+    protocol: HttpProtocol,
+    request_headers: &[RequestHeader],
+) -> Vec<RequestHeader> {
+    let mut headers = request_headers.to_vec();
+    inject_cookie(client, request, protocol, &mut headers);
+    headers
+}
+
+fn prepare_attempt<'a>(
+    client: &'a Client,
+    request: &'a ResolvedRequest,
+    client_hint_origin: Option<&'a str>,
+    body: &mut RequestBodySource,
+) -> Result<PreparedAttempt<'a>, RequestError> {
+    let client_hints = client
+        .inner
+        .client_hints
+        .as_ref()
+        .zip(client_hint_origin)
+        .map(|(settings, origin)| client.client_hint_context(&request.endpoint, origin, settings));
+    let body = body.next_attempt()?;
+    Ok(PreparedAttempt { client_hints, body })
+}
+
+/// Stores response state and returns whether it requested a Critical-CH retry.
+fn observe_response(
+    client: &Client,
+    request: &ResolvedRequest,
+    response: &Response<ResponseBody>,
+    sent_headers: &[RequestHeader],
+    path: AttemptPath,
+) -> bool {
+    store_cookies(client, request, response);
+    if path.learns_alt_svc() {
+        client.learn_alt_svc(&request.endpoint, response);
+    }
+    (!path.requires_https_for_client_hints() || request.uri.scheme_str() == Some("https"))
+        && client.inner.client_hints.as_ref().is_some_and(|settings| {
+            client.learn_client_hints_and_should_retry(
+                &request.endpoint,
+                settings,
+                response.headers(),
+                sent_headers,
+            )
+        })
+}
+
+fn store_cookies(client: &Client, request: &ResolvedRequest, response: &Response<ResponseBody>) {
+    #[cfg(feature = "cookies")]
+    if let Some(jar) = client.state.cookies.as_deref() {
+        jar.store_response_headers(&request.url, response.headers());
+    }
+
+    #[cfg(not(feature = "cookies"))]
+    let _ = (client, request, response);
 }
 
 fn inject_cookie(
