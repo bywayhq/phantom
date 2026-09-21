@@ -81,6 +81,11 @@ impl Http2ExtendedConnectStream {
         }
     }
 
+    /// Returns the DATA byte stream, which keeps its connection lease.
+    pub(crate) fn into_connect_stream(self) -> Http2ConnectStream {
+        self.inner
+    }
+
     /// Retains a value until this stream is completed or dropped.
     #[doc(hidden)]
     pub fn retain_until_stream_complete<T>(&mut self, value: T)

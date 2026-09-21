@@ -17,9 +17,9 @@ use crate::{
     request::RequestHeader,
 };
 
-const MAX_CONNECT_HEADERS: usize = 100;
+pub(super) const MAX_CONNECT_HEADERS: usize = 100;
 pub(super) const MAX_CONNECT_HEAD_BYTES: usize = 32 * 1024;
-const MAX_INFORMATIONAL_RESPONSES: usize = 8;
+pub(super) const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
 /// One ordered field in an HTTP CONNECT request.
 #[derive(Clone, Eq, PartialEq)]
@@ -273,7 +273,7 @@ where
     }
 }
 
-async fn read_response_head<S>(
+pub(super) async fn read_response_head<S>(
     stream: &mut S,
     response: &mut Vec<u8>,
 ) -> Result<usize, HttpConnectError>
@@ -569,14 +569,18 @@ impl Authorization<'_> {
     }
 }
 
-fn append_field(target: &mut Vec<u8>, name: &[u8], value: &[u8]) -> Result<(), HttpConnectError> {
+pub(super) fn append_field(
+    target: &mut Vec<u8>,
+    name: &[u8],
+    value: &[u8],
+) -> Result<(), HttpConnectError> {
     extend_bounded(target, name)?;
     extend_bounded(target, b": ")?;
     extend_bounded(target, value)?;
     extend_bounded(target, b"\r\n")
 }
 
-fn extend_bounded(target: &mut Vec<u8>, bytes: &[u8]) -> Result<(), HttpConnectError> {
+pub(super) fn extend_bounded(target: &mut Vec<u8>, bytes: &[u8]) -> Result<(), HttpConnectError> {
     let attempted =
         target
             .len()

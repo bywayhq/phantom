@@ -1,6 +1,7 @@
 //! Proxy negotiation and tunneled byte streams.
 
 mod authentication;
+mod connect_udp;
 mod error;
 mod http2_connect;
 mod http_connect;
@@ -10,6 +11,7 @@ mod socks5_udp;
 mod tunnel;
 
 pub use authentication::{HttpBasicCredentials, validate_basic_proxy_challenge};
+pub(crate) use connect_udp::PreparedConnectUdp;
 pub use error::{HttpConnectError, HttpConnectErrorKind};
 pub use http_connect::{
     HttpConnectHeader, connect_http_tunnel, connect_http_tunnel_direct,

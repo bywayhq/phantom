@@ -156,6 +156,36 @@ pub(super) fn prepare_extended_connect(
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<Request<()>, Http2Error> {
+    prepare_extended_connect_protocol(
+        Protocol::from_static("websocket"),
+        authority,
+        target,
+        headers,
+    )
+}
+
+/// Builds an RFC 9298 section 3.4 CONNECT-UDP request: extended CONNECT with
+/// `:protocol connect-udp`, `:scheme https`, the proxy authority, and the
+/// expanded template path. The caller supplies every regular field.
+pub(crate) fn prepare_connect_udp(
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Request<()>, Http2Error> {
+    prepare_extended_connect_protocol(
+        Protocol::from_static("connect-udp"),
+        authority,
+        target,
+        headers,
+    )
+}
+
+fn prepare_extended_connect_protocol(
+    protocol: Protocol,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Request<()>, Http2Error> {
     if authority.as_bytes().contains(&b'@') {
         return Err(Http2Error::AuthorityContainsUserinfo);
     }
@@ -178,9 +208,7 @@ pub(super) fn prepare_extended_connect(
     request
         .extensions_mut()
         .insert(OrderedHeaders::new(headers.ordered));
-    request
-        .extensions_mut()
-        .insert(Protocol::from_static("websocket"));
+    request.extensions_mut().insert(protocol);
     Ok(request)
 }
 

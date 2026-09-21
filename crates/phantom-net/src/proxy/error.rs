@@ -93,6 +93,12 @@ pub enum HttpConnectError {
     MultipleProxyAuthorizationPlaceholders,
     /// A literal authorization field is ambiguous with generated credentials.
     ProxyAuthorizationHeader,
+    /// A caller-supplied CONNECT-UDP field repeats one Phantom generates:
+    /// `Host`, `Connection`, `Upgrade`, or `Capsule-Protocol`.
+    ConnectUdpGeneratedHeader {
+        /// Zero-based position in the caller-supplied field list.
+        index: usize,
+    },
     /// A caller-supplied field is connection-specific and forbidden in HTTP/2.
     Http2ConnectionHeader {
         /// Zero-based position in the caller-supplied field list.
@@ -167,6 +173,7 @@ impl HttpConnectError {
             | Self::MissingProxyAuthorizationPlaceholder
             | Self::MultipleProxyAuthorizationPlaceholders
             | Self::ProxyAuthorizationHeader
+            | Self::ConnectUdpGeneratedHeader { .. }
             | Self::Http2ConnectionHeader { .. } => HttpConnectErrorKind::InvalidRequest,
             Self::MalformedAuthenticationChallenge
             | Self::UnsupportedAuthenticationChallenge
@@ -256,6 +263,10 @@ impl fmt::Display for HttpConnectError {
             ),
             Self::ProxyAuthorizationHeader => formatter
                 .write_str("authenticated HTTP CONNECT must use the authorization placeholder"),
+            Self::ConnectUdpGeneratedHeader { index } => write!(
+                formatter,
+                "CONNECT-UDP field {index} repeats a generated field"
+            ),
             Self::Http2ConnectionHeader { index } => write!(
                 formatter,
                 "HTTP/2 CONNECT field {index} is connection-specific"

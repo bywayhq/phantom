@@ -70,7 +70,7 @@ impl HttpBasicCredentials {
         })
     }
 
-    pub(super) fn authorization(&self) -> &[u8] {
+    pub(crate) fn authorization(&self) -> &[u8] {
         &self.authorization
     }
 

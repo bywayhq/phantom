@@ -1308,6 +1308,18 @@ where
     connect_selected_kind(stream, client, false).await
 }
 
+/// Establishes HTTP/2 on a TLS stream that selected `h2`, for exact extended
+/// CONNECT requests built with the profile's extended CONNECT order.
+pub(crate) async fn connect_selected_extended<S>(
+    stream: TlsStream<S>,
+    client: ::http2::client::Builder,
+) -> Result<Http2Connection, Http2TlsError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    connect_selected_kind(stream, client, true).await
+}
+
 async fn connect_selected_kind<S>(
     stream: TlsStream<S>,
     mut client: ::http2::client::Builder,

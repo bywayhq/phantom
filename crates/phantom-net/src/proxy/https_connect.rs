@@ -19,7 +19,8 @@ use super::{
 use crate::{
     direct::{DirectConnectError, connect_tcp},
     http2::{
-        Http2ConnectStream, Http2Connection, Http2TlsError, connect_selected, translate_settings,
+        Http2ConnectStream, Http2Connection, Http2TlsError, connect_selected,
+        connect_selected_extended, translate_extended_connect_settings, translate_settings,
         validate_http2,
     },
     tls::{ServerAuthentication, TlsConnector, TlsStream},
@@ -258,7 +259,7 @@ impl HttpsProxyConnector {
             .map_err(HttpConnectError::ProxyTls)
     }
 
-    async fn connect_http1_proxy(
+    pub(super) async fn connect_http1_proxy(
         &self,
         proxy_host: &str,
         proxy_port: u16,
@@ -305,6 +306,50 @@ impl HttpsProxyConnector {
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
     }
 
+    /// Opens one dedicated HTTP/2 connection to the proxy for exact extended
+    /// CONNECT, using the profile's extended CONNECT pseudo-header order.
+    pub(super) async fn connect_http2_extended_proxy(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+    ) -> Result<Http2Connection, HttpConnectError> {
+        let client = self.http2_extended_builder()?;
+        let stream = self
+            .connect_proxy_tls(proxy_host, proxy_port, proxy_server_name)
+            .await?;
+        match stream.negotiated_alpn() {
+            Some(b"h2") => {}
+            Some(selected) => {
+                return Err(HttpConnectError::UnsupportedAlpn {
+                    selected: selected.into(),
+                });
+            }
+            None => return Err(HttpConnectError::MissingNegotiatedAlpn),
+        }
+        connect_selected_extended(stream, client)
+            .await
+            .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
+    }
+
+    /// Validates HTTP/2 extended CONNECT support before proxy I/O.
+    pub(super) fn http2_extended_builder(
+        &self,
+    ) -> Result<::http2::client::Builder, HttpConnectError> {
+        if !self.offers_h2 {
+            return Err(HttpConnectError::MissingH2Alpn);
+        }
+        let settings = self
+            .http2
+            .as_ref()
+            .ok_or(HttpConnectError::MissingHttp2Settings)?;
+        validate_http2(settings)
+            .and_then(|()| {
+                translate_extended_connect_settings(settings).map_err(Http2TlsError::Http2)
+            })
+            .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
+    }
+
     fn http2_builder(&self) -> Result<::http2::client::Builder, HttpConnectError> {
         if !self.offers_h2 {
             return Err(HttpConnectError::MissingH2Alpn);
@@ -330,13 +375,13 @@ enum TunnelInner {
 }
 
 impl HttpsProxyTunnel {
-    fn http1(stream: TunnelStream<TlsStream<tokio::net::TcpStream>>) -> Self {
+    pub(super) fn http1(stream: TunnelStream<TlsStream<tokio::net::TcpStream>>) -> Self {
         Self {
             inner: TunnelInner::Http1(stream),
         }
     }
 
-    fn http2(stream: Http2ConnectStream) -> Self {
+    pub(super) fn http2(stream: Http2ConnectStream) -> Self {
         Self {
             inner: TunnelInner::Http2(Box::new(stream)),
         }

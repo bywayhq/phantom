@@ -27,7 +27,7 @@ pub use alt_svc::{AltSvcFrame, AltSvcFrameScope, AltSvcFrames};
 pub use body::Http2Body;
 pub use connection::Http2Connection;
 pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
-pub(crate) use request::prepare_classic_connect;
+pub(crate) use request::{prepare_classic_connect, prepare_connect_udp};
 pub(crate) use tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream};
 pub use tunnel::{Http2ExtendedConnectOutcome, Http2ExtendedConnectStream};
 
@@ -593,7 +593,7 @@ mod tls;
 mod tunnel;
 
 pub use tls::{Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
-pub(crate) use tls::{connect_selected, validate_http2};
+pub(crate) use tls::{connect_selected, connect_selected_extended, validate_http2};
 
 #[cfg(test)]
 mod tests;

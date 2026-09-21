@@ -216,6 +216,24 @@ impl Http2Connection {
         headers: Vec<RequestHeader>,
     ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
         let request = prepare_extended_connect(authority, target, headers)?;
+        self.send_prepared_extended_connect(request).await
+    }
+
+    /// Sends one prepared RFC 9298 CONNECT-UDP extended CONNECT request.
+    ///
+    /// Like [`Self::send_extended_connect`], HEADERS are sent only after the
+    /// peer's SETTINGS enable extended CONNECT (RFC 8441 section 3).
+    pub(crate) async fn send_connect_udp(
+        &self,
+        request: Request<()>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
+        self.send_prepared_extended_connect(request).await
+    }
+
+    async fn send_prepared_extended_connect(
+        &self,
+        request: Request<()>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
         if !self.inner.extended_connect {
             return Err(Http2Error::ExtendedConnectConnectionRequired);
         }
