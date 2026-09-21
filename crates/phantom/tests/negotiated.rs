@@ -733,9 +733,15 @@ async fn unsupported_offered_alpn_sends_no_http_bytes() -> TestResult<()> {
             if stream.ssl().selected_alpn_protocol() != Some(b"h3") {
                 return Err("server did not select the unsupported h3 ALPN".into());
             }
-            let mut byte = [0_u8; 1];
-            let bytes = timeout(SECOND_CONNECTION_WINDOW, stream.read(&mut byte)).await??;
-            Ok::<_, Box<dyn Error + Send + Sync>>(bytes)
+            // The client closes after rejecting the ALPN; the outer test
+            // deadline bounds a client that never closes.
+            let mut received = Vec::new();
+            match stream.read_to_end(&mut received).await {
+                Ok(_) => {}
+                Err(error) if tls_support::is_peer_gone(&error) => {}
+                Err(error) => return Err(error.into()),
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(received.len())
         });
 
         let mut tls = tls_support::tls_settings();
