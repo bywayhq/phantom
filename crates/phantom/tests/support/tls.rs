@@ -1,4 +1,4 @@
-use std::{error::Error, net::Ipv4Addr, pin::Pin};
+use std::{error::Error, io, net::Ipv4Addr, pin::Pin};
 
 use btls::{
     pkey::PKey,
@@ -186,4 +186,18 @@ impl TestIdentity {
     pub(crate) fn private_key_der(&self) -> &[u8] {
         &self.private_key_der
     }
+}
+
+/// Reports whether an I/O error means the peer already closed its socket.
+///
+/// Test servers and relays tear down after the client under test hangs up;
+/// Linux reports that write as a broken pipe or reset, Windows as an abort.
+pub fn is_peer_gone(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::BrokenPipe
+            | io::ErrorKind::ConnectionReset
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::UnexpectedEof
+    )
 }

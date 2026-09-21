@@ -714,14 +714,7 @@ where
 {
     match copy_bidirectional(downstream, upstream).await {
         Ok(_) => Ok(()),
-        Err(error)
-            if matches!(
-                error.kind(),
-                io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
-            ) =>
-        {
-            Ok(())
-        }
+        Err(error) if tls_support::is_peer_gone(&error) => Ok(()),
         Err(error) => Err(error),
     }
 }

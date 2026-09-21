@@ -7,7 +7,6 @@ mod tls_support;
 use std::{
     error::Error,
     future::{Future, poll_fn},
-    io,
     net::Ipv4Addr,
     pin::Pin,
     sync::{
@@ -206,19 +205,9 @@ async fn serve_one(stream: SslStream<TcpStream>, expected_path: &str) -> TestRes
         Ok(()) => Ok(()),
         // The client may close its socket after reading GOAWAY but before the
         // shutdown PING is acknowledged; that teardown is not under test.
-        Err(error) if error.get_io().is_some_and(is_peer_gone) => Ok(()),
+        Err(error) if error.get_io().is_some_and(tls_support::is_peer_gone) => Ok(()),
         Err(error) => Err(error.into()),
     }
-}
-
-fn is_peer_gone(error: &io::Error) -> bool {
-    matches!(
-        error.kind(),
-        io::ErrorKind::BrokenPipe
-            | io::ErrorKind::ConnectionReset
-            | io::ErrorKind::ConnectionAborted
-            | io::ErrorKind::UnexpectedEof
-    )
 }
 
 async fn serve_http1(mut stream: SslStream<TcpStream>, expected_path: &str) -> TestResult<()> {
