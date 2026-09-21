@@ -21,8 +21,8 @@ use std::{
 };
 
 use phantom::{
-    Client, HttpProtocol, HttpProxy, Route, Socks5Proxy, WebSocket, WebSocketCloseFrame,
-    WebSocketErrorKind, WebSocketMessage,
+    Client, ConnectUdpProxy, HttpProtocol, HttpProxy, Route, Socks5Proxy, WebSocket,
+    WebSocketCloseFrame, WebSocketErrorKind, WebSocketMessage,
     profile::{ClientProfile, Http2PseudoHeader, chromium},
 };
 use phantom_net::proxy::HttpConnectError;
@@ -355,6 +355,34 @@ async fn plaintext_ws_over_h2_rejected_before_io() -> TestResult<()> {
         ));
         assert!(matches!(
             proxy.accept(),
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock
+        ));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn h2_websocket_rejects_connect_udp_route_before_io() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+        origin.set_nonblocking(true)?;
+        let origin_address = origin.local_addr()?;
+        let route = Route::connect_udp(ConnectUdpProxy::new(
+            "https://127.0.0.1:9/masque/{target_host}/{target_port}/",
+        )?);
+
+        let client = h2_websocket_client(&identity, None, route)?;
+        let error = expect_error(
+            client
+                .websocket_with_protocol(HttpProtocol::Http2, &format!("wss://{origin_address}/"))?
+                .connect()
+                .await,
+        )?;
+        assert_eq!(error.kind(), WebSocketErrorKind::UnsupportedRoute);
+        assert!(matches!(
+            origin.accept(),
             Err(error) if error.kind() == io::ErrorKind::WouldBlock
         ));
         Ok(())

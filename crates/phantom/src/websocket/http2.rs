@@ -68,6 +68,11 @@ impl WebSocketRequestBuilder {
         // Every route opens a dedicated origin connection; proxy failure is
         // terminal and never retried directly or as an H1 Upgrade.
         let outcome = match route {
+            Route::ConnectUdp(_) => {
+                return Err(WebSocketError::request(RequestError::unsupported_route(
+                    HttpProtocol::Http2,
+                )));
+            }
             Route::Direct => {
                 connector
                     .send_extended_connect_direct(
