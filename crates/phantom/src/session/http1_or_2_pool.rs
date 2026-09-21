@@ -193,6 +193,35 @@ impl Http1Or2Pool {
         )
     }
 
+    /// Returns the current reusable HTTP/2 generation for this origin.
+    ///
+    /// This neither opens a connection nor creates a pool entry, and it does
+    /// not change eviction order. An HTTP/1.1 generation yields `None`. A
+    /// WebSocket stream opened on the returned connection is not counted by
+    /// this pool's per-origin admission.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn current_http2_connection(
+        &self,
+        endpoint: &Endpoint,
+    ) -> Option<Http2Connection> {
+        let key = PoolKey::new(endpoint);
+        let entry = {
+            let state = self.state.lock().await;
+            state
+                .entries
+                .iter()
+                .find(|(candidate, _)| candidate == &key)
+                .map(|(_, entry)| Arc::clone(entry))?
+        };
+        let current = entry.current.lock().await;
+        match current.as_ref().map(|slot| &slot.connection) {
+            Some(PooledConnection::Http2(connection)) if connection.is_reusable() => {
+                Some(connection.clone())
+            }
+            _ => None,
+        }
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state

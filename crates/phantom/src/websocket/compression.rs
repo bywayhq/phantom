@@ -3,6 +3,8 @@ use tokio_tungstenite::tungstenite::protocol::{
     PerMessageDeflateOfferParameter as EngineOfferParameter, Role, WebSocketConfig,
 };
 
+use phantom_profile::{WebSocketDeflateParameter, WebSocketSettings};
+
 use super::WebSocketError;
 
 /// One parameter in an ordered RFC 7692 client offer.
@@ -57,6 +59,41 @@ impl PerMessageDeflate {
             client_max_window_bits: 15,
             compression_level: 6,
         }
+    }
+
+    /// Creates the default client policy with a profile's ordered offer.
+    ///
+    /// Only the wire offer comes from the profile; the local encoder cap and
+    /// compression level keep their defaults.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WebSocketError`] when the profile offer is invalid or
+    /// contains a parameter this client does not support.
+    pub fn from_profile(settings: &WebSocketSettings) -> Result<Self, WebSocketError> {
+        let mut parameters = Vec::with_capacity(settings.permessage_deflate_offer.len());
+        for parameter in &settings.permessage_deflate_offer {
+            parameters.push(match *parameter {
+                WebSocketDeflateParameter::ServerNoContextTakeover => {
+                    PerMessageDeflateOfferParameter::ServerNoContextTakeover
+                }
+                WebSocketDeflateParameter::ClientNoContextTakeover => {
+                    PerMessageDeflateOfferParameter::ClientNoContextTakeover
+                }
+                WebSocketDeflateParameter::ServerMaxWindowBits(bits) => {
+                    PerMessageDeflateOfferParameter::ServerMaxWindowBits(bits)
+                }
+                WebSocketDeflateParameter::ClientMaxWindowBits(bits) => {
+                    PerMessageDeflateOfferParameter::ClientMaxWindowBits(bits)
+                }
+                _ => {
+                    return Err(WebSocketError::invalid_request(
+                        "profile permessage-deflate offer contains an unsupported parameter",
+                    ));
+                }
+            });
+        }
+        Self::new().offer_parameters(parameters)
     }
 
     /// Replaces the complete ordered parameter sequence in the offer.

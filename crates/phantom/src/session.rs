@@ -169,6 +169,29 @@ impl ClientOptions {
 }
 
 impl Client {
+    /// Returns a pooled, reusable HTTP/2 session to the origin on `route`.
+    ///
+    /// The negotiated pool holds only direct sessions and is consulted first;
+    /// the exact HTTP/2 pool is keyed by route. Nothing is opened.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn current_http2_session(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+    ) -> Option<phantom_net::http2::Http2Connection> {
+        if matches!(route, crate::Route::Direct) {
+            if let Some(connection) = self
+                .state
+                .http1_or_2
+                .current_http2_connection(endpoint)
+                .await
+            {
+                return Some(connection);
+            }
+        }
+        self.state.http2.current_connection(endpoint, route).await
+    }
+
     /// Returns the policy for retrying connection-establishment failures.
     #[must_use]
     pub fn retry_policy(&self) -> RetryPolicy {

@@ -17,7 +17,7 @@ use tracing::Span;
 #[cfg(feature = "websocket-deflate")]
 use super::NegotiatedPerMessageDeflate;
 use super::{
-    WebSocket, WebSocketError, WebSocketRequestBuilder, WebSocketTransport,
+    Http1UpgradeConnector, WebSocket, WebSocketError, WebSocketRequestBuilder, WebSocketTransport,
     handshake::{prepare, validate_response},
 };
 use crate::{HttpProtocol, RequestError, ResponseBody, Route};
@@ -25,13 +25,16 @@ use crate::{HttpProtocol, RequestError, ResponseBody, Route};
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http1(
         self,
+        upgrade_connector: Http1UpgradeConnector,
         request_span: &Span,
     ) -> Result<WebSocket, WebSocketError> {
         let Self {
             client,
-            protocol: _,
+            selection: _,
             request,
             headers,
+            http2_headers: _,
+            replaced_policy_headers: _,
             limits,
             route,
             #[cfg(feature = "websocket-deflate")]
@@ -63,11 +66,11 @@ impl WebSocketRequestBuilder {
             cookie_value.as_deref(),
             extension_offer.as_ref().map(http::HeaderValue::as_bytes),
         )?;
-        let connector = client
-            .inner
-            .http1
-            .as_ref()
-            .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+        let connector = match upgrade_connector {
+            Http1UpgradeConnector::Profile => client.inner.http1.as_ref(),
+            Http1UpgradeConnector::PolicyAlpn => client.inner.websocket_http1.as_ref(),
+        }
+        .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
         let outcome = match request.transport {
             WebSocketTransport::Plaintext => match route {
                 // CONNECT-UDP carries only QUIC; reject before any I/O.

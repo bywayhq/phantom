@@ -98,6 +98,13 @@ impl WebSocketError {
         Self::new(WebSocketErrorKind::ProtocolUnavailable, message)
     }
 
+    pub(super) fn profile_policy_unavailable() -> Self {
+        Self::new(
+            WebSocketErrorKind::ProtocolUnavailable,
+            "client profile has no WebSocket connection policy",
+        )
+    }
+
     pub(super) fn random(source: btls::error::ErrorStack) -> Self {
         Self::with_source(
             WebSocketErrorKind::Random,

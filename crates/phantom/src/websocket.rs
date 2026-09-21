@@ -32,20 +32,53 @@ pub use error::{WebSocketError, WebSocketErrorKind};
 pub use handshake::WebSocketHeader;
 pub use message::{WebSocketCloseFrame, WebSocketLimits, WebSocketMessage};
 
-use handshake::{default_headers, default_http2_headers};
+use handshake::{default_headers, default_http2_headers, fill_or_append, profile_headers};
+use phantom_net::http2::Http2Connection;
+use phantom_profile::WebSocketNewConnection;
 use trace::OperationOutcome;
 
 /// Builder for one ordered WebSocket opening handshake.
 #[must_use = "WebSocket builders do nothing until connect is awaited"]
 pub struct WebSocketRequestBuilder {
     client: Client,
-    protocol: HttpProtocol,
+    selection: WebSocketSelection,
     request: ResolvedWebSocket,
+    /// Opening fields for the exact protocol, or HTTP/1.1 under profile policy.
     headers: Vec<WebSocketHeader>,
+    /// HTTP/2 opening fields under profile policy; empty otherwise.
+    http2_headers: Vec<WebSocketHeader>,
+    /// Set when the caller replaced a sequence that profile policy must choose.
+    replaced_policy_headers: bool,
     limits: WebSocketLimits,
     route: Option<Route>,
     #[cfg(feature = "websocket-deflate")]
     permessage_deflate: Option<PerMessageDeflate>,
+}
+
+/// How the connect step chooses the protocol and connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WebSocketSelection {
+    /// Exactly this protocol on a dedicated connection.
+    Exact(HttpProtocol),
+    /// The profile's [`phantom_profile::WebSocketConnectionPolicy`].
+    ProfilePolicy,
+}
+
+/// The HTTP/1.1 connector used for an Upgrade.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Http1UpgradeConnector {
+    /// The profile's ordinary TLS offer.
+    Profile,
+    /// The WebSocket policy's Upgrade-connection ALPN offer.
+    PolicyAlpn,
+}
+
+/// Where an HTTP/2 extended CONNECT is sent.
+enum Http2Target {
+    /// A new connection dedicated to this WebSocket.
+    NewConnection,
+    /// A pooled session whose peer enabled extended CONNECT.
+    Session(Http2Connection),
 }
 
 impl fmt::Debug for WebSocketRequestBuilder {
@@ -53,7 +86,7 @@ impl fmt::Debug for WebSocketRequestBuilder {
         let mut debug = formatter.debug_struct("WebSocketRequestBuilder");
         debug
             .field("header_count", &self.headers.len())
-            .field("protocol", &self.protocol)
+            .field("selection", &self.selection)
             .field("limits", &self.limits)
             .field("route_override", &self.route.is_some());
         #[cfg(feature = "websocket-deflate")]
@@ -75,6 +108,31 @@ impl WebSocketRequestBuilder {
         Self::new(client, protocol, uri)
     }
 
+    pub(crate) fn new_client_with_profile_policy(
+        client: Client,
+        uri: &str,
+    ) -> Result<Self, WebSocketError> {
+        let settings = client
+            .inner
+            .websocket
+            .as_ref()
+            .ok_or_else(WebSocketError::profile_policy_unavailable)?;
+        let headers = profile_headers(&settings.http1_fields)?;
+        let http2_headers = profile_headers(&settings.http2_fields)?;
+        Ok(Self {
+            request: ResolvedWebSocket::new(uri)?,
+            client,
+            selection: WebSocketSelection::ProfilePolicy,
+            headers,
+            http2_headers,
+            replaced_policy_headers: false,
+            limits: WebSocketLimits::default(),
+            route: None,
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate: None,
+        })
+    }
+
     fn new(client: Client, protocol: HttpProtocol, uri: &str) -> Result<Self, WebSocketError> {
         let available = match protocol {
             HttpProtocol::Http1 => client.inner.http1.is_some(),
@@ -84,15 +142,22 @@ impl WebSocketRequestBuilder {
         if !available {
             return Err(WebSocketError::protocol_unavailable(protocol));
         }
+        let headers = match (protocol, client.inner.websocket.as_ref()) {
+            (HttpProtocol::Http1, Some(settings)) => profile_headers(&settings.http1_fields)?,
+            (HttpProtocol::Http2, Some(settings)) => profile_headers(&settings.http2_fields)?,
+            (HttpProtocol::Http1, None) => default_headers(),
+            (HttpProtocol::Http2, None) => default_http2_headers(),
+            (HttpProtocol::Http3, _) => {
+                return Err(WebSocketError::protocol_unavailable(protocol));
+            }
+        };
         Ok(Self {
-            client,
-            protocol,
             request: ResolvedWebSocket::new(uri)?,
-            headers: match protocol {
-                HttpProtocol::Http1 => default_headers(),
-                HttpProtocol::Http2 => default_http2_headers(),
-                HttpProtocol::Http3 => return Err(WebSocketError::protocol_unavailable(protocol)),
-            },
+            client,
+            selection: WebSocketSelection::Exact(protocol),
+            headers,
+            http2_headers: Vec::new(),
+            replaced_policy_headers: false,
             limits: WebSocketLimits::default(),
             route: None,
             #[cfg(feature = "websocket-deflate")]
@@ -100,9 +165,25 @@ impl WebSocketRequestBuilder {
         })
     }
 
-    /// Appends one literal ordered opening-handshake field.
+    /// Adds one ordered opening-handshake field.
+    ///
+    /// The value fills the first unfilled [`WebSocketHeader::CallerField`]
+    /// slot with the same case-insensitive name, keeping the slot's position
+    /// and spelling. Otherwise the field is appended. Under
+    /// [`Client::websocket_with_profile_policy`] the field is added to both
+    /// the HTTP/1.1 and HTTP/2 sequences, and an appended HTTP/2 name is
+    /// lowercased as HTTP/2 requires.
     pub fn header(mut self, header: RequestHeader) -> Self {
-        self.headers.push(WebSocketHeader::field(header));
+        if self.selection == WebSocketSelection::ProfilePolicy {
+            let lowercase = RequestHeader::new(header.name().to_ascii_lowercase(), header.value());
+            let lowercase = if header.is_sensitive() {
+                lowercase.sensitive()
+            } else {
+                lowercase
+            };
+            fill_or_append(&mut self.http2_headers, lowercase);
+        }
+        fill_or_append(&mut self.headers, header);
         self
     }
 
@@ -116,7 +197,12 @@ impl WebSocketRequestBuilder {
     /// `Upgrade`, `Connection`, `Sec-WebSocket-Key`, and uppercase names are
     /// rejected. Both reject literal `Proxy-Authorization` and extension
     /// fields. Validation completes before DNS, proxy, or origin I/O.
+    ///
+    /// Under [`Client::websocket_with_profile_policy`] the protocol is chosen
+    /// at connect time, so one replacement sequence cannot fit it; `connect`
+    /// then fails before I/O. Fill the profile's slots with [`Self::header`].
     pub fn headers(mut self, headers: Vec<WebSocketHeader>) -> Self {
+        self.replaced_policy_headers = self.selection == WebSocketSelection::ProfilePolicy;
         self.headers = headers;
         self
     }
@@ -164,7 +250,11 @@ impl WebSocketRequestBuilder {
         let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
         let span = debug_span!(
             "websocket.connect",
-            protocol = self.protocol.trace_name(),
+            protocol = match self.selection {
+                WebSocketSelection::Exact(protocol) => protocol.trace_name(),
+                WebSocketSelection::ProfilePolicy => "profile_policy",
+            },
+            connection = field::Empty,
             route = self.request.route_trace_name(route),
             proxy_authentication_retry = field::Empty,
             proxy_attempts = field::Empty,
@@ -181,11 +271,92 @@ impl WebSocketRequestBuilder {
     }
 
     async fn connect_inner(self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
-        match self.protocol {
-            HttpProtocol::Http1 => self.connect_http1(request_span).await,
-            HttpProtocol::Http2 => self.connect_http2().await,
-            HttpProtocol::Http3 => Err(WebSocketError::protocol_unavailable(HttpProtocol::Http3)),
+        match self.selection {
+            WebSocketSelection::Exact(HttpProtocol::Http1) => {
+                self.connect_http1(Http1UpgradeConnector::Profile, request_span)
+                    .await
+            }
+            WebSocketSelection::Exact(HttpProtocol::Http2) => {
+                self.connect_http2(Http2Target::NewConnection).await
+            }
+            WebSocketSelection::Exact(protocol) => {
+                Err(WebSocketError::protocol_unavailable(protocol))
+            }
+            WebSocketSelection::ProfilePolicy => self.connect_by_profile_policy(request_span).await,
         }
+    }
+
+    /// Chooses the connection from pooled session state and profile policy.
+    ///
+    /// The choice is final: a failure on the chosen connection is returned
+    /// without trying another connection or protocol.
+    async fn connect_by_profile_policy(
+        mut self,
+        request_span: &Span,
+    ) -> Result<WebSocket, WebSocketError> {
+        if self.replaced_policy_headers {
+            return Err(WebSocketError::invalid_request(
+                "profile WebSocket policy chooses the protocol at connect time; fill its template slots with header()",
+            ));
+        }
+        let policy = &self
+            .client
+            .inner
+            .websocket
+            .as_ref()
+            .ok_or_else(WebSocketError::profile_policy_unavailable)?
+            .connection;
+        let without_session = policy.without_http2_session;
+        let with_incapable_session = policy.with_incapable_http2_session;
+        self.validate_policy_templates()?;
+
+        let choice = if self.request.transport == WebSocketTransport::Plaintext {
+            WebSocketNewConnection::Http1Upgrade
+        } else {
+            let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+            match self
+                .client
+                .current_http2_session(&self.request.endpoint, route)
+                .await
+            {
+                Some(session) => match session.extended_connect_enabled().await {
+                    Ok(true) => {
+                        request_span.record("connection", "http2_session");
+                        self.headers = std::mem::take(&mut self.http2_headers);
+                        return self.connect_http2(Http2Target::Session(session)).await;
+                    }
+                    Ok(false) => with_incapable_session,
+                    // The session failed before its peer settings were known,
+                    // so no usable session exists.
+                    Err(_) => without_session,
+                },
+                None => without_session,
+            }
+        };
+        match choice {
+            WebSocketNewConnection::Http2ExtendedConnect => {
+                request_span.record("connection", "new_http2");
+                self.headers = std::mem::take(&mut self.http2_headers);
+                self.connect_http2(Http2Target::NewConnection).await
+            }
+            WebSocketNewConnection::Http1Upgrade => {
+                request_span.record("connection", "new_http1");
+                self.connect_http1(Http1UpgradeConnector::PolicyAlpn, request_span)
+                    .await
+            }
+            _ => Err(WebSocketError::invalid_request(
+                "profile WebSocket policy names an unsupported connection",
+            )),
+        }
+    }
+
+    /// Validates both profile-policy sequences before any network I/O.
+    fn validate_policy_templates(&self) -> Result<(), WebSocketError> {
+        #[cfg(feature = "websocket-deflate")]
+        let compression = self.permessage_deflate.is_some();
+        #[cfg(not(feature = "websocket-deflate"))]
+        let compression = false;
+        handshake::validate_policy_templates(&self.headers, &self.http2_headers, compression)
     }
 }
 

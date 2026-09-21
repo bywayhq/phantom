@@ -5,22 +5,31 @@ use std::sync::Arc;
 
 use http::Response;
 use phantom_net::http2::Http2ExtendedConnectOutcome;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 
 #[cfg(feature = "websocket-deflate")]
 use super::NegotiatedPerMessageDeflate;
 use super::{
-    WebSocket, WebSocketError, WebSocketRequestBuilder, WebSocketTransport,
+    Http2Target, ResolvedWebSocket, WebSocket, WebSocketError, WebSocketLimits,
+    WebSocketRequestBuilder, WebSocketTransport,
     handshake::{prepare_http2, validate_http2_response},
 };
+#[cfg(feature = "cookies")]
+use crate::CookieJar;
 use crate::{HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode};
 
 impl WebSocketRequestBuilder {
-    pub(super) async fn connect_http2(self) -> Result<WebSocket, WebSocketError> {
+    pub(super) async fn connect_http2(
+        self,
+        target: Http2Target,
+    ) -> Result<WebSocket, WebSocketError> {
         let Self {
             client,
-            protocol: _,
+            selection: _,
             request,
             headers,
+            http2_headers: _,
+            replaced_policy_headers: _,
             limits,
             route,
             #[cfg(feature = "websocket-deflate")]
@@ -65,6 +74,31 @@ impl WebSocketRequestBuilder {
         let host = request.endpoint.host();
         let port = request.endpoint.port();
         let authority = request.endpoint.authority().as_str();
+        // A pooled session already carries its route; a stream failure there
+        // is terminal and never retried on another connection.
+        if let Http2Target::Session(session) = target {
+            let outcome = connector
+                .send_extended_connect_on(
+                    &session,
+                    authority,
+                    request.target.clone(),
+                    prepared.headers,
+                )
+                .await
+                .map_err(RequestError::http2)
+                .map_err(WebSocketError::request)?;
+            return finish_http2(
+                outcome,
+                &request,
+                &prepared.offered_protocols,
+                extension_offer.as_ref(),
+                limits,
+                engine_config,
+                #[cfg(feature = "cookies")]
+                cookie_jar.as_deref(),
+            )
+            .await;
+        }
         // Every route opens a dedicated origin connection; proxy failure is
         // terminal and never retried directly or as an H1 Upgrade.
         let outcome = match route {
@@ -80,7 +114,7 @@ impl WebSocketRequestBuilder {
                         port,
                         host,
                         authority,
-                        request.target,
+                        request.target.clone(),
                         prepared.headers,
                     )
                     .await
@@ -109,7 +143,7 @@ impl WebSocketRequestBuilder {
                                 credentials,
                                 host,
                                 authority,
-                                request.target,
+                                request.target.clone(),
                                 prepared.headers,
                             ),
                         )
@@ -124,7 +158,7 @@ impl WebSocketRequestBuilder {
                             proxy.ordered_connect_headers(),
                             host,
                             authority,
-                            request.target,
+                            request.target.clone(),
                             prepared.headers,
                         ))
                         .await
@@ -139,7 +173,7 @@ impl WebSocketRequestBuilder {
                             credentials,
                             host,
                             authority,
-                            request.target,
+                            request.target.clone(),
                             prepared.headers,
                         ),
                     )
@@ -153,7 +187,7 @@ impl WebSocketRequestBuilder {
                             proxy.ordered_connect_headers(),
                             host,
                             authority,
-                            request.target,
+                            request.target.clone(),
                             prepared.headers,
                         )
                         .await
@@ -170,7 +204,7 @@ impl WebSocketRequestBuilder {
                             port,
                             host,
                             authority,
-                            request.target,
+                            request.target.clone(),
                             prepared.headers,
                         )
                         .await
@@ -185,7 +219,7 @@ impl WebSocketRequestBuilder {
                             port,
                             host,
                             authority,
-                            request.target,
+                            request.target.clone(),
                             prepared.headers,
                         )
                         .await
@@ -195,46 +229,71 @@ impl WebSocketRequestBuilder {
         .map_err(RequestError::http2)
         .map_err(WebSocketError::request)?;
 
-        match outcome {
-            Http2ExtendedConnectOutcome::Rejected(response) => {
-                let (parts, body) = response.into_parts();
-                let response = Response::from_parts(parts, ResponseBody::http2(body));
-                #[cfg(feature = "cookies")]
-                if let Some(jar) = cookie_jar.as_deref() {
-                    jar.store_response_headers(&request.cookie_url, response.headers());
-                }
-                Err(WebSocketError::rejected(response))
+        finish_http2(
+            outcome,
+            &request,
+            &prepared.offered_protocols,
+            extension_offer.as_ref(),
+            limits,
+            engine_config,
+            #[cfg(feature = "cookies")]
+            cookie_jar.as_deref(),
+        )
+        .await
+    }
+}
+
+/// Validates the CONNECT response and installs the frame engine.
+async fn finish_http2(
+    outcome: Http2ExtendedConnectOutcome,
+    request: &ResolvedWebSocket,
+    offered_protocols: &[Box<str>],
+    extension_offer: Option<&http::HeaderValue>,
+    limits: WebSocketLimits,
+    engine_config: WebSocketConfig,
+    #[cfg(feature = "cookies")] cookie_jar: Option<&CookieJar>,
+) -> Result<WebSocket, WebSocketError> {
+    #[cfg(not(feature = "cookies"))]
+    let _ = request;
+    match outcome {
+        Http2ExtendedConnectOutcome::Rejected(response) => {
+            let (parts, body) = response.into_parts();
+            let response = Response::from_parts(parts, ResponseBody::http2(body));
+            #[cfg(feature = "cookies")]
+            if let Some(jar) = cookie_jar {
+                jar.store_response_headers(&request.cookie_url, response.headers());
             }
-            Http2ExtendedConnectOutcome::Accepted { response, stream } => {
-                let selected_protocol = validate_http2_response(
-                    response.version(),
-                    response.headers(),
-                    &prepared.offered_protocols,
-                    extension_offer.is_some(),
-                )?;
-                #[cfg(feature = "websocket-deflate")]
-                let engine_config = engine_config
-                    .accept_deflate_response(response.headers())
-                    .map_err(WebSocketError::invalid_handshake_source)?;
-                #[cfg(feature = "websocket-deflate")]
-                let negotiated = engine_config
-                    .permessage_deflate()
-                    .map(NegotiatedPerMessageDeflate::from_engine);
-                #[cfg(feature = "cookies")]
-                if let Some(jar) = cookie_jar.as_deref() {
-                    jar.store_response_headers(&request.cookie_url, response.headers());
-                }
-                Ok(WebSocket::new_http2(
-                    stream,
-                    response,
-                    selected_protocol,
-                    limits,
-                    engine_config,
-                    #[cfg(feature = "websocket-deflate")]
-                    negotiated,
-                )
-                .await)
+            Err(WebSocketError::rejected(response))
+        }
+        Http2ExtendedConnectOutcome::Accepted { response, stream } => {
+            let selected_protocol = validate_http2_response(
+                response.version(),
+                response.headers(),
+                offered_protocols,
+                extension_offer.is_some(),
+            )?;
+            #[cfg(feature = "websocket-deflate")]
+            let engine_config = engine_config
+                .accept_deflate_response(response.headers())
+                .map_err(WebSocketError::invalid_handshake_source)?;
+            #[cfg(feature = "websocket-deflate")]
+            let negotiated = engine_config
+                .permessage_deflate()
+                .map(NegotiatedPerMessageDeflate::from_engine);
+            #[cfg(feature = "cookies")]
+            if let Some(jar) = cookie_jar {
+                jar.store_response_headers(&request.cookie_url, response.headers());
             }
+            Ok(WebSocket::new_http2(
+                stream,
+                response,
+                selected_protocol,
+                limits,
+                engine_config,
+                #[cfg(feature = "websocket-deflate")]
+                negotiated,
+            )
+            .await)
         }
     }
 }

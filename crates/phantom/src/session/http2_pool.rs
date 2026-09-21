@@ -178,6 +178,33 @@ impl Http2Pool {
         }
     }
 
+    /// Returns the current reusable connection for this origin and route.
+    ///
+    /// This neither opens a connection nor creates a pool entry, and it does
+    /// not change eviction order. A WebSocket stream opened on the returned
+    /// connection is not counted by this pool's per-origin admission.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn current_connection(
+        &self,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Option<Http2Connection> {
+        let key = PoolKey::new(endpoint, route);
+        let entry = {
+            let state = self.state.lock().await;
+            state
+                .entries
+                .iter()
+                .find(|(candidate, _)| candidate == &key)
+                .map(|(_, entry)| Arc::clone(entry))?
+        };
+        let current = entry.current.lock().await;
+        current
+            .as_ref()
+            .filter(|slot| slot.connection.is_reusable())
+            .map(|slot| slot.connection.clone())
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state

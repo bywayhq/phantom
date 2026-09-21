@@ -5,6 +5,7 @@ use http::{
     header::{CONNECTION, HOST, PROXY_AUTHORIZATION, UPGRADE},
 };
 use phantom_net::request::RequestHeader;
+use phantom_profile::WebSocketField;
 
 use super::WebSocketError;
 
@@ -54,6 +55,15 @@ pub enum WebSocketHeader {
     },
     /// Emits one literal ordered field.
     Field(RequestHeader),
+    /// Reserves the position of a caller-supplied field.
+    ///
+    /// [`WebSocketRequestBuilder::header`](crate::WebSocketRequestBuilder::header)
+    /// with the same case-insensitive name fills the slot with this spelling
+    /// and the caller's value. An unfilled slot emits nothing.
+    CallerField {
+        /// Exact field-name spelling to emit with the caller's value.
+        name: Box<str>,
+    },
 }
 
 impl WebSocketHeader {
@@ -94,6 +104,12 @@ impl WebSocketHeader {
     pub fn field(header: RequestHeader) -> Self {
         Self::Field(header)
     }
+
+    /// Creates a caller-supplied field slot with caller-controlled spelling.
+    #[must_use]
+    pub fn caller_field(name: impl Into<Box<str>>) -> Self {
+        Self::CallerField { name: name.into() }
+    }
 }
 
 impl fmt::Debug for WebSocketHeader {
@@ -106,6 +122,7 @@ impl fmt::Debug for WebSocketHeader {
             #[cfg(feature = "websocket-deflate")]
             Self::PerMessageDeflate { name } => ("permessage_deflate", name.as_ref()),
             Self::Field(header) => ("field", header.name()),
+            Self::CallerField { name } => ("caller_field", name.as_ref()),
         };
         formatter
             .debug_struct("WebSocketHeader")
@@ -171,6 +188,7 @@ pub(super) fn prepare_http2(
                 }
             }
             WebSocketHeader::Field(header) => headers.push(header),
+            WebSocketHeader::CallerField { .. } => {}
             WebSocketHeader::Authority { .. } | WebSocketHeader::Key { .. } => {
                 return Err(WebSocketError::invalid_request(
                     "HTTP/2 WebSocket fields must not contain authority or key placeholders",
@@ -219,6 +237,7 @@ pub(super) fn prepare(
                 }
             }
             WebSocketHeader::Field(header) => headers.push(header),
+            WebSocketHeader::CallerField { .. } => {}
         }
     }
 
@@ -258,6 +277,14 @@ fn validate_http2_templates(
             WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
                 validate_http2_placeholder_name(name, "cookie")?;
                 cookie_placeholder_count += 1;
+            }
+            WebSocketHeader::CallerField { name } => {
+                validate_caller_field_name(name)?;
+                if name.as_bytes().iter().any(u8::is_ascii_uppercase) {
+                    return Err(WebSocketError::invalid_request(
+                        "HTTP/2 WebSocket field names must be lowercase",
+                    ));
+                }
             }
             #[cfg(feature = "websocket-deflate")]
             WebSocketHeader::PerMessageDeflate { name } => {
@@ -370,6 +397,7 @@ fn validate_templates(
                 validate_placeholder_name(name, "cookie")?;
                 cookie_placeholder_count += 1;
             }
+            WebSocketHeader::CallerField { name } => validate_caller_field_name(name)?,
             #[cfg(feature = "websocket-deflate")]
             WebSocketHeader::PerMessageDeflate { name } => {
                 validate_placeholder_name(name, EXTENSIONS_NAME)?;
@@ -476,6 +504,80 @@ fn validate_templates(
     })
 }
 
+fn validate_caller_field_name(name: &str) -> Result<(), WebSocketError> {
+    HeaderName::from_bytes(name.as_bytes())
+        .map(drop)
+        .map_err(|_| {
+            WebSocketError::invalid_request(
+                "opening-handshake caller slot has an invalid field name",
+            )
+        })
+}
+
+/// Validates both profile-policy sequences before the protocol is chosen.
+pub(super) fn validate_policy_templates(
+    http1: &[WebSocketHeader],
+    http2: &[WebSocketHeader],
+    extension_required: bool,
+) -> Result<(), WebSocketError> {
+    validate_templates(http1, extension_required)?;
+    validate_http2_templates(http2, extension_required).map(drop)
+}
+
+/// Fills the first matching caller slot, or appends the field.
+pub(super) fn fill_or_append(headers: &mut Vec<WebSocketHeader>, header: RequestHeader) {
+    let slot = headers.iter_mut().find(|template| {
+        matches!(template, WebSocketHeader::CallerField { name } if name.eq_ignore_ascii_case(header.name()))
+    });
+    match slot {
+        Some(slot) => {
+            let WebSocketHeader::CallerField { name } = slot else {
+                return;
+            };
+            let filled = RequestHeader::new(name.clone(), header.value());
+            *slot = WebSocketHeader::Field(if header.is_sensitive() {
+                filled.sensitive()
+            } else {
+                filled
+            });
+        }
+        None => headers.push(WebSocketHeader::Field(header)),
+    }
+}
+
+/// Converts a profile opening template into builder fields.
+///
+/// Without `websocket-deflate` the compression placeholder is omitted: no
+/// offer can be generated, so it would never emit a field.
+pub(super) fn profile_headers(
+    fields: &[WebSocketField],
+) -> Result<Vec<WebSocketHeader>, WebSocketError> {
+    let mut headers = Vec::with_capacity(fields.len());
+    for field in fields {
+        headers.push(match field {
+            WebSocketField::Literal { name, value } => {
+                WebSocketHeader::Field(RequestHeader::new(name.clone(), value.as_bytes()))
+            }
+            WebSocketField::Caller { name } => WebSocketHeader::caller_field(name.clone()),
+            WebSocketField::Authority { name } => WebSocketHeader::authority(name.clone()),
+            WebSocketField::Key { name } => WebSocketHeader::key(name.clone()),
+            WebSocketField::ClientCookies { name } => WebSocketHeader::client_cookies(name.clone()),
+            #[cfg(feature = "websocket-deflate")]
+            WebSocketField::PerMessageDeflate { name } => {
+                WebSocketHeader::permessage_deflate(name.clone())
+            }
+            #[cfg(not(feature = "websocket-deflate"))]
+            WebSocketField::PerMessageDeflate { .. } => continue,
+            _ => {
+                return Err(WebSocketError::invalid_request(
+                    "profile WebSocket template contains an unsupported field kind",
+                ));
+            }
+        });
+    }
+    Ok(headers)
+}
+
 fn validate_placeholder_name(name: &str, expected: &str) -> Result<(), WebSocketError> {
     let parsed = HeaderName::from_bytes(name.as_bytes()).map_err(|_| {
         WebSocketError::invalid_request("opening-handshake placeholder has an invalid field name")
@@ -529,7 +631,12 @@ fn accept_for_key(key: &str) -> String {
 mod tests {
     use phantom_net::request::RequestHeader;
 
-    use super::{WebSocketHeader, accept_for_key, default_http2_headers, prepare_http2};
+    use phantom_profile::chromium;
+
+    use super::{
+        WebSocketHeader, accept_for_key, default_http2_headers, fill_or_append, prepare,
+        prepare_http2, profile_headers,
+    };
 
     #[test]
     fn derives_the_rfc_accept_value() {
@@ -556,6 +663,86 @@ mod tests {
             WebSocketHeader::key("sec-websocket-key"),
         ];
         assert!(prepare_http2(key, None, None).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn caller_slots_keep_their_position_and_spelling() -> Result<(), super::WebSocketError> {
+        let mut headers = vec![
+            WebSocketHeader::field(RequestHeader::new("pragma", "no-cache")),
+            WebSocketHeader::caller_field("user-agent"),
+            WebSocketHeader::caller_field("origin"),
+            WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
+        ];
+        fill_or_append(&mut headers, RequestHeader::new("User-Agent", "agent"));
+        fill_or_append(&mut headers, RequestHeader::new("user-agent", "second"));
+        fill_or_append(
+            &mut headers,
+            RequestHeader::new("x-extra", "last").sensitive(),
+        );
+
+        let prepared = prepare_http2(headers, None, None)?;
+        let fields = prepared
+            .headers
+            .iter()
+            .map(|header| (header.name(), header.value(), header.is_sensitive()))
+            .collect::<Vec<_>>();
+        // The unfilled origin slot emits nothing; a repeated name appends.
+        assert_eq!(
+            fields,
+            [
+                ("pragma", &b"no-cache"[..], false),
+                ("user-agent", &b"agent"[..], false),
+                ("sec-websocket-version", &b"13"[..], false),
+                ("user-agent", &b"second"[..], false),
+                ("x-extra", &b"last"[..], true),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn http2_caller_slots_must_be_lowercase() {
+        let headers = vec![
+            WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
+            WebSocketHeader::caller_field("User-Agent"),
+        ];
+        assert!(prepare_http2(headers, None, None).is_err());
+    }
+
+    #[test]
+    fn profile_templates_convert_to_valid_openings() -> Result<(), super::WebSocketError> {
+        let settings = chromium::v153_websocket();
+        let http1 = prepare(
+            profile_headers(&settings.http1_fields)?,
+            "example.test",
+            None,
+            None,
+        )?;
+        let names = http1
+            .headers
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            names,
+            [
+                "Host",
+                "Connection",
+                "Pragma",
+                "Cache-Control",
+                "Upgrade",
+                "Sec-WebSocket-Version",
+                "Sec-WebSocket-Key",
+            ]
+        );
+        let http2 = prepare_http2(profile_headers(&settings.http2_fields)?, None, None)?;
+        let names = http2
+            .headers
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["pragma", "cache-control", "sec-websocket-version"]);
         Ok(())
     }
 }

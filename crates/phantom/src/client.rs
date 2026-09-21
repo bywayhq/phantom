@@ -5,6 +5,8 @@ use phantom_net::{
     ServerAuthentication, http1::Http1TlsConnector, http1_or_2::Http1Or2TlsConnector,
     http2::Http2TlsConnector, http3::Http3Connector, proxy::HttpsProxyConnector,
 };
+#[cfg(feature = "websocket")]
+use phantom_profile::WebSocketSettings;
 use phantom_profile::{ClientHintSettings, ClientProfile};
 
 #[cfg(feature = "cookies")]
@@ -62,6 +64,12 @@ pub(crate) struct ClientInner {
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     pub(crate) route: Route,
+    /// Profile WebSocket templates and connection policy.
+    #[cfg(feature = "websocket")]
+    pub(crate) websocket: Option<WebSocketSettings>,
+    /// HTTP/1.1 connector with the policy's Upgrade-connection ALPN offer.
+    #[cfg(feature = "websocket")]
+    pub(crate) websocket_http1: Option<Http1TlsConnector>,
 }
 
 impl Client {
@@ -176,6 +184,32 @@ impl Client {
         uri: &str,
     ) -> Result<WebSocketRequestBuilder, WebSocketError> {
         WebSocketRequestBuilder::new_client_with_protocol(self.clone(), protocol, uri)
+    }
+
+    /// Starts one WebSocket whose connection follows the profile's policy.
+    ///
+    /// `ws://` uses an HTTP/1.1 Upgrade. For `wss://`, a pooled HTTP/2
+    /// session to the same origin and route whose peer enabled extended
+    /// CONNECT carries the WebSocket as a new stream. Without such a session,
+    /// the profile's [`WebSocketConnectionPolicy`] decides between a new
+    /// HTTP/1.1 Upgrade connection with its own ALPN offer and a new HTTP/2
+    /// connection. The choice is made once, before any WebSocket bytes are
+    /// sent; a failed or rejected opening never retries on another
+    /// connection or protocol. Client timeouts, retry, and redirect policy do
+    /// not apply.
+    ///
+    /// [`WebSocketConnectionPolicy`]: crate::profile::WebSocketConnectionPolicy
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WebSocketError`] when the profile has no WebSocket settings
+    /// or the URI is invalid.
+    #[cfg(feature = "websocket")]
+    pub fn websocket_with_profile_policy(
+        &self,
+        uri: &str,
+    ) -> Result<WebSocketRequestBuilder, WebSocketError> {
+        WebSocketRequestBuilder::new_client_with_profile_policy(self.clone(), uri)
     }
 
     /// Creates an isolated compatibility client with default bounded state.
@@ -500,6 +534,11 @@ impl ClientBuilder {
                 .validate()
                 .map_err(BuildError::invalid_client_hint_profile)?;
         }
+        if let Some(websocket) = self.profile.websocket() {
+            websocket
+                .validate()
+                .map_err(BuildError::invalid_websocket_profile)?;
+        }
 
         let authentication_disabled = match self.server_authentication {
             ServerAuthentication::WebPki => false,
@@ -666,6 +705,24 @@ impl ClientBuilder {
         if http1.is_none() && http2.is_none() && http3.is_none() {
             return Err(BuildError::no_supported_protocol());
         }
+        #[cfg(feature = "websocket")]
+        let websocket_http1 = self
+            .profile
+            .websocket()
+            .map(|websocket| {
+                validate_websocket_policy(websocket, self.profile.http2())?;
+                let tls = websocket.connection.http1_tls_settings(self.profile.tls());
+                if authentication_disabled {
+                    Http1TlsConnector::new_with_server_authentication(
+                        &tls,
+                        self.server_authentication,
+                    )
+                } else {
+                    Http1TlsConnector::new_with_additional_roots(&tls, roots())
+                }
+                .map_err(BuildError::http1)
+            })
+            .transpose()?;
 
         let inner = Arc::new(ClientInner {
             http1,
@@ -676,9 +733,36 @@ impl ClientBuilder {
             https_proxy,
             client_hints,
             route: self.route,
+            #[cfg(feature = "websocket")]
+            websocket: self.profile.websocket().cloned(),
+            #[cfg(feature = "websocket")]
+            websocket_http1,
         });
         let state = self.options.build(&inner);
         Ok(Client { inner, state })
+    }
+}
+
+/// Rejects a WebSocket policy that its HTTP/2 profile cannot carry out.
+#[cfg(feature = "websocket")]
+fn validate_websocket_policy(
+    websocket: &WebSocketSettings,
+    http2: Option<&phantom_profile::Http2Settings>,
+) -> Result<(), BuildError> {
+    match http2 {
+        Some(http2) if http2.extended_connect_pseudo_header_order.is_none() => {
+            Err(BuildError::invalid_policy(
+                "a WebSocket connection policy needs an extended CONNECT pseudo-header order in the HTTP/2 profile",
+            ))
+        }
+        None if websocket.connection.without_http2_session
+            == phantom_profile::WebSocketNewConnection::Http2ExtendedConnect =>
+        {
+            Err(BuildError::invalid_policy(
+                "a WebSocket connection policy that opens HTTP/2 needs an HTTP/2 profile",
+            ))
+        }
+        _ => Ok(()),
     }
 }
 
