@@ -15,9 +15,9 @@ use phantom_quic_btls::{
 #[cfg(test)]
 use super::request::PreparedRequest;
 use super::{
-    Http3Body, Http3Connection, Http3Error, Http3ErrorKind, OriginForm, RequestHeader,
-    connect_bound, connect_bound_with_socket, prepare_traced_request,
-    prepare_traced_request_body_with_trailers, settings,
+    Http3Body, Http3Connection, Http3Error, Http3ErrorKind, Http3ExtendedConnectOutcome,
+    Http3ExtendedProtocol, OriginForm, RequestHeader, connect_bound, connect_bound_with_socket,
+    prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
@@ -432,6 +432,58 @@ impl Http3Connector {
             .map_err(Http3ConnectorError::transaction)
     }
 
+    /// Opens one RFC 9220 extended CONNECT stream on a connection opened by
+    /// this connector.
+    ///
+    /// The request fields, profile pseudo-header order, and connector affinity
+    /// are validated before the connection is touched. The request is sent
+    /// only after the peer's SETTINGS enable extended CONNECT; otherwise this
+    /// returns [`Http3ErrorKind::ExtendedConnectUnavailable`] without opening a
+    /// stream or trying another protocol.
+    pub async fn send_extended_connect_on(
+        &self,
+        connection: &Http3Connection,
+        protocol: Http3ExtendedProtocol,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http3ExtendedConnectOutcome, Http3ConnectorError> {
+        let request = super::request::prepare_extended_connect(
+            &self.request_settings,
+            protocol.wire_value(),
+            authority,
+            target,
+            headers,
+        )
+        .map_err(Http3ConnectorError::transaction)?;
+        if !connection.belongs_to(&self.identity) {
+            return Err(Http3ConnectorError::connection_mismatch());
+        }
+        connection
+            .send_extended_connect(protocol, request)
+            .await
+            .map_err(Http3ConnectorError::transaction)
+    }
+
+    /// Validates one extended CONNECT request without opening a connection or stream.
+    pub fn validate_extended_connect(
+        &self,
+        protocol: Http3ExtendedProtocol,
+        authority: &str,
+        target: &OriginForm,
+        headers: &[RequestHeader],
+    ) -> Result<(), Http3ConnectorError> {
+        super::request::prepare_extended_connect(
+            &self.request_settings,
+            protocol.wire_value(),
+            authority,
+            target.clone(),
+            headers.to_vec(),
+        )
+        .map(drop)
+        .map_err(Http3ConnectorError::transaction)
+    }
+
     /// Returns whether an originating connection is currently reusable.
     ///
     /// This is a health snapshot for pool selection, not a reservation of peer
@@ -671,6 +723,8 @@ pub enum Http3ConnectorErrorKind {
     Protocol,
     /// A local driver or entropy source failed.
     Local,
+    /// The peer did not enable HTTP/3 extended CONNECT.
+    ExtendedConnectUnavailable,
 }
 
 /// Error returned while constructing or using [`Http3Connector`].
@@ -797,6 +851,9 @@ impl Http3ConnectorError {
             Http3ErrorKind::Handshake => Http3ConnectorErrorKind::Handshake,
             Http3ErrorKind::Protocol => Http3ConnectorErrorKind::Protocol,
             Http3ErrorKind::Local => Http3ConnectorErrorKind::Local,
+            Http3ErrorKind::ExtendedConnectUnavailable => {
+                Http3ConnectorErrorKind::ExtendedConnectUnavailable
+            }
         };
         Self::with_source(kind, "HTTP/3 request failed", source)
     }

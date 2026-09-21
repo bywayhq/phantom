@@ -86,13 +86,51 @@ Phantom carries narrow patches where upstream APIs cannot express a measured
 or safety-critical behavior:
 
 - ordered H3 SETTINGS and bounded dynamic QPACK integration;
-- immediate stream cancellation through the Quinn adapter; and
+- immediate stream cancellation through the Quinn adapter;
+- a peer-SETTINGS readiness signal for extended CONNECT, plus poll-driven
+  request DATA for the extended CONNECT byte stream; and
 - fallible QUIC key-update behavior that closes the connection instead of
   panicking after derivation failure.
 
 Each patch is provenance-tracked and checked by `scripts/ci/check-vendor.sh`.
 The QUIC key-schedule vectors are reproduced and asserted in
 `crates/phantom-quic-btls/src/key_schedule/tests.rs`.
+
+## Extended CONNECT
+
+`phantom-net` can open RFC 9220 extended CONNECT streams on a connection
+opened by the same `Http3Connector`. `Http3ExtendedProtocol::WebSocket` is the
+only protocol today, and the facade does not expose it yet.
+
+- The request is `CONNECT` with `:protocol`, `:scheme https`, `:authority`,
+  and `:path`, in the profile's
+  `Http3RequestSettings::extended_connect_pseudo_header_order`. One order
+  applies to every extended protocol. A profile without that order fails with
+  a configuration error before I/O; named browser recipes leave it unset until
+  a capture backs it.
+- Ordered fields follow the ordinary HTTP/3 request rules, and
+  `content-length` is rejected because the tunnel has no request content.
+- The client waits for the peer's SETTINGS, from ALPS or the control stream.
+  Without `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` it returns
+  `Http3ErrorKind::ExtendedConnectUnavailable` without opening a request
+  stream or trying another protocol. A control-stream zero after an ALPS one
+  closes the connection with `H3_SETTINGS_ERROR` (RFC 8441 section 3). The
+  client sends no ENABLE_CONNECT_PROTOCOL setting of its own, so local
+  SETTINGS bytes are unchanged.
+- A 2xx response yields `Http3ExtendedConnectStream`, an `AsyncRead` and
+  `AsyncWrite` byte stream over DATA frames that buffers at most one received
+  chunk and one queued frame. Shutdown sends FIN. Peer trailers are
+  `InvalidData`. Dropping an incomplete stream resets only that stream with
+  `H3_REQUEST_CANCELLED` (RFC 9220 section 3). The stream holds a connection
+  lease, so the driver stays alive while it is open.
+- A non-2xx response is returned with its ordered fields and a readable body;
+  101 is a protocol error; informational responses are skipped.
+- An HTTP Datagram associated with the stream aborts only that stream with
+  `H3_DATAGRAM_ERROR` (RFC 9297 section 2).
+- The `http3.extended_connect.response_head` span records method, protocol,
+  extended protocol, status, and an outcome of `accepted`, `rejected`,
+  `capability_unavailable`, `protocol_error`, or `request_error`. Field values
+  are not recorded.
 
 ## Current limits
 
@@ -115,8 +153,8 @@ negotiation, and rejection failures are typed and are not address-fallback
 candidates. Proxy TCP and QUIC connection setup may advance or retry only
 through a fresh association on the same configured route, under the exact-H3
 setup policy; no failure can change the route or protocol. HTTP proxy and
-CONNECT routes for H3, CONNECT-UDP/MASQUE, extended CONNECT, and
-extension-specific datagram APIs remain planned. Negotiated direct HTTPS
+CONNECT routes for H3, CONNECT-UDP/MASQUE, and extension-specific datagram
+APIs remain planned. Negotiated direct HTTPS
 requests can opt into a bounded Alt-Svc store and use a fresh canonical `h3`
 alternative on a later request. The QUIC dial location changes, while origin
 authority and certificate identity do not; setup failure is terminal and

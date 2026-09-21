@@ -30,6 +30,9 @@ pub use body::Http3Body;
 pub use connection::Http3Connection;
 pub use connector::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
 pub use error::{Http3Error, Http3ErrorKind};
+pub use extended_connect::{
+    Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol,
+};
 #[cfg(feature = "qlog")]
 pub use qlog::{QlogCapture, QlogCaptureError};
 
@@ -692,6 +695,7 @@ mod connector;
 mod datagram;
 mod driver;
 mod error;
+mod extended_connect;
 #[cfg(feature = "qlog")]
 mod qlog;
 mod request;

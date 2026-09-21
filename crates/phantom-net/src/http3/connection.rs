@@ -1,13 +1,14 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU8, Ordering},
+use std::{
+    future::poll_fn,
+    sync::{
+        Arc,
+        atomic::{AtomicU8, Ordering},
+    },
 };
 
 use bytes::Bytes;
 use h3::ConnectionState;
-#[cfg(test)]
-use http::Request;
-use http::Response;
+use http::{Request, Response};
 use http_body_util::BodyExt as _;
 use tokio::{runtime::Handle, sync::Mutex};
 use tracing::{Instrument, debug_span, field};
@@ -16,8 +17,9 @@ use crate::accept_ch::AcceptCh;
 
 use super::{
     DatagramRouter, DriverSignal, DriverTask, Http3Body, Http3Error, Http3ErrorKind,
-    PendingRequest, RequestRecvStream, RequestSendStream, ResponseHeadError, body,
-    receive_response, request::PreparedRequest,
+    Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol, PendingRequest,
+    RequestRecvStream, RequestSendStream, ResponseHeadError, body, receive_response,
+    request::PreparedRequest,
 };
 use crate::request::RequestBody;
 
@@ -176,6 +178,124 @@ impl Http3Connection {
         result
     }
 
+    /// Opens one extended CONNECT stream after the peer enables it.
+    ///
+    /// No request stream is opened unless the peer's SETTINGS, from ALPS or
+    /// the control stream, carry `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1`
+    /// (RFC 9220 section 3, RFC 8441 section 3).
+    pub(super) async fn send_extended_connect(
+        &self,
+        protocol: Http3ExtendedProtocol,
+        request: Request<()>,
+    ) -> Result<Http3ExtendedConnectOutcome, Http3Error> {
+        let span = debug_span!(
+            "http3.extended_connect.response_head",
+            method = "CONNECT",
+            protocol = "h3",
+            extended_protocol = protocol.trace_name(),
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let result = async {
+            let mut peer_settings = {
+                let sender = self.inner.sender.lock().await;
+                sender
+                    .as_ref()
+                    .ok_or_else(driver_unavailable)?
+                    .peer_settings()
+            };
+            if !peer_settings.ready().await?.enable_extended_connect() {
+                return Err(Http3Error::without_source(
+                    Http3ErrorKind::ExtendedConnectUnavailable,
+                    "HTTP/3 peer did not enable extended CONNECT",
+                ));
+            }
+            let stream = {
+                let mut sender = self.inner.sender.lock().await;
+                let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
+                sender.send_request(request).await?
+            };
+            let stream_id = stream.id();
+            let mut pending = PendingRequest::new(stream);
+            let mut datagrams = self
+                .inner
+                .datagrams
+                .as_ref()
+                .map(|router| router.monitor(stream_id));
+            let response = {
+                let (_, recv) = pending.streams_mut()?;
+                receive_response(recv, datagrams.as_mut()).await
+            };
+            let response = match response {
+                Ok(response) => response,
+                Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
+                Err(ResponseHeadError::UnsupportedDatagram) => {
+                    datagrams.take();
+                    let (send, recv) = pending.into_streams()?;
+                    body::defer_datagram_abort(send, recv, self.clone());
+                    return Err(Http3Error::without_source(
+                        Http3ErrorKind::Protocol,
+                        "peer sent an HTTP Datagram for a request without datagram semantics",
+                    ));
+                }
+                Err(ResponseHeadError::SwitchingProtocols) => {
+                    return Err(Http3Error::without_source(
+                        Http3ErrorKind::Protocol,
+                        "peer sent a 101 response over HTTP/3",
+                    ));
+                }
+                Err(ResponseHeadError::RequestBody(error)) => return Err(error),
+            };
+            span.record("status", response.status().as_u16());
+
+            let accepted = response.status().is_success();
+            let (mut parts, ()) = response.into_parts();
+            let ordered_headers = parts
+                .extensions
+                .remove::<h3::ext::OrderedHeaders>()
+                .map(|headers| {
+                    crate::OrderedResponseHeaders::from_normalized_fields(headers.as_slice())
+                })
+                .ok_or_else(|| {
+                    Http3Error::without_source(
+                        Http3ErrorKind::Protocol,
+                        "HTTP/3 response header order was not captured",
+                    )
+                })?;
+            parts.extensions.insert(ordered_headers);
+            let (mut send, recv) = pending.into_streams()?;
+            if accepted {
+                return Ok(Http3ExtendedConnectOutcome::Accepted {
+                    response: Response::from_parts(parts, ()),
+                    stream: Http3ExtendedConnectStream::new(send, recv, self.clone(), datagrams),
+                });
+            }
+            let mut recv = recv;
+            if let Err(error) = poll_fn(|context| send.poll_finish(context)).await {
+                recv.stop_sending(h3::error::Code::H3_REQUEST_CANCELLED);
+                send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
+                return Err(error.into());
+            }
+            let body = Http3Body::new(send, recv, self.clone(), datagrams);
+            Ok(Http3ExtendedConnectOutcome::Rejected(Response::from_parts(
+                parts, body,
+            )))
+        }
+        .instrument(span.clone())
+        .await;
+        let outcome = match &result {
+            Ok(Http3ExtendedConnectOutcome::Accepted { .. }) => "accepted",
+            Ok(Http3ExtendedConnectOutcome::Rejected(_)) => "rejected",
+            Err(error) if error.kind() == Http3ErrorKind::ExtendedConnectUnavailable => {
+                "capability_unavailable"
+            }
+            Err(error) if error.kind() == Http3ErrorKind::Protocol => "protocol_error",
+            Err(_) => "request_error",
+        };
+        span.record("outcome", outcome);
+        result
+    }
+
     pub(super) async fn is_reusable(&self) -> bool {
         if self.inner.quinn.close_reason().is_some() {
             return false;
@@ -313,6 +433,13 @@ async fn send_body(
             .map_err(UploadError::Stream)?;
     }
     send.finish().await.map_err(UploadError::Stream)
+}
+
+fn driver_unavailable() -> Http3Error {
+    Http3Error::without_source(
+        Http3ErrorKind::Local,
+        "HTTP/3 request driver is unavailable",
+    )
 }
 
 enum UploadError {

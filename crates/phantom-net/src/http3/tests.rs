@@ -611,6 +611,7 @@ mod adversarial;
 mod connection;
 mod connector;
 mod datagram;
+mod extended_connect;
 mod profile;
 mod qpack;
 mod quic;

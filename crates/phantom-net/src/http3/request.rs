@@ -1,7 +1,7 @@
 //! HTTP/3 request construction and field validation.
 
 use bytes::Bytes;
-use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
+use h3::ext::{OrderedHeaders, Protocol, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
@@ -385,20 +385,47 @@ fn validate_ordered_headers(request: &Request<()>) -> Result<(), Http3Error> {
 fn pseudo_header_order(
     settings: &Http3RequestSettings,
 ) -> Result<RequestPseudoHeaderOrder, Http3Error> {
+    validate_request_settings(settings)?;
+    translate_pseudo_header_order(&settings.pseudo_header_order)
+}
+
+fn extended_connect_pseudo_header_order(
+    settings: &Http3RequestSettings,
+) -> Result<RequestPseudoHeaderOrder, Http3Error> {
+    validate_request_settings(settings)?;
+    let order = settings
+        .extended_connect_pseudo_header_order
+        .as_deref()
+        .ok_or_else(|| {
+            Http3Error::without_source(
+                Http3ErrorKind::Configuration,
+                "HTTP/3 profile has no extended CONNECT pseudo-header order",
+            )
+        })?;
+    translate_pseudo_header_order(order)
+}
+
+fn validate_request_settings(settings: &Http3RequestSettings) -> Result<(), Http3Error> {
     settings.validate().map_err(|error| {
         Http3Error::with_source(
             Http3ErrorKind::Configuration,
             "HTTP/3 request profile settings are invalid",
             error,
         )
-    })?;
-    let mut order = Vec::with_capacity(settings.pseudo_header_order.len());
-    for header in &settings.pseudo_header_order {
+    })
+}
+
+fn translate_pseudo_header_order(
+    headers: &[Http3PseudoHeader],
+) -> Result<RequestPseudoHeaderOrder, Http3Error> {
+    let mut order = Vec::with_capacity(headers.len());
+    for header in headers {
         order.push(match header {
             Http3PseudoHeader::Method => RequestPseudoHeader::Method,
             Http3PseudoHeader::Authority => RequestPseudoHeader::Authority,
             Http3PseudoHeader::Scheme => RequestPseudoHeader::Scheme,
             Http3PseudoHeader::Path => RequestPseudoHeader::Path,
+            Http3PseudoHeader::Protocol => RequestPseudoHeader::Protocol,
             _ => {
                 return Err(Http3Error::without_source(
                     Http3ErrorKind::Configuration,
@@ -408,6 +435,55 @@ fn pseudo_header_order(
         });
     }
     Ok(RequestPseudoHeaderOrder::new(order))
+}
+
+/// Builds an RFC 9220 extended CONNECT request head.
+///
+/// The request carries `:protocol`, `:scheme`, `:authority`, and `:path` in
+/// the profile's extended CONNECT order and has no request content.
+pub(super) fn prepare_extended_connect(
+    request_settings: &Http3RequestSettings,
+    protocol: Protocol,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Request<()>, Http3Error> {
+    let pseudo_order = extended_connect_pseudo_header_order(request_settings)?;
+    if authority.as_bytes().contains(&b'@') {
+        return Err(invalid("HTTP/3 request authority contains userinfo"));
+    }
+    if headers
+        .iter()
+        .any(|header| header.name().eq_ignore_ascii_case(CONTENT_LENGTH.as_str()))
+    {
+        return Err(invalid(
+            "HTTP/3 extended CONNECT requests must not declare content-length",
+        ));
+    }
+    let authority = authority
+        .parse::<Authority>()
+        .map_err(|_| invalid("HTTP/3 request authority is invalid"))?;
+    let uri = Uri::builder()
+        .scheme("https")
+        .authority(authority)
+        .path_and_query(target.into_path_and_query())
+        .build()
+        .map_err(|_| invalid("HTTP/3 request URI is invalid"))?;
+    let headers = ValidatedHeaders::new(headers, None)?;
+
+    let mut request = Request::new(());
+    *request.method_mut() = Method::CONNECT;
+    *request.uri_mut() = uri;
+    *request.version_mut() = Version::HTTP_3;
+    headers.populate(request.headers_mut())?;
+    request
+        .extensions_mut()
+        .insert(OrderedHeaders::new(headers.ordered));
+    request.extensions_mut().insert(protocol);
+    request.extensions_mut().insert(pseudo_order);
+    validate_semantic_headers(request.headers())?;
+    validate_ordered_headers(&request)?;
+    Ok(request)
 }
 
 fn validate_pseudo_header_order(request: &Request<()>) -> Result<(), Http3Error> {

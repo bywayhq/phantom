@@ -22,6 +22,10 @@ pub enum Http3ErrorKind {
     Protocol,
     /// The local request driver was no longer available.
     Local,
+    /// The peer did not enable extended CONNECT in its SETTINGS.
+    ///
+    /// No request stream was opened, and no other protocol was attempted.
+    ExtendedConnectUnavailable,
 }
 
 impl Http3ErrorKind {
@@ -36,6 +40,7 @@ impl Http3ErrorKind {
             Self::Handshake => "handshake",
             Self::Protocol => "protocol",
             Self::Local => "local",
+            Self::ExtendedConnectUnavailable => "extended_connect_unavailable",
         }
     }
 }
