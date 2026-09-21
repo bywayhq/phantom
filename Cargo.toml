@@ -10,7 +10,10 @@ exclude = [
     "fuzz",
     "vendor/btls",
     "vendor/http2",
+    "vendor/quinn",
     "vendor/quinn-proto",
+    "vendor/tokio-btls",
+    "vendor/tokio-tungstenite",
     "vendor/tungstenite",
     "vendor/wreq-proto",
 ]
