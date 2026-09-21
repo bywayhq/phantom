@@ -41,6 +41,8 @@ type RequestSendStream = h3::client::RequestStream<h3_quinn::SendStream<Bytes>, 
 type RequestRecvStream = h3::client::RequestStream<h3_quinn::RecvStream, Bytes>;
 
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
+/// Matches the HTTP CONNECT proxy's bound on interim responses per request.
+const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
 /// Sends one empty-body HTTP/3 GET over a new direct QUIC connection.
 ///
@@ -457,6 +459,7 @@ async fn receive_response(
     stream: &mut RequestRecvStream,
     mut datagrams: Option<&mut DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
+    let mut informational = 0;
     loop {
         let response = receive_response_head(stream, datagrams.as_deref_mut()).await?;
         if response.status() == http::StatusCode::SWITCHING_PROTOCOLS {
@@ -465,6 +468,11 @@ async fn receive_response(
         }
         if !response.status().is_informational() {
             return Ok(response);
+        }
+        informational += 1;
+        if informational > MAX_INFORMATIONAL_RESPONSES {
+            stream.stop_sending(h3::error::Code::H3_EXCESSIVE_LOAD);
+            return Err(ResponseHeadError::TooManyInformational);
         }
     }
 }
@@ -506,6 +514,14 @@ enum ResponseHeadError {
     Stream(h3::error::StreamError),
     UnsupportedDatagram,
     SwitchingProtocols,
+    TooManyInformational,
+}
+
+fn too_many_informational() -> Http3Error {
+    Http3Error::without_source(
+        Http3ErrorKind::Protocol,
+        "peer sent more than 8 informational HTTP/3 responses",
+    )
 }
 
 #[cfg(test)]

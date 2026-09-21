@@ -218,6 +218,105 @@ async fn informational_responses_preserve_final_body_and_trailers() -> TestResul
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn eight_informational_responses_precede_the_final_response() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        for _ in 0..8 {
+            stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::EARLY_HINTS)
+                        .body(())?,
+                )
+                .await?;
+        }
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let response = timeout(
+        TEST_TIMEOUT,
+        send_test_request(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            request(address, "/eight-informational")?,
+        ),
+    )
+    .await
+    .map_err(|_| "HTTP/3 informational response sequence timed out")??;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn ninth_informational_response_fails_the_request() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+
+    let server = tokio::spawn(async move {
+        let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
+        loop {
+            match stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::EARLY_HINTS)
+                        .body(())?,
+                )
+                .await
+            {
+                Ok(()) => {}
+                Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                    if code == h3::error::Code::H3_EXCESSIVE_LOAD =>
+                {
+                    return Ok::<(), Box<dyn Error + Send + Sync>>(());
+                }
+                Err(error) => {
+                    return Err(format!("unexpected informational flood result: {error:?}").into());
+                }
+            }
+        }
+    });
+
+    let result = timeout(
+        TEST_TIMEOUT,
+        send_test_request(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            request(address, "/informational-flood")?,
+        ),
+    )
+    .await
+    .map_err(|_| "HTTP/3 informational flood was not bounded")?;
+    let error = match result {
+        Ok(_) => return Err("HTTP/3 accepted unbounded informational responses".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), Http3ErrorKind::Protocol);
+    assert_eq!(
+        error.to_string(),
+        "peer sent more than 8 informational HTTP/3 responses"
+    );
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn switching_protocols_is_rejected_over_http3() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = client_config(&identity)?;

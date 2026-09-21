@@ -158,6 +158,9 @@ impl Http3Connection {
                         "peer sent a 101 response over HTTP/3",
                     ));
                 }
+                Err(ResponseHeadError::TooManyInformational) => {
+                    return Err(super::too_many_informational());
+                }
             };
             span.record("status", response.status().as_u16());
 
@@ -255,6 +258,9 @@ impl Http3Connection {
                         Http3ErrorKind::Protocol,
                         "peer sent a 101 response over HTTP/3",
                     ));
+                }
+                Err(ResponseHeadError::TooManyInformational) => {
+                    return Err(super::too_many_informational());
                 }
                 Err(ResponseHeadError::RequestBody(error)) => return Err(error),
             };
