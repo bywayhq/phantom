@@ -55,8 +55,10 @@ work has exposed the real architectural boundaries.
   streamed rejection bodies, clean close, and no fallback. Named-browser
   recipes remain capture-gated.
 - The HTTP/3 extended CONNECT foundation is complete in `phantom-net`.
-  WebSocket over H3, CONNECT-UDP/MASQUE, proxy-carried extended CONNECT, and
-  named-browser H2 WebSocket recipes build on it and remain in Phase 1.
+  Exact H3 over RFC 9298 CONNECT-UDP proxies is complete. WebSocket over H3,
+  CONNECT-UDP over HTTP/1 or HTTP/2 proxies, CONNECT-UDP proxy
+  authentication, proxy-carried extended CONNECT, and named-browser H2
+  WebSocket recipes remain in Phase 1.
 - The Chrome 152 H2 WebSocket recipe requires a retained browser capture of
   the extended-CONNECT opening handshake, including pseudo-header and ordinary
   field order, priority, compression offer, and failure behavior. The generic

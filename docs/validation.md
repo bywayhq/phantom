@@ -140,9 +140,9 @@ BND.ADDR, and rejection of domain BND.ADDR or a zero BND.PORT. Remote-target
 tests cover exact-domain replies, case-insensitive domain comparison,
 same-port IP-form replies, and a stable logical Quinn peer.
 
-This evidence does not claim HTTP proxy or CONNECT routing for H3,
-CONNECT-UDP/MASQUE, H3 extended CONNECT, or browser-capture fidelity for a
-proxied H3 route. Alt-Svc upgrade has separate direct-route evidence below.
+This evidence does not claim browser-capture fidelity for a proxied H3 route.
+CONNECT-UDP routes have their own loopback evidence against an h3 test proxy;
+no independent MASQUE implementation or browser capture backs them yet. Alt-Svc upgrade has separate direct-route evidence below.
 
 ## Alt-Svc HTTP/3 upgrade evidence
 

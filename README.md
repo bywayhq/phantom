@@ -94,9 +94,8 @@ timeouts, bodies, and responses.
 - H3 accepts direct, local-DNS `socks5://`, or remote-DNS `socks5h://` routes.
   It rejects HTTP forwarding and HTTP CONNECT before origin I/O.
 - Streaming request bodies are one-shot and are not replayed implicitly.
-- Broader status and post-dispatch retry policies;
-  CONNECT-UDP/MASQUE; Alt-Svc connection racing, persistence, and H2 ALTSVC
-  frames; proxy-carried extended CONNECT; and H3 WebSocket remain planned.
+- Alt-Svc connection racing, proxy-carried extended CONNECT, CONNECT-UDP over
+  HTTP/1 or HTTP/2 proxies, and H3 WebSocket remain planned.
 
 These limits make Phantom narrower than a general-purpose client, but keep its
 behavior explicit and testable.
