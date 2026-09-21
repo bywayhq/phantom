@@ -1,7 +1,8 @@
 use std::{
     error::Error,
-    future::{Future, poll_fn},
-    task::Poll,
+    future::Future,
+    sync::Arc,
+    task::{Context, Wake, Waker},
     time::Duration,
 };
 
@@ -10,7 +11,10 @@ use h3_datagram::datagram_handler::HandleDatagramsExt;
 use http::{Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom_profile::chromium;
-use tokio::{sync::oneshot, time::timeout};
+use tokio::{
+    sync::{Notify, oneshot},
+    time::timeout,
+};
 
 use super::{TestResult, join_server, profiled_client_config, server_endpoint};
 use crate::tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity};
@@ -133,6 +137,7 @@ async fn unexpected_datagram_aborts_get_stream() -> TestResult<()> {
     let (address, endpoint) = server_endpoint(&identity)?;
     let (head_sent, head_received) = oneshot::channel();
     let (release, released) = oneshot::channel();
+    let (data_queued, queued_received) = oneshot::channel();
 
     let server = tokio::spawn(async move {
         let (_request, mut stream, connection) = accept_datagram_request(&endpoint).await?;
@@ -145,7 +150,7 @@ async fn unexpected_datagram_aborts_get_stream() -> TestResult<()> {
         stream
             .send_data(Bytes::from_static(b"queued before violation"))
             .await?;
-        tokio::time::sleep(Duration::from_millis(20)).await;
+        queued_received.await?;
 
         let mut sender = connection.get_datagram_sender(stream.id());
         sender.send_datagram(Bytes::from_static(b"unexpected"))?;
@@ -185,15 +190,22 @@ async fn unexpected_datagram_aborts_get_stream() -> TestResult<()> {
         .map_err(|_| "server did not send response headers")??;
 
     let mut body = response.into_body();
+    let frame_ready = Arc::new(FrameReady::default());
+    let waker = Waker::from(Arc::clone(&frame_ready));
     let mut pending_frame = Box::pin(body.frame());
-    poll_fn(|context| {
-        assert!(pending_frame.as_mut().poll(context).is_pending());
-        Poll::Ready(())
-    })
-    .await;
+    assert!(
+        pending_frame
+            .as_mut()
+            .poll(&mut Context::from_waker(&waker))
+            .is_pending()
+    );
     drop(pending_frame);
 
     let _ = release.send(());
+    timeout(TEST_TIMEOUT, frame_ready.0.notified())
+        .await
+        .map_err(|_| "response body task did not queue the data frame")?;
+    let _ = data_queued.send(());
     join_server(server).await?;
     tokio::time::sleep(super::super::SHUTDOWN_GRACE + Duration::from_millis(20)).await;
 
@@ -224,24 +236,27 @@ async fn datagram_before_response_aborts_get_stream() -> TestResult<()> {
     let client = profiled_client_config(&identity)?;
     let (address, endpoint) = server_endpoint(&identity)?;
 
+    let (request_failed, failure_received) = oneshot::channel();
     let server = tokio::spawn(async move {
         let (_request, mut stream, connection) = accept_datagram_request(&endpoint).await?;
         let mut sender = connection.get_datagram_sender(stream.id());
         sender.send_datagram(Bytes::from_static(b"unexpected"))?;
-        tokio::time::sleep(Duration::from_millis(20)).await;
+        failure_received.await?;
 
-        match stream
+        let mut result = stream
             .send_response(Response::builder().status(StatusCode::OK).body(())?)
-            .await
-        {
+            .await;
+        let chunk = Bytes::from(vec![0; 64 * 1024]);
+        while result.is_ok() {
+            result = stream.send_data(chunk.clone()).await;
+        }
+        match result {
             Err(h3::error::StreamError::RemoteTerminate { code, .. })
                 if code == h3::error::Code::H3_DATAGRAM_ERROR =>
             {
                 Ok::<(), Box<dyn Error + Send + Sync>>(())
             }
-            Ok(()) => {
-                Err("client accepted response headers after the pre-response datagram".into())
-            }
+            Ok(()) => Err("server send loop ended without an error".into()),
             Err(error) => Err(format!("unexpected pre-response cancellation: {error:?}").into()),
         }
     });
@@ -263,8 +278,19 @@ async fn datagram_before_response_aborts_get_stream() -> TestResult<()> {
         Err(error) => error,
     };
     assert_eq!(error.kind(), super::super::Http3ErrorKind::Protocol);
+    let _ = request_failed.send(());
     join_server(server).await?;
     Ok(())
+}
+
+/// Records when the response body task queues an event for the consumer.
+#[derive(Default)]
+struct FrameReady(Notify);
+
+impl Wake for FrameReady {
+    fn wake(self: Arc<Self>) {
+        self.0.notify_one();
+    }
 }
 
 async fn accept_datagram_request(
