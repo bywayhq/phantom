@@ -52,7 +52,7 @@ concurrency:
 jobs:
   conformance:
     name: ${{ github.event_name == 'schedule' && 'Full' || 'Selected' }} client suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: Check out repository

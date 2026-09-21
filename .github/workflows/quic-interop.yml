@@ -42,13 +42,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: quic-interop-${{ github.workflow }}-${{ github.ref }}
+  group: quic-interop-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   client:
     name: H3 client endpoint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: Check out repository

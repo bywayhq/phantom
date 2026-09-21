@@ -54,7 +54,7 @@ jobs:
       matrix:
         include:
           - name: Linux
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - name: macOS
             runner: macos-latest
     steps:

@@ -19,7 +19,7 @@ env:
 jobs:
   report:
     name: Detect upstream drift
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       wreq_latest: ${{ steps.freshness.outputs.wreq_latest }}
@@ -63,7 +63,7 @@ jobs:
   probe:
     name: Probe ${{ matrix.dependency }} candidate
     needs: report
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -119,7 +119,7 @@ jobs:
     name: Review upstream drift
     if: always() && needs.report.result == 'success'
     needs: [report, probe]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Surface drift for human review
