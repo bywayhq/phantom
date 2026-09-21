@@ -1217,6 +1217,8 @@ mod tests {
             ConnectUdpErrorKind::Configuration,
             ConnectUdpErrorKind::RuntimeUnavailable,
             ConnectUdpErrorKind::Handshake,
+            ConnectUdpErrorKind::UnsupportedProtocol,
+            ConnectUdpErrorKind::Authentication,
             ConnectUdpErrorKind::ExtendedConnectUnavailable,
             ConnectUdpErrorKind::DatagramUnavailable,
             ConnectUdpErrorKind::DatagramCapacity,

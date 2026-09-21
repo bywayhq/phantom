@@ -12,7 +12,7 @@ use crate::CookieJar;
 use crate::{
     BuildError, RedirectPolicy, RequestBuilder, RequestTimeouts, RetryPolicy, Route, Session,
     SessionBuilder,
-    session::{ClientOptions, ClientState},
+    session::{ClientOptions, ClientState, http3_pool::ConnectUdpConnectors},
 };
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
@@ -57,8 +57,8 @@ pub(crate) struct ClientInner {
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
     pub(crate) http3: Option<Http3Connector>,
-    /// Outer HTTP/3 connector for CONNECT-UDP proxies, using proxy trust.
-    pub(crate) connect_udp_proxy: Option<Http3Connector>,
+    /// Proxy-leg connectors for CONNECT-UDP proxies, using proxy trust.
+    pub(crate) connect_udp_proxy: Option<ConnectUdpConnectors>,
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     pub(crate) route: Route,
@@ -600,7 +600,7 @@ impl ClientBuilder {
             .map_err(BuildError::http3)?;
         // CONNECT-UDP's outer connection authenticates the proxy with proxy
         // trust roots; HTTP/3 cannot disable verification.
-        let connect_udp_proxy = self
+        let connect_udp_http3 = self
             .profile
             .http3()
             .filter(|_| !proxy_authentication_disabled)
@@ -626,6 +626,7 @@ impl ClientBuilder {
             .route
             .as_http_proxy()
             .is_some_and(|proxy| proxy.uses_tls())
+            || matches!(&self.route, Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_some())
             || !self.proxy_additional_roots.is_empty()
             || proxy_authentication_disabled;
         let https_proxy = (supports_http1 || secure_proxy_requested)
@@ -648,6 +649,18 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::https_proxy)?;
+        // HTTP/1.1 and HTTP/2 CONNECT-UDP legs share the HTTPS-proxy TLS
+        // configuration; like the HTTP/3 leg, they require proxy verification.
+        let connect_udp_tcp = https_proxy
+            .clone()
+            .filter(|_| !proxy_authentication_disabled);
+        let connect_udp_proxy =
+            (connect_udp_http3.is_some() || connect_udp_tcp.is_some()).then(|| {
+                ConnectUdpConnectors {
+                    http3: connect_udp_http3,
+                    tcp: connect_udp_tcp,
+                }
+            });
         let client_hints = self.profile.client_hints().cloned();
 
         if http1.is_none() && http2.is_none() && http3.is_none() {

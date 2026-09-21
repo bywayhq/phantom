@@ -211,3 +211,70 @@ fn route_identity_includes_template_and_ordered_fields_without_debugging_values(
     assert!(!debug.contains("secret-value"));
     Ok(())
 }
+
+#[test]
+fn proxy_leg_is_part_of_route_identity_debug_and_tracing() -> Result<(), Box<dyn std::error::Error>>
+{
+    let http3 = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?;
+    let http2 = http3.clone().with_http2_transport();
+    let http1 = http3.clone().with_http1_transport();
+
+    for (left, right) in [(&http3, &http2), (&http3, &http1), (&http2, &http1)] {
+        assert_ne!(
+            Route::connect_udp(left.clone()),
+            Route::connect_udp(right.clone())
+        );
+    }
+    assert_eq!(http3.tcp_protocol(), None);
+    assert_eq!(
+        http2.tcp_protocol(),
+        Some(phantom_net::proxy::HttpsProxyProtocol::Http2)
+    );
+    assert_eq!(
+        http1.tcp_protocol(),
+        Some(phantom_net::proxy::HttpsProxyProtocol::Http1)
+    );
+    assert_eq!(
+        Route::connect_udp(http2.clone()).trace_name(),
+        "connect_udp_h2"
+    );
+    assert_eq!(
+        Route::connect_udp(http1.clone()).trace_name(),
+        "connect_udp_http1"
+    );
+    assert!(format!("{http3:?}").contains("proxy_protocol: \"h3\""));
+    assert!(format!("{http2:?}").contains("proxy_protocol: \"h2\""));
+    assert!(format!("{http1:?}").contains("proxy_protocol: \"http/1.1\""));
+    Ok(())
+}
+
+#[test]
+fn basic_credentials_are_validated_redacted_and_part_of_route_identity()
+-> Result<(), Box<dyn std::error::Error>> {
+    let first = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?.with_basic_auth("alice", "first secret")?;
+    let matching =
+        ConnectUdpProxy::new(DEFAULT_TEMPLATE)?.with_basic_auth("alice", "first secret")?;
+    let other = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?.with_basic_auth("alice", "other secret")?;
+
+    assert_eq!(first, matching);
+    assert_ne!(first, other);
+    assert_ne!(first, ConnectUdpProxy::new(DEFAULT_TEMPLATE)?);
+    let debug = format!("{first:?}");
+    assert!(debug.contains("credentials_configured: true"));
+    assert!(!debug.contains("alice"));
+    assert!(!debug.contains("first secret"));
+
+    for (username, password) in [
+        ("", "secret"),
+        ("user:name", "secret"),
+        ("user", "line\nfeed"),
+    ] {
+        let error = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?
+            .with_basic_auth(username, password)
+            .err()
+            .ok_or("invalid credentials were accepted")?;
+        assert_eq!(error.kind(), Kind::InvalidCredentials);
+        assert!(!format!("{error:?}{error}").contains(password));
+    }
+    Ok(())
+}

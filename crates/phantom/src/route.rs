@@ -63,8 +63,9 @@ impl Route {
 
     /// Returns a CONNECT-UDP route for exact HTTP/3 requests.
     ///
-    /// Every other protocol, negotiated requests, and WebSocket reject this
-    /// route before I/O.
+    /// The proxy leg may be HTTP/3, HTTP/2, or HTTP/1.1; see
+    /// [`ConnectUdpProxy`]. Every other request protocol, negotiated
+    /// requests, and WebSocket reject this route before I/O.
     #[must_use]
     pub fn connect_udp(proxy: ConnectUdpProxy) -> Self {
         Self::ConnectUdp(proxy)
@@ -78,7 +79,7 @@ impl Route {
                 Socks5DnsMode::Local => "socks5_local_dns",
                 Socks5DnsMode::Remote => "socks5_remote_dns",
             },
-            Self::ConnectUdp(_) => "connect_udp",
+            Self::ConnectUdp(proxy) => proxy.trace_name(),
         }
     }
 

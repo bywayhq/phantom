@@ -1,7 +1,12 @@
-use std::{collections::VecDeque, num::NonZeroUsize, sync::Arc};
+use std::{
+    collections::VecDeque,
+    num::NonZeroUsize,
+    sync::{Arc, OnceLock},
+};
 
 use http::Method;
 use phantom_net::http3::{Http3Connection, Http3Connector, OriginForm, RequestHeader};
+use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
 use tokio::sync::Mutex;
 use tracing::debug;
@@ -35,6 +40,15 @@ impl<'a> Http3TransportTarget<'a> {
     fn for_origin(endpoint: &'a Endpoint) -> Self {
         Self::new(endpoint.host(), endpoint.port())
     }
+}
+
+/// Proxy-leg connectors for CONNECT-UDP routes, all using proxy trust.
+#[derive(Debug)]
+pub(crate) struct ConnectUdpConnectors {
+    /// Outer HTTP/3 connector for the default HTTP/3 leg.
+    pub(crate) http3: Option<Http3Connector>,
+    /// TLS connector for HTTP/1.1 Upgrade and HTTP/2 extended CONNECT legs.
+    pub(crate) tcp: Option<HttpsProxyConnector>,
 }
 
 pub(crate) struct Http3Pool {
@@ -74,7 +88,7 @@ impl Http3Pool {
     pub(crate) async fn send_request(
         &self,
         connector: &Http3Connector,
-        connect_udp_proxy: Option<&Http3Connector>,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
         endpoint: &Endpoint,
         route: &Route,
         alternative: Option<Http3TransportTarget<'_>>,
@@ -103,10 +117,25 @@ impl Http3Pool {
             .map_err(RequestError::http3)?;
         let transport = alternative.unwrap_or_else(|| Http3TransportTarget::for_origin(endpoint));
         if let Route::ConnectUdp(proxy) = route {
-            let (proxy_connector, path) = connect_udp_target(connect_udp_proxy, proxy, transport)?;
-            proxy_connector
-                .validate_connect_udp(proxy.host(), proxy.authority(), &path, proxy.headers())
-                .map_err(RequestError::http3)?;
+            let path = connect_udp_path(proxy, transport)?;
+            match proxy.tcp_protocol() {
+                None => connect_udp_http3(connect_udp_proxy)?.validate_connect_udp_with_basic_auth(
+                    proxy.host(),
+                    proxy.authority(),
+                    &path,
+                    proxy.headers(),
+                    proxy.credentials(),
+                ),
+                Some(protocol) => Http3Connector::validate_connect_udp_over_tcp(
+                    connect_udp_tcp(connect_udp_proxy)?,
+                    protocol,
+                    proxy.authority(),
+                    &path,
+                    proxy.headers(),
+                    proxy.credentials(),
+                ),
+            }
+            .map_err(RequestError::http3)?;
         }
         let key = PoolKey::new(endpoint, route);
         let entry = self.entry(key).await;
@@ -262,6 +291,8 @@ struct PoolEntry {
     /// Connections keyed by transport location, least recently used first.
     slots: Mutex<VecDeque<ConnectionSlot>>,
     admission: Arc<Admission>,
+    /// Proxy TLS connector for a TCP CONNECT-UDP leg, with its own session cache.
+    tcp_proxy: OnceLock<HttpsProxyConnector>,
 }
 
 impl PoolEntry {
@@ -269,6 +300,7 @@ impl PoolEntry {
         Self {
             slots: Mutex::new(VecDeque::new()),
             admission,
+            tcp_proxy: OnceLock::new(),
         }
     }
 
@@ -279,7 +311,7 @@ impl PoolEntry {
     async fn acquire(
         &self,
         connector: &Http3Connector,
-        connect_udp_proxy: Option<&Http3Connector>,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
         endpoint: &Endpoint,
         route: &Route,
         transport: Http3TransportTarget<'_>,
@@ -328,24 +360,45 @@ impl PoolEntry {
                 )
                 .await
                 .map_err(RequestError::http3_connection_setup)?,
-            Route::ConnectUdp(proxy) => {
-                // One fresh outer connection and CONNECT-UDP request per inner
-                // connection, including every retry on this route.
-                let (proxy_connector, path) =
-                    connect_udp_target(connect_udp_proxy, proxy, transport)?;
-                connector
-                    .connect_connect_udp(
-                        proxy_connector,
+            // One fresh outer connection and CONNECT-UDP request per inner
+            // connection, including every retry on this route.
+            Route::ConnectUdp(proxy) => match proxy.tcp_protocol() {
+                None => connector
+                    .connect_connect_udp_with_basic_auth(
+                        connect_udp_http3(connect_udp_proxy)?,
                         proxy.host(),
                         proxy.port(),
                         proxy.authority(),
-                        path,
+                        connect_udp_path(proxy, transport)?,
                         proxy.headers().to_vec(),
+                        proxy.credentials(),
                         endpoint.host(),
                     )
                     .await
-                    .map_err(RequestError::http3_connect_udp_setup)?
-            }
+                    .map_err(RequestError::http3_connect_udp_setup)?,
+                Some(protocol) => {
+                    let base = connect_udp_tcp(connect_udp_proxy)?;
+                    // Proxy TLS sessions stay within this origin-and-route
+                    // entry, like the HTTP proxy pools.
+                    let proxy_connector = self
+                        .tcp_proxy
+                        .get_or_init(|| base.with_isolated_session_cache());
+                    connector
+                        .connect_connect_udp_over_tcp(
+                            proxy_connector,
+                            protocol,
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.authority(),
+                            connect_udp_path(proxy, transport)?,
+                            proxy.headers().to_vec(),
+                            proxy.credentials(),
+                            endpoint.host(),
+                        )
+                        .await
+                        .map_err(RequestError::http3_connect_udp_setup)?
+                }
+            },
             Route::HttpProxy(_) => {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http3));
             }
@@ -379,18 +432,34 @@ impl PoolEntry {
     }
 }
 
-/// Resolves the outer connector and expanded CONNECT-UDP path before I/O.
-fn connect_udp_target<'a>(
-    connect_udp_proxy: Option<&'a Http3Connector>,
+/// Expands the CONNECT-UDP path for the transport target before I/O.
+fn connect_udp_path(
     proxy: &ConnectUdpProxy,
     transport: Http3TransportTarget<'_>,
-) -> Result<(&'a Http3Connector, OriginForm), RequestError> {
-    let proxy_connector =
-        connect_udp_proxy.ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http3))?;
-    let path = proxy
+) -> Result<OriginForm, RequestError> {
+    proxy
         .expand(transport.host, transport.port)
-        .map_err(RequestError::invalid_target)?;
-    Ok((proxy_connector, path))
+        .map_err(RequestError::invalid_target)
+}
+
+/// Returns the outer HTTP/3 connector, absent when proxy verification is
+/// disabled or the profile has no HTTP/3.
+fn connect_udp_http3(
+    connectors: Option<&ConnectUdpConnectors>,
+) -> Result<&Http3Connector, RequestError> {
+    connectors
+        .and_then(|connectors| connectors.http3.as_ref())
+        .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http3))
+}
+
+/// Returns the proxy TLS connector for HTTP/1.1 and HTTP/2 legs, absent
+/// when proxy verification is disabled or TLS cannot offer `http/1.1`.
+fn connect_udp_tcp(
+    connectors: Option<&ConnectUdpConnectors>,
+) -> Result<&HttpsProxyConnector, RequestError> {
+    connectors
+        .and_then(|connectors| connectors.tcp.as_ref())
+        .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http3))
 }
 
 struct ConnectionSlot {
