@@ -547,9 +547,119 @@ Chromium source of that period, which serialized the list by iterating an
 the list before encoding.
 
 The Chrome 152 recipe therefore keeps one fixed order, the retained macOS
-order. Per-connection shuffling would contradict the observed behavior. Chrome
-153 advertises 28 IDs (four `d67909xx` IDs are absent) and has no recipe. These
+order. Per-connection shuffling would contradict the observed behavior. These
 multi-connection captures are not retained as fixtures.
+
+Chrome 153 advertises 28 IDs: the four `d67909xx` IDs `02`, `03`, `09`, and
+`0e` are absent and none is new. A later capture for the Chrome 153 recipe
+recorded one ClientHello from each of 60 fresh branded Chrome 153.0.8010.48
+processes with the retained Chrome TLS launch flags (no
+`--disable-field-trial-config`). It saw 35 distinct orders; the most frequent
+occurred 6 times and the next two 5 times each. The retained
+`client-hello.txt` from the earlier capture has an order not among the 60.
+`chromium::v153_tls` carries the 6-process order. Its lead over the runner-up
+is one process, so it is one real observed order, not evidence of a preferred
+Chrome order.
+`fixtures/tls/chrome/153.0.8010.48/windows-11-26200/trust-anchor-orders.txt`
+retains every order, its count, and the per-process sequence;
+`chrome_153_tls_trust_anchor_order_is_the_most_frequent_process_order` and
+`chrome_153_tls_recipe_emits_the_most_frequent_trust_anchor_order` check it.
+
+## Chrome 153, Edge 153, and Firefox 156 recipes
+
+The browsers installed on the Windows 11 capture host (build 26200, x64) were
+captured again to add version recipes. Every capture used a fresh profile, a
+loopback listener, and the launch flags of the retained fixture for the same
+layer. Chrome and Edge ran without `--disable-field-trial-config`, as the
+retained branded Chrome 153 fixtures did.
+
+| Browser and layer | Samples | Result against the prior recipe |
+| --- | --- | --- |
+| Chrome 153.0.8010.48 TLS | 60 processes | Equal to `v152_tls` except the 28 trust-anchor IDs |
+| Chrome 153 H2 startup | Retained raw startup | Equal to `v152_http2` |
+| Chrome 153 H2 request HEADERS | 3 retained H2 session runs | Pseudo-headers `m,a,s,p`; exclusive, parent 0, weight 256; equal to `v152_http2` |
+| Chrome 153 QUIC ClientHello | 3 processes | Equal to `v152_http3_tls` except the 28 trust-anchor IDs |
+| Chrome 153 QUIC, H3 SETTINGS and request | Retained startup plus 3 | Equal to `v152_quic`, `v152_http3`, and `v152_http3_request`; request fields equal except persona values |
+| Chrome 153 client hints | 3 runs (plus 1 headful) | Same 11 names, order, and delivery as the 152 macOS recipe; Windows and 153 values |
+| Edge 153.0.4234.48 TLS | 20 processes | Chrome 153 ClientHello without the trust-anchor IDs extension |
+| Edge 153 QUIC ClientHello | 3 processes | Chrome 153 QUIC ClientHello without the trust-anchor IDs extension |
+| Edge 153 H2 startup and request HEADERS | 1 raw startup, 3 H2 session runs | Equal to `chromium::v153_http2` |
+| Edge 153 QUIC, H3 SETTINGS and request | 3 processes | Equal to the Chrome 153 recipes; request fields equal except persona values |
+| Edge 153 client hints | 3 runs (plus 1 headful) | Chrome 153 names, order, and delivery; Edge brand list and version values |
+| Firefox 156.0 TLS | 12 processes | `v154_tls` without the FFDHE-2048 and FFDHE-3072 groups, with a 240-byte (was 239) ECH GREASE payload |
+| Firefox 156 H2 startup and request HEADERS | 3 retained H2 session runs, 6 connections | Equal to `v154_http2` |
+
+New recipes follow from those differences. `chromium::v153_tls` and
+`chromium::v153_http3_tls` replace only the trust-anchor list of the 152
+recipes, and `chromium::v153_{http2,http3,http3_request,quic}` return the 152
+recipes unchanged. `edge::v153_tls` and `edge::v153_http3_tls` remove the
+trust-anchor IDs from the Chrome 153 recipes. `firefox::v156_tls` changes the
+two differing fields of `v154_tls`, and `firefox::v156_http2` returns
+`v154_http2`. Edge has no H2, QUIC, or H3 recipe of its own because those
+layers equal Chrome 153 on every compared field. Client hints carry platform
+and build data on the wire, so they are `chromium::v153_windows_client_hints`
+and `edge::v153_windows_client_hints`.
+
+Comparisons used the normalization of
+[Cross-platform transport parity](#cross-platform-transport-parity): GREASE
+values, Chromium extension order, random bytes, key shares, ECH GREASE payload
+bytes and Chromium's per-connection ECH payload length, the H3 reserved
+setting and its value width, the QUIC GREASE transport parameter length, and
+the position of the reserved QUIC version. Every Chrome and Edge sample, TCP
+and QUIC, used HKDF-SHA256 with AES-128-GCM for ECH GREASE. Firefox 156 kept
+its fixed extension order and chose AES-128-GCM on 7 and ChaCha20-Poly1305 on
+5 of 12 connections, each with a 240-byte payload. One sample of each is
+retained, and the recipe still emits only AES-128-GCM.
+
+Edge's full version list reports `"Chromium";v="153.0.8010.53"`, a newer
+Chromium build than branded Chrome 153.0.8010.48. Headful and headless runs
+produced identical client hints for both browsers.
+
+The H2 request evidence reuses the navigation on the retained WebSocket
+session fixtures (`fixtures/websocket/*/accept.txt`, recorded through
+`http2_session.py`), which already hold each navigation's SETTINGS,
+WINDOW_UPDATE, HEADERS priority, and HPACK field order. No raw Firefox 156 H2
+startup fixture was taken: the raw startup tool needs WebDriver certificate
+trust for Firefox, and geckodriver is not installed on the host. The extended
+CONNECT pseudo-header order and priority in those fixtures differ from the
+navigation's and stay outside the named H2 recipes.
+
+Retained fixtures:
+
+- `fixtures/tls/chrome/153.0.8010.48/windows-11-26200/trust-anchor-orders.txt`
+- `fixtures/http3/chrome/153.0.8010.48/windows-11-26200/quic-client-hello-{1,2}.txt`
+- `fixtures/client-hints/chrome/153.0.8010.48/windows-11-26200/navigation.txt`
+- `fixtures/tls/edge/153.0.4234.48/windows-11-26200/client-hello.txt`
+- `fixtures/http2/edge/153.0.4234.48/windows-11-26200/client-startup.txt`
+- `fixtures/http3/edge/153.0.4234.48/windows-11-26200/{client-startup,quic-client-hello-1,quic-client-hello-2}.txt`
+- `fixtures/client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt`
+- `fixtures/tls/firefox/156.0/windows-11-26200/client-hello.txt` (AES-128-GCM
+  ECH GREASE) and `client-hello-chacha20-ech.txt`
+
+TLS ClientHellos were recorded with
+`cargo run -p phantom-testkit --example capture_client_hello`, one run per
+fresh browser process; the Edge H2 startup with
+`cargo run -p phantom-net --example capture_http2_tls`; QUIC captures with
+`scripts/capture/chrome_http3.py --client-hello`; and client hints with
+`scripts/capture/client_hints.py`. Chromium TLS and H2 launches use the
+arguments recorded in the retained Chrome fixtures with
+`https://server.phantom.test:<port>/`. Firefox TLS uses
+`--headless --no-remote --profile <temporary-profile>` with
+`https://localhost:9446/`. Per-process samples beyond the retained ones are
+not kept; the table gives their counts.
+
+The `chrome_153_*`, `edge_153_*`, and `firefox_156_*` tests in
+`phantom-profile` and `phantom-net` replay these fixtures: TLS and QUIC
+ClientHellos through the public TLS and H3 connector paths, H2 startup frames
+through the public H2 path, and H3, QUIC, H2 request, and client-hint fields
+against the recipe data.
+
+Limits:
+
+- One Windows build and one build per browser. No macOS or Linux capture of
+  these versions exists; the platform-free 153 and 156 transport names rest
+  on the 152 and 154 finding that these layers did not depend on the platform.
+- Headless launches, except the headful client-hint check.
 
 ## External suites
 
