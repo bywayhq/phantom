@@ -32,23 +32,39 @@ CHROMIUM_FLAGS = (
     "--disable-component-update",
     "--disable-default-apps",
     "--no-proxy-server",
+    "--disable-client-side-phishing-detection",
+    "--disable-component-extensions-with-background-pages",
+    "--disable-domain-reliability",
+    "--disable-sync",
+    "--no-pings",
+    # MediaRouter probes Cast devices on the local network.
+    "--disable-features=MediaRouter,OptimizationHints",
 )
 
 # Firefox has no equivalent command-line switches; these preferences disable
 # the same classes of background traffic in the disposable profile.
 FIREFOX_PREFERENCES = (
+    ("app.normandy.enabled", False),
     ("app.update.disabledForTesting", True),
     ("browser.aboutwelcome.enabled", False),
     ("browser.newtabpage.enabled", False),
+    ("browser.region.network.url", ""),
+    ("browser.region.update.enabled", False),
     ("browser.safebrowsing.malware.enabled", False),
     ("browser.safebrowsing.phishing.enabled", False),
     ("browser.shell.checkDefaultBrowser", False),
     ("browser.startup.homepage_override.mstone", "ignore"),
     ("datareporting.policy.dataSubmissionEnabled", False),
+    ("doh-rollout.disable-heuristics", True),
+    ("dom.push.connection.enabled", False),
     ("extensions.update.enabled", False),
+    ("media.gmp-manager.updateEnabled", False),
     ("network.captive-portal-service.enabled", False),
     ("network.connectivity-service.enabled", False),
     ("network.proxy.type", 0),
+    ("network.trr.mode", 5),
+    # Mozilla's own test profiles point remote settings at this inert URL.
+    ("services.settings.server", "data:,#remote-settings-dummy/v1"),
     ("toolkit.telemetry.enabled", False),
 )
 
@@ -68,6 +84,9 @@ def firefox_arguments(
     profile: Path, url: str, *, headless: bool, extra: Sequence[str] = ()
 ) -> list[str]:
     arguments = ["--headless"] if headless else []
+    # Firefox's launcher process otherwise exits after starting the browser,
+    # which would leave nothing for the harness to wait on or terminate.
+    arguments.append("--wait-for-browser")
     arguments.extend(["--no-remote", "--profile", str(profile)])
     arguments.extend(extra)
     arguments.append(url)
@@ -185,6 +204,8 @@ class LaunchedBrowser:
         try:
             if self.process is not None:
                 terminate_process_tree(self.process)
+            if self.profile is not None:
+                terminate_profile_processes(self.profile)
         finally:
             if self.profile is not None:
                 shutil.rmtree(self.profile, ignore_errors=True)
@@ -209,3 +230,27 @@ def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
             os.killpg(process.pid, signal.SIGKILL)
         process.kill()
         process.wait(timeout=10)
+
+
+def terminate_profile_processes(profile: Path) -> None:
+    """Kill processes still using `profile` after their launcher exited.
+
+    Browsers can re-parent their main process away from the launched process,
+    so a process-tree kill alone does not prove the run's browser is gone.
+    """
+    if sys.platform != "win32":
+        return
+    # The profile path is a mkdtemp name without quotes, so it is safe to embed.
+    script = (
+        "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and "
+        f"$_.CommandLine.Contains('{profile}') }} | "
+        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
+        "-ErrorAction SilentlyContinue }"
+    )
+    subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+        timeout=60,
+    )

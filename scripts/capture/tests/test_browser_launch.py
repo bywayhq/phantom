@@ -44,7 +44,15 @@ class BrowserLaunchTests(unittest.TestCase):
         arguments = firefox_arguments(Path("profile"), URL, headless=True)
 
         self.assertEqual(
-            arguments, ["--headless", "--no-remote", "--profile", "profile", URL]
+            arguments,
+            [
+                "--headless",
+                "--wait-for-browser",
+                "--no-remote",
+                "--profile",
+                "profile",
+                URL,
+            ],
         )
 
     def test_firefox_preferences_disable_background_services(self) -> None:
@@ -76,7 +84,13 @@ class BrowserLaunchTests(unittest.TestCase):
         self.assertEqual(plan.client_name, "Mozilla Firefox")
         self.assertEqual(
             shlex.split(plan.recorded_arguments(URL)),
-            ["--no-remote", "--profile", PROFILE_PLACEHOLDER, URL],
+            [
+                "--wait-for-browser",
+                "--no-remote",
+                "--profile",
+                PROFILE_PLACEHOLDER,
+                URL,
+            ],
         )
 
     def test_manual_plan_never_starts_a_process(self) -> None:
