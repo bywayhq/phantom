@@ -13,10 +13,11 @@ mod tls_support;
 use std::{future::poll_fn, net::Ipv4Addr, pin::Pin, time::Duration};
 
 use btls::ssl::{Ssl, SslAcceptor, SslVersion};
+use bytes::Bytes;
 use http::{Request, Response, StatusCode};
-use http_body_util::BodyExt;
+use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, HttpProtocol, RequestHeader,
+    Client, HttpProtocol, RequestErrorKind, RequestHeader,
     profile::{
         AlpsSettings, CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings,
         ClientProfile, NamedGroup, TlsVersion, chromium,
@@ -482,6 +483,51 @@ async fn critical_ch_retries_once_with_only_supported_requested_hints() -> TestR
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/2 server stopped before client completion")?;
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn critical_ch_retry_rejects_a_consumed_streaming_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(&listener, &acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (first, mut first_response) = accept_http2(&mut connection).await?;
+            first_response.send_response(
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header("accept-ch", "Sec-CH-UA-Arch")
+                    .header("critical-ch", "Sec-CH-UA-Arch")
+                    .body(())?,
+                true,
+            )?;
+            drop((first, first_response));
+            drive_http2_until_client_done(&mut connection, wait_for_client).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let result = client(&identity)?
+            .session()
+            .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+            .streaming_body(Full::new(Bytes::from_static(b"one-shot")))
+            .send()
+            .await;
+        let error = match result {
+            Ok(_) => return Err("Critical-CH retry replayed a one-shot streaming body".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
         client_done
             .send(())
             .map_err(|_| "HTTP/2 server stopped before client completion")?;
