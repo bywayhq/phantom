@@ -64,7 +64,8 @@ work has exposed the real architectural boundaries.
   field order, priority, compression offer, and failure behavior. The generic
   configurable H2 implementation is not evidence for that named recipe.
 - Chrome `152.0.7977.64` is expected to share the retained `.83` transport
-  fingerprint under the major-version policy. Exact full-version client hints
+  fingerprint under the major-version policy. That is an unverified
+  assumption until a `.64` capture is compared. Exact full-version client hints
   remain persona data and must not inherit `.83` values accidentally.
 
 ## Phase 2 — Ergonomics

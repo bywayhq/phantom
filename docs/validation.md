@@ -252,6 +252,11 @@ endpoint failures share the same classification but have no recovery test.
 These tests prove lifecycle and routing behavior, not browser retry policy.
 Retries are caller-configured and do not become part of a named browser recipe.
 
+Status-retry regressions in `crates/phantom/tests/status_retry.rs` run over
+H1 loopback servers, including one negotiated request that selects H1. The
+retry loop sits above the transports, so H2 and H3 use the same code, but no
+H2 or H3 status-retry test exists.
+
 ## SSE browser reconnect evidence
 
 `fixtures/sse/` retains HTTP/1.1 EventSource captures from headless Chrome
