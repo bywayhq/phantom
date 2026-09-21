@@ -4,14 +4,19 @@ The optional `websocket` feature provides exact HTTP/1.1 Upgrade and
 [RFC 8441](https://www.rfc-editor.org/rfc/rfc8441.html) HTTP/2 extended CONNECT
 connections. `Client::websocket` remains the HTTP/1.1
 shorthand; `Client::websocket_with_protocol` selects an exact protocol without
-fallback. Direct H2 currently accepts `wss://` only and requires an explicit
-five-field extended-CONNECT pseudo-header order in the HTTP/2 profile. Named
-browser profiles leave that order unset until browser captures prove it.
+fallback. H2 accepts `wss://` only, over direct and proxy routes, and requires
+an explicit five-field extended-CONNECT pseudo-header order in the HTTP/2
+profile. Named browser profiles leave that order unset until browser captures
+prove it.
 
 For H1, direct routes accept plaintext `ws://` or TLS-backed `wss://`;
 HTTP forward proxies accept plaintext `ws://` over either plaintext or
 independently authenticated proxy TLS. Local- and remote-DNS SOCKS5 routes
-accept both `ws://` and `wss://`; HTTP-CONNECT routes accept `wss://`.
+accept both `ws://` and `wss://`; HTTP-CONNECT routes accept `wss://`,
+including through an HTTPS proxy reached over HTTP/2
+(`HttpProxy::with_http2_transport`). That proxy transport cannot forward
+plaintext requests, so H1 `ws://` through it fails before proxy I/O instead of
+switching to CONNECT or HTTP/1.1.
 Secure connections reuse Phantom's BoringSSL TLS profile. Both transports reuse
 the ordered HTTP/1 serializer, ordered response metadata, client cookies,
 runtime errors, and tracing lifecycle.
@@ -153,6 +158,23 @@ established. `socks5://` resolves the origin locally, while `socks5h://` sends
 the canonical DNS name to the proxy; configured username/password
 authentication applies only to SOCKS negotiation.
 
+### H2 through proxies
+
+An H2 `wss://` WebSocket opens a dedicated tunnel through the selected route and
+then performs exact origin TLS, the HTTP/2 preface, and extended CONNECT inside
+it, exactly as on a direct route. Supported routes are HTTP CONNECT through
+plaintext or TLS proxies (the proxy leg speaks HTTP/1.1 by default or RFC 9113
+CONNECT with `HttpProxy::with_http2_transport`), and local- or remote-DNS
+SOCKS5. Configured Basic proxy credentials follow the same bounded lifecycle as
+H1: an anonymous CONNECT, then at most one replay on a fresh proxy connection
+after a strict `407` Basic challenge.
+
+The origin must still advertise `SETTINGS_ENABLE_CONNECT_PROTOCOL`; without it
+the connection fails with a typed H2 error before CONNECT HEADERS are sent. A
+proxy rejection, SOCKS5 failure, or proxy ALPN mismatch is a terminal proxy
+error and never falls back to a direct connection or to an H1 Upgrade. `ws://`
+over H2 is rejected on every route before DNS, proxy, or origin I/O.
+
 ## Compression
 
 `PerMessageDeflate::new()` emits
@@ -180,8 +202,9 @@ parameters through the public typed templates. Named compression recipes,
 codec-output parity, and browser send-selection heuristics remain
 capture-driven profile work; the generic policy compresses every text and
 binary message after negotiation. H2 extended CONNECT is available for
-explicitly configured custom profiles with deterministic standards-level
-fixtures. It is not yet populated in named recipes.
+explicitly configured custom profiles, over direct and proxy routes, with
+deterministic standards-level fixtures. It is not yet populated in named
+recipes, and there are no browser captures of H2 WebSockets through a proxy.
 
 Retained Chrome 153, Edge 153, and Firefox 156 Windows captures
 ([Validation](validation.md#websocket-browser-evidence)) record extended-CONNECT
