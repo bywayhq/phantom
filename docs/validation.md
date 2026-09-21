@@ -38,8 +38,16 @@ error category, connection reuse, and bounded completion.
 
 Valid-but-unusual traffic may be compared with a retained browser run.
 Malformed traffic is a robustness test: safety and bounds take precedence over
-reproducing unsafe behavior. Minimized failures become ordinary regressions;
-fuzzing expands the corpus on a schedule.
+reproducing unsafe behavior. Minimized failures become ordinary regressions.
+
+The [parser fuzzing workflow](../.github/workflows/fuzz.yml) runs each target
+under AddressSanitizer for 15 seconds on relevant pull requests and pushes, and
+for 300 seconds on its weekly schedule or a manual dispatch. Every run starts
+from the newest per-target corpus restored from the GitHub Actions cache; only
+scheduled runs save a grown corpus back. The corpus is therefore a cache that
+can expire or be evicted, not a reviewed, committed seed set, and a failing
+input is kept only as a short-lived workflow artifact until it is minimized
+into a regression.
 
 ## Ordered request-trailer evidence
 
@@ -84,8 +92,10 @@ final origin response.
 
 This evidence does not claim browser-capture fidelity, redirects, negotiated
 H1/H2 forwarding, H2 proxy transport, other authentication schemes, forwarding
-an HTTPS origin, or H3 through an HTTP forward proxy. H3's separate SOCKS5 UDP
-evidence is described below.
+an HTTPS origin, or H3 through an HTTP forward proxy. The HTTP/2 proxy
+transport has separate CONNECT regressions for H1 and H2 origins in
+`crates/phantom/tests/proxy_h2.rs`, including rejection of plaintext
+forwarding before I/O. H3's separate SOCKS5 UDP evidence is described below.
 
 The WebSocket route regressions apply the same contract to plaintext `ws://`
 Upgrade through plaintext and TLS-encrypted forward proxies. They assert the
@@ -133,9 +143,15 @@ exchanges, fixed IPv4 and IPv6 target headers, zero RSV and FRAG fields, and
 fragment rejection. The adapter bounds operation to one datagram per send or
 receive and accepts only packets from the negotiated relay carrying the
 configured target; malformed, fragmented, spoofed-relay, wrong-domain, or
-wrong-port datagrams are discarded by that boundary. Relay-reply tests cover the
-compatibility rule that
-substitutes only the established TCP proxy peer IP for an unspecified
+wrong-port datagrams are discarded by that boundary. The spoofed-relay case is
+`datagram_from_a_non_relay_source_is_dropped` in
+`crates/phantom-net/src/proxy/tests/socks5_udp.rs`, which sends a well-formed
+datagram from a second loopback socket and proves that only the relay's next
+datagram is delivered; codec and receive-policy unit tests in
+`crates/phantom-net/src/proxy/socks5_udp.rs` cover fragments, truncation,
+wrong domains and ports, and IPs other than a local-DNS route's fixed target.
+Relay-reply tests cover the compatibility rule
+that substitutes only the established TCP proxy peer IP for an unspecified
 BND.ADDR, and rejection of domain BND.ADDR or a zero BND.PORT. Remote-target
 tests cover exact-domain replies, case-insensitive domain comparison,
 same-port IP-form replies, and a stable logical Quinn peer.
@@ -219,9 +235,19 @@ H1/H2 loopback regressions prove a refused connect is retried before ALPN, TLS
 failure is terminal, the retry delay releases the connection lock, pre-selection
 admission is bounded, the budget is shared across redirects, and one-shot
 bodies are not polled before the retry.
-Live H3 recovery is not claimed: H3 coverage currently consists of the typed
-QUIC classification table, shared acquisition lifecycle tests, static pool
-wiring review, and the workspace gates.
+
+Exact-H3 loopback regressions in `crates/phantom/tests/http3_retries.rs`
+recover from a refused setup through the public client. A direct QUIC
+handshake refused with `CONNECTION_REFUSED` fails without a policy and
+succeeds with one retry. Over local-DNS SOCKS5, a refused proxy TCP connect is
+retried and the proxy is started only after the refusal is observed, and a
+QUIC handshake refused through an established UDP association is retried
+through a second association with a different relay address after the first
+has closed. Each successful response reports one setup retry. CONNECT-UDP
+evidence is narrower: an unresolvable outer proxy consumes the whole budget,
+and proxy rejection and inner TLS failure are terminal, but recovery after a
+CONNECT-UDP retry is not exercised. Remote-DNS SOCKS5 H3 and DNS or local
+endpoint failures share the same classification but have no recovery test.
 
 These tests prove lifecycle and routing behavior, not browser retry policy.
 Retries are caller-configured and do not become part of a named browser recipe.
@@ -330,6 +356,17 @@ after a decode failure; and the total deadline over buffered input.
 
 Browser behavior was read from Chromium and Firefox source and informs only
 the documented divergences; no browser-parity claim is made.
+
+## Response-body limit evidence
+
+`ResponseBody::collect_with_limit` shares one protocol-independent counter.
+Unit tests cover the inclusive bound and arithmetic overflow, a public H1
+loopback test accepts a body exactly at the limit and rejects one byte more,
+and H1 content-decoding tests cover the decoded-byte cap and decoded bytes
+counted by `collect_with_limit`. No public H2 or H3 test exceeds either limit;
+H2 and H3 bodies are only collected within them. Stopping an oversized H2 or H3
+body relies on the ordinary body-drop path, whose stream cancellation is
+covered separately by H2 and H3 admission, drop, and timeout regressions.
 
 ## WebSocket browser evidence
 
@@ -517,22 +554,39 @@ External projects are witnesses, not pass badges:
 | Autobahn | Exercise the public WebSocket client and turn failures into focused regressions |
 | QUIC Interop Runner | Exercise the public H3 client against an independent server |
 | Web Platform Tests | Check selected EventSource behavior through Phantom's API |
-| curl scenarios | Source mature lifecycle, proxy, redirect, and timeout cases |
 | TLS-Anvil and BoringSSL tests | Probe TLS behavior and native dependency updates |
 
-Server-oriented h2spec and h3spec cases inform hostile client-peer tests; they
+Each row has its own workflow under [`.github/workflows/`](../.github/workflows/).
+
+Some sources are consulted rather than run. curl's test scenarios are a
+reference for lifecycle, proxy, redirect, and timeout cases that become
+Phantom's own deterministic regressions; no curl suite runs in CI. Likewise,
+server-oriented h2spec and h3spec cases inform hostile client-peer tests; they
 are not reported as client conformance.
 
 ## Diagnostics and performance
 
 Tracing uses static fields and bounded values. It must not record headers,
 cookies, credentials, payloads, certificates, endpoint names, or raw secrets.
-H3 qlog and NSS key logging are explicit, bounded, default-off paths.
+H3 qlog and NSS key logging are explicit, bounded, default-off paths. They are
+Cargo features of the internal crates (`phantom-net/qlog` and
+`phantom-quic-btls/keylog`) used by capture tooling and tests; the
+`phantom-http` facade exposes neither feature nor an API for them.
 
-Benchmarks state exactly what they measure. Current deterministic replays cover
-connector construction and public H1/H2 request paths, not TLS handshakes or
-end-to-end throughput. Optimization follows profiling and must preserve wire
-fixtures.
+Benchmarks state exactly what they measure. The
+[benchmark report workflow](../.github/workflows/benchmarks.yml) runs weekly or
+on demand on one Linux runner and uploads Criterion output; it is
+report-only, with no baseline comparison or regression threshold. It covers:
+
+- `phantom-net`'s `transport` bench: Chrome 152 TLS connector construction and
+  H1/H2 request/response exchanges replayed over an in-memory stream (a warm
+  reused H1 response head, a 12-field H1 head, 64 KiB H1 content-length and
+  chunked bodies, a 12-field H2 head, and a 64 KiB H2 streaming body); and
+- the vendored `tungstenite` `deflate` bench.
+
+Nothing measures the `phantom-http` facade, pools, TLS or QUIC handshakes,
+H3, real sockets, or end-to-end throughput. Optimization follows profiling and
+must preserve wire fixtures.
 
 ## Contributor gates
 
