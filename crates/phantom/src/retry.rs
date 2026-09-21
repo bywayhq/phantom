@@ -166,7 +166,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn retry_budget_is_shared_and_bounded() -> Result<(), RequestError> {
+    async fn one_retry_recovers_a_single_refused_setup() -> Result<(), RequestError> {
         let policy = RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::ZERO);
         let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
         let budget = crate::timeout::TimeoutBudget::new(RequestTimeouts::default())?;
