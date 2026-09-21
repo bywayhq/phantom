@@ -190,20 +190,222 @@ impl Http2TlsConnector {
         target: OriginForm,
         headers: Vec<RequestHeader>,
     ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
-        self.http2.validate().map_err(Http2Error::InvalidSettings)?;
-        let client = translate_extended_connect_settings(&self.http2)?;
-        validate_extended_connect(authority, &target, &headers)?;
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
         let stream = connect_tcp(host, port).await.map_err(|error| match error {
             DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
             DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
         })?;
-        let connection = self
-            .connect_prepared_extended(stream, server_name, client)
-            .await?;
-        connection
-            .send_extended_connect(authority, target, headers)
+        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
             .await
-            .map_err(Into::into)
+    }
+
+    /// Opens one WebSocket extended CONNECT stream through a plaintext HTTP
+    /// CONNECT proxy.
+    ///
+    /// Extended CONNECT and proxy CONNECT validation complete before proxy
+    /// DNS or TCP I/O. Proxy failure never falls back to a direct connection
+    /// or another HTTP protocol, and the origin must still advertise
+    /// `SETTINGS_ENABLE_CONNECT_PROTOCOL` before CONNECT HEADERS are sent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_direct`]
+    /// does, or a proxy error when the tunnel cannot be established.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream =
+            connect_http_tunnel_direct(proxy_host, proxy_port, connect_authority, connect_headers)
+                .await?;
+        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
+            .await
+    }
+
+    /// Opens one WebSocket extended CONNECT stream through a plaintext proxy
+    /// using challenge-driven Basic authentication.
+    ///
+    /// The anonymous CONNECT may be replayed once, with credentials, on a
+    /// fresh proxy connection after a strict Basic `407` challenge.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_http_connect`]
+    /// does.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream = connect_http_tunnel_direct_with_basic_auth(
+            proxy_host,
+            proxy_port,
+            connect_authority,
+            connect_headers,
+            credentials,
+        )
+        .await?;
+        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
+            .await
+    }
+
+    /// Opens one WebSocket extended CONNECT stream through an HTTPS proxy.
+    ///
+    /// The proxy connector's protocol selects HTTP/1.1 or HTTP/2 CONNECT to
+    /// the proxy; the origin leg is always exact HTTP/2 over its own TLS
+    /// session inside the tunnel.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_http_connect`]
+    /// does.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_https_connect(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream = proxy_connector
+            .connect_tunnel(
+                proxy_host,
+                proxy_port,
+                proxy_server_name,
+                connect_authority,
+                connect_headers,
+            )
+            .await?;
+        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
+            .await
+    }
+
+    /// Opens one WebSocket extended CONNECT stream through an HTTPS proxy
+    /// using challenge-driven Basic authentication.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_http_connect`]
+    /// does.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream = proxy_connector
+            .connect_tunnel_with_basic_auth(
+                proxy_host,
+                proxy_port,
+                proxy_server_name,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
+            .await
+    }
+
+    /// Opens one WebSocket extended CONNECT stream through a SOCKS5 proxy
+    /// that resolves the target name.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_direct`]
+    /// does, or a SOCKS5 error when the tunnel cannot be established.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream = connect_socks5_tunnel_direct_with_auth(
+            proxy_host,
+            proxy_port,
+            target_host,
+            target_port,
+            auth,
+        )
+        .await?;
+        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
+            .await
+    }
+
+    /// Opens one WebSocket extended CONNECT stream through a SOCKS5 proxy
+    /// after resolving the target locally.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_direct`]
+    /// does, or a SOCKS5 error when the tunnel cannot be established.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream = connect_socks5_tunnel_local_with_auth(
+            proxy_host,
+            proxy_port,
+            target_host,
+            target_port,
+            auth,
+        )
+        .await?;
+        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
+            .await
     }
 
     /// Establishes HTTP/2 through a plaintext HTTP CONNECT proxy.
@@ -949,6 +1151,40 @@ impl Http2TlsConnector {
             .await?;
         Span::current().record("status", response.status().as_u16());
         Ok(response)
+    }
+
+    /// Validates settings and the extended CONNECT request before any I/O.
+    fn prepare_extended_connect(
+        &self,
+        authority: &str,
+        target: &OriginForm,
+        headers: &[RequestHeader],
+    ) -> Result<::http2::client::Builder, Http2TlsError> {
+        self.http2.validate().map_err(Http2Error::InvalidSettings)?;
+        let client = translate_extended_connect_settings(&self.http2)?;
+        validate_extended_connect(authority, target, headers)?;
+        Ok(client)
+    }
+
+    async fn send_prepared_extended_connect<S>(
+        &self,
+        stream: S,
+        server_name: &str,
+        client: ::http2::client::Builder,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        let connection = self
+            .connect_prepared_extended(stream, server_name, client)
+            .await?;
+        connection
+            .send_extended_connect(authority, target, headers)
+            .await
+            .map_err(Into::into)
     }
 
     async fn connect_prepared<S>(
