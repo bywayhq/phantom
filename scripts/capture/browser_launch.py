@@ -152,11 +152,20 @@ class LaunchedBrowser:
 
     def __enter__(self) -> LaunchedBrowser:
         self.profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
+        try:
+            self.process = self._start(self.profile)
+        except BaseException:
+            shutil.rmtree(self.profile, ignore_errors=True)
+            self.profile = None
+            raise
+        return self
+
+    def _start(self, profile: Path) -> subprocess.Popen[bytes]:
         if self.plan.browser == "firefox":
-            (self.profile / "user.js").write_text(firefox_user_js(), encoding="utf-8")
+            (profile / "user.js").write_text(firefox_user_js(), encoding="utf-8")
         arguments = browser_arguments(
             self.plan.browser,
-            self.profile,
+            profile,
             self.url,
             headless=self.plan.headless,
             extra=self.plan.extra_arguments,
@@ -164,14 +173,13 @@ class LaunchedBrowser:
         options: dict[str, object] = {}
         if sys.platform != "win32":
             options["start_new_session"] = True
-        self.process = subprocess.Popen(
+        return subprocess.Popen(
             [str(self.plan.executable), *arguments],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             **options,
         )
-        return self
 
     def __exit__(self, *_: object) -> None:
         try:

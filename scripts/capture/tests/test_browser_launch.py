@@ -1,4 +1,5 @@
 import shlex
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -89,6 +90,18 @@ class BrowserLaunchTests(unittest.TestCase):
     def test_process_launch_requires_an_executable(self) -> None:
         with self.assertRaises(ValueError):
             LaunchedBrowser(LaunchPlan("chrome", None, headless=True), URL)
+
+    def test_failed_launch_removes_the_temporary_profile(self) -> None:
+        before = set(Path(tempfile.gettempdir()).glob("phantom-capture-profile-*"))
+        missing = Path(tempfile.gettempdir()) / "phantom-missing-browser.exe"
+        browser = LaunchedBrowser(LaunchPlan("firefox", missing, headless=True), URL)
+
+        with self.assertRaises(OSError), browser:
+            pass
+
+        self.assertIsNone(browser.profile)
+        after = set(Path(tempfile.gettempdir()).glob("phantom-capture-profile-*"))
+        self.assertEqual(after, before)
 
 
 if __name__ == "__main__":
