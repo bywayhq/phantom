@@ -1,4 +1,5 @@
-//! Exact HTTP/3 over RFC 9298 CONNECT-UDP (MASQUE) proxies.
+//! Exact HTTP/3 over RFC 9298 CONNECT-UDP (MASQUE) proxies reached over
+//! HTTP/3, HTTP/2 extended CONNECT, or HTTP/1.1 Upgrade.
 
 #[allow(dead_code)]
 #[path = "support/h3.rs"]
@@ -31,7 +32,7 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, RequestError, RequestErrorKind,
     RequestHeader, RetryPolicy, Route,
-    profile::{ClientProfile, Http3ClientSettings, Http3Setting, chromium},
+    profile::{ClientProfile, Http2PseudoHeader, Http3ClientSettings, Http3Setting, chromium},
 };
 use phantom_net::http3::{ConnectUdpError, ConnectUdpErrorKind};
 use tokio::{task::JoinHandle, time::timeout};
@@ -44,7 +45,9 @@ use tracing::{
 };
 
 use h3_support::server_endpoint;
-use masque_support::{MasqueProxy, ProxyMode, masque_client_settings};
+use masque_support::{
+    MasqueProxy, MasqueStreamProxy, ProxyMode, StreamLeg, StreamMode, masque_client_settings,
+};
 use tls_support::{TestIdentity, TestResult, tls_settings};
 use tracing_support::OutcomeSubscriber;
 
@@ -547,6 +550,526 @@ async fn connect_udp_diagnostics_exclude_payloads() -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let proxy =
+            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Relay).await?;
+        let route = ConnectUdpProxy::new(&proxy.template())?
+            .with_http1_transport()
+            .header(RequestHeader::new("X-Masque-Client", "phantom"));
+        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+
+        for path in ["/upgrade", "/reused"] {
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri(path))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), path);
+        }
+
+        let requests = proxy.requests();
+        let [request] = requests.as_slice() else {
+            return Err("proxy did not observe exactly one Upgrade request".into());
+        };
+        let expected = format!(
+            "GET /.well-known/masque/udp/127.0.0.1/{}/ HTTP/1.1\r\n\
+             Host: 127.0.0.1:{}\r\nConnection: Upgrade\r\nUpgrade: connect-udp\r\n\
+             Capsule-Protocol: ?1\r\nX-Masque-Client: phantom\r\n\r\n",
+            origin.address.port(),
+            proxy.address.port()
+        );
+        assert_eq!(request.head.as_deref(), Some(expected.as_bytes()));
+        assert_capsule_framing(&proxy.client_capsules())?;
+        assert_eq!(proxy.connections(), 1);
+        assert_eq!(origin.connections(), 1);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn exact_h3_completes_over_http2_extended_connect_leg() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let proxy =
+            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay).await?;
+        let route = ConnectUdpProxy::new(&proxy.template())?
+            .with_http2_transport()
+            .header(RequestHeader::new("x-masque-client", "phantom"));
+        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+
+        let response = client
+            .get(HttpProtocol::Http3, &origin.uri("/extended"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.into_body().collect().await?.to_bytes(),
+            "/extended"
+        );
+
+        let requests = proxy.requests();
+        let [request] = requests.as_slice() else {
+            return Err("proxy did not observe exactly one extended CONNECT".into());
+        };
+        assert_eq!(request.method, "CONNECT");
+        assert_eq!(request.protocol.as_deref(), Some("connect-udp"));
+        assert_eq!(request.scheme.as_deref(), Some("https"));
+        assert_eq!(
+            request.authority.as_deref(),
+            Some(format!("127.0.0.1:{}", proxy.address.port()).as_str())
+        );
+        assert_eq!(
+            request.path,
+            format!(
+                "/.well-known/masque/udp/127.0.0.1/{}/",
+                origin.address.port()
+            )
+        );
+        assert_eq!(
+            request.fields,
+            [
+                ("capsule-protocol".to_owned(), b"?1".to_vec()),
+                ("x-masque-client".to_owned(), b"phantom".to_vec()),
+            ]
+        );
+        assert_capsule_framing(&proxy.client_capsules())?;
+        assert_eq!(proxy.connections(), 1);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http2_leg_requires_the_proxy_extended_connect_setting() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let proxy = MasqueStreamProxy::spawn(
+            &proxy_identity,
+            StreamLeg::Http2,
+            StreamMode::WithoutExtendedConnect,
+        )
+        .await?;
+        let route = ConnectUdpProxy::new(&proxy.template())?.with_http2_transport();
+        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+
+        let error = client
+            .get(HttpProtocol::Http3, &origin.uri("/"))?
+            .send()
+            .await
+            .err()
+            .ok_or("HTTP/2 leg ignored the missing extended CONNECT setting")?;
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
+        assert_eq!(
+            connect_udp_kind(&error),
+            Some(ConnectUdpErrorKind::ExtendedConnectUnavailable)
+        );
+        assert!(proxy.requests().is_empty());
+        assert_eq!(origin.connections(), 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http2_leg_without_profile_extended_connect_order_fails_before_io() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let proxy =
+            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay).await?;
+        // The default HTTP/2 profile has no verified extended CONNECT order.
+        let client = client_builder(&origin_identity, &proxy_identity)
+            .route(Route::connect_udp(
+                ConnectUdpProxy::new(&proxy.template())?.with_http2_transport(),
+            ))
+            .build()?;
+
+        let error = client
+            .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+            .send()
+            .await
+            .err()
+            .ok_or("HTTP/2 leg without an extended CONNECT order was accepted")?;
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
+        assert_eq!(
+            connect_udp_kind(&error),
+            Some(ConnectUdpErrorKind::Configuration)
+        );
+        assert_eq!(proxy.connections(), 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http1_leg_requires_a_101_upgrade_response() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let proxy = MasqueStreamProxy::spawn(
+            &proxy_identity,
+            StreamLeg::Http1,
+            StreamMode::OkInsteadOfUpgrade,
+        )
+        .await?;
+        let route = ConnectUdpProxy::new(&proxy.template())?.with_http1_transport();
+        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+
+        let error = client
+            .get(HttpProtocol::Http3, &origin.uri("/"))?
+            .send()
+            .await
+            .err()
+            .ok_or("a 200 response opened an HTTP/1.1 CONNECT-UDP tunnel")?;
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
+        assert_eq!(
+            connect_udp_kind(&error),
+            Some(ConnectUdpErrorKind::Protocol)
+        );
+        assert_eq!(proxy.requests().len(), 1);
+        assert_eq!(origin.connections(), 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn tcp_leg_rejection_is_typed_with_status_without_fallback() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        for leg in [StreamLeg::Http1, StreamLeg::Http2] {
+            let proxy =
+                MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Reject(403)).await?;
+            let client = leg_client(
+                &origin_identity,
+                &proxy_identity,
+                leg_proxy(&proxy.template(), leg)?,
+            )?;
+
+            let error = client
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("rejected CONNECT-UDP request succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            let rejection = connect_udp_error(&error).ok_or("rejection lost its typed source")?;
+            assert_eq!(rejection.kind(), ConnectUdpErrorKind::Rejected, "{leg:?}");
+            assert_eq!(rejection.status(), Some(StatusCode::FORBIDDEN));
+            assert_eq!(proxy.requests().len(), 1);
+            assert_eq!(proxy.connections(), 1);
+        }
+        assert_eq!(origin.connections(), 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn proxy_alpn_mismatch_is_typed_without_protocol_fallback() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        for (leg, served_alpn) in [
+            (StreamLeg::Http1, tls_support::H2_ALPN),
+            (StreamLeg::Http2, tls_support::H1_ALPN),
+        ] {
+            // Each proxy speaks the other leg, so only ALPN can disagree.
+            let proxy = MasqueStreamProxy::spawn_with_alpn(
+                &proxy_identity,
+                match leg {
+                    StreamLeg::Http1 => StreamLeg::Http2,
+                    StreamLeg::Http2 => StreamLeg::Http1,
+                },
+                StreamMode::Relay,
+                served_alpn,
+            )
+            .await?;
+            let client = leg_client(
+                &origin_identity,
+                &proxy_identity,
+                leg_proxy(&proxy.template(), leg)?,
+            )?;
+
+            let error = client
+                .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+                .send()
+                .await
+                .err()
+                .ok_or("mismatched proxy ALPN was accepted")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(
+                connect_udp_kind(&error),
+                Some(ConnectUdpErrorKind::UnsupportedProtocol),
+                "{leg:?}"
+            );
+            assert!(proxy.requests().is_empty());
+            assert_eq!(proxy.connections(), 1);
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn basic_auth_replays_once_on_a_fresh_connection_for_each_leg() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let authorization = b"Basic cHJveHktdXNlcjpwcm94eS1zZWNyZXQ=".to_vec();
+
+        for leg in [StreamLeg::Http1, StreamLeg::Http2] {
+            let proxy =
+                MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Challenge).await?;
+            let route = leg_proxy(&proxy.template(), leg)?
+                .header(RequestHeader::new("x-masque-client", "phantom"))
+                .with_basic_auth("proxy-user", "proxy-secret")?;
+            let client = leg_client(&origin_identity, &proxy_identity, route)?;
+
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri("/authorized"))?
+                .send()
+                .await?;
+            assert_eq!(
+                response.into_body().collect().await?.to_bytes(),
+                "/authorized"
+            );
+            let requests = proxy.requests();
+            let [anonymous, authorized] = requests.as_slice() else {
+                return Err("proxy did not observe exactly one replay".into());
+            };
+            assert!(
+                !anonymous
+                    .fields
+                    .iter()
+                    .any(|(name, _)| name.eq_ignore_ascii_case("proxy-authorization")),
+                "{leg:?}"
+            );
+            let (name, value) = authorized.fields.last().ok_or("replay has no fields")?;
+            assert!(name.eq_ignore_ascii_case("proxy-authorization"), "{leg:?}");
+            assert_eq!(value, &authorization);
+            assert_eq!(proxy.connections(), 2, "{leg:?}");
+        }
+
+        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Challenge)?;
+        let route = ConnectUdpProxy::new(&proxy.template())?
+            .header(RequestHeader::new("x-masque-client", "phantom"))
+            .with_basic_auth("proxy-user", "proxy-secret")?;
+        let client = client_builder(&origin_identity, &proxy_identity)
+            .route(Route::connect_udp(route))
+            .build()?;
+        let response = client
+            .get(HttpProtocol::Http3, &origin.uri("/h3-authorized"))?
+            .send()
+            .await?;
+        assert_eq!(
+            response.into_body().collect().await?.to_bytes(),
+            "/h3-authorized"
+        );
+        let requests = proxy.requests();
+        let [anonymous, authorized] = requests.as_slice() else {
+            return Err("H3 proxy did not observe exactly one replay".into());
+        };
+        assert!(anonymous.sensitive.is_empty());
+        assert_eq!(
+            authorized.fields,
+            [
+                ("capsule-protocol".to_owned(), b"?1".to_vec()),
+                ("x-masque-client".to_owned(), b"phantom".to_vec()),
+                ("proxy-authorization".to_owned(), authorization.clone()),
+            ]
+        );
+        // QPACK carried the credential as a never-indexed literal.
+        assert_eq!(authorized.sensitive, ["proxy-authorization"]);
+        assert_eq!(proxy.connections(), 2);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn second_407_is_authentication_rejected_on_every_leg() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let mut outcomes = Vec::new();
+        for leg in [StreamLeg::Http1, StreamLeg::Http2] {
+            let proxy =
+                MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::AlwaysChallenge).await?;
+            let route = leg_proxy(&proxy.template(), leg)?.with_basic_auth("user", "wrong")?;
+            let client = leg_client(&origin_identity, &proxy_identity, route)?;
+            let error = client
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("second 407 was accepted")?;
+            outcomes.push((error, proxy.requests().len(), proxy.connections()));
+        }
+        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::AlwaysChallenge)?;
+        let route = ConnectUdpProxy::new(&proxy.template())?.with_basic_auth("user", "wrong")?;
+        let client = client_builder(&origin_identity, &proxy_identity)
+            .route(Route::connect_udp(route))
+            .build()?;
+        let error = client
+            .get(HttpProtocol::Http3, &origin.uri("/"))?
+            .send()
+            .await
+            .err()
+            .ok_or("second 407 was accepted over HTTP/3")?;
+        outcomes.push((error, proxy.requests().len(), proxy.connections()));
+
+        for (error, requests, connections) in outcomes {
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            let rejection =
+                connect_udp_error(&error).ok_or("authentication lost its typed source")?;
+            assert_eq!(rejection.kind(), ConnectUdpErrorKind::Authentication);
+            assert_eq!(
+                rejection.status(),
+                Some(StatusCode::PROXY_AUTHENTICATION_REQUIRED)
+            );
+            assert_eq!(requests, 2);
+            assert_eq!(connections, 2);
+        }
+        assert_eq!(origin.connections(), 0);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn challenge_without_credentials_is_a_407_rejection() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let proxy =
+            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Challenge)
+                .await?;
+        let route = ConnectUdpProxy::new(&proxy.template())?.with_http1_transport();
+        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+
+        let error = client
+            .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+            .send()
+            .await
+            .err()
+            .ok_or("challenge without credentials succeeded")?;
+        let rejection = connect_udp_error(&error).ok_or("rejection lost its typed source")?;
+        assert_eq!(rejection.kind(), ConnectUdpErrorKind::Rejected);
+        assert_eq!(
+            rejection.status(),
+            Some(StatusCode::PROXY_AUTHENTICATION_REQUIRED)
+        );
+        assert_eq!(proxy.requests().len(), 1);
+        assert_eq!(proxy.connections(), 1);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn authenticated_leg_diagnostics_exclude_credentials() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let proxy =
+            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Challenge)
+                .await?;
+        let route = ConnectUdpProxy::new(&proxy.template())?
+            .with_http1_transport()
+            .with_basic_auth("diagnostic-user", "diagnostic-secret")?;
+        assert!(!format!("{route:?}").contains("diagnostic"));
+        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+        let capture = FieldCapture::default();
+
+        let body = async {
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri("/diagnostics"))?
+                .send()
+                .await?;
+            Ok::<_, RequestError>(response.into_body().collect().await?.to_bytes())
+        }
+        .with_subscriber(capture.dispatch())
+        .await?;
+        assert_eq!(body, "/diagnostics");
+        assert!(!format!("{client:?}").contains("diagnostic-"));
+
+        assert_eq!(
+            capture.values("proxy.connect_udp", "proxy_leg"),
+            ["http/1.1"]
+        );
+        assert_eq!(
+            capture.values("proxy.connect_udp", "status"),
+            ["407", "101"]
+        );
+        assert_eq!(
+            capture.values("proxy.connect_udp", "authentication_retry"),
+            ["false", "true"]
+        );
+        assert_eq!(capture.values("proxy.connect_udp", "outcome"), ["accepted"]);
+        let recorded = capture.all_values();
+        for secret in ["diagnostic-user", "diagnostic-secret", "ZGlhZ25vc3RpYy"] {
+            assert!(
+                !recorded.iter().any(|value| value.contains(secret)),
+                "diagnostics recorded {secret}"
+            );
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// Every client capsule is a Context ID zero DATAGRAM capsule, and the first
+/// carries a full 1200-byte inner Initial.
+fn assert_capsule_framing(capsules: &[(u64, Option<u64>, usize)]) -> TestResult<()> {
+    let (_, _, first_len) = capsules.first().ok_or("client sent no capsules")?;
+    assert!(*first_len > 1200, "first capsule has {first_len} bytes");
+    assert!(
+        capsules
+            .iter()
+            .all(|(capsule_type, context, _)| *capsule_type == 0 && *context == Some(0)),
+        "{capsules:?}"
+    );
+    Ok(())
+}
+
+fn leg_proxy(template: &str, leg: StreamLeg) -> TestResult<ConnectUdpProxy> {
+    let proxy = ConnectUdpProxy::new(template)?;
+    Ok(match leg {
+        StreamLeg::Http1 => proxy.with_http1_transport(),
+        StreamLeg::Http2 => proxy.with_http2_transport(),
+    })
+}
+
+/// A client whose HTTP/2 profile can send extended CONNECT to a proxy.
+fn leg_client(
+    origin: &TestIdentity,
+    proxy: &TestIdentity,
+    route: ConnectUdpProxy,
+) -> TestResult<Client> {
+    let mut http2 = chromium::v152_http2();
+    http2.extended_connect_pseudo_header_order = Some(vec![
+        Http2PseudoHeader::Method,
+        Http2PseudoHeader::Protocol,
+        Http2PseudoHeader::Authority,
+        Http2PseudoHeader::Scheme,
+        Http2PseudoHeader::Path,
+    ]);
+    let profile = ClientProfile::new(tls_settings())
+        .with_http2(http2)
+        .with_http3(masque_client_settings());
+    Ok(Client::builder(profile)
+        .add_root_certificate_der(origin.root_der.clone())
+        .add_proxy_root_certificate_der(proxy.root_der.clone())
+        .route(Route::connect_udp(route))
+        .build()?)
 }
 
 fn identities() -> TestResult<(TestIdentity, TestIdentity)> {
