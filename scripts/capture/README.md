@@ -86,6 +86,75 @@ open each printed URL by hand.
 The tool does not observe connection refusals, which never reach a listener;
 reconnect after a network error is measured with resets instead.
 
+## WebSocket openings
+
+`http2_websocket.py` serves one WebSocket page per run and writes one
+`format=phantom-http2-websocket-v1` fixture per scenario. `http2_session.py`
+provides two loopback listeners: TLS for `server.phantom.test` with ALPN `h2`
+and `http/1.1` and a certificate generated for the capture, and plaintext
+HTTP/1.1. The H2 server advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL=1` unless
+a scenario omits it. Client bytes are recorded before any parser sees them:
+the ClientHello for the ALPN offer and SNI, then decrypted H2 or HTTP/1.1 bytes.
+
+The page opens `/echo`, sends the corpus (empty text, 1 B text, 100 B
+compressible text, 64 KiB xorshift32 binary with seed `0x5048414e`, and 1 MiB of
+`i % 251` bytes), waits for the echoes, and closes with 1000. It reports the
+close code, `wasClean`, and negotiated extensions to `/done`, which ends the run
+after `--observation` seconds.
+
+For each run the fixture keeps:
+
+- every connection with its listener, ALPN offer, SNI, negotiated protocol,
+  and client close time;
+- for H2, every frame in both directions in time order with SETTINGS pairs,
+  priority fields, error codes, and window increments, and every client header
+  block in hex with each HPACK representation (`indexed`, `incremental`,
+  `without-indexing`, `never-indexed`, `size-update`), table or name index,
+  Huffman flags, and decoded field in order;
+- every HTTP/1.1 request line and header line in hex;
+- for each WebSocket, its outcome and extension offer and selection, then per
+  message the opcode, RSV1, frame payload lengths, compressed and decoded
+  length, and the matching corpus index. Masks are never retained.
+
+The tool refuses to write `cookie`, `authorization`, or `proxy-authorization`.
+
+| Scenario | Question |
+| --- | --- |
+| `accept` | CONNECT fields, representations, priority, and send policy |
+| `accept-deflate` | RSV1 and fragmentation with `permessage-deflate` accepted |
+| `no-connect-protocol` | Fallback connection ALPN offer and Upgrade lines |
+| `reject-403` | Stream termination and retry after `403` with a body |
+| `refused-stream` | Reaction to `RST_STREAM(REFUSED_STREAM)`; later openings are accepted |
+| `extension-mismatch` | Reaction to an unoffered extension in a `200` |
+| `fresh-origin` | ALPN offer when the WebSocket is the first connection to its origin |
+| `h1-accept`, `h1-accept-deflate` | Plaintext `ws://` opening lines and send policy |
+
+Chromium browsers receive `--host-resolver-rules`, the certificate's
+`--ignore-certificate-errors-spki-list` value, and `--disable-quic`. Firefox
+receives `network.dns.localDomains`, `network.dns.disableIPv6`, and
+`network.http.http3.enable=false` preferences, plus a `cert_override.txt` in its
+disposable profile; `--firefox-skip-tls-trust` omits the override. Nothing is
+installed outside the temporary profile. Fixtures record these arguments,
+preferences, and profile file names.
+
+Capture Chrome on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
+  --with cryptography==50.0.1 python -m scripts.capture.http2_websocket \
+  --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 153.0.8010.48 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --scenario all --repeat 3 \
+  --output-dir fixtures/websocket/chrome/153.0.8010.48/windows-11-26200
+```
+
+Use `--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`
+or `--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe"`
+for the other retained captures. The tool refuses other `h2` and `hpack`
+versions.
+
 ## HTTP/3 startup
 
 `chrome_http3.py` records one browser HTTP/3 startup against an aioquic

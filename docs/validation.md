@@ -267,6 +267,56 @@ after a decode failure; and the total deadline over buffered input.
 Browser behavior was read from Chromium and Firefox source and informs only
 the documented divergences; no browser-parity claim is made.
 
+## WebSocket browser evidence
+
+`fixtures/websocket/` retains WebSocket openings from headless Chrome
+153.0.8010.48, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
+(10.0.26200), recorded with `scripts/capture/http2_websocket.py`. Each of nine
+scenarios ran three times on a fresh profile against loopback listeners: TLS
+for `server.phantom.test` (ALPN `h2` and `http/1.1`, a throwaway certificate)
+and plaintext HTTP/1.1. The page sends a fixed corpus (empty text, 1 B text,
+100 B compressible text, 64 KiB seeded random binary, 1 MiB patterned binary)
+and closes with 1000 after the echoes return.
+
+Fixtures keep the ClientHello ALPN offer per connection, every H2 frame in
+both directions with ordered details, each client HPACK block in hex with every
+representation and decoded field in order, H1 opening lines in hex, and per
+message the opcode, RSV1, frame payload lengths, and decoded corpus match.
+Masks and payload bytes are not retained. Chromium trusts the certificate
+through `--ignore-certificate-errors-spki-list`; Firefox trusts it through a
+`cert_override.txt` written only into its disposable profile. Both are recorded
+with the launch arguments.
+
+| Behavior | Chrome 153 and Edge 153 | Firefox 156 |
+| --- | --- | --- |
+| WebSocket on the page's H2 session with the setting | Extended CONNECT | Extended CONNECT; also opens a second H2 connection and closes it with `GOAWAY(NO_ERROR)` |
+| First connection to the origin is the WebSocket | New TLS connection offering only `http/1.1`; HTTP/1.1 Upgrade | New TLS connection offering `h2,http/1.1`; extended CONNECT |
+| Peer omits `SETTINGS_ENABLE_CONNECT_PROTOCOL` | New connection offering only `http/1.1`; HTTP/1.1 Upgrade | Same |
+| CONNECT pseudo-field order | `:method`, `:authority`, `:scheme`, `:path`, `:protocol` | `:method`, `:path`, `:authority`, `:scheme`, `:protocol` |
+| CONNECT HEADERS priority | Exclusive, parent 0, weight 147 | Non-exclusive, parent 0, weight 22 |
+| Extension offer | `permessage-deflate; client_max_window_bits` | `permessage-deflate` |
+| `403` with a body | `RST_STREAM(CANCEL)`; no retry or fallback | No stream reset within 1.5 s; `GOAWAY(NO_ERROR)` on the page session |
+| `RST_STREAM(REFUSED_STREAM)` | Same fields retried on the next stream about 1 ms later | No retry; close code 1006 |
+| Unoffered extension selected | `RST_STREAM(CANCEL)`; close code 1006 | No stream reset within 1.5 s; close code 1006 |
+| RSV1 after deflate is accepted | Every message, including the empty one | Every message except the empty one |
+| Fragmentation | One frame per message up to 64 KiB; the uncompressed 1 MiB message split into 9 to 20 frames at boundaries that varied between runs; compressed messages unfragmented | One frame per message |
+
+Chromium sends no `sec-websocket-key`, fetch metadata, or client hints on H2
+CONNECT. Its HPACK encoder sends `:method`, `:path`, and `:protocol` without
+indexing. Firefox H2 CONNECT adds fetch metadata (and
+`sec-fetch-storage-access` from a cross-site page) and follows it with a stream
+`WINDOW_UPDATE`. Both compress a 64 KiB random message even though the output
+grows to 65,558 bytes. The HTTP/1.1 opening-field order differs by family and
+is retained verbatim; Chromium sends `Connection: Upgrade` second, Firefox
+sends it tenth with `Upgrade` last.
+
+Chromium opens idle speculative connections that never send a request; they
+remain in the fixtures. In one Chrome `refused-stream` run the page session
+closed before the socket opened, so that run used the `http/1.1`-only path
+instead of a refused stream. Firefox 156.0 is the build the machine had
+updated to; no Firefox 155 WebSocket capture is retained. These captures do not
+cover subprotocols, H3, proxies, macOS, or Safari.
+
 ## External suites
 
 External projects are witnesses, not pass badges:
