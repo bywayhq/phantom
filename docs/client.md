@@ -59,8 +59,8 @@ Pool and client-hint limits have finite defaults and can be tightened on
 - `get_negotiated` and `request_negotiated` perform one direct TLS handshake
   and select H2 for `h2`, or H1 for `http/1.1` or absent ALPN. With bounded
   Alt-Svc enabled, a later negotiated request can select a learned H3 endpoint.
-- H3 uses a separate QUIC path and accepts direct routes or local-/remote-DNS
-  SOCKS5 through RFC 1928 UDP ASSOCIATE.
+- H3 uses a separate QUIC path and accepts direct routes, local-/remote-DNS
+  SOCKS5 through RFC 1928 UDP ASSOCIATE, or an RFC 9298 CONNECT-UDP proxy.
 
 Unsupported combinations fail explicitly before another protocol or route is
 attempted.
@@ -250,9 +250,34 @@ only the established TCP proxy peer IP and retains the returned port. Domain
 relay addresses are rejected. Remote-DNS replies may identify the target by
 the exact canonical domain or by a same-port IP, while Quinn sees one stable
 logical peer and authenticates the QUIC connection. Exact H3 rejects HTTP
-forwarding and HTTP CONNECT before origin I/O. CONNECT-UDP/MASQUE and extended
-CONNECT remain planned. Proxy credentials are validated before I/O and excluded
-from diagnostics.
+forwarding and HTTP CONNECT before origin I/O. WebSocket over H3 extended
+CONNECT remains planned. Proxy credentials are validated before I/O and
+excluded from diagnostics.
+
+`Route::connect_udp` sends exact H3 through an RFC 9298 CONNECT-UDP (MASQUE)
+proxy. `ConnectUdpProxy::new` takes an `https` URI template that must contain
+`{target_host}` and `{target_port}` and must not contain user information or a
+fragment; `.header` appends ordered CONNECT-UDP request fields. Each inner
+connection opens its own outer H3 connection to the proxy, authenticated with
+the proxy trust roots, and the inner connection keeps origin trust and
+identity. The outer profile must support HTTP/3 Datagrams large enough for a
+full 1200-byte QUIC Initial, or the request fails before I/O. HTTP/1.1, HTTP/2,
+negotiated requests, and WebSocket reject this route before I/O. Only outer
+proxy resolution and connection failures are retryable, and a proxy rejection
+exposes its status through the typed error source. See
+[HTTP/3 internals](http3.md#connect-udp-masque) for the protocol contract.
+
+```rust
+use phantom::{ConnectUdpProxy, RequestHeader, Route};
+
+fn masque_route() -> Result<Route, Box<dyn std::error::Error>> {
+    let proxy = ConnectUdpProxy::new(
+        "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/",
+    )?
+    .header(RequestHeader::new("x-client", "phantom"));
+    Ok(Route::connect_udp(proxy))
+}
+```
 
 The credential-bearing route below works for either an HTTPS origin through
 CONNECT or an `http://` origin through exact-H1 forwarding. In both cases Basic
@@ -274,8 +299,9 @@ route then supports HTTPS origins only.
 
 Add private DER roots with `add_root_certificate_der`; use
 `add_proxy_root_certificate_der` for an HTTPS proxy, including a TLS-encrypted
-forward proxy. The proxy and origin trust stores are independent. Certificate
-and hostname verification remain enabled by default.
+forward proxy and the outer connection of a CONNECT-UDP proxy. The proxy and
+origin trust stores are independent. Certificate and hostname verification
+remain enabled by default.
 
 ## Client-owned state
 
