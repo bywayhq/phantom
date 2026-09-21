@@ -410,8 +410,8 @@ impl Http3Connection {
         let (send, recv) = pending.into_streams()?;
         Ok(ConnectUdpExchange::Accepted {
             status,
-            send,
-            recv,
+            send: Box::new(send),
+            recv: Box::new(recv),
             flow,
         })
     }
@@ -458,10 +458,11 @@ pub(super) struct PeerExtensions {
 
 /// Final response to a CONNECT-UDP request.
 pub(super) enum ConnectUdpExchange {
+    // Boxed so the accepted exchange stays close in size to a rejection.
     Accepted {
         status: http::StatusCode,
-        send: RequestSendStream,
-        recv: RequestRecvStream,
+        send: Box<RequestSendStream>,
+        recv: Box<RequestRecvStream>,
         flow: DatagramFlow,
     },
     Rejected(http::StatusCode),

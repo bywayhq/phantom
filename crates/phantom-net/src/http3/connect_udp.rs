@@ -367,8 +367,8 @@ pub(super) async fn open(
 /// The CONNECT-UDP request stream, whose lifetime bounds the tunnel
 /// (RFC 9298 section 3.1).
 struct TunnelStream {
-    send: RequestSendStream,
-    recv: RequestRecvStream,
+    send: Box<RequestSendStream>,
+    recv: Box<RequestRecvStream>,
     capsules: CapsuleDecoder,
     ended: Option<TunnelEnd>,
 }
