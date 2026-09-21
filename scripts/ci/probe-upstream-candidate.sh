@@ -131,6 +131,7 @@ workspace_gates() {
   cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
   cargo test -p phantom-net --all-features --locked alps
   cargo test -p phantom-net --all-features --locked exact_ech_grease_payload
+  cargo test -p phantom-net --all-features --locked ech_grease_aead
   cargo test -p phantom-net --all-features --locked \
     chromium_152_macos_matches_retained_client_hello
   cargo test -p phantom-testkit --all-features --locked \

@@ -4381,6 +4381,29 @@ impl SslRef {
         }
     }
 
+    /// Sets the HPKE AEAD identifiers from which a GREASE ECH extension selects
+    /// its cipher suite.
+    ///
+    /// Each handshake selects one identifier uniformly at random and keeps it
+    /// across a HelloRetryRequest. This does not enable ECH GREASE. Accepted
+    /// identifiers are `0x0001` (AES-128-GCM), `0x0002` (AES-256-GCM), and
+    /// `0x0003` (ChaCha20-Poly1305), each at most once. An empty list restores
+    /// BoringSSL's default, which selects AES-128-GCM when AES hardware is
+    /// available and ChaCha20-Poly1305 otherwise. A rejected list leaves the
+    /// previous configuration unchanged.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set1_ech_grease_aeads)]
+    pub fn set_ech_grease_aeads(&mut self, aead_ids: &[u16]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set1_ech_grease_aeads(
+                self.as_ptr(),
+                aead_ids.as_ptr(),
+                aead_ids.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
     /// Sets the compliance policy on `SSL`.
     #[corresponds(SSL_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {

@@ -215,7 +215,7 @@ assert_non_fips_item "$staged_wrapper/src/ssl/mod.rs" \
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
   'use std::sync::{Arc, Mutex};'
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
-  'use crate::ssl::{ExtensionType, Ssl, SslContext, SslMethod};'
+  'use crate::ssl::{ExtensionType, Ssl, SslContext, SslMethod, SslRef};'
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
   'fn ech_grease_payload_length() {'
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
@@ -224,6 +224,17 @@ assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
   'fn ech_grease_payload_must_be_nonempty_and_fit_the_extension_body() {'
 assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
   'fn capture_ech_grease_extension(payload_length: Option<usize>) -> Vec<u8> {'
+grep -F -q 'pub fn set_ech_grease_aeads' "$staged_wrapper/src/ssl/mod.rs"
+assert_non_fips_item "$staged_wrapper/src/ssl/mod.rs" \
+  'pub fn set_ech_grease_aeads(&mut self, aead_ids: &[u16]) -> Result<(), ErrorStack> {'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn ech_grease_uses_a_single_configured_aead() {'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn ech_grease_selects_every_configured_aead() {'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn ech_grease_aeads_reject_invalid_lists() {'
+assert_non_fips_item "$staged_wrapper/src/ssl/test/ech.rs" \
+  'fn capture_ech_grease_extension_with(configure: impl FnOnce(&mut SslRef)) -> Vec<u8> {'
 [[ ! -L "$staged_wrapper/README.md" ]]
 [[ $(git -C "$candidate_repo" status --porcelain) == "$candidate_status_before" ]]
 [[ -z $(find "$stage_tmp" -mindepth 1 -print -quit) ]]
@@ -432,6 +443,7 @@ grep -F -x -q \
 grep -F -q 'phantom-net --all-features --locked alps' "$command_log"
 grep -F -q 'phantom-net --all-features --locked exact_ech_grease_payload' \
   "$command_log"
+grep -F -q 'phantom-net --all-features --locked ech_grease_aead' "$command_log"
 grep -F -q 'browser_client_hello_fixtures' "$command_log"
 [[ -z $(git -C "$candidate_repo" status --porcelain) ]]
 [[ -z $(find "$probe_tmp" -mindepth 1 -print -quit) ]]

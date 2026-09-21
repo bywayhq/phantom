@@ -74,6 +74,14 @@ to BoringSSL's randomized policy. Firefox 154 on macOS 15.5 was captured with a
 281 bytes. The dependency fork adds an exact per-connection payload-length API;
 omitting it preserves BoringSSL's randomized policy.
 
+BoringSSL also fixes the ECH GREASE AEAD by host capability: AES-128-GCM when
+AES hardware is reported and ChaCha20-Poly1305 otherwise. Firefox 154 draws
+AES-128-GCM or ChaCha20-Poly1305 per connection with equal probability (359
+and 337 of 696 observed connections). The dependency fork adds a
+per-connection list of allowed HPKE AEADs; each handshake draws one uniformly
+with `RAND_bytes`, and a HelloRetryRequest reuses the first ClientHello's
+extension. An empty list preserves BoringSSL's hardware-based choice.
+
 The upstream record-size-limit patch advertised RFC 8449 without enforcing it.
 The dependency fork negotiates directional limits, applies them to the traffic-
 key epoch that produced each protected record, fragments outgoing handshake and
@@ -107,6 +115,14 @@ The patches are additive:
 - `src/ssl/test/ech.rs` proves 239 payload bytes produce a 281-byte extension
   body, the unset path retains BoringSSL's allowed randomized sizes, and an
   empty or oversized payload is rejected with a populated error stack.
+- `SslRef::set_ech_grease_aeads` exposes the fork's `SSL_set1_ech_grease_aeads`
+  without enabling ECH GREASE implicitly. It accepts HPKE AEAD identifiers
+  `0x0001`, `0x0002`, and `0x0003`, each at most once, and is excluded from
+  FIPS builds like the payload-length setter.
+- `src/ssl/test/ech.rs` proves each single configured AEAD reaches the wire,
+  32 connections configured with AES-128-GCM and ChaCha20-Poly1305 produce
+  both, and oversized, unknown, and repeated lists are rejected with a
+  populated error stack.
 - `SslContextBuilder::set_record_size_limit` and
   `SslRef::set_record_size_limit` expose checked, fallible RFC 8449 controls.
 - `src/ssl/test/patches.rs` proves range validation and bidirectional
@@ -141,8 +157,11 @@ The canonical machine-applicable wrapper changes are listed in
 They contain only wrapper APIs, documentation, and upstream-style tests;
 packaging changes remain separate. The dependency commit stores the native
 BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series: patch 0005
-implements RFC 8449, patch 0006 implements RFC 9345 client verification, and
-patch 0011 controls the ECH GREASE payload length. Every native patch owns the
+implements RFC 8449, patch 0006 implements RFC 9345 client verification,
+patch 0011 controls the ECH GREASE payload length, and patch 0012 selects the
+ECH GREASE AEAD from a configured list. Patch 0012 carries BoringSSL
+`ssl_test` coverage for the selection, the rejected inputs, and reuse of the
+choice across a HelloRetryRequest. Every native patch owns the
 generated prefix-symbol entries for the APIs it introduces. The dependency CI
 replays the complete patch order and rejects stale BoringSSL pregenerated files.
 
