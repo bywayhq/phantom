@@ -4,6 +4,7 @@ use std::{
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard},
     task::{Context, Poll, ready},
+    time::{Duration, Instant},
 };
 
 use quinn::{AsyncUdpSocket, UdpPoller, udp};
@@ -28,6 +29,7 @@ const MAX_UDP_PACKET_BYTES: usize = 65_507;
 const MAX_RECEIVED_DATAGRAM_BYTES: usize = 65_535;
 const MAX_PACKETS_PER_POLL: usize = 32;
 const REMOTE_VIRTUAL_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
+const SEND_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(60);
 
 /// One single-target SOCKS5 UDP association.
 ///
@@ -223,6 +225,7 @@ async fn establish_udp_association(
         target_header,
         receive_target,
         send_buffer: Mutex::new(Vec::with_capacity(MAX_UDP_PACKET_BYTES)),
+        last_send_error_log: Mutex::new(None),
         receive_buffer: Mutex::new(vec![0; MAX_RECEIVED_DATAGRAM_BYTES]),
     });
     Ok(Socks5UdpAssociation {
@@ -241,6 +244,7 @@ struct Socks5UdpSocket {
     target_header: Vec<u8>,
     receive_target: ReceiveTarget,
     send_buffer: Mutex<Vec<u8>>,
+    last_send_error_log: Mutex<Option<Instant>>,
     receive_buffer: Mutex<Vec<u8>>,
 }
 
@@ -280,12 +284,12 @@ impl AsyncUdpSocket for Socks5UdpSocket {
         packet.clear();
         packet.extend_from_slice(&self.target_header);
         packet.extend_from_slice(transmit.contents);
-        let sent = self.udp.try_send_to(&packet, self.relay)?;
-        if sent != packet.len() {
-            return Err(io::Error::new(
-                io::ErrorKind::WriteZero,
-                "SOCKS5 UDP relay accepted a partial datagram",
-            ));
+        let result = self.udp.try_send_to(&packet, self.relay);
+        let expected = packet.len();
+        drop(packet);
+        match relay_send_outcome(result, expected)? {
+            RelaySend::Sent => {}
+            RelaySend::Dropped(error) => self.log_dropped_send(&error),
         }
         Ok(())
     }
@@ -346,6 +350,40 @@ impl AsyncUdpSocket for Socks5UdpSocket {
 
     fn max_receive_segments(&self) -> usize {
         1
+    }
+}
+
+impl Socks5UdpSocket {
+    fn log_dropped_send(&self, error: &io::Error) {
+        let now = Instant::now();
+        let mut last = lock(&self.last_send_error_log);
+        if last.is_some_and(|last| now.saturating_duration_since(last) < SEND_ERROR_LOG_INTERVAL) {
+            return;
+        }
+        *last = Some(now);
+        tracing::warn!(%error, "dropped a SOCKS5 UDP datagram after a relay send error");
+    }
+}
+
+#[derive(Debug)]
+enum RelaySend {
+    Sent,
+    Dropped(io::Error),
+}
+
+/// Maps one relay send to Quinn's `AsyncUdpSocket::try_send` contract.
+///
+/// Like `quinn-udp`, only `WouldBlock` reaches Quinn. QUIC already recovers
+/// lost datagrams, while any other error would end the connection driver.
+fn relay_send_outcome(result: io::Result<usize>, expected: usize) -> io::Result<RelaySend> {
+    match result {
+        Ok(sent) if sent == expected => Ok(RelaySend::Sent),
+        Ok(_) => Ok(RelaySend::Dropped(io::Error::new(
+            io::ErrorKind::WriteZero,
+            "SOCKS5 UDP relay accepted a partial datagram",
+        ))),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock => Err(error),
+        Err(error) => Ok(RelaySend::Dropped(error)),
     }
 }
 
@@ -633,9 +671,10 @@ mod tests {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::{
-        DecodedUdpTarget, REMOTE_VIRTUAL_IP, ReceiveTarget, Socks5Auth, Socks5ErrorKind,
+        DecodedUdpTarget, REMOTE_VIRTUAL_IP, ReceiveTarget, RelaySend, Socks5Auth, Socks5ErrorKind,
         decode_udp_target, encode_udp_target, negotiate_authentication,
-        prepare_socks5_udp_remote_target, read_udp_associate_reply, write_udp_associate,
+        prepare_socks5_udp_remote_target, read_udp_associate_reply, relay_send_outcome,
+        write_udp_associate,
     };
 
     type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -791,6 +830,36 @@ mod tests {
             domain: b"origin.example",
             port: 443,
         }));
+    }
+
+    #[test]
+    fn relay_send_errors_drop_the_datagram_without_failing_quic() {
+        for kind in [
+            std::io::ErrorKind::ConnectionRefused,
+            std::io::ErrorKind::HostUnreachable,
+            std::io::ErrorKind::NetworkUnreachable,
+            std::io::ErrorKind::PermissionDenied,
+            std::io::ErrorKind::OutOfMemory,
+        ] {
+            let outcome = relay_send_outcome(Err(std::io::Error::from(kind)), 8);
+            assert!(
+                matches!(outcome, Ok(RelaySend::Dropped(ref error)) if error.kind() == kind),
+                "{kind:?} reached Quinn: {outcome:?}"
+            );
+        }
+        assert!(matches!(
+            relay_send_outcome(Ok(4), 8),
+            Ok(RelaySend::Dropped(ref error)) if error.kind() == std::io::ErrorKind::WriteZero
+        ));
+        assert!(matches!(relay_send_outcome(Ok(8), 8), Ok(RelaySend::Sent)));
+    }
+
+    #[test]
+    fn blocked_relay_send_is_reported_to_quinn() {
+        let outcome = relay_send_outcome(Err(std::io::ErrorKind::WouldBlock.into()), 8);
+        assert!(
+            matches!(outcome, Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock)
+        );
     }
 
     #[tokio::test]
