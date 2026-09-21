@@ -155,6 +155,38 @@ or `--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.e
 for the other retained captures. The tool refuses other `h2` and `hpack`
 versions.
 
+## Client hints
+
+`client_hints.py` serves two plaintext HTTP/1.1 navigations on a loopback
+origin per run and writes one `format=phantom-client-hints-v2` fixture. The
+first response carries `Accept-CH` for every user-agent client hint (override
+the list with `--accept-ch`) and replaces the page with the second
+navigation. Loopback HTTP origins are potentially trustworthy, so Chromium
+sends hints to them.
+
+For each run the fixture keeps both navigations' request field names in wire
+order and every `sec-ch-*` or requested field with its exact value. It then
+derives one ordered hint list in second-navigation order, marking a field
+`default` when the first navigation already carried it and `accept-ch`
+otherwise. Runs must agree exactly and a default hint must keep its value and
+relative order, or the tool writes nothing. It refuses to retain `cookie`,
+`authorization`, or `proxy-authorization`.
+
+Capture Chrome on Windows:
+
+```sh
+uv run --no-project --python 3.10 python -m scripts.capture.client_hints \
+  --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 153.0.8010.48 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --repeat 3 \
+  --output fixtures/client-hints/chrome/153.0.8010.48/windows-11-26200/navigation.txt
+```
+
+Use `--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`
+for Edge. Firefox sends no client hints and records an empty list.
+
 ## HTTP/3 startup
 
 `chrome_http3.py` records one browser HTTP/3 startup against an aioquic
