@@ -12,7 +12,8 @@ use tracing::{Dispatch, Instrument, Span, debug_span, dispatcher, instrument::Wi
 
 use super::super::{
     DatagramMonitor, DriverSignal, Http3Connection, Http3Error, Http3ErrorKind, RequestRecvStream,
-    RequestSendStream, SHUTDOWN_GRACE,
+    SHUTDOWN_GRACE,
+    upload::{RequestSend, UploadError},
 };
 use crate::shutdown_timer;
 
@@ -35,7 +36,7 @@ pub(super) struct BodyTask {
 
 impl BodyTask {
     pub(super) fn spawn(
-        send: RequestSendStream,
+        send: RequestSend,
         recv: RequestRecvStream,
         connection: Http3Connection,
         datagrams: Option<DatagramMonitor>,
@@ -103,7 +104,7 @@ impl BodyTask {
 }
 
 pub(super) fn defer_datagram_abort(
-    mut send: RequestSendStream,
+    mut send: RequestSend,
     mut recv: RequestRecvStream,
     connection: Http3Connection,
 ) {
@@ -127,7 +128,7 @@ enum ReceiveState {
 }
 
 async fn run(
-    mut send: RequestSendStream,
+    mut send: RequestSend,
     mut recv: RequestRecvStream,
     connection: Http3Connection,
     mut datagrams: Option<DatagramMonitor>,
@@ -152,6 +153,13 @@ async fn run(
                 finish(send, recv, &connection, DriverSignal::Cancelled);
                 return;
             }
+            uploaded = send.uploaded() => {
+                if let Some(error) = upload_failure(uploaded) {
+                    fail_upload(send, recv, &connection, &events, error).await;
+                    return;
+                }
+                continue;
+            }
             demand = demands.recv() => demand,
         };
         if demand.is_none() {
@@ -162,9 +170,9 @@ async fn run(
         }
 
         loop {
-            match state {
+            let interrupted = match state {
                 ReceiveState::Data => {
-                    match recv_data(&mut recv, &mut datagrams, &mut cancellation).await {
+                    match recv_data(&mut recv, &mut send, &mut datagrams, &mut cancellation).await {
                         Receive::Value(Ok(Some(data))) => {
                             if events
                                 .send(BodyEvent::Frame(Frame::data(data)))
@@ -178,28 +186,20 @@ async fn run(
                             }
                             break;
                         }
-                        Receive::Value(Ok(None)) => state = ReceiveState::Trailers,
-                        Receive::Value(Err(error)) => {
-                            send_error(&events, error.into()).await;
-                            finish(send, recv, &connection, DriverSignal::ProtocolError);
-                            return;
+                        Receive::Value(Ok(None)) => {
+                            state = ReceiveState::Trailers;
+                            continue;
                         }
-                        Receive::Datagram => {
-                            abort_for_datagram(&mut send, &mut recv, &events);
-                            wait_for_abort_grace().await;
-                            finish(send, recv, &connection, DriverSignal::ProtocolError);
-                            return;
-                        }
-                        Receive::Cancelled => {
-                            cancel(&mut send, &mut recv);
-                            wait_for_abort_grace().await;
-                            finish(send, recv, &connection, DriverSignal::Cancelled);
-                            return;
-                        }
+                        Receive::Value(Err(error)) => Interrupted::Stream(error),
+                        Receive::Interrupted(interrupted) => interrupted,
                     }
                 }
                 ReceiveState::Trailers => {
-                    match recv_trailers(&mut recv, &mut datagrams, &mut cancellation).await {
+                    match recv_trailers(&mut recv, &mut send, &mut datagrams, &mut cancellation)
+                        .await
+                    {
+                        // A complete response ends the exchange; dropping `send`
+                        // resets any unfinished upload (RFC 9114 section 4.1).
                         Receive::Value(Ok(Some(trailers))) => {
                             let _ = events
                                 .send(BodyEvent::Frame(Frame::trailers(trailers)))
@@ -212,23 +212,33 @@ async fn run(
                             finish(send, recv, &connection, DriverSignal::Complete);
                             return;
                         }
-                        Receive::Value(Err(error)) => {
-                            send_error(&events, error.into()).await;
-                            finish(send, recv, &connection, DriverSignal::ProtocolError);
-                            return;
-                        }
-                        Receive::Datagram => {
-                            abort_for_datagram(&mut send, &mut recv, &events);
-                            wait_for_abort_grace().await;
-                            finish(send, recv, &connection, DriverSignal::ProtocolError);
-                            return;
-                        }
-                        Receive::Cancelled => {
-                            cancel(&mut send, &mut recv);
-                            wait_for_abort_grace().await;
-                            finish(send, recv, &connection, DriverSignal::Cancelled);
-                            return;
-                        }
+                        Receive::Value(Err(error)) => Interrupted::Stream(error),
+                        Receive::Interrupted(interrupted) => interrupted,
+                    }
+                }
+            };
+            match interrupted {
+                Interrupted::Stream(error) => {
+                    send_error(&events, error.into()).await;
+                    finish(send, recv, &connection, DriverSignal::ProtocolError);
+                    return;
+                }
+                Interrupted::Datagram => {
+                    abort_for_datagram(&mut send, &mut recv, &events);
+                    wait_for_abort_grace().await;
+                    finish(send, recv, &connection, DriverSignal::ProtocolError);
+                    return;
+                }
+                Interrupted::Cancelled => {
+                    cancel(&mut send, &mut recv);
+                    wait_for_abort_grace().await;
+                    finish(send, recv, &connection, DriverSignal::Cancelled);
+                    return;
+                }
+                Interrupted::Upload(uploaded) => {
+                    if let Some(error) = upload_failure(uploaded) {
+                        fail_upload(send, recv, &connection, &events, error).await;
+                        return;
                     }
                 }
             }
@@ -236,21 +246,54 @@ async fn run(
     }
 }
 
+/// Classifies an upload that ended while the response was being received.
+///
+/// A peer STOP_SENDING ends only the upload: RFC 9114 section 4.1 lets a
+/// server abort reading the request and still send a complete response.
+fn upload_failure(uploaded: Result<(), UploadError>) -> Option<Http3Error> {
+    match uploaded {
+        Ok(()) | Err(UploadError::Stream(StreamError::RemoteTerminate { .. })) => None,
+        Err(UploadError::Body(error)) => Some(error),
+        Err(UploadError::Stream(error)) => Some(error.into()),
+    }
+}
+
+async fn fail_upload(
+    mut send: RequestSend,
+    mut recv: RequestRecvStream,
+    connection: &Http3Connection,
+    events: &mpsc::Sender<BodyEvent>,
+    error: Http3Error,
+) {
+    cancel(&mut send, &mut recv);
+    send_error(events, error).await;
+    wait_for_abort_grace().await;
+    finish(send, recv, connection, DriverSignal::Cancelled);
+}
+
 enum Receive<T> {
     Value(Result<T, StreamError>),
+    Interrupted(Interrupted),
+}
+
+enum Interrupted {
+    Stream(StreamError),
     Datagram,
     Cancelled,
+    Upload(Result<(), UploadError>),
 }
 
 async fn recv_data(
     stream: &mut RequestRecvStream,
+    send: &mut RequestSend,
     datagrams: &mut Option<DatagramMonitor>,
     cancellation: &mut watch::Receiver<()>,
 ) -> Receive<Option<Bytes>> {
     tokio::select! {
         biased;
-        () = wait_for_datagram(datagrams) => Receive::Datagram,
-        _ = cancellation.changed() => Receive::Cancelled,
+        () = wait_for_datagram(datagrams) => Receive::Interrupted(Interrupted::Datagram),
+        _ = cancellation.changed() => Receive::Interrupted(Interrupted::Cancelled),
+        uploaded = send.uploaded() => Receive::Interrupted(Interrupted::Upload(uploaded)),
         result = stream.recv_data() => Receive::Value(result.map(|data| {
             data.map(|mut data| data.copy_to_bytes(data.remaining()))
         })),
@@ -259,13 +302,15 @@ async fn recv_data(
 
 async fn recv_trailers(
     stream: &mut RequestRecvStream,
+    send: &mut RequestSend,
     datagrams: &mut Option<DatagramMonitor>,
     cancellation: &mut watch::Receiver<()>,
 ) -> Receive<Option<HeaderMap>> {
     tokio::select! {
         biased;
-        () = wait_for_datagram(datagrams) => Receive::Datagram,
-        _ = cancellation.changed() => Receive::Cancelled,
+        () = wait_for_datagram(datagrams) => Receive::Interrupted(Interrupted::Datagram),
+        _ = cancellation.changed() => Receive::Interrupted(Interrupted::Cancelled),
+        uploaded = send.uploaded() => Receive::Interrupted(Interrupted::Upload(uploaded)),
         result = stream.recv_trailers() => Receive::Value(result),
     }
 }
@@ -287,7 +332,7 @@ async fn wait_for_datagram(datagrams: &mut Option<DatagramMonitor>) {
 }
 
 fn abort_for_datagram(
-    send: &mut RequestSendStream,
+    send: &mut RequestSend,
     recv: &mut RequestRecvStream,
     events: &mpsc::Sender<BodyEvent>,
 ) {
@@ -307,13 +352,13 @@ fn abort_for_datagram(
     }
 }
 
-fn cancel(send: &mut RequestSendStream, recv: &mut RequestRecvStream) {
+fn cancel(send: &mut RequestSend, recv: &mut RequestRecvStream) {
     reset(send, recv, Code::H3_REQUEST_CANCELLED);
 }
 
-fn reset(send: &mut RequestSendStream, recv: &mut RequestRecvStream, code: Code) {
+fn reset(send: &mut RequestSend, recv: &mut RequestRecvStream, code: Code) {
     recv.stop_sending(code);
-    send.stop_stream(code);
+    send.reset(code);
 }
 
 async fn wait_for_abort_grace() {
@@ -326,7 +371,7 @@ async fn wait_for_abort_grace() {
 }
 
 fn finish(
-    send: RequestSendStream,
+    send: RequestSend,
     recv: RequestRecvStream,
     connection: &Http3Connection,
     signal: DriverSignal,

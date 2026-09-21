@@ -661,6 +661,18 @@ impl PendingRequest {
         Ok((send, recv))
     }
 
+    fn take_send(&mut self) -> Result<RequestSendStream, Http3Error> {
+        self.send.take().ok_or_else(driver_unavailable)
+    }
+
+    fn recv_mut(&mut self) -> Result<&mut RequestRecvStream, Http3Error> {
+        self.recv.as_mut().ok_or_else(driver_unavailable)
+    }
+
+    fn into_recv(mut self) -> Result<RequestRecvStream, Http3Error> {
+        self.recv.take().ok_or_else(driver_unavailable)
+    }
+
     fn into_streams(mut self) -> Result<(RequestSendStream, RequestRecvStream), Http3Error> {
         let send = self.send.take().ok_or_else(|| {
             Http3Error::without_source(
@@ -676,6 +688,13 @@ impl PendingRequest {
         })?;
         Ok((send, recv))
     }
+}
+
+fn driver_unavailable() -> Http3Error {
+    Http3Error::without_source(
+        Http3ErrorKind::Local,
+        "HTTP/3 request driver is unavailable",
+    )
 }
 
 impl Drop for PendingRequest {
@@ -700,6 +719,7 @@ mod extended_connect;
 mod qlog;
 mod request;
 mod settings;
+mod upload;
 
 #[cfg(test)]
 mod tests;

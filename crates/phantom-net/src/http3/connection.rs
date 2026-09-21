@@ -1,5 +1,6 @@
 use std::{
     future::poll_fn,
+    pin::pin,
     sync::{
         Arc,
         atomic::{AtomicU8, Ordering},
@@ -9,7 +10,6 @@ use std::{
 use bytes::Bytes;
 use h3::{ConnectionState, client::PeerSettings};
 use http::{Request, Response};
-use http_body_util::BodyExt as _;
 use tokio::{runtime::Handle, sync::Mutex};
 use tracing::{Instrument, debug_span, field};
 
@@ -18,13 +18,13 @@ use crate::accept_ch::AcceptCh;
 use super::{
     DatagramRouter, DriverSignal, DriverTask, Http3Body, Http3Error, Http3ErrorKind,
     Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol, PendingRequest,
-    RequestRecvStream, RequestSendStream, ResponseHeadError, body, receive_response,
+    RequestRecvStream, ResponseHeadError, body, driver_unavailable, receive_response,
     request::PreparedRequest,
+    upload::{RequestSend, UploadError},
 };
 use crate::request::RequestBody;
 
 type RequestSender = h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>;
-const REQUEST_BODY_CHUNK_BYTES: usize = 64 * 1024;
 
 /// Cloneable handle to one established HTTP/3 connection.
 ///
@@ -117,12 +117,7 @@ impl Http3Connection {
             let (request, body, trailers) = prepared.into_parts();
             let stream = {
                 let mut sender = self.inner.sender.lock().await;
-                let sender = sender.as_mut().ok_or_else(|| {
-                    Http3Error::without_source(
-                        Http3ErrorKind::Local,
-                        "HTTP/3 request driver is unavailable",
-                    )
-                })?;
+                let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
                 sender.send_request(request).await?
             };
             let stream_id = stream.id();
@@ -132,17 +127,22 @@ impl Http3Connection {
                 .datagrams
                 .as_ref()
                 .map(|router| router.monitor(stream_id));
-            let exchange_result = {
-                let (send, recv) = pending.streams_mut()?;
-                exchange(send, recv, body, trailers, datagrams.as_mut()).await
-            };
+            let mut send = RequestSend::stream(pending.take_send()?);
+            let exchange_result = exchange(
+                &mut send,
+                pending.recv_mut()?,
+                body,
+                trailers,
+                datagrams.as_mut(),
+            )
+            .await;
             let response = match exchange_result {
                 Ok(response) => response,
                 Err(ResponseHeadError::RequestBody(error)) => return Err(error),
                 Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
                 Err(ResponseHeadError::UnsupportedDatagram) => {
                     datagrams.take();
-                    let (send, recv) = pending.into_streams()?;
+                    let recv = pending.into_recv()?;
                     body::defer_datagram_abort(send, recv, self.clone());
                     return Err(Http3Error::without_source(
                         Http3ErrorKind::Protocol,
@@ -172,7 +172,7 @@ impl Http3Connection {
                     )
                 })?;
             parts.extensions.insert(ordered_headers);
-            let (send, recv) = pending.into_streams()?;
+            let recv = pending.into_recv()?;
             Ok(Response::from_parts(
                 parts,
                 Http3Body::new(send, recv, self.clone(), datagrams),
@@ -238,7 +238,7 @@ impl Http3Connection {
                 Err(ResponseHeadError::UnsupportedDatagram) => {
                     datagrams.take();
                     let (send, recv) = pending.into_streams()?;
-                    body::defer_datagram_abort(send, recv, self.clone());
+                    body::defer_datagram_abort(RequestSend::stream(send), recv, self.clone());
                     return Err(Http3Error::without_source(
                         Http3ErrorKind::Protocol,
                         "peer sent an HTTP Datagram for a request without datagram semantics",
@@ -282,7 +282,7 @@ impl Http3Connection {
                 send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
                 return Err(error.into());
             }
-            let body = Http3Body::new(send, recv, self.clone(), datagrams);
+            let body = Http3Body::new(RequestSend::stream(send), recv, self.clone(), datagrams);
             Ok(Http3ExtendedConnectOutcome::Rejected(Response::from_parts(
                 parts, body,
             )))
@@ -334,120 +334,36 @@ impl Http3Connection {
 }
 
 async fn exchange(
-    send: &mut RequestSendStream,
+    send: &mut RequestSend,
     recv: &mut RequestRecvStream,
     body: Option<RequestBody>,
     trailers: Option<super::request::PreparedTrailers>,
     datagrams: Option<&mut super::DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
     if body.is_none() && trailers.is_none() {
-        send.finish().await.map_err(ResponseHeadError::Stream)?;
+        if let RequestSend::Stream(stream) = send {
+            stream.finish().await.map_err(ResponseHeadError::Stream)?;
+        }
         return receive_response(recv, datagrams).await;
     }
 
-    let mut upload = Box::pin(send_body(send, body, trailers));
-    let mut response = Box::pin(receive_response(recv, datagrams));
-
+    send.start_upload(body, trailers);
+    let mut response = pin!(receive_response(recv, datagrams));
     tokio::select! {
         biased;
-        response = &mut response => {
-            drop(upload);
-            if response.is_ok() {
-                send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
-            }
-            response
-        }
-        upload_result = &mut upload => {
-            drop(upload);
-            match upload_result {
-                Ok(()) => response.await,
-                Err(UploadError::Body(error)) => {
-                    send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
-                    Err(ResponseHeadError::RequestBody(error))
-                }
-                Err(UploadError::Stream(upload_error)) => match response.await {
-                    Ok(response) => Ok(response),
-                    Err(ResponseHeadError::Stream(_)) => {
-                        Err(ResponseHeadError::Stream(upload_error))
-                    }
-                    Err(error) => Err(error),
-                },
-            }
-        }
+        // RFC 9114 section 4.1: a response can precede the end of the request.
+        // The upload stays in `send` and continues beside the response body.
+        response = &mut response => response,
+        uploaded = send.uploaded() => match uploaded {
+            Ok(()) => response.await,
+            Err(UploadError::Body(error)) => Err(ResponseHeadError::RequestBody(error)),
+            Err(UploadError::Stream(upload_error)) => match response.await {
+                Ok(response) => Ok(response),
+                Err(ResponseHeadError::Stream(_)) => Err(ResponseHeadError::Stream(upload_error)),
+                Err(error) => Err(error),
+            },
+        },
     }
-}
-
-async fn send_body(
-    send: &mut RequestSendStream,
-    body: Option<RequestBody>,
-    trailers: Option<super::request::PreparedTrailers>,
-) -> Result<(), UploadError> {
-    if let Some(mut body) = body {
-        while let Some(frame) = body.frame().await {
-            let frame = frame
-                .map_err(Http3Error::request_body)
-                .map_err(UploadError::Body)?;
-            let mut data = match frame.into_data() {
-                Ok(data) => data,
-                Err(frame) => {
-                    frame.into_trailers().map_err(|_| {
-                        UploadError::Body(Http3Error::without_source(
-                            Http3ErrorKind::Request,
-                            "HTTP/3 request body produced an unsupported frame",
-                        ))
-                    })?;
-                    let ordered = body.take_ordered_trailers().ok_or_else(|| {
-                        UploadError::Body(Http3Error::without_source(
-                            Http3ErrorKind::Request,
-                            "HTTP/3 request body omitted its ordered trailer values",
-                        ))
-                    })?;
-                    let trailers = super::request::PreparedTrailers::new(ordered)
-                        .map_err(UploadError::Body)?
-                        .ok_or_else(|| {
-                            UploadError::Body(Http3Error::without_source(
-                                Http3ErrorKind::Request,
-                                "HTTP/3 request body produced an empty trailer block",
-                            ))
-                        })?;
-                    let (fields, ordered) = trailers.into_parts();
-                    send.send_ordered_trailers(fields, ordered)
-                        .await
-                        .map_err(UploadError::Stream)?;
-                    return send.finish().await.map_err(UploadError::Stream);
-                }
-            };
-            if data.is_empty() {
-                send.send_data(data).await.map_err(UploadError::Stream)?;
-            } else {
-                while !data.is_empty() {
-                    let chunk_len = data.len().min(REQUEST_BODY_CHUNK_BYTES);
-                    send.send_data(data.split_to(chunk_len))
-                        .await
-                        .map_err(UploadError::Stream)?;
-                }
-            }
-        }
-    }
-    if let Some(trailers) = trailers {
-        let (fields, ordered) = trailers.into_parts();
-        send.send_ordered_trailers(fields, ordered)
-            .await
-            .map_err(UploadError::Stream)?;
-    }
-    send.finish().await.map_err(UploadError::Stream)
-}
-
-fn driver_unavailable() -> Http3Error {
-    Http3Error::without_source(
-        Http3ErrorKind::Local,
-        "HTTP/3 request driver is unavailable",
-    )
-}
-
-enum UploadError {
-    Body(Http3Error),
-    Stream(h3::error::StreamError),
 }
 
 impl std::fmt::Debug for Http3Connection {

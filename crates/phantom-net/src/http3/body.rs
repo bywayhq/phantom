@@ -11,11 +11,11 @@ use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
 use self::task::{BodyEvent, BodyTask};
 use super::{
     DatagramMonitor, Http3Connection, Http3Error, Http3ErrorKind, RequestRecvStream,
-    RequestSendStream,
+    upload::RequestSend,
 };
 
 pub(super) fn defer_datagram_abort(
-    send: RequestSendStream,
+    send: RequestSend,
     recv: RequestRecvStream,
     connection: Http3Connection,
 ) {
@@ -32,7 +32,7 @@ pub struct Http3Body {
 
 impl Http3Body {
     pub(super) fn new(
-        send: RequestSendStream,
+        send: RequestSend,
         recv: RequestRecvStream,
         connection: Http3Connection,
         datagrams: Option<DatagramMonitor>,
