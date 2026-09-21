@@ -64,7 +64,7 @@ fuzz failures into ordinary regressions.
 Run the primary gates from the repository root:
 
 ```console
-cargo fmt --all --check
+cargo fmt --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked

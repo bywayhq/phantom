@@ -9,6 +9,7 @@ members = [
 exclude = [
     "fuzz",
     "vendor/btls",
+    "vendor/h3",
     "vendor/http2",
     "vendor/quinn",
     "vendor/quinn-proto",

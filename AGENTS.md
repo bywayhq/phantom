@@ -61,7 +61,7 @@ Run the narrowest relevant checks while iterating, then the applicable gates
 from [CONTRIBUTING.md](CONTRIBUTING.md). The full integration gate is:
 
 ```sh
-cargo fmt --all --check
+cargo fmt --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
