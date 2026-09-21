@@ -22,6 +22,7 @@ use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
     authority::Endpoint,
+    error::is_unprocessed_http2,
     retry::{ConnectionSetupRetryState, acquire_with_retries},
 };
 
@@ -150,7 +151,11 @@ impl Http2Pool {
                     ));
                 }
                 Ok(Err(error)) => {
-                    if invalidates_connection(&error) {
+                    // An unprocessed replay must use another connection, so
+                    // one that refused a stream is retired when it is enabled.
+                    if invalidates_connection(&error)
+                        || (retries.replays_unprocessed_requests() && is_unprocessed_http2(&error))
+                    {
                         entry.invalidate(&lease.token).await;
                     }
                     if retryable_request && !retried_graceful_goaway && is_graceful_goaway(&error) {
@@ -163,7 +168,7 @@ impl Http2Pool {
                         continue;
                     }
                     drop(permit);
-                    return Err(RequestError::http2(error.into()));
+                    return Err(RequestError::http2_stream(error));
                 }
                 Err(error) => {
                     drop(permit);

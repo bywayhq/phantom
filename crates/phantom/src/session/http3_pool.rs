@@ -161,10 +161,15 @@ impl Http3Pool {
             }
             Ok(Err(error)) => {
                 drop(permit);
-                if !connector.can_reuse(&lease.connection).await {
+                let error = RequestError::http3_stream(error);
+                // An unprocessed replay must use another connection, so one
+                // that rejected a request is retired when it is enabled.
+                if !connector.can_reuse(&lease.connection).await
+                    || (retries.replays_unprocessed_requests() && error.is_unprocessed_request())
+                {
                     entry.invalidate(&lease.token).await;
                 }
-                Err(RequestError::http3(error))
+                Err(error)
             }
             Err(error) => {
                 drop(permit);

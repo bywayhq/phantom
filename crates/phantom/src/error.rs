@@ -3,7 +3,7 @@ use std::{error::Error as StdError, fmt};
 use phantom_net::{
     http1::{Http1Error, Http1TlsError, TlsErrorKind},
     http1_or_2::{Http1Or2TlsError, Http1Or2TlsErrorKind},
-    http2::{Http2Error, Http2TlsError},
+    http2::{Http2Error, Http2ProtocolErrorKind, Http2TlsError},
     http3::{
         ConnectUdpError, ConnectUdpErrorKind, Http3ConnectorError, Http3ConnectorErrorKind,
         Http3Error,
@@ -269,6 +269,8 @@ enum RequestRetryability {
     ConnectionSetup,
     /// A reused HTTP/1.1 connection closed before any response byte.
     ReusedConnectionClosed,
+    /// The HTTP/2 or HTTP/3 peer reported that it did not process the request.
+    Unprocessed,
 }
 
 impl RequestError {
@@ -643,6 +645,17 @@ impl RequestError {
         )
     }
 
+    /// Wraps a request-stream failure observed before any response head,
+    /// marking a peer's not-processed signal for unprocessed replay.
+    pub(crate) fn http2_stream(source: Http2Error) -> Self {
+        let unprocessed = is_unprocessed_http2(&source);
+        let mut error = Self::http2(source.into());
+        if unprocessed {
+            error.retryability = RequestRetryability::Unprocessed;
+        }
+        error
+    }
+
     pub(crate) fn http2_connection_setup(source: Http2TlsError) -> Self {
         let retryable = is_retryable_http2_connection_setup(&source);
         let mut error = Self::http2(source);
@@ -728,6 +741,19 @@ impl RequestError {
             "HTTP/3 request failed",
             source,
         )
+    }
+
+    /// Wraps a request failure observed before any response head, marking a
+    /// peer's not-processed signal for unprocessed replay.
+    pub(crate) fn http3_stream(source: Http3ConnectorError) -> Self {
+        let unprocessed = StdError::source(&source)
+            .and_then(|source| source.downcast_ref::<Http3Error>())
+            .is_some_and(|error| error.unprocessed().is_some());
+        let mut error = Self::http3(source);
+        if unprocessed {
+            error.retryability = RequestRetryability::Unprocessed;
+        }
+        error
     }
 
     pub(crate) fn http3_connection_setup(source: Http3ConnectorError) -> Self {
@@ -821,6 +847,13 @@ impl RequestError {
     /// response byte; method and body eligibility are checked by the caller.
     pub(crate) fn is_reused_connection_close(&self) -> bool {
         self.retryability == RequestRetryability::ReusedConnectionClosed
+    }
+
+    /// Returns whether the HTTP/2 or HTTP/3 peer reported that it did not
+    /// process the request; policy, budget, and body are checked by the
+    /// caller.
+    pub(crate) fn is_unprocessed_request(&self) -> bool {
+        self.retryability == RequestRetryability::Unprocessed
     }
 
     /// Returns the stable failure category.
@@ -936,6 +969,22 @@ fn body_error_kind(
         RequestErrorKind::RequestBody
     } else {
         protocol_kind
+/// Returns whether the peer reported that an HTTP/2 request was not processed.
+///
+/// RFC 9113, section 8.7: a stream reset with `REFUSED_STREAM` was closed
+/// before any processing, and streams above a `GOAWAY` last-stream-id were
+/// not processed (also section 6.8). The backend fails a request with a
+/// remote `GOAWAY` only for such a stream or one refused before it opened;
+/// processed streams end with a transport or locally initiated error.
+pub(crate) fn is_unprocessed_http2(error: &Http2Error) -> bool {
+    const REFUSED_STREAM: u32 = 0x7;
+    match error {
+        Http2Error::Protocol(error) if error.is_remote() => match error.kind() {
+            Http2ProtocolErrorKind::StreamReset => error.reason_code() == Some(REFUSED_STREAM),
+            Http2ProtocolErrorKind::ConnectionError => true,
+            _ => false,
+        },
+        _ => false,
     }
 }
 
@@ -1048,6 +1097,18 @@ mod tests {
             RequestError::http1_body(Http1Error::ConnectionClosed),
         ] {
             assert!(!error.is_reused_connection_close(), "{error:?}");
+        }
+    }
+
+    #[test]
+    fn local_http2_failures_are_not_unprocessed() {
+        for error in [
+            RequestError::http2_stream(Http2Error::RequestBodyClosed),
+            RequestError::http2_stream(Http2Error::RuntimeUnavailable),
+            RequestError::http2(Http2TlsError::Connect(io_error())),
+            RequestError::http1(Http1TlsError::Http1(Http1Error::ConnectionClosed)),
+        ] {
+            assert!(!error.is_unprocessed_request(), "{error:?}");
         }
     }
 

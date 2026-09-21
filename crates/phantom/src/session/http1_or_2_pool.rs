@@ -28,6 +28,7 @@ use super::{
 use crate::{
     HttpProtocol, RequestError, ResponseBody,
     authority::Endpoint,
+    error::is_unprocessed_http2,
     retry::{ConnectionSetupRetryState, acquire_unselected_with_retries},
     timeout::{TimeoutBudget, TimeoutPhase},
 };
@@ -115,6 +116,7 @@ impl Http1Or2Pool {
             trailers,
             client_hints,
         };
+        let retire_unprocessed = retries.replays_unprocessed_requests();
         let mut retried_graceful_goaway = false;
         let mut fresh_http1_connection = fresh_http1_connection;
 
@@ -139,12 +141,26 @@ impl Http1Or2Pool {
                 .await?;
             if !graceful_goaway_replayable || retried_graceful_goaway {
                 return entry
-                    .dispatch_on_lease(lease, permit, request, body, timeout_budget)
+                    .dispatch_on_lease(
+                        lease,
+                        permit,
+                        request,
+                        body,
+                        retire_unprocessed,
+                        timeout_budget,
+                    )
                     .await
                     .map_err(RequestError::from);
             }
             match entry
-                .dispatch_on_lease(lease, permit, request.clone(), None, timeout_budget)
+                .dispatch_on_lease(
+                    lease,
+                    permit,
+                    request.clone(),
+                    None,
+                    retire_unprocessed,
+                    timeout_budget,
+                )
                 .await
             {
                 Ok(response) => return Ok(response),
@@ -322,12 +338,16 @@ impl PoolEntry {
     }
 
     /// Phase three: dispatches the request on its admitted lease.
+    ///
+    /// `retire_unprocessed` retires an H2 connection that refused the stream,
+    /// so an unprocessed replay uses another connection.
     async fn dispatch_on_lease(
         &self,
         lease: ConnectionLease,
         permit: AdmissionPermit,
         request: NegotiatedRequest<'_>,
         body: Option<RequestBody>,
+        retire_unprocessed: bool,
         timeout_budget: TimeoutBudget,
     ) -> Result<NegotiatedResponse, DispatchFailure> {
         let NegotiatedRequest {
@@ -430,13 +450,15 @@ impl PoolEntry {
                     }
                     Ok(Err(error)) => {
                         drop(permit);
-                        if invalidates_http2_connection(&error) {
+                        if invalidates_http2_connection(&error)
+                            || (retire_unprocessed && is_unprocessed_http2(&error))
+                        {
                             self.invalidate(&token).await;
                         }
                         if is_graceful_goaway(&error) {
                             return Err(DispatchFailure::GracefulGoaway(error));
                         }
-                        Err(RequestError::http2(error.into()).into())
+                        Err(RequestError::http2_stream(error).into())
                     }
                     Err(error) => {
                         drop(permit);
@@ -552,7 +574,7 @@ impl From<RequestError> for DispatchFailure {
 impl From<DispatchFailure> for RequestError {
     fn from(failure: DispatchFailure) -> Self {
         match failure {
-            DispatchFailure::GracefulGoaway(error) => Self::http2(error.into()),
+            DispatchFailure::GracefulGoaway(error) => Self::http2_stream(error),
             DispatchFailure::Request(error) => error,
         }
     }

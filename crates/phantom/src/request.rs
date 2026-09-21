@@ -226,8 +226,9 @@ impl RequestBuilder {
     /// The policy applies to exact H1, H2, or H3 connection acquisition and to
     /// negotiated H1/H2 TCP connection setup before ALPN selection, always
     /// before request dispatch. Negotiated TLS and ALPN failures are terminal.
-    /// Any opt-in reused-connection replay or [`StatusRetry`](crate::StatusRetry)
-    /// in `policy` also replaces the client's.
+    /// Any opt-in reused-connection replay, unprocessed-request replay, or
+    /// [`StatusRetry`](crate::StatusRetry) in `policy` also replaces the
+    /// client's.
     pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.retry_policy = Some(policy);
         self
@@ -269,7 +270,8 @@ impl RequestBuilder {
     /// cancellation. An opt-in [`RetryPolicy`] can retry eligible exact-protocol
     /// or pre-ALPN negotiated connection setup without replaying request bytes
     /// or body frames, and can separately opt into reused-connection replay
-    /// and status retries for idempotent requests. When the client has a
+    /// and status retries for idempotent requests, and replay requests that
+    /// the H2 or H3 peer reported as not processed. When the client has a
     /// [`RedirectPolicy`](crate::RedirectPolicy), only `https://` requests and
     /// redirect targets are accepted.
     ///
@@ -311,6 +313,7 @@ impl RequestBuilder {
             retries_performed = 0_u64,
             retry_reason = field::Empty,
             reused_connection_replays = 0_u64,
+            unprocessed_replays = 0_u64,
             status_retries = 0_u64,
             timeout_phase = field::Empty,
             outcome = field::Empty,

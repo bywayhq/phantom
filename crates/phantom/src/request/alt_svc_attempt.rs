@@ -2,14 +2,13 @@ use super::{
     ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, attempt_headers,
-        begin_status_retry, client_hint_origin, dispatch, observe_response, prepare_attempt,
-        store_cookies,
+        begin_status_retry, begin_unprocessed_replay, client_hint_origin, dispatch,
+        observe_response, prepare_attempt, store_cookies,
     },
     replay::ReplayClass,
 };
 use crate::{
-    Client, HttpProtocol, RequestError, RetryPolicy, Route,
-    retry::ConnectionSetupRetryState,
+    Client, HttpProtocol, RequestError, Route,
     session::{alt_svc::invalidates_alternative, http3_pool::Http3TransportTarget},
 };
 use phantom_net::request::RequestHeader;
@@ -38,7 +37,7 @@ pub(super) async fn send_once_alt_svc(
     alternative: AlternativeTarget,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptLifecycle {
-        request_span,
+        request_span: _,
         timeout_budget,
         retries: request_retries,
         replays,
@@ -64,8 +63,7 @@ pub(super) async fn send_once_alt_svc(
         ));
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
         // Alternative setup failures evict the advertisement instead of retrying.
-        let mut setup_retries =
-            ConnectionSetupRetryState::new(RetryPolicy::none(), request_span.clone());
+        let mut setup_retries = request_retries.for_alternative_setup();
         let dispatched = dispatch(
             client,
             request,
@@ -85,6 +83,10 @@ pub(super) async fn send_once_alt_svc(
         let dispatched = match dispatched {
             Ok(dispatched) => dispatched,
             Err(error) => {
+                // An unprocessed replay stays on this alternative and keeps it.
+                if begin_unprocessed_replay(&error, &method, body, request_retries, replays) {
+                    continue;
+                }
                 if invalidates_alternative(&error) {
                     client.remove_alt_svc_if_current(endpoint, alternative_generation);
                 }

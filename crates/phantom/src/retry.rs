@@ -21,28 +21,31 @@ mod retry_after;
 /// retried.
 ///
 /// [`with_reused_connection_replay`](Self::with_reused_connection_replay)
-/// separately opts into the one post-dispatch replay class: an idempotent
-/// HTTP/1.1 request whose reused keep-alive connection closed before any
-/// response byte. [`with_status_retry`](Self::with_status_retry) separately
-/// opts into repeating idempotent requests that received a caller-listed
-/// status.
+/// separately opts into replaying an idempotent HTTP/1.1 request whose reused
+/// keep-alive connection closed before any response byte.
+/// [`with_unprocessed_replay`](Self::with_unprocessed_replay) separately opts
+/// into replaying an HTTP/2 or HTTP/3 request that the peer reported as not
+/// processed. [`with_status_retry`](Self::with_status_retry) separately opts
+/// into repeating idempotent requests that received a caller-listed status.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RetryPolicy {
     maximum_connection_failures: Option<NonZeroUsize>,
     delay: Duration,
     reused_connection_replay: bool,
+    unprocessed_replays: Option<NonZeroUsize>,
     status_retry: Option<StatusRetry>,
 }
 
 impl RetryPolicy {
-    /// Disables connection-setup retries, reused-connection replay, and
-    /// status retries.
+    /// Disables connection-setup retries, reused-connection replay,
+    /// unprocessed-request replay, and status retries.
     #[must_use]
     pub const fn none() -> Self {
         Self {
             maximum_connection_failures: None,
             delay: Duration::ZERO,
             reused_connection_replay: false,
+            unprocessed_replays: None,
             status_retry: None,
         }
     }
@@ -57,6 +60,7 @@ impl RetryPolicy {
             maximum_connection_failures: Some(maximum),
             delay,
             reused_connection_replay: false,
+            unprocessed_replays: None,
             status_retry: None,
         }
     }
@@ -77,6 +81,58 @@ impl RetryPolicy {
     pub const fn with_reused_connection_replay(self, enabled: bool) -> Self {
         Self {
             reused_connection_replay: enabled,
+            ..self
+        }
+    }
+
+    /// Replays, at most `maximum` times per request, an HTTP/2 or HTTP/3
+    /// request that the peer reported as not processed; `None` disables it.
+    ///
+    /// This is caller policy, never browser or profile behavior. A replay
+    /// starts only after one of these peer signals, observed before any
+    /// response head:
+    ///
+    /// - HTTP/2 `RST_STREAM(REFUSED_STREAM)` received for the request stream
+    ///   (RFC 9113, section 8.7);
+    /// - an HTTP/2 `GOAWAY`, with any error code, whose last-stream-id is
+    ///   below the request's stream, or that arrived before the stream opened
+    ///   (RFC 9113, sections 6.8 and 8.7);
+    /// - an HTTP/3 request stream reset or stopped with `H3_REQUEST_REJECTED`
+    ///   (RFC 9114, section 4.1.1);
+    /// - an HTTP/3 `GOAWAY` received before the request opened its stream,
+    ///   so the request was never sent (RFC 9114, section 5.2).
+    ///
+    /// Because the server did not act on the request, any method may be
+    /// replayed. The body must be absent or owned bytes; a one-shot streaming
+    /// body returns the original error without opening another connection.
+    /// A replay is sent at once, without a delay, on a fresh or different
+    /// connection with the same route and protocol, or the same negotiated
+    /// selection rule; on an Alt-Svc alternative it stays on that
+    /// alternative. The budget is shared by every redirect hop and consumes
+    /// no other retry budget. HTTP/2 streams at or below a `GOAWAY`
+    /// last-stream-id, HTTP/3 streams already open when a `GOAWAY` arrives,
+    /// and any failure after a response head may have been processed and
+    /// return the original error.
+    ///
+    /// Without this policy, the one built-in replay remains: a bodyless
+    /// HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is retried once on a
+    /// replacement connection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::num::NonZeroUsize;
+    ///
+    /// use phantom::RetryPolicy;
+    ///
+    /// let policy = RetryPolicy::none().with_unprocessed_replay(NonZeroUsize::new(2));
+    /// assert_eq!(policy.unprocessed_replay(), NonZeroUsize::new(2));
+    /// assert_eq!(RetryPolicy::default().unprocessed_replay(), None);
+    /// ```
+    #[must_use]
+    pub const fn with_unprocessed_replay(self, maximum: Option<NonZeroUsize>) -> Self {
+        Self {
+            unprocessed_replays: maximum,
             ..self
         }
     }
@@ -119,6 +175,13 @@ impl RetryPolicy {
     #[must_use]
     pub const fn reused_connection_replay(self) -> bool {
         self.reused_connection_replay
+    }
+
+    /// Returns the maximum unprocessed-request replays per request, when
+    /// enabled.
+    #[must_use]
+    pub const fn unprocessed_replay(self) -> Option<NonZeroUsize> {
+        self.unprocessed_replays
     }
 
     /// Returns the status-retry policy, when enabled.
@@ -321,6 +384,7 @@ pub(crate) struct ConnectionSetupRetryState {
     policy: RetryPolicy,
     performed: usize,
     reused_connection_replays: usize,
+    unprocessed_replays: usize,
     status_retries: usize,
     request_span: Span,
 }
@@ -331,9 +395,49 @@ impl ConnectionSetupRetryState {
             policy,
             performed: 0,
             reused_connection_replays: 0,
+            unprocessed_replays: 0,
             status_retries: 0,
             request_span,
         }
+    }
+
+    /// Returns setup state for an Alt-Svc alternative: no setup retries, so a
+    /// setup failure evicts the advertisement, while the pool still retires
+    /// a connection that refused a request when unprocessed replay is on.
+    /// Replays are counted by the request's own state, not by this one.
+    pub(crate) fn for_alternative_setup(&self) -> Self {
+        Self::new(
+            RetryPolicy::none().with_unprocessed_replay(self.policy.unprocessed_replays),
+            self.request_span.clone(),
+        )
+    }
+
+    /// Returns whether unprocessed-request replay is enabled, so a pool
+    /// should stop reusing a connection that refused a request.
+    pub(crate) const fn replays_unprocessed_requests(&self) -> bool {
+        self.policy.unprocessed_replays.is_some()
+    }
+
+    /// Returns whether the request-scoped unprocessed-replay budget has room.
+    pub(crate) fn unprocessed_replay_available(&self) -> bool {
+        self.policy
+            .unprocessed_replays
+            .is_some_and(|maximum| self.unprocessed_replays < maximum.get())
+    }
+
+    /// Counts one unprocessed-request replay against its own budget.
+    pub(crate) fn record_unprocessed_replay(&mut self, protocol: Option<HttpProtocol>) {
+        self.unprocessed_replays += 1;
+        self.request_span.record(
+            "unprocessed_replays",
+            u64::try_from(self.unprocessed_replays).unwrap_or(u64::MAX),
+        );
+        tracing::debug!(
+            replay = self.unprocessed_replays,
+            protocol = protocol.map(HttpProtocol::trace_name),
+            reason = "unprocessed",
+            "replaying request the peer did not process on another connection"
+        );
     }
 
     /// Returns the delay before retrying a response with this status and
@@ -527,6 +631,48 @@ mod tests {
                 .with_reused_connection_replay(false)
                 .reused_connection_replay()
         );
+    }
+
+    #[test]
+    fn unprocessed_replay_is_disabled_by_default_and_independent() {
+        assert_eq!(RetryPolicy::default().unprocessed_replay(), None);
+        assert_eq!(
+            RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::ZERO)
+                .unprocessed_replay(),
+            None
+        );
+        let two = NonZeroUsize::new(2);
+        let policy = RetryPolicy::none()
+            .with_reused_connection_replay(true)
+            .with_unprocessed_replay(two);
+        assert_eq!(policy.unprocessed_replay(), two);
+        assert!(policy.reused_connection_replay());
+        assert_eq!(policy.max_connection_failures(), None);
+        assert_eq!(
+            policy.with_unprocessed_replay(None).unprocessed_replay(),
+            None
+        );
+    }
+
+    #[test]
+    fn unprocessed_replay_budget_is_request_scoped() {
+        let policy = RetryPolicy::none().with_unprocessed_replay(NonZeroUsize::new(2));
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        assert!(retries.replays_unprocessed_requests());
+        assert!(retries.unprocessed_replay_available());
+        retries.record_unprocessed_replay(Some(HttpProtocol::Http2));
+        assert!(retries.unprocessed_replay_available());
+        retries.record_unprocessed_replay(Some(HttpProtocol::Http3));
+        assert!(!retries.unprocessed_replay_available());
+        assert_eq!(retries.performed(), 0);
+
+        let alternative = retries.for_alternative_setup();
+        assert!(alternative.replays_unprocessed_requests());
+        assert_eq!(alternative.policy.max_connection_failures(), None);
+
+        let disabled = ConnectionSetupRetryState::new(RetryPolicy::none(), Span::none());
+        assert!(!disabled.replays_unprocessed_requests());
+        assert!(!disabled.unprocessed_replay_available());
     }
 
     #[test]

@@ -122,6 +122,10 @@ async fn send_once_exact(
                     fresh_connection = true;
                     continue;
                 }
+                // The pool already retired the connection that refused it.
+                if begin_unprocessed_replay(&error, &method, body, retries, replays) {
+                    continue;
+                }
                 return Err(error);
             }
         };
@@ -246,6 +250,11 @@ async fn send_once_negotiated(
                     fresh_http1_connection = true;
                     continue;
                 }
+                // The pool already retired the connection that refused it; the
+                // replacement is negotiated under the same selection rule.
+                if begin_unprocessed_replay(&error, &method, body, retries, replays) {
+                    continue;
+                }
                 return Err(error);
             }
         };
@@ -301,6 +310,34 @@ fn begin_reused_connection_replay(
         return false;
     }
     retries.record_reused_connection_replay();
+    true
+}
+
+/// Starts one replay after the HTTP/2 or HTTP/3 peer reported that it did not
+/// process the request, when policy, remaining request-scoped budget, and body
+/// permit it. Any method is eligible.
+///
+/// A one-shot streaming body was moved into the refused attempt, so it is
+/// never replayed and the original error is returned before another
+/// connection is opened.
+pub(super) fn begin_unprocessed_replay(
+    error: &RequestError,
+    method: &Method,
+    body: &RequestBodySource,
+    retries: &mut ConnectionSetupRetryState,
+    replays: &mut ReplayState,
+) -> bool {
+    if !error.is_unprocessed_request()
+        || !retries.unprocessed_replay_available()
+        || !matches!(
+            body,
+            RequestBodySource::Absent | RequestBodySource::Bytes(_)
+        )
+        || !replays.try_begin(ReplayClass::Unprocessed, method)
+    {
+        return false;
+    }
+    retries.record_unprocessed_replay(error.protocol());
     true
 }
 
