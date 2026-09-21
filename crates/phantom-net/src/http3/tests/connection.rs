@@ -940,11 +940,18 @@ async fn goaway_stops_new_requests_without_cancelling_an_existing_body() -> Test
     })
     .await
     .map_err(|_| "HTTP/3 GOAWAY was not observed")?;
-    assert!(
-        connection
-            .send_request(test_request(address.port(), "/after-goaway")?, None)
-            .await
-            .is_err()
+    // GOAWAY was observed before the stream opened, so nothing was sent and
+    // the failure carries the not-processed signal (RFC 9114, section 5.2).
+    let refused = match connection
+        .send_request(test_request(address.port(), "/after-goaway")?, None)
+        .await
+    {
+        Ok(_) => return Err("request opened a stream after GOAWAY".into()),
+        Err(error) => error,
+    };
+    assert_eq!(
+        refused.unprocessed(),
+        Some(super::super::Http3Unprocessed::GoAway)
     );
 
     let _ = release_body.send(());

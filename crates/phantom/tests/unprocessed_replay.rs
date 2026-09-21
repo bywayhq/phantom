@@ -684,52 +684,107 @@ async fn h3_request_rejected_replays_on_same_route_and_location() -> TestResult 
     .await
 }
 
+/// Once the first connection sends `GOAWAY(0)` after serving stream 0, a
+/// later request never runs there, whatever the client has observed: the
+/// pool may already refuse to reuse the connection, the request may be
+/// refused before its stream opens and replayed, or stream 4 may reach the
+/// server, which rejects it with `H3_REQUEST_REJECTED` and so replays it.
+/// The deterministic proof that an observed `GOAWAY` tags a refused request
+/// is the phantom-net connection test that waits for the closing state.
 #[tokio::test]
 async fn h3_goaway_above_identifier_replays() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
+        let (goaway_sent, goaway_received) = oneshot::channel();
         let (client_done, done_received) = oneshot::channel();
         let server = tokio::spawn(async move {
-            let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
-            let first_connection = incoming.await?;
-            // One write keeps SETTINGS and GOAWAY(0) in one STREAM frame, so
-            // the client learns of GOAWAY before it can open stream 0.
-            let mut control = first_connection.open_uni().await?;
-            control
-                .write_all(&[0x00, 0x04, 0x00, 0x07, 0x01, 0x00])
-                .await?;
+            let (request, mut stream, mut first_connection) = accept_request(&endpoint).await?;
+            let first = answer_http3(&request, &mut stream, StatusCode::OK).await?;
+            // Stream 0 was the last accepted, so this sends GOAWAY(0), and
+            // the connection rejects every later request stream.
+            first_connection.shutdown(0).await?;
+            goaway_sent
+                .send(())
+                .map_err(|_| "client stopped before GOAWAY")?;
 
-            let (request, mut stream, second_connection) = accept_request(&endpoint).await?;
-            let observed = answer_http3(&request, &mut stream, StatusCode::OK).await?;
+            // Keep driving the first connection, so a late stream 4 is
+            // rejected, while the replacement connection serves the request.
+            let mut served_on_first = false;
+            let mut first_open = true;
+            let replacement = accept_request(&endpoint);
+            tokio::pin!(replacement);
+            let second = loop {
+                tokio::select! {
+                    accepted = first_connection.accept(), if first_open => {
+                        served_on_first |= matches!(accepted, Ok(Some(_)));
+                        first_open = false;
+                    }
+                    accepted = &mut replacement => {
+                        let (request, mut stream, second_connection) = accepted?;
+                        let second =
+                            answer_http3(&request, &mut stream, StatusCode::CREATED).await?;
+                        break (second, second_connection);
+                    }
+                }
+            };
             done_received
                 .await
                 .map_err(|_| "client stopped before reporting completion")?;
-            drop((control, first_connection, second_connection));
-            Ok::<_, Box<dyn Error + Send + Sync>>(observed)
+            drop((first_connection, second.1));
+            Ok::<_, Box<dyn Error + Send + Sync>>((first, second.0, served_on_first))
         });
 
         let client = http3_client(&identity)?;
-        let response = client
-            .request(
-                HttpProtocol::Http3,
-                Method::PUT,
-                &format!("https://{address}/resource"),
-            )?
-            .body(Bytes::from_static(b"state"))
-            .retry_policy(replay_policy(1)?)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        response.into_body().collect().await?;
+        let exchange = async {
+            let first = client
+                .get(HttpProtocol::Http3, &format!("https://{address}/first"))?
+                .send()
+                .await?;
+            assert_eq!(first.status(), StatusCode::OK);
+            first.into_body().collect().await?;
+            goaway_received
+                .await
+                .map_err(|_| "HTTP/3 server stopped before GOAWAY")?;
+
+            let response = client
+                .request(
+                    HttpProtocol::Http3,
+                    Method::PUT,
+                    &format!("https://{address}/resource"),
+                )?
+                .body(Bytes::from_static(b"state"))
+                .retry_policy(replay_policy(1)?)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::CREATED);
+            response.into_body().collect().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        };
+        if let Err(error) = exchange.await {
+            // A server failure closes its connections, so report it first.
+            server.abort();
+            return match server.await {
+                Ok(Err(server_error)) => {
+                    Err(format!("server: {server_error}; client: {error}").into())
+                }
+                _ => Err(error),
+            };
+        }
 
         client_done
             .send(())
             .map_err(|_| "HTTP/3 server stopped before client completion")?;
-        let (method, path, body) = server.await??;
-        assert_eq!(method, Method::PUT);
-        assert_eq!(path, "/resource");
-        assert_eq!(body, b"state");
+        let (first, second, served_on_first) = server.await??;
+        assert_eq!(first, (Method::GET, "/first".to_owned(), Vec::new()));
+        assert_eq!(
+            second,
+            (Method::PUT, "/resource".to_owned(), b"state".to_vec())
+        );
+        assert!(
+            !served_on_first,
+            "a request ran on the connection that sent GOAWAY"
+        );
         Ok(())
     })
     .await
