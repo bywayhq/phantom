@@ -649,6 +649,7 @@ async fn join_server(server: JoinHandle<TestResult<()>>) -> TestResult<()> {
 }
 
 mod adversarial;
+mod connect_udp;
 mod connection;
 mod connector;
 mod datagram;

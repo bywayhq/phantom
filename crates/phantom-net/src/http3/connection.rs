@@ -18,7 +18,9 @@ use crate::accept_ch::AcceptCh;
 use super::{
     DatagramRouter, DriverSignal, DriverTask, Http3Body, Http3Error, Http3ErrorKind,
     Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol, PendingRequest,
-    RequestRecvStream, ResponseHeadError, body, driver_unavailable, receive_response,
+    RequestRecvStream, RequestSendStream, ResponseHeadError, body,
+    datagram::DatagramFlow,
+    driver_unavailable, receive_response,
     request::PreparedRequest,
     upload::{RequestSend, UploadError},
 };
@@ -314,6 +316,106 @@ impl Http3Connection {
         result
     }
 
+    /// Waits for the peer's SETTINGS from ALPS or the control stream and
+    /// reports the extension capabilities they enable.
+    pub(super) async fn peer_extensions(&self) -> Result<PeerExtensions, Http3Error> {
+        let mut peer_settings = {
+            let sender = self.inner.sender.lock().await;
+            sender
+                .as_ref()
+                .ok_or_else(driver_unavailable)?
+                .peer_settings()
+        };
+        let settings = peer_settings.ready().await?;
+        Ok(PeerExtensions {
+            extended_connect: settings.enable_extended_connect(),
+            datagram: settings.enable_datagram(),
+        })
+    }
+
+    /// Returns the largest QUIC DATAGRAM payload currently sendable, or
+    /// `None` when the peer did not advertise `max_datagram_frame_size`.
+    pub(super) fn max_datagram_size(&self) -> Option<usize> {
+        self.inner.quinn.max_datagram_size()
+    }
+
+    pub(super) fn quinn(&self) -> &quinn::Connection {
+        &self.inner.quinn
+    }
+
+    /// Sends one RFC 9298 CONNECT-UDP request and registers its datagram flow.
+    ///
+    /// The caller checks peer SETTINGS first. The flow is registered under
+    /// the send lock so the router keeps stream-ID order. Only a 2xx response
+    /// yields the tunnel; any other final response aborts the request stream
+    /// (RFC 9298 section 3.5).
+    pub(super) async fn send_connect_udp(
+        &self,
+        request: Request<()>,
+    ) -> Result<ConnectUdpExchange, Http3Error> {
+        let router = self.inner.datagrams.as_ref().ok_or_else(|| {
+            Http3Error::without_source(
+                Http3ErrorKind::Configuration,
+                "CONNECT-UDP requires a connection that receives HTTP Datagrams",
+            )
+        })?;
+        let (stream, flow) = {
+            let mut sender = self.inner.sender.lock().await;
+            let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
+            let stream = sender.send_request(request).await?;
+            let flow = router.flow(stream.id());
+            (stream, flow)
+        };
+        let mut pending = PendingRequest::new(stream);
+        let response = {
+            let (_, recv) = pending.streams_mut()?;
+            receive_response(recv, None).await
+        };
+        let response = match response {
+            Ok(response) => response,
+            Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
+            Err(ResponseHeadError::SwitchingProtocols) => {
+                return Err(Http3Error::without_source(
+                    Http3ErrorKind::Protocol,
+                    "peer sent a 101 response over HTTP/3",
+                ));
+            }
+            Err(ResponseHeadError::TooManyInformational) => {
+                return Err(super::too_many_informational());
+            }
+            Err(ResponseHeadError::UnsupportedDatagram | ResponseHeadError::RequestBody(_)) => {
+                return Err(driver_unavailable());
+            }
+        };
+        let status = response.status();
+        if !status.is_success() {
+            return Ok(ConnectUdpExchange::Rejected(status));
+        }
+        // RFC 9297 section 3.2: a response that starts the Capsule Protocol
+        // carries no content and is malformed with these statuses or fields.
+        if matches!(status.as_u16(), 204..=206)
+            || [
+                http::header::CONTENT_LENGTH,
+                http::header::CONTENT_TYPE,
+                http::header::TRANSFER_ENCODING,
+            ]
+            .iter()
+            .any(|name| response.headers().contains_key(name))
+        {
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Protocol,
+                "CONNECT-UDP response is malformed for the Capsule Protocol",
+            ));
+        }
+        let (send, recv) = pending.into_streams()?;
+        Ok(ConnectUdpExchange::Accepted {
+            status,
+            send,
+            recv,
+            flow,
+        })
+    }
+
     pub(super) fn is_reusable(&self) -> bool {
         if self.inner.quinn.close_reason().is_some() {
             return false;
@@ -343,6 +445,26 @@ impl Http3Connection {
     pub(super) fn record(&self, signal: DriverSignal) {
         self.inner.signal.fetch_max(signal.rank(), Ordering::AcqRel);
     }
+}
+
+/// Extension settings received from the peer.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct PeerExtensions {
+    /// `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` (RFC 9220 section 3).
+    pub(super) extended_connect: bool,
+    /// `SETTINGS_H3_DATAGRAM = 1` (RFC 9297 section 2.1.1).
+    pub(super) datagram: bool,
+}
+
+/// Final response to a CONNECT-UDP request.
+pub(super) enum ConnectUdpExchange {
+    Accepted {
+        status: http::StatusCode,
+        send: RequestSendStream,
+        recv: RequestRecvStream,
+        flow: DatagramFlow,
+    },
+    Rejected(http::StatusCode),
 }
 
 async fn exchange(

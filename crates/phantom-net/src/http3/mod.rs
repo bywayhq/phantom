@@ -26,6 +26,7 @@ use crate::direct::{RuntimeUnavailable, poll_tokio_io};
 mod alps;
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
+pub use connect_udp::{ConnectUdpError, ConnectUdpErrorKind};
 pub use connection::Http3Connection;
 pub use connector::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
 pub use error::{Http3Error, Http3ErrorKind};
@@ -358,6 +359,7 @@ async fn send_prepared_request(
             diagnostics,
             None,
             None,
+            None,
         )
         .await?;
         connection.send_prepared_request(request).await
@@ -388,6 +390,7 @@ pub(super) async fn connect_direct(
         ConnectionDiagnostics::default(),
         None,
         None,
+        None,
     )
     .await
 }
@@ -398,6 +401,7 @@ pub(super) async fn connect_bound(
     crypto: Arc<QuicClientConfig>,
     settings: &Http3Settings,
     connector_identity: Arc<()>,
+    path_mtu: Option<u16>,
 ) -> Result<Http3Connection, Http3Error> {
     connect(
         remote,
@@ -407,6 +411,7 @@ pub(super) async fn connect_bound(
         ConnectionDiagnostics::default(),
         Some(connector_identity),
         None,
+        path_mtu,
     )
     .await
 }
@@ -427,10 +432,16 @@ pub(super) async fn connect_bound_with_socket(
         ConnectionDiagnostics::default(),
         Some(connector_identity),
         Some(socket),
+        None,
     )
     .await
 }
 
+/// Opens one QUIC and HTTP/3 connection.
+///
+/// `path_mtu`, when present, is the UDP payload size the connection assumes
+/// from the start and never probes below (Quinn's initial and minimum MTU).
+#[allow(clippy::too_many_arguments)]
 async fn connect(
     remote: SocketAddr,
     server_name: &str,
@@ -439,9 +450,10 @@ async fn connect(
     diagnostics: ConnectionDiagnostics,
     connector_identity: Option<Arc<()>>,
     socket: Option<Arc<dyn quinn::AsyncUdpSocket>>,
+    path_mtu: Option<u16>,
 ) -> Result<Http3Connection, Http3Error> {
     let mut builder = settings::builder(settings, &crypto)?;
-    let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket)?;
+    let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
     let connection = endpoint
@@ -581,7 +593,7 @@ fn endpoint(
     crypto: Arc<QuicClientConfig>,
     diagnostics: ConnectionDiagnostics,
 ) -> Result<quinn::Endpoint, Http3Error> {
-    endpoint_with_socket(remote, crypto, diagnostics, None)
+    endpoint_with_socket(remote, crypto, diagnostics, None, None)
 }
 
 fn endpoint_with_socket(
@@ -589,6 +601,7 @@ fn endpoint_with_socket(
     crypto: Arc<QuicClientConfig>,
     diagnostics: ConnectionDiagnostics,
     socket: Option<Arc<dyn quinn::AsyncUdpSocket>>,
+    path_mtu: Option<u16>,
 ) -> Result<quinn::Endpoint, Http3Error> {
     #[cfg(not(feature = "qlog"))]
     let _ = diagnostics;
@@ -615,6 +628,9 @@ fn endpoint_with_socket(
             )
         })?;
         transport_config.qlog_stream(Some(stream));
+    }
+    if let Some(mtu) = path_mtu {
+        transport_config.initial_mtu(mtu).min_mtu(mtu);
     }
     let mut client_config = quinn::ClientConfig::new(crypto);
     client_config.transport_config(Arc::new(transport_config));
@@ -776,6 +792,8 @@ impl Drop for PendingRequest {
 }
 
 mod body;
+mod capsule;
+mod connect_udp;
 mod connection;
 mod connector;
 mod datagram;
@@ -787,6 +805,7 @@ mod qlog;
 mod request;
 mod settings;
 mod upload;
+mod varint;
 
 #[cfg(test)]
 mod tests;

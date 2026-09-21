@@ -7,6 +7,8 @@ use http::{Method, Response};
 use phantom_profile::{
     Http3RequestSettings, Http3Settings, TlsSettings, quic::QuicTransportSettings,
 };
+use tracing::Instrument;
+
 use phantom_quic_btls::{
     InvalidServerName, QuicClientConfig, QuicTlsProfileErrorKind, QuicTransportProfileError,
     StatelessResetKey,
@@ -15,9 +17,10 @@ use phantom_quic_btls::{
 #[cfg(test)]
 use super::request::PreparedRequest;
 use super::{
-    Http3Body, Http3Connection, Http3Error, Http3ErrorKind, Http3ExtendedConnectOutcome,
-    Http3ExtendedProtocol, OriginForm, RequestHeader, connect_bound, connect_bound_with_socket,
-    prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
+    ConnectUdpError, ConnectUdpErrorKind, Http3Body, Http3Connection, Http3Error, Http3ErrorKind,
+    Http3ExtendedConnectOutcome, Http3ExtendedProtocol, OriginForm, RequestHeader, connect_bound,
+    connect_bound_with_socket, connect_udp, prepare_traced_request,
+    prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
     direct::{RuntimeUnavailable, poll_tokio_io},
@@ -37,6 +40,8 @@ pub struct Http3Connector {
     crypto: Arc<QuicClientConfig>,
     settings: Http3Settings,
     request_settings: Http3RequestSettings,
+    max_datagram_frame_size: Option<u64>,
+    max_udp_payload_size: u64,
     identity: Arc<()>,
 }
 
@@ -104,6 +109,8 @@ impl Http3Connector {
             crypto,
             settings: settings.clone(),
             request_settings: request_settings.clone(),
+            max_datagram_frame_size: quic.max_datagram_frame_size,
+            max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
         })
     }
@@ -465,6 +472,127 @@ impl Http3Connector {
             .map_err(Http3ConnectorError::transaction)
     }
 
+    /// Opens one reusable HTTP/3 connection through an RFC 9298 CONNECT-UDP proxy.
+    ///
+    /// `proxy` opens a fresh outer HTTP/3 connection to `proxy_host` with its
+    /// own trust roots and server name; this connector owns the inner QUIC
+    /// connection, origin trust, and `server_name`. The outer connection
+    /// carries exactly one CONNECT-UDP request for `path` with `:authority`
+    /// set to `proxy_authority`, a generated `capsule-protocol: ?1` field,
+    /// and `headers` in order.
+    ///
+    /// The server names, request, and outer profile are validated before the
+    /// runtime is checked or any I/O starts. The outer profile must send
+    /// `SETTINGS_H3_DATAGRAM = 1` and accept a full 1200-byte inner Initial in
+    /// one HTTP Datagram; the outer connection assumes a 1252-byte UDP path
+    /// MTU. Failures are [`Http3ConnectorErrorKind::Proxy`] errors whose
+    /// source is a [`ConnectUdpError`] until the tunnel is open; inner QUIC
+    /// failures keep their ordinary kinds. Nothing falls back to a direct
+    /// route, another proxy protocol, DATAGRAM capsules, or another HTTP
+    /// version.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_connect_udp(
+        &self,
+        proxy: &Http3Connector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_authority: &str,
+        path: OriginForm,
+        headers: Vec<RequestHeader>,
+        server_name: &str,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        QuicClientConfig::validate_server_name(server_name)
+            .map_err(Http3ConnectorError::invalid_server_name)?;
+        let request = proxy
+            .prepare_connect_udp(proxy_host, proxy_authority, path, headers)
+            .map_err(Http3ConnectorError::connect_udp)?;
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+        poll_tokio_io(|| async {
+            let span = connect_udp::span();
+            let tunnel = async {
+                let addresses = tokio::net::lookup_host((proxy_host, proxy_port))
+                    .await
+                    .map_err(|error| {
+                        ConnectUdpError::with_source(
+                            ConnectUdpErrorKind::Resolve,
+                            "failed to resolve CONNECT-UDP proxy",
+                            error,
+                        )
+                    })?
+                    .collect::<Vec<_>>();
+                if addresses.is_empty() {
+                    return Err(ConnectUdpError::new(
+                        ConnectUdpErrorKind::Resolve,
+                        "CONNECT-UDP proxy resolved to no addresses",
+                    ));
+                }
+                let outer = proxy
+                    .connect_to_addresses_with_mtu(
+                        addresses,
+                        proxy_host,
+                        Some(connect_udp::OUTER_PATH_MTU),
+                    )
+                    .await
+                    .map_err(ConnectUdpError::outer)?;
+                connect_udp::open(outer, request, span.clone()).await
+            }
+            .instrument(span.clone())
+            .await;
+            connect_udp::record_setup_outcome(&span, &tunnel.as_ref().map(drop));
+            let (socket, logical_remote) = tunnel.map_err(Http3ConnectorError::connect_udp)?;
+            connect_bound_with_socket(
+                logical_remote,
+                server_name,
+                Arc::clone(&self.crypto),
+                &self.settings,
+                Arc::clone(&self.identity),
+                socket,
+            )
+            .await
+            .map_err(Http3ConnectorError::transaction)
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+    }
+
+    /// Validates a CONNECT-UDP request and this connector as its outer
+    /// profile without opening a connection.
+    pub fn validate_connect_udp(
+        &self,
+        proxy_host: &str,
+        proxy_authority: &str,
+        path: &OriginForm,
+        headers: &[RequestHeader],
+    ) -> Result<(), Http3ConnectorError> {
+        self.prepare_connect_udp(proxy_host, proxy_authority, path.clone(), headers.to_vec())
+            .map(drop)
+            .map_err(Http3ConnectorError::connect_udp)
+    }
+
+    fn prepare_connect_udp(
+        &self,
+        proxy_host: &str,
+        proxy_authority: &str,
+        path: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<http::Request<()>, ConnectUdpError> {
+        QuicClientConfig::validate_server_name(proxy_host).map_err(|error| {
+            ConnectUdpError::with_source(
+                ConnectUdpErrorKind::InvalidRequest,
+                "invalid CONNECT-UDP proxy server name",
+                error,
+            )
+        })?;
+        connect_udp::validate_outer_profile(&connect_udp::OuterProfile {
+            receives_http_datagrams: self.settings.receives_datagrams(),
+            max_datagram_frame_size: self.max_datagram_frame_size,
+            max_udp_payload_size: self.max_udp_payload_size,
+        })?;
+        super::request::prepare_connect_udp(&self.request_settings, proxy_authority, path, headers)
+            .map_err(ConnectUdpError::outer)
+    }
+
     /// Validates one extended CONNECT request without opening a connection or stream.
     pub fn validate_extended_connect(
         &self,
@@ -611,10 +739,28 @@ impl Http3Connector {
         addresses: Vec<std::net::SocketAddr>,
         server_name: &str,
     ) -> Result<Http3Connection, Http3ConnectorError> {
+        if addresses.is_empty() {
+            return Err(Http3ConnectorError::no_address());
+        }
+        self.connect_to_addresses_with_mtu(addresses, server_name, None)
+            .await
+            .map_err(Http3ConnectorError::transaction)
+    }
+
+    /// Tries each resolved address in order; `None` addresses is a resolve failure.
+    pub(super) async fn connect_to_addresses_with_mtu(
+        &self,
+        addresses: Vec<std::net::SocketAddr>,
+        server_name: &str,
+        path_mtu: Option<u16>,
+    ) -> Result<Http3Connection, Http3Error> {
         let mut addresses = addresses.into_iter();
-        let mut remote = addresses
-            .next()
-            .ok_or_else(Http3ConnectorError::no_address)?;
+        let Some(mut remote) = addresses.next() else {
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Connect,
+                "HTTP/3 host resolved to no addresses",
+            ));
+        };
         loop {
             match connect_bound(
                 remote,
@@ -622,17 +768,18 @@ impl Http3Connector {
                 Arc::clone(&self.crypto),
                 &self.settings,
                 Arc::clone(&self.identity),
+                path_mtu,
             )
             .await
             {
                 Ok(connection) => return Ok(connection),
                 Err(error) if should_try_next_address(&error) => {
                     let Some(next) = addresses.next() else {
-                        return Err(Http3ConnectorError::transaction(error));
+                        return Err(error);
                     };
                     remote = next;
                 }
-                Err(error) => return Err(Http3ConnectorError::transaction(error)),
+                Err(error) => return Err(error),
             }
         }
     }
@@ -823,6 +970,14 @@ impl Http3ConnectorError {
         Self::with_source(
             Http3ConnectorErrorKind::Proxy,
             "HTTP/3 SOCKS5 proxy setup failed",
+            source,
+        )
+    }
+
+    fn connect_udp(source: ConnectUdpError) -> Self {
+        Self::with_source(
+            Http3ConnectorErrorKind::Proxy,
+            "HTTP/3 CONNECT-UDP proxy setup failed",
             source,
         )
     }

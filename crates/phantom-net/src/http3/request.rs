@@ -491,6 +491,41 @@ pub(super) fn prepare_extended_connect(
     Ok(request)
 }
 
+/// Prepares one RFC 9298 section 3.4 CONNECT-UDP request.
+///
+/// The request is an extended CONNECT with `:protocol connect-udp` and the
+/// expanded template path. A generated `capsule-protocol: ?1` field precedes
+/// the caller's ordered fields (RFC 9297 section 3.4 recommends it; RFC 9298
+/// figure 5 shows it). A caller-supplied `capsule-protocol` is rejected so the
+/// field appears exactly once.
+pub(super) fn prepare_connect_udp(
+    request_settings: &Http3RequestSettings,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Request<()>, Http3Error> {
+    if headers
+        .iter()
+        .any(|header| header.name().eq_ignore_ascii_case(CAPSULE_PROTOCOL))
+    {
+        return Err(invalid(
+            "CONNECT-UDP fields must not repeat the generated capsule-protocol field",
+        ));
+    }
+    let mut fields = Vec::with_capacity(headers.len() + 1);
+    fields.push(RequestHeader::new(CAPSULE_PROTOCOL, "?1"));
+    fields.extend(headers);
+    prepare_extended_connect(
+        request_settings,
+        Protocol::CONNECT_UDP,
+        authority,
+        target,
+        fields,
+    )
+}
+
+const CAPSULE_PROTOCOL: &str = "capsule-protocol";
+
 fn validate_pseudo_header_order(request: &Request<()>) -> Result<(), Http3Error> {
     let Some(order) = request.extensions().get::<RequestPseudoHeaderOrder>() else {
         return Ok(());
