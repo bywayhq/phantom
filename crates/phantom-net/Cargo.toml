@@ -11,9 +11,9 @@ publish = false
 qlog = ["quinn/qlog"]
 
 [dependencies]
-brotli = "8.0.4"
+brotli.workspace = true
 bytes = "1.12.1"
-flate2 = "1.1.9"
+flate2.workspace = true
 h3.workspace = true
 h3-datagram.workspace = true
 h3-quinn.workspace = true
@@ -31,7 +31,7 @@ tracing = "0.1.41"
 url = "=2.5.8"
 webpki-root-certs = "1.0.9"
 wreq-proto = "=0.2.5"
-zstd = "0.13.3"
+zstd.workspace = true
 
 # This btls revision skips archive rewriting on Apple/Windows but still rewrites
 # generated link names, causing unresolved `build_script_main_*` symbols.
