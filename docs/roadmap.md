@@ -28,8 +28,11 @@ work has exposed the real architectural boundaries.
   direct or cross-protocol fallback.
 - Extend the current exact-protocol, pre-dispatch connection retry policy only
   when another replay class has explicit ownership and bounded lifecycle rules.
-- Complete browser-backed SSE reconnect evidence and remaining WebSocket
-  protocol functionality before broad robustness work.
+- Browser-backed SSE reconnect evidence exists for Chrome 153 and Firefox 155
+  on Windows over HTTP/1.1. Close the gaps it found: caller-positioned
+  `Last-Event-ID`, the Firefox minimum retry delay, and reconnect timing after
+  pre-response network errors. Complete the remaining WebSocket protocol
+  functionality before broad robustness work.
 - Expand the Chromium, Firefox, and Safari protocol/profile matrix only from
   fresh captures; do not infer missing H2, H3, QUIC, WebSocket, or SSE behavior
   from browser-family names.
