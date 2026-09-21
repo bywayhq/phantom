@@ -181,7 +181,7 @@ async fn unexpected_datagram_aborts_get_stream() -> TestResult<()> {
     let settings = chromium::v152_macos_http3();
     let response = timeout(
         TEST_TIMEOUT,
-        super::super::send_request(address, TEST_SERVER_NAME, client, &settings, request),
+        super::send_request_head(address, TEST_SERVER_NAME, client, &settings, request),
     )
     .await
     .map_err(|_| "HTTP/3 request timed out")??;
@@ -269,7 +269,7 @@ async fn datagram_before_response_aborts_get_stream() -> TestResult<()> {
     let settings = chromium::v152_macos_http3();
     let result = timeout(
         TEST_TIMEOUT,
-        super::super::send_request(address, TEST_SERVER_NAME, client, &settings, request),
+        super::send_request_head(address, TEST_SERVER_NAME, client, &settings, request),
     )
     .await
     .map_err(|_| "HTTP/3 request timed out")?;

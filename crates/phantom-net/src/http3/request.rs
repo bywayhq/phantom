@@ -1,5 +1,6 @@
 //! HTTP/3 request construction and field validation.
 
+#[cfg(test)]
 use bytes::Bytes;
 use h3::ext::{OrderedHeaders, Protocol, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{
@@ -242,6 +243,7 @@ fn prepare_profiled_request_head(
     Ok(request)
 }
 
+#[cfg(test)]
 pub(super) fn prepare_request(
     request: Request<()>,
     body: Option<Bytes>,
@@ -249,6 +251,7 @@ pub(super) fn prepare_request(
     prepare_request_body(request, body.map(RequestBody::from_bytes))
 }
 
+#[cfg(test)]
 pub(super) fn prepare_request_body(
     request: Request<()>,
     body: Option<RequestBody>,
@@ -256,6 +259,7 @@ pub(super) fn prepare_request_body(
     prepare_request_body_with_trailers(request, body, Vec::new())
 }
 
+#[cfg(test)]
 pub(super) fn prepare_request_body_with_trailers(
     mut request: Request<()>,
     body: Option<RequestBody>,
@@ -273,6 +277,7 @@ pub(super) fn prepare_request_body_with_trailers(
     })
 }
 
+#[cfg(test)]
 fn apply_content_length(
     request: &mut Request<()>,
     metadata: Option<RequestBodyMetadata>,

@@ -248,16 +248,20 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
         let _ = done_received.await;
         Ok::<(), Box<dyn Error + Send + Sync>>(())
     });
-    let request = Request::get(format!(
-        "https://{TEST_SERVER_NAME}:{}/profiled",
-        address.port()
-    ))
-    .body(())?;
-
     let settings = chromium::v152_macos_http3();
     let response = timeout(
         TEST_TIMEOUT,
-        super::send_request(address, TEST_SERVER_NAME, client, &settings, request),
+        super::send_request(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            &settings,
+            &chromium::v152_macos_http3_request(),
+            Method::GET,
+            &format!("{TEST_SERVER_NAME}:{}", address.port()),
+            super::OriginForm::parse("/profiled")?,
+            Vec::new(),
+        ),
     )
     .await
     .map_err(|_| "profiled HTTP/3 request timed out")??;
@@ -292,12 +296,6 @@ async fn bounded_qlog_completes_without_recording_request_headers() -> TestResul
         let _ = done_received.await;
         Ok::<(), Box<dyn Error + Send + Sync>>(())
     });
-    let request = Request::get(format!(
-        "https://{TEST_SERVER_NAME}:{}/qlog",
-        address.port()
-    ))
-    .header("x-phantom-secret", SECRET)
-    .body(())?;
     let capture = super::QlogCapture::new(
         NonZeroUsize::new(64 * 1024).ok_or("qlog test bound must be nonzero")?,
     );
@@ -309,7 +307,11 @@ async fn bounded_qlog_completes_without_recording_request_headers() -> TestResul
             TEST_SERVER_NAME,
             client,
             &test_settings(),
-            request,
+            &chromium::v152_macos_http3_request(),
+            Method::GET,
+            &format!("{TEST_SERVER_NAME}:{}", address.port()),
+            super::OriginForm::parse("/qlog")?,
+            vec![super::RequestHeader::new("x-phantom-secret", SECRET)],
             capture.clone(),
         ),
     )
@@ -487,7 +489,30 @@ async fn send_test_request(
     client: Arc<QuicClientConfig>,
     request: Request<()>,
 ) -> Result<Response<super::Http3Body>, super::Http3Error> {
-    super::send_request(remote, server_name, client, &test_settings(), request).await
+    send_request_head(remote, server_name, client, &test_settings(), request).await
+}
+
+/// Sends a `Request<()>` over a new connection without a request profile.
+///
+/// Test-only: vendored h3 emits its default pseudo-header order and
+/// HeaderMap-grouped fields for such a request.
+async fn send_request_head(
+    remote: SocketAddr,
+    server_name: &str,
+    client: Arc<QuicClientConfig>,
+    settings: &Http3Settings,
+    request: Request<()>,
+) -> Result<Response<super::Http3Body>, super::Http3Error> {
+    let request = super::prepare_request(request, None)?;
+    super::send_prepared_request(
+        remote,
+        server_name,
+        client,
+        settings,
+        request,
+        super::ConnectionDiagnostics::default(),
+    )
+    .await
 }
 
 fn test_settings() -> Http3Settings {

@@ -88,7 +88,7 @@ async fn blocked_response_waits_for_insertion_and_acknowledges_headers() -> Test
 
     let request = request(address, "/blocked-response")?;
     let mut client = tokio::spawn(async move {
-        super::super::send_request(
+        super::send_request_head(
             address,
             TEST_SERVER_NAME,
             client,
@@ -156,7 +156,7 @@ async fn closing_peer_qpack_encoder_closes_connection_and_fails_request() -> Tes
 
     let result = timeout(
         TEST_TIMEOUT,
-        super::super::send_request(
+        super::send_request_head(
             address,
             TEST_SERVER_NAME,
             client,

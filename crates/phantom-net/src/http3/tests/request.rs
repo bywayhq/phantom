@@ -6,7 +6,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use bytes::{Bytes, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{HeaderValue, Request, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
@@ -717,15 +717,20 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
     assert_eq!(error.kind(), Http3ErrorKind::Request);
 
     let error = expected_http3_error(
-        crate::http3::send_request(
+        crate::http3::send_request_with_body(
             "127.0.0.1:9".parse()?,
             TEST_SERVER_NAME,
             client,
             &invalid_settings,
-            Request::get("http://server.phantom.test/").body(())?,
+            &chromium::v152_macos_http3_request(),
+            http::Method::POST,
+            "server.phantom.test",
+            OriginForm::parse("/")?,
+            vec![RequestHeader::new("content-length", "3")],
+            Some(Bytes::from_static(b"body")),
         )
         .await,
-        "mixed-invalid legacy request unexpectedly reached the network",
+        "mixed-invalid request with a body unexpectedly reached the network",
     )?;
     assert_eq!(error.kind(), Http3ErrorKind::Request);
     Ok(())
@@ -782,6 +787,75 @@ async fn ordered_get_completes_with_duplicate_fields() -> TestResult<()> {
     )
     .await
     .map_err(|_| "ordered HTTP/3 GET timed out")??;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    drop(response);
+    let _ = client_done.send(());
+    join_server(server).await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn one_shot_request_with_body_uses_the_ordered_profile_path() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+        assert_eq!(request.method(), http::Method::POST);
+        assert_eq!(request.uri().path(), "/ordered-post");
+        assert_eq!(
+            request
+                .headers()
+                .get_all("x-repeat")
+                .iter()
+                .map(HeaderValue::as_bytes)
+                .collect::<Vec<_>>(),
+            [b"alpha".as_slice(), b"beta".as_slice()]
+        );
+        assert_eq!(
+            request.headers().get("content-length"),
+            Some(&HeaderValue::from_static("4"))
+        );
+        let mut body = BytesMut::new();
+        while let Some(mut chunk) = stream.recv_data().await? {
+            let remaining = chunk.remaining();
+            body.extend_from_slice(&chunk.copy_to_bytes(remaining));
+        }
+        assert_eq!(body.as_ref(), b"body");
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    });
+
+    let response = timeout(
+        TEST_TIMEOUT,
+        crate::http3::send_request_with_body(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            &chromium::v152_macos_http3(),
+            &chromium::v152_macos_http3_request(),
+            http::Method::POST,
+            &format!("{TEST_SERVER_NAME}:{}", address.port()),
+            OriginForm::parse("/ordered-post")?,
+            vec![
+                RequestHeader::new("x-repeat", "alpha"),
+                RequestHeader::new("x-middle", "between"),
+                RequestHeader::new("x-repeat", "beta"),
+            ],
+            Some(Bytes::from_static(b"body")),
+        ),
+    )
+    .await
+    .map_err(|_| "ordered HTTP/3 POST timed out")??;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     drop(response);
     let _ = client_done.send(());

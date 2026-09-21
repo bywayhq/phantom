@@ -26,7 +26,7 @@ async fn rejects_invalid_profile_before_connecting() -> TestResult<()> {
         qpack_encoding: Http3QpackEncoding::Stateless,
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
     };
-    let result = super::super::send_request(
+    let result = super::send_request_head(
         "127.0.0.1:9".parse()?,
         TEST_SERVER_NAME,
         client_config(&identity)?,
@@ -80,7 +80,7 @@ async fn rejects_http_datagrams_when_quic_datagrams_are_disabled() -> TestResult
     });
     let request = Request::get("https://server.phantom.test/").body(())?;
     let settings = chromium::v152_macos_http3();
-    let result = super::super::send_request(
+    let result = super::send_request_head(
         "127.0.0.1:9".parse()?,
         TEST_SERVER_NAME,
         client_config_with_profile(&identity, quic)?,
@@ -148,7 +148,7 @@ async fn chrome_profile_emits_capture_backed_control_stream_shape() -> TestResul
 
     let client_task = tokio::spawn(async move {
         let result =
-            super::super::send_request(address, TEST_SERVER_NAME, client, &settings, request).await;
+            super::send_request_head(address, TEST_SERVER_NAME, client, &settings, request).await;
         drop(result);
     });
     let incoming = timeout(TEST_TIMEOUT, endpoint.accept())
