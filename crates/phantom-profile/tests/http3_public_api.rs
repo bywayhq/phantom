@@ -25,6 +25,7 @@ fn downstream_code_can_build_and_customize_an_http3_profile() {
             Http3PseudoHeader::Scheme,
             Http3PseudoHeader::Path,
         ],
+        extended_connect_pseudo_header_order: None,
     };
 
     assert!(settings.validate().is_ok());

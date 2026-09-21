@@ -262,6 +262,7 @@ pub fn v152_macos_http3_request() -> Http3RequestSettings {
             Http3PseudoHeader::Scheme,
             Http3PseudoHeader::Path,
         ],
+        extended_connect_pseudo_header_order: None,
     }
 }
 

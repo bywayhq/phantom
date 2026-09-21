@@ -144,3 +144,11 @@ fn fixture_value(fixture: &str, index: usize) -> u64 {
         .and_then(|value| value.parse().ok())
         .unwrap_or_else(|| panic!("fixture setting value must be an integer"))
 }
+
+#[test]
+fn named_http3_recipes_leave_extended_connect_order_unset() {
+    assert_eq!(
+        v152_macos_http3_request().extended_connect_pseudo_header_order,
+        None
+    );
+}

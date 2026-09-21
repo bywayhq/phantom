@@ -86,6 +86,10 @@ pub enum Http3PseudoHeader {
     Scheme,
     /// `:path`.
     Path,
+    /// `:protocol`.
+    ///
+    /// This pseudo-header is present only on extended CONNECT requests.
+    Protocol,
 }
 
 /// Ordered HTTP/3 settings independent of the concrete HTTP/3 backend.
@@ -153,12 +157,23 @@ impl Http3Settings {
 pub struct Http3RequestSettings {
     /// Wire order of `:method`, `:authority`, `:scheme`, and `:path`.
     pub pseudo_header_order: Vec<Http3PseudoHeader>,
+    /// Wire order of pseudo-headers on an extended CONNECT request.
+    ///
+    /// When configured, this must contain `:method`, `:authority`, `:scheme`,
+    /// `:path`, and `:protocol` exactly once. One order applies to every
+    /// extended CONNECT protocol. `None` means that the profile does not claim
+    /// an observed extended CONNECT pseudo-header order.
+    pub extended_connect_pseudo_header_order: Option<Vec<Http3PseudoHeader>>,
 }
 
 impl Http3RequestSettings {
     /// Validates the request profile independently of a concrete backend.
     pub fn validate(&self) -> Result<(), InvalidHttp3RequestSettings> {
-        validate_pseudo_header_order(&self.pseudo_header_order)
+        validate_pseudo_header_order(&self.pseudo_header_order)?;
+        if let Some(order) = &self.extended_connect_pseudo_header_order {
+            validate_extended_connect_pseudo_header_order(order)?;
+        }
+        Ok(())
     }
 }
 
@@ -180,12 +195,47 @@ fn validate_pseudo_header_order(
             Http3PseudoHeader::Authority => 1,
             Http3PseudoHeader::Scheme => 2,
             Http3PseudoHeader::Path => 3,
+            Http3PseudoHeader::Protocol => {
+                return Err(InvalidHttp3RequestSettings::new(
+                    "pseudo_header_order",
+                    "ordinary requests must not contain protocol",
+                ));
+            }
         };
         if present[index] {
             return Err(InvalidHttp3RequestSettings::new(
                 "pseudo_header_order",
                 "order must contain method, authority, scheme, and path exactly once",
             ));
+        }
+        present[index] = true;
+    }
+
+    Ok(())
+}
+
+fn validate_extended_connect_pseudo_header_order(
+    order: &[Http3PseudoHeader],
+) -> Result<(), InvalidHttp3RequestSettings> {
+    const REQUIRED_COUNT: usize = 5;
+    const FIELD: &str = "extended_connect_pseudo_header_order";
+    const MESSAGE: &str =
+        "order must contain method, authority, scheme, path, and protocol exactly once";
+    if order.len() != REQUIRED_COUNT {
+        return Err(InvalidHttp3RequestSettings::new(FIELD, MESSAGE));
+    }
+
+    let mut present = [false; REQUIRED_COUNT];
+    for header in order {
+        let index = match header {
+            Http3PseudoHeader::Method => 0,
+            Http3PseudoHeader::Authority => 1,
+            Http3PseudoHeader::Scheme => 2,
+            Http3PseudoHeader::Path => 3,
+            Http3PseudoHeader::Protocol => 4,
+        };
+        if present[index] {
+            return Err(InvalidHttp3RequestSettings::new(FIELD, MESSAGE));
         }
         present[index] = true;
     }

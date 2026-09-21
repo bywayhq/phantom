@@ -27,7 +27,44 @@ fn request_settings() -> Http3RequestSettings {
             Http3PseudoHeader::Scheme,
             Http3PseudoHeader::Path,
         ],
+        extended_connect_pseudo_header_order: None,
     }
+}
+
+fn extended_connect_order() -> Vec<Http3PseudoHeader> {
+    vec![
+        Http3PseudoHeader::Method,
+        Http3PseudoHeader::Protocol,
+        Http3PseudoHeader::Scheme,
+        Http3PseudoHeader::Authority,
+        Http3PseudoHeader::Path,
+    ]
+}
+
+#[test]
+fn extended_connect_order_requires_each_pseudo_exactly_once() {
+    let mut valid = request_settings();
+    valid.extended_connect_pseudo_header_order = Some(extended_connect_order());
+    assert_eq!(valid.validate(), Ok(()));
+
+    let mut missing = request_settings();
+    let mut order = extended_connect_order();
+    order.retain(|header| *header != Http3PseudoHeader::Protocol);
+    missing.extended_connect_pseudo_header_order = Some(order);
+    assert_request_field(missing.validate(), "extended_connect_pseudo_header_order");
+
+    let mut duplicate = request_settings();
+    let mut order = extended_connect_order();
+    order[4] = Http3PseudoHeader::Method;
+    duplicate.extended_connect_pseudo_header_order = Some(order);
+    assert_request_field(duplicate.validate(), "extended_connect_pseudo_header_order");
+}
+
+#[test]
+fn ordinary_request_order_rejects_protocol() {
+    let mut settings = request_settings();
+    settings.pseudo_header_order[3] = Http3PseudoHeader::Protocol;
+    assert_request_field(settings.validate(), "pseudo_header_order");
 }
 
 #[test]
