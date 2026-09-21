@@ -74,6 +74,12 @@ fn reconcile_peer_settings(
         merged.max_field_section_size = value;
     }
     if let Some(value) = control.get(frame::SettingId::ENABLE_CONNECT_PROTOCOL) {
+        //= https://www.rfc-editor.org/rfc/rfc8441#section-3
+        //# A sender MUST NOT send a SETTINGS_ENABLE_CONNECT_PROTOCOL parameter
+        //# with the value of 0 after previously sending a value of 1.
+        if value == 0 && merged.enable_extended_connect {
+            return Err("control-stream extended CONNECT setting disables ALPS".to_string());
+        }
         merged.enable_extended_connect = value != 0;
     }
     if let Some(value) = control.get(frame::SettingId::H3_DATAGRAM) {
@@ -531,6 +537,7 @@ where
         }
         self.got_peer_settings = true;
         self.set_settings(semantic_settings);
+        self.mark_peer_settings_ready();
         if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
             outbound.mark_ready();
         }

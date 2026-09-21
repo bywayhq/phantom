@@ -13,7 +13,10 @@ use http::request;
 #[cfg(feature = "tracing")]
 use tracing::{info, instrument, trace};
 
+use tokio::sync::watch;
+
 use crate::{
+    config::Settings,
     connection::{self, ConnectionInner},
     error::{
         connection_error_creators::CloseStream, internal_error::InternalConnectionError, Code,
@@ -143,11 +146,67 @@ where
 {
 }
 
+/// Waits for the peer's HTTP/3 SETTINGS
+///
+/// Extensions negotiated by a peer setting, such as extended CONNECT, must not
+/// be used before that setting has been received.
+//= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
+//# An HTTP implementation MUST NOT send frames or requests that would be
+//# invalid based on its current understanding of the peer's settings.
+#[derive(Debug)]
+pub struct PeerSettings {
+    conn_state: Arc<SharedState>,
+    ready: watch::Receiver<bool>,
+}
+
+impl ConnectionState for PeerSettings {
+    fn shared_state(&self) -> &SharedState {
+        &self.conn_state
+    }
+}
+
+impl CloseStream for PeerSettings {}
+
+impl PeerSettings {
+    /// Resolves with the peer's settings, or with the connection error that
+    /// ended the connection before or after they arrived
+    pub async fn ready(&mut self) -> Result<Settings, StreamError> {
+        loop {
+            if let Some(error) = self.existing_connection_error() {
+                return Err(error);
+            }
+            if *self.ready.borrow_and_update() {
+                return Ok(self.settings());
+            }
+            if self.ready.changed().await.is_err() {
+                return Err(
+                    self.handle_connection_error_on_stream(InternalConnectionError::new(
+                        Code::H3_INTERNAL_ERROR,
+                        "peer settings signal closed".to_string(),
+                    )),
+                );
+            }
+        }
+    }
+}
+
 impl<T, B> SendRequest<T, B>
 where
     T: quic::OpenStreams<B>,
     B: Buf,
 {
+    /// Returns a handle that resolves once the peer's SETTINGS are known
+    ///
+    /// Settings delivered through [`crate::client::Builder::peer_application_settings`]
+    /// count as known before the control stream arrives. The handle owns its
+    /// connection state, so it can be awaited without borrowing this sender.
+    pub fn peer_settings(&self) -> PeerSettings {
+        PeerSettings {
+            conn_state: Arc::clone(&self.conn_state),
+            ready: self.subscribe_peer_settings_ready(),
+        }
+    }
+
     /// Send an HTTP/3 request to the server
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub async fn send_request(

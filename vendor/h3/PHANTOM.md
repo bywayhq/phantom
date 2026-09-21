@@ -182,6 +182,30 @@ connection-owned outbound QPACK command path as the initial request section,
 including publication and cancellation accounting for multiple sections on one
 request stream. Stateless configurations keep their existing encoder path.
 
+## Extended CONNECT readiness
+
+RFC 9220 section 3 reuses RFC 8441's `SETTINGS_ENABLE_CONNECT_PROTOCOL`
+(`0x08`). A client may send `:protocol` only after receiving that setting with
+value one. Upstream records whether peer SETTINGS arrived but exposes no way to
+wait for them, and a control-stream zero could silently replace an ALPS-seeded
+one.
+
+`h3::client::SendRequest::peer_settings` returns an owned `PeerSettings`
+handle. `PeerSettings::ready` resolves as soon as peer SETTINGS are known,
+either from nonempty ALPS application settings or from the control stream, and
+wakes every waiter. A connection error resolves each waiter with that error
+instead of leaving it pending. The handle does not borrow the sender, so a
+caller can wait without serializing unrelated requests.
+
+RFC 8441 section 3 forbids sending zero after one. A control-stream
+`SETTINGS_ENABLE_CONNECT_PROTOCOL = 0` after an ALPS-seeded one therefore closes
+with `H3_SETTINGS_ERROR`, matching the existing rule that control-stream
+settings may not reduce ALPS values. Enabling the setting on the control stream
+after ALPS omitted it remains accepted. Default builder behavior is unchanged.
+
+`patches/extended-connect-readiness.patch` contains the engine and
+regression-test delta for this seam.
+
 The canonical source and test deltas are stored in the exact application order
 listed by `patches/series`. `PHANTOM.md`, the series file, the patch files, and
 the tracked standalone-workspace `Cargo.lock` are packaging metadata and are

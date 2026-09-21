@@ -11,3 +11,4 @@ ordered-response-headers.patch
 ordered-response-send.patch
 application-settings.patch
 ordered-request-trailers.patch
+extended-connect-readiness.patch

@@ -1,0 +1,339 @@
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 28c1137..4c13000 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -13,7 +13,10 @@ use http::request;
+ #[cfg(feature = "tracing")]
+ use tracing::{info, instrument, trace};
+ 
++use tokio::sync::watch;
++
+ use crate::{
++    config::Settings,
+     connection::{self, ConnectionInner},
+     error::{
+         connection_error_creators::CloseStream, internal_error::InternalConnectionError, Code,
+@@ -143,11 +146,67 @@ where
+ {
+ }
+ 
++/// Waits for the peer's HTTP/3 SETTINGS
++///
++/// Extensions negotiated by a peer setting, such as extended CONNECT, must not
++/// be used before that setting has been received.
++//= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.2
++//# An HTTP implementation MUST NOT send frames or requests that would be
++//# invalid based on its current understanding of the peer's settings.
++#[derive(Debug)]
++pub struct PeerSettings {
++    conn_state: Arc<SharedState>,
++    ready: watch::Receiver<bool>,
++}
++
++impl ConnectionState for PeerSettings {
++    fn shared_state(&self) -> &SharedState {
++        &self.conn_state
++    }
++}
++
++impl CloseStream for PeerSettings {}
++
++impl PeerSettings {
++    /// Resolves with the peer's settings, or with the connection error that
++    /// ended the connection before or after they arrived
++    pub async fn ready(&mut self) -> Result<Settings, StreamError> {
++        loop {
++            if let Some(error) = self.existing_connection_error() {
++                return Err(error);
++            }
++            if *self.ready.borrow_and_update() {
++                return Ok(self.settings());
++            }
++            if self.ready.changed().await.is_err() {
++                return Err(
++                    self.handle_connection_error_on_stream(InternalConnectionError::new(
++                        Code::H3_INTERNAL_ERROR,
++                        "peer settings signal closed".to_string(),
++                    )),
++                );
++            }
++        }
++    }
++}
++
+ impl<T, B> SendRequest<T, B>
+ where
+     T: quic::OpenStreams<B>,
+     B: Buf,
+ {
++    /// Returns a handle that resolves once the peer's SETTINGS are known
++    ///
++    /// Settings delivered through [`crate::client::Builder::peer_application_settings`]
++    /// count as known before the control stream arrives. The handle owns its
++    /// connection state, so it can be awaited without borrowing this sender.
++    pub fn peer_settings(&self) -> PeerSettings {
++        PeerSettings {
++            conn_state: Arc::clone(&self.conn_state),
++            ready: self.subscribe_peer_settings_ready(),
++        }
++    }
++
+     /// Send an HTTP/3 request to the server
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub async fn send_request(
+diff --git a/h3/src/client/mod.rs b/h3/src/client/mod.rs
+index 2569399..7852565 100644
+--- a/h3/src/client/mod.rs
++++ b/h3/src/client/mod.rs
+@@ -8,5 +8,5 @@ mod builder;
+ 
+ pub use crate::proto::frame::SettingsError;
+ pub use builder::{builder, new, ApplicationSettingsError, Builder};
+-pub use connection::{Connection, SendRequest};
++pub use connection::{Connection, PeerSettings, SendRequest};
+ pub use stream::RequestStream;
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index 6b9d5c5..fa5eca1 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -74,6 +74,12 @@ fn reconcile_peer_settings(
+         merged.max_field_section_size = value;
+     }
+     if let Some(value) = control.get(frame::SettingId::ENABLE_CONNECT_PROTOCOL) {
++        //= https://www.rfc-editor.org/rfc/rfc8441#section-3
++        //# A sender MUST NOT send a SETTINGS_ENABLE_CONNECT_PROTOCOL parameter
++        //# with the value of 0 after previously sending a value of 1.
++        if value == 0 && merged.enable_extended_connect {
++            return Err("control-stream extended CONNECT setting disables ALPS".to_string());
++        }
+         merged.enable_extended_connect = value != 0;
+     }
+     if let Some(value) = control.get(frame::SettingId::H3_DATAGRAM) {
+@@ -531,6 +537,7 @@ where
+         }
+         self.got_peer_settings = true;
+         self.set_settings(semantic_settings);
++        self.mark_peer_settings_ready();
+         if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
+             outbound.mark_ready();
+         }
+diff --git a/h3/src/shared_state.rs b/h3/src/shared_state.rs
+index a183af5..a852254 100644
+--- a/h3/src/shared_state.rs
++++ b/h3/src/shared_state.rs
+@@ -3,6 +3,7 @@
+ use std::sync::{atomic::AtomicBool, OnceLock, RwLock};
+ 
+ use futures_util::task::AtomicWaker;
++use tokio::sync::watch;
+ 
+ use crate::{config::Settings, error::internal_error::ErrorOrigin};
+ 
+@@ -17,6 +18,9 @@ pub struct SharedState {
+     closing: AtomicBool,
+     /// Waker for the connection
+     waker: AtomicWaker,
++    /// Becomes true once peer SETTINGS are known, from ALPS or the control
++    /// stream. Connection errors also notify receivers so waiters observe them.
++    peer_settings_ready: watch::Sender<bool>,
+ }
+ 
+ impl Default for SharedState {
+@@ -26,6 +30,7 @@ impl Default for SharedState {
+             connection_error: OnceLock::new(),
+             closing: AtomicBool::new(false),
+             waker: AtomicWaker::new(),
++            peer_settings_ready: watch::channel(false).0,
+         }
+     }
+ }
+@@ -52,8 +57,12 @@ pub trait ConnectionState {
+         let err = self
+             .shared_state()
+             .connection_error
+-            .get_or_init(move || error);
+-        err.clone()
++            .get_or_init(move || error)
++            .clone();
++        self.shared_state()
++            .peer_settings_ready
++            .send_modify(|_ready| {});
++        err
+     }
+ 
+     /// set the connection error and wake the connection
+@@ -101,4 +110,14 @@ pub trait ConnectionState {
+     fn waker(&self) -> &AtomicWaker {
+         &self.shared_state().waker
+     }
++
++    /// Records that the peer's SETTINGS are known and wakes every waiter
++    fn mark_peer_settings_ready(&self) {
++        self.shared_state().peer_settings_ready.send_replace(true);
++    }
++
++    /// Subscribes to the peer-SETTINGS readiness signal
++    fn subscribe_peer_settings_ready(&self) -> watch::Receiver<bool> {
++        self.shared_state().peer_settings_ready.subscribe()
++    }
+ }
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+index 8aa3db7..929f1f8 100644
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -1966,3 +1966,155 @@ where
+         .unwrap();
+     stream.finish().await.unwrap();
+ }
++
++#[tokio::test]
++async fn peer_settings_ready_resolves_for_alps_seed() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder
++            .peer_application_settings(&[0x04, 0x02, 0x08, 0x01])
++            .unwrap();
++        let (_driver, send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++
++        let settings = tokio::time::timeout(Duration::from_secs(1), send.peer_settings().ready())
++            .await
++            .expect("ALPS settings are already known")
++            .unwrap();
++        assert!(settings.enable_extended_connect());
++    };
++
++    let server_fut = async {
++        let _connection = server.accept().await.unwrap().await.unwrap();
++        tokio::time::sleep(Duration::from_secs(10)).await;
++    };
++
++    tokio::select! {
++        _ = client_fut => (),
++        _ = server_fut => panic!("server resolved first"),
++    }
++}
++
++#[tokio::test]
++async fn peer_settings_ready_wakes_all_waiters_on_control_settings() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++    let (release, released) = oneshot::channel::<()>();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let (mut driver, send) = client::builder()
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++        let mut first = send.peer_settings();
++        let mut second = send.peer_settings();
++        let waiters = async {
++            let (first, second, ()) = tokio::join!(first.ready(), second.ready(), async {
++                release.send(()).unwrap();
++            });
++            (first, second)
++        };
++        let (first, second) = tokio::select! {
++            waiters = waiters => waiters,
++            error = future::poll_fn(|cx| driver.poll_close(cx)) => {
++                panic!("connection closed before settings: {error:?}")
++            }
++        };
++        assert!(first.unwrap().enable_extended_connect());
++        assert!(second.unwrap().enable_extended_connect());
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        released.await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control
++            .write_all(&[0x00, 0x04, 0x02, 0x08, 0x01])
++            .await
++            .unwrap();
++        tokio::time::sleep(Duration::from_secs(10)).await;
++    };
++
++    tokio::select! {
++        _ = client_fut => (),
++        _ = server_fut => panic!("server resolved first"),
++    }
++}
++
++#[tokio::test]
++async fn peer_settings_ready_fails_on_connection_error() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let (mut driver, send) = client::builder()
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++        let mut settings = send.peer_settings();
++        let (ready, _closed) = tokio::join!(
++            settings.ready(),
++            future::poll_fn(|cx| driver.poll_close(cx))
++        );
++        assert_matches!(ready, Err(StreamError::ConnectionError(_)));
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        tokio::time::sleep(Duration::from_millis(10)).await;
++        connection.close(0_u32.into(), b"no settings");
++    };
++
++    tokio::join!(server_fut, client_fut);
++}
++
++#[tokio::test]
++async fn control_settings_cannot_disable_alps_extended_connect() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder
++            .peer_application_settings(&[0x04, 0x02, 0x08, 0x01])
++            .unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++
++        assert_matches!(
++            future::poll_fn(|cx| driver.poll_close(cx)).await,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_SETTINGS_ERROR,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control
++            .write_all(&[0x00, 0x04, 0x02, 0x08, 0x00])
++            .await
++            .unwrap();
++        tokio::time::sleep(Duration::from_secs(10)).await;
++    };
++
++    tokio::select! {
++        _ = client_fut => (),
++        _ = server_fut => panic!("server resolved first"),
++    }
++}

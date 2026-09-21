@@ -3,6 +3,7 @@
 use std::sync::{atomic::AtomicBool, OnceLock, RwLock};
 
 use futures_util::task::AtomicWaker;
+use tokio::sync::watch;
 
 use crate::{config::Settings, error::internal_error::ErrorOrigin};
 
@@ -17,6 +18,9 @@ pub struct SharedState {
     closing: AtomicBool,
     /// Waker for the connection
     waker: AtomicWaker,
+    /// Becomes true once peer SETTINGS are known, from ALPS or the control
+    /// stream. Connection errors also notify receivers so waiters observe them.
+    peer_settings_ready: watch::Sender<bool>,
 }
 
 impl Default for SharedState {
@@ -26,6 +30,7 @@ impl Default for SharedState {
             connection_error: OnceLock::new(),
             closing: AtomicBool::new(false),
             waker: AtomicWaker::new(),
+            peer_settings_ready: watch::channel(false).0,
         }
     }
 }
@@ -52,8 +57,12 @@ pub trait ConnectionState {
         let err = self
             .shared_state()
             .connection_error
-            .get_or_init(move || error);
-        err.clone()
+            .get_or_init(move || error)
+            .clone();
+        self.shared_state()
+            .peer_settings_ready
+            .send_modify(|_ready| {});
+        err
     }
 
     /// set the connection error and wake the connection
@@ -100,5 +109,15 @@ pub trait ConnectionState {
     /// Returns the waker for the connection
     fn waker(&self) -> &AtomicWaker {
         &self.shared_state().waker
+    }
+
+    /// Records that the peer's SETTINGS are known and wakes every waiter
+    fn mark_peer_settings_ready(&self) {
+        self.shared_state().peer_settings_ready.send_replace(true);
+    }
+
+    /// Subscribes to the peer-SETTINGS readiness signal
+    fn subscribe_peer_settings_ready(&self) -> watch::Receiver<bool> {
+        self.shared_state().peer_settings_ready.subscribe()
     }
 }

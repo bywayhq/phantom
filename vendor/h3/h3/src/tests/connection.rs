@@ -1966,3 +1966,155 @@ where
         .unwrap();
     stream.finish().await.unwrap();
 }
+
+#[tokio::test]
+async fn peer_settings_ready_resolves_for_alps_seed() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let mut builder = client::builder();
+        builder
+            .peer_application_settings(&[0x04, 0x02, 0x08, 0x01])
+            .unwrap();
+        let (_driver, send) = builder
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+
+        let settings = tokio::time::timeout(Duration::from_secs(1), send.peer_settings().ready())
+            .await
+            .expect("ALPS settings are already known")
+            .unwrap();
+        assert!(settings.enable_extended_connect());
+    };
+
+    let server_fut = async {
+        let _connection = server.accept().await.unwrap().await.unwrap();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    };
+
+    tokio::select! {
+        _ = client_fut => (),
+        _ = server_fut => panic!("server resolved first"),
+    }
+}
+
+#[tokio::test]
+async fn peer_settings_ready_wakes_all_waiters_on_control_settings() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+    let (release, released) = oneshot::channel::<()>();
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let (mut driver, send) = client::builder()
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        let mut first = send.peer_settings();
+        let mut second = send.peer_settings();
+        let waiters = async {
+            let (first, second, ()) = tokio::join!(first.ready(), second.ready(), async {
+                release.send(()).unwrap();
+            });
+            (first, second)
+        };
+        let (first, second) = tokio::select! {
+            waiters = waiters => waiters,
+            error = future::poll_fn(|cx| driver.poll_close(cx)) => {
+                panic!("connection closed before settings: {error:?}")
+            }
+        };
+        assert!(first.unwrap().enable_extended_connect());
+        assert!(second.unwrap().enable_extended_connect());
+    };
+
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        released.await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control
+            .write_all(&[0x00, 0x04, 0x02, 0x08, 0x01])
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    };
+
+    tokio::select! {
+        _ = client_fut => (),
+        _ = server_fut => panic!("server resolved first"),
+    }
+}
+
+#[tokio::test]
+async fn peer_settings_ready_fails_on_connection_error() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let (mut driver, send) = client::builder()
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        let mut settings = send.peer_settings();
+        let (ready, _closed) = tokio::join!(
+            settings.ready(),
+            future::poll_fn(|cx| driver.poll_close(cx))
+        );
+        assert_matches!(ready, Err(StreamError::ConnectionError(_)));
+    };
+
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        connection.close(0_u32.into(), b"no settings");
+    };
+
+    tokio::join!(server_fut, client_fut);
+}
+
+#[tokio::test]
+async fn control_settings_cannot_disable_alps_extended_connect() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let mut builder = client::builder();
+        builder
+            .peer_application_settings(&[0x04, 0x02, 0x08, 0x01])
+            .unwrap();
+        let (mut driver, _send) = builder
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+
+        assert_matches!(
+            future::poll_fn(|cx| driver.poll_close(cx)).await,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::H3_SETTINGS_ERROR,
+                    ..
+                }
+            }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control
+            .write_all(&[0x00, 0x04, 0x02, 0x08, 0x00])
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    };
+
+    tokio::select! {
+        _ = client_fut => (),
+        _ = server_fut => panic!("server resolved first"),
+    }
+}
