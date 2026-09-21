@@ -96,6 +96,21 @@ Each patch is provenance-tracked and checked by `scripts/ci/check-vendor.sh`.
 The QUIC key-schedule vectors are reproduced and asserted in
 `crates/phantom-quic-btls/src/key_schedule/tests.rs`.
 
+## Request streams
+
+The one-shot `phantom_net::http3::send_request*` functions take
+`Http3RequestSettings` with ordered `RequestHeader` input and use the same
+preparation as pooled requests, so their pseudo-header and field order always
+come from the profile.
+
+A final response may arrive before the request body is sent. The upload then
+continues beside the response body (RFC 9114 §4.1). A complete response resets
+an unfinished upload with `H3_REQUEST_CANCELLED`, and a peer `STOP_SENDING`
+ends only the upload. A request-body failure after the response head fails the
+response body. At most 8 informational responses are accepted per request; the
+ninth fails the request with a protocol error. Datagrams for request streams
+the client has already closed are dropped silently (RFC 9297 §2.1).
+
 ## Extended CONNECT
 
 `phantom-net` can open RFC 9220 extended CONNECT streams on a connection
