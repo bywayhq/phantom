@@ -1,18 +1,11 @@
-use std::{
-    error::Error as StdError,
-    fmt,
-    future::{Future, poll_fn},
-    pin::Pin,
-    task::Poll,
-    time::Duration,
-};
+use std::{error::Error as StdError, fmt, future::poll_fn, pin::Pin, task::Poll, time::Duration};
 
 use http::{Response, StatusCode, header};
 use http_body::Body;
-use tokio::time::{Instant, sleep_until};
+use tokio::time::Instant;
 use tracing::{Instrument, debug_span, field};
 
-use crate::{RequestError, ResponseBody};
+use crate::{RequestError, ResponseBody, timeout::DeadlineTimer};
 
 use self::decoder::Decoder;
 
@@ -373,26 +366,31 @@ impl SseStream {
                 self.finish();
                 return Ok(None);
             };
-            let mut idle = self
-                .idle_deadline
-                .map(|deadline| Box::pin(sleep_until(deadline)));
+            let mut idle = match self.idle_deadline.map(DeadlineTimer::new).transpose() {
+                Ok(idle) => idle,
+                Err(error) => {
+                    self.finish();
+                    return Err(SseError::request(error));
+                }
+            };
             let frame = poll_fn(|context| {
                 if let Poll::Ready(frame) = Pin::new(&mut *body).poll_frame(context) {
                     return Poll::Ready(Ok(frame));
                 }
-                if idle
-                    .as_mut()
-                    .is_some_and(|timer| timer.as_mut().poll(context).is_ready())
-                {
-                    return Poll::Ready(Err(()));
+                match idle.as_mut().map(|timer| timer.poll_expired(context)) {
+                    Some(Poll::Ready(result)) => Poll::Ready(Err(result.err())),
+                    Some(Poll::Pending) | None => Poll::Pending,
                 }
-                Poll::Pending
             })
             .await;
             match frame {
-                Err(()) => {
+                Err(None) => {
                     self.finish();
                     return Err(SseError::idle_timeout());
+                }
+                Err(Some(error)) => {
+                    self.finish();
+                    return Err(SseError::request(error));
                 }
                 Ok(Some(Ok(frame))) => {
                     if let Ok(data) = frame.into_data() {

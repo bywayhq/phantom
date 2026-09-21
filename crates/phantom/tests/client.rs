@@ -28,7 +28,7 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RedirectPolicy, RequestErrorKind,
-    RequestHeader, RequestTrailerName, ResponseInfo, ServerAuthentication,
+    RequestHeader, RequestTimeouts, RequestTrailerName, ResponseInfo, ServerAuthentication,
     profile::{
         ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, Http3ClientSettings,
         chromium,
@@ -921,6 +921,28 @@ fn polling_direct_request_without_tokio_returns_error() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity, false)?;
     let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
+    let mut future = std::pin::pin!(request.send());
+    let mut context = Context::from_waker(Waker::noop());
+
+    let result = match future.as_mut().poll(&mut context) {
+        std::task::Poll::Ready(result) => result,
+        std::task::Poll::Pending => return Err("request waited without a Tokio runtime".into()),
+    };
+    let error = match result {
+        Ok(_) => return Err("request completed outside a Tokio runtime".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
+    Ok(())
+}
+
+#[test]
+fn polling_request_with_timeouts_without_tokio_returns_error() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = test_client(&identity, false)?;
+    let request = client
+        .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
+        .timeouts(RequestTimeouts::new().total(Duration::from_secs(1)));
     let mut future = std::pin::pin!(request.send());
     let mut context = Context::from_waker(Waker::noop());
 

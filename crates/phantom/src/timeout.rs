@@ -57,8 +57,8 @@ impl RequestTimeouts {
 
     /// Limits dispatch through receipt of the final response head.
     ///
-    /// Because ordinary request bodies are currently owned bytes, this phase
-    /// includes writing those bytes as well as waiting for response headers.
+    /// This phase includes sending the request body, whether owned or
+    /// streamed, as well as waiting for response headers.
     #[must_use]
     pub const fn response_head(mut self, timeout: Duration) -> Self {
         self.response_head = Some(timeout);
@@ -386,12 +386,25 @@ impl ResponseTimeouts {
     }
 }
 
-struct DeadlineTimer {
+/// Waits until `deadline`, or fails when the current runtime cannot time it.
+pub(crate) async fn sleep_until(deadline: Instant) -> Result<(), RequestError> {
+    let mut timer = DeadlineTimer::new(deadline)?;
+    poll_fn(|context| timer.poll_expired(context)).await
+}
+
+pub(crate) struct DeadlineTimer {
     sleep: Pin<Box<Sleep>>,
 }
 
 impl DeadlineTimer {
-    fn new(deadline: Instant) -> Result<Self, RequestError> {
+    pub(crate) fn new(deadline: Instant) -> Result<Self, RequestError> {
+        // Tokio panics when a timer is created outside any runtime, so a
+        // missing runtime is reported before one is constructed. A runtime
+        // without its time driver has no query API and is detected from the
+        // panic Tokio raises for it.
+        if tokio::runtime::Handle::try_current().is_err() {
+            return Err(RequestError::runtime_timer_unavailable());
+        }
         let sleep = match catch_unwind(AssertUnwindSafe(|| tokio::time::sleep_until(deadline))) {
             Ok(sleep) => sleep,
             Err(payload) if is_time_disabled_panic(payload.as_ref()) => {
@@ -404,7 +417,10 @@ impl DeadlineTimer {
         })
     }
 
-    fn poll_expired(&mut self, context: &mut Context<'_>) -> Poll<Result<(), RequestError>> {
+    pub(crate) fn poll_expired(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Result<(), RequestError>> {
         match catch_unwind(AssertUnwindSafe(|| self.sleep.as_mut().poll(context))) {
             Ok(Poll::Ready(())) => Poll::Ready(Ok(())),
             Ok(Poll::Pending) => Poll::Pending,

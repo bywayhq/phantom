@@ -1,7 +1,7 @@
 use std::{fmt, future::Future, pin::Pin, time::Duration};
 
 use http::{HeaderValue, Response, StatusCode};
-use tokio::time::{Instant, sleep_until};
+use tokio::time::Instant;
 use tracing::{Instrument, debug, debug_span, field};
 
 use crate::{RequestError, RequestErrorKind, ResponseBody};
@@ -278,7 +278,10 @@ impl SseEventSource {
                     deadline
                 }
             };
-            sleep_until(deadline).await;
+            if let Err(error) = crate::timeout::sleep_until(deadline).await {
+                self.closed = true;
+                return Err(SseError::request(error));
+            }
             self.reconnect_at = None;
             self.reconnects += 1;
             debug!(

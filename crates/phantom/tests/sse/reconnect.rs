@@ -315,6 +315,38 @@ async fn unrepresentable_last_event_id_ends_reconnects_with_request_error() -> T
     Ok(())
 }
 
+#[test]
+fn reconnect_delay_without_runtime_timers_returns_request_error() -> TestResult<()> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .build()?;
+    runtime.block_on(async {
+        let identity = TestIdentity::generate()?;
+        let address = {
+            let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+            listener.local_addr()?
+        };
+
+        let error = test_client(&identity, false)?
+            .session()
+            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .initial_retry(Duration::ZERO)
+            .max_reconnects(1)
+            .connect()
+            .await
+            .err()
+            .ok_or("event source connected to a closed port")?;
+
+        assert_eq!(error.kind(), SseErrorKind::Request);
+        let source = error
+            .source()
+            .and_then(|source| source.downcast_ref::<phantom::RequestError>())
+            .ok_or("timer failure did not carry its request error")?;
+        assert_eq!(source.kind(), phantom::RequestErrorKind::RuntimeUnavailable);
+        Ok(())
+    })
+}
+
 #[tokio::test]
 async fn invalid_initial_retry_fails_before_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;

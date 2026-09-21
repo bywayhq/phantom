@@ -2,7 +2,7 @@ use std::{fmt, time::Duration};
 
 use http::{Response, StatusCode};
 use phantom_net::request::RequestHeader;
-use tokio::time::{Instant, sleep_until};
+use tokio::time::Instant;
 use tracing::{Instrument, debug, debug_span, field};
 
 use crate::{
@@ -197,7 +197,9 @@ impl SseRequestBuilder {
                     let deadline = Instant::now()
                         .checked_add(self.initial_retry)
                         .ok_or_else(SseError::invalid_reconnect_delay)?;
-                    sleep_until(deadline).await;
+                    crate::timeout::sleep_until(deadline)
+                        .await
+                        .map_err(SseError::request)?;
                 }
                 Err(error) if reconnects == 0 => return Err(SseError::request(error)),
                 Err(error) => return Err(SseError::reconnect_limit(Some(error))),
