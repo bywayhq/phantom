@@ -125,11 +125,14 @@ mkdir -p "$(dirname "$destination")"
 cp -R "$staging/btls" "$destination"
 
 # Upstream's wrapper README is a workspace-relative symlink. A vendored package
-# must contain the referenced repository README as a regular file.
-if [[ -L "$destination/README.md" ]]; then
-  [[ $(readlink "$destination/README.md") == ../README.md ]] \
+# must contain the referenced repository README as a regular file. Read the
+# link from the git tree: a checkout without symlink support (Windows without
+# Developer Mode) writes a placeholder file or nothing at all.
+readme_entry=$(git -C "$staging" ls-tree HEAD btls/README.md)
+if [[ "$readme_entry" == 120000\ * ]]; then
+  [[ $(git -C "$staging" cat-file -p HEAD:btls/README.md) == ../README.md ]] \
     || die "candidate wrapper README symlink target changed"
-  rm "$destination/README.md"
+  rm -f "$destination/README.md"
   cp "$staging/README.md" "$destination/README.md"
 fi
 

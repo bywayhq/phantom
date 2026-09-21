@@ -48,6 +48,17 @@ check_crate_archive_replay() {
     --exclude=patches --exclude=target "$candidate" "vendor/$name"
 }
 
+check_btls_patch_replay() {
+  local staging candidate
+  local revision=129887582a538b8f4dcf371d15c953335312ca37
+  staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-btls-replay.XXXXXX")
+  trap 'rm -rf "$staging"' RETURN
+  candidate="$staging/btls"
+  scripts/ci/stage-btls-candidate.sh "$revision" "$candidate"
+  # NOTICE is Phantom-authored attribution; it is not part of upstream.
+  diff -qr --exclude=Cargo.lock --exclude=NOTICE --exclude=PHANTOM.md     --exclude=patches --exclude=target "$candidate" vendor/btls
+}
+
 check_tokio_btls_patch_replay() {
   local staging archive candidate
   local revision=50e72407ac1f89cea14003004429ecf579541b6f
@@ -262,6 +273,7 @@ check_tungstenite_patch_replay() {
 
 case "${1:-}" in
   btls)
+    check_btls_patch_replay
     case "$(uname -s)" in
       Darwin|MINGW*|MSYS*|CYGWIN*) btls_features=(--features default) ;;
       *) btls_features=(--features prefix-symbols) ;;
@@ -284,6 +296,7 @@ case "${1:-}" in
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked \
       aead::tests::shared_generic_context_seals_and_opens_concurrently
+    cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml       --all-targets "${btls_features[@]}" --locked
     ;;
   http2)
     check_http2_patch_replay

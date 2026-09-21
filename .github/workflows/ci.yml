@@ -158,6 +158,10 @@ jobs:
             command -v "$tool"
           done
 
+      - name: Install minimum supported Rust
+        if: matrix.package == 'btls'
+        run: rustup toolchain install 1.85.0 --profile minimal
+
       - name: Check vendored package
         run: scripts/ci/check-vendor.sh "${{ matrix.package }}"
 
