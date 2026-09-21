@@ -120,6 +120,18 @@ A client ignores a request-stream frame unless that stream is open and still
 awaiting final response headers, and ignores ALTSVC before the peer's initial
 SETTINGS, where upstream never observed it.
 
+Upstream configures the request pseudo-header order and RFC 7540 HEADERS
+priority only on the client builder, so every stream on a connection shares
+them. An RFC 8441 extended CONNECT captured from a browser uses its own
+pseudo-header order and priority on the same session as ordinary requests.
+`headers-frame-overrides.patch` adds `http2::ext::HeadersFrameOverrides`, an
+optional per-request pseudo-header order and stream dependency. The ordinary
+`SendRequest` path removes it before clearing request extensions and uses each
+set value in place of the connection default for that request's HEADERS frame
+only. A peer that disabled RFC 7540 priorities still suppresses the priority
+fields. Requests without the extension keep the connection defaults, and HPACK
+state remains connection-wide.
+
 Accepted client frames wait in one connection-owned queue bounded to 16 frames;
 the oldest frame is dropped first. When final response headers arrive, the
 queue's stream-0 frames and that stream's frames are removed in arrival order
@@ -133,7 +145,8 @@ The canonical patch changes these files:
 - `.cargo-ok`: preserves the marker in the active Cargo-vendored snapshot.
 - `Cargo.toml` and `Cargo.toml.orig`: enable Tokio's test-only `time` feature.
 - `src/ext.rs`: define the owned ordered-header extension used by outbound and
-  inbound messages, plus the outbound semantic check.
+  inbound messages, plus the outbound semantic check, and the per-request
+  HEADERS overrides.
 - `src/client.rs`: configure and await initial peer settings, preserve ordered
   headers, and start idle close only after polling the open connection.
 - `src/client/tests.rs`: contain focused semantic, wire, and lifecycle
@@ -158,7 +171,7 @@ The canonical patch changes these files:
 - `src/proto/streams/recv.rs`: attach decoded ordinary-field order to received
   requests, final responses, and informational responses.
 - `src/proto/streams/streams.rs`: retain ordered headers across extension
-  cleanup, enqueue verified ordered request trailers, apply seeded limits before
+  cleanup, apply per-request pseudo-header order and priority overrides, enqueue verified ordered request trailers, apply seeded limits before
   stream 1, wake initial-peer-settings waiters, and suppress RFC 7540 priority
   output when directed by the peer.
 - `src/share.rs`: expose the additive ordered-trailer send operation.
@@ -180,6 +193,10 @@ public `ext::AltSvc`/`ext::AltSvcFrames` types (`src/ext.rs`), connection
 dispatch (`src/proto/connection.rs`), client-only queueing
 (`src/proto/streams/streams.rs`), response attachment
 (`src/proto/streams/recv.rs`), and its regressions in `src/client/tests.rs`.
+`headers-frame-overrides.patch` adds the per-request HEADERS overrides
+(`src/ext.rs`, `src/proto/streams/streams.rs`) and a wire regression proving
+they apply to one request while the next keeps the connection defaults
+(`src/client/tests.rs`).
 
 ## Refreshing the vendor copy
 

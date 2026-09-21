@@ -1,5 +1,6 @@
 //! Extensions specific to the HTTP/2 protocol.
 
+use crate::frame::{PseudoOrder, StreamDependency};
 use crate::hpack::BytesStr;
 
 use bytes::Bytes;
@@ -46,6 +47,44 @@ impl OrderedHeaders {
 
     pub(crate) fn into_inner(self) -> Vec<(HeaderName, HeaderValue)> {
         self.headers
+    }
+}
+
+/// Per-request overrides for a client request's initial HEADERS frame.
+///
+/// Store this value in a request's extensions to replace the connection's
+/// configured pseudo-header order or RFC 7540 stream dependency for that one
+/// request. An unset value keeps the connection default. A peer that disabled
+/// RFC 7540 priorities still suppresses the priority fields.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct HeadersFrameOverrides {
+    pseudo_order: Option<PseudoOrder>,
+    stream_dependency: Option<StreamDependency>,
+}
+
+impl HeadersFrameOverrides {
+    /// Creates overrides that keep every connection default.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Replaces the connection's pseudo-header order for this request.
+    #[must_use]
+    pub fn pseudo_order(mut self, order: PseudoOrder) -> Self {
+        self.pseudo_order = Some(order);
+        self
+    }
+
+    /// Replaces the connection's HEADERS stream dependency for this request.
+    #[must_use]
+    pub fn stream_dependency(mut self, dependency: StreamDependency) -> Self {
+        self.stream_dependency = Some(dependency);
+        self
+    }
+
+    pub(crate) fn into_parts(self) -> (Option<PseudoOrder>, Option<StreamDependency>) {
+        (self.pseudo_order, self.stream_dependency)
     }
 }
 

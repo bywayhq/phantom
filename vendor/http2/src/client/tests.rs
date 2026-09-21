@@ -21,8 +21,8 @@ use tokio::{
 use super::Peer;
 use crate::{
     codec::{SendError, UserError},
-    ext::OrderedHeaders,
-    frame::{Headers, Settings, StreamDependency, StreamId},
+    ext::{HeadersFrameOverrides, OrderedHeaders},
+    frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
     hpack::{Decoder, Encoder, Header},
 };
 
@@ -163,6 +163,98 @@ async fn handshake_preserves_interleaved_ordered_headers() {
     })
     .await
     .expect("ordered-header handshake test timed out");
+}
+
+#[tokio::test]
+async fn headers_frame_overrides_apply_to_one_request_only() {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer_io) = duplex(16 * 1024);
+        let mut builder = super::Builder::new();
+        builder
+            .headers_pseudo_order(
+                PseudoOrder::builder()
+                    .extend([
+                        PseudoId::Method,
+                        PseudoId::Authority,
+                        PseudoId::Scheme,
+                        PseudoId::Path,
+                    ])
+                    .build(),
+            )
+            .headers_stream_dependency(StreamDependency::new(StreamId::zero(), 255, true));
+        let (sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+
+        let mut overridden = request_with_headers();
+        overridden.extensions_mut().insert(
+            HeadersFrameOverrides::new()
+                .pseudo_order(
+                    PseudoOrder::builder()
+                        .extend([
+                            PseudoId::Method,
+                            PseudoId::Path,
+                            PseudoId::Authority,
+                            PseudoId::Scheme,
+                        ])
+                        .build(),
+                )
+                .stream_dependency(StreamDependency::new(StreamId::zero(), 21, false)),
+        );
+        let mut sender = sender.ready().await.expect("sender never became ready");
+        let (_first, first) = sender
+            .send_request(overridden, true)
+            .expect("overridden request was rejected");
+        drop(first);
+        let mut sender = sender.ready().await.expect("sender never became ready");
+        let (_second, second) = sender
+            .send_request(request_with_headers(), true)
+            .expect("default request was rejected");
+        drop(second);
+
+        read_client_preface(&mut peer_io).await;
+        let mut decoder = Decoder::new(4096);
+        let mut headers = Vec::new();
+        while headers.len() < 2 {
+            let frame = read_raw_frame(&mut peer_io).await;
+            if frame.kind == 1 {
+                assert_ne!(frame.flags & 0x20, 0, "HEADERS omitted priority");
+                let priority = (
+                    frame.payload[0] & 0x80 != 0,
+                    u32::from_be_bytes([
+                        frame.payload[0] & 0x7f,
+                        frame.payload[1],
+                        frame.payload[2],
+                        frame.payload[3],
+                    ]),
+                    frame.payload[4],
+                );
+                let pseudo = decode_pseudo_names(&mut decoder, &frame.payload[5..]);
+                headers.push((frame.stream_id, priority, pseudo));
+            }
+        }
+
+        assert_eq!(
+            headers,
+            vec![
+                (
+                    1,
+                    (false, 0, 21),
+                    vec![":method", ":path", ":authority", ":scheme"]
+                ),
+                (
+                    3,
+                    (true, 0, 255),
+                    vec![":method", ":authority", ":scheme", ":path"]
+                ),
+            ]
+        );
+        driver.abort();
+    })
+    .await
+    .expect("HEADERS override test timed out");
 }
 
 #[tokio::test]
@@ -889,6 +981,28 @@ fn decode_header_block_with(
         })
         .expect("encoded header block must decode");
     fields
+}
+
+fn decode_pseudo_names(decoder: &mut Decoder, encoded: &[u8]) -> Vec<&'static str> {
+    let mut payload = BytesMut::from(encoded);
+    let mut cursor = Cursor::new(&mut payload);
+    let mut names = Vec::new();
+    decoder
+        .decode(&mut cursor, |header| {
+            let name = match header {
+                Header::Method(_) => ":method",
+                Header::Authority(_) => ":authority",
+                Header::Scheme(_) => ":scheme",
+                Header::Path(_) => ":path",
+                Header::Protocol(_) => ":protocol",
+                Header::Status(_) => ":status",
+                Header::Field { .. } => return ControlFlow::Continue(()),
+            };
+            names.push(name);
+            ControlFlow::Continue(())
+        })
+        .expect("encoded header block must decode");
+    names
 }
 
 struct PendingShutdownIo {

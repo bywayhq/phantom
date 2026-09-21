@@ -5,4 +5,5 @@ rfc-error-codes.patch
 ordered-header-table-updates.patch
 continuation-bounds.patch
 altsvc-frames.patch
+headers-frame-overrides.patch
 publish-identity.patch

@@ -1,0 +1,235 @@
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index d7fd606..5320c49 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -21,8 +21,8 @@ use tokio::{
+ use super::Peer;
+ use crate::{
+     codec::{SendError, UserError},
+-    ext::OrderedHeaders,
+-    frame::{Headers, Settings, StreamDependency, StreamId},
++    ext::{HeadersFrameOverrides, OrderedHeaders},
++    frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
+     hpack::{Decoder, Encoder, Header},
+ };
+ 
+@@ -165,6 +165,98 @@ async fn handshake_preserves_interleaved_ordered_headers() {
+     .expect("ordered-header handshake test timed out");
+ }
+ 
++#[tokio::test]
++async fn headers_frame_overrides_apply_to_one_request_only() {
++    timeout(Duration::from_secs(2), async {
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let mut builder = super::Builder::new();
++        builder
++            .headers_pseudo_order(
++                PseudoOrder::builder()
++                    .extend([
++                        PseudoId::Method,
++                        PseudoId::Authority,
++                        PseudoId::Scheme,
++                        PseudoId::Path,
++                    ])
++                    .build(),
++            )
++            .headers_stream_dependency(StreamDependency::new(StreamId::zero(), 255, true));
++        let (sender, connection) = builder
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++
++        let mut overridden = request_with_headers();
++        overridden.extensions_mut().insert(
++            HeadersFrameOverrides::new()
++                .pseudo_order(
++                    PseudoOrder::builder()
++                        .extend([
++                            PseudoId::Method,
++                            PseudoId::Path,
++                            PseudoId::Authority,
++                            PseudoId::Scheme,
++                        ])
++                        .build(),
++                )
++                .stream_dependency(StreamDependency::new(StreamId::zero(), 21, false)),
++        );
++        let mut sender = sender.ready().await.expect("sender never became ready");
++        let (_first, first) = sender
++            .send_request(overridden, true)
++            .expect("overridden request was rejected");
++        drop(first);
++        let mut sender = sender.ready().await.expect("sender never became ready");
++        let (_second, second) = sender
++            .send_request(request_with_headers(), true)
++            .expect("default request was rejected");
++        drop(second);
++
++        read_client_preface(&mut peer_io).await;
++        let mut decoder = Decoder::new(4096);
++        let mut headers = Vec::new();
++        while headers.len() < 2 {
++            let frame = read_raw_frame(&mut peer_io).await;
++            if frame.kind == 1 {
++                assert_ne!(frame.flags & 0x20, 0, "HEADERS omitted priority");
++                let priority = (
++                    frame.payload[0] & 0x80 != 0,
++                    u32::from_be_bytes([
++                        frame.payload[0] & 0x7f,
++                        frame.payload[1],
++                        frame.payload[2],
++                        frame.payload[3],
++                    ]),
++                    frame.payload[4],
++                );
++                let pseudo = decode_pseudo_names(&mut decoder, &frame.payload[5..]);
++                headers.push((frame.stream_id, priority, pseudo));
++            }
++        }
++
++        assert_eq!(
++            headers,
++            vec![
++                (
++                    1,
++                    (false, 0, 21),
++                    vec![":method", ":path", ":authority", ":scheme"]
++                ),
++                (
++                    3,
++                    (true, 0, 255),
++                    vec![":method", ":authority", ":scheme", ":path"]
++                ),
++            ]
++        );
++        driver.abort();
++    })
++    .await
++    .expect("HEADERS override test timed out");
++}
++
+ #[tokio::test]
+ async fn handshake_preserves_interleaved_ordered_sensitive_trailers() {
+     timeout(Duration::from_secs(2), async {
+@@ -891,6 +983,28 @@ fn decode_header_block_with(
+     fields
+ }
+ 
++fn decode_pseudo_names(decoder: &mut Decoder, encoded: &[u8]) -> Vec<&'static str> {
++    let mut payload = BytesMut::from(encoded);
++    let mut cursor = Cursor::new(&mut payload);
++    let mut names = Vec::new();
++    decoder
++        .decode(&mut cursor, |header| {
++            let name = match header {
++                Header::Method(_) => ":method",
++                Header::Authority(_) => ":authority",
++                Header::Scheme(_) => ":scheme",
++                Header::Path(_) => ":path",
++                Header::Protocol(_) => ":protocol",
++                Header::Status(_) => ":status",
++                Header::Field { .. } => return ControlFlow::Continue(()),
++            };
++            names.push(name);
++            ControlFlow::Continue(())
++        })
++        .expect("encoded header block must decode");
++    names
++}
++
+ struct PendingShutdownIo {
+     shutdown_polls: Arc<AtomicUsize>,
+ }
+diff --git a/src/ext.rs b/src/ext.rs
+index 7a17bcf..2b96be4 100644
+--- a/src/ext.rs
++++ b/src/ext.rs
+@@ -1,5 +1,6 @@
+ //! Extensions specific to the HTTP/2 protocol.
+ 
++use crate::frame::{PseudoOrder, StreamDependency};
+ use crate::hpack::BytesStr;
+ 
+ use bytes::Bytes;
+@@ -49,6 +50,44 @@ impl OrderedHeaders {
+     }
+ }
+ 
++/// Per-request overrides for a client request's initial HEADERS frame.
++///
++/// Store this value in a request's extensions to replace the connection's
++/// configured pseudo-header order or RFC 7540 stream dependency for that one
++/// request. An unset value keeps the connection default. A peer that disabled
++/// RFC 7540 priorities still suppresses the priority fields.
++#[derive(Clone, Debug, Default, Eq, PartialEq)]
++pub struct HeadersFrameOverrides {
++    pseudo_order: Option<PseudoOrder>,
++    stream_dependency: Option<StreamDependency>,
++}
++
++impl HeadersFrameOverrides {
++    /// Creates overrides that keep every connection default.
++    #[must_use]
++    pub fn new() -> Self {
++        Self::default()
++    }
++
++    /// Replaces the connection's pseudo-header order for this request.
++    #[must_use]
++    pub fn pseudo_order(mut self, order: PseudoOrder) -> Self {
++        self.pseudo_order = Some(order);
++        self
++    }
++
++    /// Replaces the connection's HEADERS stream dependency for this request.
++    #[must_use]
++    pub fn stream_dependency(mut self, dependency: StreamDependency) -> Self {
++        self.stream_dependency = Some(dependency);
++        self
++    }
++
++    pub(crate) fn into_parts(self) -> (Option<PseudoOrder>, Option<StreamDependency>) {
++        (self.pseudo_order, self.stream_dependency)
++    }
++}
++
+ /// One ALTSVC frame (RFC 7838 section 4) received by a client.
+ #[derive(Clone, Eq, PartialEq)]
+ pub struct AltSvc {
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+index 4adae68..f636ac5 100644
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -18,7 +18,7 @@ use super::{
+ use crate::{
+     client,
+     codec::{Codec, SendError, UserError},
+-    ext::{OrderedHeaders, Protocol},
++    ext::{HeadersFrameOverrides, OrderedHeaders, Protocol},
+     frame::{self, Frame, Reason},
+     proto,
+     proto::{peer, Error, Initiator, Open, Peer, WindowSize},
+@@ -268,6 +268,10 @@ where
+ 
+         let protocol = request.extensions_mut().remove::<Protocol>();
+         let ordered_headers = request.extensions_mut().remove::<OrderedHeaders>();
++        let (pseudo_order, stream_dependency) = request
++            .extensions_mut()
++            .remove::<HeadersFrameOverrides>()
++            .map_or((None, None), HeadersFrameOverrides::into_parts);
+ 
+         // Clear before taking lock, incase extensions contain a StreamRef.
+         request.extensions_mut().clear();
+@@ -339,9 +343,9 @@ where
+             request,
+             protocol,
+             end_of_stream,
+-            me.headers_pseudo_order.clone(),
++            pseudo_order.or_else(|| me.headers_pseudo_order.clone()),
+             if send_rfc7540_priorities {
+-                me.headers_stream_dependency
++                stream_dependency.or(me.headers_stream_dependency)
+             } else {
+                 None
+             },

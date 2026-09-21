@@ -18,7 +18,7 @@ use super::{
 use crate::{
     client,
     codec::{Codec, SendError, UserError},
-    ext::{OrderedHeaders, Protocol},
+    ext::{HeadersFrameOverrides, OrderedHeaders, Protocol},
     frame::{self, Frame, Reason},
     proto,
     proto::{peer, Error, Initiator, Open, Peer, WindowSize},
@@ -268,6 +268,10 @@ where
 
         let protocol = request.extensions_mut().remove::<Protocol>();
         let ordered_headers = request.extensions_mut().remove::<OrderedHeaders>();
+        let (pseudo_order, stream_dependency) = request
+            .extensions_mut()
+            .remove::<HeadersFrameOverrides>()
+            .map_or((None, None), HeadersFrameOverrides::into_parts);
 
         // Clear before taking lock, incase extensions contain a StreamRef.
         request.extensions_mut().clear();
@@ -339,9 +343,9 @@ where
             request,
             protocol,
             end_of_stream,
-            me.headers_pseudo_order.clone(),
+            pseudo_order.or_else(|| me.headers_pseudo_order.clone()),
             if send_rfc7540_priorities {
-                me.headers_stream_dependency
+                stream_dependency.or(me.headers_stream_dependency)
             } else {
                 None
             },
