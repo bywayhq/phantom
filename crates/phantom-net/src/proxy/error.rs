@@ -1,12 +1,15 @@
 use std::{error::Error as StdError, fmt};
 
-use crate::tls::TlsError;
+use crate::{
+    http2::{Http2Error, Http2TlsError},
+    tls::TlsError,
+};
 
 /// Stable category of HTTP proxy setup or negotiation failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum HttpConnectErrorKind {
-    /// TLS settings cannot support HTTP/1.1 proxy negotiation.
+    /// TLS or HTTP/2 settings cannot support the selected proxy protocol.
     InvalidConfiguration,
     /// The CONNECT authority or ordered fields are invalid.
     InvalidRequest,
@@ -26,6 +29,8 @@ pub enum HttpConnectErrorKind {
     InvalidResponse,
     /// The proxy rejected the tunnel request.
     Rejected,
+    /// The HTTP/2 session with the proxy failed.
+    Http2,
 }
 
 /// Error returned while establishing or negotiating an HTTP proxy connection.
@@ -34,6 +39,12 @@ pub enum HttpConnectErrorKind {
 pub enum HttpConnectError {
     /// TLS settings do not offer HTTP/1.1 to the proxy.
     MissingHttp1Alpn,
+    /// HTTP/2 proxy transport was selected, but TLS settings do not offer `h2`.
+    MissingH2Alpn,
+    /// HTTP/2 proxy transport was selected without HTTP/2 settings.
+    MissingHttp2Settings,
+    /// Absolute-form forwarding requires HTTP/1.1 transport to the proxy.
+    ForwardingRequiresHttp1,
     /// The HTTP Basic username is invalid.
     InvalidBasicUsername,
     /// The HTTP Basic password is invalid.
@@ -82,6 +93,11 @@ pub enum HttpConnectError {
     MultipleProxyAuthorizationPlaceholders,
     /// A literal authorization field is ambiguous with generated credentials.
     ProxyAuthorizationHeader,
+    /// A caller-supplied field is connection-specific and forbidden in HTTP/2.
+    Http2ConnectionHeader {
+        /// Zero-based position in the caller-supplied field list.
+        index: usize,
+    },
     /// The proxy request was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// Establishing the TCP connection to the proxy failed.
@@ -93,6 +109,10 @@ pub enum HttpConnectError {
         /// Exact ALPN protocol selected by the proxy.
         selected: Box<[u8]>,
     },
+    /// The TLS proxy selected no protocol, but HTTP/2 transport requires `h2`.
+    MissingNegotiatedAlpn,
+    /// HTTP/2 settings, setup, or the CONNECT stream failed on the proxy session.
+    ProxyHttp2(Box<Http2TlsError>),
     /// Writing the CONNECT request failed.
     Write(std::io::Error),
     /// Reading the CONNECT response failed.
@@ -127,7 +147,10 @@ impl HttpConnectError {
     #[must_use]
     pub fn kind(&self) -> HttpConnectErrorKind {
         match self {
-            Self::MissingHttp1Alpn => HttpConnectErrorKind::InvalidConfiguration,
+            Self::MissingHttp1Alpn
+            | Self::MissingH2Alpn
+            | Self::MissingHttp2Settings
+            | Self::ForwardingRequiresHttp1 => HttpConnectErrorKind::InvalidConfiguration,
             Self::InvalidBasicUsername
             | Self::InvalidBasicPassword
             | Self::BasicCredentialsTooLarge
@@ -143,14 +166,26 @@ impl HttpConnectError {
             | Self::ProxyAuthorizationPlaceholder
             | Self::MissingProxyAuthorizationPlaceholder
             | Self::MultipleProxyAuthorizationPlaceholders
-            | Self::ProxyAuthorizationHeader => HttpConnectErrorKind::InvalidRequest,
+            | Self::ProxyAuthorizationHeader
+            | Self::Http2ConnectionHeader { .. } => HttpConnectErrorKind::InvalidRequest,
             Self::MalformedAuthenticationChallenge
             | Self::UnsupportedAuthenticationChallenge
             | Self::AuthenticationRejected => HttpConnectErrorKind::Authentication,
             Self::RuntimeUnavailable => HttpConnectErrorKind::RuntimeUnavailable,
             Self::Connect(_) => HttpConnectErrorKind::Connect,
             Self::ProxyTls(_) => HttpConnectErrorKind::Tls,
-            Self::UnsupportedAlpn { .. } => HttpConnectErrorKind::UnsupportedProtocol,
+            Self::UnsupportedAlpn { .. } | Self::MissingNegotiatedAlpn => {
+                HttpConnectErrorKind::UnsupportedProtocol
+            }
+            Self::ProxyHttp2(error) => match error.as_ref() {
+                Http2TlsError::Http2(
+                    Http2Error::InvalidSettings(_)
+                    | Http2Error::UnsupportedSetting
+                    | Http2Error::InvalidPriorityDependency { .. },
+                ) => HttpConnectErrorKind::InvalidConfiguration,
+                Http2TlsError::RuntimeUnavailable => HttpConnectErrorKind::RuntimeUnavailable,
+                _ => HttpConnectErrorKind::Http2,
+            },
             Self::Write(_) | Self::Read(_) => HttpConnectErrorKind::Io,
             Self::ResponseHeadTooLarge { .. }
             | Self::TooManyInformationalResponses { .. }
@@ -166,6 +201,14 @@ impl fmt::Display for HttpConnectError {
             Self::MissingHttp1Alpn => {
                 formatter.write_str("HTTPS proxy TLS settings must offer http/1.1 through ALPN")
             }
+            Self::MissingH2Alpn => formatter.write_str(
+                "HTTP/2 proxy transport requires TLS settings that offer h2 through ALPN",
+            ),
+            Self::MissingHttp2Settings => {
+                formatter.write_str("HTTP/2 proxy transport requires HTTP/2 settings")
+            }
+            Self::ForwardingRequiresHttp1 => formatter
+                .write_str("plaintext HTTP forwarding requires HTTP/1.1 transport to the proxy"),
             Self::InvalidBasicUsername => {
                 formatter.write_str("HTTP Basic proxy username is invalid")
             }
@@ -213,6 +256,10 @@ impl fmt::Display for HttpConnectError {
             ),
             Self::ProxyAuthorizationHeader => formatter
                 .write_str("authenticated HTTP CONNECT must use the authorization placeholder"),
+            Self::Http2ConnectionHeader { index } => write!(
+                formatter,
+                "HTTP/2 CONNECT field {index} is connection-specific"
+            ),
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP CONNECT requires a Tokio runtime")
             }
@@ -221,6 +268,10 @@ impl fmt::Display for HttpConnectError {
             Self::UnsupportedAlpn { .. } => {
                 formatter.write_str("TLS proxy selected an unsupported application protocol")
             }
+            Self::MissingNegotiatedAlpn => {
+                formatter.write_str("TLS proxy did not select h2 for HTTP/2 proxy transport")
+            }
+            Self::ProxyHttp2(error) => write!(formatter, "HTTP/2 proxy session failed: {error}"),
             Self::Write(error) => write!(formatter, "HTTP CONNECT request write failed: {error}"),
             Self::Read(error) => write!(formatter, "HTTP CONNECT response read failed: {error}"),
             Self::ResponseHeadTooLarge { maximum } => write!(
@@ -258,6 +309,7 @@ impl StdError for HttpConnectError {
         match self {
             Self::Connect(error) | Self::Write(error) | Self::Read(error) => Some(error),
             Self::ProxyTls(error) => Some(error),
+            Self::ProxyHttp2(error) => Some(error.as_ref()),
             _ => None,
         }
     }
@@ -276,6 +328,7 @@ impl HttpConnectErrorKind {
             Self::Io => "io_error",
             Self::InvalidResponse => "invalid_response",
             Self::Rejected => "rejected",
+            Self::Http2 => "http2_error",
         }
     }
 }

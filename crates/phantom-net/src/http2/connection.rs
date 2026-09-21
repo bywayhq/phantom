@@ -20,9 +20,13 @@ use crate::request::{RequestBody, RequestBodyMetadata};
 
 use super::{
     Http2Body, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
-    OperationOutcome, OriginForm, RequestHeader, driver::DriverTask, prepare_extended_connect,
-    prepare_request, request::PreparedRequestTrailers, translate_extended_connect_settings,
-    translate_settings, upload::send_body,
+    OperationOutcome, OriginForm, RequestHeader,
+    driver::DriverTask,
+    prepare_extended_connect, prepare_request,
+    request::PreparedRequestTrailers,
+    translate_extended_connect_settings, translate_settings,
+    tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream},
+    upload::send_body,
 };
 
 /// An established HTTP/2 connection that can open concurrent request streams.
@@ -284,6 +288,75 @@ impl Http2Connection {
         let terminal_outcome = match &result {
             Ok(Http2ExtendedConnectOutcome::Accepted { .. }) => "accepted",
             Ok(Http2ExtendedConnectOutcome::Rejected(_)) => "rejected",
+            Err(Http2Error::Protocol(_)) => "protocol_error",
+            Err(_) => "request_error",
+        };
+        outcome.finish(terminal_outcome);
+        result
+    }
+
+    /// Sends one prepared RFC 9113 section 8.5 CONNECT request.
+    ///
+    /// A 2xx response yields the stream as a flow-controlled byte tunnel. Any
+    /// other final status resets the stream and reports the status and fields.
+    pub(crate) async fn send_classic_connect(
+        &self,
+        request: Request<()>,
+    ) -> Result<Http2ClassicConnectOutcome, Http2Error> {
+        let span = debug_span!(
+            "http2.connect.response_head",
+            method = "CONNECT",
+            protocol = "h2",
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            let mut sender = self
+                .inner
+                .sender()
+                .ok_or_else(connection_closed)
+                .map_err(Http2Error::protocol)?
+                .clone()
+                .ready()
+                .await
+                .map_err(Http2Error::protocol)?;
+            let (response, send) = sender
+                .send_request(request, false)
+                .map_err(Http2Error::protocol)?;
+            let send = RequestStreamGuard::new(send);
+            let response = match response.await {
+                Ok(response) => response,
+                Err(error) => {
+                    // A failed response already ended the stream; an explicit
+                    // reset would only queue a frame on a dead connection.
+                    drop(send.disarm());
+                    return Err(Http2Error::protocol(error));
+                }
+            };
+            let status = response.status();
+            span.record("status", status.as_u16());
+            let (parts, incoming) = response.into_parts();
+            if status.is_success() {
+                Ok(Http2ClassicConnectOutcome::Accepted {
+                    status: status.as_u16(),
+                    stream: Http2ConnectStream::new(incoming, send.disarm()?, self.lease()),
+                })
+            } else {
+                // Dropping the guard resets the rejected stream with CANCEL.
+                drop(send);
+                drop(incoming);
+                Ok(Http2ClassicConnectOutcome::Rejected {
+                    status: status.as_u16(),
+                    headers: parts.headers,
+                })
+            }
+        }
+        .instrument(span.clone())
+        .await;
+        let terminal_outcome = match &result {
+            Ok(Http2ClassicConnectOutcome::Accepted { .. }) => "accepted",
+            Ok(Http2ClassicConnectOutcome::Rejected { .. }) => "rejected",
             Err(Http2Error::Protocol(_)) => "protocol_error",
             Err(_) => "request_error",
         };

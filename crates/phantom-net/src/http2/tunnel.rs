@@ -1,4 +1,4 @@
-//! Bidirectional byte transport carried by an accepted extended CONNECT stream.
+//! Bidirectional byte transport carried by an accepted HTTP/2 CONNECT stream.
 
 use std::{
     any::Any,
@@ -43,12 +43,97 @@ impl fmt::Debug for Http2ExtendedConnectOutcome {
     }
 }
 
+/// Terminal response to an RFC 9113 section 8.5 CONNECT request.
+pub(crate) enum Http2ClassicConnectOutcome {
+    /// The peer returned a 2xx status and the stream now carries tunnel bytes.
+    Accepted {
+        /// Final successful response status.
+        status: u16,
+        /// Flow-controlled tunnel byte stream.
+        stream: Http2ConnectStream,
+    },
+    /// The peer returned a final non-2xx status; the stream was reset.
+    Rejected {
+        /// Final response status.
+        status: u16,
+        /// Semantic response fields, used for authentication challenges.
+        headers: http::HeaderMap,
+    },
+}
+
 /// A bounded, flow-controlled byte stream carried by HTTP/2 DATA frames.
 ///
 /// Receive capacity is returned only as bytes are consumed. Writes wait for
 /// stream capacity before copying and queueing data. Dropping an incomplete
 /// stream resets only that stream with `CANCEL`.
 pub struct Http2ExtendedConnectStream {
+    inner: Http2ConnectStream,
+}
+
+impl Http2ExtendedConnectStream {
+    pub(super) fn new(
+        receive: RecvStream,
+        send: SendStream<Bytes>,
+        lease: ConnectionLease,
+    ) -> Self {
+        Self {
+            inner: Http2ConnectStream::new(receive, send, lease),
+        }
+    }
+
+    /// Retains a value until this stream is completed or dropped.
+    #[doc(hidden)]
+    pub fn retain_until_stream_complete<T>(&mut self, value: T)
+    where
+        T: Send + Sync + 'static,
+    {
+        self.inner.stream_guard = Some(Box::new(value));
+    }
+}
+
+impl fmt::Debug for Http2ExtendedConnectStream {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Http2ExtendedConnectStream")
+            .field("receive_complete", &self.inner.receive_complete)
+            .field("send_complete", &self.inner.send_complete)
+            .finish_non_exhaustive()
+    }
+}
+
+impl AsyncRead for Http2ExtendedConnectStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        output: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_read(context, output)
+    }
+}
+
+impl AsyncWrite for Http2ExtendedConnectStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        input: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write(context, input)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_flush(context)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(context)
+    }
+}
+
+/// DATA-frame byte stream shared by extended CONNECT and classic proxy CONNECT.
+///
+/// The stream owns a lease on its connection, so a tunnel that is the only
+/// user of a connection also ends that connection when dropped.
+pub(crate) struct Http2ConnectStream {
     receive: RecvStream,
     send: SendStream<Bytes>,
     current: Bytes,
@@ -59,7 +144,7 @@ pub struct Http2ExtendedConnectStream {
     _lease: ConnectionLease,
 }
 
-impl Http2ExtendedConnectStream {
+impl Http2ConnectStream {
     pub(super) fn new(
         receive: RecvStream,
         send: SendStream<Bytes>,
@@ -77,15 +162,6 @@ impl Http2ExtendedConnectStream {
         }
     }
 
-    /// Retains a value until this stream is completed or dropped.
-    #[doc(hidden)]
-    pub fn retain_until_stream_complete<T>(&mut self, value: T)
-    where
-        T: Send + Sync + 'static,
-    {
-        self.stream_guard = Some(Box::new(value));
-    }
-
     fn release_guard_if_complete(&mut self) {
         if self.receive_complete && self.send_complete {
             self.stream_guard.take();
@@ -99,7 +175,7 @@ impl Http2ExtendedConnectStream {
                 self.release_guard_if_complete();
                 Poll::Ready(Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "HTTP/2 extended CONNECT stream received trailers",
+                    "HTTP/2 CONNECT stream received trailers",
                 )))
             }
             Ok(None) => {
@@ -116,17 +192,17 @@ impl Http2ExtendedConnectStream {
     }
 }
 
-impl fmt::Debug for Http2ExtendedConnectStream {
+impl fmt::Debug for Http2ConnectStream {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
-            .debug_struct("Http2ExtendedConnectStream")
+            .debug_struct("Http2ConnectStream")
             .field("receive_complete", &self.receive_complete)
             .field("send_complete", &self.send_complete)
             .finish_non_exhaustive()
     }
 }
 
-impl AsyncRead for Http2ExtendedConnectStream {
+impl AsyncRead for Http2ConnectStream {
     fn poll_read(
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
@@ -170,7 +246,7 @@ impl AsyncRead for Http2ExtendedConnectStream {
     }
 }
 
-impl AsyncWrite for Http2ExtendedConnectStream {
+impl AsyncWrite for Http2ConnectStream {
     fn poll_write(
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
@@ -179,7 +255,7 @@ impl AsyncWrite for Http2ExtendedConnectStream {
         if self.send_complete {
             return Poll::Ready(Err(io::Error::new(
                 io::ErrorKind::BrokenPipe,
-                "HTTP/2 extended CONNECT send stream is closed",
+                "HTTP/2 CONNECT send stream is closed",
             )));
         }
         if input.is_empty() {
@@ -198,7 +274,7 @@ impl AsyncWrite for Http2ExtendedConnectStream {
                     self.send_complete = true;
                     return Poll::Ready(Err(io::Error::new(
                         io::ErrorKind::BrokenPipe,
-                        "HTTP/2 extended CONNECT send stream closed before the write",
+                        "HTTP/2 CONNECT send stream closed before the write",
                     )));
                 }
             }
@@ -226,7 +302,7 @@ impl AsyncWrite for Http2ExtendedConnectStream {
     }
 }
 
-impl Drop for Http2ExtendedConnectStream {
+impl Drop for Http2ConnectStream {
     fn drop(&mut self) {
         if !self.send_complete {
             self.send.send_reset(Reason::CANCEL);

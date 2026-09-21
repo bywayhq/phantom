@@ -331,12 +331,12 @@ fn find_head_end(bytes: &[u8]) -> Option<usize> {
         .map(|index| index + 4)
 }
 
-pub(super) async fn trace_connect<F, S>(
+pub(super) async fn trace_connect<F, T>(
     transport: &'static str,
     operation: F,
-) -> Result<TunnelStream<S>, HttpConnectError>
+) -> Result<T, HttpConnectError>
 where
-    F: Future<Output = Result<TunnelStream<S>, HttpConnectError>>,
+    F: Future<Output = Result<T, HttpConnectError>>,
 {
     let span = debug_span!(
         "proxy.http_connect",
@@ -410,7 +410,7 @@ impl PreparedConnect {
         Self::prepare(authority, headers, Authorization::Forbidden)
     }
 
-    fn prepare(
+    pub(super) fn prepare(
         authority: &str,
         headers: &[HttpConnectHeader],
         authorization: Authorization<'_>,
@@ -557,7 +557,7 @@ struct ParsedResponse {
 }
 
 #[derive(Clone, Copy)]
-enum Authorization<'a> {
+pub(super) enum Authorization<'a> {
     Forbidden,
     Omit,
     Emit(&'a [u8]),

@@ -27,6 +27,8 @@ pub use alt_svc::{AltSvcFrame, AltSvcFrameScope, AltSvcFrames};
 pub use body::Http2Body;
 pub use connection::Http2Connection;
 pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
+pub(crate) use request::prepare_classic_connect;
+pub(crate) use tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream};
 pub use tunnel::{Http2ExtendedConnectOutcome, Http2ExtendedConnectStream};
 
 /// Validates one empty-body HTTP/2 GET without touching a connection.

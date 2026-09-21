@@ -184,6 +184,51 @@ pub(super) fn prepare_extended_connect(
     Ok(request)
 }
 
+/// Builds an RFC 9113 section 8.5 CONNECT request.
+///
+/// The URI carries only the authority, so the encoder emits `:method` and
+/// `:authority` and skips the absent `:scheme` and `:path` while following the
+/// connection's configured pseudo-header order. The caller supplies fields
+/// that it has already validated; this repeats only the HTTP/2 field checks.
+pub(crate) fn prepare_classic_connect(
+    authority: &str,
+    fields: Vec<(HeaderName, HeaderValue)>,
+) -> Result<Request<()>, Http2Error> {
+    if authority.as_bytes().contains(&b'@') {
+        return Err(Http2Error::AuthorityContainsUserinfo);
+    }
+    let authority = authority
+        .parse::<Authority>()
+        .map_err(Http2Error::InvalidAuthority)?;
+    let uri = Uri::builder()
+        .authority(authority)
+        .build()
+        .map_err(Http2Error::InvalidRequestUri)?;
+    if fields.len() > MAX_REQUEST_HEADERS {
+        return Err(Http2Error::TooManyHeaders {
+            count: fields.len(),
+            maximum: MAX_REQUEST_HEADERS,
+        });
+    }
+    let mut request = Request::new(());
+    *request.method_mut() = Method::CONNECT;
+    *request.uri_mut() = uri;
+    *request.version_mut() = Version::HTTP_2;
+    for (name, value) in &fields {
+        if is_forbidden_header(name) || (name == TE && value.as_bytes() != b"trailers") {
+            return Err(Http2Error::ForbiddenHeader {
+                name: name.as_str().into(),
+            });
+        }
+        request
+            .headers_mut()
+            .try_append(name, value.clone())
+            .map_err(|_| Http2Error::HeaderMapCapacity)?;
+    }
+    request.extensions_mut().insert(OrderedHeaders::new(fields));
+    Ok(request)
+}
+
 struct ValidatedHeaders {
     ordered: Vec<(HeaderName, HeaderValue)>,
 }

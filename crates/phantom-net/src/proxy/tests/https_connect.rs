@@ -199,7 +199,7 @@ async fn invalid_connect_fails_before_proxy_tcp_io() -> TestResult<()> {
     Ok(())
 }
 
-fn tls_settings() -> TlsSettings {
+pub(super) fn tls_settings() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,
         max_version: TlsVersion::Tls12,

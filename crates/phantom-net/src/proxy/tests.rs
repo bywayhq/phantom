@@ -14,6 +14,7 @@ use crate::{
 };
 
 mod authentication;
+mod http2_connect;
 mod https_connect;
 mod socks5;
 mod socks5_udp;
