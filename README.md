@@ -99,8 +99,7 @@ timeouts, bodies, and responses.
 - WebSocket connects do not apply the client's timeout, retry, or redirect
   policy.
 - Streaming request bodies are one-shot and are not replayed implicitly.
-- Alt-Svc connection racing, CONNECT-UDP over
-  HTTP/1 or HTTP/2 proxies, and H3 WebSocket remain planned.
+- Alt-Svc connection racing and H3 WebSocket remain planned.
 
 These limits make Phantom narrower than a general-purpose client, but keep its
 behavior explicit and testable.
