@@ -79,7 +79,7 @@ impl Body for MismatchedTrailerBody {
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
-    http1::{Http1Connection, RequestHeader},
+    http1::{Http1Connection, Http1Error, RequestHeader},
     request::{RequestBody, RequestTrailerName},
 };
 
@@ -552,4 +552,93 @@ async fn http10_and_close_delimited_responses_prevent_reuse() -> TestResult {
         .await?;
     }
     Ok(())
+}
+
+#[tokio::test]
+async fn reused_connection_closed_before_response_is_typed() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            server
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            let second = read_head(&mut server).await?;
+            drop(server);
+            Ok::<_, std::io::Error>(second)
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        connection
+            .send_get(target()?, vec![host()])
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+        let result = connection.send_get(target()?, vec![host()]).await;
+
+        assert!(
+            matches!(result, Err(Http1Error::ReusedConnectionClosed(_))),
+            "{result:?}"
+        );
+        assert!(!connection.is_reusable());
+        assert!(
+            server_task
+                .await??
+                .starts_with(b"GET /resource?item=1 HTTP/1.1\r\n")
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn fresh_connection_closed_before_response_remains_a_protocol_error() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            drop(server);
+            Ok::<_, std::io::Error>(())
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        let result = connection.send_get(target()?, vec![host()]).await;
+
+        assert!(matches!(result, Err(Http1Error::Protocol(_))), "{result:?}");
+        server_task.await??;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn reused_connection_closed_after_partial_response_remains_a_protocol_error() -> TestResult {
+    bounded_peer_test(async {
+        let (client, mut server) = duplex(4096);
+        let server_task = tokio::spawn(async move {
+            read_head(&mut server).await?;
+            server
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            read_head(&mut server).await?;
+            server.write_all(b"HTTP/1.1 200").await?;
+            drop(server);
+            Ok::<_, std::io::Error>(())
+        });
+
+        let connection = Http1Connection::connect(client).await?;
+        connection
+            .send_get(target()?, vec![host()])
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+        let result = connection.send_get(target()?, vec![host()]).await;
+
+        assert!(matches!(result, Err(Http1Error::Protocol(_))), "{result:?}");
+        server_task.await??;
+        Ok(())
+    })
+    .await
 }

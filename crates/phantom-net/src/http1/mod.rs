@@ -166,6 +166,12 @@ pub enum Http1Error {
     RuntimeUnavailable,
     /// The HTTP protocol driver failed.
     Protocol(wreq_proto::Error),
+    /// A keep-alive connection that had already delivered a response closed
+    /// or was reset before any byte of this request's response arrived.
+    ///
+    /// The request may have reached the peer. Only the caller can decide
+    /// whether replaying it on another connection is safe.
+    ReusedConnectionClosed(wreq_proto::Error),
 }
 
 impl fmt::Display for Http1Error {
@@ -284,6 +290,10 @@ impl fmt::Display for Http1Error {
                 formatter.write_str("HTTP/1 connections require a Tokio runtime")
             }
             Self::Protocol(error) => write!(formatter, "HTTP/1.1 protocol error: {error}"),
+            Self::ReusedConnectionClosed(error) => write!(
+                formatter,
+                "reused HTTP/1.1 connection closed before any response byte: {error}"
+            ),
         }
     }
 }
@@ -291,7 +301,7 @@ impl fmt::Display for Http1Error {
 impl StdError for Http1Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            Self::Protocol(error) => Some(error),
+            Self::Protocol(error) | Self::ReusedConnectionClosed(error) => Some(error),
             _ => None,
         }
     }
@@ -343,6 +353,7 @@ impl Http1Error {
             Self::ConnectionClosed => "connection_closed",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
+            Self::ReusedConnectionClosed(_) => "reused_connection_closed",
         }
     }
 }

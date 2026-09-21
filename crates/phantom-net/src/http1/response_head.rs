@@ -39,7 +39,16 @@ impl ResponseHeadObserver {
         state.headers = None;
         state.limit_error = None;
         state.informational_responses = 0;
+        state.received_bytes = false;
         state.armed = true;
+    }
+
+    /// Returns whether any byte arrived since the current transaction began.
+    pub(super) fn received_bytes(&self) -> bool {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .received_bytes
     }
 
     pub(super) fn take(&self) -> Option<OrderedResponseHeaders> {
@@ -71,6 +80,8 @@ struct ResponseHeadState {
     headers: Option<OrderedResponseHeaders>,
     limit_error: Option<ResponseHeadLimitError>,
     informational_responses: usize,
+    /// Any byte read after `begin`, including bytes the head parser rejects.
+    received_bytes: bool,
     armed: bool,
 }
 
@@ -195,7 +206,11 @@ where
                     .state
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                state.observe(&buffer.filled()[previous_length..]);
+                let received = &buffer.filled()[previous_length..];
+                if !received.is_empty() {
+                    state.received_bytes = true;
+                }
+                state.observe(received);
                 if state
                     .limit_error
                     .is_some_and(ResponseHeadLimitError::ends_stream)

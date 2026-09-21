@@ -1,7 +1,8 @@
 //! Reusable HTTP/1.1 connection ownership.
 
 use std::{
-    fmt,
+    error::Error as StdError,
+    fmt, io,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -27,7 +28,7 @@ use super::{
     limits::connection_builder,
     response_head::ResponseHeadObserver,
 };
-use crate::request::RequestBody;
+use crate::request::{RequestBody, RequestBodyError};
 
 /// An established HTTP/1.1 connection that executes requests sequentially.
 ///
@@ -60,6 +61,7 @@ impl Http1Connection {
                 observer,
                 driver: DriverTask::spawn(&runtime, connection),
                 reusable: AtomicBool::new(true),
+                delivered_response: AtomicBool::new(false),
             }),
         })
     }
@@ -178,7 +180,8 @@ impl Http1Connection {
     /// Returns whether this connection is eligible for another request.
     ///
     /// This is a snapshot. The peer can still close an idle connection before
-    /// the next request reaches it; Phantom does not replay that request.
+    /// the next request reaches it. That request then fails with
+    /// [`Http1Error::ReusedConnectionClosed`] and is not replayed here.
     #[must_use]
     pub fn is_reusable(&self) -> bool {
         self.inner.reusable.load(Ordering::Acquire) && !self.inner.driver.is_finished()
@@ -218,6 +221,9 @@ impl Http1Connection {
             self.inner.observer.begin();
             if let Err(error) = sender.ready().await {
                 self.inner.stop(DriverSignal::ProtocolError);
+                if self.inner.closed_before_response(&error) {
+                    return Err(Http1Error::ReusedConnectionClosed(error));
+                }
                 return Err(Http1Error::Protocol(error));
             }
             let request_allows_reuse = prepared.allows_reuse();
@@ -227,11 +233,14 @@ impl Http1Connection {
                 Ok(response) => response,
                 Err(error) => {
                     in_flight.stop(DriverSignal::ProtocolError);
-                    return Err(self
-                        .inner
-                        .observer
-                        .take_limit_error()
-                        .unwrap_or_else(|| error.into_error().into()));
+                    if let Some(error) = self.inner.observer.take_limit_error() {
+                        return Err(error);
+                    }
+                    let error = error.into_error();
+                    if self.inner.closed_before_response(&error) {
+                        return Err(Http1Error::ReusedConnectionClosed(error));
+                    }
+                    return Err(error.into());
                 }
             };
             if let Some(error) = self.inner.observer.take_limit_error() {
@@ -264,6 +273,7 @@ impl Http1Connection {
                 return Err(Http1Error::MissingResponseHeaderOrder);
             };
             parts.extensions.insert(ordered_headers);
+            self.inner.delivered_response.store(true, Ordering::Release);
             Ok(Response::from_parts(
                 parts,
                 Http1Body::new(
@@ -283,7 +293,11 @@ impl Http1Connection {
                 | Http1Error::ResponseHeadTooLarge { .. }
                 | Http1Error::ChunkSizeLineTooLarge { .. },
             ) => "invalid_response",
-            Err(Http1Error::Protocol(_) | Http1Error::ConnectionClosed) => "protocol_error",
+            Err(
+                Http1Error::Protocol(_)
+                | Http1Error::ReusedConnectionClosed(_)
+                | Http1Error::ConnectionClosed,
+            ) => "protocol_error",
             Err(_) => "request_error",
         };
         outcome.finish(terminal_outcome);
@@ -336,6 +350,8 @@ struct ConnectionInner {
     observer: ResponseHeadObserver,
     driver: DriverTask,
     reusable: AtomicBool,
+    /// Set once a response head was returned, so later requests are reuses.
+    delivered_response: AtomicBool,
 }
 
 struct InFlightGuard<'a> {
@@ -374,6 +390,46 @@ impl ConnectionInner {
         self.reusable.store(false, Ordering::Release);
         self.driver.finish(signal);
     }
+
+    /// Reports a reused connection that closed before any response byte.
+    ///
+    /// Callers check this only after the current transaction began, so the
+    /// observer's byte flag covers exactly this request's response.
+    fn closed_before_response(&self, error: &wreq_proto::Error) -> bool {
+        self.delivered_response.load(Ordering::Acquire)
+            && !self.observer.received_bytes()
+            && is_connection_close(error)
+    }
+}
+
+/// Classifies a transport close, reset, or end of stream.
+///
+/// Parse, timeout, and caller-body failures are excluded; so is any I/O error
+/// other than a peer close or reset.
+fn is_connection_close(error: &wreq_proto::Error) -> bool {
+    if error.is_incomplete_message() || error.is_canceled() || error.is_closed() {
+        return true;
+    }
+    if error.is_user() || error.is_parse() || error.is_timeout() {
+        return false;
+    }
+    let mut source = StdError::source(error);
+    while let Some(current) = source {
+        if current.is::<RequestBodyError>() {
+            return false;
+        }
+        if let Some(io_error) = current.downcast_ref::<io::Error>() {
+            return matches!(
+                io_error.kind(),
+                io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+                    | io::ErrorKind::BrokenPipe
+                    | io::ErrorKind::UnexpectedEof
+            );
+        }
+        source = current.source();
+    }
+    false
 }
 
 impl Drop for ConnectionInner {

@@ -1566,9 +1566,11 @@ impl Http1TlsConnector {
                 | Http1TlsError::Socks5Proxy(_),
             ) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
-            Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
-                "http_protocol_error"
-            }
+            Err(Http1TlsError::Http1(
+                Http1Error::Protocol(_)
+                | Http1Error::ReusedConnectionClosed(_)
+                | Http1Error::ConnectionClosed,
+            )) => "http_protocol_error",
             Err(Http1TlsError::Http1(
                 Http1Error::AmbiguousResponseFraming
                 | Http1Error::UnexpectedUpgrade
@@ -1640,9 +1642,11 @@ fn upgrade_outcome(result: &Result<Http1UpgradeOutcome, Http1TlsError>) -> &'sta
             | Http1TlsError::Socks5Proxy(_),
         ) => "proxy_error",
         Err(Http1TlsError::Tls(_)) => "tls_error",
-        Err(Http1TlsError::Http1(Http1Error::Protocol(_) | Http1Error::ConnectionClosed)) => {
-            "http_protocol_error"
-        }
+        Err(Http1TlsError::Http1(
+            Http1Error::Protocol(_)
+            | Http1Error::ReusedConnectionClosed(_)
+            | Http1Error::ConnectionClosed,
+        )) => "http_protocol_error",
         Err(Http1TlsError::Http1(
             Http1Error::AmbiguousResponseFraming
             | Http1Error::UnexpectedUpgrade
