@@ -611,3 +611,37 @@ fn invalidates_http2_connection(error: &Http2Error) -> bool {
             if error.kind() != Http2ProtocolErrorKind::StreamReset
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{num::NonZeroUsize, sync::Arc};
+
+    use super::{Http1Or2Pool, PoolKey};
+    use crate::authority::Endpoint;
+
+    #[tokio::test]
+    async fn pre_selection_admission_survives_lru_eviction()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let one = NonZeroUsize::MIN;
+        let pool = Http1Or2Pool::new(one, one, one, one, one);
+        let first = Endpoint::new("first.test:443".parse()?, 443)?;
+        let second = Endpoint::new("second.test:443".parse()?, 443)?;
+
+        let first_entry = pool.entry(PoolKey::new(&first)).await;
+        let permit = first_entry.admit_before_selection().await?;
+        pool.entry(PoolKey::new(&second)).await;
+        drop(first_entry);
+        let replacement = pool.entry(PoolKey::new(&first)).await;
+
+        // A held permit keeps the original instance, so the recreated entry
+        // counts against the same semaphore instead of a fresh one.
+        assert!(Arc::ptr_eq(
+            permit.admission(),
+            &replacement.selection_admission
+        ));
+        assert_eq!(replacement.selection_admission.available_active(), 0);
+        drop(permit);
+        assert_eq!(replacement.selection_admission.available_active(), 1);
+        Ok(())
+    }
+}

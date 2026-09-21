@@ -986,6 +986,59 @@ async fn negotiated_graceful_goaway_retries_a_bodyless_get_once_on_a_replacement
 }
 
 #[tokio::test]
+async fn negotiated_graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptors = [identity.acceptor(H2_ALPN)?, identity.acceptor(H2_ALPN)?];
+        let (client_done_tx, client_done_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            for acceptor in acceptors {
+                let (tcp, _) = listener.accept().await?;
+                let mut stream = accept_tls_stream(tcp, acceptor).await?;
+                accept_client_preface(&mut stream).await?;
+                read_request_headers(&mut stream, 1).await?;
+                write_frame(&mut stream, 0x7, 0, 0, &[0, 0, 0, 0, 0, 0, 0, 0]).await?;
+                stream.flush().await?;
+                stream.shutdown().await?;
+            }
+
+            tokio::select! {
+                biased;
+                accepted = listener.accept() => {
+                    accepted?;
+                    Ok::<_, Box<dyn Error + Send + Sync>>(false)
+                }
+                completed = client_done_rx => {
+                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    Ok(true)
+                }
+            }
+        });
+
+        let client = test_client(&identity, true)?;
+        let result = client
+            .get_negotiated(&format!("https://{address}/bounded"))?
+            .send()
+            .await;
+        let error = match result {
+            Ok(_) => return Err("request survived a second graceful GOAWAY".into()),
+            Err(error) => error,
+        };
+        // The second GOAWAY surfaces as the selected protocol's typed error.
+        assert_eq!(error.kind(), RequestErrorKind::Http2);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+        client_done_tx
+            .send(())
+            .map_err(|_| "server stopped before client completion")?;
+        assert!(server.await??, "a second replay opened a third connection");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn negotiated_graceful_goaway_does_not_replay_another_method() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;

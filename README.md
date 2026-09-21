@@ -36,7 +36,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | Protocols | Ordered streaming H1, multiplexed H2, exact H3 over direct or SOCKS5-carried QUIC, one-handshake direct H1/H2 negotiation with opt-in bounded Alt-Svc upgrade to H3 and canonical explicit-port `Alt-Used` only on that managed attempt, and ordered static or streaming-body-produced request trailers |
 | Profiles | Chrome 152 transport recipes across TLS, H2, H3, and QUIC retained from macOS captures, plus separate macOS client hints; Firefox 154 TLS/H2 and Safari 18.5 TLS retained from macOS captures |
 | Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; local- or remote-DNS SOCKS5 for H1/H2; and exact H3 over local- or remote-DNS SOCKS5 using RFC 1928 UDP ASSOCIATE |
-| State | Isolated bounded pools, redirects, opt-in exact-protocol setup retries, timeouts, client hints, TLS sessions, bounded opt-in Alt-Svc, and opt-in cookies |
+| State | Isolated bounded pools, redirects, opt-in pre-dispatch setup retries for exact H1/H2/H3 and pre-ALPN negotiated H1/H2, timeouts, client hints, TLS sessions, bounded opt-in Alt-Svc, and opt-in cookies |
 | Optional APIs | Server-sent events; H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable; exact direct H2 WebSocket extended CONNECT for explicitly configured profiles; and opt-in `permessage-deflate` |
 | Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
 
@@ -94,7 +94,7 @@ timeouts, bodies, and responses.
 - H3 accepts direct, local-DNS `socks5://`, or remote-DNS `socks5h://` routes.
   It rejects HTTP forwarding and HTTP CONNECT before origin I/O.
 - Streaming request bodies are one-shot and are not replayed implicitly.
-- Broader status, post-dispatch, and negotiated-protocol retry policies;
+- Broader status and post-dispatch retry policies;
   CONNECT-UDP/MASQUE; Alt-Svc connection racing, persistence, and H2 ALTSVC
   frames; proxy-carried extended CONNECT; and H3 WebSocket remain planned.
 

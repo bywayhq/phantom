@@ -188,8 +188,11 @@ forward-proxy, CONNECT-proxy, SOCKS5, and QUIC setup variants while excluding
 TLS, authentication, rejection, timeout, protocol, and post-dispatch failures.
 Public loopback H1 and H2 regressions start their servers only after observing
 the first refused setup, then verify the final request and response metadata.
-The H1 case uses a one-shot streaming POST with static trailers. A negotiated
-H1/H2 refusal proves that configured exact-protocol retries remain excluded.
+The H1 case uses a one-shot streaming POST with static trailers. Negotiated
+H1/H2 loopback regressions prove a refused connect is retried before ALPN, TLS
+failure is terminal, the retry delay releases the connection lock, pre-selection
+admission is bounded, the budget is shared across redirects, and one-shot
+bodies are not polled before the retry.
 Live H3 recovery is not claimed: H3 coverage currently consists of the typed
 QUIC classification table, shared acquisition lifecycle tests, static pool
 wiring review, and the workspace gates.
