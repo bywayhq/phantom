@@ -36,7 +36,6 @@ use tracing_support::OutcomeSubscriber;
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const RETRY_DELAY: Duration = Duration::from_millis(500);
 const NEGOTIATED_RETRY_DELAY: Duration = Duration::from_secs(2);
-const NEGOTIATED_EXCLUSION_WINDOW: Duration = Duration::from_secs(1);
 const TRACE_POLL_INTERVAL: Duration = Duration::from_millis(1);
 const SECOND_CONNECTION_WINDOW: Duration = Duration::from_millis(100);
 const EXPECTED_CHUNKED_BODY: &[u8] =
@@ -180,12 +179,15 @@ async fn negotiated_connection_failure_does_not_enter_the_exact_protocol_retry_l
                 NEGOTIATED_RETRY_DELAY,
             ));
 
-        let result = timeout(
-            NEGOTIATED_EXCLUSION_WINDOW,
-            request.send().with_subscriber(subscriber.dispatch()),
-        )
-        .await
-        .map_err(|_| "negotiated request waited for an excluded connection retry")?;
+        // Refused loopback connects take about two seconds on Windows, so a
+        // wall-clock window cannot separate one attempt from a retry. The
+        // retry reason is recorded before the retry delay starts.
+        let result = tokio::select! {
+            result = request.send().with_subscriber(subscriber.dispatch()) => result,
+            () = wait_for_any_retry_reason(&subscriber) => {
+                return Err("negotiated request entered the exact-protocol retry loop".into());
+            }
+        };
         let error = match result {
             Ok(_) => return Err("negotiated request unexpectedly succeeded".into()),
             Err(error) => error,
@@ -293,6 +295,12 @@ async fn wait_for_retry_reason(subscriber: &OutcomeSubscriber) -> TestResult {
     .await
     .map_err(|_| "request did not report its refused connection attempt")?;
     Ok(())
+}
+
+async fn wait_for_any_retry_reason(subscriber: &OutcomeSubscriber) {
+    while subscriber.retry_reasons_for("client.request").is_empty() {
+        sleep(TRACE_POLL_INTERVAL).await;
+    }
 }
 
 async fn serve_one_chunked_request(listener: TcpListener) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
