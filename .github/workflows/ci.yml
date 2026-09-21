@@ -221,6 +221,9 @@ jobs:
           }
           $installation
 
+      - name: Lint
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
       - name: Test workspace
         run: cargo test --workspace --all-targets --all-features --locked
 
