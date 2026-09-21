@@ -32,6 +32,7 @@ struct CaptureState {
     retries_performed: Vec<(&'static str, u64)>,
     retry_reasons: Vec<(&'static str, String)>,
     reused_connection_replays: Vec<(&'static str, u64)>,
+    unprocessed_replays: Vec<(&'static str, u64)>,
     status_retries: Vec<(&'static str, u64)>,
 }
 
@@ -126,6 +127,16 @@ impl OutcomeSubscriber {
     }
 
     #[allow(dead_code)]
+    pub(crate) fn unprocessed_replays_for(&self, span_name: &str) -> Vec<u64> {
+        self.state()
+            .unprocessed_replays
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, replays)| *replays)
+            .collect()
+    }
+
+    #[allow(dead_code)]
     pub(crate) fn status_retries_for(&self, span_name: &str) -> Vec<u64> {
         self.state()
             .status_retries
@@ -197,6 +208,7 @@ impl Subscriber for OutcomeSubscriber {
             && visitor.retries_performed.is_none()
             && visitor.retry_reason.is_none()
             && visitor.reused_connection_replays.is_none()
+            && visitor.unprocessed_replays.is_none()
             && visitor.status_retries.is_none()
         {
             return;
@@ -227,6 +239,9 @@ impl Subscriber for OutcomeSubscriber {
             if let Some(replays) = visitor.reused_connection_replays {
                 state.reused_connection_replays.push((name, replays));
             }
+            if let Some(replays) = visitor.unprocessed_replays {
+                state.unprocessed_replays.push((name, replays));
+            }
             if let Some(retries) = visitor.status_retries {
                 state.status_retries.push((name, retries));
             }
@@ -252,6 +267,7 @@ struct OutcomeVisitor {
     retries_performed: Option<u64>,
     retry_reason: Option<String>,
     reused_connection_replays: Option<u64>,
+    unprocessed_replays: Option<u64>,
     status_retries: Option<u64>,
 }
 
@@ -285,6 +301,8 @@ impl Visit for OutcomeVisitor {
             self.retries_performed = Some(value);
         } else if field.name() == "reused_connection_replays" {
             self.reused_connection_replays = Some(value);
+        } else if field.name() == "unprocessed_replays" {
+            self.unprocessed_replays = Some(value);
         } else if field.name() == "status_retries" {
             self.status_retries = Some(value);
         }
