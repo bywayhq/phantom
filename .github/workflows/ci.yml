@@ -55,23 +55,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt -- --check
 
-      - name: Check optional feature matrix
-        run: |
-          cargo check -p phantom-http --no-default-features --locked
-          cargo check -p phantom-http --no-default-features --features cookies --locked
-          cargo check -p phantom-http --no-default-features --features sse --locked
-          cargo check -p phantom-http --no-default-features --features websocket --locked
-          cargo check -p phantom-http --no-default-features --features websocket-deflate --locked
-          cargo check -p phantom-http --no-default-features --features cookies,sse --locked
-          cargo check -p phantom-http --no-default-features --features cookies,websocket --locked
-          cargo check -p phantom-http --no-default-features --features cookies,websocket-deflate --locked
-          cargo check -p phantom-http --no-default-features --features sse,websocket --locked
-          cargo check -p phantom-http --all-features --locked
-          cargo check -p phantom-net --no-default-features --locked
-          cargo check -p phantom-net --no-default-features --features qlog --locked
-          cargo check -p phantom-quic-btls --no-default-features --locked
-          cargo check -p phantom-quic-btls --no-default-features --features keylog --locked
-
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
@@ -95,6 +78,48 @@ jobs:
 
       - name: Test dependency-maintenance tooling
         run: scripts/ci/test-upstream-freshness.sh
+
+  features:
+    name: Features
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Cache Cargo build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check native build prerequisites
+        run: |
+          for tool in git cmake clang c++ nm objcopy; do
+            command -v "$tool"
+          done
+
+      - name: Check optional feature matrix
+        run: |
+          cargo check -p phantom-http --no-default-features --locked
+          cargo check -p phantom-http --no-default-features --features cookies --locked
+          cargo check -p phantom-http --no-default-features --features sse --locked
+          cargo check -p phantom-http --no-default-features --features websocket --locked
+          cargo check -p phantom-http --no-default-features --features websocket-deflate --locked
+          cargo check -p phantom-http --no-default-features --features cookies,sse --locked
+          cargo check -p phantom-http --no-default-features --features cookies,websocket --locked
+          cargo check -p phantom-http --no-default-features --features cookies,websocket-deflate --locked
+          cargo check -p phantom-http --no-default-features --features sse,websocket --locked
+          cargo check -p phantom-http --all-features --locked
+          cargo check -p phantom-net --no-default-features --locked
+          cargo check -p phantom-net --no-default-features --features qlog --locked
+          cargo check -p phantom-quic-btls --no-default-features --locked
+          cargo check -p phantom-quic-btls --no-default-features --features keylog --locked
 
   downstream:
     name: Downstream
