@@ -65,10 +65,23 @@ fn invalid_additional_root_is_a_trust_store_failure() {
 
 #[test]
 fn production_connector_emits_supported_chrome_h3_client_hello_fields() -> TestResult<()> {
+    assert_connector_matches_quic_client_hello(CHROME_H3_STARTUP, CHROME_H3_CLIENT_HELLO)
+}
+
+#[test]
+fn chrome_152_quic_client_hello_recipe_matches_windows_chrome_for_testing_capture() -> TestResult<()>
+{
+    assert_connector_matches_quic_client_hello(
+        WINDOWS_CHROME_H3_STARTUP,
+        WINDOWS_CHROME_H3_CLIENT_HELLO,
+    )
+}
+
+fn assert_connector_matches_quic_client_hello(startup: &str, client_hello: &str) -> TestResult<()> {
     let connector = connector()?;
     let parameters = TransportParameters::read(
         Side::Server,
-        &mut Cursor::new(fixture_hex(CHROME_H3_STARTUP, "transport_parameters_hex")?),
+        &mut Cursor::new(fixture_hex(startup, "transport_parameters_hex")?),
     )?;
     let mut session = crypto::ClientConfig::start_session(
         connector.test_crypto(),
@@ -79,7 +92,7 @@ fn production_connector_emits_supported_chrome_h3_client_hello_fields() -> TestR
     let mut handshake = Vec::new();
     assert!(session.write_handshake(&mut handshake).is_none());
 
-    let expected_handshake = fixture_hex(CHROME_H3_CLIENT_HELLO, "handshake_hex")?;
+    let expected_handshake = fixture_hex(client_hello, "handshake_hex")?;
     let actual = ClientHelloSummary::from_handshake_bytes(&handshake)?;
     let expected = ClientHelloSummary::from_handshake_bytes(&expected_handshake)?;
     assert_eq!(actual.legacy_version(), expected.legacy_version());
@@ -307,6 +320,14 @@ const CHROME_H3_STARTUP: &str = include_str!(concat!(
 const CHROME_H3_CLIENT_HELLO: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/152.0.7977.83/",
     "macos-15.5/quic-client-hello-1.txt"
+));
+const WINDOWS_CHROME_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
+    "windows-11-26200/client-startup.txt"
+));
+const WINDOWS_CHROME_H3_CLIENT_HELLO: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
+    "windows-11-26200/quic-client-hello-1.txt"
 ));
 
 fn fixture_hex(

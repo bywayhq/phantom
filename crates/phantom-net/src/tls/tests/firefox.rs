@@ -10,6 +10,10 @@ const FIREFOX_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/firefox/154.0/",
     "macos-15.5/client-hello.txt"
 ));
+const WINDOWS_FIREFOX_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/firefox/154.0/",
+    "windows-11-26200/client-hello.txt"
+));
 const FIREFOX_SERVER_NAME: &str = "localhost";
 const DELEGATED_CREDENTIAL_EXTENSION: u16 = 0x0022;
 const RECORD_SIZE_LIMIT_EXTENSION: u16 = 0x001c;
@@ -18,7 +22,16 @@ const ENCRYPTED_CLIENT_HELLO_EXTENSION: u16 = 0xfe0d;
 
 #[tokio::test]
 async fn firefox_154_macos_matches_retained_client_hello() -> TestResult<()> {
-    let expected_capture = client_hello_fixture::capture(FIREFOX_FIXTURE).await?;
+    assert_recipe_matches_fixture(FIREFOX_FIXTURE).await
+}
+
+#[tokio::test]
+async fn firefox_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(WINDOWS_FIREFOX_FIXTURE).await
+}
+
+async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
+    let expected_capture = client_hello_fixture::capture(fixture).await?;
     let actual_capture =
         capture_client_hello_from_server_name(&v154_macos_tls(), FIREFOX_SERVER_NAME).await?;
 

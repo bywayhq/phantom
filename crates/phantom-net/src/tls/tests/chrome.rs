@@ -10,12 +10,36 @@ const CHROME_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome/152.0.7977.83/",
     "macos-15.5/client-hello.txt"
 ));
+const WINDOWS_CHROME_FOR_TESTING_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome/152.0.7977.83/",
+    "windows-11-26200/client-hello.txt"
+));
 const GREASE_SENTINEL: u16 = 0x0a0a;
 const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
 
 #[tokio::test]
 async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
-    let expected_capture = client_hello_fixture::capture(CHROME_FIXTURE).await?;
+    assert_recipe_matches_fixture(CHROME_FIXTURE).await?;
+    let expected = client_hello_fixture::capture(CHROME_FIXTURE)
+        .await?
+        .summary()?;
+    let actual = capture_client_hello_from(&v152_macos_tls())
+        .await?
+        .summary()?;
+    assert_eq!(
+        actual.requested_trust_anchor_ids(),
+        expected.requested_trust_anchor_ids()
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn chrome_152_tls_recipe_matches_windows_chrome_for_testing_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(WINDOWS_CHROME_FOR_TESTING_FIXTURE).await
+}
+
+async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
+    let expected_capture = client_hello_fixture::capture(fixture).await?;
     let actual_capture = capture_client_hello_from(&v152_macos_tls()).await?;
 
     assert_eq!(
@@ -56,9 +80,11 @@ async fn chromium_152_macos_matches_retained_client_hello() -> TestResult<()> {
     );
     assert_eq!(actual.server_name(), expected.server_name());
     assert_eq!(actual.server_name(), Some(TEST_SERVER_NAME.as_bytes()));
+    // Chrome reorders the trust-anchor list between connections, so the
+    // cross-capture comparison is membership. The macOS test also pins order.
     assert_eq!(
-        actual.requested_trust_anchor_ids(),
-        expected.requested_trust_anchor_ids()
+        sorted_trust_anchor_ids(&actual),
+        sorted_trust_anchor_ids(&expected)
     );
     assert_eq!(
         actual.requested_trust_anchor_ids().map(<[_]>::len),
@@ -95,6 +121,14 @@ async fn omitted_trust_anchor_ids_omit_the_extension() -> TestResult<()> {
     let summary = capture_client_hello_from(&settings).await?.summary()?;
     assert!(!summary.extension_types().contains(&TRUST_ANCHORS_EXTENSION));
     Ok(())
+}
+
+fn sorted_trust_anchor_ids(summary: &ClientHelloSummary) -> Option<Vec<Vec<u8>>> {
+    summary.requested_trust_anchor_ids().map(|ids| {
+        let mut ids = ids.to_vec();
+        ids.sort_unstable();
+        ids
+    })
 }
 
 fn normalize_grease(values: &[u16]) -> Vec<u16> {

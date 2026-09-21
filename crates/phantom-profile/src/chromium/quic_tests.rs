@@ -10,13 +10,27 @@ const HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt"
 ));
+const WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/chrome/152.0.7977.83/windows-11-26200/client-startup.txt"
+));
 
 #[test]
 fn chrome_152_macos_quic_settings_match_retained_startup_shape()
 -> Result<(), Box<dyn std::error::Error>> {
+    assert_quic_settings_match_startup(HTTP3_FIXTURE)
+}
+
+#[test]
+fn chrome_152_quic_recipe_matches_windows_chrome_for_testing_capture()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_quic_settings_match_startup(WINDOWS_HTTP3_FIXTURE)
+}
+
+fn assert_quic_settings_match_startup(fixture: &str) -> Result<(), Box<dyn std::error::Error>> {
     let settings = v152_macos_quic();
     settings.validate()?;
-    let mut captured = parse_quic_transport_parameters(HTTP3_FIXTURE)?;
+    let mut captured = parse_quic_transport_parameters(fixture)?;
 
     assert_eq!(captured.len(), settings.wire_parameters.len());
     assert_eq!(

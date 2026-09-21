@@ -316,6 +316,87 @@ closed before the socket opened, so that run used the `http/1.1`-only path
 instead of a refused stream. Firefox 156.0 is the build the machine had
 updated to; no Firefox 155 WebSocket capture is retained. These captures do not
 cover subprotocols, H3, proxies, macOS, or Safari.
+||||||| parent of 214cbf3 (test(profile): replay recipes against Windows captures)
+
+## Cross-platform transport parity
+
+The retained Chrome 152 and Firefox 154 recipes were captured on macOS. A
+second capture set on Windows 11 (build 26200, x64) tests whether their
+transport layers depend on the host platform. Safari evidence remains
+macOS-only.
+
+Branded Chrome 152 cannot be installed on Windows any more, so the Chrome
+comparison is triangulated so that platform is not confounded with build
+flavor or version:
+
+| Comparison | Isolates | Result |
+| --- | --- | --- |
+| Chrome for Testing 152.0.7977.83 (Windows) vs retained branded 152.0.7977.83 (macOS) | platform | equal on TLS, H2 startup, QUIC ClientHello, QUIC transport parameters, H3 SETTINGS, and non-persona H3 request fields |
+| Chrome for Testing 153.0.8010.48 vs branded Chrome 153.0.8010.48 (both Windows) | build flavor | equal on the same layers |
+| Firefox 154.0 (Windows) vs retained Firefox 154.0 (macOS) | platform | equal on TLS and H2 startup |
+
+Chrome for Testing applies its bundled field-trial testing configuration by
+default. With that configuration it adds extension `0x12e0` (empty payload)
+to TCP and QUIC ClientHellos, raises QUIC `max_idle_timeout` from 30000 ms to
+300000 ms, sends Google connection options `ORIGNOIP` instead of `ORIG`, and
+moves `accept-language` before `upgrade-insecure-requests` in the H3
+navigation request. Every equal result above is therefore from Chrome for
+Testing launched with `--disable-field-trial-config`; branded Chrome 153 on
+Windows matches that configuration, not the testing one. The testing
+configuration capture is retained as
+`fixtures/tls/chrome/152.0.7977.83/windows-11-26200/client-hello-field-trial-config.txt`
+so the difference stays visible.
+
+Comparisons normalize only per-connection randomness:
+
+- TLS and QUIC GREASE values normalize to one sentinel; extension order is
+  compared as a multiset because Chrome permutes it per connection (at least
+  five fresh-profile samples per build were compared).
+- Client random, session ID, key-share bytes, ECH GREASE config ID and
+  payload bytes, and the QUIC initial source connection ID reduce to lengths
+  or are ignored. Chrome's ECH GREASE payload length is chosen per
+  connection and is excluded from record-length comparison.
+- Chrome reorders the trust-anchor ID list between connections on both
+  platforms; the list is compared as a set. Its GREASE `version_information`
+  entry also changes position; the chosen version stays first.
+- Firefox 154 chooses its ECH GREASE AEAD between AES-128-GCM (`0x0001`) and
+  ChaCha20-Poly1305 (`0x0003`) per connection on Windows (7 and 8 of 15
+  samples); the retained macOS sample carries `0x0001`.
+- `user-agent`, `sec-ch-ua`, `sec-ch-ua-mobile`, and `sec-ch-ua-platform` are
+  persona data and differ by platform and flavor by design. Their positions in
+  the request field order are compared.
+
+Deterministic recipe tests replay the retained Windows fixtures:
+`chrome_152_tls_recipe_matches_windows_chrome_for_testing_capture`,
+`chrome_152_http2_recipe_matches_windows_chrome_for_testing_capture`,
+`chrome_152_quic_client_hello_recipe_matches_windows_chrome_for_testing_capture`,
+`chrome_152_quic_recipe_matches_windows_chrome_for_testing_capture`,
+`chrome_152_http3_recipe_matches_windows_chrome_for_testing_capture`,
+`firefox_154_tls_recipe_matches_windows_capture`, and
+`firefox_154_http2_recipe_matches_windows_capture`.
+
+Limits:
+
+- Chrome 152 parity rests on Chrome for Testing plus the flavor comparison at
+  153. It assumes the flavor equivalence observed at 153 also held at 152.
+- One Windows build and one macOS build were compared. Linux, other Windows
+  releases, and other macOS releases are not covered.
+- Chrome for Testing publishes no checksums; the archives were recorded on
+  first use (SHA-256 below). Firefox 154.0 was verified against Mozilla's
+  signed `SHA512SUMS`.
+- Headless launches only, matching the retained fixtures.
+
+| Artifact | Source | SHA-256 |
+| --- | --- | --- |
+| Chrome for Testing 152.0.7977.83 win64 | `https://storage.googleapis.com/chrome-for-testing-public/152.0.7977.83/win64/chrome-win64.zip` | `6ed70e277c5dd6cb7a31e2ccb8f88d071b4928984e3b47d846920764eab712e7` |
+| Chrome for Testing 153.0.8010.48 win64 | `https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.48/win64/chrome-win64.zip` | `9a4d427ec9193ef8347e864076757f7e1e9c486f0a21c4781f5ea845bffd8dd1` |
+| Firefox 154.0 win64 en-US | `https://archive.mozilla.org/pub/firefox/releases/154.0/win64/en-US/Firefox%20Setup%20154.0.exe` | SHA-512 `514dfa9f…1bd35398`, signed by Mozilla release subkey `827E 6586 0867 9618 CD34 9F93 678E 455D 7676 7AA3` |
+| geckodriver 0.37.1 win64 (H2 WebDriver launch) | GitHub release asset | `dfed9315abe8d2fbc1b6161a2ee8002452e79cf05ee92fdc653a4e26bc35edd8` |
+
+Launch arguments are recorded in each fixture. Chrome captures use the same
+flags as the retained macOS fixtures plus `--disable-field-trial-config` for
+Chrome for Testing; the Firefox H2 capture uses WebDriver with
+`acceptInsecureCerts` and `network.dns.forceResolve=127.0.0.1`.
 
 ## External suites
 

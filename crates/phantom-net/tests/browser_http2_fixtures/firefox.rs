@@ -41,3 +41,15 @@ async fn phantom_firefox_startup_matches_retained_browser_frames_exactly() -> Te
     // order and priority remain separate, supplemental profile evidence.
     assert_public_startup_matches_fixture(&fixture, v154_macos_http2()).await
 }
+
+const WINDOWS_FIXTURE_TEXT: &str = include_str!(concat!(
+    "../../../../fixtures/http2/firefox/154.0/",
+    "windows-11-26200/client-startup.txt"
+));
+
+#[tokio::test]
+async fn firefox_154_http2_recipe_matches_windows_capture() -> TestResult<()> {
+    let fixture = Fixture::parse(WINDOWS_FIXTURE_TEXT)?;
+    assert_raw_startup(&fixture).await?;
+    assert_public_startup_matches_fixture(&fixture, v154_macos_http2()).await
+}

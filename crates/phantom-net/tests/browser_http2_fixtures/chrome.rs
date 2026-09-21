@@ -39,3 +39,15 @@ async fn phantom_chrome_startup_matches_retained_browser_frames_exactly() -> Tes
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
     assert_public_startup_matches_fixture(&fixture, v152_macos_http2()).await
 }
+
+const WINDOWS_FIXTURE_TEXT: &str = include_str!(concat!(
+    "../../../../fixtures/http2/chrome/152.0.7977.83/",
+    "windows-11-26200/client-startup.txt"
+));
+
+#[tokio::test]
+async fn chrome_152_http2_recipe_matches_windows_chrome_for_testing_capture() -> TestResult<()> {
+    let fixture = Fixture::parse(WINDOWS_FIXTURE_TEXT)?;
+    assert_raw_startup(&fixture).await?;
+    assert_public_startup_matches_fixture(&fixture, v152_macos_http2()).await
+}
