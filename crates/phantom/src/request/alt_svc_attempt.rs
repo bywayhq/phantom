@@ -1,17 +1,16 @@
-use phantom_net::request::RequestHeader;
-use tracing::Span;
-
 use super::{
     ResolvedRequest,
     attempt::{
-        AttemptOutcome, AttemptPath, AttemptRequest, attempt_headers, client_hint_origin,
-        critical_hint_retry_eligible, dispatch, observe_response, prepare_attempt, store_cookies,
+        AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, attempt_headers,
+        client_hint_origin, critical_hint_retry_eligible, dispatch, observe_response,
+        prepare_attempt, store_cookies,
     },
 };
 use crate::{
     Client, HttpProtocol, RequestError, RetryPolicy, Route, retry::ConnectionSetupRetryState,
-    session::http3_pool::Http3TransportTarget, timeout::TimeoutBudget,
+    session::http3_pool::Http3TransportTarget,
 };
+use phantom_net::request::RequestHeader;
 
 /// Host, port, `Alt-Used` authority, and store generation of a cached alternative.
 type AlternativeTarget = (Box<str>, u16, Box<str>, u64);
@@ -33,10 +32,14 @@ pub(super) async fn send_once_alt_svc(
     request: &ResolvedRequest,
     attempt: AttemptRequest<'_>,
     route: &Route,
-    request_span: &Span,
-    timeout_budget: TimeoutBudget,
+    lifecycle: AttemptLifecycle<'_>,
     alternative: AlternativeTarget,
 ) -> Result<AttemptOutcome, RequestError> {
+    let AttemptLifecycle {
+        request_span,
+        timeout_budget,
+        retries: _,
+    } = lifecycle;
     let (alternative_host, alternative_port, alternative_authority, alternative_generation) =
         alternative;
     let AttemptRequest {

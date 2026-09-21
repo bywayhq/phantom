@@ -46,15 +46,7 @@ pub(super) async fn send_once(
             send_once_exact(client, request, protocol, attempt, route, lifecycle).await
         }
         ProtocolSelection::Http1Or2 => {
-            send_once_negotiated(
-                client,
-                request,
-                attempt,
-                route,
-                lifecycle.request_span,
-                lifecycle.timeout_budget,
-            )
-            .await
+            send_once_negotiated(client, request, attempt, route, lifecycle).await
         }
     }
 }
@@ -168,27 +160,23 @@ async fn send_once_negotiated(
     request: &ResolvedRequest,
     attempt: AttemptRequest<'_>,
     route: &Route,
-    request_span: &Span,
-    timeout_budget: TimeoutBudget,
+    lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
     if !matches!(route, Route::Direct) {
         return Err(RequestError::unsupported_negotiated_route());
     }
     match plan(client, request) {
         NegotiatedPlan::Alternative(alternative) => {
-            return send_once_alt_svc(
-                client,
-                request,
-                attempt,
-                route,
-                request_span,
-                timeout_budget,
-                alternative,
-            )
-            .await;
+            return send_once_alt_svc(client, request, attempt, route, lifecycle, alternative)
+                .await;
         }
         NegotiatedPlan::Origin => {}
     }
+    let AttemptLifecycle {
+        request_span,
+        timeout_budget,
+        retries: _,
+    } = lifecycle;
     let endpoint = &request.endpoint;
     let AttemptRequest {
         method,
