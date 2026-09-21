@@ -14,11 +14,11 @@ This directory is the `tokio-btls` package from the reviewed btls dependency
 fork, the same revision that supplies `btls-sys`.
 
 - Reviewed dependency fork: <https://github.com/0xARYA/btls>
-- Reviewed dependency commit: `50e72407ac1f89cea14003004429ecf579541b6f`
+- Reviewed dependency commit: `ce81167653e2d8878f2e9b2218a15b9bc8351a53`
 - Source archive:
-  <https://codeload.github.com/0xARYA/btls/tar.gz/50e72407ac1f89cea14003004429ecf579541b6f>
+  <https://codeload.github.com/0xARYA/btls/tar.gz/ce81167653e2d8878f2e9b2218a15b9bc8351a53>
 - Complete source archive SHA-256:
-  `f5a243c26b334b816792bb0cae92a5d3e4e13d68f3055807315be7005d58aff0`
+  `5f181d89782afdc03c775fc10c77612ab72eaabfd2f6b25c6a77602b3de086f5`
 - Upstream licenses remain in `LICENSE-APACHE` and `LICENSE-MIT`.
 
 ## Why this fork exists

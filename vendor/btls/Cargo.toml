@@ -75,7 +75,7 @@ bitflags = "2.11.1"
 foreign-types = "0.5"
 openssl-macros = "0.1.1"
 libc = "0.2.185"
-btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "50e72407ac1f89cea14003004429ecf579541b6f" }
+btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "ce81167653e2d8878f2e9b2218a15b9bc8351a53" }
 
 [dev-dependencies]
 hex = "0.4"

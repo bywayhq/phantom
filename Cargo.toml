@@ -32,7 +32,7 @@ version = "0.1.0"
 # dependency keys keep the upstream crate names, so source code is unchanged
 # and the stock packages never enter the build graph. See docs/downstream.md.
 btls = { package = "phantom-btls", version = "=0.5.6-phantom.1", path = "vendor/btls", default-features = false }
-btls-sys = { git = "https://github.com/0xARYA/btls", rev = "50e72407ac1f89cea14003004429ecf579541b6f", default-features = false }
+btls-sys = { git = "https://github.com/0xARYA/btls", rev = "ce81167653e2d8878f2e9b2218a15b9bc8351a53", default-features = false }
 brotli = "8.0.4"
 bytes = "=1.12.1"
 flate2 = "1.1.9"

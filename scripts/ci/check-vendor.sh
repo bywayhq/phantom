@@ -61,14 +61,14 @@ check_btls_patch_replay() {
 
 check_tokio_btls_patch_replay() {
   local staging archive candidate
-  local revision=50e72407ac1f89cea14003004429ecf579541b6f
+  local revision=ce81167653e2d8878f2e9b2218a15b9bc8351a53
   staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-tokio-btls-replay.XXXXXX")
   trap 'rm -rf "$staging"' RETURN
   archive="$staging/btls-$revision.tar.gz"
   curl --fail --location --silent --show-error --retry 3 \
     --output "$archive" \
     "https://codeload.github.com/0xARYA/btls/tar.gz/$revision"
-  [[ "$(sha256_of "$archive")" == f5a243c26b334b816792bb0cae92a5d3e4e13d68f3055807315be7005d58aff0 ]]
+  [[ "$(sha256_of "$archive")" == 5f181d89782afdc03c775fc10c77612ab72eaabfd2f6b25c6a77602b3de086f5 ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/btls-$revision/tokio-btls"
   apply_series "$candidate" vendor/tokio-btls

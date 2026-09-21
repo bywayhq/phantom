@@ -87,8 +87,8 @@ stock = {
 forks = {f"phantom-{name}" for name in stock}
 btls_sys_source = (
     "git+https://github.com/0xARYA/btls"
-    "?rev=50e72407ac1f89cea14003004429ecf579541b6f"
-    "#50e72407ac1f89cea14003004429ecf579541b6f"
+    "?rev=ce81167653e2d8878f2e9b2218a15b9bc8351a53"
+    "#ce81167653e2d8878f2e9b2218a15b9bc8351a53"
 )
 
 with open(metadata_path, encoding="utf-8") as metadata_file:
