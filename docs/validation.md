@@ -246,6 +246,27 @@ That traffic used separate remote connections and never reached the loopback
 listener. These captures cover plaintext HTTP/1.1 only; H2, H3, macOS, and
 Safari behavior is not inferred from them.
 
+## Content-decoding evidence
+
+Unit tests drive each decoder with single-byte and chunked input and cover
+gzip optional header fields and FHCRC, CRC32/ISIZE and Adler-32 mismatches,
+truncation, trailing members or bytes, preset dictionaries, raw DEFLATE
+selection, skippable and concatenated zstd frames, legacy zstd frame magic,
+the 8 MiB zstd window bound, stacked `gzip, br`, the 16 KiB frame bound, the
+inclusive decoded limit, and a 64 MiB high-ratio stream stopped at its cap.
+Field-grammar tests cover `Accept-Encoding` weights, wildcards, `x-gzip`,
+duplicates, and malformed parameters, plus `Content-Encoding` case, empty
+elements, identity mixing, and the three-coding bound.
+
+Public loopback tests cover H1 gzip, H2 brotli, and H3 zstd decoding; wire-view
+fields; an unchanged request head; pre-I/O `Accept-Encoding` rejection only
+when enabled; fail-closed unknown and unadvertised chains; HEAD/204/304;
+redirect hops; trailers after decoded data; fresh H1 connection selection
+after a decode failure; and the total deadline over buffered input.
+
+Browser behavior was read from Chromium and Firefox source and informs only
+the documented divergences; no browser-parity claim is made.
+
 ## External suites
 
 External projects are witnesses, not pass badges:

@@ -103,6 +103,9 @@ failures return typed errors; runtime library code must not panic.
   transport location cannot reuse the previous H3 connection generation.
 - Every transport returns the standard `http::Response` view plus ordered
   response fields.
+- Response content decoding is an opt-in facade body stage above every
+  transport. It is gated by the caller's own `Accept-Encoding`, never edits
+  request fields, and keeps response fields as the wire view.
 - A streaming request body declares its complete ordered trailer-name plan
   before I/O. The common body boundary validates the terminal semantic map and
   reconstructs ordered values; each transport validates and emits its own wire

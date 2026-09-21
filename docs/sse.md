@@ -51,7 +51,8 @@ The EventSource builder starts with ordered `Accept: text/event-stream` and
 callers can reproduce a different request shape exactly.
 
 `from_response` requires status 200, a `text/event-stream` content-type
-essence, and no content encoding other than `identity`. Decoding follows the
+essence, and no content encoding other than `identity`, even when the
+request enabled `ContentDecoding`. Decoding follows the
 WHATWG event-stream rules for UTF-8 replacement, a leading byte-order mark,
 CR/LF/CRLF line endings, comments, fields, persistent event IDs, and retry
 durations. An event without its terminating blank line is discarded at end of
