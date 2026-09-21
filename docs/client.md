@@ -205,6 +205,31 @@ connection. A second `407`, or a malformed or unsupported challenge, returns a
 typed proxy error. Challenge state is not retained, so the next logical request
 starts anonymously again.
 
+An `https://` proxy speaks HTTP/1.1 by default. `HttpProxy::with_http2_transport`
+selects HTTP/2 to the proxy instead; it is rejected for `http://` proxies
+because Phantom does not speak cleartext h2c. In both modes the proxy-facing
+TLS ClientHello offers the profile's ALPN list unchanged, because a browser
+offers the same list to an HTTPS proxy and a rewritten list would be a
+ClientHello no measured client sends. The selected protocol is then enforced:
+the default mode accepts `http/1.1` or no ALPN and rejects `h2`, and the HTTP/2
+mode requires `h2` and rejects `http/1.1` or no selection. A mismatch is a typed
+proxy error; Phantom never switches proxy protocols. The HTTP/2 mode requires a
+profile that offers `h2` and carries HTTP/2 settings, and reports either gap
+before proxy I/O.
+
+In HTTP/2 mode each tunnel opens one dedicated proxy connection using the
+profile's HTTP/2 SETTINGS, priority, and pseudo-header order; proxy sessions are
+not shared between tunnels or pooled separately from the origin connection that
+owns them. The CONNECT request follows RFC 9113 section 8.5: only `:method` and
+`:authority` pseudo-headers, then the ordered CONNECT fields with HTTP/2
+lowercase names. The authority placeholder supplies `:authority`, and
+connection-specific fields such as `Proxy-Connection` fail before I/O. The
+tunnel is a flow-controlled stream of DATA frames carrying origin TLS for H1 or
+H2 origins; closing the origin connection resets only that stream and ends its
+proxy connection. Basic `407` challenges follow the same one-replay rule on a
+fresh proxy connection. Plaintext `http://` forwarding requires HTTP/1.1 proxy
+transport and fails before I/O in HTTP/2 mode.
+
 The complete route participates in pool identity. Proxy failure never falls
 back direct. For exact H3, local-DNS `socks5://` resolves the origin locally
 and fixes one IP target. Remote-DNS `socks5h://` performs no local origin
@@ -243,6 +268,9 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
     Ok(route)
 }
 ```
+
+For an HTTP/2-only proxy, add `.with_http2_transport()?` to the proxy; that
+route then supports HTTPS origins only.
 
 Add private DER roots with `add_root_certificate_der`; use
 `add_proxy_root_certificate_der` for an HTTPS proxy, including a TLS-encrypted
