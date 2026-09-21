@@ -159,9 +159,19 @@ failures return typed errors; runtime library code must not panic.
   pre-TLS connect step, and cannot absorb TLS, ALPN, proxy negotiation,
   response, or post-dispatch failures.
 - SSE and WebSocket reuse client contracts without hiding their distinct
-  lifecycles. H2 WebSocket uses a dedicated extended-CONNECT connection so its
-  five-field pseudo-header order cannot alter ordinary pooled H2 requests; the
-  accepted stream retains both DATA directions and the connection driver.
+  lifecycles. An exact-protocol H2 WebSocket uses a dedicated
+  extended-CONNECT connection. A profile `WebSocketConnectionPolicy` instead
+  places the WebSocket on a pooled H2 session to the same origin and route
+  when its peer enabled extended CONNECT, and otherwise opens the connection
+  the profile names: an HTTP/1.1 Upgrade on TLS with the policy's own ALPN
+  offer, or a new H2 connection. The facade reads that data and never
+  branches on client family. A per-request HEADERS override in the vendored
+  H2 engine gives the CONNECT stream the profile's pseudo-header order and
+  priority, so ordinary streams on the session keep theirs; HPACK state stays
+  connection-wide. The choice is made once before WebSocket bytes are sent,
+  and a failure on the chosen connection never falls back to another
+  connection or protocol. The accepted stream retains both DATA directions
+  and the connection driver.
 
 Forward-proxy Basic authentication is request-scoped rather than learned
 client state. Every logical exact-H1 forwarding request starts anonymously. A
