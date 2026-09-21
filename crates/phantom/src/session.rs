@@ -112,9 +112,15 @@ pub(crate) struct ClientState {
 
 impl ClientOptions {
     pub(crate) fn validate(&self, inner: &ClientInner) -> Result<(), BuildError> {
-        if self.max_alt_svc_origins.is_some()
-            && (inner.http1_or_2.is_none() || inner.http3.is_none())
-        {
+        self.validate_protocols(inner.http1_or_2.is_some(), inner.http3.is_some())
+    }
+
+    pub(crate) fn validate_protocols(
+        &self,
+        negotiated: bool,
+        http3: bool,
+    ) -> Result<(), BuildError> {
+        if self.max_alt_svc_origins.is_some() && !(negotiated && http3) {
             return Err(BuildError::invalid_policy(
                 "Alt-Svc requires negotiated HTTP/1.1+HTTP/2 and HTTP/3 profiles",
             ));

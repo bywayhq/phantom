@@ -581,11 +581,8 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http3)?;
-        if self.options.max_alt_svc_origins.is_some() && (http1_or_2.is_none() || http3.is_none()) {
-            return Err(BuildError::invalid_policy(
-                "Alt-Svc requires negotiated HTTP/1.1+HTTP/2 and HTTP/3 profiles",
-            ));
-        }
+        self.options
+            .validate_protocols(http1_or_2.is_some(), http3.is_some())?;
         let secure_proxy_requested = self
             .route
             .as_http_proxy()
