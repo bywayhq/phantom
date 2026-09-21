@@ -114,7 +114,9 @@ impl Client {
     /// origin and reuses the ALPN-selected protocol while that generation is
     /// eligible. Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN
     /// selects HTTP/1.1.
-    /// It does not race or perform transport retries. When bounded Alt-Svc
+    /// It does not race. An opt-in [`RetryPolicy`] may retry a direct TCP
+    /// connect failure before TLS starts; TLS and ALPN failures are terminal.
+    /// When bounded Alt-Svc
     /// learning is enabled, a fresh `h3` advertisement from an earlier
     /// negotiated response selects HTTP/3 without changing the origin identity.
     /// Any non-direct configured or per-request route is rejected before I/O.
@@ -152,6 +154,9 @@ impl Client {
     }
 
     /// Starts one ordered WebSocket opening handshake over HTTP/1.1.
+    ///
+    /// The connect uses this client's profile, route, trust roots, and cookie
+    /// jar, but not its timeouts, retry, or redirect policy.
     #[cfg(feature = "websocket")]
     pub fn websocket(&self, uri: &str) -> Result<WebSocketRequestBuilder, WebSocketError> {
         WebSocketRequestBuilder::new_client(self.clone(), uri)
@@ -338,6 +343,10 @@ impl ClientBuilder {
     }
 
     /// Sets the finite policy for following redirect responses.
+    ///
+    /// Redirect following is HTTPS-only: while a policy is set, `http://`
+    /// requests fail before I/O, and a redirect to a non-`https://` target
+    /// fails with [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
     #[must_use]
     pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
         self.options.redirect_policy = policy;

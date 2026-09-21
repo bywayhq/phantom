@@ -17,8 +17,14 @@ pub use types::{CookieError, CookieErrorKind, CookieLimits};
 /// Bounded, thread-safe in-memory cookie jar.
 ///
 /// The jar models domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
-/// prefix, and deterministic request-order rules. SameSite navigation context
-/// and partitioned cookies are intentionally unsupported.
+/// prefix, and deterministic request-order rules.
+///
+/// It has no request-site or top-level-site context, so it rejects rather than
+/// stores `SameSite=Lax`, `SameSite=Strict`, and `Partitioned` cookies, as
+/// well as `SameSite=None` without `Secure` and `Secure` cookies set by an
+/// `http://` URL. [`Self::set_cookie`] reports these with
+/// [`CookieErrorKind::UnsupportedPolicy`]; a rejected response `Set-Cookie`
+/// field is ignored and never sent back.
 pub struct CookieJar {
     limits: CookieLimits,
     state: Mutex<JarState>,

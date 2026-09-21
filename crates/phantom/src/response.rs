@@ -58,6 +58,12 @@ impl ResponseInfo {
     }
 
     /// Returns the number of connection-setup retries performed before this response.
+    ///
+    /// Each count is one repeated setup attempt under
+    /// [`RetryPolicy::connection_failures`](crate::RetryPolicy::connection_failures),
+    /// summed across every redirect hop and counted when the attempt starts.
+    /// Redirects, status retries, reused-connection and `GOAWAY` replays,
+    /// proxy-authentication replays, and `Critical-CH` retries are not counted.
     #[must_use]
     pub const fn retries_performed(&self) -> usize {
         self.retries_performed

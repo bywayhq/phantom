@@ -1,4 +1,76 @@
 //! Public Phantom client facade.
+//!
+//! Phantom is an HTTP client whose observable TLS, HTTP/1.1, HTTP/2, QUIC, and
+//! HTTP/3 behavior comes from a typed [`profile::ClientProfile`]. A [`Client`]
+//! owns that profile plus bounded pools and cross-request state; each request
+//! selects its protocol explicitly and never falls back to another protocol
+//! or route.
+//!
+//! # Quick start
+//!
+//! ```no_run
+//! use phantom::profile::{chromium, ClientProfile};
+//! use phantom::{Client, HttpProtocol, RequestHeader};
+//!
+//! # #[tokio::main(flavor = "current_thread")]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let profile = ClientProfile::new(chromium::v152_macos_tls())
+//!     .with_http2(chromium::v152_macos_http2())
+//!     .with_client_hints(chromium::v152_macos_client_hints());
+//! let client = Client::builder(profile).build()?;
+//!
+//! let response = client
+//!     .get(HttpProtocol::Http2, "https://example.com/")?
+//!     .header(RequestHeader::new("accept", "*/*"))
+//!     .send()
+//!     .await?;
+//! println!("{}", response.status());
+//! let body = response.into_body().collect_with_limit(1 << 20).await?;
+//! println!("{} bytes", body.len());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Requests need a Tokio runtime with I/O and timers enabled.
+//! [`Client::get_negotiated`] lets one direct TLS handshake choose HTTP/1.1 or
+//! HTTP/2, and HTTP/3 needs [`profile::Http3ClientSettings`] on the profile.
+//!
+//! # Cargo features
+//!
+//! | Feature | Adds |
+//! | --- | --- |
+//! | `cookies` | `CookieJar` and client-owned cookie handling |
+//! | `sse` | Server-sent event decoding and bounded reconnects |
+//! | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
+//! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
+//! | `full` | All of the above |
+//!
+//! No feature is enabled by default. QUIC qlog and NSS key logging are
+//! features of internal crates and are not exposed here.
+//!
+//! The repository guides (`docs/client.md`, `docs/coverage.md`) describe the
+//! supported protocol, route, and state combinations in detail.
+
+// Compile-check the Rust examples in the repository guides as doctests.
+#[cfg(doctest)]
+#[doc = include_str!("../../../README.md")]
+struct ReadmeDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/getting-started.md")]
+struct GettingStartedDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/client.md")]
+struct ClientGuideDoctests;
+
+#[cfg(all(doctest, feature = "sse"))]
+#[doc = include_str!("../../../docs/sse.md")]
+struct SseGuideDoctests;
+
+#[cfg(all(doctest, feature = "websocket"))]
+#[doc = include_str!("../../../docs/websocket.md")]
+struct WebSocketGuideDoctests;
 
 mod authority;
 mod body;

@@ -25,7 +25,11 @@ mod replay;
 use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use replay::ReplayState;
 
-/// Builder for one exact-protocol request with an optional owned body.
+/// Builder for one request with an owned, streaming, or absent body.
+///
+/// [`Client::get`] and [`Client::request`] build exact-protocol requests;
+/// [`Client::get_negotiated`] and [`Client::request_negotiated`] build requests
+/// whose H1 or H2 selection is made by ALPN.
 #[must_use = "request builders do nothing until send is awaited"]
 pub struct RequestBuilder {
     client: Client,
@@ -256,15 +260,18 @@ impl RequestBuilder {
 
     /// Sends the request using the selected route and owner.
     ///
-    /// The client may reuse compatible HTTP/1.1, HTTP/2, and direct HTTP/3
-    /// connections. A bodyless HTTP/2 GET without trailers rejected by
+    /// The client may reuse compatible HTTP/1.1, HTTP/2, and HTTP/3
+    /// connections on the same origin and route. A bodyless HTTP/2 GET without trailers rejected by
     /// `GOAWAY(NO_ERROR)`, whether exact or negotiated, is retried once on the
     /// client's replacement connection; a negotiated replacement repeats ALPN
     /// selection under the same negotiated rule. Dropping this
     /// future cancels the in-flight operation; returned bodies retain protocol
     /// cancellation. An opt-in [`RetryPolicy`] can retry eligible exact-protocol
     /// or pre-ALPN negotiated connection setup without replaying request bytes
-    /// or body frames.
+    /// or body frames, and can separately opt into reused-connection replay
+    /// and status retries for idempotent requests. When the client has a
+    /// [`RedirectPolicy`](crate::RedirectPolicy), only `https://` requests and
+    /// redirect targets are accepted.
     ///
     /// # Errors
     ///

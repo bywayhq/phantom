@@ -108,9 +108,14 @@ impl WebSocketRequestBuilder {
 
     /// Replaces the complete ordered opening-handshake field sequence.
     ///
-    /// The sequence must contain one authority placeholder, one random-key
-    /// placeholder, and the mandatory WebSocket fields. Validation completes
-    /// before DNS, proxy, or origin I/O.
+    /// For HTTP/1.1 the sequence must contain exactly one authority
+    /// placeholder, one random-key placeholder, one `Upgrade: websocket`
+    /// field, one `Connection` field containing `Upgrade`, and
+    /// `Sec-WebSocket-Version: 13`. For HTTP/2 the pseudo-fields come from the
+    /// request and profile, so authority and key placeholders, `Host`,
+    /// `Upgrade`, `Connection`, `Sec-WebSocket-Key`, and uppercase names are
+    /// rejected. Both reject literal `Proxy-Authorization` and extension
+    /// fields. Validation completes before DNS, proxy, or origin I/O.
     pub fn headers(mut self, headers: Vec<WebSocketHeader>) -> Self {
         self.headers = headers;
         self
@@ -137,10 +142,18 @@ impl WebSocketRequestBuilder {
 
     /// Performs the ordered opening handshake over the selected exact protocol.
     ///
-    /// Dropping this future cancels the in-flight operation. There are no
-    /// implicit redirects, reconnects, or protocol fallbacks. Configured Basic
-    /// forward-proxy authentication permits one challenge-driven retry on a
-    /// fresh connection.
+    /// HTTP/1.1 sends an Upgrade and requires `101`; HTTP/2 sends RFC 8441
+    /// extended CONNECT on a dedicated connection, requires a profile with an
+    /// extended-CONNECT pseudo-header order and a peer that enables it, and
+    /// accepts a 2xx response.
+    ///
+    /// The client's [`RequestTimeouts`](crate::RequestTimeouts),
+    /// [`RetryPolicy`](crate::RetryPolicy), and
+    /// [`RedirectPolicy`](crate::RedirectPolicy) do not apply; bound the
+    /// future with a timer if needed. Dropping this future cancels the
+    /// in-flight operation. There are no implicit redirects, reconnects, or
+    /// protocol fallbacks. Configured Basic proxy authentication permits one
+    /// challenge-driven retry on a fresh connection.
     ///
     /// # Errors
     ///

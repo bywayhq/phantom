@@ -8,6 +8,11 @@ use url::Url;
 use crate::{RequestError, request::RequestBodySource};
 
 /// Client policy for following HTTP redirects.
+///
+/// Only `https://` requests can follow redirects: a client with a limited
+/// policy rejects `http://` requests before I/O, and a 301, 302, 303, 307, or
+/// 308 whose resolved `Location` is not `https://` fails with
+/// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RedirectPolicy {
     maximum: Option<NonZeroUsize>,
