@@ -124,7 +124,7 @@ jobs:
           target/quic-interop/venv/bin/python -m pip install \
             --disable-pip-version-check \
             --require-hashes \
-            --requirement scripts/conformance/quic-interop/requirements.lock
+            --requirement scripts/conformance/quic-interop/requirements.txt
 
       - name: Run pinned HTTP/3 interoperability case
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
