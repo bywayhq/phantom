@@ -316,7 +316,6 @@ closed before the socket opened, so that run used the `http/1.1`-only path
 instead of a refused stream. Firefox 156.0 is the build the machine had
 updated to; no Firefox 155 WebSocket capture is retained. These captures do not
 cover subprotocols, H3, proxies, macOS, or Safari.
-||||||| parent of 214cbf3 (test(profile): replay recipes against Windows captures)
 
 ## Cross-platform transport parity
 
@@ -331,7 +330,7 @@ flavor or version:
 
 | Comparison | Isolates | Result |
 | --- | --- | --- |
-| Chrome for Testing 152.0.7977.83 (Windows) vs retained branded 152.0.7977.83 (macOS) | platform | equal on TLS, H2 startup, QUIC ClientHello, QUIC transport parameters, H3 SETTINGS, and non-persona H3 request fields |
+| Chrome for Testing 152.0.7977.83 (Windows) vs retained branded 152.0.7977.83 (macOS) | platform | equal on TLS, H2 startup, QUIC ClientHello, QUIC transport parameters, H3 SETTINGS and pseudo-header order, and captured H3 request field order and non-persona values |
 | Chrome for Testing 153.0.8010.48 vs branded Chrome 153.0.8010.48 (both Windows) | build flavor | equal on the same layers |
 | Firefox 154.0 (Windows) vs retained Firefox 154.0 (macOS) | platform | equal on TLS and H2 startup |
 
@@ -365,6 +364,13 @@ Comparisons normalize only per-connection randomness:
 - `user-agent`, `sec-ch-ua`, `sec-ch-ua-mobile`, and `sec-ch-ua-platform` are
   persona data and differ by platform and flavor by design. Their positions in
   the request field order are compared.
+
+The Chrome H3 recipe models only the request pseudo-header order; ordinary
+navigation fields are caller data. Their cross-platform equality is therefore
+a capture-to-capture test
+(`chrome_152_windows_h3_request_fields_match_macos_capture_except_persona_values`),
+not a recipe replay. The flavor comparison at 153 was made with the scratch
+comparator and is not replayed by a test.
 
 Deterministic recipe tests replay the retained Windows fixtures:
 `chrome_152_tls_recipe_matches_windows_chrome_for_testing_capture`,

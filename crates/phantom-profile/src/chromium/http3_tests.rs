@@ -21,6 +21,59 @@ fn chrome_152_http3_recipe_matches_windows_chrome_for_testing_capture()
     assert_settings_match_control_stream(WINDOWS_FIXTURE)
 }
 
+/// The recipe models only the pseudo-header order; ordinary request fields
+/// come from the caller. This compares the two captures directly instead.
+#[test]
+fn chrome_152_windows_h3_request_fields_match_macos_capture_except_persona_values()
+-> Result<(), Box<dyn std::error::Error>> {
+    const PERSONA_FIELDS: [&str; 4] = [
+        "user-agent",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+    ];
+    let macos = request_fields(FIXTURE)?;
+    let windows = request_fields(WINDOWS_FIXTURE)?;
+    assert_eq!(macos.len(), 17);
+    assert_eq!(windows.len(), macos.len());
+    for ((macos_name, macos_value), (windows_name, windows_value)) in macos.iter().zip(&windows) {
+        assert_eq!(windows_name, macos_name);
+        if windows_name == ":authority" || PERSONA_FIELDS.contains(&windows_name.as_str()) {
+            continue;
+        }
+        assert_eq!(windows_value, macos_value, "{windows_name}");
+    }
+    Ok(())
+}
+
+fn request_fields(fixture: &str) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
+    let count: usize = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix("request_header_count="))
+        .ok_or("fixture must contain request_header_count")?
+        .parse()?;
+    (0..count)
+        .map(|index| {
+            let prefix = format!("request_header_{index}=");
+            let (name, value) = fixture
+                .lines()
+                .find_map(|line| line.strip_prefix(prefix.as_str()))
+                .and_then(|field| field.split_once(':'))
+                .ok_or("fixture request header must contain a name and value")?;
+            Ok((decode_ascii_hex(name)?, decode_ascii_hex(value)?))
+        })
+        .collect()
+}
+
+fn decode_ascii_hex(encoded: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let bytes = encoded
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
+        .collect::<Result<Vec<u8>, Box<dyn std::error::Error>>>()?;
+    Ok(String::from_utf8(bytes)?)
+}
+
 fn assert_settings_match_control_stream(fixture: &str) -> Result<(), Box<dyn std::error::Error>> {
     let profile = v152_macos_http3();
     assert_eq!(profile.setting_order, Http3SettingOrder::Ascending);
