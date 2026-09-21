@@ -70,6 +70,11 @@ work has exposed the real architectural boundaries.
   platform and exact-build qualifiers only for data that actually differs,
   such as client hints. Keep capture OS and build provenance in fixtures and
   documentation, with compatibility aliases for existing public names.
+  Windows captures show no platform-dependent transport field for the Chrome
+  152 TLS, H2, QUIC, and H3 recipes or the Firefox 154 TLS and H2 recipes, so
+  those names can drop `macos`. `v152_macos_client_hints` keeps its platform
+  qualifier because it carries platform data, and `v18_5_macos_tls` stays
+  macOS-specific until Safari is captured elsewhere.
 - Keep stable error categories, examples, and diagnostics aligned with every
   completed functionality slice.
 

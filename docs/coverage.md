@@ -92,7 +92,7 @@ macOS,” never “selected by `target_os = macos`”; they are scheduled to mov
 browser/version names with compatibility aliases. Platform-qualified client
 hints remain separate because they contain platform data on the wire.
 
-Cross-platform capture decides whether two recipes share component data. SSE and WebSocket browser captures are Windows 11 (10.0.26200) only; macOS parity is not assumed for them. The
+Cross-platform capture decides whether two recipes share component data. [Cross-platform transport parity](validation.md#cross-platform-transport-parity) records Windows 11 captures that match the Chrome 152 TLS, H2, QUIC, and H3 recipes and the Firefox 154 TLS and H2 recipes on every compared field. SSE and WebSocket browser captures are Windows 11 (10.0.26200) only; macOS parity is not assumed for them. The
 runtime consumes the validated settings it receives and does not branch on the
 host OS or client-family name. OS-specific code is reserved for real socket,
 trust-store, native-build, or profiling differences.
