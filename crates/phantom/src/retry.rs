@@ -91,8 +91,9 @@ impl RetryPolicy {
     /// Otherwise the response is returned unchanged. Each intermediate response
     /// updates cookies, client hints, and Alt-Svc exactly as a returned
     /// response would, and its body is then dropped without being read. The
-    /// retry waits for the [`StatusRetry`] delay under the request's total
-    /// timeout and keeps the route, the exact protocol or negotiated
+    /// retry waits for the [`StatusRetry`] delay; a delay that cannot finish
+    /// before the request's total deadline returns the response immediately.
+    /// A retry keeps the route, the exact protocol or negotiated
     /// selection rule, and any Alt-Svc alternative in use.
     #[must_use]
     pub const fn with_status_retry(self, status_retry: StatusRetry) -> Self {

@@ -20,8 +20,8 @@ use bytes::Bytes;
 use http::{Method, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, ClientBuilder, HttpProtocol, RedirectPolicy, RequestErrorKind, RequestTimeouts,
-    ResponseInfo, RetryPolicy, StatusRetry, TimeoutPhase, profile::ClientProfile,
+    Client, ClientBuilder, HttpProtocol, RedirectPolicy, RequestTimeouts, ResponseInfo,
+    RetryPolicy, StatusRetry, profile::ClientProfile,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -380,23 +380,53 @@ async fn retry_after_beyond_cap_returns_response_without_waiting() -> TestResult
 
 #[tokio::test]
 async fn status_retry_delay_observes_total_deadline() -> TestResult {
+    let retry_after = unavailable_with(
+        "Retry-After: 30
+",
+    );
+    let cases = [
+        (UNAVAILABLE, status_retry(1, Duration::from_secs(30))?),
+        (
+            retry_after.as_str(),
+            status_retry(1, Duration::ZERO)?.honor_retry_after(Duration::from_secs(60)),
+        ),
+    ];
+    for (intermediate, policy) in cases {
+        let server = ScriptedServer::start(&[intermediate, OK]).await?;
+        let client = retrying_client(policy)?;
+        let subscriber = OutcomeSubscriber::default();
+        let started = std::time::Instant::now();
+
+        // The delay cannot finish inside the total deadline, so the usable
+        // response is returned at once instead of becoming a timeout.
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .timeouts(RequestTimeouts::new().total(Duration::from_secs(10)))
+            .send()
+            .with_subscriber(subscriber.dispatch())
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(server.received().len(), 1, "a retry reached the server");
+        assert!(subscriber.status_retries_for("client.request").is_empty());
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn status_retry_delay_within_total_deadline_still_retries() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = retrying_client(status_retry(1, Duration::from_secs(30))?)?;
-    let started = std::time::Instant::now();
+    let client = retrying_client(status_retry(1, Duration::from_millis(10))?)?;
 
-    let result = client
+    let response = client
         .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .timeouts(RequestTimeouts::new().total(Duration::from_millis(300)))
+        .timeouts(RequestTimeouts::new().total(Duration::from_secs(10)))
         .send()
-        .await;
+        .await?;
 
-    let error = result
-        .err()
-        .ok_or("the retry delay outlived the total deadline")?;
-    assert_eq!(error.kind(), RequestErrorKind::Timeout);
-    assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
-    assert!(started.elapsed() < Duration::from_secs(10));
-    assert_eq!(server.received().len(), 1);
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(server.received().len(), 2);
     Ok(())
 }
 

@@ -165,7 +165,9 @@ async fn send_once_exact(
             drop(response);
             continue;
         }
-        if let Some(delay) = begin_status_retry(&response, &method, body, retries, replays) {
+        if let Some(delay) =
+            begin_status_retry(&response, &method, body, timeout_budget, retries, replays)
+        {
             drop(response);
             timeout_budget.delay(delay, Some(protocol)).await?;
             continue;
@@ -265,7 +267,9 @@ async fn send_once_negotiated(
             drop(response);
             continue;
         }
-        if let Some(delay) = begin_status_retry(&response, &method, body, retries, replays) {
+        if let Some(delay) =
+            begin_status_retry(&response, &method, body, timeout_budget, retries, replays)
+        {
             drop(response);
             timeout_budget.delay(delay, Some(protocol)).await?;
             continue;
@@ -302,7 +306,8 @@ fn begin_reused_connection_replay(
 
 /// Starts one status retry after `response` was observed, returning the delay
 /// to wait before the next attempt, when policy, status, `Retry-After`,
-/// remaining budget, method, and body all permit it.
+/// remaining retry budget, method, and body all permit it and the delay can
+/// finish before the total deadline. Otherwise `response` is returned as is.
 ///
 /// The caller drops the intermediate response body unread: an incomplete
 /// HTTP/1.1 body retires its connection, and an H2 or H3 body cancels its
@@ -312,11 +317,20 @@ pub(super) fn begin_status_retry(
     response: &Response<ResponseBody>,
     method: &Method,
     body: &RequestBodySource,
+    timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
     replays: &mut ReplayState,
 ) -> Option<Duration> {
     let status = response.status();
     let delay = retries.status_retry_delay(status, response.headers())?;
+    // A delay that cannot finish before the total deadline would only turn
+    // this usable response into a timeout.
+    if timeout_budget
+        .remaining_total()
+        .is_some_and(|remaining| delay >= remaining)
+    {
+        return None;
+    }
     if !matches!(
         body,
         RequestBodySource::Absent | RequestBodySource::Bytes(_)

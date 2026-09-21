@@ -85,9 +85,10 @@ already updated cookies, client hints, and Alt-Svc. Only idempotent methods
 with absent or owned bodies repeat, and only for 408, 425, 429, 500, 502,
 503, or 504; 421 is rejected at configuration because repeating it on the
 same target cannot succeed. One request-scoped budget spans redirects,
-separate from the setup-retry budget. Delays run through the total deadline,
-and an honored `Retry-After` above the caller's cap returns the response
-rather than waiting. The intermediate body is dropped unread instead of
+separate from the setup-retry budget. A delay that cannot finish before the
+total deadline, or an honored `Retry-After` above the caller's cap, returns
+the response rather than waiting, so a usable response never becomes a
+timeout. The intermediate body is dropped unread instead of
 drained, so an unbounded body cannot stall the retry. The route, protocol,
 and any Alt-Svc alternative in use never change.
 

@@ -215,8 +215,9 @@ exhaustion returns the last response. The retry keeps the route, the exact
 protocol or negotiated selection rule, and an Alt-Svc alternative already in
 use.
 
-Each retry waits for the constant delay under the total timeout; a delay that
-outlasts the total deadline fails with `TimeoutPhase::Total`.
+Each retry waits for the constant delay. When a total timeout is set and the
+delay, constant or from `Retry-After`, cannot finish before that deadline,
+the response is returned immediately and no further request is sent.
 `honor_retry_after(maximum)` instead uses a valid `Retry-After` field, either
 delta-seconds or an IMF-fixdate converted against the system clock (RFC 9110,
 section 10.2.3). A requested delay above `maximum` returns the response

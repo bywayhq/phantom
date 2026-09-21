@@ -121,8 +121,14 @@ pub(super) async fn send_once_alt_svc(
             continue;
         }
         // A status retry stays on this alternative; it never falls back.
-        if let Some(delay) = begin_status_retry(&response, &method, body, request_retries, replays)
-        {
+        if let Some(delay) = begin_status_retry(
+            &response,
+            &method,
+            body,
+            timeout_budget,
+            request_retries,
+            replays,
+        ) {
             drop(response);
             timeout_budget
                 .delay(delay, Some(HttpProtocol::Http3))

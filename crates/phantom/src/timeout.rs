@@ -210,6 +210,13 @@ impl TimeoutBudget {
         ResponseTimeouts::new(self.policy.read_idle, self.total_deadline, protocol).map(Some)
     }
 
+    /// Returns the time left before the total deadline, or `None` when the
+    /// operation has no total limit. An expired deadline returns zero.
+    pub(crate) fn remaining_total(self) -> Option<Duration> {
+        self.total_deadline
+            .map(|deadline| deadline.saturating_duration_since(Instant::now()))
+    }
+
     pub(crate) async fn delay(
         self,
         duration: Duration,
@@ -461,6 +468,20 @@ mod tests {
             .await?;
 
         assert_eq!(value, 7);
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn remaining_total_counts_down_to_zero() -> Result<(), Box<dyn std::error::Error>> {
+        let unlimited = TimeoutBudget::new(RequestTimeouts::new())?;
+        assert_eq!(unlimited.remaining_total(), None);
+        let budget = TimeoutBudget::new(RequestTimeouts::new().total(Duration::from_secs(5)))?;
+        assert_eq!(budget.remaining_total(), Some(Duration::from_secs(5)));
+
+        tokio::time::advance(Duration::from_secs(2)).await;
+        assert_eq!(budget.remaining_total(), Some(Duration::from_secs(3)));
+        tokio::time::advance(Duration::from_secs(4)).await;
+        assert_eq!(budget.remaining_total(), Some(Duration::ZERO));
         Ok(())
     }
 
