@@ -7,6 +7,7 @@ mod tls_support;
 use std::{
     error::Error,
     future::{Future, poll_fn},
+    io,
     net::Ipv4Addr,
     pin::Pin,
     sync::{
@@ -65,9 +66,10 @@ async fn tls13_resumption_is_scoped_to_one_session() -> TestResult<()> {
         let client = tls13_client(&identity)?;
         let session = client.session();
         send(&session, HttpProtocol::Http2, format!("https://{address}/")).await?;
-        wait_for_first_close
-            .await
-            .map_err(|_| "server stopped before closing the first connection")?;
+        if wait_for_first_close.await.is_err() {
+            server.await??;
+            return Err("server stopped before closing the first connection".into());
+        }
         send(
             &session,
             HttpProtocol::Http2,
@@ -200,8 +202,23 @@ async fn serve_one(stream: SslStream<TcpStream>, expected_path: &str) -> TestRes
     assert_eq!(request.uri().path(), expected_path);
     respond.send_response(Response::builder().status(StatusCode::OK).body(())?, true)?;
     connection.graceful_shutdown();
-    poll_fn(|context| connection.poll_closed(context)).await?;
-    Ok(())
+    match poll_fn(|context| connection.poll_closed(context)).await {
+        Ok(()) => Ok(()),
+        // The client may close its socket after reading GOAWAY but before the
+        // shutdown PING is acknowledged; that teardown is not under test.
+        Err(error) if error.get_io().is_some_and(is_peer_gone) => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn is_peer_gone(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::BrokenPipe
+            | io::ErrorKind::ConnectionReset
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::UnexpectedEof
+    )
 }
 
 async fn serve_http1(mut stream: SslStream<TcpStream>, expected_path: &str) -> TestResult<()> {
