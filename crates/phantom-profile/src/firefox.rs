@@ -11,11 +11,14 @@ use crate::{
 /// Returns TLS settings captured from Firefox 154.0 on macOS 15.5.
 ///
 /// The fixed extension order and exact ECH GREASE payload length retain the
-/// stable wire shape observed across the local captures. The delegated-
-/// credential vector includes legacy ECDSA-SHA1 because Firefox advertised it;
-/// TLS 1.3 authentication cannot select that legacy scheme. The returned value
-/// is an ordinary owned [`TlsSettings`], so callers can customize it before
-/// constructing a transport.
+/// stable wire shape observed across the local captures. Firefox picks its ECH
+/// GREASE AEAD per connection from AES-128-GCM and ChaCha20-Poly1305; this
+/// recipe emits only AES-128-GCM because the TLS backend exposes no
+/// per-connection choice. The delegated-credential vector includes legacy
+/// ECDSA-SHA1 because Firefox advertised it; TLS 1.3 authentication cannot
+/// select that legacy scheme. The returned value is an ordinary owned
+/// [`TlsSettings`], so callers can customize it before constructing a
+/// transport.
 #[must_use]
 pub fn v154_macos_tls() -> TlsSettings {
     TlsSettings {

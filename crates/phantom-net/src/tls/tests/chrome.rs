@@ -91,6 +91,11 @@ async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
         actual.requested_trust_anchor_ids().map(<[_]>::len),
         Some(32)
     );
+    // Every retained Chrome sample uses HKDF-SHA256 with AES-128-GCM.
+    assert_eq!(
+        client_hello_fixture::ech_cipher_suite(actual_capture.handshake_bytes())?,
+        client_hello_fixture::ech_cipher_suite(expected_capture.handshake_bytes())?
+    );
 
     // Chrome permutes eligible extensions on each connection. Sorting only this
     // vector compares exact membership and count without inventing a stable order.

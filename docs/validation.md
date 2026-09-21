@@ -396,7 +396,16 @@ Comparisons normalize only per-connection randomness:
   the chosen version stays first.
 - Firefox 154 chooses its ECH GREASE AEAD between AES-128-GCM (`0x0001`) and
   ChaCha20-Poly1305 (`0x0003`) per connection on Windows (7 and 8 of 15
-  samples); the retained macOS sample carries `0x0001`.
+  samples); the retained macOS sample carries `0x0001`. A follow-up
+  multi-connection capture saw both values in each of three processes (359
+  and 337 of 696 connections, all with a 239-byte payload), consistent with
+  NSS taking the choice from the low bit of fresh per-handshake random bytes.
+  Phantom's Firefox recipe emits `0x0001` on every connection because the TLS
+  backend has no per-connection ECH GREASE AEAD control; this difference
+  remains open.
+- Every retained Chrome ClientHello, TCP and QUIC, and all 1,248 follow-up
+  Chrome connections use HKDF-SHA256 with AES-128-GCM for ECH GREASE. The
+  Chrome TLS recipe tests compare that cipher suite exactly.
 - `user-agent`, `sec-ch-ua`, `sec-ch-ua-mobile`, and `sec-ch-ua-platform` are
   persona data and differ by platform and flavor by design. Their positions in
   the request field order are compared.
@@ -414,7 +423,8 @@ Deterministic recipe tests replay the retained Windows fixtures:
 `chrome_152_quic_client_hello_recipe_matches_windows_chrome_for_testing_capture`,
 `chrome_152_quic_recipe_matches_windows_chrome_for_testing_capture`,
 `chrome_152_http3_recipe_matches_windows_chrome_for_testing_capture`,
-`firefox_154_tls_recipe_matches_windows_capture`, and
+`firefox_154_tls_recipe_matches_windows_capture`,
+`firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice`, and
 `firefox_154_http2_recipe_matches_windows_capture`.
 
 Limits:

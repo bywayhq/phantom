@@ -30,6 +30,32 @@ async fn firefox_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
     assert_recipe_matches_fixture(WINDOWS_FIREFOX_FIXTURE).await
 }
 
+/// Firefox picks AES-128-GCM or ChaCha20-Poly1305 for each ECH GREASE
+/// extension. The backend exposes no per-connection AEAD choice, so the recipe
+/// reproduces only the AES-128-GCM branch.
+#[tokio::test]
+async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestResult<()> {
+    // ECHClientHello type outer (0), HKDF-SHA256 (0x0001), then the AEAD.
+    const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
+    const CHACHA20_POLY1305: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x03];
+    let mut captured = Vec::new();
+    for fixture in [FIREFOX_FIXTURE, WINDOWS_FIREFOX_FIXTURE] {
+        let capture = client_hello_fixture::capture(fixture).await?;
+        captured.push(client_hello_fixture::ech_cipher_suite(
+            capture.handshake_bytes(),
+        )?);
+    }
+    assert_eq!(captured, [AES_128_GCM, CHACHA20_POLY1305]);
+
+    let actual =
+        capture_client_hello_from_server_name(&v154_macos_tls(), FIREFOX_SERVER_NAME).await?;
+    assert_eq!(
+        client_hello_fixture::ech_cipher_suite(actual.handshake_bytes())?,
+        AES_128_GCM
+    );
+    Ok(())
+}
+
 async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
     let expected_capture = client_hello_fixture::capture(fixture).await?;
     let actual_capture =

@@ -53,6 +53,19 @@ pub(super) fn extension_payload(handshake: &[u8], expected_type: u16) -> io::Res
     ))
 }
 
+/// Returns the ECHClientHello type, HPKE KDF, and HPKE AEAD octets.
+pub(super) fn ech_cipher_suite(handshake: &[u8]) -> io::Result<[u8; 5]> {
+    extension_payload(handshake, 0xfe0d)?
+        .first_chunk::<5>()
+        .copied()
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ECH extension is shorter than its cipher suite",
+            )
+        })
+}
+
 fn fixture_value<'a>(fixture: &'a str, field: &str) -> Result<&'a str, io::Error> {
     let prefix = format!("{field}=");
     fixture
