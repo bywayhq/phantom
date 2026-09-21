@@ -16,6 +16,51 @@ build tools. Python 3.10 and `uv` are needed only for capture and conformance
 tooling. See the platform jobs in [CI](.github/workflows/ci.yml) for the exact
 prerequisite checks.
 
+### Windows
+
+Install the native prerequisites with `winget` from PowerShell:
+
+```powershell
+winget install --id Git.Git --exact
+winget install --id Rustlang.Rustup --exact
+winget install --id NASM.NASM --exact
+winget install --id Kitware.CMake --exact
+winget install --id LLVM.LLVM --exact
+winget install --id astral-sh.uv --exact
+winget install --id Microsoft.VisualStudio.2022.BuildTools --exact `
+  --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+The Build Tools workload provides the MSVC compiler and Windows SDK. The NASM
+and LLVM installers may not update `PATH`; make `nasm`, `cmake`, and `clang`
+resolvable in the shell that runs Cargo (for example by adding
+`C:\Program Files\NASM` and `C:\Program Files\LLVM\bin`). The native TLS build
+uses LLVM's `libclang` for bindings; set `LIBCLANG_PATH` to LLVM's `bin`
+directory if it is not found.
+
+`rust-toolchain.toml` installs the pinned development toolchain on first use.
+Install the minimum supported toolchain separately for the MSRV checks:
+
+```powershell
+rustup toolchain install 1.85.0 --profile minimal
+```
+
+Run `scripts/ci/*.sh` from Git Bash. Those scripts fetch upstream sources and
+compare them byte-for-byte with `vendor/`, so run them with CRLF conversion
+disabled and symlinks enabled for the child Git processes:
+
+```sh
+export GIT_CONFIG_COUNT=2
+export GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false
+export GIT_CONFIG_KEY_1=core.symlinks GIT_CONFIG_VALUE_1=true
+scripts/ci/check-vendor.sh btls
+```
+
+A checkout with `core.autocrlf=true` is otherwise supported: `.gitattributes`
+keeps `vendor/` and `fixtures/` byte-exact.
+
+### First build
+
 Build the public crate before making a change:
 
 ```console
