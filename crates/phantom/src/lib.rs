@@ -152,7 +152,8 @@ pub mod profile {
     pub mod chromium {
         pub use phantom_profile::chromium::{
             v152_http2, v152_http3, v152_http3_request, v152_http3_tls, v152_macos_client_hints,
-            v152_quic, v152_tls,
+            v152_quic, v152_tls, v153_http2, v153_http3, v153_http3_request, v153_http3_tls,
+            v153_quic, v153_tls, v153_windows_client_hints,
         };
 
         #[doc(hidden)]
@@ -164,10 +165,18 @@ pub mod profile {
 
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
-        pub use phantom_profile::firefox::{v154_http2, v154_tls};
+        pub use phantom_profile::firefox::{v154_http2, v154_tls, v156_http2, v156_tls};
 
         #[doc(hidden)]
         pub use phantom_profile::firefox::{v154_macos_http2, v154_macos_tls};
+    }
+
+    /// Microsoft Edge recipes implemented by the public facade.
+    ///
+    /// Edge 153 shares Chrome 153's H2, QUIC, and H3 recipes; only its TLS
+    /// ClientHellos and client hints differ.
+    pub mod edge {
+        pub use phantom_profile::edge::{v153_http3_tls, v153_tls, v153_windows_client_hints};
     }
 
     /// Safari recipes implemented by the public facade.
