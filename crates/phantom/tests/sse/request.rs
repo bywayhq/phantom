@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use http::StatusCode;
-use phantom::{HttpProtocol, RequestHeader};
+use phantom::{HttpProtocol, RequestHeader, SseHeader};
 use tokio::{io::AsyncWriteExt, net::TcpListener};
 
 use super::{
@@ -28,7 +28,9 @@ async fn replacing_headers_removes_event_source_defaults() -> TestResult<()> {
     let response = test_client(&identity, false)?
         .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .headers(vec![RequestHeader::new("X-Custom", "only")])
+        .headers(vec![SseHeader::field(RequestHeader::new(
+            "X-Custom", "only",
+        ))])
         .connect()
         .await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);

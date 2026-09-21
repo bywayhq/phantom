@@ -11,7 +11,7 @@ use super::{SseError, SseErrorKind, SseEvent, SseLimits, SseOutcome, SseStream};
 mod request;
 
 use request::SseRequest;
-pub use request::SseRequestBuilder;
+pub use request::{SseHeader, SseRequestBuilder};
 
 type ReconnectFuture =
     Pin<Box<dyn Future<Output = Result<Response<ResponseBody>, RequestError>> + Send + 'static>>;

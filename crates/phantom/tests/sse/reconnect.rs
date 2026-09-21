@@ -4,6 +4,7 @@ use btls::ssl::{Ssl, SslAcceptor};
 use http::StatusCode;
 use phantom::{
     HttpProtocol, OrderedResponseHeaders, RequestHeader, ResponseInfo, Route, SseErrorKind,
+    SseHeader,
 };
 use tokio::{
     io::AsyncWriteExt,
@@ -388,6 +389,48 @@ async fn event_source_rejects_caller_last_event_id_before_io() -> TestResult<()>
         .ok_or("caller-supplied Last-Event-ID was accepted")?;
 
     assert_eq!(error.kind(), SseErrorKind::InvalidRequestHeader);
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_last_event_id_placeholders_fail_before_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    for (protocol, template) in [
+        (
+            HttpProtocol::Http1,
+            vec![
+                SseHeader::last_event_id("Last-Event-ID"),
+                SseHeader::last_event_id("last-event-id"),
+            ],
+        ),
+        (
+            HttpProtocol::Http1,
+            vec![SseHeader::last_event_id("X-Last-Event-ID")],
+        ),
+        (
+            HttpProtocol::Http2,
+            vec![SseHeader::last_event_id("Last-Event-ID")],
+        ),
+    ] {
+        let error = test_client(&identity, true)?
+            .event_source(protocol, &format!("https://{address}/events"))?
+            .headers(template)
+            .connect()
+            .await
+            .err()
+            .ok_or("invalid Last-Event-ID placeholder was accepted")?;
+        assert_eq!(error.kind(), SseErrorKind::InvalidRequestHeader);
+    }
+    let listener = listener.into_std()?;
+    assert!(
+        matches!(
+            listener.accept(),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
+        ),
+        "invalid placeholder touched the network"
+    );
     Ok(())
 }
 

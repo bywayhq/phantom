@@ -35,7 +35,8 @@ pub use session::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
 pub use session::{Session, SessionBuilder};
 #[cfg(feature = "sse")]
 pub use sse::{
-    SseError, SseErrorKind, SseEvent, SseEventSource, SseLimits, SseRequestBuilder, SseStream,
+    SseError, SseErrorKind, SseEvent, SseEventSource, SseHeader, SseLimits, SseRequestBuilder,
+    SseStream,
 };
 pub use timeout::{RequestTimeouts, TimeoutPhase};
 #[cfg(feature = "websocket-deflate")]

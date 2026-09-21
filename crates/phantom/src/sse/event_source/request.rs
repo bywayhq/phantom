@@ -1,6 +1,6 @@
 use std::{fmt, time::Duration};
 
-use http::{Response, StatusCode};
+use http::{HeaderName, Response, StatusCode};
 use phantom_net::request::RequestHeader;
 use tokio::time::Instant;
 use tracing::{Instrument, debug, debug_span, field};
@@ -14,16 +14,81 @@ use crate::sse::{SseError, SseLimits, SseOutcome, SseStream};
 
 const DEFAULT_INITIAL_RETRY: Duration = Duration::from_secs(3);
 const DEFAULT_MAX_RECONNECTS: usize = 3;
+const LAST_EVENT_ID: &str = "last-event-id";
 
-fn default_headers(protocol: HttpProtocol) -> Vec<RequestHeader> {
+fn default_headers(protocol: HttpProtocol) -> Vec<SseHeader> {
     let (accept, cache_control) = match protocol {
         HttpProtocol::Http1 => ("Accept", "Cache-Control"),
         HttpProtocol::Http2 | HttpProtocol::Http3 => ("accept", "cache-control"),
     };
     vec![
-        RequestHeader::new(accept, "text/event-stream"),
-        RequestHeader::new(cache_control, "no-cache"),
+        SseHeader::field(RequestHeader::new(accept, "text/event-stream")),
+        SseHeader::field(RequestHeader::new(cache_control, "no-cache")),
     ]
+}
+
+/// One field or reconnect-state placeholder in an EventSource request.
+///
+/// ```no_run
+/// use phantom::{Client, HttpProtocol, RequestHeader, SseHeader};
+///
+/// async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+///     let response = client
+///         .event_source(HttpProtocol::Http1, "https://example.com/events")?
+///         .headers(vec![
+///             SseHeader::field(RequestHeader::new("Accept", "text/event-stream")),
+///             SseHeader::last_event_id("Last-Event-ID"),
+///             SseHeader::field(RequestHeader::new("Pragma", "no-cache")),
+///             SseHeader::field(RequestHeader::new("Cache-Control", "no-cache")),
+///         ])
+///         .connect()
+///         .await?;
+///     let mut events = response.into_body();
+///     while let Some(event) = events.next_event().await? {
+///         println!("{}", event.data());
+///     }
+///     Ok(())
+/// }
+/// ```
+#[derive(Clone, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SseHeader {
+    /// Inserts the committed `Last-Event-ID` at this position when it is
+    /// nonempty, using the supplied field-name spelling.
+    LastEventId {
+        /// Exact field-name spelling to emit.
+        name: Box<str>,
+    },
+    /// Emits one literal ordered field.
+    Field(RequestHeader),
+}
+
+impl SseHeader {
+    /// Creates a `Last-Event-ID` placeholder with caller-controlled spelling.
+    #[must_use]
+    pub fn last_event_id(name: impl Into<Box<str>>) -> Self {
+        Self::LastEventId { name: name.into() }
+    }
+
+    /// Creates a literal ordered field.
+    #[must_use]
+    pub fn field(header: RequestHeader) -> Self {
+        Self::Field(header)
+    }
+}
+
+impl fmt::Debug for SseHeader {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (kind, name) = match self {
+            Self::LastEventId { name } => ("last_event_id", name.as_ref()),
+            Self::Field(header) => ("field", header.name()),
+        };
+        formatter
+            .debug_struct("SseHeader")
+            .field("kind", &kind)
+            .field("name", &name)
+            .finish()
+    }
 }
 
 /// Builds one client-owned server-sent event source.
@@ -75,21 +140,26 @@ impl SseRequestBuilder {
         })
     }
 
-    /// Appends one ordered request field after the EventSource defaults.
+    /// Appends one literal ordered request field after the current template.
     ///
-    /// `Last-Event-ID` is reserved for reconnects and is rejected by
-    /// [`SseRequestBuilder::connect`].
+    /// A literal `Last-Event-ID` is rejected by [`SseRequestBuilder::connect`];
+    /// use [`SseHeader::last_event_id`] to position the managed field.
     pub fn header(mut self, header: RequestHeader) -> Self {
-        self.request.headers.push(header);
+        self.request.headers.push(SseHeader::field(header));
         self
     }
 
-    /// Replaces the complete ordered request-field list, including the
+    /// Replaces the complete ordered request-field template, including the
     /// EventSource defaults.
     ///
-    /// `Last-Event-ID` is reserved for reconnects and is rejected by
-    /// [`SseRequestBuilder::connect`].
-    pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
+    /// The template may contain one [`SseHeader::LastEventId`] placeholder
+    /// whose name spells `Last-Event-ID` in any case, or in lowercase for
+    /// HTTP/2 and HTTP/3. The placeholder emits the committed event ID at its
+    /// position and nothing while the ID is empty. Without a placeholder, a
+    /// nonempty ID is appended after every template field. A literal
+    /// `Last-Event-ID` field is rejected. [`SseRequestBuilder::connect`]
+    /// validates the template before any I/O.
+    pub fn headers(mut self, headers: Vec<SseHeader>) -> Self {
         self.request.headers = headers;
         self
     }
@@ -268,32 +338,18 @@ pub(super) struct SseRequest {
     client: Client,
     pub(super) protocol: HttpProtocol,
     uri: Box<str>,
-    headers: Vec<RequestHeader>,
+    headers: Vec<SseHeader>,
     route: Option<Route>,
     timeouts: Option<RequestTimeouts>,
 }
 
 impl SseRequest {
     fn validate_headers(&self) -> Result<(), SseError> {
-        if self
-            .headers
-            .iter()
-            .any(|header| header.name().eq_ignore_ascii_case("last-event-id"))
-        {
-            return Err(SseError::invalid_request_header());
-        }
-        Ok(())
+        validate_template(&self.headers, self.protocol)
     }
 
     async fn send(&self, last_event_id: &str) -> Result<Response<ResponseBody>, RequestError> {
-        let mut headers = self.headers.clone();
-        if !last_event_id.is_empty() {
-            let name = match self.protocol {
-                HttpProtocol::Http1 => "Last-Event-ID",
-                HttpProtocol::Http2 | HttpProtocol::Http3 => "last-event-id",
-            };
-            headers.push(RequestHeader::new(name, last_event_id));
-        }
+        let headers = resolve_template(&self.headers, self.protocol, last_event_id);
 
         let mut request = self
             .client
@@ -317,4 +373,77 @@ impl SseRequest {
             None => request,
         }
     }
+}
+
+/// Rejects literal `Last-Event-ID` fields and invalid or repeated placeholders.
+fn validate_template(template: &[SseHeader], protocol: HttpProtocol) -> Result<(), SseError> {
+    let mut placeholders = 0_usize;
+    for header in template {
+        match header {
+            SseHeader::Field(field) if field.name().eq_ignore_ascii_case(LAST_EVENT_ID) => {
+                return Err(SseError::invalid_request_header(
+                    "literal Last-Event-ID is managed by the SSE event source; use the placeholder",
+                ));
+            }
+            SseHeader::Field(_) => {}
+            SseHeader::LastEventId { name } => {
+                placeholders += 1;
+                validate_placeholder_name(name, protocol)?;
+            }
+        }
+    }
+    if placeholders > 1 {
+        return Err(SseError::invalid_request_header(
+            "SSE request permits at most one Last-Event-ID placeholder",
+        ));
+    }
+    Ok(())
+}
+
+/// Expands a validated template for one attempt.
+///
+/// An empty committed ID emits no field. Without a placeholder, a nonempty ID
+/// is appended last using the protocol's conventional spelling.
+fn resolve_template(
+    template: &[SseHeader],
+    protocol: HttpProtocol,
+    last_event_id: &str,
+) -> Vec<RequestHeader> {
+    let mut headers = Vec::with_capacity(template.len() + 1);
+    let mut placed = false;
+    for header in template {
+        match header {
+            SseHeader::Field(field) => headers.push(field.clone()),
+            SseHeader::LastEventId { name } => {
+                placed = true;
+                if !last_event_id.is_empty() {
+                    headers.push(RequestHeader::new(name.as_ref(), last_event_id));
+                }
+            }
+        }
+    }
+    if !placed && !last_event_id.is_empty() {
+        let name = match protocol {
+            HttpProtocol::Http1 => "Last-Event-ID",
+            HttpProtocol::Http2 | HttpProtocol::Http3 => LAST_EVENT_ID,
+        };
+        headers.push(RequestHeader::new(name, last_event_id));
+    }
+    headers
+}
+
+fn validate_placeholder_name(name: &str, protocol: HttpProtocol) -> Result<(), SseError> {
+    let spelled = HeaderName::from_bytes(name.as_bytes())
+        .is_ok_and(|parsed| parsed.as_str() == LAST_EVENT_ID);
+    if !spelled {
+        return Err(SseError::invalid_request_header(
+            "Last-Event-ID placeholder name must spell Last-Event-ID",
+        ));
+    }
+    if protocol != HttpProtocol::Http1 && name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        return Err(SseError::invalid_request_header(
+            "HTTP/2 and HTTP/3 Last-Event-ID placeholder names must be lowercase",
+        ));
+    }
+    Ok(())
 }

@@ -12,7 +12,7 @@ use self::decoder::Decoder;
 mod decoder;
 mod event_source;
 
-pub use event_source::{SseEventSource, SseRequestBuilder};
+pub use event_source::{SseEventSource, SseHeader, SseRequestBuilder};
 
 const DEFAULT_MAX_LINE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_EVENT_BYTES: usize = 1024 * 1024;
@@ -90,7 +90,8 @@ impl SseEvent {
 pub enum SseErrorKind {
     /// The request could not be prepared or sent.
     Request,
-    /// The caller supplied a field reserved for SSE reconnect state.
+    /// The caller supplied a literal field reserved for SSE reconnect state
+    /// or an invalid `Last-Event-ID` placeholder.
     InvalidRequestHeader,
     /// The reconnect delay cannot be represented by the runtime clock.
     InvalidReconnectDelay,
@@ -161,11 +162,8 @@ impl SseError {
         )
     }
 
-    fn invalid_request_header() -> Self {
-        Self::without_source(
-            SseErrorKind::InvalidRequestHeader,
-            "Last-Event-ID is managed by the SSE event source",
-        )
+    fn invalid_request_header(message: &'static str) -> Self {
+        Self::without_source(SseErrorKind::InvalidRequestHeader, message)
     }
 
     fn invalid_reconnect_delay() -> Self {
