@@ -29,11 +29,10 @@ pub(super) struct DriverTask {
 }
 
 impl DriverTask {
-    pub(super) fn spawn<F>(connection: F) -> Self
+    pub(super) fn spawn<F>(runtime: &Handle, connection: F) -> Self
     where
         F: Future<Output = Result<(), wreq_proto::Error>> + Send + 'static,
     {
-        let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);
         let span = debug_span!("http1.connection_driver", outcome = field::Empty);
         let finished = Arc::new(AtomicBool::new(false));

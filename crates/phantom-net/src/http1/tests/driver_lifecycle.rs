@@ -325,3 +325,19 @@ impl AsyncWrite for PanicReadStream {
         Pin::new(&mut self.inner).poll_shutdown(context)
     }
 }
+
+#[test]
+fn polling_outside_tokio_returns_runtime_unavailable() -> TestResult {
+    let (client, _server) = duplex(64);
+    let mut request = Box::pin(send_get(client, target()?, vec![host()]));
+    let mut context = Context::from_waker(std::task::Waker::noop());
+
+    let Poll::Ready(result) = request.as_mut().poll(&mut context) else {
+        return Err("HTTP/1 request waited without a Tokio runtime".into());
+    };
+    assert!(matches!(
+        result,
+        Err(crate::http1::Http1Error::RuntimeUnavailable)
+    ));
+    Ok(())
+}

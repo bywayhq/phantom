@@ -204,6 +204,8 @@ pub enum Http2Error {
     HeaderMapCapacity,
     /// The HTTP backend completed a response without its ordered field capture.
     MissingResponseHeaderOrder,
+    /// The connection was polled outside a Tokio runtime.
+    RuntimeUnavailable,
     /// The HTTP protocol driver failed.
     Protocol(Http2ProtocolError),
 }
@@ -316,6 +318,9 @@ impl fmt::Display for Http2Error {
             Self::MissingResponseHeaderOrder => {
                 formatter.write_str("HTTP/2 response header order was not captured")
             }
+            Self::RuntimeUnavailable => {
+                formatter.write_str("HTTP/2 connections require a Tokio runtime")
+            }
             Self::Protocol(error) => write!(formatter, "HTTP/2 protocol error: {error}"),
         }
     }
@@ -378,6 +383,7 @@ impl Http2Error {
             Self::RequestBodyClosed => "request_body_closed",
             Self::HeaderMapCapacity => "header_map_capacity",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
+            Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
         }
     }

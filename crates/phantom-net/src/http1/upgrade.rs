@@ -116,12 +116,13 @@ where
     let outcome = OperationOutcome::new(&span);
     let result = async {
         debug!("HTTP/1 Upgrade transaction started");
+        let runtime = super::current_runtime()?;
         let (stream, observed_headers) = ResponseHeadObserver::wrap(stream);
         observed_headers.begin();
         let (mut sender, connection) = connection_builder()
             .handshake::<_, Empty<Bytes>>(stream)
             .await?;
-        let driver = DriverTask::spawn(connection.with_upgrades());
+        let driver = DriverTask::spawn(&runtime, connection.with_upgrades());
 
         sender.ready().await?;
         let mut response = match sender.try_send_request(prepared.into_request()).await {

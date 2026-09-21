@@ -172,3 +172,26 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult<()> {
     );
     Ok(())
 }
+
+#[test]
+fn polling_outside_tokio_returns_runtime_unavailable() -> TestResult<()> {
+    let (client, _server) = duplex(64);
+    let settings = v152_macos_http2();
+    let mut request = Box::pin(send_get(
+        client,
+        &settings,
+        "example.test",
+        target()?,
+        vec![],
+    ));
+    let mut context = Context::from_waker(Waker::noop());
+
+    let std::task::Poll::Ready(result) = request.as_mut().poll(&mut context) else {
+        return Err("HTTP/2 request waited without a Tokio runtime".into());
+    };
+    assert!(matches!(
+        result,
+        Err(crate::http2::Http2Error::RuntimeUnavailable)
+    ));
+    Ok(())
+}

@@ -377,11 +377,13 @@ impl Http2Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        let runtime =
+            tokio::runtime::Handle::try_current().map_err(|_| Http2Error::RuntimeUnavailable)?;
         let (sender, connection) = client
             .handshake(stream)
             .await
             .map_err(Http2Error::protocol)?;
-        let driver = DriverTask::spawn(connection);
+        let driver = DriverTask::spawn(runtime, connection);
         Ok(Self {
             inner: Arc::new(ConnectionInner {
                 sender: Some(sender),

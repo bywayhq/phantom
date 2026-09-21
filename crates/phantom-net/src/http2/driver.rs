@@ -33,11 +33,13 @@ pub(super) struct DriverTask {
 }
 
 impl DriverTask {
-    pub(super) fn spawn<T>(connection: ::http2::client::Connection<T, bytes::Bytes>) -> Self
+    pub(super) fn spawn<T>(
+        runtime: Handle,
+        connection: ::http2::client::Connection<T, bytes::Bytes>,
+    ) -> Self
     where
         T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
     {
-        let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);
         let span = debug_span!("http2.connection_driver", outcome = field::Empty);
         let handle = runtime.spawn(

@@ -157,6 +157,8 @@ pub enum Http1Error {
     MissingResponseHeaderOrder,
     /// The established connection can no longer accept a request.
     ConnectionClosed,
+    /// The connection was polled outside a Tokio runtime.
+    RuntimeUnavailable,
     /// The HTTP protocol driver failed.
     Protocol(wreq_proto::Error),
 }
@@ -269,6 +271,9 @@ impl fmt::Display for Http1Error {
                 formatter.write_str("HTTP/1 response header order was not captured")
             }
             Self::ConnectionClosed => formatter.write_str("HTTP/1 connection is closed"),
+            Self::RuntimeUnavailable => {
+                formatter.write_str("HTTP/1 connections require a Tokio runtime")
+            }
             Self::Protocol(error) => write!(formatter, "HTTP/1.1 protocol error: {error}"),
         }
     }
@@ -326,6 +331,7 @@ impl Http1Error {
             Self::UnexpectedUpgrade => "unexpected_upgrade",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
             Self::ConnectionClosed => "connection_closed",
+            Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
         }
     }
@@ -731,6 +737,11 @@ impl Drop for OperationOutcome {
             self.span.record("outcome", outcome);
         }
     }
+}
+
+/// Returns the Tokio runtime that owns HTTP/1 connection drivers.
+fn current_runtime() -> Result<tokio::runtime::Handle, Http1Error> {
+    tokio::runtime::Handle::try_current().map_err(|_| Http1Error::RuntimeUnavailable)
 }
 
 #[cfg(test)]

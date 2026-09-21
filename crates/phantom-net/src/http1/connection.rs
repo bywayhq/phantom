@@ -48,6 +48,7 @@ impl Http1Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        let runtime = super::current_runtime()?;
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
         let (sender, connection) = connection_builder()
             .handshake::<_, Http1RequestBody>(stream)
@@ -57,7 +58,7 @@ impl Http1Connection {
                 sender: Mutex::new(sender),
                 request_permit: Arc::new(Semaphore::new(1)),
                 observer,
-                driver: DriverTask::spawn(connection),
+                driver: DriverTask::spawn(&runtime, connection),
                 reusable: AtomicBool::new(true),
             }),
         })
