@@ -21,10 +21,21 @@ Upstream: `tokio-tungstenite` 0.30.0 from crates.io.
 
 Phantom patches `tungstenite`, and `tokio-tungstenite` depends on it. A stock
 `tokio-tungstenite` would pull the stock `tungstenite` from crates.io. This fork
-carries no source change: its only patch renames the package and points its
-`tungstenite` dependency at `phantom-tungstenite` by exact version and path.
-Phantom uses only `WebSocketStream`; replacing the adapter with Phantom-owned
-code would add maintenance without changing the wire behavior.
+carries no behavioral source change: its identity patch renames the package and
+points its `tungstenite` dependency at `phantom-tungstenite` by exact version
+and path. Phantom uses only `WebSocketStream`; replacing the adapter with
+Phantom-owned code would add maintenance without changing the wire behavior.
+
+## Handshake waker gate
+
+Phantom builds the adapter without default features, so the `handshake`
+feature is off. Upstream 0.30.0 still compiles the crate-private `SetWaker`
+trait and its `AllowStd` implementation, whose only users are
+`handshake`-gated, and rustc reports `trait SetWaker is never used`.
+`handshake-set-waker.patch` gates the trait and its implementation behind the
+same `handshake` feature. Builds with that feature compile the same code as
+upstream. Upstream `master` still has the ungated trait as of this patch; drop
+the patch when a refresh brings an upstream fix.
 
 ## Publish identity
 

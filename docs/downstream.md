@@ -99,7 +99,7 @@ lockfile and toolchain.
 | `phantom-quinn` | `quinn` 0.11.12 | Identity only |
 | `phantom-quinn-proto` | `quinn-proto` 0.11.18 | Source patches and identity; see `vendor/quinn-proto/PHANTOM.md` |
 | `phantom-tungstenite` | `tungstenite` 0.30.0 | Source patches and identity; see `vendor/tungstenite/PHANTOM.md` |
-| `phantom-tokio-tungstenite` | `tokio-tungstenite` 0.30.0 | Identity only |
+| `phantom-tokio-tungstenite` | `tokio-tungstenite` 0.30.0 | Warning-only source patch and identity; see `vendor/tokio-tungstenite/PHANTOM.md` |
 | `phantom-wreq-proto` | `wreq-proto` 0.2.5 | Source patches and identity; see `vendor/wreq-proto/PHANTOM.md` |
 
 Every fork is its checksummed upstream source plus the ordered patches in its

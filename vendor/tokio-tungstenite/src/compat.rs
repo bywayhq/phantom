@@ -50,10 +50,12 @@ pub(crate) struct AllowStd<S> {
 // read waker slot for this, but any would do.
 //
 // Don't ever use this from multiple tasks at the same time!
+#[cfg(feature = "handshake")]
 pub(crate) trait SetWaker {
     fn set_waker(&self, waker: &task::Waker);
 }
 
+#[cfg(feature = "handshake")]
 impl<S> SetWaker for AllowStd<S> {
     fn set_waker(&self, waker: &task::Waker) {
         self.set_waker(ContextWaker::Read, waker);
