@@ -197,6 +197,55 @@ wiring review, and the workspace gates.
 These tests prove lifecycle and routing behavior, not browser retry policy.
 Retries are caller-configured and do not become part of a named browser recipe.
 
+## SSE browser reconnect evidence
+
+`fixtures/sse/` retains HTTP/1.1 EventSource captures from headless Chrome
+153.0.8010.48 and Firefox 155.0.1 on Windows 11 (10.0.26200), recorded with
+`scripts/capture/sse_reconnect.py` against a plaintext loopback server. Each
+of the seventeen scenarios ran ten times on a fresh profile. Fixtures keep raw
+request lines and header lines in arrival order, connection reuse, and the
+delay from each server stimulus to the next request. The capture page and the
+exact launch arguments are recorded in each file; [the capture
+README](../scripts/capture/README.md) has the commands.
+
+Observed on both browsers:
+
+- `Last-Event-ID` is spelled that way, carries the committed id as raw UTF-8
+  bytes, is omitted when the committed id is empty, and sits among the
+  browser's ordinary fields rather than last. Chrome places it after
+  `sec-ch-ua-mobile`; Firefox after `Accept-Encoding`.
+- A valid `retry` value persists across later connections, and a non-digit
+  value is ignored.
+- Delay spread across ten runs stayed within about 50 ms and did not grow
+  between attempts: neither browser showed jitter or backoff.
+- `204`, `404`, `500`, and a `text/plain` response each ended the EventSource
+  with no request during the observation window.
+- A stream with only response headers stayed open for 90 seconds; neither
+  browser has an idle timeout.
+- A cookie set by the stream response was sent on the reconnect.
+
+Where they differ:
+
+| Behavior | Chrome 153 | Firefox 155 |
+| --- | --- | --- |
+| Delay without `retry` | 3 s | 5 s |
+| `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to about 510 ms |
+| Reconnect after a reset before any response | first immediate, then the retry delay | immediate each time |
+| Reconnect target after a followed `307` | redirected URL | original URL |
+
+Chrome's immediate request after the first reset repeats the failed initial
+request, which may be network-layer resend rather than EventSource
+scheduling; the fixture cannot tell them apart. A five-run headless and
+headful Chrome comparison of `retry-750`, retained under `launch-mode/`, gave
+medians within 1 ms of each other, so headless timers are not throttled.
+
+Other background traffic remained during the captures. Firefox 155 still
+contacted Remote Settings, and Chrome contacted Google update and messaging
+services, because release builds ignore those services' test-only switches.
+That traffic used separate remote connections and never reached the loopback
+listener. These captures cover plaintext HTTP/1.1 only; H2, H3, macOS, and
+Safari behavior is not inferred from them.
+
 ## External suites
 
 External projects are witnesses, not pass badges:

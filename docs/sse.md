@@ -89,3 +89,30 @@ the budget permits; without a remaining attempt it returns
 ordinary end-of-body returns `SseErrorKind::ReconnectLimit`. The controller
 does not decode compressed content, add reconnect jitter, or model browser
 renderer events.
+
+## Differences from captured browsers
+
+[SSE browser reconnect evidence](validation.md#sse-browser-reconnect-evidence)
+compares this controller with Chrome 153 and Firefox 155 over HTTP/1.1. The
+id, retry, termination, cookie, and no-jitter behavior match both browsers.
+The three-second default delay matches Chrome. The remaining differences are
+listed here.
+
+- **Reconnect budget.** Phantom stops after a finite, configurable count.
+  Browsers reconnected every time, but the captures exercise at most three
+  reconnects, so they do not show whether a browser limit exists.
+- **Idle timeout.** Browsers kept an idle stream open; Phantom's optional idle
+  timeout is off by default.
+- **`Last-Event-ID` position.** Phantom appends the field after every caller
+  field. Both browsers place it among their ordinary fields, and a caller
+  cannot choose its position.
+- **Small `retry` values.** Phantom honors any value, as Chrome does. Firefox
+  raises values below about 500 ms.
+- **Network errors before a response.** Phantom always waits the retry delay.
+  Firefox reconnected immediately, and Chrome reconnected immediately once.
+- **Redirected streams.** Phantom reconnects to the original URL and follows
+  the client redirect policy again, as Firefox does. Chrome reconnects to the
+  redirected URL.
+- **Default fields.** Phantom's defaults are `Accept` and `Cache-Control`.
+  Both browsers also send `Pragma: no-cache` and their navigation-context
+  fields. Callers can supply them in order through `SseRequestBuilder::headers`.
