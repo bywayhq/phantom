@@ -1182,7 +1182,32 @@ impl Http2TlsConnector {
             .connect_prepared_extended(stream, server_name, client)
             .await?;
         connection
-            .send_extended_connect(authority, target, headers)
+            .send_extended_connect_with_settings(&self.http2, authority, target, headers)
+            .await
+            .map_err(Into::into)
+    }
+
+    /// Opens one WebSocket extended CONNECT stream on an established connection.
+    ///
+    /// The connector's HTTP/2 profile supplies the stream's extended CONNECT
+    /// pseudo-header order and priority. The connection may be one opened for
+    /// ordinary requests with the same profile; its other streams keep their
+    /// own shape. This never opens a connection or falls back to HTTP/1.1.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when the profile has no extended CONNECT
+    /// order, request validation fails, the peer does not advertise support,
+    /// or the HTTP/2 stream fails.
+    pub async fn send_extended_connect_on(
+        &self,
+        connection: &Http2Connection,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        connection
+            .send_extended_connect_with_settings(&self.http2, authority, target, headers)
             .await
             .map_err(Into::into)
     }

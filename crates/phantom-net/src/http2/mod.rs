@@ -5,11 +5,12 @@
 
 use ::http2::{
     client,
+    ext::HeadersFrameOverrides,
     frame::{PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId},
 };
 use bytes::Bytes;
 use http::{Method, Request, Response};
-use phantom_profile::{Http2PseudoHeader, Http2Setting, Http2Settings};
+use phantom_profile::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
@@ -503,16 +504,68 @@ pub(crate) fn translate_extended_connect_settings(
     translate_settings_with_pseudo_order(settings, order, true)
 }
 
+/// Builds the per-request HEADERS overrides for one extended CONNECT.
+///
+/// The pseudo-header order and optional priority replace the connection's
+/// ordinary defaults for this stream only, so a pooled connection keeps its
+/// ordinary request shape.
+pub(crate) fn extended_connect_overrides(
+    settings: &Http2Settings,
+) -> Result<HeadersFrameOverrides, Http2Error> {
+    let order = settings
+        .extended_connect_pseudo_header_order
+        .as_deref()
+        .ok_or(Http2Error::MissingExtendedConnectPseudoHeaderOrder)?;
+    let mut overrides = HeadersFrameOverrides::new().pseudo_order(pseudo_order(order, true)?);
+    if let Some(priority) = settings.extended_connect_priority {
+        overrides = overrides.stream_dependency(stream_dependency(priority)?);
+    }
+    Ok(overrides)
+}
+
+fn stream_dependency(priority: Http2Priority) -> Result<StreamDependency, Http2Error> {
+    // Stream 1 is the first client stream, which would then depend on itself.
+    if priority.dependency_stream_id == 1 {
+        return Err(Http2Error::InvalidPriorityDependency { stream_id: 1 });
+    }
+    Ok(StreamDependency::new(
+        StreamId::from(priority.dependency_stream_id),
+        (priority.weight - 1) as u8,
+        priority.exclusive,
+    ))
+}
+
+fn pseudo_order(
+    configured: &[Http2PseudoHeader],
+    extended_connect: bool,
+) -> Result<PseudoOrder, Http2Error> {
+    let mut order = PseudoOrder::builder();
+    for header in configured {
+        let id = match header {
+            Http2PseudoHeader::Method => PseudoId::Method,
+            Http2PseudoHeader::Authority => PseudoId::Authority,
+            Http2PseudoHeader::Scheme => PseudoId::Scheme,
+            Http2PseudoHeader::Path => PseudoId::Path,
+            Http2PseudoHeader::Protocol if extended_connect => PseudoId::Protocol,
+            Http2PseudoHeader::Protocol => return Err(Http2Error::UnsupportedSetting),
+            _ => return Err(Http2Error::UnsupportedSetting),
+        };
+        order = order.push(id);
+    }
+    Ok(order.build())
+}
+
 fn translate_settings_with_pseudo_order(
     settings: &Http2Settings,
     configured_pseudo_order: &[Http2PseudoHeader],
     extended_connect: bool,
 ) -> Result<client::Builder, Http2Error> {
-    if settings
+    let headers_dependency = settings
         .headers_priority
-        .is_some_and(|priority| priority.dependency_stream_id == 1)
-    {
-        return Err(Http2Error::InvalidPriorityDependency { stream_id: 1 });
+        .map(stream_dependency)
+        .transpose()?;
+    if let Some(priority) = settings.extended_connect_priority {
+        stream_dependency(priority)?;
     }
 
     let mut client = client::Builder::new();
@@ -557,29 +610,11 @@ fn translate_settings_with_pseudo_order(
         }
     }
 
-    let mut pseudo_order = PseudoOrder::builder();
-    for header in configured_pseudo_order {
-        let id = match header {
-            Http2PseudoHeader::Method => PseudoId::Method,
-            Http2PseudoHeader::Authority => PseudoId::Authority,
-            Http2PseudoHeader::Scheme => PseudoId::Scheme,
-            Http2PseudoHeader::Path => PseudoId::Path,
-            Http2PseudoHeader::Protocol if extended_connect => PseudoId::Protocol,
-            Http2PseudoHeader::Protocol => return Err(Http2Error::UnsupportedSetting),
-            _ => return Err(Http2Error::UnsupportedSetting),
-        };
-        pseudo_order = pseudo_order.push(id);
-    }
-
     client
         .settings_order(order.build())
-        .headers_pseudo_order(pseudo_order.build());
-    if let Some(priority) = settings.headers_priority {
-        client.headers_stream_dependency(StreamDependency::new(
-            StreamId::from(priority.dependency_stream_id),
-            (priority.weight - 1) as u8,
-            priority.exclusive,
-        ));
+        .headers_pseudo_order(pseudo_order(configured_pseudo_order, extended_connect)?);
+    if let Some(dependency) = headers_dependency {
+        client.headers_stream_dependency(dependency);
     }
     Ok(client)
 }

@@ -1,9 +1,17 @@
+use ::http2::{
+    ext::HeadersFrameOverrides,
+    frame::{PseudoId, PseudoOrder, StreamDependency, StreamId},
+};
 use http::{Method, Version, header::CONNECTION};
-use phantom_profile::{Http2PseudoHeader, chromium::v152_http2};
+use phantom_profile::{
+    Http2Priority, Http2PseudoHeader,
+    chromium::{v152_http2, v153_http2},
+    firefox::v156_http2,
+};
 
 use super::super::{
-    Http2Error, OriginForm, RequestHeader, prepare_extended_connect,
-    translate_extended_connect_settings,
+    Http2Error, OriginForm, RequestHeader, extended_connect_overrides, prepare_extended_connect,
+    translate_extended_connect_settings, translate_settings,
 };
 
 #[test]
@@ -82,4 +90,87 @@ fn exact_extended_connect_order_is_explicit() -> Result<(), Box<dyn std::error::
     ]);
     translate_extended_connect_settings(&settings)?;
     Ok(())
+}
+
+#[test]
+fn extended_connect_overrides_carry_the_profile_order_and_priority()
+-> Result<(), Box<dyn std::error::Error>> {
+    let chrome = extended_connect_overrides(&v153_http2())?;
+    assert_eq!(
+        chrome,
+        HeadersFrameOverrides::new()
+            .pseudo_order(
+                PseudoOrder::builder()
+                    .extend([
+                        PseudoId::Method,
+                        PseudoId::Authority,
+                        PseudoId::Scheme,
+                        PseudoId::Path,
+                        PseudoId::Protocol,
+                    ])
+                    .build()
+            )
+            .stream_dependency(StreamDependency::new(StreamId::zero(), 146, true))
+    );
+    let firefox = extended_connect_overrides(&v156_http2())?;
+    assert_eq!(
+        firefox,
+        HeadersFrameOverrides::new()
+            .pseudo_order(
+                PseudoOrder::builder()
+                    .extend([
+                        PseudoId::Method,
+                        PseudoId::Path,
+                        PseudoId::Authority,
+                        PseudoId::Scheme,
+                        PseudoId::Protocol,
+                    ])
+                    .build()
+            )
+            .stream_dependency(StreamDependency::new(StreamId::zero(), 21, false))
+    );
+
+    // Without a separate priority the connection's ordinary HEADERS priority
+    // remains in effect for the CONNECT stream.
+    let mut settings = v153_http2();
+    settings.extended_connect_priority = None;
+    let overrides = extended_connect_overrides(&settings)?;
+    assert_eq!(
+        overrides,
+        HeadersFrameOverrides::new().pseudo_order(
+            PseudoOrder::builder()
+                .extend([
+                    PseudoId::Method,
+                    PseudoId::Authority,
+                    PseudoId::Scheme,
+                    PseudoId::Path,
+                    PseudoId::Protocol,
+                ])
+                .build()
+        )
+    );
+
+    assert!(matches!(
+        extended_connect_overrides(&v152_http2()),
+        Err(Http2Error::MissingExtendedConnectPseudoHeaderOrder)
+    ));
+    Ok(())
+}
+
+#[test]
+fn extended_connect_priority_cannot_depend_on_the_first_stream() {
+    let mut settings = v153_http2();
+    settings.extended_connect_priority = Some(Http2Priority {
+        dependency_stream_id: 1,
+        weight: 147,
+        exclusive: true,
+    });
+    assert!(matches!(
+        extended_connect_overrides(&settings),
+        Err(Http2Error::InvalidPriorityDependency { stream_id: 1 })
+    ));
+    assert!(matches!(
+        translate_settings(&settings),
+        Err(Http2Error::InvalidPriorityDependency { stream_id: 1 })
+    ));
 }

@@ -22,7 +22,7 @@ use super::{
     Http2Body, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
     OperationOutcome, OriginForm, RequestHeader,
     driver::DriverTask,
-    prepare_extended_connect, prepare_request,
+    extended_connect_overrides, prepare_extended_connect, prepare_request,
     request::PreparedRequestTrailers,
     translate_extended_connect_settings, translate_settings,
     tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream},
@@ -237,7 +237,62 @@ impl Http2Connection {
         if !self.inner.extended_connect {
             return Err(Http2Error::ExtendedConnectConnectionRequired);
         }
+        self.send_prepared_extended_connect(request).await
+    }
 
+    /// Opens a WebSocket extended CONNECT stream with a profile's CONNECT shape.
+    ///
+    /// The profile's extended CONNECT pseudo-header order and optional
+    /// priority apply to this stream only, so this works on any connection,
+    /// including one opened for ordinary requests; later ordinary requests
+    /// keep the connection's own order and priority. Validation completes
+    /// before the connection is touched. This waits for the peer's initial
+    /// settings and sends no HEADERS unless `SETTINGS_ENABLE_CONNECT_PROTOCOL`
+    /// was enabled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] for settings without an extended CONNECT order,
+    /// invalid request fields, absent peer capability, or a protocol-driver
+    /// failure.
+    pub async fn send_extended_connect_with_settings(
+        &self,
+        settings: &Http2Settings,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
+        settings.validate().map_err(Http2Error::InvalidSettings)?;
+        let overrides = extended_connect_overrides(settings)?;
+        let mut request = prepare_extended_connect(authority, target, headers)?;
+        request.extensions_mut().insert(overrides);
+        self.send_prepared_extended_connect(request).await
+    }
+
+    /// Waits for the peer's initial settings and reports extended CONNECT support.
+    ///
+    /// This resolves immediately on a connection whose initial settings were
+    /// already applied. It sends nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] when the connection is closed or fails before
+    /// the peer's initial settings arrive.
+    pub async fn extended_connect_enabled(&self) -> Result<bool, Http2Error> {
+        self.inner
+            .sender()
+            .ok_or_else(connection_closed)
+            .map_err(Http2Error::protocol)?
+            .clone()
+            .extended_connect_protocol_ready()
+            .await
+            .map_err(Http2Error::protocol)
+    }
+
+    async fn send_prepared_extended_connect(
+        &self,
+        request: Request<()>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2Error> {
         let span = debug_span!(
             "http2.extended_connect.response_head",
             method = "CONNECT",
