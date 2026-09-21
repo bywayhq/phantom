@@ -77,6 +77,7 @@ Changes under `scripts/capture` or `scripts/conformance` also run:
 uvx ruff@0.16.7 check scripts/capture scripts/conformance
 uvx ruff@0.16.7 format --check scripts/capture scripts/conformance
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+  --with h2==4.4.1 --with hpack==4.2.0 \
   python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'

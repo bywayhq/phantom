@@ -181,7 +181,15 @@ codec-output parity, and browser send-selection heuristics remain
 capture-driven profile work; the generic policy compresses every text and
 binary message after negotiation. H2 extended CONNECT is available for
 explicitly configured custom profiles with deterministic standards-level
-fixtures. It is not populated in named Chrome, Firefox, or Safari recipes
-because browser request ordering, fields, priority, and failure reactions still
-require captures and differentials. H3 WebSocket remains unimplemented pending
-the same evidence.
+fixtures. It is not yet populated in named recipes.
+
+Retained Chrome 153, Edge 153, and Firefox 156 Windows captures
+([Validation](validation.md#websocket-browser-evidence)) record extended-CONNECT
+field order, HPACK representations, priority, deflate offers, per-message RSV1
+and fragmentation, and reactions to `403`, refused streams, and unoffered
+extensions. Chromium opens H2 WebSockets only on an existing session that
+advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL`; otherwise it opens a new
+connection offering only `http/1.1`. Firefox also opens fresh H2 connections.
+Phantom's dedicated-connection H2 WebSocket therefore does not reproduce
+Chromium's connection choice. Safari and H3 WebSocket remain uncaptured, and H3
+WebSocket remains unimplemented.
