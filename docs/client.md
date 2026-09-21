@@ -98,6 +98,8 @@ before any proxy or origin I/O; nothing falls back to another row or column.
 "H1 proxy" is an `http://` or `https://` `HttpProxy` in its default HTTP/1.1
 mode, "H2 proxy" is an `https://` proxy with `with_http2_transport`, and
 SOCKS5 covers both local-DNS `socks5://` and remote-DNS `socks5h://`.
+CONNECT-UDP covers an `https://` template over its default H3 leg or an
+explicit H2 or H1 leg.
 
 | Request | Direct | H1 proxy | H2 proxy | SOCKS5 | CONNECT-UDP |
 | --- | --- | --- | --- | --- | --- |
@@ -105,7 +107,7 @@ SOCKS5 covers both local-DNS `socks5://` and remote-DNS `socks5h://`.
 | `http://`, exact H2 or H3, or negotiated | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
 | `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | Rejected | Rejected | Rejected | Rejected |
-| `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams |
+| `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
 | `ws://`, H1 | Plaintext Upgrade | Absolute-form forwarded Upgrade | Rejected | Plaintext Upgrade in a TCP tunnel | Rejected |
 | `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
 | `ws://`, H2 | Rejected | Rejected | Rejected | Rejected | Rejected |
@@ -396,13 +398,24 @@ excluded from diagnostics.
 proxy. `ConnectUdpProxy::new` takes an `https` URI template that must contain
 `{target_host}` and `{target_port}` and must not contain user information or a
 fragment; `.header` appends ordered CONNECT-UDP request fields. Each inner
-connection opens its own outer H3 connection to the proxy, authenticated with
-the proxy trust roots, and the inner connection keeps origin trust and
-identity. The outer profile must support HTTP/3 Datagrams large enough for a
-full 1200-byte QUIC Initial, or the request fails before I/O. HTTP/1.1, HTTP/2,
-negotiated requests, and WebSocket reject this route before I/O. Only outer
-proxy resolution and connection failures are retryable, and a proxy rejection
-exposes its status through the typed error source. See
+connection opens its own outer connection to the proxy, authenticated with the
+proxy trust roots, and the inner connection keeps origin trust and identity.
+
+The proxy leg is HTTP/3 by default, and its outer profile must support HTTP/3
+Datagrams large enough for a full 1200-byte QUIC Initial, or the request fails
+before I/O. `with_http2_transport` uses HTTP/2 extended CONNECT, which needs an
+extended CONNECT pseudo-header order in the HTTP/2 profile and a proxy that
+selects `h2` and enables extended CONNECT. `with_http1_transport` uses an
+HTTP/1.1 `Upgrade: connect-udp` request that must receive 101. Both carry
+datagrams in capsules on the proxy stream and use the client profile's TLS
+offer. The leg is part of route identity; ALPN or capability mismatches are
+typed proxy errors and never switch legs. `with_basic_auth` sends Basic
+credentials only after a valid 407 challenge, once, on a fresh proxy
+connection; a second 407 fails with an authentication error.
+
+HTTP/1.1, HTTP/2, negotiated requests, and WebSocket reject this route before
+I/O. Only outer proxy resolution and connection failures are retryable, and a
+proxy rejection exposes its status through the typed error source. See
 [HTTP/3 internals](http3.md#connect-udp-masque) for the protocol contract.
 
 ```rust
@@ -413,6 +426,15 @@ fn masque_route() -> Result<Route, Box<dyn std::error::Error>> {
         "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/",
     )?
     .header(RequestHeader::new("x-client", "phantom"));
+    Ok(Route::connect_udp(proxy))
+}
+
+fn masque_over_http2_route() -> Result<Route, Box<dyn std::error::Error>> {
+    let proxy = ConnectUdpProxy::new(
+        "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/",
+    )?
+    .with_http2_transport()
+    .with_basic_auth("proxy-user", "proxy-password")?;
     Ok(Route::connect_udp(proxy))
 }
 ```
@@ -443,7 +465,7 @@ remain enabled by default. `ClientBuilder::server_authentication` and
 `proxy_server_authentication` accept `ServerAuthentication::Disabled` for
 controlled conformance work only: origin verification can be disabled for
 H1/H2 but not combined with additional roots or H3, and proxy verification
-cannot be disabled for a CONNECT-UDP route.
+cannot be disabled for a CONNECT-UDP route on any leg.
 
 Other route configuration:
 

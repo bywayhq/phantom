@@ -19,7 +19,8 @@ The public API exposes Phantom types rather than Quinn, BoringSSL, or `h3`
 types. Direct H3 uses Quinn's UDP transport. Local-/remote-DNS SOCKS5 uses a
 Phantom-owned RFC 1928 UDP ASSOCIATE adapter while retaining the association's
 TCP control connection. CONNECT-UDP uses a Phantom-owned socket that carries
-the inner QUIC connection in HTTP Datagrams on an outer H3 connection. H3 is
+the inner QUIC connection in HTTP Datagrams on an outer H3 connection, or in
+DATAGRAM capsules on an outer HTTP/2 or HTTP/1.1 request stream. H3 is
 not routed through a generic TCP transport abstraction and does not fall back
 to H2 or H1.
 
@@ -154,7 +155,11 @@ only protocol today, and the facade does not expose it yet.
 ## CONNECT-UDP (MASQUE)
 
 `Route::connect_udp` carries exact H3 through an RFC 9298 CONNECT-UDP proxy.
-`phantom-net` exposes the same path as `Http3Connector::connect_connect_udp`.
+The proxy leg is HTTP/3 by default; `ConnectUdpProxy::with_http2_transport`
+and `with_http1_transport` select HTTP/2 extended CONNECT or HTTP/1.1
+Upgrade. `phantom-net` exposes the same paths as
+`Http3Connector::connect_connect_udp`, `connect_connect_udp_with_basic_auth`,
+and `connect_connect_udp_over_tcp`.
 
 - `ConnectUdpProxy::new` takes an `https` URI template with `{target_host}`
   and `{target_port}` in its path or query. Simple (`{var}`) and form-style
@@ -165,10 +170,23 @@ only protocol today, and the facade does not expose it yet.
   Values are percent-encoded outside RFC 3986 `unreserved`, so an IPv6 target
   is sent as `2001%3Adb8%3A%3A42` (RFC 9298 section 3). The target is always
   sent as text; Phantom performs no local target lookup.
-- Each inner connection gets a fresh outer H3 connection to the proxy. The
-  outer connector uses the H3 profile with the client's proxy trust roots and
-  the proxy host as SNI; the inner connection keeps origin trust, SNI, and
-  authority. Disabled proxy verification is rejected for this route.
+- The template scheme must be `https` on every leg. RFC 9298 section 2 only
+  requires a non-empty scheme, and section 3.2 would permit HTTP/1.1 over
+  cleartext, but the HTTP/2 and HTTP/3 requests carry the template's scheme
+  in `:scheme` (section 3.4), Phantom does not speak cleartext HTTP/2, and
+  the same template must name the same TLS-authenticated proxy whichever leg
+  is selected. A plaintext proxy would also expose Basic credentials. An
+  `http://` template is `ConnectUdpProxyConfigErrorKind::UnsupportedScheme`.
+- Each inner connection gets a fresh outer connection to the proxy. The outer
+  connection uses the client's proxy trust roots and the proxy host as SNI;
+  the inner connection keeps origin trust, SNI, and authority. Disabled proxy
+  verification is rejected for this route on every leg.
+- The leg and any credentials are part of `ConnectUdpProxy` equality, so they
+  separate pool entries. A leg never falls back to another leg, route, or
+  protocol.
+
+### HTTP/3 leg
+
 - Before a request stream opens, the proxy's SETTINGS must carry
   `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` (RFC 9220 section 3) and
   `SETTINGS_H3_DATAGRAM = 1`, and its QUIC transport parameters must carry
@@ -195,55 +213,120 @@ only protocol today, and the facade does not expose it yet.
   `H3_DATAGRAM_ERROR`. DATAGRAM capsules on the request stream feed the same
   queue, and unknown capsules are skipped without buffering (RFC 9297 section
   3.2). A DATAGRAM capsule above 65,535 bytes or a truncated final capsule
-  aborts the stream, and the proxy's FIN or reset ends the tunnel. Phantom
-  never sends DATAGRAM capsules.
-- Quinn sees one fixed logical peer, `192.0.2.1:443`. As with `quinn-udp`,
-  only `WouldBlock` could reach Quinn from a send; oversized or undeliverable
-  datagrams are dropped and counted. The socket holds the outer connection
-  lease. When the outer connection or request stream ends, the socket reports
-  a receive error, the inner endpoint stops, and the pool opens a fresh outer
-  connection for the next request.
-- The `proxy.connect_udp` span records `proxy_protocol`, `status`, `outcome`
-  (`accepted`, `rejected`, or `error`), `error_kind`, and, when the tunnel
-  ends, `dropped_unknown_context`, `dropped_overflow`, `dropped_early`,
-  `dropped_malformed`, `dropped_oversized`, and `dropped_send`. Paths, field
-  values, and payloads are not recorded.
+  aborts the stream, and the proxy's FIN or reset ends the tunnel. The HTTP/3
+  leg never sends DATAGRAM capsules.
+
+### HTTP/2 and HTTP/1.1 legs
+
+- Each inner connection opens one dedicated TCP and TLS connection to the
+  proxy with the client profile's TLS offer, which must include `http/1.1`.
+  The HTTP/2 leg requires the proxy to select `h2`; the HTTP/1.1 leg requires
+  `http/1.1` or no ALPN. Any other selection is
+  `ConnectUdpErrorKind::UnsupportedProtocol` and is never retried on another
+  leg.
+- HTTP/2 sends RFC 9298 section 3.4 extended CONNECT: `:protocol
+  connect-udp`, `:scheme https`, the proxy authority, and the expanded path,
+  in the HTTP/2 profile's extended CONNECT pseudo-header order, then
+  `capsule-protocol: ?1` and the route's fields. A profile without that order
+  fails with `Configuration` before I/O. HEADERS are sent only after the
+  proxy's SETTINGS carry `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` (RFC 8441
+  section 3); otherwise the request fails with `ExtendedConnectUnavailable`.
+  Only a 2xx response that can start the Capsule Protocol opens the tunnel
+  (RFC 9298 section 3.5; RFC 9297 section 3.2).
+- HTTP/1.1 sends RFC 9298 section 3.2 `GET` in origin form with `Host`,
+  `Connection: Upgrade`, `Upgrade: connect-udp`, and `Capsule-Protocol: ?1`,
+  then the route's fields in their supplied spelling. Only 101 with
+  `Connection` containing `upgrade`, exactly one `Upgrade: connect-udp`, and
+  no `content-length`, `content-type`, or `transfer-encoding` opens the tunnel
+  (RFC 9298 section 3.3). A 2xx or a malformed 101 fails with `Protocol`;
+  another final status is `Rejected`. Up to eight other 1xx responses are
+  skipped. Bytes after the 101 head start the capsule stream (RFC 9297
+  section 3.2).
+- Route fields named `Host`, `Connection`, `Upgrade`, `Capsule-Protocol`,
+  `Content-Length`, or `Transfer-Encoding` are rejected before I/O on both
+  legs; HTTP/2 also rejects connection-specific fields.
+- Both directions carry DATAGRAM capsules (RFC 9297 section 3.5) whose value
+  is Context ID 0 followed by the UDP payload. Received capsules share the
+  256-payload queue and drop rules of the HTTP/3 leg. Unknown capsules are
+  skipped. A Context ID 0 payload above 65,527 bytes, a capsule above 65,535
+  bytes, a truncated capsule, a read or write failure, or the proxy's FIN
+  closes the stream and ends the tunnel. At most 256 encoded capsules wait for
+  the proxy stream; later sends are dropped and counted, and QUIC recovers
+  them.
+
+### Proxy authentication
+
+`ConnectUdpProxy::with_basic_auth` enables challenge-driven HTTP Basic proxy
+authentication on every leg, with the same credential validation as
+`HttpProxy::with_basic_auth`. The first request omits credentials. A 407 with a
+valid Basic challenge is retried exactly once on a fresh proxy connection, with
+`Proxy-Authorization` after the route's fields; HTTP/2 and HTTP/3 encode it as
+a never-indexed literal. A second 407 fails with
+`ConnectUdpErrorKind::Authentication` and status 407. A malformed or
+non-Basic challenge also fails with `Authentication`. Without credentials, a
+407 is an ordinary `Rejected` status. With credentials configured, a literal
+`Proxy-Authorization` route field is rejected before I/O. Credentials never
+appear in `Debug` output, errors, or diagnostics.
 
 ### Datagram capacity
 
 A full inner client Initial is 1200 bytes (RFC 9000 section 14.1). On the
-outer connection's first request stream, the HTTP/3 Datagram adds a one-byte
-Quarter Stream ID and a one-byte Context ID, for 1202 bytes. Quinn reserves a
+HTTP/3 leg's first request stream, the HTTP/3 Datagram adds a one-byte Quarter
+Stream ID and a one-byte Context ID, for 1202 bytes. Quinn reserves a
 conservative 50 bytes of 1-RTT packet overhead per DATAGRAM frame: 1 flag byte,
 a 20-byte connection ID, a 4-byte packet number, a 16-byte AEAD tag, and a
 9-byte frame type and length bound. The outer connection therefore uses a
 fixed initial and minimum path MTU of 1252 bytes and never probes below it.
 
-Before I/O, the outer profile must send `SETTINGS_H3_DATAGRAM = 1`, advertise a
-`max_datagram_frame_size` of at least 1205 bytes (1-byte frame type, 2-byte
-length, and the 1202-byte datagram), and advertise a `max_udp_payload_size` of
-at least 1252 bytes. Otherwise the request fails with
+Before I/O, the HTTP/3 leg's outer profile must send `SETTINGS_H3_DATAGRAM =
+1`, advertise a `max_datagram_frame_size` of at least 1205 bytes (1-byte frame
+type, 2-byte length, and the 1202-byte datagram), and advertise a
+`max_udp_payload_size` of at least 1252 bytes. Otherwise the request fails with
 `ConnectUdpErrorKind::Configuration`. After a 2xx response, if the proxy's
 datagram limit cannot carry 1202 bytes on the tunnel's stream, the tunnel is
 closed with `ConnectUdpErrorKind::DatagramCapacity`. Paths that cannot carry
 1252-byte UDP payloads, including IPv6 minimum-MTU links, lose full-size inner
-packets; there is no fallback to DATAGRAM capsules.
+packets; the HTTP/3 leg never falls back to DATAGRAM capsules.
+
+The HTTP/2 and HTTP/1.1 legs have no outer datagram limit: a capsule carries
+any payload up to the 65,527-byte Context ID 0 bound, and the inner connection
+uses its own profile's MTU settings. Those legs carry QUIC over TCP, so loss
+recovery is nested (RFC 9298 section 6); prefer the HTTP/3 leg when the proxy
+supports it.
+
+### Diagnostics
+
+The `proxy.connect_udp` span records `proxy_protocol`, `proxy_leg` (`h3`, `h2`,
+or `http/1.1`), each response `status`, `authentication_retry` and
+`proxy_attempts` when credentials are configured, `outcome` (`accepted`,
+`rejected`, or `error`), `error_kind`, and, when the tunnel ends,
+`dropped_unknown_context`, `dropped_overflow`, `dropped_early`,
+`dropped_malformed`, `dropped_oversized`, and `dropped_send`. Paths, field
+values, credentials, and payloads are not recorded.
+
+Quinn sees one fixed logical peer, `192.0.2.1:443`. As with `quinn-udp`, only
+`WouldBlock` could reach Quinn from a send; oversized or undeliverable
+datagrams are dropped and counted. The socket holds the outer connection or
+proxy stream. When it ends, the socket reports a receive error, the inner
+endpoint stops, and the pool opens a fresh outer connection for the next
+request.
 
 ### Failures and retries
 
 CONNECT-UDP setup failures are `Http3ConnectorErrorKind::Proxy` errors whose
 source is a `ConnectUdpError`. The facade reports `RequestErrorKind::Proxy`,
 or `Resolve` and `RuntimeUnavailable` for those kinds. Only outer proxy
-resolution and outer QUIC connection failures consume the exact-H3 setup retry
-budget, and each retry opens a fresh outer connection and CONNECT-UDP request
-on the same route. Handshake, SETTINGS, datagram, rejection, protocol, and
-inner QUIC failures are terminal. No failure falls back direct or to another
-route or protocol, and CONNECT-UDP never learns or evicts Alt-Svc state.
+resolution and outer QUIC or TCP connection failures consume the exact-H3
+setup retry budget, and each retry opens a fresh outer connection and
+CONNECT-UDP request on the same route and leg. Handshake, ALPN, SETTINGS,
+datagram, authentication, rejection, protocol, and inner QUIC failures are
+terminal. No failure falls back direct or to another leg, route, or protocol,
+and CONNECT-UDP never learns or evicts Alt-Svc state.
 
 The route is limited to exact H3. HTTP/1.1, HTTP/2, negotiated requests, and
-WebSocket reject it with `UnsupportedRoute` before I/O. Proxy authentication,
-several tunnels multiplexed on one outer connection, and capture evidence for a
-browser's MASQUE fingerprint remain planned.
+WebSocket reject it with `UnsupportedRoute` before I/O. Several tunnels
+multiplexed on one outer connection, proxy authentication schemes other than
+Basic, and capture evidence for a browser's MASQUE fingerprint remain planned.
 
 ## Current limits
 
