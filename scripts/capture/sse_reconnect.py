@@ -251,7 +251,7 @@ class ScenarioRun:
 
     scenario: Scenario
     token: str
-    clock: Callable[[], float] = time.monotonic
+    clock: Callable[[], float] = time.perf_counter
     started: float = field(init=False)
     connections: list[RecordedConnection] = field(default_factory=list)
     requests: list[RecordedRequest] = field(default_factory=list)
