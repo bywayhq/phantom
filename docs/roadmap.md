@@ -16,14 +16,12 @@ work has exposed the real architectural boundaries.
   substitutions fail at compile time, and CI repeats the external-root
   resolution and all-features check. Direct-fork distribution remains before
   one-line installation can be claimed.
-- Add opt-in streaming response decompression for caller-advertised `gzip`,
-  `deflate`, `br`, and `zstd`, with decoded-byte limits and fail-closed coding
-  semantics. Phantom must not invent an `Accept-Encoding` field or its ordered
-  wire position.
+- Opt-in streaming response decompression is complete: caller-advertised
+  `gzip`, `deflate`, `br`, and `zstd` only, decoded-byte limits, fail-closed
+  coding semantics, and no invented `Accept-Encoding` field or wire position.
 - Bounded response-body collection is complete: its inclusive cap applies to
-  bytes returned to the caller, abandons an over-limit stream, and has a stable
-  error category. The same cap must count decoded bytes when decompression is
-  added.
+  bytes returned to the caller, which are decoded bytes when decoding is
+  enabled, abandons an over-limit stream, and has a stable error category.
 - Complete the remaining client and proxy-route work without introducing
   direct or cross-protocol fallback.
 - Extend the current exact-protocol, pre-dispatch connection retry policy only
