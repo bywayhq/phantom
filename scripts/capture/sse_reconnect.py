@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from .browser_launch import BROWSERS, LaunchedBrowser, LaunchPlan
+from .browser_launch import BROWSERS, BrowserDriver, LaunchPlan
 from .fixture_file import write_text_fixture
 
 FORMAT = "phantom-sse-reconnect-v1"
@@ -637,24 +637,6 @@ async def capture_scenario(
             server.drop_connections()
         runs.append(run)
     return runs
-
-
-class BrowserDriver:
-    def __init__(self, plan: LaunchPlan, url: str) -> None:
-        self.plan = plan
-        self.url = url
-        self.browser: LaunchedBrowser | None = None
-
-    async def __aenter__(self) -> BrowserDriver:
-        if self.plan.browser == "manual":
-            print(f"open {self.url}", file=sys.stderr, flush=True)
-        else:
-            self.browser = LaunchedBrowser(self.plan, self.url).__enter__()
-        return self
-
-    async def __aexit__(self, *details: object) -> None:
-        if self.browser is not None:
-            self.browser.__exit__(*details)
 
 
 async def run(args: argparse.Namespace) -> None:

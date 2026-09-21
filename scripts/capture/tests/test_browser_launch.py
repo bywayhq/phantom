@@ -1,4 +1,5 @@
 import shlex
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ from scripts.capture.browser_launch import (
     firefox_arguments,
     firefox_user_js,
     recorded_arguments,
+    render_preferences,
 )
 
 URL = "http://127.0.0.1:9450/run/token"
@@ -104,6 +106,42 @@ class BrowserLaunchTests(unittest.TestCase):
     def test_process_launch_requires_an_executable(self) -> None:
         with self.assertRaises(ValueError):
             LaunchedBrowser(LaunchPlan("chrome", None, headless=True), URL)
+
+    def test_firefox_profile_receives_extra_preferences_and_files(self) -> None:
+        plan = LaunchPlan(
+            "firefox",
+            Path(sys.executable),
+            headless=True,
+            firefox_preferences=(("network.dns.localDomains", "a.test"),),
+            profile_files=(("cert_override.txt", "line\tvalue\n"),),
+        )
+
+        with LaunchedBrowser(plan, URL) as browser:
+            preferences = (browser.profile / "user.js").read_text(encoding="utf-8")
+            override = (browser.profile / "cert_override.txt").read_bytes()
+
+        self.assertTrue(
+            preferences.endswith('user_pref("network.dns.localDomains", "a.test");\n')
+        )
+        self.assertEqual(override, b"line\tvalue\n")
+        self.assertEqual(
+            render_preferences(plan.firefox_preferences),
+            'network.dns.localDomains="a.test"',
+        )
+
+    def test_profile_file_names_cannot_leave_the_profile(self) -> None:
+        plan = LaunchPlan(
+            "chrome",
+            Path(sys.executable),
+            headless=True,
+            profile_files=(("../escape.txt", ""),),
+        )
+        browser = LaunchedBrowser(plan, URL)
+
+        with self.assertRaises(ValueError), browser:
+            pass
+
+        self.assertIsNone(browser.profile)
 
     def test_failed_launch_removes_the_temporary_profile(self) -> None:
         before = set(Path(tempfile.gettempdir()).glob("phantom-capture-profile-*"))

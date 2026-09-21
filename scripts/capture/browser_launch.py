@@ -93,17 +93,26 @@ def firefox_arguments(
     return arguments
 
 
-def firefox_user_js() -> str:
-    lines = []
-    for name, value in FIREFOX_PREFERENCES:
-        if isinstance(value, bool):
-            rendered = "true" if value else "false"
-        elif isinstance(value, int):
-            rendered = str(value)
-        else:
-            rendered = '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-        lines.append(f'user_pref("{name}", {rendered});')
+def preference_value(value: bool | int | str) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def firefox_user_js(extra: Sequence[tuple[str, bool | int | str]] = ()) -> str:
+    """Render the baseline preferences, then `extra` in caller order."""
+    lines = [
+        f'user_pref("{name}", {preference_value(value)});'
+        for name, value in (*FIREFOX_PREFERENCES, *extra)
+    ]
     return "\n".join(lines) + "\n"
+
+
+def render_preferences(preferences: Sequence[tuple[str, bool | int | str]]) -> str:
+    """Render scenario-specific preferences for a fixture line."""
+    return ";".join(f"{name}={preference_value(value)}" for name, value in preferences)
 
 
 def browser_arguments(
@@ -129,6 +138,10 @@ class LaunchPlan:
     executable: Path | None
     headless: bool
     extra_arguments: tuple[str, ...] = ()
+    # Appended to the baseline `user.js`; Firefox has no switches for these.
+    firefox_preferences: tuple[tuple[str, bool | int | str], ...] = ()
+    # (name, text) files written into the disposable profile before launch.
+    profile_files: tuple[tuple[str, str], ...] = ()
 
     @property
     def launch_mode(self) -> str:
@@ -181,7 +194,13 @@ class LaunchedBrowser:
 
     def _start(self, profile: Path) -> subprocess.Popen[bytes]:
         if self.plan.browser == "firefox":
-            (profile / "user.js").write_text(firefox_user_js(), encoding="utf-8")
+            (profile / "user.js").write_text(
+                firefox_user_js(self.plan.firefox_preferences), encoding="utf-8"
+            )
+        for name, text in self.plan.profile_files:
+            if Path(name).name != name:
+                raise ValueError(f"profile file must be a plain name: {name}")
+            (profile / name).write_text(text, encoding="utf-8", newline="")
         arguments = browser_arguments(
             self.plan.browser,
             profile,
@@ -209,6 +228,26 @@ class LaunchedBrowser:
         finally:
             if self.profile is not None:
                 shutil.rmtree(self.profile, ignore_errors=True)
+
+
+class BrowserDriver:
+    """Async context owning one launched browser, or one manual-open prompt."""
+
+    def __init__(self, plan: LaunchPlan, url: str) -> None:
+        self.plan = plan
+        self.url = url
+        self.browser: LaunchedBrowser | None = None
+
+    async def __aenter__(self) -> BrowserDriver:
+        if self.plan.browser == "manual":
+            print(f"open {self.url}", file=sys.stderr, flush=True)
+        else:
+            self.browser = LaunchedBrowser(self.plan, self.url).__enter__()
+        return self
+
+    async def __aexit__(self, *details: object) -> None:
+        if self.browser is not None:
+            self.browser.__exit__(*details)
 
 
 def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
