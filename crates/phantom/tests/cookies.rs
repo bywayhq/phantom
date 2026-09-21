@@ -159,7 +159,7 @@ async fn http1_cookies_share_the_canonical_host_key() -> TestResult<()> {
         });
 
         let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build();
+        let session = client.session_builder().cookies().build()?;
         send_and_drain(
             &session,
             HttpProtocol::Http1,
@@ -210,7 +210,7 @@ async fn http2_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -
         });
 
         let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build();
+        let session = client.session_builder().cookies().build()?;
         send_and_drain(
             &session,
             HttpProtocol::Http2,
@@ -264,7 +264,7 @@ async fn http3_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -
         });
 
         let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build();
+        let session = client.session_builder().cookies().build()?;
         send_and_drain(
             &session,
             HttpProtocol::Http3,
@@ -324,7 +324,7 @@ async fn caller_cookie_suppresses_injection_but_response_learning_continues() ->
         });
 
         let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build();
+        let session = client.session_builder().cookies().build()?;
         let url = format!("https://{address}/");
         send_and_drain(&session, HttpProtocol::Http2, &url).await?;
         session
@@ -390,7 +390,7 @@ async fn dropping_body_after_headers_preserves_learned_cookie() -> TestResult<()
         });
 
         let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build();
+        let session = client.session_builder().cookies().build()?;
         let response = session
             .get(HttpProtocol::Http2, &format!("https://{address}/abandoned"))?
             .send()
@@ -450,7 +450,7 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
             .add_root_certificate_der(identity.root_der)
             .route(route)
             .build()?;
-        let session = client.session_builder().cookies().build();
+        let session = client.session_builder().cookies().build()?;
         let url = format!("https://example.com:{}/", address.port());
         send_and_drain(&session, HttpProtocol::Http1, &url).await?;
         send_and_drain(&session, HttpProtocol::Http1, &url).await?;

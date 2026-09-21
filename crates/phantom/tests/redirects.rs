@@ -60,7 +60,7 @@ async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
         let session = test_client(&identity, true)?
             .session_builder()
             .redirect_policy(RedirectPolicy::limited(one))
-            .build();
+            .build()?;
 
         let found = send_redirect_probe(&session, address, 302, b"probe-302").await?;
         assert_eq!(found.status(), StatusCode::OK);
@@ -127,7 +127,7 @@ async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
         let session = test_client(&identity, false)?
             .session_builder()
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build();
+            .build()?;
         let response = session
             .request(
                 HttpProtocol::Http1,
@@ -173,7 +173,7 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
         let client = test_client(&identity, false)?
             .session_builder()
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build();
+            .build()?;
         let error = match client
             .request(
                 HttpProtocol::Http1,
@@ -247,7 +247,7 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
         let session = http3_client(&identity)?
             .session_builder()
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build();
+            .build()?;
         let response = session
             .request(
                 HttpProtocol::Http3,
@@ -318,7 +318,7 @@ async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestRes
         let session = http3_client(&identity)?
             .session_builder()
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build();
+            .build()?;
         let response = session
             .get(
                 HttpProtocol::Http3,

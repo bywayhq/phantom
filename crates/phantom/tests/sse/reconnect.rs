@@ -63,7 +63,7 @@ async fn session_event_source_reconnects_with_committed_state_and_stops_on_204()
 
     let client = test_client(&identity, false)?;
     #[cfg(feature = "cookies")]
-    let session = client.session_builder().cookies().build();
+    let session = client.session_builder().cookies().build()?;
     #[cfg(not(feature = "cookies"))]
     let session = client.session();
     let response = session

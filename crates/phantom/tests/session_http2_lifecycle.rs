@@ -157,7 +157,7 @@ async fn peer_http2_stream_limit_remains_authoritative() -> TestResult<()> {
         let session = test_client(&identity, true)?
             .session_builder()
             .max_concurrent_http2_requests_per_origin(two)
-            .build();
+            .build()?;
         let first = session
             .get(HttpProtocol::Http2, &format!("https://{address}/first"))?
             .send()
@@ -294,7 +294,7 @@ async fn goaway_processed_boundary_preserves_lower_stream_and_retries_higher_str
         let session = test_client(&identity, true)?
             .session_builder()
             .max_concurrent_http2_requests_per_origin(two)
-            .build();
+            .build()?;
         let lower = session
             .get(HttpProtocol::Http2, &format!("https://{address}/lower"))?
             .send();

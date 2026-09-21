@@ -173,7 +173,11 @@ impl Client {
     #[must_use]
     #[doc(hidden)]
     pub fn session(&self) -> Session {
-        self.session_builder().build()
+        // Default options enable no Alt-Svc store, so they need no validation.
+        Client {
+            inner: Arc::clone(&self.inner),
+            state: ClientOptions::default().build(&self.inner),
+        }
     }
 
     /// Starts a compatibility builder for isolated state over this transport.

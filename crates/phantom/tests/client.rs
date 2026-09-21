@@ -44,7 +44,8 @@ use tracing::instrument::WithSubscriber;
 
 use h2_support::{read_frame as read_h2_frame, write_frame as write_h2_frame};
 use tls_support::{
-    H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, test_client, tls_settings,
+    H1_ALPN, H2_ALPN, TestIdentity, accept_tls, client_builder, read_head, test_client,
+    tls_settings,
 };
 use tracing_support::OutcomeSubscriber;
 
@@ -955,6 +956,27 @@ fn polling_request_with_timeouts_without_tokio_returns_error() -> TestResult<()>
         Err(error) => error,
     };
     assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
+    Ok(())
+}
+
+#[test]
+fn session_alt_svc_without_http3_fails_like_client_builder() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = test_client(&identity, true)?;
+    let error = match client.session_builder().alt_svc(NonZeroUsize::MIN).build() {
+        Ok(_) => return Err("Alt-Svc session without an HTTP/3 connector was built".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+
+    let error = match client_builder(&identity, true)
+        .alt_svc(NonZeroUsize::MIN)
+        .build()
+    {
+        Ok(_) => return Err("Alt-Svc client without an HTTP/3 connector was built".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
     Ok(())
 }
 

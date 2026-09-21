@@ -1,6 +1,8 @@
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
-use crate::{Client, RedirectPolicy, RequestTimeouts, RetryPolicy, client::ClientInner};
+use crate::{
+    BuildError, Client, RedirectPolicy, RequestTimeouts, RetryPolicy, client::ClientInner,
+};
 #[cfg(feature = "sse")]
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
@@ -109,6 +111,17 @@ pub(crate) struct ClientState {
 }
 
 impl ClientOptions {
+    pub(crate) fn validate(&self, inner: &ClientInner) -> Result<(), BuildError> {
+        if self.max_alt_svc_origins.is_some()
+            && (inner.http1_or_2.is_none() || inner.http3.is_none())
+        {
+            return Err(BuildError::invalid_policy(
+                "Alt-Svc requires negotiated HTTP/1.1+HTTP/2 and HTTP/3 profiles",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn build(self, inner: &ClientInner) -> Arc<ClientState> {
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
@@ -482,13 +495,22 @@ impl SessionBuilder {
     }
 
     /// Builds the isolated client.
-    #[must_use]
-    pub fn build(self) -> Client {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BuildError`] with [`BuildErrorKind::InvalidPolicy`] when
+    /// Alt-Svc learning is enabled but the transport lacks negotiated
+    /// HTTP/1.1+HTTP/2 or HTTP/3, matching [`ClientBuilder::build`].
+    ///
+    /// [`BuildErrorKind::InvalidPolicy`]: crate::BuildErrorKind::InvalidPolicy
+    /// [`ClientBuilder::build`]: crate::ClientBuilder::build
+    pub fn build(self) -> Result<Client, BuildError> {
+        self.options.validate(&self.inner)?;
         let state = self.options.build(&self.inner);
-        Client {
+        Ok(Client {
             inner: self.inner,
             state,
-        }
+        })
     }
 }
 

@@ -1206,7 +1206,7 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .build()?
             .session_builder()
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()
+            .build()?
             .get(HttpProtocol::Http1, "http://origin.test/")?
             .send()
             .await

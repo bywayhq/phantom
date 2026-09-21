@@ -392,7 +392,7 @@ async fn session_injects_and_learns_cookies_at_the_typed_placeholder() -> TestRe
         });
 
         let client = test_client(&identity, false)?;
-        let session = client.session_builder().cookies().build();
+        let session = client.session_builder().cookies().build()?;
         let origin = format!("https://{address}/");
         session
             .cookie_jar()
