@@ -389,9 +389,11 @@ Comparisons normalize only per-connection randomness:
   payload bytes, and the QUIC initial source connection ID reduce to lengths
   or are ignored. Chrome's ECH GREASE payload length is chosen per
   connection and is excluded from record-length comparison.
-- Chrome reorders the trust-anchor ID list between connections on both
-  platforms; the list is compared as a set. Its GREASE `version_information`
-  entry also changes position; the chosen version stays first.
+- Chrome's trust-anchor ID order differs between browser processes on both
+  platforms but not between connections of one process (see
+  [Chrome trust-anchor ID order](#chrome-trust-anchor-id-order)); the list is
+  compared as a set. Its GREASE `version_information` entry changes position;
+  the chosen version stays first.
 - Firefox 154 chooses its ECH GREASE AEAD between AES-128-GCM (`0x0001`) and
   ChaCha20-Poly1305 (`0x0003`) per connection on Windows (7 and 8 of 15
   samples); the retained macOS sample carries `0x0001`.
@@ -437,6 +439,34 @@ Launch arguments are recorded in each fixture. Chrome captures use the same
 flags as the retained macOS fixtures plus `--disable-field-trial-config` for
 Chrome for Testing; the Firefox H2 capture uses WebDriver with
 `acceptInsecureCerts` and `network.dns.forceResolve=127.0.0.1`.
+
+### Chrome trust-anchor ID order
+
+A follow-up capture on the same Windows 11 host loaded one loopback page per
+fresh headless process. Each page opened 48 TLS connections to loopback
+listeners that recorded the ClientHello and closed. Launch flags matched the
+retained Chrome fixtures, with `--disable-field-trial-config` for Chrome for
+Testing.
+
+| Build | Processes | Connections | Orders per process | Distinct orders |
+| --- | --- | --- | --- | --- |
+| Chrome for Testing 152.0.7977.83 | 13 | 624 | 1 | 5; the most frequent (5 of 13) equals the retained macOS order |
+| Chrome 153.0.8010.48 | 13 | 624 | 1 | 7; the most frequent occurred 5 times |
+
+Every connection repeated its process's trust-anchor order, while the
+extension order differed on all 1,248 connections. The orders are neither
+rotations nor uniform permutations: distinct orders share adjacent ordered ID
+pairs far more often than uniform shuffles (32 shared pairs among the five 152
+orders against a uniform mean of 9.7, and 49 against 20.2 among the seven 153
+orders; none of 5,000 simulated uniform sets reached either). This matches the
+Chromium source of that period, which serialized the list by iterating an
+`absl::flat_hash_set`; Chromium commit `942bda4298c1` (2026-08-28) later sorts
+the list before encoding.
+
+The Chrome 152 recipe therefore keeps one fixed order, the retained macOS
+order. Per-connection shuffling would contradict the observed behavior. Chrome
+153 advertises 28 IDs (four `d67909xx` IDs are absent) and has no recipe. These
+multi-connection captures are not retained as fixtures.
 
 ## External suites
 

@@ -80,8 +80,9 @@ async fn assert_recipe_matches_fixture(fixture: &str) -> TestResult<()> {
     );
     assert_eq!(actual.server_name(), expected.server_name());
     assert_eq!(actual.server_name(), Some(TEST_SERVER_NAME.as_bytes()));
-    // Chrome reorders the trust-anchor list between connections, so the
-    // cross-capture comparison is membership. The macOS test also pins order.
+    // Chrome keeps one trust-anchor order for every connection in a browser
+    // process, but different processes can use different orders. Cross-capture
+    // comparison is therefore membership; the macOS test also pins order.
     assert_eq!(
         sorted_trust_anchor_ids(&actual),
         sorted_trust_anchor_ids(&expected)
