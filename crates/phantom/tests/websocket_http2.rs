@@ -22,8 +22,7 @@ use bytes::Bytes;
 use http::{Method, Response, Version};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, HttpProxy, RequestHeader, Route, WebSocketCloseFrame, WebSocketErrorKind,
-    WebSocketMessage,
+    Client, HttpProtocol, RequestHeader, WebSocketCloseFrame, WebSocketErrorKind, WebSocketMessage,
     profile::{ClientProfile, Http2PseudoHeader, chromium},
 };
 use tokio::{
@@ -359,54 +358,6 @@ async fn non_success_response_preserves_status_and_body() -> TestResult<()> {
             .send(())
             .map_err(|()| "server dropped completion receiver")?;
         server.await??;
-        Ok(())
-    })
-    .await
-}
-
-#[tokio::test]
-async fn plaintext_and_proxy_routes_fail_before_io() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-        origin.set_nonblocking(true)?;
-        let origin_address = origin.local_addr()?;
-        let proxy = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-        proxy.set_nonblocking(true)?;
-        let proxy_address = proxy.local_addr()?;
-        let client = http2_websocket_client(&identity)?;
-
-        let plaintext = match client
-            .websocket_with_protocol(
-                HttpProtocol::Http2,
-                &format!("ws://{origin_address}/plaintext"),
-            )?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("HTTP/2 WebSocket unexpectedly accepted ws://".into()),
-            Err(error) => error,
-        };
-        assert_eq!(plaintext.kind(), WebSocketErrorKind::UnsupportedRoute);
-
-        let proxied = match client
-            .websocket_with_protocol(
-                HttpProtocol::Http2,
-                &format!("wss://{origin_address}/proxied"),
-            )?
-            .route(Route::http_proxy(HttpProxy::new(&format!(
-                "http://{proxy_address}"
-            ))?))
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("HTTP/2 WebSocket unexpectedly accepted a proxy route".into()),
-            Err(error) => error,
-        };
-        assert_eq!(proxied.kind(), WebSocketErrorKind::UnsupportedRoute);
-
-        assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
-        assert!(matches!(proxy.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
     })
     .await

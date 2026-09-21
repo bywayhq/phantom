@@ -12,7 +12,7 @@ use super::{
     WebSocket, WebSocketError, WebSocketRequestBuilder, WebSocketTransport,
     handshake::{prepare_http2, validate_http2_response},
 };
-use crate::{HttpProtocol, RequestError, ResponseBody, Route};
+use crate::{HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode};
 
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http2(self) -> Result<WebSocket, WebSocketError> {
@@ -27,7 +27,9 @@ impl WebSocketRequestBuilder {
             permessage_deflate,
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
-        if !matches!(route, Route::Direct) || request.transport != WebSocketTransport::Tls {
+        // RFC 8441 carries only `wss://` here: plaintext H2 (h2c) is not
+        // spoken to any origin, so `ws://` fails before route or origin I/O.
+        if request.transport != WebSocketTransport::Tls {
             return Err(WebSocketError::request(RequestError::unsupported_route(
                 HttpProtocol::Http2,
             )));
@@ -60,18 +62,133 @@ impl WebSocketRequestBuilder {
             .http2
             .as_ref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
-        let outcome = connector
-            .send_extended_connect_direct(
-                request.endpoint.host(),
-                request.endpoint.port(),
-                request.endpoint.host(),
-                request.endpoint.authority().as_str(),
-                request.target,
-                prepared.headers,
-            )
-            .await
-            .map_err(RequestError::http2)
-            .map_err(WebSocketError::request)?;
+        let host = request.endpoint.host();
+        let port = request.endpoint.port();
+        let authority = request.endpoint.authority().as_str();
+        // Every route opens a dedicated origin connection; proxy failure is
+        // terminal and never retried directly or as an H1 Upgrade.
+        let outcome = match route {
+            Route::Direct => {
+                connector
+                    .send_extended_connect_direct(
+                        host,
+                        port,
+                        host,
+                        authority,
+                        request.target,
+                        prepared.headers,
+                    )
+                    .await
+            }
+            Route::HttpProxy(proxy) => {
+                let connect_authority = request.endpoint.tunnel_authority();
+                if proxy.uses_tls() {
+                    let proxy_connector = &proxy.https_connector(
+                        client.inner.https_proxy.as_ref().ok_or_else(|| {
+                            WebSocketError::request(RequestError::unsupported_route(
+                                HttpProtocol::Http2,
+                            ))
+                        })?,
+                    );
+                    if let Some(credentials) = proxy.basic_credentials() {
+                        // Keep the challenge/retry state machine out of the
+                        // ordinary WebSocket connection future's stack frame.
+                        Box::pin(
+                            connector.send_extended_connect_https_connect_with_basic_auth(
+                                proxy_connector,
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.host(),
+                                &connect_authority,
+                                proxy.ordered_connect_headers(),
+                                credentials,
+                                host,
+                                authority,
+                                request.target,
+                                prepared.headers,
+                            ),
+                        )
+                        .await
+                    } else {
+                        Box::pin(connector.send_extended_connect_https_connect(
+                            proxy_connector,
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.host(),
+                            &connect_authority,
+                            proxy.ordered_connect_headers(),
+                            host,
+                            authority,
+                            request.target,
+                            prepared.headers,
+                        ))
+                        .await
+                    }
+                } else if let Some(credentials) = proxy.basic_credentials() {
+                    Box::pin(
+                        connector.send_extended_connect_http_connect_with_basic_auth(
+                            proxy.host(),
+                            proxy.port(),
+                            &connect_authority,
+                            proxy.ordered_connect_headers(),
+                            credentials,
+                            host,
+                            authority,
+                            request.target,
+                            prepared.headers,
+                        ),
+                    )
+                    .await
+                } else {
+                    connector
+                        .send_extended_connect_http_connect(
+                            proxy.host(),
+                            proxy.port(),
+                            &connect_authority,
+                            proxy.ordered_connect_headers(),
+                            host,
+                            authority,
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                }
+            }
+            Route::Socks5(proxy) => match proxy.dns_mode() {
+                Socks5DnsMode::Local => {
+                    connector
+                        .send_extended_connect_socks5_local_with_auth(
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.auth(),
+                            host,
+                            port,
+                            host,
+                            authority,
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                }
+                Socks5DnsMode::Remote => {
+                    connector
+                        .send_extended_connect_socks5_remote_with_auth(
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.auth(),
+                            host,
+                            port,
+                            host,
+                            authority,
+                            request.target,
+                            prepared.headers,
+                        )
+                        .await
+                }
+            },
+        }
+        .map_err(RequestError::http2)
+        .map_err(WebSocketError::request)?;
 
         match outcome {
             Http2ExtendedConnectOutcome::Rejected(response) => {
