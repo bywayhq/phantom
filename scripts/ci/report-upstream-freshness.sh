@@ -85,8 +85,10 @@ latest_chrome_recipe() {
     *) die "unknown Chrome recipe protocol $protocol" ;;
   esac
 
+  # The macOS capture is the retained fixture platform; a trailing Windows
+  # clause records cross-platform parity and has no separate fixture check here.
   sed -nE \
-    "s|^/// Returns $description from Chrome ([0-9]+(\\.[0-9]+){3}) on macOS ([0-9]+(\\.[0-9]+)+)\\.$|\\1\tmacos-\\3|p" \
+    "s|^/// Returns $description from Chrome ([0-9]+(\\.[0-9]+){3}) on macOS ([0-9]+(\\.[0-9]+)+)( and Windows [0-9]+)?\\.$|\\1\tmacos-\\3|p" \
     crates/phantom-profile/src/chromium.rs \
     | jq -Rrs '
         split("\n")
@@ -122,6 +124,47 @@ chrome_major_drift() {
   fi
 }
 
+# The newest built-in Chrome TLS and HTTP/2 recipes must share one build, have
+# platform-neutral functions, and have exact retained macOS fixtures.
+built_in_chrome_recipe() {
+  local tls_recipe http2_recipe chrome_recipe_version chrome_platform chrome_major
+  local tls_fixture http2_fixture chrome_os_version tls_os http2_os
+  tls_recipe=$(latest_chrome_recipe tls)
+  http2_recipe=$(latest_chrome_recipe http2)
+  [[ -n "$tls_recipe" && "$tls_recipe" == "$http2_recipe" ]] \
+    || die "latest built-in Chrome TLS and HTTP/2 recipes must name one version/platform"
+  IFS=$'\t' read -r chrome_recipe_version chrome_platform <<<"$tls_recipe"
+  chrome_major=${chrome_recipe_version%%.*}
+  grep -F -q "pub fn v${chrome_major}_tls()" \
+    crates/phantom-profile/src/chromium.rs \
+    || die "missing TLS function for the latest Chrome recipe"
+  grep -F -q "pub fn v${chrome_major}_http2()" \
+    crates/phantom-profile/src/chromium.rs \
+    || die "missing HTTP/2 function for the latest Chrome recipe"
+
+  tls_fixture="fixtures/tls/chrome/$chrome_recipe_version/$chrome_platform/client-hello.txt"
+  http2_fixture="fixtures/http2/chrome/$chrome_recipe_version/$chrome_platform/pingly-api-all.txt"
+  [[ -f "$tls_fixture" ]] || die "missing exact Chrome TLS fixture $tls_fixture"
+  [[ -f "$http2_fixture" ]] || die "missing exact Chrome HTTP/2 fixture $http2_fixture"
+
+  chrome_os_version=${chrome_platform#macos-}
+  [[ $(fixture_field "$tls_fixture" format) == phantom-client-hello-v2 ]] \
+    || die "$tls_fixture has an unexpected format"
+  [[ $(fixture_field "$tls_fixture" browser_version) == "$chrome_recipe_version" ]] \
+    || die "$tls_fixture does not match the built-in Chrome version"
+  tls_os=$(fixture_field "$tls_fixture" operating_system)
+  [[ "${tls_os%% (*}" == "macOS $chrome_os_version" ]] \
+    || die "$tls_fixture does not match the built-in Chrome platform"
+  [[ $(fixture_field "$http2_fixture" format) == phantom-pingly-http2-v1 ]] \
+    || die "$http2_fixture has an unexpected format"
+  [[ $(fixture_field "$http2_fixture" browser) == "Google Chrome $chrome_recipe_version" ]] \
+    || die "$http2_fixture does not match the built-in Chrome version"
+  http2_os=$(fixture_field "$http2_fixture" os)
+  [[ "${http2_os%% (*}" == "macOS $chrome_os_version" ]] \
+    || die "$http2_fixture does not match the built-in Chrome platform"
+  printf '%s\t%s\n' "$chrome_recipe_version" "$chrome_platform"
+}
+
 if [[ "${1:-}" == --select-latest ]]; then
   select_latest_registry_record
   exit
@@ -129,6 +172,11 @@ fi
 
 if [[ "${1:-}" == --chrome-drift ]]; then
   chrome_major_drift "${2:-}" "${3:-}"
+  exit
+fi
+
+if [[ "${1:-}" == --chrome-recipe ]]; then
+  built_in_chrome_recipe
   exit
 fi
 
@@ -231,39 +279,8 @@ chrome_revision=$(jq -r .channels.Stable.revision <<<"$chrome_record")
 [[ "$chrome_latest" =~ ^[0-9]+(\.[0-9]+){3}$ ]] \
   || die "the official Chrome stable feed returned an invalid version"
 
-tls_recipe=$(latest_chrome_recipe tls)
-http2_recipe=$(latest_chrome_recipe http2)
-[[ -n "$tls_recipe" && "$tls_recipe" == "$http2_recipe" ]] \
-  || die "latest built-in Chrome TLS and HTTP/2 recipes must name one version/platform"
-IFS=$'\t' read -r chrome_recipe_version chrome_platform <<<"$tls_recipe"
-chrome_major=${chrome_recipe_version%%.*}
-grep -F -q "pub fn v${chrome_major}_macos_tls()" \
-  crates/phantom-profile/src/chromium.rs \
-  || die "missing TLS function for the latest Chrome recipe"
-grep -F -q "pub fn v${chrome_major}_macos_http2()" \
-  crates/phantom-profile/src/chromium.rs \
-  || die "missing HTTP/2 function for the latest Chrome recipe"
-
-tls_fixture="fixtures/tls/chrome/$chrome_recipe_version/$chrome_platform/client-hello.txt"
-http2_fixture="fixtures/http2/chrome/$chrome_recipe_version/$chrome_platform/pingly-api-all.txt"
-[[ -f "$tls_fixture" ]] || die "missing exact Chrome TLS fixture $tls_fixture"
-[[ -f "$http2_fixture" ]] || die "missing exact Chrome HTTP/2 fixture $http2_fixture"
-
-chrome_os_version=${chrome_platform#macos-}
-[[ $(fixture_field "$tls_fixture" format) == phantom-client-hello-v2 ]] \
-  || die "$tls_fixture has an unexpected format"
-[[ $(fixture_field "$tls_fixture" browser_version) == "$chrome_recipe_version" ]] \
-  || die "$tls_fixture does not match the built-in Chrome version"
-tls_os=$(fixture_field "$tls_fixture" operating_system)
-[[ "${tls_os%% (*}" == "macOS $chrome_os_version" ]] \
-  || die "$tls_fixture does not match the built-in Chrome platform"
-[[ $(fixture_field "$http2_fixture" format) == phantom-pingly-http2-v1 ]] \
-  || die "$http2_fixture has an unexpected format"
-[[ $(fixture_field "$http2_fixture" browser) == "Google Chrome $chrome_recipe_version" ]] \
-  || die "$http2_fixture does not match the built-in Chrome version"
-http2_os=$(fixture_field "$http2_fixture" os)
-[[ "${http2_os%% (*}" == "macOS $chrome_os_version" ]] \
-  || die "$http2_fixture does not match the built-in Chrome platform"
+chrome_recipe=$(built_in_chrome_recipe)
+IFS=$'\t' read -r chrome_recipe_version chrome_platform <<<"$chrome_recipe"
 
 if [[ "$wreq_tracked" == true && "$wreq_current" != "$wreq_latest" ]]; then
   wreq_drift=true

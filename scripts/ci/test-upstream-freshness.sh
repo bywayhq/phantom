@@ -42,6 +42,12 @@ if chrome_drift 152.0.7977.83 153 >/dev/null 2>&1; then
   exit 1
 fi
 
+# The built-in recipe lookup reads the platform-neutral rustdoc lines and
+# resolves the retained macOS fixtures.
+chrome_recipe=$(scripts/ci/report-upstream-freshness.sh --chrome-recipe)
+[[ "$chrome_recipe" == $'152.0.7977.83\tmacos-15.5' ]] \
+  || { echo "unexpected built-in Chrome recipe: $chrome_recipe" >&2; exit 1; }
+
 replace_fixture_line() {
   local file=$1 old=$2 new=$3
   grep -F -x -q "$old" "$file" \
