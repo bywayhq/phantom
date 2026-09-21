@@ -314,7 +314,7 @@ impl PoolEntry {
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
                     let proxy_connector = self
                         .https_proxy
-                        .get_or_init(|| base.with_isolated_session_cache());
+                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
                     connector
                         .connect_https_forward_proxy(
                             proxy_connector,
@@ -355,9 +355,9 @@ impl PoolEntry {
                             let base = https_proxy.ok_or_else(|| {
                                 RequestError::unsupported_route(HttpProtocol::Http1)
                             })?;
-                            let proxy_connector = self
-                                .https_proxy
-                                .get_or_init(|| base.with_isolated_session_cache());
+                            let proxy_connector = self.https_proxy.get_or_init(|| {
+                                proxy.https_connector(&base.with_isolated_session_cache())
+                            });
                             if let Some(credentials) = proxy.basic_credentials() {
                                 // Bound the challenge/retry state machine without
                                 // adding allocation to unauthenticated connections.

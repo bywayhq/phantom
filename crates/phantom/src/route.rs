@@ -1,7 +1,7 @@
 use std::{error::Error as StdError, fmt};
 
 use phantom_net::{
-    proxy::{HttpBasicCredentials, HttpConnectHeader},
+    proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, HttpsProxyProtocol},
     request::RequestHeader,
 };
 
@@ -86,6 +86,7 @@ impl Route {
 #[derive(Clone, Eq, PartialEq)]
 pub struct HttpProxy {
     transport: HttpProxyTransport,
+    protocol: HttpsProxyProtocol,
     endpoint: Endpoint,
     connect_headers: Vec<HttpConnectHeader>,
     credentials: Option<HttpBasicCredentials>,
@@ -113,6 +114,7 @@ impl HttpProxy {
         let (transport, endpoint) = parse_http_proxy_uri(uri)?;
         Ok(Self {
             transport,
+            protocol: HttpsProxyProtocol::Http1,
             endpoint,
             connect_headers: vec![HttpConnectHeader::authority("Host")],
             credentials: None,
@@ -152,6 +154,33 @@ impl HttpProxy {
                 ));
         }
         self.credentials = Some(credentials);
+        Ok(self)
+    }
+
+    /// Speaks HTTP/2 to this HTTPS proxy instead of HTTP/1.1.
+    ///
+    /// Each tunnel opens one dedicated proxy connection whose TLS handshake
+    /// must select `h2`; a proxy that selects `http/1.1` or no protocol fails
+    /// with a proxy error instead of falling back. The proxy connection uses
+    /// the client profile's TLS offer and HTTP/2 settings, and sends an
+    /// RFC 9113 CONNECT with only `:method` and `:authority` pseudo-headers.
+    /// The ordered CONNECT fields keep their order after those pseudo-headers,
+    /// with names in HTTP/2 lowercase form; the authority placeholder becomes
+    /// `:authority`, and connection-specific fields are rejected before I/O.
+    ///
+    /// Plaintext `http://` origins cannot be forwarded in this mode and fail
+    /// before proxy I/O. HTTPS origins may use HTTP/1.1 or HTTP/2 inside the
+    /// tunnel.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProxyConfigError`] for an `http://` proxy, because Phantom
+    /// does not speak cleartext HTTP/2 (h2c) to proxies.
+    pub fn with_http2_transport(mut self) -> Result<Self, ProxyConfigError> {
+        if self.transport != HttpProxyTransport::Tls {
+            return Err(ProxyConfigError::unsupported_transport());
+        }
+        self.protocol = HttpsProxyProtocol::Http2;
         Ok(self)
     }
 
@@ -205,10 +234,16 @@ impl HttpProxy {
     }
 
     const fn trace_name(&self) -> &'static str {
-        match self.transport {
-            HttpProxyTransport::Plaintext => "http_connect",
-            HttpProxyTransport::Tls => "https_connect",
+        match (self.transport, self.protocol) {
+            (HttpProxyTransport::Plaintext, _) => "http_connect",
+            (HttpProxyTransport::Tls, HttpsProxyProtocol::Http2) => "https_h2_connect",
+            (HttpProxyTransport::Tls, _) => "https_connect",
         }
+    }
+
+    /// Applies this route's proxy protocol to a client-owned TLS connector.
+    pub(crate) fn https_connector(&self, base: &HttpsProxyConnector) -> HttpsProxyConnector {
+        base.clone().with_protocol(self.protocol)
     }
 
     pub(crate) fn ordered_connect_headers(&self) -> &[HttpConnectHeader] {
@@ -257,6 +292,13 @@ impl fmt::Debug for HttpProxy {
                     HttpProxyTransport::Tls => "https",
                 },
             )
+            .field(
+                "proxy_protocol",
+                &match self.protocol {
+                    HttpsProxyProtocol::Http2 => "h2",
+                    _ => "http/1.1",
+                },
+            )
             .field("authority", self.endpoint.authority())
             .field("connect_header_count", &self.connect_headers.len())
             .field("credentials_configured", &self.credentials.is_some())
@@ -278,6 +320,8 @@ pub enum ProxyConfigErrorKind {
     UnexpectedPath,
     /// The HTTP Basic username or password is invalid.
     InvalidCredentials,
+    /// The requested proxy protocol cannot be used with the proxy scheme.
+    UnsupportedTransport,
 }
 
 /// Error returned while constructing an HTTP proxy route.
@@ -326,6 +370,13 @@ impl ProxyConfigError {
         Self::without_source(
             ProxyConfigErrorKind::InvalidCredentials,
             "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
+        )
+    }
+
+    fn unsupported_transport() -> Self {
+        Self::without_source(
+            ProxyConfigErrorKind::UnsupportedTransport,
+            "HTTP/2 proxy transport requires an https proxy; cleartext h2c is unsupported",
         )
     }
 
@@ -404,6 +455,24 @@ mod tests {
         assert!(secure.uses_tls());
         assert_eq!(plaintext.trace_name(), "http_connect");
         assert_eq!(secure.trace_name(), "https_connect");
+        Ok(())
+    }
+
+    #[test]
+    fn plaintext_proxy_rejects_h2_transport_configuration() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let error = match HttpProxy::new("http://proxy.example:8080")?.with_http2_transport() {
+            Ok(_) => return Err("plaintext proxy accepted HTTP/2 transport".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), ProxyConfigErrorKind::UnsupportedTransport);
+
+        let default = HttpProxy::new("https://proxy.example:8443")?;
+        let http2 = default.clone().with_http2_transport()?;
+        assert_ne!(default, http2, "proxy protocol must separate pool routes");
+        assert_eq!(default.trace_name(), "https_connect");
+        assert_eq!(http2.trace_name(), "https_h2_connect");
+        assert!(format!("{http2:?}").contains("proxy_protocol: \"h2\""));
         Ok(())
     }
 

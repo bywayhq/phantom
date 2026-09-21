@@ -603,6 +603,10 @@ impl ClientBuilder {
                         self.proxy_additional_roots.iter().map(AsRef::as_ref),
                     )
                 }
+                .map(|connector| match self.profile.http2() {
+                    Some(settings) => connector.with_http2_settings(settings),
+                    None => connector,
+                })
             })
             .transpose()
             .map_err(BuildError::https_proxy)?;

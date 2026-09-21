@@ -294,7 +294,7 @@ impl PoolEntry {
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
                     let proxy_connector = self
                         .https_proxy
-                        .get_or_init(|| base.with_isolated_session_cache());
+                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
                     if let Some(credentials) = proxy.basic_credentials() {
                         // The retry state machine is large; one allocation per
                         // authenticated proxy connection bounds this future.

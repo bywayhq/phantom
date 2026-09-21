@@ -81,17 +81,21 @@ impl WebSocketRequestBuilder {
                         .await
                 }
                 Route::HttpProxy(proxy) => {
-                    let transport = if proxy.uses_tls() {
-                        ForwardProxyTransport::Tls(client.inner.https_proxy.as_ref().ok_or_else(
-                            || {
-                                WebSocketError::request(RequestError::unsupported_route(
-                                    crate::HttpProtocol::Http1,
-                                ))
-                            },
-                        )?)
-                    } else {
-                        ForwardProxyTransport::Plaintext
-                    };
+                    let https_connector =
+                        if proxy.uses_tls() {
+                            Some(proxy.https_connector(
+                                client.inner.https_proxy.as_ref().ok_or_else(|| {
+                                    WebSocketError::request(RequestError::unsupported_route(
+                                        crate::HttpProtocol::Http1,
+                                    ))
+                                })?,
+                            ))
+                        } else {
+                            None
+                        };
+                    let transport = https_connector
+                        .as_ref()
+                        .map_or(ForwardProxyTransport::Plaintext, ForwardProxyTransport::Tls);
                     forward_upgrade(
                         connector,
                         transport,
@@ -146,12 +150,13 @@ impl WebSocketRequestBuilder {
                 Route::HttpProxy(proxy) => {
                     let authority = request.endpoint.tunnel_authority();
                     if proxy.uses_tls() {
-                        let proxy_connector =
+                        let proxy_connector = &proxy.https_connector(
                             client.inner.https_proxy.as_ref().ok_or_else(|| {
                                 WebSocketError::request(RequestError::unsupported_route(
                                     crate::HttpProtocol::Http1,
                                 ))
-                            })?;
+                            })?,
+                        );
                         if let Some(credentials) = proxy.basic_credentials() {
                             // Keep the challenge/retry state machine out of the
                             // ordinary WebSocket connection future's stack frame.
