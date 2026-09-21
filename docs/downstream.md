@@ -14,7 +14,8 @@ still `phantom`, so the dependency key below keeps `use phantom::...` working.
 
 ## Git dependency
 
-Pin an exact commit:
+Pin an exact commit. Choose commit `a84e73c` or a later one: earlier commits
+predate the MIT OR Apache-2.0 license files and carry no license grant.
 
 ```toml
 [dependencies]
@@ -72,16 +73,20 @@ consumer from its repository root:
 
 ```console
 cargo metadata --all-features --locked --format-version 1 > /dev/null
-cargo build --all-features --locked
+cargo check --all-features --locked
 ```
 
-Phantom's CI builds throwaway path and git consumers with
-`scripts/ci/check-downstream.sh`. Each consumer declares Phantom with one
-dependency line, and the script fails if any stock package appears or any
-`phantom-*` fork resolves from an unexpected source. The workspace itself runs
-`cargo deny check bans` against the same stock names (`deny.toml`). A
-downstream repository must still run the commands above against its own
-committed lockfile and toolchain.
+Phantom's CI `Downstream` job runs `cargo deny --locked check bans` against
+the stock names in `deny.toml`, then `scripts/ci/check-downstream.sh path git`.
+That script builds throwaway path and git consumers that each declare Phantom
+with one dependency line. For each it runs `cargo generate-lockfile`,
+`cargo metadata --all-features --locked`, and `cargo check --all-features
+--locked`, and fails if any stock package appears, any `phantom-*` fork
+resolves from an unexpected source, or `btls-sys` resolves from anything but
+the reviewed fork revision. The git consumer uses a local snapshot commit of
+the checkout, not the GitHub remote. A downstream repository must still run
+the commands above, and its own build and tests, against its committed
+lockfile and toolchain.
 
 ## Vendored forks
 
