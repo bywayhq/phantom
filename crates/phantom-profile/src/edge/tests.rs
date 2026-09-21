@@ -47,6 +47,17 @@ fn edge_153_client_hints_share_chrome_153_names_order_and_delivery() {
 }
 
 #[test]
+fn edge_153_recipes_keep_the_backend_ech_grease_aead_policy() {
+    // Edge advertises AES-128-GCM like Chrome; the backend default produces
+    // that choice because `aes_hardware` is set.
+    for settings in [v153_tls(), v153_http3_tls()] {
+        assert!(settings.ech_grease);
+        assert!(settings.ech_grease_aeads.is_empty());
+        assert!(settings.aes_hardware);
+    }
+}
+
+#[test]
 fn edge_153_tls_recipes_remove_only_chrome_153_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
     for (edge, chrome) in [

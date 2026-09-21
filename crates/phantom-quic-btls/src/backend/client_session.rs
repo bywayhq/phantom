@@ -511,6 +511,10 @@ fn apply_tls_profile(
         ssl.set_ech_grease_payload_length(usize::from(payload_length))
             .map_err(|_| backend_failure("ECH GREASE payload length"))?;
     }
+    if !profile.ech_grease_aeads().is_empty() {
+        ssl.set_ech_grease_aeads(profile.ech_grease_aeads())
+            .map_err(|_| backend_failure("ECH GREASE AEADs"))?;
+    }
     if let Some(alps) = profile.alps() {
         ssl.add_application_settings_with_payload(&alps.protocol, &alps.settings)
             .map_err(|_| backend_failure("ALPS configuration"))?;

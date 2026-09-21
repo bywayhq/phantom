@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use btls::x509::X509;
-use phantom_profile::{CipherSuite, NamedGroup, TlsVersion, chromium};
+use phantom_profile::{CipherSuite, EchGreaseAead, NamedGroup, TlsVersion, chromium};
 use quinn_proto::crypto;
 use quinn_proto::{
     ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
@@ -378,6 +378,7 @@ fn quic_tls_profile_changes_raw_client_hello_key_shares_and_ech() {
     settings.key_shares = settings.groups.clone();
     settings.ech_grease = true;
     settings.ech_grease_payload_length = Some(64);
+    settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
 
     let context = client_context(true);
     let config = test_ok(
@@ -402,6 +403,8 @@ fn quic_tls_profile_changes_raw_client_hello_key_shares_and_ech() {
     let ech = extension(&client_hello, 0xfe0d)
         .unwrap_or_else(|| panic!("profiled ClientHello omitted ECH GREASE"));
     assert_eq!(ech.len(), 42 + 64);
+    // ECHClientHello type outer, HKDF-SHA256, then ChaCha20-Poly1305.
+    assert_eq!(&ech[..5], &[0x00, 0x00, 0x01, 0x00, 0x03]);
     assert_eq!(&ech[40..42], &64_u16.to_be_bytes());
     assert_eq!(
         extension(&client_hello, 0x44cd),

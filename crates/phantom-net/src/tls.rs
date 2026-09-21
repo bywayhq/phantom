@@ -17,7 +17,8 @@ use btls::{
     x509::{X509, store::X509StoreBuilder},
 };
 use phantom_profile::{
-    AlpsSettings, CipherSuite, InvalidTlsSettings, NamedGroup, TlsSettings, TlsVersion,
+    AlpsSettings, CipherSuite, EchGreaseAead, InvalidTlsSettings, NamedGroup, TlsSettings,
+    TlsVersion,
 };
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
@@ -65,6 +66,7 @@ pub(crate) struct TlsConnector {
     tls13_key_shares: Option<Box<[NamedGroup]>>,
     ech_grease: bool,
     ech_grease_payload_length: Option<u16>,
+    ech_grease_aeads: Box<[EchGreaseAead]>,
     scoped_sessions_enabled: bool,
     session_cache: Option<TlsSessionCache>,
 }
@@ -88,6 +90,7 @@ impl fmt::Debug for TlsConnector {
             .field("tls13_key_shares", &self.tls13_key_shares)
             .field("ech_grease", &self.ech_grease)
             .field("ech_grease_payload_length", &self.ech_grease_payload_length)
+            .field("ech_grease_aeads", &self.ech_grease_aeads)
             .finish_non_exhaustive()
     }
 }
@@ -182,6 +185,7 @@ impl TlsConnector {
             extension_order = extension_order_trace_name(&settings.extension_order),
             ech_grease = settings.ech_grease,
             ech_grease_payload_length_configured = settings.ech_grease_payload_length.is_some(),
+            ech_grease_aead_count = settings.ech_grease_aeads.len(),
             server_authentication = server_authentication.trace_name(),
             outcome = field::Empty,
             error_kind = field::Empty,
@@ -246,6 +250,7 @@ impl TlsConnector {
                 .then(|| settings.key_shares.clone().into_boxed_slice()),
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
+            ech_grease_aeads: settings.ech_grease_aeads.clone().into_boxed_slice(),
             scoped_sessions_enabled,
             session_cache: None,
         })
@@ -301,6 +306,16 @@ impl TlsConnector {
                 configuration
                     .set_ech_grease_payload_length(usize::from(payload_length))
                     .map_err(|error| TlsError::backend("ech_grease_payload_length", error))?;
+            }
+            if !self.ech_grease_aeads.is_empty() {
+                let aead_ids = self
+                    .ech_grease_aeads
+                    .iter()
+                    .map(|aead| aead.hpke_id())
+                    .collect::<Vec<_>>();
+                configuration
+                    .set_ech_grease_aeads(&aead_ids)
+                    .map_err(|error| TlsError::backend("ech_grease_aeads", error))?;
             }
             configuration
                 .set_alpn_protos(&self.alpn_wire)

@@ -186,6 +186,7 @@ pub fn v152_tls() -> TlsSettings {
         extension_order: ClientHelloExtensionOrder::Permuted,
         ech_grease: true,
         ech_grease_payload_length: None,
+        ech_grease_aeads: Vec::new(),
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,

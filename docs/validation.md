@@ -473,12 +473,23 @@ Comparisons normalize only per-connection randomness:
   multi-connection capture saw both values in each of three processes (359
   and 337 of 696 connections, all with a 239-byte payload), consistent with
   NSS taking the choice from the low bit of fresh per-handshake random bytes.
-  Phantom's Firefox recipe emits `0x0001` on every connection because the TLS
-  backend has no per-connection ECH GREASE AEAD control; this difference
-  remains open.
+  The Firefox 154 and 156 recipes list both AEADs in `ech_grease_aeads`, and the patched
+  BoringSSL backend draws one uniformly per connection from fresh random
+  bytes, keeping it across a HelloRetryRequest. The comparison therefore
+  treats the AEAD as per-connection randomness. Each Firefox recipe test
+  replays both retained captures, then requires 200 loopback connections from one
+  connector to contain only these two values with each count in 60..=140; a
+  fair draw fails that bound with probability below 1e-7. Only the
+  distribution is reproduced; NSS and BoringSSL draw from different random
+  sources.
 - Every retained Chrome ClientHello, TCP and QUIC, and all 1,248 follow-up
   Chrome connections use HKDF-SHA256 with AES-128-GCM for ECH GREASE. The
-  Chrome TLS recipe tests compare that cipher suite exactly.
+  Chrome TLS recipe tests compare that cipher suite exactly, and
+  `chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection`
+  checks it on 64 connections from one connector for each of Chrome 152,
+  Chrome 153, and Edge 153. Chromium-family recipes leave
+  `ech_grease_aeads` empty and rely on the backend default, which selects
+  AES-128-GCM because the recipes set `aes_hardware`.
 - `user-agent`, `sec-ch-ua`, `sec-ch-ua-mobile`, and `sec-ch-ua-platform` are
   persona data and differ by platform and flavor by design. Their positions in
   the request field order are compared.
@@ -497,7 +508,7 @@ Deterministic recipe tests replay the retained Windows fixtures:
 `chrome_152_quic_recipe_matches_windows_chrome_for_testing_capture`,
 `chrome_152_http3_recipe_matches_windows_chrome_for_testing_capture`,
 `firefox_154_tls_recipe_matches_windows_capture`,
-`firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice`, and
+`firefox_154_recipe_draws_either_ech_grease_aead_per_connection`, and
 `firefox_154_http2_recipe_matches_windows_capture`.
 
 Limits:
@@ -609,7 +620,9 @@ the position of the reserved QUIC version. Every Chrome and Edge sample, TCP
 and QUIC, used HKDF-SHA256 with AES-128-GCM for ECH GREASE. Firefox 156 kept
 its fixed extension order and chose AES-128-GCM on 7 and ChaCha20-Poly1305 on
 5 of 12 connections, each with a 240-byte payload. One sample of each is
-retained, and the recipe still emits only AES-128-GCM.
+retained; like 154, the recipe lists both AEADs and
+`firefox_156_recipe_draws_either_ech_grease_aead_per_connection` bounds the
+per-connection split.
 
 Edge's full version list reports `"Chromium";v="153.0.8010.53"`, a newer
 Chromium build than branded Chrome 153.0.8010.48. Headful and headless runs

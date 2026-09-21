@@ -4,7 +4,7 @@ use crate::{
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-        NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
+        EchGreaseAead, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
     },
 };
 
@@ -15,9 +15,9 @@ use crate::{
 ///
 /// The fixed extension order and exact ECH GREASE payload length retain the
 /// stable wire shape observed across the local captures. Firefox picks its ECH
-/// GREASE AEAD per connection from AES-128-GCM and ChaCha20-Poly1305; this
-/// recipe emits only AES-128-GCM because the TLS backend exposes no
-/// per-connection choice. The delegated-credential vector includes legacy
+/// GREASE AEAD per connection from AES-128-GCM and ChaCha20-Poly1305 with equal
+/// probability; this recipe lists both, so each connection draws one the same
+/// way. The delegated-credential vector includes legacy
 /// ECDSA-SHA1 because Firefox advertised it; TLS 1.3 authentication cannot
 /// select that legacy scheme. The returned value is an ordinary owned
 /// [`TlsSettings`], so callers can customize it before constructing a
@@ -110,6 +110,7 @@ pub fn v154_tls() -> TlsSettings {
         ]),
         ech_grease: true,
         ech_grease_payload_length: Some(239),
+        ech_grease_aeads: vec![EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305],
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
@@ -159,9 +160,9 @@ pub fn v154_http2() -> Http2Settings {
 /// differ from Firefox 154: the supported groups no longer offer FFDHE-2048 or
 /// FFDHE-3072, and the ECH GREASE payload is 240 bytes instead of 239. Every
 /// other compared field, including the fixed extension order, matches 154.
-/// Firefox still picks its ECH GREASE AEAD per connection; this recipe emits
-/// only AES-128-GCM for the reason given on [`v154_tls`]. The returned value
-/// is an ordinary owned [`TlsSettings`].
+/// Firefox still picks its ECH GREASE AEAD per connection from AES-128-GCM and
+/// ChaCha20-Poly1305; this recipe keeps both choices from [`v154_tls`]. The
+/// returned value is an ordinary owned [`TlsSettings`].
 #[must_use]
 pub fn v156_tls() -> TlsSettings {
     let mut settings = v154_tls();

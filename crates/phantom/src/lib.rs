@@ -140,12 +140,12 @@ pub mod profile {
     pub use phantom_profile::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientFamily, ClientHelloExtension,
         ClientHelloExtensionOrder, ClientHint, ClientHintDelivery, ClientHintSettings,
-        ClientProfile, EmptyClientVersion, Http2Priority, Http2PseudoHeader, Http2Setting,
-        Http2Settings, Http3ClientSettings, Http3PseudoHeader, Http3QpackDecoderStream,
-        Http3QpackEncoding, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
-        InvalidClientHintSettings, InvalidHttp2Settings, InvalidHttp3RequestSettings,
-        InvalidHttp3Settings, InvalidProfileId, InvalidTlsSettings, NamedGroup, Platform,
-        ProfileId, ProfileMetadata, SignatureScheme, TlsSettings, TlsVersion,
+        ClientProfile, EchGreaseAead, EmptyClientVersion, Http2Priority, Http2PseudoHeader,
+        Http2Setting, Http2Settings, Http3ClientSettings, Http3PseudoHeader,
+        Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings, Http3Setting,
+        Http3SettingOrder, Http3Settings, InvalidClientHintSettings, InvalidHttp2Settings,
+        InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProfileId, InvalidTlsSettings,
+        NamedGroup, Platform, ProfileId, ProfileMetadata, SignatureScheme, TlsSettings, TlsVersion,
     };
 
     /// Chromium-family recipes implemented by the public facade.

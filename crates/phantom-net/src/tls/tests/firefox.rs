@@ -6,7 +6,9 @@ use phantom_profile::{
 };
 use phantom_testkit::tls::ClientHelloSummary;
 
-use super::{capture_client_hello_from_server_name, client_hello_fixture};
+use super::{
+    capture_client_hello_from_server_name, capture_client_hellos_from, client_hello_fixture,
+};
 use crate::tls::test_support::TestResult;
 
 const FIREFOX_FIXTURE: &str = include_str!(concat!(
@@ -55,12 +57,11 @@ async fn firefox_156_tls_recipe_matches_windows_capture_with_chacha20_ech_grease
     assert_recipe_matches_fixture(WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE, &v156_tls(), 282).await
 }
 
-/// Firefox picks AES-128-GCM or ChaCha20-Poly1305 for each ECH GREASE
-/// extension. The backend exposes no per-connection AEAD choice, so the recipe
-/// reproduces only the AES-128-GCM branch.
+/// Firefox 154 draws AES-128-GCM or ChaCha20-Poly1305 for each ECH GREASE
+/// extension with equal probability; the retained captures carry one of each.
 #[tokio::test]
-async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestResult<()> {
-    assert_recipe_emits_aes_128_gcm_ech_grease(
+async fn firefox_154_recipe_draws_either_ech_grease_aead_per_connection() -> TestResult<()> {
+    assert_recipe_draws_either_ech_grease_aead(
         [FIREFOX_FIXTURE, WINDOWS_FIREFOX_FIXTURE],
         &v154_tls(),
     )
@@ -70,8 +71,8 @@ async fn firefox_154_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestRes
 /// Firefox 156 still picks the ECH GREASE AEAD per connection (7 AES-128-GCM
 /// and 5 ChaCha20-Poly1305 of 12 Windows samples); one of each is retained.
 #[tokio::test]
-async fn firefox_156_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestResult<()> {
-    assert_recipe_emits_aes_128_gcm_ech_grease(
+async fn firefox_156_recipe_draws_either_ech_grease_aead_per_connection() -> TestResult<()> {
+    assert_recipe_draws_either_ech_grease_aead(
         [
             WINDOWS_FIREFOX_156_FIXTURE,
             WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE,
@@ -81,10 +82,13 @@ async fn firefox_156_recipe_emits_the_aes_128_gcm_ech_grease_choice() -> TestRes
     .await
 }
 
-async fn assert_recipe_emits_aes_128_gcm_ech_grease(
+/// Replays both retained AEAD branches, then requires one connector's
+/// ClientHellos to draw only those two AEADs in fair proportion.
+async fn assert_recipe_draws_either_ech_grease_aead(
     fixtures: [&str; 2],
     settings: &TlsSettings,
 ) -> TestResult<()> {
+    const CONNECTIONS: usize = 200;
     let mut captured = Vec::new();
     for fixture in fixtures {
         let capture = client_hello_fixture::capture(fixture).await?;
@@ -94,10 +98,20 @@ async fn assert_recipe_emits_aes_128_gcm_ech_grease(
     }
     assert_eq!(captured, [AES_128_GCM, CHACHA20_POLY1305]);
 
-    let actual = capture_client_hello_from_server_name(settings, FIREFOX_SERVER_NAME).await?;
-    assert_eq!(
-        client_hello_fixture::ech_cipher_suite(actual.handshake_bytes())?,
-        AES_128_GCM
+    let (mut aes_128_gcm, mut chacha20_poly1305) = (0_usize, 0_usize);
+    for capture in capture_client_hellos_from(settings, FIREFOX_SERVER_NAME, CONNECTIONS).await? {
+        match client_hello_fixture::ech_cipher_suite(capture.handshake_bytes())? {
+            AES_128_GCM => aes_128_gcm += 1,
+            CHACHA20_POLY1305 => chacha20_poly1305 += 1,
+            other => return Err(format!("unexpected ECH GREASE cipher suite {other:02x?}").into()),
+        }
+    }
+    // A fair draw leaves each count within 100 +/- 40 (5.6 standard
+    // deviations) except with probability below 1e-7.
+    assert_eq!(aes_128_gcm + chacha20_poly1305, CONNECTIONS);
+    assert!(
+        (60..=140).contains(&aes_128_gcm),
+        "AES-128-GCM chosen {aes_128_gcm} of {CONNECTIONS} times"
     );
     Ok(())
 }

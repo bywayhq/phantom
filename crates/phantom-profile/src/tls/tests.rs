@@ -67,6 +67,7 @@ fn minimal_settings() -> TlsSettings {
         extension_order: ClientHelloExtensionOrder::BackendDefault,
         ech_grease: false,
         ech_grease_payload_length: None,
+        ech_grease_aeads: Vec::new(),
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
@@ -171,6 +172,55 @@ fn tls_12_rejects_ech_grease() {
         error.as_ref().map(InvalidTlsSettings::field),
         Some("ech_grease")
     );
+}
+
+#[test]
+fn ech_grease_aead_ids_match_rfc_9180() {
+    assert_eq!(EchGreaseAead::Aes128Gcm.hpke_id(), 0x0001);
+    assert_eq!(EchGreaseAead::Aes256Gcm.hpke_id(), 0x0002);
+    assert_eq!(EchGreaseAead::ChaCha20Poly1305.hpke_id(), 0x0003);
+}
+
+#[test]
+fn ech_grease_aead_choices_require_ech_grease() {
+    let mut settings = minimal_settings();
+    settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("ech_grease_aeads")
+    );
+}
+
+#[test]
+fn ech_grease_aead_choices_must_not_repeat() {
+    let mut settings = minimal_settings();
+    settings.ech_grease = true;
+    settings.ech_grease_aeads = vec![
+        EchGreaseAead::Aes128Gcm,
+        EchGreaseAead::ChaCha20Poly1305,
+        EchGreaseAead::Aes128Gcm,
+    ];
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("ech_grease_aeads")
+    );
+}
+
+#[test]
+fn every_distinct_ech_grease_aead_choice_is_valid() -> Result<(), InvalidTlsSettings> {
+    let mut settings = minimal_settings();
+    settings.ech_grease = true;
+    settings.ech_grease_aeads = vec![
+        EchGreaseAead::ChaCha20Poly1305,
+        EchGreaseAead::Aes256Gcm,
+        EchGreaseAead::Aes128Gcm,
+    ];
+
+    settings.validate()
 }
 
 #[test]

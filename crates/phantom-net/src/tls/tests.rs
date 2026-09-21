@@ -109,6 +109,44 @@ async fn capture_client_hello_from_server_name(
     Ok(tokio::time::timeout(TEST_TIMEOUT, capture_task).await???)
 }
 
+/// Captures one ClientHello from each of `connections` handshakes made by a
+/// single connector, so the samples expose its per-connection choices.
+async fn capture_client_hellos_from(
+    settings: &TlsSettings,
+    server_name: &str,
+    connections: usize,
+) -> TestResult<Vec<ClientHelloCapture>> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let connector = TlsConnector::new(settings)?;
+    let mut captures = Vec::with_capacity(connections);
+    for _ in 0..connections {
+        // The capture drops its stream after the ClientHello, which ends the
+        // client handshake.
+        let capture = async {
+            let (mut stream, _) = listener.accept().await?;
+            capture_client_hello(
+                &mut stream,
+                Instant::now() + TEST_TIMEOUT,
+                CaptureLimits::new(32 * 1024, 40 * 1024, 4),
+            )
+            .await
+            .map_err(io::Error::other)
+        };
+        let handshake = async {
+            let tcp = tokio::net::TcpStream::connect(address).await?;
+            Ok::<_, io::Error>(connector.connect(server_name, tcp).await.is_ok())
+        };
+        let (capture, completed) =
+            tokio::time::timeout(TEST_TIMEOUT, async { tokio::join!(capture, handshake) }).await?;
+        if completed? {
+            return Err("capture peer unexpectedly completed TLS".into());
+        }
+        captures.push(capture?);
+    }
+    Ok(captures)
+}
+
 #[test]
 fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
     let mut settings = v152_tls();
@@ -142,7 +180,7 @@ fn connector_debug_reports_alps_metadata_without_payload() -> TestResult<()> {
          alps_protocol: Some(\"h2\"), alps_settings_len: Some(23), \
          alps_use_new_codepoint: Some(true), tls13_key_shares: \
          Some([X25519MlKem768, X25519]), ech_grease: true, \
-         ech_grease_payload_length: None, .. }"
+         ech_grease_payload_length: None, ech_grease_aeads: [], .. }"
     );
     assert!(!debug.contains("opaque-alps-marker-7f3c"));
     Ok(())

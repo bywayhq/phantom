@@ -51,6 +51,7 @@ impl QuicClientConfig {
                 key_shares: None,
                 ech_grease: false,
                 ech_grease_payload_length: None,
+                ech_grease_aeads: Vec::new(),
                 alps: None,
             },
             #[cfg(test)]
@@ -254,6 +255,7 @@ pub(super) struct ClientTlsProfile {
     key_shares: Option<Box<[KeyShare]>>,
     ech_grease: bool,
     ech_grease_payload_length: Option<u16>,
+    ech_grease_aeads: Vec<u16>,
     alps: Option<AlpsSettings>,
 }
 
@@ -264,6 +266,7 @@ impl fmt::Debug for ClientTlsProfile {
             .field("key_shares", &self.key_shares)
             .field("ech_grease", &self.ech_grease)
             .field("ech_grease_payload_length", &self.ech_grease_payload_length)
+            .field("ech_grease_aeads", &self.ech_grease_aeads)
             .field(
                 "alps",
                 &self.alps.as_ref().map(|value| value.settings.len()),
@@ -327,6 +330,11 @@ impl ClientTlsProfile {
             key_shares: Some(key_shares),
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
+            ech_grease_aeads: settings
+                .ech_grease_aeads
+                .iter()
+                .map(|aead| aead.hpke_id())
+                .collect(),
             alps: settings.alps.clone(),
         })
     }
@@ -341,6 +349,10 @@ impl ClientTlsProfile {
 
     pub(super) const fn ech_grease_payload_length(&self) -> Option<u16> {
         self.ech_grease_payload_length
+    }
+
+    pub(super) fn ech_grease_aeads(&self) -> &[u16] {
+        &self.ech_grease_aeads
     }
 
     pub(super) const fn alps(&self) -> Option<&AlpsSettings> {

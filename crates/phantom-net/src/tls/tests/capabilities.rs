@@ -138,6 +138,7 @@ fn capability_settings() -> TlsSettings {
         ]),
         ech_grease: false,
         ech_grease_payload_length: None,
+        ech_grease_aeads: Vec::new(),
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,

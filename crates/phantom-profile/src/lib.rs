@@ -30,6 +30,6 @@ pub use identity::{
 };
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
-    ClientHelloExtensionOrder, InvalidTlsSettings, NamedGroup, SignatureScheme, TlsSettings,
-    TlsVersion,
+    ClientHelloExtensionOrder, EchGreaseAead, InvalidTlsSettings, NamedGroup, SignatureScheme,
+    TlsSettings, TlsVersion,
 };

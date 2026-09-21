@@ -4,7 +4,7 @@ use crate::http2::{
 };
 use crate::tls::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-    NamedGroup, SignatureScheme, TlsVersion,
+    EchGreaseAead, NamedGroup, SignatureScheme, TlsVersion,
 };
 
 const LOCAL_FIXTURE: &str = include_str!(concat!(
@@ -143,6 +143,10 @@ fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn 
     );
     assert!(settings.ech_grease);
     assert_eq!(settings.ech_grease_payload_length, Some(239));
+    assert_eq!(
+        settings.ech_grease_aeads,
+        [EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305]
+    );
     assert!(settings.request_ocsp_staple);
     assert!(settings.request_signed_certificate_timestamps);
     assert!(settings.aes_hardware);
@@ -251,6 +255,10 @@ fn firefox_156_tls_recipe_changes_only_groups_and_ech_payload_from_154()
     ];
     expected.ech_grease_payload_length = Some(240);
     assert_eq!(settings, expected);
+    assert_eq!(
+        settings.ech_grease_aeads,
+        [EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305]
+    );
     Ok(())
 }
 

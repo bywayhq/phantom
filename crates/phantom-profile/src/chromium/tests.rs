@@ -105,6 +105,17 @@ fn chrome_152_macos_http3_tls_settings_are_valid() -> Result<(), Box<dyn std::er
 }
 
 #[test]
+fn chrome_recipes_keep_the_backend_ech_grease_aead_policy() {
+    // Chrome always advertises AES-128-GCM; with `aes_hardware` set, the
+    // backend default produces exactly that choice.
+    for settings in [v152_tls(), v152_http3_tls(), v153_tls(), v153_http3_tls()] {
+        assert!(settings.ech_grease);
+        assert!(settings.ech_grease_aeads.is_empty());
+        assert!(settings.aes_hardware);
+    }
+}
+
+#[test]
 fn chrome_152_macos_http2_settings_match_retained_pingly_observation()
 -> Result<(), Box<dyn std::error::Error>> {
     let fixture = parse_fixture(PINGLY_FIXTURE)?;

@@ -7,7 +7,7 @@ use phantom_profile::{
 };
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
-use super::{capture_client_hello_from, client_hello_fixture};
+use super::{capture_client_hello_from, capture_client_hellos_from, client_hello_fixture};
 use crate::tls::test_support::{TEST_SERVER_NAME, TestResult};
 
 const CHROME_FIXTURE: &str = include_str!(concat!(
@@ -90,6 +90,23 @@ async fn chrome_153_tls_recipe_emits_the_most_frequent_trust_anchor_order() -> T
 #[tokio::test]
 async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
     assert_recipe_matches_fixture(EDGE_153_FIXTURE, &edge::v153_tls(), None).await
+}
+
+/// Chromium-family browsers advertise HKDF-SHA256 with AES-128-GCM on every
+/// connection; their recipes keep the backend default AEAD policy.
+#[tokio::test]
+async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> TestResult<()> {
+    const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
+    for settings in [v152_tls(), v153_tls(), edge::v153_tls()] {
+        assert!(settings.ech_grease_aeads.is_empty());
+        for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {
+            assert_eq!(
+                client_hello_fixture::ech_cipher_suite(capture.handshake_bytes())?,
+                AES_128_GCM
+            );
+        }
+    }
+    Ok(())
 }
 
 async fn assert_recipe_matches_fixture(

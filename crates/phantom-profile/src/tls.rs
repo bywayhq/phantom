@@ -287,6 +287,30 @@ pub struct AlpsSettings {
     pub use_new_codepoint: bool,
 }
 
+/// An HPKE AEAD that a GREASE ECH extension may advertise.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum EchGreaseAead {
+    /// AES-128-GCM.
+    Aes128Gcm,
+    /// AES-256-GCM.
+    Aes256Gcm,
+    /// ChaCha20-Poly1305.
+    ChaCha20Poly1305,
+}
+
+impl EchGreaseAead {
+    /// Returns the RFC 9180 HPKE AEAD identifier carried in the ECH extension.
+    #[must_use]
+    pub const fn hpke_id(self) -> u16 {
+        match self {
+            Self::Aes128Gcm => 0x0001,
+            Self::Aes256Gcm => 0x0002,
+            Self::ChaCha20Poly1305 => 0x0003,
+        }
+    }
+}
+
 /// Ordered TLS settings independent of the concrete TLS backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TlsSettings {
@@ -347,6 +371,15 @@ pub struct TlsSettings {
     /// configured length requires [`Self::ech_grease`] and must leave room for
     /// the ECHClientHelloOuter framing in the TLS extension body.
     pub ech_grease_payload_length: Option<u16>,
+    /// HPKE AEADs from which each connection's GREASE ECH extension draws one.
+    ///
+    /// Every connection selects one listed AEAD uniformly at random; a
+    /// HelloRetryRequest keeps the first ClientHello's choice. An empty vector
+    /// retains the TLS backend's policy, which advertises AES-128-GCM when
+    /// [`Self::aes_hardware`] is set and ChaCha20-Poly1305 otherwise. A
+    /// non-empty list requires [`Self::ech_grease`] and must not repeat an
+    /// AEAD.
+    pub ech_grease_aeads: Vec<EchGreaseAead>,
     /// Whether to request an OCSP staple.
     pub request_ocsp_staple: bool,
     /// Whether to request signed certificate timestamps.
@@ -405,6 +438,20 @@ impl TlsSettings {
                 "ech_grease_payload_length",
                 "ECH GREASE payload and framing exceed the TLS extension body limit",
             ));
+        }
+        if !self.ech_grease_aeads.is_empty() && !self.ech_grease {
+            return Err(InvalidTlsSettings::new(
+                "ech_grease_aeads",
+                "ECH GREASE AEAD choices require ECH GREASE to be enabled",
+            ));
+        }
+        for (index, aead) in self.ech_grease_aeads.iter().enumerate() {
+            if self.ech_grease_aeads[..index].contains(aead) {
+                return Err(InvalidTlsSettings::new(
+                    "ech_grease_aeads",
+                    "ECH GREASE AEAD choices must not repeat",
+                ));
+            }
         }
         if self.max_version < TlsVersion::Tls13 {
             if !self.key_shares.is_empty() {
