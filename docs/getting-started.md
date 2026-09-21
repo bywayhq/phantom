@@ -14,9 +14,8 @@ declared by dependencies.
 The supported evaluation path is this repository checkout. Embedding Phantom in
 another workspace currently means carrying its complete pinned dependency and
 patch set using the [downstream integration](downstream.md) layout; that
-interface is not stable. The repository also does not yet declare a license,
-so integrators should resolve licensing with the maintainers before
-redistribution.
+interface is not stable. Phantom is dual-licensed under MIT or Apache-2.0;
+vendored dependencies keep their upstream licenses in `vendor/*/`.
 
 ## Prerequisites
 

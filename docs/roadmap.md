@@ -20,9 +20,6 @@ work has exposed the real architectural boundaries.
   `deflate`, `br`, and `zstd`, with decoded-byte limits and fail-closed coding
   semantics. Phantom must not invent an `Accept-Encoding` field or its ordered
   wire position.
-- Add the repository license file and Cargo license metadata after the
-  maintainers select the license; do not infer a legal choice from code or
-  dependency licenses.
 - Bounded response-body collection is complete: its inclusive cap applies to
   bytes returned to the caller, abandons an over-limit stream, and has a stable
   error category. The same cap must count decoded bytes when decompression is

@@ -115,3 +115,13 @@ The [documentation map](docs/README.md) routes readers by audience and task.
 SSE and WebSocket have focused guides under [`docs/`](docs/). Contributors
 should read [CONTRIBUTING.md](CONTRIBUTING.md); suspected vulnerabilities follow
 [SECURITY.md](SECURITY.md).
+
+## License
+
+Phantom is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)
+or [MIT license](LICENSE-MIT) at your option. Vendored dependencies under
+[`vendor/`](vendor/) keep their upstream licenses.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in Phantom by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
