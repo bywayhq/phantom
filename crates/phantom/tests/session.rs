@@ -549,7 +549,20 @@ async fn forward_one_https_connect(
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     downstream.flush().await?;
-    copy_bidirectional(&mut downstream, &mut upstream).await?;
+    match copy_bidirectional(&mut downstream, &mut upstream).await {
+        Ok(_) => {}
+        // The client may close its proxy TCP connection before the relay
+        // finishes writing its own TLS close_notify during shutdown. The OS
+        // reports that peer-gone write as a pipe, reset, or abort error.
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::BrokenPipe
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+            ) => {}
+        Err(error) => return Err(error.into()),
+    }
     Ok(request)
 }
 
