@@ -10,12 +10,11 @@ work has exposed the real architectural boundaries.
 
 ## Phase 1 — Functionality (current)
 
-- The initial external-root source distribution is documented and manually
-  build-proven: one revision-pinned vendorable layout and its complete root
-  patch stanza resolve every patched package from the retained trees. Missing
-  substitutions fail at compile time, and CI repeats the external-root
-  resolution and all-features check. Direct-fork distribution remains before
-  one-line installation can be claimed.
+- Downstream crates depend on a pinned git revision or checkout with one line
+  and no `[patch]` table: patched dependencies are renamed `phantom-*` forks
+  replayed from their upstream archives, and CI rejects the stock package
+  names. Publishing to crates.io remains blocked on packaging `btls-sys` under
+  a Phantom name with its own `links` key.
 - Opt-in streaming response decompression is complete: caller-advertised
   `gzip`, `deflate`, `br`, and `zstd` only, decoded-byte limits, fail-closed
   coding semantics, and no invented `Accept-Encoding` field or wire position.
