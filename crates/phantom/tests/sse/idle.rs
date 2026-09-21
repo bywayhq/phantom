@@ -70,6 +70,11 @@ async fn ordinary_body_timeouts_end_when_event_stream_is_established() -> TestRe
 
 #[tokio::test(flavor = "current_thread")]
 async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
+    const IDLE_TIMEOUT: Duration = Duration::from_secs(1);
+    // Activity at 400 ms and 800 ms keeps the source alive past the first
+    // deadline; the cancelled read leaves about 500 ms of the reset deadline.
+    const ACTIVITY_INTERVAL: Duration = Duration::from_millis(400);
+    const CANCELLED_READ: Duration = Duration::from_millis(500);
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -91,10 +96,10 @@ async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
             .send(())
             .map_err(|_| "client stopped before the idle response was ready")?;
 
-        sleep(Duration::from_millis(250)).await;
+        sleep(ACTIVITY_INTERVAL).await;
         first.write_all(b"d\r\n: keepalive\n\n\r\n").await?;
         first.flush().await?;
-        sleep(Duration::from_millis(250)).await;
+        sleep(ACTIVITY_INTERVAL).await;
         first.write_all(b"d\r\ndata: alive\n\n\r\n").await?;
         first.flush().await?;
         await_peer_close(&mut first).await?;
@@ -117,13 +122,13 @@ async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
     let response = test_client(&identity, false)?
         .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .idle_timeout(Duration::from_secs(1))
+        .idle_timeout(IDLE_TIMEOUT)
         .initial_retry(Duration::ZERO)
         .max_reconnects(1)
         .connect()
         .await?;
     let mut source = response.into_body();
-    assert_eq!(source.idle_timeout(), Some(Duration::from_secs(1)));
+    assert_eq!(source.idle_timeout(), Some(IDLE_TIMEOUT));
     response_ready_rx
         .await
         .map_err(|_| "server stopped before the idle response was ready")?;
@@ -133,16 +138,16 @@ async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
         .await?
         .ok_or("event after keepalive comment was missing")?;
     assert_eq!(active.data(), "alive");
+    // Without the activity resets, the deadline from the response head
+    // would expire during this cancelled read.
     assert!(
-        timeout(Duration::from_millis(900), source.next_event())
-            .await
-            .is_err(),
+        timeout(CANCELLED_READ, source.next_event()).await.is_err(),
         "idle deadline elapsed too early"
     );
     let resumed_at = Instant::now();
-    let event = source
-        .next_event()
-        .await?
+    let event = timeout(IDLE_TIMEOUT * 2, source.next_event())
+        .await
+        .map_err(|_| "cancelling the read discarded the idle deadline")??
         .ok_or("reconnected event was missing")?;
     assert_eq!(event.data(), "resumed");
     assert_eq!(
@@ -150,10 +155,12 @@ async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
         1,
         "the idle deadline did not trigger exactly one reconnect"
     );
+    // A deadline restarted by the cancelled read could not fire before a
+    // full idle timeout after the read resumed.
     let remaining = Instant::now().duration_since(resumed_at);
     assert!(
-        (Duration::from_millis(20)..Duration::from_millis(750)).contains(&remaining),
-        "cancelling the read restarted or discarded the idle deadline: {remaining:?}"
+        remaining < IDLE_TIMEOUT,
+        "cancelling the read restarted the idle deadline: {remaining:?}"
     );
     server.await??;
     Ok(())
