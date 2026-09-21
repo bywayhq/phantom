@@ -477,7 +477,7 @@ impl ClientBuilder {
         }
         if !self.options.retry_policy.validate() {
             return Err(BuildError::invalid_policy(
-                "connection retry delay exceeds the runtime clock range",
+                "retry delay or Retry-After limit exceeds the runtime clock range",
             ));
         }
         self.profile

@@ -84,7 +84,9 @@ fn imf_fixdate(value: &[u8]) -> Option<SystemTime> {
     if weekday != day_name {
         return None;
     }
-    let seconds = days * SECONDS_PER_DAY + hour * 3_600 + minute * 60 + second;
+    let seconds = days
+        .checked_mul(SECONDS_PER_DAY)?
+        .checked_add(hour * 3_600 + minute * 60 + second)?;
     Some(match u64::try_from(seconds) {
         Ok(seconds) => UNIX_EPOCH.checked_add(Duration::from_secs(seconds))?,
         Err(_) => UNIX_EPOCH,
