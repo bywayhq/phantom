@@ -6,9 +6,7 @@ import argparse
 import asyncio
 import ipaddress
 import json
-import os
 import platform
-import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,6 +25,7 @@ from aioquic.quic.events import (
 )
 from aioquic.tls import CipherSuite
 
+from .fixture_file import write_atomically, write_text_fixture
 from .http3_wire import (
     CONTROL_STREAM,
     QPACK_DECODER_STREAM,
@@ -456,38 +455,11 @@ async def run(args: argparse.Namespace) -> CaptureResult:
 
 
 def write_packet_summary(path: Path, summary: PacketSummary) -> None:
-    path = path.resolve()
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as output:
-            temporary_path = Path(output.name)
-            json.dump(summary.as_dict(), output, indent=2, sort_keys=True)
-            output.write("\n")
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary_path, path)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-
-
-def write_text_fixture(path: Path, fixture: str) -> None:
-    path = path.resolve()
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="ascii", dir=path.parent, delete=False
-        ) as output:
-            temporary_path = Path(output.name)
-            output.write(fixture)
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary_path, path)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+    write_atomically(
+        path,
+        json.dumps(summary.as_dict(), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
