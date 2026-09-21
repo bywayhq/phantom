@@ -312,18 +312,18 @@ case "${1:-}" in
     ;;
   h3)
     check_h3_patch_replay
-    cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
+    cargo fmt --manifest-path vendor/h3/Cargo.toml -p phantom-h3 -p phantom-h3-datagram -p phantom-h3-quinn -p h3-webtransport -p examples --check
     cargo clippy --manifest-path vendor/h3/Cargo.toml \
       --workspace --all-targets --all-features --locked -- -D warnings
-    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked client::builder::tests
-    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked proto::frame::tests
-    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 \
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked proto::headers::tests
-    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 --locked qpack::
-    cargo test --manifest-path vendor/h3/Cargo.toml -p h3 --locked qpack_
-    cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn \
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack::
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack_
+    cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn \
       --all-features --locked
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport \
       --all-features --locked

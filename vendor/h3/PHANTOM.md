@@ -305,15 +305,15 @@ with `--locked` so dependency resolution remains reproducible.
 
 ```sh
 scripts/ci/check-vendor.sh h3
-cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check
-cargo test --manifest-path vendor/h3/Cargo.toml -p h3 config::tests
-cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests
-cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests
-cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack::
-cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack_
-cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::headers::tests
+cargo fmt --manifest-path vendor/h3/Cargo.toml -p phantom-h3 -p phantom-h3-datagram -p phantom-h3-quinn -p h3-webtransport -p examples --check
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 config::tests
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 client::builder::tests
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::frame::tests
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack::
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack_
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::headers::tests
 cargo clippy --manifest-path vendor/h3/Cargo.toml --workspace --all-targets --all-features -- -D warnings
-cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn --all-features
+cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn --all-features
 cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-features
 ```
 

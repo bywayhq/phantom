@@ -828,25 +828,25 @@ h3_command_log="$test_root/h3-commands.log"
     scripts/ci/probe-upstream-candidate.sh h3 "$h3_revision" "$h3_checksum"
 )
 grep -F -x -q \
-  'cargo fmt --manifest-path vendor/h3/Cargo.toml --all --check' \
+  'cargo fmt --manifest-path vendor/h3/Cargo.toml -p phantom-h3 -p phantom-h3-datagram -p phantom-h3-quinn -p h3-webtransport -p examples --check' \
   "$h3_command_log"
 grep -F -x -q \
-  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 config::tests' \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 config::tests' \
   "$h3_command_log"
 grep -F -x -q \
-  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 client::builder::tests' \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 client::builder::tests' \
   "$h3_command_log"
 grep -F -x -q \
-  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 proto::frame::tests' \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::frame::tests' \
   "$h3_command_log"
 grep -F -x -q \
-  'cargo test --manifest-path vendor/h3/Cargo.toml -p h3 qpack' \
+  'cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack' \
   "$h3_command_log"
 grep -F -x -q \
-  'cargo clippy --manifest-path vendor/h3/Cargo.toml -p h3 --lib --all-features -- -D warnings' \
+  'cargo clippy --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --lib --all-features -- -D warnings' \
   "$h3_command_log"
 grep -F -x -q \
-  'cargo check --manifest-path vendor/h3/Cargo.toml -p h3-quinn --all-features' \
+  'cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn --all-features' \
   "$h3_command_log"
 if grep -F -q 'cargo tree -i h3' "$h3_command_log" \
   || grep -F -q 'cargo clippy --workspace' "$h3_command_log"; then
