@@ -11,6 +11,7 @@ use std::{
 
 use phantom_net::{
     OrderedResponseHeaders,
+    http2::{AltSvcFrameScope, AltSvcFrames},
     http3::{Http3ConnectorError, Http3ConnectorErrorKind},
 };
 use tracing::debug;
@@ -94,6 +95,41 @@ impl AltSvcStore {
             headers.iter().map(|field| (field.name(), field.value())),
             Instant::now(),
         );
+    }
+
+    /// Applies HTTP/2 ALTSVC frames in arrival order.
+    ///
+    /// A stream-0 frame applies only when its origin is byte-identical to the
+    /// request's canonical ASCII origin serialization; a request-stream frame
+    /// applies to the request origin (RFC 7838 section 4).
+    pub(super) fn learn_frames(&self, origin: &Endpoint, frames: &AltSvcFrames) {
+        self.learn_frames_at(
+            origin,
+            frames.as_slice().iter().map(|frame| {
+                let scope = match frame.scope() {
+                    AltSvcFrameScope::Connection(origin) => Some(origin.as_ref()),
+                    AltSvcFrameScope::Stream => None,
+                };
+                (scope, frame.field_value())
+            }),
+            Instant::now(),
+        );
+    }
+
+    fn learn_frames_at<'a>(
+        &self,
+        origin: &Endpoint,
+        frames: impl IntoIterator<Item = (Option<&'a [u8]>, &'a [u8])>,
+        now: Instant,
+    ) {
+        let canonical = canonical_origin(origin);
+        for (frame_origin, value) in frames {
+            if frame_origin.is_some_and(|frame_origin| frame_origin != canonical.as_bytes()) {
+                debug!(outcome = "other_origin", "ignored Alt-Svc frame");
+                continue;
+            }
+            self.learn_fields_at(origin, [("alt-svc", value)], now);
+        }
     }
 
     pub(super) fn get(&self, origin: &Endpoint) -> Option<AltSvcSelection> {
@@ -206,6 +242,23 @@ impl AltSvcStore {
             Err(poisoned) => poisoned.into_inner(),
         }
     }
+}
+
+/// Returns the WHATWG ASCII serialization of an HTTPS origin.
+///
+/// Endpoint hosts are already canonical, so this matches
+/// `url::Url::origin().ascii_serialization()` for the same origin.
+fn canonical_origin(endpoint: &Endpoint) -> String {
+    let host = endpoint.host().to_ascii_lowercase();
+    let mut origin = if host.contains(':') {
+        format!("https://[{host}]")
+    } else {
+        format!("https://{host}")
+    };
+    if endpoint.port() != 443 {
+        origin.push_str(&format!(":{}", endpoint.port()));
+    }
+    origin
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

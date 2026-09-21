@@ -1,0 +1,663 @@
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index d666a32..d7fd606 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -973,3 +973,212 @@ impl Wake for CountWake {
+         self.0.fetch_add(1, Ordering::SeqCst);
+     }
+ }
++
++const ALTSVC: u8 = 10;
++const ORIGIN: &[u8] = b"https://example.test";
++
++#[tokio::test]
++async fn client_surfaces_stream_zero_altsvc_frame_with_origin() {
++    let exchange = response_after_altsvc(&[
++        (0, altsvc_payload(ORIGIN, b"h3=\":443\"")),
++        (1, altsvc_payload(b"", b"h3=\":8443\"")),
++    ])
++    .await;
++    let frames = exchange
++        .response
++        .extensions()
++        .get::<crate::ext::AltSvcFrames>()
++        .expect("ALTSVC frames were not attached to the response");
++    let observed: Vec<_> = frames
++        .as_slice()
++        .iter()
++        .map(|frame| (frame.origin(), frame.field_value()))
++        .collect();
++    assert_eq!(
++        observed,
++        [
++            (Some(ORIGIN), b"h3=\":443\"".as_slice()),
++            (None, b"h3=\":8443\"".as_slice()),
++        ]
++    );
++    exchange.driver.abort();
++}
++
++#[tokio::test]
++async fn client_ignores_stream_zero_altsvc_frame_without_origin() {
++    let exchange = response_after_altsvc(&[(0, altsvc_payload(b"", b"h3=\":443\""))]).await;
++    assert!(exchange
++        .response
++        .extensions()
++        .get::<crate::ext::AltSvcFrames>()
++        .is_none());
++    exchange.driver.abort();
++}
++
++#[tokio::test]
++async fn client_ignores_request_stream_altsvc_frame_with_origin() {
++    let exchange = response_after_altsvc(&[(1, altsvc_payload(ORIGIN, b"h3=\":443\""))]).await;
++    assert!(exchange
++        .response
++        .extensions()
++        .get::<crate::ext::AltSvcFrames>()
++        .is_none());
++    exchange.driver.abort();
++}
++
++#[tokio::test]
++async fn truncated_altsvc_origin_length_is_ignored_without_connection_error() {
++    let oversized_value = vec![b'a'; 16 * 1024 + 1];
++    let mut exchange = response_after_altsvc(&[
++        (0, vec![0]),
++        (0, vec![0, 10, b'x']),
++        (0, altsvc_payload(ORIGIN, &oversized_value)),
++    ])
++    .await;
++    assert_eq!(exchange.response.status(), 200);
++    assert!(exchange
++        .response
++        .extensions()
++        .get::<crate::ext::AltSvcFrames>()
++        .is_none());
++
++    write_raw_frame(&mut exchange.peer, 6, 0, 0, &[7; 8]).await;
++    loop {
++        let frame = read_raw_frame(&mut exchange.peer).await;
++        assert_ne!(frame.kind, 7, "client sent GOAWAY after malformed ALTSVC");
++        if frame.kind == 6 && frame.flags == 1 {
++            assert_eq!(frame.payload, [7; 8]);
++            break;
++        }
++    }
++    assert!(!exchange.driver.is_finished());
++    exchange.driver.abort();
++}
++
++#[tokio::test]
++async fn altsvc_frame_queue_is_bounded_and_drops_oldest() {
++    let frames: Vec<_> = (0..20)
++        .map(|index| (0, altsvc_payload(ORIGIN, format!("v{index}").as_bytes())))
++        .collect();
++    let exchange = response_after_altsvc(&frames).await;
++    let delivered: Vec<_> = exchange
++        .response
++        .extensions()
++        .get::<crate::ext::AltSvcFrames>()
++        .expect("ALTSVC frames were not attached to the response")
++        .as_slice()
++        .iter()
++        .map(|frame| frame.field_value().to_vec())
++        .collect();
++    let expected: Vec<_> = (4..20)
++        .map(|index| format!("v{index}").into_bytes())
++        .collect();
++    assert_eq!(delivered, expected);
++    exchange.driver.abort();
++}
++
++#[tokio::test]
++async fn server_ignores_altsvc_frames() {
++    timeout(Duration::from_secs(2), async {
++        let (server_io, mut peer) = duplex(16 * 1024);
++        let server = tokio::spawn(async move {
++            let mut connection = crate::server::handshake(server_io)
++                .await
++                .expect("server handshake failed");
++            let (request, mut respond) = connection
++                .accept()
++                .await
++                .expect("connection closed before request")
++                .expect("request failed");
++            assert!(request
++                .extensions()
++                .get::<crate::ext::AltSvcFrames>()
++                .is_none());
++            respond
++                .send_response(Response::new(()), true)
++                .expect("response headers failed");
++            poll_fn(|cx| connection.poll_closed(cx))
++                .await
++                .expect("server connection failed after ALTSVC");
++        });
++
++        peer.write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
++            .await
++            .expect("preface write failed");
++        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
++        write_raw_frame(
++            &mut peer,
++            ALTSVC,
++            0,
++            0,
++            &altsvc_payload(ORIGIN, b"h3=\":443\""),
++        )
++        .await;
++        // :method GET, :scheme https, :path /, :authority example.test
++        let mut block = vec![0x82, 0x87, 0x84, 0x01, 12];
++        block.extend_from_slice(b"example.test");
++        write_raw_frame(&mut peer, 1, 0x5, 1, &block).await;
++        loop {
++            let frame = read_raw_frame(&mut peer).await;
++            assert_ne!(frame.kind, 7, "server sent GOAWAY after ALTSVC");
++            if frame.kind == 1 && frame.stream_id == 1 {
++                break;
++            }
++        }
++        drop(peer);
++        server.await.expect("server task panicked");
++    })
++    .await
++    .expect("server ALTSVC test timed out");
++}
++
++struct AltSvcExchange {
++    response: Response<crate::RecvStream>,
++    driver: tokio::task::JoinHandle<Result<(), crate::Error>>,
++    peer: DuplexStream,
++}
++
++/// Opens stream 1, then sends SETTINGS, the ALTSVC frames, and a 200 response.
++async fn response_after_altsvc(frames: &[(u32, Vec<u8>)]) -> AltSvcExchange {
++    timeout(Duration::from_secs(2), async {
++        let (client_io, mut peer) = duplex(64 * 1024);
++        // Accept frames larger than the ALTSVC part bound so that bound, not
++        // the frame-size limit, decides whether an oversized frame is kept.
++        let (sender, connection) = super::Builder::new()
++            .max_frame_size(64 * 1024)
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        read_client_preface(&mut peer).await;
++        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
++
++        let mut sender = sender.ready().await.expect("sender never became ready");
++        let (response, _send) = sender
++            .send_request(request_with_headers(), true)
++            .expect("request was rejected");
++        while read_raw_frame(&mut peer).await.kind != 1 {}
++
++        for (stream_id, payload) in frames {
++            write_raw_frame(&mut peer, ALTSVC, 0, *stream_id, payload).await;
++        }
++        // HEADERS with END_STREAM | END_HEADERS and indexed `:status: 200`.
++        write_raw_frame(&mut peer, 1, 0x5, 1, &[0x88]).await;
++        let response = response.await.expect("response headers failed");
++        AltSvcExchange {
++            response,
++            driver,
++            peer,
++        }
++    })
++    .await
++    .expect("ALTSVC exchange timed out")
++}
++
++fn altsvc_payload(origin: &[u8], value: &[u8]) -> Vec<u8> {
++    let length = u16::try_from(origin.len()).expect("test origin fits Origin-Len");
++    let mut payload = length.to_be_bytes().to_vec();
++    payload.extend_from_slice(origin);
++    payload.extend_from_slice(value);
++    payload
++}
+diff --git a/src/codec/framed_read.rs b/src/codec/framed_read.rs
+index 2b27f92..0d27c17 100644
+--- a/src/codec/framed_read.rs
++++ b/src/codec/framed_read.rs
+@@ -437,6 +437,14 @@ fn decode_frame(
+                 return Ok(None);
+             }
+         }
++        Kind::AltSvc => {
++            bytes.advance(frame::HEADER_LEN);
++            match frame::AltSvc::load(head, bytes.freeze()) {
++                Some(frame) => frame.into(),
++                // RFC 7838 section 4: invalid ALTSVC frames are ignored.
++                None => return Ok(None),
++            }
++        }
+         Kind::Unknown => {
+             // Unknown frames are ignored
+             return Ok(None);
+diff --git a/src/codec/framed_write.rs b/src/codec/framed_write.rs
+index 9bb8e13..12a4c6f 100644
+--- a/src/codec/framed_write.rs
++++ b/src/codec/framed_write.rs
+@@ -290,6 +290,10 @@ where
+                 v.encode(self.buf.get_mut());
+                 tracing::trace!(rem = self.buf.remaining(), "encoded reset");
+             }
++            Frame::AltSvc(v) => {
++                v.encode(self.buf.get_mut());
++                tracing::trace!(rem = self.buf.remaining(), "encoded altsvc");
++            }
+         }
+ 
+         Ok(())
+diff --git a/src/ext.rs b/src/ext.rs
+index 84dcaad..7a17bcf 100644
+--- a/src/ext.rs
++++ b/src/ext.rs
+@@ -49,6 +49,74 @@ impl OrderedHeaders {
+     }
+ }
+ 
++/// One ALTSVC frame (RFC 7838 section 4) received by a client.
++#[derive(Clone, Eq, PartialEq)]
++pub struct AltSvc {
++    origin: Option<Bytes>,
++    field_value: Bytes,
++}
++
++impl AltSvc {
++    pub(crate) fn from_frame(frame: crate::frame::AltSvc) -> Self {
++        let origin = if frame.stream_id().is_zero() {
++            Some(frame.origin().clone())
++        } else {
++            None
++        };
++        Self {
++            origin,
++            field_value: frame.field_value().clone(),
++        }
++    }
++
++    /// Returns the `Origin` of a connection-scoped frame received on stream 0.
++    ///
++    /// A frame received on the response's own stream has no origin field;
++    /// its origin is the request's origin.
++    #[must_use]
++    pub fn origin(&self) -> Option<&[u8]> {
++        self.origin.as_deref()
++    }
++
++    /// Returns the frame's `Alt-Svc-Field-Value`, with `Alt-Svc` field syntax.
++    #[must_use]
++    pub fn field_value(&self) -> &[u8] {
++        &self.field_value
++    }
++}
++
++impl fmt::Debug for AltSvc {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        f.debug_struct("AltSvc")
++            .field("connection_scoped", &self.origin.is_some())
++            .field("field_value_len", &self.field_value.len())
++            .finish()
++    }
++}
++
++/// ALTSVC frames delivered with one client response, in arrival order.
++///
++/// A client attaches this value to a final response when the connection
++/// received ALTSVC frames on stream 0, or on the response's stream before its
++/// final HEADERS. Each queued frame is delivered with exactly one response.
++/// Servers ignore ALTSVC frames and never attach this value.
++#[derive(Clone, Debug, Default, Eq, PartialEq)]
++pub struct AltSvcFrames {
++    frames: Vec<AltSvc>,
++}
++
++impl AltSvcFrames {
++    pub(crate) fn new(frames: Vec<AltSvc>) -> Self {
++        Self { frames }
++    }
++
++    /// Returns the received frames in arrival order.
++    #[must_use]
++    pub fn as_slice(&self) -> &[AltSvc] {
++        &self.frames
++    }
++}
++
+ /// Represents the `:protocol` pseudo-header used by
+ /// the [Extended CONNECT Protocol].
+ ///
+diff --git a/src/frame/altsvc.rs b/src/frame/altsvc.rs
+new file mode 100644
+index 0000000..9eaa9b6
+--- /dev/null
++++ b/src/frame/altsvc.rs
+@@ -0,0 +1,111 @@
++use crate::frame::{self, Head, Kind, StreamId};
++use crate::tracing;
++
++use bytes::{BufMut, Bytes};
++
++/// Largest accepted `Origin` or `Alt-Svc-Field-Value`, in bytes.
++///
++/// RFC 7838 section 4 places no limit on either part; this keeps retained
++/// client state small while comfortably exceeding a serialized origin.
++pub const MAX_ALTSVC_PART_LEN: usize = 16 * 1024;
++
++/// An ALTSVC frame (RFC 7838 section 4).
++///
++/// ```text
++/// +-------------------------------+-------------------------------+
++/// |         Origin-Len (16)       | Origin? (*)                 ...
++/// +-------------------------------+-------------------------------+
++/// |                   Alt-Svc-Field-Value (*)                   ...
++/// +---------------------------------------------------------------+
++/// ```
++#[derive(Clone, Eq, PartialEq)]
++pub struct AltSvc {
++    stream_id: StreamId,
++    origin: Bytes,
++    field_value: Bytes,
++}
++
++impl AltSvc {
++    pub fn new(stream_id: StreamId, origin: Bytes, field_value: Bytes) -> AltSvc {
++        AltSvc {
++            stream_id,
++            origin,
++            field_value,
++        }
++    }
++
++    pub fn stream_id(&self) -> StreamId {
++        self.stream_id
++    }
++
++    pub fn origin(&self) -> &Bytes {
++        &self.origin
++    }
++
++    pub fn field_value(&self) -> &Bytes {
++        &self.field_value
++    }
++
++    /// Decodes an ALTSVC payload, returning `None` for a frame that RFC 7838
++    /// requires to be ignored or that exceeds the local size bound.
++    ///
++    /// A malformed ALTSVC frame is never a connection or stream error: the
++    /// extension is optional and unknown or invalid extension frames are
++    /// discarded (RFC 9113 section 5.5).
++    pub fn load(head: Head, payload: Bytes) -> Option<AltSvc> {
++        let stream_id = head.stream_id();
++        if payload.len() < 2 {
++            tracing::debug!("ignoring ALTSVC frame with truncated Origin-Len");
++            return None;
++        }
++        let origin_len = usize::from(u16::from_be_bytes([payload[0], payload[1]]));
++        if origin_len > payload.len() - 2 {
++            tracing::debug!("ignoring ALTSVC frame whose Origin-Len exceeds its payload");
++            return None;
++        }
++        let origin = payload.slice(2..2 + origin_len);
++        let field_value = payload.slice(2 + origin_len..);
++        // RFC 7838 section 4: stream 0 requires an origin, and any other
++        // stream must leave it empty because the stream supplies the origin.
++        if stream_id.is_zero() == origin.is_empty() {
++            tracing::debug!("ignoring ALTSVC frame with invalid origin scope");
++            return None;
++        }
++        if origin.len() > MAX_ALTSVC_PART_LEN || field_value.len() > MAX_ALTSVC_PART_LEN {
++            tracing::debug!("ignoring oversized ALTSVC frame");
++            return None;
++        }
++        Some(AltSvc {
++            stream_id,
++            origin,
++            field_value,
++        })
++    }
++
++    pub fn encode<B: BufMut>(&self, dst: &mut B) {
++        tracing::trace!("encoding ALTSVC; id={:?}", self.stream_id);
++        let origin_len = u16::try_from(self.origin.len()).unwrap_or(u16::MAX);
++        let origin = &self.origin[..usize::from(origin_len)];
++        let head = Head::new(Kind::AltSvc, 0, self.stream_id);
++        head.encode(2 + origin.len() + self.field_value.len(), dst);
++        dst.put_u16(origin_len);
++        dst.put_slice(origin);
++        dst.put_slice(&self.field_value);
++    }
++}
++
++impl<B> From<AltSvc> for frame::Frame<B> {
++    fn from(src: AltSvc) -> Self {
++        frame::Frame::AltSvc(src)
++    }
++}
++
++impl std::fmt::Debug for AltSvc {
++    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        fmt.debug_struct("AltSvc")
++            .field("stream_id", &self.stream_id)
++            .field("origin_len", &self.origin.len())
++            .field("field_value_len", &self.field_value.len())
++            .finish()
++    }
++}
+diff --git a/src/frame/head.rs b/src/frame/head.rs
+index 38be2f6..4042825 100644
+--- a/src/frame/head.rs
++++ b/src/frame/head.rs
+@@ -22,6 +22,7 @@ pub enum Kind {
+     GoAway = 7,
+     WindowUpdate = 8,
+     Continuation = 9,
++    AltSvc = 10,
+     Unknown,
+ }
+ 
+@@ -88,6 +89,7 @@ impl Kind {
+             7 => Kind::GoAway,
+             8 => Kind::WindowUpdate,
+             9 => Kind::Continuation,
++            10 => Kind::AltSvc,
+             _ => Kind::Unknown,
+         }
+     }
+diff --git a/src/frame/mod.rs b/src/frame/mod.rs
+index fb7e53c..9236f9f 100644
+--- a/src/frame/mod.rs
++++ b/src/frame/mod.rs
+@@ -37,6 +37,7 @@ mod tests {
+ 
+ #[macro_use]
+ mod macros;
++mod altsvc;
+ mod data;
+ mod go_away;
+ mod head;
+@@ -50,6 +51,7 @@ mod stream_id;
+ mod util;
+ mod window_update;
+ 
++pub use self::altsvc::AltSvc;
+ pub use self::data::Data;
+ pub use self::go_away::GoAway;
+ pub use self::head::{Head, Kind};
+@@ -95,6 +97,7 @@ pub enum Frame<T = Bytes> {
+     GoAway(GoAway),
+     WindowUpdate(WindowUpdate),
+     Reset(Reset),
++    AltSvc(AltSvc),
+ }
+ 
+ impl<T> Frame<T> {
+@@ -114,6 +117,7 @@ impl<T> Frame<T> {
+             GoAway(frame) => frame.into(),
+             WindowUpdate(frame) => frame.into(),
+             Reset(frame) => frame.into(),
++            AltSvc(frame) => frame.into(),
+         }
+     }
+ }
+@@ -132,6 +136,7 @@ impl<T> fmt::Debug for Frame<T> {
+             GoAway(ref frame) => fmt::Debug::fmt(frame, fmt),
+             WindowUpdate(ref frame) => fmt::Debug::fmt(frame, fmt),
+             Reset(ref frame) => fmt::Debug::fmt(frame, fmt),
++            AltSvc(ref frame) => fmt::Debug::fmt(frame, fmt),
+         }
+     }
+ }
+diff --git a/src/proto/connection.rs b/src/proto/connection.rs
+index c3976f6..aa495d4 100644
+--- a/src/proto/connection.rs
++++ b/src/proto/connection.rs
+@@ -376,6 +376,13 @@ where
+             ready!(self.poll_ready(cx))?;
+ 
+             let frame = ready!(Pin::new(&mut self.codec).poll_next(cx)?);
++            if self.inner.settings.requires_remote_initial_settings()
++                && matches!(&frame, Some(Frame::AltSvc(_)))
++            {
++                // Upstream discarded ALTSVC as an unknown extension frame
++                // before the first-frame check could observe it.
++                continue;
++            }
+             if self.inner.settings.requires_remote_initial_settings()
+                 && !matches!(&frame, Some(Frame::Settings(settings)) if !settings.is_ack())
+             {
+@@ -601,6 +608,10 @@ where
+                 tracing::trace!(?_frame, "recv PRIORITY");
+                 // TODO: handle
+             }
++            Some(AltSvc(frame)) => {
++                tracing::trace!(?frame, "recv ALTSVC");
++                self.streams.recv_altsvc(frame);
++            }
+             None => {
+                 tracing::trace!("codec closed");
+                 self.streams.recv_eof(false).expect("mutex poisoned");
+diff --git a/src/proto/streams/recv.rs b/src/proto/streams/recv.rs
+index 055b2dd..c630654 100644
+--- a/src/proto/streams/recv.rs
++++ b/src/proto/streams/recv.rs
+@@ -7,6 +7,7 @@ use crate::tracing;
+ use http::{HeaderMap, Request, Response};
+ 
+ use std::cmp::Ordering;
++use std::collections::VecDeque;
+ use std::io;
+ use std::task::{Context, Poll, Waker};
+ use std::time::Instant;
+@@ -60,8 +61,14 @@ pub(super) struct Recv {
+ 
+     /// If extended connect protocol is enabled.
+     is_extended_connect_protocol_enabled: bool,
++
++    /// Client-received ALTSVC frames awaiting a final response, oldest first.
++    altsvc: VecDeque<frame::AltSvc>,
+ }
+ 
++/// Bound on ALTSVC frames awaiting delivery; the oldest frame is dropped first.
++const MAX_QUEUED_ALTSVC_FRAMES: usize = 16;
++
+ #[derive(Debug)]
+ pub(super) enum Event {
+     Headers(peer::PollMessage),
+@@ -126,9 +133,37 @@ impl Recv {
+             refused: None,
+             is_push_enabled: config.local_push_enabled,
+             is_extended_connect_protocol_enabled: config.extended_connect_protocol_enabled,
++            altsvc: VecDeque::new(),
+         }
+     }
+ 
++    /// Queues an ALTSVC frame for the next matching final response.
++    pub fn queue_altsvc(&mut self, frame: frame::AltSvc) {
++        if self.altsvc.len() == MAX_QUEUED_ALTSVC_FRAMES {
++            self.altsvc.pop_front();
++            tracing::debug!("dropped oldest queued ALTSVC frame");
++        }
++        self.altsvc.push_back(frame);
++    }
++
++    /// Removes connection-scoped frames and `stream_id` frames, in arrival order.
++    fn take_altsvc(&mut self, stream_id: StreamId) -> Option<crate::ext::AltSvcFrames> {
++        if self.altsvc.is_empty() {
++            return None;
++        }
++        let mut delivered = Vec::new();
++        self.altsvc.retain(|frame| {
++            let id = frame.stream_id();
++            if id.is_zero() || id == stream_id {
++                delivered.push(crate::ext::AltSvc::from_frame(frame.clone()));
++                false
++            } else {
++                true
++            }
++        });
++        (!delivered.is_empty()).then(|| crate::ext::AltSvcFrames::new(delivered))
++    }
++
+     /// Returns the initial receive window size
+     pub fn init_window_sz(&self) -> WindowSize {
+         self.init_window_sz
+@@ -270,6 +305,11 @@ impl Recv {
+                 .peer()
+                 .convert_poll_message(pseudo, fields, stream_id)?;
+             insert_ordered_fields(&mut message, ordered_fields);
++            if let peer::PollMessage::Client(response) = &mut message {
++                if let Some(frames) = self.take_altsvc(stream_id) {
++                    response.extensions_mut().insert(frames);
++                }
++            }
+ 
+             // Push the frame onto the stream's recv buffer
+             stream
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+index be8c4f0..4adae68 100644
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -458,6 +458,12 @@ impl<B> DynStreams<'_, B> {
+         me.recv_push_promise(self.send_buffer, frame)
+     }
+ 
++    /// Queues a client-received ALTSVC frame; never produces an error.
++    pub fn recv_altsvc(&mut self, frame: frame::AltSvc) {
++        let mut me = self.inner.lock();
++        me.recv_altsvc(self.peer, frame);
++    }
++
+     pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
+         let mut me = self.inner.lock();
+         me.recv_eof(self.send_buffer, clear_pending_accept)
+@@ -742,6 +748,28 @@ impl Inner {
+         })
+     }
+ 
++    fn recv_altsvc(&mut self, peer: peer::Dyn, frame: frame::AltSvc) {
++        // RFC 7838 section 4: the frame is intended for clients; a server
++        // ignores it.
++        if peer.is_server() {
++            tracing::trace!("server ignoring ALTSVC frame");
++            return;
++        }
++        let id = frame.stream_id();
++        if !id.is_zero() {
++            // A stream-scoped frame is kept only while that request still
++            // awaits its final response headers.
++            let awaiting_response = self.store.find_mut(&id).is_some_and(|stream| {
++                !stream.is_pending_open && !stream.state.is_idle() && stream.state.is_recv_headers()
++            });
++            if !awaiting_response {
++                tracing::trace!("ignoring ALTSVC frame for stream {:?}", id);
++                return;
++            }
++        }
++        self.actions.recv.queue_altsvc(frame);
++    }
++
+     fn recv_window_update<B>(
+         &mut self,
+         send_buffer: &SendBuffer<B>,

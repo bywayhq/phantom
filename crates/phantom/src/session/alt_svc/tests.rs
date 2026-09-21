@@ -306,3 +306,79 @@ fn endpoint(authority: &str) -> TestResult<Endpoint> {
 fn learn(store: &AltSvcStore, origin: &Endpoint, value: &[u8], now: std::time::Instant) {
     store.learn_fields_at(origin, [("alt-svc", value)], now);
 }
+
+#[test]
+fn canonical_origin_brackets_ipv6_and_omits_default_port() -> TestResult {
+    assert_eq!(
+        super::canonical_origin(&endpoint("Origin.Example:443")?),
+        "https://origin.example"
+    );
+    assert_eq!(
+        super::canonical_origin(&endpoint("origin.example:8443")?),
+        "https://origin.example:8443"
+    );
+    assert_eq!(
+        super::canonical_origin(&endpoint("[::1]:8443")?),
+        "https://[::1]:8443"
+    );
+    Ok(())
+}
+
+#[test]
+fn stream_zero_frames_apply_only_to_the_exact_canonical_origin() -> TestResult {
+    let origin = endpoint("origin.example:8443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    for foreign in [
+        b"https://other.example:8443".as_slice(),
+        b"https://ORIGIN.example:8443".as_slice(),
+        b"https://origin.example:8443/".as_slice(),
+        b"http://origin.example:8443".as_slice(),
+        b"https://origin.example".as_slice(),
+    ] {
+        store.learn_frames_at(&origin, [(Some(foreign), b"h3=\":9443\"".as_slice())], now);
+        assert!(store.get_at(&origin, now).is_none(), "{foreign:?}");
+    }
+
+    store.learn_frames_at(
+        &origin,
+        [(
+            Some(b"https://origin.example:8443".as_slice()),
+            b"h3=\":9443\"".as_slice(),
+        )],
+        now,
+    );
+    assert_eq!(
+        store
+            .get_at(&origin, now)
+            .ok_or("frame not learned")?
+            .port(),
+        9443
+    );
+    Ok(())
+}
+
+#[test]
+fn stream_frames_apply_in_arrival_order() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    store.learn_frames_at(
+        &origin,
+        [
+            (None, b"h3=\":8001\"".as_slice()),
+            (None, b"h3=\":8002\"".as_slice()),
+        ],
+        now,
+    );
+    assert_eq!(
+        store
+            .get_at(&origin, now)
+            .ok_or("frame not learned")?
+            .port(),
+        8002
+    );
+    store.learn_frames_at(&origin, [(None, b"clear".as_slice())], now);
+    assert!(store.get_at(&origin, now).is_none());
+    Ok(())
+}

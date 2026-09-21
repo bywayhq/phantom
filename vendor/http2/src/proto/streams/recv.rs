@@ -7,6 +7,7 @@ use crate::tracing;
 use http::{HeaderMap, Request, Response};
 
 use std::cmp::Ordering;
+use std::collections::VecDeque;
 use std::io;
 use std::task::{Context, Poll, Waker};
 use std::time::Instant;
@@ -60,7 +61,13 @@ pub(super) struct Recv {
 
     /// If extended connect protocol is enabled.
     is_extended_connect_protocol_enabled: bool,
+
+    /// Client-received ALTSVC frames awaiting a final response, oldest first.
+    altsvc: VecDeque<frame::AltSvc>,
 }
+
+/// Bound on ALTSVC frames awaiting delivery; the oldest frame is dropped first.
+const MAX_QUEUED_ALTSVC_FRAMES: usize = 16;
 
 #[derive(Debug)]
 pub(super) enum Event {
@@ -126,7 +133,35 @@ impl Recv {
             refused: None,
             is_push_enabled: config.local_push_enabled,
             is_extended_connect_protocol_enabled: config.extended_connect_protocol_enabled,
+            altsvc: VecDeque::new(),
         }
+    }
+
+    /// Queues an ALTSVC frame for the next matching final response.
+    pub fn queue_altsvc(&mut self, frame: frame::AltSvc) {
+        if self.altsvc.len() == MAX_QUEUED_ALTSVC_FRAMES {
+            self.altsvc.pop_front();
+            tracing::debug!("dropped oldest queued ALTSVC frame");
+        }
+        self.altsvc.push_back(frame);
+    }
+
+    /// Removes connection-scoped frames and `stream_id` frames, in arrival order.
+    fn take_altsvc(&mut self, stream_id: StreamId) -> Option<crate::ext::AltSvcFrames> {
+        if self.altsvc.is_empty() {
+            return None;
+        }
+        let mut delivered = Vec::new();
+        self.altsvc.retain(|frame| {
+            let id = frame.stream_id();
+            if id.is_zero() || id == stream_id {
+                delivered.push(crate::ext::AltSvc::from_frame(frame.clone()));
+                false
+            } else {
+                true
+            }
+        });
+        (!delivered.is_empty()).then(|| crate::ext::AltSvcFrames::new(delivered))
     }
 
     /// Returns the initial receive window size
@@ -270,6 +305,11 @@ impl Recv {
                 .peer()
                 .convert_poll_message(pseudo, fields, stream_id)?;
             insert_ordered_fields(&mut message, ordered_fields);
+            if let peer::PollMessage::Client(response) = &mut message {
+                if let Some(frames) = self.take_altsvc(stream_id) {
+                    response.extensions_mut().insert(frames);
+                }
+            }
 
             // Push the frame onto the stream's recv buffer
             stream

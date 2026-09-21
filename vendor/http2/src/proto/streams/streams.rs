@@ -458,6 +458,12 @@ impl<B> DynStreams<'_, B> {
         me.recv_push_promise(self.send_buffer, frame)
     }
 
+    /// Queues a client-received ALTSVC frame; never produces an error.
+    pub fn recv_altsvc(&mut self, frame: frame::AltSvc) {
+        let mut me = self.inner.lock();
+        me.recv_altsvc(self.peer, frame);
+    }
+
     pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
         let mut me = self.inner.lock();
         me.recv_eof(self.send_buffer, clear_pending_accept)
@@ -740,6 +746,28 @@ impl Inner {
             assert!(stream.state.is_closed());
             Ok(())
         })
+    }
+
+    fn recv_altsvc(&mut self, peer: peer::Dyn, frame: frame::AltSvc) {
+        // RFC 7838 section 4: the frame is intended for clients; a server
+        // ignores it.
+        if peer.is_server() {
+            tracing::trace!("server ignoring ALTSVC frame");
+            return;
+        }
+        let id = frame.stream_id();
+        if !id.is_zero() {
+            // A stream-scoped frame is kept only while that request still
+            // awaits its final response headers.
+            let awaiting_response = self.store.find_mut(&id).is_some_and(|stream| {
+                !stream.is_pending_open && !stream.state.is_idle() && stream.state.is_recv_headers()
+            });
+            if !awaiting_response {
+                tracing::trace!("ignoring ALTSVC frame for stream {:?}", id);
+                return;
+            }
+        }
+        self.actions.recv.queue_altsvc(frame);
     }
 
     fn recv_window_update<B>(

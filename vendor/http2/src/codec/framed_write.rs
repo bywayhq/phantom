@@ -290,6 +290,10 @@ where
                 v.encode(self.buf.get_mut());
                 tracing::trace!(rem = self.buf.remaining(), "encoded reset");
             }
+            Frame::AltSvc(v) => {
+                v.encode(self.buf.get_mut());
+                tracing::trace!(rem = self.buf.remaining(), "encoded altsvc");
+            }
         }
 
         Ok(())

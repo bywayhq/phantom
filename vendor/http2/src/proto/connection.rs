@@ -377,6 +377,13 @@ where
 
             let frame = ready!(Pin::new(&mut self.codec).poll_next(cx)?);
             if self.inner.settings.requires_remote_initial_settings()
+                && matches!(&frame, Some(Frame::AltSvc(_)))
+            {
+                // Upstream discarded ALTSVC as an unknown extension frame
+                // before the first-frame check could observe it.
+                continue;
+            }
+            if self.inner.settings.requires_remote_initial_settings()
                 && !matches!(&frame, Some(Frame::Settings(settings)) if !settings.is_ack())
             {
                 proto_err!(conn: "first peer frame was not a non-ACK SETTINGS frame");
@@ -600,6 +607,10 @@ where
             Some(Priority(_frame)) => {
                 tracing::trace!(?_frame, "recv PRIORITY");
                 // TODO: handle
+            }
+            Some(AltSvc(frame)) => {
+                tracing::trace!(?frame, "recv ALTSVC");
+                self.streams.recv_altsvc(frame);
             }
             None => {
                 tracing::trace!("codec closed");

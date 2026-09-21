@@ -170,8 +170,9 @@ through a fresh association on the same configured route, under the exact-H3
 setup policy; no failure can change the route or protocol. HTTP proxy and
 CONNECT routes for H3, CONNECT-UDP/MASQUE, and extension-specific datagram
 APIs remain planned. Negotiated direct HTTPS
-requests can opt into a bounded Alt-Svc store and use a fresh canonical `h3`
-alternative on a later request. The QUIC dial location changes, while origin
+requests can opt into a bounded Alt-Svc store, learned from response fields
+and exact-origin H2 ALTSVC frames, and use a fresh canonical `h3` alternative
+on a later request. The QUIC dial location changes, while origin
 authority and certificate identity do not; setup failure is terminal and
 evicts the advertisement without an H1/H2 fallback.
 

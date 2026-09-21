@@ -4,4 +4,5 @@ ordered-request-trailers.patch
 rfc-error-codes.patch
 ordered-header-table-updates.patch
 continuation-bounds.patch
+altsvc-frames.patch
 publish-identity.patch

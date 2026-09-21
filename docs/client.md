@@ -259,10 +259,19 @@ requests. Caller-supplied `Alt-Used` request fields and trailers are reserved
 and rejected before network I/O. This support makes no browser-specific
 field-order claim.
 
+A negotiated H2 response also teaches HTTP/2 ALTSVC frames (RFC 7838 section
+4) that arrived before its final headers, in arrival order and before the
+response's own `Alt-Svc` field. A stream-0 frame applies only when its origin
+is exactly the request's canonical ASCII origin, such as
+`https://example.com` or `https://example.com:8443`; a frame on the request's
+stream applies to the request origin. Malformed frames, frames for another
+origin, frames on exact H2 requests, and frames received while Alt-Svc is
+disabled change nothing. Each connection keeps at most 16 undelivered frames.
+
 Alternative setup failure is a typed H3 failure for that request and evicts
 the advertisement; it never silently falls back. A visible `421` response also
-evicts it. Racing, persistence, H2 ALTSVC frames, multiple-alternative racing,
-and proxy-route upgrades are not implemented.
+evicts it. Racing, multiple-alternative racing, and proxy-route upgrades are
+not implemented.
 
 ## Timeouts
 

@@ -233,6 +233,14 @@ impl Client {
         let Some(store) = &self.state.alt_svc else {
             return;
         };
+        // ALTSVC frames precede the response HEADERS on the wire, so they are
+        // applied before the response's own Alt-Svc field.
+        if let Some(frames) = response
+            .extensions()
+            .get::<phantom_net::http2::AltSvcFrames>()
+        {
+            store.learn_frames(endpoint, frames);
+        }
         let Some(headers) = response
             .extensions()
             .get::<phantom_net::OrderedResponseHeaders>()

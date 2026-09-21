@@ -22,6 +22,7 @@ pub enum Kind {
     GoAway = 7,
     WindowUpdate = 8,
     Continuation = 9,
+    AltSvc = 10,
     Unknown,
 }
 
@@ -88,6 +89,7 @@ impl Kind {
             7 => Kind::GoAway,
             8 => Kind::WindowUpdate,
             9 => Kind::Continuation,
+            10 => Kind::AltSvc,
             _ => Kind::Unknown,
         }
     }

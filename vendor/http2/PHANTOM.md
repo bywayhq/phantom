@@ -108,6 +108,26 @@ ALPS seed, and wakes every waiter when wire settings are applied or the
 connection fails. The existing synchronous setting snapshot remains available
 for callers that do not need that lifecycle guarantee.
 
+Upstream discards every frame type it does not know, including the RFC 7838
+section 4 ALTSVC frame (type `0xa`). `altsvc-frames.patch` decodes that frame
+and exposes it to clients without changing connection behavior. A malformed
+ALTSVC frame is ignored, never a connection or stream error: a payload shorter
+than `Origin-Len`, an `Origin-Len` beyond the payload, a stream-0 frame with an
+empty origin, a request-stream frame with a non-empty origin, or an origin or
+field value larger than 16 KiB. The ordinary frame-size limit still applies
+first, exactly as it did to the previously unknown type. Servers ignore ALTSVC.
+A client ignores a request-stream frame unless that stream is open and still
+awaiting final response headers, and ignores ALTSVC before the peer's initial
+SETTINGS, where upstream never observed it.
+
+Accepted client frames wait in one connection-owned queue bounded to 16 frames;
+the oldest frame is dropped first. When final response headers arrive, the
+queue's stream-0 frames and that stream's frames are removed in arrival order
+and attached to the response as `http2::ext::AltSvcFrames`. Each frame is
+therefore delivered with exactly one response. The extension carries the
+origin only for stream-0 frames and the raw field value; interpreting either is
+the caller's responsibility.
+
 The canonical patch changes these files:
 
 - `.cargo-ok`: preserves the marker in the active Cargo-vendored snapshot.
@@ -153,7 +173,13 @@ by hand. `extended-connect-readiness.patch` adds the initial-peer-settings
 waiter used to gate RFC 8441 requests. `ordered-header-table-updates.patch`
 preserves repeated peer table limits through the next HPACK field block. `continuation-bounds.patch`
 separates header-block resource ceilings and fixes cumulative decoded-size
-accounting across CONTINUATION frames.
+accounting across CONTINUATION frames. `altsvc-frames.patch` adds
+`src/frame/altsvc.rs` and the `Kind::AltSvc`/`Frame::AltSvc` decode and encode
+arms (`src/frame/{head,mod}.rs`, `src/codec/framed_{read,write}.rs`), the
+public `ext::AltSvc`/`ext::AltSvcFrames` types (`src/ext.rs`), connection
+dispatch (`src/proto/connection.rs`), client-only queueing
+(`src/proto/streams/streams.rs`), response attachment
+(`src/proto/streams/recv.rs`), and its regressions in `src/client/tests.rs`.
 
 ## Refreshing the vendor copy
 

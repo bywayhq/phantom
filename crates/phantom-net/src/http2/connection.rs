@@ -256,6 +256,11 @@ impl Http2Connection {
                 })
                 .ok_or(Http2Error::MissingResponseHeaderOrder)?;
             parts.extensions.insert(ordered_headers);
+            if let Some(frames) = parts.extensions.remove::<::http2::ext::AltSvcFrames>() {
+                parts
+                    .extensions
+                    .insert(super::AltSvcFrames::from_http2(&frames));
+            }
 
             if accepted {
                 let stream =
@@ -469,6 +474,11 @@ impl Http2Connection {
                 })
                 .ok_or(Http2Error::MissingResponseHeaderOrder)?;
             parts.extensions.insert(ordered_headers);
+            if let Some(frames) = parts.extensions.remove::<::http2::ext::AltSvcFrames>() {
+                parts
+                    .extensions
+                    .insert(super::AltSvcFrames::from_http2(&frames));
+            }
             let body = match stream {
                 RequestStream::Complete(reset) => Http2Body::new(incoming, reset, self.lease()),
                 RequestStream::Abandoned(upload) => {

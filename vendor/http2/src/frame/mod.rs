@@ -37,6 +37,7 @@ mod tests {
 
 #[macro_use]
 mod macros;
+mod altsvc;
 mod data;
 mod go_away;
 mod head;
@@ -50,6 +51,7 @@ mod stream_id;
 mod util;
 mod window_update;
 
+pub use self::altsvc::AltSvc;
 pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
@@ -95,6 +97,7 @@ pub enum Frame<T = Bytes> {
     GoAway(GoAway),
     WindowUpdate(WindowUpdate),
     Reset(Reset),
+    AltSvc(AltSvc),
 }
 
 impl<T> Frame<T> {
@@ -114,6 +117,7 @@ impl<T> Frame<T> {
             GoAway(frame) => frame.into(),
             WindowUpdate(frame) => frame.into(),
             Reset(frame) => frame.into(),
+            AltSvc(frame) => frame.into(),
         }
     }
 }
@@ -132,6 +136,7 @@ impl<T> fmt::Debug for Frame<T> {
             GoAway(ref frame) => fmt::Debug::fmt(frame, fmt),
             WindowUpdate(ref frame) => fmt::Debug::fmt(frame, fmt),
             Reset(ref frame) => fmt::Debug::fmt(frame, fmt),
+            AltSvc(ref frame) => fmt::Debug::fmt(frame, fmt),
         }
     }
 }

@@ -173,9 +173,19 @@ an H3 response, evicts the advertisement, and cannot cause the alternative
 connection generation to be reused for the origin transport location. Manual
 clearing is covered through the public client.
 
+H2 ALTSVC frame evidence has two layers. Vendored `phantom-http2` regressions
+write raw frames to a real client connection and prove stream-0 and
+request-stream delivery in arrival order, the ignore rules for a stream-0 frame
+without an origin and a request-stream frame with one, truncated or oversized
+frames without a connection error, the 16-frame drop-oldest bound, and server
+indifference. Facade tests use a raw loopback H2 origin, because the vendored
+server cannot emit ALTSVC, and prove that stream-0 and request-stream frames
+upgrade the next negotiated request, while frames for another origin, frames
+on exact H2 requests, and frames with Alt-Svc disabled do not. A frame followed
+by a `clear` field on the same response proves arrival-order application.
+
 This evidence does not claim browser policy or `Alt-Used` ordering, connection
-racing, persistence, H2 ALTSVC frames, proxy-route upgrades, or
-multiple-alternative racing.
+racing, persistence, proxy-route upgrades, or multiple-alternative racing.
 
 ## Connection-retry evidence
 

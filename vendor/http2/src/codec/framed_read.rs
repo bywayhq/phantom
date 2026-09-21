@@ -437,6 +437,14 @@ fn decode_frame(
                 return Ok(None);
             }
         }
+        Kind::AltSvc => {
+            bytes.advance(frame::HEADER_LEN);
+            match frame::AltSvc::load(head, bytes.freeze()) {
+                Some(frame) => frame.into(),
+                // RFC 7838 section 4: invalid ALTSVC frames are ignored.
+                None => return Ok(None),
+            }
+        }
         Kind::Unknown => {
             // Unknown frames are ignored
             return Ok(None);

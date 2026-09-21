@@ -49,6 +49,74 @@ impl OrderedHeaders {
     }
 }
 
+/// One ALTSVC frame (RFC 7838 section 4) received by a client.
+#[derive(Clone, Eq, PartialEq)]
+pub struct AltSvc {
+    origin: Option<Bytes>,
+    field_value: Bytes,
+}
+
+impl AltSvc {
+    pub(crate) fn from_frame(frame: crate::frame::AltSvc) -> Self {
+        let origin = if frame.stream_id().is_zero() {
+            Some(frame.origin().clone())
+        } else {
+            None
+        };
+        Self {
+            origin,
+            field_value: frame.field_value().clone(),
+        }
+    }
+
+    /// Returns the `Origin` of a connection-scoped frame received on stream 0.
+    ///
+    /// A frame received on the response's own stream has no origin field;
+    /// its origin is the request's origin.
+    #[must_use]
+    pub fn origin(&self) -> Option<&[u8]> {
+        self.origin.as_deref()
+    }
+
+    /// Returns the frame's `Alt-Svc-Field-Value`, with `Alt-Svc` field syntax.
+    #[must_use]
+    pub fn field_value(&self) -> &[u8] {
+        &self.field_value
+    }
+}
+
+impl fmt::Debug for AltSvc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AltSvc")
+            .field("connection_scoped", &self.origin.is_some())
+            .field("field_value_len", &self.field_value.len())
+            .finish()
+    }
+}
+
+/// ALTSVC frames delivered with one client response, in arrival order.
+///
+/// A client attaches this value to a final response when the connection
+/// received ALTSVC frames on stream 0, or on the response's stream before its
+/// final HEADERS. Each queued frame is delivered with exactly one response.
+/// Servers ignore ALTSVC frames and never attach this value.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct AltSvcFrames {
+    frames: Vec<AltSvc>,
+}
+
+impl AltSvcFrames {
+    pub(crate) fn new(frames: Vec<AltSvc>) -> Self {
+        Self { frames }
+    }
+
+    /// Returns the received frames in arrival order.
+    #[must_use]
+    pub fn as_slice(&self) -> &[AltSvc] {
+        &self.frames
+    }
+}
+
 /// Represents the `:protocol` pseudo-header used by
 /// the [Extended CONNECT Protocol].
 ///

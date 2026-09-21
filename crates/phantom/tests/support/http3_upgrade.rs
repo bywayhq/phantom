@@ -36,6 +36,21 @@ pub(crate) struct PlannedResponse {
     headers: HeaderMap,
     body: Bytes,
     advertise_alternative: bool,
+    altsvc_frames: Vec<PlannedAltSvcFrame>,
+}
+
+/// An HTTP/2 ALTSVC frame carrying the fixture's generated advertisement.
+///
+/// Any response with planned frames switches the origin to a raw HTTP/2
+/// server, because the vendored server cannot emit ALTSVC.
+#[derive(Clone, Debug)]
+pub(crate) enum PlannedAltSvcFrame {
+    /// Stream 0 with the origin's canonical serialization.
+    CanonicalOrigin,
+    /// Stream 0 with a literal origin.
+    Origin(String),
+    /// The response's stream, with an empty origin.
+    RequestStream,
 }
 
 impl PlannedResponse {
@@ -45,7 +60,14 @@ impl PlannedResponse {
             headers: HeaderMap::new(),
             body: Bytes::new(),
             advertise_alternative: false,
+            altsvc_frames: Vec::new(),
         }
+    }
+
+    /// Send an ALTSVC frame with the generated advertisement before this response.
+    pub(crate) fn altsvc_frame(mut self, frame: PlannedAltSvcFrame) -> Self {
+        self.altsvc_frames.push(frame);
+        self
     }
 
     pub(crate) fn header(
@@ -215,6 +237,8 @@ pub(crate) struct ObservedRequest {
 pub(crate) struct UpgradeObservations {
     pub(crate) origin_connections: usize,
     pub(crate) alternative_connections: usize,
+    /// Every origin request; the raw ALTSVC origin records no request fields.
+    pub(crate) origin_request_count: usize,
     pub(crate) origin_requests: Vec<ObservedRequest>,
     pub(crate) alternative_requests: Vec<ObservedRequest>,
 }
@@ -222,6 +246,7 @@ pub(crate) struct UpgradeObservations {
 #[derive(Default)]
 struct SharedObservations {
     origin_connections: AtomicUsize,
+    origin_request_count: AtomicUsize,
     alternative_connections: AtomicUsize,
     origin_requests: Mutex<Vec<ObservedRequest>>,
     alternative_requests: Mutex<Vec<ObservedRequest>>,
@@ -251,6 +276,11 @@ impl Http3UpgradeFixture {
         let alternative_endpoint = h3_endpoint(identity, script.alternative_ip)?;
         let alternative_address = alternative_endpoint.local_addr()?;
         let alt_svc = script.advertisement.value(alternative_address)?;
+        let raw_canonical_origin = script
+            .origin_responses
+            .iter()
+            .any(|response| !response.altsvc_frames.is_empty())
+            .then(|| format!("https://{origin_name}:{}", origin_address.port()));
         let observations = Arc::new(SharedObservations::default());
         let origin_responses = Arc::new(Mutex::new(VecDeque::from(script.origin_responses)));
         let (shutdown, shutdown_rx) = watch::channel(false);
@@ -259,7 +289,10 @@ impl Http3UpgradeFixture {
             listener,
             identity.acceptor(H2_ALPN)?,
             origin_responses,
-            alt_svc,
+            OriginPlan {
+                alt_svc,
+                raw_canonical_origin,
+            },
             Arc::clone(&observations),
             shutdown_rx.clone(),
         ));
@@ -317,7 +350,7 @@ async fn run_origin(
     listener: TcpListener,
     acceptor: btls::ssl::SslAcceptor,
     responses: Arc<Mutex<VecDeque<PlannedResponse>>>,
-    alt_svc: HeaderValue,
+    plan: OriginPlan,
     observations: Arc<SharedObservations>,
     mut shutdown: watch::Receiver<bool>,
 ) -> TestResult<()> {
@@ -333,7 +366,7 @@ async fn run_origin(
                     stream,
                     acceptor.clone(),
                     Arc::clone(&responses),
-                    alt_svc.clone(),
+                    plan.clone(),
                     Arc::clone(&observations),
                     shutdown.clone(),
                 ));
@@ -360,7 +393,7 @@ async fn serve_origin_connection(
     stream: TcpStream,
     acceptor: btls::ssl::SslAcceptor,
     responses: Arc<Mutex<VecDeque<PlannedResponse>>>,
-    alt_svc: HeaderValue,
+    plan: OriginPlan,
     observations: Arc<SharedObservations>,
     mut shutdown: watch::Receiver<bool>,
 ) -> TestResult<()> {
@@ -370,6 +403,18 @@ async fn serve_origin_connection(
     observations
         .origin_connections
         .fetch_add(1, Ordering::SeqCst);
+    let alt_svc = plan.alt_svc;
+    if let Some(canonical_origin) = plan.raw_canonical_origin {
+        return raw_http2::serve(
+            stream,
+            &responses,
+            &alt_svc,
+            &canonical_origin,
+            &observations,
+            shutdown,
+        )
+        .await;
+    }
     let server_name = stream
         .ssl()
         .servername(NameType::HOST_NAME)
@@ -387,6 +432,9 @@ async fn serve_origin_connection(
             return Ok(());
         };
         let (request, mut respond) = result?;
+        observations
+            .origin_request_count
+            .fetch_add(1, Ordering::SeqCst);
         lock(&observations.origin_requests)?.push(observe_request(&request, &server_name));
         let response = pop_response(&responses, "origin")?;
         let end_stream = response.body.is_empty();
@@ -560,6 +608,7 @@ fn observed_fields(fields: &[(http::HeaderName, HeaderValue)]) -> Vec<ObservedFi
 fn snapshot(observations: &SharedObservations) -> TestResult<UpgradeObservations> {
     Ok(UpgradeObservations {
         origin_connections: observations.origin_connections.load(Ordering::SeqCst),
+        origin_request_count: observations.origin_request_count.load(Ordering::SeqCst),
         alternative_connections: observations.alternative_connections.load(Ordering::SeqCst),
         origin_requests: lock(&observations.origin_requests)?.clone(),
         alternative_requests: lock(&observations.alternative_requests)?.clone(),
@@ -591,4 +640,192 @@ fn h3_endpoint(identity: &TestIdentity, bind_ip: IpAddr) -> TestResult<Endpoint>
         server_config,
         SocketAddr::new(bind_ip, 0),
     )?)
+}
+
+#[derive(Clone)]
+struct OriginPlan {
+    alt_svc: HeaderValue,
+    /// Set when the script plans ALTSVC frames and the origin must be raw.
+    raw_canonical_origin: Option<String>,
+}
+
+/// A minimal HTTP/2 origin that can write ALTSVC frames (RFC 7838 section 4).
+///
+/// It answers each request HEADERS frame on its stream without decoding the
+/// request block and encodes response fields as HPACK literals without
+/// indexing, so it keeps no HPACK state.
+mod raw_http2 {
+    use std::io;
+
+    use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+    use super::*;
+
+    const DATA: u8 = 0;
+    const HEADERS: u8 = 1;
+    const SETTINGS: u8 = 4;
+    const GOAWAY: u8 = 7;
+    const ALTSVC: u8 = 10;
+    const END_STREAM: u8 = 0x1;
+    const ACK: u8 = 0x1;
+    const END_HEADERS: u8 = 0x4;
+
+    pub(super) async fn serve<S>(
+        mut stream: S,
+        responses: &Mutex<VecDeque<PlannedResponse>>,
+        alt_svc: &HeaderValue,
+        canonical_origin: &str,
+        observations: &SharedObservations,
+        mut shutdown: watch::Receiver<bool>,
+    ) -> TestResult<()>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        let mut preface = [0_u8; 24];
+        stream.read_exact(&mut preface).await?;
+        if &preface != b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" {
+            return Err(io::Error::other("client sent an invalid HTTP/2 preface").into());
+        }
+        write_frame(&mut stream, SETTINGS, 0, 0, &[]).await?;
+        loop {
+            let frame = tokio::select! {
+                _ = shutdown.changed() => return Ok(()),
+                frame = read_frame(&mut stream) => frame?,
+            };
+            let Some((kind, flags, stream_id)) = frame else {
+                return Ok(());
+            };
+            match kind {
+                SETTINGS if flags & ACK == 0 => {
+                    write_frame(&mut stream, SETTINGS, ACK, 0, &[]).await?;
+                }
+                HEADERS => {
+                    if flags & END_HEADERS == 0 || flags & END_STREAM == 0 {
+                        return Err(io::Error::other(
+                            "raw origin supports only single-frame bodiless requests",
+                        )
+                        .into());
+                    }
+                    observations
+                        .origin_request_count
+                        .fetch_add(1, Ordering::SeqCst);
+                    let response = pop_response(responses, "origin")?;
+                    respond(&mut stream, stream_id, &response, alt_svc, canonical_origin).await?;
+                }
+                GOAWAY => return Ok(()),
+                _ => {}
+            }
+        }
+    }
+
+    async fn respond<S>(
+        stream: &mut S,
+        stream_id: u32,
+        response: &PlannedResponse,
+        alt_svc: &HeaderValue,
+        canonical_origin: &str,
+    ) -> TestResult<()>
+    where
+        S: AsyncWrite + Unpin,
+    {
+        for frame in &response.altsvc_frames {
+            let (frame_stream, origin) = match frame {
+                PlannedAltSvcFrame::CanonicalOrigin => (0, canonical_origin),
+                PlannedAltSvcFrame::Origin(origin) => (0, origin.as_str()),
+                PlannedAltSvcFrame::RequestStream => (stream_id, ""),
+            };
+            let origin_len = u16::try_from(origin.len())?;
+            let mut payload = origin_len.to_be_bytes().to_vec();
+            payload.extend_from_slice(origin.as_bytes());
+            payload.extend_from_slice(alt_svc.as_bytes());
+            write_frame(stream, ALTSVC, 0, frame_stream, &payload).await?;
+        }
+
+        // `:status` as a literal without indexing, name index 8.
+        let mut block = vec![0x08];
+        push_string(&mut block, response.status.as_str().as_bytes());
+        let mut fields: Vec<(&[u8], &[u8])> = response
+            .headers
+            .iter()
+            .map(|(name, value)| (name.as_str().as_bytes(), value.as_bytes()))
+            .collect();
+        if response.advertise_alternative {
+            fields.push((b"alt-svc", alt_svc.as_bytes()));
+        }
+        for (name, value) in fields {
+            block.push(0x00);
+            push_string(&mut block, name);
+            push_string(&mut block, value);
+        }
+        let end_stream = response.body.is_empty();
+        let flags = END_HEADERS | if end_stream { END_STREAM } else { 0 };
+        write_frame(stream, HEADERS, flags, stream_id, &block).await?;
+        if !end_stream {
+            write_frame(stream, DATA, END_STREAM, stream_id, &response.body).await?;
+        }
+        Ok(())
+    }
+
+    /// Appends an HPACK string literal without Huffman coding (RFC 7541 5.2).
+    fn push_string(block: &mut Vec<u8>, value: &[u8]) {
+        let mut length = value.len();
+        if length < 0x7f {
+            block.push(length as u8);
+        } else {
+            block.push(0x7f);
+            length -= 0x7f;
+            while length >= 0x80 {
+                block.push((length % 0x80) as u8 | 0x80);
+                length /= 0x80;
+            }
+            block.push(length as u8);
+        }
+        block.extend_from_slice(value);
+    }
+
+    async fn read_frame<S>(stream: &mut S) -> TestResult<Option<(u8, u8, u32)>>
+    where
+        S: AsyncRead + Unpin,
+    {
+        let mut head = [0_u8; 9];
+        match stream.read_exact(&mut head).await {
+            Ok(_) => {}
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::UnexpectedEof
+                        | io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                ) =>
+            {
+                return Ok(None);
+            }
+            Err(error) => return Err(error.into()),
+        }
+        let length =
+            (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+        let mut payload = vec![0_u8; length];
+        stream.read_exact(&mut payload).await?;
+        let stream_id = u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff;
+        Ok(Some((head[3], head[4], stream_id)))
+    }
+
+    async fn write_frame<S>(
+        stream: &mut S,
+        kind: u8,
+        flags: u8,
+        stream_id: u32,
+        payload: &[u8],
+    ) -> TestResult<()>
+    where
+        S: AsyncWrite + Unpin,
+    {
+        let length = u32::try_from(payload.len())?.to_be_bytes();
+        let mut frame = vec![length[1], length[2], length[3], kind, flags];
+        frame.extend_from_slice(&stream_id.to_be_bytes());
+        frame.extend_from_slice(payload);
+        stream.write_all(&frame).await?;
+        stream.flush().await?;
+        Ok(())
+    }
 }

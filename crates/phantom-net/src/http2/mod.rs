@@ -14,6 +14,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
 mod alps;
+mod alt_svc;
 mod upload;
 #[cfg(test)]
 use request::{MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS};
@@ -22,6 +23,7 @@ use request::{
 };
 
 pub use crate::request::{OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
+pub use alt_svc::{AltSvcFrame, AltSvcFrameScope, AltSvcFrames};
 pub use body::Http2Body;
 pub use connection::Http2Connection;
 pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};

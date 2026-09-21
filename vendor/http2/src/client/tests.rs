@@ -973,3 +973,212 @@ impl Wake for CountWake {
         self.0.fetch_add(1, Ordering::SeqCst);
     }
 }
+
+const ALTSVC: u8 = 10;
+const ORIGIN: &[u8] = b"https://example.test";
+
+#[tokio::test]
+async fn client_surfaces_stream_zero_altsvc_frame_with_origin() {
+    let exchange = response_after_altsvc(&[
+        (0, altsvc_payload(ORIGIN, b"h3=\":443\"")),
+        (1, altsvc_payload(b"", b"h3=\":8443\"")),
+    ])
+    .await;
+    let frames = exchange
+        .response
+        .extensions()
+        .get::<crate::ext::AltSvcFrames>()
+        .expect("ALTSVC frames were not attached to the response");
+    let observed: Vec<_> = frames
+        .as_slice()
+        .iter()
+        .map(|frame| (frame.origin(), frame.field_value()))
+        .collect();
+    assert_eq!(
+        observed,
+        [
+            (Some(ORIGIN), b"h3=\":443\"".as_slice()),
+            (None, b"h3=\":8443\"".as_slice()),
+        ]
+    );
+    exchange.driver.abort();
+}
+
+#[tokio::test]
+async fn client_ignores_stream_zero_altsvc_frame_without_origin() {
+    let exchange = response_after_altsvc(&[(0, altsvc_payload(b"", b"h3=\":443\""))]).await;
+    assert!(exchange
+        .response
+        .extensions()
+        .get::<crate::ext::AltSvcFrames>()
+        .is_none());
+    exchange.driver.abort();
+}
+
+#[tokio::test]
+async fn client_ignores_request_stream_altsvc_frame_with_origin() {
+    let exchange = response_after_altsvc(&[(1, altsvc_payload(ORIGIN, b"h3=\":443\""))]).await;
+    assert!(exchange
+        .response
+        .extensions()
+        .get::<crate::ext::AltSvcFrames>()
+        .is_none());
+    exchange.driver.abort();
+}
+
+#[tokio::test]
+async fn truncated_altsvc_origin_length_is_ignored_without_connection_error() {
+    let oversized_value = vec![b'a'; 16 * 1024 + 1];
+    let mut exchange = response_after_altsvc(&[
+        (0, vec![0]),
+        (0, vec![0, 10, b'x']),
+        (0, altsvc_payload(ORIGIN, &oversized_value)),
+    ])
+    .await;
+    assert_eq!(exchange.response.status(), 200);
+    assert!(exchange
+        .response
+        .extensions()
+        .get::<crate::ext::AltSvcFrames>()
+        .is_none());
+
+    write_raw_frame(&mut exchange.peer, 6, 0, 0, &[7; 8]).await;
+    loop {
+        let frame = read_raw_frame(&mut exchange.peer).await;
+        assert_ne!(frame.kind, 7, "client sent GOAWAY after malformed ALTSVC");
+        if frame.kind == 6 && frame.flags == 1 {
+            assert_eq!(frame.payload, [7; 8]);
+            break;
+        }
+    }
+    assert!(!exchange.driver.is_finished());
+    exchange.driver.abort();
+}
+
+#[tokio::test]
+async fn altsvc_frame_queue_is_bounded_and_drops_oldest() {
+    let frames: Vec<_> = (0..20)
+        .map(|index| (0, altsvc_payload(ORIGIN, format!("v{index}").as_bytes())))
+        .collect();
+    let exchange = response_after_altsvc(&frames).await;
+    let delivered: Vec<_> = exchange
+        .response
+        .extensions()
+        .get::<crate::ext::AltSvcFrames>()
+        .expect("ALTSVC frames were not attached to the response")
+        .as_slice()
+        .iter()
+        .map(|frame| frame.field_value().to_vec())
+        .collect();
+    let expected: Vec<_> = (4..20)
+        .map(|index| format!("v{index}").into_bytes())
+        .collect();
+    assert_eq!(delivered, expected);
+    exchange.driver.abort();
+}
+
+#[tokio::test]
+async fn server_ignores_altsvc_frames() {
+    timeout(Duration::from_secs(2), async {
+        let (server_io, mut peer) = duplex(16 * 1024);
+        let server = tokio::spawn(async move {
+            let mut connection = crate::server::handshake(server_io)
+                .await
+                .expect("server handshake failed");
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .expect("connection closed before request")
+                .expect("request failed");
+            assert!(request
+                .extensions()
+                .get::<crate::ext::AltSvcFrames>()
+                .is_none());
+            respond
+                .send_response(Response::new(()), true)
+                .expect("response headers failed");
+            poll_fn(|cx| connection.poll_closed(cx))
+                .await
+                .expect("server connection failed after ALTSVC");
+        });
+
+        peer.write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+            .await
+            .expect("preface write failed");
+        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
+        write_raw_frame(
+            &mut peer,
+            ALTSVC,
+            0,
+            0,
+            &altsvc_payload(ORIGIN, b"h3=\":443\""),
+        )
+        .await;
+        // :method GET, :scheme https, :path /, :authority example.test
+        let mut block = vec![0x82, 0x87, 0x84, 0x01, 12];
+        block.extend_from_slice(b"example.test");
+        write_raw_frame(&mut peer, 1, 0x5, 1, &block).await;
+        loop {
+            let frame = read_raw_frame(&mut peer).await;
+            assert_ne!(frame.kind, 7, "server sent GOAWAY after ALTSVC");
+            if frame.kind == 1 && frame.stream_id == 1 {
+                break;
+            }
+        }
+        drop(peer);
+        server.await.expect("server task panicked");
+    })
+    .await
+    .expect("server ALTSVC test timed out");
+}
+
+struct AltSvcExchange {
+    response: Response<crate::RecvStream>,
+    driver: tokio::task::JoinHandle<Result<(), crate::Error>>,
+    peer: DuplexStream,
+}
+
+/// Opens stream 1, then sends SETTINGS, the ALTSVC frames, and a 200 response.
+async fn response_after_altsvc(frames: &[(u32, Vec<u8>)]) -> AltSvcExchange {
+    timeout(Duration::from_secs(2), async {
+        let (client_io, mut peer) = duplex(64 * 1024);
+        // Accept frames larger than the ALTSVC part bound so that bound, not
+        // the frame-size limit, decides whether an oversized frame is kept.
+        let (sender, connection) = super::Builder::new()
+            .max_frame_size(64 * 1024)
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer).await;
+        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
+
+        let mut sender = sender.ready().await.expect("sender never became ready");
+        let (response, _send) = sender
+            .send_request(request_with_headers(), true)
+            .expect("request was rejected");
+        while read_raw_frame(&mut peer).await.kind != 1 {}
+
+        for (stream_id, payload) in frames {
+            write_raw_frame(&mut peer, ALTSVC, 0, *stream_id, payload).await;
+        }
+        // HEADERS with END_STREAM | END_HEADERS and indexed `:status: 200`.
+        write_raw_frame(&mut peer, 1, 0x5, 1, &[0x88]).await;
+        let response = response.await.expect("response headers failed");
+        AltSvcExchange {
+            response,
+            driver,
+            peer,
+        }
+    })
+    .await
+    .expect("ALTSVC exchange timed out")
+}
+
+fn altsvc_payload(origin: &[u8], value: &[u8]) -> Vec<u8> {
+    let length = u16::try_from(origin.len()).expect("test origin fits Origin-Len");
+    let mut payload = length.to_be_bytes().to_vec();
+    payload.extend_from_slice(origin);
+    payload.extend_from_slice(value);
+    payload
+}
