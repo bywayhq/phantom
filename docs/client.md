@@ -213,7 +213,7 @@ H2; the negotiated replacement is admitted and selected by ALPN again. The
 replay does not consume the setup-retry budget, and any other method, a
 request body, trailers, or a second `GOAWAY` returns the typed H2 error.
 
-`RetryPolicy::with_reused_connection_replay(true)` opts into one post-dispatch
+`RetryPolicy::with_reused_connection_replay(true)` opts into a post-dispatch
 replay class, off by default. An HTTP/1.1 request, exact or negotiated, is
 sent once more on a fresh connection over the same route when all of these
 hold: it was written to a keep-alive connection that had already delivered a
@@ -231,6 +231,41 @@ redirect hop, adds no delay, and does not consume the setup-retry budget;
 `client.request` span records the count as `reused_connection_replays`. A
 negotiated replay retires the failed H1 generation and is admitted and
 selected by ALPN again, like the negotiated `GOAWAY` replay.
+
+`RetryPolicy::with_unprocessed_replay(Some(maximum))` opts into replaying an
+H2 or H3 request that the peer reported as not processed. This is caller
+policy, off by default and never part of a browser profile. Only these
+signals, received before any response head, qualify:
+
+- H2 `RST_STREAM(REFUSED_STREAM)` on the request stream (RFC 9113, section
+  8.7);
+- an H2 `GOAWAY` with any error code whose last-stream-id is below the
+  request's stream, or that arrived before the stream opened (RFC 9113,
+  sections 6.8 and 8.7);
+- an H3 request stream reset or stopped with `H3_REQUEST_REJECTED` (RFC 9114,
+  section 4.1.1);
+- an H3 `GOAWAY` received before the request opened its stream, so no request
+  byte was sent (RFC 9114, section 5.2).
+
+Because the server did nothing with the request, any method may be replayed,
+but the body must be absent or owned bytes: a one-shot streaming body returns
+the original typed error without opening another connection. The replay is
+sent at once, without a delay, on a fresh or different connection: when the
+policy is on, the pool stops reusing a connection that refused a stream. The
+route, the exact protocol or negotiated selection rule, and an Alt-Svc
+alternative already in use never change. One budget of `maximum` replays spans
+every redirect hop and is shared with no other retry class;
+`ResponseInfo::retries_performed` still counts only setup retries, and the
+`client.request` span records `unprocessed_replays`.
+
+An H2 stream at or below a `GOAWAY` last-stream-id may have been processed.
+When the connection then closes, that stream fails with a transport error and
+is never replayed. An H3 stream that was already open when `GOAWAY` arrived is
+not replayed either, because the H3 backend does not expose the `GOAWAY`
+identifier needed to prove it unprocessed; only `H3_REQUEST_REJECTED` covers
+it. Without this policy, the one built-in replay above, a bodyless H2 GET
+refused by `GOAWAY(NO_ERROR)`, is unchanged, and with it that replay still
+runs first without consuming the unprocessed budget.
 
 `RetryPolicy::with_status_retry` opts into repeating a request after a
 retryable response status. This is caller policy, off by default and never

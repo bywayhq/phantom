@@ -78,6 +78,21 @@ fresh connection with the same route, and outside the setup-retry budget. The
 evidence is Chrome's single restart after `ERR_CONNECTION_CLOSED` on a reused
 socket. Firefox also restarts on fresh connections, which Phantom does not.
 
+Unprocessed-request replay is caller policy on `RetryPolicy`, never a profile
+default. It trusts only peer signals that a request was not processed:
+`REFUSED_STREAM`, an H2 `GOAWAY` whose last-stream-id is below the stream,
+`H3_REQUEST_REJECTED`, and an H3 `GOAWAY` that arrived before the stream
+opened. The H2 transport exposes whether a reset or `GOAWAY` came from the
+peer, and the vendored H2 engine fails a request with a remote `GOAWAY` only
+for streams above the last-stream-id or refused before opening; processed
+streams end with a transport error when the connection closes. The H3
+transport tags only failures seen before a response head. Because nothing was
+processed, any method may repeat, but only with an absent or owned body. One
+request-scoped budget spans redirects, separate from every other retry class.
+The replay adds no delay and never changes route, protocol, selection rule, or
+Alt-Svc alternative; the pool retires the refusing connection so the replay
+uses another one.
+
 Status retry is caller policy, not browser behavior, so it lives on
 `RetryPolicy` and never in a profile. It runs per hop after proxy
 authentication and Critical-CH handling, so an intermediate response has
