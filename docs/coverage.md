@@ -88,10 +88,14 @@ request's changes, retry outcome, and connection reuse. That makes the
 TLS, H2, and QUIC protocol settings are transport recipes, not host-OS
 selectors. Capture provenance remains platform-specific because browser
 builds, system integrations, launch conditions, and release channels can
-change emitted bytes. Existing `macos` transport names mean only “observed on
-macOS,” never “selected by `target_os = macos`”; they are scheduled to move to
-browser/version names with compatibility aliases. Platform-qualified client
-hints remain separate because they contain platform data on the wire.
+change emitted bytes. Transport recipes verified on more than one platform
+use browser/version names (`chromium::v152_tls`, `firefox::v154_http2`, and
+so on); their rustdoc names the capture builds and platforms, and the former
+`macos` names remain as hidden compatibility aliases. A remaining `macos`
+qualifier means only “observed on macOS,” never “selected by
+`target_os = macos`”: `v18_5_macos_tls` because Safari is captured only on
+macOS, and `v152_macos_client_hints` because client hints contain platform
+data on the wire.
 
 Cross-platform capture decides whether two recipes share component data. [Cross-platform transport parity](validation.md#cross-platform-transport-parity) records Windows 11 captures that match the Chrome 152 TLS, H2, QUIC, and H3 recipes and the Firefox 154 TLS and H2 recipes on every compared field. SSE and WebSocket browser captures are Windows 11 (10.0.26200) only; macOS parity is not assumed for them. Chrome's trust-anchor ID order is fixed within a browser process and differs between processes (a hash-iteration order, not a per-connection permutation); the Chrome 152 recipe keeps the most frequently observed order. Chrome's ECH GREASE uses HKDF-SHA256 with AES-128-GCM on every observed connection and is compared exactly. Firefox 154 chooses its ECH GREASE AEAD per connection between AES-128-GCM and ChaCha20-Poly1305; Phantom's Firefox recipe emits only AES-128-GCM until the TLS backend exposes a per-connection ECH GREASE AEAD choice. The
 runtime consumes the validated settings it receives and does not branch on the

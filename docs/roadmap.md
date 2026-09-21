@@ -71,13 +71,14 @@ work has exposed the real architectural boundaries.
 
 - Make supported profile, route, timeout, body, trailer, SSE, and WebSocket
   combinations easier to discover and configure without hiding wire choices.
-- Move transport recipe names to browser/version identity while retaining
-  platform and exact-build qualifiers only for data that actually differs,
-  such as client hints. Keep capture OS and build provenance in fixtures and
-  documentation, with compatibility aliases for existing public names.
+- Moving transport recipe names to browser/version identity is complete.
   Windows captures show no platform-dependent transport field for the Chrome
   152 TLS, H2, QUIC, and H3 recipes or the Firefox 154 TLS and H2 recipes, so
-  those names can drop `macos`. `v152_macos_client_hints` keeps its platform
+  they are now
+  `chromium::v152_{tls,http2,http3,http3_tls,http3_request,quic}` and
+  `firefox::v154_{tls,http2}`. The former `macos` names remain as hidden
+  compatibility aliases, and capture OS and build provenance stay in fixtures,
+  rustdoc, and documentation. `v152_macos_client_hints` keeps its platform
   qualifier because it carries platform data, and `v18_5_macos_tls` stays
   macOS-specific until Safari is captured elsewhere.
 - Keep stable error categories, examples, and diagnostics aligned with every
