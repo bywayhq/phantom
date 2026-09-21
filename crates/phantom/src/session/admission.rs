@@ -60,6 +60,18 @@ impl Admission {
         self: Arc<Self>,
         protocol: HttpProtocol,
     ) -> Result<AdmissionPermit, RequestError> {
+        self.acquire(|| RequestError::capacity(protocol)).await
+    }
+
+    /// Admits work whose HTTP protocol has not been selected yet.
+    pub(super) async fn admit_unselected(self: Arc<Self>) -> Result<AdmissionPermit, RequestError> {
+        self.acquire(RequestError::unselected_capacity).await
+    }
+
+    async fn acquire(
+        self: Arc<Self>,
+        capacity_error: impl Fn() -> RequestError,
+    ) -> Result<AdmissionPermit, RequestError> {
         if let Ok(permit) = Arc::clone(&self.active).try_acquire_owned() {
             return Ok(AdmissionPermit {
                 _admission: self,
@@ -68,11 +80,11 @@ impl Admission {
         }
         let pending = Arc::clone(&self.pending)
             .try_acquire_owned()
-            .map_err(|_| RequestError::capacity(protocol))?;
+            .map_err(|_| capacity_error())?;
         let active = Arc::clone(&self.active)
             .acquire_owned()
             .await
-            .map_err(|_| RequestError::capacity(protocol))?;
+            .map_err(|_| capacity_error())?;
         drop(pending);
         Ok(AdmissionPermit {
             _admission: self,

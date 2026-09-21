@@ -1,4 +1,4 @@
-//! Public exact-protocol connection retry behavior.
+//! Public connection retry and negotiated pre-selection admission behavior.
 
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
@@ -11,6 +11,8 @@ use std::{
     future::{Future, poll_fn},
     net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener},
     num::NonZeroUsize,
+    pin::Pin,
+    task::Poll,
     time::Duration,
 };
 
@@ -24,6 +26,7 @@ use phantom::{
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
+    sync::oneshot,
     time::{sleep, timeout},
 };
 use tracing::instrument::WithSubscriber;
@@ -276,6 +279,56 @@ async fn exact_http2_retries_connection_setup_before_dispatch() -> TestResult {
     .await
 }
 
+#[tokio::test]
+async fn negotiated_pre_selection_admission_is_bounded() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let (accepted_tx, accepted_rx) = oneshot::channel();
+        // The server never answers TLS, so the first request keeps its
+        // pre-selection admission for the whole test.
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await?;
+            accepted_tx
+                .send(())
+                .map_err(|_| "client stopped before setup stalled")?;
+            let _held = stream;
+            std::future::pending::<()>().await;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        // One active and one waiting pre-selection slot: the larger of the
+        // H1 (1 active, 1 waiting) and H2 (1 active, 1 waiting) limits.
+        let one = NonZeroUsize::MIN;
+        let client = client_builder(&identity, true)
+            .max_pending_http1_requests_per_origin(one)
+            .max_concurrent_http2_requests_per_origin(one)
+            .max_pending_http2_requests_per_origin(one)
+            .build()?;
+        let url = format!("https://{address}/admission");
+        let setup = tokio::spawn(client.get_negotiated(&url)?.send());
+        accepted_rx
+            .await
+            .map_err(|_| "server stopped before accepting setup")?;
+
+        let mut waiting = Box::pin(client.get_negotiated(&url)?.send());
+        assert_pending(waiting.as_mut(), "queued request left admission").await?;
+        let error = match client.get_negotiated(&url)?.send().await {
+            Ok(_) => return Err("request exceeded pre-selection admission".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Capacity);
+        assert_eq!(error.protocol(), None);
+        assert_pending(waiting.as_mut(), "queued request left admission").await?;
+
+        setup.abort();
+        server.abort();
+        Ok(())
+    })
+    .await
+}
+
 fn unused_loopback_address() -> TestResult<SocketAddr> {
     let listener = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     let address = listener.local_addr()?;
@@ -314,6 +367,17 @@ async fn serve_one_chunked_request(listener: TcpListener) -> TestResult<(Vec<u8>
     stream.flush().await?;
     let second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
     Ok((head, framed, second.is_err()))
+}
+
+async fn assert_pending<F>(mut future: Pin<&mut F>, message: &'static str) -> TestResult
+where
+    F: Future,
+{
+    poll_fn(|context| match future.as_mut().poll(context) {
+        Poll::Pending => Poll::Ready(Ok(())),
+        Poll::Ready(_) => Poll::Ready(Err(message.into())),
+    })
+    .await
 }
 
 async fn bounded<F>(future: F) -> TestResult

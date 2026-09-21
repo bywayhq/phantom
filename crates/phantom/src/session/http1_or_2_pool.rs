@@ -97,11 +97,167 @@ impl Http1Or2Pool {
         .map_err(RequestError::negotiated_http2_validation)?;
 
         let entry = self.entry(PoolKey::new(endpoint)).await;
-        let (lease, permit) = loop {
+        let request = NegotiatedRequest {
+            method,
+            authority: endpoint.authority().as_str(),
+            target,
+            http1_wire_headers,
+            http1_sent_headers,
+            http2_headers,
+            trailers,
+            client_hints,
+            body,
+        };
+
+        let selection = timeout_budget
+            .run(
+                TimeoutPhase::PoolAdmission,
+                None,
+                entry.admit_before_selection(),
+            )
+            .await?;
+        let (lease, permit) = entry
+            .acquire_selected(connector, endpoint, request_span, selection, timeout_budget)
+            .await?;
+        entry
+            .dispatch_on_lease(lease, permit, request, timeout_budget)
+            .await
+    }
+
+    /// Bounds requests that hold no protocol-specific admission yet.
+    ///
+    /// ALPN has not chosen H1 or H2 at this point, so the bound takes the
+    /// larger active and waiting limit of the two protocols (H1 always has
+    /// one active exchange). Every request that the selected protocol could
+    /// run or queue is therefore admitted, while waiters for the connection
+    /// lock and setup retry delays remain bounded by configured limits.
+    fn selection_limits(&self) -> (NonZeroUsize, NonZeroUsize) {
+        (
+            self.max_http2_active,
+            self.max_http1_pending.max(self.max_http2_pending),
+        )
+    }
+
+    async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
+        let mut state = self.state.lock().await;
+        if let Some(position) = state
+            .entries
+            .iter()
+            .position(|(candidate, _)| candidate == &key)
+        {
+            if let Some((stored_key, entry)) = state.entries.remove(position) {
+                state.entries.push_back((stored_key, Arc::clone(&entry)));
+                return entry;
+            }
+        }
+
+        if state.entries.len() == self.capacity.get() {
+            state.entries.pop_front();
+            debug!(outcome = "evicted", "negotiated HTTP pool entry evicted");
+        }
+        let http1_admission =
+            state
+                .http1_admissions
+                .get(&key, NonZeroUsize::MIN, self.max_http1_pending);
+        let http2_admission =
+            state
+                .http2_admissions
+                .get(&key, self.max_http2_active, self.max_http2_pending);
+        let (selection_active, selection_pending) = self.selection_limits();
+        let selection_admission =
+            state
+                .selection_admissions
+                .get(&key, selection_active, selection_pending);
+        let entry = Arc::new(PoolEntry::new(
+            selection_admission,
+            http1_admission,
+            http2_admission,
+        ));
+        state.entries.push_back((key, Arc::clone(&entry)));
+        entry
+    }
+}
+
+#[derive(Default)]
+struct PoolState {
+    entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
+    selection_admissions: AdmissionRegistry<PoolKey>,
+    http1_admissions: AdmissionRegistry<PoolKey>,
+    http2_admissions: AdmissionRegistry<PoolKey>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PoolKey {
+    host: Box<str>,
+    port: u16,
+}
+
+impl PoolKey {
+    fn new(endpoint: &Endpoint) -> Self {
+        Self {
+            host: endpoint.host().to_ascii_lowercase().into(),
+            port: endpoint.port(),
+        }
+    }
+}
+
+struct PoolEntry {
+    current: Mutex<Option<ConnectionSlot>>,
+    selection_admission: Arc<Admission>,
+    http1_admission: Arc<Admission>,
+    http2_admission: Arc<Admission>,
+    connector: OnceLock<Http1Or2TlsConnector>,
+}
+
+impl PoolEntry {
+    fn new(
+        selection_admission: Arc<Admission>,
+        http1_admission: Arc<Admission>,
+        http2_admission: Arc<Admission>,
+    ) -> Self {
+        Self {
+            current: Mutex::new(None),
+            selection_admission,
+            http1_admission,
+            http2_admission,
+            connector: OnceLock::new(),
+        }
+    }
+
+    /// Phase one: bounded admission before ALPN selects a protocol.
+    async fn admit_before_selection(&self) -> Result<AdmissionPermit, RequestError> {
+        Arc::clone(&self.selection_admission)
+            .admit_unselected()
+            .await
+    }
+
+    async fn admit(&self, protocol: HttpProtocol) -> Result<AdmissionPermit, RequestError> {
+        match protocol {
+            HttpProtocol::Http1 => Arc::clone(&self.http1_admission).admit(protocol).await,
+            HttpProtocol::Http2 => Arc::clone(&self.http2_admission).admit(protocol).await,
+            HttpProtocol::Http3 => Err(RequestError::unsupported_protocol(protocol)),
+        }
+    }
+
+    /// Phase two: acquires a selected-protocol lease and converts admission.
+    ///
+    /// `selection` stays held until the selected protocol admits the request,
+    /// so the request is always counted by one bounded admission.
+    async fn acquire_selected(
+        &self,
+        connector: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+        request_span: &Span,
+        selection: AdmissionPermit,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<(ConnectionLease, AdmissionPermit), RequestError> {
+        loop {
             let lease = timeout_budget
-                .run(TimeoutPhase::Connect, None, async {
-                    entry.acquire(connector, endpoint).await
-                })
+                .run(
+                    TimeoutPhase::Connect,
+                    None,
+                    self.acquire(connector, endpoint),
+                )
                 .await?;
             let protocol = lease.protocol();
             request_span.record("selected_protocol", protocol.trace_name());
@@ -109,15 +265,37 @@ impl Http1Or2Pool {
                 .run(
                     TimeoutPhase::PoolAdmission,
                     Some(protocol),
-                    entry.admit(protocol),
+                    self.admit(protocol),
                 )
                 .await?;
-            if entry.is_current_and_reusable(&lease).await {
-                break (lease, permit);
+            if self.is_current_and_reusable(&lease).await {
+                drop(selection);
+                return Ok((lease, permit));
             }
             drop(permit);
-            entry.invalidate(&lease.token).await;
-        };
+            self.invalidate(&lease.token).await;
+        }
+    }
+
+    /// Phase three: dispatches the request on its admitted lease.
+    async fn dispatch_on_lease(
+        &self,
+        lease: ConnectionLease,
+        permit: AdmissionPermit,
+        request: NegotiatedRequest<'_>,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<(Response<ResponseBody>, HttpProtocol, Vec<RequestHeader>), RequestError> {
+        let NegotiatedRequest {
+            method,
+            authority,
+            target,
+            http1_wire_headers,
+            http1_sent_headers,
+            http2_headers,
+            trailers,
+            client_hints,
+            body,
+        } = request;
         let ConnectionLease { connection, token } = lease;
 
         match connection {
@@ -156,13 +334,13 @@ impl Http1Or2Pool {
                     Ok(Err(error)) => {
                         drop(permit);
                         if !connection.is_reusable() {
-                            entry.invalidate(&token).await;
+                            self.invalidate(&token).await;
                         }
                         Err(RequestError::http1(error.into()))
                     }
                     Err(error) => {
                         drop(permit);
-                        entry.invalidate(&token).await;
+                        self.invalidate(&token).await;
                         Err(error)
                     }
                 }
@@ -183,7 +361,7 @@ impl Http1Or2Pool {
                                 connection
                                     .send_request_body_with_trailers(
                                         method,
-                                        endpoint.authority().as_str(),
+                                        authority,
                                         target,
                                         sent_headers.clone(),
                                         body,
@@ -209,7 +387,7 @@ impl Http1Or2Pool {
                     Ok(Err(error)) => {
                         drop(permit);
                         if invalidates_http2_connection(&error) {
-                            entry.invalidate(&token).await;
+                            self.invalidate(&token).await;
                         }
                         Err(RequestError::http2(error.into()))
                     }
@@ -219,84 +397,6 @@ impl Http1Or2Pool {
                     }
                 }
             }
-        }
-    }
-
-    async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
-        let mut state = self.state.lock().await;
-        if let Some(position) = state
-            .entries
-            .iter()
-            .position(|(candidate, _)| candidate == &key)
-        {
-            if let Some((stored_key, entry)) = state.entries.remove(position) {
-                state.entries.push_back((stored_key, Arc::clone(&entry)));
-                return entry;
-            }
-        }
-
-        if state.entries.len() == self.capacity.get() {
-            state.entries.pop_front();
-            debug!(outcome = "evicted", "negotiated HTTP pool entry evicted");
-        }
-        let http1_admission =
-            state
-                .http1_admissions
-                .get(&key, NonZeroUsize::MIN, self.max_http1_pending);
-        let http2_admission =
-            state
-                .http2_admissions
-                .get(&key, self.max_http2_active, self.max_http2_pending);
-        let entry = Arc::new(PoolEntry::new(http1_admission, http2_admission));
-        state.entries.push_back((key, Arc::clone(&entry)));
-        entry
-    }
-}
-
-#[derive(Default)]
-struct PoolState {
-    entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
-    http1_admissions: AdmissionRegistry<PoolKey>,
-    http2_admissions: AdmissionRegistry<PoolKey>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct PoolKey {
-    host: Box<str>,
-    port: u16,
-}
-
-impl PoolKey {
-    fn new(endpoint: &Endpoint) -> Self {
-        Self {
-            host: endpoint.host().to_ascii_lowercase().into(),
-            port: endpoint.port(),
-        }
-    }
-}
-
-struct PoolEntry {
-    current: Mutex<Option<ConnectionSlot>>,
-    http1_admission: Arc<Admission>,
-    http2_admission: Arc<Admission>,
-    connector: OnceLock<Http1Or2TlsConnector>,
-}
-
-impl PoolEntry {
-    fn new(http1_admission: Arc<Admission>, http2_admission: Arc<Admission>) -> Self {
-        Self {
-            current: Mutex::new(None),
-            http1_admission,
-            http2_admission,
-            connector: OnceLock::new(),
-        }
-    }
-
-    async fn admit(&self, protocol: HttpProtocol) -> Result<AdmissionPermit, RequestError> {
-        match protocol {
-            HttpProtocol::Http1 => Arc::clone(&self.http1_admission).admit(protocol).await,
-            HttpProtocol::Http2 => Arc::clone(&self.http2_admission).admit(protocol).await,
-            HttpProtocol::Http3 => Err(RequestError::unsupported_protocol(protocol)),
         }
     }
 
@@ -355,6 +455,19 @@ impl PoolEntry {
             );
         }
     }
+}
+
+/// One negotiated request prepared for either selected protocol.
+struct NegotiatedRequest<'a> {
+    method: Method,
+    authority: &'a str,
+    target: OriginForm,
+    http1_wire_headers: Vec<RequestHeader>,
+    http1_sent_headers: Vec<RequestHeader>,
+    http2_headers: Vec<RequestHeader>,
+    trailers: Vec<RequestHeader>,
+    client_hints: Option<ClientHintContext<'a>>,
+    body: Option<RequestBody>,
 }
 
 enum PooledConnection {

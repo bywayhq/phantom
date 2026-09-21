@@ -461,9 +461,18 @@ impl RequestError {
     }
 
     pub(crate) fn capacity(protocol: HttpProtocol) -> Self {
+        Self::capacity_for(Some(protocol))
+    }
+
+    /// Admission failed before ALPN selected an HTTP protocol.
+    pub(crate) fn unselected_capacity() -> Self {
+        Self::capacity_for(None)
+    }
+
+    fn capacity_for(protocol: Option<HttpProtocol>) -> Self {
         Self {
             kind: RequestErrorKind::Capacity,
-            protocol: Some(protocol),
+            protocol,
             timeout_phase: None,
             retryability: RequestRetryability::Never,
             message: "request admission capacity is exhausted",
