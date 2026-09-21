@@ -98,6 +98,7 @@ pub struct SseRequestBuilder {
     limits: SseLimits,
     idle_timeout: Option<Duration>,
     initial_retry: Duration,
+    min_retry: Option<Duration>,
     max_reconnects: usize,
 }
 
@@ -112,6 +113,7 @@ impl fmt::Debug for SseRequestBuilder {
             .field("limits", &self.limits)
             .field("idle_timeout", &self.idle_timeout)
             .field("initial_retry", &self.initial_retry)
+            .field("min_retry", &self.min_retry)
             .field("max_reconnects", &self.max_reconnects)
             .finish_non_exhaustive()
     }
@@ -136,6 +138,7 @@ impl SseRequestBuilder {
             limits: SseLimits::default(),
             idle_timeout: None,
             initial_retry: DEFAULT_INITIAL_RETRY,
+            min_retry: None,
             max_reconnects: DEFAULT_MAX_RECONNECTS,
         })
     }
@@ -202,6 +205,16 @@ impl SseRequestBuilder {
         self
     }
 
+    /// Raises every reconnect delay shorter than `minimum` to `minimum`.
+    ///
+    /// Unset by default, so the initial delay and every valid server `retry`
+    /// value are used exactly. When set, it also applies to the initial delay
+    /// and to retries of the initial request; longer delays are unchanged.
+    pub fn min_retry(mut self, minimum: Duration) -> Self {
+        self.min_retry = Some(minimum);
+        self
+    }
+
     /// Sets the finite number of requests allowed after the initial attempt.
     pub fn max_reconnects(mut self, maximum: usize) -> Self {
         self.max_reconnects = maximum;
@@ -265,7 +278,7 @@ impl SseRequestBuilder {
                         "retrying initial SSE connection"
                     );
                     let deadline = Instant::now()
-                        .checked_add(self.initial_retry)
+                        .checked_add(effective_retry(self.initial_retry, self.min_retry))
                         .ok_or_else(SseError::invalid_reconnect_delay)?;
                     crate::timeout::sleep_until(deadline)
                         .await
@@ -284,6 +297,7 @@ impl SseRequestBuilder {
                     self.limits,
                     self.idle_timeout,
                     self.initial_retry,
+                    self.min_retry,
                     self.max_reconnects,
                     reconnects,
                 ),
@@ -305,6 +319,7 @@ impl SseRequestBuilder {
                 self.limits,
                 self.idle_timeout,
                 self.initial_retry,
+                self.min_retry,
                 self.max_reconnects,
                 reconnects,
                 stream,
@@ -313,7 +328,8 @@ impl SseRequestBuilder {
     }
 
     fn validate_initial_retry(&self) -> Result<(), SseError> {
-        if self.max_reconnects > 0 && Instant::now().checked_add(self.initial_retry).is_none() {
+        let delay = effective_retry(self.initial_retry, self.min_retry);
+        if self.max_reconnects > 0 && Instant::now().checked_add(delay).is_none() {
             return Err(SseError::invalid_reconnect_delay());
         }
         Ok(())
@@ -328,6 +344,11 @@ impl SseRequestBuilder {
         }
         Ok(())
     }
+}
+
+/// Returns `delay` raised to the optional caller minimum.
+pub(super) fn effective_retry(delay: Duration, minimum: Option<Duration>) -> Duration {
+    minimum.map_or(delay, |minimum| delay.max(minimum))
 }
 
 #[cfg(test)]

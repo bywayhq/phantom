@@ -392,6 +392,115 @@ async fn event_source_rejects_caller_last_event_id_before_io() -> TestResult<()>
     Ok(())
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn minimum_retry_raises_short_server_delays_and_keeps_exact_delays_by_default()
+-> TestResult<()> {
+    for (minimum, expected) in [
+        (None, Duration::from_millis(100)),
+        (Some(Duration::from_millis(500)), Duration::from_millis(500)),
+        (Some(Duration::from_millis(50)), Duration::from_millis(100)),
+    ] {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let (mut first, _) = listener.accept().await?;
+            read_head(&mut first).await?;
+            first
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\n\
+                      Content-Type: text/event-stream\r\n\
+                      Connection: close\r\n\r\n\
+                      retry: 100\ndata: one\n\n",
+                )
+                .await?;
+            first.shutdown().await?;
+            drop(first);
+            let closed_at = Instant::now();
+
+            let (mut second, _) = listener.accept().await?;
+            read_head(&mut second).await?;
+            let waited = Instant::now().duration_since(closed_at);
+            second
+                .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+                .await?;
+            second.shutdown().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(waited)
+        });
+
+        let identity = TestIdentity::generate()?;
+        let mut builder = test_client(&identity, false)?
+            .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
+            .initial_retry(Duration::from_secs(3))
+            .max_reconnects(1);
+        if let Some(minimum) = minimum {
+            builder = builder.min_retry(minimum);
+        }
+        let mut source = builder.connect().await?.into_body();
+        let event = source.next_event().await?.ok_or("first event missing")?;
+        assert_eq!(event.data(), "one");
+        assert_eq!(source.retry_delay(), expected, "minimum {minimum:?}");
+        assert_eq!(source.next_event().await?, None);
+        assert_eq!(server.await??, expected, "minimum {minimum:?}");
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn minimum_retry_also_delays_initial_connection_retries() -> TestResult<()> {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let server = tokio::spawn(async move {
+        let (failed, _) = listener.accept().await?;
+        drop(failed);
+        let failed_at = Instant::now();
+        let (mut stream, _) = listener.accept().await?;
+        read_head(&mut stream).await?;
+        let waited = Instant::now().duration_since(failed_at);
+        stream
+            .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+            .await?;
+        stream.shutdown().await?;
+        Ok::<_, Box<dyn Error + Send + Sync>>(waited)
+    });
+
+    let identity = TestIdentity::generate()?;
+    let response = test_client(&identity, false)?
+        .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
+        .initial_retry(Duration::ZERO)
+        .min_retry(Duration::from_millis(500))
+        .max_reconnects(1)
+        .connect()
+        .await?;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert_eq!(server.await??, Duration::from_millis(500));
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_minimum_retry_fails_before_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+
+    let error = test_client(&identity, false)?
+        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+        .min_retry(Duration::MAX)
+        .connect()
+        .await
+        .err()
+        .ok_or("unrepresentable minimum reconnect delay was accepted")?;
+    assert_eq!(error.kind(), SseErrorKind::InvalidReconnectDelay);
+    let listener = listener.into_std()?;
+    assert!(
+        matches!(
+            listener.accept(),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
+        ),
+        "invalid minimum reconnect delay touched the network"
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn invalid_last_event_id_placeholders_fail_before_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;

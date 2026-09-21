@@ -1,8 +1,10 @@
+use std::time::Duration;
+
 use phantom_net::request::RequestHeader;
 
 use crate::{HttpProtocol, SseErrorKind};
 
-use super::{SseHeader, default_headers, resolve_template, validate_template};
+use super::{SseHeader, default_headers, effective_retry, resolve_template, validate_template};
 
 #[test]
 fn default_headers_preserve_protocol_spelling_and_order() {
@@ -110,6 +112,20 @@ fn template_validation_rejects_literal_repeated_and_misspelled_last_event_id() {
             "{name} rejected"
         );
     }
+}
+
+#[test]
+fn minimum_retry_raises_only_shorter_delays() {
+    let minimum = Some(Duration::from_millis(500));
+    assert_eq!(effective_retry(Duration::ZERO, None), Duration::ZERO);
+    assert_eq!(
+        effective_retry(Duration::from_millis(100), minimum),
+        Duration::from_millis(500)
+    );
+    assert_eq!(
+        effective_retry(Duration::from_millis(750), minimum),
+        Duration::from_millis(750)
+    );
 }
 
 fn field(name: &str, value: &str) -> SseHeader {

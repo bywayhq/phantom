@@ -10,8 +10,8 @@ use super::{SseError, SseErrorKind, SseEvent, SseLimits, SseOutcome, SseStream};
 
 mod request;
 
-use request::SseRequest;
 pub use request::{SseHeader, SseRequestBuilder};
+use request::{SseRequest, effective_retry};
 
 type ReconnectFuture =
     Pin<Box<dyn Future<Output = Result<Response<ResponseBody>, RequestError>> + Send + 'static>>;
@@ -63,6 +63,7 @@ pub struct SseEventSource {
     idle_timeout: Option<Duration>,
     last_event_id: String,
     retry_delay: Duration,
+    min_retry: Option<Duration>,
     max_reconnects: usize,
     reconnects: usize,
     reconnect_at: Option<Instant>,
@@ -78,6 +79,7 @@ impl fmt::Debug for SseEventSource {
             .field("protocol", &self.request.protocol)
             .field("limits", &self.limits)
             .field("idle_timeout", &self.idle_timeout)
+            .field("min_retry", &self.min_retry)
             .field("max_reconnects", &self.max_reconnects)
             .field("reconnects", &self.reconnects)
             .field("waiting", &self.reconnect_at.is_some())
@@ -88,11 +90,13 @@ impl fmt::Debug for SseEventSource {
 }
 
 impl SseEventSource {
+    #[allow(clippy::too_many_arguments)]
     fn open(
         request: SseRequest,
         limits: SseLimits,
         idle_timeout: Option<Duration>,
         initial_retry: Duration,
+        min_retry: Option<Duration>,
         max_reconnects: usize,
         reconnects: usize,
         stream: SseStream,
@@ -104,6 +108,7 @@ impl SseEventSource {
             idle_timeout,
             last_event_id: String::new(),
             retry_delay: initial_retry,
+            min_retry,
             max_reconnects,
             reconnects,
             reconnect_at: None,
@@ -118,6 +123,7 @@ impl SseEventSource {
         limits: SseLimits,
         idle_timeout: Option<Duration>,
         initial_retry: Duration,
+        min_retry: Option<Duration>,
         max_reconnects: usize,
         reconnects: usize,
     ) -> Self {
@@ -128,6 +134,7 @@ impl SseEventSource {
             idle_timeout,
             last_event_id: String::new(),
             retry_delay: initial_retry,
+            min_retry,
             max_reconnects,
             reconnects,
             reconnect_at: None,
@@ -175,13 +182,18 @@ impl SseEventSource {
             .map_or(&self.last_event_id, SseStream::last_event_id)
     }
 
-    /// Returns the current reconnect delay.
+    /// Returns the delay the next reconnect waits.
+    ///
+    /// This is the latest valid `retry` value, or the initial delay, raised to
+    /// [`SseRequestBuilder::min_retry`] when one is configured.
     #[must_use]
     pub fn retry_delay(&self) -> Duration {
-        self.stream
+        let delay = self
+            .stream
             .as_ref()
             .and_then(SseStream::retry_delay)
-            .unwrap_or(self.retry_delay)
+            .unwrap_or(self.retry_delay);
+        effective_retry(delay, self.min_retry)
     }
 
     /// Returns the number of reconnect requests started so far.
@@ -271,7 +283,8 @@ impl SseEventSource {
             let deadline = match self.reconnect_at {
                 Some(deadline) => deadline,
                 None => {
-                    let Some(deadline) = Instant::now().checked_add(self.retry_delay) else {
+                    let delay = effective_retry(self.retry_delay, self.min_retry);
+                    let Some(deadline) = Instant::now().checked_add(delay) else {
                         self.closed = true;
                         return Err(SseError::invalid_reconnect_delay());
                     };
