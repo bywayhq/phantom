@@ -52,8 +52,9 @@ work has exposed the real architectural boundaries.
   opt-in, with a dedicated five-pseudo-header order, duplex flow control,
   streamed rejection bodies, clean close, and no fallback. Named-browser
   recipes remain capture-gated.
-- CONNECT-UDP/MASQUE, proxy-carried or H3 extended CONNECT, and named-browser
-  H2 WebSocket recipes remain in Phase 1.
+- The HTTP/3 extended CONNECT foundation is complete in `phantom-net`.
+  WebSocket over H3, CONNECT-UDP/MASQUE, proxy-carried extended CONNECT, and
+  named-browser H2 WebSocket recipes build on it and remain in Phase 1.
 - The Chrome 152 H2 WebSocket recipe requires a retained browser capture of
   the extended-CONNECT opening handshake, including pseudo-header and ordinary
   field order, priority, compression offer, and failure behavior. The generic
