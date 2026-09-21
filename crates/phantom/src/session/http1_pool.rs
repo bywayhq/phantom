@@ -67,6 +67,7 @@ impl Http1Pool {
         trailers: Vec<RequestHeader>,
         body: Option<RequestBody>,
         forward_authorization: bool,
+        fresh_connection: bool,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
@@ -134,7 +135,7 @@ impl Http1Pool {
                     endpoint,
                     route,
                     mode,
-                    forward_authorization,
+                    forward_authorization || fresh_connection,
                 )
                 .await
         })
@@ -294,9 +295,11 @@ impl PoolEntry {
                 }
             }
         } else if current.take().is_some() {
+            // Proxy-authentication and reused-connection replays both need a
+            // connection that has carried no earlier request.
             debug!(
                 outcome = "authentication_retry",
-                "HTTP/1 pooled connection retired before authenticated retry"
+                "HTTP/1 pooled connection retired before a fresh-connection attempt"
             );
         }
 

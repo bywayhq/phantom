@@ -31,6 +31,7 @@ struct CaptureState {
     proxy_attempts: Vec<(&'static str, u64)>,
     retries_performed: Vec<(&'static str, u64)>,
     retry_reasons: Vec<(&'static str, String)>,
+    reused_connection_replays: Vec<(&'static str, u64)>,
 }
 
 impl OutcomeSubscriber {
@@ -113,6 +114,16 @@ impl OutcomeSubscriber {
             .collect()
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn reused_connection_replays_for(&self, span_name: &str) -> Vec<u64> {
+        self.state()
+            .reused_connection_replays
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, replays)| *replays)
+            .collect()
+    }
+
     fn state(&self) -> MutexGuard<'_, CaptureState> {
         match self.state.lock() {
             Ok(state) => state,
@@ -174,6 +185,7 @@ impl Subscriber for OutcomeSubscriber {
             && visitor.proxy_attempts.is_none()
             && visitor.retries_performed.is_none()
             && visitor.retry_reason.is_none()
+            && visitor.reused_connection_replays.is_none()
         {
             return;
         }
@@ -200,6 +212,9 @@ impl Subscriber for OutcomeSubscriber {
             if let Some(reason) = visitor.retry_reason {
                 state.retry_reasons.push((name, reason));
             }
+            if let Some(replays) = visitor.reused_connection_replays {
+                state.reused_connection_replays.push((name, replays));
+            }
         }
     }
 
@@ -221,6 +236,7 @@ struct OutcomeVisitor {
     proxy_attempts: Option<u64>,
     retries_performed: Option<u64>,
     retry_reason: Option<String>,
+    reused_connection_replays: Option<u64>,
 }
 
 impl Visit for OutcomeVisitor {
@@ -251,6 +267,8 @@ impl Visit for OutcomeVisitor {
             self.proxy_attempts = Some(value);
         } else if field.name() == "retries_performed" {
             self.retries_performed = Some(value);
+        } else if field.name() == "reused_connection_replays" {
+            self.reused_connection_replays = Some(value);
         }
     }
 }

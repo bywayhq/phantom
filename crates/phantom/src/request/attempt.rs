@@ -85,6 +85,7 @@ async fn send_once_exact(
         request_span.record("proxy_attempts", 1_u64);
     }
     let client_hint_origin = client_hint_origin(client, request);
+    let mut fresh_connection = false;
 
     loop {
         let prepared_headers = attempt_headers(client, request, protocol, &request_headers);
@@ -93,7 +94,7 @@ async fn send_once_exact(
             request_span.record("proxy_authentication_retry", true);
             request_span.record("proxy_attempts", 2_u64);
         }
-        let dispatched = dispatch(
+        let dispatched = dispatch_attempt(
             client,
             request,
             protocol,
@@ -104,11 +105,24 @@ async fn send_once_exact(
             prepared.body,
             route,
             None,
-            replays.performed(ReplayClass::ProxyAuthentication),
+            Http1Connect {
+                forward_authorization: replays.performed(ReplayClass::ProxyAuthentication),
+                fresh_connection: std::mem::take(&mut fresh_connection),
+            },
             timeout_budget,
             retries,
         )
-        .await?;
+        .await;
+        let dispatched = match dispatched {
+            Ok(dispatched) => dispatched,
+            Err(error) => {
+                if begin_reused_connection_replay(&error, &method, body, retries, replays) {
+                    fresh_connection = true;
+                    continue;
+                }
+                return Err(error);
+            }
+        };
         let response = dispatched.response;
         let sent_headers = dispatched.sent_headers;
 
@@ -189,6 +203,7 @@ async fn send_once_negotiated(
         .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
     let client_hint_origin = client_hint_origin(client, request);
+    let mut fresh_http1_connection = false;
 
     loop {
         let http1_request_headers =
@@ -196,7 +211,7 @@ async fn send_once_negotiated(
         let http2_request_headers =
             attempt_headers(client, request, HttpProtocol::Http2, &request_headers);
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
-        let (response, protocol, sent_headers) = client
+        let sent = client
             .state
             .http1_or_2
             .send_request(
@@ -210,10 +225,21 @@ async fn send_once_negotiated(
                 request_trailers.clone(),
                 prepared.client_hints,
                 prepared.body,
+                std::mem::take(&mut fresh_http1_connection),
                 timeout_budget,
                 retries,
             )
-            .await?;
+            .await;
+        let (response, protocol, sent_headers) = match sent {
+            Ok(sent) => sent,
+            Err(error) => {
+                if begin_reused_connection_replay(&error, &method, body, retries, replays) {
+                    fresh_http1_connection = true;
+                    continue;
+                }
+                return Err(error);
+            }
+        };
 
         let critical_retry_requested = observe_response(
             client,
@@ -234,6 +260,32 @@ async fn send_once_negotiated(
         }
         return Ok(AttemptOutcome { response, protocol });
     }
+}
+
+/// Starts the one replay after a reused HTTP/1.1 connection closed before
+/// any response byte, when policy, method, and body permit it.
+///
+/// A one-shot streaming body was moved into the failed attempt, so it is
+/// never replayed and the original error is returned instead.
+fn begin_reused_connection_replay(
+    error: &RequestError,
+    method: &Method,
+    body: &RequestBodySource,
+    retries: &mut ConnectionSetupRetryState,
+    replays: &mut ReplayState,
+) -> bool {
+    if !retries.replays_reused_connections()
+        || !error.is_reused_connection_close()
+        || !matches!(
+            body,
+            RequestBodySource::Absent | RequestBodySource::Bytes(_)
+        )
+        || !replays.try_begin(ReplayClass::ReusedConnection, method)
+    {
+        return false;
+    }
+    retries.record_reused_connection_replay();
+    true
 }
 
 /// Response bookkeeping that differs by attempt path.
@@ -384,6 +436,52 @@ pub(super) async fn dispatch(
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
 ) -> Result<DispatchOutcome, RequestError> {
+    dispatch_attempt(
+        client,
+        request,
+        protocol,
+        method,
+        request_headers,
+        request_trailers,
+        client_hints,
+        body,
+        route,
+        http3_transport,
+        Http1Connect {
+            forward_authorization,
+            fresh_connection: false,
+        },
+        timeout_budget,
+        retries,
+    )
+    .await
+}
+
+/// HTTP/1 pool connection choices for one attempt; ignored by H2 and H3.
+#[derive(Clone, Copy)]
+struct Http1Connect {
+    /// Selects the authenticated forward-proxy fields and a new connection.
+    forward_authorization: bool,
+    /// Retires the pooled connection and opens a new one.
+    fresh_connection: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn dispatch_attempt(
+    client: &Client,
+    request: &ResolvedRequest,
+    protocol: HttpProtocol,
+    method: Method,
+    request_headers: Vec<RequestHeader>,
+    request_trailers: Vec<RequestHeader>,
+    client_hints: Option<ClientHintContext<'_>>,
+    body: Option<RequestBody>,
+    route: &Route,
+    http3_transport: Option<Http3TransportTarget<'_>>,
+    http1_connect: Http1Connect,
+    timeout_budget: TimeoutBudget,
+    retries: &mut ConnectionSetupRetryState,
+) -> Result<DispatchOutcome, RequestError> {
     let endpoint = &request.endpoint;
     let target = request.target.clone();
 
@@ -421,7 +519,8 @@ pub(super) async fn dispatch(
                     headers,
                     request_trailers,
                     body,
-                    forward_authorization,
+                    http1_connect.forward_authorization,
+                    http1_connect.fresh_connection,
                     timeout_budget,
                     retries,
                 )

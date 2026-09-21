@@ -5,6 +5,8 @@ use http::Method;
 pub(super) enum ReplayClass {
     CriticalClientHints,
     ProxyAuthentication,
+    /// A reused HTTP/1.1 connection closed before any response byte.
+    ReusedConnection,
 }
 
 impl ReplayClass {
@@ -12,6 +14,9 @@ impl ReplayClass {
         match self {
             Self::CriticalClientHints => method.is_safe(),
             Self::ProxyAuthentication => true,
+            // RFC 9110, section 9.2.2: the request may already have reached
+            // the origin, so only idempotent methods may be repeated.
+            Self::ReusedConnection => method.is_idempotent(),
         }
     }
 }
@@ -20,6 +25,7 @@ impl ReplayClass {
 pub(super) struct ReplayState {
     critical_client_hints: bool,
     proxy_authentication: bool,
+    reused_connection: bool,
 }
 
 impl ReplayState {
@@ -27,6 +33,7 @@ impl ReplayState {
         Self {
             critical_client_hints: false,
             proxy_authentication: false,
+            reused_connection: false,
         }
     }
 
@@ -52,6 +59,7 @@ impl ReplayState {
         match class {
             ReplayClass::CriticalClientHints => self.critical_client_hints,
             ReplayClass::ProxyAuthentication => self.proxy_authentication,
+            ReplayClass::ReusedConnection => self.reused_connection,
         }
     }
 
@@ -59,6 +67,7 @@ impl ReplayState {
         match class {
             ReplayClass::CriticalClientHints => &mut self.critical_client_hints,
             ReplayClass::ProxyAuthentication => &mut self.proxy_authentication,
+            ReplayClass::ReusedConnection => &mut self.reused_connection,
         }
     }
 }
@@ -77,5 +86,31 @@ mod tests {
         for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
             assert!(!ReplayState::new().try_begin(ReplayClass::CriticalClientHints, &method));
         }
+    }
+
+    #[test]
+    fn reused_connection_replay_requires_an_idempotent_method() {
+        for method in [
+            Method::GET,
+            Method::HEAD,
+            Method::OPTIONS,
+            Method::TRACE,
+            Method::PUT,
+            Method::DELETE,
+        ] {
+            assert!(ReplayState::new().try_begin(ReplayClass::ReusedConnection, &method));
+        }
+        for method in [Method::POST, Method::PATCH, Method::CONNECT] {
+            assert!(!ReplayState::new().try_begin(ReplayClass::ReusedConnection, &method));
+        }
+    }
+
+    #[test]
+    fn reused_connection_replay_runs_once_per_hop() {
+        let mut replays = ReplayState::new();
+        assert!(replays.try_begin(ReplayClass::ReusedConnection, &Method::GET));
+        assert!(!replays.try_begin(ReplayClass::ReusedConnection, &Method::GET));
+        replays.start_hop();
+        assert!(replays.try_begin(ReplayClass::ReusedConnection, &Method::GET));
     }
 }

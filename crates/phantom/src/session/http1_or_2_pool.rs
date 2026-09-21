@@ -70,6 +70,7 @@ impl Http1Or2Pool {
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
+        fresh_http1_connection: bool,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<NegotiatedResponse, RequestError> {
@@ -115,6 +116,7 @@ impl Http1Or2Pool {
             client_hints,
         };
         let mut retried_graceful_goaway = false;
+        let mut fresh_http1_connection = fresh_http1_connection;
 
         loop {
             let selection = timeout_budget
@@ -130,6 +132,7 @@ impl Http1Or2Pool {
                     endpoint,
                     request_span,
                     selection,
+                    std::mem::take(&mut fresh_http1_connection),
                     timeout_budget,
                     retries,
                 )
@@ -280,15 +283,21 @@ impl PoolEntry {
     /// `selection` stays held across setup retry delays and until the selected
     /// protocol admits the request, so the request is always counted by one
     /// bounded admission. The connection lock is released before any delay.
+    /// `fresh_http1` retires a current H1 generation once before acquiring.
+    #[allow(clippy::too_many_arguments)]
     async fn acquire_selected(
         &self,
         connector: &Http1Or2TlsConnector,
         endpoint: &Endpoint,
         request_span: &Span,
         selection: AdmissionPermit,
+        fresh_http1: bool,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(ConnectionLease, AdmissionPermit), RequestError> {
+        if fresh_http1 {
+            self.retire_http1().await;
+        }
         loop {
             let lease = acquire_unselected_with_retries(timeout_budget, retries, || {
                 self.acquire(connector, endpoint)
@@ -471,6 +480,24 @@ impl PoolEntry {
         let lease = slot.lease();
         *current = Some(slot);
         Ok(lease)
+    }
+
+    /// Retires a current H1 generation so the next acquisition connects anew.
+    ///
+    /// A current H2 generation is kept: it is not the reused H1 connection
+    /// that failed, and the replacement is chosen by ALPN either way.
+    async fn retire_http1(&self) {
+        let mut current = self.current.lock().await;
+        if current
+            .as_ref()
+            .is_some_and(|slot| matches!(slot.connection, PooledConnection::Http1(_)))
+        {
+            current.take();
+            debug!(
+                outcome = "retired",
+                "negotiated HTTP/1 generation retired before a fresh-connection attempt"
+            );
+        }
     }
 
     async fn is_current_and_reusable(&self, lease: &ConnectionLease) -> bool {

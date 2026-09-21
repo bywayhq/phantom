@@ -7,26 +7,34 @@ use crate::{
     timeout::{TimeoutBudget, TimeoutPhase},
 };
 
-/// Policy for retrying requests after connection-establishment failures.
+/// Policy for retrying requests after connection failures.
 ///
-/// Retries are disabled by default. An eligible retry occurs inside the
-/// selected H1, H2, or H3 pool, or before ALPN selection in the negotiated
-/// H1/H2 pool, before the origin request or body is dispatched, so methods and
-/// one-shot streaming bodies are not replayed. TLS, ALPN, proxy negotiation,
-/// timeouts, HTTP responses, and protocol failures are not retried.
+/// Retries are disabled by default. An eligible connection-setup retry occurs
+/// inside the selected H1, H2, or H3 pool, or before ALPN selection in the
+/// negotiated H1/H2 pool, before the origin request or body is dispatched, so
+/// methods and one-shot streaming bodies are not replayed. TLS, ALPN, proxy
+/// negotiation, timeouts, HTTP responses, and protocol failures are not
+/// retried.
+///
+/// [`with_reused_connection_replay`](Self::with_reused_connection_replay)
+/// separately opts into the one post-dispatch replay class: an idempotent
+/// HTTP/1.1 request whose reused keep-alive connection closed before any
+/// response byte.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RetryPolicy {
     maximum_connection_failures: Option<NonZeroUsize>,
     delay: Duration,
+    reused_connection_replay: bool,
 }
 
 impl RetryPolicy {
-    /// Disables connection-establishment retries.
+    /// Disables connection-setup retries and reused-connection replay.
     #[must_use]
     pub const fn none() -> Self {
         Self {
             maximum_connection_failures: None,
             delay: Duration::ZERO,
+            reused_connection_replay: false,
         }
     }
 
@@ -39,6 +47,27 @@ impl RetryPolicy {
         Self {
             maximum_connection_failures: Some(maximum),
             delay,
+            reused_connection_replay: false,
+        }
+    }
+
+    /// Sets whether a request is replayed after its reused HTTP/1.1
+    /// connection closes before any response byte.
+    ///
+    /// When enabled, an exact or negotiated HTTP/1.1 request is sent once
+    /// more on a fresh connection over the same route when all of these hold:
+    /// it was written to a keep-alive connection that had already delivered a
+    /// response, that connection closed or was reset before any byte of the
+    /// new response arrived, the method is idempotent (RFC 9110, section
+    /// 9.2.2), and the body is absent or owned bytes. A one-shot streaming
+    /// body, a fresh connection, or a failure after any response byte returns
+    /// the original error. At most one replay occurs per redirect hop, without
+    /// a delay, and it does not consume the connection-setup retry budget.
+    #[must_use]
+    pub const fn with_reused_connection_replay(self, enabled: bool) -> Self {
+        Self {
+            reused_connection_replay: enabled,
+            ..self
         }
     }
 
@@ -54,15 +83,23 @@ impl RetryPolicy {
         self.delay
     }
 
+    /// Returns whether reused-connection replay is enabled.
+    #[must_use]
+    pub const fn reused_connection_replay(self) -> bool {
+        self.reused_connection_replay
+    }
+
     pub(crate) fn validate(self) -> bool {
         self.maximum_connection_failures.is_none()
             || std::time::Instant::now().checked_add(self.delay).is_some()
     }
 }
 
+/// Request-scoped retry accounting that spans every redirect hop.
 pub(crate) struct ConnectionSetupRetryState {
     policy: RetryPolicy,
     performed: usize,
+    reused_connection_replays: usize,
     request_span: Span,
 }
 
@@ -71,12 +108,32 @@ impl ConnectionSetupRetryState {
         Self {
             policy,
             performed: 0,
+            reused_connection_replays: 0,
             request_span,
         }
     }
 
+    /// Returns connection-setup retries only; replays are counted separately.
     pub(crate) const fn performed(&self) -> usize {
         self.performed
+    }
+
+    pub(crate) const fn replays_reused_connections(&self) -> bool {
+        self.policy.reused_connection_replay
+    }
+
+    /// Counts one reused-connection replay without touching the setup budget.
+    pub(crate) fn record_reused_connection_replay(&mut self) {
+        self.reused_connection_replays += 1;
+        self.request_span.record(
+            "reused_connection_replays",
+            u64::try_from(self.reused_connection_replays).unwrap_or(u64::MAX),
+        );
+        tracing::debug!(
+            replay = self.reused_connection_replays,
+            reason = "reused_connection_closed",
+            "replaying request on a fresh HTTP/1.1 connection"
+        );
     }
 
     pub(crate) async fn retry_after(
@@ -189,6 +246,28 @@ mod tests {
         let policy = RetryPolicy::connection_failures(maximum, delay);
         assert_eq!(policy.max_connection_failures(), Some(maximum));
         assert_eq!(policy.delay(), delay);
+        assert!(!policy.reused_connection_replay());
+    }
+
+    #[test]
+    fn reused_connection_replay_is_independent_of_setup_retries() {
+        let replay_only = RetryPolicy::none().with_reused_connection_replay(true);
+        assert!(replay_only.reused_connection_replay());
+        assert_eq!(replay_only.max_connection_failures(), None);
+        assert!(!RetryPolicy::default().reused_connection_replay());
+
+        let maximum = NonZeroUsize::MIN;
+        let delay = Duration::from_millis(25);
+        let combined =
+            RetryPolicy::connection_failures(maximum, delay).with_reused_connection_replay(true);
+        assert_eq!(combined.max_connection_failures(), Some(maximum));
+        assert_eq!(combined.delay(), delay);
+        assert!(combined.reused_connection_replay());
+        assert!(
+            !combined
+                .with_reused_connection_replay(false)
+                .reused_connection_replay()
+        );
     }
 
     #[tokio::test]

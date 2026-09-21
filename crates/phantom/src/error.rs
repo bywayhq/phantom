@@ -264,6 +264,8 @@ enum RequestRetryability {
     #[default]
     Never,
     ConnectionSetup,
+    /// A reused HTTP/1.1 connection closed before any response byte.
+    ReusedConnectionClosed,
 }
 
 impl RequestError {
@@ -571,12 +573,23 @@ impl RequestError {
                 _ => RequestErrorKind::Http1,
             }
         };
-        Self::with_source(
-            kind,
-            Some(HttpProtocol::Http1),
-            "HTTP/1 request failed",
+        let retryability = if matches!(
             source,
-        )
+            Http1TlsError::Http1(Http1Error::ReusedConnectionClosed(_))
+        ) {
+            RequestRetryability::ReusedConnectionClosed
+        } else {
+            RequestRetryability::Never
+        };
+        Self {
+            retryability,
+            ..Self::with_source(
+                kind,
+                Some(HttpProtocol::Http1),
+                "HTTP/1 request failed",
+                source,
+            )
+        }
     }
 
     pub(crate) fn http1_connection_setup(source: Http1TlsError) -> Self {
@@ -785,6 +798,12 @@ impl RequestError {
         self.retryability == RequestRetryability::ConnectionSetup
     }
 
+    /// Returns whether a reused HTTP/1.1 connection closed before any
+    /// response byte; method and body eligibility are checked by the caller.
+    pub(crate) fn is_reused_connection_close(&self) -> bool {
+        self.retryability == RequestRetryability::ReusedConnectionClosed
+    }
+
     /// Returns the stable failure category.
     #[must_use]
     pub fn kind(&self) -> RequestErrorKind {
@@ -968,6 +987,18 @@ mod tests {
 
         let ordinary = RequestError::http1(Http1TlsError::Connect(io_error()));
         assert!(!ordinary.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn only_the_reused_connection_close_variant_is_replay_classified() {
+        for error in [
+            RequestError::http1(Http1TlsError::Http1(Http1Error::ConnectionClosed)),
+            RequestError::http1(Http1TlsError::Connect(io_error())),
+            RequestError::http1_connection_setup(Http1TlsError::Connect(io_error())),
+            RequestError::http1_body(Http1Error::ConnectionClosed),
+        ] {
+            assert!(!error.is_reused_connection_close(), "{error:?}");
+        }
     }
 
     #[test]

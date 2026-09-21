@@ -301,6 +301,7 @@ impl RequestBuilder {
             proxy_attempts = field::Empty,
             retries_performed = 0_u64,
             retry_reason = field::Empty,
+            reused_connection_replays = 0_u64,
             timeout_phase = field::Empty,
             outcome = field::Empty,
         );
