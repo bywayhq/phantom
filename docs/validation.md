@@ -229,15 +229,42 @@ Where they differ:
 | Behavior | Chrome 153 | Firefox 155 |
 | --- | --- | --- |
 | Delay without `retry` | 3 s | 5 s |
-| `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to about 510 ms |
-| Reconnect after a reset before any response | first immediate, then the retry delay | immediate each time |
+| `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to 500 ms (observed about 510 ms) |
+| Request after a reset before any response | one HTTP-stack resend on a new connection when the failed request reused a connection, then the retry delay | HTTP-stack transaction restarts on new connections |
 | Reconnect target after a followed `307` | redirected URL | original URL |
 
-Chrome's immediate request after the first reset repeats the failed initial
-request, which may be network-layer resend rather than EventSource
-scheduling; the fixture cannot tell them apart. A five-run headless and
-headful Chrome comparison of `retry-750`, retained under `launch-mode/`, gave
-medians within 1 ms of each other, so headless timers are not throttled.
+The immediate requests after a reset are HTTP-stack resends, not EventSource
+reconnects. Three `reset-before-head` runs of Chrome 153.0.8010.48 with
+`--log-net-log --net-log-capture-mode=Everything` each showed one URL request
+that sent on a reused keep-alive socket, failed with `ERR_CONNECTION_CLOSED`,
+logged `HTTP_TRANSACTION_RESTART_AFTER_ERROR`, and resent on a new connection,
+where it failed with `ERR_EMPTY_RESPONSE`. Each later request was a new URL
+request about 3 s later, so Chrome's EventSource waited the retry delay after
+every failure. One run of Firefox 156.0 (the build then installed) with
+`MOZ_LOG=nsHttp:5,EventSource:5` showed one channel whose transaction
+restarted three times after `NS_BASE_STREAM_CLOSED` on fresh connections; the
+`204` answered that same channel, so the EventSource never scheduled a
+reconnect. The logs were kept outside the repository; the fixture timings of
+these runs matched the retained captures. Phantom's event source already waits
+the retry delay after each failure, like Chrome's. Its HTTP/1 layer does not
+resend a request after a reused connection closes before a response, and
+that request-layer policy is outside the SSE controller.
+
+A five-run headless and headful Chrome comparison of `retry-750`, retained
+under `launch-mode/`, gave medians within 1 ms of each other, so headless
+timers are not throttled.
+
+`crates/phantom/tests/sse_browser_reconnect.rs` reads the retained fixtures
+and replays the same server stimuli against Phantom with a paused clock. It
+asserts that Phantom matches both browsers on `Last-Event-ID` spelling and
+raw value, empty-id omission, retry persistence, ignored non-digit retry, and
+termination on `204`, `404`, `500`, and `text/plain`. With Firefox options
+(`initial_retry` 5 s, `min_retry` 500 ms) and Chrome defaults, each browser's
+median delay per attempt must lie between Phantom's exact delay and 30 ms
+above it; this covers `retry-0`, `retry-100`, `retry-750`, and the default
+delay. A template built from each browser's captured reconnect fields, with
+`SseHeader::last_event_id` at the captured position, reproduces the browser's
+field lines except the `Host` port.
 
 Other background traffic remained during the captures. Firefox 155 still
 contacted Remote Settings, and Chrome contacted Google update and messaging

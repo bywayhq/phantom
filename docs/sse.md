@@ -47,8 +47,40 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
 The EventSource builder starts with ordered `Accept: text/event-stream` and
 `Cache-Control: no-cache` fields, using lowercase names for HTTP/2 and HTTP/3.
-`header` appends after those defaults. `headers` replaces the complete list so
-callers can reproduce a different request shape exactly.
+`header` appends one literal field. `headers` replaces the complete template
+with `SseHeader` entries so callers can reproduce a different request shape
+exactly. `SseHeader::last_event_id` marks where the managed `Last-Event-ID`
+field goes and sets its name spelling:
+
+```rust
+use phantom::{Client, HttpProtocol, RequestHeader, SseHeader};
+
+async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .event_source(HttpProtocol::Http1, "https://example.com/events")?
+        .headers(vec![
+            SseHeader::field(RequestHeader::new("Accept", "text/event-stream")),
+            SseHeader::last_event_id("Last-Event-ID"),
+            SseHeader::field(RequestHeader::new("Pragma", "no-cache")),
+            SseHeader::field(RequestHeader::new("Cache-Control", "no-cache")),
+        ])
+        .connect()
+        .await?;
+    let mut events = response.into_body();
+    while let Some(event) = events.next_event().await? {
+        println!("{}", event.data());
+    }
+    Ok(())
+}
+```
+
+The placeholder emits the committed ID at its position and emits nothing
+while the ID is empty. A template may hold at most one placeholder; its name
+must spell `Last-Event-ID` in any case, or in lowercase for HTTP/2 and HTTP/3.
+Without a placeholder, a nonempty ID is appended after every other field.
+`connect` rejects a literal `Last-Event-ID` field or an invalid placeholder
+with `SseErrorKind::InvalidRequestHeader` before any I/O, so reconnects cannot
+emit duplicates.
 
 `from_response` requires status 200, a `text/event-stream` content-type
 essence, and no content encoding other than `identity`, even when the
@@ -68,7 +100,7 @@ decoder state for the next call and remains a single-response primitive.
 `SseEventSource` preserves a scheduled reconnect deadline across a cancelled
 read, including an active idle deadline, and retains an in-flight reconnect
 request for the next read. It carries committed `id` and `retry` state across
-responses, adds one `Last-Event-ID` field when the committed ID is nonempty,
+responses, sends one `Last-Event-ID` field when the committed ID is nonempty,
 and stops permanently on 204. Initial transport failures, later disconnects,
 and idle responses use the same finite attempt budget. Only resolution,
 connection, proxy, capacity, timeout, TLS, and protocol failures are retried;
@@ -77,11 +109,14 @@ once, because repeating the same request would fail identically. A committed
 event ID that cannot be sent as a `Last-Event-ID` field value also ends the
 source with `SseErrorKind::Request` before another request. Reconnects use the same
 exact protocol, client cookies, redirect policy, ordered caller fields, and
-route. A caller-supplied `Last-Event-ID` is rejected so reconnects cannot emit
-duplicates.
+route.
 
 The initial reconnect delay and finite reconnect count are explicit builder
 settings; their defaults are three seconds and three reconnect requests.
+`min_retry` is unset by default, so every valid server `retry` value is used
+exactly. When set, any shorter delay (the initial delay, a server value, or
+the wait before retrying the initial request) is raised to it, and
+`SseEventSource::retry_delay` reports the raised value.
 `SseRequestBuilder::request_timeouts` replaces the client's ordinary request
 policy for every initial or reconnect attempt. Pool-admission, connection, and
 response-head limits apply independently to each attempt. Generic read-idle
@@ -101,21 +136,30 @@ renderer events.
 [SSE browser reconnect evidence](validation.md#sse-browser-reconnect-evidence)
 compares this controller with Chrome 153 and Firefox 155 over HTTP/1.1. The
 id, retry, termination, cookie, and no-jitter behavior match both browsers.
-The three-second default delay matches Chrome. The remaining differences are
-listed here.
+The three-second default delay matches Chrome. `min_retry` and a
+placeholder template reproduce the Firefox clamp and either browser's
+`Last-Event-ID` position; `crates/phantom/tests/sse_browser_reconnect.rs`
+replays the retained captures against those settings. The remaining
+differences are listed here.
 
 - **Reconnect budget.** Phantom stops after a finite, configurable count.
   Browsers reconnected every time, but the captures exercise at most three
   reconnects, so they do not show whether a browser limit exists.
 - **Idle timeout.** Browsers kept an idle stream open; Phantom's optional idle
   timeout is off by default.
-- **`Last-Event-ID` position.** Phantom appends the field after every caller
-  field. Both browsers place it among their ordinary fields, and a caller
-  cannot choose its position.
-- **Small `retry` values.** Phantom honors any value, as Chrome does. Firefox
-  raises values below about 500 ms.
-- **Network errors before a response.** Phantom always waits the retry delay.
-  Firefox reconnected immediately, and Chrome reconnected immediately once.
+- **`Last-Event-ID` position.** Without a placeholder, Phantom appends the
+  field after every caller field. Chrome sends it 9th of 16 fields and
+  Firefox 5th of 14; `SseHeader::last_event_id` reproduces either position.
+- **Small `retry` values.** By default Phantom honors any value, as Chrome
+  does. Firefox raises values below 500 ms; `min_retry(500 ms)` reproduces
+  that.
+- **Network errors before a response.** Phantom's event source waits the
+  retry delay after every failed attempt, as Chrome's does. The immediate
+  requests the browsers made are HTTP-stack resends inside one EventSource
+  request, not EventSource reconnects: Chrome resends once after a reused
+  keep-alive connection closes before a response, and Firefox restarts the
+  transaction on fresh connections too. Phantom's HTTP/1 layer does not resend
+  a request after such a close, so the next request waits the retry delay.
 - **Redirected streams.** Phantom reconnects to the original URL and follows
   the client redirect policy again, as Firefox does. Chrome reconnects to the
   redirected URL.
