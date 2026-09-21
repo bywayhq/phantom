@@ -47,8 +47,9 @@ work has exposed the real architectural boundaries.
   can opt into bounded Alt-Svc learning, preserve origin authority and SNI while
   dialing an advertised `h3` location, send canonical explicit-port `Alt-Used`
   only on that managed attempt, and apply explicit failure and `421` eviction
-  semantics without fallback. Racing, persistence, and H2 ALTSVC frames remain
-  later Phase 1 functionality.
+  semantics without fallback. H2 ALTSVC frames, caller-owned Alt-Svc
+  persistence, and per-location H3 pool slots are complete; racing and
+  proxy-route upgrades remain later Phase 1 functionality.
 - The first extended CONNECT slice is complete: explicitly configured custom
   H2 profiles can open exact direct `wss://` WebSockets after peer SETTINGS
   opt-in, with a dedicated five-pseudo-header order, duplex flow control,
