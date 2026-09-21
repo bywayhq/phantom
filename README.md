@@ -8,7 +8,7 @@ profiles rather than hidden transport branches.
 
 > **Status:** Phantom is experimental, under active development, and not yet
 > published to crates.io. Depend on a pinned git revision or checkout; see
-> [Downstream integration](docs/downstream.md). It does not claim complete
+> [Downstream integration](docs/guides/downstream.md). It does not claim complete
 > browser impersonation.
 
 ## Why Phantom?
@@ -40,7 +40,7 @@ JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
 | Optional APIs | Server-sent events; H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable; exact H2 WebSocket extended CONNECT over direct, HTTP-CONNECT, or SOCKS5 routes for explicitly configured profiles; and opt-in `permessage-deflate` |
 | Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
 
-See [Coverage](docs/coverage.md) for the exact supported and planned lifecycle
+See [Coverage](docs/reference/coverage.md) for the exact supported and planned lifecycle
 at each layer.
 
 ## A first request
@@ -78,7 +78,7 @@ Every response uses the standard `http::Response` view and carries
 need to abandon hostile or unexpectedly large bodies.
 
 [Getting started](docs/getting-started.md) covers the source build and feature
-flags. [Using the client](docs/client.md) covers profiles, routes, state,
+flags. [Using the client](docs/guides/client.md) covers profiles, routes, state,
 timeouts, bodies, and responses.
 
 ## Deliberate limits
@@ -109,11 +109,11 @@ behavior explicit and testable.
 The [documentation map](docs/README.md) routes readers by audience and task.
 
 - [Getting started](docs/getting-started.md) — first build and request
-- [Using the client](docs/client.md) — integration guide
-- [Coverage](docs/coverage.md) — authoritative support contract
-- [Design](docs/design.md) — architecture and invariants
-- [Validation](docs/validation.md) — evidence and contributor gates
-- [HTTP/3 internals](docs/http3.md) — QUIC, QPACK, capture, and diagnostics
+- [Using the client](docs/guides/client.md) — integration guide
+- [Coverage](docs/reference/coverage.md) — authoritative support contract
+- [Design](docs/explanation/design.md) — architecture and invariants
+- [Validation](docs/explanation/validation.md) — evidence and contributor gates
+- [HTTP/3 internals](docs/internals/http3.md) — QUIC, QPACK, capture, and diagnostics
 - [Roadmap](docs/roadmap.md) — now, next, and later
 
 SSE and WebSocket have focused guides under [`docs/`](docs/). Contributors

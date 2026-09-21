@@ -30,7 +30,7 @@ version = "0.1.0"
 [workspace.dependencies]
 # Patched dependencies resolve to Phantom's renamed forks under `vendor/`. The
 # dependency keys keep the upstream crate names, so source code is unchanged
-# and the stock packages never enter the build graph. See docs/downstream.md.
+# and the stock packages never enter the build graph. See docs/guides/downstream.md.
 btls = { package = "phantom-btls", version = "=0.5.6-phantom.1", path = "vendor/btls", default-features = false }
 btls-sys = { git = "https://github.com/0xARYA/btls", rev = "ce81167653e2d8878f2e9b2218a15b9bc8351a53", default-features = false }
 brotli = "9.0.0"

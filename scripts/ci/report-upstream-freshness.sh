@@ -113,7 +113,7 @@ write_output() {
   fi
 }
 
-# Browser profiles are versioned by major release (docs/coverage.md), so only a
+# Browser profiles are versioned by major release (docs/reference/coverage.md), so only a
 # major-version change is transport drift; a new build within the recipe's
 # major is expected to share its fingerprint.
 chrome_major_drift() {

@@ -2,7 +2,7 @@
 
 This document is for maintainers and reviewers. It defines Phantom's stable
 ownership and safety boundaries; user configuration belongs in
-[Using the client](client.md).
+[Using the client](../guides/client.md).
 
 ## Principles
 
@@ -190,7 +190,7 @@ carry a reproducible patch, preserve stock defaults, and include focused tests.
 `scripts/ci/check-vendor.sh` verifies each patched package.
 
 Backend types remain private, and runtime crates never depend on the testkit.
-See [HTTP/3 internals](http3.md) for its specialized boundaries.
+See [HTTP/3 internals](../internals/http3.md) for its specialized boundaries.
 
 ## Unsafe code
 

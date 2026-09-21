@@ -27,7 +27,7 @@ the ordered HTTP/1 serializer, ordered response metadata, client cookies,
 runtime errors, and tracing lifecycle.
 
 The public client is exercised against a pinned Autobahn fuzzing server. See
-[Validation](validation.md#external-suites) for how external suites are used.
+[Validation](../explanation/validation.md#external-suites) for how external suites are used.
 
 The additive `websocket-deflate` feature compiles RFC 7692 support. It does not
 change the wire by itself: each connection must opt in through
@@ -345,7 +345,7 @@ tracing records logical uncompressed byte counts and never payload contents.
 Chrome 153 (also used for Edge 153) and Firefox 156 WebSocket recipes cover
 connection choice, extended-CONNECT pseudo-header order and priority, opening
 field templates, and compression offers, from the retained Windows captures
-([Validation](validation.md#websocket-browser-evidence)). The
+([Validation](../explanation/validation.md#websocket-browser-evidence)). The
 [profile policy](#profile-connection-policy) section lists what they do not
 reproduce. Codec-output parity and browser send-selection heuristics remain
 capture-driven work; the generic policy compresses every text and binary

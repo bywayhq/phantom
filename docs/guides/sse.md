@@ -133,7 +133,7 @@ renderer events.
 
 ## Differences from captured browsers
 
-[SSE browser reconnect evidence](validation.md#sse-browser-reconnect-evidence)
+[SSE browser reconnect evidence](../explanation/validation.md#sse-browser-reconnect-evidence)
 compares this controller with Chrome 153 and Firefox 156 over HTTP/1.1. The
 id, retry, termination, cookie, and no-jitter behavior match both browsers.
 The three-second default delay matches Chrome. `min_retry` and a

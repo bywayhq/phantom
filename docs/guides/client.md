@@ -223,7 +223,7 @@ response, that connection closed or was reset before any byte of the new
 response arrived, the method is idempotent (RFC 9110, section 9.2.2: GET,
 HEAD, OPTIONS, TRACE, PUT, or DELETE), and the body is absent or owned bytes.
 Chrome 153 restarts such a request once on a new connection (see
-[validation](validation.md#sse-browser-reconnect-evidence)). The request may
+[validation](../explanation/validation.md#sse-browser-reconnect-evidence)). The request may
 already have reached the origin, which is why the class is opt-in and limited
 to idempotent methods. A request on a fresh connection, a failure after any
 response byte, a one-shot streaming body, POST or PATCH, and a second close
@@ -382,7 +382,7 @@ or retry only through a fresh association on the same configured route, under
 the documented exact-H3 setup policy; no failure selects another route or
 protocol. Loopback tests retry a refused local-DNS proxy connect and a QUIC
 handshake refused through an established association, each through a new
-association (see [connection-retry evidence](validation.md#connection-retry-evidence)).
+association (see [connection-retry evidence](../explanation/validation.md#connection-retry-evidence)).
 
 An H3 SOCKS5 relay reply must provide a nonzero port. Phantom uses a concrete
 IP relay address directly; for an unspecified relay address, it substitutes
@@ -416,7 +416,7 @@ connection; a second 407 fails with an authentication error.
 HTTP/1.1, HTTP/2, negotiated requests, and WebSocket reject this route before
 I/O. Only outer proxy resolution and connection failures are retryable, and a
 proxy rejection exposes its status through the typed error source. See
-[HTTP/3 internals](http3.md#connect-udp-masque) for the protocol contract.
+[HTTP/3 internals](../internals/http3.md#connect-udp-masque) for the protocol contract.
 
 ```rust
 use phantom::{ConnectUdpProxy, RequestHeader, Route};
@@ -724,9 +724,9 @@ evidence is required.
 
 ## Integration checklist
 
-- Confirm the [distribution constraints](getting-started.md#distribution-status)
+- Confirm the [distribution constraints](../getting-started.md#distribution-status)
   are acceptable.
-- Select only profile components listed in [Coverage](coverage.md).
+- Select only profile components listed in [Coverage](../reference/coverage.md).
 - Run inside Tokio with I/O and time enabled.
 - Configure route, origin trust, and proxy trust explicitly.
 - Choose redirect, connection-retry, and timeout policy; none is inferred from
@@ -741,4 +741,4 @@ evidence is required.
 
 For optional APIs, see [Server-sent events](sse.md) and
 [WebSocket](websocket.md). For exhaustive support and planned gaps, see
-[Coverage](coverage.md).
+[Coverage](../reference/coverage.md).

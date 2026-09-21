@@ -3,7 +3,7 @@
 These tools record browser behavior against loopback servers so fixtures under
 [`fixtures/`](../../fixtures/) are local raw evidence, not observer reports.
 Rationale for each retained capture belongs in
-[Validation](../../docs/validation.md); this page covers how to run the tools.
+[Validation](../../docs/explanation/validation.md); this page covers how to run the tools.
 
 Run every command from the repository root with Python 3.10. Listeners refuse
 non-loopback addresses.
@@ -190,5 +190,5 @@ for Edge. Firefox sends no client hints and records an empty list.
 ## HTTP/3 startup
 
 `chrome_http3.py` records one browser HTTP/3 startup against an aioquic
-server. [Validation](../../docs/validation.md) lists its retained fixtures and
+server. [Validation](../../docs/explanation/validation.md) lists its retained fixtures and
 the launch commands used for them.

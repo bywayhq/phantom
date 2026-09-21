@@ -1,7 +1,7 @@
 # Roadmap
 
 This page is for users and contributors following active direction. Exact
-current support lives in [Coverage](coverage.md).
+current support lives in [Coverage](reference/coverage.md).
 
 Each phase names the dominant delivery focus. Idiomatic Rust, clear ownership,
 accurate documentation, and green validation gates remain continuous
@@ -143,5 +143,5 @@ with no learned challenge state, CONNECT conversion, protocol fallback, or
 direct fallback. Exact H3 supports local- or remote-DNS SOCKS5 through an
 optionally authenticated RFC 1928 UDP ASSOCIATE, retains its TCP control
 connection, and reuses the route-keyed H3 connection without direct or protocol
-fallback. Code, tests, [Design](design.md), and
-[Validation](validation.md) are the maintained record of those decisions.
+fallback. Code, tests, [Design](explanation/design.md), and
+[Validation](explanation/validation.md) are the maintained record of those decisions.

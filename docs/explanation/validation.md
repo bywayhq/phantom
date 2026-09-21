@@ -40,7 +40,7 @@ Valid-but-unusual traffic may be compared with a retained browser run.
 Malformed traffic is a robustness test: safety and bounds take precedence over
 reproducing unsafe behavior. Minimized failures become ordinary regressions.
 
-The [parser fuzzing workflow](../.github/workflows/fuzz.yml) runs each target
+The [parser fuzzing workflow](../../.github/workflows/fuzz.yml) runs each target
 under AddressSanitizer for 15 seconds on relevant pull requests and pushes, and
 for 300 seconds on its weekly schedule or a manual dispatch. Every run starts
 from the newest per-target corpus restored from the GitHub Actions cache; only
@@ -267,7 +267,7 @@ plaintext loopback server. Each of the seventeen scenarios ran ten times on a
 fresh profile. Fixtures keep raw request lines and header lines in arrival
 order, connection reuse, and the delay from each server stimulus to the next
 request. The capture page and the exact launch arguments are recorded in each
-file; [the capture README](../scripts/capture/README.md) has the commands.
+file; [the capture README](../../scripts/capture/README.md) has the commands.
 
 The Firefox captures were first recorded under the label 155.0.1, which was
 passed to the capture tool by hand. Every Firefox request in them sends
@@ -685,7 +685,7 @@ External projects are witnesses, not pass badges:
 | Web Platform Tests | Check selected EventSource behavior through Phantom's API |
 | TLS-Anvil and BoringSSL tests | Probe TLS behavior and native dependency updates |
 
-Each row has its own workflow under [`.github/workflows/`](../.github/workflows/).
+Each row has its own workflow under [`.github/workflows/`](../../.github/workflows/).
 
 Some sources are consulted rather than run. curl's test scenarios are a
 reference for lifecycle, proxy, redirect, and timeout cases that become
@@ -703,7 +703,7 @@ Cargo features of the internal crates (`phantom-net/qlog` and
 `phantom-http` facade exposes neither feature nor an API for them.
 
 Benchmarks state exactly what they measure. The
-[benchmark report workflow](../.github/workflows/benchmarks.yml) runs weekly or
+[benchmark report workflow](../../.github/workflows/benchmarks.yml) runs weekly or
 on demand on one Linux runner and uploads Criterion output; it is
 report-only, with no baseline comparison or regression threshold. It covers:
 
@@ -720,7 +720,7 @@ must preserve wire fixtures.
 ## Contributor gates
 
 Formatting, lint, test, documentation, MSRV, capture-tool, and vendor checks
-live in [AGENTS.md](../AGENTS.md) so there is one canonical command list. A
+live in [AGENTS.md](../../AGENTS.md) so there is one canonical command list. A
 handoff records what ran and any remaining uncertainty.
 
-See [HTTP/3 internals](http3.md) for its capture and packet proof.
+See [HTTP/3 internals](../internals/http3.md) for its capture and packet proof.

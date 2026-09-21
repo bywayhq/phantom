@@ -2,7 +2,7 @@
 
 This document is for contributors working on QUIC, HTTP/3, QPACK, or their
 capture fixtures. Application users should start with
-[Getting started](getting-started.md).
+[Getting started](../getting-started.md).
 
 ## Stack boundary
 
@@ -365,10 +365,10 @@ evicts the advertisement without an H1/H2 fallback.
 Caller-configured exact-H3 retries may repeat typed DNS, endpoint, or QUIC
 connection setup before request dispatch while preserving one route and total
 deadline; loopback tests cover recovery for direct and local-DNS SOCKS5
-routes (see [connection-retry evidence](validation.md#connection-retry-evidence)).
+routes (see [connection-retry evidence](../explanation/validation.md#connection-retry-evidence)).
 Opt-in status retry is protocol-independent and applies to exact H3, but its
 loopback tests use H1 only. Protocol, post-dispatch, and negotiated upgrade
 retry policies remain unsupported. Static and declared streaming-body-produced
 request trailers use the same ordered, connection-owned QPACK path. See
-[Coverage](coverage.md) for the current contract and [Validation](validation.md)
+[Coverage](../reference/coverage.md) for the current contract and [Validation](../explanation/validation.md)
 for evidence requirements.

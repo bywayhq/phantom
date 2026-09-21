@@ -2,13 +2,13 @@
 
 This guide is for Rust developers evaluating Phantom for the first time. It
 covers a source build and one explicit HTTP/2 request. Broader configuration is
-in [Using the client](client.md).
+in [Using the client](guides/client.md).
 
 ## Distribution status
 
 Phantom is not yet published to crates.io. Another workspace can depend on an
 exact git revision or a pinned checkout with one dependency line and no
-`[patch]` table; see [Downstream integration](downstream.md). The public
+`[patch]` table; see [Downstream integration](guides/downstream.md). The public
 interface is not stable. Phantom is dual-licensed under MIT or Apache-2.0;
 vendored dependencies keep their upstream licenses in `vendor/*/`.
 
@@ -113,5 +113,5 @@ The QUIC diagnostics features, `qlog` on `phantom-net` and `keylog` on
 `phantom-quic-btls`, belong to internal crates used by capture tooling and
 tests. `phantom-http` does not re-export them or any API to enable them.
 
-Next, read [Using the client](client.md). Check [Coverage](coverage.md) before
+Next, read [Using the client](guides/client.md). Check [Coverage](reference/coverage.md) before
 depending on a protocol, route, or browser profile in production-like work.

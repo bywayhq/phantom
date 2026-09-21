@@ -1,9 +1,9 @@
 # Contributing
 
 This guide is for people proposing or implementing changes to Phantom. Before
-starting, read [Design](docs/design.md) for the project invariants,
-[Coverage](docs/coverage.md) for the current boundary, and
-[Validation](docs/validation.md) for the evidence model.
+starting, read [Design](docs/explanation/design.md) for the project invariants,
+[Coverage](docs/reference/coverage.md) for the current boundary, and
+[Validation](docs/explanation/validation.md) for the evidence model.
 
 Report suspected vulnerabilities through [the security process](SECURITY.md),
 not a public issue.
@@ -118,8 +118,8 @@ cargo +1.85.0 check --workspace --all-targets --locked
 ```
 
 `cargo test` includes doctests that compile the Rust examples in `README.md`,
-`docs/getting-started.md`, `docs/client.md`, `docs/sse.md`, and
-`docs/websocket.md`; a guide example that no longer compiles fails the gate.
+`docs/getting-started.md`, `docs/guides/client.md`, `docs/sse.md`, and
+`docs/guides/websocket.md`; a guide example that no longer compiles fails the gate.
 The MSRV line is CI's `MSRV` job; that job also checks each optional
 `phantom-http` feature combination on Rust 1.85.
 

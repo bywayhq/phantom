@@ -32,7 +32,7 @@ fn rfc_9001_chacha20_material_and_update_are_exact() {
 #[test]
 fn sha384_material_and_repeated_updates_are_exact() {
     // RFC 8446 HKDF-Expand-Label with IKM 00..2f.
-    // See docs/http3.md for the fixture boundary.
+    // See docs/internals/http3.md for the fixture boundary.
     let secret: [u8; SHA384_LEN] = core::array::from_fn(|index| index as u8);
     let material = KeyMaterial::derive(CipherSuite::Aes256GcmSha384, &secret)
         .unwrap_or_else(|error| panic!("SHA-384 fixture derivation failed: {error}"));

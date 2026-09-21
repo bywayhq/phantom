@@ -48,7 +48,7 @@
 //! No feature is enabled by default. QUIC qlog and NSS key logging are
 //! features of internal crates and are not exposed here.
 //!
-//! The repository guides (`docs/client.md`, `docs/coverage.md`) describe the
+//! The repository guides (`docs/guides/client.md`, `docs/reference/coverage.md`) describe the
 //! supported protocol, route, and state combinations in detail.
 
 // Compile-check the Rust examples in the repository guides as doctests.
@@ -61,15 +61,15 @@ struct ReadmeDoctests;
 struct GettingStartedDoctests;
 
 #[cfg(doctest)]
-#[doc = include_str!("../../../docs/client.md")]
+#[doc = include_str!("../../../docs/guides/client.md")]
 struct ClientGuideDoctests;
 
 #[cfg(all(doctest, feature = "sse"))]
-#[doc = include_str!("../../../docs/sse.md")]
+#[doc = include_str!("../../../docs/guides/sse.md")]
 struct SseGuideDoctests;
 
 #[cfg(all(doctest, feature = "websocket"))]
-#[doc = include_str!("../../../docs/websocket.md")]
+#[doc = include_str!("../../../docs/guides/websocket.md")]
 struct WebSocketGuideDoctests;
 
 mod authority;

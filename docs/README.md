@@ -6,13 +6,13 @@ Use the shortest path that matches your role.
 | --- | --- | --- |
 | Evaluating Phantom | [Project README](../README.md) | Value, maturity, current highlights, first request, and key limits |
 | New user | [Getting started](getting-started.md) | Source build, minimal setup, protocol choice, and features |
-| Downstream integrator | [Downstream integration](downstream.md) | Pinned git or path dependency, renamed dependency forks, and validation |
-| Integrator | [Using the client](client.md) | Profiles, requests, routes, pools, state, timeouts, and responses |
-| SSE or WebSocket user | [SSE](sse.md) · [WebSocket](websocket.md) | Feature-specific APIs and lifecycle boundaries |
-| Reviewer or maintainer | [Design](design.md) | Architecture, ownership, security, async, and dependency rules |
-| Checking support | [Coverage](coverage.md) | Authoritative current, planned, and unsupported behavior |
-| Contributor | [Validation](validation.md) | Evidence, fixtures, adversarial tests, external suites, and gates |
-| H3 specialist | [HTTP/3 internals](http3.md) | QUIC, QPACK, capture, diagnostics, and vendored seams |
+| Downstream integrator | [Downstream integration](guides/downstream.md) | Pinned git or path dependency, renamed dependency forks, and validation |
+| Integrator | [Using the client](guides/client.md) | Profiles, requests, routes, pools, state, timeouts, and responses |
+| SSE or WebSocket user | [SSE](guides/sse.md) · [WebSocket](guides/websocket.md) | Feature-specific APIs and lifecycle boundaries |
+| Reviewer or maintainer | [Design](explanation/design.md) | Architecture, ownership, security, async, and dependency rules |
+| Checking support | [Coverage](reference/coverage.md) | Authoritative current, planned, and unsupported behavior |
+| Contributor | [Validation](explanation/validation.md) | Evidence, fixtures, adversarial tests, external suites, and gates |
+| H3 specialist | [HTTP/3 internals](internals/http3.md) | QUIC, QPACK, capture, diagnostics, and vendored seams |
 | Following development | [Roadmap](roadmap.md) | Now, next, and later |
 | Security reporter | [Security policy](../SECURITY.md) | Private reporting, supported versions, and disclosure expectations |
 
