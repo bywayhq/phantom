@@ -7,9 +7,11 @@ use std::{
 
 use crate::{
     HttpProtocol, RequestError,
+    content_coding::{ContentDecoder, Pump},
     timeout::{ResponseTimeouts, TimeoutBudget},
 };
 use bytes::{Bytes, BytesMut};
+use http::HeaderMap;
 use http_body::{Body, Frame, SizeHint};
 use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
 
@@ -21,6 +23,15 @@ use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
 pub struct ResponseBody {
     inner: Option<ResponseBodyInner>,
     timeouts: Option<ResponseTimeouts>,
+    content: Option<ContentState>,
+    held_trailers: Option<HeaderMap>,
+}
+
+/// Opt-in content decoding applied above the wire body.
+enum ContentState {
+    Decode(Box<ContentDecoder>),
+    /// The coding chain was rejected; the first poll reports it.
+    Reject(RequestError),
 }
 
 enum ResponseBodyInner {
@@ -47,8 +58,7 @@ impl ResponseBody {
             length = match checked_body_length(length, data.len(), maximum_bytes) {
                 Ok(length) => length,
                 Err(error) => {
-                    self.inner.take();
-                    self.timeouts.take();
+                    self.close();
                     return Err(error);
                 }
             };
@@ -62,6 +72,8 @@ impl ResponseBody {
         Self {
             inner: Some(ResponseBodyInner::Http1(body)),
             timeouts: None,
+            content: None,
+            held_trailers: None,
         }
     }
 
@@ -77,6 +89,8 @@ impl ResponseBody {
         Self {
             inner: Some(ResponseBodyInner::Http2(body)),
             timeouts: None,
+            content: None,
+            held_trailers: None,
         }
     }
 
@@ -92,6 +106,8 @@ impl ResponseBody {
         Self {
             inner: Some(ResponseBodyInner::Http3(body)),
             timeouts: None,
+            content: None,
+            held_trailers: None,
         }
     }
 
@@ -101,6 +117,163 @@ impl ResponseBody {
     {
         body.retain_until_stream_cleanup(guard);
         Self::http3(body)
+    }
+
+    /// Decodes the remaining wire body through `decoder`.
+    pub(crate) fn decode_content(&mut self, decoder: ContentDecoder) {
+        self.content = Some(ContentState::Decode(Box::new(decoder)));
+    }
+
+    /// Fails the first body poll with `error` and cancels the wire body.
+    pub(crate) fn reject_content(&mut self, error: RequestError) {
+        self.content = Some(ContentState::Reject(error));
+    }
+
+    /// Drops the wire body so the selected protocol cancels an incomplete stream.
+    fn close(&mut self) {
+        self.inner.take();
+        self.timeouts.take();
+        self.content.take();
+        self.held_trailers.take();
+    }
+
+    fn poll_decoded_frame(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        loop {
+            let Some(ContentState::Decode(decoder)) = self.content.as_mut() else {
+                return Poll::Ready(None);
+            };
+            match decoder.pump() {
+                Err(error) => {
+                    self.close();
+                    return Poll::Ready(Some(Err(error)));
+                }
+                Ok(Pump::Data(data)) => {
+                    // Decoded output counts as body activity, and buffered
+                    // high-ratio input must not outrun the total deadline.
+                    if let Some(timeouts) = self.timeouts.as_mut() {
+                        let expired = match timeouts.record_activity() {
+                            Err(error) => Some(error),
+                            Ok(()) => match timeouts.poll_expired(context) {
+                                Poll::Ready(error) => Some(error),
+                                Poll::Pending => None,
+                            },
+                        };
+                        if let Some(error) = expired {
+                            self.close();
+                            return Poll::Ready(Some(Err(error)));
+                        }
+                    }
+                    return Poll::Ready(Some(Ok(Frame::data(data))));
+                }
+                Ok(Pump::Finished) => {
+                    let trailers = self.held_trailers.take();
+                    self.close();
+                    return Poll::Ready(trailers.map(|trailers| Ok(Frame::trailers(trailers))));
+                }
+                Ok(Pump::NeedInput) => {}
+            }
+
+            let protocol = self.protocol();
+            let frame = match self.poll_wire_frame(context) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Some(Err(error))) => {
+                    self.close();
+                    return Poll::Ready(Some(Err(error)));
+                }
+                Poll::Ready(frame) => frame,
+            };
+            let Some(ContentState::Decode(decoder)) = self.content.as_mut() else {
+                return Poll::Ready(None);
+            };
+            match frame {
+                None => decoder.end_input(),
+                Some(Ok(frame)) => match frame.into_data() {
+                    Ok(_) if self.held_trailers.is_some() => {
+                        self.close();
+                        return Poll::Ready(Some(Err(RequestError::content_decoding(
+                            protocol,
+                            "response body produced data after its trailers",
+                            None,
+                        ))));
+                    }
+                    Ok(data) => decoder.push(data),
+                    Err(frame) => {
+                        if let Ok(trailers) = frame.into_trailers() {
+                            self.held_trailers = Some(trailers);
+                        }
+                    }
+                },
+                Some(Err(error)) => {
+                    self.close();
+                    return Poll::Ready(Some(Err(error)));
+                }
+            }
+        }
+    }
+
+    const fn protocol(&self) -> HttpProtocol {
+        match self.inner {
+            Some(ResponseBodyInner::Http2(_)) => HttpProtocol::Http2,
+            Some(ResponseBodyInner::Http3(_)) => HttpProtocol::Http3,
+            Some(ResponseBodyInner::Http1(_)) | None => HttpProtocol::Http1,
+        }
+    }
+
+    fn poll_wire_frame(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        let result = match self.inner.as_mut() {
+            Some(ResponseBodyInner::Http1(body)) => Pin::new(body)
+                .poll_frame(context)
+                .map(|frame| frame.map(|result| result.map_err(RequestError::http1_body))),
+            Some(ResponseBodyInner::Http2(body)) => Pin::new(body)
+                .poll_frame(context)
+                .map(|frame| frame.map(|result| result.map_err(RequestError::http2_body))),
+            Some(ResponseBodyInner::Http3(body)) => Pin::new(body)
+                .poll_frame(context)
+                .map(|frame| frame.map(|result| result.map_err(RequestError::http3_body))),
+            None => Poll::Ready(None),
+        };
+        match result {
+            Poll::Ready(Some(Ok(frame))) => {
+                if let Some(timeouts) = self.timeouts.as_mut() {
+                    if let Err(error) = timeouts.record_activity() {
+                        self.inner.take();
+                        self.timeouts.take();
+                        return Poll::Ready(Some(Err(error)));
+                    }
+                }
+                Poll::Ready(Some(Ok(frame)))
+            }
+            Poll::Ready(frame) => {
+                // Decoding keeps its deadlines until buffered input is drained.
+                if self.content.is_none()
+                    && (frame.is_none() || frame.as_ref().is_some_and(Result::is_err))
+                {
+                    self.timeouts.take();
+                }
+                Poll::Ready(frame)
+            }
+            Poll::Pending => {
+                if let Some(timeouts) = self.timeouts.as_mut() {
+                    if let Poll::Ready(error) = timeouts.poll_expired(context) {
+                        tracing::debug!(
+                            timeout_phase =
+                                error.timeout_phase().map(crate::TimeoutPhase::trace_name),
+                            "response body timed out"
+                        );
+                        self.inner.take();
+                        self.timeouts.take();
+                        return Poll::Ready(Some(Err(error)));
+                    }
+                }
+                Poll::Pending
+            }
+        }
     }
 
     pub(crate) fn apply_timeouts(
@@ -152,54 +325,23 @@ impl Body for ResponseBody {
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let this = self.get_mut();
-        let result = match this.inner.as_mut() {
-            Some(ResponseBodyInner::Http1(body)) => Pin::new(body)
-                .poll_frame(context)
-                .map(|frame| frame.map(|result| result.map_err(RequestError::http1_body))),
-            Some(ResponseBodyInner::Http2(body)) => Pin::new(body)
-                .poll_frame(context)
-                .map(|frame| frame.map(|result| result.map_err(RequestError::http2_body))),
-            Some(ResponseBodyInner::Http3(body)) => Pin::new(body)
-                .poll_frame(context)
-                .map(|frame| frame.map(|result| result.map_err(RequestError::http3_body))),
-            None => Poll::Ready(None),
-        };
-        match result {
-            Poll::Ready(Some(Ok(frame))) => {
-                if let Some(timeouts) = this.timeouts.as_mut() {
-                    if let Err(error) = timeouts.record_activity() {
-                        this.inner.take();
-                        this.timeouts.take();
-                        return Poll::Ready(Some(Err(error)));
-                    }
-                }
-                Poll::Ready(Some(Ok(frame)))
+        match this.content.take() {
+            None => this.poll_wire_frame(context),
+            Some(ContentState::Reject(error)) => {
+                this.close();
+                Poll::Ready(Some(Err(error)))
             }
-            Poll::Ready(frame) => {
-                if frame.is_none() || frame.as_ref().is_some_and(Result::is_err) {
-                    this.timeouts.take();
-                }
-                Poll::Ready(frame)
-            }
-            Poll::Pending => {
-                if let Some(timeouts) = this.timeouts.as_mut() {
-                    if let Poll::Ready(error) = timeouts.poll_expired(context) {
-                        tracing::debug!(
-                            timeout_phase =
-                                error.timeout_phase().map(crate::TimeoutPhase::trace_name),
-                            "response body timed out"
-                        );
-                        this.inner.take();
-                        this.timeouts.take();
-                        return Poll::Ready(Some(Err(error)));
-                    }
-                }
-                Poll::Pending
+            Some(state @ ContentState::Decode(_)) => {
+                this.content = Some(state);
+                this.poll_decoded_frame(context)
             }
         }
     }
 
     fn is_end_stream(&self) -> bool {
+        if self.content.is_some() {
+            return false;
+        }
         match &self.inner {
             Some(ResponseBodyInner::Http1(body)) => body.is_end_stream(),
             Some(ResponseBodyInner::Http2(body)) => body.is_end_stream(),
@@ -209,6 +351,9 @@ impl Body for ResponseBody {
     }
 
     fn size_hint(&self) -> SizeHint {
+        if self.content.is_some() {
+            return SizeHint::default();
+        }
         match &self.inner {
             Some(ResponseBodyInner::Http1(body)) => body.size_hint(),
             Some(ResponseBodyInner::Http2(body)) => body.size_hint(),

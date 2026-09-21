@@ -119,6 +119,7 @@ impl WebSocketError {
             | RequestErrorKind::RequestBody
             | RequestErrorKind::ResponseBodyLimit
             | RequestErrorKind::Redirect => WebSocketErrorKind::InvalidRequest,
+            RequestErrorKind::ContentDecoding => WebSocketErrorKind::Protocol,
             RequestErrorKind::ProtocolUnavailable => WebSocketErrorKind::ProtocolUnavailable,
             RequestErrorKind::UnsupportedRoute => WebSocketErrorKind::UnsupportedRoute,
             RequestErrorKind::Resolve | RequestErrorKind::Connect => WebSocketErrorKind::Connect,

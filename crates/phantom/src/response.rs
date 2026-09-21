@@ -2,7 +2,7 @@ use std::fmt;
 
 use http::Uri;
 
-use crate::HttpProtocol;
+use crate::{ContentCoding, HttpProtocol};
 
 /// Facade metadata attached to every successful ordinary response.
 ///
@@ -13,6 +13,7 @@ pub struct ResponseInfo {
     redirect_count: usize,
     retries_performed: usize,
     protocol: HttpProtocol,
+    decoded_content_codings: Box<[ContentCoding]>,
 }
 
 impl fmt::Debug for ResponseInfo {
@@ -22,6 +23,7 @@ impl fmt::Debug for ResponseInfo {
             .field("redirect_count", &self.redirect_count)
             .field("retries_performed", &self.retries_performed)
             .field("protocol", &self.protocol)
+            .field("decoded_content_codings", &self.decoded_content_codings)
             .finish_non_exhaustive()
     }
 }
@@ -32,12 +34,14 @@ impl ResponseInfo {
         redirect_count: usize,
         retries_performed: usize,
         protocol: HttpProtocol,
+        decoded_content_codings: Box<[ContentCoding]>,
     ) -> Self {
         Self {
             effective_uri,
             redirect_count,
             retries_performed,
             protocol,
+            decoded_content_codings,
         }
     }
 
@@ -64,6 +68,15 @@ impl ResponseInfo {
     pub const fn protocol(&self) -> HttpProtocol {
         self.protocol
     }
+
+    /// Returns the content codings the body decodes, in `Content-Encoding` order.
+    ///
+    /// Empty unless [`ContentDecoding::advertised`](crate::ContentDecoding::advertised)
+    /// was set and the response used a supported, advertised coding chain.
+    #[must_use]
+    pub fn decoded_content_codings(&self) -> &[ContentCoding] {
+        &self.decoded_content_codings
+    }
 }
 
 #[cfg(test)]
@@ -78,6 +91,7 @@ mod tests {
             2,
             3,
             HttpProtocol::Http2,
+            Box::default(),
         );
         let debug = format!("{info:?}");
 

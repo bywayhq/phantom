@@ -10,9 +10,10 @@ use phantom_net::{
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    Client, HttpProtocol, RequestError, RequestTimeouts, ResponseBody, ResponseInfo, RetryPolicy,
-    Route,
+    Client, ContentCoding, ContentDecoding, HttpProtocol, RequestError, RequestTimeouts,
+    ResponseBody, ResponseInfo, RetryPolicy, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
+    content_coding::{self, AdvertisedContentCodings, ContentDecodingPlan},
     redirect::{RedirectAction, RedirectState},
     retry::ConnectionSetupRetryState,
 };
@@ -34,6 +35,7 @@ pub struct RequestBuilder {
     route: Option<Route>,
     timeouts: Option<RequestTimeouts>,
     retry_policy: Option<RetryPolicy>,
+    content_decoding: ContentDecoding,
     response_body_timeouts: bool,
     body_declares_alt_used_trailer: bool,
 }
@@ -51,6 +53,7 @@ impl fmt::Debug for RequestBuilder {
             .field("route_override", &self.route.is_some())
             .field("timeout_override", &self.timeouts.is_some())
             .field("retry_policy_override", &self.retry_policy.is_some())
+            .field("content_decoding", &self.content_decoding)
             .finish_non_exhaustive()
     }
 }
@@ -109,6 +112,7 @@ impl RequestBuilder {
             route: None,
             timeouts: None,
             retry_policy: None,
+            content_decoding: ContentDecoding::none(),
             response_body_timeouts: true,
             body_declares_alt_used_trailer: false,
         })
@@ -219,6 +223,25 @@ impl RequestBuilder {
         self
     }
 
+    /// Sets the response content-decoding policy for this request.
+    ///
+    /// [`ContentDecoding::advertised`] decodes only codings named by this
+    /// request's own ordered `Accept-Encoding` fields; Phantom never adds or
+    /// moves that field. The request head is byte-identical with and without
+    /// decoding. Only the response returned by [`Self::send`] is decoded;
+    /// intermediate redirect bodies are dropped undecoded. HEAD, 204, 304, and
+    /// already-empty bodies are never validated or decoded.
+    ///
+    /// A response coding that is unknown, unadvertised, stacked more than
+    /// three deep, mixed with `identity`, or malformed fails the first body
+    /// poll with
+    /// [`RequestErrorKind::ContentDecoding`](crate::RequestErrorKind::ContentDecoding);
+    /// the status and fields remain visible.
+    pub fn content_decoding(mut self, policy: ContentDecoding) -> Self {
+        self.content_decoding = policy;
+        self
+    }
+
     #[cfg(feature = "sse")]
     pub(crate) fn without_response_body_timeouts(mut self) -> Self {
         self.response_body_timeouts = false;
@@ -236,7 +259,8 @@ impl RequestBuilder {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError`] for invalid ordered fields, a missing or
+    /// Returns [`RequestError`] for invalid ordered fields (including a
+    /// malformed `Accept-Encoding` when content decoding is enabled), a missing or
     /// I/O-disabled Tokio runtime, connection or TLS failure, and protocol
     /// failure. Inspect
     /// [`RequestError::kind`](crate::RequestError::kind) for the stable
@@ -319,6 +343,10 @@ impl RequestBuilder {
         {
             return Err(RequestError::alt_used_header());
         }
+        let content_decoding = self.content_decoding;
+        if content_decoding.is_enabled() {
+            AdvertisedContentCodings::from_request_headers(&self.headers)?;
+        }
 
         let Self {
             client,
@@ -331,6 +359,7 @@ impl RequestBuilder {
             route,
             timeouts: _,
             retry_policy: _,
+            content_decoding: _,
             response_body_timeouts,
             body_declares_alt_used_trailer: _,
         } = self;
@@ -352,6 +381,7 @@ impl RequestBuilder {
 
         if policy.max_hops().is_none() {
             let mut body = body;
+            let decoding = FinalDecoding::new(content_decoding, &method, &request_headers)?;
             let outcome = send_once(
                 &client,
                 &request,
@@ -376,11 +406,13 @@ impl RequestBuilder {
                     .body_mut()
                     .apply_timeouts(timeout_budget, outcome.protocol)?;
             }
+            let decoded_content_codings = decoding.apply(&mut response, outcome.protocol);
             response.extensions_mut().insert(ResponseInfo::new(
                 request.uri,
                 0,
                 retries.performed(),
                 outcome.protocol,
+                decoded_content_codings,
             ));
             return Ok(response);
         }
@@ -423,11 +455,18 @@ impl RequestBuilder {
                             .body_mut()
                             .apply_timeouts(timeout_budget, outcome.protocol)?;
                     }
+                    let decoded_content_codings = FinalDecoding::new(
+                        content_decoding,
+                        redirect.method(),
+                        redirect.headers(),
+                    )?
+                    .apply(&mut response, outcome.protocol);
                     response.extensions_mut().insert(ResponseInfo::new(
                         resolved.uri.clone(),
                         redirect.followed(),
                         retries.performed(),
                         outcome.protocol,
+                        decoded_content_codings,
                     ));
                     return Ok(response);
                 }
@@ -446,6 +485,58 @@ impl RequestBuilder {
                     drop(response);
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
                 }
+            }
+        }
+    }
+}
+
+/// Content-decoding inputs for the response `send` returns.
+struct FinalDecoding {
+    policy: ContentDecoding,
+    advertised: AdvertisedContentCodings,
+    method: Method,
+}
+
+impl FinalDecoding {
+    fn new(
+        policy: ContentDecoding,
+        method: &Method,
+        headers: &[RequestHeader],
+    ) -> Result<Self, RequestError> {
+        let advertised = if policy.is_enabled() {
+            AdvertisedContentCodings::from_request_headers(headers)?
+        } else {
+            AdvertisedContentCodings::default()
+        };
+        Ok(Self {
+            policy,
+            advertised,
+            method: method.clone(),
+        })
+    }
+
+    fn apply(
+        self,
+        response: &mut Response<ResponseBody>,
+        protocol: HttpProtocol,
+    ) -> Box<[ContentCoding]> {
+        match content_coding::plan(
+            self.policy,
+            self.advertised,
+            &self.method,
+            response.status(),
+            response.headers(),
+            response.body().is_end_stream(),
+            protocol,
+        ) {
+            ContentDecodingPlan::Passthrough => Box::default(),
+            ContentDecodingPlan::Decode(decoder, codings) => {
+                response.body_mut().decode_content(decoder);
+                codings
+            }
+            ContentDecodingPlan::Reject(error) => {
+                response.body_mut().reject_content(error);
+                Box::default()
             }
         }
     }

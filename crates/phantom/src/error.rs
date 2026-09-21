@@ -233,8 +233,11 @@ pub enum RequestErrorKind {
     Timeout,
     /// A caller-provided body failed or could not be replayed safely.
     RequestBody,
-    /// A response body exceeded the caller's configured collection limit.
+    /// A response body exceeded the caller's configured collection or decoding limit.
     ResponseBodyLimit,
+    /// A response content coding was unsupported, not advertised by the
+    /// caller's `Accept-Encoding`, or malformed.
+    ContentDecoding,
     /// TLS setup or negotiation failed.
     Tls,
     /// HTTP/1 request or response processing failed.
@@ -347,6 +350,32 @@ impl RequestError {
             RequestErrorKind::ResponseBodyLimit,
             "response body exceeded the configured byte limit",
         )
+    }
+
+    pub(crate) fn decoded_body_limit(protocol: HttpProtocol) -> Self {
+        Self {
+            protocol: Some(protocol),
+            ..Self::without_source(
+                RequestErrorKind::ResponseBodyLimit,
+                "decoded response body exceeded the configured byte limit",
+            )
+        }
+    }
+
+    pub(crate) fn content_decoding(
+        protocol: HttpProtocol,
+        message: &'static str,
+        source: Option<BoxError>,
+    ) -> Self {
+        Self {
+            protocol: Some(protocol),
+            source,
+            ..Self::without_source(RequestErrorKind::ContentDecoding, message)
+        }
+    }
+
+    pub(crate) fn invalid_accept_encoding(message: &'static str) -> Self {
+        Self::without_source(RequestErrorKind::InvalidHeader, message)
     }
 
     pub(crate) fn ambiguous_request_trailers() -> Self {

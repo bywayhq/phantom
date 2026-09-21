@@ -3,6 +3,7 @@
 mod authority;
 mod body;
 mod client;
+mod content_coding;
 mod error;
 mod redirect;
 mod request;
@@ -18,6 +19,7 @@ mod websocket;
 
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
+pub use content_coding::{ContentCoding, ContentDecoding};
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use redirect::RedirectPolicy;
 pub use request::RequestBuilder;
