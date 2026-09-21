@@ -6,20 +6,24 @@ on:
       - .github/workflows/fuzz.yml
       - Cargo.lock
       - Cargo.toml
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
       - crates/phantom-quic-btls/**
       - crates/phantom-testkit/**
       - fuzz/**
-      - vendor/quinn-proto/**
+      - vendor/**
   push:
     branches: [main]
     paths:
       - .github/workflows/fuzz.yml
       - Cargo.lock
       - Cargo.toml
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
       - crates/phantom-quic-btls/**
       - crates/phantom-testkit/**
       - fuzz/**
-      - vendor/quinn-proto/**
+      - vendor/**
   workflow_dispatch:
   schedule:
     - cron: "31 8 * * 0"
@@ -40,15 +44,19 @@ jobs:
   fuzz:
     name: ${{ matrix.target }} under ASan
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: client_hello
             max_len: 65536
+          - target: http_connect_response
+            max_len: 65536
           - target: http2_frame
             max_len: 262144
+          - target: proxy_basic_challenge
+            max_len: 16384
           - target: quic_transport_parameters
             max_len: 65536
     steps:
@@ -71,6 +79,15 @@ jobs:
           cargo "+$NIGHTLY_TOOLCHAIN" fetch --locked
           cargo "+$NIGHTLY_TOOLCHAIN" fuzz build --sanitizer address "${{ matrix.target }}"
 
+      # Scheduled runs grow one corpus per target; every run starts from the
+      # newest saved corpus. Cache keys are immutable, so each save is unique.
+      - name: Restore fuzz corpus
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+
       - name: Run fuzz target
         working-directory: fuzz
         run: >-
@@ -79,6 +96,13 @@ jobs:
           -max_total_time="$FUZZ_SECONDS"
           -max_len="${{ matrix.max_len }}"
           -timeout=10
+
+      - name: Save fuzz corpus
+        if: github.event_name == 'schedule' && !cancelled()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
 
       - name: Upload failure artifacts
         if: failure()
