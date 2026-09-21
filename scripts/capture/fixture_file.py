@@ -10,13 +10,15 @@ from pathlib import Path
 def write_atomically(path: Path, text: str, *, encoding: str) -> None:
     """Replace `path` with `text` only after the complete file is durable.
 
-    An encoding failure or interrupted write leaves any previous fixture intact.
+    Text is written byte-for-byte: newline translation would change retained
+    fixture digests on Windows. An encoding failure or interrupted write leaves
+    any previous fixture intact.
     """
     path = path.resolve()
     temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
-            "w", encoding=encoding, dir=path.parent, delete=False
+            "w", encoding=encoding, newline="", dir=path.parent, delete=False
         ) as output:
             temporary_path = Path(output.name)
             output.write(text)
