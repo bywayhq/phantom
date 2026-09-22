@@ -99,12 +99,15 @@ until it is minimized into a regression.
 The [sanitizer workflow](../../.github/workflows/sanitizers.yml) runs
 `phantom-quic-btls`'s own unit tests and `phantom-net`'s HTTP/3 loopback tests
 under AddressSanitizer on the same pinned nightly, when QUIC, TLS, or vendored
-BoringSSL paths change and on its weekly schedule. Fuzzing reaches the byte
-parsers; this job is what covers the QUIC secret callbacks, the key schedule,
-and a live handshake, which is where the crate's `unsafe` code is. BoringSSL is
-linked uninstrumented, so leak detection is off and a fault inside its C code
-surfaces only where it crosses an intercepted `mem*` call or touches memory the
-Rust allocator owns.
+paths change and on its weekly schedule. Fuzzing reaches the byte parsers; this
+job is what covers the QUIC secret callbacks, the key schedule, and a live
+handshake, which is where the crate's `unsafe` code is. BoringSSL itself is
+compiled without instrumentation, so a fault inside its C code surfaces only
+where it crosses an intercepted `mem*` call or touches memory the Rust
+allocator owns. Interception is enough for leak detection, which stays on: the
+allocator is replaced process-wide, so a `CallbackState` owner that the ex-data
+destructor fails to free is reported whichever side allocated it. The workflow
+is advisory, not a required check.
 
 Four callback-failure paths carry most of that FFI risk. A null `SSL_CIPHER`
 and a secret length that disagrees with the cipher are both rejected before any

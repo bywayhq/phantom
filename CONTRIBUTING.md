@@ -174,16 +174,39 @@ Conditional checks:
   `cargo fmt --manifest-path fuzz/Cargo.toml --check` and
   `cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --locked -- -D warnings`.
 - Changes to the QUIC cryptography backend run under AddressSanitizer in
-  [Sanitizers](.github/workflows/sanitizers.yml). To reproduce a report,
-  install the nightly the workflow pins and name the target explicitly, which
-  is what keeps host build scripts uninstrumented:
+  [Sanitizers](.github/workflows/sanitizers.yml). To reproduce a report as CI
+  produces it you need Linux x86_64, natively or under WSL; the target is named
+  explicitly because that is what keeps host build scripts and proc macros
+  uninstrumented:
 
   ```console
   rustup toolchain install nightly-2026-09-01 --profile minimal
-  RUSTFLAGS=-Zsanitizer=address ASAN_OPTIONS=detect_leaks=0 \
-    cargo +nightly-2026-09-01 test -p phantom-quic-btls --lib --all-features \
+  rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2026-09-01
+  export RUSTFLAGS=-Zsanitizer=address
+  export ASAN_OPTIONS=detect_leaks=1
+  cargo +nightly-2026-09-01 test -p phantom-quic-btls --lib --all-features \
     --locked --target x86_64-unknown-linux-gnu
+  cargo +nightly-2026-09-01 test -p phantom-net --lib --all-features \
+    --locked --target x86_64-unknown-linux-gnu -- 'http3::'
   ```
+
+  On a Windows host the same two commands work against
+  `x86_64-pc-windows-msvc`, which is useful for a first pass but is not what CI
+  runs. Two changes are required. Put the MSVC ASan runtime,
+  `clang_rt.asan_dynamic-x86_64.dll` from
+  `VC\Tools\MSVC\<version>\bin\Hostx64\x64`, on `PATH`, or the test binary exits
+  with `STATUS_DLL_NOT_FOUND`. Then unset `ASAN_OPTIONS`: Windows has no
+  LeakSanitizer, and asking for it aborts the run before the first test with
+  `detect_leaks is not supported on this platform`.
+
+  ```console
+  unset ASAN_OPTIONS
+  ```
+
+  So a Windows run cannot report a leaked ex-data owner, and it never exercises
+  `prefix-symbols`, the `nm`/`objcopy` archive rewrite `btls` applies on Linux
+  only. A clean Windows run is evidence that the instrumentation works, not
+  that the CI job passes.
 - The optional-feature matrix and scheduled interoperability suites run in
   CI; run the affected feature combinations locally before requesting review.
 
@@ -207,7 +230,7 @@ skipped. A failed, cancelled, or unclassified run never counts as passing.
 | --- | --- | --- | --- |
 | [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Features, Downstream, Vendor, MSRV, and the Windows Platform job | Same, plus the macOS Platform job | Every job, whatever changed |
 | [Parser fuzzing](.github/workflows/fuzz.yml) | 15 seconds per target when parser paths change | Same as pull requests | 300 seconds per target |
-| [Sanitizers](.github/workflows/sanitizers.yml) | `phantom-quic-btls` and the HTTP/3 loopback tests under ASan when QUIC, TLS, or vendored BoringSSL paths change; 60 minutes per job | Same as pull requests | Both jobs, whatever changed |
+| [Sanitizers](.github/workflows/sanitizers.yml) | `phantom-quic-btls` and the HTTP/3 loopback tests under ASan when QUIC, TLS, testkit, or vendored paths change; each job times out at 60 minutes | Same as pull requests | Both jobs, whatever changed |
 | Conformance suites | Only with the `conformance` label | When the suite's paths change | Yes, with the workflow's scheduled or chosen case set |
 | [Scorecard](.github/workflows/scorecard.yml) | No | Yes | Yes |
 | Benchmarks, upstream freshness | No | No | Yes |
@@ -218,6 +241,12 @@ The conformance suites are [Autobahn](.github/workflows/autobahn.yml),
 [TLS-Anvil](.github/workflows/tls-anvil.yml), and
 [WPT EventSource](.github/workflows/wpt-eventsource.yml).
 [Release](.github/workflows/release.yml) runs only by manual dispatch.
+
+`CI required` reports on the jobs in [CI](.github/workflows/ci.yml) alone, so
+every other workflow in the table is advisory: a red
+[Sanitizers](.github/workflows/sanitizers.yml) or
+[Parser fuzzing](.github/workflows/fuzz.yml) run does not block a merge. Read
+those runs before merging a change to the QUIC or TLS paths.
 
 CI skips jobs that a documentation-only change cannot affect.
 [`scripts/ci/changed-paths.sh`](scripts/ci/changed-paths.sh) classifies the
