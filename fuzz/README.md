@@ -1,10 +1,11 @@
 # Fuzzing
 
-These targets exercise Phantom-owned, bounded wire decoders, the selected
-Quinn transport-parameter decoder at Phantom's QUIC TLS boundary, and the
-production parsers reachable through the public API of `phantom-net` and the
-`phantom` facade. They do not claim general fuzz coverage of BoringSSL,
-HTTP/2, QUIC, or WebSocket engines.
+These `cargo-fuzz` targets feed arbitrary bytes to parsers that read data from
+a peer or proxy. They cover Phantom-owned bounded wire decoders, Quinn's QUIC
+transport-parameter decoder as Phantom uses it, and the production parsers
+reachable through the public API of `phantom-net` and the `phantom` facade.
+They are not general fuzz coverage of the BoringSSL, HTTP/2, QUIC, or
+WebSocket engines.
 
 | Target | Parser | Entry point |
 | --- | --- | --- |
@@ -20,15 +21,7 @@ HTTP/2, QUIC, or WebSocket engines.
 `client_hello` and `http2_frame` decode test-kit captures, not the bytes a
 peer sends Phantom; they check the evidence tooling, not a peer-facing parser.
 
-Peer-facing production parsers without a pure public entry point are not
-fuzzed yet; covering them needs a reviewed fuzzing seam rather than new public
-API: the SSE decoder, the Alt-Svc field parser (`Alt-Svc` response fields, as
-distinct from the snapshot import `alt_svc_snapshot` covers), SOCKS5
-negotiation replies (TCP-only public API), the HTTP/2 and HTTP/3 ALPS
-decoders, the CONNECT-UDP Capsule Protocol decoder, the
-`Content-Encoding`/`Accept-Encoding` field grammar with its chained
-`ContentDecoder`, and `CookieJar::store_response_headers`, the step above
-`cookie_jar` that converts response `Set-Cookie` header bytes to text.
+## Run a target
 
 Install the pinned `cargo-fuzz` version, then run a target from `fuzz/` with a
 nightly toolchain. Each command uses the input-size limit (`-max_len`) that CI
@@ -47,10 +40,63 @@ cargo +nightly fuzz run proxy_basic_challenge -- -max_len=16384
 cargo +nightly fuzz run quic_transport_parameters -- -max_len=65536
 ```
 
-The targets exercise arbitrary input and valid structural seeds perturbed by
-the same input. The QUIC target invokes Quinn's real decoder in both endpoint
-roles and embeds ordered, reordered, duplicate, truncated, and malformed
-varint seeds, including the shape from GHSA-6xvm-j4wr-6v98.
+Targets that link `phantom-net` also build BoringSSL, so they need the native
+prerequisites in [CONTRIBUTING.md](../CONTRIBUTING.md#development-setup).
+
+On a Windows host the built target loads the MSVC AddressSanitizer runtime at
+startup. Put the MSVC `Hostx64/x64` directory on `PATH` before
+`cargo fuzz run`, or the target exits with `STATUS_DLL_NOT_FOUND` before
+libFuzzer starts.
+
+The 256 KiB limit for `http2_frame` keeps mutation throughput high. A
+dedicated run may raise it to the largest HTTP/2 frame: a 16,777,215-byte
+payload plus the nine-byte frame header.
+
+The 16 KiB limit for `http1_response` stays under the 32 KiB response-head
+limit: both the head observer and the protocol engine reparse their buffered
+head on every read, so a longer head combined with one-byte reads costs
+quadratic time and would report a timeout rather than a defect. That bound
+costs coverage, and the cost is paid elsewhere: no fuzzed response can reach
+the observer's head-byte or field-count limits, so `ResponseHeadTooLarge` and
+`TooManyResponseHeaders` are unreachable under fuzzing. Both are pinned by
+deterministic regressions in
+[`src/http1_response/tests.rs`](src/http1_response/tests.rs), which is where a
+limit boundary belongs: it is a fixed threshold, not a mutated input.
+
+## What the targets feed
+
+Each target decodes the raw input, then also uses the input to perturb valid
+structural seeds, so mutations also exercise nearly valid messages. The QUIC
+target calls Quinn's real decoder in both endpoint roles. Its seeds cover
+ordered, reordered, duplicate, truncated, and malformed-varint parameters,
+including the shape from Quinn advisory
+[GHSA-6xvm-j4wr-6v98](https://github.com/quinn-rs/quinn/security/advisories/GHSA-6xvm-j4wr-6v98).
+
+`http1_response` takes the read-chunk size and the transaction count from a
+control prefix it strips before the response payload begins, so neither shares
+a byte with the response or with the perturbation offset, and every read
+boundary is reachable for any response. Its origin scripts one response per
+transaction and releases each only once the matching request has been written,
+so a second transaction reaches a second response head — the path that resets
+the ordered-header observer — rather than end of stream.
+
+Two targets also assert a policy invariant that a real confusion would break.
+`cookie_jar` marks every stored field `Secure` and asserts that no `http://`
+request receives a `Cookie` field and that no `http://` URL can store one.
+`alt_svc_snapshot` asserts that a snapshot the client exported passes the
+client's own import revalidation; the origin half of that round trip is the
+real cross-check, because a stored alternative's host is revalidated against
+the request host on the way in and re-emitted verbatim on the way out.
+
+`cookie_jar` asserts those two rules for named hosts only. The jar's storage
+gate requires the `https` scheme literally, while its store treats a loopback
+authority as a trustworthy origin and does send a `Secure` cookie to
+`http://127.0.0.1`. Aligning storage with the trustworthy-origin rule is the
+`cookie-secure-origin` lane's work, not a fuzzing concern; until it lands,
+loopback URLs in the target only add coverage and constrain nothing. Widen
+[`LOOPBACK_URLS`](src/cookie_jar.rs) back into the asserted sets with it.
+
+## Where a check belongs
 
 `alt_svc_snapshot`, `cookie_jar`, and `http1_response` keep their harness,
 their seeds, and their fixed-threshold checks in `src/`, and their
@@ -61,50 +107,38 @@ check that only ever sees one fixed input belongs there and not in the fuzz
 loop; the targets assert only what constrains mutated input. The five older
 targets still check their seeds in-loop under an `input.is_empty()` guard.
 
-`http1_response` takes the read-chunk size and the transaction count from a
-control prefix it strips before the response payload begins, so neither shares
-a byte with the response or with the perturbation offset and every read
-boundary is reachable for any response. Its origin scripts one response per
-transaction and releases each only once the matching request has been written,
-so a second transaction reaches a second response head — the path that resets
-the ordered-header observer — rather than end of stream. Two targets also
-assert a policy invariant that a real
-confusion would break: `cookie_jar` marks every stored field `Secure` and
-asserts that no `http://` request receives a `Cookie` field and that no
-`http://` URL can store one, and `alt_svc_snapshot` asserts that a snapshot
-the client exported passes the client's own import revalidation.
+## When a target fails
 
-`cookie_jar` asserts those two rules for named hosts only. The jar's storage
-gate requires the `https` scheme literally, while its store treats a loopback
-authority as a trustworthy origin and does send a `Secure` cookie to
-`http://127.0.0.1`. Aligning storage with the trustworthy-origin rule is the
-`cookie-secure-origin` lane's work, not a fuzzing concern; until it lands,
-loopback URLs in the target only add coverage and constrain nothing. Widen
-[`LOOPBACK_URLS`](src/cookie_jar.rs) back into the asserted sets with it.
+Minimize a crash or timeout, and add the minimized input as an ordinary
+deterministic regression test before you delete the generated artifact.
 
-On a Windows host the built target loads the MSVC AddressSanitizer runtime at
-startup. Put the MSVC `Hostx64/x64` directory on `PATH` before
-`cargo fuzz run`, or the target exits with `STATUS_DLL_NOT_FOUND` before
-libFuzzer starts.
+Generated corpora, artifacts, coverage output, and build products are never
+committed.
 
-A crash or timeout must be minimized and promoted into an ordinary
-deterministic regression before its generated artifact is removed.
-Generated corpora, artifacts, coverage output, and build products are not
-committed. CI keeps one corpus per target in the Actions cache: every run
-restores the newest saved corpus, and only scheduled runs save it back.
-Relevant pull requests run each target for 15 seconds; scheduled and manually
-dispatched jobs run each target for five minutes. Targets that link
-`phantom-net` also build BoringSSL, so they need the native prerequisites
-listed in the contributing guide.
-The scheduled 256 KiB HTTP/2 bound favors mutation throughput; dedicated runs
-may raise it to the protocol's 16,777,215-byte payload ceiling plus its
-nine-byte header. The 16 KiB `http1_response` bound stays under the 32 KiB
-response-head limit: both the head observer and the protocol engine reparse
-their buffered head on every read, so a longer head combined with one-byte
-reads costs quadratic time and would report a timeout rather than a defect.
-That bound costs coverage, and the cost is paid elsewhere: no fuzzed response
-can reach the observer's head-byte or field-count limits, so
-`ResponseHeadTooLarge` and `TooManyResponseHeaders` are unreachable under
-fuzzing. Both are pinned by deterministic regressions in
-[`src/http1_response/tests.rs`](src/http1_response/tests.rs), which is where a
-limit boundary belongs: it is a fixed threshold, not a mutated input.
+## CI
+
+The [Parser fuzzing](../.github/workflows/fuzz.yml) workflow runs every target
+under AddressSanitizer:
+
+- pull requests and pushes to `main` that change parser paths: 15 seconds per
+  target;
+- the weekly schedule and manual dispatch: five minutes per target.
+
+CI keeps one corpus per target in the Actions cache. Every run starts from the
+newest saved corpus, and only scheduled runs save it back.
+
+## Not fuzzed yet
+
+These peer-facing production parsers have no pure public entry point. Fuzzing
+them needs a reviewed fuzzing seam, not new public API:
+
+- the SSE decoder;
+- the Alt-Svc field parser, meaning `Alt-Svc` response fields, as distinct
+  from the snapshot import that `alt_svc_snapshot` covers;
+- SOCKS5 negotiation replies (the public API is TCP-only);
+- the HTTP/2 and HTTP/3 ALPS decoders;
+- the CONNECT-UDP Capsule Protocol decoder;
+- the `Content-Encoding` and `Accept-Encoding` field grammar, with its chained
+  `ContentDecoder`;
+- `CookieJar::store_response_headers`, the step above `cookie_jar` that
+  converts response `Set-Cookie` header bytes to text.
