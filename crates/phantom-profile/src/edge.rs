@@ -6,8 +6,8 @@
 //! QUIC transport parameters, and H3 SETTINGS and request order. Use
 //! [`chromium::v153_http2`], [`chromium::v153_websocket`],
 //! [`chromium::v153_quic`], [`chromium::v153_http3`], and
-//! [`chromium::v153_http3_request`] for those layers. Only the TLS offers
-//! differ, so only they have Edge recipes here.
+//! [`chromium::v153_http3_request`] for those layers. The TLS offers, client
+//! hints, and request identity differ, so only they have Edge recipes here.
 //!
 //! There is no Edge TCP recipe. Socket options are not visible in captures,
 //! and Edge's network-stack source is not public, so no retained evidence
@@ -16,6 +16,7 @@
 use crate::{
     chromium,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
+    request_template::{ProductVersion, RequestIdentity, RequestTemplate},
     tls::TlsSettings,
 };
 
@@ -75,6 +76,43 @@ pub fn v153_windows_client_hints() -> ClientHintSettings {
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
     ])
+}
+
+/// Returns navigation request fields observed from Edge 153.0.4234.48 on Windows 11.
+///
+/// Edge sends the fields of [`chromium::v153_windows_navigation_template`] in
+/// the same order and with the same values on HTTP/1.1, HTTP/2, and HTTP/3,
+/// except `User-Agent` and the brand-bearing client hints, which come from
+/// [`v153_windows_client_hints`]. `User-Agent` is a caller slot: every
+/// retained Edge capture ran headless and sent `HeadlessChrome`, and no
+/// headful Edge capture backs a literal value. The template's identity
+/// requires an `Edg/153` product and rejects `HeadlessChrome`.
+#[must_use]
+pub fn v153_windows_navigation_template() -> RequestTemplate {
+    chromium::v153_navigation_template(None, v153_identity())
+}
+
+/// Returns same-origin no-store `fetch` request fields observed from Edge
+/// 153.0.4234.48 on Windows 11.
+///
+/// The order and values match [`chromium::v153_windows_fetch_no_store_template`]
+/// on HTTP/1.1 and HTTP/2, with `User-Agent` as a caller slot for the reason
+/// given in [`v153_windows_navigation_template`]. No capture backs this
+/// request kind on HTTP/3.
+#[must_use]
+pub fn v153_windows_fetch_no_store_template() -> RequestTemplate {
+    chromium::v153_fetch_no_store_template(None, v153_identity())
+}
+
+fn v153_identity() -> RequestIdentity {
+    RequestIdentity {
+        user_agent_products: vec![ProductVersion::new("Edg", 153)],
+        excluded_user_agent_products: vec![Box::from("HeadlessChrome"), Box::from("Firefox")],
+        client_hint_brands: Some(vec![
+            ProductVersion::new("Microsoft Edge", 153),
+            ProductVersion::new("Chromium", 153),
+        ]),
+    }
 }
 
 #[cfg(test)]

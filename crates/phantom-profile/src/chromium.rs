@@ -10,6 +10,7 @@ use crate::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
         Http3Setting, Http3SettingOrder, Http3Settings,
     },
+    request_template::{ProductVersion, RequestField, RequestIdentity, RequestTemplate},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
@@ -599,6 +600,158 @@ pub fn v153_websocket() -> WebSocketSettings {
             WebSocketField::client_cookies("cookie"),
         ],
         permessage_deflate_offer: vec![WebSocketDeflateParameter::ClientMaxWindowBits(None)],
+    }
+}
+
+const V153_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
+image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
+const V153_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";
+const V153_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+const V153_WINDOWS_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
+AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36";
+
+/// Returns navigation request fields observed from Chrome 153.0.8010.48 on Windows 11.
+///
+/// A top-level navigation the user starts from the address bar: an HTML
+/// document request with `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
+/// The HTTP/1.1 order comes from plaintext loopback page loads in the
+/// retained SSE, WebSocket, and client-hint captures; the HTTP/2 order from
+/// the page requests of the WebSocket captures; the HTTP/3 order from the H3
+/// startup captures. Every run agrees.
+///
+/// The client hints form one block in profile order after `Connection` (on
+/// HTTP/1.1) and before `Upgrade-Insecure-Requests`; after `Accept-CH` the
+/// requested hints join that block, as the client-hint capture shows. The
+/// `User-Agent` value is the one headful Chrome sent in the retained
+/// launch-mode SSE capture; the other captures ran headless and sent
+/// `HeadlessChrome`. `Accept-Language` is the capture machine's `en-US`
+/// locale. A caller field with the same name replaces a captured value in
+/// place.
+#[must_use]
+pub fn v153_windows_navigation_template() -> RequestTemplate {
+    v153_navigation_template(Some(V153_WINDOWS_USER_AGENT), v153_identity())
+}
+
+/// Returns same-origin `fetch` request fields observed from Chrome 153.0.8010.48 on
+/// Windows 11.
+///
+/// A script `fetch(url, {cache: "no-store"})` GET to the page's own origin;
+/// the cache mode adds `Pragma` and `Cache-Control`. The HTTP/1.1 and HTTP/2
+/// orders come from the final report request of the WebSocket captures, and
+/// every run agrees. No capture backs this request kind on HTTP/3, so
+/// [`RequestTemplate::http3_fields`] is `None`.
+///
+/// Unlike a navigation, the default client hints are split:
+/// `sec-ch-ua-platform` precedes `User-Agent`, and `sec-ch-ua` and
+/// `sec-ch-ua-mobile` follow it. Where Chrome puts hints requested through
+/// `Accept-CH` on such a request is not captured; this template places them
+/// after `sec-ch-ua-mobile`. `Referer` is a caller slot because its value is
+/// the page URL. The `User-Agent` value matches
+/// [`v153_windows_navigation_template`].
+#[must_use]
+pub fn v153_windows_fetch_no_store_template() -> RequestTemplate {
+    v153_fetch_no_store_template(Some(V153_WINDOWS_USER_AGENT), v153_identity())
+}
+
+fn v153_identity() -> RequestIdentity {
+    RequestIdentity {
+        user_agent_products: vec![ProductVersion::new("Chrome", 153)],
+        excluded_user_agent_products: vec![Box::from("Edg"), Box::from("Firefox")],
+        client_hint_brands: Some(vec![
+            ProductVersion::new("Google Chrome", 153),
+            ProductVersion::new("Chromium", 153),
+        ]),
+    }
+}
+
+/// Builds the Chromium 153 navigation lists with a literal or caller `User-Agent`.
+pub(crate) fn v153_navigation_template(
+    user_agent: Option<&str>,
+    identity: RequestIdentity,
+) -> RequestTemplate {
+    let user_agent = |name: &str| match user_agent {
+        Some(value) => RequestField::literal(name, value),
+        None => RequestField::caller(name),
+    };
+    let http2_fields = vec![
+        RequestField::ClientHints,
+        RequestField::literal("upgrade-insecure-requests", "1"),
+        user_agent("user-agent"),
+        RequestField::literal("accept", V153_NAVIGATION_ACCEPT),
+        RequestField::literal("sec-fetch-site", "none"),
+        RequestField::literal("sec-fetch-mode", "navigate"),
+        RequestField::literal("sec-fetch-user", "?1"),
+        RequestField::literal("sec-fetch-dest", "document"),
+        RequestField::literal("accept-encoding", V153_ACCEPT_ENCODING),
+        RequestField::literal("accept-language", V153_ACCEPT_LANGUAGE),
+        RequestField::literal("priority", "u=0, i"),
+    ];
+    RequestTemplate {
+        identity,
+        http1_fields: vec![
+            RequestField::literal("Connection", "keep-alive"),
+            RequestField::ClientHints,
+            RequestField::literal("Upgrade-Insecure-Requests", "1"),
+            user_agent("User-Agent"),
+            RequestField::literal("Accept", V153_NAVIGATION_ACCEPT),
+            RequestField::literal("Sec-Fetch-Site", "none"),
+            RequestField::literal("Sec-Fetch-Mode", "navigate"),
+            RequestField::literal("Sec-Fetch-User", "?1"),
+            RequestField::literal("Sec-Fetch-Dest", "document"),
+            RequestField::literal("Accept-Encoding", V153_ACCEPT_ENCODING),
+            RequestField::literal("Accept-Language", V153_ACCEPT_LANGUAGE),
+        ],
+        http3_fields: Some(http2_fields.clone()),
+        http2_fields,
+    }
+}
+
+/// Builds the Chromium 153 no-store fetch lists with a literal or caller `User-Agent`.
+pub(crate) fn v153_fetch_no_store_template(
+    user_agent: Option<&str>,
+    identity: RequestIdentity,
+) -> RequestTemplate {
+    let user_agent = |name: &str| match user_agent {
+        Some(value) => RequestField::literal(name, value),
+        None => RequestField::caller(name),
+    };
+    RequestTemplate {
+        identity,
+        http1_fields: vec![
+            RequestField::literal("Connection", "keep-alive"),
+            RequestField::literal("Pragma", "no-cache"),
+            RequestField::literal("Cache-Control", "no-cache"),
+            RequestField::client_hint("sec-ch-ua-platform"),
+            user_agent("User-Agent"),
+            RequestField::client_hint("sec-ch-ua"),
+            RequestField::client_hint("sec-ch-ua-mobile"),
+            RequestField::ClientHints,
+            RequestField::literal("Accept", "*/*"),
+            RequestField::literal("Sec-Fetch-Site", "same-origin"),
+            RequestField::literal("Sec-Fetch-Mode", "cors"),
+            RequestField::literal("Sec-Fetch-Dest", "empty"),
+            RequestField::caller("Referer"),
+            RequestField::literal("Accept-Encoding", V153_ACCEPT_ENCODING),
+            RequestField::literal("Accept-Language", V153_ACCEPT_LANGUAGE),
+        ],
+        http2_fields: vec![
+            RequestField::literal("pragma", "no-cache"),
+            RequestField::literal("cache-control", "no-cache"),
+            RequestField::client_hint("sec-ch-ua-platform"),
+            user_agent("user-agent"),
+            RequestField::client_hint("sec-ch-ua"),
+            RequestField::client_hint("sec-ch-ua-mobile"),
+            RequestField::ClientHints,
+            RequestField::literal("accept", "*/*"),
+            RequestField::literal("sec-fetch-site", "same-origin"),
+            RequestField::literal("sec-fetch-mode", "cors"),
+            RequestField::literal("sec-fetch-dest", "empty"),
+            RequestField::caller("referer"),
+            RequestField::literal("accept-encoding", V153_ACCEPT_ENCODING),
+            RequestField::literal("accept-language", V153_ACCEPT_LANGUAGE),
+            RequestField::literal("priority", "u=1, i"),
+        ],
+        http3_fields: None,
     }
 }
 

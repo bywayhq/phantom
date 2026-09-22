@@ -8,6 +8,7 @@ pub mod firefox;
 pub mod http2;
 pub mod http3;
 pub mod quic;
+pub mod request_template;
 pub mod safari;
 pub mod tcp;
 pub mod tls;
@@ -31,6 +32,10 @@ pub use http3::{
 };
 pub use identity::{
     ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
+};
+pub use request_template::{
+    ClientHintSlot, InvalidRequestTemplate, ProductVersion, RequestField, RequestIdentity,
+    RequestTemplate,
 };
 pub use tcp::{InvalidTcpSettings, TcpAddressRacing, TcpKeepalive, TcpSettings};
 pub use tls::{

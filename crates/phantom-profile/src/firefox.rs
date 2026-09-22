@@ -3,6 +3,7 @@
 use crate::{
     cookie::CookiePlacement,
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
+    request_template::{ProductVersion, RequestField, RequestIdentity, RequestTemplate},
     tcp::TcpSettings,
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
@@ -335,6 +336,117 @@ pub fn v156_websocket() -> WebSocketSettings {
             WebSocketField::client_cookies("cookie"),
         ],
         permessage_deflate_offer: Vec::new(),
+    }
+}
+
+const V156_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";
+const V156_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+const V156_NAVIGATION_ACCEPT: &str =
+    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+const V156_WINDOWS_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
+
+/// Returns navigation request fields observed from Firefox 156.0 on Windows 11.
+///
+/// A top-level navigation the user starts from the address bar: an HTML
+/// document request with `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
+/// The HTTP/1.1 order comes from plaintext loopback page loads in the
+/// retained SSE and WebSocket captures and the HTTP/2 order from the page
+/// requests of the WebSocket captures; every run agrees. Firefox sends
+/// `Priority` on HTTP/1.1 too and ends HTTP/2 requests with `te: trailers`.
+/// There is no Firefox HTTP/3 recipe, so [`RequestTemplate::http3_fields`] is
+/// `None`.
+///
+/// The `User-Agent` value is the one Firefox sent in those headless
+/// captures. `Accept-Language` is the capture machine's `en-US` locale. A
+/// caller field with the same name replaces a captured value in place.
+#[must_use]
+pub fn v156_windows_navigation_template() -> RequestTemplate {
+    RequestTemplate {
+        identity: v156_identity(),
+        http1_fields: vec![
+            RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("Accept", V156_NAVIGATION_ACCEPT),
+            RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("Accept-Encoding", V156_ACCEPT_ENCODING),
+            RequestField::literal("Connection", "keep-alive"),
+            RequestField::literal("Upgrade-Insecure-Requests", "1"),
+            RequestField::literal("Sec-Fetch-Dest", "document"),
+            RequestField::literal("Sec-Fetch-Mode", "navigate"),
+            RequestField::literal("Sec-Fetch-Site", "none"),
+            RequestField::literal("Sec-Fetch-User", "?1"),
+            RequestField::literal("Priority", "u=0, i"),
+        ],
+        http2_fields: vec![
+            RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
+            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("accept-encoding", V156_ACCEPT_ENCODING),
+            RequestField::literal("upgrade-insecure-requests", "1"),
+            RequestField::literal("sec-fetch-dest", "document"),
+            RequestField::literal("sec-fetch-mode", "navigate"),
+            RequestField::literal("sec-fetch-site", "none"),
+            RequestField::literal("sec-fetch-user", "?1"),
+            RequestField::literal("priority", "u=0, i"),
+            RequestField::literal("te", "trailers"),
+        ],
+        http3_fields: None,
+    }
+}
+
+/// Returns same-origin `fetch` request fields observed from Firefox 156.0 on Windows 11.
+///
+/// A script `fetch(url, {cache: "no-store"})` GET to the page's own origin;
+/// the cache mode adds `Pragma` and `Cache-Control`, which Firefox sends
+/// last on HTTP/1.1 and before `te: trailers` on HTTP/2. The orders come from
+/// the final report request of the WebSocket captures, and every run agrees.
+/// `Referer` is a caller slot because its value is the page URL. The
+/// `User-Agent` value matches [`v156_windows_navigation_template`].
+#[must_use]
+pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
+    RequestTemplate {
+        identity: v156_identity(),
+        http1_fields: vec![
+            RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("Accept", "*/*"),
+            RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("Accept-Encoding", V156_ACCEPT_ENCODING),
+            RequestField::caller("Referer"),
+            RequestField::literal("Connection", "keep-alive"),
+            RequestField::literal("Sec-Fetch-Dest", "empty"),
+            RequestField::literal("Sec-Fetch-Mode", "cors"),
+            RequestField::literal("Sec-Fetch-Site", "same-origin"),
+            RequestField::literal("Priority", "u=4"),
+            RequestField::literal("Pragma", "no-cache"),
+            RequestField::literal("Cache-Control", "no-cache"),
+        ],
+        http2_fields: vec![
+            RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("accept", "*/*"),
+            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("accept-encoding", V156_ACCEPT_ENCODING),
+            RequestField::caller("referer"),
+            RequestField::literal("sec-fetch-dest", "empty"),
+            RequestField::literal("sec-fetch-mode", "cors"),
+            RequestField::literal("sec-fetch-site", "same-origin"),
+            RequestField::literal("priority", "u=4"),
+            RequestField::literal("pragma", "no-cache"),
+            RequestField::literal("cache-control", "no-cache"),
+            RequestField::literal("te", "trailers"),
+        ],
+        http3_fields: None,
+    }
+}
+
+fn v156_identity() -> RequestIdentity {
+    RequestIdentity {
+        user_agent_products: vec![ProductVersion::new("Firefox", 156)],
+        excluded_user_agent_products: vec![
+            Box::from("Chrome"),
+            Box::from("HeadlessChrome"),
+            Box::from("Edg"),
+        ],
+        client_hint_brands: None,
     }
 }
 
