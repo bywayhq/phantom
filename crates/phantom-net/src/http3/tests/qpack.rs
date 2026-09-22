@@ -17,6 +17,9 @@ const QPACK_ENCODER_STREAM: u8 = 0x02;
 const QPACK_DECODER_STREAM: u64 = 0x03;
 const SETTINGS_FRAME: u8 = 0x04;
 const HEADERS_FRAME: u8 = 0x01;
+const DATA_FRAME: u8 = 0x00;
+/// Indexed static field line 25, `:status: 200` (RFC 9204 Appendix A).
+const STATUS_200: u8 = 0xd9;
 const PEER_SETTINGS: &[u8] = &[CONTROL_STREAM, SETTINGS_FRAME, 0x00];
 const PENDING_WINDOW: Duration = Duration::from_millis(100);
 const EXPANSION_TABLE_CAPACITY: u64 = 4096;
@@ -198,12 +201,12 @@ async fn expanded_response_field_section_is_refused_without_advertised_limit() -
 
             let (mut oversized, mut oversized_request) = connection.accept_bi().await?;
             let _ = oversized_request.read_to_end(64 * 1024).await?;
-            write_headers(&mut oversized, &expansion_field_section()).await?;
+            write_headers(&mut oversized, &expansion_field_section(&[STATUS_200])).await?;
             let _ = oversized.finish();
 
             let (mut small, mut small_request) = connection.accept_bi().await?;
             let _ = small_request.read_to_end(64 * 1024).await?;
-            write_headers(&mut small, &[0x00, 0x00, 0xd9]).await?;
+            write_headers(&mut small, &[0x00, 0x00, STATUS_200]).await?;
             small.finish()?;
 
             done_received
@@ -241,6 +244,91 @@ async fn expanded_response_field_section_is_refused_without_advertised_limit() -
     )
     .await
     .map_err(|_| "request after the refused field section timed out")??;
+    assert_eq!(small.status(), StatusCode::OK);
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn expanded_response_trailers_are_refused_without_advertised_limit() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        timeout(TEST_TIMEOUT, async move {
+            let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+            let connection = incoming.await?;
+            let mut control = connection.open_uni().await?;
+            control.write_all(PEER_SETTINGS).await?;
+
+            let mut encoder = connection.open_uni().await?;
+            encoder.write_all(&[QPACK_ENCODER_STREAM]).await?;
+            encoder.write_all(&expansion_instructions()).await?;
+
+            let (mut oversized, mut oversized_request) = connection.accept_bi().await?;
+            let _ = oversized_request.read_to_end(64 * 1024).await?;
+            write_headers(&mut oversized, &[0x00, 0x00, STATUS_200]).await?;
+            oversized.write_all(&[DATA_FRAME, 2, b'o', b'k']).await?;
+            write_headers(&mut oversized, &expansion_field_section(&[])).await?;
+            let _ = oversized.finish();
+
+            let (mut small, mut small_request) = connection.accept_bi().await?;
+            let _ = small_request.read_to_end(64 * 1024).await?;
+            write_headers(&mut small, &[0x00, 0x00, STATUS_200]).await?;
+            small.finish()?;
+
+            done_received
+                .await
+                .map_err(|_| "client did not finish trailer validation")?;
+            connection.close(quinn::VarInt::from_u32(0), b"");
+            drop((control, encoder));
+            Ok::<(), Box<dyn Error + Send + Sync>>(())
+        })
+        .await
+        .map_err(|_| "trailer expansion server timed out")?
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &unadvertised_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let response = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(request(address, "/expanded-trailers")?, None),
+    )
+    .await
+    .map_err(|_| "response head before expanded trailers timed out")??;
+    assert_eq!(response.status(), StatusCode::OK);
+    let mut body = response.into_body();
+    let data = timeout(TEST_TIMEOUT, body.frame())
+        .await
+        .map_err(|_| "response data timed out")?
+        .ok_or("response body ended before its data")??
+        .into_data()
+        .map_err(|_| "expected response data before the trailers")?;
+    assert_eq!(&data[..], b"ok");
+    let error = match timeout(TEST_TIMEOUT, body.frame())
+        .await
+        .map_err(|_| "expanded trailers were neither refused nor accepted")?
+    {
+        Some(Err(error)) => error,
+        Some(Ok(_)) | None => {
+            return Err("expanded trailers exceeded the local limit".into());
+        }
+    };
+    assert_eq!(error.kind(), Http3ErrorKind::Protocol);
+
+    let small = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(request(address, "/after-expanded-trailers")?, None),
+    )
+    .await
+    .map_err(|_| "request after the refused trailers timed out")??;
     assert_eq!(small.status(), StatusCode::OK);
 
     let _ = client_done.send(());
@@ -357,11 +445,13 @@ fn expansion_instructions() -> Vec<u8> {
     instructions
 }
 
-/// References the single dynamic entry enough times that the decoded size
-/// (about 4 KiB per line) passes 256 KiB while the encoded section stays tiny.
-fn expansion_field_section() -> Vec<u8> {
+/// Follows `leading` field lines with enough references to the single dynamic
+/// entry that the decoded size (about 4 KiB per line) passes 256 KiB while the
+/// encoded section stays tiny.
+fn expansion_field_section(leading: &[u8]) -> Vec<u8> {
     // Required Insert Count 1 encodes as 2 (RFC 9204 Section 4.5.1.1); base 1.
-    let mut field_section = vec![0x02, 0x00, 0xd9];
+    let mut field_section = vec![0x02, 0x00];
+    field_section.extend_from_slice(leading);
     field_section.resize(field_section.len() + EXPANSION_REFERENCES, 0x80);
     field_section
 }
