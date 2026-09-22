@@ -59,8 +59,16 @@ jobs:
       - name: Check formatting
         run: cargo fmt --manifest-path fuzz/Cargo.toml --check
 
+      # `--all-targets`, not `--bins`: the harnesses and their deterministic
+      # regressions live in the crate's library, and the binaries are wrappers.
       - name: Lint
-        run: cargo clippy --manifest-path fuzz/Cargo.toml --bins --locked -- -D warnings
+        run: cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --locked -- -D warnings
+
+      # The seed regressions run here, on the project toolchain, because they
+      # need neither a nightly nor a sanitizer. A seed that stops parsing fails
+      # this job instead of silently weakening every fuzz iteration.
+      - name: Test harnesses and structural seeds
+        run: cargo test --manifest-path fuzz/Cargo.toml --locked
 
   fuzz:
     name: ${{ matrix.target }} under ASan
@@ -76,6 +84,13 @@ jobs:
             max_len: 65536
           - target: cookie_jar
             max_len: 16384
+          # 16 KiB, not the 64 KiB the other peer-facing targets use: the
+          # response-head observer and the protocol engine each reparse their
+          # buffered head on every read, bounded by MAX_RESPONSE_HEAD_BYTES
+          # (32 KiB), so a longer head read one byte at a time costs quadratic
+          # time and reports a timeout rather than a defect. The two head
+          # limits that this puts out of reach are covered by the regressions
+          # in fuzz/src/http1_response/tests.rs.
           - target: http1_response
             max_len: 16384
           - target: http_connect_response
