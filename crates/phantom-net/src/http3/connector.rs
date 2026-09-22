@@ -123,8 +123,10 @@ impl Http3Connector {
     /// SOCKS5 UDP association this connector opens.
     ///
     /// QUIC itself runs over UDP, so direct connections are unaffected. The
-    /// settings are validated before any DNS or socket I/O; invalid settings
-    /// fail the association's proxy connection.
+    /// settings are checked before any DNS or socket I/O; invalid settings, or
+    /// settings this host cannot apply exactly (see
+    /// [`crate::tcp::check_host_support`]), fail the association's proxy
+    /// connection.
     #[must_use]
     pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
         self.tcp = Some(*settings);

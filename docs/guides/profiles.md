@@ -118,10 +118,13 @@ addresses are tried one at a time in resolver order.
   capture evidence.
 
 Keepalive times must be whole seconds from 1 to 32,767, and the racing
-fallback delay must be nonzero and at most 10 seconds. Windows sets the idle
-time and interval together, so a keepalive without an interval fails there
-with `ErrorKind::Unsupported`. A socket option the OS rejects fails that
-connection attempt rather than connecting without it. The TCP SYN itself
+fallback delay must be nonzero and at most 10 seconds. Settings the host
+cannot apply exactly fail `ClientBuilder::build` with
+`BuildErrorKind::InvalidProfile`: Windows sets the idle time and interval
+together, so it needs an interval; OpenBSD and Haiku cannot set an idle time;
+and some other platforms cannot set an interval. A socket option the OS
+rejects at connection time fails that attempt rather than connecting without
+it. The TCP SYN itself
 (window, MSS, options, TTL) comes from the host OS, which should match the
 platform the profile presents.
 

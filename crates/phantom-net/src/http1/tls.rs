@@ -96,9 +96,12 @@ impl Http1TlsConnector {
     ///
     /// The options cover direct origin connections and connections to HTTP
     /// and SOCKS5 proxies. An HTTPS proxy connection uses the options of the
-    /// [`HttpsProxyConnector`] passed with it. The settings are validated
-    /// before any DNS or socket I/O; invalid settings fail each connection
-    /// attempt with [`std::io::ErrorKind::InvalidInput`].
+    /// [`HttpsProxyConnector`] passed with it.
+    /// The settings are checked before any DNS or socket I/O. Invalid
+    /// settings fail each connection attempt with
+    /// [`std::io::ErrorKind::InvalidInput`], and settings this host cannot
+    /// apply exactly (see [`crate::tcp::check_host_support`]) with
+    /// [`std::io::ErrorKind::Unsupported`].
     #[must_use]
     pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
         self.tcp = Some(*settings);

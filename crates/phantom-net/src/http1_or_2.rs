@@ -214,9 +214,11 @@ impl Http1Or2TlsConnector {
     /// Applies TCP socket options to every direct TCP connection this
     /// connector opens.
     ///
-    /// The settings are validated before any DNS or socket I/O; invalid
+    /// The settings are checked before any DNS or socket I/O. Invalid
     /// settings fail each connection attempt with
-    /// [`std::io::ErrorKind::InvalidInput`].
+    /// [`std::io::ErrorKind::InvalidInput`], and settings this host cannot
+    /// apply exactly (see [`crate::tcp::check_host_support`]) with
+    /// [`std::io::ErrorKind::Unsupported`].
     #[must_use]
     pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
         self.tcp = Some(*settings);

@@ -849,8 +849,11 @@ Differences from the browsers:
 with scripted attempt outcomes and a test-controlled fallback delay: IPv6
 preference, alternation, the IPv4 fallback attempt and role swap, the
 two-attempt bound, cancellation of the loser, and the returned error.
-`tcp::tests::racing_reaches_an_ipv4_listener_for_a_dual_stack_name` races
-real loopback sockets. `tcp::tests::connected_socket_carries_requested_options`
+`tcp::tests::racing_reaches_ipv4_when_nothing_listens_on_ipv6` races real
+sockets to `[::1]` and `127.0.0.1` at the same port, with a listener only on
+IPv4. The `tcp::tests::host_check_*` tests cover the build-time host check
+for every platform capability combination, and the facade rejects a
+Windows keepalive without an interval as `BuildErrorKind::InvalidProfile`. `tcp::tests::connected_socket_carries_requested_options`
 checks `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time
 and interval; Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values.
 `tcp::tests::paths` reads back every socket opened by the direct, forward

@@ -10,6 +10,7 @@ use phantom_net::{
     },
     proxy::{HttpConnectError, HttpConnectErrorKind, Socks5Error, Socks5ErrorKind},
     request::RequestBodyError,
+    tcp::UnsupportedTcpSettings,
 };
 use phantom_profile::{
     InvalidClientHintSettings, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
@@ -64,6 +65,14 @@ impl BuildError {
         Self::with_source(
             BuildErrorKind::InvalidProfile,
             "invalid TCP profile",
+            source,
+        )
+    }
+
+    pub(crate) fn unsupported_tcp_profile(source: UnsupportedTcpSettings) -> Self {
+        Self::with_source(
+            BuildErrorKind::InvalidProfile,
+            "TCP profile cannot be applied on this host",
             source,
         )
     }

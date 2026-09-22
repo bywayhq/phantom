@@ -548,6 +548,8 @@ impl ClientBuilder {
             .map_err(BuildError::invalid_tls_profile)?;
         if let Some(tcp) = self.profile.tcp() {
             tcp.validate().map_err(BuildError::invalid_tcp_profile)?;
+            phantom_net::tcp::check_host_support(tcp)
+                .map_err(BuildError::unsupported_tcp_profile)?;
         }
         if let Some(client_hints) = self.profile.client_hints() {
             client_hints
@@ -811,6 +813,8 @@ mod tests {
     use phantom_profile::{ClientProfile, Http3ClientSettings, TcpKeepalive, chromium};
 
     use super::{Client, HttpProtocol};
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    use crate::BuildError;
     use crate::{BuildErrorKind, HttpProxy, Route, ServerAuthentication};
 
     #[test]
@@ -886,6 +890,37 @@ mod tests {
 
         assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
         Ok(())
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn keepalive_without_interval_is_an_invalid_profile_on_windows() -> Result<(), &'static str> {
+        let mut tcp = chromium::v153_tcp();
+        tcp.keepalive = Some(TcpKeepalive {
+            idle: Duration::from_secs(45),
+            interval: None,
+        });
+        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+        let error = Client::builder(profile)
+            .build()
+            .err()
+            .ok_or("Windows accepted a keepalive it cannot apply")?;
+
+        assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+        Ok(())
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn idle_only_keepalive_builds_where_the_host_supports_it() -> Result<(), BuildError> {
+        let mut tcp = chromium::v153_tcp();
+        tcp.keepalive = Some(TcpKeepalive {
+            idle: Duration::from_secs(45),
+            interval: None,
+        });
+        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+
+        Client::builder(profile).build().map(drop)
     }
 
     #[test]

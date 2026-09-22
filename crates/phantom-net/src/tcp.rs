@@ -1,6 +1,10 @@
-//! Outgoing TCP sockets opened with a profile's socket options.
+//! Host support for profile TCP socket options.
+//!
+//! Outgoing TCP sockets are opened with a profile's [`TcpSettings`].
+//! [`check_host_support`] reports, before any I/O, whether this host can apply
+//! those settings exactly as written.
 
-use std::{io, net::SocketAddr};
+use std::{error::Error, fmt, io, net::SocketAddr};
 
 use phantom_profile::{TcpKeepalive, TcpSettings};
 use socket2::SockRef;
@@ -20,6 +24,10 @@ pub(crate) async fn connect(host: &str, port: u16, settings: TcpSettings) -> io:
     settings
         .validate()
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+    // A client built through the facade has already passed this check; a
+    // connector used directly still must not drop an option silently.
+    check_host_support(&settings)
+        .map_err(|error| io::Error::new(io::ErrorKind::Unsupported, error))?;
     let addresses = tokio::net::lookup_host((host, port)).await?;
     match settings.address_racing {
         Some(racing) => {
@@ -87,28 +95,36 @@ fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
     Ok(())
 }
 
+/// Builds socket2 keepalive parameters for settings that
+/// [`check_host_support`] accepted, so every requested value is applied.
 fn keepalive_parameters(keepalive: TcpKeepalive) -> io::Result<socket2::TcpKeepalive> {
     let parameters = socket2::TcpKeepalive::new().with_time(keepalive.idle);
     match keepalive.interval {
         Some(interval) => with_interval(parameters, interval),
-        // `SIO_KEEPALIVE_VALS` sets the idle time and the interval together;
-        // socket2 would send an interval of zero milliseconds.
-        None if cfg!(windows) => Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            "a TCP keepalive interval is required on Windows",
-        )),
         None => Ok(parameters),
     }
 }
 
+// The targets of socket2 0.6.5's `TcpKeepalive::with_interval`, less Cygwin,
+// which Rust 1.85 does not know as a `target_os`; an interval there is
+// rejected by `check_host_support` instead of being dropped.
 #[cfg(any(
     target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
     target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
     target_os = "ios",
+    target_os = "visionos",
     target_os = "linux",
     target_os = "macos",
     target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
     target_os = "windows",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
 ))]
 fn with_interval(
     parameters: socket2::TcpKeepalive,
@@ -119,12 +135,21 @@ fn with_interval(
 
 #[cfg(not(any(
     target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
     target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
     target_os = "ios",
+    target_os = "visionos",
     target_os = "linux",
     target_os = "macos",
     target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
     target_os = "windows",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
 )))]
 fn with_interval(
     _parameters: socket2::TcpKeepalive,
@@ -132,9 +157,121 @@ fn with_interval(
 ) -> io::Result<socket2::TcpKeepalive> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
-        "a TCP keepalive interval is not supported on this platform",
+        UNSUPPORTED_INTERVAL,
     ))
 }
+
+/// Which keepalive values the host's socket API can apply.
+#[derive(Clone, Copy, Debug)]
+struct KeepaliveSupport {
+    /// socket2 0.6.5 sets no idle time on OpenBSD, Haiku, or Vita (its
+    /// `sys::unix::set_tcp_keepalive`), so a requested one would be dropped.
+    idle: bool,
+    /// The targets of socket2 0.6.5's `TcpKeepalive::with_interval`, less
+    /// Cygwin (see `with_interval`).
+    interval: bool,
+    /// Windows applies both values through `SIO_KEEPALIVE_VALS`, where an
+    /// unset interval becomes zero milliseconds rather than a system default.
+    interval_required: bool,
+}
+
+const HOST_KEEPALIVE: KeepaliveSupport = KeepaliveSupport {
+    idle: !cfg!(any(
+        target_os = "openbsd",
+        target_os = "haiku",
+        target_os = "vita"
+    )),
+    interval: cfg!(any(
+        target_os = "android",
+        target_os = "dragonfly",
+        target_os = "emscripten",
+        target_os = "freebsd",
+        target_os = "fuchsia",
+        target_os = "illumos",
+        target_os = "ios",
+        target_os = "visionos",
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "netbsd",
+        target_os = "tvos",
+        target_os = "watchos",
+        target_os = "windows",
+        target_os = "nuttx",
+        all(target_os = "wasi", not(target_env = "p1")),
+    )),
+    interval_required: cfg!(windows),
+};
+
+const UNSUPPORTED_INTERVAL: &str = "this platform cannot set a TCP keepalive interval";
+
+/// Checks that this host can apply `settings` exactly, without I/O.
+///
+/// Settings that pass [`TcpSettings::validate`] can still be impossible on a
+/// particular operating system. They are rejected here rather than applied
+/// partially; only a rejection by the operating system itself remains a
+/// connection-time failure.
+///
+/// # Errors
+///
+/// Returns [`UnsupportedTcpSettings`] when this platform cannot set a
+/// keepalive idle time, when an interval is requested where none can be set,
+/// or when Windows would need an interval the settings leave unset.
+pub fn check_host_support(settings: &TcpSettings) -> Result<(), UnsupportedTcpSettings> {
+    check_keepalive_support(settings, HOST_KEEPALIVE)
+}
+
+fn check_keepalive_support(
+    settings: &TcpSettings,
+    support: KeepaliveSupport,
+) -> Result<(), UnsupportedTcpSettings> {
+    let Some(keepalive) = settings.keepalive else {
+        return Ok(());
+    };
+    if !support.idle {
+        return Err(UnsupportedTcpSettings {
+            field: "keepalive.idle",
+            message: "this platform cannot set a TCP keepalive idle time",
+        });
+    }
+    match keepalive.interval {
+        Some(_) if !support.interval => Err(UnsupportedTcpSettings {
+            field: "keepalive.interval",
+            message: UNSUPPORTED_INTERVAL,
+        }),
+        None if support.interval_required => Err(UnsupportedTcpSettings {
+            field: "keepalive.interval",
+            message: "Windows requires a TCP keepalive interval with the idle time",
+        }),
+        _ => Ok(()),
+    }
+}
+
+/// Error returned when this host cannot apply profile TCP settings as written.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnsupportedTcpSettings {
+    field: &'static str,
+    message: &'static str,
+}
+
+impl UnsupportedTcpSettings {
+    /// Returns the setting's field name.
+    #[must_use]
+    pub fn field(&self) -> &'static str {
+        self.field
+    }
+}
+
+impl fmt::Display for UnsupportedTcpSettings {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "unsupported TCP {} on this host: {}",
+            self.field, self.message
+        )
+    }
+}
+
+impl Error for UnsupportedTcpSettings {}
 
 fn option_error(option: &str, error: io::Error) -> io::Error {
     io::Error::new(
