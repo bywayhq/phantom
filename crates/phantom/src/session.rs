@@ -191,7 +191,7 @@ impl Client {
         &self,
         endpoint: &crate::authority::Endpoint,
         route: &crate::Route,
-    ) -> Result<Option<PooledHttp2Session>, RequestError> {
+    ) -> Result<Option<PooledHttp2Session>, crate::RequestError> {
         if matches!(route, crate::Route::Direct) {
             if let Some(session) = self
                 .state
