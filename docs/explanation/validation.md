@@ -844,21 +844,22 @@ Differences from the browsers:
   failure history (`DnsAndConnectSocket.cpp:170-178`,
   `netwerk/base/nsSocketTransport2.cpp:1742-1745`, `:1785-1787`).
 
-`phantom-net` tests read the options back from connected sockets with
-`socket2` getters. `tcp::address_racing::tests` drive the racing algorithm
-with scripted attempt outcomes and a test-controlled fallback delay: IPv6
-preference, alternation, the IPv4 fallback attempt and role swap, the
-two-attempt bound, cancellation of the loser, and the returned error.
+`phantom-net` tests read the options back from connected sockets with `socket2`
+getters. `tcp::address_racing::tests` drive the racing algorithm with scripted
+attempt outcomes and a test-controlled fallback delay: IPv6 preference,
+alternation, the IPv4 fallback attempt and role swap, the two-attempt bound,
+cancellation of the loser, and the returned error.
 `tcp::tests::racing_reaches_ipv4_when_nothing_listens_on_ipv6` races real
 sockets to `[::1]` and `127.0.0.1` at the same port, with a listener only on
-IPv4. The `tcp::tests::host_check_*` tests cover the build-time host check
-for every platform capability combination, and the facade rejects a
-Windows keepalive without an interval as `BuildErrorKind::InvalidProfile`. `tcp::tests::connected_socket_carries_requested_options`
-checks `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time
-and interval; Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values.
-`tcp::tests::paths` reads back every socket opened by the direct, forward
-proxy, HTTP CONNECT (with and without Basic), HTTPS proxy, SOCKS5 (remote and
-local DNS), HTTP/1.1-or-HTTP/2, and SOCKS5 UDP control paths. The facade test
+IPv4. The `tcp::tests::host_check_*` tests cover the build-time host check for
+every platform capability combination, and the facade rejects a Windows
+keepalive without an interval as `BuildErrorKind::InvalidProfile`.
+`tcp::tests::connected_socket_carries_requested_options` checks `TCP_NODELAY`
+and `SO_KEEPALIVE`, and on Linux and macOS the idle time and interval; Windows
+exposes no getter for the `SIO_KEEPALIVE_VALS` values. `tcp::tests::paths` reads
+back every socket opened by the direct, forward proxy, HTTP CONNECT (with and
+without Basic), HTTPS proxy, SOCKS5 (remote and local DNS), HTTP/1.1-or-HTTP/2,
+and SOCKS5 UDP control paths. The facade test
 `profile_tcp_settings_reach_every_tcp_connector` checks that a profile's
 settings reach each TCP connector the client builds, including the WebSocket
 HTTP/1.1 connector.

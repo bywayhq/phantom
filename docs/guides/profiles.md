@@ -117,16 +117,15 @@ addresses are tried one at a time in resolver order.
 - There is no Edge recipe; Edge's socket options have no public source or
   capture evidence.
 
-Keepalive times must be whole seconds from 1 to 32,767, and the racing
-fallback delay must be nonzero and at most 10 seconds. Settings the host
-cannot apply exactly fail `ClientBuilder::build` with
-`BuildErrorKind::InvalidProfile`: Windows sets the idle time and interval
-together, so it needs an interval; OpenBSD and Haiku cannot set an idle time;
-and some other platforms cannot set an interval. A socket option the OS
-rejects at connection time fails that attempt rather than connecting without
-it. The TCP SYN itself
-(window, MSS, options, TTL) comes from the host OS, which should match the
-platform the profile presents.
+Keepalive times must be whole seconds from 1 to 32,767, and the racing fallback
+delay must be nonzero and at most 10 seconds. Settings the host cannot apply
+exactly fail `ClientBuilder::build` with `BuildErrorKind::InvalidProfile`:
+Windows sets the idle time and interval together, so it needs an interval;
+OpenBSD, Haiku, and Vita cannot set an idle time; and some other platforms
+cannot set an interval. A socket option the OS rejects at connection time fails
+that attempt rather than connecting without it. The TCP SYN itself (window, MSS,
+options, TTL) comes from the host OS, which should match the platform the
+profile presents.
 
 ## Custom profiles
 
