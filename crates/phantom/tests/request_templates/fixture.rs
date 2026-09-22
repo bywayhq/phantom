@@ -1,7 +1,8 @@
 //! Reads one ordinary request from a retained browser capture.
 //!
 //! The HTTP/1.1 and HTTP/2 requests come from `phantom-http2-websocket-v1`
-//! captures and the HTTP/3 request from a `phantom-http3-*` startup capture.
+//! captures, HTTP/1.1 EventSource requests from `phantom-sse-reconnect-v1`
+//! captures, and the HTTP/3 request from a `phantom-http3-*` startup capture.
 //! `Host` and pseudo-header fields are left out.
 
 use std::collections::BTreeMap;
@@ -34,7 +35,17 @@ impl Capture {
 
     /// Returns run 0's first HTTP/1.1 request of `kind` (`page` or `done`).
     pub(crate) fn http1_request(&self, kind: &str) -> TestResult<Fields> {
+        self.http1_requests(kind)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| format!("capture has no {kind} request").into())
+    }
+
+    /// Returns run 0's HTTP/1.1 requests of `kind` (such as `page`, `done`,
+    /// or `sse`) in capture order.
+    pub(crate) fn http1_requests(&self, kind: &str) -> TestResult<Vec<Fields>> {
         let count: usize = self.value("run_0_request_count")?.parse()?;
+        let mut requests = Vec::new();
         for index in 0..count {
             let prefix = format!("run_0_request_{index}");
             if attribute(self.value(&prefix)?, "kind") != Some(kind) {
@@ -51,9 +62,9 @@ impl Capture {
                     fields.push((name.to_owned(), value.to_owned()));
                 }
             }
-            return Ok(fields);
+            requests.push(fields);
         }
-        Err(format!("capture has no {kind} request").into())
+        Ok(requests)
     }
 
     /// Returns run 0's first HTTP/2 GET whose `sec-fetch-dest` is `destination`.

@@ -29,10 +29,11 @@ use std::{
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, ContentCoding, ContentDecoding, HttpProtocol, RedirectPolicy, RequestErrorKind,
-    RequestHeader, ResponseInfo,
+    Client, ClientBuilder, ContentCoding, ContentDecoding, HttpProtocol, RedirectPolicy,
+    RequestErrorKind, RequestHeader, ResponseInfo,
     profile::{
-        ClientHintSettings, ClientProfile, Http2Settings, RequestTemplate, chromium, edge, firefox,
+        ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate,
+        chromium, edge, firefox,
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
@@ -159,7 +160,6 @@ async fn send(
     protocol: HttpProtocol,
     expected: &Fields,
 ) -> TestResult<Observed> {
-    let identity = TestIdentity::generate()?;
     let mut caller = Vec::new();
     for (name, value) in expected {
         let slot = protocol_fields(&template, protocol).iter().find(|field| {
@@ -171,16 +171,29 @@ async fn send(
             caller.push(RequestHeader::new(name.to_ascii_lowercase(), value));
         }
     }
-    let mut profile = ClientProfile::new(tls_settings())
-        .with_http2(browser.http2.clone())
-        .with_http3(client_settings());
-    if let Some(hints) = &browser.hints {
-        profile = profile.with_client_hints(hints.clone());
-    }
-    let client = Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .build()?;
+    send_with(
+        browser,
+        template,
+        protocol,
+        caller,
+        CookiePlacement::last(),
+        |builder, _| Ok(builder),
+    )
+    .await
+}
 
+/// Sends one templated request with `caller` fields from a client whose
+/// profile has `cookie_placement` and whose builder `configure` adjusts for
+/// the origin URL, and returns what the origin received.
+async fn send_with(
+    browser: &Browser,
+    template: RequestTemplate,
+    protocol: HttpProtocol,
+    caller: Vec<RequestHeader>,
+    cookie_placement: CookiePlacement,
+    configure: impl FnOnce(ClientBuilder, &str) -> TestResult<ClientBuilder>,
+) -> TestResult<Observed> {
+    let identity = TestIdentity::generate()?;
     let (client_done, wait_for_client) = oneshot::channel();
     let (url, server) = match protocol {
         HttpProtocol::Http1 => serve_http1(&identity).await?,
@@ -188,6 +201,16 @@ async fn send(
         HttpProtocol::Http3 => serve_http3(&identity, wait_for_client)?,
         _ => return Err("no test origin for this protocol".into()),
     };
+    let mut profile = ClientProfile::new(tls_settings())
+        .with_http2(browser.http2.clone())
+        .with_http3(client_settings())
+        .with_cookie_placement(cookie_placement);
+    if let Some(hints) = &browser.hints {
+        profile = profile.with_client_hints(hints.clone());
+    }
+    let builder = Client::builder(profile).add_root_certificate_der(identity.root_der.clone());
+    let client = configure(builder, &url)?.build()?;
+
     let response = client
         .get(protocol, &url)?
         .template(template)
@@ -426,6 +449,207 @@ async fn firefox_fetch_sends_the_captured_report_request() -> TestResult<()> {
         TCP,
     )
     .await
+}
+
+/// The jar's `Cookie` in a templated request, placed by the profile's
+/// `CookiePlacement` after template expansion and before client-hint slots
+/// are filled.
+#[cfg(feature = "cookies")]
+mod cookie_placement {
+    use phantom::CookieJar;
+
+    use super::*;
+
+    const CHROME_SSE_COOKIE: &str =
+        fixture!("sse/chrome/153.0.8010.48/windows-11-26200/set-cookie-then-close.txt");
+    const FIREFOX_SSE_COOKIE: &str =
+        fixture!("sse/firefox/156.0/windows-11-26200/set-cookie-then-close.txt");
+    /// `PROBE_COOKIE` in scripts/capture/sse_reconnect.py.
+    const PROBE_COOKIE: &str = "phantom_probe=1";
+    /// The `fetch` templates leave `Referer` to the caller; an address-bar
+    /// navigation sends none.
+    const REFERER: &str = "https://127.0.0.1/run";
+
+    /// Returns the captured EventSource reconnect that carried the cookie.
+    fn captured_cookie_request(capture: &str) -> TestResult<Fields> {
+        Capture::parse(capture)?
+            .http1_requests("sse")?
+            .into_iter()
+            .find(|fields| {
+                fields
+                    .iter()
+                    .any(|(name, _)| name.eq_ignore_ascii_case("cookie"))
+            })
+            .ok_or_else(|| "capture has no reconnect with a Cookie field".into())
+    }
+
+    /// Returns the lowercase names before and after the one `Cookie` field,
+    /// which must carry `PROBE_COOKIE`.
+    fn sides(fields: &Fields) -> TestResult<(Vec<String>, Vec<String>)> {
+        let cookies: Vec<_> = fields
+            .iter()
+            .enumerate()
+            .filter(|(_, (name, _))| name.eq_ignore_ascii_case("cookie"))
+            .collect();
+        let [(position, (_, value))] = cookies.as_slice() else {
+            return Err(format!("expected one Cookie field, found {}", cookies.len()).into());
+        };
+        if value != PROBE_COOKIE {
+            return Err(format!("Cookie was {value:?}").into());
+        }
+        let lower = |fields: &[(String, String)]| -> Vec<String> {
+            fields
+                .iter()
+                .map(|(name, _)| name.to_ascii_lowercase())
+                .collect()
+        };
+        Ok((lower(&fields[..*position]), lower(&fields[*position + 1..])))
+    }
+
+    /// Asserts that every field `observed` shares with `captured` is on the
+    /// same side of `Cookie`, and returns the field right after `Cookie`.
+    fn assert_cookie_sides(
+        observed: &Fields,
+        captured: &Fields,
+        label: &str,
+    ) -> TestResult<Option<String>> {
+        let (before, after) = sides(observed)?;
+        let (captured_before, captured_after) = sides(captured)?;
+        for name in &before {
+            assert!(
+                !captured_after.contains(name),
+                "{label}: {name} follows Cookie in the capture"
+            );
+        }
+        for name in &after {
+            assert!(
+                !captured_before.contains(name),
+                "{label}: {name} precedes Cookie in the capture"
+            );
+        }
+        Ok(after.into_iter().next())
+    }
+
+    /// Sends one templated request from a client whose jar holds
+    /// `PROBE_COOKIE` for the origin, and returns the fields the origin
+    /// received.
+    async fn send_with_jar_cookie(
+        browser: &Browser,
+        template: RequestTemplate,
+        placement: CookiePlacement,
+        protocol: HttpProtocol,
+        caller: Vec<RequestHeader>,
+    ) -> TestResult<Fields> {
+        let sent = send_with(
+            browser,
+            template,
+            protocol,
+            caller,
+            placement,
+            |builder, url| {
+                let jar = CookieJar::default();
+                jar.set_cookie(url, &format!("{PROBE_COOKIE}; Path=/"))?;
+                Ok(builder.cookie_jar(jar))
+            },
+        );
+        let observed = timeout(TEST_TIMEOUT, sent)
+            .await
+            .map_err(|_| format!("{protocol:?} request timed out"))??;
+        Ok(observed.fields)
+    }
+
+    fn referer() -> Vec<RequestHeader> {
+        vec![RequestHeader::new("referer", REFERER)]
+    }
+
+    /// Firefox sends the jar's `Cookie` after `Referer` and before
+    /// `Sec-Fetch-Dest` in the EventSource capture; the preset also puts it
+    /// before `Upgrade-Insecure-Requests`, which only a navigation sends.
+    #[tokio::test]
+    async fn firefox_templates_place_the_jar_cookie_where_firefox_does() -> TestResult<()> {
+        let browser = firefox();
+        let captured = captured_cookie_request(FIREFOX_SSE_COOKIE)?;
+        for (template, caller, next) in [
+            (
+                firefox::v156_windows_fetch_no_store_template(),
+                referer(),
+                "sec-fetch-dest",
+            ),
+            (
+                firefox::v156_windows_navigation_template(),
+                Vec::new(),
+                "upgrade-insecure-requests",
+            ),
+        ] {
+            let http1 = send_with_jar_cookie(
+                &browser,
+                template.clone(),
+                firefox::v156_cookie_placement(),
+                HttpProtocol::Http1,
+                caller.clone(),
+            )
+            .await?;
+            let after = assert_cookie_sides(&http1, &captured, "Firefox HTTP/1.1")?;
+            assert_eq!(after.as_deref(), Some(next), "Firefox HTTP/1.1");
+
+            // No HTTP/2 capture carries a cookie; this neighbour is the
+            // preset's, from Firefox source.
+            let http2 = send_with_jar_cookie(
+                &browser,
+                template,
+                firefox::v156_cookie_placement(),
+                HttpProtocol::Http2,
+                caller,
+            )
+            .await?;
+            let (_, after) = sides(&http2)?;
+            assert_eq!(
+                after.first().map(String::as_str),
+                Some(next),
+                "Firefox HTTP/2"
+            );
+        }
+        Ok(())
+    }
+
+    /// Chrome sends the jar's `Cookie` last on HTTP/1.1, as in the
+    /// EventSource capture, and before the final `priority` on HTTP/2.
+    #[tokio::test]
+    async fn chrome_templates_place_the_jar_cookie_where_chrome_does() -> TestResult<()> {
+        let browser = chrome();
+        let captured = captured_cookie_request(CHROME_SSE_COOKIE)?;
+        let (_, captured_after) = sides(&captured)?;
+        assert!(captured_after.is_empty(), "the capture sends Cookie last");
+        for (template, caller) in [
+            (chromium::v153_windows_navigation_template(), Vec::new()),
+            (chromium::v153_windows_fetch_no_store_template(), referer()),
+        ] {
+            let http1 = send_with_jar_cookie(
+                &browser,
+                template.clone(),
+                chromium::v153_cookie_placement(),
+                HttpProtocol::Http1,
+                caller.clone(),
+            )
+            .await?;
+            let after = assert_cookie_sides(&http1, &captured, "Chrome HTTP/1.1")?;
+            assert_eq!(after, None, "Chrome HTTP/1.1 sends Cookie last");
+
+            // No HTTP/2 capture carries a cookie; this neighbour is the
+            // preset's, from Chromium source.
+            let http2 = send_with_jar_cookie(
+                &browser,
+                template,
+                chromium::v153_cookie_placement(),
+                HttpProtocol::Http2,
+                caller,
+            )
+            .await?;
+            let (_, after) = sides(&http2)?;
+            assert_eq!(after, ["priority"], "Chrome HTTP/2");
+        }
+        Ok(())
+    }
 }
 
 #[tokio::test]
