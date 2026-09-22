@@ -877,6 +877,100 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
     Ok(())
 }
 
+/// Serves HTTP/1.1 requests on one TLS connection, answering each with
+/// `reply`, and returns how many request heads arrived before the client
+/// closed the connection.
+async fn serve_http1_replies(
+    identity: &TestIdentity,
+    reply: &'static str,
+) -> TestResult<(String, tokio::task::JoinHandle<TestResult<usize>>)> {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let url = format!("https://{}/", listener.local_addr()?);
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let server = tokio::spawn(async move {
+        let mut stream = accept_tls(listener, acceptor).await?;
+        let mut requests = 0;
+        while read_head(&mut stream).await.is_ok() {
+            requests += 1;
+            stream.write_all(reply.as_bytes()).await?;
+        }
+        Ok(requests)
+    });
+    Ok((url, server))
+}
+
+fn chrome_hints_client(identity: &TestIdentity) -> TestResult<Client> {
+    let profile =
+        ClientProfile::new(tls_settings()).with_client_hints(chromium::v153_windows_client_hints());
+    Ok(Client::builder(profile)
+        .add_root_certificate_der(identity.root_der.clone())
+        .build()?)
+}
+
+/// Once an origin asks for a hint the fetch template cannot place, the next
+/// fetch to it fails before it is sent.
+#[tokio::test]
+async fn fetch_template_after_accept_ch_fails_before_the_request_is_sent() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (url, server) = serve_http1_replies(
+        &identity,
+        "HTTP/1.1 204 No Content\r\nAccept-CH: Sec-CH-UA-Arch\r\n\r\n",
+    )
+    .await?;
+    let client = chrome_hints_client(&identity)?;
+    let fetch = || {
+        client.get(HttpProtocol::Http1, &url).map(|request| {
+            request
+                .template(chromium::v153_windows_fetch_no_store_template())
+                .header(RequestHeader::new("referer", url.as_str()))
+        })
+    };
+
+    let first = timeout(TEST_TIMEOUT, fetch()?.send()).await??;
+    assert_eq!(first.status(), StatusCode::NO_CONTENT);
+    first.into_body().collect().await?;
+    let error = timeout(TEST_TIMEOUT, fetch()?.send())
+        .await?
+        .err()
+        .ok_or("a requested hint was sent at an uncaptured fetch position")?;
+    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+
+    drop(client);
+    assert_eq!(timeout(TEST_TIMEOUT, server).await???, 1);
+    Ok(())
+}
+
+/// The retry a `Critical-CH` response asks for would carry the requested
+/// hint, so on a fetch template it fails instead of being sent.
+#[tokio::test]
+async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (url, server) = serve_http1_replies(
+        &identity,
+        "HTTP/1.1 204 No Content\r\nAccept-CH: Sec-CH-UA-Arch\r\n\
+         Critical-CH: Sec-CH-UA-Arch\r\n\r\n",
+    )
+    .await?;
+    let client = chrome_hints_client(&identity)?;
+
+    let error = timeout(
+        TEST_TIMEOUT,
+        client
+            .get(HttpProtocol::Http1, &url)?
+            .template(chromium::v153_windows_fetch_no_store_template())
+            .header(RequestHeader::new("referer", url.as_str()))
+            .send(),
+    )
+    .await?
+    .err()
+    .ok_or("the Critical-CH retry was sent with a requested hint")?;
+    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+
+    drop(client);
+    assert_eq!(timeout(TEST_TIMEOUT, server).await???, 1);
+    Ok(())
+}
+
 #[tokio::test]
 async fn template_without_http3_order_rejects_http3_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
