@@ -32,7 +32,7 @@ pub use http3::{
 pub use identity::{
     ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
 };
-pub use tcp::{InvalidTcpSettings, TcpKeepalive, TcpSettings};
+pub use tcp::{InvalidTcpSettings, TcpAddressRacing, TcpKeepalive, TcpSettings};
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
     ClientHelloExtensionOrder, EchGreaseAead, InvalidTlsSettings, NamedGroup, SignatureScheme,

@@ -1,4 +1,4 @@
-//! Runtime-neutral deadlines for protocol-driver shutdown.
+//! Runtime-neutral deadlines for protocol-driver shutdown and TCP attempt fallback.
 
 use std::{
     cmp::Ordering,

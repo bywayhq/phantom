@@ -19,7 +19,7 @@ does not cover.
   [WebSocket](#websocket-browser-evidence).
 - Browser captures: [cross-platform parity](#cross-platform-transport-parity),
   [Chrome 153, Edge 153, and Firefox 156](#chrome-153-edge-153-and-firefox-156-recipes).
-- Browser source: [TCP socket options](#tcp-socket-option-evidence).
+- Browser source: [TCP socket options and address racing](#tcp-socket-option-evidence).
 - Other: [external suites](#external-suites),
   [diagnostics and performance](#diagnostics-and-performance),
   [contributor gates](#contributor-gates).
@@ -808,6 +808,7 @@ The citations are to Chromium tag `153.0.8010.48` and Firefox tag
 | --- | --- |
 | `chromium::v153_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-73`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:463-486`). |
 | `firefox::v156_tcp` | `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on every socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1454`). |
+| `chromium::v153_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:300-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:450-473`, `:580-616`, `:691-694`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
 
 Differences from the browsers:
 
@@ -827,9 +828,29 @@ Differences from the browsers:
   leaves `SO_KEEPALIVE` at the operating-system default.
 - Edge's network-stack source is not public and no capture shows socket
   options, so there is no Edge TCP recipe.
+- Chromium races as DNS answers arrive and sorts addresses itself; Phantom
+  races the system resolver's complete answer, keeping its order within each
+  family. Chromium's QUIC job uses only the first resolved address
+  (`net/quic/quic_session_pool_direct_job.cc:219-221`), so racing is not
+  applied to HTTP/3, and Phantom's H3 connector keeps trying later addresses
+  after a connection failure.
+- Firefox's address selection is not modeled. Release builds keep its Happy
+  Eyeballs implementation behind a nightly-only pref
+  (`modules/libpref/init/StaticPrefList.yaml:17057-17060`); the release path
+  opens an IPv4-only backup connection after 250 ms
+  (`modules/libpref/init/all.js:1213`, `:1245`;
+  `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`) and orders the
+  primary connection's addresses using per-host family preferences and DNS
+  failure history (`DnsAndConnectSocket.cpp:170-178`,
+  `netwerk/base/nsSocketTransport2.cpp:1742-1745`, `:1785-1787`).
 
 `phantom-net` tests read the options back from connected sockets with
-`socket2` getters. `tcp::tests::connected_socket_carries_requested_options`
+`socket2` getters. `tcp::address_racing::tests` drive the racing algorithm
+with scripted attempt outcomes and a test-controlled fallback delay: IPv6
+preference, alternation, the IPv4 fallback attempt and role swap, the
+two-attempt bound, cancellation of the loser, and the returned error.
+`tcp::tests::racing_reaches_an_ipv4_listener_for_a_dual_stack_name` races
+real loopback sockets. `tcp::tests::connected_socket_carries_requested_options`
 checks `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time
 and interval; Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values.
 `tcp::tests::paths` reads back every socket opened by the direct, forward
@@ -844,7 +865,9 @@ Limits:
 - No capture confirms the options, including keepalive probe timing on an
   idle connection.
 - Source at one tag per browser; build-time or field-trial changes to these
-  options would not be seen.
+  options would not be seen. Branded Chrome receives server-side field-trial
+  configuration, so a trial enabling Happy Eyeballs v3 or a different fallback
+  delay for some users cannot be ruled out from source.
 
 ## External suites
 

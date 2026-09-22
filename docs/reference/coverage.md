@@ -37,7 +37,7 @@ does not count.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY` and keepalive from browser source, on every TCP path | Firefox keepalive schedule |
+| TCP | Profile `TCP_NODELAY`, keepalive, and Chromium Happy Eyeballs from browser source, on every TCP path | Firefox keepalive and address selection |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse | Parallel connection policy |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT | HPACK representation parity for extended CONNECT |
@@ -57,14 +57,23 @@ Supported:
   keepalive idle time and interval, applied before connecting on every TCP
   connection, including proxy and SOCKS5 UDP control connections. A socket
   option the OS rejects fails that connection attempt.
+- Profile address racing (`TcpAddressRacing`): Chromium's Happy Eyeballs v2
+  over the complete resolver result, with at most two concurrent attempts,
+  cancellation of the losing attempt, and the most recent failure returned.
 - `chromium::v153_tcp` (Windows and Linux) and `firefox::v156_tcp`
-  (`TCP_NODELAY` only), from browser source. See
+  (`TCP_NODELAY` only, resolver-order attempts), from browser source. See
   [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
 
 Not modeled:
 
-- Firefox's per-connection keepalive schedule and Chromium's macOS
-  idle-only keepalive as a named recipe.
+- Firefox's per-connection keepalive schedule, its address selection, and
+  Chromium's macOS idle-only keepalive as a named recipe.
+- Chromium's resolver behavior before racing: its own address sorting, IPv6
+  reachability probe, partial DNS results, and HTTPS records. Phantom races
+  the system resolver's complete answer.
+- Racing for HTTP/3. Chromium's QUIC job connects only to the first resolved
+  address; Phantom's H3 connector tries resolved addresses in order after a
+  connection failure.
 - An Edge TCP recipe; no public source or capture shows Edge's options.
 - The TCP SYN itself (window, MSS, options, TTL), which the host OS decides.
 

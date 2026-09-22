@@ -170,8 +170,8 @@ pub mod profile {
         Http3SettingOrder, Http3Settings, InvalidClientHintSettings, InvalidHttp2Settings,
         InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProfileId, InvalidTcpSettings,
         InvalidTlsSettings, InvalidWebSocketSettings, NamedGroup, Platform, ProfileId,
-        ProfileMetadata, SignatureScheme, TcpKeepalive, TcpSettings, TlsSettings, TlsVersion,
-        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+        ProfileMetadata, SignatureScheme, TcpAddressRacing, TcpKeepalive, TcpSettings, TlsSettings,
+        TlsVersion, WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
         WebSocketNewConnection, WebSocketSettings,
     };
 

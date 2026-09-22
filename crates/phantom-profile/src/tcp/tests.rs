@@ -1,11 +1,22 @@
 use std::time::Duration;
 
-use super::{MAX_TCP_KEEPALIVE_SECONDS, TcpKeepalive, TcpSettings};
+use super::{
+    MAX_TCP_FALLBACK_DELAY, MAX_TCP_KEEPALIVE_SECONDS, TcpAddressRacing, TcpKeepalive, TcpSettings,
+};
 
 fn with_keepalive(idle: Duration, interval: Option<Duration>) -> TcpSettings {
     TcpSettings {
         nodelay: true,
         keepalive: Some(TcpKeepalive { idle, interval }),
+        address_racing: None,
+    }
+}
+
+fn with_fallback_delay(fallback_delay: Duration) -> TcpSettings {
+    TcpSettings {
+        nodelay: true,
+        keepalive: None,
+        address_racing: Some(TcpAddressRacing { fallback_delay }),
     }
 }
 
@@ -14,6 +25,7 @@ fn settings_without_keepalive_are_valid() {
     let settings = TcpSettings {
         nodelay: false,
         keepalive: None,
+        address_racing: None,
     };
 
     assert_eq!(settings.validate(), Ok(()));
@@ -57,4 +69,30 @@ fn keepalive_interval_outside_bounds_is_rejected() {
         error.to_string(),
         "invalid TCP keepalive.interval: keepalive times must be whole seconds in 1..=32767"
     );
+}
+
+#[test]
+fn fallback_delay_bounds_are_inclusive() {
+    assert_eq!(
+        with_fallback_delay(Duration::from_millis(1)).validate(),
+        Ok(())
+    );
+    assert_eq!(
+        with_fallback_delay(MAX_TCP_FALLBACK_DELAY).validate(),
+        Ok(())
+    );
+}
+
+#[test]
+fn fallback_delay_outside_bounds_is_rejected() {
+    for delay in [
+        Duration::ZERO,
+        MAX_TCP_FALLBACK_DELAY + Duration::from_nanos(1),
+    ] {
+        let error = match with_fallback_delay(delay).validate() {
+            Ok(()) => panic!("{delay:?} was accepted"),
+            Err(error) => error,
+        };
+        assert_eq!(error.field(), "address_racing.fallback_delay");
+    }
 }

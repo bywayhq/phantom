@@ -221,11 +221,25 @@ pub fn v156_tls() -> TlsSettings {
 /// (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`, `:2124-2239`;
 /// `modules/libpref/init/all.js:1270-1278`). One fixed socket option cannot
 /// reproduce that schedule.
+///
+/// Firefox's address selection is not modeled either, so addresses are tried
+/// one at a time in resolver order. Firefox 156 release builds keep the Happy
+/// Eyeballs implementation behind the nightly-only
+/// `network.http.happy_eyeballs_enabled` pref
+/// (`modules/libpref/init/StaticPrefList.yaml:17057-17060`). The release path
+/// opens a backup connection restricted to IPv4 250 ms after the first
+/// (`modules/libpref/init/all.js:1213`, `:1245`;
+/// `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`), and its primary
+/// connection's address order also depends on per-host family preferences
+/// learned from earlier connections and on the DNS record's failure history
+/// (`netwerk/protocol/http/DnsAndConnectSocket.cpp:170-178`,
+/// `netwerk/base/nsSocketTransport2.cpp:1742-1745`, `:1785-1787`).
 #[must_use]
 pub fn v156_tcp() -> TcpSettings {
     TcpSettings {
         nodelay: true,
         keepalive: None,
+        address_racing: None,
     }
 }
 

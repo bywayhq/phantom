@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-use crate::tcp::{TcpKeepalive, TcpSettings};
+use crate::tcp::{TcpAddressRacing, TcpKeepalive, TcpSettings};
 
 use crate::quic::{
     GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
@@ -484,6 +484,16 @@ pub fn v153_tls() -> TlsSettings {
 /// sets the same values through `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux
 /// (`net/socket/tcp_socket_posix.cc:88-100`, `:463-486`).
 ///
+/// Addresses race as Chromium 153's default Happy Eyeballs v2
+/// `TcpConnectJob` does (`net/base/features.cc:114-122`,
+/// `net/socket/transport_connect_job.cc:118-123`): a second attempt starts
+/// `kIPv6FallbackTime = 300` ms after the first
+/// (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:580-616`).
+/// The field trials that change that delay, `kAdjustIPv6FallbackTime` and
+/// `kIPv6FallbackBasedOnRTT`, and Happy Eyeballs v3 are disabled by default
+/// (`net/base/features.cc:124`, `:128`, `:136`). [`TcpAddressRacing`]
+/// describes the rest of the algorithm with its source lines.
+///
 /// On macOS Chromium sets only the idle time, through `TCP_KEEPALIVE`
 /// (`net/socket/tcp_socket_posix.cc:101-105`); set
 /// [`TcpKeepalive::interval`] to `None` for that platform. Android and iOS
@@ -500,6 +510,9 @@ pub fn v153_tcp() -> TcpSettings {
         keepalive: Some(TcpKeepalive {
             idle: KEEPALIVE,
             interval: Some(KEEPALIVE),
+        }),
+        address_racing: Some(TcpAddressRacing {
+            fallback_delay: Duration::from_millis(300),
         }),
     }
 }

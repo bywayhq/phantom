@@ -6,29 +6,55 @@ use phantom_profile::{TcpKeepalive, TcpSettings};
 use socket2::SockRef;
 use tokio::net::{TcpSocket, TcpStream};
 
-/// Resolves `host` and connects to its addresses in resolver order.
+mod address_racing;
+
+/// Resolves `host` and connects to one of its addresses.
 ///
 /// Each attempt opens a fresh socket and applies `settings` before
 /// connecting, as a browser does, so the options already cover the TLS
-/// handshake. The first successful connection wins; if every address fails,
-/// the last attempt's error is returned.
+/// handshake. With [`TcpSettings::address_racing`] the addresses race as
+/// [`address_racing::race`] describes; otherwise they are tried one at a time
+/// in resolver order. Either way, if every attempt fails, the most recent
+/// failure is returned.
 pub(crate) async fn connect(host: &str, port: u16, settings: TcpSettings) -> io::Result<TcpStream> {
     settings
         .validate()
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
-    let mut last_error = None;
-    for address in tokio::net::lookup_host((host, port)).await? {
-        match connect_address(address, settings).await {
-            Ok(stream) => return Ok(stream),
-            Err(error) => last_error = Some(error),
+    let addresses = tokio::net::lookup_host((host, port)).await?;
+    match settings.address_racing {
+        Some(racing) => {
+            let fallback = crate::shutdown_timer::after(racing.fallback_delay).map_err(|_| {
+                io::Error::other("could not schedule the connection fallback timer")
+            })?;
+            // The deadline service never drops a pending deadline, so a
+            // receive error cannot occur; treating one as expiry still keeps
+            // the second attempt from being lost.
+            let fallback = async {
+                let _ = fallback.await;
+            };
+            address_racing::race(addresses.collect(), fallback, |address| {
+                connect_address(address, settings)
+            })
+            .await
+        }
+        None => {
+            let mut last_error = None;
+            for address in addresses {
+                match connect_address(address, settings).await {
+                    Ok(stream) => return Ok(stream),
+                    Err(error) => last_error = Some(error),
+                }
+            }
+            Err(last_error.unwrap_or_else(no_addresses))
         }
     }
-    Err(last_error.unwrap_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "could not resolve to any addresses",
-        )
-    }))
+}
+
+fn no_addresses() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidInput,
+        "could not resolve to any addresses",
+    )
 }
 
 async fn connect_address(address: SocketAddr, settings: TcpSettings) -> io::Result<TcpStream> {

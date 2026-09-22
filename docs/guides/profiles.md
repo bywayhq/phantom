@@ -100,19 +100,25 @@ client-family name.
 `TcpSettings` sets `TCP_NODELAY` and the keepalive idle time and interval on
 every TCP socket before it connects: origin connections, HTTP, HTTPS, and
 SOCKS5 proxy connections, and the TCP control connection of a SOCKS5 UDP
-association. Without `with_tcp`, sockets keep their operating-system defaults.
+association. It also chooses how a host's resolved addresses are tried.
+Without `with_tcp`, sockets keep their operating-system defaults and
+addresses are tried one at a time in resolver order.
 
-- `chromium::v153_tcp` disables Nagle's algorithm and sets a 45-second
-  keepalive idle time and interval, as Chromium does on Windows and Linux.
-  Chromium on macOS sets only the idle time; set `TcpKeepalive::interval` to
-  `None` for that platform.
-- `firefox::v156_tcp` disables Nagle's algorithm and leaves keepalive
-  untouched, because Firefox's keepalive changes over a connection's life and
-  is not modeled.
+- `chromium::v153_tcp` disables Nagle's algorithm, sets a 45-second
+  keepalive idle time and interval, as Chromium does on Windows and Linux, and
+  races addresses as Chromium's Happy Eyeballs does: IPv6 first, the other
+  family after a failure, and a second attempt preferring IPv4 300 ms after
+  the first. `TcpAddressRacing` documents the full behavior. Chromium on macOS
+  sets only the keepalive idle time; set `TcpKeepalive::interval` to `None`
+  for that platform.
+- `firefox::v156_tcp` disables Nagle's algorithm, leaves keepalive untouched,
+  and tries addresses in resolver order, because Firefox's keepalive schedule
+  and address selection are not modeled.
 - There is no Edge recipe; Edge's socket options have no public source or
   capture evidence.
 
-Keepalive times must be whole seconds from 1 to 32,767. Windows sets the idle
+Keepalive times must be whole seconds from 1 to 32,767, and the racing
+fallback delay must be nonzero and at most 10 seconds. Windows sets the idle
 time and interval together, so a keepalive without an interval fails there
 with `ErrorKind::Unsupported`. A socket option the OS rejects fails that
 connection attempt rather than connecting without it. The TCP SYN itself

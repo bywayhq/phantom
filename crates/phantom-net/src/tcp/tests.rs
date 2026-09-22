@@ -1,6 +1,6 @@
 use std::{io, time::Duration};
 
-use phantom_profile::{TcpKeepalive, TcpSettings};
+use phantom_profile::{TcpAddressRacing, TcpKeepalive, TcpSettings};
 use socket2::SockRef;
 use tokio::net::TcpListener;
 
@@ -18,6 +18,9 @@ fn chromium_like() -> TcpSettings {
         keepalive: Some(TcpKeepalive {
             idle: KEEPALIVE,
             interval: Some(KEEPALIVE),
+        }),
+        address_racing: Some(TcpAddressRacing {
+            fallback_delay: Duration::from_millis(300),
         }),
     }
 }
@@ -41,12 +44,27 @@ async fn connected_socket_carries_requested_options() -> TestResult {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn racing_reaches_an_ipv4_listener_for_a_dual_stack_name() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let port = listener.local_addr()?.port();
+
+    // `localhost` usually resolves to `::1` as well, where nothing listens;
+    // either the IPv6 attempt fails or the fallback attempt reaches IPv4.
+    let stream = connect("localhost", port, chromium_like()).await?;
+
+    assert_eq!(stream.peer_addr()?, listener.local_addr()?);
+    assert!(SockRef::from(&stream).tcp_nodelay()?);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn settings_that_ask_for_nothing_keep_os_defaults() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
     let settings = TcpSettings {
         nodelay: false,
         keepalive: None,
+        address_racing: None,
     };
 
     let stream = connect("127.0.0.1", port, settings).await?;
@@ -67,6 +85,7 @@ async fn invalid_settings_fail_before_any_connection() -> TestResult {
             idle: Duration::ZERO,
             interval: None,
         }),
+        address_racing: None,
     };
 
     let error = match connect("127.0.0.1", port, settings).await {
@@ -91,6 +110,7 @@ async fn keepalive_without_interval_is_unsupported_on_windows() -> TestResult {
             idle: KEEPALIVE,
             interval: None,
         }),
+        address_racing: None,
     };
 
     let error = match connect("127.0.0.1", port, settings).await {
