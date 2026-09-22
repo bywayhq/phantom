@@ -20,6 +20,7 @@ are added with builder methods:
 | `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, and pseudo-header order |
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and their delivery rules |
+| `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
 
 A request fails before I/O when the profile lacks a component that the request
 needs.
@@ -49,21 +50,23 @@ fn profiles() -> [ClientProfile; 2] {
 
 ## Built-in recipes
 
-| Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | Captured on |
-| --- | --- | --- | --- | --- | --- | --- |
-| Chrome 152 | `chromium::v152_*` | Yes | Yes | Yes | `v152_macos_client_hints` | macOS and Windows |
-| Chrome 153 | `chromium::v153_*` | Yes | Yes | Yes | `v153_windows_client_hints` | Windows |
-| Edge 153 | `edge::v153_*` | Yes | Chrome 153 | Chrome 153 QUIC and H3; own H3 TLS | `v153_windows_client_hints` | Windows |
-| Firefox 154 | `firefox::v154_*` | Yes | Yes | No | No | macOS and Windows |
-| Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | Windows |
-| Safari 18.5 | `safari::v18_5_macos_tls` | Yes | No | No | No | macOS |
+| Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Chrome 152 | `chromium::v152_*` | Yes | Yes | Yes | `v152_macos_client_hints` | No | macOS and Windows |
+| Chrome 153 | `chromium::v153_*` | Yes | Yes | Yes | `v153_windows_client_hints` | `v153_websocket` | Windows |
+| Edge 153 | `edge::v153_*` | Yes | Chrome 153 | Chrome 153 QUIC and H3; own H3 TLS | `v153_windows_client_hints` | Chrome 153 | Windows |
+| Firefox 154 | `firefox::v154_*` | Yes | Yes | No | No | No | macOS and Windows |
+| Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
+| Safari 18.5 | `safari::v18_5_macos_tls` | Yes | No | No | No | No | macOS |
 
 "Captured on" names the platforms where retained captures back the recipe.
 [Coverage](../reference/coverage.md#browser-profiles) records the exact builds
 and how the recipes differ from each other.
 
-No built-in recipe sets an extended CONNECT pseudo-header order, so H2
-WebSocket needs a custom HTTP/2 profile (see [WebSocket](websocket.md)).
+Only `chromium::v153_http2` and `firefox::v156_http2` carry a captured
+extended CONNECT pseudo-header order, which H2 WebSocket needs. Other HTTP/2
+recipes leave it unset. The WebSocket recipes and their limits are described
+in [Profile connection policy](websocket.md#profile-connection-policy).
 
 ## Recipe names and platforms
 

@@ -31,5 +31,11 @@ requests need the matching Cargo feature, and `ws://` or `wss://` over H3
 fails when the builder is created. SSE event sources follow the ordinary rows
 for their scheme and protocol.
 
+The `wss://` H2 row describes `websocket_with_protocol`. With
+`websocket_with_profile_policy`, the profile's connection policy may instead
+place the WebSocket on a pooled H2 session, or open an HTTP/1.1 Upgrade
+connection; see
+[Profile connection policy](../guides/websocket.md#profile-connection-policy).
+
 See [Routes and proxies](../guides/routes-and-proxies.md) for configuration
 and [WebSocket](../guides/websocket.md) for WebSocket rules.

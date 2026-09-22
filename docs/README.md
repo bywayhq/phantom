@@ -64,6 +64,8 @@ Task-focused pages for using Phantom in an application.
   downstream CI.
 - [Capture tooling](../scripts/capture/README.md): how to record and compare
   browser captures.
+- [Development helpers](../scripts/dev/README.md): the shared Cargo lock and
+  parallel worktree lanes.
 
 ## Writing rules
 

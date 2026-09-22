@@ -61,7 +61,7 @@ Use a sibling worktree only when independent work can proceed concurrently.
   panic for them.
 - Unsafe code is forbidden. The one exception is the private `backend` FFI
   module of `phantom-quic-btls`, which documents every unsafe block; see
-  [Design](docs/design.md#unsafe-code). Adding unsafe code anywhere else
+  [Design](docs/explanation/design.md#unsafe-code). Adding unsafe code anywhere else
   requires a new documented and audited FFI boundary.
 - Change a vendored crate only through its `patches/series`, as its
   `PHANTOM.md` describes; never make an unrecorded edit under `vendor/`.

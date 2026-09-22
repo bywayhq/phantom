@@ -301,10 +301,11 @@ Supported SSE (`sse` feature):
 Supported WebSocket (`websocket` feature):
 
 - WS/H1 over its direct and proxy routes.
-- Exact WS/H2 extended CONNECT for explicit custom profiles, over direct, HTTP
-  CONNECT (plaintext or TLS proxy, HTTP/1.1 or HTTP/2 proxy transport, one
-  Basic replay on a fresh proxy connection), and local-/remote-DNS SOCKS5
-  routes, with the peer capability gate and no route or H1 fallback.
+- Exact WS/H2 extended CONNECT for profiles with an extended CONNECT
+  pseudo-header order, over direct, HTTP CONNECT (plaintext or TLS proxy,
+  HTTP/1.1 or HTTP/2 proxy transport, one Basic replay on a fresh proxy
+  connection), and local-/remote-DNS SOCKS5 routes, with the peer capability
+  gate and no route or H1 fallback.
 - Ordered customizable handshakes and challenge-driven forward-proxy Basic
   authentication.
 - Typed opt-in `permessage-deflate` (`websocket-deflate` feature).

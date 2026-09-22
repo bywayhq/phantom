@@ -7,7 +7,7 @@ argument-hint: "<area> <browser>"
 # Browser captures
 
 `scripts/capture/README.md` documents each capture tool and its exact
-commands; `docs/validation.md` records why each retained fixture exists.
+commands; `docs/explanation/validation.md` records why each retained fixture exists.
 Read the relevant sections before capturing.
 
 ## Rules
@@ -26,7 +26,7 @@ Read the relevant sections before capturing.
   macOS recipe.
 - Fixtures are machine-focused and byte-exact (`.gitattributes` marks
   `fixtures/**` as `-text`). Put rationale and reproduction commands in
-  `docs/validation.md` or the capture README, not in the fixture.
+  `docs/explanation/validation.md` or the capture README, not in the fixture.
 - Never retain credentials, authorization headers, or cookies other than a
   tool's own probe cookie.
 - Bind port 0 for loopback listeners. The Windows development host reserves
@@ -35,6 +35,6 @@ Read the relevant sections before capturing.
 ## After capturing
 
 Run the capture tests (the `unittest discover -s scripts/capture/tests`
-command in `AGENTS.md`), record in `docs/validation.md` what the capture shows
+command in `AGENTS.md`), record in `docs/explanation/validation.md` what the capture shows
 and how it was launched, and only then change profiles or recipes that depend
 on it.

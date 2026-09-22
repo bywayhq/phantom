@@ -106,7 +106,7 @@ No feature is enabled by default.
 | --- | --- |
 | `cookies` | Bounded client-owned cookie storage |
 | `sse` | SSE decoding and finite reconnect control |
-| `websocket` | WebSocket over an ordered H1 Upgrade, or H2 extended CONNECT with a custom HTTP/2 profile |
+| `websocket` | WebSocket over an ordered H1 Upgrade, or H2 extended CONNECT with an HTTP/2 profile that sets its pseudo-header order |
 | `websocket-deflate` | Opt-in `permessage-deflate`; also enables `websocket` |
 | `full` | All capabilities above |
 
