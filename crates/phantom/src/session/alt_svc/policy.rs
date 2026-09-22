@@ -55,14 +55,26 @@ impl AltSvcPolicy {
 /// Parameters for racing a learned HTTP/3 alternative against the origin.
 ///
 /// QUIC setup to the alternative starts first. Origin H1/H2 setup starts
-/// after `origin_delay`, or at once when the alternative fails first. The
-/// first candidate to finish setup carries the request. When the origin wins
-/// while the alternative is still connecting, alternative setup continues in
-/// the background for at most 10 seconds (Chromium's QUIC handshake limit)
-/// if it was already admitted; a finished alternative connection is pooled
-/// for later requests. An alternative that fails while the origin succeeds is marked
-/// broken for [`AltSvcBrokenBackoff`] and is not raced again until that
-/// period ends. When both candidates fail, nothing is marked.
+/// after `origin_delay`, or at once when the alternative fails first or the
+/// origin already has a reusable pooled HTTP/2 connection. The first
+/// candidate to finish setup carries the request.
+///
+/// An alternative connection attempt runs for at most 4 seconds, Chrome
+/// 153's timeout for a blackholed alternative; reaching it is a setup
+/// failure. Chrome restarts that timeout on every received packet, so a
+/// responsive alternative whose handshake needs longer fails here but not in
+/// Chrome.
+///
+/// When the origin wins while the alternative is connecting, alternative
+/// setup continues in the background on the current Tokio runtime and keeps
+/// its HTTP/3 admission permit until it ends; a finished connection is pooled
+/// for later requests. A setup still waiting for admission or for another
+/// setup to the same location is cancelled instead. Without a Tokio runtime
+/// handle the unfinished setup is dropped, and nothing is pooled or marked.
+///
+/// An alternative that fails while the origin succeeds is marked broken for
+/// [`AltSvcBrokenBackoff`] and is not raced again until that period ends.
+/// When both candidates fail, nothing is marked.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcRace {
     origin_delay: Duration,
@@ -100,7 +112,9 @@ impl AltSvcRace {
 ///
 /// The first failure marks the alternative broken for `initial`. Each later
 /// failure before a successful alternative connection doubles the period, up
-/// to `maximum`. A successful alternative connection clears the history.
+/// to `maximum`. A failure reported while the alternative is already broken
+/// counts toward the next period without extending the current one. A
+/// successful alternative connection clears the history.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcBrokenBackoff {
     initial: Duration,

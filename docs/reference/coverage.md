@@ -187,11 +187,12 @@ Supported lifecycle:
 - Single-connection bounded qlog behind the internal `phantom-net/qlog`
   feature (not exposed by `phantom-http`).
 - Opt-in Alt-Svc racing (`AltSvcPolicy::race`): alternative QUIC setup first,
-  origin H1/H2 setup after a caller-set delay or at once on alternative
-  failure, one dispatch on the winner, a losing alternative that keeps
-  connecting in the background for at most 10 seconds and is pooled or marked
-  broken, and Chromium 153 broken backoff (300 seconds, doubling, two-day
-  cap). See [Racing](../guides/http3.md#racing).
+  origin H1/H2 setup after a caller-set delay, or at once on alternative
+  failure or with a reusable pooled H2 connection; one dispatch on the
+  winner; a 4-second alternative setup limit; a losing alternative that keeps
+  connecting in the background and is pooled or marked broken; and Chromium
+  153 broken backoff (300 seconds, doubling, two-day cap). See
+  [Racing](../guides/http3.md#racing).
 
 Supported in `phantom-net` only (not exposed by the facade):
 
@@ -219,8 +220,7 @@ Supported:
 
 - A cheap-clone pooled exact-H1/H2/H3 facade.
 - Pooled direct H1/H2 selection with optional later Alt-Svc H3 selection,
-  sequential by default or raced against the origin by an evidence-backed
-  opt-in policy.
+  sequential by default or raced against the origin by an opt-in policy.
 - Owned request builders with explicit methods.
 - Ordered static or declared streaming-body-produced trailers on exact
   H1/H2/H3 and negotiated requests.

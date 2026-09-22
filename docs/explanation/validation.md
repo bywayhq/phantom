@@ -263,34 +263,59 @@ requested. Every race in the NetLogs is an `alternative` job created from
 | --- | --- | --- |
 | First new connection after learning (`race-after-learning`) | QUIC job starts first; main TCP job logs `should_wait:true`, then `HTTP_STREAM_JOB_DELAYED delay:0` and resumes 1-2 ms later; first TCP connect 0-1 ms after the first QUIC packet (server: 1.4-1.6 ms after the first datagram, one 11.9 ms outlier). QUIC bound 10/10; the main job was cancelled 10/10, yet its connection was still established and stayed idle without a request. | Main job blocked while an alternative job exists (`http_stream_factory_job_controller.cc` line 1084); wait is 0 while QUIC has never worked on the network (`quic_session_pool.cc` line 1590) |
 | After QUIC worked (`race-after-quic-worked`, second race) | `HTTP_STREAM_JOB_DELAYED` 3-8 ms (median 7.5); QUIC connected within the wait, the main job never started, QUIC bound 10/10. | Wait is 1.5 x smoothed RTT, or 300 ms without RTT stats, plus a non-Android 0 ms additional delay (`quic_session_pool.cc` lines 1606-1616), capped at 3 s (`http_stream_factory_job_controller.cc` line 143); the RTT-dependent value is only what loopback produced |
-| UDP blackhole (`udp-blackhole`) | TCP starts 0-1 ms after QUIC (fresh profile) and wins 10/10; the orphaned QUIC job fails with `-356` after the 4 s handshake idle timeout; the next request logs `is_broken:true` and creates only a main job; polled expiry 299-300 s after the failure. | Orphaned alternative runs to completion to report brokenness (lines 1160-1167); marked broken only when the main job succeeded (lines 1257-1302) |
+| UDP blackhole (`udp-blackhole`) | TCP starts 0-1 ms after QUIC (fresh profile) and wins 10/10; the orphaned QUIC job fails with `-356` after the 4 s handshake idle timeout; the next request logs `is_broken:true` and creates only a main job; polled expiry 299-300 s after the failure. | Orphaned alternative runs to completion to report brokenness (lines 1160-1167); marked broken only when the main job succeeded (lines 1257-1302); the 4 s is `max_idle_time_before_crypto_handshake` = `kInitialIdleTimeoutSecs` (5 s; `net/quic/quic_context.h` line 172, quiche 2c4a1246 `quic_constants.h` line 159) less the one second quiche removes from a client idle timeout (`quic_connection.cc` lines 4983-4984) |
 | QUIC certificate failure (`quic-bad-certificate`) | QUIC fails in about 1 ms; TCP wins 10/10; broken for 299-300 s; the next request does not use QUIC. | Same reporting path |
 | QUIC ALPN failure (`quic-bad-alpn`) | Same as the certificate failure: broken 10/10 for 299-300 s. | Same reporting path |
 | Existing H2 session (`existing-h2-session`) | The request after learning uses the existing H2 session at once (wait 0) 10/10 while the alternative job keeps running and connects QUIC; the next two same-page requests use that QUIC session 10/10. | Zero wait with an available SPDY session unless `delay_main_job_with_available_spdy_session` (`http_stream_factory_job_controller.cc` line 744; default false, `net/quic/quic_context.h` line 238) |
 | Broken expiry and backoff (`broken-backoff`) | About 290 s after the first failure the alternative is still broken; about 305 s after it QUIC is tried again, fails, and is broken for 599 s, both runs. | `ComputeBrokenAlternativeServiceExpirationDelay`: 300 s initial, `initial << broken_count`, capped at 2 days (`net/http/broken_alternative_services.cc` lines 22, 58, 62; `net/base/features.cc` lines 1027 and 1037; `exponential_backoff_on_initial_delay_` defaults to true in `broken_alternative_services.h` line 236) |
 
-Phantom's opt-in `AltSvcPolicy::race` implements the parts these rows pin
-down: alternative setup first and origin setup after a delay or at once on
-alternative failure, one request on the winner, an unfinished losing
-alternative that continues and is pooled or marked broken, no marking when
-both fail, no racing while broken, and doubling brokenness with a cap
-(`AltSvcBrokenBackoff::CHROMIUM_153` holds 300 s, doubling, two days). The
-origin delay is caller-supplied because Chromium's depends on QUIC history and
-measured RTT. Phantom cancels a losing origin setup instead of keeping its
-connection idle, does not persist brokenness, does not reset brokenness on a
-network change, and has no DNS HTTPS-record (`dns_alpn_h3`) job.
+Phantom's opt-in `AltSvcPolicy::race` follows these rows as follows.
+Alternative setup starts first; origin setup starts after the caller's delay,
+at once when the alternative fails, or at once when the origin has a reusable
+pooled H2 connection (`existing-h2-session`). The request is sent once, on
+the winner. A losing alternative that has begun connecting continues and is
+pooled or marked broken; nothing is marked when both candidates fail, and a
+broken alternative is not raced. Each alternative connection attempt is
+limited to 4 seconds, and reaching the limit marks it broken, matching the
+blackhole rows. Brokenness doubles with a cap
+(`AltSvcBrokenBackoff::CHROMIUM_153` holds 300 s, doubling, two days), and a
+failure inside an active broken period counts toward the next period without
+extending the current one (`broken_alternative_services.cc` lines 137-154).
+
+Known differences: the origin delay is caller-supplied because Chromium's
+depends on QUIC history and measured RTT. Chromium restarts its 4 s idle
+timer on every received packet and allows a responsive handshake up to 10 s,
+while Phantom limits the whole attempt to 4 s. Phantom cancels a losing
+origin setup instead of keeping its connection idle, does not persist
+brokenness, does not reset it on a network change, and has no DNS
+HTTPS-record (`dns_alpn_h3`) job. A background alternative keeps its H3
+admission permit for the origin and route until it ends.
 
 Deterministic unit tests with a paused clock cover the race coordinator
 (origin start at the configured delay, immediate start after an alternative
-failure, cancellation of both candidates, at most one admitted setup per
-candidate, and connect and total deadlines) and the store (brokenness per
-origin and alternative, expiry, doubling with a cap, and clearing on success
-or `clear`). Loopback integration tests in
-`crates/phantom/tests/alt_svc_race.rs` cover the default sequential terminal
-failure, one dispatch per request with background pooling of the losing
-alternative, a one-shot streaming body sent only by the winner, a blackholed
-alternative that loses after the origin delay and is then not raced, and
-route preservation.
+failure, cancellation of both candidates, and connect and total deadlines;
+the coordinator's permit tests use stand-in semaphores), the store
+(brokenness per origin and alternative, expiry, doubling with a cap, a
+repeated failure inside one broken period, and clearing on success or
+`clear`), and H3 connect turns (one location waits for its own turn only).
+Loopback integration tests in `crates/phantom/tests/alt_svc_race.rs` use the
+real client pools and cover:
+
+- the default sequential terminal failure;
+- one dispatch per request, with background pooling of the losing
+  alternative;
+- a one-shot streaming body sent only by the winner;
+- a blackholed alternative that loses after the origin delay under a short
+  connect timeout, and, with default timeouts, one that stops at the 4 s limit,
+  is marked broken, and is not raced again, while a second race queued behind
+  it never opens a QUIC connection;
+- exact H3 to the origin that does not wait for a background alternative
+  setup;
+- an available H2 connection that skips a 5 s origin delay;
+- with one H3 admission per origin, release of the alternative's permit after
+  a win, after cancellation, and at the 4 s limit of a background setup, while
+  a race still waiting for admission gives its place back;
+- route preservation.
 
 ## Connection-retry evidence
 

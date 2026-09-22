@@ -167,8 +167,8 @@ connection choice, not a fallback:
   validated.
 - QUIC setup to the alternative starts first. Origin H1/H2 setup starts after
   the caller's `AltSvcRace` origin delay, or at once if the alternative fails
-  first. Each candidate holds its own pool admission and at most one setup
-  attempt.
+  first or the origin already has a reusable pooled H2 connection. Each
+  candidate holds its own pool admission and at most one setup attempt.
 - The first candidate to finish carries the request exactly once. The request
   body, including a one-shot stream, is built only for the winner, and
   `ResponseInfo` reports the winner's protocol.
@@ -177,18 +177,36 @@ connection choice, not a fallback:
 - Cancelling the request before a winner cancels both setups. The connect and
   total deadlines bound each setup and the whole race.
 
+An alternative connection attempt may run for at most 4 seconds, or less
+under the request's connect and total deadlines. Reaching that limit is a
+setup failure. Chrome 153 fails a blackholed alternative after 4 seconds, its
+client QUIC idle timeout before the handshake completes. Chrome restarts that
+timer whenever a packet arrives and allows a responsive handshake up to 10
+seconds. Phantom cannot see handshake packets at this layer, so it limits the
+whole attempt: a responsive alternative whose handshake takes longer than 4
+seconds fails in Phantom but not in Chrome.
+
 When the alternative wins, a still-connecting origin setup is cancelled. When
-the origin wins, a still-connecting alternative continues in the background,
-like Chromium's orphaned alternative job: a finished connection is pooled for
-later requests, and a failure marks the alternative broken. That background
-setup runs only if it was already admitted to the H3 pool and for at most 10
-seconds (Chromium's QUIC handshake limit), or less under the request's connect
-and total deadlines; it is then cancelled without marking.
+the origin wins, an alternative that has begun connecting continues in the
+background, like Chromium's orphaned alternative job: a finished connection is
+pooled for later requests, and a failure, including the 4-second limit, marks
+the alternative broken. Until then it keeps its H3 admission permit for the
+origin and route. A setup still waiting for admission, or for another setup to
+the same QUIC location to finish, has done no network work and is cancelled
+instead. The background setup needs the Tokio runtime that ran the request; if
+none is available, the setup is dropped, nothing is pooled or marked, and the
+next request races the alternative again.
+
+Setups for one origin and route are serialized per QUIC location. A request
+to a location waits while another setup connects to that same location and
+then reuses its connection; exact H3 to the origin's own location does not
+wait for a background alternative setup.
 
 An alternative that fails while the origin succeeds is marked broken for
 `AltSvcBrokenBackoff`: the first failure lasts `initial`, each later failure
 doubles it up to `maximum`, and a successful alternative connection clears the
-history. A broken alternative is not raced; the request goes to the origin.
+history. As in Chromium, a failure reported while the alternative is already
+broken counts toward the next period but does not extend the current one. A broken alternative is not raced; the request goes to the origin.
 When both candidates fail, the origin's error is returned and nothing is
 marked. After a winner is chosen, retries and replays within the request stay
 on the winner's protocol, and a later failure on a won alternative evicts it
