@@ -262,6 +262,35 @@ impl Http1Or2Pool {
             .map(|connection| (connection, permit)))
     }
 
+    /// Returns whether the origin's current generation is a reusable HTTP/2
+    /// connection.
+    ///
+    /// This neither opens a connection, creates a pool entry, admits a
+    /// request, nor changes eviction order. An entry whose connection is
+    /// being set up, or an HTTP/1.1 generation, counts as unavailable.
+    pub(crate) async fn has_available_http2(&self, endpoint: &Endpoint) -> bool {
+        let key = PoolKey::new(endpoint);
+        let entry = {
+            let state = self.state.lock().await;
+            state
+                .entries
+                .iter()
+                .find(|(candidate, _)| candidate == &key)
+                .map(|(_, entry)| Arc::clone(entry))
+        };
+        let Some(entry) = entry else {
+            return false;
+        };
+        // The connection lock is held across setup, so it is not awaited.
+        let Ok(current) = entry.current.try_lock() else {
+            return false;
+        };
+        matches!(
+            current.as_ref().map(|slot| &slot.connection),
+            Some(PooledConnection::Http2(connection)) if connection.is_reusable()
+        )
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state

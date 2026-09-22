@@ -394,6 +394,60 @@ async fn exact_http3_is_not_delayed_by_a_background_alternative_setup() -> TestR
 }
 
 #[tokio::test]
+async fn available_http2_connection_skips_the_origin_delay() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ],
+                AlternativeBehavior::responses([]),
+            ),
+        )
+        .await?;
+        let blackhole = Blackhole::bind().await?;
+        let client = client_builder(&identity)?
+            .alt_svc_policy(race_policy(Duration::from_secs(5))?)
+            .build()?;
+        // Without an alternative the request leaves an idle H2 connection.
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http2);
+        drain(first).await?;
+        import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
+
+        // Like Chrome's `existing-h2-session` capture, the origin candidate
+        // uses the available H2 connection at once while QUIC setup goes on.
+        let started = Instant::now();
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        let elapsed = started.elapsed();
+        assert_eq!(protocol(&second)?, HttpProtocol::Http2);
+        assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "origin waited {elapsed:?}"
+        );
+        wait_until(|| Ok(blackhole.datagrams() > 0)).await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_connections, 1);
+        assert_eq!(observed.origin_request_count, 2);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;

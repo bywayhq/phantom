@@ -106,6 +106,18 @@ pub(super) async fn send_once_raced(
         retries.for_alternative_setup(),
         Arc::clone(&connecting),
     ));
+    // Like Chromium's main job, the origin does not wait when an HTTP/2
+    // connection to it is already available.
+    let origin_delay = if client
+        .state
+        .http1_or_2
+        .has_available_http2(&request.endpoint)
+        .await
+    {
+        Duration::ZERO
+    } else {
+        race.origin_delay()
+    };
     let outcome = race_setup(
         alternative_setup,
         || {
@@ -117,7 +129,7 @@ pub(super) async fn send_once_raced(
                 retries,
             )
         },
-        race.origin_delay(),
+        origin_delay,
         timeout_budget,
     )
     .await?;
