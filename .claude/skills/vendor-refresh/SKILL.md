@@ -12,9 +12,9 @@ first; this skill only lists the invariants that apply to every fork.
 
 ## Invariants
 
-- The files in `vendor/<package>/patches/series` are the canonical local
-  changes, in order. Change a patch and replay the series; never leave an
-  unrecorded edit in the vendored tree.
+- The patches listed, in order, in `vendor/<package>/patches/series` are the
+  canonical local changes. To change the fork, change a patch and replay the
+  series; never leave an unrecorded edit in the vendored tree.
 - `publish-identity.patch` stays the last entry. Regenerate it after the
   source patches. It renames the package to `phantom-<name>` and changes no
   Rust source.

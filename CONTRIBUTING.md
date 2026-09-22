@@ -1,8 +1,8 @@
 # Contributing
 
-Thank you for helping improve Phantom. This guide is for people proposing or
-implementing changes. It covers setup, how to scope a change, the checks a
-change must pass, and how to open a pull request.
+Thank you for helping improve Phantom. Read this page before you propose or
+implement a change: it covers setup, scoping, the required checks, and pull
+requests.
 
 Report suspected vulnerabilities through [the security process](SECURITY.md),
 not a public issue.
@@ -30,20 +30,21 @@ not a public issue.
 
 ## Development setup
 
-The repository pins its development toolchain in `rust-toolchain.toml`, which
-installs on first use. Native TLS builds require Git, CMake, Clang, and a C++
-toolchain; Windows also requires NASM and Visual C++ build tools. Python 3.10
-and `uv` are needed only for capture and conformance tooling. See the platform
-jobs in [CI](.github/workflows/ci.yml) for the exact prerequisite checks.
+`rust-toolchain.toml` pins the development toolchain, and `rustup` installs it
+on first use. Native TLS builds need Git, CMake, Clang, and a C++ toolchain;
+Windows also needs NASM and the Visual C++ build tools. You need Python 3.10
+and `uv` only for the capture and conformance tooling. The platform jobs in
+[CI](.github/workflows/ci.yml) show the exact prerequisite checks.
 
-Install the minimum supported toolchain separately for the MSRV checks:
+Install the minimum supported Rust version (MSRV) separately for the MSRV
+checks:
 
 ```console
 rustup toolchain install 1.88.0 --profile minimal
 ```
 
 `scripts/ci/check-vendor.sh btls` also checks the vendored `btls` crate on its
-own upstream MSRV, which needs Rust 1.85:
+upstream MSRV, Rust 1.85:
 
 ```console
 rustup toolchain install 1.85.0 --profile minimal
@@ -64,16 +65,16 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools --exact `
   --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
 ```
 
-The Build Tools workload provides the MSVC compiler and Windows SDK. The NASM
-and LLVM installers may not update `PATH`; make `nasm`, `cmake`, and `clang`
-resolvable in the shell that runs Cargo (for example by adding
-`C:\Program Files\NASM` and `C:\Program Files\LLVM\bin`). The native TLS build
-uses LLVM's `libclang` for bindings; set `LIBCLANG_PATH` to LLVM's `bin`
-directory if it is not found.
+The Build Tools workload provides the MSVC compiler and the Windows SDK. The
+NASM and LLVM installers may not update `PATH`. Make `nasm`, `cmake`, and
+`clang` resolvable in the shell that runs Cargo, for example by adding
+`C:\Program Files\NASM` and `C:\Program Files\LLVM\bin`. The native TLS build
+generates bindings with LLVM's `libclang`; if the build cannot find it, set
+`LIBCLANG_PATH` to LLVM's `bin` directory.
 
-Run `scripts/ci/*.sh` from Git Bash. Those scripts fetch upstream sources and
-compare them byte-for-byte with `vendor/`, so run them with CRLF conversion
-disabled and symlinks enabled for the child Git processes:
+Run `scripts/ci/*.sh` from Git Bash. These scripts fetch upstream sources and
+compare them byte-for-byte with `vendor/`, so disable CRLF conversion and
+enable symlinks for their child Git processes:
 
 ```sh
 export GIT_CONFIG_COUNT=2
@@ -94,9 +95,9 @@ State four things, in the proposal or the pull request:
 3. The files or modules the change will own.
 4. The commands, fixtures, or captures that will prove it works.
 
-Investigate uncertain protocol behavior before editing. Substantial
-wire-sensitive changes need retained evidence; live services may supplement
-local proof but cannot be the only proof.
+Investigate uncertain protocol behavior before editing. A substantial
+wire-sensitive change needs retained evidence. Tests against live services
+may add to local proof but cannot be the only proof.
 
 ## Change discipline
 
@@ -114,9 +115,10 @@ local proof but cannot be the only proof.
 
 ## Tests and evidence
 
-Tests should describe observable behavior. A wire-sensitive change normally
-needs a deterministic local test or capture fixture. Minimize adversarial or
-fuzz failures into ordinary regressions.
+Name tests after the observable behavior they check. A wire-sensitive change
+normally needs a deterministic local test or capture fixture. Reduce an
+adversarial or fuzz failure to a minimal input and keep it as an ordinary
+regression test.
 
 | Change | Minimum proof |
 | --- | --- |
@@ -128,8 +130,8 @@ fuzz failures into ordinary regressions.
 
 ## Required checks
 
-Run these from the repository root. They match the integration gate in
-[AGENTS.md](AGENTS.md); keep the two lists in step.
+Run these from the repository root. With the Python commands below, they form
+the integration gate in [AGENTS.md](AGENTS.md); keep the two lists in step.
 
 ```console
 cargo fmt --check
@@ -139,17 +141,18 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --lock
 cargo +1.88.0 check --workspace --all-targets --locked
 ```
 
-`cargo test` includes doctests that compile the Rust examples in `README.md`,
-`docs/getting-started.md`, and the guides under `docs/guides/`; a guide example
-that no longer compiles fails the gate. The hooks live in
-`crates/phantom/src/lib.rs`; add one when a new guide contains Rust code. The
-MSRV line is CI's `MSRV` job; that job also checks each optional
-`phantom-http` feature combination on Rust 1.88.
+`cargo test` runs doctests that compile the Rust examples in `README.md`,
+`docs/getting-started.md`, and the guides that `crates/phantom/src/lib.rs`
+includes. An example that no longer compiles fails the gate. When a new guide
+contains Rust code, add an include for it in `lib.rs`. The MSRV line matches
+CI's `MSRV` job, which also checks each optional `phantom-http` feature
+combination on Rust 1.88.
 
-Changes under `scripts/capture` or `scripts/conformance` also run the commands
-below. CI installs the same test dependencies from the hash-pinned
-`scripts/requirements.txt`, generated from `scripts/requirements.in` with the
-command recorded in its header; keep the `--with` pins here in step with it.
+Changes under `scripts/capture` or `scripts/conformance` must also pass the
+commands below. CI installs the same test dependencies from the hash-pinned
+`scripts/requirements.txt`, which is generated from `scripts/requirements.in`
+with the command recorded in its header. Keep the `--with` pins here in step
+with it.
 
 ```console
 uvx ruff@0.16.7 check scripts/capture scripts/conformance
@@ -196,7 +199,7 @@ The conformance suites are [Autobahn](.github/workflows/autobahn.yml),
 [WPT EventSource](.github/workflows/wpt-eventsource.yml).
 [Release](.github/workflows/release.yml) runs only by manual dispatch.
 
-CI skips jobs that a documentation-only change cannot affect;
+CI skips jobs that a documentation-only change cannot affect.
 [`scripts/ci/changed-paths.sh`](scripts/ci/changed-paths.sh) classifies the
 changed paths against the base branch, or against the previous `main` commit
 on a push:
@@ -227,18 +230,18 @@ which runs every job:
 gh workflow run ci.yml --ref <branch>
 ```
 
-A maintainer can run the conformance suites on a pull request by applying
-the `conformance` label. The suites then run on the label event and again on
-each push while the label stays, whatever paths changed, with the case set a
-push to `main` uses; remove the label to stop them.
+A maintainer runs the conformance suites on a pull request by applying the
+`conformance` label. The suites run on the label event and again on each push
+while the label stays, whatever paths changed, with the case set that a push
+to `main` uses. Remove the label to stop them.
 
-Every push to a pull request, and every label added to it, still starts a
-run of each conformance workflow. Without the `conformance` label, or for an
-unrelated label, that run's job is skipped and appears as a skipped check. An
-unrelated label added while a labeled run is in progress does not cancel it.
-Such a run's conclusion is `skipped`. To find the run that did the work,
-open the workflow in the Actions tab filtered to the branch, or list its runs
-and pick the one with another conclusion:
+Every push to a pull request, and every label added to it, still starts a run
+of each conformance workflow. Without the `conformance` label, or for an
+unrelated label, that run's job is skipped: it appears as a skipped check and
+its conclusion is `skipped`. An unrelated label added while a labeled run is
+in progress does not cancel that run. To find the run that did the work, open
+the workflow in the Actions tab filtered to the branch, or list its runs and
+pick the one whose conclusion is not `skipped`:
 
 ```console
 gh run list --workflow autobahn.yml --branch <branch>
@@ -264,9 +267,8 @@ fix(http2): reject conflicting settings
 
 ## Pull requests
 
-Keep pull requests focused. The
-[pull request template](.github/pull_request_template.md) asks for the items
-below; fill in each one.
+Keep pull requests focused. Fill in each item that the
+[pull request template](.github/pull_request_template.md) asks for:
 
 - [ ] The user- or peer-visible outcome is explained.
 - [ ] Acceptance criteria and non-goals are stated.
@@ -276,8 +278,8 @@ below; fill in each one.
 - [ ] New dependencies, patches, unsafe code, fallbacks, security
       implications, and unresolved uncertainty are called out.
 
-A passing branch is not enough when a public option is unused, a fixture masks
-meaningful variance, or a failure silently changes the selected path.
+Passing checks are not enough if a public option is never applied, a fixture
+hides meaningful variance, or a failure silently changes the selected path.
 
 ## Licensing
 

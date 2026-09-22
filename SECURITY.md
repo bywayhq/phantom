@@ -1,8 +1,8 @@
 # Security policy
 
 Phantom handles untrusted network input across TLS, HTTP, proxy, WebSocket, and
-QUIC boundaries. Please report suspected vulnerabilities privately so they can
-be investigated and fixed before public disclosure.
+QUIC boundaries. Please report suspected vulnerabilities privately so that
+maintainers can investigate and fix them before public disclosure.
 
 ## Supported versions
 
@@ -14,8 +14,8 @@ Phantom is pre-1.0 and has no published releases.
 | Older commits | No |
 | Forks and locally modified vendored packages | No |
 
-Security fixes land on the default branch. Downstream projects that pin a git
-revision should move to a revision that contains the fix.
+Security fixes land on the default branch. If your project pins a Git
+revision, move to a revision that contains the fix.
 
 ## Reporting a vulnerability
 
@@ -47,8 +47,8 @@ issue.
 
 ## What to expect
 
-Response times are best-effort. This experimental project does not offer a
-security service-level agreement. Maintainers aim to:
+Phantom is experimental and offers no security service-level agreement;
+response times are best-effort. Maintainers aim to:
 
 1. acknowledge the report;
 2. reproduce it and assess its impact;
@@ -82,9 +82,9 @@ Out of scope, as normal bug reports:
   and conformance scripts under `scripts/`, unless the issue affects library
   users.
 
-A vulnerability in upstream code that Phantom has not modified belongs to the
-upstream project; report it there. If Phantom's pinned or vendored copy needs
-an update as a result, a private report here is welcome too.
+Report a vulnerability in upstream code that Phantom has not modified to the
+upstream project. If Phantom's pinned or vendored copy then needs an update, a
+private report here is welcome too.
 
 ## Disclosure
 
@@ -92,6 +92,6 @@ Please allow maintainers time to reproduce, assess, and fix the issue before
 publishing details. Once remediation is ready, maintainers may use a GitHub
 Security Advisory to coordinate credit, affected and fixed commits, and
 disclosure. Reporters are credited unless they prefer to stay anonymous. Once
-Phantom is published to crates.io, fixed vulnerabilities in published versions
-are intended to be submitted to the
+Phantom is published to crates.io, maintainers intend to submit fixed
+vulnerabilities in published versions to the
 [RustSec Advisory Database](https://rustsec.org/).

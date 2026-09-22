@@ -7,8 +7,8 @@ argument-hint: "<area> <browser>"
 # Browser captures
 
 `scripts/capture/README.md` documents each capture tool and its exact
-commands; `docs/explanation/validation.md` records why each retained fixture exists.
-Read the relevant sections before capturing.
+commands; `docs/explanation/validation.md` records why each retained fixture
+exists. Read the relevant sections before capturing.
 
 ## Rules
 
@@ -34,7 +34,8 @@ Read the relevant sections before capturing.
 
 ## After capturing
 
-Run the capture tests (the `unittest discover -s scripts/capture/tests`
-command in `AGENTS.md`), record in `docs/explanation/validation.md` what the capture shows
-and how it was launched, and only then change profiles or recipes that depend
-on it.
+1. Run the capture tests: the `unittest discover -s scripts/capture/tests`
+   command in `AGENTS.md`.
+2. Record in `docs/explanation/validation.md` what the capture shows and how
+   the browser was launched.
+3. Only then change the profiles or recipes that depend on it.
