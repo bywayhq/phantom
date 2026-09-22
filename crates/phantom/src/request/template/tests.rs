@@ -374,6 +374,33 @@ fn grease_brand_is_derived_from_the_major_version() {
 }
 
 #[test]
+fn a_referer_on_a_navigation_template_goes_after_every_template_field() {
+    let caller = [RequestHeader::new("referer", "https://example.test/")];
+    for (fields, last) in [
+        (
+            chromium::v153_windows_navigation_template().http1_fields,
+            "Accept-Language",
+        ),
+        (
+            chromium::v153_windows_navigation_template().http2_fields,
+            "priority",
+        ),
+        (
+            firefox::v156_windows_navigation_template().http1_fields,
+            "Priority",
+        ),
+        (
+            firefox::v156_windows_navigation_template().http2_fields,
+            "te",
+        ),
+    ] {
+        let expanded = expand(&fields, &caller, None);
+        assert_eq!(names(&expanded).last(), Some(&"referer"), "{last}");
+        assert_eq!(names(&expanded)[expanded.len() - 2], last);
+    }
+}
+
+#[test]
 fn default_profile_hints_need_a_template_with_a_hint_slot() {
     use phantom_profile::{ClientHint, ClientHintDelivery, ClientHintSettings};
 

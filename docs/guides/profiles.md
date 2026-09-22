@@ -195,7 +195,15 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
   position and field-name spelling and keeps its own value and sensitivity.
   A literal entry with no caller field emits its captured value; a caller
   slot with no caller field emits nothing.
-- Other caller fields follow the template in the caller's order.
+- Other caller fields follow the template in the caller's order, after its
+  last field. The navigation templates have no `Referer` slot, because an
+  address-bar navigation sends none, so a caller `Referer` on one goes last:
+  after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after
+  `priority` on their HTTP/2 and HTTP/3 lists, and after `Priority` and
+  `te` on Firefox's. No capture shows that position. Phantom sends such a
+  field rather than rejecting it, as it does every caller field a template
+  does not name; for a request that carries a `Referer`, use a template with
+  a `Referer` slot, such as a `fetch` template.
 - Templates cannot carry `Cookie`. The cookie jar's field is inserted into
   the expanded list by the profile's `CookiePlacement`: before the first
   field it names, compared case-insensitively, else last
