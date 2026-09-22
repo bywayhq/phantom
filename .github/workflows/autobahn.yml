@@ -1,19 +1,10 @@
 name: Autobahn WebSocket conformance
 
 on:
+  # Pull requests run this suite only when a maintainer applies the
+  # `conformance` label; see the job condition.
   pull_request:
-    paths:
-      - .github/workflows/autobahn.yml
-      - Cargo.lock
-      - Cargo.toml
-      - crates/phantom/Cargo.toml
-      - crates/phantom/examples/autobahn_client.rs
-      - crates/phantom/src/**
-      - crates/phantom-net/**
-      - crates/phantom-profile/**
-      - scripts/conformance/**
-      - vendor/btls/**
-      - vendor/tungstenite/**
+    types: [labeled, reopened, synchronize]
   push:
     branches: [main]
     paths:
@@ -46,12 +37,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: autobahn-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.mode || 'automatic' }}
+  # A run for an unrelated label gets its own group so it cannot cancel a
+  # labeled run in progress.
+  group: autobahn-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.mode || 'automatic' }}-${{ github.event.action == 'labeled' && github.event.label.name != 'conformance' && github.run_id || 'latest' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   conformance:
     name: ${{ github.event_name == 'schedule' && 'Full' || 'Selected' }} client suite
+    if: >-
+      github.event_name != 'pull_request'
+      || (contains(github.event.pull_request.labels.*.name, 'conformance')
+      && (github.event.action != 'labeled' || github.event.label.name == 'conformance'))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:

@@ -1,24 +1,10 @@
 name: TLS-Anvil client conformance
 
 on:
+  # Pull requests run this suite only when a maintainer applies the
+  # `conformance` label; see the job condition.
   pull_request:
-    paths:
-      - .dockerignore
-      - .github/workflows/tls-anvil.yml
-      - Cargo.lock
-      - Cargo.toml
-      - rust-toolchain.toml
-      - crates/phantom-net/**
-      - crates/phantom-profile/**
-      - crates/phantom-quic-btls/**
-      - crates/phantom-testkit/**
-      - scripts/conformance/tls-anvil/**
-      - scripts/conformance/tls_anvil.py
-      - scripts/conformance/tests/test_tls_anvil.py
-      - vendor/btls/**
-      - vendor/h3/**
-      - vendor/http2/**
-      - vendor/quinn-proto/**
+    types: [labeled, reopened, synchronize]
   push:
     branches: [main]
     paths:
@@ -46,12 +32,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: tls-anvil-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # A run for an unrelated label gets its own group so it cannot cancel a
+  # labeled run in progress.
+  group: tls-anvil-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'conformance' && github.run_id || 'latest' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   conformance:
     name: TLS 1.2 and TLS 1.3 client smoke
+    if: >-
+      github.event_name != 'pull_request'
+      || (contains(github.event.pull_request.labels.*.name, 'conformance')
+      && (github.event.action != 'labeled' || github.event.label.name == 'conformance'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

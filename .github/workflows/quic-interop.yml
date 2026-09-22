@@ -1,22 +1,10 @@
 name: QUIC interoperability
 
 on:
+  # Pull requests run this suite only when a maintainer applies the
+  # `conformance` label; see the job condition.
   pull_request:
-    paths:
-      - .dockerignore
-      - .github/workflows/quic-interop.yml
-      - Cargo.lock
-      - Cargo.toml
-      - crates/phantom/**
-      - crates/phantom-net/**
-      - crates/phantom-profile/**
-      - crates/phantom-quic-btls/**
-      - scripts/conformance/quic-interop/**
-      - scripts/conformance/quic_interop.py
-      - scripts/conformance/tests/test_quic_interop.py
-      - vendor/btls/**
-      - vendor/h3/**
-      - vendor/quinn-proto/**
+    types: [labeled, reopened, synchronize]
   push:
     branches: [main]
     paths:
@@ -42,12 +30,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: quic-interop-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  # A run for an unrelated label gets its own group so it cannot cancel a
+  # labeled run in progress.
+  group: quic-interop-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.event.action == 'labeled' && github.event.label.name != 'conformance' && github.run_id || 'latest' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   client:
     name: H3 client endpoint
+    if: >-
+      github.event_name != 'pull_request'
+      || (contains(github.event.pull_request.labels.*.name, 'conformance')
+      && (github.event.action != 'labeled' || github.event.label.name == 'conformance'))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:

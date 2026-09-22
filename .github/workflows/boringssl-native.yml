@@ -1,14 +1,10 @@
 name: BoringSSL native
 
 on:
+  # Pull requests run this suite only when a maintainer applies the
+  # `conformance` label; see the job condition.
   pull_request:
-    paths:
-      - .github/workflows/boringssl-native.yml
-      - Cargo.lock
-      - Cargo.toml
-      - rust-toolchain.toml
-      - scripts/ci/check-boringssl-native.sh
-      - vendor/btls/**
+    types: [labeled, reopened, synchronize]
   push:
     branches: [main]
     paths:
@@ -34,12 +30,18 @@ env:
   GOTOOLCHAIN: local
 
 concurrency:
-  group: boringssl-native-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  # A run for an unrelated label gets its own group so it cannot cancel a
+  # labeled run in progress.
+  group: boringssl-native-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.event.action == 'labeled' && github.event.label.name != 'conformance' && github.run_id || 'latest' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     name: Native tests and BoGo
+    if: >-
+      github.event_name != 'pull_request'
+      || (contains(github.event.pull_request.labels.*.name, 'conformance')
+      && (github.event.action != 'labeled' || github.event.label.name == 'conformance'))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
