@@ -1,12 +1,14 @@
 # Development helpers
 
-Local tools for maintainers and coding agents. CI does not run them.
+Local tools for maintainers and coding agents who run several changes at once.
+CI does not use them.
 
 ## Parallel lanes
 
-Independent changes can run concurrently in sibling Git worktrees, one branch
-and one agent per worktree. [AGENTS.md](../../AGENTS.md#lanes-and-worktrees)
-states the rules; this section records the commands.
+A lane is one independent change in its own sibling Git worktree, with one
+branch and one agent. The rules are in
+[AGENTS.md](../../AGENTS.md#lanes-and-worktrees); this section has the
+commands.
 
 Start a lane from the integration checkout:
 
@@ -14,7 +16,7 @@ Start a lane from the integration checkout:
 git worktree add -b lane/<name> ../phantom-worktrees/<name> main
 ```
 
-Finish it from the integration checkout once the lane has handed off:
+When the lane has handed off, finish it from the integration checkout:
 
 ```sh
 git -C ../phantom-worktrees/<name> rebase main    # the lane must be clean
@@ -27,17 +29,20 @@ git worktree remove ../phantom-worktrees/<name>
 git branch -d lane/<name>
 ```
 
-Semantic conflicts between lanes, such as a new enum variant from one lane
-meeting an exhaustive `match` from another, appear only in the post-rebase
-gate. A command list joined with `;` or piped through `tail` or `grep` exits
-with the status of its last command, so never chain the merge onto the gate
-or trust its exit status alone: search the output for `error`, `FAILED`, and
-`warning` first.
+Run the full gate after the rebase, not before. Two lanes can each pass alone
+and still break together: for example, one adds an enum variant and the other
+adds an exhaustive `match` on that enum.
+
+Never chain the merge onto the gate. A command list joined with `;` or piped
+through `tail` or `grep` exits with the status of its last command, so a
+green exit status does not prove that Cargo passed. Search the gate output for
+`error`, `FAILED`, and `warning` first.
 
 ## Cargo lock
 
-`with-cargo-lock.sh` runs one command while holding a lock shared by every
-worktree of this repository:
+When more than one worktree is active, run each Cargo command through
+`with-cargo-lock.sh`. It runs one command while holding a lock that every
+worktree of this repository shares:
 
 ```sh
 scripts/dev/with-cargo-lock.sh cargo test -p phantom --test http3_retries --locked
@@ -45,26 +50,29 @@ RUSTDOCFLAGS="-D warnings" scripts/dev/with-cargo-lock.sh \
   cargo doc --workspace --all-features --no-deps --locked
 ```
 
-Wrap each Cargo invocation separately so other lanes can interleave between
-them. The script:
+Wrap each Cargo command separately, so other lanes can run between them.
 
-- creates the lock directory `phantom-cargo-lock` inside the Git common
-  directory (`git rev-parse --git-common-dir`), which all worktrees share, and
-  polls every five seconds while another command holds it;
-- writes the holder's PID, working directory, and command to `owner`, and
-  prints it once while waiting;
+The script:
+
+- creates the lock directory `phantom-cargo-lock` in the Git common directory
+  (`git rev-parse --git-common-dir`), which all worktrees share;
+- records the holder's PID in `pid`, and its PID, working directory, and
+  command in `owner`;
+- while another command holds the lock, prints the `owner` line once and
+  retries every five seconds;
 - removes the lock when the command exits or the script receives `HUP`,
   `INT`, or `TERM`, and exits with the command's status;
-- exports `CARGO_INCREMENTAL=0`. Incremental caches grew by tens of gigabytes
-  per worktree and filled the disk with several lanes active; CI sets the same
-  value.
+- exports `CARGO_INCREMENTAL=0`, as CI does. With several lanes active,
+  incremental caches grew by tens of gigabytes per worktree and filled the
+  disk.
 
 Each worktree keeps its own `target/`. Never point divergent worktrees at one
 `CARGO_TARGET_DIR`.
 
-A lock left by a killed shell (for example after `kill -9`) is not removed
-automatically. Confirm that the PID in `owner` is gone, then delete the
-directory:
+A holder killed without cleanup (for example by `kill -9`) leaves the lock
+directory behind. A waiting script reclaims it once the PID in `pid` no longer
+runs. If a lock still blocks you, confirm that its holder is gone, then delete
+the directory:
 
 ```sh
 cat "$(git rev-parse --path-format=absolute --git-common-dir)/phantom-cargo-lock/owner"
