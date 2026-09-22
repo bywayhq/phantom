@@ -92,6 +92,13 @@ work has exposed the real architectural boundaries.
 - Add feature-gated JSON, form, and multipart request bodies that set only the
   fields a caller or captured browser template would send, and opt-in
   `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` route selection.
+- Carry a default request template on the profile
+  (`ClientProfile::with_request_template`), overridden or removed per request,
+  validated when the client is built. Regular field order stays a request
+  concern and pseudo-header order stays a transport recipe; the two axes do
+  not merge. Sibling clients apply an order as a sort at encode time and
+  leave unnamed caller fields in hash order; Phantom keeps the caller's own
+  order for fields the template does not name.
 - Functionality proposed for after the Phase 1 exit, each starting from a
   proposal with acceptance criteria and capture evidence:
   - Chrome for Android recipes from Android emulator captures.
@@ -110,6 +117,14 @@ work has exposed the real architectural boundaries.
 - Broaden fuzzing, sanitizer coverage, lifecycle regressions, and soak tests.
 - Keep vendored patches reproducible and review dependency updates in
   isolation.
+- Document the TCP/IP stack fingerprint as host-determined rather than
+  emulating it. A client cannot set the window scale, SACK, timestamps, or
+  TCP option order from user space, and setting only the reachable fields,
+  such as the hop limit, produces a packet no real host emits. Record the
+  reference JA4T and p0f signatures for the profiled platforms, and offer a
+  caller-invoked check that compares the host platform with the profile's
+  declared platform instead of branching on the host OS. Privileged packet
+  rewriting and userspace TCP stacks stay outside this library.
 - Evaluate [compio](https://github.com/compio-rs/compio) runtime support with
   a bounded spike. Tokio is currently required: the TLS, SOCKS, HTTP/2,
   QUIC, and WebSocket layers and their vendored forks are written against
