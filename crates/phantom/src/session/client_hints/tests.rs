@@ -364,6 +364,16 @@ mod template_slots {
             kind(context(&navigation).prepare(navigation_fields, Some(b"Sec-CH-UA-Model"))),
             None
         );
+
+        // A template without client-hint slots places no hint, whatever its
+        // requested-hint flag claims.
+        let mut slotless = crate::profile::firefox::v156_windows_navigation_template();
+        slotless.requested_client_hint_placement = true;
+        let slotless_fields = expand(&slotless.http2_fields, &[], None);
+        assert_eq!(
+            kind(context(&slotless).prepare(slotless_fields, Some(b"Sec-CH-UA-Arch"))),
+            Some(RequestErrorKind::RequestTemplate)
+        );
     }
 
     #[test]

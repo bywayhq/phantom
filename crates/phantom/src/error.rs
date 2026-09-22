@@ -471,6 +471,13 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn request_template_unslotted_hints() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "the request template has no client-hint slot for the profile's client hints",
+        )
+    }
+
     pub(crate) fn request_template_requested_hint() -> Self {
         Self::without_source(
             RequestErrorKind::RequestTemplate,

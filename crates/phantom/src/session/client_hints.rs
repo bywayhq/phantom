@@ -58,8 +58,9 @@ impl<'a> ClientHintContext<'a> {
     /// # Errors
     ///
     /// Returns a request-template error when the template does not capture
-    /// where requested hints go and a hint requested through `Accept-CH` or
-    /// ALPS `ACCEPT_CH`, or supplied by the caller, would be sent.
+    /// where requested hints go, or has no client-hint slot, and a hint
+    /// requested through `Accept-CH` or ALPS `ACCEPT_CH`, or supplied by the
+    /// caller, would be sent.
     pub(crate) fn prepare(
         self,
         caller: Vec<RequestHeader>,
@@ -88,9 +89,12 @@ impl<'a> ClientHintContext<'a> {
             caller,
             self.template,
         );
-        let unplaced = self
-            .template
-            .is_some_and(|template| !template.requested_client_hint_placement);
+        // A template without slots places no hint; `check` already refused
+        // default hints for it, so only requested hints remain.
+        let unplaced = self.template.is_some_and(|template| {
+            !template.requested_client_hint_placement
+                || client_hint_placement(&template.http2_fields).is_empty()
+        });
         if unplaced && sends_requested_hint(self.settings, &prepared) {
             return Err(RequestError::request_template_requested_hint());
         }

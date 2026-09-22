@@ -159,7 +159,9 @@ impl RequestBuilder {
     /// Sending fails before I/O with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
     /// when the template is invalid or lacks an HTTP/3 list for a request that
-    /// may use HTTP/3, or when the caller supplies a client hint the profile
+    /// may use HTTP/3, when the template has no client-hint slot and the
+    /// profile sends client hints by default, or when the caller supplies a
+    /// client hint the profile
     /// sends only on request, with a template whose
     /// [`requested_client_hint_placement`](crate::profile::RequestTemplate::requested_client_hint_placement)
     /// is `false`. With such a template it fails before the request is sent

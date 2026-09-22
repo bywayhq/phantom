@@ -374,6 +374,54 @@ fn grease_brand_is_derived_from_the_major_version() {
 }
 
 #[test]
+fn default_profile_hints_need_a_template_with_a_hint_slot() {
+    use phantom_profile::{ClientHint, ClientHintDelivery, ClientHintSettings};
+
+    // No brand list, so the identity check passes and only placement fails.
+    let platform_only = ClientHintSettings::new(vec![ClientHint::new(
+        "sec-ch-ua-platform",
+        "\"Windows\"",
+        ClientHintDelivery::Default,
+    )]);
+    let requested_only = ClientHintSettings::new(vec![ClientHint::new(
+        "sec-ch-ua-arch",
+        "\"x86\"",
+        ClientHintDelivery::AcceptCh,
+    )]);
+    let firefox = firefox::v156_windows_navigation_template();
+    assert_eq!(
+        kind(
+            &firefox,
+            exact(HttpProtocol::Http2),
+            &[],
+            Some(&platform_only)
+        ),
+        Some(RequestErrorKind::RequestTemplate)
+    );
+    // A hint sent only on request is refused when it would be sent.
+    assert_eq!(
+        kind(
+            &firefox,
+            exact(HttpProtocol::Http2),
+            &[],
+            Some(&requested_only)
+        ),
+        None
+    );
+    assert_eq!(kind(&firefox, exact(HttpProtocol::Http2), &[], None), None);
+    // A Chromium template has slots for the same profile.
+    assert_eq!(
+        kind(
+            &chromium::v153_windows_navigation_template(),
+            exact(HttpProtocol::Http2),
+            &[],
+            Some(&platform_only)
+        ),
+        None
+    );
+}
+
+#[test]
 fn a_caller_requested_hint_needs_a_template_that_places_it() {
     let hints = chromium::v153_windows_client_hints();
     let caller = [

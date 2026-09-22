@@ -210,7 +210,10 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
   jar's field.
 - The profile's client hints fill the template's hint slots. Only hints the
   profile would send anyway are emitted: default hints, and hints the origin
-  requested through `Accept-CH` or ALPS `ACCEPT_CH`.
+  requested through `Accept-CH` or ALPS `ACCEPT_CH`. A template without hint
+  slots, such as a Firefox template, places none: a profile with default
+  hints fails before any I/O, and a requested hint fails before the request
+  is sent, both with `RequestErrorKind::RequestTemplate`.
 - Every redirect hop uses the same template. Phantom does not adjust
   template values such as `Sec-Fetch-Site` across a redirect.
 

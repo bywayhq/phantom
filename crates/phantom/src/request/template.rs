@@ -110,7 +110,8 @@ pub(crate) struct ProtocolScope {
 /// # Errors
 ///
 /// Returns a request-template error for invalid template data, a protocol
-/// the template has no field order for, or a caller field carrying a hint
+/// the template has no field order for, profile hints sent by default when
+/// the template has no client-hint slot, or a caller field carrying a hint
 /// the profile sends only on request when the template does not capture
 /// where such hints go; and an identity-mismatch error when
 /// a caller `User-Agent`, a caller brand-list client hint, or the profile's
@@ -185,6 +186,25 @@ pub(crate) fn check(
                 "the profile's client hints name another browser or version than the request template",
             ));
         }
+    }
+    // Without a slot, automatic hints would go before every template field,
+    // a position no capture shows. A Firefox template has none.
+    let has_hint_slot = lists(template).any(|fields| {
+        fields.iter().any(|field| {
+            matches!(
+                field,
+                RequestField::ClientHint { .. } | RequestField::ClientHints
+            )
+        })
+    });
+    let sends_default_hints = hints.is_some_and(|settings| {
+        settings
+            .hints()
+            .iter()
+            .any(|hint| hint.delivery() == ClientHintDelivery::Default)
+    });
+    if !has_hint_slot && sends_default_hints {
+        return Err(RequestError::request_template_unslotted_hints());
     }
     Ok(())
 }
