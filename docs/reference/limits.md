@@ -1,8 +1,8 @@
 # Defaults and limits
 
-Phantom bounds every piece of state it keeps. This page lists the defaults in
-one place. Policies that are off by default, such as timeouts, redirects, and
-retries, are listed first.
+Phantom bounds every piece of state it keeps. This page lists those bounds
+and their defaults. Policies that stay off until you enable them, such as
+timeouts, redirects, and retries, come first.
 
 ## Off by default
 
@@ -19,7 +19,8 @@ retries, are listed first.
 
 ## Connection pools
 
-`ClientBuilder` can replace each bound with any nonzero value.
+`ClientBuilder` can set each bound to any nonzero value. A pool key is the
+origin plus the complete route.
 
 | Bound | Default | Builder method |
 | --- | --- | --- |
@@ -34,15 +35,14 @@ retries, are listed first.
 | Origins with learned `Accept-CH` state | 64 | `max_client_hint_origins` |
 | Origins with Alt-Svc state | disabled | `alt_svc(maximum_origins)` |
 
-- A pool key is the origin plus the complete route. Each retained entry holds
-  that key's connection state, and the least recently used entry is evicted
-  when the limit is reached.
-- An H3 entry keeps connections for up to four transport locations so exact
-  and Alt-Svc H3 do not replace each other.
+- Each retained entry holds one pool key's connection state. When the limit
+  is reached, the least recently used entry is evicted.
+- An H3 entry keeps connections for up to four transport locations, so exact
+  H3 and Alt-Svc H3 do not replace each other.
 - The negotiated H1/H2 pool retains at most the lower of the H1 and H2
-  retention limits. Its pre-selection admission uses the larger of their
-  active and waiting limits.
-- H2 and H3 active work is also limited by the peer's stream limit.
+  retention limits. Before ALPN selects a protocol, its admission uses the
+  larger of their active and waiting limits.
+- The peer's stream limit also caps active H2 and H3 work.
 
 ## Cookies
 
@@ -53,10 +53,11 @@ The optional cookie jar (`CookieLimits`) defaults to:
 - 3,300 cookies in total.
 
 The two count limits are Chromium's `kDomainMaxCookies` and `kMaxCookies`
-(`net/cookies/cookie_monster.cc`). Exceeding one evicts rather than rejects:
-the least recently used cookies, non-`Secure` first, go until the domain holds
-five sixths of its limit (150) or the jar ten elevenths of its limit (3,000).
-Chromium purges to the same 150 and 3,000. See
+(`net/cookies/cookie_monster.cc`). Exceeding a count limit evicts cookies
+instead of rejecting the new one. The least recently used cookies go first,
+non-`Secure` before `Secure`, until the domain is down to five sixths of its
+limit (150) or the jar to ten elevenths of its limit (3,000). Chromium purges
+to the same 150 and 3,000. See
 [Eviction](../guides/connections-and-state.md#eviction) for the differences.
 
 ## Protocol state
@@ -77,20 +78,21 @@ Chromium purges to the same 150 and 3,000. See
 | TCP address-racing fallback delay | Nonzero, at most 10 seconds |
 | Concurrent TCP attempts per connection with address racing | 2 |
 
-The H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it:
-each field line counts its name and value lengths plus 32 bytes. The 256 KiB
+H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
+field line counts its name and value lengths plus 32 bytes. The 256 KiB
 ceiling applies even when a profile omits `SETTINGS_MAX_FIELD_SECTION_SIZE`,
-and it never adds that setting to the SETTINGS frame. A larger response
+and Phantom never adds that setting to the SETTINGS frame. A larger response
 section fails that request with `Http3ErrorKind::Protocol` and cancels its
-stream; the connection stays usable.
+stream. The connection stays usable.
 
-The informational-response cap of 8 is a Phantom-wide bound applied to every
-profile on H1, H2, and H3, not a browser value. The header-list ceiling counts
-the RFC 9113 section 6.5.2 decoded size: each name and value plus 32 bytes per
-field. The value 393,216 is the default of Firefox's
-`network.http.max_response_header_size`, but Firefox applies it to encoded
-header-block bytes and to its own decoded serialization, so the two ceilings
-match only approximately.
+The HTTP/2 header-list ceiling counts the decoded size that RFC 9113 Section
+6.5.2 defines: each name and value plus 32 bytes per field. The value 393,216
+is the default of Firefox's `network.http.max_response_header_size`. Firefox
+applies it to encoded header-block bytes and to its own decoded
+serialization, so the two ceilings match only approximately.
+
+The cap of 8 informational responses is Phantom's own bound, not a browser
+value. It applies to every profile on H1, H2, and H3.
 
 ## Server-sent events
 

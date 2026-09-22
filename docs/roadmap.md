@@ -1,121 +1,138 @@
 # Roadmap
 
-This page is for users and contributors following active direction. Exact
-current support lives in [Coverage](reference/coverage.md). The roadmap
-describes intent, not commitments or dates.
+This page shows where Phantom is heading, for users and contributors planning
+around it. It states intent, not commitments or dates. For exact current
+support, see [Coverage](reference/coverage.md).
 
-Each phase names the dominant delivery focus. Idiomatic Rust, clear ownership,
-accurate documentation, and green validation gates remain continuous
-requirements; Phase 5 is the final repository-wide audit after the preceding
-work has exposed the real architectural boundaries.
+Each phase names its main delivery focus. Idiomatic Rust, clear ownership,
+accurate documentation, and green validation gates are required in every
+phase. Phase 5 is the final repository-wide audit, run after earlier phases
+have shown where the real architectural boundaries are.
 
-## Phase 1 — Functionality (current)
+## Phase 1: Functionality (current)
 
-- Downstream crates depend on a pinned git revision or checkout with one line
-  and no `[patch]` table: patched dependencies are renamed `phantom-*` forks
-  replayed from their upstream archives, and CI rejects the stock package
-  names. Publishing to crates.io remains blocked on packaging `btls-sys` under
-  a Phantom name with its own `links` key.
-- Opt-in streaming response decompression is complete: caller-advertised
-  `gzip`, `deflate`, `br`, and `zstd` only, decoded-byte limits, fail-closed
-  coding semantics, and no invented `Accept-Encoding` field or wire position.
-- Bounded response-body collection is complete: its inclusive cap applies to
-  bytes returned to the caller, which are decoded bytes when decoding is
-  enabled, abandons an over-limit stream, and has a stable error category.
-- Complete the remaining client and proxy-route work without introducing
-  direct or cross-protocol fallback.
-- Extend the current pre-dispatch connection retry policy (exact H1/H2/H3 and
-  negotiated pre-ALPN TCP setup) only when another replay class has explicit
-  ownership and bounded lifecycle rules.
-- Browser-backed SSE reconnect evidence exists for Chrome 153 and Firefox 156
-  on Windows over HTTP/1.1, and Phantom reproduces it through
+### Complete
+
+- Downstream crates can depend on a pinned Git revision or checkout with one
+  line and no `[patch]` table. Patched dependencies are renamed `phantom-*`
+  forks replayed from their upstream archives, and CI rejects the stock
+  package names.
+- Opt-in streaming response decompression: only the `gzip`, `deflate`, `br`,
+  and `zstd` codings the caller advertises, with decoded-byte limits,
+  fail-closed coding semantics, and no invented `Accept-Encoding` field or
+  wire position.
+- Bounded response-body collection. Its inclusive cap applies to the bytes
+  returned to the caller, which are decoded bytes when decoding is enabled.
+  An over-limit stream is abandoned and reports a stable error category.
+- Browser-backed SSE reconnect evidence for Chrome 153 and Firefox 156 on
+  Windows over HTTP/1.1. Phantom reproduces it through
   `SseHeader::last_event_id` and `min_retry`. Chrome's single resend after a
   reused keep-alive connection closes before any response is available as
   opt-in reused-connection replay.
+- The SOCKS5 UDP proxy slice. Exact H3 supports local-DNS `socks5://` and
+  remote-DNS `socks5h://` through RFC 1928 UDP ASSOCIATE.
+- The current H3 upgrade slices. Negotiated direct HTTPS requests can opt
+  into bounded Alt-Svc learning. They keep the origin authority and SNI while
+  dialing an advertised `h3` location, send a canonical `Alt-Used` with an
+  explicit port only on that managed attempt, and apply explicit failure and
+  `421` eviction without fallback. H2 ALTSVC frames, caller-owned Alt-Svc
+  persistence, per-location H3 pool slots, and opt-in racing with backoff for
+  broken alternatives are also complete.
+- The first extended CONNECT slice. Explicitly configured custom H2 profiles
+  can open exact direct `wss://` WebSockets after the peer opts in through
+  SETTINGS. The slice includes a dedicated five-pseudo-header order, duplex
+  flow control, streamed rejection bodies, clean close, and no fallback.
+- The HTTP/3 extended CONNECT foundation in `phantom-net`.
+- Exact H3 over RFC 9298 CONNECT-UDP proxies, over HTTP/3, HTTP/2, and
+  HTTP/1.1 proxy legs, with Basic proxy authentication.
+- Named Chrome 153, Edge 153, and Firefox 156 H2 WebSocket recipes with a
+  profile connection policy.
+
+### Remaining
+
+- Publish to crates.io. This is blocked on packaging `btls-sys` under a
+  Phantom name with its own `links` key.
+- Complete the remaining client and proxy-route work without adding direct or
+  cross-protocol fallback.
+- Alt-Svc upgrade on proxy routes.
+- WebSocket over H3.
+- Per-profile HPACK indexing, a per-message compression policy, and a
+  `REFUSED_STREAM` retry policy for WebSockets.
 - Complete the remaining WebSocket protocol functionality before broad
   robustness work.
-- Expand the Chromium, Firefox, and Safari protocol/profile matrix only from
-  fresh captures; do not infer missing H2, H3, QUIC, WebSocket, or SSE behavior
-  from browser-family names.
+- For H3 upgrade, UDP-capable proxying, and extended CONNECT, prove route and
+  failure semantics end to end, then implement each vertical slice without
+  silent fallback.
+
+### Rules for this phase
+
+- Extend the pre-dispatch connection retry policy (exact H1/H2/H3 and TCP
+  setup for negotiated requests before ALPN) only when another replay class
+  has explicit ownership and bounded lifecycle rules.
+- Expand the Chromium, Firefox, and Safari protocol and profile matrix only
+  from fresh captures. Do not infer missing H2, H3, QUIC, WebSocket, or SSE
+  behavior from browser-family names.
 - Add further browser versions, platforms, and non-browser profiles only from
   fresh capture evidence.
-- Within Phase 1, prove route and failure semantics end to end for H3 upgrade,
-  UDP-capable proxying, and extended CONNECT, then implement each vertical
-  slice without silent fallback.
-- The SOCKS5 UDP proxy slice is complete: exact H3 supports local-DNS
-  `socks5://` and remote-DNS `socks5h://` through RFC 1928 UDP ASSOCIATE.
-- The current H3 upgrade slices are complete: negotiated direct HTTPS requests
-  can opt into bounded Alt-Svc learning, preserve origin authority and SNI while
-  dialing an advertised `h3` location, send canonical explicit-port `Alt-Used`
-  only on that managed attempt, and apply explicit failure and `421` eviction
-  semantics without fallback. H2 ALTSVC frames, caller-owned Alt-Svc
-  persistence, per-location H3 pool slots, and opt-in racing with
-  broken-alternative backoff are complete; proxy-route upgrades remain later
-  Phase 1 functionality.
-- The first extended CONNECT slice is complete: explicitly configured custom
-  H2 profiles can open exact direct `wss://` WebSockets after peer SETTINGS
-  opt-in, with a dedicated five-pseudo-header order, duplex flow control,
-  streamed rejection bodies, clean close, and no fallback. Named-browser
-  recipes remain capture-gated.
-- The HTTP/3 extended CONNECT foundation is complete in `phantom-net`.
-  Exact H3 over RFC 9298 CONNECT-UDP proxies is complete over HTTP/3,
-  HTTP/2, and HTTP/1.1 proxy legs with Basic proxy authentication. WebSocket
-  over H3 remains in Phase 1. Named Chrome 153, Edge 153, and Firefox 156 H2
-  WebSocket recipes with a profile connection policy are complete; per-profile
-  HPACK indexing, per-message compression policy, and a REFUSED_STREAM retry
-  policy remain.
-- The Chrome 152 H2 WebSocket recipe requires a retained browser capture of
-  the extended-CONNECT opening handshake, including pseudo-header and ordinary
-  field order, priority, compression offer, and failure behavior. The generic
-  configurable H2 implementation is not evidence for that named recipe.
+- Named-browser extended CONNECT recipes come only from captures. A Chrome 152
+  H2 WebSocket recipe needs a retained browser capture of the extended
+  CONNECT opening handshake, including pseudo-header and ordinary field order,
+  priority, compression offer, and failure behavior. The generic configurable
+  H2 implementation is not evidence for that recipe.
 - Chrome `152.0.7977.64` is expected to share the retained `.83` transport
-  fingerprint under the major-version policy. That is an unverified
-  assumption until a `.64` capture is compared. Exact full-version client hints
-  remain persona data and must not inherit `.83` values accidentally.
+  fingerprint under the major-version policy. That stays an unverified
+  assumption until a `.64` capture is compared. Exact full-version client
+  hints are persona data and must not inherit `.83` values by accident.
 
-## Phase 2 — Ergonomics
+## Phase 2: Ergonomics
 
-- Make supported profile, route, timeout, body, trailer, SSE, and WebSocket
-  combinations easier to discover and configure without hiding wire choices.
-- Moving transport recipe names to browser/version identity is complete.
+- Make supported combinations of profile, route, timeout, body, trailer, SSE,
+  and WebSocket settings easier to discover and configure, without hiding
+  wire choices.
+- Complete: transport recipe names now use browser and version identity.
   Windows captures show no platform-dependent transport field for the Chrome
   152 TLS, H2, QUIC, and H3 recipes or the Firefox 154 TLS and H2 recipes, so
-  they are now
-  `chromium::v152_{tls,http2,http3,http3_tls,http3_request,quic}` and
-  `firefox::v154_{tls,http2}`. The former `macos` names remain as hidden
-  compatibility aliases, and capture OS and build provenance stay in fixtures,
+  they are now `chromium::v152_{tls,http2,http3,http3_tls,http3_request,quic}`
+  and `firefox::v154_{tls,http2}`. The former `macos` names remain as hidden
+  compatibility aliases. Capture OS and build provenance stay in fixtures,
   rustdoc, and documentation. `v152_macos_client_hints` keeps its platform
   qualifier because it carries platform data, and `v18_5_macos_tls` stays
   macOS-specific until Safari is captured elsewhere.
-- Keep stable error categories, examples, and diagnostics aligned with every
+- Keep stable error categories, examples, and diagnostics in step with every
   completed functionality slice.
 - Add feature-gated JSON, form, and multipart request bodies that set only the
-  fields a caller or captured browser template would send, and opt-in
+  fields a caller or captured browser template would send. Add opt-in
   `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` route selection.
 - Carry a default request template on the profile
-  (`ClientProfile::with_request_template`), overridden or removed per request,
-  validated when the client is built. Regular field order stays a request
-  concern and pseudo-header order stays a transport recipe; the two axes do
-  not merge. Sibling clients apply an order as a sort at encode time and
-  leave unnamed caller fields in hash order; Phantom keeps the caller's own
-  order for fields the template does not name.
+  (`ClientProfile::with_request_template`), which a request can override or
+  remove, validated when the client is built. Regular field order stays a
+  request concern and pseudo-header order stays a transport recipe; the two
+  axes do not merge. Sibling clients apply an order as a sort at encode time
+  and leave unnamed caller fields in hash order. Phantom keeps the caller's
+  own order for fields the template does not name.
 - Close the wire gaps the nearest comparable clients already reproduce, in
-  this order: split the `cookie` field into one entry per cookie on HTTP/2 and
-  HTTP/3, as Chrome and Firefox do, which needs a vendored encoder patch and a
-  two-cookie capture; send Chromium's preface `PING` on a pooled connection
-  idle longer than its at-risk-of-loss time; extend per-profile HPACK
-  indexing decisions from extended CONNECT to ordinary requests; and prove
-  that a resumed ClientHello still matches the captured shape, which Phantom
-  relies on today without evidence.
-- Settle whether Chrome's trust-anchor identifier order is drawn per process,
+  this order:
+  1. Split the `cookie` field into one entry per cookie on HTTP/2 and HTTP/3,
+     as Chrome and Firefox do. This needs a vendored encoder patch and a
+     two-cookie capture.
+  2. Send Chromium's preface `PING` on a pooled connection that has been idle
+     longer than its at-risk-of-loss time.
+  3. Apply the per-profile HPACK indexing decisions planned for extended
+     CONNECT to ordinary requests too.
+  4. Prove that a resumed ClientHello still matches the captured shape.
+     Phantom relies on this today without evidence.
+- Settle whether Chrome draws its trust-anchor identifier order per process,
   as the retained 60-process capture shows, or per connection, as the nearest
-  comparable clients assume, by capturing many connections from one process.
-- Close the gaps callers expect from an HTTP client, in this order: caller-owned
-  cookie-jar export and import beside the Alt-Svc snapshot API; host-to-address
-  overrides, a caller resolver, and DNS over HTTPS where the captured browser
-  uses it; a source address or interface binding; client certificates; and one
-  narrow request hook rather than a middleware framework.
-- Functionality proposed for after the Phase 1 exit, each starting from a
+  comparable clients assume. Capture many connections from one process.
+- Close the gaps callers expect from an HTTP client, in this order:
+  1. Caller-owned cookie-jar export and import, beside the Alt-Svc snapshot
+     API.
+  2. Host-to-address overrides, a caller resolver, and DNS over HTTPS where
+     the captured browser uses it.
+  3. A source address or interface binding.
+  4. Client certificates.
+  5. One narrow request hook rather than a middleware framework.
+- Functionality proposed for after the Phase 1 exit. Each item starts from a
   proposal with acceptance criteria and capture evidence:
   - A feature-gated `danger_accept_invalid_certs` for debugging through an
     intercepting proxy. It skips server chain verification only; the
@@ -127,60 +144,65 @@ work has exposed the real architectural boundaries.
   - Import of externally described fingerprints, limited to fields Phantom
     can reproduce byte for byte.
 
-## Phase 3 — Hardening
+## Phase 3: Hardening
 
 - Expand cross-platform debug and release gates.
-- Deny `unwrap_used` and `expect_used` after remaining recoverable runtime paths
-  have typed errors; a panic aborts embedders that compile with `panic =
-  "abort"`.
+- Deny `unwrap_used` and `expect_used` once the remaining recoverable runtime
+  paths have typed errors. A panic aborts embedders that compile with
+  `panic = "abort"`.
 - Broaden fuzzing, sanitizer coverage, lifecycle regressions, and soak tests.
-- Keep vendored patches reproducible and review dependency updates in
+- Keep vendored patches reproducible, and review dependency updates in
   isolation.
-- Document the TCP/IP stack fingerprint as host-determined rather than
+- Document the TCP/IP stack fingerprint as decided by the host rather than
   emulating it. A client cannot set the window scale, SACK, timestamps, or
-  TCP option order from user space, and setting only the reachable fields,
-  such as the hop limit, produces a packet no real host emits. Record the
-  reference JA4T and p0f signatures for the profiled platforms, and offer a
-  caller-invoked check that compares the host platform with the profile's
-  declared platform instead of branching on the host OS. Privileged packet
-  rewriting and userspace TCP stacks stay outside this library.
+  TCP option order from user space. Setting only the reachable fields, such
+  as the hop limit, produces a packet no real host emits. Record the
+  reference JA4T and p0f signatures for the profiled platforms. Offer a check
+  the caller runs to compare the host platform with the profile's declared
+  platform, instead of branching on the host OS. Privileged packet rewriting
+  and userspace TCP stacks stay outside this library.
 - Evaluate [compio](https://github.com/compio-rs/compio) runtime support with
-  a bounded spike. Tokio is currently required: the TLS, SOCKS, HTTP/2,
-  QUIC, and WebSocket layers and their vendored forks are written against
-  Tokio's poll-based I/O traits, while compio uses completion-based owned
-  buffers. The spike defines a narrow runtime seam in `phantom-net` (TCP and
-  UDP connect, timers, task spawning, socket options), implements quinn's
-  `Runtime` trait for compio, and measures a compatibility-adapter path
-  against Tokio. A native HTTP/2 and TLS port follows only if measurements
-  justify it, behind one runtime feature, and only with byte-identical wire
-  evidence (TCP segmentation, TLS record boundaries, socket options) from the
-  existing capture fixtures and differentials on every supported platform.
-  Until then, compio applications can drive Phantom on a Tokio runtime in a
-  helper thread.
+  a bounded spike.
+  - Tokio is required today. The TLS, SOCKS, HTTP/2,
+    QUIC, and WebSocket layers and their vendored forks are written against
+    Tokio's poll-based I/O traits, while compio uses completion-based owned
+    buffers.
+  - The spike defines a narrow runtime seam in `phantom-net` (TCP and UDP
+    connect, timers, task spawning, socket options), implements quinn's
+    `Runtime` trait for compio, and measures a compatibility-adapter path
+    against Tokio.
+  - A native HTTP/2 and TLS port follows only if measurements justify it,
+    behind one runtime feature, and only with byte-identical wire evidence
+    (TCP segmentation, TLS record boundaries, socket options) from the
+    existing capture fixtures and differentials on every supported platform.
+  - Until then, compio applications can drive Phantom on a Tokio runtime in a
+    helper thread.
 
-## Phase 4 — Profiling and optimization
+## Phase 4: Profiling and optimization
 
-- Measure cold `Client::builder(profile).build()` cost for the supported
-  profiles and keep independently built clients isolated: no shared cookies,
-  connection pools, or TLS tickets across sessions.
+- Measure the cold cost of `Client::builder(profile).build()` for the
+  supported profiles. Keep independently built clients isolated: no shared
+  cookies, connection pools, or TLS tickets across sessions.
 - Profile representative cold and warm connections, proxy routes,
   multiplexing, streaming bodies, SSE, and WebSocket workloads.
-- Optimize only measured bottlenecks while preserving packet, frame, ordering,
-  cancellation, and bounded-resource evidence.
+- Optimize only measured bottlenecks, and preserve the packet, frame,
+  ordering, cancellation, and bounded-resource evidence.
 
-## Phase 5 — Idiomatic architecture and maintainability audit
+## Phase 5: Idiomatic architecture and maintainability audit
 
-- Audit the complete workspace for clear, human-readable, idiomatic Rust after
+- Audit the whole workspace for clear, readable, idiomatic Rust after
   functionality and measured optimization have settled the real boundaries.
-- Review crate, module, file, folder, type, function, field, and test naming for
-  consistent protocol/domain language and intuitive ownership.
-- Review abstractions and seams for single responsibility, concrete ownership,
-  shallow public structure, and removal of accidental indirection or duplicated
-  policy without introducing speculative frameworks.
-- Revisit file and folder organization, split responsibilities that have become
-  genuinely distinct, and consolidate fragments that obscure one concept.
-- Require behavior-preserving refactors to retain wire fixtures, public API
-  contracts, diagnostics, cancellation behavior, and the full validation gates.
+- Review the naming of crates, modules, files, folders, types, functions,
+  fields, and tests for consistent protocol and domain language and intuitive
+  ownership.
+- Review abstractions and seams for single responsibility, concrete
+  ownership, and a shallow public structure. Remove accidental indirection
+  and duplicated policy without introducing speculative frameworks.
+- Revisit file and folder organization. Split responsibilities that have
+  become distinct, and consolidate fragments that obscure one concept.
+- Require behavior-preserving refactors to keep wire fixtures, public API
+  contracts, diagnostics, cancellation behavior, and the full validation
+  gates.
 - Audit the tooling from first principles: capture and conformance scripts,
   CI and release scripts, development helpers, GitHub workflows, and agent
   configuration. Remove what no gate or workflow uses, merge overlapping
@@ -189,25 +211,33 @@ work has exposed the real architectural boundaries.
 
 ## Completed foundation
 
-The workspace, capture testkit, TLS and ordered H1 path, H2 path, initial
-browser-family profiles, forced H3 path, and ordered static request trailers on
-exact H1/H2/H3 and negotiated H1/H2 have passed their phase acceptance
-criteria. Declared streaming-body-produced request trailers preserve H1
-spelling and cross-name duplicate order across exact H1/H2/H3 and negotiated
-H1/H2. H1 WebSocket supports direct plaintext `ws://` alongside routed
-TLS-backed `wss://`; plaintext `ws://` also supports plaintext and TLS-encrypted
-HTTP forward proxies with strict challenge-driven Basic authentication and
-authenticated local- or remote-DNS SOCKS5 tunnels. These paths share the same
-ordered opening handshake, strict validation, and bounded message lifecycle.
-Exact H1/H2/H3 and negotiated H1/H2 requests can opt into bounded
-typed connection-setup retries without changing route or protocol or replaying
-request bytes. HTTP/1.1 absolute-form forwarding for `http://`
-origins is available over plaintext and TLS proxies with independent proxy
-authentication and trust policies. Challenge-driven Basic starts each logical
-request anonymously and permits one replay on a fresh same-route connection,
-with no learned challenge state, CONNECT conversion, protocol fallback, or
-direct fallback. Exact H3 supports local- or remote-DNS SOCKS5 through an
-optionally authenticated RFC 1928 UDP ASSOCIATE, retains its TCP control
-connection, and reuses the route-keyed H3 connection without direct or protocol
-fallback. Code, tests, [Design](explanation/design.md), and
-[Validation](explanation/validation.md) are the maintained record of those decisions.
+These pieces have passed their phase acceptance criteria:
+
+- The workspace, the capture test kit, the TLS and ordered H1 path, the H2
+  path, the initial browser-family profiles, and the forced H3 path.
+- Ordered static request trailers on exact H1/H2/H3 and negotiated H1/H2.
+- Request trailers produced by a declared streaming body, which keep H1
+  spelling and the order of duplicates across names, on exact H1/H2/H3 and
+  negotiated H1/H2.
+- H1 WebSocket: direct plaintext `ws://` and routed TLS-backed `wss://`.
+  Plaintext `ws://` also works through plaintext and TLS-encrypted HTTP
+  forward proxies with strict challenge-driven Basic authentication, and
+  through authenticated SOCKS5 tunnels with local or remote DNS. These paths
+  share the same ordered opening handshake, strict validation, and bounded
+  message lifecycle.
+- Opt-in, bounded, typed connection-setup retries for exact H1/H2/H3 and
+  negotiated H1/H2 requests. They never change route or protocol or replay
+  request bytes.
+- HTTP/1.1 absolute-form forwarding for `http://` origins over plaintext and
+  TLS proxies, with independent proxy authentication and trust policies.
+  Challenge-driven Basic starts each logical request anonymously and allows
+  one replay on a fresh connection over the same route. There is no learned
+  challenge state, CONNECT conversion, protocol fallback, or direct fallback.
+- Exact H3 through SOCKS5 with local or remote DNS, over an optionally
+  authenticated RFC 1928 UDP ASSOCIATE. The TCP control connection is
+  retained, and the H3 connection is reused per route, without direct or
+  protocol fallback.
+
+Code, tests, [Design](explanation/design.md), and
+[Validation](explanation/validation.md) are the maintained record of these
+decisions.

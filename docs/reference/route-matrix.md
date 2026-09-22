@@ -1,17 +1,22 @@
 # Route matrix
 
-This table lists what each combination of request scheme, protocol, and route
-does. "Rejected" means a typed error before any proxy or origin I/O; nothing
-falls back to another row or column.
+This table shows what Phantom does for each combination of request scheme,
+protocol, and route. "Rejected" means a typed error before any proxy or origin
+I/O. No cell falls back to another row or column.
 
-Column meanings:
+Columns:
 
+- **Direct**: no proxy.
 - **H1 proxy**: an `http://` or `https://` `HttpProxy` in its default HTTP/1.1
   mode.
 - **H2 proxy**: an `https://` proxy with `with_http2_transport`.
 - **SOCKS5**: both local-DNS `socks5://` and remote-DNS `socks5h://`.
 - **CONNECT-UDP**: an `https://` template over its default H3 leg or an
   explicit H2 or H1 leg.
+
+Rows use H1, H2, and H3 for HTTP/1.1, HTTP/2, and HTTP/3. "Exact" forces one
+protocol; "negotiated" lets TLS ALPN choose H1 or H2. See
+[Key terms](../guides/client.md#key-terms).
 
 | Request | Direct | H1 proxy | H2 proxy | SOCKS5 | CONNECT-UDP |
 | --- | --- | --- | --- | --- | --- |
@@ -26,16 +31,17 @@ Column meanings:
 | `wss://`, H2 | Extended CONNECT on a dedicated connection | Extended CONNECT inside a CONNECT tunnel | Extended CONNECT inside a CONNECT stream | Extended CONNECT in a TCP tunnel | Rejected |
 | `ws://` or `wss://`, H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
 
-Every supported cell has a public loopback regression. WebSocket and SSE
-requests need the matching Cargo feature, and `ws://` or `wss://` over H3
-fails when the builder is created. SSE event sources follow the ordinary rows
-for their scheme and protocol.
+Notes:
 
-The `wss://` H2 row describes `websocket_with_protocol`. With
-`websocket_with_profile_policy`, the profile's connection policy may instead
-place the WebSocket on a pooled H2 session, or open an HTTP/1.1 Upgrade
-connection; see
-[Profile connection policy](../guides/websocket.md#profile-connection-policy).
+- Every supported cell has a public loopback regression test.
+- WebSocket and SSE requests need the matching Cargo feature.
+- A `ws://` or `wss://` request over H3 fails when the builder is created.
+- SSE event sources follow the ordinary rows for their scheme and protocol.
+- The `wss://` H2 row describes `websocket_with_protocol`. With
+  `websocket_with_profile_policy`, the profile's connection policy may instead
+  place the WebSocket on a pooled H2 session or open an HTTP/1.1 Upgrade
+  connection. See
+  [Profile connection policy](../guides/websocket.md#profile-connection-policy).
 
-See [Routes and proxies](../guides/routes-and-proxies.md) for configuration
-and [WebSocket](../guides/websocket.md) for WebSocket rules.
+For configuration, see [Routes and proxies](../guides/routes-and-proxies.md).
+For WebSocket rules, see [WebSocket](../guides/websocket.md).
