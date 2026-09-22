@@ -1,6 +1,6 @@
 name: CI
 
-# Pull requests run the Linux jobs; the macOS and Windows platform jobs run on
+# Pull requests run the Linux jobs and the Windows platform job; macOS runs on
 # pushes to main, the weekly schedule, and manual dispatch. Documentation-only
 # changes skip every job except the ones they can affect. The `CI required`
 # job is the single status check that branch protection requires.
@@ -276,15 +276,18 @@ jobs:
     # job skipped before matrix expansion shows as plain `Platform`.
     name: Platform
     needs: changes
-    # Pull requests skip the macOS and Windows runners; Linux coverage is in
-    # the other jobs.
-    if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
+    # Windows runs on pull requests too: it is the documented development
+    # host, and a Windows-only regression that only surfaces on the push to
+    # main lands before anything can block it. macOS stays push-only.
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-latest, windows-latest]
+        runner: ${{ github.event_name == 'pull_request'
+          && fromJSON('["windows-latest"]')
+          || fromJSON('["macos-latest", "windows-latest"]') }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -415,7 +418,7 @@ jobs:
                 features: $code,
                 downstream: $code,
                 vendor: $code,
-                platform: ($code and $event != "pull_request"),
+                platform: $code,
                 msrv: $code
               } as $runs
             | [

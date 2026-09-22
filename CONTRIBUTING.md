@@ -186,7 +186,7 @@ skipped. A failed, cancelled, or unclassified run never counts as passing.
 
 | Workflow | Pull request | Push to `main` | Weekly schedule and manual dispatch |
 | --- | --- | --- | --- |
-| [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Features, Downstream, Vendor, MSRV | Linux jobs and the macOS and Windows Platform jobs | Every job, whatever changed |
+| [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Features, Downstream, Vendor, MSRV, and the Windows Platform job | Same, plus the macOS Platform job | Every job, whatever changed |
 | [Parser fuzzing](.github/workflows/fuzz.yml) | 15 seconds per target when parser paths change | Same as pull requests | 300 seconds per target |
 | Conformance suites | Only with the `conformance` label | When the suite's paths change | Yes, with the workflow's scheduled or chosen case set |
 | [Scorecard](.github/workflows/scorecard.yml) | No | Yes | Yes |
@@ -221,10 +221,12 @@ pull request run cancels the older run for the same pull request.
 Change the classification together with its cases in
 `scripts/ci/test-changed-paths.sh`, which the Quality job runs.
 
-Because pull requests skip the Platform jobs, platform-specific failures
-surface on `main`. Before merging a change that may behave differently on
-macOS or Windows, run the platform gate locally or dispatch CI for the branch,
-which runs every job:
+Pull requests run the Windows Platform job, because Windows is the documented
+development host and a Windows-only regression that first runs on the push to
+`main` has already landed. macOS still runs only on the push, so a
+macOS-specific failure can still reach `main`. Before merging a change that
+may behave differently there, dispatch CI for the branch, which runs every
+job:
 
 ```console
 gh workflow run ci.yml --ref <branch>
