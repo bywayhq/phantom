@@ -13,3 +13,10 @@
 /// Without this ceiling, profiles that omit `SETTINGS_MAX_HEADER_LIST_SIZE`
 /// would accept 16 MiB lists.
 pub(super) const MAX_RESPONSE_HEADER_LIST_BYTES: u32 = 393_216;
+
+/// Interim responses accepted before one final response, matching the HTTP/1
+/// and HTTP/3 transports and the HTTP CONNECT exchange bound.
+///
+/// The backend enforces it as each 1xx head arrives, before the response is
+/// polled, so a burst cannot grow the stream's receive queue.
+pub(super) const MAX_INFORMATIONAL_RESPONSES: usize = 8;

@@ -1,0 +1,273 @@
+diff --git a/src/client.rs b/src/client.rs
+index 24a1225..62a8f37 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -357,6 +357,9 @@ pub struct Builder {
+     /// Unadvertised ceiling on received decoded header lists.
+     local_max_header_list_size: Option<u32>,
+ 
++    /// Maximum informational (1xx) responses accepted per stream.
++    max_informational_responses: Option<usize>,
++
+     /// The headers frame pseudo order
+     headers_pseudo_order: Option<PseudoOrder>,
+ 
+@@ -709,6 +712,7 @@ impl Builder {
+             stream_id: 1.into(),
+             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
+             local_max_header_list_size: None,
++            max_informational_responses: None,
+             headers_pseudo_order: None,
+             headers_stream_dependency: None,
+             priorities: None,
+@@ -876,6 +880,20 @@ impl Builder {
+         self
+     }
+ 
++    /// Sets the maximum number of informational (1xx) responses accepted on
++    /// one stream before its final response.
++    ///
++    /// Informational responses are queued on their stream as they arrive, so
++    /// this bounds that queue even when the response future is not being
++    /// polled. The next informational response resets the stream with
++    /// `ENHANCE_YOUR_CALM`, and the returned error reports
++    /// [`Error::is_too_many_informational_responses`](crate::Error::is_too_many_informational_responses).
++    /// Unlimited by default.
++    pub fn max_informational_responses(&mut self, max: usize) -> &mut Self {
++        self.max_informational_responses = Some(max);
++        self
++    }
++
+     /// Sets the maximum number of concurrent streams.
+     ///
+     /// The maximum concurrent streams setting only controls the maximum number
+@@ -1499,6 +1517,7 @@ where
+                 data_frame_budget: proto::auto_data_frame_budget(
+                     builder.initial_target_connection_window_size,
+                 ),
++                max_informational_responses: builder.max_informational_responses,
+                 headers_pseudo_order: builder.headers_pseudo_order,
+                 headers_stream_dependency: builder.headers_stream_dependency,
+                 priorities: builder.priorities,
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index 5320c49..407c363 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -1296,3 +1296,70 @@ fn altsvc_payload(origin: &[u8], value: &[u8]) -> Vec<u8> {
+     payload.extend_from_slice(value);
+     payload
+ }
++
++async fn informational_limit_outcome(
++    sent: usize,
++) -> Result<Response<crate::RecvStream>, crate::Error> {
++    let (client_io, server_io) = duplex(16 * 1024);
++    let server = tokio::spawn(async move {
++        let mut connection = crate::server::handshake(server_io)
++            .await
++            .expect("server handshake failed");
++        let (_request, mut respond) = connection
++            .accept()
++            .await
++            .expect("connection closed before request")
++            .expect("request failed");
++        for _ in 0..sent {
++            respond
++                .send_informational(Response::builder().status(103).body(()).unwrap())
++                .expect("informational response failed");
++        }
++        // The client may already have reset the stream; only its outcome matters.
++        let _ = respond.send_response(Response::new(()), true);
++        let _ = poll_fn(|cx| connection.poll_closed(cx)).await;
++    });
++
++    let mut builder = super::Builder::new();
++    builder.max_informational_responses(2);
++    let (sender, connection) = builder
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let driver = tokio::spawn(connection);
++    let mut sender = sender.ready().await.expect("sender never became ready");
++    let (response, _send) = sender
++        .send_request(request_with_headers(), true)
++        .expect("request was rejected");
++    let outcome = response.await;
++    driver.abort();
++    server.abort();
++    outcome
++}
++
++#[tokio::test]
++async fn informational_responses_up_to_the_limit_are_accepted() {
++    timeout(Duration::from_secs(2), async {
++        let response = informational_limit_outcome(2)
++            .await
++            .expect("final response after two informational responses failed");
++        assert_eq!(response.status(), 200);
++    })
++    .await
++    .expect("informational limit test timed out");
++}
++
++#[tokio::test]
++async fn informational_response_over_the_limit_resets_with_typed_error() {
++    timeout(Duration::from_secs(2), async {
++        let error = informational_limit_outcome(3)
++            .await
++            .expect_err("third informational response was accepted");
++        assert!(error.is_too_many_informational_responses(), "{error:?}");
++        assert!(!error.is_header_list_too_large());
++        assert!(error.is_reset() && error.is_library());
++        assert_eq!(error.reason(), Some(crate::Reason::ENHANCE_YOUR_CALM));
++    })
++    .await
++    .expect("informational limit test timed out");
++}
+diff --git a/src/error.rs b/src/error.rs
+index f9293cd..2a4b86c 100644
+--- a/src/error.rs
++++ b/src/error.rs
+@@ -28,6 +28,8 @@ pub struct Error {
+ pub(crate) enum LocalLimit {
+     /// The decoded header list exceeded the local receive limit.
+     HeaderListSize,
++    /// The peer sent more informational responses than the client allows.
++    InformationalResponses,
+ }
+ 
+ #[derive(Debug)]
+@@ -134,6 +136,12 @@ impl Error {
+         self.local_limit == Some(LocalLimit::HeaderListSize)
+     }
+ 
++    /// Returns true if the library reset the stream because the peer sent more
++    /// informational (1xx) responses than the client's configured maximum.
++    pub fn is_too_many_informational_responses(&self) -> bool {
++        self.local_limit == Some(LocalLimit::InformationalResponses)
++    }
++
+     /// Marks a library stream reset with the local limit that caused it.
+     pub(crate) fn from_stream_reset(src: proto::Error, local_limit: Option<LocalLimit>) -> Self {
+         let local_limit = match src {
+diff --git a/src/proto/connection.rs b/src/proto/connection.rs
+index 14fb831..aaf0114 100644
+--- a/src/proto/connection.rs
++++ b/src/proto/connection.rs
+@@ -88,6 +88,7 @@ pub(crate) struct Config {
+     pub local_error_reset_streams_max: Option<usize>,
+     pub settings: frame::Settings,
+     pub data_frame_budget: usize,
++    pub max_informational_responses: Option<usize>,
+     pub headers_pseudo_order: Option<PseudoOrder>,
+     pub headers_stream_dependency: Option<StreamDependency>,
+     pub priorities: Option<Priorities>,
+@@ -143,6 +144,7 @@ where
+                     .map(|max| max as usize),
+                 local_max_error_reset_streams: config.local_error_reset_streams_max,
+                 data_frame_budget: config.data_frame_budget,
++                max_informational_responses: config.max_informational_responses,
+                 headers_stream_dependency: config.headers_stream_dependency,
+                 headers_pseudo_order: config.headers_pseudo_order.clone(),
+                 priorities: config.priorities.clone(),
+diff --git a/src/proto/streams/counts.rs b/src/proto/streams/counts.rs
+index a27873a..791a640 100644
+--- a/src/proto/streams/counts.rs
++++ b/src/proto/streams/counts.rs
+@@ -374,6 +374,7 @@ mod tests {
+                 remote_max_initiated: None,
+                 local_max_error_reset_streams: None,
+                 data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
++                max_informational_responses: None,
+                 headers_stream_dependency: None,
+                 headers_pseudo_order: None,
+                 priorities: None,
+diff --git a/src/proto/streams/mod.rs b/src/proto/streams/mod.rs
+index 9b27835..bff66a0 100644
+--- a/src/proto/streams/mod.rs
++++ b/src/proto/streams/mod.rs
+@@ -77,6 +77,9 @@ pub struct Config {
+     /// connection-level budget (in bytes) for DATA framing overhead.
+     pub data_frame_budget: usize,
+ 
++    /// Maximum informational (1xx) responses accepted per client stream.
++    pub max_informational_responses: Option<usize>,
++
+     /// Priority of the headers stream
+     pub headers_stream_dependency: Option<StreamDependency>,
+ 
+diff --git a/src/proto/streams/recv.rs b/src/proto/streams/recv.rs
+index ede3769..9607315 100644
+--- a/src/proto/streams/recv.rs
++++ b/src/proto/streams/recv.rs
+@@ -64,6 +64,9 @@ pub(super) struct Recv {
+ 
+     /// Client-received ALTSVC frames awaiting a final response, oldest first.
+     altsvc: VecDeque<frame::AltSvc>,
++
++    /// Maximum informational responses accepted per stream.
++    max_informational_responses: Option<usize>,
+ }
+ 
+ /// Bound on ALTSVC frames awaiting delivery; the oldest frame is dropped first.
+@@ -140,6 +143,7 @@ impl Recv {
+             is_push_enabled: config.local_push_enabled,
+             is_extended_connect_protocol_enabled: config.extended_connect_protocol_enabled,
+             altsvc: VecDeque::new(),
++            max_informational_responses: config.max_informational_responses,
+         }
+     }
+ 
+@@ -332,6 +336,18 @@ impl Recv {
+                 self.pending_accept.push(stream);
+             }
+         } else {
++            // Each queued informational head stays buffered until polled, so
++            // the count is enforced on arrival.
++            stream.informational_responses = stream.informational_responses.saturating_add(1);
++            if self
++                .max_informational_responses
++                .is_some_and(|max| stream.informational_responses > max)
++            {
++                proto_err!(stream: "too many informational responses; stream={:?}", stream.id);
++                stream.local_limit = Some(crate::error::LocalLimit::InformationalResponses);
++                return Err(Error::library_reset(stream.id, Reason::ENHANCE_YOUR_CALM).into());
++            }
++
+             // This is an informational response (1xx status code)
+             // Convert to response and store it for polling
+             let mut message = counts
+diff --git a/src/proto/streams/stream.rs b/src/proto/streams/stream.rs
+index af89986..b4cdd94 100644
+--- a/src/proto/streams/stream.rs
++++ b/src/proto/streams/stream.rs
+@@ -117,6 +117,9 @@ pub(super) struct Stream {
+ 
+     /// The local receive limit that caused the library to reset this stream.
+     pub local_limit: Option<crate::error::LocalLimit>,
++
++    /// Informational (1xx) response heads received on this stream.
++    pub informational_responses: usize,
+ }
+ 
+ /// State related to validating a stream's content-length
+@@ -198,6 +201,7 @@ impl Stream {
+             pending_push_promises: store::Queue::new(),
+             content_length: ContentLength::Omitted,
+             local_limit: None,
++            informational_responses: 0,
+         }
+     }
+ 
+diff --git a/src/server.rs b/src/server.rs
+index 85ba811..4bffcc9 100644
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -1529,6 +1529,7 @@ where
+                             data_frame_budget: proto::auto_data_frame_budget(
+                                 self.builder.initial_target_connection_window_size,
+                             ),
++                            max_informational_responses: None,
+                             headers_stream_dependency: None,
+                             headers_pseudo_order: None,
+                             priorities: None,

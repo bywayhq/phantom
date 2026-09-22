@@ -67,7 +67,7 @@ Chromium purges to the same 150 and 3,000. See
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |
-| Informational (1xx) responses before the final head (H1 and H3) | 8 |
+| Informational (1xx) responses before the final head (H1, H2, and H3) | 8 |
 | Decoded H3 response field section (headers or trailers) | 256 KiB, or the profile's lower `SETTINGS_MAX_FIELD_SECTION_SIZE` |
 | Decoded HTTP/2 response header list | Lower of the profile's `SETTINGS_MAX_HEADER_LIST_SIZE` and 393,216 bytes (not advertised) |
 | Stacked content codings | 3 |

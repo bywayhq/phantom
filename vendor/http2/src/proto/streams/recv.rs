@@ -64,6 +64,9 @@ pub(super) struct Recv {
 
     /// Client-received ALTSVC frames awaiting a final response, oldest first.
     altsvc: VecDeque<frame::AltSvc>,
+
+    /// Maximum informational responses accepted per stream.
+    max_informational_responses: Option<usize>,
 }
 
 /// Bound on ALTSVC frames awaiting delivery; the oldest frame is dropped first.
@@ -140,6 +143,7 @@ impl Recv {
             is_push_enabled: config.local_push_enabled,
             is_extended_connect_protocol_enabled: config.extended_connect_protocol_enabled,
             altsvc: VecDeque::new(),
+            max_informational_responses: config.max_informational_responses,
         }
     }
 
@@ -332,6 +336,18 @@ impl Recv {
                 self.pending_accept.push(stream);
             }
         } else {
+            // Each queued informational head stays buffered until polled, so
+            // the count is enforced on arrival.
+            stream.informational_responses = stream.informational_responses.saturating_add(1);
+            if self
+                .max_informational_responses
+                .is_some_and(|max| stream.informational_responses > max)
+            {
+                proto_err!(stream: "too many informational responses; stream={:?}", stream.id);
+                stream.local_limit = Some(crate::error::LocalLimit::InformationalResponses);
+                return Err(Error::library_reset(stream.id, Reason::ENHANCE_YOUR_CALM).into());
+            }
+
             // This is an informational response (1xx status code)
             // Convert to response and store it for polling
             let mut message = counts

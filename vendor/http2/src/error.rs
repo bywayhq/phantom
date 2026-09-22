@@ -28,6 +28,8 @@ pub struct Error {
 pub(crate) enum LocalLimit {
     /// The decoded header list exceeded the local receive limit.
     HeaderListSize,
+    /// The peer sent more informational responses than the client allows.
+    InformationalResponses,
 }
 
 #[derive(Debug)]
@@ -132,6 +134,12 @@ impl Error {
     /// `PROTOCOL_ERROR`, so this does not change the frames sent to the peer.
     pub fn is_header_list_too_large(&self) -> bool {
         self.local_limit == Some(LocalLimit::HeaderListSize)
+    }
+
+    /// Returns true if the library reset the stream because the peer sent more
+    /// informational (1xx) responses than the client's configured maximum.
+    pub fn is_too_many_informational_responses(&self) -> bool {
+        self.local_limit == Some(LocalLimit::InformationalResponses)
     }
 
     /// Marks a library stream reset with the local limit that caused it.

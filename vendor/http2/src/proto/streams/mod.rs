@@ -77,6 +77,9 @@ pub struct Config {
     /// connection-level budget (in bytes) for DATA framing overhead.
     pub data_frame_budget: usize,
 
+    /// Maximum informational (1xx) responses accepted per client stream.
+    pub max_informational_responses: Option<usize>,
+
     /// Priority of the headers stream
     pub headers_stream_dependency: Option<StreamDependency>,
 

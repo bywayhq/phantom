@@ -374,6 +374,7 @@ mod tests {
                 remote_max_initiated: None,
                 local_max_error_reset_streams: None,
                 data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
+                max_informational_responses: None,
                 headers_stream_dependency: None,
                 headers_pseudo_order: None,
                 priorities: None,

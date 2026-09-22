@@ -81,7 +81,10 @@ with `Http2Error::ResponseHeaderListTooLarge` and one `RST_STREAM(PROTOCOL_ERROR
 while a sibling request on the same connection succeeds; the Firefox SETTINGS
 are checked to still omit `SETTINGS_MAX_HEADER_LIST_SIZE`. The empty,
 nonempty, and cumulative CONTINUATION floods also run against the Firefox
-ceiling. These are
+ceiling. Eight informational responses precede a final response; the ninth,
+alone or in a burst of 1,000, fails with
+`Http2Error::TooManyInformationalResponses` and one
+`RST_STREAM(ENHANCE_YOUR_CALM)` while a sibling request succeeds. These are
 robustness tests against a hostile peer, not browser-capture evidence.
 
 ## Ordered request-trailer evidence

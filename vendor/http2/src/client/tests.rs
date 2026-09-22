@@ -1296,3 +1296,70 @@ fn altsvc_payload(origin: &[u8], value: &[u8]) -> Vec<u8> {
     payload.extend_from_slice(value);
     payload
 }
+
+async fn informational_limit_outcome(
+    sent: usize,
+) -> Result<Response<crate::RecvStream>, crate::Error> {
+    let (client_io, server_io) = duplex(16 * 1024);
+    let server = tokio::spawn(async move {
+        let mut connection = crate::server::handshake(server_io)
+            .await
+            .expect("server handshake failed");
+        let (_request, mut respond) = connection
+            .accept()
+            .await
+            .expect("connection closed before request")
+            .expect("request failed");
+        for _ in 0..sent {
+            respond
+                .send_informational(Response::builder().status(103).body(()).unwrap())
+                .expect("informational response failed");
+        }
+        // The client may already have reset the stream; only its outcome matters.
+        let _ = respond.send_response(Response::new(()), true);
+        let _ = poll_fn(|cx| connection.poll_closed(cx)).await;
+    });
+
+    let mut builder = super::Builder::new();
+    builder.max_informational_responses(2);
+    let (sender, connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let driver = tokio::spawn(connection);
+    let mut sender = sender.ready().await.expect("sender never became ready");
+    let (response, _send) = sender
+        .send_request(request_with_headers(), true)
+        .expect("request was rejected");
+    let outcome = response.await;
+    driver.abort();
+    server.abort();
+    outcome
+}
+
+#[tokio::test]
+async fn informational_responses_up_to_the_limit_are_accepted() {
+    timeout(Duration::from_secs(2), async {
+        let response = informational_limit_outcome(2)
+            .await
+            .expect("final response after two informational responses failed");
+        assert_eq!(response.status(), 200);
+    })
+    .await
+    .expect("informational limit test timed out");
+}
+
+#[tokio::test]
+async fn informational_response_over_the_limit_resets_with_typed_error() {
+    timeout(Duration::from_secs(2), async {
+        let error = informational_limit_outcome(3)
+            .await
+            .expect_err("third informational response was accepted");
+        assert!(error.is_too_many_informational_responses(), "{error:?}");
+        assert!(!error.is_header_list_too_large());
+        assert!(error.is_reset() && error.is_library());
+        assert_eq!(error.reason(), Some(crate::Reason::ENHANCE_YOUR_CALM));
+    })
+    .await
+    .expect("informational limit test timed out");
+}

@@ -247,6 +247,18 @@ any change to the frames sent. The patch changes `src/client.rs`,
 `src/proto/streams/{recv,stream,streams}.rs`, and adds a codec unit test
 proving the advertised setting cannot raise the local ceiling.
 
+Upstream queues every informational (1xx) response on its stream until the
+caller polls, with no count. `informational-response-limit.patch` adds the
+client builder option `max_informational_responses`, unlimited by default.
+Each client stream counts informational heads as they are received, so the
+queue is bounded even while the response future is not polled. The first head
+over the limit resets the stream with `ENHANCE_YOUR_CALM` and the error
+reports `http2::Error::is_too_many_informational_responses()`. The patch
+changes `src/client.rs`, `src/server.rs` (which leaves the limit unset),
+`src/error.rs`, `src/proto/connection.rs`, and
+`src/proto/streams/{counts,mod,recv,stream}.rs`, and adds client regressions
+for the limit and one head beyond it in `src/client/tests.rs`.
+
 ## Refreshing the vendor copy
 
 Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never

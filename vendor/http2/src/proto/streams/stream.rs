@@ -117,6 +117,9 @@ pub(super) struct Stream {
 
     /// The local receive limit that caused the library to reset this stream.
     pub local_limit: Option<crate::error::LocalLimit>,
+
+    /// Informational (1xx) response heads received on this stream.
+    pub informational_responses: usize,
 }
 
 /// State related to validating a stream's content-length
@@ -198,6 +201,7 @@ impl Stream {
             pending_push_promises: store::Queue::new(),
             content_length: ContentLength::Omitted,
             local_limit: None,
+            informational_responses: 0,
         }
     }
 

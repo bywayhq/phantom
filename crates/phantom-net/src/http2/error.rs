@@ -232,6 +232,12 @@ pub enum Http2Error {
     /// `SETTINGS_MAX_HEADER_LIST_SIZE` and an unadvertised 393,216-byte
     /// ceiling, counted as in RFC 9113 section 6.5.2.
     ResponseHeaderListTooLarge,
+    /// The peer sent more interim `1xx` responses than the fixed bound, and
+    /// the stream was reset with `ENHANCE_YOUR_CALM`.
+    TooManyInformationalResponses {
+        /// Maximum accepted interim responses before the final response.
+        maximum: usize,
+    },
     /// The connection was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// The HTTP protocol driver failed.
@@ -349,6 +355,10 @@ impl fmt::Display for Http2Error {
             Self::ResponseHeaderListTooLarge => {
                 formatter.write_str("HTTP/2 response header list exceeded the receive limit")
             }
+            Self::TooManyInformationalResponses { maximum } => write!(
+                formatter,
+                "HTTP/2 response sent more than {maximum} informational responses; stream reset"
+            ),
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/2 connections require a Tokio runtime")
             }
@@ -374,6 +384,11 @@ impl Http2Error {
     pub(super) fn protocol(error: ::http2::Error) -> Self {
         if error.is_header_list_too_large() {
             return Self::ResponseHeaderListTooLarge;
+        }
+        if error.is_too_many_informational_responses() {
+            return Self::TooManyInformationalResponses {
+                maximum: super::limits::MAX_INFORMATIONAL_RESPONSES,
+            };
         }
         Self::Protocol(Http2ProtocolError::new(error))
     }
@@ -418,6 +433,7 @@ impl Http2Error {
             Self::HeaderMapCapacity => "header_map_capacity",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
             Self::ResponseHeaderListTooLarge => "response_header_list_too_large",
+            Self::TooManyInformationalResponses { .. } => "too_many_informational_responses",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
         }

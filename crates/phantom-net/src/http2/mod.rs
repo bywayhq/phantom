@@ -571,6 +571,7 @@ fn translate_settings_with_pseudo_order(
     let mut client = client::Builder::new();
     client.initial_connection_window_size(settings.initial_connection_window_size);
     client.local_max_header_list_size(limits::MAX_RESPONSE_HEADER_LIST_BYTES);
+    client.max_informational_responses(limits::MAX_INFORMATIONAL_RESPONSES);
     let mut order = SettingsOrder::builder();
 
     for setting in &settings.initial_settings {

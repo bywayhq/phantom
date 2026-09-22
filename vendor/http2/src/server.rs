@@ -1529,6 +1529,7 @@ where
                             data_frame_budget: proto::auto_data_frame_budget(
                                 self.builder.initial_target_connection_window_size,
                             ),
+                            max_informational_responses: None,
                             headers_stream_dependency: None,
                             headers_pseudo_order: None,
                             priorities: None,

@@ -357,6 +357,9 @@ pub struct Builder {
     /// Unadvertised ceiling on received decoded header lists.
     local_max_header_list_size: Option<u32>,
 
+    /// Maximum informational (1xx) responses accepted per stream.
+    max_informational_responses: Option<usize>,
+
     /// The headers frame pseudo order
     headers_pseudo_order: Option<PseudoOrder>,
 
@@ -709,6 +712,7 @@ impl Builder {
             stream_id: 1.into(),
             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
             local_max_header_list_size: None,
+            max_informational_responses: None,
             headers_pseudo_order: None,
             headers_stream_dependency: None,
             priorities: None,
@@ -873,6 +877,20 @@ impl Builder {
     /// error.
     pub fn local_max_header_list_size(&mut self, max: u32) -> &mut Self {
         self.local_max_header_list_size = Some(max);
+        self
+    }
+
+    /// Sets the maximum number of informational (1xx) responses accepted on
+    /// one stream before its final response.
+    ///
+    /// Informational responses are queued on their stream as they arrive, so
+    /// this bounds that queue even when the response future is not being
+    /// polled. The next informational response resets the stream with
+    /// `ENHANCE_YOUR_CALM`, and the returned error reports
+    /// [`Error::is_too_many_informational_responses`](crate::Error::is_too_many_informational_responses).
+    /// Unlimited by default.
+    pub fn max_informational_responses(&mut self, max: usize) -> &mut Self {
+        self.max_informational_responses = Some(max);
         self
     }
 
@@ -1499,6 +1517,7 @@ where
                 data_frame_budget: proto::auto_data_frame_budget(
                     builder.initial_target_connection_window_size,
                 ),
+                max_informational_responses: builder.max_informational_responses,
                 headers_pseudo_order: builder.headers_pseudo_order,
                 headers_stream_dependency: builder.headers_stream_dependency,
                 priorities: builder.priorities,

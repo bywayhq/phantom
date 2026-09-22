@@ -8,4 +8,5 @@ altsvc-frames.patch
 headers-frame-overrides.patch
 empty-data-frame-budget.patch
 local-header-list-limit.patch
+informational-response-limit.patch
 publish-identity.patch
