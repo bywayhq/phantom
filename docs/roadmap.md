@@ -98,6 +98,19 @@ work has exposed the real architectural boundaries.
 - Broaden fuzzing, sanitizer coverage, lifecycle regressions, and soak tests.
 - Keep vendored patches reproducible and review dependency updates in
   isolation.
+- Evaluate [compio](https://github.com/compio-rs/compio) runtime support with
+  a bounded spike. Tokio is currently required: the TLS, SOCKS, HTTP/2,
+  QUIC, and WebSocket layers and their vendored forks are written against
+  Tokio's poll-based I/O traits, while compio uses completion-based owned
+  buffers. The spike defines a narrow runtime seam in `phantom-net` (TCP and
+  UDP connect, timers, task spawning, socket options), implements quinn's
+  `Runtime` trait for compio, and measures a compatibility-adapter path
+  against Tokio. A native HTTP/2 and TLS port follows only if measurements
+  justify it, behind one runtime feature, and only with byte-identical wire
+  evidence (TCP segmentation, TLS record boundaries, socket options) from the
+  existing capture fixtures and differentials on every supported platform.
+  Until then, compio applications can drive Phantom on a Tokio runtime in a
+  helper thread.
 
 ## Phase 4 — Profiling and optimization
 
