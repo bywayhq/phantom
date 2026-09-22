@@ -147,10 +147,10 @@ fn built_in_templates_agree_with_their_own_identity_and_client_hints() {
     for (template, hints, user_agent) in cases {
         for fields in [&template.http1_fields, &template.http2_fields] {
             for field in fields {
-                if let RequestField::Literal { name, value } = field {
-                    if name.eq_ignore_ascii_case("user-agent") {
-                        assert_eq!(&**value, user_agent);
-                    }
+                if let RequestField::Literal { name, value } = field
+                    && name.eq_ignore_ascii_case("user-agent")
+                {
+                    assert_eq!(&**value, user_agent);
                 }
             }
         }
