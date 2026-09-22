@@ -901,22 +901,47 @@ mod raw_http2 {
 /// Binds the H3 service's UDP endpoint first, then the origin's TCP listener on
 /// the same port number, so both share one transport location.
 ///
-/// Windows reserves blocks of UDP ports, so a UDP bind on an arbitrary
-/// ephemeral TCP port can fail; the reverse order retries a TCP collision.
+/// Candidates come from below the dynamic port range (49152 and up on Windows
+/// and Linux): under a full workspace test run, TCP clients leave many
+/// `TIME_WAIT` sockets on dynamic ports, and binding a listener there fails
+/// with `AddrInUse`. Windows also reserves blocks of UDP and TCP ports, so
+/// either bind may fail and the loop tries another candidate.
 async fn bind_shared_origin_port(identity: &TestIdentity) -> TestResult<(TcpListener, Endpoint)> {
-    for _ in 0..32 {
-        let endpoint = h3_endpoint(identity, SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0))?;
-        let port = endpoint.local_addr()?.port();
+    const FIRST: u32 = 20_000;
+    const SPAN: u32 = 29_000;
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.subsec_nanos())
+        ^ std::process::id();
+    let mut last_error = None;
+    for _ in 0..256 {
+        let step = u32::try_from(NEXT.fetch_add(1, Ordering::Relaxed) % 65_536)?;
+        let offset = seed.wrapping_add(step.wrapping_mul(7_919)) % SPAN;
+        let port = u16::try_from(FIRST + offset)?;
+        let bind = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
+        let endpoint = match h3_endpoint(identity, bind) {
+            Ok(endpoint) => endpoint,
+            Err(error) => {
+                last_error = Some(error.to_string());
+                continue;
+            }
+        };
         match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
             Ok(listener) => return Ok((listener, endpoint)),
             Err(error)
                 if error.kind() == std::io::ErrorKind::AddrInUse
                     || error.kind() == std::io::ErrorKind::PermissionDenied =>
             {
+                last_error = Some(error.to_string());
                 continue;
             }
             Err(error) => return Err(error.into()),
         }
     }
-    Err("no loopback port was free for both TCP and UDP".into())
+    Err(format!(
+        "no loopback port was free for both TCP and UDP; last error: {}",
+        last_error.as_deref().unwrap_or("none")
+    )
+    .into())
 }
