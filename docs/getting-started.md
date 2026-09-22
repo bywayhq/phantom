@@ -19,7 +19,7 @@ not stable and may change between commits.
 ## Prerequisites
 
 - The pinned Rust toolchain from `rust-toolchain.toml`. The minimum supported
-  Rust version (MSRV) is 1.85.
+  Rust version (MSRV) is 1.88.
 - Git, CMake, Clang, and a C++ toolchain for the native BoringSSL build.
   Windows also requires NASM and Visual C++ build tools; see
   [CONTRIBUTING.md](../CONTRIBUTING.md#windows) for install commands.

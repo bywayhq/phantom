@@ -39,6 +39,13 @@ jobs in [CI](.github/workflows/ci.yml) for the exact prerequisite checks.
 Install the minimum supported toolchain separately for the MSRV checks:
 
 ```console
+rustup toolchain install 1.88.0 --profile minimal
+```
+
+`scripts/ci/check-vendor.sh btls` also checks the vendored `btls` crate on its
+own upstream MSRV, which needs Rust 1.85:
+
+```console
 rustup toolchain install 1.85.0 --profile minimal
 ```
 
@@ -129,7 +136,7 @@ cargo fmt --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
-cargo +1.85.0 check --workspace --all-targets --locked
+cargo +1.88.0 check --workspace --all-targets --locked
 ```
 
 `cargo test` includes doctests that compile the Rust examples in `README.md`,
@@ -137,7 +144,7 @@ cargo +1.85.0 check --workspace --all-targets --locked
 that no longer compiles fails the gate. The hooks live in
 `crates/phantom/src/lib.rs`; add one when a new guide contains Rust code. The
 MSRV line is CI's `MSRV` job; that job also checks each optional
-`phantom-http` feature combination on Rust 1.85.
+`phantom-http` feature combination on Rust 1.88.
 
 Changes under `scripts/capture` or `scripts/conformance` also run the commands
 below. CI installs the same test dependencies from the hash-pinned

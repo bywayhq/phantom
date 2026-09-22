@@ -130,7 +130,7 @@ The [documentation index](docs/README.md) lists every page.
 
 ## Minimum supported Rust version
 
-Phantom's MSRV is Rust 1.85. Development uses the toolchain pinned in
+Phantom's MSRV is Rust 1.88. Development uses the toolchain pinned in
 `rust-toolchain.toml`.
 
 ## Contributing and security

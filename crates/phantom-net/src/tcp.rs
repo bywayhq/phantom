@@ -106,8 +106,8 @@ fn keepalive_parameters(keepalive: TcpKeepalive) -> io::Result<socket2::TcpKeepa
 }
 
 // The targets of socket2 0.6.5's `TcpKeepalive::with_interval`, less Cygwin,
-// which Rust 1.85 does not know as a `target_os`; an interval there is
-// rejected by `check_host_support` instead of being dropped.
+// a tier 3 target that Phantom does not build or test; an interval there is
+// rejected by `check_host_support` instead of being applied unverified.
 #[cfg(any(
     target_os = "android",
     target_os = "dragonfly",

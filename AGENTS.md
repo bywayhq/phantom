@@ -123,7 +123,7 @@ cargo fmt --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
-cargo +1.85.0 check --workspace --all-targets --locked
+cargo +1.88.0 check --workspace --all-targets --locked
 uvx ruff@0.16.7 check scripts/capture scripts/conformance
 uvx ruff@0.16.7 format --check scripts/capture scripts/conformance
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
@@ -142,7 +142,7 @@ Run `scripts/ci/check-vendor.sh <package>` for every vendored package touched.
 [CONTRIBUTING.md](CONTRIBUTING.md) lists the conditional ShellCheck, fuzz, and
 feature-matrix checks. The CI workflow is authoritative when its matrix
 differs from this summary: its MSRV job also checks each optional feature
-combination on Rust 1.85, and its platform jobs repeat the MSRV check for
+combination on Rust 1.88, and its platform jobs repeat the MSRV check for
 `phantom-net` and `phantom-quic-btls` on macOS and Windows.
 
 Hand off the exact commands and results, relevant evidence, and unresolved
