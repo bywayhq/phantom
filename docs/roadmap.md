@@ -88,6 +88,17 @@ work has exposed the real architectural boundaries.
   macOS-specific until Safari is captured elsewhere.
 - Keep stable error categories, examples, and diagnostics aligned with every
   completed functionality slice.
+- Add feature-gated JSON, form, and multipart request bodies that set only the
+  fields a caller or captured browser template would send, and opt-in
+  `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` route selection.
+- Functionality proposed for after the Phase 1 exit, each starting from a
+  proposal with acceptance criteria and capture evidence:
+  - Chrome for Android recipes from Android emulator captures.
+  - Plaintext `http://` requests on clients with a redirect policy, Digest
+    proxy authentication, and SOCKS4 routes.
+  - Real ECH from DNS HTTPS records, where the captured browser uses it.
+  - Import of externally described fingerprints, limited to fields Phantom
+    can reproduce byte for byte.
 
 ## Phase 3 — Hardening
 
