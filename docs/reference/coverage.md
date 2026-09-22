@@ -119,6 +119,10 @@ Supported:
 - Opt-in typed pre-dispatch connection retries.
 - One replacement-connection retry for a bodyless GET rejected by
   `GOAWAY(NO_ERROR)`.
+- Bounded response receive state: at most 8 informational responses before
+  the final head, an unadvertised response header-list ceiling, and limits on
+  empty and small unread DATA frames. The values are in
+  [Defaults and limits](limits.md#protocol-state).
 
 Planned:
 
