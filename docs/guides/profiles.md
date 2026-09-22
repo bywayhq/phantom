@@ -207,8 +207,10 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
 Where Chromium puts client hints depends on the request kind, and the
 templates record it. A navigation sends them as one block in profile order
 after `Connection` on HTTP/1.1 and first on HTTP/2 and HTTP/3; after
-`Accept-CH`, the requested hints join that block, as the retained
-client-hint capture shows. A `fetch` splits the defaults: `sec-ch-ua-platform`
+`Accept-CH`, the requested hints join that block. The retained client-hint
+capture shows that on HTTP/1.1 only; on HTTP/2 and HTTP/3 the placement is
+inferred from the default block, which the captures of every protocol place
+the same way. A `fetch` splits the defaults: `sec-ch-ua-platform`
 precedes `User-Agent`, and `sec-ch-ua` and `sec-ch-ua-mobile` follow it. No
 capture shows where Chrome puts hints requested through `Accept-CH` on a
 `fetch`, so a fetch template refuses to send one: once an origin has asked

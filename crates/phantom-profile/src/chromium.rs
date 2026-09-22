@@ -623,7 +623,10 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36";
 ///
 /// The client hints form one block in profile order after `Connection` (on
 /// HTTP/1.1) and before `Upgrade-Insecure-Requests`; after `Accept-CH` the
-/// requested hints join that block, as the client-hint capture shows. The
+/// requested hints join that block, as the HTTP/1.1 client-hint capture
+/// shows. No capture records an HTTP/2 or HTTP/3 navigation after
+/// `Accept-CH`; the same placement on those protocols is inferred from the
+/// default block, which every protocol's capture places identically. The
 /// `User-Agent` value is the one headful Chrome sent in the retained
 /// launch-mode SSE capture; the other captures ran headless and sent
 /// `HeadlessChrome`. `Accept-Language` is the capture machine's `en-US`

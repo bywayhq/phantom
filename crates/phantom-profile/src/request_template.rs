@@ -154,6 +154,10 @@ pub struct RequestTemplate {
     /// Whether a capture shows where this request kind places client hints
     /// that an origin requested through `Accept-CH`.
     ///
+    /// A capture on one protocol suffices: the built-in navigation templates
+    /// rest on an HTTP/1.1 capture, and their HTTP/2 and HTTP/3 placement is
+    /// inferred from it.
+    ///
     /// When `false`, the template's client-hint slots are backed only for
     /// hints the profile sends by default, and a client must refuse to send a
     /// requested hint with it rather than guess a position.
