@@ -8,7 +8,7 @@ use http::{HeaderMap, header::HeaderName};
 use phantom_net::request::RequestHeader;
 use phantom_profile::{
     ClientHintDelivery, ClientHintSettings, RequestTemplate,
-    request_template::client_hint_placement,
+    request_template::{ClientHintSlot, client_hint_placement},
 };
 use sfv::{BareItem, List, ListEntry, Parser};
 use tracing::debug;
@@ -235,7 +235,7 @@ fn prepare_fields(
 /// always emits, so a slot never lands after caller-only or cookie fields.
 fn place_in_slots(
     settings: &ClientHintSettings,
-    slots: &[phantom_profile::ClientHintSlot],
+    slots: &[ClientHintSlot],
     enabled: impl Fn(usize) -> bool,
     caller: Vec<RequestHeader>,
 ) -> Vec<RequestHeader> {

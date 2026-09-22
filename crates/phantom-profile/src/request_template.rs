@@ -175,6 +175,10 @@ impl RequestTemplate {
 /// The following names are lowercase. Validation guarantees the list is
 /// nonempty and ends with a literal field, so the slot's position can be
 /// found in any protocol's emitted fields by name.
+///
+/// This is plumbing between this crate and the `phantom` client, which places
+/// automatic client hints with it; it is not part of the supported API.
+#[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClientHintSlot {
     /// The slot's single hint name, or `None` for [`RequestField::ClientHints`].
@@ -186,7 +190,9 @@ pub struct ClientHintSlot {
 
 /// Returns each client-hint slot of `fields` with the fields that follow it.
 ///
-/// A validated template has the same placement on every protocol.
+/// A validated template has the same placement on every protocol. Like
+/// [`ClientHintSlot`], this is client plumbing, not supported API.
+#[doc(hidden)]
 #[must_use]
 pub fn client_hint_placement(fields: &[RequestField]) -> Vec<ClientHintSlot> {
     fields

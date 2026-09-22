@@ -34,8 +34,7 @@ pub use identity::{
     ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
 };
 pub use request_template::{
-    ClientHintSlot, InvalidRequestTemplate, ProductVersion, RequestField, RequestIdentity,
-    RequestTemplate,
+    InvalidRequestTemplate, ProductVersion, RequestField, RequestIdentity, RequestTemplate,
 };
 pub use tcp::{InvalidTcpSettings, TcpAddressRacing, TcpKeepalive, TcpSettings};
 pub use tls::{
