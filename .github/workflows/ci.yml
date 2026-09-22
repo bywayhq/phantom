@@ -160,8 +160,8 @@ jobs:
         with:
           tool: cargo-deny@0.19.6
 
-      - name: Reject stock patched dependencies
-        run: cargo deny --locked check bans
+      - name: Check dependency bans and advisories
+        run: cargo deny --locked check bans advisories
 
       - name: Check path and git downstream consumers
         run: scripts/ci/check-downstream.sh path git
