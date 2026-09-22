@@ -50,7 +50,6 @@ jobs:
       - name: Install Python tooling
         run: |
           python -m pip install --disable-pip-version-check             --require-hashes --requirement scripts/requirements.txt
-          python -m pip install --disable-pip-version-check ruff==0.16.7
 
       - name: Check formatting
         run: cargo fmt -- --check
