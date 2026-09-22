@@ -1,0 +1,7 @@
+# Ignores for OSV-Scanner, which OpenSSF Scorecard runs. Keep each entry in
+# step with the matching `deny.toml` advisory ignore, unless it covers a
+# vendored upstream lockfile that Phantom does not build from.
+
+[[IgnoredVulns]]
+id = "GHSA-7gcf-g7xr-8hxj"
+reason = "serde_with 3.17.0 remains pinned only in the upstream lockfiles vendor/quinn/Cargo.lock and vendor/quinn-proto/Cargo.lock, which Phantom never builds; its own graph takes the fixed 3.21.0. Remove this once those forks are refreshed"
