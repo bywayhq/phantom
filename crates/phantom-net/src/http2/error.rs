@@ -268,8 +268,8 @@ impl fmt::Display for Http2Error {
                 weight,
             } => write!(
                 formatter,
-                "HTTP/2 request priority on stream {dependency_stream_id} with weight {weight} \
-                 needs a 31-bit stream ID and a weight in 1..=256"
+                "HTTP/2 request priority depending on stream {dependency_stream_id} with weight \
+                 {weight} needs a 31-bit stream ID and a weight in 1..=256"
             ),
             Self::InvalidAuthority(_) => formatter.write_str("request authority is invalid"),
             Self::AuthorityContainsUserinfo => {
