@@ -19,8 +19,12 @@ env:
   CARGO_INCREMENTAL: "0"
   CARGO_TERM_COLOR: always
 
+# Every push run gets its own group so none is cancelled or replaced while
+# pending: a push run classifies only the commits since the previous push, so
+# losing one would leave its commits untested. Pull request runs cancel the
+# older run for the same pull request.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'push' && github.run_id || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

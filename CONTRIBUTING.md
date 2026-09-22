@@ -195,20 +195,25 @@ on a push:
 
 - Documentation: Markdown outside `crates/`, `fixtures/`, `fuzz/`, and
   `vendor/`; anything under `docs/`; the license files; `.github/CODEOWNERS`;
-  and `.github/ISSUE_TEMPLATE/`. A change made only of these runs no job
-  except `CI required`.
+  and `.github/ISSUE_TEMPLATE/`. A change made only of these runs only the
+  classification job and `CI required`.
 - Doctest sources: `README.md`, `docs/getting-started.md`, and
   `docs/guides/`, which `cargo test` compiles. A change to these, with no
   code, runs only the Quality job.
 - Code: every other path, including workflows, manifests, fixtures, and
   scripts. Any code path runs every job for that event.
 
+Every push to `main` gets its own CI run, which a later push neither cancels
+nor replaces, so each pushed commit range is classified and checked. A newer
+pull request run cancels the older run for the same pull request.
+
 Change the classification together with its cases in
 `scripts/ci/test-changed-paths.sh`, which the Quality job runs.
 
-Platform-specific failures therefore surface on `main`. Before merging a
-change that may behave differently on macOS or Windows, run the platform gate
-locally or dispatch CI for the branch, which runs every job:
+Because pull requests skip the Platform jobs, platform-specific failures
+surface on `main`. Before merging a change that may behave differently on
+macOS or Windows, run the platform gate locally or dispatch CI for the branch,
+which runs every job:
 
 ```console
 gh workflow run ci.yml --ref <branch>
