@@ -393,6 +393,41 @@ fn total_limit_evicts_least_recent_cookies_across_domains() -> Result<(), Box<dy
 }
 
 #[test]
+fn each_ip_address_host_has_its_own_domain_limit() -> Result<(), Box<dyn std::error::Error>> {
+    // Chromium's CookieMonster::GetKey falls back to the host when
+    // GetDomainAndRegistry finds no registrable domain, which it never does
+    // for an IP address. 10.0.0.1 and 10.1.0.1 share their last two labels.
+    let hosts = ["10.0.0.1", "10.0.0.2", "10.1.0.1"];
+    let jar = CookieJar::with_limits(CookieLimits::new(nonzero(64), nonzero(2), nonzero(100)));
+    for host in hosts {
+        jar.set_cookie(&format!("https://{host}/"), "a=1; Path=/a")?;
+        jar.set_cookie(&format!("https://{host}/"), "b=1; Path=/b")?;
+    }
+
+    // A third 10.0.0.1 cookie exceeds that host's limit of 2 only.
+    jar.set_cookie("https://10.0.0.1/", "c=1; Path=/c")?;
+
+    assert_eq!(jar.len(), 6);
+    let retained = hosts
+        .into_iter()
+        .flat_map(|host| ["a", "b", "c"].map(|name| format!("https://{host}/{name}")))
+        .filter(|url| jar.request_value(url).ok().flatten().is_some())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        retained,
+        [
+            "https://10.0.0.1/b",
+            "https://10.0.0.1/c",
+            "https://10.0.0.2/a",
+            "https://10.0.0.2/b",
+            "https://10.1.0.1/a",
+            "https://10.1.0.1/b",
+        ]
+    );
+    Ok(())
+}
+
+#[test]
 fn single_cookie_limit_keeps_the_newest_cookie() -> Result<(), Box<dyn std::error::Error>> {
     let jar = CookieJar::with_limits(CookieLimits::new(nonzero(64), nonzero(1), nonzero(1)));
     jar.set_cookie("https://one.test/", "a=1")?;
