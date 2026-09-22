@@ -1,9 +1,16 @@
 name: CI
 
+# Pull requests run the Linux jobs; the macOS and Windows platform jobs run on
+# pushes to main, the weekly schedule, and manual dispatch. Documentation-only
+# changes skip every job except the ones they can affect. The `CI required`
+# job is the single status check that branch protection requires.
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "47 5 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,12 +20,58 @@ env:
   CARGO_TERM_COLOR: always
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+      doctests: ${{ steps.classify.outputs.doctests }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Classify changed paths
+        id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          everything=$'code=true\ndoctests=true'
+          case "$EVENT_NAME" in
+            pull_request)
+              # The checkout is GitHub's test merge commit; its first parent
+              # is the base branch.
+              classes=$(scripts/ci/changed-paths.sh HEAD^1 HEAD)
+              ;;
+            push)
+              if [[ "$PUSH_BEFORE" =~ ^[0-9a-f]{40}$ ]] &&
+                git fetch --no-tags --depth=1 origin "$PUSH_BEFORE"; then
+                classes=$(scripts/ci/changed-paths.sh "$PUSH_BEFORE" HEAD)
+              else
+                echo "::notice::Previous main commit is unavailable; running every job"
+                classes=$everything
+              fi
+              ;;
+            *)
+              classes=$everything
+              ;;
+          esac
+          printf '%s\n' "$classes"
+          printf '%s\n' "$classes" >>"$GITHUB_OUTPUT"
+
   quality:
     name: Quality
+    needs: changes
+    if: needs.changes.outputs.doctests == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -94,8 +147,13 @@ jobs:
       - name: Test dependency-maintenance tooling
         run: scripts/ci/test-upstream-freshness.sh
 
+      - name: Test CI path classification
+        run: scripts/ci/test-changed-paths.sh
+
   features:
     name: Features
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -138,6 +196,8 @@ jobs:
 
   downstream:
     name: Downstream
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -168,6 +228,8 @@ jobs:
 
   vendor:
     name: Vendor (${{ matrix.package }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -207,6 +269,10 @@ jobs:
 
   platform:
     name: Platform (${{ matrix.name }})
+    needs: changes
+    # Pull requests skip the macOS and Windows runners; Linux coverage is in
+    # the other jobs.
+    if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
@@ -278,6 +344,8 @@ jobs:
 
   msrv:
     name: MSRV
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -315,3 +383,28 @@ jobs:
           cargo "+$MSRV" check -p phantom-http --all-features --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked
           cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features keylog --locked
+
+  # The one status check branch protection requires. It must list every other
+  # job in `needs`. It runs even when a needed job fails or the run is
+  # cancelled, because GitHub treats a skipped required check as passing.
+  required:
+    name: CI required
+    needs: [changes, quality, features, downstream, vendor, platform, msrv]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check job results
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          # A job skipped by its own condition is expected. Any other result,
+          # or a missing classification that would have skipped jobs, fails.
+          jq --raw-output 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          jq --exit-status '
+            .changes.result == "success"
+            and (.changes.outputs.code | IN("true", "false"))
+            and (.changes.outputs.doctests | IN("true", "false"))
+            and all(.[]; .result == "success" or .result == "skipped")
+          ' <<<"$NEEDS" >/dev/null
