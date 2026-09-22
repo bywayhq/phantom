@@ -56,35 +56,152 @@ expect "$code" LICENSE-MIT.rs
 expect "$code" docs/README.md crates/phantom/src/lib.rs README.md
 expect "$code" README.md docs/guides/client.md Cargo.lock
 
-# Every Markdown file rustdoc includes must at least run the doctest job.
-# Prints the repository path for a path relative to crates/phantom/src.
-hook_path() {
-  local part
-  local -a parts=() resolved=(crates phantom src)
-  IFS=/ read -ra parts <<<"$1"
-  for part in "${parts[@]}"; do
-    case $part in
-      '' | .) ;;
-      ..)
-        ((${#resolved[@]} > 0)) || return 1
-        unset 'resolved[-1]'
-        ;;
-      *) resolved+=("$part") ;;
-    esac
-  done
-  (IFS=/ && printf '%s\n' "${resolved[*]}")
+# Every file that crates/ or fuzz/ compile in with include_str! or
+# include_bytes! must be classified as code or as a doctest source; a
+# documentation-only change to it would otherwise skip the jobs that build
+# it. The scanner prints one tab-separated line per include:
+#   file <path> <location>      a fully resolved repository path
+#   prefix <path> <location>    the literal prefix before a macro variable
+#   unresolved <location>       a form this scanner cannot resolve
+# shellcheck disable=SC2016 # Perl source, not shell.
+include_scanner='
+use strict;
+use warnings;
+
+local $/ = "\0";
+my $string = qr/"(?:[^"\\]|\\.)*"/s;
+
+sub parent {
+  my ($path) = @_;
+  return $path =~ m{^(.*)/[^/]*$} ? $1 : "";
 }
-hooks=0
-while IFS= read -r relative; do
-  path=$(hook_path "$relative")
-  hooks=$((hooks + 1))
-  if [[ $("$classifier" --classify "$path" | sed -n 's/^doctests=//p') != true ]]; then
-    printf 'FAILED: rustdoc hook %s is not classified as a doctest source\n' "$path" >&2
-    failures=$((failures + 1))
-  fi
-done < <(sed -nE 's/^#\[doc = include_str!\("([^"]+\.md)"\)\][[:space:]]*$/\1/p' crates/phantom/src/lib.rs)
-if ((hooks == 0)); then
-  echo "FAILED: found no rustdoc Markdown hooks in crates/phantom/src/lib.rs" >&2
+
+# Collapses . and .. segments; undef when the path leaves the repository.
+sub normalize {
+  my ($path) = @_;
+  my @parts;
+  for my $part (split m{/}, $path) {
+    next if $part eq "" || $part eq ".";
+    if ($part eq "..") {
+      return undef unless @parts;
+      pop @parts;
+    } else {
+      push @parts, $part;
+    }
+  }
+  return join "/", @parts;
+}
+
+sub manifest_dir {
+  my ($dir) = @_;
+  while ($dir ne "") {
+    return $dir if -f "$dir/Cargo.toml";
+    $dir = parent($dir);
+  }
+  return undef;
+}
+
+sub literal {
+  my ($quoted) = @_;
+  my $value = substr $quoted, 1, -1;
+  return $value =~ /\\/ ? undef : $value;
+}
+
+while (my $file = <STDIN>) {
+  chomp $file;
+  open my $handle, "<", $file or die "$file: $!\n";
+  my $source = do { local $/; <$handle> };
+  close $handle;
+  $source =~ s/\r\n/\n/g;
+
+  while ($source =~ /\binclude_(?:str|bytes)!\s*(\((?:[^()"]++|$string|(?1))*+\))/g) {
+    my $arguments = substr $1, 1, -1;
+    my $line = 1 + (substr($source, 0, $-[0]) =~ tr/\n//);
+    my $location = "$file:$line";
+    $arguments =~ s/^\s+|[\s,]+$//g;
+
+    my ($base, $relative, $variable);
+    if ($arguments =~ /^$string$/) {
+      $base = parent($file);
+      $relative = literal($arguments);
+    } elsif ($arguments =~ /^concat!\s*\((.*)\)$/s) {
+      my $items = $1;
+      $items =~ s/[\s,]+$//;
+      $base = parent($file);
+      $relative = "";
+      my $first = 1;
+      while ($items =~ /\G\s*(env!\s*\(\s*"CARGO_MANIFEST_DIR"\s*\)|$string|\$[A-Za-z_]\w*)\s*(?:,|$)/gc) {
+        my $item = $1;
+        if ($item =~ /^env!/) {
+          $base = $first ? manifest_dir(parent($file)) : undef;
+          $relative = "";
+        } elsif ($item =~ /^\$/) {
+          $variable = 1;
+          last;
+        } else {
+          my $value = literal($item);
+          $relative = defined $value && defined $relative ? $relative . $value : undef;
+        }
+        $first = 0;
+      }
+      $relative = undef unless $variable || (pos($items) // 0) == length $items;
+    }
+
+    my $path = defined $base && defined $relative ? normalize("$base/$relative") : undef;
+    if (!defined $path) {
+      print "unresolved\t$location\t\n";
+    } elsif ($variable) {
+      $path .= "/" if $relative =~ m{/$} || $relative eq "";
+      print "prefix\t$path\t$location\n";
+    } else {
+      print "file\t$path\t$location\n";
+    }
+  }
+}
+'
+includes=$(git ls-files -z --cached --others --exclude-standard -- 'crates/*.rs' 'fuzz/*.rs' |
+  perl -e "$include_scanner")
+include_count=0
+readme_included=false
+while IFS=$'\t' read -r kind target location; do
+  [[ -n $kind ]] || continue
+  include_count=$((include_count + 1))
+  candidates=()
+  case $kind in
+    file)
+      if [[ ! -f $target ]]; then
+        printf 'FAILED: %s includes missing file %s\n' "$location" "$target" >&2
+        failures=$((failures + 1))
+      fi
+      [[ $target != README.md ]] || readme_included=true
+      candidates=("$target")
+      ;;
+    prefix)
+      candidates=("${target}placeholder" "${target}placeholder.md")
+      ;;
+    *)
+      printf 'FAILED: cannot resolve the include at %s\n' "$target" >&2
+      failures=$((failures + 1))
+      ;;
+  esac
+  for candidate in ${candidates[@]+"${candidates[@]}"}; do
+    if [[ $("$classifier" --classify "$candidate" | paste -sd ' ' -) == "$doc" ]]; then
+      printf 'FAILED: %s includes %s, which is classified as documentation only\n' \
+        "${location:-$target}" "$candidate" >&2
+      failures=$((failures + 1))
+    fi
+  done
+done <<<"$includes"
+# Each textual mention must be an include the scanner parsed, so a form it
+# does not recognize fails here instead of going unchecked.
+include_mentions=$(git ls-files -z --cached --others --exclude-standard -- 'crates/*.rs' 'fuzz/*.rs' |
+  xargs -0 grep -ho 'include_\(str\|bytes\)!' | wc -l)
+if ((include_mentions != include_count)); then
+  printf 'FAILED: found %d include macros but parsed %d\n' "$include_mentions" "$include_count" >&2
+  failures=$((failures + 1))
+fi
+if ((include_count == 0)) || [[ $readme_included != true ]]; then
+  echo "FAILED: the include scan did not find the README.md rustdoc hook" >&2
   failures=$((failures + 1))
 fi
 
