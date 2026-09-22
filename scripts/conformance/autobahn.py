@@ -199,6 +199,8 @@ def _build_adapter(repository: Path) -> Path:
 
 def _wait_for_tls(port: int, container_name: str) -> None:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    # Readiness probe for the local test container's self-signed listener.
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
     deadline = time.monotonic() + 30
