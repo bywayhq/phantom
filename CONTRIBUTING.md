@@ -170,8 +170,9 @@ Conditional checks:
 
 Changes reach `main` through pull requests. The one required status check is
 `CI required`, the last job in [CI](.github/workflows/ci.yml). It passes only
-when every other CI job succeeded or was skipped by its own condition, so a
-failed, cancelled, or unclassified run never counts as passing.
+when the change classification below succeeded, every job that the
+classification and the event call for succeeded, and every other job was
+skipped. A failed, cancelled, or unclassified run never counts as passing.
 
 | Workflow | Pull request | Push to `main` | Weekly schedule and manual dispatch |
 | --- | --- | --- | --- |

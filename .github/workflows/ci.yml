@@ -401,14 +401,40 @@ jobs:
     steps:
       - name: Check job results
         env:
+          EVENT_NAME: ${{ github.event_name }}
           NEEDS: ${{ toJSON(needs) }}
         run: |
-          # A job skipped by its own condition is expected. Any other result,
-          # or a missing classification that would have skipped jobs, fails.
-          jq --raw-output 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
-          jq --exit-status '
-            .changes.result == "success"
-            and (.changes.outputs.code | IN("true", "false"))
-            and (.changes.outputs.doctests | IN("true", "false"))
-            and all(.[]; .result == "success" or .result == "skipped")
-          ' <<<"$NEEDS" >/dev/null
+          # Derive from the classification which jobs had to run. Each of
+          # those must succeed and every other job must be skipped; a job
+          # missing from this table, or an invalid classification, fails.
+          jq --exit-status --raw-output --arg event "$EVENT_NAME" '
+            .changes.outputs as $class
+            | ($class.code == "true") as $code
+            | ($class.doctests == "true") as $doctests
+            | {
+                changes: true,
+                quality: $doctests,
+                features: $code,
+                downstream: $code,
+                vendor: $code,
+                platform: ($code and $event != "pull_request"),
+                msrv: $code
+              } as $runs
+            | [
+                to_entries[]
+                | (if $runs[.key] == null then "unknown"
+                   elif $runs[.key] then "success"
+                   else "skipped" end) as $expected
+                | {job: .key, result: .value.result, expected: $expected}
+              ] as $jobs
+            | ($jobs[] | "\(.job): \(.result) (expected \(.expected))"),
+              "classification: code=\($class.code) doctests=\($class.doctests)",
+              if ($class.code | IN("true", "false"))
+                and ($class.doctests | IN("true", "false"))
+                and ($doctests or ($code | not))
+                and ($runs | keys) == ([$jobs[].job] | sort)
+                and all($jobs[]; .result == .expected)
+              then "all required jobs passed"
+              else error("a job result does not match the classification")
+              end
+          ' <<<"$NEEDS"
