@@ -106,6 +106,9 @@ work has exposed the real architectural boundaries.
   narrow request hook rather than a middleware framework.
 - Functionality proposed for after the Phase 1 exit, each starting from a
   proposal with acceptance criteria and capture evidence:
+  - A feature-gated `danger_accept_invalid_certs` for debugging through an
+    intercepting proxy. It skips server chain verification only; the
+    ClientHello and every other wire field stay unchanged.
   - Chrome for Android recipes from Android emulator captures.
   - Plaintext `http://` requests on clients with a redirect policy, Digest
     proxy authentication, and SOCKS4 routes.
