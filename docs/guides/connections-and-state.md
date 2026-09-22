@@ -98,6 +98,12 @@ own position and suppresses the jar's field.
 
 Set it with `ClientProfile::with_cookie_placement`.
 
+The placement covers HTTP requests, including event-source requests, but not
+WebSocket opening requests. Those place the jar's value where the WebSocket
+template has its `client_cookies` placeholder (`WebSocketField::client_cookies`
+in a profile, `WebSocketHeader::client_cookies` in a caller template), and send
+no jar cookie when the template has no placeholder.
+
 ### Request context
 
 The jar treats every request as a user-initiated top-level navigation to the

@@ -6,6 +6,12 @@
 /// equals one of the listed names, compared ASCII case-insensitively, or last
 /// when no listed field is present. The default lists no names, so the field
 /// always goes last. A caller-supplied `Cookie` field is never moved.
+///
+/// The placement applies to HTTP requests, including event-source requests.
+/// It does not affect WebSocket opening requests: those take the jar's value
+/// at the position of the WebSocket template's
+/// [`WebSocketField::client_cookies`](crate::WebSocketField::client_cookies)
+/// placeholder, and omit it when the template has none.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CookiePlacement {
     before: Vec<Box<str>>,
