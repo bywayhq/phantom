@@ -272,7 +272,9 @@ jobs:
         run: scripts/ci/check-vendor.sh "${{ matrix.package }}"
 
   platform:
-    name: Platform (${{ matrix.name }})
+    # A static name: GitHub appends the runner to each matrix entry, and a
+    # job skipped before matrix expansion shows as plain `Platform`.
+    name: Platform
     needs: changes
     # Pull requests skip the macOS and Windows runners; Linux coverage is in
     # the other jobs.
@@ -282,11 +284,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: macOS
-            runner: macos-latest
-          - name: Windows
-            runner: windows-latest
+        runner: [macos-latest, windows-latest]
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
