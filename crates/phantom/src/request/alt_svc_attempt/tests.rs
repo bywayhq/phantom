@@ -14,7 +14,7 @@ use tokio::{
     time::{Instant, sleep, sleep_until},
 };
 
-use super::{Candidate, ORPHANED_SETUP_LIMIT, RaceOutcome, bounded_orphan, race_setup};
+use super::{Candidate, RaceOutcome, race_setup};
 use crate::{
     HttpProtocol, RequestError, RequestErrorKind, RequestTimeouts, TimeoutPhase,
     timeout::TimeoutBudget,
@@ -354,27 +354,6 @@ async fn cancelling_raced_request_cancels_both_attempts() -> TestResult {
 
     assert!(alternative.was_dropped());
     assert!(origin.was_dropped());
-    assert_eq!(admission.available_permits(), 1);
-    Ok(())
-}
-
-#[tokio::test(start_paused = true)]
-async fn orphaned_alternative_is_dropped_at_the_handshake_limit() -> TestResult {
-    let alternative = Probe::new();
-    let admission = Arc::new(Semaphore::new(1));
-    let started = Instant::now();
-    let orphan = tokio::spawn(bounded_orphan(
-        blackholed(alternative.guard(), Arc::clone(&admission)),
-        ORPHANED_SETUP_LIMIT,
-    ));
-
-    sleep(ORPHANED_SETUP_LIMIT - Duration::from_millis(1)).await;
-    assert!(!alternative.was_dropped());
-    assert_eq!(admission.available_permits(), 0);
-
-    assert!(orphan.await?.is_none());
-    assert_eq!(Instant::now() - started, ORPHANED_SETUP_LIMIT);
-    assert!(alternative.was_dropped());
     assert_eq!(admission.available_permits(), 1);
     Ok(())
 }

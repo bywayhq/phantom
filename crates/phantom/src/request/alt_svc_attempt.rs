@@ -23,7 +23,7 @@ use crate::{
     session::{
         alt_svc::{AlternativeTarget, invalidates_alternative},
         http1_or_2_pool,
-        http3_pool::{self, Http3Lease, Http3TransportTarget},
+        http3_pool::{self, Http3Lease, Http3SetupControl, Http3TransportTarget},
     },
     timeout::TimeoutBudget,
 };
@@ -96,7 +96,7 @@ pub(super) async fn send_once_raced(
         .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
 
-    let admitted = Arc::new(AtomicBool::new(false));
+    let connecting = Arc::new(AtomicBool::new(false));
     let alternative_setup = Box::pin(alternative_setup(
         client.clone(),
         request.endpoint.clone(),
@@ -104,7 +104,7 @@ pub(super) async fn send_once_raced(
         alternative.clone(),
         timeout_budget,
         retries.for_alternative_setup(),
-        Arc::clone(&admitted),
+        Arc::clone(&connecting),
     ));
     let outcome = race_setup(
         alternative_setup,
@@ -156,9 +156,10 @@ pub(super) async fn send_once_raced(
                     );
                 }
                 Candidate::Failed(_) | Candidate::Taken => {}
-                // A setup still waiting for pool admission has done no
-                // network work, so it is cancelled rather than orphaned.
-                Candidate::Pending(setup) if admitted.load(Ordering::Acquire) => {
+                // A setup still waiting for admission or for its location's
+                // connect turn has done no network work, so it is cancelled
+                // rather than orphaned.
+                Candidate::Pending(setup) if connecting.load(Ordering::Acquire) => {
                     continue_alternative(
                         client.clone(),
                         request.endpoint.clone(),
@@ -176,6 +177,10 @@ pub(super) async fn send_once_raced(
 
 /// Admits and connects one alternative lease with owned state, so an
 /// unfinished setup can outlive the request that started it.
+///
+/// `connecting` is set once the setup holds its location's connect turn. The
+/// attempt is limited to [`ALTERNATIVE_SETUP_LIMIT`] from then on, and the
+/// request's own connect and total deadlines still apply when shorter.
 async fn alternative_setup(
     client: Client,
     endpoint: crate::authority::Endpoint,
@@ -183,7 +188,7 @@ async fn alternative_setup(
     alternative: AlternativeTarget,
     timeout_budget: TimeoutBudget,
     mut retries: crate::retry::ConnectionSetupRetryState,
-    admitted: Arc<AtomicBool>,
+    connecting: Arc<AtomicBool>,
 ) -> Result<Http3Lease, RequestError> {
     let connector = client
         .inner
@@ -195,7 +200,6 @@ async fn alternative_setup(
         .http3
         .admit(&endpoint, &route, timeout_budget)
         .await?;
-    admitted.store(true, Ordering::Release);
     admission
         .connect(
             connector,
@@ -205,26 +209,40 @@ async fn alternative_setup(
             Http3TransportTarget::new(alternative.host(), alternative.port()),
             timeout_budget,
             &mut retries,
+            Http3SetupControl {
+                connecting: Some(&connecting),
+                attempt_limit: Some(ALTERNATIVE_SETUP_LIMIT),
+            },
         )
         .await
 }
 
-/// Longest time an orphaned alternative setup may keep running: Chromium's
-/// QUIC crypto handshake limit (`net/base/features.cc` `kQuicHandshakeTimeout`,
-/// quiche `kMaxTimeForCryptoHandshakeSecs` = 10 at Chrome 153.0.8010.48).
+/// Longest time one alternative connection attempt may run once it holds
+/// its location's connect turn: Chromium's client QUIC idle timeout before
+/// the handshake completes.
 ///
-/// The request's connect and total deadlines still apply when shorter. The
-/// cap bounds how long the task keeps its client handle, admission permit,
-/// and QUIC socket after the request, or the client, is gone.
-pub(super) const ORPHANED_SETUP_LIMIT: Duration = Duration::from_secs(10);
+/// At 153.0.8010.48, `QuicParams::max_idle_time_before_crypto_handshake` is
+/// `quic::kInitialIdleTimeoutSecs` (`net/quic/quic_context.h` line 172), 5
+/// seconds at the pinned quiche revision 2c4a1246
+/// (`quiche/quic/core/quic_constants.h` line 159), and quiche shortens a
+/// client's idle timeout by one second (`QuicConnection::SetNetworkTimeouts`,
+/// `quic_connection.cc` lines 4983-4984). The `udp-blackhole` capture shows
+/// the orphaned QUIC job failing with `ERR_QUIC_HANDSHAKE_FAILED` 4002-4016
+/// ms after it started.
+///
+/// Chromium restarts that timer on every received packet and lets a
+/// responsive handshake run for up to 10 seconds
+/// (`kMaxTimeForCryptoHandshakeSecs`). Phantom cannot observe handshake
+/// packets at this layer, so it bounds the whole attempt instead.
+pub(super) const ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
 
-/// Lets an admitted alternative that lost to the origin finish connecting.
+/// Lets an alternative that lost to the origin while connecting finish.
 ///
 /// Like Chromium's orphaned alternative job, a finished connection stays
 /// pooled for later requests and clears the alternative's failure history,
-/// while a failure marks it broken. A setup that exceeds
-/// [`ORPHANED_SETUP_LIMIT`] is cancelled without marking. Without a Tokio
-/// runtime handle the setup is dropped instead.
+/// while a failure, including reaching [`ALTERNATIVE_SETUP_LIMIT`], marks it
+/// broken. Without a Tokio runtime handle the setup is dropped instead:
+/// nothing is pooled or marked, and the alternative is raced again.
 fn continue_alternative<F>(
     client: Client,
     endpoint: crate::authority::Endpoint,
@@ -241,20 +259,14 @@ fn continue_alternative<F>(
     drop(
         runtime.spawn(
             async move {
-                let Some(result) = bounded_orphan(setup, ORPHANED_SETUP_LIMIT).await else {
-                    tracing::debug!(
-                        outcome = "abandoned",
-                        "orphaned alternative exceeded its limit"
-                    );
-                    return;
-                };
-                match result {
+                match setup.await {
                     Ok(leased) => {
                         drop(leased);
                         client.confirm_alt_svc(&endpoint, &alternative);
                         tracing::debug!(outcome = "connected", "orphaned alternative connected");
                     }
                     Err(error) if invalidates_alternative(&error) => {
+                        tracing::debug!(outcome = "failed", "orphaned alternative failed");
                         client.mark_alt_svc_broken(&endpoint, &alternative, race.broken_backoff());
                     }
                     Err(_) => {}
@@ -264,11 +276,6 @@ fn continue_alternative<F>(
             .with_current_subscriber(),
         ),
     );
-}
-
-/// Runs an orphaned setup for at most `limit`, dropping it on expiry.
-pub(super) async fn bounded_orphan<F: Future>(setup: F, limit: Duration) -> Option<F::Output> {
-    tokio::time::timeout(limit, setup).await.ok()
 }
 
 /// Checks the H3 and H1/H2 representations of the first attempt before

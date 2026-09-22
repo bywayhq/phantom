@@ -1,14 +1,18 @@
 use std::{
     collections::VecDeque,
     num::NonZeroUsize,
-    sync::{Arc, OnceLock},
+    sync::{
+        Arc, OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
 };
 
 use http::Method;
 use phantom_net::http3::{Http3Connection, Http3Connector, OriginForm, RequestHeader};
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OwnedMutexGuard};
 use tracing::debug;
 
 use super::{
@@ -168,6 +172,7 @@ impl Http3Pool {
                 transport,
                 timeout_budget,
                 retries,
+                Http3SetupControl::default(),
             )
             .await
     }
@@ -314,7 +319,10 @@ const MAX_TRANSPORT_LOCATIONS_PER_ENTRY: usize = 4;
 
 struct PoolEntry {
     /// Connections keyed by transport location, least recently used first.
+    /// Held for lookup and insertion only, never across connection setup.
     slots: Mutex<VecDeque<ConnectionSlot>>,
+    /// Connect turns keyed by transport location; see [`ConnectTurn`].
+    turns: ConnectTurns,
     admission: Arc<Admission>,
     /// Proxy TLS connector for a TCP CONNECT-UDP leg, with its own session cache.
     tcp_proxy: OnceLock<HttpsProxyConnector>,
@@ -324,6 +332,7 @@ impl PoolEntry {
     fn new(admission: Arc<Admission>) -> Self {
         Self {
             slots: Mutex::new(VecDeque::new()),
+            turns: std::sync::Mutex::new(Vec::new()),
             admission,
             tcp_proxy: OnceLock::new(),
         }
@@ -333,32 +342,99 @@ impl PoolEntry {
         Arc::clone(&self.admission).admit(HttpProtocol::Http3).await
     }
 
+    /// Waits until no other setup of this entry is connecting to `location`.
+    async fn connect_turn(self: &Arc<Self>, location: TransportLocation) -> ConnectTurn {
+        let gate = {
+            let mut turns = lock_turns(&self.turns);
+            // A gate only the table refers to was left by a cancelled waiter.
+            turns.retain(|(_, gate)| Arc::strong_count(gate) > 1);
+            if let Some((_, gate)) = turns.iter().find(|(candidate, _)| candidate == &location) {
+                Arc::clone(gate)
+            } else {
+                let gate = Arc::new(Mutex::new(()));
+                turns.push((location, Arc::clone(&gate)));
+                gate
+            }
+        };
+        let guard = Arc::clone(&gate).lock_owned().await;
+        ConnectTurn {
+            entry: Arc::clone(self),
+            gate,
+            guard: Some(guard),
+        }
+    }
+
     async fn acquire(
+        self: &Arc<Self>,
+        connector: &Http3Connector,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
+        endpoint: &Endpoint,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+        control: Http3SetupControl<'_>,
+    ) -> Result<ConnectionLease, RequestError> {
+        let location = TransportLocation::new(transport);
+        let turn = self.connect_turn(location.clone()).await;
+        if let Some(connecting) = control.connecting {
+            connecting.store(true, Ordering::Release);
+        }
+        {
+            let mut slots = self.slots.lock().await;
+            if let Some(position) = slots.iter().position(|slot| slot.location == location) {
+                if let Some(slot) = slots.remove(position) {
+                    if connector.can_reuse(&slot.connection).await {
+                        debug!(
+                            outcome = "hit",
+                            "HTTP/3 connection acquired from client pool"
+                        );
+                        let lease = slot.lease();
+                        slots.push_back(slot);
+                        return Ok(lease);
+                    }
+                }
+            }
+        }
+
+        let connect = self.connect(connector, connect_udp_proxy, endpoint, route, transport);
+        let connection = match control.attempt_limit {
+            Some(limit) => tokio::time::timeout(limit, connect).await.map_err(|_| {
+                debug!(
+                    timeout_phase = TimeoutPhase::Connect.trace_name(),
+                    protocol = HttpProtocol::Http3.trace_name(),
+                    "HTTP/3 connection attempt reached its limit"
+                );
+                RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3))
+            })??,
+            None => connect.await?,
+        };
+        let slot = ConnectionSlot {
+            connection,
+            token: Arc::new(()),
+            location,
+        };
+        let lease = slot.lease();
+        let mut slots = self.slots.lock().await;
+        if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
+            slots.pop_front();
+            debug!(outcome = "evicted", "HTTP/3 transport location evicted");
+        }
+        slots.push_back(slot);
+        drop(slots);
+        drop(turn);
+        Ok(lease)
+    }
+
+    /// Opens one connection to `transport` on `route`.
+    async fn connect(
         &self,
         connector: &Http3Connector,
         connect_udp_proxy: Option<&ConnectUdpConnectors>,
         endpoint: &Endpoint,
         route: &Route,
         transport: Http3TransportTarget<'_>,
-    ) -> Result<ConnectionLease, RequestError> {
-        let location = TransportLocation::new(transport);
-        let mut slots = self.slots.lock().await;
-        if let Some(position) = slots.iter().position(|slot| slot.location == location) {
-            if let Some(slot) = slots.remove(position) {
-                if connector.can_reuse(&slot.connection).await {
-                    debug!(
-                        outcome = "hit",
-                        "HTTP/3 connection acquired from client pool"
-                    );
-                    let lease = slot.lease();
-                    slots.push_back(slot);
-                    return Ok(lease);
-                }
-            }
-        }
-
+    ) -> Result<Http3Connection, RequestError> {
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
-        let connection = match route {
+        Ok(match route {
             Route::Direct => connector
                 .connect_direct(transport.host, transport.port, endpoint.host())
                 .await
@@ -427,19 +503,7 @@ impl PoolEntry {
             Route::HttpProxy(_) => {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http3));
             }
-        };
-        let slot = ConnectionSlot {
-            connection,
-            token: Arc::new(()),
-            location,
-        };
-        let lease = slot.lease();
-        if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
-            slots.pop_front();
-            debug!(outcome = "evicted", "HTTP/3 transport location evicted");
-        }
-        slots.push_back(slot);
-        Ok(lease)
+        })
     }
 
     async fn invalidate(&self, token: &Arc<()>) {
@@ -457,6 +521,51 @@ impl PoolEntry {
     }
 }
 
+/// The right to set up a connection to one transport location of an entry.
+///
+/// A request for the same location waits for the turn and then reuses the
+/// connection it pooled, while setup to another location of the entry, such
+/// as exact H3 beside an Alt-Svc alternative, proceeds independently.
+struct ConnectTurn {
+    entry: Arc<PoolEntry>,
+    gate: Arc<Mutex<()>>,
+    guard: Option<OwnedMutexGuard<()>>,
+}
+
+impl Drop for ConnectTurn {
+    fn drop(&mut self) {
+        drop(self.guard.take());
+        let mut turns = lock_turns(&self.entry.turns);
+        // Only the table and this turn still refer to the gate: nobody waits.
+        if Arc::strong_count(&self.gate) == 2 {
+            turns.retain(|(_, gate)| !Arc::ptr_eq(gate, &self.gate));
+        }
+    }
+}
+
+/// One connect gate per transport location with a setup in progress or queued.
+type ConnectTurns = std::sync::Mutex<Vec<(TransportLocation, Arc<Mutex<()>>)>>;
+
+fn lock_turns(
+    turns: &ConnectTurns,
+) -> std::sync::MutexGuard<'_, Vec<(TransportLocation, Arc<Mutex<()>>)>> {
+    match turns.lock() {
+        Ok(turns) => turns,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+/// How one admitted setup reports and bounds its connection attempts.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Http3SetupControl<'a> {
+    /// Set once the setup holds its location's connect turn, the point after
+    /// which it may perform network I/O.
+    pub(crate) connecting: Option<&'a AtomicBool>,
+    /// Limit on one connection attempt once the turn is held, reported as a
+    /// connect-phase timeout.
+    pub(crate) attempt_limit: Option<Duration>,
+}
+
 /// One admitted request that has not acquired a connection yet.
 pub(crate) struct Http3Admission {
     entry: Arc<PoolEntry>,
@@ -465,6 +574,9 @@ pub(crate) struct Http3Admission {
 
 impl Http3Admission {
     /// Acquires this admission's connection, with setup retries.
+    ///
+    /// Waiting for the location's connect turn counts toward each attempt's
+    /// connect phase, as does the attempt itself.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn connect(
         self,
@@ -475,11 +587,19 @@ impl Http3Admission {
         transport: Http3TransportTarget<'_>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
+        control: Http3SetupControl<'_>,
     ) -> Result<Http3Lease, RequestError> {
         let Self { entry, permit } = self;
         let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
             entry
-                .acquire(connector, connect_udp_proxy, endpoint, route, transport)
+                .acquire(
+                    connector,
+                    connect_udp_proxy,
+                    endpoint,
+                    route,
+                    transport,
+                    control,
+                )
                 .await
         })
         .await?;
@@ -723,6 +843,38 @@ mod tests {
         drop(permit);
         assert_eq!(replacement.admission.available_active(), 1);
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn connect_turn_serializes_one_transport_location_only()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let one = NonZeroUsize::MIN;
+        let pool = Http3Pool::new(one, one, one);
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let entry = pool.entry(PoolKey::new(&endpoint, &Route::Direct)).await;
+        let alternative = TransportLocation::new(Http3TransportTarget::new("alt.test", 8443));
+        let origin = TransportLocation::new(Http3TransportTarget::for_origin(&endpoint));
+
+        let setup = entry.connect_turn(alternative.clone()).await;
+        // Exact H3 to the origin location does not wait for the alternative.
+        let exact = std::pin::pin!(entry.connect_turn(origin));
+        let exact = poll_once(exact).ok_or("exact H3 waited for another location")?;
+        // A second setup to the same location waits until the turn ends.
+        let mut same = std::pin::pin!(entry.connect_turn(alternative));
+        assert!(poll_once(same.as_mut()).is_none());
+        drop(setup);
+        let same = poll_once(same).ok_or("the released turn was not handed over")?;
+
+        drop((exact, same));
+        assert!(super::lock_turns(&entry.turns).is_empty());
+        Ok(())
+    }
+
+    fn poll_once<F: std::future::Future>(future: std::pin::Pin<&mut F>) -> Option<F::Output> {
+        match future.poll(&mut std::task::Context::from_waker(std::task::Waker::noop())) {
+            std::task::Poll::Ready(output) => Some(output),
+            std::task::Poll::Pending => None,
+        }
     }
 
     #[test]
