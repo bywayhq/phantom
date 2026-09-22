@@ -40,18 +40,14 @@
       "PowerShell(cargo fmt --check *)"
     ],
     "ask": [
-      "Bash(git push *)",
       "Bash(git reset --hard *)",
       "Bash(git clean *)",
-      "Bash(git worktree remove *)",
       "Bash(git branch -D *)",
-      "Bash(gh pr merge *)",
       "Bash(gh release *)",
-      "PowerShell(git push *)",
       "PowerShell(git reset --hard *)",
       "PowerShell(git clean *)",
-      "Bash(gh api * -X *)",
-      "Bash(gh api * --method *)"
+      "PowerShell(git branch -D *)",
+      "PowerShell(gh release *)"
     ],
     "deny": [
       "Bash(git push --force*)",
