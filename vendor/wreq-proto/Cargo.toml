@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.85"
 name = "phantom-wreq-proto"
-version = "0.2.5-phantom.1"
+version = "0.2.5-phantom.2"
 authors = [
     "0x676e67 <gngppz@gmail.com>",
     "Sean McArthur <sean@seanmonstar.com>",
@@ -86,7 +86,7 @@ version = "1.4.0"
 version = "1.0.1"
 
 [dependencies.http2]
-version = "=0.5.20-phantom.1"
+version = "=0.5.20-phantom.2"
 package = "phantom-http2"
 path = "../http2"
 features = ["unstable"]
