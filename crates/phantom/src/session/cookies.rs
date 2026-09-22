@@ -584,8 +584,10 @@ fn is_public_suffix(domain: &CookieDomain) -> bool {
 /// Returns the registrable domain a cookie domain counts against, or the
 /// domain itself for an IP address or a name without one.
 ///
-/// This is Chromium's `CookieMonster::GetKey`: `GetDomainAndRegistry` returns
-/// nothing for an IP address, so each IP address host has its own limit.
+/// This is Chromium's `CookieMonster::GetKey` (153.0.8010.48,
+/// `net/cookies/cookie_monster.cc` lines 2641-2649): it falls back to the host
+/// when `GetDomainAndRegistry` returns nothing, which it does for an IP
+/// address, so each IP address host has its own limit.
 fn quota_domain(domain: &str) -> String {
     if is_ip_address(domain) {
         return domain.to_owned();
