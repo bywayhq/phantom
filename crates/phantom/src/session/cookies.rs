@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt};
+use std::{borrow::Cow, collections::HashMap, fmt};
 
 use cookie_store::{Cookie, CookieDomain, CookieStore, RawCookie, StoreAction};
 use http::{HeaderMap, header::SET_COOKIE};
@@ -23,11 +23,15 @@ pub use types::{CookieError, CookieErrorKind, CookieLimits};
 /// cookies, so matching `SameSite=Strict`, `SameSite=Lax`, `SameSite=None`,
 /// and `Partitioned` cookies are all sent.
 ///
-/// The jar rejects `SameSite=None` and `Partitioned` cookies without
-/// `Secure`, and `Secure` cookies set by an `http://` URL.
-/// [`Self::set_cookie`] reports these with
-/// [`CookieErrorKind::UnsupportedPolicy`]; a rejected response `Set-Cookie`
-/// field is ignored and never sent back.
+/// A `Secure` cookie, and a `__Secure-` or `__Host-` prefixed cookie, may be
+/// set only by a potentially trustworthy origin: an `https://` URL, or an
+/// `http://` URL whose host is a loopback address (`127.0.0.0/8` or `::1`),
+/// `localhost`, or a `.localhost` subdomain. The jar rejects `SameSite=None`
+/// and `Partitioned` cookies without `Secure` from every origin, which in
+/// turn confines them to a trustworthy one. [`Self::set_cookie`] reports
+/// these with [`CookieErrorKind::UnsupportedPolicy`] or
+/// [`CookieErrorKind::InvalidPrefix`]; a rejected response `Set-Cookie` field
+/// is ignored and never sent back.
 ///
 /// When a new cookie takes a registrable domain or the whole jar past its
 /// [`CookieLimits`] count, the least recently used cookies are evicted,
@@ -59,6 +63,10 @@ impl CookieJar {
     }
 
     /// Returns the exact request `Cookie` field value for `url`.
+    ///
+    /// A `Secure` cookie is returned to every potentially trustworthy origin,
+    /// by the same test that governs storing it, so an `http://` loopback or
+    /// `localhost` URL receives the `Secure` cookies it can set.
     ///
     /// Inspecting the jar does not count as a use: unlike a request that
     /// sends the cookies, this call leaves the eviction order unchanged.
@@ -232,7 +240,11 @@ impl JarState {
             }
         }
 
-        if url.scheme() != "https"
+        // Chromium gates the secure-overwrite rule on
+        // `CookieAccessResult::is_allowed_to_access_secure_cookies`, which a
+        // trustworthy origin sets (153.0.8010.48,
+        // `net/cookies/cookie_monster.cc` lines 1532-1547 and 1782-1785).
+        if !is_potentially_trustworthy(url)
             && self
                 .stores
                 .unpartitioned()
@@ -356,9 +368,10 @@ impl JarState {
     fn matching_value(&mut self, url: &Url) -> Option<(String, Vec<CookieKey>)> {
         self.purge_expired();
         let site = schemeful_site(url);
+        let request = secure_context_url(url);
         let mut cookies = Vec::new();
         for (store, partitioned) in self.stores.all() {
-            for cookie in store.matches(url) {
+            for cookie in store.matches(&request) {
                 let Ok(key) = CookieKey::from_cookie(cookie, partitioned) else {
                     continue;
                 };
@@ -487,30 +500,38 @@ fn parse_url(value: &str) -> Result<Url, CookieError> {
 }
 
 fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError> {
-    let secure_origin = url.scheme() == "https";
+    let trustworthy = is_potentially_trustworthy(url);
     let secure = cookie.secure() == Some(true);
-    if has_ascii_prefix(cookie.name(), "__Secure-") && (!secure || !secure_origin) {
+    // `IsCookiePrefixValid` routes both prefixes through
+    // `HasValidSecurePrefixAttributes`, which asks for `Secure` and a
+    // non-`kNonCryptographic` access scheme (153.0.8010.48,
+    // `net/cookies/cookie_util.cc` lines 105-116 and 818-838).
+    if has_ascii_prefix(cookie.name(), "__Secure-") && (!secure || !trustworthy) {
         return Err(CookieError::new(
             CookieErrorKind::InvalidPrefix,
-            "__Secure- cookies require Secure and an HTTPS origin",
+            "__Secure- cookies require Secure and a trustworthy origin",
         ));
     }
     if has_ascii_prefix(cookie.name(), "__Host-")
-        && (!secure || !secure_origin || cookie.path() != Some("/") || cookie.domain().is_some())
+        && (!secure || !trustworthy || cookie.path() != Some("/") || cookie.domain().is_some())
     {
         return Err(CookieError::new(
             CookieErrorKind::InvalidPrefix,
-            "__Host- cookies require Secure, Path=/, HTTPS, and no Domain",
+            "__Host- cookies require Secure, Path=/, a trustworthy origin, and no Domain",
         ));
     }
-    if secure && !secure_origin {
+    if secure && !trustworthy {
         return Err(CookieError::new(
             CookieErrorKind::UnsupportedPolicy,
-            "Secure cookies require an HTTPS origin",
+            "Secure cookies require a trustworthy origin",
         ));
     }
     // Chromium excludes both: EXCLUDE_SAMESITE_NONE_INSECURE and
-    // EXCLUDE_INVALID_PARTITIONED.
+    // EXCLUDE_INVALID_PARTITIONED. `SameSite=None` asks only for the `Secure`
+    // attribute, whatever the origin (153.0.8010.48,
+    // `net/cookies/cookie_base.cc` lines 367-373); `IsCookiePartitionedValid`
+    // also asks for a trustworthy origin (`net/cookies/cookie_util.cc` lines
+    // 840-852), which the `Secure` rule above has already required.
     if cookie.same_site() == Some(cookie::SameSite::None) && !secure {
         return Err(CookieError::new(
             CookieErrorKind::UnsupportedPolicy,
@@ -526,10 +547,73 @@ fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError>
     Ok(())
 }
 
+/// Returns whether `url` is a potentially trustworthy origin, which may set
+/// and receive `Secure` cookies.
+///
+/// This is Chromium's `cookie_util::ProvisionalAccessScheme` (153.0.8010.48,
+/// `net/cookies/cookie_util.cc` lines 709-714): a cryptographic scheme, or
+/// `net::IsLocalhost` (`net/base/url_util.cc` lines 468-477 and 582-589),
+/// which accepts a loopback IP literal (`127.0.0.0/8` or exactly `::1`, per
+/// `net/base/ip_address.cc` lines 267-279) and the host `localhost` or any
+/// `.localhost` subdomain, ignoring one trailing dot and ASCII case.
+///
+/// The network service reaches the same answer for an HTTP or HTTPS URL
+/// through `CookieAccessDelegateImpl::ShouldTreatUrlAsTrustworthy` and
+/// `IsUrlPotentiallyTrustworthy`
+/// (`services/network/public/cpp/is_potentially_trustworthy.cc` lines
+/// 281-356), whose W3C Secure Contexts steps 1, 2, 6, 7, and 8 cover schemes
+/// and a command-line allowlist that `parse_url` and Phantom's
+/// configuration do not admit.
+fn is_potentially_trustworthy(url: &Url) -> bool {
+    if url.scheme() == "https" {
+        return true;
+    }
+    match url.host() {
+        Some(Host::Ipv4(address)) => address.is_loopback(),
+        Some(Host::Ipv6(address)) => address.is_loopback(),
+        Some(Host::Domain(host)) => is_localhost_name(host),
+        None => false,
+    }
+}
+
+/// Returns the URL to match cookies against, made cryptographic when `url` is
+/// a trustworthy origin.
+///
+/// `CookieStore::matches` decides `Secure` access with `cookie_store`'s
+/// `utils::is_secure`, which accepts `https`, a loopback IP literal, and the
+/// exact host `localhost`, but not the `.localhost` subdomains or the
+/// trailing-dot forms `is_potentially_trustworthy` accepts. Raising the
+/// scheme keeps one rule for storing and sending; only the scheme differs,
+/// and `CookieStore::matches` reads nothing else from it beyond the host and
+/// path, which are unchanged.
+fn secure_context_url(url: &Url) -> Cow<'_, Url> {
+    if url.scheme() == "https" || !is_potentially_trustworthy(url) {
+        return Cow::Borrowed(url);
+    }
+    let mut secure = url.clone();
+    match secure.set_scheme("https") {
+        Ok(()) => Cow::Owned(secure),
+        Err(()) => Cow::Borrowed(url),
+    }
+}
+
+fn is_localhost_name(host: &str) -> bool {
+    let host = host.strip_suffix('.').unwrap_or(host);
+    host.eq_ignore_ascii_case("localhost") || has_ascii_suffix(host, ".localhost")
+}
+
 fn has_ascii_prefix(value: &str, prefix: &str) -> bool {
     value
         .get(..prefix.len())
         .is_some_and(|candidate| candidate.eq_ignore_ascii_case(prefix))
+}
+
+fn has_ascii_suffix(value: &str, suffix: &str) -> bool {
+    value
+        .len()
+        .checked_sub(suffix.len())
+        .and_then(|start| value.get(start..))
+        .is_some_and(|candidate| candidate.eq_ignore_ascii_case(suffix))
 }
 
 fn overlays_secure_cookie(cookie: &Cookie<'_>, store: &CookieStore) -> bool {

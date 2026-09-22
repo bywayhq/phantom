@@ -469,6 +469,139 @@ fn expiry_is_a_successful_deletion_or_no_op() -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
+#[test]
+fn secure_cookie_set_over_loopback_http_is_stored_and_sent_back()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    jar.set_cookie("http://127.0.0.1:8080/", "sid=1; Secure")?;
+
+    assert_eq!(
+        jar.request_value("http://127.0.0.1:8080/")?.as_deref(),
+        Some("sid=1")
+    );
+    // The port is not part of a cookie's identity, and a loopback origin is
+    // trustworthy whatever the scheme.
+    assert_eq!(
+        jar.request_value("https://127.0.0.1:8443/")?.as_deref(),
+        Some("sid=1")
+    );
+    Ok(())
+}
+
+#[test]
+fn secure_cookie_set_over_public_http_is_still_rejected() {
+    let jar = CookieJar::default();
+    let error = rejected(
+        jar.set_cookie("http://example.test/", "sid=1; Secure"),
+        "Secure cookie from a public http origin was accepted",
+    );
+    assert_eq!(error.kind(), CookieErrorKind::UnsupportedPolicy);
+    assert!(jar.is_empty());
+}
+
+#[test]
+fn trustworthy_origins_are_loopback_addresses_and_localhost_names()
+-> Result<(), Box<dyn std::error::Error>> {
+    for url in [
+        "http://localhost/",
+        "http://localhost./",
+        "http://LoCaLhOsT/",
+        "http://app.localhost/",
+        "http://deep.app.localhost./",
+        "http://127.0.0.1/",
+        "http://127.13.2.9/",
+        "http://[::1]/",
+    ] {
+        let jar = CookieJar::default();
+        jar.set_cookie(url, "sid=1; Secure")?;
+        assert_eq!(
+            jar.request_value(url)?.as_deref(),
+            Some("sid=1"),
+            "{url} should store and send a Secure cookie"
+        );
+    }
+
+    for url in [
+        "http://localhost.test/",
+        "http://notlocalhost/",
+        "http://xlocalhost/",
+        "http://128.0.0.1/",
+        // Only `::1` is loopback; an IPv4-mapped loopback address is not.
+        "http://[::ffff:127.0.0.1]/",
+    ] {
+        let jar = CookieJar::default();
+        let error = rejected(
+            jar.set_cookie(url, "sid=1; Secure"),
+            "Secure cookie from an untrustworthy origin was accepted",
+        );
+        assert_eq!(
+            error.kind(),
+            CookieErrorKind::UnsupportedPolicy,
+            "{url} should not be trustworthy"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn prefixed_cookies_accept_a_trustworthy_http_origin() -> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    jar.set_cookie("http://localhost/", "__Secure-id=1; Secure")?;
+    jar.set_cookie("http://localhost/", "__Host-id=2; Secure; Path=/")?;
+
+    assert_eq!(
+        jar.request_value("http://localhost/")?.as_deref(),
+        Some("__Secure-id=1; __Host-id=2")
+    );
+
+    for value in ["__Secure-id=1; Secure", "__Host-id=2; Secure; Path=/"] {
+        let error = rejected(
+            jar.set_cookie("http://example.test/", value),
+            "prefixed cookie from a public http origin was accepted",
+        );
+        assert_eq!(error.kind(), CookieErrorKind::InvalidPrefix);
+    }
+    Ok(())
+}
+
+#[test]
+fn same_site_none_and_partitioned_require_secure_not_https()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    jar.set_cookie("http://127.0.0.1/", "none=1; SameSite=None; Secure")?;
+    jar.set_cookie("http://127.0.0.1/", "chips=2; Secure; Partitioned")?;
+
+    assert_eq!(
+        jar.request_value("http://127.0.0.1/")?.as_deref(),
+        Some("none=1; chips=2")
+    );
+
+    // The `Secure` attribute, not the scheme, is what these two demand, so a
+    // trustworthy origin does not excuse its absence.
+    for value in ["none=1; SameSite=None", "chips=2; Partitioned"] {
+        let error = rejected(
+            jar.set_cookie("http://127.0.0.1/", value),
+            "insecure SameSite=None or Partitioned cookie was accepted",
+        );
+        assert_eq!(error.kind(), CookieErrorKind::UnsupportedPolicy);
+    }
+    Ok(())
+}
+
+#[test]
+fn trustworthy_origin_may_overlay_its_own_secure_cookie() -> Result<(), Box<dyn std::error::Error>>
+{
+    let jar = CookieJar::default();
+    jar.set_cookie("https://localhost/account", "sid=good; Secure; Path=/")?;
+    jar.set_cookie("http://localhost/account", "sid=plain; Path=/")?;
+
+    assert_eq!(
+        jar.request_value("http://localhost/account")?.as_deref(),
+        Some("sid=plain")
+    );
+    Ok(())
+}
+
 fn rejected(result: Result<(), CookieError>, message: &'static str) -> CookieError {
     match result {
         Ok(()) => panic!("{message}"),
