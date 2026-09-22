@@ -59,9 +59,9 @@ impl AltSvcPolicy {
 /// origin already has a reusable pooled HTTP/2 connection. The first
 /// candidate to finish setup carries the request.
 ///
-/// An alternative connection attempt runs for at most 4 seconds, Chrome
-/// 153's timeout for a blackholed alternative; reaching it is a setup
-/// failure. Chrome restarts that timeout on every received packet, so a
+/// An alternative connection attempt, including name resolution and any
+/// proxy setup, runs for at most 4 seconds, Chrome 153's timeout for a
+/// blackholed alternative; reaching it is a setup failure. Chrome restarts that timeout on every received packet, so a
 /// responsive alternative whose handshake needs longer fails here but not in
 /// Chrome.
 ///

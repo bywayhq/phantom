@@ -360,8 +360,8 @@ entry keeps connections for up to four transport locations, so alternating
 exact H3 and Alt-Svc H3 requests reuse their own connections under the same
 admission bounds. Setup is serialized per transport location, not per entry,
 and the slot table is never locked across connection setup, so a slow setup
-to one location does not delay another. The QUIC dial location changes, while origin
-authority and certificate identity do not; by default setup failure is
+to one location does not delay another. The QUIC dial location changes, while
+origin authority and certificate identity do not; by default setup failure is
 terminal and evicts the advertisement without an H1/H2 fallback. An opt-in
 racing policy instead races alternative setup against delayed origin setup
 and marks a failed alternative broken; see

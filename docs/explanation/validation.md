@@ -285,7 +285,8 @@ extending the current one (`broken_alternative_services.cc` lines 137-154).
 Known differences: the origin delay is caller-supplied because Chromium's
 depends on QUIC history and measured RTT. Chromium restarts its 4 s idle
 timer on every received packet and allows a responsive handshake up to 10 s,
-while Phantom limits the whole attempt to 4 s. Phantom cancels a losing
+while Phantom limits the whole attempt, including name resolution and proxy
+setup, to 4 s. Phantom cancels a losing
 origin setup instead of keeping its connection idle, does not persist
 brokenness, does not reset it on a network change, and has no DNS
 HTTPS-record (`dns_alpn_h3`) job. A background alternative keeps its H3

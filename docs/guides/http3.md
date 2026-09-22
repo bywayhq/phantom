@@ -183,8 +183,9 @@ setup failure. Chrome 153 fails a blackholed alternative after 4 seconds, its
 client QUIC idle timeout before the handshake completes. Chrome restarts that
 timer whenever a packet arrives and allows a responsive handshake up to 10
 seconds. Phantom cannot see handshake packets at this layer, so it limits the
-whole attempt: a responsive alternative whose handshake takes longer than 4
-seconds fails in Phantom but not in Chrome.
+whole attempt, including name resolution and, on proxy routes, proxy setup: a
+responsive alternative whose handshake takes longer than 4 seconds, or a slow
+resolver or proxy, fails in Phantom but not in Chrome.
 
 When the alternative wins, a still-connecting origin setup is cancelled. When
 the origin wins, an alternative that has begun connecting continues in the
@@ -199,14 +200,15 @@ next request races the alternative again.
 
 Setups for one origin and route are serialized per QUIC location. A request
 to a location waits while another setup connects to that same location and
-then reuses its connection; exact H3 to the origin's own location does not
-wait for a background alternative setup.
+then reuses its connection if that setup succeeded; exact H3 to the origin's
+own location does not wait for a background alternative setup.
 
 An alternative that fails while the origin succeeds is marked broken for
 `AltSvcBrokenBackoff`: the first failure lasts `initial`, each later failure
 doubles it up to `maximum`, and a successful alternative connection clears the
 history. As in Chromium, a failure reported while the alternative is already
-broken counts toward the next period but does not extend the current one. A broken alternative is not raced; the request goes to the origin.
+broken counts toward the next period but does not extend the current one. A
+broken alternative is not raced; the request goes to the origin.
 When both candidates fail, the origin's error is returned and nothing is
 marked. After a winner is chosen, retries and replays within the request stay
 on the winner's protocol, and a later failure on a won alternative evicts it

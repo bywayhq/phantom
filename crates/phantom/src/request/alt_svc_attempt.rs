@@ -245,7 +245,8 @@ async fn alternative_setup(
 /// Chromium restarts that timer on every received packet and lets a
 /// responsive handshake run for up to 10 seconds
 /// (`kMaxTimeForCryptoHandshakeSecs`). Phantom cannot observe handshake
-/// packets at this layer, so it bounds the whole attempt instead.
+/// packets at this layer, so it bounds the whole attempt instead, including
+/// name resolution and proxy setup that Chromium's timer does not cover.
 pub(super) const ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
 
 /// Lets an alternative that lost to the origin while connecting finish.
