@@ -771,6 +771,7 @@ dependencies = [
  "phantom-quinn",
  "phantom-tokio-btls",
  "phantom-wreq-proto",
+ "socket2",
  "tokio",
  "tokio-socks",
  "tracing",

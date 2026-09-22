@@ -1166,6 +1166,7 @@ dependencies = [
  "phantom-wreq-proto",
  "rcgen",
  "rustls",
+ "socket2",
  "tokio",
  "tokio-socks",
  "tracing",
