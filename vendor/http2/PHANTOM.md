@@ -226,6 +226,27 @@ and the builders in `src/{client,server}.rs`, and carries upstream's unit tests.
 Upstream's own dropped-`RecvStream` flow-control release (#930) is not part of
 this backport.
 
+## Local receive limits
+
+Upstream decodes up to 16 MiB of response header list when the local SETTINGS
+omit `SETTINGS_MAX_HEADER_LIST_SIZE`, which browser profiles such as Firefox
+and Safari do. `local-header-list-limit.patch` adds the client builder option
+`local_max_header_list_size`. It is never advertised, so the SETTINGS frame is
+unchanged. The codec keeps the advertised value (or the 16 MiB default) and
+the local value separately and applies the lower one, including when the
+local SETTINGS are acknowledged, so a peer cannot raise it. The header-block
+byte, CONTINUATION, and fourfold connection-abuse bounds derive from that
+effective limit exactly as they do from the advertised setting.
+
+A client response over the effective limit still resets the stream with
+`PROTOCOL_ERROR`, as before. The stream records the cause, and the error
+returned from the response future reports
+`http2::Error::is_header_list_too_large()`, so callers can classify it without
+any change to the frames sent. The patch changes `src/client.rs`,
+`src/codec/{framed_read,mod}.rs`, `src/error.rs`, and
+`src/proto/streams/{recv,stream,streams}.rs`, and adds a codec unit test
+proving the advertised setting cannot raise the local ceiling.
+
 ## Refreshing the vendor copy
 
 Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never

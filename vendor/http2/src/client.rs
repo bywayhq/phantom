@@ -354,6 +354,9 @@ pub struct Builder {
     /// When this gets exceeded, we issue GOAWAYs.
     local_max_error_reset_streams: Option<usize>,
 
+    /// Unadvertised ceiling on received decoded header lists.
+    local_max_header_list_size: Option<u32>,
+
     /// The headers frame pseudo order
     headers_pseudo_order: Option<PseudoOrder>,
 
@@ -705,6 +708,7 @@ impl Builder {
             initial_peer_settings: None,
             stream_id: 1.into(),
             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
+            local_max_header_list_size: None,
             headers_pseudo_order: None,
             headers_stream_dependency: None,
             priorities: None,
@@ -852,6 +856,23 @@ impl Builder {
     /// ```
     pub fn max_header_list_size(&mut self, max: u32) -> &mut Self {
         self.settings.set_max_header_list_size(Some(max));
+        self
+    }
+
+    /// Sets a local limit on received decoded header lists without
+    /// advertising it.
+    ///
+    /// Unlike [`max_header_list_size`](Self::max_header_list_size), this
+    /// value is never sent in `SETTINGS_MAX_HEADER_LIST_SIZE`, so the initial
+    /// SETTINGS frame is unchanged. The effective receive limit is the lower
+    /// of this value and the advertised setting, or its 16 MiB default when
+    /// the setting is absent. A response whose header list exceeds it resets
+    /// the stream with `PROTOCOL_ERROR`, and the returned error reports
+    /// [`Error::is_header_list_too_large`](crate::Error::is_header_list_too_large).
+    /// A header list more than four times the limit remains a connection
+    /// error.
+    pub fn local_max_header_list_size(&mut self, max: u32) -> &mut Self {
+        self.local_max_header_list_size = Some(max);
         self
     }
 
@@ -1450,6 +1471,10 @@ where
 
         if let Some(max) = builder.settings.max_frame_size() {
             codec.set_max_recv_frame_size(max as usize);
+        }
+
+        if let Some(max) = builder.local_max_header_list_size {
+            codec.set_local_max_recv_header_list_size(max as usize);
         }
 
         if let Some(max) = builder.settings.max_header_list_size() {

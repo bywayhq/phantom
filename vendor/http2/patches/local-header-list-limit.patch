@@ -1,0 +1,318 @@
+diff --git a/src/client.rs b/src/client.rs
+index a0b8ee4..24a1225 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -354,6 +354,9 @@ pub struct Builder {
+     /// When this gets exceeded, we issue GOAWAYs.
+     local_max_error_reset_streams: Option<usize>,
+ 
++    /// Unadvertised ceiling on received decoded header lists.
++    local_max_header_list_size: Option<u32>,
++
+     /// The headers frame pseudo order
+     headers_pseudo_order: Option<PseudoOrder>,
+ 
+@@ -705,6 +708,7 @@ impl Builder {
+             initial_peer_settings: None,
+             stream_id: 1.into(),
+             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
++            local_max_header_list_size: None,
+             headers_pseudo_order: None,
+             headers_stream_dependency: None,
+             priorities: None,
+@@ -855,6 +859,23 @@ impl Builder {
+         self
+     }
+ 
++    /// Sets a local limit on received decoded header lists without
++    /// advertising it.
++    ///
++    /// Unlike [`max_header_list_size`](Self::max_header_list_size), this
++    /// value is never sent in `SETTINGS_MAX_HEADER_LIST_SIZE`, so the initial
++    /// SETTINGS frame is unchanged. The effective receive limit is the lower
++    /// of this value and the advertised setting, or its 16 MiB default when
++    /// the setting is absent. A response whose header list exceeds it resets
++    /// the stream with `PROTOCOL_ERROR`, and the returned error reports
++    /// [`Error::is_header_list_too_large`](crate::Error::is_header_list_too_large).
++    /// A header list more than four times the limit remains a connection
++    /// error.
++    pub fn local_max_header_list_size(&mut self, max: u32) -> &mut Self {
++        self.local_max_header_list_size = Some(max);
++        self
++    }
++
+     /// Sets the maximum number of concurrent streams.
+     ///
+     /// The maximum concurrent streams setting only controls the maximum number
+@@ -1452,6 +1473,10 @@ where
+             codec.set_max_recv_frame_size(max as usize);
+         }
+ 
++        if let Some(max) = builder.local_max_header_list_size {
++            codec.set_local_max_recv_header_list_size(max as usize);
++        }
++
+         if let Some(max) = builder.settings.max_header_list_size() {
+             codec.set_max_recv_header_list_size(max as usize);
+         }
+diff --git a/src/codec/framed_read.rs b/src/codec/framed_read.rs
+index 0d27c17..aaa5129 100644
+--- a/src/codec/framed_read.rs
++++ b/src/codec/framed_read.rs
+@@ -41,6 +41,12 @@ pub struct FramedRead<T> {
+ 
+     max_header_list_size: usize,
+ 
++    // Advertised SETTINGS_MAX_HEADER_LIST_SIZE, or the default when absent.
++    advertised_max_header_list_size: usize,
++
++    // Unadvertised ceiling; `max_header_list_size` never exceeds it.
++    local_max_header_list_size: usize,
++
+     max_header_block_bytes: usize,
+ 
+     max_continuation_frames: usize,
+@@ -79,6 +85,8 @@ impl<T> FramedRead<T> {
+             inner,
+             hpack: hpack::Decoder::new(DEFAULT_SETTINGS_HEADER_TABLE_SIZE),
+             max_header_list_size,
++            advertised_max_header_list_size: max_header_list_size,
++            local_max_header_list_size: usize::MAX,
+             max_header_block_bytes,
+             max_continuation_frames,
+             partial: None,
+@@ -111,6 +119,21 @@ impl<T> FramedRead<T> {
+     /// Update the max header list size setting.
+     #[inline]
+     pub fn set_max_header_list_size(&mut self, val: usize) {
++        self.advertised_max_header_list_size = val;
++        self.apply_max_header_list_size();
++    }
++
++    /// Update the unadvertised local header list size ceiling.
++    #[inline]
++    pub fn set_local_max_header_list_size(&mut self, val: usize) {
++        self.local_max_header_list_size = val;
++        self.apply_max_header_list_size();
++    }
++
++    fn apply_max_header_list_size(&mut self) {
++        let val = self
++            .advertised_max_header_list_size
++            .min(self.local_max_header_list_size);
+         self.max_header_list_size = val;
+         self.max_header_block_bytes = calc_max_header_block_bytes(val);
+         self.max_continuation_frames = calc_max_continuation_frames(val);
+@@ -508,10 +531,38 @@ fn map_err(err: io::Error) -> Error {
+ #[cfg(test)]
+ mod tests {
+     use super::{
+-        calc_max_continuation_frames, calc_max_header_block_bytes, MAX_CONTINUATION_FRAMES,
++        calc_max_continuation_frames, calc_max_header_block_bytes, FramedRead, InnerFramedRead,
++        LengthDelimitedCodec, DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE, MAX_CONTINUATION_FRAMES,
+         MIN_CONTINUATION_FRAMES,
+     };
+ 
++    #[test]
++    fn local_header_list_ceiling_is_never_raised_by_the_advertised_setting() {
++        let inner = InnerFramedRead::new(&b""[..], LengthDelimitedCodec::new());
++        let mut framed = FramedRead::new(inner);
++        assert_eq!(
++            framed.max_header_list_size,
++            DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE
++        );
++
++        framed.set_local_max_header_list_size(393_216);
++        assert_eq!(framed.max_header_list_size, 393_216);
++        assert_eq!(
++            framed.max_header_block_bytes,
++            calc_max_header_block_bytes(393_216)
++        );
++
++        framed.set_max_header_list_size(262_144);
++        assert_eq!(framed.max_header_list_size, 262_144);
++
++        framed.set_max_header_list_size(1 << 20);
++        assert_eq!(framed.max_header_list_size, 393_216);
++        assert_eq!(
++            framed.max_continuation_frames,
++            calc_max_continuation_frames(393_216)
++        );
++    }
++
+     #[test]
+     fn header_block_budget_covers_maximum_huffman_expansion() {
+         assert_eq!(calc_max_header_block_bytes(65_536), 262_156);
+diff --git a/src/codec/mod.rs b/src/codec/mod.rs
+index 5513f11..7a6b9b6 100644
+--- a/src/codec/mod.rs
++++ b/src/codec/mod.rs
+@@ -105,6 +105,11 @@ impl<T, B> Codec<T, B> {
+         self.inner.set_max_header_list_size(val);
+     }
+ 
++    /// Set an unadvertised ceiling on the header list size that can be received.
++    pub fn set_local_max_recv_header_list_size(&mut self, val: usize) {
++        self.inner.set_local_max_header_list_size(val);
++    }
++
+     /// Get a reference to the inner stream.
+     #[cfg(feature = "unstable")]
+     pub fn get_ref(&self) -> &T {
+diff --git a/src/error.rs b/src/error.rs
+index 1ad58f7..f9293cd 100644
+--- a/src/error.rs
++++ b/src/error.rs
+@@ -20,6 +20,14 @@ pub use crate::frame::Reason;
+ #[derive(Debug)]
+ pub struct Error {
+     kind: Kind,
++    local_limit: Option<LocalLimit>,
++}
++
++/// A local receive limit whose violation made the library reset a stream.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(crate) enum LocalLimit {
++    /// The decoded header list exceeded the local receive limit.
++    HeaderListSize,
+ }
+ 
+ #[derive(Debug)]
+@@ -82,6 +90,7 @@ impl Error {
+     pub(crate) fn from_io(err: io::Error) -> Self {
+         Error {
+             kind: Kind::Io(err),
++            local_limit: None,
+         }
+     }
+ 
+@@ -114,6 +123,28 @@ impl Error {
+             Kind::GoAway(_, _, Initiator::Library) | Kind::Reset(_, _, Initiator::Library)
+         )
+     }
++
++    /// Returns true if the library reset the stream because a received header
++    /// list exceeded the local receive limit.
++    ///
++    /// The limit is the lower of the advertised `SETTINGS_MAX_HEADER_LIST_SIZE`
++    /// and any unadvertised client limit. The stream is still reset with
++    /// `PROTOCOL_ERROR`, so this does not change the frames sent to the peer.
++    pub fn is_header_list_too_large(&self) -> bool {
++        self.local_limit == Some(LocalLimit::HeaderListSize)
++    }
++
++    /// Marks a library stream reset with the local limit that caused it.
++    pub(crate) fn from_stream_reset(src: proto::Error, local_limit: Option<LocalLimit>) -> Self {
++        let local_limit = match src {
++            proto::Error::Reset(_, _, Initiator::Library) => local_limit,
++            _ => None,
++        };
++        Error {
++            local_limit,
++            ..src.into()
++        }
++    }
+ }
+ 
+ impl From<proto::Error> for Error {
+@@ -130,6 +161,7 @@ impl From<proto::Error> for Error {
+                     Kind::Io(inner.map_or_else(|| kind.into(), |inner| io::Error::new(kind, inner)))
+                 }
+             },
++            local_limit: None,
+         }
+     }
+ }
+@@ -138,6 +170,7 @@ impl From<Reason> for Error {
+     fn from(src: Reason) -> Error {
+         Error {
+             kind: Kind::Reason(src),
++            local_limit: None,
+         }
+     }
+ }
+@@ -155,6 +188,7 @@ impl From<UserError> for Error {
+     fn from(src: UserError) -> Error {
+         Error {
+             kind: Kind::User(src),
++            local_limit: None,
+         }
+     }
+ }
+diff --git a/src/proto/streams/recv.rs b/src/proto/streams/recv.rs
+index f6f07a6..ede3769 100644
+--- a/src/proto/streams/recv.rs
++++ b/src/proto/streams/recv.rs
+@@ -286,6 +286,7 @@ impl Recv {
+                 res.set_end_stream();
+                 Err(RecvHeaderBlockError::Oversize(Some(res)))
+             } else {
++                stream.local_limit = Some(crate::error::LocalLimit::HeaderListSize);
+                 Err(RecvHeaderBlockError::Oversize(None))
+             };
+         }
+diff --git a/src/proto/streams/stream.rs b/src/proto/streams/stream.rs
+index cd5a661..af89986 100644
+--- a/src/proto/streams/stream.rs
++++ b/src/proto/streams/stream.rs
+@@ -114,6 +114,9 @@ pub(super) struct Stream {
+ 
+     /// Validate content-length headers
+     pub content_length: ContentLength,
++
++    /// The local receive limit that caused the library to reset this stream.
++    pub local_limit: Option<crate::error::LocalLimit>,
+ }
+ 
+ /// State related to validating a stream's content-length
+@@ -194,6 +197,7 @@ impl Stream {
+             push_task: None,
+             pending_push_promises: store::Queue::new(),
+             content_length: ContentLength::Omitted,
++            local_limit: None,
+         }
+     }
+ 
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+index 5197420..8e267a0 100644
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -1561,26 +1561,34 @@ impl OpaqueStreamRef {
+         }
+     }
+     /// Called by a client to check for a received response.
+-    pub fn poll_response(&mut self, cx: &Context) -> Poll<Result<Response<()>, proto::Error>> {
++    pub fn poll_response(&mut self, cx: &Context) -> Poll<Result<Response<()>, crate::Error>> {
+         let mut me = self.inner.lock();
+         let me = &mut *me;
+ 
+         let mut stream = me.store.resolve(self.key);
+ 
+-        me.actions.recv.poll_response(cx, &mut stream)
++        let local_limit = stream.local_limit;
++        me.actions
++            .recv
++            .poll_response(cx, &mut stream)
++            .map_err(|err| crate::Error::from_stream_reset(err, local_limit))
+     }
+ 
+     /// Called by a client to check for informational responses (1xx status codes)
+     pub fn poll_informational(
+         &mut self,
+         cx: &Context,
+-    ) -> Poll<Option<Result<Response<()>, proto::Error>>> {
++    ) -> Poll<Option<Result<Response<()>, crate::Error>>> {
+         let mut me = self.inner.lock();
+         let me = &mut *me;
+ 
+         let mut stream = me.store.resolve(self.key);
+ 
+-        me.actions.recv.poll_informational(cx, &mut stream)
++        let local_limit = stream.local_limit;
++        me.actions
++            .recv
++            .poll_informational(cx, &mut stream)
++            .map_err(|err| crate::Error::from_stream_reset(err, local_limit))
+     }
+     /// Called by a client to check for a pushed request.
+     pub fn poll_pushed(

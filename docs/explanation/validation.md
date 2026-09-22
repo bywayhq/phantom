@@ -74,7 +74,14 @@ HTTP/2 receive bounds have raw-peer regressions in
 padded-empty, and unread one-byte DATA frames each end with exactly one
 `GOAWAY(ENHANCE_YOUR_CALM)` at the first frame over the backported
 RUSTSEC-2026-0258 limit (the empty flood runs with both the Chrome and Firefox
-profiles); 100 empty frames are tolerated and never surface as body chunks. These are
+profiles); 100 empty frames are tolerated and never surface as body chunks.
+A response header list over the receive limit (262,144 bytes advertised by
+the Chrome profile, the unadvertised 393,216-byte ceiling for Firefox) fails
+with `Http2Error::ResponseHeaderListTooLarge` and one `RST_STREAM(PROTOCOL_ERROR)`
+while a sibling request on the same connection succeeds; the Firefox SETTINGS
+are checked to still omit `SETTINGS_MAX_HEADER_LIST_SIZE`. The empty,
+nonempty, and cumulative CONTINUATION floods also run against the Firefox
+ceiling. These are
 robustness tests against a hostile peer, not browser-capture evidence.
 
 ## Ordered request-trailer evidence

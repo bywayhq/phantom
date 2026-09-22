@@ -69,6 +69,7 @@ Chromium purges to the same 150 and 3,000. See
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |
 | Informational (1xx) responses before the final head (H1 and H3) | 8 |
 | Decoded H3 response field section (headers or trailers) | 256 KiB, or the profile's lower `SETTINGS_MAX_FIELD_SECTION_SIZE` |
+| Decoded HTTP/2 response header list | Lower of the profile's `SETTINGS_MAX_HEADER_LIST_SIZE` and 393,216 bytes (not advertised) |
 | Stacked content codings | 3 |
 | zstd window | 8 MiB |
 | Decoded data frame size | 16 KiB |

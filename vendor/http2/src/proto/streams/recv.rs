@@ -286,6 +286,7 @@ impl Recv {
                 res.set_end_stream();
                 Err(RecvHeaderBlockError::Oversize(Some(res)))
             } else {
+                stream.local_limit = Some(crate::error::LocalLimit::HeaderListSize);
                 Err(RecvHeaderBlockError::Oversize(None))
             };
         }

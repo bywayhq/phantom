@@ -225,6 +225,13 @@ pub enum Http2Error {
     HeaderMapCapacity,
     /// The HTTP backend completed a response without its ordered field capture.
     MissingResponseHeaderOrder,
+    /// A response header list exceeded the receive limit, and the stream was
+    /// reset with `PROTOCOL_ERROR`.
+    ///
+    /// The limit is the lower of the profile's advertised
+    /// `SETTINGS_MAX_HEADER_LIST_SIZE` and an unadvertised 393,216-byte
+    /// ceiling, counted as in RFC 9113 section 6.5.2.
+    ResponseHeaderListTooLarge,
     /// The connection was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// The HTTP protocol driver failed.
@@ -339,6 +346,9 @@ impl fmt::Display for Http2Error {
             Self::MissingResponseHeaderOrder => {
                 formatter.write_str("HTTP/2 response header order was not captured")
             }
+            Self::ResponseHeaderListTooLarge => {
+                formatter.write_str("HTTP/2 response header list exceeded the receive limit")
+            }
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/2 connections require a Tokio runtime")
             }
@@ -362,6 +372,9 @@ impl StdError for Http2Error {
 
 impl Http2Error {
     pub(super) fn protocol(error: ::http2::Error) -> Self {
+        if error.is_header_list_too_large() {
+            return Self::ResponseHeaderListTooLarge;
+        }
         Self::Protocol(Http2ProtocolError::new(error))
     }
 
@@ -404,6 +417,7 @@ impl Http2Error {
             Self::RequestBodyClosed => "request_body_closed",
             Self::HeaderMapCapacity => "header_map_capacity",
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
+            Self::ResponseHeaderListTooLarge => "response_header_list_too_large",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
         }

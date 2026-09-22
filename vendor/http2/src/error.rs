@@ -20,6 +20,14 @@ pub use crate::frame::Reason;
 #[derive(Debug)]
 pub struct Error {
     kind: Kind,
+    local_limit: Option<LocalLimit>,
+}
+
+/// A local receive limit whose violation made the library reset a stream.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LocalLimit {
+    /// The decoded header list exceeded the local receive limit.
+    HeaderListSize,
 }
 
 #[derive(Debug)]
@@ -82,6 +90,7 @@ impl Error {
     pub(crate) fn from_io(err: io::Error) -> Self {
         Error {
             kind: Kind::Io(err),
+            local_limit: None,
         }
     }
 
@@ -114,6 +123,28 @@ impl Error {
             Kind::GoAway(_, _, Initiator::Library) | Kind::Reset(_, _, Initiator::Library)
         )
     }
+
+    /// Returns true if the library reset the stream because a received header
+    /// list exceeded the local receive limit.
+    ///
+    /// The limit is the lower of the advertised `SETTINGS_MAX_HEADER_LIST_SIZE`
+    /// and any unadvertised client limit. The stream is still reset with
+    /// `PROTOCOL_ERROR`, so this does not change the frames sent to the peer.
+    pub fn is_header_list_too_large(&self) -> bool {
+        self.local_limit == Some(LocalLimit::HeaderListSize)
+    }
+
+    /// Marks a library stream reset with the local limit that caused it.
+    pub(crate) fn from_stream_reset(src: proto::Error, local_limit: Option<LocalLimit>) -> Self {
+        let local_limit = match src {
+            proto::Error::Reset(_, _, Initiator::Library) => local_limit,
+            _ => None,
+        };
+        Error {
+            local_limit,
+            ..src.into()
+        }
+    }
 }
 
 impl From<proto::Error> for Error {
@@ -130,6 +161,7 @@ impl From<proto::Error> for Error {
                     Kind::Io(inner.map_or_else(|| kind.into(), |inner| io::Error::new(kind, inner)))
                 }
             },
+            local_limit: None,
         }
     }
 }
@@ -138,6 +170,7 @@ impl From<Reason> for Error {
     fn from(src: Reason) -> Error {
         Error {
             kind: Kind::Reason(src),
+            local_limit: None,
         }
     }
 }
@@ -155,6 +188,7 @@ impl From<UserError> for Error {
     fn from(src: UserError) -> Error {
         Error {
             kind: Kind::User(src),
+            local_limit: None,
         }
     }
 }

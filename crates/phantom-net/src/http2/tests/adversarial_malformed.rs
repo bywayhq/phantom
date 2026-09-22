@@ -164,7 +164,9 @@ pub(super) async fn expect_one_goaway(
 }
 
 /// Accepts the client preface, completes SETTINGS, and waits for stream 1.
-pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<()> {
+///
+/// Returns the payload of the client's initial SETTINGS frame.
+pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<Vec<u8>> {
     let mut preface = [0_u8; CLIENT_PREFACE.len()];
     stream.read_exact(&mut preface).await?;
     if preface.as_slice() != CLIENT_PREFACE {
@@ -174,10 +176,10 @@ pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<
     write_frame(stream, 0x04, 0, 0, &[]).await?;
     stream.flush().await?;
 
-    let mut observed_client_settings = false;
+    let mut client_settings = None;
     let mut observed_settings_ack = false;
     let mut observed_request = false;
-    while !(observed_client_settings && observed_settings_ack && observed_request) {
+    while !(client_settings.is_some() && observed_settings_ack && observed_request) {
         let frame = read_frame(stream)
             .await?
             .ok_or("client closed during the valid SETTINGS exchange")?;
@@ -186,7 +188,7 @@ pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<
                 if frame.stream_id != 0 {
                     return Err("client sent SETTINGS on a nonzero stream".into());
                 }
-                observed_client_settings = true;
+                client_settings = Some(frame.payload);
                 write_frame(stream, 0x04, 0x01, 0, &[]).await?;
                 stream.flush().await?;
             }
@@ -200,7 +202,7 @@ pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<
             _ => {}
         }
     }
-    Ok(())
+    client_settings.ok_or_else(|| "client SETTINGS were not observed".into())
 }
 
 async fn write_fault(stream: &mut DuplexStream, case: MalformedCase) -> TestResult<()> {

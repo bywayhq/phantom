@@ -1561,26 +1561,34 @@ impl OpaqueStreamRef {
         }
     }
     /// Called by a client to check for a received response.
-    pub fn poll_response(&mut self, cx: &Context) -> Poll<Result<Response<()>, proto::Error>> {
+    pub fn poll_response(&mut self, cx: &Context) -> Poll<Result<Response<()>, crate::Error>> {
         let mut me = self.inner.lock();
         let me = &mut *me;
 
         let mut stream = me.store.resolve(self.key);
 
-        me.actions.recv.poll_response(cx, &mut stream)
+        let local_limit = stream.local_limit;
+        me.actions
+            .recv
+            .poll_response(cx, &mut stream)
+            .map_err(|err| crate::Error::from_stream_reset(err, local_limit))
     }
 
     /// Called by a client to check for informational responses (1xx status codes)
     pub fn poll_informational(
         &mut self,
         cx: &Context,
-    ) -> Poll<Option<Result<Response<()>, proto::Error>>> {
+    ) -> Poll<Option<Result<Response<()>, crate::Error>>> {
         let mut me = self.inner.lock();
         let me = &mut *me;
 
         let mut stream = me.store.resolve(self.key);
 
-        me.actions.recv.poll_informational(cx, &mut stream)
+        let local_limit = stream.local_limit;
+        me.actions
+            .recv
+            .poll_informational(cx, &mut stream)
+            .map_err(|err| crate::Error::from_stream_reset(err, local_limit))
     }
     /// Called by a client to check for a pushed request.
     pub fn poll_pushed(

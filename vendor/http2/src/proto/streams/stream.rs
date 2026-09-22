@@ -114,6 +114,9 @@ pub(super) struct Stream {
 
     /// Validate content-length headers
     pub content_length: ContentLength,
+
+    /// The local receive limit that caused the library to reset this stream.
+    pub local_limit: Option<crate::error::LocalLimit>,
 }
 
 /// State related to validating a stream's content-length
@@ -194,6 +197,7 @@ impl Stream {
             push_task: None,
             pending_push_promises: store::Queue::new(),
             content_length: ContentLength::Omitted,
+            local_limit: None,
         }
     }
 

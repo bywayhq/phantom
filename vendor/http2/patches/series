@@ -7,4 +7,5 @@ continuation-bounds.patch
 altsvc-frames.patch
 headers-frame-overrides.patch
 empty-data-frame-budget.patch
+local-header-list-limit.patch
 publish-identity.patch

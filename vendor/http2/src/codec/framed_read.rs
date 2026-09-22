@@ -41,6 +41,12 @@ pub struct FramedRead<T> {
 
     max_header_list_size: usize,
 
+    // Advertised SETTINGS_MAX_HEADER_LIST_SIZE, or the default when absent.
+    advertised_max_header_list_size: usize,
+
+    // Unadvertised ceiling; `max_header_list_size` never exceeds it.
+    local_max_header_list_size: usize,
+
     max_header_block_bytes: usize,
 
     max_continuation_frames: usize,
@@ -79,6 +85,8 @@ impl<T> FramedRead<T> {
             inner,
             hpack: hpack::Decoder::new(DEFAULT_SETTINGS_HEADER_TABLE_SIZE),
             max_header_list_size,
+            advertised_max_header_list_size: max_header_list_size,
+            local_max_header_list_size: usize::MAX,
             max_header_block_bytes,
             max_continuation_frames,
             partial: None,
@@ -111,6 +119,21 @@ impl<T> FramedRead<T> {
     /// Update the max header list size setting.
     #[inline]
     pub fn set_max_header_list_size(&mut self, val: usize) {
+        self.advertised_max_header_list_size = val;
+        self.apply_max_header_list_size();
+    }
+
+    /// Update the unadvertised local header list size ceiling.
+    #[inline]
+    pub fn set_local_max_header_list_size(&mut self, val: usize) {
+        self.local_max_header_list_size = val;
+        self.apply_max_header_list_size();
+    }
+
+    fn apply_max_header_list_size(&mut self) {
+        let val = self
+            .advertised_max_header_list_size
+            .min(self.local_max_header_list_size);
         self.max_header_list_size = val;
         self.max_header_block_bytes = calc_max_header_block_bytes(val);
         self.max_continuation_frames = calc_max_continuation_frames(val);
@@ -508,9 +531,37 @@ fn map_err(err: io::Error) -> Error {
 #[cfg(test)]
 mod tests {
     use super::{
-        calc_max_continuation_frames, calc_max_header_block_bytes, MAX_CONTINUATION_FRAMES,
+        calc_max_continuation_frames, calc_max_header_block_bytes, FramedRead, InnerFramedRead,
+        LengthDelimitedCodec, DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE, MAX_CONTINUATION_FRAMES,
         MIN_CONTINUATION_FRAMES,
     };
+
+    #[test]
+    fn local_header_list_ceiling_is_never_raised_by_the_advertised_setting() {
+        let inner = InnerFramedRead::new(&b""[..], LengthDelimitedCodec::new());
+        let mut framed = FramedRead::new(inner);
+        assert_eq!(
+            framed.max_header_list_size,
+            DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE
+        );
+
+        framed.set_local_max_header_list_size(393_216);
+        assert_eq!(framed.max_header_list_size, 393_216);
+        assert_eq!(
+            framed.max_header_block_bytes,
+            calc_max_header_block_bytes(393_216)
+        );
+
+        framed.set_max_header_list_size(262_144);
+        assert_eq!(framed.max_header_list_size, 262_144);
+
+        framed.set_max_header_list_size(1 << 20);
+        assert_eq!(framed.max_header_list_size, 393_216);
+        assert_eq!(
+            framed.max_continuation_frames,
+            calc_max_continuation_frames(393_216)
+        );
+    }
 
     #[test]
     fn header_block_budget_covers_maximum_huffman_expansion() {
