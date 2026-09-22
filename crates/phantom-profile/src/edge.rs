@@ -86,7 +86,9 @@ pub fn v153_windows_client_hints() -> ClientHintSettings {
 /// [`v153_windows_client_hints`]. `User-Agent` is a caller slot: every
 /// retained Edge capture ran headless and sent `HeadlessChrome`, and no
 /// headful Edge capture backs a literal value. The template's identity
-/// requires an `Edg/153` product and rejects `HeadlessChrome`.
+/// requires an `Edg/153` product and rejects `HeadlessChrome`, so the
+/// `phantom` client fails a request without a caller `User-Agent` instead of
+/// sending Edge brand hints with no `User-Agent`.
 #[must_use]
 pub fn v153_windows_navigation_template() -> RequestTemplate {
     chromium::v153_navigation_template(None, v153_identity())

@@ -410,6 +410,31 @@ async fn contradicting_identity_fails_before_any_connection() -> TestResult<()> 
 }
 
 #[tokio::test]
+async fn edge_template_without_a_user_agent_fails_before_any_connection() -> TestResult<()> {
+    let profile = ClientProfile::new(tls_settings())
+        .with_http2(chromium::v153_http2())
+        .with_client_hints(edge::v153_windows_client_hints());
+    let client = Client::builder(profile).build()?;
+    // Nothing listens here; an attempted connection would fail differently.
+    let url = "https://127.0.0.1:9/";
+    for template in [
+        edge::v153_windows_navigation_template(),
+        edge::v153_windows_fetch_no_store_template(),
+    ] {
+        let error = client
+            .get(HttpProtocol::Http2, url)?
+            .template(template)
+            .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
+            .send()
+            .await
+            .err()
+            .ok_or("Edge brand hints were sent without a User-Agent")?;
+        assert_eq!(error.kind(), RequestErrorKind::IdentityMismatch);
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn template_without_http3_order_rejects_http3_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
     let client = Client::builder(profile).build()?;

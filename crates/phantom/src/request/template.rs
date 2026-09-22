@@ -109,7 +109,8 @@ pub(crate) struct ProtocolScope {
 /// Returns a request-template error for invalid template data or a protocol
 /// the template has no field order for, and an identity-mismatch error when
 /// a caller `User-Agent`, a caller brand-list client hint, or the profile's
-/// brand-list client hint contradicts the template's identity.
+/// brand-list client hint contradicts the template's identity, or when the
+/// identity requires `User-Agent` products and no `User-Agent` would be sent.
 pub(crate) fn check(
     template: &RequestTemplate,
     scope: ProtocolScope,
@@ -125,14 +126,7 @@ pub(crate) fn check(
         return Err(RequestError::request_template_protocol());
     }
     if scope.content_decoding {
-        let mut codings = [
-            Some(&template.http1_fields[..]),
-            Some(&template.http2_fields[..]),
-            template.http3_fields.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-        .map(|fields| literal(fields, "accept-encoding"));
+        let mut codings = lists(template).map(|fields| literal(fields, "accept-encoding"));
         let first = codings.next().flatten();
         if codings.any(|coding| coding != first) {
             return Err(RequestError::request_template_accept_encoding());
@@ -140,6 +134,15 @@ pub(crate) fn check(
     }
 
     let identity = &template.identity;
+    let caller_user_agent = caller
+        .iter()
+        .any(|header| header.name().eq_ignore_ascii_case("user-agent"));
+    let template_user_agent = lists(template).all(|fields| literal(fields, "user-agent").is_some());
+    if !identity.user_agent_products.is_empty() && !caller_user_agent && !template_user_agent {
+        return Err(RequestError::identity_mismatch(
+            "the request template requires a User-Agent, and neither it nor the caller supplies one",
+        ));
+    }
     for header in caller {
         let name = header.name();
         if name.eq_ignore_ascii_case("user-agent") && !user_agent_agrees(identity, header.value()) {
@@ -171,6 +174,17 @@ pub(crate) fn check(
 /// made before the protocol is chosen.
 pub(crate) fn accept_encoding(template: &RequestTemplate) -> Option<&str> {
     literal(&template.http1_fields, "accept-encoding")
+}
+
+/// Returns every protocol list the template has.
+fn lists(template: &RequestTemplate) -> impl Iterator<Item = &[RequestField]> {
+    [
+        Some(&template.http1_fields[..]),
+        Some(&template.http2_fields[..]),
+        template.http3_fields.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
 }
 
 fn literal<'a>(fields: &'a [RequestField], name: &str) -> Option<&'a str> {

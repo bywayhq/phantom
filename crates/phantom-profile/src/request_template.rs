@@ -105,6 +105,9 @@ impl ProductVersion {
 pub struct RequestIdentity {
     /// `User-Agent` product tokens that must be present with these major
     /// versions, such as `Chrome/153`.
+    ///
+    /// When this is nonempty, a request must carry a `User-Agent`: either
+    /// every protocol list has a literal one, or the caller supplies it.
     pub user_agent_products: Vec<ProductVersion>,
     /// `User-Agent` product-token names that must be absent, such as `Edg`
     /// for Chrome or `Chrome` for Firefox.

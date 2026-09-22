@@ -242,8 +242,10 @@ pub enum RequestErrorKind {
     /// The request template is invalid or has no field order for a protocol
     /// the request may use.
     RequestTemplate,
-    /// A `User-Agent` or brand-list client hint names another browser or
-    /// version than the request template.
+    /// The request's identity fields disagree with the request template: a
+    /// `User-Agent` or brand-list client hint names another browser or
+    /// version, or the template requires a `User-Agent` that neither the
+    /// template nor the caller supplies.
     IdentityMismatch,
     /// The selected protocol is absent from the client profile.
     ProtocolUnavailable,

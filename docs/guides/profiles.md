@@ -222,6 +222,9 @@ templated request is checked against that claim:
   and reject `Edg` and `Firefox`; the Edge templates require `Edg/153` and
   reject `HeadlessChrome`; the Firefox templates require `Firefox/156` and
   reject `Chrome`.
+- A request must carry a `User-Agent`. The Edge templates leave it to the
+  caller, so an Edge-templated request without a caller `User-Agent` fails
+  instead of sending Edge brand hints with no `User-Agent`.
 - A caller `sec-ch-ua` or `sec-ch-ua-full-version-list`, and the profile's
   value of either hint, must list each of the template's brands once with
   its major version and no other brand except one GREASE brand in the shape
@@ -244,7 +247,7 @@ fields agree. Requests without a template are not checked, because a
 one from TLS settings would mean branching on a family name. The check
 covers only family and major version. It does not compare full versions or
 platforms, check that the profile's TLS and HTTP/2 recipes are the same
-browser's, or require a `User-Agent` to be present.
+browser's.
 
 ### Limits of the templates
 

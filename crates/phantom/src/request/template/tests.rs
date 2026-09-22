@@ -198,6 +198,48 @@ fn user_agent_of_another_browser_or_version_is_rejected() {
 }
 
 #[test]
+fn a_required_user_agent_that_nobody_supplies_is_rejected() {
+    let edge = edge::v153_windows_navigation_template();
+    let edge_hints = edge::v153_windows_client_hints();
+    let referer = [RequestHeader::new("referer", "https://example.test/")];
+    for template in [&edge, &edge::v153_windows_fetch_no_store_template()] {
+        for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
+            assert_eq!(
+                kind(template, exact(protocol), &referer, Some(&edge_hints)),
+                Some(RequestErrorKind::IdentityMismatch),
+                "{protocol:?}"
+            );
+        }
+    }
+    let caller = [RequestHeader::new("User-Agent", EDGE_153)];
+    assert_eq!(
+        kind(
+            &edge,
+            exact(HttpProtocol::Http2),
+            &caller,
+            Some(&edge_hints)
+        ),
+        None
+    );
+
+    // Templates with a literal User-Agent need no caller value.
+    for template in [
+        chromium::v153_windows_navigation_template(),
+        firefox::v156_windows_fetch_no_store_template(),
+    ] {
+        assert_eq!(kind(&template, exact(HttpProtocol::Http1), &[], None), None);
+    }
+
+    // A literal on some protocol lists is not enough.
+    let mut template = chromium::v153_windows_navigation_template();
+    template.http2_fields[2] = RequestField::caller("user-agent");
+    assert_eq!(
+        kind(&template, exact(HttpProtocol::Http1), &[], None),
+        Some(RequestErrorKind::IdentityMismatch)
+    );
+}
+
+#[test]
 fn brand_lists_that_contradict_the_template_are_rejected() {
     let chrome = chromium::v153_windows_navigation_template();
     let firefox = firefox::v156_windows_navigation_template();

@@ -157,8 +157,9 @@ impl RequestBuilder {
     /// [`RequestErrorKind::IdentityMismatch`](crate::RequestErrorKind::IdentityMismatch)
     /// when a caller `User-Agent`, a caller `sec-ch-ua` or
     /// `sec-ch-ua-full-version-list`, or the profile's value of those hints
-    /// names another browser or major version than the template. Phantom never
-    /// rewrites such a field.
+    /// names another browser or major version than the template, or when the
+    /// template leaves a required `User-Agent` to the caller and the caller
+    /// supplies none. Phantom never rewrites such a field.
     pub fn template(mut self, template: RequestTemplate) -> Self {
         self.request.template = Some(Arc::new(template));
         self
