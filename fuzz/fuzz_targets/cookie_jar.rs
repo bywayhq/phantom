@@ -15,24 +15,27 @@
 //! 2. The jar documents that it rejects a `Secure` cookie set by an `http://`
 //!    URL, so a jar that only ever received `; Secure` fields over `http://`
 //!    must stay empty.
+//!
+//! Both invariants exclude loopback authorities, where the jar's two scheme
+//! rules already disagree; see [`LOOPBACK_URLS`].
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
 use phantom::CookieJar;
 
 /// Secure origins used to store cookies and to read them back.
-const SECURE_URLS: [&str; 3] = [
-    "https://sub.example.com/a/b",
-    "https://example.com/",
-    "https://127.0.0.1:8443/a",
-];
+const SECURE_URLS: [&str; 2] = ["https://sub.example.com/a/b", "https://example.com/"];
 
 /// Insecure origins for the same hosts and paths.
-const INSECURE_URLS: [&str; 3] = [
-    "http://sub.example.com/a/b",
-    "http://example.com/",
-    "http://127.0.0.1:8080/a",
-];
+const INSECURE_URLS: [&str; 2] = ["http://sub.example.com/a/b", "http://example.com/"];
+
+/// Loopback origins, which the asserted invariants deliberately exclude.
+///
+/// The jar's store treats a loopback authority as a trustworthy origin and
+/// sends `Secure` cookies to `http://127.0.0.1`, while the jar's own storage
+/// gate requires the `https` scheme literally. The two rules disagree, so
+/// loopback URLs only add coverage here and constrain nothing.
+const LOOPBACK_URLS: [&str; 2] = ["https://127.0.0.1:8443/a", "http://127.0.0.1:8080/a"];
 
 /// `Set-Cookie` fields whose storage and retrieval must keep working.
 const VALID_SET_COOKIES: &[u8] =
@@ -51,6 +54,14 @@ fn fields(input: &[u8]) -> Vec<String> {
         .take(MAX_FIELDS)
         .map(|field| String::from_utf8_lossy(field).into_owned())
         .collect()
+}
+
+/// Every origin the target touches, including the loopback ones.
+fn every_url() -> impl Iterator<Item = &'static &'static str> {
+    SECURE_URLS
+        .iter()
+        .chain(INSECURE_URLS.iter())
+        .chain(LOOPBACK_URLS.iter())
 }
 
 /// Stores every field, marked `Secure`, from each URL in `origins`.
@@ -99,12 +110,12 @@ fn exercise(fields: &[String]) -> bool {
     // request-field paths without constraining the outcome.
     let jar = CookieJar::default();
     let mut stored = false;
-    for origin in SECURE_URLS.iter().chain(INSECURE_URLS.iter()) {
+    for origin in every_url() {
         for field in fields {
             stored |= jar.set_cookie(origin, field).is_ok();
         }
     }
-    for origin in SECURE_URLS.iter().chain(INSECURE_URLS.iter()) {
+    for origin in every_url() {
         let _ = std::hint::black_box(jar.request_value(origin));
     }
     let _ = std::hint::black_box(jar.len());

@@ -23,7 +23,7 @@ use std::{
 
 use http_body::Body;
 use libfuzzer_sys::fuzz_target;
-use phantom_net::http1::{Http1Connection, OriginForm, RequestHeader};
+use phantom_net::http1::{Http1Connection, Http1Error, OriginForm, RequestHeader};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 /// Complete responses whose framing the parser must keep accepting.
@@ -37,22 +37,38 @@ const VALID_RESPONSES: [&[u8]; 4] = [
 /// Largest number of transactions one input drives on one connection.
 const MAX_REQUESTS: usize = 2;
 
+/// Rounds the origin may withhold its response before the client has written a
+/// request. Bounded so the target cannot stall, and large enough for the
+/// dispatcher's ready, send, and flush rounds.
+const REQUEST_WAIT_ROUNDS: u8 = 64;
+
 /// An in-memory origin server. Requests are discarded and reads return the
 /// scripted response in chunks of at most `chunk` bytes; a zero-length read
-/// reports end of stream. It never returns `Poll::Pending`, so every
-/// transaction terminates without a timer or a second task.
+/// reports end of stream.
+///
+/// Reads are withheld until the client writes a request, because a client that
+/// reads a response into an idle connection closes it before dispatching. The
+/// wait is bounded and self-waking, so the target never parks: once the budget
+/// is spent the response is delivered regardless.
 struct ScriptedOrigin {
     response: Vec<u8>,
     offset: usize,
     chunk: usize,
+    request_seen: bool,
+    wait_rounds: u8,
 }
 
 impl AsyncRead for ScriptedOrigin {
     fn poll_read(
         mut self: Pin<&mut Self>,
-        _: &mut Context<'_>,
+        context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
+        if !self.request_seen && self.wait_rounds > 0 {
+            self.wait_rounds -= 1;
+            context.waker().wake_by_ref();
+            return Poll::Pending;
+        }
         let start = self.offset;
         let available = self.response.len() - start;
         let length = available.min(self.chunk).min(buffer.remaining());
@@ -64,10 +80,11 @@ impl AsyncRead for ScriptedOrigin {
 
 impl AsyncWrite for ScriptedOrigin {
     fn poll_write(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         _: &mut Context<'_>,
         buffer: &[u8],
     ) -> Poll<io::Result<usize>> {
+        self.request_seen = true;
         Poll::Ready(Ok(buffer.len()))
     }
 
@@ -80,9 +97,13 @@ impl AsyncWrite for ScriptedOrigin {
     }
 }
 
-/// Runs up to `requests` transactions against the scripted response and
-/// reports whether the first one produced a response head and a complete body.
-fn drive(response: &[u8], chunk: usize, requests: usize) -> bool {
+/// Runs up to `requests` transactions against the scripted response.
+///
+/// Returns how the first transaction ended; later transactions only add
+/// coverage of connection reuse. Connect, response-head, and body failures all
+/// surface as [`Http1Error`], so the error is carried without formatting it on
+/// the hot path.
+fn drive(response: &[u8], chunk: usize, requests: usize) -> Result<(), Http1Error> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_time()
         .build()
@@ -91,42 +112,45 @@ fn drive(response: &[u8], chunk: usize, requests: usize) -> bool {
         response: response.to_vec(),
         offset: 0,
         chunk,
+        request_seen: false,
+        wait_rounds: REQUEST_WAIT_ROUNDS,
     };
     runtime.block_on(async move {
-        let Ok(connection) = Http1Connection::connect(origin).await else {
-            return false;
-        };
-        let mut first_completed = false;
+        let connection = Http1Connection::connect(origin).await?;
+        let mut first = Ok(());
         for index in 0..requests {
             let target = OriginForm::parse("/").expect("origin-form request target");
             let headers = vec![RequestHeader::new("Host", "origin.example")];
-            let Ok(response) = connection.send_get(target, headers).await else {
-                break;
-            };
-            let (parts, mut body) = response.into_parts();
-            let _ = std::hint::black_box(parts.extensions);
-            let mut body_complete = true;
-            loop {
-                match poll_fn(|context| Pin::new(&mut body).poll_frame(context)).await {
-                    Some(Ok(frame)) => {
-                        let _ = std::hint::black_box(frame);
+            let outcome = match connection.send_get(target, headers).await {
+                Ok(response) => {
+                    let (parts, mut body) = response.into_parts();
+                    let _ = std::hint::black_box(parts.extensions);
+                    let mut outcome = Ok(());
+                    loop {
+                        match poll_fn(|context| Pin::new(&mut body).poll_frame(context)).await {
+                            Some(Ok(frame)) => {
+                                let _ = std::hint::black_box(frame);
+                            }
+                            Some(Err(error)) => {
+                                outcome = Err(error);
+                                break;
+                            }
+                            None => break,
+                        }
                     }
-                    Some(Err(error)) => {
-                        let _ = std::hint::black_box(error);
-                        body_complete = false;
-                        break;
-                    }
-                    None => break,
+                    outcome
                 }
-            }
+                Err(error) => Err(error),
+            };
+            let failed = outcome.is_err();
             if index == 0 {
-                first_completed = body_complete;
+                first = outcome;
             }
-            if !body_complete {
+            if failed {
                 break;
             }
         }
-        first_completed
+        first
     })
 }
 
@@ -148,12 +172,14 @@ fuzz_target!(|input: &[u8]| {
     let requests = input
         .get(1)
         .map_or(1, |&byte| usize::from(byte) % MAX_REQUESTS + 1);
-    let _ = drive(input, chunk, requests);
+    let _ = std::hint::black_box(drive(input, chunk, requests));
 
-    for seed in VALID_RESPONSES {
-        let completed = drive(&perturb(seed, input), chunk, requests);
+    for (index, seed) in VALID_RESPONSES.iter().enumerate() {
+        let outcome = drive(&perturb(seed, input), chunk, requests);
         if input.is_empty() {
-            assert!(completed, "structural seeds must remain complete responses");
+            outcome.unwrap_or_else(|error| {
+                panic!("structural seed {index} must remain a complete response: {error:?}")
+            });
         }
     }
 });
