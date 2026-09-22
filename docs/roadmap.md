@@ -99,6 +99,17 @@ work has exposed the real architectural boundaries.
   not merge. Sibling clients apply an order as a sort at encode time and
   leave unnamed caller fields in hash order; Phantom keeps the caller's own
   order for fields the template does not name.
+- Close the wire gaps the nearest comparable clients already reproduce, in
+  this order: split the `cookie` field into one entry per cookie on HTTP/2 and
+  HTTP/3, as Chrome and Firefox do, which needs a vendored encoder patch and a
+  two-cookie capture; send Chromium's preface `PING` on a pooled connection
+  idle longer than its at-risk-of-loss time; extend per-profile HPACK
+  indexing decisions from extended CONNECT to ordinary requests; and prove
+  that a resumed ClientHello still matches the captured shape, which Phantom
+  relies on today without evidence.
+- Settle whether Chrome's trust-anchor identifier order is drawn per process,
+  as the retained 60-process capture shows, or per connection, as the nearest
+  comparable clients assume, by capturing many connections from one process.
 - Close the gaps callers expect from an HTTP client, in this order: caller-owned
   cookie-jar export and import beside the Alt-Svc snapshot API; host-to-address
   overrides, a caller resolver, and DNS over HTTPS where the captured browser
