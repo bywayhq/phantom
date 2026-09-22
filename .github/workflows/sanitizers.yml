@@ -1,0 +1,124 @@
+name: Sanitizers
+
+# `phantom-quic-btls` is the only crate allowed to contain `unsafe` code: its
+# private `backend` module wraps BoringSSL through FFI. Parser fuzzing already
+# runs under AddressSanitizer, but it only reaches the byte parsers, never the
+# QUIC callbacks, the key schedule, or a live handshake. This workflow runs the
+# crate's own tests and the HTTP/3 loopback tests, which drive the same FFI
+# paths end to end, under AddressSanitizer.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/sanitizers.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - crates/phantom-quic-btls/**
+      - rust-toolchain.toml
+      - vendor/btls/**
+      - vendor/h3/**
+      - vendor/quinn/**
+      - vendor/quinn-proto/**
+      - vendor/tokio-btls/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sanitizers.yml
+      - Cargo.lock
+      - Cargo.toml
+      - crates/phantom-net/**
+      - crates/phantom-profile/**
+      - crates/phantom-quic-btls/**
+      - rust-toolchain.toml
+      - vendor/btls/**
+      - vendor/h3/**
+      - vendor/quinn/**
+      - vendor/quinn-proto/**
+      - vendor/tokio-btls/**
+  schedule:
+    - cron: "43 7 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanitizers-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  # The same pinned nightly the fuzzing workflow uses; `-Zsanitizer` is
+  # nightly-only. Keep the two in step.
+  NIGHTLY_TOOLCHAIN: nightly-2026-09-01
+  # An explicit `--target` is required, not a convenience: it keeps `RUSTFLAGS`
+  # off host build scripts and proc macros, which must stay uninstrumented.
+  SANITIZER_TARGET: x86_64-unknown-linux-gnu
+
+jobs:
+  asan:
+    name: ${{ matrix.name }} under ASan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The crate's own unit tests: key schedule, packet and header
+          # protection, retry, stateless reset, and the QUIC callbacks.
+          - name: phantom-quic-btls
+            package: phantom-quic-btls
+            filter: ""
+          # A live HTTP/3 exchange over loopback, which drives the handshake,
+          # the secret callbacks, and session teardown for real.
+          - name: HTTP/3 loopback
+            package: phantom-net
+            filter: "http3::"
+    env:
+      RUSTFLAGS: -Zsanitizer=address
+      # BoringSSL is linked in uninstrumented, so LeakSanitizer reports its
+      # process-wide one-time allocations as leaks. Turn leak detection off
+      # rather than carry a suppression list for another project's
+      # initialization. Use-after-free, double-free, and out-of-bounds access
+      # are unaffected, and those are the FFI boundary's real risks.
+      ASAN_OPTIONS: detect_leaks=0:detect_stack_use_after_return=1
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned nightly
+        run: |
+          rustup toolchain install "$NIGHTLY_TOOLCHAIN" --profile minimal
+          rustup target add "$SANITIZER_TARGET" --toolchain "$NIGHTLY_TOOLCHAIN"
+          rustc "+$NIGHTLY_TOOLCHAIN" --version
+
+      - name: Check native build prerequisites
+        run: |
+          for tool in git cmake clang c++ nm objcopy; do
+            command -v "$tool"
+          done
+
+      - name: Cache Cargo build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-on-failure: true
+          # Instrumented artifacts must not share a cache with the ordinary CI
+          # build, which uses the same lockfile and a different toolchain.
+          key: asan-${{ matrix.package }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # Only `--lib`: doctests and the fixture integration tests add build time
+      # without reaching the FFI boundary. An empty filter matches every test.
+      - name: Run tests under AddressSanitizer
+        env:
+          FILTER: ${{ matrix.filter }}
+          PACKAGE: ${{ matrix.package }}
+        run: >-
+          cargo "+$NIGHTLY_TOOLCHAIN" test
+          -p "$PACKAGE" --lib --all-features --locked
+          --target "$SANITIZER_TARGET"
+          -- "$FILTER"
