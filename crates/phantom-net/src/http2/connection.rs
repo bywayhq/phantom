@@ -361,10 +361,10 @@ impl Http2Connection {
                 // final rejection response (RFC 9113 section 8.1). Ending an
                 // already closed stream then fails locally, but the rejection
                 // is still the outcome; only connection failures are errors.
-                if let Err(error) = send.stream_mut()?.send_data(Bytes::new(), true) {
-                    if error.is_io() || error.is_go_away() {
-                        return Err(Http2Error::protocol(error));
-                    }
+                if let Err(error) = send.stream_mut()?.send_data(Bytes::new(), true)
+                    && (error.is_io() || error.is_go_away())
+                {
+                    return Err(Http2Error::protocol(error));
                 }
                 Ok(Http2ExtendedConnectOutcome::Rejected(Response::from_parts(
                     parts,

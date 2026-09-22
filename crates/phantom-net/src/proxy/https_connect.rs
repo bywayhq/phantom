@@ -291,12 +291,12 @@ impl HttpsProxyConnector {
         let stream = self
             .connect_proxy_tls(proxy_host, proxy_port, proxy_server_name)
             .await?;
-        if let Some(selected) = stream.negotiated_alpn() {
-            if selected != b"http/1.1" {
-                return Err(HttpConnectError::UnsupportedAlpn {
-                    selected: selected.into(),
-                });
-            }
+        if let Some(selected) = stream.negotiated_alpn()
+            && selected != b"http/1.1"
+        {
+            return Err(HttpConnectError::UnsupportedAlpn {
+                selected: selected.into(),
+            });
         }
         Ok(stream)
     }

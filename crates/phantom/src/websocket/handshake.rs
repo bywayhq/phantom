@@ -181,10 +181,10 @@ pub(super) fn prepare_http2(
     for template in templates {
         match template {
             WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
-                if !validation.has_literal_cookie {
-                    if let Some(value) = session_cookie.take().and_then(|read| read()) {
-                        headers.push(RequestHeader::new(name, value).sensitive());
-                    }
+                if !validation.has_literal_cookie
+                    && let Some(value) = session_cookie.take().and_then(|read| read())
+                {
+                    headers.push(RequestHeader::new(name, value).sensitive());
                 }
             }
             #[cfg(feature = "websocket-deflate")]
@@ -234,10 +234,10 @@ pub(super) fn prepare(
                 headers.push(RequestHeader::new(name, &key).sensitive());
             }
             WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
-                if !validation.has_literal_cookie {
-                    if let Some(value) = session_cookie.take().and_then(|read| read()) {
-                        headers.push(RequestHeader::new(name, value).sensitive());
-                    }
+                if !validation.has_literal_cookie
+                    && let Some(value) = session_cookie.take().and_then(|read| read())
+                {
+                    headers.push(RequestHeader::new(name, value).sensitive());
                 }
             }
             #[cfg(feature = "websocket-deflate")]

@@ -488,7 +488,7 @@ fn chrome_153_http2_recipe_matches_windows_session_capture()
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err("odd-length hexadecimal value".into());
     }
     (0..value.len())

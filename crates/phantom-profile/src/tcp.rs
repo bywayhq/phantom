@@ -90,13 +90,13 @@ impl TcpSettings {
                 validate_keepalive_seconds(interval, "keepalive.interval")?;
             }
         }
-        if let Some(racing) = self.address_racing {
-            if racing.fallback_delay.is_zero() || racing.fallback_delay > MAX_TCP_FALLBACK_DELAY {
-                return Err(InvalidTcpSettings::new(
-                    "address_racing.fallback_delay",
-                    "fallback delay must be nonzero and at most 10 seconds",
-                ));
-            }
+        if let Some(racing) = self.address_racing
+            && (racing.fallback_delay.is_zero() || racing.fallback_delay > MAX_TCP_FALLBACK_DELAY)
+        {
+            return Err(InvalidTcpSettings::new(
+                "address_racing.fallback_delay",
+                "fallback delay must be nonzero and at most 10 seconds",
+            ));
         }
         Ok(())
     }

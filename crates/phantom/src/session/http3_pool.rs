@@ -243,11 +243,10 @@ impl Http3Pool {
             .entries
             .iter()
             .position(|(candidate, _)| candidate == &key)
+            && let Some((stored_key, entry)) = state.entries.remove(position)
         {
-            if let Some((stored_key, entry)) = state.entries.remove(position) {
-                state.entries.push_back((stored_key, Arc::clone(&entry)));
-                return entry;
-            }
+            state.entries.push_back((stored_key, Arc::clone(&entry)));
+            return entry;
         }
 
         if state.entries.len() == self.capacity.get() {
@@ -380,18 +379,17 @@ impl PoolEntry {
         }
         {
             let mut slots = self.slots.lock().await;
-            if let Some(position) = slots.iter().position(|slot| slot.location == location) {
-                if let Some(slot) = slots.remove(position) {
-                    if connector.can_reuse(&slot.connection).await {
-                        debug!(
-                            outcome = "hit",
-                            "HTTP/3 connection acquired from client pool"
-                        );
-                        let lease = slot.lease();
-                        slots.push_back(slot);
-                        return Ok(lease);
-                    }
-                }
+            if let Some(position) = slots.iter().position(|slot| slot.location == location)
+                && let Some(slot) = slots.remove(position)
+                && connector.can_reuse(&slot.connection).await
+            {
+                debug!(
+                    outcome = "hit",
+                    "HTTP/3 connection acquired from client pool"
+                );
+                let lease = slot.lease();
+                slots.push_back(slot);
+                return Ok(lease);
             }
         }
 

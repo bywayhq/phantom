@@ -464,10 +464,10 @@ where
 async fn next_data(body: &mut phantom::ResponseBody) -> TestResult<Bytes> {
     loop {
         let frame = body.frame().await.ok_or("response body ended")??;
-        if let Ok(data) = frame.into_data() {
-            if !data.is_empty() {
-                return Ok(data);
-            }
+        if let Ok(data) = frame.into_data()
+            && !data.is_empty()
+        {
+            return Ok(data);
         }
     }
 }

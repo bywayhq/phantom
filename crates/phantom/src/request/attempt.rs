@@ -511,19 +511,17 @@ fn inject_cookie(
         let caller_supplied = headers
             .iter()
             .any(|header| header.name().eq_ignore_ascii_case("cookie"));
-        if !caller_supplied {
-            if let Some(value) = jar.request_value_for_url(&request.url) {
-                let name = match protocol {
-                    HttpProtocol::Http1 => "Cookie",
-                    HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
-                };
-                let index = client
-                    .inner
-                    .cookie_placement
-                    .insertion_index(headers.iter().map(RequestHeader::name))
-                    .unwrap_or(headers.len());
-                headers.insert(index, RequestHeader::new(name, value).sensitive());
-            }
+        if !caller_supplied && let Some(value) = jar.request_value_for_url(&request.url) {
+            let name = match protocol {
+                HttpProtocol::Http1 => "Cookie",
+                HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
+            };
+            let index = client
+                .inner
+                .cookie_placement
+                .insertion_index(headers.iter().map(RequestHeader::name))
+                .unwrap_or(headers.len());
+            headers.insert(index, RequestHeader::new(name, value).sensitive());
         }
     }
 

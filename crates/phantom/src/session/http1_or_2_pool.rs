@@ -297,11 +297,10 @@ impl Http1Or2Pool {
             .entries
             .iter()
             .position(|(candidate, _)| candidate == &key)
+            && let Some((stored_key, entry)) = state.entries.remove(position)
         {
-            if let Some((stored_key, entry)) = state.entries.remove(position) {
-                state.entries.push_back((stored_key, Arc::clone(&entry)));
-                return entry;
-            }
+            state.entries.push_back((stored_key, Arc::clone(&entry)));
+            return entry;
         }
 
         if state.entries.len() == self.capacity.get() {

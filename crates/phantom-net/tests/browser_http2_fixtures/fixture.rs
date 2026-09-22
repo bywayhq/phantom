@@ -177,12 +177,14 @@ impl<'a> FixtureLines<'a> {
 }
 
 fn decode_hex(value: &str) -> FixtureResult<Vec<u8>> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err(invalid_data("hex value has an odd length").into());
     }
     value
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|digits| {
             let high = hex_digit(digits[0])?;
             let low = hex_digit(digits[1])?;

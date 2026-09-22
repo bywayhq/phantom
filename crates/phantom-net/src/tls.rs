@@ -390,12 +390,12 @@ impl TlsConnector {
             let captured_session_count = session_capture
                 .as_ref()
                 .map_or(0, session_cache::TlsSessionCapture::commit_authenticated);
-            if session_reused && captured_session_count == 0 {
-                if let (Some(cache), Some(session)) =
+            if session_reused
+                && captured_session_count == 0
+                && let (Some(cache), Some(session)) =
                     (&self.session_cache, attempted_reusable_session)
-                {
-                    cache.restore(server_name, session);
-                }
+            {
+                cache.restore(server_name, session);
             }
             span.record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
             record_alps_negotiation(&span, peer_application_settings.as_deref());

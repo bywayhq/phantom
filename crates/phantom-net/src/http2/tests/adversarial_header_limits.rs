@@ -127,7 +127,9 @@ async fn run_oversized_peer(
     // The local ceiling is never advertised: the SETTINGS entry is present
     // exactly when the profile carries it, with the profile's value.
     let sent = settings
-        .chunks_exact(6)
+        .as_chunks::<6>()
+        .0
+        .iter()
         .filter(|entry| u16::from_be_bytes([entry[0], entry[1]]) == SETTINGS_MAX_HEADER_LIST_SIZE)
         .map(|entry| u32::from_be_bytes([entry[2], entry[3], entry[4], entry[5]]))
         .collect::<Vec<_>>();

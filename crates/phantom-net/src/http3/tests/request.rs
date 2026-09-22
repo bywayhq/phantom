@@ -1007,12 +1007,14 @@ fn fixture_value(key: &str) -> TestResult<&'static str> {
 }
 
 fn decode_hex(encoded: &str) -> TestResult<Vec<u8>> {
-    if encoded.len() % 2 != 0 {
+    if !encoded.len().is_multiple_of(2) {
         return Err("fixture hex value has odd length".into());
     }
     encoded
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let digits = std::str::from_utf8(pair)?;
             u8::from_str_radix(digits, 16).map_err(Into::into)

@@ -222,11 +222,10 @@ impl Http2Pool {
             .entries
             .iter()
             .position(|(candidate, _)| candidate == &key)
+            && let Some((stored_key, entry)) = state.entries.remove(position)
         {
-            if let Some((stored_key, entry)) = state.entries.remove(position) {
-                state.entries.push_back((stored_key, Arc::clone(&entry)));
-                return entry;
-            }
+            state.entries.push_back((stored_key, Arc::clone(&entry)));
+            return entry;
         }
 
         if state.entries.len() == self.capacity.get() {
@@ -320,14 +319,14 @@ impl PoolEntry {
         route: &Route,
     ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
-        if let Some(slot) = current.as_ref() {
-            if slot.connection.is_reusable() {
-                debug!(
-                    outcome = "hit",
-                    "HTTP/2 connection acquired from client pool"
-                );
-                return Ok(slot.lease());
-            }
+        if let Some(slot) = current.as_ref()
+            && slot.connection.is_reusable()
+        {
+            debug!(
+                outcome = "hit",
+                "HTTP/2 connection acquired from client pool"
+            );
+            return Ok(slot.lease());
         }
 
         debug!(outcome = "connect", "HTTP/2 client pool opening connection");

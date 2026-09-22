@@ -136,7 +136,9 @@ fn request_fields(fixture: &str) -> Result<Vec<(String, String)>, Box<dyn std::e
 fn decode_ascii_hex(encoded: &str) -> Result<String, Box<dyn std::error::Error>> {
     let bytes = encoded
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
         .collect::<Result<Vec<u8>, Box<dyn std::error::Error>>>()?;
     Ok(String::from_utf8(bytes)?)
@@ -193,7 +195,9 @@ fn fixture_request_name(fixture: &str, index: usize) -> Result<String, std::stri
         .unwrap_or_else(|| panic!("fixture request header must contain a value"));
     let bytes = encoded
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             std::str::from_utf8(pair)
                 .ok()

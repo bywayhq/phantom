@@ -149,10 +149,10 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
         let server_task = tokio::spawn(async move {
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
             let mut plaintext = Vec::new();
-            if let Err(error) = stream.read_to_end(&mut plaintext).await {
-                if !plaintext.is_empty() {
-                    return Err(error.into());
-                }
+            if let Err(error) = stream.read_to_end(&mut plaintext).await
+                && !plaintext.is_empty()
+            {
+                return Err(error.into());
             }
             Ok::<_, Box<dyn Error + Send + Sync>>((sni, plaintext))
         });
@@ -771,10 +771,10 @@ async fn https_forward_proxy_rejects_h2_without_writing_http_bytes() -> TestResu
             let (mut stream, sni) = accept_tls(listener, acceptor).await?;
             let selected_alpn = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
             let mut plaintext = Vec::new();
-            if let Err(error) = stream.read_to_end(&mut plaintext).await {
-                if !plaintext.is_empty() {
-                    return Err(error.into());
-                }
+            if let Err(error) = stream.read_to_end(&mut plaintext).await
+                && !plaintext.is_empty()
+            {
+                return Err(error.into());
             }
             Ok::<_, Box<dyn Error + Send + Sync>>((sni, selected_alpn, plaintext))
         });

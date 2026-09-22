@@ -208,11 +208,10 @@ impl Http1Pool {
             .entries
             .iter()
             .position(|(candidate, _)| candidate == &key)
+            && let Some((stored_key, entry)) = state.entries.remove(position)
         {
-            if let Some((stored_key, entry)) = state.entries.remove(position) {
-                state.entries.push_back((stored_key, Arc::clone(&entry)));
-                return entry;
-            }
+            state.entries.push_back((stored_key, Arc::clone(&entry)));
+            return entry;
         }
 
         if state.entries.len() == self.capacity.get() {
@@ -285,14 +284,14 @@ impl PoolEntry {
     ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
         if !force_new_connection {
-            if let Some(slot) = current.as_ref() {
-                if slot.connection.is_reusable() {
-                    debug!(
-                        outcome = "hit",
-                        "HTTP/1 connection acquired from client pool"
-                    );
-                    return Ok(slot.lease());
-                }
+            if let Some(slot) = current.as_ref()
+                && slot.connection.is_reusable()
+            {
+                debug!(
+                    outcome = "hit",
+                    "HTTP/1 connection acquired from client pool"
+                );
+                return Ok(slot.lease());
             }
         } else if current.take().is_some() {
             // Proxy-authentication and reused-connection replays both need a

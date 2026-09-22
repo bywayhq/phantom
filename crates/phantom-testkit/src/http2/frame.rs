@@ -157,14 +157,16 @@ impl CapturedFrame {
                 length: payload.len(),
             });
         }
-        if payload.len() % SETTING_LENGTH != 0 {
+        if !payload.len().is_multiple_of(SETTING_LENGTH) {
             return Err(SettingsDecodeError::InvalidPayloadLength {
                 length: payload.len(),
             });
         }
 
         let entries = payload
-            .chunks_exact(SETTING_LENGTH)
+            .as_chunks::<SETTING_LENGTH>()
+            .0
+            .iter()
             .map(|entry| Setting {
                 identifier: u16::from_be_bytes([entry[0], entry[1]]),
                 value: u32::from_be_bytes([entry[2], entry[3], entry[4], entry[5]]),

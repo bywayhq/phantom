@@ -501,36 +501,36 @@ impl SessionState {
             self.outbound.stage(chunk);
         }
 
-        if self.handshake_keys.is_none() {
-            if let Some(pair) = self.backend.take_secret_pair(EncryptionLevel::Handshake)? {
-                self.handshake_keys = Some(keys_from_pair(pair)?.0);
-            }
+        if self.handshake_keys.is_none()
+            && let Some(pair) = self.backend.take_secret_pair(EncryptionLevel::Handshake)?
+        {
+            self.handshake_keys = Some(keys_from_pair(pair)?.0);
         }
-        if self.application_keys.is_none() {
-            if let Some(pair) = self
+        if self.application_keys.is_none()
+            && let Some(pair) = self
                 .backend
                 .take_secret_pair(EncryptionLevel::Application)?
-            {
-                #[cfg(test)]
-                let derived = keys_from_pair_with_failure(pair, self.derivation_failure);
-                #[cfg(not(test))]
-                let derived = keys_from_pair(pair);
-                let (keys, schedule) = derived?;
-                self.application_keys = Some(keys);
-                self.application_schedule = Some(schedule);
-            }
+        {
+            #[cfg(test)]
+            let derived = keys_from_pair_with_failure(pair, self.derivation_failure);
+            #[cfg(not(test))]
+            let derived = keys_from_pair(pair);
+            let (keys, schedule) = derived?;
+            self.application_keys = Some(keys);
+            self.application_schedule = Some(schedule);
         }
 
-        if self.handshake_data.is_none() && !self.backend.is_handshaking() {
-            if let Some(protocol) = self.backend.selected_protocol()? {
-                if protocol != H3_PROTOCOL {
-                    return Err(AdapterError::Backend(ClientSessionError::AlpnNotNegotiated));
-                }
-                self.handshake_data = Some(HandshakeData {
-                    protocol,
-                    peer_application_settings: self.backend.peer_application_settings()?,
-                });
+        if self.handshake_data.is_none()
+            && !self.backend.is_handshaking()
+            && let Some(protocol) = self.backend.selected_protocol()?
+        {
+            if protocol != H3_PROTOCOL {
+                return Err(AdapterError::Backend(ClientSessionError::AlpnNotNegotiated));
             }
+            self.handshake_data = Some(HandshakeData {
+                protocol,
+                peer_application_settings: self.backend.peer_application_settings()?,
+            });
         }
         if self.peer_transport_parameters.is_none() {
             self.peer_transport_parameters = self.backend.peer_transport_parameters()?;
@@ -865,13 +865,13 @@ fn map_start_error(server_name: &str, error: ClientSessionError) -> ConnectError
 }
 
 fn map_session_error(backend: &ClientSession, error: ClientSessionError) -> TransportError {
-    if let Ok(alerts) = backend.drain_alerts() {
-        if let Some(alert) = alerts.first() {
-            return transport_error(
-                TransportErrorCode::crypto(alert.description),
-                "TLS peer or verification alert",
-            );
-        }
+    if let Ok(alerts) = backend.drain_alerts()
+        && let Some(alert) = alerts.first()
+    {
+        return transport_error(
+            TransportErrorCode::crypto(alert.description),
+            "TLS peer or verification alert",
+        );
     }
 
     match error {

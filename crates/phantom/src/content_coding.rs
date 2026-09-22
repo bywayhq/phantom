@@ -360,10 +360,8 @@ impl ContentDecoder {
             Some(buffer) => buffer.start += step.consumed,
             None => self.wire.advance(step.consumed),
         }
-        if !last {
-            if let Some(buffer) = self.buffers.get_mut(index) {
-                buffer.end = step.produced;
-            }
+        if !last && let Some(buffer) = self.buffers.get_mut(index) {
+            buffer.end = step.produced;
         }
         let progressed = step.consumed > 0 || step.produced > 0;
         Ok((progressed, if last { step.produced } else { 0 }))

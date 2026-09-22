@@ -569,42 +569,42 @@ where
     let mut delay = Some(Box::pin(timeout_budget.delay(origin_delay, None)));
 
     poll_fn(|context| {
-        if let Candidate::Pending(setup) = &mut alternative {
-            if let Poll::Ready(result) = setup.as_mut().poll(context) {
-                match result {
-                    Ok(leased) => return Poll::Ready(Ok(RaceOutcome::Alternative(leased))),
-                    Err(error) => {
-                        alternative = Candidate::Failed(error);
-                        // The origin no longer waits for its delay.
-                        delay = None;
-                        if let Some(start) = start_origin.take() {
-                            origin = Some(Box::pin(start()));
-                        }
+        if let Candidate::Pending(setup) = &mut alternative
+            && let Poll::Ready(result) = setup.as_mut().poll(context)
+        {
+            match result {
+                Ok(leased) => return Poll::Ready(Ok(RaceOutcome::Alternative(leased))),
+                Err(error) => {
+                    alternative = Candidate::Failed(error);
+                    // The origin no longer waits for its delay.
+                    delay = None;
+                    if let Some(start) = start_origin.take() {
+                        origin = Some(Box::pin(start()));
                     }
                 }
             }
         }
-        if let Some(timer) = delay.as_mut() {
-            if let Poll::Ready(result) = timer.as_mut().poll(context) {
-                delay = None;
-                if let Err(error) = result {
-                    return Poll::Ready(Err(error));
-                }
-                if let Some(start) = start_origin.take() {
-                    origin = Some(Box::pin(start()));
-                }
+        if let Some(timer) = delay.as_mut()
+            && let Poll::Ready(result) = timer.as_mut().poll(context)
+        {
+            delay = None;
+            if let Err(error) = result {
+                return Poll::Ready(Err(error));
+            }
+            if let Some(start) = start_origin.take() {
+                origin = Some(Box::pin(start()));
             }
         }
-        if let Some(setup) = origin.as_mut() {
-            if let Poll::Ready(result) = setup.as_mut().poll(context) {
-                origin = None;
-                match result {
-                    Ok(leased) => {
-                        let loser = std::mem::replace(&mut alternative, Candidate::Taken);
-                        return Poll::Ready(Ok(RaceOutcome::Origin { leased, loser }));
-                    }
-                    Err(error) => origin_error = Some(error),
+        if let Some(setup) = origin.as_mut()
+            && let Poll::Ready(result) = setup.as_mut().poll(context)
+        {
+            origin = None;
+            match result {
+                Ok(leased) => {
+                    let loser = std::mem::replace(&mut alternative, Candidate::Taken);
+                    return Poll::Ready(Ok(RaceOutcome::Origin { leased, loser }));
                 }
+                Err(error) => origin_error = Some(error),
             }
         }
         if matches!(alternative, Candidate::Failed(_)) && origin.is_none() {

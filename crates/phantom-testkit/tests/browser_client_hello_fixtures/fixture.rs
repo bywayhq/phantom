@@ -161,12 +161,14 @@ where
 }
 
 fn parse_hex(value: &str, field: &str) -> Result<Vec<u8>, io::Error> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err(invalid_fixture(format!("{field} contains odd-length hex")));
     }
     value
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| Ok((hex_nibble(pair[0])? << 4) | hex_nibble(pair[1])?))
         .collect()
 }

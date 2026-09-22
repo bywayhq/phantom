@@ -256,10 +256,10 @@ async fn rejects_missing_and_http1_alpn_without_http2_bytes() -> TestResult<()> 
             let server = tokio::spawn(async move {
                 let (mut stream, _) = accept_tls(listener, acceptor).await?;
                 let mut plaintext = Vec::new();
-                if let Err(error) = stream.read_to_end(&mut plaintext).await {
-                    if !plaintext.is_empty() {
-                        return Err(error.into());
-                    }
+                if let Err(error) = stream.read_to_end(&mut plaintext).await
+                    && !plaintext.is_empty()
+                {
+                    return Err(error.into());
                 }
                 Ok::<_, Box<dyn Error + Send + Sync>>(plaintext)
             });
@@ -417,10 +417,10 @@ async fn malformed_peer_alps_fails_before_http2_plaintext() -> TestResult<()> {
         let server = tokio::spawn(async move {
             let mut stream = accept_alps(listener, acceptor, MALFORMED_ALPS).await?;
             let mut plaintext = Vec::new();
-            if let Err(error) = stream.read_to_end(&mut plaintext).await {
-                if !plaintext.is_empty() {
-                    return Err(error.into());
-                }
+            if let Err(error) = stream.read_to_end(&mut plaintext).await
+                && !plaintext.is_empty()
+            {
+                return Err(error.into());
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(plaintext)
         });

@@ -297,7 +297,7 @@ fn parse_quic_width(value: &str) -> Result<QuicVarIntWidth, Box<dyn std::error::
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err("hex value has odd length".into());
     }
     (0..value.len())
@@ -356,16 +356,15 @@ fn decode_quic_varint_prefix(
 }
 
 fn decode_u32_words(value: &[u8]) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-    if value.len() % 4 != 0 {
+    if !value.len().is_multiple_of(4) {
         return Err("version-information value is not a sequence of u32 values".into());
     }
-    value
-        .chunks_exact(4)
-        .map(|word| {
-            let bytes: [u8; 4] = word.try_into()?;
-            Ok(u32::from_be_bytes(bytes))
-        })
-        .collect()
+    Ok(value
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|word| u32::from_be_bytes(*word))
+        .collect())
 }
 
 fn is_reserved_version(version: u32) -> bool {
@@ -373,5 +372,5 @@ fn is_reserved_version(version: u32) -> bool {
 }
 
 fn is_reserved_transport_parameter(identifier: u64) -> bool {
-    identifier >= 27 && (identifier - 27) % 31 == 0
+    identifier >= 27 && (identifier - 27).is_multiple_of(31)
 }

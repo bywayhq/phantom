@@ -324,10 +324,10 @@ impl RequestBuilder {
         }
         // Keep the public future small when callers join many requests.
         let result = Box::pin(self.send_inner(&span).instrument(span.clone())).await;
-        if let Err(error) = &result {
-            if let Some(phase) = error.timeout_phase() {
-                span.record("timeout_phase", phase.trace_name());
-            }
+        if let Err(error) = &result
+            && let Some(phase) = error.timeout_phase()
+        {
+            span.record("timeout_phase", phase.trace_name());
         }
         outcome.finish(match &result {
             Ok(_) => "ok",
@@ -495,10 +495,8 @@ impl RequestBuilder {
                     return Ok(response);
                 }
                 RedirectAction::Follow { same_origin } => {
-                    if !same_origin {
-                        if let Some(settings) = client.inner.client_hints.as_ref() {
-                            redirect.strip_client_hints(settings);
-                        }
+                    if !same_origin && let Some(settings) = client.inner.client_hints.as_ref() {
+                        redirect.strip_client_hints(settings);
                     }
                     debug!(
                         hop = redirect.followed(),

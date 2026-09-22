@@ -199,7 +199,9 @@ mod tests {
         assert_eq!(compact.len() % 2, 0, "fixture has odd encoded length");
         compact
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|encoded| {
                 let encoded = match std::str::from_utf8(encoded) {
                     Ok(encoded) => encoded,

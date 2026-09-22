@@ -240,12 +240,12 @@ impl ResponseBody {
         };
         match result {
             Poll::Ready(Some(Ok(frame))) => {
-                if let Some(timeouts) = self.timeouts.as_mut() {
-                    if let Err(error) = timeouts.record_activity() {
-                        self.inner.take();
-                        self.timeouts.take();
-                        return Poll::Ready(Some(Err(error)));
-                    }
+                if let Some(timeouts) = self.timeouts.as_mut()
+                    && let Err(error) = timeouts.record_activity()
+                {
+                    self.inner.take();
+                    self.timeouts.take();
+                    return Poll::Ready(Some(Err(error)));
                 }
                 Poll::Ready(Some(Ok(frame)))
             }
@@ -259,17 +259,16 @@ impl ResponseBody {
                 Poll::Ready(frame)
             }
             Poll::Pending => {
-                if let Some(timeouts) = self.timeouts.as_mut() {
-                    if let Poll::Ready(error) = timeouts.poll_expired(context) {
-                        tracing::debug!(
-                            timeout_phase =
-                                error.timeout_phase().map(crate::TimeoutPhase::trace_name),
-                            "response body timed out"
-                        );
-                        self.inner.take();
-                        self.timeouts.take();
-                        return Poll::Ready(Some(Err(error)));
-                    }
+                if let Some(timeouts) = self.timeouts.as_mut()
+                    && let Poll::Ready(error) = timeouts.poll_expired(context)
+                {
+                    tracing::debug!(
+                        timeout_phase = error.timeout_phase().map(crate::TimeoutPhase::trace_name),
+                        "response body timed out"
+                    );
+                    self.inner.take();
+                    self.timeouts.take();
+                    return Poll::Ready(Some(Err(error)));
                 }
                 Poll::Pending
             }

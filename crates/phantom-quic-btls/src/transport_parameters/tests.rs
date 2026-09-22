@@ -236,19 +236,9 @@ fn validate_version_information(encoded: &[u8]) -> Result<(), Box<dyn Error>> {
     if value.len() != 12 || value[..4] != [0, 0, 0, 1] {
         return Err("version information has the wrong selected version or length".into());
     }
-    let mut available = value[4..].chunks_exact(4);
-    let first = u32::from_be_bytes(
-        available
-            .next()
-            .ok_or("missing available version")?
-            .try_into()?,
-    );
-    let second = u32::from_be_bytes(
-        available
-            .next()
-            .ok_or("missing reserved version")?
-            .try_into()?,
-    );
+    let mut available = value[4..].as_chunks::<4>().0.iter().copied();
+    let first = u32::from_be_bytes(available.next().ok_or("missing available version")?);
+    let second = u32::from_be_bytes(available.next().ok_or("missing reserved version")?);
     if available.next().is_some()
         || [first, second]
             .iter()
@@ -266,12 +256,14 @@ fn validate_version_information(encoded: &[u8]) -> Result<(), Box<dyn Error>> {
 }
 
 fn decode_hex(input: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-    if input.len() % 2 != 0 {
+    if !input.len().is_multiple_of(2) {
         return Err("hex input has odd length".into());
     }
     input
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let text = std::str::from_utf8(pair)?;
             Ok(u8::from_str_radix(text, 16)?)

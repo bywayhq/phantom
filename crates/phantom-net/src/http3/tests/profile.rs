@@ -424,7 +424,7 @@ fn decode_varint(bytes: &[u8], offset: usize) -> Option<(u64, usize)> {
 }
 
 fn is_reserved_setting(identifier: u64) -> bool {
-    identifier >= 33 && (identifier - 33) % 31 == 0
+    identifier >= 33 && (identifier - 33).is_multiple_of(31)
 }
 
 fn grease_entropy(identifier_seed: u32, value: u32) -> [u8; 8] {
@@ -445,7 +445,9 @@ fn fixture_hex(key: &str) -> TestResult<Vec<u8>> {
     }
     encoded
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let digits = std::str::from_utf8(pair)?;
             u8::from_str_radix(digits, 16).map_err(Into::into)

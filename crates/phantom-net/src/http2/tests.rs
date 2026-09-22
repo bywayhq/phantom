@@ -78,10 +78,10 @@ async fn next_nonempty_data(body: &mut Http2Body) -> TestResult<Bytes> {
             .frame()
             .await
             .ok_or("response ended before non-empty DATA")??;
-        if let Ok(data) = frame.into_data() {
-            if !data.is_empty() {
-                return Ok(data);
-            }
+        if let Ok(data) = frame.into_data()
+            && !data.is_empty()
+        {
+            return Ok(data);
         }
     }
 }

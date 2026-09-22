@@ -593,10 +593,10 @@ impl ValidatedHeaders {
                     "HTTP/3 request content-length does not match the request body",
                 ));
             }
-        } else if let Some(body_len) = metadata.and_then(RequestBodyMetadata::exact_length) {
-            if body_len != 0 {
-                headers.push(RequestHeader::new("content-length", body_len.to_string()));
-            }
+        } else if let Some(body_len) = metadata.and_then(RequestBodyMetadata::exact_length)
+            && body_len != 0
+        {
+            headers.push(RequestHeader::new("content-length", body_len.to_string()));
         }
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(invalid("HTTP/3 request has too many headers"));

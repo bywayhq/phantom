@@ -1507,13 +1507,13 @@ impl Http1TlsConnector {
         let stream = self.tls.connect(server_name, stream).await?;
         let negotiated_alpn = stream.negotiated_alpn();
         Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
-        if let Some(selected) = negotiated_alpn {
-            if selected != b"http/1.1" {
-                debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
-                return Err(Http1TlsError::UnsupportedAlpn {
-                    selected: selected.into(),
-                });
-            }
+        if let Some(selected) = negotiated_alpn
+            && selected != b"http/1.1"
+        {
+            debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
+            return Err(Http1TlsError::UnsupportedAlpn {
+                selected: selected.into(),
+            });
         }
 
         Http1Connection::connect(stream).await.map_err(Into::into)
@@ -1560,13 +1560,13 @@ impl Http1TlsConnector {
         let stream = self.tls.connect(server_name, stream).await?;
         let negotiated_alpn = stream.negotiated_alpn();
         Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
-        if let Some(selected) = negotiated_alpn {
-            if selected != b"http/1.1" {
-                debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
-                return Err(Http1TlsError::UnsupportedAlpn {
-                    selected: selected.into(),
-                });
-            }
+        if let Some(selected) = negotiated_alpn
+            && selected != b"http/1.1"
+        {
+            debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
+            return Err(Http1TlsError::UnsupportedAlpn {
+                selected: selected.into(),
+            });
         }
 
         let outcome = send_prepared_upgrade(stream, prepared).await?;

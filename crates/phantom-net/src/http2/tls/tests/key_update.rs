@@ -223,7 +223,7 @@ fn consume_continuations(
 }
 
 fn validate_settings(frame: &RawFrame) -> TestResult<()> {
-    if frame.stream_id != 0 || frame.payload.len() % 6 != 0 {
+    if frame.stream_id != 0 || !frame.payload.len().is_multiple_of(6) {
         return Err("client sent an invalid SETTINGS frame".into());
     }
     Ok(())

@@ -175,7 +175,7 @@ fn attribute<'a>(record: &'a str, name: &str) -> TestResult<&'a str> {
 }
 
 fn decode_hex(value: &str) -> TestResult<String> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err("odd-length hexadecimal value".into());
     }
     let bytes = (0..value.len())

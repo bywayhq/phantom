@@ -426,7 +426,7 @@ fn require_nonempty_even(
             maximum,
         });
     }
-    if length % 2 != 0 {
+    if !length.is_multiple_of(2) {
         return Err(ClientHelloDecodeError::InvalidVectorLength {
             field,
             length,
@@ -494,7 +494,7 @@ fn parse_server_name(
 }
 
 fn parse_u16_values(bytes: &[u8], field: &'static str) -> Result<Vec<u16>, ClientHelloDecodeError> {
-    if bytes.len() % 2 != 0 {
+    if !bytes.len().is_multiple_of(2) {
         return Err(ClientHelloDecodeError::InvalidVectorLength {
             field,
             length: bytes.len(),
@@ -502,7 +502,9 @@ fn parse_u16_values(bytes: &[u8], field: &'static str) -> Result<Vec<u16>, Clien
         });
     }
     Ok(bytes
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| u16::from_be_bytes([pair[0], pair[1]]))
         .collect())
 }

@@ -202,15 +202,14 @@ impl Client {
         endpoint: &crate::authority::Endpoint,
         route: &crate::Route,
     ) -> Result<Option<PooledHttp2Session>, crate::RequestError> {
-        if matches!(route, crate::Route::Direct) {
-            if let Some(session) = self
+        if matches!(route, crate::Route::Direct)
+            && let Some(session) = self
                 .state
                 .http1_or_2
                 .admit_current_http2_connection(endpoint)
                 .await?
-            {
-                return Ok(Some(session));
-            }
+        {
+            return Ok(Some(session));
         }
         self.state
             .http2

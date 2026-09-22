@@ -279,7 +279,7 @@ fn validate_transitions(
         .is_extended_connect_protocol_enabled()
         .unwrap_or(false);
     let mut no_rfc7540_priorities = settings.is_no_rfc7540_priorities().unwrap_or(false);
-    for setting in payload.chunks_exact(6) {
+    for setting in payload.as_chunks::<6>().0 {
         let id = u16::from_be_bytes([setting[0], setting[1]]);
         let value = u32::from_be_bytes([setting[2], setting[3], setting[4], setting[5]]);
         match id {

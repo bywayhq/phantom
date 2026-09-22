@@ -223,16 +223,18 @@ fn decode_varint_prefix(encoded: &[u8]) -> io::Result<(u64, usize)> {
 }
 
 fn is_reserved_transport_parameter(identifier: u64) -> bool {
-    identifier >= 27 && (identifier - 27) % 31 == 0
+    identifier >= 27 && (identifier - 27).is_multiple_of(31)
 }
 
 fn decode_hex(value: &str) -> io::Result<Vec<u8>> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err(invalid("handshake hex has odd length"));
     }
     value
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|digits| {
             let digits = std::str::from_utf8(digits).map_err(|error| invalid(error.to_string()))?;
             u8::from_str_radix(digits, 16).map_err(|error| invalid(error.to_string()))
