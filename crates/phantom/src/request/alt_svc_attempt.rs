@@ -13,8 +13,9 @@ use super::{
     RequestBodySource, ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, DispatchOutcome,
-        attempt_headers, begin_status_retry, begin_unprocessed_replay, client_hint_origin,
-        dispatch, observe_response, prepare_attempt, send_once_origin, store_cookies,
+        attempt_client_hints, attempt_headers, begin_status_retry, begin_unprocessed_replay,
+        client_hint_origin, dispatch, observe_response, prepare_attempt, send_once_origin,
+        store_cookies,
     },
     replay::ReplayClass,
 };
@@ -318,12 +319,7 @@ fn validate_both(
         }
     };
     let hint_origin = client_hint_origin(client, request);
-    let client_hints = client
-        .inner
-        .client_hints
-        .as_ref()
-        .zip(hint_origin.as_deref())
-        .map(|(settings, origin)| client.client_hint_context(&request.endpoint, origin, settings));
+    let client_hints = attempt_client_hints(client, request, hint_origin.as_deref());
     let mut http3_headers = attempt_headers(client, request, HttpProtocol::Http3, &attempt.headers);
     http3_headers.push(RequestHeader::new(
         "alt-used",

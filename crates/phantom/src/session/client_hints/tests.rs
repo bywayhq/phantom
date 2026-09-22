@@ -215,3 +215,119 @@ fn empty_or_malformed_connection_value_does_not_clear_session_state() {
         );
     }
 }
+
+mod template_slots {
+    use phantom_net::request::RequestHeader;
+    use phantom_profile::{ClientHintSettings, RequestTemplate, chromium, edge};
+
+    use super::super::prepare_fields;
+    use crate::request::template::expand;
+
+    const ALL_REQUESTED: &[usize] = &[2, 3, 5, 6, 7, 8, 9, 10];
+
+    fn prepared(
+        template: &RequestTemplate,
+        http1: bool,
+        hints: &ClientHintSettings,
+        caller: &[RequestHeader],
+        stored: Option<&[usize]>,
+    ) -> Vec<String> {
+        let fields = if http1 {
+            &template.http1_fields
+        } else {
+            &template.http2_fields
+        };
+        let expanded = expand(fields, caller, Some(hints));
+        prepare_fields(hints, stored, None, expanded, Some(template))
+            .iter()
+            .map(|header| header.name().to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn navigation_hints_follow_connection_as_one_block_in_profile_order() {
+        let template = chromium::v153_windows_navigation_template();
+        let hints = chromium::v153_windows_client_hints();
+        let first = prepared(&template, true, &hints, &[], None);
+        assert_eq!(
+            first[..5],
+            [
+                "Connection",
+                "sec-ch-ua",
+                "sec-ch-ua-mobile",
+                "sec-ch-ua-platform",
+                "Upgrade-Insecure-Requests"
+            ]
+        );
+
+        let requested = prepared(&template, true, &hints, &[], Some(ALL_REQUESTED));
+        let block: Vec<&str> = hints.hints().iter().map(|hint| hint.name()).collect();
+        assert_eq!(requested[1..12], block[..]);
+        assert_eq!(requested[12], "Upgrade-Insecure-Requests");
+    }
+
+    #[test]
+    fn fetch_hints_surround_user_agent_as_captured() {
+        let template = chromium::v153_windows_fetch_no_store_template();
+        let hints = chromium::v153_windows_client_hints();
+        assert_eq!(
+            prepared(&template, false, &hints, &[], None)[..7],
+            [
+                "pragma",
+                "cache-control",
+                "sec-ch-ua-platform",
+                "user-agent",
+                "sec-ch-ua",
+                "sec-ch-ua-mobile",
+                "accept"
+            ]
+        );
+        // Hints requested through Accept-CH follow `sec-ch-ua-mobile`.
+        let requested = prepared(&template, false, &hints, &[], Some(ALL_REQUESTED));
+        assert_eq!(requested[6], "sec-ch-ua-full-version");
+        assert_eq!(requested[14], "accept");
+    }
+
+    #[test]
+    fn an_empty_user_agent_slot_keeps_the_platform_hint_before_accept() {
+        let template = edge::v153_windows_fetch_no_store_template();
+        let hints = edge::v153_windows_client_hints();
+        assert_eq!(
+            prepared(&template, true, &hints, &[], None)[..7],
+            [
+                "Connection",
+                "Pragma",
+                "Cache-Control",
+                "sec-ch-ua-platform",
+                "sec-ch-ua",
+                "sec-ch-ua-mobile",
+                "Accept"
+            ]
+        );
+    }
+
+    #[test]
+    fn caller_hint_values_keep_the_slot_position() {
+        let template = chromium::v153_windows_fetch_no_store_template();
+        let hints = chromium::v153_windows_client_hints();
+        let caller = [
+            RequestHeader::new("x-first", "1"),
+            RequestHeader::new("SEC-CH-UA-MOBILE", "?1"),
+        ];
+        let expanded = expand(&template.http2_fields, &caller, Some(&hints));
+        let prepared = prepare_fields(&hints, None, None, expanded, Some(&template));
+        let mobile = prepared
+            .iter()
+            .position(|header| header.name() == "sec-ch-ua-mobile");
+        assert_eq!(mobile, Some(5));
+        assert_eq!(prepared[5].value(), b"?1");
+        assert_eq!(
+            prepared
+                .iter()
+                .filter(|header| header.name().eq_ignore_ascii_case("sec-ch-ua-mobile"))
+                .count(),
+            1
+        );
+        assert_eq!(prepared.last().map(RequestHeader::name), Some("x-first"));
+    }
+}

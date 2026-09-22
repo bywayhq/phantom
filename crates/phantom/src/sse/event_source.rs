@@ -36,6 +36,8 @@ fn is_reconnectable(error: &RequestError) -> bool {
         | RequestErrorKind::InvalidAuthority
         | RequestErrorKind::AuthorityHeader
         | RequestErrorKind::InvalidHeader
+        | RequestErrorKind::RequestTemplate
+        | RequestErrorKind::IdentityMismatch
         | RequestErrorKind::ProtocolUnavailable
         | RequestErrorKind::UnsupportedRoute
         | RequestErrorKind::InvalidTarget

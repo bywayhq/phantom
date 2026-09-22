@@ -239,6 +239,12 @@ pub enum RequestErrorKind {
     AuthorityHeader,
     /// A request field is not valid for the selected operation.
     InvalidHeader,
+    /// The request template is invalid or has no field order for a protocol
+    /// the request may use.
+    RequestTemplate,
+    /// A `User-Agent` or brand-list client hint names another browser or
+    /// version than the request template.
+    IdentityMismatch,
     /// The selected protocol is absent from the client profile.
     ProtocolUnavailable,
     /// The selected route cannot carry the requested protocol.
@@ -442,6 +448,35 @@ impl RequestError {
             RequestErrorKind::AuthorityHeader,
             "Host is derived from the request URI and must not be supplied as a request field",
         )
+    }
+
+    pub(crate) fn invalid_request_template(
+        source: phantom_profile::InvalidRequestTemplate,
+    ) -> Self {
+        Self::with_source(
+            RequestErrorKind::RequestTemplate,
+            None,
+            "invalid request template",
+            source,
+        )
+    }
+
+    pub(crate) fn request_template_protocol() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "the request template has no HTTP/3 field order for a request that may use HTTP/3",
+        )
+    }
+
+    pub(crate) fn request_template_accept_encoding() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "content decoding needs one Accept-Encoding value across the template's protocols",
+        )
+    }
+
+    pub(crate) fn identity_mismatch(message: &'static str) -> Self {
+        Self::without_source(RequestErrorKind::IdentityMismatch, message)
     }
 
     pub(crate) fn alt_used_header() -> Self {

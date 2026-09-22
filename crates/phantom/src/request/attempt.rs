@@ -442,7 +442,18 @@ pub(super) fn attempt_headers(
     protocol: HttpProtocol,
     request_headers: &[RequestHeader],
 ) -> Vec<RequestHeader> {
-    let mut headers = request_headers.to_vec();
+    let fields = request
+        .template
+        .as_deref()
+        .and_then(|template| super::template::fields_for(template, protocol));
+    // `send` rejects a template without a list for any protocol the request
+    // may use, so a missing list never reaches this point with a template.
+    let mut headers = match fields {
+        Some(fields) => {
+            super::template::expand(fields, request_headers, client.inner.client_hints.as_ref())
+        }
+        None => request_headers.to_vec(),
+    };
     inject_cookie(client, request, protocol, &mut headers);
     headers
 }
@@ -453,14 +464,31 @@ pub(super) fn prepare_attempt<'a>(
     client_hint_origin: Option<&'a str>,
     body: &mut RequestBodySource,
 ) -> Result<PreparedAttempt<'a>, RequestError> {
-    let client_hints = client
+    let client_hints = attempt_client_hints(client, request, client_hint_origin);
+    let body = body.next_attempt()?;
+    Ok(PreparedAttempt { client_hints, body })
+}
+
+/// Returns the client-hint context of one attempt, which places automatic
+/// hints at the request template's slots.
+///
+/// Validation before I/O and the attempt itself use this one context, so a
+/// template's hint placement and requested-hint refusal apply to both.
+pub(super) fn attempt_client_hints<'a>(
+    client: &'a Client,
+    request: &'a ResolvedRequest,
+    client_hint_origin: Option<&'a str>,
+) -> Option<ClientHintContext<'a>> {
+    client
         .inner
         .client_hints
         .as_ref()
         .zip(client_hint_origin)
-        .map(|(settings, origin)| client.client_hint_context(&request.endpoint, origin, settings));
-    let body = body.next_attempt()?;
-    Ok(PreparedAttempt { client_hints, body })
+        .map(|(settings, origin)| {
+            client
+                .client_hint_context(&request.endpoint, origin, settings)
+                .with_template(request.template.as_deref())
+        })
 }
 
 /// Stores response state and returns whether it requested a Critical-CH retry.

@@ -1,4 +1,4 @@
-use std::{error::Error as StdError, fmt};
+use std::{borrow::Cow, error::Error as StdError, fmt, sync::Arc};
 
 use bytes::Bytes;
 use http::{Method, Response, Uri};
@@ -7,6 +7,7 @@ use phantom_net::{
     http1::{AbsoluteForm, OriginForm},
     request::{RequestBody, RequestHeader, RequestTrailerName},
 };
+use phantom_profile::RequestTemplate;
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
@@ -21,6 +22,7 @@ use crate::{
 mod alt_svc_attempt;
 mod attempt;
 mod replay;
+pub(crate) mod template;
 
 use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use replay::ReplayState;
@@ -54,6 +56,7 @@ impl fmt::Debug for RequestBuilder {
             .field("protocol_selection", &self.selection)
             .field("method", &self.method)
             .field("header_count", &self.headers.len())
+            .field("template", &self.request.template.is_some())
             .field("trailer_count", &self.trailers.len())
             .field("body_kind", &self.body.trace_kind())
             .field("body_len", &self.body.exact_length().unwrap_or(0))
@@ -134,6 +137,30 @@ impl RequestBuilder {
     /// Replaces the complete ordered request-field list.
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
         self.headers = headers;
+        self
+    }
+
+    /// Sends the request with a browser request template's fields and order.
+    ///
+    /// Each attempt emits the template's list for the protocol it uses, after
+    /// `Host` on HTTP/1.1 or the pseudo-header fields on HTTP/2 and HTTP/3.
+    /// A caller field whose name matches a template entry takes that entry's
+    /// position and spelling and keeps its value; a literal entry without one
+    /// emits its captured value. Other caller fields, then an automatic
+    /// cookie, follow the template. Profile client hints fill the template's
+    /// client-hint slots. Every redirect hop uses the same template.
+    ///
+    /// Sending fails before I/O with
+    /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
+    /// when the template is invalid or lacks an HTTP/3 list for a request that
+    /// may use HTTP/3, and with
+    /// [`RequestErrorKind::IdentityMismatch`](crate::RequestErrorKind::IdentityMismatch)
+    /// when a caller `User-Agent`, a caller `sec-ch-ua` or
+    /// `sec-ch-ua-full-version-list`, or the profile's value of those hints
+    /// names another browser or major version than the template. Phantom never
+    /// rewrites such a field.
+    pub fn template(mut self, template: RequestTemplate) -> Self {
+        self.request.template = Some(Arc::new(template));
         self
     }
 
@@ -365,8 +392,27 @@ impl RequestBuilder {
             return Err(RequestError::alt_used_header());
         }
         let content_decoding = self.content_decoding;
+        if let Some(template) = self.request.template.as_deref() {
+            let scope = template::ProtocolScope {
+                exact: match self.selection {
+                    ProtocolSelection::Exact(protocol) => Some(protocol),
+                    ProtocolSelection::Http1Or2 => None,
+                },
+                alt_svc: self.client.alt_svc_enabled(),
+                content_decoding: content_decoding.is_enabled(),
+            };
+            template::check(
+                template,
+                scope,
+                &self.headers,
+                self.client.inner.client_hints.as_ref(),
+            )?;
+        }
         if content_decoding.is_enabled() {
-            AdvertisedContentCodings::from_request_headers(&self.headers)?;
+            AdvertisedContentCodings::from_request_headers(&decoding_headers(
+                self.request.template.as_deref(),
+                &self.headers,
+            ))?;
         }
 
         let Self {
@@ -403,7 +449,11 @@ impl RequestBuilder {
 
         if policy.max_hops().is_none() {
             let mut body = body;
-            let decoding = FinalDecoding::new(content_decoding, &method, &request_headers)?;
+            let decoding = FinalDecoding::new(
+                content_decoding,
+                &method,
+                &decoding_headers(request.template.as_deref(), &request_headers),
+            )?;
             let outcome = send_once(
                 &client,
                 &request,
@@ -482,7 +532,7 @@ impl RequestBuilder {
                     let decoded_content_codings = FinalDecoding::new(
                         content_decoding,
                         redirect.method(),
-                        redirect.headers(),
+                        &decoding_headers(resolved.template.as_deref(), redirect.headers()),
                     )?
                     .apply(&mut response, outcome.protocol);
                     response.extensions_mut().insert(ResponseInfo::new(
@@ -505,10 +555,33 @@ impl RequestBuilder {
                         "following redirect"
                     );
                     drop(response);
+                    let template = resolved.template.take();
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
+                    resolved.template = template;
                 }
             }
         }
+    }
+}
+
+/// Returns the fields whose `Accept-Encoding` selects content decoding.
+///
+/// A template's literal `Accept-Encoding` is sent when the caller supplies
+/// none, so it is advertised too.
+fn decoding_headers<'a>(
+    template: Option<&RequestTemplate>,
+    headers: &'a [RequestHeader],
+) -> Cow<'a, [RequestHeader]> {
+    let caller_supplied = headers
+        .iter()
+        .any(|header| header.name().eq_ignore_ascii_case("accept-encoding"));
+    match template.and_then(template::accept_encoding) {
+        Some(value) if !caller_supplied => {
+            let mut headers = headers.to_vec();
+            headers.push(RequestHeader::new("accept-encoding", value));
+            Cow::Owned(headers)
+        }
+        _ => Cow::Borrowed(headers),
     }
 }
 
@@ -711,6 +784,7 @@ struct ResolvedRequest {
     endpoint: Endpoint,
     target: OriginForm,
     absolute_target: AbsoluteForm,
+    template: Option<Arc<RequestTemplate>>,
 }
 
 impl ResolvedRequest {
@@ -737,6 +811,7 @@ impl ResolvedRequest {
             endpoint,
             target,
             absolute_target,
+            template: None,
         })
     }
 
@@ -776,6 +851,7 @@ impl ResolvedRequest {
             endpoint,
             target,
             absolute_target,
+            template: None,
         })
     }
 }
