@@ -1,7 +1,8 @@
 # Design
 
-This document is for maintainers and reviewers. It defines Phantom's stable
-ownership and safety boundaries; user configuration belongs in
+This document is for maintainers, reviewers, and users who want to know why
+Phantom behaves as it does. It defines Phantom's stable ownership and safety
+boundaries; user configuration belongs in
 [Using the client](../guides/client.md).
 
 ## Principles

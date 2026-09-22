@@ -1,7 +1,27 @@
 # Validation
 
-This document is for contributors and reviewers. It defines the evidence
-required for claims about observable behavior.
+This document is for contributors, reviewers, and anyone deciding how far to
+trust a claim. It defines the evidence required for claims about observable
+behavior, then records the evidence behind each feature and what that evidence
+does not cover.
+
+- Evidence rules: [evidence ladder](#evidence-ladder),
+  [fixtures and normalization](#fixtures-and-normalization),
+  [adversarial coverage](#adversarial-coverage).
+- Feature evidence: [request trailers](#ordered-request-trailer-evidence),
+  [forward proxies](#forward-proxy-evidence),
+  [H3 over SOCKS5](#h3-socks5-udp-evidence),
+  [Alt-Svc](#alt-svc-http3-upgrade-evidence),
+  [connection retries](#connection-retry-evidence),
+  [SSE](#sse-browser-reconnect-evidence),
+  [content decoding](#content-decoding-evidence),
+  [response-body limits](#response-body-limit-evidence),
+  [WebSocket](#websocket-browser-evidence).
+- Browser captures: [cross-platform parity](#cross-platform-transport-parity),
+  [Chrome 153, Edge 153, and Firefox 156](#chrome-153-edge-153-and-firefox-156-recipes).
+- Other: [external suites](#external-suites),
+  [diagnostics and performance](#diagnostics-and-performance),
+  [contributor gates](#contributor-gates).
 
 ## Evidence ladder
 

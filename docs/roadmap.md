@@ -1,7 +1,8 @@
 # Roadmap
 
 This page is for users and contributors following active direction. Exact
-current support lives in [Coverage](reference/coverage.md).
+current support lives in [Coverage](reference/coverage.md). The roadmap
+describes intent, not commitments or dates.
 
 Each phase names the dominant delivery focus. Idiomatic Rust, clear ownership,
 accurate documentation, and green validation gates remain continuous
@@ -28,9 +29,10 @@ work has exposed the real architectural boundaries.
   ownership and bounded lifecycle rules.
 - Browser-backed SSE reconnect evidence exists for Chrome 153 and Firefox 156
   on Windows over HTTP/1.1, and Phantom reproduces it through
-  `SseHeader::last_event_id` and `min_retry`. Chrome's single
-  resend after a reused keep-alive connection closes before any response is
-  available as opt-in reused-connection replay. Complete the remaining WebSocket protocol functionality before broad
+  `SseHeader::last_event_id` and `min_retry`. Chrome's single resend after a
+  reused keep-alive connection closes before any response is available as
+  opt-in reused-connection replay.
+- Complete the remaining WebSocket protocol functionality before broad
   robustness work.
 - Expand the Chromium, Firefox, and Safari protocol/profile matrix only from
   fresh captures; do not infer missing H2, H3, QUIC, WebSocket, or SSE behavior

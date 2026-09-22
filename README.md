@@ -1,49 +1,54 @@
 # Phantom
 
-**A wire-evidenced, browser-compatible HTTP client for Rust.**
+**A Rust HTTP client whose TLS, HTTP/2, QUIC, and HTTP/3 behavior matches
+captured browsers.**
 
-Phantom gives applications explicit control over observable TLS, HTTP/1.1,
-HTTP/2, QUIC, and HTTP/3 behavior. Browser behavior lives in typed, validated
-profiles rather than hidden transport branches.
+Phantom lets an application choose exactly what a server observes on the
+wire. Browser behavior lives in typed, validated profiles built from real
+browser captures, not in hidden transport branches. Phantom is an open-source
+project maintained by [Byway](https://github.com/bywayhq).
 
-> **Status:** Phantom is experimental, under active development, and not yet
-> published to crates.io. Depend on a pinned git revision or checkout; see
-> [Downstream integration](docs/guides/downstream.md). It does not claim complete
-> browser impersonation.
+> **Status: experimental, pre-1.0.** Phantom is not yet published to
+> crates.io, and its API may change between commits. Depend on a pinned git
+> revision; see [Adding Phantom to a project](docs/guides/downstream.md).
+> Phantom does not claim complete browser impersonation.
 
-## Why Phantom?
+## What Phantom is
 
 A matching TLS ClientHello is only one part of a client's wire identity. HTTP
 settings, header order, QUIC parameters, connection reuse, and cross-request
-state are observable too.
+state are observable too. Phantom treats captured wire behavior as the
+specification:
 
-Phantom treats captured wire behavior as the specification:
+- **Profiles** control concrete TLS, HTTP/2, HTTP/3, QUIC, and client-hint
+  behavior.
+- **Order is preserved**: request fields, duplicates, pseudo-headers,
+  trailers, and settings are sent in the order you give them.
+- **No silent fallback**: a request uses the protocol and route you chose, or
+  fails with a typed error.
+- **Bounded state**: pools, queues, and caches are client-owned and finite.
+- **Evidence-backed claims**: each compatibility claim names the captured
+  layer and the test that compares it.
 
-- profiles control concrete TLS, H2, H3, QUIC, and client-hint behavior;
-- request fields, duplicates, pseudo-headers, static or body-produced trailers, and settings
-  retain their order;
-- exact protocol and route choices never silently fall back;
-- client-owned state and admission queues are bounded; and
-- compatibility claims name the captured layer and supporting differential.
+## What Phantom is not
 
-Phantom is an HTTP client, not a browser engine. It does not emulate the DOM,
-JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprints.
+- Not a browser engine. It does not emulate the DOM, JavaScript, rendering,
+  canvas, fonts, WebRTC, or device fingerprints.
+- Not a general-purpose client with automatic fallbacks. Redirects, retry
+  policies, timeouts, cookies, and decompression are off until you enable
+  them.
 
-## Current support
+## Installation
 
-| Area | Available today |
-| --- | --- |
-| Protocols | Ordered streaming H1, multiplexed H2, exact H3 over direct or SOCKS5-carried QUIC, one-handshake direct H1/H2 negotiation with opt-in bounded Alt-Svc upgrade to H3 and canonical explicit-port `Alt-Used` only on that managed attempt, and ordered static or streaming-body-produced request trailers |
-| Profiles | Chrome 152 and 153 transport recipes across TLS, H2, H3, and QUIC (152 verified on macOS and Windows, 153 captured on Windows), with platform-qualified client hints; Edge 153 TLS and client hints (its H2, QUIC, and H3 match Chrome 153); Firefox 154 and 156 TLS/H2; Safari 18.5 TLS from macOS captures |
-| Routing | Direct; HTTP/1.1 forwarding over plaintext or independently configured TLS proxies for `http://` origins, including challenge-driven Basic authentication; HTTP/HTTPS CONNECT; local- or remote-DNS SOCKS5 for H1/H2; and exact H3 over local- or remote-DNS SOCKS5 using RFC 1928 UDP ASSOCIATE |
-| State | Isolated bounded pools, HTTPS-only redirects, opt-in pre-dispatch setup retries for exact H1/H2/H3 and pre-ALPN negotiated H1/H2, timeouts, client hints, TLS sessions, bounded opt-in Alt-Svc, and opt-in cookies |
-| Optional APIs | Server-sent events; H1 WebSocket over direct, HTTP-forward, HTTP-CONNECT, or SOCKS5 routes as applicable; exact H2 WebSocket extended CONNECT over direct, HTTP-CONNECT, or SOCKS5 routes for explicitly configured profiles; and opt-in `permessage-deflate` |
-| Evidence | Retained capture differentials, hostile-peer tests, fuzzing, external suites, and cross-platform gates |
+```toml
+[dependencies]
+phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
+```
 
-See [Coverage](docs/reference/coverage.md) for the exact supported and planned lifecycle
-at each layer.
+Pin an exact commit. The native BoringSSL build needs Git, CMake, Clang, and a
+C++ toolchain; see [Getting started](docs/getting-started.md#prerequisites).
 
-## A first request
+## Example
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
@@ -66,65 +71,89 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-This request selects exactly HTTP/2. `get_negotiated` instead performs one
-direct TLS handshake and may select H1 or H2. With `ClientBuilder::alt_svc`, a
-later negotiated request may use a fresh `h3` alternative learned from that
-origin. H3 uses a separate QUIC profile and exact H3 also supports direct
-routing or local-/remote-DNS SOCKS5 through RFC 1928 UDP ASSOCIATE.
+This request uses exactly HTTP/2 with Chrome 152's TLS and HTTP/2 settings.
+`get_negotiated` instead lets one TLS handshake choose HTTP/1.1 or HTTP/2.
+Requests run inside a Tokio runtime with I/O and timers enabled.
 
-Every response uses the standard `http::Response` view and carries
-`ResponseInfo` plus `OrderedResponseHeaders` in its extensions.
-`ResponseBody::collect_with_limit` provides an inclusive cap for callers that
-need to abandon hostile or unexpectedly large bodies.
+## Cargo features
 
-[Getting started](docs/getting-started.md) covers the source build and feature
-flags. [Using the client](docs/guides/client.md) covers profiles, routes, state,
-timeouts, bodies, and responses.
+No feature is enabled by default.
+
+| Feature | Adds |
+| --- | --- |
+| `cookies` | Bounded client-owned cookie jar |
+| `sse` | Server-sent event decoding and bounded reconnects |
+| `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
+| `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
+| `full` | All of the above |
+
+## Support at a glance
+
+| Area | Supported today |
+| --- | --- |
+| Protocols | HTTP/1.1, HTTP/2, and HTTP/3, each selectable exactly; negotiated HTTP/1.1 or HTTP/2; opt-in Alt-Svc upgrade to HTTP/3 |
+| Browser recipes | Chrome 152 and 153, Edge 153, Firefox 154 and 156, Safari 18.5 TLS ([details](docs/guides/profiles.md#built-in-recipes)) |
+| Routes | Direct, HTTP proxy (CONNECT and forwarding), SOCKS5, and CONNECT-UDP for HTTP/3 |
+| Client state | Pools, opt-in redirects, retries, cookies, client hints, Alt-Svc, and TLS sessions |
+| Optional APIs | Server-sent events and WebSocket |
+
+Not yet implemented: Alt-Svc connection racing and WebSocket over HTTP/3.
+[Coverage](docs/reference/coverage.md) is the detailed support contract, and
+the [route matrix](docs/reference/route-matrix.md) lists every protocol and
+route combination.
 
 ## Deliberate limits
 
-- Exact-protocol requests never downgrade.
-- Proxy failure never falls back direct.
-- Forward proxy routes send HTTP/1.1 absolute-form requests only; they do not
-  switch to CONNECT, negotiated H1/H2, H2, or H3.
-- Basic forward-proxy authentication starts every logical request anonymously
-  and permits one challenge-driven replay on a fresh same-route connection; no
-  challenge state is learned across requests. The same lifecycle applies to
-  plaintext WebSocket Upgrade requests sent through a forward proxy.
-- H3 accepts direct, local-DNS `socks5://`, remote-DNS `socks5h://`, or
-  RFC 9298 CONNECT-UDP routes. It rejects HTTP forwarding and HTTP CONNECT
-  before origin I/O.
+- Exact-protocol requests never downgrade, and proxy failure never falls back
+  to a direct connection.
 - Redirect following is HTTPS-only. A client with a redirect policy rejects
-  `http://` requests before I/O, and a redirect to a non-HTTPS target fails.
+  `http://` requests before any I/O.
+- Streaming request bodies are one-shot and are never replayed.
 - WebSocket connects do not apply the client's timeout, retry, or redirect
   policy.
-- Streaming request bodies are one-shot and are not replayed implicitly.
-- Alt-Svc connection racing and H3 WebSocket remain planned.
 
-These limits make Phantom narrower than a general-purpose client, but keep its
-behavior explicit and testable.
+These limits make Phantom narrower than a general-purpose client but keep its
+behavior explicit and testable. Each guide lists the limits of its feature.
 
 ## Documentation
 
-The [documentation map](docs/README.md) routes readers by audience and task.
+- [Getting started](docs/getting-started.md): first build and request.
+- [Guides](docs/README.md#guides): client, profiles, proxies, retries,
+  HTTP/3, SSE, WebSocket, and more.
+- [Coverage](docs/reference/coverage.md): what is supported and planned.
+- [Design](docs/explanation/design.md) and
+  [Validation](docs/explanation/validation.md): why Phantom works this way and
+  how claims are proved.
+- [Roadmap](docs/roadmap.md): current and planned work.
 
-- [Getting started](docs/getting-started.md) — first build and request
-- [Using the client](docs/guides/client.md) — integration guide
-- [Coverage](docs/reference/coverage.md) — authoritative support contract
-- [Design](docs/explanation/design.md) — architecture and invariants
-- [Validation](docs/explanation/validation.md) — evidence and contributor gates
-- [HTTP/3 internals](docs/internals/http3.md) — QUIC, QPACK, capture, and diagnostics
-- [Roadmap](docs/roadmap.md) — now, next, and later
+The [documentation index](docs/README.md) lists every page.
 
-SSE and WebSocket have focused guides under [`docs/`](docs/). Contributors
-should read [CONTRIBUTING.md](CONTRIBUTING.md); suspected vulnerabilities follow
-[SECURITY.md](SECURITY.md).
+## Minimum supported Rust version
+
+Phantom's MSRV is Rust 1.85. Development uses the toolchain pinned in
+`rust-toolchain.toml`.
+
+## Contributing and security
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report
+suspected vulnerabilities privately as described in [SECURITY.md](SECURITY.md),
+not in a public issue.
 
 ## License
 
-Phantom is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)
-or [MIT license](LICENSE-MIT) at your option. Vendored dependencies under
-[`vendor/`](vendor/) keep their upstream licenses.
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or
+  <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+Vendored dependencies under [`vendor/`](vendor/) keep their upstream licenses
+and license files.
+
+### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Phantom by you, as defined in the Apache-2.0 license, shall be

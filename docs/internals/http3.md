@@ -1,8 +1,8 @@
 # HTTP/3 internals
 
 This document is for contributors working on QUIC, HTTP/3, QPACK, or their
-capture fixtures. Application users should start with
-[Getting started](../getting-started.md).
+capture fixtures. Application users should read
+[HTTP/3 and Alt-Svc](../guides/http3.md) instead.
 
 ## Stack boundary
 

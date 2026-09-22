@@ -1,16 +1,16 @@
-# Downstream integration
-
-Phantom's patched dependencies are renamed forks that live in this repository
-under `vendor/`: `phantom-btls`, `phantom-h3`, `phantom-http2`,
-`phantom-quinn-proto`, and the other `phantom-*` packages listed in
-[Vendored forks](#vendored-forks). Phantom's manifests depend on them by exact
-version and path, so a downstream build needs no `[patch]` table and the stock
-packages can never replace them.
+# Adding Phantom to a project
 
 Phantom is not yet published to crates.io. The supported ways to depend on it
 are a pinned git revision or a pinned path checkout. The package is named
 `phantom-http` because `phantom` is taken on crates.io; the library crate is
 still `phantom`, so the dependency key below keeps `use phantom::...` working.
+
+Phantom's patched dependencies are renamed forks that live in this repository
+under `vendor/`: `phantom-btls`, `phantom-h3`, `phantom-http2`,
+`phantom-quinn-proto`, and the other `phantom-*` packages listed in
+[Vendored forks](../internals/vendoring.md#vendored-forks). Phantom's manifests
+depend on them by exact version and path, so a downstream build needs no
+`[patch]` table and the stock packages can never replace them.
 
 ## Git dependency
 
@@ -76,33 +76,7 @@ cargo metadata --all-features --locked --format-version 1 > /dev/null
 cargo check --all-features --locked
 ```
 
-Phantom's CI `Downstream` job runs `cargo deny --locked check bans` against
-the stock names in `deny.toml`, then `scripts/ci/check-downstream.sh path git`.
-That script builds throwaway path and git consumers that each declare Phantom
-with one dependency line. For each it runs `cargo generate-lockfile`,
-`cargo metadata --all-features --locked`, and `cargo check --all-features
---locked`, and fails if any stock package appears, any `phantom-*` fork
-resolves from an unexpected source, or `btls-sys` resolves from anything but
-the reviewed fork revision. The git consumer uses a local snapshot commit of
-the checkout, not the GitHub remote. A downstream repository must still run
-the commands above, and its own build and tests, against its committed
-lockfile and toolchain.
-
-## Vendored forks
-
-| Package | Upstream | Changes |
-| --- | --- | --- |
-| `phantom-btls` | `btls` wrapper 0.5.6 | Source patches and identity; see `vendor/btls/PHANTOM.md` |
-| `phantom-tokio-btls` | `tokio-btls` 0.5.6 | Standalone manifest and identity only |
-| `phantom-h3`, `phantom-h3-datagram`, `phantom-h3-quinn` | Hyperium `h3` commit `1f3d529` | Source patches and identity; see `vendor/h3/PHANTOM.md` |
-| `phantom-http2` | `http2` 0.5.20 | Source patches and identity; see `vendor/http2/PHANTOM.md` |
-| `phantom-quinn` | `quinn` 0.11.12 | Identity only |
-| `phantom-quinn-proto` | `quinn-proto` 0.11.18 | Source patches and identity; see `vendor/quinn-proto/PHANTOM.md` |
-| `phantom-tungstenite` | `tungstenite` 0.30.0 | Source patches and identity; see `vendor/tungstenite/PHANTOM.md` |
-| `phantom-tokio-tungstenite` | `tokio-tungstenite` 0.30.0 | Warning-only source patch and identity; see `vendor/tokio-tungstenite/PHANTOM.md` |
-| `phantom-wreq-proto` | `wreq-proto` 0.2.5 | Source patches and identity; see `vendor/wreq-proto/PHANTOM.md` |
-
-Every fork is its checksummed upstream source plus the ordered patches in its
-`patches/series`; `scripts/ci/check-vendor.sh <package>` replays and compares
-them. Each fork keeps its upstream license files and library name. Fork
-versions use the form `<upstream>-phantom.<n>` and are always pinned exactly.
+Phantom's own CI checks path and git consumers the same way; see
+[Downstream CI](../internals/vendoring.md#downstream-ci). A downstream
+repository must still run the commands above, and its own build and tests,
+against its committed lockfile and toolchain.

@@ -1,6 +1,7 @@
 # WebSocket
 
-The optional `websocket` feature provides exact HTTP/1.1 Upgrade and
+WebSocket is a two-way message protocol that starts as an HTTP request. The
+optional `websocket` feature provides exact HTTP/1.1 Upgrade and
 [RFC 8441](https://www.rfc-editor.org/rfc/rfc8441.html) HTTP/2 extended CONNECT
 connections. `Client::websocket` remains the HTTP/1.1
 shorthand; `Client::websocket_with_protocol` selects an exact protocol without
@@ -20,28 +21,13 @@ including through an HTTPS proxy reached over HTTP/2
 (`HttpProxy::with_http2_transport`). That proxy transport cannot forward
 plaintext requests, so H1 `ws://` through it fails before proxy I/O instead of
 switching to CONNECT or HTTP/1.1. The
-[combination table](client.md#supported-scheme-protocol-and-route-combinations)
+[route matrix](../reference/route-matrix.md)
 summarizes every scheme, protocol, and route.
 Secure connections reuse Phantom's BoringSSL TLS profile. Both transports reuse
 the ordered HTTP/1 serializer, ordered response metadata, client cookies,
 runtime errors, and tracing lifecycle.
 
-The public client is exercised against a pinned Autobahn fuzzing server. See
-[Validation](../explanation/validation.md#external-suites) for how external suites are used.
-
-The additive `websocket-deflate` feature compiles RFC 7692 support. It does not
-change the wire by itself: each connection must opt in through
-`WebSocketRequestBuilder::permessage_deflate`.
-
-Phantom owns the opening handshake. `tokio-tungstenite` is used only after a
-validated `101` as the RFC 6455 frame and message engine. Its client handshake,
-TLS connectors, and public types are not exposed. The pinned engine carries a
-replayable narrow patch so dependency logs never contain frames or messages and
-client mask entropy failure is returned as a typed error instead of panicking.
-The ordered patch series also carries the compression frame state machine;
-its final default-preserving patch adds the fragment-count seam used by
-Phantom. Phantom continues to own the exact opening fields and response
-boundary.
+## Connect over HTTP/1.1
 
 ```rust
 use futures_util::{SinkExt, StreamExt};
@@ -66,6 +52,8 @@ async fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
 The example uses `futures-util` for `SinkExt` and `StreamExt`; add it to your
 own `Cargo.toml` to call those traits.
+
+## Connect over HTTP/2
 
 An exact H2 connection needs an HTTP/2 profile with an extended-CONNECT
 pseudo-header order. `chromium::v153_http2` and `firefox::v156_http2` carry
@@ -323,6 +311,10 @@ These recipes do not reproduce:
 
 ## Compression
 
+The additive `websocket-deflate` feature compiles RFC 7692 support. It does not
+change the wire by itself: each connection must opt in through
+`WebSocketRequestBuilder::permessage_deflate`.
+
 `PerMessageDeflate::new()` emits
 `permessage-deflate; client_max_window_bits`. The typed offer API can replace
 that with any RFC-valid ordered combination, including no parameters and a
@@ -339,6 +331,21 @@ decompressed message bound share one state machine. Expansion beyond
 terminates the connection instead of allowing later frames to use a mismatched
 dictionary. Ping, Pong, and Close frames are never compressed. Existing
 tracing records logical uncompressed byte counts and never payload contents.
+
+## How Phantom implements WebSocket
+
+The public client is exercised against a pinned Autobahn fuzzing server. See
+[Validation](../explanation/validation.md#external-suites) for how external suites are used.
+
+Phantom owns the opening handshake. `tokio-tungstenite` is used only after a
+validated `101` as the RFC 6455 frame and message engine. Its client handshake,
+TLS connectors, and public types are not exposed. The pinned engine carries a
+replayable narrow patch so dependency logs never contain frames or messages and
+client mask entropy failure is returned as a typed error instead of panicking.
+The ordered patch series also carries the compression frame state machine;
+its final default-preserving patch adds the fragment-count seam used by
+Phantom. Phantom continues to own the exact opening fields and response
+boundary.
 
 ## Current boundary
 

@@ -1,8 +1,16 @@
 # Server-sent events
 
-The optional `sse` feature adds a pull-based decoder and a client-owned,
-bounded reconnect controller over Phantom's existing streaming response body.
-Neither API creates a background task, channel, or event queue.
+Server-sent events (SSE) are a stream of text events sent over one long-lived
+HTTP response, the protocol behind the browser `EventSource` API. The optional
+`sse` feature adds two APIs over Phantom's streaming response body:
+
+- `SseStream`, a pull-based decoder for one response; and
+- `Client::event_source`, a client-owned, bounded reconnect controller.
+
+Neither API creates a background task, channel, or event queue. Default limits
+are listed in [Defaults and limits](../reference/limits.md#server-sent-events).
+
+## Reading a response
 
 ```rust
 use phantom::{Client, HttpProtocol, SseStream};
@@ -20,6 +28,12 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+`from_response` requires status 200, a `text/event-stream` content-type
+essence, and no content encoding other than `identity`, even when the
+request enabled `ContentDecoding`.
+
+## Reconnecting with an event source
 
 Use `Client::event_source` when reconnect behavior is required:
 
@@ -44,6 +58,8 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+## Request fields
 
 The EventSource builder starts with ordered `Accept: text/event-stream` and
 `Cache-Control: no-cache` fields, using lowercase names for HTTP/2 and HTTP/3.
@@ -82,9 +98,9 @@ Without a placeholder, a nonempty ID is appended after every other field.
 with `SseErrorKind::InvalidRequestHeader` before any I/O, so reconnects cannot
 emit duplicates.
 
-`from_response` requires status 200, a `text/event-stream` content-type
-essence, and no content encoding other than `identity`, even when the
-request enabled `ContentDecoding`. Decoding follows the
+## Decoding and limits
+
+Decoding follows the
 WHATWG event-stream rules for UTF-8 replacement, a leading byte-order mark,
 CR/LF/CRLF line endings, comments, fields, persistent event IDs, and retry
 durations. An event without its terminating blank line is discarded at end of
@@ -94,6 +110,8 @@ The default limits are 64 KiB per line and 1 MiB across one event block.
 `SseLimits` configures both before decoding begins. Exceeding either limit, or
 an underlying response-body failure, returns a typed `SseError` and releases
 the body immediately.
+
+## Cancellation and reconnect rules
 
 Both `next_event` methods are cancellation-safe. `SseStream` retains partial
 decoder state for the next call and remains a single-response primitive.
@@ -110,6 +128,8 @@ event ID that cannot be sent as a `Last-Event-ID` field value also ends the
 source with `SseErrorKind::Request` before another request. Reconnects use the same
 exact protocol, client cookies, redirect policy, ordered caller fields, and
 route.
+
+### Delays, timeouts, and budgets
 
 The initial reconnect delay and finite reconnect count are explicit builder
 settings; their defaults are three seconds and three reconnect requests.

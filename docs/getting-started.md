@@ -1,29 +1,34 @@
 # Getting started
 
-This guide is for Rust developers evaluating Phantom for the first time. It
-covers a source build and one explicit HTTP/2 request. Broader configuration is
-in [Using the client](guides/client.md).
+This tutorial takes you from a fresh checkout to one HTTP/2 request that uses a
+Chrome profile. It takes about fifteen minutes, most of it the first native
+build. When you finish, continue with [Using the client](guides/client.md).
 
 ## Distribution status
 
-Phantom is not yet published to crates.io. Another workspace can depend on an
-exact git revision or a pinned checkout with one dependency line and no
-`[patch]` table; see [Downstream integration](guides/downstream.md). The public
-interface is not stable. Phantom is dual-licensed under MIT or Apache-2.0;
-vendored dependencies keep their upstream licenses in `vendor/*/`.
+Phantom is pre-1.0 and not yet published to crates.io. The public interface is
+not stable and may change between commits.
+
+- Depend on it through an exact git revision or a pinned checkout, with one
+  dependency line and no `[patch]` table. See
+  [Adding Phantom to a project](guides/downstream.md).
+- The package is named `phantom-http`; the library crate is `phantom`.
+- Phantom is dual-licensed under MIT or Apache-2.0. Vendored dependencies keep
+  their upstream licenses in `vendor/*/`.
 
 ## Prerequisites
 
-- The pinned Rust toolchain from `rust-toolchain.toml`. The declared MSRV is
-  Rust 1.85.
-- Git, CMake, Clang, and a C++ toolchain for the native BoringSSL build. Windows
-  also requires NASM and Visual C++ build tools.
-- A Tokio 1.x runtime with network I/O and timers enabled for requests.
+- The pinned Rust toolchain from `rust-toolchain.toml`. The minimum supported
+  Rust version (MSRV) is 1.85.
+- Git, CMake, Clang, and a C++ toolchain for the native BoringSSL build.
+  Windows also requires NASM and Visual C++ build tools; see
+  [CONTRIBUTING.md](../CONTRIBUTING.md#windows) for install commands.
+- A Tokio 1.x runtime with network I/O and timers enabled.
 
 The platform checks in [CI](../.github/workflows/ci.yml) are the source of truth
 for native build prerequisites.
 
-## Build from source
+## 1. Build from source
 
 ```console
 git clone https://github.com/bywayhq/phantom.git
@@ -37,9 +42,9 @@ Build and open the API reference locally with:
 cargo doc -p phantom-http --all-features --no-deps --open
 ```
 
-## Send a request
+## 2. Send a request
 
-A profile describes observable wire behavior. A client owns that profile,
+A profile describes observable wire behavior. A client owns that profile, its
 connection pools, and any enabled cross-request state.
 
 ```rust
@@ -63,43 +68,39 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`get(HttpProtocol::Http2, ...)` selects exactly HTTP/2. It does not fall back.
-Use `get_negotiated` for one direct TLS handshake that may select H1 or H2.
+What each step does:
 
-HTTP/3 requires the profile's separate H3 TLS, QUIC transport, HTTP/3
-connection, and request settings, grouped as `Http3ClientSettings`:
+1. `ClientProfile::new(chromium::v152_tls())` starts from Chrome 152's TLS
+   ClientHello.
+2. `with_http2` adds Chrome 152's HTTP/2 settings, and `with_client_hints`
+   adds its client-hint fields.
+3. `Client::builder(profile).build()` creates a client. Build it once and
+   clone it; clones share pools and state.
+4. `get(HttpProtocol::Http2, ...)` selects exactly HTTP/2. It does not fall
+   back to another protocol.
+5. `header` adds one request field. Phantom keeps fields in the order you add
+   them.
 
-```rust
-use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
-use phantom::{Client, HttpProtocol};
+## 3. Run it inside Tokio
 
-async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
-    let http3 = Http3ClientSettings::new(
-        chromium::v152_http3_tls(),
-        chromium::v152_quic(),
-        chromium::v152_http3(),
-        chromium::v152_http3_request(),
-    );
-    let profile = ClientProfile::new(chromium::v152_tls()).with_http3(http3);
-
-    let client = Client::builder(profile).build()?;
-    let response = client
-        .get(HttpProtocol::Http3, "https://example.com/")?
-        .send()
-        .await?;
-    println!("{}", response.status());
-    Ok(())
-}
-```
-
-The TCP TLS settings passed to `ClientProfile::new` stay separate from the H3
-TLS settings; each protocol uses only its own.
-
-The snippet must run inside a Tokio runtime. If you construct the runtime
+The function must run inside a Tokio runtime. If you construct the runtime
 manually, enable both I/O and time; otherwise requests fail with
 `RequestErrorKind::RuntimeUnavailable` or the runtime reports disabled timers.
 
+## Next steps
+
+- Let the server choose the protocol: `get_negotiated` performs one direct TLS
+  handshake that may select H1 or H2.
+- Use HTTP/3: see [HTTP/3 and Alt-Svc](guides/http3.md).
+- Pick a different browser: see [Browser profiles](guides/profiles.md).
+- Configure timeouts, retries, and responses: see
+  [Using the client](guides/client.md).
+- Check [Coverage](reference/coverage.md) before depending on a protocol,
+  route, or browser profile in production-like work.
+
 ## Optional features
+
+No feature is enabled by default.
 
 | Feature | Adds |
 | --- | --- |
@@ -112,6 +113,3 @@ manually, enable both I/O and time; otherwise requests fail with
 The QUIC diagnostics features, `qlog` on `phantom-net` and `keylog` on
 `phantom-quic-btls`, belong to internal crates used by capture tooling and
 tests. `phantom-http` does not re-export them or any API to enable them.
-
-Next, read [Using the client](guides/client.md). Check [Coverage](reference/coverage.md) before
-depending on a protocol, route, or browser profile in production-like work.
