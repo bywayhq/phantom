@@ -45,11 +45,9 @@
     "ask": [
       "Bash(git reset --hard *)",
       "Bash(git clean *)",
-      "Bash(git branch -D *)",
       "Bash(gh release *)",
       "PowerShell(git reset --hard *)",
       "PowerShell(git clean *)",
-      "PowerShell(git branch -D *)",
       "PowerShell(gh release *)"
     ],
     "deny": [
