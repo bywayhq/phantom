@@ -7,6 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use phantom_profile::TcpSettings;
 use quinn::{AsyncUdpSocket, UdpPoller, udp};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -58,6 +59,7 @@ impl Socks5UdpAssociation {
 /// inferred. The request advertises an unspecified client address and zero
 /// port because a remote proxy, not Phantom, observes any external UDP tuple.
 pub(crate) async fn associate_socks5_udp_local_with_auth(
+    tcp: Option<TcpSettings>,
     proxy_host: &str,
     proxy_port: u16,
     target: SocketAddr,
@@ -70,6 +72,7 @@ pub(crate) async fn associate_socks5_udp_local_with_auth(
         }
         let target_header = encode_udp_target(target);
         establish_udp_association(
+            tcp,
             proxy_host,
             proxy_port,
             target,
@@ -146,6 +149,7 @@ pub(crate) fn prepare_socks5_udp_remote_target(
 /// logical peer, hiding physical target-address changes from Quinn while QUIC
 /// authenticates the connection.
 pub(crate) async fn associate_socks5_udp_remote_with_auth(
+    tcp: Option<TcpSettings>,
     proxy_host: &str,
     proxy_port: u16,
     target: Socks5UdpRemoteTarget,
@@ -155,6 +159,7 @@ pub(crate) async fn associate_socks5_udp_remote_with_auth(
         let auth = auth.validate()?;
         let logical_target = SocketAddr::new(IpAddr::V4(REMOTE_VIRTUAL_IP), target.port);
         establish_udp_association(
+            tcp,
             proxy_host,
             proxy_port,
             logical_target,
@@ -168,6 +173,7 @@ pub(crate) async fn associate_socks5_udp_remote_with_auth(
 }
 
 async fn establish_udp_association(
+    tcp: Option<TcpSettings>,
     proxy_host: &str,
     proxy_port: u16,
     logical_target: SocketAddr,
@@ -178,7 +184,7 @@ async fn establish_udp_association(
     tokio::runtime::Handle::try_current()
         .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?;
 
-    let mut control = connect_proxy(proxy_host, proxy_port).await?;
+    let mut control = connect_proxy(tcp, proxy_host, proxy_port).await?;
     negotiate_authentication(&mut control, auth).await?;
 
     let control_local = control

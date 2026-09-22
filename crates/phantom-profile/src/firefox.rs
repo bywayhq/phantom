@@ -3,6 +3,7 @@
 use crate::{
     cookie::CookiePlacement,
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
+    tcp::TcpSettings,
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
         EchGreaseAead, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
@@ -204,6 +205,28 @@ pub fn v156_tls() -> TlsSettings {
     ];
     settings.ech_grease_payload_length = Some(240);
     settings
+}
+
+/// Returns the TCP socket options Firefox 156.0 sets on every socket.
+///
+/// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture:
+/// `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on each new
+/// socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1454`).
+///
+/// Firefox's TCP keepalive is not modeled, so this recipe leaves
+/// `SO_KEEPALIVE` untouched. Firefox changes keepalive per HTTP connection
+/// over time: a 10-second idle time for roughly the first 60 seconds of an
+/// HTTP/1 connection, then 600 seconds, with a probe interval derived from the
+/// measured RTT, and none once a connection negotiates HTTP/2
+/// (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`, `:2124-2239`;
+/// `modules/libpref/init/all.js:1270-1278`). One fixed socket option cannot
+/// reproduce that schedule.
+#[must_use]
+pub fn v156_tcp() -> TcpSettings {
+    TcpSettings {
+        nodelay: true,
+        keepalive: None,
+    }
 }
 
 /// Returns HTTP/2 settings observed from Firefox 156.0 on Windows 11.

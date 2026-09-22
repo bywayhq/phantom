@@ -17,12 +17,14 @@ pub use http_connect::{
     HttpConnectHeader, connect_http_tunnel, connect_http_tunnel_direct,
     connect_http_tunnel_direct_with_basic_auth,
 };
+pub(crate) use http_connect::{http_connect_tunnel, http_connect_tunnel_with_basic_auth};
 pub use https_connect::{HttpsProxyConnector, HttpsProxyProtocol};
 pub use socks5::{
     Socks5Auth, Socks5Error, Socks5ErrorKind, connect_socks5_tunnel_direct,
     connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local,
     connect_socks5_tunnel_local_with_auth,
 };
+pub(crate) use socks5::{socks5_tunnel_local_dns, socks5_tunnel_remote_dns};
 pub(crate) use socks5_udp::{
     associate_socks5_udp_local_with_auth, associate_socks5_udp_remote_with_auth,
     prepare_socks5_udp_remote_target,

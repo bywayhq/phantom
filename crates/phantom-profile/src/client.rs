@@ -2,7 +2,7 @@
 
 use crate::{
     ClientHintSettings, CookiePlacement, Http2Settings, Http3RequestSettings, Http3Settings,
-    TlsSettings, WebSocketSettings, quic::QuicTransportSettings,
+    TcpSettings, TlsSettings, WebSocketSettings, quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -59,6 +59,7 @@ impl Http3ClientSettings {
 /// Protocol settings selected for one client wire profile.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClientProfile {
+    tcp: Option<TcpSettings>,
     tls: TlsSettings,
     http2: Option<Http2Settings>,
     http3: Option<Http3ClientSettings>,
@@ -72,6 +73,7 @@ impl ClientProfile {
     #[must_use]
     pub fn new(tls: TlsSettings) -> Self {
         Self {
+            tcp: None,
             tls,
             http2: None,
             http3: None,
@@ -79,6 +81,15 @@ impl ClientProfile {
             websocket: None,
             cookie_placement: CookiePlacement::last(),
         }
+    }
+
+    /// Adds TCP socket options applied to every TCP connection.
+    ///
+    /// Without them, TCP sockets keep their operating-system defaults.
+    #[must_use]
+    pub fn with_tcp(mut self, tcp: TcpSettings) -> Self {
+        self.tcp = Some(tcp);
+        self
     }
 
     /// Adds HTTP/2 settings to the profile.
@@ -114,6 +125,12 @@ impl ClientProfile {
     pub fn with_cookie_placement(mut self, cookie_placement: CookiePlacement) -> Self {
         self.cookie_placement = cookie_placement;
         self
+    }
+
+    /// Returns the profile's TCP socket options when configured.
+    #[must_use]
+    pub fn tcp(&self) -> Option<&TcpSettings> {
+        self.tcp.as_ref()
     }
 
     /// Returns the profile's TLS settings.
@@ -166,8 +183,17 @@ mod tests {
         let profile = ClientProfile::new(tls.clone());
 
         assert_eq!(profile.tls(), &tls);
+        assert_eq!(profile.tcp(), None);
         assert_eq!(profile.http2(), None);
         assert_eq!(profile.http3(), None);
+    }
+
+    #[test]
+    fn with_tcp_owns_and_exposes_tcp_settings() {
+        let tcp = chromium::v153_tcp();
+        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+
+        assert_eq!(profile.tcp(), Some(&tcp));
     }
 
     #[test]

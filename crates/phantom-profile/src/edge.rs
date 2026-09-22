@@ -8,6 +8,10 @@
 //! [`chromium::v153_quic`], [`chromium::v153_http3`], and
 //! [`chromium::v153_http3_request`] for those layers. Only the TLS offers
 //! differ, so only they have Edge recipes here.
+//!
+//! There is no Edge TCP recipe. Socket options are not visible in captures,
+//! and Edge's network-stack source is not public, so no retained evidence
+//! shows whether Edge keeps the Chromium options in [`chromium::v153_tcp`].
 
 use crate::{
     chromium,

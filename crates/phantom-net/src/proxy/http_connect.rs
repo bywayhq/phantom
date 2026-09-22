@@ -6,6 +6,7 @@ use http::{
     header::{CONTENT_LENGTH, HOST, HeaderName, PROXY_AUTHORIZATION, TRANSFER_ENCODING},
     uri::Authority,
 };
+use phantom_profile::TcpSettings;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::{Instrument, Span, debug_span, field};
 
@@ -126,14 +127,20 @@ pub async fn connect_http_tunnel_direct(
     authority: &str,
     headers: &[HttpConnectHeader],
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
+    http_connect_tunnel(None, proxy_host, proxy_port, authority, headers).await
+}
+
+/// Opens a direct HTTP CONNECT tunnel on a proxy socket with `tcp` options.
+pub(crate) async fn http_connect_tunnel(
+    tcp: Option<TcpSettings>,
+    proxy_host: &str,
+    proxy_port: u16,
+    authority: &str,
+    headers: &[HttpConnectHeader],
+) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
     trace_connect("http", async {
         let request = PreparedConnect::new(authority, headers)?;
-        let stream = connect_tcp(proxy_host, proxy_port)
-            .await
-            .map_err(|error| match error {
-                DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
-                DirectConnectError::Connect(error) => HttpConnectError::Connect(error),
-            })?;
+        let stream = connect_proxy_tcp(tcp, proxy_host, proxy_port).await?;
         establish(stream, request).await
     })
     .await
@@ -156,15 +163,37 @@ pub async fn connect_http_tunnel_direct_with_basic_auth(
     headers: &[HttpConnectHeader],
     credentials: &HttpBasicCredentials,
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
+    http_connect_tunnel_with_basic_auth(
+        None,
+        proxy_host,
+        proxy_port,
+        authority,
+        headers,
+        credentials,
+    )
+    .await
+}
+
+/// Opens a direct Basic-authenticated CONNECT tunnel with `tcp` options.
+///
+/// Both proxy connections, including the authenticated retry, use `tcp`.
+pub(crate) async fn http_connect_tunnel_with_basic_auth(
+    tcp: Option<TcpSettings>,
+    proxy_host: &str,
+    proxy_port: u16,
+    authority: &str,
+    headers: &[HttpConnectHeader],
+    credentials: &HttpBasicCredentials,
+) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
     trace_connect("http", async {
         let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
         record_authentication_attempts(false);
-        let stream = connect_proxy_tcp(proxy_host, proxy_port).await?;
+        let stream = connect_proxy_tcp(tcp, proxy_host, proxy_port).await?;
         match establish_challenge(stream, requests.anonymous).await? {
             ChallengeOutcome::Tunnel(tunnel) => Ok(tunnel),
             ChallengeOutcome::Retry => {
                 record_authentication_attempts(true);
-                let stream = connect_proxy_tcp(proxy_host, proxy_port).await?;
+                let stream = connect_proxy_tcp(tcp, proxy_host, proxy_port).await?;
                 establish_authenticated(stream, requests.authenticated).await
             }
         }
@@ -173,10 +202,11 @@ pub async fn connect_http_tunnel_direct_with_basic_auth(
 }
 
 async fn connect_proxy_tcp(
+    tcp: Option<TcpSettings>,
     proxy_host: &str,
     proxy_port: u16,
 ) -> Result<tokio::net::TcpStream, HttpConnectError> {
-    connect_tcp(proxy_host, proxy_port)
+    connect_tcp(proxy_host, proxy_port, tcp)
         .await
         .map_err(|error| match error {
             DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,

@@ -5,6 +5,7 @@ use std::{
     task::Poll,
 };
 
+use phantom_profile::TcpSettings;
 use tokio::net::TcpStream;
 
 const TOKIO_IO_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but IO is disabled. Call `enable_io` on the runtime builder to enable IO.";
@@ -17,12 +18,25 @@ pub(crate) enum DirectConnectError {
     Connect(std::io::Error),
 }
 
-pub(crate) async fn connect_tcp(host: &str, port: u16) -> Result<TcpStream, DirectConnectError> {
+/// Opens one TCP connection, applying the connector's profile socket options.
+///
+/// Without profile options the socket keeps its operating-system defaults and
+/// Tokio's resolver-order connect is used unchanged.
+pub(crate) async fn connect_tcp(
+    host: &str,
+    port: u16,
+    tcp: Option<TcpSettings>,
+) -> Result<TcpStream, DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
-    poll_tokio_io(|| TcpStream::connect((host, port)))
-        .await
-        .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
-        .map_err(DirectConnectError::Connect)
+    let stream = match tcp {
+        Some(settings) => poll_tokio_io(|| crate::tcp::connect(host, port, settings)).await,
+        None => poll_tokio_io(|| TcpStream::connect((host, port))).await,
+    }
+    .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
+    .map_err(DirectConnectError::Connect)?;
+    #[cfg(test)]
+    crate::tcp::observed::record(&stream);
+    Ok(stream)
 }
 
 pub(crate) async fn poll_tokio_io<Operation, OperationFuture, Output>(

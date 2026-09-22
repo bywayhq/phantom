@@ -26,6 +26,7 @@ pub mod proxy;
 pub mod request;
 mod response;
 mod shutdown_timer;
+mod tcp;
 pub(crate) mod tls;
 
 pub use response::{OrderedResponseHeaders, ResponseHeader};

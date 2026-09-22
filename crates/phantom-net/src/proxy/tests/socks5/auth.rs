@@ -244,9 +244,14 @@ async fn local_fallback_replays_authentication_for_each_target() -> TestResult {
         password: PASSWORD,
     };
 
-    let tunnel =
-        connect_local_to_addresses_with_auth("127.0.0.1", address.port(), [first, second], auth)
-            .await?;
+    let tunnel = connect_local_to_addresses_with_auth(
+        None,
+        "127.0.0.1",
+        address.port(),
+        [first, second],
+        auth,
+    )
+    .await?;
     drop(tunnel);
 
     assert_eq!(server.await??, [first, second]);
@@ -277,6 +282,7 @@ async fn local_fallback_stops_after_authentication_failure() -> TestResult {
     };
 
     let error = match connect_local_to_addresses_with_auth(
+        None,
         "127.0.0.1",
         address.port(),
         [first, second],

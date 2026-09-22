@@ -3,6 +3,7 @@ use std::{error::Error as StdError, fmt, future::Future};
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use phantom_profile::TcpSettings;
 use tokio_socks::{IntoTargetAddr, TargetAddr, tcp::Socks5Stream};
 use tracing::{Instrument, Span, debug_span, field};
 
@@ -235,10 +236,22 @@ pub async fn connect_socks5_tunnel_direct_with_auth(
     target_port: u16,
     auth: Socks5Auth<'_>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
+    socks5_tunnel_remote_dns(None, proxy_host, proxy_port, target_host, target_port, auth).await
+}
+
+/// Opens a SOCKS5 CONNECT tunnel with proxy-owned DNS on a `tcp` socket.
+pub(crate) async fn socks5_tunnel_remote_dns(
+    tcp: Option<TcpSettings>,
+    proxy_host: &str,
+    proxy_port: u16,
+    target_host: &str,
+    target_port: u16,
+    auth: Socks5Auth<'_>,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
     trace_connect("remote", async {
         let auth = auth.validate()?;
         let target = prepare_target(target_host, target_port)?;
-        let stream = connect_proxy(proxy_host, proxy_port).await?;
+        let stream = connect_proxy(tcp, proxy_host, proxy_port).await?;
         establish(stream, target, auth).await
     })
     .await
@@ -287,6 +300,18 @@ pub async fn connect_socks5_tunnel_local_with_auth(
     target_port: u16,
     auth: Socks5Auth<'_>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
+    socks5_tunnel_local_dns(None, proxy_host, proxy_port, target_host, target_port, auth).await
+}
+
+/// Opens a SOCKS5 CONNECT tunnel with local target DNS on `tcp` sockets.
+pub(crate) async fn socks5_tunnel_local_dns(
+    tcp: Option<TcpSettings>,
+    proxy_host: &str,
+    proxy_port: u16,
+    target_host: &str,
+    target_port: u16,
+    auth: Socks5Auth<'_>,
+) -> Result<tokio::net::TcpStream, Socks5Error> {
     trace_connect("local", async {
         let auth = auth.validate()?;
         if target_host.is_empty() {
@@ -304,12 +329,7 @@ pub async fn connect_socks5_tunnel_local_with_auth(
                 ordered.push(target);
             }
         }
-        match auth {
-            Socks5Auth::None => connect_local_to_addresses(proxy_host, proxy_port, ordered).await,
-            Socks5Auth::UsernamePassword { .. } => {
-                connect_local_to_addresses_with_auth(proxy_host, proxy_port, ordered, auth).await
-            }
-        }
+        connect_local_to_addresses_with_auth(tcp, proxy_host, proxy_port, ordered, auth).await
     })
     .await
 }
@@ -372,15 +392,18 @@ where
         .map_err(Socks5Error::negotiation)
 }
 
+#[cfg(test)]
 pub(super) async fn connect_local_to_addresses(
     proxy_host: &str,
     proxy_port: u16,
     targets: impl IntoIterator<Item = SocketAddr>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    connect_local_to_addresses_with_auth(proxy_host, proxy_port, targets, Socks5Auth::None).await
+    connect_local_to_addresses_with_auth(None, proxy_host, proxy_port, targets, Socks5Auth::None)
+        .await
 }
 
 pub(super) async fn connect_local_to_addresses_with_auth(
+    tcp: Option<TcpSettings>,
     proxy_host: &str,
     proxy_port: u16,
     targets: impl IntoIterator<Item = SocketAddr>,
@@ -389,7 +412,7 @@ pub(super) async fn connect_local_to_addresses_with_auth(
     let auth = auth.validate()?;
     let mut last_rejection = None;
     for target in targets {
-        let stream = connect_proxy(proxy_host, proxy_port).await?;
+        let stream = connect_proxy(tcp, proxy_host, proxy_port).await?;
         match establish(stream, TargetAddr::Ip(target), auth).await {
             Ok(stream) => return Ok(stream),
             Err(error) if error.is_target_specific_rejection() => {
@@ -417,10 +440,11 @@ impl Socks5Error {
 }
 
 pub(super) async fn connect_proxy(
+    tcp: Option<TcpSettings>,
     proxy_host: &str,
     proxy_port: u16,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    connect_tcp(proxy_host, proxy_port)
+    connect_tcp(proxy_host, proxy_port, tcp)
         .await
         .map_err(|error| match error {
             DirectConnectError::RuntimeUnavailable => {

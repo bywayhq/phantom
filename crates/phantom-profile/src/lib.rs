@@ -9,6 +9,7 @@ pub mod http2;
 pub mod http3;
 pub mod quic;
 pub mod safari;
+pub mod tcp;
 pub mod tls;
 pub mod websocket;
 
@@ -31,6 +32,7 @@ pub use http3::{
 pub use identity::{
     ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
 };
+pub use tcp::{InvalidTcpSettings, TcpKeepalive, TcpSettings};
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
     ClientHelloExtensionOrder, EchGreaseAead, InvalidTlsSettings, NamedGroup, SignatureScheme,

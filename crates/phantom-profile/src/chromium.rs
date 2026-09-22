@@ -1,5 +1,7 @@
 //! Wire settings retained from Chromium-family browser observations.
 
+use std::time::Duration;
+
 use crate::{
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     cookie::CookiePlacement,
@@ -17,6 +19,8 @@ use crate::{
         WebSocketNewConnection, WebSocketSettings,
     },
 };
+
+use crate::tcp::{TcpKeepalive, TcpSettings};
 
 use crate::quic::{
     GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
@@ -466,6 +470,38 @@ pub fn v153_tls() -> TlsSettings {
     let mut settings = v152_tls();
     settings.requested_trust_anchor_ids = Some(trust_anchor_ids(V153_TRUST_ANCHOR_IDS));
     settings
+}
+
+/// Returns the TCP socket options Chromium 153.0.8010.48 sets on Windows and Linux.
+///
+/// From Chromium source at tag `153.0.8010.48`, not from a capture: socket
+/// options are not visible on the wire. `TCPClientSocket` calls
+/// `SetDefaultOptionsForClient` when it opens each socket, before connecting
+/// (`net/socket/tcp_client_socket.cc:173` and `:558`). On Windows that sets
+/// `TCP_NODELAY` and enables keepalive through `SIO_KEEPALIVE_VALS` with
+/// `kTCPKeepAliveSeconds = 45` as both the idle time and the probe interval
+/// (`net/socket/tcp_socket_win.cc:50`, `:55-73`, `:815-818`). The POSIX path
+/// sets the same values through `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux
+/// (`net/socket/tcp_socket_posix.cc:88-100`, `:463-486`).
+///
+/// On macOS Chromium sets only the idle time, through `TCP_KEEPALIVE`
+/// (`net/socket/tcp_socket_posix.cc:101-105`); set
+/// [`TcpKeepalive::interval`] to `None` for that platform. Android and iOS
+/// builds enable no keepalive. Chromium ignores a failure to set either
+/// option (`net/socket/tcp_socket_win.cc:71-72`); Phantom instead fails the
+/// connection attempt rather than connect with options the profile did not
+/// ask for.
+#[must_use]
+pub fn v153_tcp() -> TcpSettings {
+    const KEEPALIVE: Duration = Duration::from_secs(45);
+
+    TcpSettings {
+        nodelay: true,
+        keepalive: Some(TcpKeepalive {
+            idle: KEEPALIVE,
+            interval: Some(KEEPALIVE),
+        }),
+    }
 }
 
 /// Returns HTTP/2 settings observed from Chrome 153.0.8010.48 on Windows 11.

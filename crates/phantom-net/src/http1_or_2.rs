@@ -2,7 +2,7 @@
 
 use std::{error::Error as StdError, fmt, future::Future};
 
-use phantom_profile::{Http2Settings, TlsSettings};
+use phantom_profile::{Http2Settings, TcpSettings, TlsSettings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
@@ -150,6 +150,7 @@ impl From<Http2TlsError> for Http1Or2TlsError {
 pub struct Http1Or2TlsConnector {
     tls: TlsConnector,
     http2: Http2Settings,
+    tcp: Option<TcpSettings>,
 }
 
 impl Http1Or2TlsConnector {
@@ -161,6 +162,7 @@ impl Http1Or2TlsConnector {
         Ok(Self {
             tls: TlsConnector::new(tls)?,
             http2: http2.clone(),
+            tcp: None,
         })
     }
 
@@ -174,6 +176,7 @@ impl Http1Or2TlsConnector {
         Ok(Self {
             tls: TlsConnector::new_with_additional_roots(tls, roots)?,
             http2: http2.clone(),
+            tcp: None,
         })
     }
 
@@ -194,6 +197,7 @@ impl Http1Or2TlsConnector {
         Ok(Self {
             tls: connector.tls_connector().clone(),
             http2: connector.settings().clone(),
+            tcp: connector.tcp_settings().copied(),
         })
     }
 
@@ -203,7 +207,26 @@ impl Http1Or2TlsConnector {
         Self {
             tls: self.tls.with_isolated_session_cache(),
             http2: self.http2.clone(),
+            tcp: self.tcp,
         }
+    }
+
+    /// Applies TCP socket options to every direct TCP connection this
+    /// connector opens.
+    ///
+    /// The settings are validated before any DNS or socket I/O; invalid
+    /// settings fail each connection attempt with
+    /// [`std::io::ErrorKind::InvalidInput`].
+    #[must_use]
+    pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
+        self.tcp = Some(*settings);
+        self
+    }
+
+    /// Returns the TCP socket options applied to new connections, if any.
+    #[must_use]
+    pub fn tcp_settings(&self) -> Option<&TcpSettings> {
+        self.tcp.as_ref()
     }
 
     /// Selects HTTP/1.1 or HTTP/2 over an already-connected stream.
@@ -248,10 +271,12 @@ impl Http1Or2TlsConnector {
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = connect_tcp(host, port).await.map_err(|error| match error {
-                DirectConnectError::RuntimeUnavailable => Http1Or2TlsError::RuntimeUnavailable,
-                DirectConnectError::Connect(error) => Http1Or2TlsError::Connect(error),
-            })?;
+            let stream = connect_tcp(host, port, self.tcp)
+                .await
+                .map_err(|error| match error {
+                    DirectConnectError::RuntimeUnavailable => Http1Or2TlsError::RuntimeUnavailable,
+                    DirectConnectError::Connect(error) => Http1Or2TlsError::Connect(error),
+                })?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
         })

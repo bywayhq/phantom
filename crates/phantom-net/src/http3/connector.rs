@@ -5,7 +5,7 @@ use std::{error::Error as StdError, fmt, sync::Arc};
 use bytes::Bytes;
 use http::{Method, Response};
 use phantom_profile::{
-    Http3RequestSettings, Http3Settings, TlsSettings, quic::QuicTransportSettings,
+    Http3RequestSettings, Http3Settings, TcpSettings, TlsSettings, quic::QuicTransportSettings,
 };
 use tracing::Instrument;
 
@@ -45,6 +45,7 @@ pub struct Http3Connector {
     max_datagram_frame_size: Option<u64>,
     max_udp_payload_size: u64,
     identity: Arc<()>,
+    tcp: Option<TcpSettings>,
 }
 
 impl Http3Connector {
@@ -114,7 +115,26 @@ impl Http3Connector {
             max_datagram_frame_size: quic.max_datagram_frame_size,
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
+            tcp: None,
         })
+    }
+
+    /// Applies TCP socket options to the TCP control connection of each
+    /// SOCKS5 UDP association this connector opens.
+    ///
+    /// QUIC itself runs over UDP, so direct connections are unaffected. The
+    /// settings are validated before any DNS or socket I/O; invalid settings
+    /// fail the association's proxy connection.
+    #[must_use]
+    pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
+        self.tcp = Some(*settings);
+        self
+    }
+
+    /// Returns the TCP socket options applied to SOCKS5 control connections.
+    #[must_use]
+    pub fn tcp_settings(&self) -> Option<&TcpSettings> {
+        self.tcp.as_ref()
     }
 
     #[cfg(test)]
@@ -266,10 +286,11 @@ impl Http3Connector {
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let association =
-                associate_socks5_udp_remote_with_auth(proxy_host, proxy_port, target, auth)
-                    .await
-                    .map_err(Http3ConnectorError::proxy)?;
+            let association = associate_socks5_udp_remote_with_auth(
+                self.tcp, proxy_host, proxy_port, target, auth,
+            )
+            .await
+            .map_err(Http3ConnectorError::proxy)?;
             let (socket, logical_remote) = association.into_parts();
             connect_bound_with_socket(
                 logical_remote,
@@ -1022,10 +1043,11 @@ impl Http3Connector {
             .next()
             .ok_or_else(Http3ConnectorError::no_address)?;
         loop {
-            let association =
-                associate_socks5_udp_local_with_auth(proxy_host, proxy_port, remote, auth)
-                    .await
-                    .map_err(Http3ConnectorError::proxy)?;
+            let association = associate_socks5_udp_local_with_auth(
+                self.tcp, proxy_host, proxy_port, remote, auth,
+            )
+            .await
+            .map_err(Http3ConnectorError::proxy)?;
             let (socket, logical_remote) = association.into_parts();
             match connect_bound_with_socket(
                 logical_remote,

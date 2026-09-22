@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use phantom_profile::{Http2Settings, TlsSettings};
+use phantom_profile::{Http2Settings, TcpSettings, TlsSettings};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::{
@@ -58,6 +58,7 @@ pub struct HttpsProxyConnector {
     offers_h2: bool,
     http2: Option<Http2Settings>,
     protocol: HttpsProxyProtocol,
+    tcp: Option<TcpSettings>,
 }
 
 impl HttpsProxyConnector {
@@ -100,6 +101,7 @@ impl HttpsProxyConnector {
                 .any(|protocol| protocol.as_ref() == b"h2"),
             http2: None,
             protocol: HttpsProxyProtocol::Http1,
+            tcp: None,
         }
     }
 
@@ -112,6 +114,24 @@ impl HttpsProxyConnector {
     pub fn with_http2_settings(mut self, settings: &Http2Settings) -> Self {
         self.http2 = Some(settings.clone());
         self
+    }
+
+    /// Applies TCP socket options to every connection this connector opens
+    /// to an HTTPS proxy.
+    ///
+    /// The settings are validated before any DNS or socket I/O; invalid
+    /// settings fail each connection attempt with
+    /// [`std::io::ErrorKind::InvalidInput`].
+    #[must_use]
+    pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
+        self.tcp = Some(*settings);
+        self
+    }
+
+    /// Returns the TCP socket options applied to proxy connections, if any.
+    #[must_use]
+    pub fn tcp_settings(&self) -> Option<&TcpSettings> {
+        self.tcp.as_ref()
     }
 
     /// Selects the application protocol spoken to the proxy.
@@ -138,6 +158,7 @@ impl HttpsProxyConnector {
             offers_h2: self.offers_h2,
             http2: self.http2.clone(),
             protocol: self.protocol,
+            tcp: self.tcp,
         }
     }
 
@@ -247,7 +268,7 @@ impl HttpsProxyConnector {
         proxy_port: u16,
         proxy_server_name: &str,
     ) -> Result<TlsStream<tokio::net::TcpStream>, HttpConnectError> {
-        let stream = connect_tcp(proxy_host, proxy_port)
+        let stream = connect_tcp(proxy_host, proxy_port, self.tcp)
             .await
             .map_err(|error| match error {
                 DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
