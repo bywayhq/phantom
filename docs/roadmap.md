@@ -101,8 +101,12 @@ have shown where the real architectural boundaries are.
 - Keep stable error categories, examples, and diagnostics in step with every
   completed functionality slice.
 - Add feature-gated JSON, form, and multipart request bodies that set only the
-  fields a caller or captured browser template would send. Add opt-in
-  `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` route selection.
+  fields a caller or captured browser template would send. No request template
+  covers a request with a body yet, so there is no evidence for where a browser
+  places `Content-Type` in a POST, and none for a captured multipart boundary.
+  Either these helpers position every field they add at a caller slot, or a
+  POST capture comes first. Add opt-in `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY`
+  route selection.
 - Carry a default request template on the profile
   (`ClientProfile::with_request_template`), which a request can override or
   remove, validated when the client is built. Regular field order stays a
@@ -132,6 +136,65 @@ have shown where the real architectural boundaries are.
   3. A source address or interface binding.
   4. Client certificates.
   5. One narrow request hook rather than a middleware framework.
+- Close the caller ergonomics gaps a survey of seventeen HTTP clients found,
+  in this order. None of these changes a byte on the wire; each is caller-side
+  only.
+  1. Composed per-browser profile constructors, such as `chromium::v153()`,
+     assembling the components that are already verified. Today a Chrome 153
+     client takes seven hand-composed calls, and the caller has to know that
+     the HTTP/3 leg uses `v153_http3_tls` and not `v153_tls`. Getting that
+     wrong is silent and emits a wrong ClientHello, which is the class of
+     error Phantom exists to prevent.
+  2. Error triage over the existing `kind()`, and a public replay-safety
+     accessor. Phantom already computes `RequestRetryability` precisely and
+     then hides it, so a caller writing an outer retry loop re-derives it from
+     a 27-variant enum and gets it wrong. Carry the response on the errors
+     that have one, as `WebSocketError` already does.
+  3. Bounded `text()`, `bytes()`, and typed-JSON response helpers over the
+     existing inclusive cap, where the bounded form is the only form. A
+     response helper must never set a request field: no helper may add
+     `Accept` or `Accept-Encoding`.
+  4. Re-export the ecosystem types the public API already names, including
+     `Bytes`, which appears in `RequestBuilder::body` but cannot be named
+     without a matching direct dependency.
+  5. A documented tracing span and field contract, observe-only, settled
+     before the narrow request hook so the hook is scoped to what tracing
+     cannot already do.
+  6. A per-request timeout override that layers onto the client's rather than
+     replacing it wholesale, and retry backoff with a retry budget that caps
+     the extra load a retry storm can add.
+  7. One naming convention across the four ordered-field vocabularies and one
+     method name per knob across the three request builders. Keep the four
+     types distinct: merging them would let a caller pass a slot to a request
+     that cannot carry it, which the type system forbids today. Retire the
+     duplicate `Route::http_connect`.
+  8. Query-parameter construction that never sorts, because a reordered query
+     is wire-visible in `:path`, with the encoder pinned to the WHATWG
+     `application/x-www-form-urlencoded` rule a browser's `URLSearchParams`
+     uses, and a separate already-encoded form.
+  9. Authorization value constructors that return a field the caller places,
+     never a builder method that places it.
+  10. `Link` field parsing as data on the response. Following those links
+      automatically is a non-goal.
+- Publish a wire-assertion test harness so downstream callers can assert that
+  a request matched a named recipe's field order and ClientHello shape.
+  `phantom-testkit` is unpublished today, so downstream users have no way to
+  assert against a Phantom client. This is the one harness no other client can
+  offer. It may instead belong to the Phase 5 tooling audit, which already
+  covers the capture scripts it overlaps.
+
+### Deliberate non-goals for this phase
+
+- No middleware or interceptor framework. Middleware is where
+  fingerprint-breaking field injection happens: the interceptor stacks of
+  comparable clients exist so that another library in a dependency graph can
+  add a field to a request. The queued narrow hook may observe and cancel, and
+  may fill caller slots a template names; it may never append a field.
+- No erroring on a non-2xx status by default. Status stays data. The one
+  library in the survey that errors by default keeps only the status number
+  and loses the response with it.
+- No automatic `Link` following, no base-URL joining, and no blocking API.
+
 - Functionality proposed for after the Phase 1 exit. Each item starts from a
   proposal with acceptance criteria and capture evidence:
   - A feature-gated `danger_accept_invalid_certs` for debugging through an
