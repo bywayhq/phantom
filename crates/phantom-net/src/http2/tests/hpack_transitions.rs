@@ -47,7 +47,13 @@ async fn duplicate_initial_table_sizes_preserve_minimum_then_final_update() -> T
 
 // Chromium's quiche HpackEncoder and Firefox's Http2Compressor both adopt a
 // larger peer table size without a cap and announce it in the next field
-// block, so the update must not be clamped.
+// block, so the update must not be clamped. Chromium's SpdySession never calls
+// HpackEncoder::SetHeaderTableSizeBound, whose default is SIZE_MAX:
+// https://github.com/chromium/chromium/blob/d4f1d250d580d9f9c801148b870b997e9e7ccc25/net/spdy/spdy_session.cc#L2347-L2350
+// https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/hpack/hpack_encoder.cc#L124-L138
+// Firefox (mozilla-central 4d5216592535) passes the value through unchanged:
+// https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Session.cpp#l1870
+// https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Compression.cpp#l1428
 #[tokio::test]
 async fn larger_peer_table_size_is_announced_uncapped() -> TestResult<()> {
     bounded_peer_test(run_case(HEADER_TABLE_65536, &[0x3f, 0xe1, 0xff, 0x03])).await

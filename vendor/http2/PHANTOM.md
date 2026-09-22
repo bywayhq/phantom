@@ -289,12 +289,26 @@ for the limit and one head beyond it in `src/client/tests.rs`.
 Upstream h2 0.4.17 also caps the HPACK encoder table at 4 KiB whatever the
 peer's `SETTINGS_HEADER_TABLE_SIZE` (hyperium/h2 #941, `67734f8`,
 <https://github.com/hyperium/h2/pull/941>). That change is deliberately not
-ported, because it would change request bytes. Chromium's quiche
-`HpackEncoder::ApplyHeaderTableSizeSetting` has no upper bound unless
-`SetHeaderTableSizeUpperBound` is called, and Chromium's `SpdySession` does not
-call it. Firefox's `Http2Compressor::SetMaxBufferSize` also adopts the peer
-value. Both announce the new size in a dynamic-table-size update at the start
-of the next field block and then index against the larger table. With the cap,
+ported, because it would change request bytes. Chromium's
+`SpdySession::HandleSetting` passes the peer value through
+`BufferedSpdyFramer` and `SpdyFramer::UpdateHeaderEncoderTableSize` to quiche
+`HpackEncoder::ApplyHeaderTableSizeSetting`. That encoder's upper bound is
+`SIZE_MAX` unless `HpackEncoder::SetHeaderTableSizeBound` is called, and
+neither `net/spdy/spdy_session.cc` nor `net/spdy/buffered_spdy_framer.cc`
+calls it. Firefox's `Http2Session` passes the value to
+`Http2Compressor::SetMaxBufferSize`, which also adopts it unchanged. Both
+announce the new size in a dynamic-table-size update at the start of the next
+field block and then index against the larger table. Sources, at Chromium
+`d4f1d250d580`, quiche `535a2730e77d`, and mozilla-central `4d5216592535`:
+
+- <https://github.com/chromium/chromium/blob/d4f1d250d580d9f9c801148b870b997e9e7ccc25/net/spdy/spdy_session.cc#L2347-L2350>
+- <https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/core/spdy_framer.cc#L1355-L1357>
+- <https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/hpack/hpack_encoder.cc#L124-L138>
+- <https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/hpack/hpack_encoder.cc#L163-L173>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Session.cpp#l1870>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Compression.cpp#l1428>
+
+With the cap,
 a peer advertising 65,536 would get no update, and later blocks would diverge
 once the client's own entries exceed 4 KiB. The exposure is small. The table
 allocates nothing in proportion to its maximum and holds only fields the
