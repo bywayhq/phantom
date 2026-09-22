@@ -13,7 +13,7 @@ use std::{
     },
 };
 
-use btls::ssl::{NameType, Ssl};
+use btls::ssl::{ErrorCode, NameType, Ssl};
 use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Method, Response, StatusCode};
 use quinn::{Endpoint, VarInt};
@@ -25,7 +25,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::tls_support::{H2_ALPN, TestIdentity, TestResult};
+use crate::tls_support::{H2_ALPN, TestIdentity, TestResult, is_peer_gone};
 
 const H3_ALPN: &[u8] = b"h3";
 
@@ -460,7 +460,14 @@ async fn serve_origin_connection(
 ) -> TestResult<()> {
     let ssl = Ssl::new(acceptor.context())?;
     let mut stream = SslStream::new(ssl, stream)?;
-    Pin::new(&mut stream).accept().await?;
+    if let Err(error) = Pin::new(&mut stream).accept().await {
+        // A racing client drops the losing origin setup mid-handshake; that
+        // connection never counts as an origin connection.
+        if error.code() == ErrorCode::SYSCALL && error.io_error().is_none_or(is_peer_gone) {
+            return Ok(());
+        }
+        return Err(error.into());
+    }
     observations
         .origin_connections
         .fetch_add(1, Ordering::SeqCst);
