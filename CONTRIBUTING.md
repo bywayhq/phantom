@@ -173,6 +173,17 @@ Conditional checks:
 - Changes under `fuzz/` must pass
   `cargo fmt --manifest-path fuzz/Cargo.toml --check` and
   `cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --locked -- -D warnings`.
+- Changes to the QUIC cryptography backend run under AddressSanitizer in
+  [Sanitizers](.github/workflows/sanitizers.yml). To reproduce a report,
+  install the nightly the workflow pins and name the target explicitly, which
+  is what keeps host build scripts uninstrumented:
+
+  ```console
+  rustup toolchain install nightly-2026-09-01 --profile minimal
+  RUSTFLAGS=-Zsanitizer=address ASAN_OPTIONS=detect_leaks=0 \
+    cargo +nightly-2026-09-01 test -p phantom-quic-btls --lib --all-features \
+    --locked --target x86_64-unknown-linux-gnu
+  ```
 - The optional-feature matrix and scheduled interoperability suites run in
   CI; run the affected feature combinations locally before requesting review.
 
@@ -196,6 +207,7 @@ skipped. A failed, cancelled, or unclassified run never counts as passing.
 | --- | --- | --- | --- |
 | [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Features, Downstream, Vendor, MSRV, and the Windows Platform job | Same, plus the macOS Platform job | Every job, whatever changed |
 | [Parser fuzzing](.github/workflows/fuzz.yml) | 15 seconds per target when parser paths change | Same as pull requests | 300 seconds per target |
+| [Sanitizers](.github/workflows/sanitizers.yml) | `phantom-quic-btls` and the HTTP/3 loopback tests under ASan when QUIC, TLS, or vendored BoringSSL paths change; 60 minutes per job | Same as pull requests | Both jobs, whatever changed |
 | Conformance suites | Only with the `conformance` label | When the suite's paths change | Yes, with the workflow's scheduled or chosen case set |
 | [Scorecard](.github/workflows/scorecard.yml) | No | Yes | Yes |
 | Benchmarks, upstream freshness | No | No | Yes |

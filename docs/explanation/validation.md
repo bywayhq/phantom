@@ -96,6 +96,25 @@ therefore a cache that can expire or be evicted, not a reviewed, committed
 seed set. A failing input is kept only as a short-lived workflow artifact
 until it is minimized into a regression.
 
+The [sanitizer workflow](../../.github/workflows/sanitizers.yml) runs
+`phantom-quic-btls`'s own unit tests and `phantom-net`'s HTTP/3 loopback tests
+under AddressSanitizer on the same pinned nightly, when QUIC, TLS, or vendored
+BoringSSL paths change and on its weekly schedule. Fuzzing reaches the byte
+parsers; this job is what covers the QUIC secret callbacks, the key schedule,
+and a live handshake, which is where the crate's `unsafe` code is. BoringSSL is
+linked uninstrumented, so leak detection is off and a fault inside its C code
+surfaces only where it crosses an intercepted `mem*` call or touches memory the
+Rust allocator owns.
+
+Four callback-failure paths carry most of that FFI risk. A null `SSL_CIPHER`
+and a secret length that disagrees with the cipher are both rejected before any
+copy, and both have tests. A panic inside a callback is contained by
+`catch_unwind`, but the test calls the containment helper directly; nothing
+panics across a real BoringSSL call edge. Dropping the `SSL` mid-handshake runs
+the ex-data destructor; the tests that check the owner counts drop a session
+that never started a handshake. Until those last two have tests, running them
+under a sanitizer proves nothing about them.
+
 HTTP/2 receive bounds have raw-peer regressions in
 `crates/phantom-net/src/http2/tests/adversarial_*.rs`:
 
