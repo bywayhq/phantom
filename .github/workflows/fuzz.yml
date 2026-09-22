@@ -10,6 +10,7 @@ on:
       - crates/phantom-profile/**
       - crates/phantom-quic-btls/**
       - crates/phantom-testkit/**
+      - crates/phantom/**
       - fuzz/**
       - vendor/**
   push:
@@ -22,6 +23,7 @@ on:
       - crates/phantom-profile/**
       - crates/phantom-quic-btls/**
       - crates/phantom-testkit/**
+      - crates/phantom/**
       - fuzz/**
       - vendor/**
   workflow_dispatch:
@@ -68,8 +70,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - target: alt_svc_snapshot
+            max_len: 16384
           - target: client_hello
             max_len: 65536
+          - target: cookie_jar
+            max_len: 16384
+          - target: http1_response
+            max_len: 16384
           - target: http_connect_response
             max_len: 65536
           - target: http2_frame
