@@ -1,7 +1,7 @@
 use phantom_net::request::RequestHeader;
 use phantom_profile::{RequestField, RequestTemplate, chromium, edge, firefox};
 
-use super::{ProtocolScope, check, expand, user_agent_products};
+use super::{ProtocolScope, check, expand, is_grease_brand, user_agent_products};
 use crate::{HttpProtocol, RequestErrorKind};
 
 const CHROME_153: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -244,6 +244,73 @@ fn brand_lists_that_contradict_the_template_are_rejected() {
         ),
         Some(RequestErrorKind::IdentityMismatch)
     );
+}
+
+#[test]
+fn brand_lists_with_extra_brands_are_rejected() {
+    let chrome = chromium::v153_windows_navigation_template();
+    let edge = edge::v153_windows_navigation_template();
+    for (template, value) in [
+        (
+            &chrome,
+            r#""Google Chrome";v="153", "Microsoft Edge";v="153", "Chromium";v="153""#,
+        ),
+        (
+            &edge,
+            r#""Microsoft Edge";v="153", "Google Chrome";v="153", "Chromium";v="153""#,
+        ),
+        (
+            &chrome,
+            r#""Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153", "Opera";v="153""#,
+        ),
+        // Two GREASE brands, a repeated brand, and a GREASE-like brand with
+        // a version Chromium never chooses.
+        (
+            &chrome,
+            r#""Google Chrome";v="153", "Not_A Brand";v="8", "Not?A_Brand";v="24", "Chromium";v="153""#,
+        ),
+        (
+            &chrome,
+            r#""Google Chrome";v="153", "Chromium";v="153", "Chromium";v="153""#,
+        ),
+        (
+            &chrome,
+            r#""Google Chrome";v="153", "Not_A Brand";v="153", "Chromium";v="153""#,
+        ),
+    ] {
+        let caller = [RequestHeader::new("sec-ch-ua", value)];
+        assert_eq!(
+            kind(template, exact(HttpProtocol::Http2), &caller, None),
+            Some(RequestErrorKind::IdentityMismatch),
+            "{value}"
+        );
+    }
+
+    // One GREASE brand is allowed, and so is none.
+    for value in [
+        r#""Chromium";v="153", "Not?A_Brand";v="24", "Google Chrome";v="153""#,
+        r#""Google Chrome";v="153", "Chromium";v="153""#,
+    ] {
+        let caller = [RequestHeader::new("sec-ch-ua", value)];
+        assert_eq!(
+            kind(&chrome, exact(HttpProtocol::Http2), &caller, None),
+            None,
+            "{value}"
+        );
+    }
+}
+
+#[test]
+fn grease_brands_follow_chromiums_algorithm() {
+    // Chrome 152 and 153 values from the retained client-hint captures.
+    assert!(is_grease_brand("Not?A_Brand", Some(24)));
+    assert!(is_grease_brand("Not_A Brand", Some(8)));
+    assert!(is_grease_brand("Not(A:Brand", Some(99)));
+    assert!(!is_grease_brand("Not_A Brand", None));
+    assert!(!is_grease_brand("Not_A Brand", Some(153)));
+    assert!(!is_grease_brand("NotXA Brand", Some(8)));
+    assert!(!is_grease_brand("Not A Brand ", Some(8)));
+    assert!(!is_grease_brand("Microsoft Edge", Some(8)));
 }
 
 #[test]

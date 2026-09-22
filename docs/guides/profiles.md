@@ -223,9 +223,11 @@ templated request is checked against that claim:
   reject `HeadlessChrome`; the Firefox templates require `Firefox/156` and
   reject `Chrome`.
 - A caller `sec-ch-ua` or `sec-ch-ua-full-version-list`, and the profile's
-  value of either hint, must list the template's brands with its major
-  version. Firefox sends neither hint, so any such field contradicts a
-  Firefox template.
+  value of either hint, must list each of the template's brands once with
+  its major version and no other brand except one GREASE brand in the shape
+  Chromium generates, such as `"Not_A Brand";v="8"`. A list naming both
+  `Google Chrome` and `Microsoft Edge` fails. Firefox sends neither hint, so
+  any such field contradicts a Firefox template.
 
 A contradiction fails with `RequestErrorKind::IdentityMismatch`. Phantom
 never rewrites or drops the field. An invalid template, or one without an

@@ -112,6 +112,9 @@ pub struct RequestIdentity {
     /// Brands that `sec-ch-ua` and `sec-ch-ua-full-version-list` must list
     /// with these major versions.
     ///
+    /// A client rejects a list that repeats one of these brands or names any
+    /// other brand than one Chromium GREASE brand, such as `Not_A Brand`.
+    ///
     /// `None` means the browser sends no user-agent client hints, so any
     /// such field contradicts the template.
     pub client_hint_brands: Option<Vec<ProductVersion>>,

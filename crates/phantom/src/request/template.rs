@@ -1,9 +1,7 @@
 //! Expansion and identity checks for browser request templates.
 
 use phantom_net::request::RequestHeader;
-use phantom_profile::{
-    ClientHintSettings, ProductVersion, RequestField, RequestIdentity, RequestTemplate,
-};
+use phantom_profile::{ClientHintSettings, RequestField, RequestIdentity, RequestTemplate};
 use sfv::{BareItem, ListEntry, Parser};
 
 use crate::{HttpProtocol, RequestError};
@@ -235,6 +233,10 @@ fn user_agent_products(value: &str) -> Vec<(&str, &str)> {
 }
 
 /// Checks a `sec-ch-ua`-style structured-field list of branded versions.
+///
+/// The list must name every required brand exactly once with its major
+/// version, and nothing else except at most one GREASE brand, so a list that
+/// adds another browser's brand is rejected.
 fn brands_agree(identity: &RequestIdentity, value: &[u8]) -> bool {
     let Some(required) = &identity.client_hint_brands else {
         return false;
@@ -245,7 +247,8 @@ fn brands_agree(identity: &RequestIdentity, value: &[u8]) -> bool {
     let Ok(list) = Parser::new(text).parse::<sfv::List>() else {
         return false;
     };
-    let mut brands = Vec::with_capacity(list.len());
+    let mut seen = vec![false; required.len()];
+    let mut grease = false;
     for entry in &list {
         let ListEntry::Item(item) = entry else {
             return false;
@@ -253,17 +256,54 @@ fn brands_agree(identity: &RequestIdentity, value: &[u8]) -> bool {
         let BareItem::String(brand) = &item.bare_item else {
             return false;
         };
-        let version = item.params.iter().find_map(|(key, value)| match value {
-            BareItem::String(version) if key.as_str() == "v" => Some(version.as_str()),
-            _ => None,
-        });
-        brands.push((brand.as_str(), version.and_then(major)));
-    }
-    required.iter().all(|ProductVersion { name, major }| {
-        brands
+        let version = item
+            .params
             .iter()
-            .any(|(brand, version)| *brand == &**name && *version == Some(*major))
-    })
+            .find_map(|(key, value)| match value {
+                BareItem::String(version) if key.as_str() == "v" => Some(version.as_str()),
+                _ => None,
+            })
+            .and_then(major);
+        let brand = brand.as_str();
+        if let Some(index) = required.iter().position(|product| *product.name == *brand) {
+            if seen[index] || version != Some(required[index].major) {
+                return false;
+            }
+            seen[index] = true;
+        } else if is_grease_brand(brand, version) && !grease {
+            grease = true;
+        } else {
+            return false;
+        }
+    }
+    seen.into_iter().all(|seen| seen)
+}
+
+/// Characters Chromium's GREASE brand algorithm places around the `A`.
+///
+/// `GetGreasedUserAgentBrandVersion` in Chromium's
+/// `components/embedder_support/user_agent_utils.cc` builds the brand as
+/// `"Not" + c[seed % 11] + "A" + c[(seed + 1) % 11] + "Brand"` over these
+/// characters, with the version `["8", "99", "24"][seed % 3]`; the seed is the
+/// browser's major version. See also the UA-CH specification's "create
+/// arbitrary brands" algorithm.
+const GREASE_BRAND_CHARACTERS: &[u8; 11] = b" (:-./);=?_";
+/// Versions Chromium's GREASE brand algorithm chooses from.
+const GREASE_BRAND_MAJORS: [u32; 3] = [8, 99, 24];
+
+/// Returns whether `brand` with major version `major` has the shape of a
+/// Chromium GREASE brand, such as `"Not_A Brand";v="8"`.
+fn is_grease_brand(brand: &str, major: Option<u32>) -> bool {
+    let shape = brand
+        .strip_prefix("Not")
+        .and_then(|rest| rest.strip_suffix("Brand"))
+        .is_some_and(|middle| match middle.as_bytes() {
+            [first, b'A', second] => {
+                GREASE_BRAND_CHARACTERS.contains(first) && GREASE_BRAND_CHARACTERS.contains(second)
+            }
+            _ => false,
+        });
+    shape && major.is_some_and(|major| GREASE_BRAND_MAJORS.contains(&major))
 }
 
 fn major(version: &str) -> Option<u32> {
