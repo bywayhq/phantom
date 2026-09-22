@@ -3,9 +3,17 @@ name: Sanitizers
 # `phantom-quic-btls` is the only crate allowed to contain `unsafe` code: its
 # private `backend` module wraps BoringSSL through FFI. Parser fuzzing already
 # runs under AddressSanitizer, but it only reaches the byte parsers, never the
-# QUIC callbacks, the key schedule, or a live handshake. This workflow runs the
-# crate's own tests and the HTTP/3 loopback tests, which drive the same FFI
-# paths end to end, under AddressSanitizer.
+# key schedule, the QUIC secret callbacks, or a live handshake. This workflow
+# runs the crate's own tests and the HTTP/3 loopback tests under
+# AddressSanitizer to cover them.
+#
+# It covers the paths the tests already reach. Two callback-failure paths have
+# no test at all, so this job says nothing about them: a panic across a real
+# BoringSSL call edge, and an `SSL` dropped mid-handshake. See
+# docs/explanation/validation.md.
+#
+# `vendor/**` rather than the QUIC forks by name: an enumerated list silently
+# drops a fork that is renamed or added. The fuzzing workflow does the same.
 on:
   pull_request:
     paths:
@@ -15,12 +23,9 @@ on:
       - crates/phantom-net/**
       - crates/phantom-profile/**
       - crates/phantom-quic-btls/**
+      - crates/phantom-testkit/**
       - rust-toolchain.toml
-      - vendor/btls/**
-      - vendor/h3/**
-      - vendor/quinn/**
-      - vendor/quinn-proto/**
-      - vendor/tokio-btls/**
+      - vendor/**
   push:
     branches: [main]
     paths:
@@ -30,12 +35,9 @@ on:
       - crates/phantom-net/**
       - crates/phantom-profile/**
       - crates/phantom-quic-btls/**
+      - crates/phantom-testkit/**
       - rust-toolchain.toml
-      - vendor/btls/**
-      - vendor/h3/**
-      - vendor/quinn/**
-      - vendor/quinn-proto/**
-      - vendor/tokio-btls/**
+      - vendor/**
   schedule:
     - cron: "43 7 * * 2"
   workflow_dispatch:
@@ -67,23 +69,35 @@ jobs:
       matrix:
         include:
           # The crate's own unit tests: key schedule, packet and header
-          # protection, retry, stateless reset, and the QUIC callbacks.
+          # protection, retry, stateless reset, and the secret callbacks'
+          # rejection paths (a null cipher, a secret length that disagrees
+          # with the cipher).
           - name: phantom-quic-btls
             package: phantom-quic-btls
             filter: ""
-          # A live HTTP/3 exchange over loopback, which drives the handshake,
-          # the secret callbacks, and session teardown for real.
+          # A live HTTP/3 exchange over loopback: a real handshake, the secret
+          # callbacks driven by BoringSSL rather than called directly, and
+          # session teardown after the handshake completes.
           - name: HTTP/3 loopback
             package: phantom-net
             filter: "http3::"
     env:
       RUSTFLAGS: -Zsanitizer=address
-      # BoringSSL is linked in uninstrumented, so LeakSanitizer reports its
-      # process-wide one-time allocations as leaks. Turn leak detection off
-      # rather than carry a suppression list for another project's
-      # initialization. Use-after-free, double-free, and out-of-bounds access
-      # are unaffected, and those are the FFI boundary's real risks.
-      ASAN_OPTIONS: detect_leaks=0:detect_stack_use_after_return=1
+      # Leak detection stays on. It is the only automatic check that the
+      # `CallbackState` owner handed to `SSL_set_ex_data` is freed by the
+      # ex-data destructor, and no test asserts that for a session dropped
+      # mid-handshake. If BoringSSL's one-time initialization turns out to
+      # report leaks here, add an LSAN_OPTIONS suppressions file naming the
+      # frames that were actually observed.
+      #
+      # `detect_stack_use_after_return` is deliberately left off. Turned on, a
+      # full `http3::` run on a Windows host reported stack-use-after-return in
+      # `endpoint_with_socket` against a fake-stack frame belonging to that same
+      # function, with a truncated backtrace, and aborted the binary before any
+      # test result. It did not reproduce on a narrower filter, and the run is
+      # clean with the option off, so it reads as an artifact of the per-thread
+      # fake stack under load rather than a defect. Revisit it on Linux.
+      ASAN_OPTIONS: detect_leaks=1
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,19 +110,40 @@ jobs:
           rustup target add "$SANITIZER_TARGET" --toolchain "$NIGHTLY_TOOLCHAIN"
           rustc "+$NIGHTLY_TOOLCHAIN" --version
 
+      # `nm` and `objcopy` are the archive-rewrite path that the `prefix-symbols`
+      # feature uses; it is selected on Linux only, so this job is the first
+      # sanitizer build to exercise it.
       - name: Check native build prerequisites
         run: |
           for tool in git cmake clang c++ nm objcopy; do
             command -v "$tool"
           done
 
+      # Without a symbolizer an ASan report is a list of bare addresses, which
+      # is useless for an FFI boundary. `--profile minimal` installs no
+      # llvm-tools, and the runner image may carry only a versioned name, so
+      # resolve it here and fail loudly rather than discover it in a report.
+      - name: Resolve the sanitizer symbolizer
+        run: |
+          for candidate in llvm-symbolizer llvm-symbolizer-18 llvm-symbolizer-17; do
+            if path=$(command -v "$candidate"); then
+              "$path" --version
+              echo "ASAN_SYMBOLIZER_PATH=$path" >>"$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "::error::no llvm-symbolizer found; ASan reports would be bare addresses"
+          exit 1
+
       - name: Cache Cargo build
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           # Instrumented artifacts must not share a cache with the ordinary CI
-          # build, which uses the same lockfile and a different toolchain.
-          key: asan-${{ matrix.package }}
+          # build, which uses the same lockfile and a different toolchain. The
+          # action keys on the default toolchain's rustc, not on the nightly
+          # this job selects, so the nightly has to be in the key by hand.
+          key: asan-${{ matrix.package }}-${{ env.NIGHTLY_TOOLCHAIN }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # Only `--lib`: doctests and the fixture integration tests add build time
