@@ -19,6 +19,9 @@ const SETTINGS_FRAME: u8 = 0x04;
 const HEADERS_FRAME: u8 = 0x01;
 const PEER_SETTINGS: &[u8] = &[CONTROL_STREAM, SETTINGS_FRAME, 0x00];
 const PENDING_WINDOW: Duration = Duration::from_millis(100);
+const EXPANSION_TABLE_CAPACITY: u64 = 4096;
+const EXPANSION_VALUE_LEN: usize = 4000;
+const EXPANSION_REFERENCES: usize = 70;
 const QPACK_CALLBACK: &str = "/.well-known/phantom/h3-qpack/0123456789abcdef0123456789abcdef";
 
 #[tokio::test(flavor = "current_thread")]
@@ -175,6 +178,75 @@ async fn closing_peer_qpack_encoder_closes_connection_and_fails_request() -> Tes
     join_server(server).await
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn expanded_response_field_section_is_refused_without_advertised_limit() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        timeout(TEST_TIMEOUT, async move {
+            let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+            let connection = incoming.await?;
+            let mut control = connection.open_uni().await?;
+            control.write_all(PEER_SETTINGS).await?;
+
+            let mut encoder = connection.open_uni().await?;
+            encoder.write_all(&[QPACK_ENCODER_STREAM]).await?;
+            encoder.write_all(&expansion_instructions()).await?;
+
+            let (mut oversized, mut oversized_request) = connection.accept_bi().await?;
+            let _ = oversized_request.read_to_end(64 * 1024).await?;
+            write_headers(&mut oversized, &expansion_field_section()).await?;
+            let _ = oversized.finish();
+
+            let (mut small, mut small_request) = connection.accept_bi().await?;
+            let _ = small_request.read_to_end(64 * 1024).await?;
+            write_headers(&mut small, &[0x00, 0x00, 0xd9]).await?;
+            small.finish()?;
+
+            done_received
+                .await
+                .map_err(|_| "client did not finish field-section validation")?;
+            connection.close(quinn::VarInt::from_u32(0), b"");
+            drop((control, encoder));
+            Ok::<(), Box<dyn Error + Send + Sync>>(())
+        })
+        .await
+        .map_err(|_| "field-section expansion server timed out")?
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &unadvertised_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let result = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(request(address, "/expanded")?, None),
+    )
+    .await
+    .map_err(|_| "expanded response was neither refused nor accepted")?;
+    let error = match result {
+        Ok(_) => return Err("expanded field section exceeded the local limit".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), Http3ErrorKind::Protocol);
+
+    let small = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(request(address, "/after-expanded")?, None),
+    )
+    .await
+    .map_err(|_| "request after the refused field section timed out")??;
+    assert_eq!(small.status(), StatusCode::OK);
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
 async fn assert_qpack_layout(
     initial_path: &'static str,
     status_field: &'static [u8],
@@ -255,6 +327,43 @@ fn dynamic_settings() -> Http3Settings {
         qpack_encoding: Http3QpackEncoding::Stateless,
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
     }
+}
+
+/// Advertises a dynamic table but no `SETTINGS_MAX_FIELD_SECTION_SIZE`.
+fn unadvertised_settings() -> Http3Settings {
+    Http3Settings {
+        initial_settings: vec![
+            Http3Setting::QpackMaxTableCapacity(EXPANSION_TABLE_CAPACITY),
+            Http3Setting::QpackBlockedStreams(1),
+        ],
+        setting_order: Http3SettingOrder::Fixed,
+        qpack_encoding: Http3QpackEncoding::Stateless,
+        qpack_decoder_stream: Http3QpackDecoderStream::Eager,
+    }
+}
+
+/// Sets the table capacity and inserts one near-capacity `x-big` entry
+/// (RFC 9204 Sections 4.3.1 and 4.3.3).
+fn expansion_instructions() -> Vec<u8> {
+    let mut instructions = Vec::with_capacity(EXPANSION_VALUE_LEN + 16);
+    // Set Dynamic Table Capacity, 5-bit prefix: 4096 = 31 + 4065.
+    instructions.extend_from_slice(&[0x3f, 0xe1, 0x1f]);
+    // Insert With Literal Name, 5-bit name-length prefix.
+    instructions.push(0x40 | 5);
+    instructions.extend_from_slice(b"x-big");
+    // Value length 4000 with a 7-bit prefix: 127 + 3873.
+    instructions.extend_from_slice(&[0x7f, 0xa1, 0x1e]);
+    instructions.resize(instructions.len() + EXPANSION_VALUE_LEN, b'a');
+    instructions
+}
+
+/// References the single dynamic entry enough times that the decoded size
+/// (about 4 KiB per line) passes 256 KiB while the encoded section stays tiny.
+fn expansion_field_section() -> Vec<u8> {
+    // Required Insert Count 1 encodes as 2 (RFC 9204 Section 4.5.1.1); base 1.
+    let mut field_section = vec![0x02, 0x00, 0xd9];
+    field_section.resize(field_section.len() + EXPANSION_REFERENCES, 0x80);
+    field_section
 }
 
 fn dynamic_response() -> TestResult<(Vec<u8>, Vec<u8>)> {

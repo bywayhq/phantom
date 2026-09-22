@@ -59,9 +59,17 @@ The optional cookie jar (`CookieLimits`) defaults to:
 | Undelivered HTTP/2 ALTSVC frames per connection | 16 |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |
 | Informational (1xx) responses before the final head (H1 and H3) | 8 |
+| Decoded H3 response field section (headers or trailers) | 256 KiB, or the profile's lower `SETTINGS_MAX_FIELD_SECTION_SIZE` |
 | Stacked content codings | 3 |
 | zstd window | 8 MiB |
 | Decoded data frame size | 16 KiB |
+
+The H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it:
+each field line counts its name and value lengths plus 32 bytes. The 256 KiB
+ceiling applies even when a profile omits `SETTINGS_MAX_FIELD_SECTION_SIZE`,
+and it never adds that setting to the SETTINGS frame. A larger response
+section fails that request with `Http3ErrorKind::Protocol` and cancels its
+stream; the connection stays usable.
 
 ## Server-sent events
 

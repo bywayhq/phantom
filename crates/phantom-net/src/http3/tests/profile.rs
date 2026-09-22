@@ -215,7 +215,11 @@ async fn chrome_profile_emits_seeded_grease_varint_widths() -> TestResult<()> {
     ];
 
     for (identifier_seed, value, expected_identifier_width, expected_value_width) in cases {
-        let prefix = capture_seeded_control_stream(grease_entropy(identifier_seed, value)).await?;
+        let prefix = capture_seeded_control_stream(
+            &chromium::v152_http3(),
+            grease_entropy(identifier_seed, value),
+        )
+        .await?;
         let entries = parse_encoded_settings(&prefix)?;
         let grease = entries
             .iter()
@@ -231,7 +235,27 @@ async fn chrome_profile_emits_seeded_grease_varint_widths() -> TestResult<()> {
     Ok(())
 }
 
-async fn capture_seeded_control_stream(entropy: [u8; 8]) -> TestResult<Vec<u8>> {
+#[tokio::test(flavor = "current_thread")]
+async fn local_field_section_limit_is_not_advertised() -> TestResult<()> {
+    let settings = Http3Settings {
+        initial_settings: vec![
+            Http3Setting::QpackMaxTableCapacity(0),
+            Http3Setting::QpackBlockedStreams(0),
+        ],
+        setting_order: Http3SettingOrder::Fixed,
+        qpack_encoding: Http3QpackEncoding::Stateless,
+        qpack_decoder_stream: Http3QpackDecoderStream::Eager,
+    };
+    let prefix = capture_seeded_control_stream(&settings, [0; 8]).await?;
+
+    assert_eq!(parse_control_settings(&prefix)?, [(0x01, 0), (0x07, 0)]);
+    Ok(())
+}
+
+async fn capture_seeded_control_stream(
+    settings: &Http3Settings,
+    entropy: [u8; 8],
+) -> TestResult<Vec<u8>> {
     let identity = TestIdentity::generate()?;
     let crypto = profiled_client_config(&identity)?;
     let (address, server_endpoint) = server_endpoint(&identity)?;
@@ -259,8 +283,7 @@ async fn capture_seeded_control_stream(entropy: [u8; 8]) -> TestResult<Vec<u8>> 
     .map_err(|_| "QUIC handshake timed out")??;
     super::super::require_h3(&client_connection)?;
 
-    let settings = chromium::v152_http3();
-    let mut builder = super::super::settings::builder_for_test(&settings, &crypto, entropy)?;
+    let mut builder = super::super::settings::builder_for_test(settings, &crypto, entropy)?;
     let (mut driver, sender) = builder
         .build::<_, _, Bytes>(h3_quinn::Connection::new(client_connection.clone()))
         .await?;

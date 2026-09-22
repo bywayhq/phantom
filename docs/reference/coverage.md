@@ -171,6 +171,8 @@ Supported wire behavior:
   decoder-stream policy.
 - Bounded dynamic response decoding and connection-owned request encoding;
   live capture-matching QPACK stream and HEADERS bytes.
+- A local 256 KiB decoded response field-section ceiling (lower when the
+  profile advertises less) that does not alter the SETTINGS frame.
 
 Supported lifecycle:
 

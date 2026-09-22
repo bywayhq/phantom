@@ -40,7 +40,11 @@ combinations fail validation rather than being accepted and ignored.
 
 The connection driver owns encoder and decoder streams. Receive-side dynamic
 state is bounded by advertised capacity, blocked-stream limits, field-section
-limits, and decoder feedback. Request encoding waits for peer SETTINGS, applies
+limits, and decoder feedback. The decoded field-section limit is the lower of
+the profile's advertised `SETTINGS_MAX_FIELD_SECTION_SIZE` and a local 256 KiB
+ceiling. `settings::builder` sets it after the ordered SETTINGS list, which the
+vendored `h3` builder then emits unchanged, so the ceiling never appears on the
+wire. Request encoding waits for peer SETTINGS, applies
 bounded admission, and sends encoder instructions before dependent HEADERS.
 
 The built-in Chrome profile reproduces the retained first-request encoder and

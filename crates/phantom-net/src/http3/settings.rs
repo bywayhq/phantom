@@ -12,6 +12,14 @@ const MAX_FIELD_SECTION_SIZE: u64 = 0x06;
 const QPACK_BLOCKED_STREAMS: u64 = 0x07;
 const H3_DATAGRAM: u64 = 0x33;
 const GREASE_ENTROPY_LEN: usize = 8;
+/// Largest decoded response field section accepted on any connection.
+///
+/// Sizes use the RFC 9114 Section 4.2.2 measure (name and value lengths plus
+/// 32 per field line). An implementation may refuse a larger header section
+/// whether or not it advertised `SETTINGS_MAX_FIELD_SECTION_SIZE`, so this
+/// bound is local only and never changes the SETTINGS frame. The value equals
+/// the limit Chromium advertises.
+const LOCAL_MAX_FIELD_SECTION_SIZE: u64 = 262_144;
 
 pub(super) fn builder(
     settings: &Http3Settings,
@@ -38,6 +46,9 @@ fn builder_with_entropy(
             error,
         )
     })?;
+    // The ordered list above is the complete wire SETTINGS frame; this call
+    // only replaces the decoder's local ceiling and must follow it.
+    builder.max_field_section_size(local_max_field_section_size(settings));
     match settings.qpack_encoding {
         Http3QpackEncoding::Stateless => {}
         Http3QpackEncoding::Dynamic => {
@@ -148,6 +159,21 @@ pub(super) fn builder_for_test(
         output.copy_from_slice(&entropy);
         Ok(())
     })
+}
+
+/// Returns the decoded field-section ceiling: the advertised limit when it is
+/// smaller than the local bound, otherwise the local bound.
+fn local_max_field_section_size(settings: &Http3Settings) -> u64 {
+    settings
+        .initial_settings
+        .iter()
+        .find_map(|setting| match *setting {
+            Http3Setting::MaxFieldSectionSize(value) => Some(value),
+            _ => None,
+        })
+        .map_or(LOCAL_MAX_FIELD_SECTION_SIZE, |advertised| {
+            advertised.min(LOCAL_MAX_FIELD_SECTION_SIZE)
+        })
 }
 
 fn materialize(
