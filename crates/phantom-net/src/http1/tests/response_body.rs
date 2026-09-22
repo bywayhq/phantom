@@ -63,7 +63,7 @@ async fn content_length_ends_without_socket_eof() -> TestResult {
             let body = send_get(client, target, vec![host()]).await?.into_body();
             body.collect().await
         }
-        .with_subscriber(subscriber.clone())
+        .with_subscriber(subscriber.dispatch())
         .await?;
         assert_eq!(collected.to_bytes(), "hello");
         assert_eq!(
@@ -178,7 +178,7 @@ async fn reads_close_delimited_body() -> TestResult {
             let body = send_get(client, target, vec![host()]).await?.into_body();
             body.collect().await
         }
-        .with_subscriber(subscriber.clone())
+        .with_subscriber(subscriber.dispatch())
         .await?
         .to_bytes();
         assert_eq!(bytes, "close body");
@@ -207,7 +207,7 @@ async fn reports_truncated_content_length() -> TestResult {
             let body = send_get(client, target, vec![host()]).await?.into_body();
             body.collect().await
         }
-        .with_subscriber(subscriber.clone())
+        .with_subscriber(subscriber.dispatch())
         .await;
         let error = match collected {
             Ok(_) => return Err("truncated body accepted".into()),

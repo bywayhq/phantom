@@ -16,6 +16,15 @@ async fn bounded_peer_test<F>(future: F) -> TestResult
 where
     F: Future<Output = TestResult>,
 {
+    // Callsite interest is process-global and is computed from the dispatchers
+    // that are live when a span callsite is first reached. A parallel test that
+    // reaches an HTTP/1 callsite first with no subscriber installed caches
+    // `Interest::never` for it, and every later span at that callsite is
+    // disabled until some thread rebuilds the cache. Assertions on captured
+    // spans then see nothing. The global fallback returns `Interest::sometimes`
+    // for every callsite, so `enabled` stays dynamic and per-test dispatchers
+    // are always consulted.
+    OutcomeSubscriber::install_dynamic_callsite_fallback();
     // One deadline covers all peer I/O and task joins; making progress does
     // not restart it and therefore cannot extend a hung test indefinitely.
     match timeout(PEER_TEST_TIMEOUT, future).await {

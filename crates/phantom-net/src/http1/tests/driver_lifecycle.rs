@@ -13,7 +13,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, duplex},
     sync::oneshot,
 };
-use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
+use tracing::{dispatcher, instrument::WithSubscriber};
 
 use super::{TestResult, bounded_peer_test, host, read_head, target, wait_for_driver_outcome};
 use crate::{http1::send_get, tracing_test::OutcomeSubscriber};
@@ -45,7 +45,7 @@ async fn dropping_body_closes_stream() -> TestResult {
             drop(body);
             Ok::<_, Box<dyn std::error::Error>>(())
         }
-        .with_subscriber(subscriber.clone())
+        .with_subscriber(subscriber.dispatch())
         .await?;
         assert_eq!(
             subscriber.response_body_events(),
@@ -85,12 +85,12 @@ async fn response_body_may_be_dropped_on_plain_thread() -> TestResult {
             assert_eq!(data, "first");
             Ok::<_, Box<dyn std::error::Error>>(body)
         }
-        .with_subscriber(subscriber.clone())
+        .with_subscriber(subscriber.dispatch())
         .await?;
 
         let thread_subscriber = other_subscriber.clone();
         std::thread::spawn(move || {
-            let dispatch = Dispatch::new(thread_subscriber);
+            let dispatch = thread_subscriber.dispatch();
             dispatcher::with_default(&dispatch, || drop(body));
         })
         .join()
@@ -133,7 +133,7 @@ fn response_body_poll_uses_origin_dispatch_on_plain_thread() -> TestResult {
                     .await
                     .map(|response| response.into_body())
             }
-            .with_subscriber(origin_subscriber.clone())
+            .with_subscriber(origin_subscriber.dispatch())
             .await?;
             let (shutdown_tx, shutdown_rx) = oneshot::channel();
             body_tx
@@ -153,7 +153,7 @@ fn response_body_poll_uses_origin_dispatch_on_plain_thread() -> TestResult {
         .enable_all()
         .build()?;
     let bytes = runtime
-        .block_on(async { body.collect().await }.with_subscriber(other_subscriber.clone()))?;
+        .block_on(async { body.collect().await }.with_subscriber(other_subscriber.dispatch()))?;
     assert_eq!(bytes.to_bytes(), "hello");
     assert!(
         origin_subscriber.response_body_polls_on_origin_dispatch() > 0,
@@ -202,7 +202,7 @@ async fn connection_driver_panic_records_task_error() -> TestResult {
             assert_eq!(data, "first");
             Ok::<_, Box<dyn std::error::Error>>(body)
         }
-        .with_subscriber(subscriber.clone())
+        .with_subscriber(subscriber.dispatch())
         .await?;
 
         panic_reads.store(true, Ordering::SeqCst);
@@ -242,7 +242,7 @@ fn runtime_shutdown_records_driver_outcome_once() -> TestResult {
             assert_eq!(data, "first");
             Ok::<_, Box<dyn std::error::Error>>(body)
         }
-        .with_subscriber(subscriber.clone()),
+        .with_subscriber(subscriber.dispatch()),
     )?;
 
     drop(runtime);
