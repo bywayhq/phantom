@@ -1,6 +1,0 @@
-# Ignores for OSV-Scanner, which OpenSSF Scorecard runs. Keep each entry in
-# step with the matching `deny.toml` advisory ignore.
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0009"
-reason = "time is a dev-only dependency of the rcgen test-certificate builder, which never parses RFC 2822 input; the fixed 0.3.47 requires Rust 1.88, above the 1.85 MSRV"

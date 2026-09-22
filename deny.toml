@@ -25,10 +25,8 @@ deny = [
     { crate = "wreq-proto", reason = "use the phantom-wreq-proto fork" },
 ]
 
-# Advisories checked by `cargo deny check advisories` in CI. Each ignore
-# names why the advisory cannot reach Phantom users; remove it once the fix
-# fits the MSRV.
+# Advisories checked by `cargo deny check advisories` in CI. An ignore must name
+# why the advisory cannot reach Phantom users, be mirrored in an
+# `osv-scanner.toml` for OpenSSF Scorecard, and be removed once the fix fits
+# the MSRV.
 [advisories]
-ignore = [
-    { id = "RUSTSEC-2026-0009", reason = "time is a dev-only dependency of the rcgen test-certificate builder, which never parses RFC 2822 input; the fixed 0.3.47 requires Rust 1.88, above the 1.85 MSRV" },
-]
