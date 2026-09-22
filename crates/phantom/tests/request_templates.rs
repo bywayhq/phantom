@@ -21,6 +21,7 @@ mod wire;
 use std::{
     future::poll_fn,
     net::Ipv4Addr,
+    num::NonZeroUsize,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -28,7 +29,8 @@ use std::{
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, RequestHeader,
+    Client, ContentCoding, ContentDecoding, HttpProtocol, RedirectPolicy, RequestErrorKind,
+    RequestHeader, ResponseInfo,
     profile::{
         ClientHintSettings, ClientProfile, Http2Settings, RequestTemplate, chromium, edge, firefox,
     },
@@ -218,23 +220,29 @@ async fn serve_http1(identity: &TestIdentity) -> TestResult<(String, Server)> {
     let acceptor = identity.acceptor(H1_ALPN)?;
     let server = tokio::spawn(async move {
         let mut stream = accept_tls(listener, acceptor).await?;
-        let head = String::from_utf8(read_head(&mut stream).await?)?;
+        let head = read_head(&mut stream).await?;
         stream
             .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
             .await?;
-        let mut fields = Vec::new();
-        for line in head.trim_end().split("\r\n").skip(1) {
-            let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
-            if !name.eq_ignore_ascii_case("host") {
-                fields.push((name.to_owned(), value.to_owned()));
-            }
-        }
         Ok(Observed {
-            fields,
+            fields: http1_fields(head)?,
             priority: None,
         })
     });
     Ok((url, server))
+}
+
+/// Returns the fields of an HTTP/1.1 request head without `Host`.
+fn http1_fields(head: Vec<u8>) -> TestResult<Fields> {
+    let head = String::from_utf8(head)?;
+    let mut fields = Vec::new();
+    for line in head.trim_end().split("\r\n").skip(1) {
+        let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
+        if !name.eq_ignore_ascii_case("host") {
+            fields.push((name.to_owned(), value.to_owned()));
+        }
+    }
+    Ok(fields)
 }
 
 async fn serve_http2(
@@ -418,6 +426,100 @@ async fn firefox_fetch_sends_the_captured_report_request() -> TestResult<()> {
         TCP,
     )
     .await
+}
+
+#[tokio::test]
+async fn redirect_hop_keeps_the_template_and_drops_caller_hints_cross_origin() -> TestResult<()> {
+    timeout(TEST_TIMEOUT, redirect_hop()).await?
+}
+
+/// Follows one cross-origin redirect, from one loopback port to another,
+/// with the Chrome navigation template and a caller `sec-ch-ua-arch`.
+async fn redirect_hop() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let first = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let second = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let first_url = format!("https://{}/", first.local_addr()?);
+    let location = format!("https://{}/next", second.local_addr()?);
+    let (first_acceptor, second_acceptor) =
+        (identity.acceptor(H1_ALPN)?, identity.acceptor(H1_ALPN)?);
+    let payload = b"template-decoded payload ".repeat(32);
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    std::io::Write::write_all(&mut encoder, &payload)?;
+    let encoded = encoder.finish()?;
+    let server = tokio::spawn(async move {
+        let mut stream = accept_tls(first, first_acceptor).await?;
+        let first_hop = http1_fields(read_head(&mut stream).await?)?;
+        let redirect =
+            format!("HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n");
+        stream.write_all(redirect.as_bytes()).await?;
+
+        let mut stream = accept_tls(second, second_acceptor).await?;
+        let second_hop = http1_fields(read_head(&mut stream).await?)?;
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: {}\r\n\r\n",
+            encoded.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&encoded);
+        stream.write_all(&response).await?;
+        TestResult::Ok((first_hop, second_hop))
+    });
+
+    let profile =
+        ClientProfile::new(tls_settings()).with_client_hints(chromium::v153_windows_client_hints());
+    let client = Client::builder(profile)
+        .add_root_certificate_der(identity.root_der.clone())
+        .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+        .build()?;
+    let response = client
+        .get(HttpProtocol::Http1, &first_url)?
+        .template(chromium::v153_windows_navigation_template())
+        .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
+        .content_decoding(ContentDecoding::advertised(1 << 20))
+        .send()
+        .await?;
+    let decoded = response
+        .extensions()
+        .get::<ResponseInfo>()
+        .ok_or("response has no ResponseInfo")?
+        .decoded_content_codings()
+        .to_vec();
+    let body = response.into_body().collect_with_limit(usize::MAX).await?;
+    let (first_hop, second_hop) = server.await??;
+
+    // The caller hint joins the block on the first hop.
+    let names = |fields: &Fields| {
+        fields
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        names(&first_hop)[..5],
+        [
+            "Connection",
+            "sec-ch-ua",
+            "sec-ch-ua-mobile",
+            "sec-ch-ua-arch",
+            "sec-ch-ua-platform"
+        ]
+    );
+    // The cross-origin hop drops it and is the template's captured page
+    // request field for field, including its literal Accept-Encoding.
+    assert_eq!(
+        second_hop,
+        captured(&chrome(), Kind::Navigation, HttpProtocol::Http1)?
+    );
+    assert!(second_hop.contains(&(
+        "Accept-Encoding".to_owned(),
+        "gzip, deflate, br, zstd".to_owned()
+    )));
+    // That template value, not a caller field, advertised gzip, so the
+    // final response is decoded.
+    assert_eq!(decoded, [ContentCoding::Gzip]);
+    assert_eq!(body, payload);
+    Ok(())
 }
 
 #[tokio::test]
