@@ -497,3 +497,38 @@ fn broken_backoff_doubles_and_is_capped() -> TestResult {
     assert!(!broken_at(&store, &origin, now)?);
     Ok(())
 }
+
+#[test]
+fn failure_during_broken_period_counts_without_extending_it() -> TestResult {
+    let backoff = backoff()?;
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\"; ma=86400", now);
+    let broken = location(&store, &origin, now)?;
+
+    // Two races that lost concurrently report the same alternative.
+    store.mark_broken_at(&origin, &broken, backoff, now);
+    store.mark_broken_at(&origin, &broken, backoff, now + Duration::from_secs(1));
+    assert!(broken_at(
+        &store,
+        &origin,
+        now + Duration::from_millis(9_999)
+    )?);
+    assert!(!broken_at(&store, &origin, now + Duration::from_secs(10))?);
+
+    // Both failures count, as in Chromium, so the next period is 10 s << 2.
+    let later = now + Duration::from_secs(10);
+    store.mark_broken_at(&origin, &broken, backoff, later);
+    assert!(broken_at(
+        &store,
+        &origin,
+        later + Duration::from_millis(39_999)
+    )?);
+    assert!(!broken_at(
+        &store,
+        &origin,
+        later + Duration::from_secs(40)
+    )?);
+    Ok(())
+}

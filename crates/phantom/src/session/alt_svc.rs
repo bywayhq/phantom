@@ -246,6 +246,21 @@ impl AltSvcStore {
                 }
             }
         };
+        // Like Chromium, every failure counts toward the next period, but a
+        // failure inside an active broken period does not extend it
+        // (`BrokenAlternativeServices::MarkBrokenImpl`,
+        // `net/http/broken_alternative_services.cc` lines 137-154 at
+        // 153.0.8010.48).
+        if record.until > now {
+            record.failures = record.failures.saturating_add(1);
+            debug!(
+                outcome = "already_broken",
+                failures = record.failures,
+                "counted a failure of a broken Alt-Svc alternative"
+            );
+            broken.push_back(record);
+            return;
+        }
         let period = backoff.period(record.failures);
         record.until = now
             .checked_add(period)
