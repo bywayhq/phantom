@@ -1,20 +1,46 @@
 # Contributing
 
-This guide is for people proposing or implementing changes to Phantom. Before
-starting, read [Design](docs/explanation/design.md) for the project invariants,
-[Coverage](docs/reference/coverage.md) for the current boundary, and
-[Validation](docs/explanation/validation.md) for the evidence model.
+Thank you for helping improve Phantom. This guide is for people proposing or
+implementing changes. It covers setup, how to scope a change, the checks a
+change must pass, and how to open a pull request.
 
 Report suspected vulnerabilities through [the security process](SECURITY.md),
 not a public issue.
 
+## Quick start
+
+1. Install the [prerequisites](#development-setup) for the native BoringSSL
+   build.
+2. Clone and build the public crate:
+
+   ```console
+   git clone https://github.com/bywayhq/phantom.git
+   cd phantom
+   cargo check -p phantom-http --all-features --locked
+   ```
+
+3. Read [Design](docs/explanation/design.md) for the project invariants,
+   [Coverage](docs/reference/coverage.md) for the current boundary, and
+   [Validation](docs/explanation/validation.md) for the evidence model.
+4. For anything larger than a small fix, open a
+   [proposal](https://github.com/bywayhq/phantom/issues/new?template=proposal.yml)
+   first so the scope can be agreed before you write code.
+5. Make the change, run the [gates](#required-checks), and open a pull request
+   using the [checklist](#pull-requests).
+
 ## Development setup
 
-The repository pins its development toolchain. Native TLS builds require Git,
-CMake, Clang, and a C++ toolchain; Windows also requires NASM and Visual C++
-build tools. Python 3.10 and `uv` are needed only for capture and conformance
-tooling. See the platform jobs in [CI](.github/workflows/ci.yml) for the exact
-prerequisite checks.
+The repository pins its development toolchain in `rust-toolchain.toml`, which
+installs on first use. Native TLS builds require Git, CMake, Clang, and a C++
+toolchain; Windows also requires NASM and Visual C++ build tools. Python 3.10
+and `uv` are needed only for capture and conformance tooling. See the platform
+jobs in [CI](.github/workflows/ci.yml) for the exact prerequisite checks.
+
+Install the minimum supported toolchain separately for the MSRV checks:
+
+```console
+rustup toolchain install 1.85.0 --profile minimal
+```
 
 ### Windows
 
@@ -38,13 +64,6 @@ resolvable in the shell that runs Cargo (for example by adding
 uses LLVM's `libclang` for bindings; set `LIBCLANG_PATH` to LLVM's `bin`
 directory if it is not found.
 
-`rust-toolchain.toml` installs the pinned development toolchain on first use.
-Install the minimum supported toolchain separately for the MSRV checks:
-
-```powershell
-rustup toolchain install 1.85.0 --profile minimal
-```
-
 Run `scripts/ci/*.sh` from Git Bash. Those scripts fetch upstream sources and
 compare them byte-for-byte with `vendor/`, so run them with CRLF conversion
 disabled and symlinks enabled for the child Git processes:
@@ -59,17 +78,9 @@ scripts/ci/check-vendor.sh btls
 A checkout with `core.autocrlf=true` is otherwise supported: `.gitattributes`
 keeps `vendor/` and `fixtures/` byte-exact.
 
-### First build
-
-Build the public crate before making a change:
-
-```console
-cargo check -p phantom-http --all-features --locked
-```
-
 ## Before implementation
 
-State four things:
+State four things, in the proposal or the pull request:
 
 1. The observable acceptance criteria.
 2. What is intentionally out of scope.
@@ -89,8 +100,10 @@ local proof but cannot be the only proof.
   route, or fingerprint cannot be honored.
 - Do not expose configuration until it is applied, validated, and tested.
 - Keep recoverable input and network failures panic-free.
+- Do not add unsafe code outside the audited FFI module described in
+  [Design](docs/explanation/design.md#unsafe-code).
 - Update the relevant guide, coverage contract, or design boundary when public
-  behavior changes.
+  behavior changes. Do not document unimplemented or unverified support.
 
 ## Tests and evidence
 
@@ -106,8 +119,10 @@ fuzz failures into ordinary regressions.
 | Dependency or vendor patch | Canonical patch replay, focused upstream tests, and provenance update |
 | Hot path | Representative benchmark or profile with the claimed scope stated |
 
-Run the primary gates from the repository root. They are the Cargo half of
-the integration gate in [AGENTS.md](AGENTS.md); keep the two lists in step.
+## Required checks
+
+Run these from the repository root. They match the integration gate in
+[AGENTS.md](AGENTS.md); keep the two lists in step.
 
 ```console
 cargo fmt --check
@@ -118,9 +133,10 @@ cargo +1.85.0 check --workspace --all-targets --locked
 ```
 
 `cargo test` includes doctests that compile the Rust examples in `README.md`,
-`docs/getting-started.md`, `docs/guides/client.md`, `docs/sse.md`, and
-`docs/guides/websocket.md`; a guide example that no longer compiles fails the gate.
-The MSRV line is CI's `MSRV` job; that job also checks each optional
+`docs/getting-started.md`, and the guides under `docs/guides/`; a guide example
+that no longer compiles fails the gate. The hooks live in
+`crates/phantom/src/lib.rs`; add one when a new guide contains Rust code. The
+MSRV line is CI's `MSRV` job; that job also checks each optional
 `phantom-http` feature combination on Rust 1.85.
 
 Changes under `scripts/capture` or `scripts/conformance` also run the commands
@@ -138,25 +154,66 @@ uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
 ```
 
-Run `scripts/ci/check-vendor.sh` for every vendored package you change.
-Shell changes under `scripts/ci` or `scripts/release` must pass ShellCheck
-0.11.0 (`shellcheck scripts/ci/*.sh scripts/release/*.sh`). Changes under
-`fuzz/` must pass `cargo fmt --manifest-path fuzz/Cargo.toml --check` and
-`cargo clippy --manifest-path fuzz/Cargo.toml --bins --locked -- -D warnings`.
-The optional-feature matrix and scheduled interoperability suites run in CI;
-run the affected feature combinations locally before requesting review.
+Conditional checks:
+
+- Run `scripts/ci/check-vendor.sh <package>` for every vendored package you
+  change; see [Vendored forks](docs/internals/vendoring.md).
+- Shell changes under `scripts/ci` or `scripts/release` must pass ShellCheck
+  0.11.0 (`shellcheck scripts/ci/*.sh scripts/release/*.sh`).
+- Changes under `fuzz/` must pass
+  `cargo fmt --manifest-path fuzz/Cargo.toml --check` and
+  `cargo clippy --manifest-path fuzz/Cargo.toml --bins --locked -- -D warnings`.
+- The optional-feature matrix and scheduled interoperability suites run in
+  CI; run the affected feature combinations locally before requesting review.
+
+## Commit messages
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) with an
+intent-first subject:
+
+```text
+fix(http2): reject conflicting settings
+```
+
+- Common types are `feat`, `fix`, `docs`, `test`, `ci`, and `build`. The
+  scope names the protocol or area, such as `net`, `profile`, `tls`, or
+  `capture`, and may be omitted.
+- Write the subject in the imperative mood, under 72 characters, without a
+  trailing period.
+- Wrap the body at 100 columns and explain why the change is needed.
+- Keep each commit focused. Put mechanical renames, formatting, and
+  dependency or lockfile updates in their own commits.
 
 ## Pull requests
 
-Keep commits focused and use an intent-first Conventional Commit subject, such
-as `fix(http2): reject conflicting settings`. In the pull request:
+Keep pull requests focused. The
+[pull request template](.github/pull_request_template.md) asks for the items
+below; fill in each one.
 
-- explain the user- or peer-visible outcome;
-- list non-goals and unresolved uncertainty;
-- identify the wire evidence when applicable;
-- record the exact checks run and their results; and
-- call out new dependencies, patches, unsafe code, fallbacks, or security
-  implications.
+- [ ] The user- or peer-visible outcome is explained.
+- [ ] Acceptance criteria and non-goals are stated.
+- [ ] Wire evidence is identified when behavior is wire-sensitive.
+- [ ] Tests, rustdoc, and guides are updated for public behavior changes.
+- [ ] The exact checks run and their results are recorded.
+- [ ] New dependencies, patches, unsafe code, fallbacks, security
+      implications, and unresolved uncertainty are called out.
 
 A passing branch is not enough when a public option is unused, a fixture masks
 meaningful variance, or a failure silently changes the selected path.
+
+## Licensing
+
+Phantom is dual-licensed under [Apache-2.0](LICENSE-APACHE) or
+[MIT](LICENSE-MIT). Unless you explicitly state otherwise, any contribution
+intentionally submitted for inclusion in Phantom by you, as defined in the
+Apache-2.0 license, shall be dual licensed as above, without any additional
+terms or conditions.
+
+- No contributor license agreement or DCO sign-off is required.
+- Source files do not carry per-file license headers; the license files at the
+  repository root apply.
+- Vendored packages under `vendor/` keep their upstream license and `NOTICE`
+  files unchanged. Phantom's modifications are recorded as ordered patches in
+  each package's `patches/series` and described in its `PHANTOM.md`.
+- Do not add code copied from another project unless its license is
+  compatible and its provenance is recorded.
