@@ -166,6 +166,59 @@ Conditional checks:
 - The optional-feature matrix and scheduled interoperability suites run in
   CI; run the affected feature combinations locally before requesting review.
 
+## Continuous integration
+
+Changes reach `main` through pull requests. The one required status check is
+`CI required`, the last job in [CI](.github/workflows/ci.yml). It passes only
+when every other CI job succeeded or was skipped by its own condition, so a
+failed, cancelled, or unclassified run never counts as passing.
+
+| Workflow | Pull request | Push to `main` | Weekly schedule and manual dispatch |
+| --- | --- | --- | --- |
+| [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Features, Downstream, Vendor, MSRV | Linux jobs and the macOS and Windows Platform jobs | Every job, whatever changed |
+| [Parser fuzzing](.github/workflows/fuzz.yml) | 15 seconds per target when parser paths change | Same as pull requests | 300 seconds per target |
+| Conformance suites | Only with the `conformance` label | When the suite's paths change | Yes, with the workflow's scheduled or chosen case set |
+| [Scorecard](.github/workflows/scorecard.yml) | No | Yes | Yes |
+| Benchmarks, upstream freshness | No | No | Yes |
+
+The conformance suites are [Autobahn](.github/workflows/autobahn.yml),
+[BoringSSL native](.github/workflows/boringssl-native.yml),
+[QUIC interop](.github/workflows/quic-interop.yml),
+[TLS-Anvil](.github/workflows/tls-anvil.yml), and
+[WPT EventSource](.github/workflows/wpt-eventsource.yml).
+[Release](.github/workflows/release.yml) runs only by manual dispatch.
+
+CI skips jobs that a documentation-only change cannot affect;
+[`scripts/ci/changed-paths.sh`](scripts/ci/changed-paths.sh) classifies the
+changed paths against the base branch, or against the previous `main` commit
+on a push:
+
+- Documentation: Markdown outside `crates/`, `fixtures/`, `fuzz/`, and
+  `vendor/`; anything under `docs/`; the license files; `.github/CODEOWNERS`;
+  and `.github/ISSUE_TEMPLATE/`. A change made only of these runs no job
+  except `CI required`.
+- Doctest sources: `README.md`, `docs/getting-started.md`, and
+  `docs/guides/`, which `cargo test` compiles. A change to these, with no
+  code, runs only the Quality job.
+- Code: every other path, including workflows, manifests, fixtures, and
+  scripts. Any code path runs every job for that event.
+
+Change the classification together with its cases in
+`scripts/ci/test-changed-paths.sh`, which the Quality job runs.
+
+Platform-specific failures therefore surface on `main`. Before merging a
+change that may behave differently on macOS or Windows, run the platform gate
+locally or dispatch CI for the branch, which runs every job:
+
+```console
+gh workflow run ci.yml --ref <branch>
+```
+
+A maintainer can run the conformance suites on a pull request by applying
+the `conformance` label. The suites then run on the label event and again on
+each push while the label stays, whatever paths changed, with the case set a
+push to `main` uses; remove the label to stop them.
+
 ## Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) with an
