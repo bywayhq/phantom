@@ -2,7 +2,8 @@
 
 use phantom_net::request::RequestHeader;
 use phantom_profile::{
-    ClientHintSettings, ProductVersion, RequestField, RequestIdentity, RequestTemplate,
+    ClientHintDelivery, ClientHintSettings, ProductVersion, RequestField, RequestIdentity,
+    RequestTemplate,
 };
 use sfv::{BareItem, ListEntry, Parser};
 
@@ -108,8 +109,10 @@ pub(crate) struct ProtocolScope {
 ///
 /// # Errors
 ///
-/// Returns a request-template error for invalid template data or a protocol
-/// the template has no field order for, and an identity-mismatch error when
+/// Returns a request-template error for invalid template data, a protocol
+/// the template has no field order for, or a caller field carrying a hint
+/// the profile sends only on request when the template does not capture
+/// where such hints go; and an identity-mismatch error when
 /// a caller `User-Agent`, a caller brand-list client hint, or the profile's
 /// brand-list client hint contradicts the template's identity, or when the
 /// identity requires `User-Agent` products and no `User-Agent` would be sent.
@@ -157,6 +160,20 @@ pub(crate) fn check(
                 "a brand-list client hint names another browser or version than the request template",
             ));
         }
+    }
+    // A caller hint is sent even where automatic hints are not, such as to
+    // an `http://` origin, so it is refused here rather than only when the
+    // profile's hints are prepared.
+    let requested_by_caller = hints.is_some_and(|settings| {
+        caller.iter().any(|header| {
+            settings.hints().iter().any(|hint| {
+                hint.delivery() != ClientHintDelivery::Default
+                    && hint.name().eq_ignore_ascii_case(header.name())
+            })
+        })
+    });
+    if !template.requested_client_hint_placement && requested_by_caller {
+        return Err(RequestError::request_template_requested_hint());
     }
     let profile_brands = hints
         .into_iter()

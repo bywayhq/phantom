@@ -374,6 +374,46 @@ fn grease_brand_is_derived_from_the_major_version() {
 }
 
 #[test]
+fn a_caller_requested_hint_needs_a_template_that_places_it() {
+    let hints = chromium::v153_windows_client_hints();
+    let caller = [
+        RequestHeader::new("referer", "https://example.com/"),
+        RequestHeader::new("Sec-CH-UA-Arch", "\"x86\""),
+    ];
+    // Refused before I/O whatever the scheme: `check` sees no origin.
+    assert_eq!(
+        kind(
+            &chromium::v153_windows_fetch_no_store_template(),
+            exact(HttpProtocol::Http1),
+            &caller,
+            Some(&hints)
+        ),
+        Some(RequestErrorKind::RequestTemplate)
+    );
+    // The navigation template captures the requested-hint position, and a
+    // default hint from the caller is never a requested one.
+    assert_eq!(
+        kind(
+            &chromium::v153_windows_navigation_template(),
+            exact(HttpProtocol::Http1),
+            &caller,
+            Some(&hints)
+        ),
+        None
+    );
+    let default_hint = [RequestHeader::new("sec-ch-ua-mobile", "?0")];
+    assert_eq!(
+        kind(
+            &chromium::v153_windows_fetch_no_store_template(),
+            exact(HttpProtocol::Http1),
+            &default_hint,
+            Some(&hints)
+        ),
+        None
+    );
+}
+
+#[test]
 fn a_request_that_may_use_http3_needs_an_http3_list() {
     let fetch = chromium::v153_windows_fetch_no_store_template();
     let navigation = chromium::v153_windows_navigation_template();

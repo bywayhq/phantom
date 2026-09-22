@@ -223,11 +223,12 @@ inferred from the default block, which the captures of every protocol place
 the same way. A `fetch` splits the defaults: `sec-ch-ua-platform`
 precedes `User-Agent`, and `sec-ch-ua` and `sec-ch-ua-mobile` follow it. No
 capture shows where Chrome puts hints requested through `Accept-CH` on a
-`fetch`, so a fetch template refuses to send one: once an origin has asked
-for such a hint through `Accept-CH` or ALPS `ACCEPT_CH`, or the caller
-supplies one, the request fails with `RequestErrorKind::RequestTemplate`
-before it is sent. That includes the retry a `Critical-CH` response asks
-for. Without a template, automatic hints precede every caller field.
+`fetch`, so a fetch template refuses to send one with
+`RequestErrorKind::RequestTemplate`. A caller field carrying a hint the
+profile sends only on request fails before any I/O, on `http://` origins
+too. Once an origin has asked for such a hint through `Accept-CH` or ALPS
+`ACCEPT_CH`, the request fails before it is sent on the connection. That
+includes the retry a `Critical-CH` response asks for. Without a template, automatic hints precede every caller field.
 
 ### Identity check
 

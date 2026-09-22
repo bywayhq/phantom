@@ -861,6 +861,19 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
         .err()
         .ok_or("a requested hint was sent at an uncaptured fetch position")?;
     assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+
+    // Automatic hints never go to an `http://` origin, but a caller hint
+    // does, so it is refused there too.
+    let error = client
+        .get(HttpProtocol::Http1, "http://127.0.0.1:9/")?
+        .template(chromium::v153_windows_fetch_no_store_template())
+        .header(RequestHeader::new("referer", "http://127.0.0.1:9/"))
+        .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
+        .send()
+        .await
+        .err()
+        .ok_or("a requested hint was sent at an uncaptured fetch position over http")?;
+    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
     Ok(())
 }
 
