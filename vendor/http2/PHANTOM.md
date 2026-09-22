@@ -223,7 +223,10 @@ charged. The configurable `data_frame_budget` builder option from #942 is not
 ported because Phantom does not expose it. The patch changes
 `src/proto/{mod,connection}.rs`, `src/proto/streams/{counts,mod,recv,streams}.rs`,
 and the builders in `src/{client,server}.rs`, and carries upstream's unit tests.
-It also ports #940's connection regressions from
+Upstream's own dropped-`RecvStream` flow-control release (#930) is not part of
+this backport.
+
+The patch also ports #940's connection regressions from
 `tests/h2-tests/tests/stream_states.rs` into `src/client/tests.rs`, with a
 raw-frame peer in place of upstream's mock, because the published crate omits
 upstream's integration-test crate. Both run under the default 65,535-byte
@@ -235,8 +238,6 @@ hold a buffered non-final frame. Each then requires the client to answer a
 PING without having sent GOAWAY. Charging final frames, or keeping a dropped
 body's charges, exhausts the budget and fails the corresponding test with
 `GOAWAY(ENHANCE_YOUR_CALM)`.
-Upstream's own dropped-`RecvStream` flow-control release (#930) is not part of
-this backport.
 
 ## Local receive limits
 
@@ -250,8 +251,8 @@ local SETTINGS are acknowledged, so a peer cannot raise it. The header-block
 byte, CONTINUATION, and fourfold connection-abuse bounds derive from that
 effective limit exactly as they do from the advertised setting.
 
-Both limits count RFC 9113 section 6.5.2 decoded size: name plus value plus 32
-bytes per field. Phantom sets the local limit to 393,216, the default of
+The advertised and local limits both count RFC 9113 section 6.5.2 decoded
+size: name plus value plus 32 bytes per field. Phantom sets the local limit to 393,216, the default of
 Firefox's `network.http.max_response_header_size`, but Firefox applies that
 value to other quantities. `Http2Session::RecvHeaders` sums the encoded HPACK
 bytes of a HEADERS frame and its CONTINUATION frames, excluding padding and
@@ -308,13 +309,13 @@ field block and then index against the larger table. Sources, at Chromium
 - <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Session.cpp#l1870>
 - <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Compression.cpp#l1428>
 
-With the cap,
-a peer advertising 65,536 would get no update, and later blocks would diverge
-once the client's own entries exceed 4 KiB. The exposure is small. The table
-allocates nothing in proportion to its maximum and holds only fields the
-client itself encodes. Phantom limits each request to 100 fields and
-32 KiB, and fields larger than three quarters of the table are never indexed.
-Phantom's regressions pin the uncapped update for 65,536 and 2^32 - 1.
+With the cap, a peer advertising 65,536 would get no update, and later blocks
+would diverge once the client's own entries exceed 4 KiB. The exposure is
+small. The table allocates nothing in proportion to its maximum and holds only
+fields the client itself encodes. Phantom limits each request to 100 fields
+and 32 KiB, and fields larger than three quarters of the table are never
+indexed. Phantom's regressions pin the uncapped update for 65,536 and
+2^32 - 1.
 
 ## Refreshing the vendor copy
 
