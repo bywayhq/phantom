@@ -463,6 +463,53 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
 }
 
 #[test]
+fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
+    for name in ["connection", "keep-alive", "proxy-connection", "upgrade"] {
+        let mut template = firefox::v156_windows_navigation_template();
+        template
+            .http2_fields
+            .push(RequestField::literal(name, "value"));
+        assert_eq!(
+            template.validate().map_err(|error| error.field()),
+            Err("http2_fields"),
+            "{name}"
+        );
+
+        let mut template = chromium::v153_windows_navigation_template();
+        if let Some(fields) = &mut template.http3_fields {
+            fields.push(RequestField::caller(name));
+        }
+        assert_eq!(
+            template.validate().map_err(|error| error.field()),
+            Err("http3_fields"),
+            "{name}"
+        );
+    }
+
+    // Firefox's captured `te: trailers` is the one allowed `te` value.
+    let mut template = firefox::v156_windows_navigation_template();
+    assert_eq!(template.validate(), Ok(()));
+    if let Some(te) = template.http2_fields.last_mut() {
+        *te = RequestField::literal("te", "gzip");
+    }
+    assert_eq!(
+        template.validate().map_err(|error| error.field()),
+        Err("http2_fields")
+    );
+    if let Some(te) = template.http2_fields.last_mut() {
+        *te = RequestField::caller("te");
+    }
+    assert!(template.validate().is_err(), "a caller te value is unknown");
+
+    // HTTP/1.1 lists keep `Connection: keep-alive`.
+    assert!(
+        chromium::v153_windows_navigation_template()
+            .http1_fields
+            .contains(&RequestField::literal("Connection", "keep-alive"))
+    );
+}
+
+#[test]
 fn client_hint_placement_names_fields_up_to_the_first_literal() {
     let chrome =
         client_hint_placement(&chromium::v153_windows_fetch_no_store_template().http1_fields);

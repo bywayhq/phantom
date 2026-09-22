@@ -143,7 +143,8 @@ impl RequestTemplate {
     ///
     /// Returns [`InvalidRequestTemplate`] when a list has an invalid or
     /// repeated name, a generated field such as `Host` or `Cookie`, an
-    /// uppercase HTTP/2 or HTTP/3 name, an invalid literal value, a
+    /// uppercase HTTP/2 or HTTP/3 name, a connection-specific field such as
+    /// `Connection` in an HTTP/2 or HTTP/3 list, an invalid literal value, a
     /// client-hint slot without a later literal field, or when the lists place
     /// client hints differently.
     pub fn validate(&self) -> Result<(), InvalidRequestTemplate> {
@@ -263,6 +264,11 @@ const GENERATED: [&str; 6] = [
     "alt-used",
 ];
 
+/// Connection-specific fields that HTTP/2 and HTTP/3 forbid (RFC 9113
+/// section 8.2.2, RFC 9114 section 4.2). `te` is allowed only as a literal
+/// `trailers`.
+const CONNECTION_SPECIFIC: [&str; 4] = ["connection", "keep-alive", "proxy-connection", "upgrade"];
+
 fn validate_fields(
     fields: &[RequestField],
     field: &'static str,
@@ -322,6 +328,12 @@ fn validate_fields(
             ));
         }
         let lower = name.to_ascii_lowercase();
+        if lowercase && is_connection_specific(template, &lower) {
+            return Err(InvalidRequestTemplate::new(
+                field,
+                "HTTP/2 and HTTP/3 lists must not carry connection-specific fields",
+            ));
+        }
         if GENERATED.contains(&lower.as_str()) {
             return Err(InvalidRequestTemplate::new(
                 field,
@@ -342,6 +354,14 @@ fn validate_fields(
         ));
     }
     Ok(())
+}
+
+/// Returns whether `field`, named `lower`, is forbidden on HTTP/2 and HTTP/3.
+fn is_connection_specific(field: &RequestField, lower: &str) -> bool {
+    if lower == "te" {
+        return !matches!(field, RequestField::Literal { value, .. } if &**value == "trailers");
+    }
+    CONNECTION_SPECIFIC.contains(&lower)
 }
 
 fn validate_identity(identity: &RequestIdentity) -> Result<(), InvalidRequestTemplate> {
