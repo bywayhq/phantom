@@ -47,6 +47,7 @@ impl WebSocketRequestBuilder {
         #[cfg(feature = "cookies")]
         let cookie_value = cookie_jar
             .as_deref()
+            .filter(|_| super::handshake::sends_jar_cookie(&headers))
             .and_then(|jar| jar.request_value_for_url(&request.cookie_url));
         #[cfg(not(feature = "cookies"))]
         let cookie_value: Option<String> = None;

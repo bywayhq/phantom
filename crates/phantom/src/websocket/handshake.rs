@@ -202,6 +202,28 @@ pub(super) fn prepare_http2(
     })
 }
 
+/// Reports whether the handshake would carry the jar's cookies: it has a
+/// cookie placeholder and no literal `Cookie` field overriding it.
+///
+/// Callers read the jar only when this holds, because a jar read on the send
+/// path counts as a use for eviction.
+#[cfg(feature = "cookies")]
+pub(super) fn sends_jar_cookie(templates: &[WebSocketHeader]) -> bool {
+    let mut has_placeholder = false;
+    for template in templates {
+        match template {
+            WebSocketHeader::ClientCookies { .. } | WebSocketHeader::SessionCookies { .. } => {
+                has_placeholder = true;
+            }
+            WebSocketHeader::Field(header) if header.name().eq_ignore_ascii_case("cookie") => {
+                return false;
+            }
+            _ => {}
+        }
+    }
+    has_placeholder
+}
+
 pub(super) fn prepare(
     templates: Vec<WebSocketHeader>,
     authority: &str,
@@ -637,6 +659,22 @@ mod tests {
         WebSocketHeader, accept_for_key, default_http2_headers, fill_or_append, prepare,
         prepare_http2, profile_headers,
     };
+
+    #[cfg(feature = "cookies")]
+    #[test]
+    fn jar_cookies_are_read_only_for_an_unoverridden_placeholder() {
+        use super::sends_jar_cookie;
+
+        let placeholder = WebSocketHeader::client_cookies("Cookie");
+        let literal = WebSocketHeader::Field(RequestHeader::new("cookie", "a=1"));
+        let slot = WebSocketHeader::caller_field("Cookie");
+        assert!(sends_jar_cookie(std::slice::from_ref(&placeholder)));
+        assert!(sends_jar_cookie(&[placeholder.clone(), slot.clone()]));
+        assert!(!sends_jar_cookie(&[placeholder, literal.clone()]));
+        assert!(!sends_jar_cookie(&[literal]));
+        assert!(!sends_jar_cookie(&[slot]));
+        assert!(!sends_jar_cookie(&[]));
+    }
 
     #[test]
     fn derives_the_rfc_accept_value() {
