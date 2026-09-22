@@ -421,17 +421,35 @@ fn path_matches(request_path: &str, cookie_path: &str) -> bool {
             .is_some_and(|suffix| cookie_path.ends_with('/') || suffix.starts_with('/'))
 }
 
+/// Returns whether `domain` is a public suffix, including an unlisted
+/// top-level label.
+///
+/// Chromium's `GetCookieDomainWithString` requires a cookie domain to share
+/// the host's registrable domain, and its registry lookup treats an unlisted
+/// final label (`corp`, `lan`, `internal`) as a registry. A bare suffix has no
+/// registrable domain, so it is accepted only as the exact host and becomes a
+/// host-only cookie.
 fn is_public_suffix(domain: &CookieDomain) -> bool {
     let Some(domain) = domain.as_cow() else {
         return false;
     };
-    psl::List
-        .suffix(domain.as_bytes())
-        .is_some_and(|suffix| suffix.is_known() && suffix == domain.as_bytes())
+    !is_ip_address(&domain)
+        && psl::List
+            .suffix(domain.as_bytes())
+            .is_some_and(|suffix| suffix == domain.as_bytes())
 }
 
+/// Returns the registrable domain a cookie domain counts against, or the
+/// domain itself for an IP address or a name without one.
 fn quota_domain(domain: &str) -> String {
+    if is_ip_address(domain) {
+        return domain.to_owned();
+    }
     psl::domain_str(domain).unwrap_or(domain).to_owned()
+}
+
+fn is_ip_address(domain: &str) -> bool {
+    matches!(Host::parse(domain), Ok(Host::Ipv4(_) | Host::Ipv6(_)))
 }
 
 fn cookie_store_error(error: cookie_store::CookieError) -> CookieError {

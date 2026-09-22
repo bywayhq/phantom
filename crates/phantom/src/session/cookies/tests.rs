@@ -157,6 +157,37 @@ fn rejects_public_suffix_but_accepts_identical_host_as_host_only()
 }
 
 #[test]
+fn unlisted_and_private_suffixes_cannot_receive_domain_cookies()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    for (url, value) in [
+        ("https://a.corp/", "id=1; Domain=corp"),
+        ("https://a.corp/", "id=1; Domain=.corp"),
+        ("https://intranet.lan/", "id=1; Domain=lan"),
+        ("https://user.github.io/", "id=1; Domain=github.io"),
+    ] {
+        let error = rejected(
+            jar.set_cookie(url, value),
+            "suffix Domain cookie was accepted",
+        );
+        assert_eq!(error.kind(), CookieErrorKind::PublicSuffix);
+    }
+
+    jar.set_cookie("https://corp/", "exact=1; Domain=corp")?;
+    jar.set_cookie("https://a.b.corp/", "site=2; Domain=b.corp")?;
+    assert_eq!(
+        jar.request_value("https://corp/")?.as_deref(),
+        Some("exact=1")
+    );
+    assert_eq!(jar.request_value("https://a.corp/")?.as_deref(), None);
+    assert_eq!(
+        jar.request_value("https://c.b.corp/")?.as_deref(),
+        Some("site=2")
+    );
+    Ok(())
+}
+
+#[test]
 fn canonicalizes_cookie_domains_before_public_suffix_policy()
 -> Result<(), Box<dyn std::error::Error>> {
     let jar = CookieJar::default();
