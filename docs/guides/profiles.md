@@ -195,9 +195,19 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
   position and field-name spelling and keeps its own value and sensitivity.
   A literal entry with no caller field emits its captured value; a caller
   slot with no caller field emits nothing.
-- Other caller fields follow the template in the caller's order, and the
-  cookie jar's automatic `Cookie` field comes after them. The templates do
-  not place `Cookie`.
+- Other caller fields follow the template in the caller's order.
+- Templates cannot carry `Cookie`. The cookie jar's field is inserted into
+  the expanded list by the profile's `CookiePlacement`: before the first
+  field it names, compared case-insensitively, else last
+  ([details](connections-and-state.md#cookie-field-position)). The names are
+  matched against template and caller fields, not against the client hints
+  added in the next step. With `firefox::v156_cookie_placement`, a Firefox
+  `fetch` template sends `Cookie` after `Referer` and before
+  `Sec-Fetch-Dest`, and a navigation sends it before
+  `Upgrade-Insecure-Requests`. With `chromium::v153_cookie_placement`, a
+  Chrome or Edge template sends it last on HTTP/1.1 and before the final
+  `priority` on HTTP/2 and HTTP/3. A caller `Cookie` field suppresses the
+  jar's field.
 - The profile's client hints fill the template's hint slots. Only hints the
   profile would send anyway are emitted: default hints, and hints the origin
   requested through `Accept-CH` or ALPS `ACCEPT_CH`.

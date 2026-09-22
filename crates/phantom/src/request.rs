@@ -146,9 +146,12 @@ impl RequestBuilder {
     /// `Host` on HTTP/1.1 or the pseudo-header fields on HTTP/2 and HTTP/3.
     /// A caller field whose name matches a template entry takes that entry's
     /// position and spelling and keeps its value; a literal entry without one
-    /// emits its captured value. Other caller fields, then an automatic
-    /// cookie, follow the template. Profile client hints fill the template's
-    /// client-hint slots. On HTTP/2, the template's
+    /// emits its captured value. Other caller fields follow the template.
+    /// Templates carry no `Cookie` entry: the cookie jar's field is then
+    /// inserted among those fields by the profile's
+    /// [`CookiePlacement`](crate::profile::CookiePlacement), last by default,
+    /// unless the caller supplies a `Cookie` field. Profile client hints then
+    /// fill the template's client-hint slots. On HTTP/2, the template's
     /// [`http2_priority`](crate::profile::RequestTemplate::http2_priority)
     /// replaces the connection's HEADERS priority for this request's stream.
     /// Every redirect hop uses the same template.

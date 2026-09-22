@@ -526,7 +526,14 @@ Request templates:
   hints requested through `Accept-CH` is not captured, so the fetch
   templates refuse to send them. The navigation templates' placement of
   requested hints is captured on H1 only and inferred for H2 and H3.
-- Not reproduced: the position of an automatic `Cookie` field.
+- The jar's `Cookie` field is placed in the expanded template by the
+  profile's `CookiePlacement`. With the Chrome 153 and Firefox 156 presets,
+  the H1 fields on each side of it agree with the `set-cookie-then-close`
+  EventSource reconnect captures: last for the Chrome templates, and
+  after `Referer` and before `Sec-Fetch-Dest` for the Firefox `fetch`
+  template. The captured requests are EventSource reconnects, and no H2 or
+  H3 capture carries a cookie; the navigation, H2, and H3 positions come
+  from browser source.
 
 Randomized fields:
 

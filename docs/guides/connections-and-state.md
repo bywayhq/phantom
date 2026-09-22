@@ -78,8 +78,9 @@ ordering rules. Its default limits are listed in
 ### Cookie field position
 
 The jar's field is named `Cookie` on HTTP/1.1 and `cookie` on H2 and H3, and
-the profile's `CookiePlacement` positions it among the caller's fields. By
-default it goes last. `CookiePlacement::before_fields` names the fields it
+the profile's `CookiePlacement` positions it among the caller's fields, or
+among a [request template's](profiles.md#request-templates) expanded fields.
+By default it goes last. `CookiePlacement::before_fields` names the fields it
 precedes: the field goes before the first of them present, else last.
 
 | Recipe | Goes before | Evidence |
