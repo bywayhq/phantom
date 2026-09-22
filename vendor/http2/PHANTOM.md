@@ -250,6 +250,21 @@ local SETTINGS are acknowledged, so a peer cannot raise it. The header-block
 byte, CONTINUATION, and fourfold connection-abuse bounds derive from that
 effective limit exactly as they do from the advertised setting.
 
+Both limits count RFC 9113 section 6.5.2 decoded size: name plus value plus 32
+bytes per field. Phantom sets the local limit to 393,216, the default of
+Firefox's `network.http.max_response_header_size`, but Firefox applies that
+value to other quantities. `Http2Session::RecvHeaders` sums the encoded HPACK
+bytes of a HEADERS frame and its CONTINUATION frames, excluding padding and
+priority, and answers an excess with `GOAWAY(PROTOCOL_ERROR)` for the whole
+connection. `nsHttpTransaction::ProcessData` fails the request once its
+decoded head, serialized as a status line and `name: value\r\n` lines, exceeds
+the value. The ceilings therefore match only approximately: a list of many
+small fields reaches Phantom's first, because 32 bytes per field exceeds
+Firefox's 4. Sources, at mozilla-central `4d5216592535`:
+
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Session.cpp#l1577>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/nsHttpTransaction.cpp#l2823>
+
 A client response over the effective limit still resets the stream with
 `PROTOCOL_ERROR`, as before. The stream records the cause, and the error
 returned from the response future reports

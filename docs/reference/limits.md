@@ -81,6 +81,14 @@ and it never adds that setting to the SETTINGS frame. A larger response
 section fails that request with `Http3ErrorKind::Protocol` and cancels its
 stream; the connection stays usable.
 
+The informational-response cap of 8 is a Phantom-wide bound applied to every
+profile on H1, H2, and H3, not a browser value. The header-list ceiling counts
+the RFC 9113 section 6.5.2 decoded size: each name and value plus 32 bytes per
+field. The value 393,216 is the default of Firefox's
+`network.http.max_response_header_size`, but Firefox applies it to encoded
+header-block bytes and to its own decoded serialization, so the two ceilings
+match only approximately.
+
 ## Server-sent events
 
 | Limit | Default | Configure with |
