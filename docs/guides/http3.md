@@ -1,20 +1,23 @@
 # HTTP/3 and Alt-Svc
 
-HTTP/3 (H3) runs over QUIC instead of TCP. Phantom offers two ways to use it:
+HTTP/3 (H3) is HTTP over QUIC, a UDP-based transport, instead of TCP.
+Phantom offers two ways to use it:
 
-- **Exact H3**: `get(HttpProtocol::Http3, ...)` always uses H3 and never falls
-  back to H1 or H2.
-- **Alt-Svc upgrade**: a negotiated H1/H2 response can advertise an H3
-  endpoint through the `Alt-Svc` field. With Alt-Svc enabled, a later
-  negotiated request to the same origin uses it.
+- **Exact H3.** `get(HttpProtocol::Http3, ...)` always uses H3. It never falls
+  back to HTTP/1.1 (H1) or HTTP/2 (H2).
+- **Alt-Svc upgrade.** An H1 or H2 response can advertise an H3 endpoint in
+  its `Alt-Svc` field. With Alt-Svc enabled, a later negotiated request to the
+  same origin uses that endpoint. Browsers use Alt-Svc to discover H3.
 
 Both need H3 settings on the profile. Packet-level details are in
 [HTTP/3 internals](../internals/http3.md).
 
 ## Add HTTP/3 to a profile
 
-H3 needs its own TLS ClientHello, QUIC transport parameters, HTTP/3 connection
-settings, and request settings, grouped as `Http3ClientSettings`:
+A browser's H3 connection looks different from its TCP connection, so H3 has
+its own settings. `Http3ClientSettings` groups four of them: the TLS
+ClientHello, the QUIC transport parameters, the HTTP/3 connection settings,
+and the request settings.
 
 ```rust
 use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
@@ -39,25 +42,28 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-The TCP TLS settings passed to `ClientProfile::new` stay separate from the H3
-TLS settings; each protocol uses only its own.
+The TLS settings passed to `ClientProfile::new` apply only to TCP
+connections. H3 connections use only the TLS settings inside
+`Http3ClientSettings`.
 
 ## Routes for HTTP/3
 
-Exact H3 accepts three kinds of route:
+Exact H3 works over three kinds of route:
 
 - direct QUIC;
-- local-DNS `socks5://` or remote-DNS `socks5h://` through RFC 1928 UDP
-  ASSOCIATE; and
-- an RFC 9298 CONNECT-UDP (MASQUE) proxy.
+- SOCKS5 UDP ASSOCIATE (RFC 1928), with local DNS (`socks5://`) or remote DNS
+  (`socks5h://`); and
+- a CONNECT-UDP (MASQUE, RFC 9298) proxy.
 
-It rejects HTTP forwarding and HTTP CONNECT before origin I/O. See
+HTTP forwarding and HTTP CONNECT proxies cannot carry QUIC, so exact H3
+rejects them before any origin I/O. See
 [Routes and proxies](routes-and-proxies.md) for configuration.
 
 ## Alt-Svc
 
-Alt-Svc lets an origin say "this same service is also available over H3 at
-this host and port". Phantom's support is opt-in and bounded.
+Alt-Svc (RFC 7838) lets an origin say that the same service is also available
+over H3 at a given host and port. Phantom's support is opt-in: call
+`ClientBuilder::alt_svc` with the maximum number of origins to remember.
 
 ```rust
 use std::num::NonZeroUsize;
@@ -92,136 +98,174 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+`ResponseInfo::protocol` tells you which protocol carried a response.
+
 ### How an alternative is learned and used
 
-An authenticated negotiated H1/H2 response can advertise `h3`. Phantom
-applies `Age` to `ma` (the advertised maximum age), replaces the origin's
-previous alternatives, and uses the first fresh canonical `h3` alternative on
-the next negotiated request.
+Only an authenticated, negotiated H1 or H2 response can advertise `h3`. When
+one does, Phantom:
 
-The alternative changes only the QUIC network location. The URI, authority,
-TLS identity, cookies, client hints, route key, and timeouts remain those of
-the origin.
+1. subtracts the response's `Age` from `ma`, the advertised maximum age;
+2. replaces the origin's previous alternatives; and
+3. uses the first fresh canonical `h3` alternative on the next negotiated
+   request.
 
-On that managed Alt-Svc H3 attempt, Phantom automatically sends one canonical
-`Alt-Used` value naming the alternative with an explicit port. It does not add
-`Alt-Used` to exact H3 requests or ordinary negotiated H1/H2 requests.
-Caller-supplied `Alt-Used` request fields and trailers are reserved and
-rejected before network I/O. This support makes no browser-specific
-field-order claim.
+The alternative changes only where the QUIC connection goes. The URI,
+authority, TLS identity, cookies, client hints, route key, and timeouts stay
+those of the origin.
+
+On a request sent to the alternative, Phantom adds one canonical `Alt-Used`
+field that names the alternative with an explicit port. It does not add
+`Alt-Used` to exact H3 requests or to ordinary H1 or H2 requests. Phantom
+manages this field, so a caller-supplied `Alt-Used` field or trailer is
+rejected before network I/O. Phantom makes no browser-specific claim about
+where `Alt-Used` sits in the field order.
 
 ### HTTP/2 ALTSVC frames
 
-A negotiated H2 response also teaches HTTP/2 ALTSVC frames (RFC 7838 section
-4) that arrived before its final headers, in arrival order and before the
-response's own `Alt-Svc` field.
+An H2 server can also advertise alternatives with ALTSVC frames (RFC 7838
+section 4). A negotiated H2 response learns the frames that arrived before
+its final headers, in arrival order, and then its own `Alt-Svc` field.
 
-- A stream-0 frame applies only when its origin is exactly the request's
-  canonical ASCII origin, such as `https://example.com` or
+- A frame on stream 0 applies only when its origin matches the request's
+  canonical ASCII origin exactly, such as `https://example.com` or
   `https://example.com:8443`.
-- A frame on the request's stream applies to the request origin.
-- Malformed frames, frames for another origin, frames on exact H2 requests,
-  and frames received while Alt-Svc is disabled change nothing.
+- A frame on the request's own stream applies to the request's origin.
+- Nothing changes for malformed frames, frames for another origin, frames on
+  exact H2 requests, or frames received while Alt-Svc is disabled.
 - Each connection keeps at most 16 undelivered frames.
 
 ### Persisting Alt-Svc state
 
-Alt-Svc state stays in memory unless the caller persists it.
+Alt-Svc state lives in memory. To keep it across restarts, export it and
+import it yourself:
 
 - `Client::export_alt_svc` returns an `AltSvcSnapshot`, or `None` when Alt-Svc
-  is disabled. Each entry holds only the canonical origin, the alternative
-  host and port, and an absolute `SystemTime` expiry rounded down to a whole
-  second, least recently used first.
-- Phantom provides no serialization format. Rebuild entries with
-  `AltSvcSnapshotEntry::new` and pass them to `Client::import_alt_svc`.
-- Import revalidates every entry and rejects the whole snapshot with a typed
-  `AltSvcSnapshotError` if one origin or alternative is not canonical.
-- Import drops expired entries, clamps lifetimes without extending them, gives
-  already-held alternatives precedence, and keeps the most recently used
-  entries within the store capacity.
+  is disabled. Entries are ordered least recently used first. Each holds only
+  the canonical origin, the alternative host and port, and an absolute
+  `SystemTime` expiry rounded down to a whole second.
+- Phantom provides no serialization format. Store the entries however you
+  like, rebuild them with `AltSvcSnapshotEntry::new`, and pass them to
+  `Client::import_alt_svc`.
+- Import revalidates every entry. If any origin or alternative is not
+  canonical, it rejects the whole snapshot with a typed
+  `AltSvcSnapshotError`.
+- Import drops expired entries and clamps lifetimes without extending them.
+  Alternatives the client already holds take precedence, and the most
+  recently used entries are kept within the store capacity.
 
-The store is keyed by origin for direct routes, so a snapshot describes
-direct-route alternatives only. It never contains TLS tickets, connections,
+The store is keyed by origin for direct routes, so a snapshot describes only
+direct-route alternatives. It never contains TLS tickets, connections,
 routes, cookies, or credentials, and its `Debug` output omits hosts.
 
 ### Pooling
 
-One origin-and-route pool entry keeps connections for up to four transport
-locations, so alternating exact H3 and Alt-Svc H3 requests reuse their own
-connections under the same admission bounds instead of replacing each other.
+A pool entry for one origin and route keeps connections for up to four QUIC
+locations. Exact H3 and Alt-Svc H3 requests to the same origin therefore
+reuse their own connections, under the same admission limits, instead of
+replacing each other.
 
 ### Failures
 
-By default (`AltSvcPolicy::sequential`), alternative setup failure is a typed
-H3 failure for that request and evicts the advertisement; it never silently
-falls back to H1 or H2. A visible `421` response also evicts it.
+By default (`AltSvcPolicy::sequential`), Phantom tries only the alternative.
+If setup fails, the request returns a typed H3 error and the advertisement is
+evicted. Phantom never silently retries over H1 or H2. A `421` (Misdirected
+Request) response also evicts the advertisement.
 `Client::clear_alt_svc` clears the whole store, including broken state.
 
 ### Racing
 
-`ClientBuilder::alt_svc_policy(AltSvcPolicy::race(...))` opts into racing and
-requires `ClientBuilder::alt_svc`. Racing is a declared two-candidate
-connection choice, not a fallback:
+Racing starts setting up the alternative, starts the origin after a delay you
+choose, and sends the request on whichever is ready first. It is modeled on
+Chrome 153's captured behavior, with the differences listed below. Enable it with
+`ClientBuilder::alt_svc_policy(AltSvcPolicy::race(...))`, which requires
+`ClientBuilder::alt_svc`. Racing is a declared choice between two candidates,
+not a fallback.
 
-- Before any I/O, both the H3 and the H1/H2 forms of the request are
-  validated.
+How a race runs:
+
+- Before any I/O, Phantom validates both the H3 and the H1/H2 form of the
+  request.
 - QUIC setup to the alternative starts first. Origin H1/H2 setup starts after
-  the caller's `AltSvcRace` origin delay, or at once if the alternative fails
-  first or the origin already has a reusable pooled H2 connection. Each
-  candidate holds its own pool admission and at most one setup attempt.
-- The first candidate to finish carries the request exactly once. The request
-  body, including a one-shot stream, is built only for the winner, and
+  the origin delay you set in `AltSvcRace`. It starts at once if the
+  alternative fails first or the origin already has a reusable pooled H2
+  connection.
+- Each candidate holds its own pool admission and makes at most one setup
+  attempt.
+- The first candidate to finish carries the request, exactly once. The
+  request body, including a one-shot stream, is built only for the winner.
   `ResponseInfo` reports the winner's protocol.
 - Both candidates keep the request's origin authority, TLS name, and direct
-  route; racing never applies to a proxy route.
+  route. Racing never applies to a proxy route.
 - Cancelling the request before a winner cancels both setups. The connect and
   total deadlines bound each setup and the whole race.
 
-An alternative connection attempt may run for at most 4 seconds, or less
-under the request's connect and total deadlines. Reaching that limit is a
-setup failure. Chrome 153 fails a blackholed alternative after 4 seconds, its
-client QUIC idle timeout before the handshake completes. Chrome restarts that
-timer whenever a packet arrives and allows a responsive handshake up to 10
-seconds. Phantom cannot see handshake packets at this layer, so it limits the
-whole attempt, including name resolution and, on proxy routes, proxy setup: a
-responsive alternative whose handshake takes longer than 4 seconds, or a slow
-resolver or proxy, fails in Phantom but not in Chrome.
+Chromium's origin delay depends on QUIC history and measured round-trip time
+(RTT), so Phantom has no named delay; you choose one.
 
-When the alternative wins, a still-connecting origin setup is cancelled. When
-the origin wins, an alternative that has begun connecting continues in the
-background, like Chromium's orphaned alternative job: a finished connection is
-pooled for later requests, and a failure, including the 4-second limit, marks
-the alternative broken. Until then it keeps its H3 admission permit for the
-origin and route. A setup still waiting for admission, or for another setup to
-the same QUIC location to finish, has done no network work and is cancelled
-instead. The background setup needs the Tokio runtime that ran the request; if
-none is available, the setup is dropped, nothing is pooled or marked, and the
+#### The 4-second setup limit
+
+An alternative connection attempt may run for at most 4 seconds, or less
+under the request's connect and total deadlines. Reaching the limit is a
+setup failure.
+
+This follows Chrome 153, which fails an unreachable alternative after
+4 seconds: its client QUIC idle timeout before the handshake completes.
+Chrome restarts that timer whenever a packet arrives, so it allows a
+responsive handshake up to 10 seconds. Phantom cannot see handshake packets
+at this layer, so its limit covers the whole attempt, including name
+resolution and, on proxy routes, proxy setup. A responsive alternative whose
+handshake takes longer than 4 seconds, or a slow resolver or proxy, fails in
+Phantom but not in Chrome.
+
+#### When the origin wins
+
+When the alternative wins, a still-connecting origin setup is cancelled.
+
+When the origin wins, an alternative that has begun connecting keeps going in
+the background, like Chromium's orphaned alternative job:
+
+- If it connects, the connection is pooled for later requests.
+- If it fails, including by hitting the 4-second limit, the alternative is
+  marked broken.
+- Until it finishes, it keeps its H3 admission permit for the origin and
+  route.
+
+A setup still waiting for admission, or for another setup to the same QUIC
+location, has done no network work, so it is cancelled instead. The
+background setup needs the Tokio runtime that ran the request. If that
+runtime is gone, the setup is dropped, nothing is pooled or marked, and the
 next request races the alternative again.
 
-Setups for one origin and route are serialized per QUIC location. A request
-to a location waits while another setup connects to that same location and
-then reuses its connection if that setup succeeded; exact H3 to the origin's
+Setups for one origin and route run one at a time per QUIC location. A
+request to a location waits while another setup connects to that location,
+then reuses the connection if that setup succeeded. Exact H3 to the origin's
 own location does not wait for a background alternative setup.
 
-An alternative that fails while the origin succeeds is marked broken for
-`AltSvcBrokenBackoff`: the first failure lasts `initial`, each later failure
-doubles it up to `maximum`, and a successful alternative connection clears the
-history. As in Chromium, a failure reported while the alternative is already
-broken counts toward the next period but does not extend the current one. A
-broken alternative is not raced; the request goes to the origin.
-When both candidates fail, the origin's error is returned and nothing is
-marked. After a winner is chosen, retries and replays within the request stay
-on the winner's protocol, and a later failure on a won alternative evicts it
-as in sequential use.
+#### Broken alternatives
 
-`AltSvcBrokenBackoff::CHROMIUM_153` is 300 seconds, doubling, capped at two
-days. Chromium's origin delay depends on QUIC history and measured RTT, so
-Phantom has no named delay and the caller chooses one. Brokenness is not part
-of `AltSvcSnapshot`.
+An alternative that fails while the origin succeeds is marked broken for a
+period set by `AltSvcBrokenBackoff`, and is not raced during it; requests go
+to the origin.
+
+- The first failure lasts `initial`. Each later failure doubles the period,
+  up to `maximum`.
+- A successful alternative connection clears the history.
+- As in Chromium, a failure reported while the alternative is already broken
+  counts toward the next period but does not extend the current one.
+- `AltSvcBrokenBackoff::CHROMIUM_153` is 300 seconds, doubling, capped at two
+  days.
+- Brokenness is not part of `AltSvcSnapshot`.
+
+When both candidates fail, Phantom returns the origin's error and marks
+nothing. After a winner is chosen, retries and replays within the request
+stay on the winner's protocol. A later failure on a winning alternative
+evicts it, as in sequential mode.
 
 ## Not implemented
 
-- Multiple-alternative racing and DNS HTTPS-record (`dns_alpn_h3`) jobs.
+- Racing more than one alternative, and DNS HTTPS-record (`dns_alpn_h3`)
+  jobs.
 - Persisting Alt-Svc brokenness, or clearing it on a network change.
 - An RTT-derived racing delay, and keeping a losing origin connection idle.
 - Alt-Svc upgrades on proxy routes, and proxy-route snapshots.

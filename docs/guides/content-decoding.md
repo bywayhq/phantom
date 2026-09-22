@@ -1,21 +1,22 @@
 # Content decoding
 
-By default Phantom returns the response body exactly as it arrived on the
-wire, still compressed if the server compressed it. This guide shows how to
-opt into decompression.
+Phantom returns each response body exactly as the server sent it, still
+compressed if the server compressed it. You can turn on decompression for
+individual requests.
 
 ## Why decoding is opt-in
 
-Phantom never inserts, removes, or moves `Accept-Encoding`. The field's
-presence and its position among the other request fields are part of a
-browser's fingerprint, so they belong to the caller or profile. Decoding
-therefore accepts only codings the request itself advertised.
+Phantom never adds, removes, or moves `Accept-Encoding` by itself. Whether a
+browser sends that field, and where it sits among the other fields, is part of
+its fingerprint, so the field is yours to set, directly or through a
+[request template](profiles.md#request-templates). Decoding then accepts only
+the codings that field advertised.
 
-## Enable decoding for one request
+## Enable decoding for a request
 
-`RequestBuilder::content_decoding(ContentDecoding::advertised(max))` opts one
-request into streaming decoding of `gzip` (and `x-gzip`), `deflate`, `br`, and
-`zstd`:
+`RequestBuilder::content_decoding(ContentDecoding::advertised(max))` turns on
+streaming decoding of `gzip` (and its alias `x-gzip`), `deflate`, `br`
+(Brotli), and `zstd` for one request:
 
 ```rust
 use phantom::{Client, ContentDecoding, HttpProtocol, RequestError, RequestHeader};
@@ -31,59 +32,70 @@ async fn fetch(client: &Client) -> Result<bytes::Bytes, RequestError> {
 }
 ```
 
-Only codings the request's own ordered `Accept-Encoding` fields advertise are
-accepted:
+The request bytes are identical with and without decoding.
 
-- an explicit member with a nonzero weight; or
-- a nonzero `*` for a coding without an explicit member.
+A response may use a coding only if the request's `Accept-Encoding` fields
+advertise it, either:
 
-An explicit `q=0` withdraws a coding. With decoding enabled, a malformed
-`Accept-Encoding` fails before any network I/O with
-`RequestErrorKind::InvalidHeader`. The request head is byte-identical with and
-without decoding.
+- by name with a nonzero weight, or
+- through `*` with a nonzero weight, when the coding is not named.
+
+An explicit `q=0` withdraws a coding. With a template and no `Accept-Encoding`
+of your own, the template's captured value is the one that counts.
+
+With decoding on, these fail before any network I/O:
+
+- a malformed `Accept-Encoding`, with `RequestErrorKind::InvalidHeader`;
+- a template whose per-protocol field lists carry different
+  `Accept-Encoding` values, with `RequestErrorKind::RequestTemplate`.
 
 ## Failures
 
-Decoding fails closed with `RequestErrorKind::ContentDecoding` on the first body
-poll, with status and fields still visible, for:
+Decoding is strict. It fails with `RequestErrorKind::ContentDecoding` on the
+first read of the body, after the status and fields are already available,
+when the response has:
 
 - an unknown coding, including `compress`, `dcb`, and `dcz`;
 - a supported coding the request did not advertise;
-- `identity` mixed with a coding, or more than three stacked codings;
-- malformed or truncated coded data, checksum mismatches, or bytes after a
-  complete gzip member, zlib/raw DEFLATE stream, or Brotli stream;
-- zstd frames that are not RFC 8878 or need a window above 8 MiB.
+- `identity` combined with another coding, or more than three stacked codings;
+- malformed or truncated data, a checksum mismatch, or extra bytes after a
+  complete gzip member, zlib or raw DEFLATE stream, or Brotli stream;
+- zstd data that is not RFC 8878 frames, or that needs a window larger than
+  8 MiB.
 
-Stacked codings decode in reverse application order. `deflate` selects zlib
-when the first two bytes form a valid zlib header and raw DEFLATE otherwise.
+Browsers are more lenient: they pass unknown chains through and discard
+trailing bytes. Phantom fails instead, so a damaged or unexpected body never
+reaches you looking like valid data.
 
-These rules are deliberately stricter than browsers, which pass unknown
-chains through or discard trailing bytes.
+Stacked codings are decoded in the reverse of the order they were applied.
+For `deflate`, Phantom decodes zlib when the first two bytes form a valid zlib
+header, and raw DEFLATE otherwise.
 
 ## Size limits and backpressure
 
-`max` is an inclusive cap on decoded bytes; exceeding it fails the body with
+`max` is an inclusive limit on decoded bytes. Going over it fails the body with
 `RequestErrorKind::ResponseBodyLimit` and cancels the stream.
-`collect_with_limit` separately counts the decoded bytes it returns.
+`collect_with_limit` applies its own limit to the decoded bytes it returns.
 
-Decoded data frames are at most 16 KiB, and the transport is polled only after
-buffered input is consumed, preserving backpressure. Decoded frames count as
-body activity and are checked against the total deadline.
+Decoded data arrives in frames of at most 16 KiB. Phantom reads more from the
+network only after you consume the data it has already buffered, so
+backpressure still works. Decoded frames count as body activity for the
+read-idle timeout and are checked against the total deadline.
 
 ## What the response shows
 
-- `ResponseInfo::decoded_content_codings` lists the codings applied, in
-  `Content-Encoding` order.
-- Response fields remain the wire view: `Content-Encoding` and
-  `Content-Length` are unchanged, and `Content-Length` still describes encoded
-  bytes.
-- The size hint becomes unknown while decoding.
-- Trailers pass through after all decoded data.
-- Only the response returned by `send` is decoded; intermediate redirect
-  bodies are dropped undecoded.
-- HEAD, 204, 304, and already-empty bodies are never validated or decoded.
+- `ResponseInfo::decoded_content_codings` lists the codings that were decoded,
+  in `Content-Encoding` order.
+- Response fields still show what was on the wire. `Content-Encoding` and
+  `Content-Length` are unchanged, and `Content-Length` counts encoded bytes.
+- The body's size hint becomes unknown.
+- Trailers arrive after all decoded data.
+- Only the response that `send` returns is decoded. Bodies of intermediate
+  redirect responses are dropped without decoding.
+- HEAD responses, 204 and 304 responses, and empty bodies are never checked or
+  decoded.
 
-SSE responses must not be content-encoded even when decoding is enabled; see
+SSE responses must not be content-encoded, even with decoding enabled; see
 [Server-sent events](sse.md#reading-a-response).
 
 [Content-decoding evidence](../explanation/validation.md#content-decoding-evidence)

@@ -1,20 +1,21 @@
 # Browser profiles
 
-A profile is the part of Phantom that decides what a server can observe: the
-TLS ClientHello, HTTP/2 SETTINGS and pseudo-header order, QUIC transport
-parameters, HTTP/3 settings, and client hints. This guide explains how to
-build one from the built-in recipes, what those recipes cover, and how
-[request templates](#request-templates) supply browser fields for
-individual requests.
+A profile decides what a server can observe about your client at the
+connection level: the TLS ClientHello, HTTP/2 SETTINGS and pseudo-header
+order, QUIC transport parameters, HTTP/3 settings, TCP socket options, and
+client hints. You build one from recipes. Most recipes come from browser
+captures; TCP recipes come from browser source. The fields of individual
+requests, such as `User-Agent`, come from
+[request templates](#request-templates) instead.
 
-A profile only shapes network behavior. Phantom is not a browser engine and
+A profile shapes only network behavior. Phantom is not a browser engine and
 does not emulate the DOM, JavaScript, rendering, canvas, fonts, WebRTC, or
 device fingerprints.
 
 ## Build a profile
 
-`ClientProfile::new` takes the TLS settings used over TCP. Other components
-are added with builder methods:
+`ClientProfile::new` takes the TLS settings used over TCP. Builder methods add
+the other components:
 
 | Method | Adds |
 | --- | --- |
@@ -22,12 +23,12 @@ are added with builder methods:
 | `with_tcp(settings)` | TCP socket options for every TCP connection |
 | `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, and pseudo-header order |
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
-| `with_client_hints(settings)` | Ordered client-hint fields and their delivery rules |
+| `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
-| `with_cookie_placement(placement)` | Position of the cookie jar's `Cookie` field; last by default ([details](connections-and-state.md#cookie-field-position)) |
+| `with_cookie_placement(placement)` | Where the cookie jar's `Cookie` field goes; last by default ([details](connections-and-state.md#cookie-field-position)) |
 
-A request fails before I/O when the profile lacks a component that the request
-needs.
+H1, H2, and H3 mean HTTP/1.1, HTTP/2, and HTTP/3. A request fails before any
+network I/O if the profile lacks a component it needs.
 
 ```rust
 use phantom::profile::{chromium, edge, firefox, ClientProfile, Http3ClientSettings};
@@ -66,78 +67,84 @@ fn profiles() -> [ClientProfile; 2] {
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
 | Safari 18.5 | `safari::v18_5_macos_tls` | Yes | No | No | No | No | macOS |
 
-"Captured on" names the platforms where retained captures back the recipe.
-[Coverage](../reference/coverage.md#browser-profiles) records the exact builds
-and how the recipes differ from each other.
+"Captured on" lists the platforms whose retained captures back the recipe.
+[Coverage](../reference/coverage.md#browser-profiles) gives the exact builds
+and how the recipes differ.
 
-TCP recipes are not in the table because socket options are not visible in a
-capture. `chromium::v153_tcp` and `firefox::v156_tcp` come from browser source
-at the profiled release tags; see
-[TCP socket options](#tcp-socket-options).
-
-Only `chromium::v153_http2` and `firefox::v156_http2` carry a captured
-extended CONNECT pseudo-header order, which H2 WebSocket needs. Other HTTP/2
-recipes leave it unset. The WebSocket recipes and their limits are described
-in [Profile connection policy](websocket.md#profile-connection-policy).
+- TCP recipes are not in the table, because socket options do not appear in a
+  capture. `chromium::v153_tcp` and `firefox::v156_tcp` come from the
+  browsers' source code at the profiled release tags; see
+  [TCP socket options](#tcp-socket-options).
+- H2 WebSocket needs a captured pseudo-header order for extended CONNECT.
+  Only `chromium::v153_http2` and `firefox::v156_http2` carry one. For the
+  WebSocket recipes and their limits, see
+  [Profile connection policy](websocket.md#profile-connection-policy).
 
 ## Recipe names and platforms
 
-Recipes are transport settings, not host-OS selectors. The runtime consumes
-the validated settings it receives and does not branch on the host OS or
-client-family name.
+A recipe is a set of transport settings. It does not select behavior by host
+operating system: the runtime uses the validated settings it receives and
+never branches on the host OS or the browser name.
 
 - A name without a platform, such as `chromium::v152_tls` or
-  `firefox::v154_http2`, means the settings were verified on more than one
-  platform, or rest on that finding for a later version. The rustdoc of each
-  recipe names its capture builds and platforms.
-- A remaining `macos` or `windows` qualifier means only "observed on that
-  platform", never "selected by `target_os`". `safari::v18_5_macos_tls` keeps
-  it because Safari is captured only on macOS. Client-hint recipes keep it
+  `firefox::v154_http2`, means the settings matched on more than one
+  platform, or belong to a later version that relies on that finding. Each
+  recipe's rustdoc names its capture builds and platforms.
+- A `macos` or `windows` in a name means only "observed on that platform". It
+  never means "selected by `target_os`". `safari::v18_5_macos_tls` keeps it
+  because Safari was captured only on macOS. Client-hint recipes keep it
   because client hints carry platform data on the wire.
-- The former `macos` names of the Chrome 152 and Firefox 154 transport recipes
-  remain as hidden compatibility aliases.
+- The older `macos` names of the Chrome 152 and Firefox 154 transport recipes
+  remain as hidden aliases for compatibility.
 
 ## TCP socket options
 
 `TcpSettings` sets `TCP_NODELAY` and the keepalive idle time and interval on
-every TCP socket before it connects: origin connections, HTTP, HTTPS, and
-SOCKS5 proxy connections, and the TCP control connection of a SOCKS5 UDP
-association. It also chooses how a host's resolved addresses are tried.
-Without `with_tcp`, sockets keep their operating-system defaults and
-addresses are tried one at a time in resolver order.
+each TCP socket before it connects. It also decides how the client tries a
+host's resolved addresses. It applies to every TCP connection the client
+opens: to origins, to HTTP, HTTPS, and SOCKS5 proxies, and for the control
+connection of a SOCKS5 UDP association. Without `with_tcp`, sockets keep the
+operating system's defaults and addresses are tried one at a time in resolver
+order.
 
-- `chromium::v153_tcp` disables Nagle's algorithm, sets a 45-second
-  keepalive idle time and interval, as Chromium does on Windows and Linux, and
-  races addresses as Chromium's Happy Eyeballs does: IPv6 first, the other
-  family after a failure, and a second attempt preferring IPv4 300 ms after
-  the first. `TcpAddressRacing` documents the full behavior. Chromium on macOS
-  sets only the keepalive idle time; set `TcpKeepalive::interval` to `None`
-  for that platform.
-- `firefox::v156_tcp` disables Nagle's algorithm, leaves keepalive untouched,
-  and tries addresses in resolver order, because Firefox's keepalive schedule
-  and address selection are not modeled.
-- There is no Edge recipe; Edge's socket options have no public source or
-  capture evidence.
+- `chromium::v153_tcp` disables Nagle's algorithm and sets a 45-second
+  keepalive idle time and interval, as Chromium does on Windows and Linux. It
+  races addresses as Chromium's Happy Eyeballs does: the first attempt prefers
+  IPv6, a failed attempt is followed by one on the other family, and 300 ms
+  after the first attempt a second one starts so that one attempt prefers
+  each family. `TcpAddressRacing` documents the full behavior. Chromium on
+  macOS sets only the idle time; for that platform, set
+  `TcpKeepalive::interval` to `None`.
+- `firefox::v156_tcp` disables Nagle's algorithm, leaves keepalive alone, and
+  tries addresses in resolver order. Firefox's keepalive schedule and address
+  selection are not modeled.
+- There is no Edge recipe. No public source or capture shows Edge's socket
+  options.
 
-Keepalive times must be whole seconds from 1 to 32,767, and the racing fallback
-delay must be nonzero and at most 10 seconds. Settings the host cannot apply
-exactly fail `ClientBuilder::build` with `BuildErrorKind::InvalidProfile`:
-Windows sets the idle time and interval together, so it needs an interval;
-OpenBSD, Haiku, and Vita cannot set an idle time; and some other platforms
-cannot set an interval. A socket option the OS rejects at connection time fails
-that attempt rather than connecting without it. The TCP SYN itself (window, MSS,
-options, TTL) comes from the host OS, which should match the platform the
-profile presents.
+Keepalive times must be whole seconds from 1 to 32,767. The racing delay must
+be nonzero and at most 10 seconds.
+
+Phantom applies these settings exactly or fails; it never connects with
+options the profile did not ask for.
+
+- Settings the host cannot apply fail `ClientBuilder::build` with
+  `BuildErrorKind::InvalidProfile`. Windows sets the idle time and interval
+  together, so it requires an interval. OpenBSD, Haiku, and Vita cannot set an
+  idle time, and some other platforms cannot set an interval.
+- If the OS rejects a socket option when connecting, that connection attempt
+  fails.
+
+The TCP SYN itself (window, MSS, options, TTL) comes from the host OS. Run on
+the platform the profile presents if that layer matters to you.
 
 ## Request templates
 
-A profile shapes connections, but the fields of each request are caller
-data: without help, `User-Agent`, `Accept`, `Sec-Fetch-*`, `priority`, and
-their order are whatever the caller sends. A `RequestTemplate` supplies them
-for one kind of browser request. For each protocol it lists the fields in
-captured order, with captured values, the positions of caller-supplied
-fields, and the positions of client hints. `RequestBuilder::template` applies
-one to a request.
+A profile shapes connections, but request fields are yours to supply. Without
+help, `User-Agent`, `Accept`, `Sec-Fetch-*`, `priority`, and their order are
+whatever you send. A `RequestTemplate` supplies them for one kind of browser
+request. For each protocol, it lists the fields in captured order with their
+captured values, plus slots marking where your own fields and the client
+hints go. Apply one with `RequestBuilder::template`.
 
 | Recipe | Request | HTTP/1.1 | HTTP/2 | HTTP/3 | `User-Agent` |
 | --- | --- | --- | --- | --- | --- |
@@ -148,11 +155,13 @@ one to a request.
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
 
-An address-bar navigation is an HTML document request with
-`Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`. "No" means no retained
-capture backs that protocol, so the template has no list for it. Every
-template was captured on Windows 11 and carries the capture machine's
-`en-US` `Accept-Language`.
+- An address-bar navigation is an HTML document request with
+  `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
+- "No" means no retained capture covers that protocol, so the template has
+  no field list for it.
+- A caller slot has no captured value; you supply the field.
+- Every template was captured on Windows 11 and carries the capture
+  machine's `en-US` `Accept-Language`.
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
@@ -185,101 +194,122 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
 
 ### How a templated request is assembled
 
-- Each attempt uses the template's list for the protocol it runs on, after
-  `Host` on HTTP/1.1 or after the pseudo-header fields on HTTP/2 and HTTP/3.
-  An ALPN-negotiated request uses the list for the protocol ALPN selects.
-- On HTTP/2, the template's HEADERS priority replaces the connection's
-  priority for that request's stream only. A peer that disables RFC 7540
-  priorities still suppresses it.
-- A caller field whose name matches a template entry takes that entry's
-  position and field-name spelling and keeps its own value and sensitivity.
-  A literal entry with no caller field emits its captured value; a caller
-  slot with no caller field emits nothing.
-- Other caller fields follow the template in the caller's order, after its
-  last field. The navigation templates have no `Referer` slot, because an
-  address-bar navigation sends none, so a caller `Referer` on one goes last:
-  after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after
-  `priority` on their HTTP/2 and HTTP/3 lists, and after `Priority` and
-  `te` on Firefox's. No capture shows that position. Phantom sends such a
-  field rather than rejecting it, as it does every caller field a template
-  does not name; for a request that carries a `Referer`, use a template with
-  a `Referer` slot, such as a `fetch` template.
-- Templates cannot carry `Cookie`. The cookie jar's field is inserted into
-  the expanded list by the profile's `CookiePlacement`: before the first
-  field it names, compared case-insensitively, else last
-  ([details](connections-and-state.md#cookie-field-position)). The names are
-  matched against template and caller fields, not against the client hints
-  added in the next step. With `firefox::v156_cookie_placement`, a Firefox
-  `fetch` template sends `Cookie` after `Referer` and before
-  `Sec-Fetch-Dest`, and a navigation sends it before
-  `Upgrade-Insecure-Requests`. With `chromium::v153_cookie_placement`, a
-  Chrome or Edge template sends it last on HTTP/1.1 and before the final
-  `priority` on HTTP/2 and HTTP/3. A caller `Cookie` field suppresses the
-  jar's field.
-- The profile's client hints fill the template's hint slots. Only hints the
-  profile would send anyway are emitted: default hints, and hints the origin
-  requested through `Accept-CH` or ALPS `ACCEPT_CH`. A template without hint
-  slots, such as a Firefox template, places none: a profile with default
-  hints fails before any I/O, and a requested hint fails before the request
-  is sent, both with `RequestErrorKind::RequestTemplate`.
-- Every redirect hop uses the same template. Phantom does not adjust
-  template values such as `Sec-Fetch-Site` across a redirect.
+- Protocol: Each attempt uses the template's list for the protocol it
+  runs on. The list follows `Host` on HTTP/1.1 and the pseudo-header fields
+  on HTTP/2 and HTTP/3. A negotiated request uses the list for the protocol
+  ALPN selects.
+- Your fields: A field whose name matches a template entry takes that
+  entry's position and name spelling, and keeps your value and sensitivity. A
+  literal entry you do not override sends its captured value. A caller slot
+  you do not fill sends nothing.
+- Extra fields: Fields the template does not name follow its last field,
+  in your order. Phantom sends them rather than rejecting them.
+- Cookies: Templates cannot contain `Cookie`. The profile's
+  `CookiePlacement` inserts the cookie jar's field into the expanded list
+  (see [below](#cookie-placement-in-templates)). A `Cookie` field of your own
+  replaces the jar's.
+- Client hints: The profile's client hints fill the template's hint slots
+  (see [below](#client-hints-in-templates)).
+- HTTP/2 priority: The template's HEADERS priority replaces the
+  connection's priority for that request's stream only. A peer that disables
+  RFC 7540 priorities still suppresses it.
+- Redirects: Every redirect hop uses the same template. Phantom does not
+  adjust values such as `Sec-Fetch-Site` across a redirect.
 
-Where Chromium puts client hints depends on the request kind, and the
-templates record it. A navigation sends them as one block in profile order
-after `Connection` on HTTP/1.1 and first on HTTP/2 and HTTP/3; after
-`Accept-CH`, the requested hints join that block. The retained client-hint
-capture shows that on HTTP/1.1 only; on HTTP/2 and HTTP/3 the placement is
-inferred from the default block, which the captures of every protocol place
-the same way. A `fetch` splits the defaults: `sec-ch-ua-platform`
-precedes `User-Agent`, and `sec-ch-ua` and `sec-ch-ua-mobile` follow it. No
-capture shows where Chrome puts hints requested through `Accept-CH` on a
-`fetch`, so a fetch template refuses to send one with
-`RequestErrorKind::RequestTemplate`. A caller field carrying a hint the
-profile sends only on request fails before any I/O, on `http://` origins
-too. Once an origin has asked for such a hint through `Accept-CH` or ALPS
-`ACCEPT_CH`, the request fails before it is sent on the connection. That
-includes the retry a `Critical-CH` response asks for. Without a template,
-automatic hints precede every caller field.
+The navigation templates have no `Referer` slot, because an address-bar
+navigation sends none. A `Referer` you add to one therefore goes last: after
+`Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on
+their HTTP/2 and HTTP/3 lists, and after `Priority` and `te` on Firefox's. No
+capture shows that position. For a request that carries a `Referer`, use a
+template with a `Referer` slot, such as a `fetch` template.
+
+#### Cookie placement in templates
+
+`CookiePlacement` puts the jar's `Cookie` field before the first field it
+names, compared case-insensitively, or last if none is present
+([details](connections-and-state.md#cookie-field-position)). It matches those
+names against template and caller fields, not against client hints, which are
+added afterward.
+
+- With `firefox::v156_cookie_placement`, a Firefox `fetch` template sends
+  `Cookie` after `Referer` and before `Sec-Fetch-Dest`. A Firefox navigation
+  sends it before `Upgrade-Insecure-Requests`.
+- With `chromium::v153_cookie_placement`, a Chrome or Edge template sends it
+  last on HTTP/1.1 and before the final `priority` on HTTP/2 and HTTP/3.
+
+#### Client hints in templates
+
+A template sends only the hints the profile would send anyway: the default
+hints, and hints the origin requested through `Accept-CH` or ALPS
+`ACCEPT_CH`. Without a template, automatic hints go before all of your
+fields. With one, where they go depends on the kind of request, as captured
+from Chromium:
+
+- On a navigation, the hints form one block in profile order: after
+  `Connection` on HTTP/1.1, and first on HTTP/2 and HTTP/3. Hints requested
+  through `Accept-CH` join that block. The retained capture of requested
+  hints covers HTTP/1.1 only. For HTTP/2 and HTTP/3, their placement is
+  inferred from the default block, which every protocol's captures place the
+  same way.
+- On a `fetch`, the default hints are split: `sec-ch-ua-platform` goes before
+  `User-Agent`, and `sec-ch-ua` and `sec-ch-ua-mobile` go after it.
+
+Some templates do not know where requested hints go: a `fetch` template,
+because no capture shows where Chrome puts them on a `fetch`, and a Firefox
+template, which has no hint slots at all. Phantom refuses to guess, and fails
+with `RequestErrorKind::RequestTemplate`:
+
+- before any I/O, when the template has no hint slots and the profile sends
+  hints by default;
+- before any I/O, when one of your fields carries a hint the profile sends
+  only on request, including on `http://` origins;
+- before the request is sent on the connection, when the origin has asked for
+  such a hint through `Accept-CH` or ALPS `ACCEPT_CH`. This includes the
+  retry a `Critical-CH` response asks for.
 
 ### Identity check
 
-A template claims one browser family and major version. Before any I/O, a
-templated request is checked against that claim:
+A template claims one browser family and major version. Before any I/O,
+Phantom checks a templated request against that claim:
 
-- A caller `User-Agent` must carry the template's product tokens with its
-  major version and none of its excluded tokens. The Chrome 153 templates
-  require a `Chrome/153` token, which a copied `HeadlessChrome/153` is not,
-  and reject `Edg` and `Firefox`; the Edge templates require `Edg/153` and
-  reject `HeadlessChrome`; the Firefox templates require `Firefox/156` and
-  reject `Chrome`.
-- A request must carry a `User-Agent`. The Edge templates leave it to the
-  caller, so an Edge-templated request without a caller `User-Agent` fails
-  instead of sending Edge brand hints with no `User-Agent`.
-- A caller `sec-ch-ua` or `sec-ch-ua-full-version-list`, and the profile's
-  value of either hint, must list each of the template's brands once with
-  its major version and no other brand except the one GREASE brand Chromium
-  derives from that major version: `"Not_A Brand";v="8"` for 153. A list
-  naming both `Google Chrome` and `Microsoft Edge` fails, and so does
-  Chrome 152's `"Not?A_Brand";v="24"` on a 153 template. Firefox sends
-  neither hint, so any such field contradicts a Firefox template.
+- A `User-Agent` you supply must contain the template's product token with
+  its major version and none of its excluded tokens.
+  - Chrome 153 templates require `Chrome/153` (a copied `HeadlessChrome/153`
+    does not match) and reject `Edg` and `Firefox`.
+  - Edge 153 templates require `Edg/153` and reject `HeadlessChrome` and
+    `Firefox`.
+  - Firefox 156 templates require `Firefox/156` and reject `Chrome`,
+    `HeadlessChrome`, and `Edg`.
+- The request must have a `User-Agent`. The Edge templates leave it to you,
+  so an Edge-templated request without one fails rather than sending Edge
+  brand hints with no `User-Agent`.
+- A `sec-ch-ua` or `sec-ch-ua-full-version-list`, whether yours or the
+  profile's, must list each of the template's brands once with its major
+  version. The only other brand allowed is the GREASE brand Chromium derives
+  from that major version: `"Not_A Brand";v="8"` for 153. A list naming both
+  `Google Chrome` and `Microsoft Edge` fails, and so does Chrome 152's
+  `"Not?A_Brand";v="24"` on a 153 template. Firefox sends neither hint, so
+  either field contradicts a Firefox template.
 
-A contradiction fails with `RequestErrorKind::IdentityMismatch`. Phantom
-never rewrites or drops the field. An invalid template, or one without an
-HTTP/3 list for a request that may use HTTP/3 (an exact H3 request, or a
-negotiated request on a client with Alt-Svc enabled), fails with
-`RequestErrorKind::RequestTemplate`.
+A contradiction fails with `RequestErrorKind::IdentityMismatch`. Phantom never
+rewrites or drops the field. An invalid template fails with
+`RequestErrorKind::RequestTemplate`, as does a template without an HTTP/3 list
+on a request that may use HTTP/3: an exact H3 request, or a negotiated request
+on a client with Alt-Svc enabled.
 
-The check rejects instead of warning or waiting for an opt-in. A template
-is an explicit claim, so a request that contradicts it is a caller error.
-Sending it would put a cross-layer mismatch on the wire that a server can
-record, and it cannot be recalled; failing early costs nothing when the
-fields agree. Requests without a template are not checked, because a
-`ClientProfile` carries no browser identity to compare with, and inferring
-one from TLS settings would mean branching on a family name. The check
-covers only family and major version. It does not compare full versions or
-platforms, check that the profile's TLS and HTTP/2 recipes are the same
-browser's.
+The check rejects rather than warns, because a template is an explicit claim.
+A request that contradicts it would put a mismatch between layers on the wire,
+where a server can record it and it cannot be taken back. When the fields
+agree, the check costs nothing.
+
+The check has limits:
+
+- Requests without a template are not checked. A `ClientProfile` carries no
+  browser identity to compare with, and inferring one from TLS settings would
+  mean branching on a browser name.
+- It compares family and major version only. It does not compare full
+  versions or platforms, and it does not check that the profile's TLS and
+  HTTP/2 recipes come from the same browser.
 
 ### Limits of the templates
 
@@ -288,105 +318,109 @@ browser's.
   subresources such as images, scripts, and stylesheets, `XMLHttpRequest`,
   cross-origin `fetch`, or requests with a body.
 - The HTTP/1.1 captures used plaintext loopback origins, which Chrome treats
-  as secure. Fields sent to a plaintext non-loopback origin are not
+  as secure. Fields sent to a plaintext origin that is not loopback were not
   captured.
-- HTTP/2 HEADERS priority comes from the template for that request's stream
-  and replaces the H2 recipe's connection priority, which is the navigation
-  weight. Chrome and Edge send weight 256 exclusive on a navigation and 220 on
-  a `fetch`; Firefox sends 42 and 22. The templates always depend on stream
-  0, as every capture did; Chrome can depend on another open stream of equal
-  or higher priority, which Phantom does not reproduce.
+- On HTTP/2, the template's HEADERS priority replaces the H2 recipe's
+  connection priority, which is the navigation weight. Chrome and Edge send
+  weight 256 on a navigation and 220 on a `fetch`, both exclusive. Firefox
+  sends 42 and 22, both non-exclusive. The templates always depend on stream
+  0, as every capture did. Chrome can depend on another open stream of equal
+  or higher priority; Phantom does not reproduce that.
 - Every Edge capture ran headless, so the Edge templates leave `User-Agent`
-  to the caller. The Firefox value comes from headless captures; Firefox
-  sent no headless marker, but no headful Firefox capture confirms it.
+  to you. The Firefox value comes from headless captures. Firefox sent no
+  headless marker, but no headful Firefox capture confirms the value.
 - Firefox has no HTTP/3 recipe, so its templates have no HTTP/3 list.
 
 ## Custom profiles
 
-Built-in and custom profiles use the same typed model. Start from a recipe and
-change public fields, or build settings from scratch. Settings are validated,
-and a profile-policy conflict fails before I/O rather than being accepted and
-ignored. A custom profile is not evidence of browser behavior: only retained
-captures back a named recipe.
+Built-in and custom profiles use the same types. Start from a recipe and change
+its public fields, or build settings from scratch. Phantom validates settings,
+and a conflict in profile policy fails before any I/O instead of being
+silently ignored. A custom profile is not evidence of browser behavior; only
+retained captures back a named recipe.
 
 ## Client hints
 
-Client hints are request fields such as `sec-ch-ua` that describe the browser
-and platform. Servers can ask for more of them with the `Accept-CH` response
-field.
+Client hints are request fields, such as `sec-ch-ua`, that describe the
+browser and platform. A browser sends some by default. A server can ask for
+more with the `Accept-CH` response field.
 
-`ClientHintSettings` is immutable profile data: it supplies ordered names,
-values, and default-versus-negotiated delivery. A client owns the mutable
-response `Accept-CH` selection. The Chrome 152 macOS recipe is backed by a local
-navigation capture; Firefox and Safari recipes do not acquire Chromium client
-hints by family-name branching.
+`ClientHintSettings` is fixed profile data: the hint names in order, their
+values, and whether each is sent by default or only on request. The client
+separately tracks which hints each origin has requested. Each built-in
+client-hint recipe comes from a navigation capture of its browser. Phantom
+never adds Chromium client hints to a Firefox or Safari profile based on the
+browser name.
 
 ### Learning from `Accept-CH`
 
-For H1, H2, and H3 responses:
+For H1, H2, and H3 responses from an HTTPS origin, an `Accept-CH` field
+updates that origin's set of requested hints:
 
-- a valid `Accept-CH` structured-field list replaces the exact HTTPS origin's
-  selection;
-- an empty or unsupported-only list clears it;
-- absence leaves it unchanged; and
-- malformed input is ignored.
+| Response `Accept-CH` | Effect |
+| --- | --- |
+| Valid structured-field list | Replaces the origin's set |
+| Empty, or only unsupported names | Clears the origin's set |
+| Absent | No change |
+| Malformed | Ignored |
 
-Origin keys include the effective port. Client clones share the bounded LRU
-(least recently used) store; independently built clients do not.
-`Client::clear_client_hints` clears all retained selections. Caller-supplied
-configured hint fields win in their existing positions, while automatic fields
-retain profile order. A [request template](#request-templates) moves both
-into its client-hint slots.
+- An origin is keyed by exact scheme, host, and effective port.
+- The sets live in a bounded store that evicts the least recently used
+  origin. Clones of a client share it; separately built clients do not.
+- `Client::clear_client_hints` clears every stored set.
+- A configured hint field you supply keeps its position and your value.
+  Automatic hints stay in profile order. A
+  [request template](#request-templates) moves both into its hint slots.
 
 ### Connection-level `ACCEPT_CH`
 
-For H2 and H3, a peer can also send an `ACCEPT_CH` entry through ALPS (a TLS
-extension that carries application settings during the handshake). It is
-immutable metadata on that connection.
+On H2 and H3, a server can also send an `ACCEPT_CH` entry through ALPS, a TLS
+extension that carries application settings during the handshake. This lets
+the first request on a connection carry the requested hints without a
+warm-up request.
 
-- Exact canonical origin matching augments the response-learned selection
-  after connection choice, so the first request can carry requested fields
-  without a warm-up request.
-- Duplicate origins keep the first valid entry. Non-canonical origins are
-  ignored, and retained distinct origins are capped at 1,024 per connection.
-- This metadata is never copied into the client cache, does not cross a
-  replacement connection, and does not clear response-learned state when its
-  value is empty or malformed.
+- The entry applies to requests whose origin matches it exactly, and adds to
+  the hints learned from responses.
+- It belongs to that connection only. It is never copied into the client's
+  store, does not carry over to a replacement connection, and does not clear
+  learned hints when it is empty or malformed.
+- If an origin appears more than once, the first valid entry wins.
+  Non-canonical origins are ignored, and at most 1,024 distinct origins are
+  kept per connection.
 
-The first-request behavior has a live BoringSSL H2 integration test. H3 is
-covered by the BoringSSL QUIC ALPS round trip, strict frame decoder, immutable
-connection handoff, and shared request-selection tests; a live BoringSSL-server
-H3 request differential remains a separate validation gate.
+A live BoringSSL integration test covers the first-request behavior on H2. H3
+has component tests; a live H3 request test against a BoringSSL server is
+still planned (see [Coverage](../reference/coverage.md#http3)).
 
 ### `Critical-CH` retry
 
-`Critical-CH` can cause one internal retry when a supported requested field was
-missing and the HTTP method is safe.
+A `Critical-CH` response field names hints the server requires. If a
+supported hint it names was missing and the method is safe, Phantom retries
+the request once.
 
-- An owned-bytes request body is replayed exactly.
-- A one-shot streaming body cannot be replayed, so the retry fails with
+- An owned body is sent again exactly.
+- A streaming body cannot be sent again, so the retry fails with
   `RequestErrorKind::RequestBody` and the original response is not returned.
 - The retry never changes protocol or route, and a repeated demand cannot
   loop.
-- Intermediate redirect responses are learned before the next hop, and
-  configured caller hint fields are removed at a cross-origin boundary before
-  the new origin's automatic set is built.
+- Hints requested by intermediate redirect responses are learned before the
+  next hop. At a cross-origin boundary, configured hint fields you supplied
+  are removed before the new origin's automatic hints are built.
 
 ### Limits of the client-hint model
 
-This is a raw-client, top-level request policy. These remain absent:
+The model covers top-level requests from a standalone client. It does not
+support:
 
-- Permissions Policy delegation and subresource browsing context;
-- persistence, and expiry beyond explicit replacement;
-- full-navigation restart across an already-followed redirect chain; and
-- live post-handshake `ACCEPT_CH` frames.
+- Permissions Policy delegation or subresource browsing contexts;
+- persistence, or expiry other than explicit replacement;
+- restarting a full navigation across a redirect chain already followed;
+- `ACCEPT_CH` frames sent after the handshake.
 
-Those require distinct public context or engine evidence; they are not inferred
-from a browser name. There is no process-global hint cache and no immutable
-profile mutation.
+Each of these needs request context or browser-engine evidence that a browser
+name cannot provide. There is no process-wide hint cache, and a profile never
+changes after it is built.
 
-The differential for this feature is an ordered session transcript, not one
-fingerprint hash. Connection observations retain TLS and H2/H3 startup state;
-request observations retain ordered headers, the response stimulus, the next
-request's changes, retry outcome, and connection reuse. That makes the
-`Accept-CH` response-to-request transition and origin boundary visible.
+Tests for this feature check sequences of requests on one client, not a single
+fingerprint, so the step from an `Accept-CH` response to the next request, and
+the boundary between origins, are both visible.
