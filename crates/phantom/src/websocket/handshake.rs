@@ -165,18 +165,24 @@ pub(super) fn default_http2_headers() -> Vec<WebSocketHeader> {
     ]
 }
 
+/// Builds the HTTP/2 opening fields after validating `templates`.
+///
+/// `session_cookie` runs at most once, only after validation and only when a
+/// cookie placeholder is emitted without a literal `Cookie` override: a jar
+/// read on the send path counts as a use for eviction.
 pub(super) fn prepare_http2(
     templates: Vec<WebSocketHeader>,
-    session_cookie: Option<&str>,
+    session_cookie: impl FnOnce() -> Option<String>,
     extension_offer: Option<&[u8]>,
 ) -> Result<PreparedHttp2Handshake, WebSocketError> {
     let validation = validate_http2_templates(&templates, extension_offer.is_some())?;
+    let mut session_cookie = Some(session_cookie);
     let mut headers = Vec::with_capacity(templates.len());
     for template in templates {
         match template {
             WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
                 if !validation.has_literal_cookie {
-                    if let Some(value) = session_cookie {
+                    if let Some(value) = session_cookie.take().and_then(|read| read()) {
                         headers.push(RequestHeader::new(name, value).sensitive());
                     }
                 }
@@ -202,35 +208,17 @@ pub(super) fn prepare_http2(
     })
 }
 
-/// Reports whether the handshake would carry the jar's cookies: it has a
-/// cookie placeholder and no literal `Cookie` field overriding it.
+/// Builds the HTTP/1.1 opening fields after validating `templates`.
 ///
-/// Callers read the jar only when this holds, because a jar read on the send
-/// path counts as a use for eviction.
-#[cfg(feature = "cookies")]
-pub(super) fn sends_jar_cookie(templates: &[WebSocketHeader]) -> bool {
-    let mut has_placeholder = false;
-    for template in templates {
-        match template {
-            WebSocketHeader::ClientCookies { .. } | WebSocketHeader::SessionCookies { .. } => {
-                has_placeholder = true;
-            }
-            WebSocketHeader::Field(header) if header.name().eq_ignore_ascii_case("cookie") => {
-                return false;
-            }
-            _ => {}
-        }
-    }
-    has_placeholder
-}
-
+/// `session_cookie` follows the same rule as in [`prepare_http2`].
 pub(super) fn prepare(
     templates: Vec<WebSocketHeader>,
     authority: &str,
-    session_cookie: Option<&str>,
+    session_cookie: impl FnOnce() -> Option<String>,
     extension_offer: Option<&[u8]>,
 ) -> Result<PreparedHandshake, WebSocketError> {
     let validation = validate_templates(&templates, extension_offer.is_some())?;
+    let mut session_cookie = Some(session_cookie);
     let mut nonce = [0_u8; 16];
     btls::rand::rand_bytes(&mut nonce).map_err(WebSocketError::random)?;
     let key = btls::base64::encode_block(&nonce);
@@ -247,7 +235,7 @@ pub(super) fn prepare(
             }
             WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
                 if !validation.has_literal_cookie {
-                    if let Some(value) = session_cookie {
+                    if let Some(value) = session_cookie.take().and_then(|read| read()) {
                         headers.push(RequestHeader::new(name, value).sensitive());
                     }
                 }
@@ -660,20 +648,36 @@ mod tests {
         prepare_http2, profile_headers,
     };
 
-    #[cfg(feature = "cookies")]
-    #[test]
-    fn jar_cookies_are_read_only_for_an_unoverridden_placeholder() {
-        use super::sends_jar_cookie;
+    fn no_cookie() -> Option<String> {
+        None
+    }
 
-        let placeholder = WebSocketHeader::client_cookies("Cookie");
-        let literal = WebSocketHeader::Field(RequestHeader::new("cookie", "a=1"));
-        let slot = WebSocketHeader::caller_field("Cookie");
-        assert!(sends_jar_cookie(std::slice::from_ref(&placeholder)));
-        assert!(sends_jar_cookie(&[placeholder.clone(), slot.clone()]));
-        assert!(!sends_jar_cookie(&[placeholder, literal.clone()]));
-        assert!(!sends_jar_cookie(&[literal]));
-        assert!(!sends_jar_cookie(&[slot]));
-        assert!(!sends_jar_cookie(&[]));
+    #[test]
+    fn jar_is_read_only_when_a_placeholder_emits_the_cookie() -> Result<(), super::WebSocketError> {
+        let reads = std::cell::Cell::new(0);
+        let read = || {
+            reads.set(reads.get() + 1);
+            Some("a=1".to_owned())
+        };
+        let version = WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13"));
+        let placeholder = WebSocketHeader::client_cookies("cookie");
+        let literal = WebSocketHeader::Field(RequestHeader::new("cookie", "b=2"));
+
+        let prepared = prepare_http2(vec![version.clone(), placeholder.clone()], read, None)?;
+        assert_eq!(reads.get(), 1);
+        assert!(prepared.headers.iter().any(|field| field.value() == b"a=1"));
+
+        let overridden = vec![version.clone(), placeholder.clone(), literal];
+        prepare_http2(overridden, read, None)?;
+        assert_eq!(reads.get(), 1, "a literal Cookie field overrides the jar");
+
+        prepare_http2(vec![version.clone()], read, None)?;
+        assert_eq!(reads.get(), 1, "no placeholder means no jar read");
+
+        let invalid = vec![version, placeholder.clone(), placeholder];
+        assert!(prepare_http2(invalid, read, None).is_err());
+        assert_eq!(reads.get(), 1, "a rejected template never reads the jar");
+        Ok(())
     }
 
     #[test]
@@ -687,7 +691,7 @@ mod tests {
     #[test]
     fn http2_template_omits_http1_only_fields_and_requires_lowercase()
     -> Result<(), super::WebSocketError> {
-        let prepared = prepare_http2(default_http2_headers(), None, None)?;
+        let prepared = prepare_http2(default_http2_headers(), no_cookie, None)?;
         assert_eq!(prepared.headers.len(), 1);
         assert_eq!(prepared.headers[0].name(), "sec-websocket-version");
 
@@ -695,12 +699,12 @@ mod tests {
             "Sec-WebSocket-Version",
             "13",
         ))];
-        assert!(prepare_http2(uppercase, None, None).is_err());
+        assert!(prepare_http2(uppercase, no_cookie, None).is_err());
         let key = vec![
             WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
             WebSocketHeader::key("sec-websocket-key"),
         ];
-        assert!(prepare_http2(key, None, None).is_err());
+        assert!(prepare_http2(key, no_cookie, None).is_err());
         Ok(())
     }
 
@@ -719,7 +723,7 @@ mod tests {
             RequestHeader::new("x-extra", "last").sensitive(),
         );
 
-        let prepared = prepare_http2(headers, None, None)?;
+        let prepared = prepare_http2(headers, no_cookie, None)?;
         let fields = prepared
             .headers
             .iter()
@@ -745,7 +749,7 @@ mod tests {
             WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
             WebSocketHeader::caller_field("User-Agent"),
         ];
-        assert!(prepare_http2(headers, None, None).is_err());
+        assert!(prepare_http2(headers, no_cookie, None).is_err());
     }
 
     #[test]
@@ -754,7 +758,7 @@ mod tests {
         let http1 = prepare(
             profile_headers(&settings.http1_fields)?,
             "example.test",
-            None,
+            no_cookie,
             None,
         )?;
         let names = http1
@@ -774,7 +778,7 @@ mod tests {
                 "Sec-WebSocket-Key",
             ]
         );
-        let http2 = prepare_http2(profile_headers(&settings.http2_fields)?, None, None)?;
+        let http2 = prepare_http2(profile_headers(&settings.http2_fields)?, no_cookie, None)?;
         let names = http2
             .headers
             .iter()

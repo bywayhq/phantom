@@ -44,13 +44,17 @@ impl WebSocketRequestBuilder {
 
         #[cfg(feature = "cookies")]
         let cookie_jar = client.state.cookies.as_ref().map(Arc::clone);
+        // Read lazily: `prepare` calls this only after validation and only
+        // when the opening carries the jar's cookies, because a send-path
+        // read counts as a use for eviction.
         #[cfg(feature = "cookies")]
-        let cookie_value = cookie_jar
-            .as_deref()
-            .filter(|_| super::handshake::sends_jar_cookie(&headers))
-            .and_then(|jar| jar.request_value_for_url(&request.cookie_url));
+        let cookie_value = || {
+            cookie_jar
+                .as_deref()
+                .and_then(|jar| jar.request_value_for_url(&request.cookie_url))
+        };
         #[cfg(not(feature = "cookies"))]
-        let cookie_value: Option<String> = None;
+        let cookie_value = || None;
 
         let engine_config = WebSocket::engine_config(limits);
         #[cfg(feature = "websocket-deflate")]
@@ -61,17 +65,17 @@ impl WebSocketRequestBuilder {
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
 
-        let prepared = prepare(
-            headers,
-            request.endpoint.authority().as_str(),
-            cookie_value.as_deref(),
-            extension_offer.as_ref().map(http::HeaderValue::as_bytes),
-        )?;
         let connector = match upgrade_connector {
             Http1UpgradeConnector::Profile => client.inner.http1.as_ref(),
             Http1UpgradeConnector::PolicyAlpn => client.inner.websocket_http1.as_ref(),
         }
         .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+        let prepared = prepare(
+            headers,
+            request.endpoint.authority().as_str(),
+            cookie_value,
+            extension_offer.as_ref().map(http::HeaderValue::as_bytes),
+        )?;
         let outcome = match request.transport {
             WebSocketTransport::Plaintext => match route {
                 // CONNECT-UDP carries only QUIC; reject before any I/O.

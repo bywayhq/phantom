@@ -46,13 +46,17 @@ impl WebSocketRequestBuilder {
 
         #[cfg(feature = "cookies")]
         let cookie_jar = client.state.cookies.as_ref().map(Arc::clone);
+        // Read lazily: `prepare` calls this only after validation and only
+        // when the opening carries the jar's cookies, because a send-path
+        // read counts as a use for eviction.
         #[cfg(feature = "cookies")]
-        let cookie_value = cookie_jar
-            .as_deref()
-            .filter(|_| super::handshake::sends_jar_cookie(&headers))
-            .and_then(|jar| jar.request_value_for_url(&request.cookie_url));
+        let cookie_value = || {
+            cookie_jar
+                .as_deref()
+                .and_then(|jar| jar.request_value_for_url(&request.cookie_url))
+        };
         #[cfg(not(feature = "cookies"))]
-        let cookie_value: Option<String> = None;
+        let cookie_value = || None;
 
         let engine_config = WebSocket::engine_config(limits);
         #[cfg(feature = "websocket-deflate")]
@@ -62,16 +66,16 @@ impl WebSocketRequestBuilder {
         let extension_offer = engine_config.deflate_offer();
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
-        let prepared = prepare_http2(
-            headers,
-            cookie_value.as_deref(),
-            extension_offer.as_ref().map(http::HeaderValue::as_bytes),
-        )?;
         let connector = client
             .inner
             .http2
             .as_ref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
+        let prepared = prepare_http2(
+            headers,
+            cookie_value,
+            extension_offer.as_ref().map(http::HeaderValue::as_bytes),
+        )?;
         let host = request.endpoint.host();
         let port = request.endpoint.port();
         let authority = request.endpoint.authority().as_str();
