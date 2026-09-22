@@ -188,7 +188,8 @@ impl HttpConnectError {
                 Http2TlsError::Http2(
                     Http2Error::InvalidSettings(_)
                     | Http2Error::UnsupportedSetting
-                    | Http2Error::InvalidPriorityDependency { .. },
+                    | Http2Error::InvalidPriorityDependency { .. }
+                    | Http2Error::InvalidPriority { .. },
                 ) => HttpConnectErrorKind::InvalidConfiguration,
                 Http2TlsError::RuntimeUnavailable => HttpConnectErrorKind::RuntimeUnavailable,
                 _ => HttpConnectErrorKind::Http2,

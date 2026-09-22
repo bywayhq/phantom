@@ -11,7 +11,7 @@ use std::{
 use ::http2::{Reason, SendStream, client};
 use bytes::Bytes;
 use http::{Method, Request, Response};
-use phantom_profile::Http2Settings;
+use phantom_profile::{Http2Priority, Http2Settings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, debug, debug_span, field};
 
@@ -22,7 +22,7 @@ use super::{
     Http2Body, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
     OperationOutcome, OriginForm, RequestHeader,
     driver::DriverTask,
-    extended_connect_overrides, prepare_extended_connect, prepare_request,
+    extended_connect_overrides, prepare_extended_connect, prepare_request, priority_overrides,
     request::PreparedRequestTrailers,
     translate_extended_connect_settings, translate_settings,
     tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream},
@@ -194,6 +194,40 @@ impl Http2Connection {
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
         let metadata = body.as_ref().map(RequestBody::metadata);
         let request = prepare_request(method, authority, target, headers, metadata)?;
+        let trailers = PreparedRequestTrailers::new(trailers)?;
+        self.send_prepared_request(request, body, trailers).await
+    }
+
+    /// Sends one request like [`Self::send_request_body_with_trailers`] with
+    /// its own HEADERS priority.
+    ///
+    /// `priority` replaces the connection's HEADERS priority for this stream
+    /// only; later requests keep the connection's priority. A peer that sent
+    /// `SETTINGS_NO_RFC7540_PRIORITIES` still suppresses the priority fields.
+    /// The priority is validated with the request, before the connection is
+    /// touched.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] for a priority weight outside 1..=256, a
+    /// dependency stream ID wider than 31 bits or equal to 1, or any failure of
+    /// [`Self::send_request_body_with_trailers`].
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_request_body_with_trailers_and_priority(
+        &self,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+        trailers: Vec<RequestHeader>,
+        priority: Http2Priority,
+    ) -> Result<Response<Http2Body>, Http2Error> {
+        let overrides = priority_overrides(priority)?;
+        PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
+        let metadata = body.as_ref().map(RequestBody::metadata);
+        let mut request = prepare_request(method, authority, target, headers, metadata)?;
+        request.extensions_mut().insert(overrides);
         let trailers = PreparedRequestTrailers::new(trailers)?;
         self.send_prepared_request(request, body, trailers).await
     }

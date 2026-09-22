@@ -523,6 +523,22 @@ pub(crate) fn extended_connect_overrides(
     Ok(overrides)
 }
 
+/// Builds the HEADERS override that gives one ordinary request its own
+/// priority, leaving the connection's pseudo-header order in place.
+pub(crate) fn priority_overrides(
+    priority: Http2Priority,
+) -> Result<HeadersFrameOverrides, Http2Error> {
+    // Settings validation guards the connection priority; this per-request
+    // value arrives unvalidated, and the backend panics on a 32-bit stream ID.
+    if !(1..=256).contains(&priority.weight) || priority.dependency_stream_id > 0x7fff_ffff {
+        return Err(Http2Error::InvalidPriority {
+            dependency_stream_id: priority.dependency_stream_id,
+            weight: priority.weight,
+        });
+    }
+    Ok(HeadersFrameOverrides::new().stream_dependency(stream_dependency(priority)?))
+}
+
 fn stream_dependency(priority: Http2Priority) -> Result<StreamDependency, Http2Error> {
     // Stream 1 is the first client stream, which would then depend on itself.
     if priority.dependency_stream_id == 1 {

@@ -11,7 +11,7 @@ use phantom_profile::{
 
 use super::super::{
     Http2Error, OriginForm, RequestHeader, extended_connect_overrides, prepare_extended_connect,
-    translate_extended_connect_settings, translate_settings,
+    priority_overrides, translate_extended_connect_settings, translate_settings,
 };
 
 #[test]
@@ -173,4 +173,54 @@ fn extended_connect_priority_cannot_depend_on_the_first_stream() {
         translate_settings(&settings),
         Err(Http2Error::InvalidPriorityDependency { stream_id: 1 })
     ));
+}
+
+#[test]
+fn request_priority_overrides_replace_only_the_stream_dependency() -> Result<(), Http2Error> {
+    let fetch = Http2Priority {
+        dependency_stream_id: 0,
+        weight: 220,
+        exclusive: true,
+    };
+    assert_eq!(
+        priority_overrides(fetch)?,
+        HeadersFrameOverrides::new().stream_dependency(StreamDependency::new(
+            StreamId::zero(),
+            219,
+            true
+        ))
+    );
+    let lowest = Http2Priority {
+        dependency_stream_id: 0,
+        weight: 1,
+        exclusive: false,
+    };
+    assert_eq!(
+        priority_overrides(lowest)?,
+        HeadersFrameOverrides::new().stream_dependency(StreamDependency::new(
+            StreamId::zero(),
+            0,
+            false
+        ))
+    );
+
+    for (dependency_stream_id, weight) in [(0, 0), (0, 257), (0x8000_0000, 220)] {
+        assert!(matches!(
+            priority_overrides(Http2Priority {
+                dependency_stream_id,
+                weight,
+                exclusive: true,
+            }),
+            Err(Http2Error::InvalidPriority { .. })
+        ));
+    }
+    assert!(matches!(
+        priority_overrides(Http2Priority {
+            dependency_stream_id: 1,
+            weight: 220,
+            exclusive: true,
+        }),
+        Err(Http2Error::InvalidPriorityDependency { stream_id: 1 })
+    ));
+    Ok(())
 }

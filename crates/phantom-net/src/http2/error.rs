@@ -118,6 +118,14 @@ pub enum Http2Error {
         /// Stream ID used by this one-shot transport.
         stream_id: u32,
     },
+    /// A per-request priority has a weight outside 1..=256 or a dependency
+    /// stream ID wider than 31 bits.
+    InvalidPriority {
+        /// Requested dependency stream ID.
+        dependency_stream_id: u32,
+        /// Requested RFC 7540 weight.
+        weight: u16,
+    },
     /// The request authority is not a valid URI authority.
     InvalidAuthority(http::uri::InvalidUri),
     /// The request authority included forbidden URI user information.
@@ -254,6 +262,14 @@ impl fmt::Display for Http2Error {
             Self::InvalidPriorityDependency { stream_id } => write!(
                 formatter,
                 "HTTP/2 request stream {stream_id} cannot depend on itself"
+            ),
+            Self::InvalidPriority {
+                dependency_stream_id,
+                weight,
+            } => write!(
+                formatter,
+                "HTTP/2 request priority on stream {dependency_stream_id} with weight {weight} \
+                 needs a 31-bit stream ID and a weight in 1..=256"
             ),
             Self::InvalidAuthority(_) => formatter.write_str("request authority is invalid"),
             Self::AuthorityContainsUserinfo => {
@@ -402,6 +418,7 @@ impl Http2Error {
             Self::InvalidSettings(_) => "invalid_settings",
             Self::UnsupportedSetting => "unsupported_setting",
             Self::InvalidPriorityDependency { .. } => "invalid_priority_dependency",
+            Self::InvalidPriority { .. } => "invalid_priority",
             Self::InvalidAuthority(_) => "invalid_authority",
             Self::AuthorityContainsUserinfo => "authority_contains_userinfo",
             Self::ConnectUnsupported => "connect_unsupported",
