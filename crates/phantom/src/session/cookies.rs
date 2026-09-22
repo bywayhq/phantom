@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt,
-};
+use std::{collections::HashMap, fmt};
 
 use cookie_store::{Cookie, CookieDomain, CookieStore, RawCookie, StoreAction};
 use http::{HeaderMap, header::SET_COOKIE};
@@ -17,14 +14,24 @@ pub use types::{CookieError, CookieErrorKind, CookieLimits};
 /// Bounded, thread-safe in-memory cookie jar.
 ///
 /// The jar models domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
-/// prefix, and deterministic request-order rules.
+/// prefix, `SameSite`, `Partitioned`, eviction, and deterministic
+/// request-order rules.
 ///
-/// It has no request-site or top-level-site context, so it rejects rather than
-/// stores `SameSite=Lax`, `SameSite=Strict`, and `Partitioned` cookies, as
-/// well as `SameSite=None` without `Secure` and `Secure` cookies set by an
-/// `http://` URL. [`Self::set_cookie`] reports these with
+/// Every request is treated as a user-initiated top-level navigation to its
+/// URL, as if typed into a browser's address bar. That context is same-site
+/// for `SameSite` purposes and is its own top-level site for `Partitioned`
+/// cookies, so matching `SameSite=Strict`, `SameSite=Lax`, `SameSite=None`,
+/// and `Partitioned` cookies are all sent.
+///
+/// The jar rejects `SameSite=None` and `Partitioned` cookies without
+/// `Secure`, and `Secure` cookies set by an `http://` URL.
+/// [`Self::set_cookie`] reports these with
 /// [`CookieErrorKind::UnsupportedPolicy`]; a rejected response `Set-Cookie`
 /// field is ignored and never sent back.
+///
+/// When a new cookie takes a registrable domain or the whole jar past its
+/// [`CookieLimits`] count, the least recently used cookies are evicted,
+/// non-`Secure` cookies first.
 pub struct CookieJar {
     limits: CookieLimits,
     state: Mutex<JarState>,
@@ -45,7 +52,7 @@ impl CookieJar {
     /// # Errors
     ///
     /// Returns [`CookieError`] for an invalid URL, malformed or unsupported
-    /// cookie, public-suffix violation, or configured bound.
+    /// cookie, public-suffix violation, or byte limit.
     pub fn set_cookie(&self, url: &str, set_cookie: &str) -> Result<(), CookieError> {
         let url = parse_url(url)?;
         self.state.lock().store(set_cookie, &url, self.limits)
@@ -70,7 +77,7 @@ impl CookieJar {
     #[must_use]
     pub fn len(&self) -> usize {
         let mut state = self.state.lock();
-        state.purge_expired_metadata();
+        state.purge_expired();
         state.metadata.len()
     }
 
@@ -123,10 +130,59 @@ impl fmt::Debug for CookieJar {
 
 #[derive(Default)]
 struct JarState {
-    host_store: CookieStore,
-    domain_store: CookieStore,
+    stores: Stores,
     metadata: HashMap<CookieKey, CookieMetadata>,
     next_sequence: u64,
+    next_access: u64,
+}
+
+/// Cookie stores split by host-only flag and partition.
+///
+/// Partitioned cookies live apart so that a partitioned and an unpartitioned
+/// cookie with the same name, domain, and path coexist, as in Chromium's
+/// separate partitioned-cookie map.
+#[derive(Default)]
+struct Stores {
+    host: CookieStore,
+    domain: CookieStore,
+    partitioned_host: CookieStore,
+    partitioned_domain: CookieStore,
+}
+
+impl Stores {
+    fn get_mut(&mut self, host_only: bool, partitioned: bool) -> &mut CookieStore {
+        match (host_only, partitioned) {
+            (true, false) => &mut self.host,
+            (false, false) => &mut self.domain,
+            (true, true) => &mut self.partitioned_host,
+            (false, true) => &mut self.partitioned_domain,
+        }
+    }
+
+    fn unpartitioned(&self) -> [&CookieStore; 2] {
+        [&self.host, &self.domain]
+    }
+
+    fn all(&self) -> [(&CookieStore, bool); 4] {
+        [
+            (&self.host, false),
+            (&self.domain, false),
+            (&self.partitioned_host, true),
+            (&self.partitioned_domain, true),
+        ]
+    }
+
+    fn remove(&mut self, key: &CookieKey) {
+        self.get_mut(key.host_only, key.partitioned)
+            .remove(&key.domain, &key.path, &key.name);
+    }
+
+    fn clear(&mut self) {
+        self.host.clear();
+        self.domain.clear();
+        self.partitioned_host.clear();
+        self.partitioned_domain.clear();
+    }
 }
 
 impl JarState {
@@ -151,6 +207,7 @@ impl JarState {
             )
         })?;
         validate_policy(&raw, url)?;
+        let partitioned = raw.partitioned() == Some(true);
         let mut cookie = Cookie::try_from_raw_cookie(&raw, url).map_err(cookie_store_error)?;
         if is_public_suffix(&cookie.domain) {
             let host = url.host_str().unwrap_or_default();
@@ -167,8 +224,11 @@ impl JarState {
         }
 
         if url.scheme() != "https"
-            && (overlays_secure_cookie(&cookie, &self.host_store)
-                || overlays_secure_cookie(&cookie, &self.domain_store))
+            && self
+                .stores
+                .unpartitioned()
+                .into_iter()
+                .any(|store| overlays_secure_cookie(&cookie, store))
         {
             return Err(CookieError::new(
                 CookieErrorKind::SecureOverlay,
@@ -176,36 +236,17 @@ impl JarState {
             ));
         }
 
-        self.purge_expired_metadata();
-        let key = CookieKey::from_cookie(&cookie)?;
+        self.purge_expired();
+        let key = CookieKey::from_cookie(&cookie, partitioned)?;
         let quota_domain = quota_domain(&key.domain);
-        let is_new = !self.metadata.contains_key(&key) && !cookie.is_expired();
-        if is_new {
-            if self.metadata.len() >= limits.max_cookies().get() {
-                return Err(CookieError::new(
-                    CookieErrorKind::Capacity,
-                    "cookie jar has reached its total cookie limit",
-                ));
-            }
-            let domain_count = self
-                .metadata
-                .values()
-                .filter(|metadata| metadata.quota_domain == quota_domain)
-                .count();
-            if domain_count >= limits.max_cookies_per_domain().get() {
-                return Err(CookieError::new(
-                    CookieErrorKind::Capacity,
-                    "cookie jar has reached its per-domain cookie limit",
-                ));
-            }
-        }
+        let secure = cookie.secure() == Some(true);
+        let partition_site = partitioned.then(|| schemeful_site(url));
 
-        let store = if key.host_only {
-            &mut self.host_store
-        } else {
-            &mut self.domain_store
-        };
-        let action = match store.insert(cookie.into_owned(), url) {
+        let action = match self
+            .stores
+            .get_mut(key.host_only, key.partitioned)
+            .insert(cookie.into_owned(), url)
+        {
             Ok(action) => action,
             Err(cookie_store::CookieError::Expired) => {
                 self.metadata.remove(&key);
@@ -213,83 +254,164 @@ impl JarState {
             }
             Err(error) => return Err(cookie_store_error(error)),
         };
-        match action {
-            StoreAction::Inserted => {
+        if matches!(action, StoreAction::ExpiredExisting) {
+            self.stores.remove(&key);
+            self.metadata.remove(&key);
+            return Ok(());
+        }
+
+        // A replacement keeps the old creation position (RFC 6265 Section
+        // 5.3, step 11.3) and counts as an access for eviction.
+        let last_access = self.next_access();
+        let sequence = match self.metadata.get(&key) {
+            Some(existing) => existing.sequence,
+            None => {
                 let sequence = self.next_sequence;
                 self.next_sequence = self.next_sequence.saturating_add(1);
-                self.metadata.insert(
-                    key,
-                    CookieMetadata {
-                        sequence,
-                        quota_domain,
-                    },
-                );
+                sequence
             }
-            StoreAction::UpdatedExisting => {
-                self.metadata.entry(key).or_insert_with(|| {
-                    let sequence = self.next_sequence;
-                    self.next_sequence = self.next_sequence.saturating_add(1);
-                    CookieMetadata {
-                        sequence,
-                        quota_domain,
-                    }
-                });
-            }
-            StoreAction::ExpiredExisting => {
-                self.metadata.remove(&key);
-            }
-        }
+        };
+        self.metadata.insert(
+            key,
+            CookieMetadata {
+                sequence,
+                last_access,
+                quota_domain: quota_domain.clone(),
+                secure,
+                partition_site,
+            },
+        );
+        self.evict(&quota_domain, limits);
         Ok(())
     }
 
+    /// Applies Chromium's count-based garbage collection after an insert.
+    ///
+    /// `CookieMonster::GarbageCollect` purges a registrable domain above 180
+    /// cookies down to 150, then the whole store above 3300 down to 3000,
+    /// removing least recently accessed non-`Secure` cookies before `Secure`
+    /// ones. The purge amounts here are the same fractions of the configured
+    /// limits: one sixth and one eleventh.
+    fn evict(&mut self, quota_domain: &str, limits: CookieLimits) {
+        let domain_limit = limits.max_cookies_per_domain().get();
+        let domain_count = self
+            .metadata
+            .values()
+            .filter(|metadata| metadata.quota_domain == quota_domain)
+            .count();
+        if domain_count > domain_limit {
+            self.evict_least_recent(
+                domain_count - (domain_limit - domain_limit / 6),
+                Some(quota_domain),
+            );
+        }
+
+        let total_limit = limits.max_cookies().get();
+        let total = self.metadata.len();
+        if total > total_limit {
+            self.evict_least_recent(total - (total_limit - total_limit / 11), None);
+        }
+    }
+
+    fn evict_least_recent(&mut self, count: usize, quota_domain: Option<&str>) {
+        let mut candidates = self
+            .metadata
+            .iter()
+            .filter(|(_, metadata)| {
+                quota_domain.is_none_or(|domain| metadata.quota_domain == domain)
+            })
+            .map(|(key, metadata)| (metadata.secure, metadata.last_access, key.clone()))
+            .collect::<Vec<_>>();
+        candidates.sort_unstable_by_key(|(secure, last_access, _)| (*secure, *last_access));
+        for (_, _, key) in candidates.into_iter().take(count) {
+            self.stores.remove(&key);
+            self.metadata.remove(&key);
+        }
+    }
+
     fn request_value(&mut self, url: &Url) -> Option<String> {
-        self.purge_expired_metadata();
-        let mut cookies = self.host_store.matches(url);
-        cookies.extend(self.domain_store.matches(url));
-        cookies.sort_by(|left, right| {
+        self.purge_expired();
+        let site = schemeful_site(url);
+        let mut cookies = Vec::new();
+        for (store, partitioned) in self.stores.all() {
+            for cookie in store.matches(url) {
+                let Ok(key) = CookieKey::from_cookie(cookie, partitioned) else {
+                    continue;
+                };
+                let Some(metadata) = self.metadata.get(&key) else {
+                    continue;
+                };
+                if metadata
+                    .partition_site
+                    .as_ref()
+                    .is_some_and(|partition| *partition != site)
+                {
+                    continue;
+                }
+                cookies.push((metadata.sequence, key, cookie));
+            }
+        }
+        if cookies.is_empty() {
+            return None;
+        }
+        // Chromium's CookieMonster::CookieSorter: longer paths first, then
+        // creation order.
+        cookies.sort_by(|(left_sequence, left, _), (right_sequence, right, _)| {
             right
                 .path
                 .len()
                 .cmp(&left.path.len())
-                .then_with(|| self.sequence(left).cmp(&self.sequence(right)))
-                .then_with(|| left.name().cmp(right.name()))
+                .then_with(|| left_sequence.cmp(right_sequence))
+                .then_with(|| left.name.cmp(&right.name))
         });
-        if cookies.is_empty() {
-            return None;
-        }
 
         let mut value = String::new();
-        for (index, cookie) in cookies.into_iter().enumerate() {
+        let mut sent = Vec::with_capacity(cookies.len());
+        for (index, (_, key, cookie)) in cookies.into_iter().enumerate() {
             if index != 0 {
                 value.push_str("; ");
             }
             value.push_str(cookie.name());
             value.push('=');
             value.push_str(cookie.value());
+            sent.push(key);
+        }
+        for key in sent {
+            let last_access = self.next_access();
+            if let Some(metadata) = self.metadata.get_mut(&key) {
+                metadata.last_access = last_access;
+            }
         }
         Some(value)
     }
 
-    fn sequence(&self, cookie: &Cookie<'_>) -> u64 {
-        CookieKey::from_cookie(cookie)
-            .ok()
-            .and_then(|key| self.metadata.get(&key))
-            .map_or(u64::MAX, |metadata| metadata.sequence)
+    fn next_access(&mut self) -> u64 {
+        let access = self.next_access;
+        self.next_access = self.next_access.saturating_add(1);
+        access
     }
 
-    fn purge_expired_metadata(&mut self) {
-        let live = self
-            .host_store
-            .iter_unexpired()
-            .chain(self.domain_store.iter_unexpired())
-            .filter_map(|cookie| CookieKey::from_cookie(cookie).ok())
-            .collect::<HashSet<_>>();
-        self.metadata.retain(|key, _| live.contains(key));
+    /// Drops expired cookies from the stores and their metadata.
+    fn purge_expired(&mut self) {
+        let expired = self
+            .stores
+            .all()
+            .into_iter()
+            .flat_map(|(store, partitioned)| {
+                store
+                    .iter_any()
+                    .filter(|cookie| cookie.is_expired())
+                    .filter_map(move |cookie| CookieKey::from_cookie(cookie, partitioned).ok())
+            })
+            .collect::<Vec<_>>();
+        for key in expired {
+            self.stores.remove(&key);
+            self.metadata.remove(&key);
+        }
     }
 
     fn clear(&mut self) {
-        self.host_store.clear();
-        self.domain_store.clear();
+        self.stores.clear();
         self.metadata.clear();
     }
 }
@@ -300,10 +422,11 @@ struct CookieKey {
     path: String,
     name: String,
     host_only: bool,
+    partitioned: bool,
 }
 
 impl CookieKey {
-    fn from_cookie(cookie: &Cookie<'_>) -> Result<Self, CookieError> {
+    fn from_cookie(cookie: &Cookie<'_>, partitioned: bool) -> Result<Self, CookieError> {
         let domain = cookie.domain.as_cow().ok_or_else(|| {
             CookieError::new(
                 CookieErrorKind::InvalidSetCookie,
@@ -315,13 +438,21 @@ impl CookieKey {
             path: cookie.path.to_string(),
             name: cookie.name().to_owned(),
             host_only: matches!(&cookie.domain, CookieDomain::HostOnly(_)),
+            partitioned,
         })
     }
 }
 
 struct CookieMetadata {
+    /// Creation order, kept when the cookie is replaced.
     sequence: u64,
+    /// Order of the most recent store or send, used for eviction.
+    last_access: u64,
+    /// Registrable domain the per-domain limit counts against.
     quota_domain: String,
+    secure: bool,
+    /// Top-level site of a `Partitioned` cookie.
+    partition_site: Option<String>,
 }
 
 fn parse_url(value: &str) -> Result<Url, CookieError> {
@@ -338,12 +469,6 @@ fn parse_url(value: &str) -> Result<Url, CookieError> {
 }
 
 fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError> {
-    if cookie.partitioned() == Some(true) {
-        return Err(CookieError::new(
-            CookieErrorKind::UnsupportedPolicy,
-            "Partitioned cookies require top-level-site context",
-        ));
-    }
     let secure_origin = url.scheme() == "https";
     let secure = cookie.secure() == Some(true);
     if has_ascii_prefix(cookie.name(), "__Secure-") && (!secure || !secure_origin) {
@@ -366,20 +491,19 @@ fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError>
             "Secure cookies require an HTTPS origin",
         ));
     }
-    match cookie.same_site() {
-        Some(cookie::SameSite::Strict | cookie::SameSite::Lax) => {
-            return Err(CookieError::new(
-                CookieErrorKind::UnsupportedPolicy,
-                "SameSite Strict and Lax require request-site context",
-            ));
-        }
-        Some(cookie::SameSite::None) if !secure => {
-            return Err(CookieError::new(
-                CookieErrorKind::UnsupportedPolicy,
-                "SameSite=None cookies require Secure",
-            ));
-        }
-        _ => {}
+    // Chromium excludes both: EXCLUDE_SAMESITE_NONE_INSECURE and
+    // EXCLUDE_INVALID_PARTITIONED.
+    if cookie.same_site() == Some(cookie::SameSite::None) && !secure {
+        return Err(CookieError::new(
+            CookieErrorKind::UnsupportedPolicy,
+            "SameSite=None cookies require Secure",
+        ));
+    }
+    if cookie.partitioned() == Some(true) && !secure {
+        return Err(CookieError::new(
+            CookieErrorKind::UnsupportedPolicy,
+            "Partitioned cookies require Secure",
+        ));
     }
     Ok(())
 }
@@ -446,6 +570,13 @@ fn quota_domain(domain: &str) -> String {
         return domain.to_owned();
     }
     psl::domain_str(domain).unwrap_or(domain).to_owned()
+}
+
+/// Returns the schemeful site of `url`: the partition key of a `Partitioned`
+/// cookie that a top-level request to `url` sets.
+fn schemeful_site(url: &Url) -> String {
+    let host = url.host_str().unwrap_or_default();
+    format!("{}://{}", url.scheme(), quota_domain(host))
 }
 
 fn is_ip_address(domain: &str) -> bool {

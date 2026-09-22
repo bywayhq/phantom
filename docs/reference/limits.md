@@ -48,9 +48,16 @@ retries, are listed first.
 
 The optional cookie jar (`CookieLimits`) defaults to:
 
-- 4,096 bytes per cookie;
-- 180 cookies per domain; and
-- 3,000 cookies in total.
+- 4,096 bytes per `Set-Cookie` field, above which a cookie is rejected;
+- 180 cookies per registrable domain; and
+- 3,300 cookies in total.
+
+The two count limits are Chromium's `kDomainMaxCookies` and `kMaxCookies`
+(`net/cookies/cookie_monster.cc`). Exceeding one evicts rather than rejects:
+the least recently used cookies, non-`Secure` first, go until the domain holds
+five sixths of its limit (150) or the jar ten elevenths of its limit (3,000).
+Chromium purges to the same 150 and 3,000. See
+[Eviction](../guides/connections-and-state.md#eviction) for the differences.
 
 ## Protocol state
 

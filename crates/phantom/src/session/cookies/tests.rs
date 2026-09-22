@@ -56,7 +56,7 @@ fn host_only_and_domain_cookies_have_distinct_storage_keys()
 }
 
 #[test]
-fn enforces_secure_prefix_and_partition_boundaries() {
+fn enforces_secure_prefix_same_site_none_and_partition_requirements() {
     let jar = CookieJar::default();
 
     for (url, value, kind) in [
@@ -82,7 +82,7 @@ fn enforces_secure_prefix_and_partition_boundaries() {
         ),
         (
             "https://example.test/",
-            "id=1; Secure; Partitioned",
+            "id=1; Partitioned",
             CookieErrorKind::UnsupportedPolicy,
         ),
         (
@@ -91,13 +91,8 @@ fn enforces_secure_prefix_and_partition_boundaries() {
             CookieErrorKind::UnsupportedPolicy,
         ),
         (
-            "https://example.test/",
-            "id=1; SameSite=Strict",
-            CookieErrorKind::UnsupportedPolicy,
-        ),
-        (
-            "https://example.test/",
-            "id=1; SameSite=Lax",
+            "http://example.test/",
+            "id=1; SameSite=None; Secure",
             CookieErrorKind::UnsupportedPolicy,
         ),
     ] {
@@ -107,6 +102,48 @@ fn enforces_secure_prefix_and_partition_boundaries() {
         );
         assert_eq!(error.kind(), kind);
     }
+}
+
+#[test]
+fn same_site_cookies_are_sent_as_top_level_navigation() -> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    let url = "https://example.test/";
+    jar.set_cookie(url, "strict=1; SameSite=Strict")?;
+    jar.set_cookie(url, "lax=2; SameSite=Lax")?;
+    jar.set_cookie(url, "none=3; SameSite=None; Secure")?;
+    jar.set_cookie("http://plain.test/", "plain_lax=4; SameSite=Lax")?;
+
+    assert_eq!(
+        jar.request_value(url)?.as_deref(),
+        Some("strict=1; lax=2; none=3")
+    );
+    assert_eq!(
+        jar.request_value("http://plain.test/")?.as_deref(),
+        Some("plain_lax=4")
+    );
+    Ok(())
+}
+
+#[test]
+fn partitioned_cookie_is_kept_apart_from_unpartitioned_cookie()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    let url = "https://www.example.test/";
+    jar.set_cookie(url, "id=plain; Secure; Domain=example.test")?;
+    jar.set_cookie(url, "id=chips; Secure; Domain=example.test; Partitioned")?;
+
+    assert_eq!(jar.len(), 2);
+    assert_eq!(
+        jar.request_value("https://api.example.test/")?.as_deref(),
+        Some("id=plain; id=chips")
+    );
+
+    jar.set_cookie(
+        url,
+        "id=gone; Secure; Domain=example.test; Partitioned; Max-Age=0",
+    )?;
+    assert_eq!(jar.request_value(url)?.as_deref(), Some("id=plain"));
+    Ok(())
 }
 
 #[test]
@@ -263,31 +300,90 @@ fn secure_and_path_matching_follow_request_url() -> Result<(), Box<dyn std::erro
 }
 
 #[test]
-fn count_and_byte_limits_are_applied_without_evicting() -> Result<(), Box<dyn std::error::Error>> {
-    let limits = CookieLimits::new(nonzero(32), nonzero(1), nonzero(2));
-    let jar = CookieJar::with_limits(limits);
+fn domain_limit_evicts_least_recent_insecure_cookies_first()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::with_limits(CookieLimits::new(nonzero(64), nonzero(6), nonzero(100)));
+    let base = "https://one.test";
+    jar.set_cookie(base, "secure=1; Secure; Path=/secure")?;
+    for name in ["a", "b", "c", "d", "e"] {
+        jar.set_cookie(base, &format!("{name}=1; Path=/{name}"))?;
+    }
+    jar.set_cookie("https://other.test/", "other=1")?;
+    assert_eq!(
+        jar.request_value(&format!("{base}/a"))?.as_deref(),
+        Some("a=1")
+    );
+
+    // The seventh one.test cookie exceeds 6; one sixth is purged to leave 5.
+    jar.set_cookie(base, "f=1; Path=/f")?;
+
+    let retained = ["secure", "a", "b", "c", "d", "e", "f"]
+        .into_iter()
+        .filter(|name| {
+            jar.request_value(&format!("{base}/{name}"))
+                .ok()
+                .flatten()
+                .is_some()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(retained, ["secure", "a", "d", "e", "f"]);
+    assert_eq!(
+        jar.request_value("https://other.test/")?.as_deref(),
+        Some("other=1")
+    );
+    Ok(())
+}
+
+#[test]
+fn total_limit_evicts_least_recent_cookies_across_domains() -> Result<(), Box<dyn std::error::Error>>
+{
+    let jar = CookieJar::with_limits(CookieLimits::new(nonzero(64), nonzero(100), nonzero(11)));
+    for index in 0..11 {
+        jar.set_cookie(&format!("https://site{index}.test/"), "flood=1")?;
+    }
+    assert_eq!(jar.len(), 11);
+
+    jar.set_cookie("https://login.test/", "session=1")?;
+
+    assert_eq!(jar.len(), 10);
+    assert_eq!(jar.request_value("https://site0.test/")?, None);
+    assert_eq!(jar.request_value("https://site1.test/")?, None);
+    assert_eq!(
+        jar.request_value("https://site2.test/")?.as_deref(),
+        Some("flood=1")
+    );
+    assert_eq!(
+        jar.request_value("https://login.test/")?.as_deref(),
+        Some("session=1")
+    );
+    Ok(())
+}
+
+#[test]
+fn single_cookie_limit_keeps_the_newest_cookie() -> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::with_limits(CookieLimits::new(nonzero(64), nonzero(1), nonzero(1)));
     jar.set_cookie("https://one.test/", "a=1")?;
+    jar.set_cookie("https://one.test/", "b=2")?;
+    jar.set_cookie("https://two.test/", "c=3")?;
 
-    let domain_error = rejected(
-        jar.set_cookie("https://one.test/", "b=2"),
-        "per-domain capacity was exceeded",
+    assert_eq!(jar.len(), 1);
+    assert_eq!(jar.request_value("https://one.test/")?, None);
+    assert_eq!(
+        jar.request_value("https://two.test/")?.as_deref(),
+        Some("c=3")
     );
-    assert_eq!(domain_error.kind(), CookieErrorKind::Capacity);
+    Ok(())
+}
 
-    jar.set_cookie("https://two.test/", "b=2")?;
-    let total_error = rejected(
-        jar.set_cookie("https://three.test/", "c=3"),
-        "total capacity was exceeded",
-    );
-    assert_eq!(total_error.kind(), CookieErrorKind::Capacity);
-
-    let size_error = rejected(
+#[test]
+fn oversized_cookie_is_rejected() {
+    let jar = CookieJar::with_limits(CookieLimits::new(nonzero(32), nonzero(1), nonzero(2)));
+    let error = rejected(
         jar.set_cookie("https://one.test/", &format!("a={}", "x".repeat(40))),
         "oversized cookie was accepted",
     );
-    assert_eq!(size_error.kind(), CookieErrorKind::CookieTooLarge);
-    assert_eq!(jar.len(), 2);
-    Ok(())
+    assert_eq!(error.kind(), CookieErrorKind::CookieTooLarge);
+    assert!(jar.is_empty());
 }
 
 #[test]

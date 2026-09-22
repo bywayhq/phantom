@@ -71,23 +71,72 @@ Cookies require the `cookies` Cargo feature and explicit builder activation.
   requests use.
 
 The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
-`__Secure-`/`__Host-` prefix, and deterministic ordering rules. Its default
-size limits are listed in [Defaults and limits](../reference/limits.md#cookies).
+`__Secure-`/`__Host-` prefix, `SameSite`, `Partitioned`, and deterministic
+ordering rules. Its default limits are listed in
+[Defaults and limits](../reference/limits.md#cookies).
+
+### Request context
+
+The jar treats every request as a user-initiated top-level navigation to the
+request URL, as if the URL were typed into a browser's address bar. It does not
+read `Sec-Fetch-Site`, `Referer`, or any other caller field. Redirect hops are
+treated the same way.
+
+- **SameSite.** A navigation without an initiator is a same-site context.
+  Chromium's `ComputeSameSiteContext` gives it `SAME_SITE_STRICT` for every
+  hop, because `kCookieSameSiteConsidersRedirectChain` is disabled by default.
+  The jar therefore stores and sends matching `SameSite=Strict`,
+  `SameSite=Lax`, and `SameSite=None` cookies on every request, whatever the
+  method. Cookies without `SameSite` are sent the same way.
+- **Partitioned (CHIPS).** A top-level request is its own top-level site, so a
+  `Partitioned` cookie is keyed to the schemeful site (scheme and registrable
+  domain) of the URL that set it. It is sent only to URLs with the same site.
+  Because a cookie's domain always shares the setting host's registrable
+  domain, that is every URL the cookie domain-matches. A partitioned and an
+  unpartitioned cookie with the same name, domain, and path are kept as two
+  cookies, as in Chromium. There is no embedded or cross-site context, so the
+  jar never sends a partition other than the request's own site.
+
+A caller emulating a cross-site subresource request, where a browser would
+withhold `SameSite=Strict` or `SameSite=Lax` cookies or use another partition,
+should supply its own `Cookie` field. A caller-supplied `Cookie` suppresses
+the jar's field, and the response still updates the jar.
 
 ### Cookies the jar rejects
 
-The jar has no request-site or top-level-site context, so it rejects rather
-than stores cookies whose semantics depend on it:
+The jar rejects, as Chromium does:
 
-- `SameSite=Lax` and `SameSite=Strict`;
-- `Partitioned` (CHIPS) cookies;
-- `SameSite=None` without `Secure`; and
-- any `Secure` cookie set by an `http://` URL.
+- `SameSite=None` without `Secure`;
+- `Partitioned` without `Secure`;
+- any `Secure` cookie set by an `http://` URL;
+- a `Domain` that is a public suffix, including a private registry such as
+  `github.io` and an unlisted top-level label such as `corp` or `lan`, unless
+  it equals the request host (then the cookie becomes host-only); and
+- a `Set-Cookie` field longer than the byte limit.
 
 From a response, a rejected `Set-Cookie` is ignored and recorded only as a
-debug event. `CookieJar::set_cookie` returns `CookieErrorKind::UnsupportedPolicy`
-(or `InvalidPrefix` for prefix violations). Such cookies are therefore never
-sent back, which differs from a browser.
+debug event. `CookieJar::set_cookie` returns `CookieErrorKind::UnsupportedPolicy`,
+`PublicSuffix`, `InvalidPrefix`, or `CookieTooLarge`.
+
+### Eviction
+
+The count limits evict rather than reject. After a cookie is stored, if its
+registrable domain holds more than the per-domain limit, the least recently
+used cookies of that domain are evicted, non-`Secure` ones first, down to five
+sixths of the limit (150 of 180 by default). If the jar then holds more than
+the total limit, the least recently used cookies anywhere are evicted,
+non-`Secure` ones first, down to ten elevenths of it (3,000 of 3,300). Storing
+or sending a cookie counts as a use.
+
+This follows Chromium's `CookieMonster::GarbageCollect` with three
+differences:
+
+- The `Priority` attribute is ignored; every cookie has Chromium's default
+  medium priority.
+- The total purge does not spare cookies used in the last 30 days, so the
+  total limit is a hard bound.
+- Partitioned cookies count toward the same limits as other cookies. Chromium
+  gives each partition its own per-domain limits.
 
 ## Client hints
 

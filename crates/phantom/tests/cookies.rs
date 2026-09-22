@@ -427,7 +427,7 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
                 &[
                     "before=one; Path=/",
                     "=missing-name",
-                    "partitioned=ignored; Secure; Partitioned",
+                    "partitioned=ignored; Partitioned",
                     "suffix=ignored; Domain=com",
                     "after=two; Path=/",
                 ],

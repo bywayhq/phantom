@@ -276,9 +276,12 @@ Supported:
 - Per-origin-and-alternative Alt-Svc broken state with doubling, capped
   backoff, cleared by a successful alternative connection or `clear_alt_svc`.
 - An optional bounded cookie jar with deterministic path and creation order,
-  PSL, prefix, and expiry checks, and explicit activation. It rejects rather
-  than stores `SameSite=Lax`, `SameSite=Strict`, `Partitioned`, insecure
-  `SameSite=None`, and `Secure`-over-`http://` cookies.
+  PSL (including private and unlisted suffixes), prefix, and expiry checks,
+  Chromium-style least-recently-used eviction, and explicit activation. It
+  stores `SameSite` and `Partitioned` cookies and sends them as for a
+  user-initiated top-level navigation. It rejects insecure `SameSite=None`,
+  insecure `Partitioned`, and `Secure`-over-`http://` cookies. See
+  [Cookies](../guides/connections-and-state.md#cookies).
 - Profile-defined client-hint fields with bounded exact-origin response
   `Accept-CH` state, connection-scoped H2/H3 ALPS `ACCEPT_CH`, and one bounded
   `Critical-CH` retry for safe methods. See
@@ -290,7 +293,8 @@ Supported:
 
 Planned:
 
-- SameSite request context and CHIPS.
+- Caller-selected cookie contexts (cross-site and embedded requests,
+  cross-site CHIPS partitions).
 - Permissions and delegation context.
 - QUIC tickets and DNS state.
 - Alt-Svc brokenness persistence and network-change reset, and proxy-route

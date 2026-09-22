@@ -1,8 +1,9 @@
 use std::{error::Error as StdError, fmt, num::NonZeroUsize};
 
 const DEFAULT_MAX_COOKIE_BYTES: NonZeroUsize = nonzero(4096);
+// Chromium's CookieMonster::kDomainMaxCookies and kMaxCookies.
 const DEFAULT_MAX_COOKIES_PER_DOMAIN: NonZeroUsize = nonzero(180);
-const DEFAULT_MAX_COOKIES: NonZeroUsize = nonzero(3000);
+const DEFAULT_MAX_COOKIES: NonZeroUsize = nonzero(3300);
 
 const fn nonzero(value: usize) -> NonZeroUsize {
     match NonZeroUsize::new(value) {
@@ -12,6 +13,11 @@ const fn nonzero(value: usize) -> NonZeroUsize {
 }
 
 /// Bounds applied to one in-memory cookie jar.
+///
+/// A `Set-Cookie` field above the byte bound is rejected. The count bounds
+/// never reject a cookie: when an insert exceeds one, the jar evicts least
+/// recently used cookies, non-`Secure` first, down to five sixths of the
+/// per-domain bound or ten elevenths of the total bound.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CookieLimits {
     max_cookie_bytes: NonZeroUsize,
@@ -40,13 +46,13 @@ impl CookieLimits {
         self.max_cookie_bytes
     }
 
-    /// Returns the maximum cookies retained per registrable domain.
+    /// Returns the per-registrable-domain count above which cookies are evicted.
     #[must_use]
     pub const fn max_cookies_per_domain(self) -> NonZeroUsize {
         self.max_cookies_per_domain
     }
 
-    /// Returns the maximum cookies retained by the jar.
+    /// Returns the total count above which cookies are evicted.
     #[must_use]
     pub const fn max_cookies(self) -> NonZeroUsize {
         self.max_cookies
@@ -81,7 +87,8 @@ pub enum CookieErrorKind {
     SecureOverlay,
     /// The cookie used a policy this client cannot model.
     UnsupportedPolicy,
-    /// Inserting a new cookie would exceed a configured count bound.
+    /// Retained for compatibility; count bounds now evict instead of
+    /// rejecting, so the jar no longer returns this kind.
     Capacity,
 }
 
