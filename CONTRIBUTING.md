@@ -225,6 +225,18 @@ the `conformance` label. The suites then run on the label event and again on
 each push while the label stays, whatever paths changed, with the case set a
 push to `main` uses; remove the label to stop them.
 
+Every push to a pull request, and every label added to it, still starts a
+run of each conformance workflow. Without the `conformance` label, or for an
+unrelated label, that run's job is skipped and appears as a skipped check. An
+unrelated label added while a labeled run is in progress does not cancel it.
+To find the run that did the work, open the workflow in the Actions tab
+filtered to the branch, or list its runs and pick the one whose job was not
+skipped:
+
+```console
+gh run list --workflow autobahn.yml --branch <branch>
+```
+
 ## Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) with an
