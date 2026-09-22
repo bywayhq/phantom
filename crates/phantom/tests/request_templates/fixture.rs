@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::TestResult;
+use crate::{TestResult, wire::Priority};
 
 /// Ordered `(name, value)` request fields.
 pub(crate) type Fields = Vec<(String, String)>;
@@ -58,6 +58,26 @@ impl Capture {
 
     /// Returns run 0's first HTTP/2 GET whose `sec-fetch-dest` is `destination`.
     pub(crate) fn http2_request(&self, destination: &str) -> TestResult<Fields> {
+        Ok(self.http2_block(destination)?.1)
+    }
+
+    /// Returns the HEADERS priority of [`Self::http2_request`]'s block, or
+    /// `None` when it had no priority fields.
+    pub(crate) fn http2_priority(&self, destination: &str) -> TestResult<Option<Priority>> {
+        let (key, _) = self.http2_block(destination)?;
+        let Some((_, priority)) = self.value(&key)?.split_once("priority:") else {
+            return Ok(None);
+        };
+        Ok(Some((
+            attribute(priority, "exclusive").ok_or("no exclusive flag")? == "true",
+            attribute(priority, "depends_on")
+                .ok_or("no dependency")?
+                .parse()?,
+            attribute(priority, "weight").ok_or("no weight")?.parse()?,
+        )))
+    }
+
+    fn http2_block(&self, destination: &str) -> TestResult<(String, Fields)> {
         let connections: usize = self.value("run_0_connection_count")?.parse()?;
         for connection in 0..connections {
             let prefix = format!("run_0_connection_{connection}");
@@ -88,7 +108,7 @@ impl Capture {
                     .iter()
                     .any(|(name, value)| name == "sec-fetch-dest" && value == destination);
                 if method == "GET" && matches {
-                    return Ok(fields);
+                    return Ok((key, fields));
                 }
             }
         }

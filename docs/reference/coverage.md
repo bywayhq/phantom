@@ -267,7 +267,8 @@ Supported:
   408/425/429/5xx statuses, with an optional capped `Retry-After` and a
   request-wide budget.
 - Opt-in per-request browser field templates: captured field order and
-  values per protocol, caller slots, client-hint slots, and a pre-I/O check
+  values per protocol, caller slots, client-hint slots, the captured H2
+  HEADERS priority of the request kind, and a pre-I/O check
   that rejects a caller `User-Agent` or brand-list client hint naming another
   browser family or major version. Recipes cover address-bar navigations and
   same-origin no-store `fetch` GETs; see
@@ -512,13 +513,18 @@ Request templates:
   captures), and H3 (the H3 startup capture); Edge 153 over H1, H2, and H3;
   Firefox 156 over H1 and H2. The fetch templates match every retained
   no-store report `fetch` of the WebSocket captures over H1 and H2.
+- Each template carries its request kind's captured H2 HEADERS priority, sent
+  on that stream only: navigations weight 256 exclusive (Chrome, Edge) and 42
+  (Firefox), which equal the H2 recipes' connection priority, and fetches
+  weight 220 exclusive and 22. The dependency is always stream 0, as in every
+  capture; Chrome's dependency on another open stream of equal or higher
+  priority is not reproduced.
 - The Chrome `User-Agent` value comes from the headful launch-mode SSE
   capture; the other Chrome and Edge captures ran headless. Edge templates
   leave `User-Agent` to the caller.
 - The H1 captures used plaintext loopback origins. The fetch templates'
   placement of hints requested through `Accept-CH` is not captured.
-- Not reproduced: the per-request H2 HEADERS weight of a `fetch` (Chrome 220,
-  Firefox 22) and the position of an automatic `Cookie` field.
+- Not reproduced: the position of an automatic `Cookie` field.
 
 Randomized fields:
 

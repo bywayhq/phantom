@@ -359,6 +359,75 @@ fn firefox_156_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()
 }
 
 #[test]
+fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
+    let cases: [(RequestTemplate, &[&str], &str, u16); 6] = [
+        (
+            chromium::v153_windows_navigation_template(),
+            &CHROME_WEBSOCKET,
+            "document",
+            256,
+        ),
+        (
+            chromium::v153_windows_fetch_no_store_template(),
+            &CHROME_WEBSOCKET,
+            "empty",
+            220,
+        ),
+        (
+            edge::v153_windows_navigation_template(),
+            &EDGE_WEBSOCKET,
+            "document",
+            256,
+        ),
+        (
+            edge::v153_windows_fetch_no_store_template(),
+            &EDGE_WEBSOCKET,
+            "empty",
+            220,
+        ),
+        (
+            firefox::v156_windows_navigation_template(),
+            &FIREFOX_WEBSOCKET,
+            "document",
+            42,
+        ),
+        (
+            firefox::v156_windows_fetch_no_store_template(),
+            &FIREFOX_WEBSOCKET,
+            "empty",
+            22,
+        ),
+    ];
+    for (template, set, destination, weight) in cases {
+        let mut priorities = Vec::new();
+        for fixture in set {
+            priorities.extend(Capture::parse(fixture)?.http2_priorities(destination)?);
+        }
+        assert!(
+            priorities.len() >= 18,
+            "{destination}: {}",
+            priorities.len()
+        );
+        assert_eq!(template.http2_priority.map(|p| p.weight), Some(weight));
+        for priority in priorities {
+            assert_eq!(priority, template.http2_priority, "{destination}");
+        }
+    }
+
+    // The fetch weights differ from the connection recipes' HEADERS
+    // priority, so the template, not the H2 settings, must supply them.
+    assert_ne!(
+        chromium::v153_windows_fetch_no_store_template().http2_priority,
+        chromium::v153_http2().headers_priority
+    );
+    assert_ne!(
+        firefox::v156_windows_fetch_no_store_template().http2_priority,
+        firefox::v156_http2().headers_priority
+    );
+    Ok(())
+}
+
+#[test]
 fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> CaptureResult<()> {
     for (fixture, hints) in [
         (CHROME_CLIENT_HINTS, chromium::v153_windows_client_hints()),
@@ -460,6 +529,20 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
         template.validate().map_err(|error| error.field()),
         Err("identity")
     );
+
+    for (dependency_stream_id, weight) in [(3, 220), (0, 0), (0, 257)] {
+        let mut template = chromium::v153_windows_fetch_no_store_template();
+        template.http2_priority = Some(crate::Http2Priority {
+            dependency_stream_id,
+            weight,
+            exclusive: true,
+        });
+        assert_eq!(
+            template.validate().map_err(|error| error.field()),
+            Err("http2_priority"),
+            "{dependency_stream_id} {weight}"
+        );
+    }
 }
 
 #[test]

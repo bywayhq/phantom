@@ -8,6 +8,8 @@
 
 use std::{collections::HashSet, error::Error, fmt};
 
+use crate::http2::Http2Priority;
+
 /// One field, caller slot, or client-hint position in a request template.
 ///
 /// Field-name spelling is emitted exactly as written. HTTP/2 and HTTP/3
@@ -140,10 +142,19 @@ pub struct RequestTemplate {
     /// Ordered ordinary HTTP/3 fields after the pseudo-header fields, or
     /// `None` when no HTTP/3 capture backs this request kind.
     pub http3_fields: Option<Vec<RequestField>>,
+    /// HTTP/2 HEADERS priority of this request kind, or `None` to keep the
+    /// connection's
+    /// [`Http2Settings::headers_priority`](crate::Http2Settings::headers_priority).
+    ///
+    /// Browsers weight a stream by request kind, so a captured value replaces
+    /// the connection's priority for this template's requests only. It must
+    /// depend on stream 0, because a request's own stream ID is not known
+    /// before it is sent.
+    pub http2_priority: Option<Http2Priority>,
 }
 
 impl RequestTemplate {
-    /// Validates field syntax and client-hint placement.
+    /// Validates field syntax, client-hint placement, and the HTTP/2 priority.
     ///
     /// # Errors
     ///
@@ -151,9 +162,24 @@ impl RequestTemplate {
     /// repeated name, a generated field such as `Host` or `Cookie`, an
     /// uppercase HTTP/2 or HTTP/3 name, a connection-specific field such as
     /// `Connection` in an HTTP/2 or HTTP/3 list, an invalid literal value, a
-    /// client-hint slot without a later literal field, or when the lists place
-    /// client hints differently.
+    /// client-hint slot without a later literal field, when the lists place
+    /// client hints differently, or when the HTTP/2 priority depends on a
+    /// stream other than 0 or has a weight outside 1..=256.
     pub fn validate(&self) -> Result<(), InvalidRequestTemplate> {
+        if let Some(priority) = self.http2_priority {
+            if priority.dependency_stream_id != 0 {
+                return Err(InvalidRequestTemplate::new(
+                    "http2_priority",
+                    "a template's HTTP/2 priority must depend on stream 0",
+                ));
+            }
+            if !(1..=256).contains(&priority.weight) {
+                return Err(InvalidRequestTemplate::new(
+                    "http2_priority",
+                    "priority weight must be in 1..=256",
+                ));
+            }
+        }
         validate_fields(&self.http1_fields, "http1_fields", false)?;
         validate_fields(&self.http2_fields, "http2_fields", true)?;
         let placement = client_hint_placement(&self.http2_fields);

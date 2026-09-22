@@ -3,8 +3,9 @@
 //! Each test sends a templated request to a loopback origin over HTTP/1.1,
 //! HTTP/2, or HTTP/3 and compares the ordered fields the origin received with
 //! the same request kind in a retained Chrome 153, Edge 153, or Firefox 156
-//! capture. The captures ran headless, so their `User-Agent` names
-//! `HeadlessChrome`; the comparison uses the headful `Chrome` product.
+//! capture, and on HTTP/2 also the HEADERS priority. The captures ran
+//! headless, so their `User-Agent` names `HeadlessChrome`; the comparison
+//! uses the headful `Chrome` product.
 
 #[path = "request_templates/fixture.rs"]
 mod fixture;
@@ -14,8 +15,15 @@ mod h3_support;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
+#[path = "request_templates/wire.rs"]
+mod wire;
 
-use std::{future::poll_fn, net::Ipv4Addr, time::Duration};
+use std::{
+    future::poll_fn,
+    net::Ipv4Addr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
@@ -30,6 +38,7 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 use fixture::{Capture, Fields};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, tls_settings};
+use wire::{Priority, RecordingIo, headers_priority};
 
 pub(crate) type TestResult<T> = tls_support::TestResult<T>;
 
@@ -102,6 +111,15 @@ enum Kind {
     Fetch,
 }
 
+/// Returns the HTTP/2 HEADERS priority of the captured request.
+fn captured_priority(browser: &Browser, kind: Kind) -> TestResult<Option<Priority>> {
+    let destination = match kind {
+        Kind::Navigation => "document",
+        Kind::Fetch => "empty",
+    };
+    Capture::parse(browser.http2_capture)?.http2_priority(destination)
+}
+
 fn captured(browser: &Browser, kind: Kind, protocol: HttpProtocol) -> TestResult<Fields> {
     let (http1_kind, destination) = match kind {
         Kind::Navigation => ("page", "document"),
@@ -121,7 +139,14 @@ fn captured(browser: &Browser, kind: Kind, protocol: HttpProtocol) -> TestResult
         .collect())
 }
 
-/// Sends one templated request and returns the fields the origin received.
+/// What the origin received: ordered fields and, on HTTP/2, the HEADERS
+/// priority.
+struct Observed {
+    fields: Fields,
+    priority: Option<Priority>,
+}
+
+/// Sends one templated request and returns what the origin received.
 ///
 /// Caller values come from the capture itself for fields a template leaves
 /// to the caller: `Referer` always, and `User-Agent` when the template has
@@ -131,7 +156,7 @@ async fn send(
     template: RequestTemplate,
     protocol: HttpProtocol,
     expected: &Fields,
-) -> TestResult<Fields> {
+) -> TestResult<Observed> {
     let identity = TestIdentity::generate()?;
     let mut caller = Vec::new();
     for (name, value) in expected {
@@ -185,7 +210,7 @@ fn protocol_fields(
     }
 }
 
-type Server = tokio::task::JoinHandle<TestResult<Fields>>;
+type Server = tokio::task::JoinHandle<TestResult<Observed>>;
 
 async fn serve_http1(identity: &TestIdentity) -> TestResult<(String, Server)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -204,7 +229,10 @@ async fn serve_http1(identity: &TestIdentity) -> TestResult<(String, Server)> {
                 fields.push((name.to_owned(), value.to_owned()));
             }
         }
-        Ok(fields)
+        Ok(Observed {
+            fields,
+            priority: None,
+        })
     });
     Ok((url, server))
 }
@@ -217,12 +245,20 @@ async fn serve_http2(
     let url = format!("https://{}/", listener.local_addr()?);
     let acceptor = identity.acceptor(H2_ALPN)?;
     let server = tokio::spawn(async move {
-        let stream = accept_tls(listener, acceptor).await?;
+        let wire = Arc::new(Mutex::new(Vec::new()));
+        let stream = RecordingIo {
+            inner: accept_tls(listener, acceptor).await?,
+            read: Arc::clone(&wire),
+        };
         let mut connection = ::http2::server::handshake(stream).await?;
         let (request, mut respond) = connection
             .accept()
             .await
             .ok_or("HTTP/2 connection closed before a request")??;
+        let priority = headers_priority(
+            &wire.lock().map_err(|_| "wire lock was poisoned")?,
+            u32::from(respond.stream_id()),
+        )?;
         let fields = request
             .extensions()
             .get::<::http2::ext::OrderedHeaders>()
@@ -246,7 +282,7 @@ async fn serve_http2(
             result = poll_fn(|context| connection.poll_closed(context)) => result?,
             _ = wait_for_client => {}
         }
-        Ok(fields)
+        Ok(Observed { fields, priority })
     });
     Ok((url, server))
 }
@@ -279,7 +315,10 @@ fn serve_http3(
             .await?;
         stream.finish().await?;
         let _ = wait_for_client.await;
-        Ok(fields)
+        Ok(Observed {
+            fields,
+            priority: None,
+        })
     });
     Ok((format!("https://{address}/"), server))
 }
@@ -298,7 +337,12 @@ async fn assert_reproduces(
         )
         .await
         .map_err(|_| format!("{protocol:?} request timed out"))??;
-        assert_eq!(observed, expected, "{protocol:?}");
+        assert_eq!(observed.fields, expected, "{protocol:?}");
+        if protocol == HttpProtocol::Http2 {
+            let priority = captured_priority(&browser, kind)?;
+            assert!(priority.is_some(), "the capture carries HEADERS priority");
+            assert_eq!(observed.priority, priority, "HTTP/2 HEADERS priority");
+        }
     }
     Ok(())
 }

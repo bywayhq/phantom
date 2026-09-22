@@ -17,13 +17,14 @@ use phantom_net::{
     },
     request::{OriginForm, RequestBody, RequestHeader},
 };
+use phantom_profile::Http2Priority;
 use tokio::sync::Mutex;
 use tracing::{Span, debug};
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
-    http2_pool::is_graceful_goaway,
+    http2_pool::{is_graceful_goaway, send_on},
 };
 use crate::{
     HttpProtocol, RequestError, ResponseBody,
@@ -71,6 +72,7 @@ impl Http1Or2Pool {
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
+        http2_priority: Option<Http2Priority>,
         fresh_http1_connection: bool,
         leased: Option<NegotiatedLease>,
         timeout_budget: TimeoutBudget,
@@ -104,6 +106,7 @@ impl Http1Or2Pool {
             http1_wire_headers,
             http1_sent_headers,
             http2_headers,
+            http2_priority,
             trailers,
             client_hints,
         };
@@ -465,6 +468,7 @@ impl PoolEntry {
             http1_wire_headers,
             http1_sent_headers,
             http2_headers,
+            http2_priority,
             trailers,
             client_hints,
         } = request;
@@ -530,16 +534,17 @@ impl PoolEntry {
                         Some(HttpProtocol::Http2),
                         async {
                             Ok::<_, RequestError>(
-                                connection
-                                    .send_request_body_with_trailers(
-                                        method,
-                                        authority,
-                                        target,
-                                        sent_headers.clone(),
-                                        body,
-                                        trailers,
-                                    )
-                                    .await,
+                                send_on(
+                                    &connection,
+                                    method,
+                                    authority,
+                                    target,
+                                    sent_headers.clone(),
+                                    body,
+                                    trailers,
+                                    http2_priority,
+                                )
+                                .await,
                             )
                         },
                     )
@@ -709,6 +714,7 @@ struct NegotiatedRequest<'a> {
     http1_wire_headers: Vec<RequestHeader>,
     http1_sent_headers: Vec<RequestHeader>,
     http2_headers: Vec<RequestHeader>,
+    http2_priority: Option<Http2Priority>,
     trailers: Vec<RequestHeader>,
     client_hints: Option<ClientHintContext<'a>>,
 }

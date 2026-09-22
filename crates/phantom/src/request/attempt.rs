@@ -6,6 +6,7 @@ use phantom_net::{
     proxy::{HttpConnectError, validate_basic_proxy_challenge},
     request::{RequestBody, RequestHeader},
 };
+use phantom_profile::Http2Priority;
 use tracing::Span;
 
 use crate::timeout::TimeoutBudget;
@@ -262,6 +263,7 @@ pub(super) async fn send_once_origin(
                 request_trailers.clone(),
                 prepared.client_hints,
                 prepared.body,
+                http2_priority(request),
                 std::mem::take(&mut fresh_http1_connection),
                 leased.take(),
                 timeout_budget,
@@ -698,6 +700,7 @@ async fn dispatch_attempt(
                     request_trailers,
                     client_hints,
                     body,
+                    http2_priority(request),
                     timeout_budget,
                     retries,
                 )
@@ -739,6 +742,14 @@ async fn dispatch_attempt(
                 })
         }
     }
+}
+
+/// Returns the template's HTTP/2 HEADERS priority for this request, if any.
+fn http2_priority(request: &ResolvedRequest) -> Option<Http2Priority> {
+    request
+        .template
+        .as_deref()
+        .and_then(|template| template.http2_priority)
 }
 
 fn proxy_authentication_error(error: HttpConnectError) -> RequestError {

@@ -617,7 +617,9 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36";
 /// The HTTP/1.1 order comes from plaintext loopback page loads in the
 /// retained SSE, WebSocket, and client-hint captures; the HTTP/2 order from
 /// the page requests of the WebSocket captures; the HTTP/3 order from the H3
-/// startup captures. Every run agrees.
+/// startup captures. Every run agrees. Each captured HTTP/2 page request
+/// carries HEADERS priority weight 256, exclusive, on stream 0, which is also
+/// [`v153_http2`]'s connection priority.
 ///
 /// The client hints form one block in profile order after `Connection` (on
 /// HTTP/1.1) and before `Upgrade-Insecure-Requests`; after `Accept-CH` the
@@ -640,6 +642,15 @@ pub fn v153_windows_navigation_template() -> RequestTemplate {
 /// orders come from the final report request of the WebSocket captures, and
 /// every run agrees. No capture backs this request kind on HTTP/3, so
 /// [`RequestTemplate::http3_fields`] is `None`.
+///
+/// Each captured HTTP/2 fetch carries HEADERS priority weight 220, exclusive,
+/// on stream 0, unlike the navigation's 256 in [`v153_http2`];
+/// [`RequestTemplate::http2_priority`] records it so the fetch does not go
+/// out with the connection's navigation weight. Chrome can make a stream
+/// depend on another open stream of equal or higher priority
+/// (`net/spdy/http2_priority_dependencies.cc`); in the captures the only open
+/// stream was a lower-priority WebSocket, the dependency was stream 0, and
+/// the template always sends stream 0.
 ///
 /// Unlike a navigation, the default client hints are split:
 /// `sec-ch-ua-platform` precedes `User-Agent`, and `sec-ch-ua` and
@@ -703,6 +714,11 @@ pub(crate) fn v153_navigation_template(
         ],
         http3_fields: Some(http2_fields.clone()),
         http2_fields,
+        http2_priority: Some(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 256,
+            exclusive: true,
+        }),
     }
 }
 
@@ -752,6 +768,11 @@ pub(crate) fn v153_fetch_no_store_template(
             RequestField::literal("priority", "u=1, i"),
         ],
         http3_fields: None,
+        http2_priority: Some(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 220,
+            exclusive: true,
+        }),
     }
 }
 

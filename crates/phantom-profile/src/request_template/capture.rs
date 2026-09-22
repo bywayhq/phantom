@@ -7,6 +7,8 @@
 
 use std::collections::BTreeMap;
 
+use crate::Http2Priority;
+
 pub(crate) type CaptureResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 /// Ordered `(name, value)` fields of one request, without `Host` and
@@ -67,6 +69,38 @@ impl<'a> Capture<'a> {
     /// Returns every HTTP/2 GET HEADERS block whose `sec-fetch-dest` is
     /// `destination`, in every run and connection.
     pub(crate) fn http2_requests(&self, destination: &str) -> CaptureResult<Vec<Fields>> {
+        Ok(self
+            .http2_blocks(destination)?
+            .into_iter()
+            .map(|(_, fields)| fields)
+            .collect())
+    }
+
+    /// Returns the HEADERS priority of every block [`Self::http2_requests`]
+    /// returns, or `None` for a block without priority fields.
+    pub(crate) fn http2_priorities(
+        &self,
+        destination: &str,
+    ) -> CaptureResult<Vec<Option<Http2Priority>>> {
+        let mut priorities = Vec::new();
+        for (key, _) in self.http2_blocks(destination)? {
+            let record = self.value(key)?;
+            let Some((_, priority)) = record.split_once("priority:") else {
+                priorities.push(None);
+                continue;
+            };
+            priorities.push(Some(Http2Priority {
+                exclusive: attribute(priority, "exclusive").ok_or("no exclusive flag")? == "true",
+                dependency_stream_id: attribute(priority, "depends_on")
+                    .ok_or("no dependency")?
+                    .parse()?,
+                weight: attribute(priority, "weight").ok_or("no weight")?.parse()?,
+            }));
+        }
+        Ok(priorities)
+    }
+
+    fn http2_blocks(&self, destination: &str) -> CaptureResult<Vec<(&'a str, Fields)>> {
         let mut requests = Vec::new();
         for key in self.fields.keys() {
             let Some((connection, index)) = key.split_once("_headers_") else {
@@ -96,7 +130,7 @@ impl<'a> Capture<'a> {
                 .iter()
                 .any(|(name, value)| name == "sec-fetch-dest" && value == destination);
             if method.as_deref() == Some("GET") && matches_destination {
-                requests.push(fields);
+                requests.push((*key, fields));
             }
         }
         Ok(requests)

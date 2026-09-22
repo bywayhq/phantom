@@ -6,11 +6,12 @@ use std::{
 
 use http::Method;
 use phantom_net::http2::{
-    Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector, Http2TlsError,
-    OriginForm, RequestHeader, validate_request_body_source_with_trailers,
+    Http2Body, Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector,
+    Http2TlsError, OriginForm, RequestHeader, validate_request_body_source_with_trailers,
 };
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
+use phantom_profile::Http2Priority;
 use tokio::sync::Mutex;
 use tracing::debug;
 
@@ -25,6 +26,35 @@ use crate::{
     error::is_unprocessed_http2,
     retry::{ConnectionSetupRetryState, acquire_with_retries},
 };
+
+/// Sends one request, with the request's own HEADERS priority when it has
+/// one and the connection's otherwise.
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn send_on(
+    connection: &Http2Connection,
+    method: Method,
+    authority: &str,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+    trailers: Vec<RequestHeader>,
+    priority: Option<Http2Priority>,
+) -> Result<http::Response<Http2Body>, Http2Error> {
+    match priority {
+        Some(priority) => {
+            connection
+                .send_request_body_with_trailers_and_priority(
+                    method, authority, target, headers, body, trailers, priority,
+                )
+                .await
+        }
+        None => {
+            connection
+                .send_request_body_with_trailers(method, authority, target, headers, body, trailers)
+                .await
+        }
+    }
+}
 
 pub(crate) struct Http2Pool {
     capacity: NonZeroUsize,
@@ -73,6 +103,7 @@ impl Http2Pool {
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
+        priority: Option<Http2Priority>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
@@ -125,17 +156,17 @@ impl Http2Pool {
             let result = response_timeout
                 .run(async {
                     Ok::<_, RequestError>(
-                        lease
-                            .connection
-                            .send_request_body_with_trailers(
-                                method.clone(),
-                                authority,
-                                target.clone(),
-                                sent_headers.clone(),
-                                body.take(),
-                                trailers.clone(),
-                            )
-                            .await,
+                        send_on(
+                            &lease.connection,
+                            method.clone(),
+                            authority,
+                            target.clone(),
+                            sent_headers.clone(),
+                            body.take(),
+                            trailers.clone(),
+                            priority,
+                        )
+                        .await,
                     )
                 })
                 .await;

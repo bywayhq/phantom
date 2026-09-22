@@ -148,7 +148,10 @@ impl RequestBuilder {
     /// position and spelling and keeps its value; a literal entry without one
     /// emits its captured value. Other caller fields, then an automatic
     /// cookie, follow the template. Profile client hints fill the template's
-    /// client-hint slots. Every redirect hop uses the same template.
+    /// client-hint slots. On HTTP/2, the template's
+    /// [`http2_priority`](crate::profile::RequestTemplate::http2_priority)
+    /// replaces the connection's HEADERS priority for this request's stream.
+    /// Every redirect hop uses the same template.
     ///
     /// Sending fails before I/O with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)

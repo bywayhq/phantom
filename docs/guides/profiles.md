@@ -188,6 +188,9 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
 - Each attempt uses the template's list for the protocol it runs on, after
   `Host` on HTTP/1.1 or after the pseudo-header fields on HTTP/2 and HTTP/3.
   An ALPN-negotiated request uses the list for the protocol ALPN selects.
+- On HTTP/2, the template's HEADERS priority replaces the connection's
+  priority for that request's stream only. A peer that disables RFC 7540
+  priorities still suppresses it.
 - A caller field whose name matches a template entry takes that entry's
   position and field-name spelling and keeps its own value and sensitivity.
   A literal entry with no caller field emits its captured value; a caller
@@ -258,9 +261,12 @@ browser's.
 - The HTTP/1.1 captures used plaintext loopback origins, which Chrome treats
   as secure. Fields sent to a plaintext non-loopback origin are not
   captured.
-- HTTP/2 HEADERS priority comes from the profile, not the template. Chrome
-  sends weight 220 on a `fetch` and Firefox weight 22, while the recipes carry
-  their navigation weights, 256 and 42.
+- HTTP/2 HEADERS priority comes from the template for that request's stream
+  and replaces the H2 recipe's connection priority, which is the navigation
+  weight. Chrome and Edge send weight 256 exclusive on a navigation and 220 on
+  a `fetch`; Firefox sends 42 and 22. The templates always depend on stream
+  0, as every capture did; Chrome can depend on another open stream of equal
+  or higher priority, which Phantom does not reproduce.
 - Every Edge capture ran headless, so the Edge templates leave `User-Agent`
   to the caller. The Firefox value comes from headless captures; Firefox
   sent no headless marker, but no headful Firefox capture confirms it.

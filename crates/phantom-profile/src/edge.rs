@@ -98,7 +98,9 @@ pub fn v153_windows_navigation_template() -> RequestTemplate {
 /// 153.0.4234.48 on Windows 11.
 ///
 /// The order and values match [`chromium::v153_windows_fetch_no_store_template`]
-/// on HTTP/1.1 and HTTP/2, with `User-Agent` as a caller slot for the reason
+/// on HTTP/1.1 and HTTP/2, including the captured HTTP/2 HEADERS priority
+/// weight 220 that differs from the navigation's 256, with `User-Agent` as a
+/// caller slot for the reason
 /// given in [`v153_windows_navigation_template`]. No capture backs this
 /// request kind on HTTP/3.
 #[must_use]

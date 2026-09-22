@@ -355,7 +355,9 @@ const V156_WINDOWS_USER_AGENT: &str =
 /// requests of the WebSocket captures; every run agrees. Firefox sends
 /// `Priority` on HTTP/1.1 too and ends HTTP/2 requests with `te: trailers`.
 /// There is no Firefox HTTP/3 recipe, so [`RequestTemplate::http3_fields`] is
-/// `None`.
+/// `None`. Each captured HTTP/2 page request carries HEADERS priority weight
+/// 42, not exclusive, on stream 0, which is also [`v156_http2`]'s connection
+/// priority.
 ///
 /// The `User-Agent` value is the one Firefox sent in those headless
 /// captures. `Accept-Language` is the capture machine's `en-US` locale. A
@@ -391,6 +393,11 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
             RequestField::literal("te", "trailers"),
         ],
         http3_fields: None,
+        http2_priority: Some(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 42,
+            exclusive: false,
+        }),
     }
 }
 
@@ -400,6 +407,10 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
 /// the cache mode adds `Pragma` and `Cache-Control`, which Firefox sends
 /// last on HTTP/1.1 and before `te: trailers` on HTTP/2. The orders come from
 /// the final report request of the WebSocket captures, and every run agrees.
+/// Each captured HTTP/2 fetch carries HEADERS priority weight 22, not
+/// exclusive, on stream 0, unlike the navigation's 42 in [`v156_http2`];
+/// [`RequestTemplate::http2_priority`] records it so the fetch does not go
+/// out with the connection's navigation weight.
 /// `Referer` is a caller slot because its value is the page URL. The
 /// `User-Agent` value matches [`v156_windows_navigation_template`].
 #[must_use]
@@ -435,6 +446,11 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             RequestField::literal("te", "trailers"),
         ],
         http3_fields: None,
+        http2_priority: Some(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 22,
+            exclusive: false,
+        }),
     }
 }
 
