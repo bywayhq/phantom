@@ -542,10 +542,7 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
 
 fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
     Ok(std::str::from_utf8(head)?
-        .split(
-            "
-",
-        )
+        .lines()
         .skip(1)
         .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_owned()))
         .collect())
