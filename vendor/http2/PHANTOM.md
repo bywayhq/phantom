@@ -223,6 +223,18 @@ charged. The configurable `data_frame_budget` builder option from #942 is not
 ported because Phantom does not expose it. The patch changes
 `src/proto/{mod,connection}.rs`, `src/proto/streams/{counts,mod,recv,streams}.rs`,
 and the builders in `src/{client,server}.rs`, and carries upstream's unit tests.
+It also ports #940's connection regressions from
+`tests/h2-tests/tests/stream_states.rs` into `src/client/tests.rs`, with a
+raw-frame peer in place of upstream's mock, because the published crate omits
+upstream's integration-test crate. Both run under the default 65,535-byte
+connection window, so the budget is 32,767 bytes and each charged one-byte
+frame costs 255. `many_small_final_data_frames_do_not_exhaust_budget` buffers
+one final DATA frame on each of 200 streams without reading them, and
+`dropping_buffered_data_frames_releases_budget` drops 200 bodies that still
+hold a buffered non-final frame. Each then requires the client to answer a
+PING without having sent GOAWAY. Charging final frames, or keeping a dropped
+body's charges, exhausts the budget and fails the corresponding test with
+`GOAWAY(ENHANCE_YOUR_CALM)`.
 Upstream's own dropped-`RecvStream` flow-control release (#930) is not part of
 this backport.
 

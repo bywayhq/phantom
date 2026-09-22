@@ -50,10 +50,10 @@ index 24a1225..62a8f37 100644
                  headers_stream_dependency: builder.headers_stream_dependency,
                  priorities: builder.priorities,
 diff --git a/src/client/tests.rs b/src/client/tests.rs
-index 5320c49..407c363 100644
+index 0b991cd..eed4059 100644
 --- a/src/client/tests.rs
 +++ b/src/client/tests.rs
-@@ -1296,3 +1296,70 @@ fn altsvc_payload(origin: &[u8], value: &[u8]) -> Vec<u8> {
+@@ -1460,3 +1460,70 @@ fn altsvc_payload(origin: &[u8], value: &[u8]) -> Vec<u8> {
      payload.extend_from_slice(value);
      payload
  }

@@ -12,6 +12,190 @@ index 07edc6e..a0b8ee4 100644
                  headers_pseudo_order: builder.headers_pseudo_order,
                  headers_stream_dependency: builder.headers_stream_dependency,
                  priorities: builder.priorities,
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index 5320c49..0b991cd 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -12,7 +12,7 @@ use std::{
+ };
+ 
+ use bytes::{BufMut, Bytes, BytesMut};
+-use http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Response, Version};
++use http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Response, StatusCode, Version};
+ use tokio::{
+     io::{duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf},
+     time::timeout,
+@@ -850,6 +850,170 @@ async fn client_rejects_server_enable_push_one_but_accepts_zero() {
+     .expect("server ENABLE_PUSH settings test timed out");
+ }
+ 
++// Ported from hyperium/h2 #940 (`c12d782`, tests/h2-tests/tests/stream_states.rs)
++// with a raw-frame peer in place of upstream's mock. Under the default 65,535
++// connection window the budget is 32,767 bytes and each one-byte DATA frame
++// that is charged costs 255, so 200 streams exhaust it unless final frames are
++// exempt and dropping a body releases its buffered charges.
++#[tokio::test]
++async fn many_small_final_data_frames_do_not_exhaust_budget() {
++    const NUM_STREAMS: u32 = 200;
++
++    timeout(Duration::from_secs(5), async {
++        let (client_io, mut peer) = duplex(64 * 1024);
++        let (mut client, connection) = super::handshake(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        accept_client_handshake(&mut peer).await;
++
++        let requests = tokio::spawn(async move {
++            let mut responses = Vec::new();
++            for _ in 0..NUM_STREAMS {
++                poll_fn(|cx| client.poll_ready(cx))
++                    .await
++                    .expect("sender never became ready");
++                responses.push(
++                    client
++                        .send_request(data_budget_request(), true)
++                        .expect("request was rejected")
++                        .0,
++                );
++            }
++
++            // Wait for every response without polling any response body. This
++            // ensures all final DATA frames can be buffered concurrently.
++            let mut received = Vec::new();
++            for response in responses {
++                received.push(response.await.expect("response headers failed"));
++            }
++            (client, received)
++        });
++
++        for i in 0..NUM_STREAMS {
++            read_request_headers(&mut peer, 1 + i * 2).await;
++        }
++        for i in 0..NUM_STREAMS {
++            let stream_id = 1 + i * 2;
++            // HEADERS with END_HEADERS and indexed `:status: 200`.
++            write_raw_frame(&mut peer, 1, 0x4, stream_id, &[0x88]).await;
++            write_raw_frame(&mut peer, 0, 0x1, stream_id, b"a").await;
++        }
++
++        // Keep the sender and bodies alive so the connection cannot idle-close
++        // before the liveness check.
++        let (_client, received) = requests.await.expect("request task panicked");
++        assert_eq!(received.len(), NUM_STREAMS as usize);
++        assert_connection_open(&mut peer).await;
++        driver.abort();
++    })
++    .await
++    .expect("final DATA frame budget test timed out");
++}
++
++#[tokio::test]
++async fn dropping_buffered_data_frames_releases_budget() {
++    const NUM_STREAMS: u32 = 200;
++
++    timeout(Duration::from_secs(5), async {
++        let (client_io, mut peer) = duplex(64 * 1024);
++        let (mut client, connection) = super::handshake(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        accept_client_handshake(&mut peer).await;
++
++        let requests = tokio::spawn(async move {
++            for _ in 0..NUM_STREAMS {
++                poll_fn(|cx| client.poll_ready(cx))
++                    .await
++                    .expect("sender never became ready");
++                let response = client
++                    .send_request(data_budget_request(), true)
++                    .expect("request was rejected")
++                    .0
++                    .await
++                    .expect("response headers failed");
++                assert_eq!(response.status(), StatusCode::CONFLICT);
++
++                let mut body = response.into_body();
++                while body.flow_control().used_capacity() < 2 {
++                    tokio::task::yield_now().await;
++                }
++                drop(body);
++            }
++            client
++        });
++
++        for i in 0..NUM_STREAMS {
++            let stream_id = 1 + i * 2;
++            read_request_headers(&mut peer, stream_id).await;
++            // HEADERS with END_HEADERS and `:status: 409` as a literal
++            // without indexing that names static-table entry 8.
++            write_raw_frame(
++                &mut peer,
++                1,
++                0x4,
++                stream_id,
++                &[0x08, 0x03, b'4', b'0', b'9'],
++            )
++            .await;
++            write_raw_frame(&mut peer, 0, 0, stream_id, b"a").await;
++            write_raw_frame(&mut peer, 0, 0x1, stream_id, b"b").await;
++        }
++
++        // Keep the sender alive so the connection cannot idle-close before
++        // the liveness check.
++        let _client = requests.await.expect("request task panicked");
++        assert_connection_open(&mut peer).await;
++        driver.abort();
++    })
++    .await
++    .expect("dropped DATA frame budget test timed out");
++}
++
++fn data_budget_request() -> Request<()> {
++    Request::builder()
++        .uri("https://http2.akamai.com/")
++        .body(())
++        .expect("static request must build")
++}
++
++/// Completes the peer side of the handshake with empty SETTINGS.
++async fn accept_client_handshake(peer: &mut DuplexStream) {
++    read_client_preface(peer).await;
++    let initial = read_raw_frame(peer).await;
++    assert_eq!((initial.kind, initial.flags), (4, 0));
++    write_raw_frame(peer, 4, 0, 0, &[]).await;
++    write_raw_frame(peer, 4, 1, 0, &[]).await;
++}
++
++/// Skips connection-level frames until the request HEADERS for `stream_id`.
++async fn read_request_headers(peer: &mut DuplexStream, stream_id: u32) {
++    loop {
++        let frame = read_raw_frame(peer).await;
++        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
++        if frame.kind == 1 {
++            assert_eq!(frame.stream_id, stream_id);
++            assert_eq!(frame.flags & 0x5, 0x5, "request must be one complete block");
++            return;
++        }
++    }
++}
++
++/// Proves the client still answers PING and has not sent GOAWAY.
++async fn assert_connection_open(peer: &mut DuplexStream) {
++    write_raw_frame(peer, 6, 0, 0, b"budget!!").await;
++    loop {
++        let frame = read_raw_frame(peer).await;
++        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
++        if frame.kind == 6 && frame.flags & 0x1 != 0 {
++            assert_eq!(frame.payload, b"budget!!");
++            return;
++        }
++    }
++}
++
+ struct RawFrame {
+     kind: u8,
+     flags: u8,
 diff --git a/src/proto/connection.rs b/src/proto/connection.rs
 index aa495d4..14fb831 100644
 --- a/src/proto/connection.rs
