@@ -517,7 +517,12 @@ fn inject_cookie(
                     HttpProtocol::Http1 => "Cookie",
                     HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
                 };
-                headers.push(RequestHeader::new(name, value).sensitive());
+                let index = client
+                    .inner
+                    .cookie_placement
+                    .insertion_index(headers.iter().map(RequestHeader::name))
+                    .unwrap_or(headers.len());
+                headers.insert(index, RequestHeader::new(name, value).sensitive());
             }
         }
     }

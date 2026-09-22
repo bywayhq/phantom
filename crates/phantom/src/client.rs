@@ -5,6 +5,8 @@ use phantom_net::{
     ServerAuthentication, http1::Http1TlsConnector, http1_or_2::Http1Or2TlsConnector,
     http2::Http2TlsConnector, http3::Http3Connector, proxy::HttpsProxyConnector,
 };
+#[cfg(feature = "cookies")]
+use phantom_profile::CookiePlacement;
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
 use phantom_profile::{ClientHintSettings, ClientProfile};
@@ -63,6 +65,9 @@ pub(crate) struct ClientInner {
     pub(crate) connect_udp_proxy: Option<ConnectUdpConnectors>,
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
     pub(crate) client_hints: Option<ClientHintSettings>,
+    /// Profile position of the jar's `Cookie` field.
+    #[cfg(feature = "cookies")]
+    pub(crate) cookie_placement: CookiePlacement,
     pub(crate) route: Route,
     /// Profile WebSocket templates and connection policy.
     #[cfg(feature = "websocket")]
@@ -744,6 +749,8 @@ impl ClientBuilder {
             connect_udp_proxy,
             https_proxy,
             client_hints,
+            #[cfg(feature = "cookies")]
+            cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
             #[cfg(feature = "websocket")]
             websocket: self.profile.websocket().cloned(),

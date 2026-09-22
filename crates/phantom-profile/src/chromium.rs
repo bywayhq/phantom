@@ -2,6 +2,7 @@
 
 use crate::{
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
+    cookie::CookiePlacement,
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
     http3::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
@@ -436,6 +437,19 @@ pub fn v153_windows_client_hints() -> ClientHintSettings {
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
     ])
+}
+
+/// Returns the automatic `Cookie` field position for Chrome 153.
+///
+/// Chrome appends `Cookie` after every other request field it builds
+/// (`URLRequestHttpJob` sets it last in the extra headers). The retained
+/// Chrome 153 HTTP/1.1 EventSource reconnect capture sends it last. For H2 and
+/// H3, Chromium's `CreateSpdyHeadersFromHttpRequest` copies those fields in
+/// order and then appends `priority`, so `Cookie` precedes a `priority` field.
+/// That H2 and H3 position comes from Chromium source, not from a capture.
+#[must_use]
+pub fn v153_cookie_placement() -> CookiePlacement {
+    CookiePlacement::before_fields(["priority"])
 }
 
 /// Returns TLS settings captured from Chrome 153.0.8010.48 on Windows 11.

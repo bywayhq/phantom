@@ -27,7 +27,7 @@ use http::{HeaderMap, Request, Response, StatusCode, header::COOKIE, header::SET
 use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, HttpProtocol, HttpProxy, RedirectPolicy, RequestHeader, Route,
-    profile::ClientProfile, profile::chromium,
+    profile::ClientProfile, profile::CookiePlacement, profile::chromium, profile::firefox,
 };
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
@@ -466,6 +466,89 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut requests = Vec::new();
+            for _ in 0..2 {
+                let mut stream = accept_tls(&listener, &acceptor).await?;
+                requests.push(read_head(&mut stream).await?);
+                write_http1_response(&mut stream, &[]).await?;
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
+        });
+
+        let url = format!("https://{address}/");
+        let caller_fields = || {
+            vec![
+                RequestHeader::new("User-Agent", "test"),
+                RequestHeader::new("Referer", "https://example.test/"),
+                RequestHeader::new("Sec-Fetch-Dest", "empty"),
+                RequestHeader::new("Priority", "u=4"),
+            ]
+        };
+        for placement in [firefox::v156_cookie_placement(), CookiePlacement::last()] {
+            let profile = ClientProfile::new(tls_settings()).with_cookie_placement(placement);
+            let client = Client::builder(profile)
+                .add_root_certificate_der(identity.root_der.clone())
+                .build()?;
+            let session = client.session_builder().cookies().build()?;
+            session
+                .cookie_jar()
+                .ok_or("cookie jar was disabled")?
+                .set_cookie(&url, "sid=1")?;
+            let response = session
+                .get(HttpProtocol::Http1, &url)?
+                .headers(caller_fields())
+                .send()
+                .await?;
+            response.into_body().collect().await?;
+        }
+
+        let requests = server.await??;
+        assert_eq!(
+            field_names(&requests[0])?,
+            [
+                "Host",
+                "User-Agent",
+                "Referer",
+                "Cookie",
+                "Sec-Fetch-Dest",
+                "Priority"
+            ]
+        );
+        assert_eq!(
+            field_names(&requests[1])?,
+            [
+                "Host",
+                "User-Agent",
+                "Referer",
+                "Sec-Fetch-Dest",
+                "Priority",
+                "Cookie"
+            ]
+        );
+        Ok(())
+    })
+    .await
+}
+
+fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
+    Ok(std::str::from_utf8(head)?
+        .split(
+            "
+",
+        )
+        .skip(1)
+        .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_owned()))
+        .collect())
 }
 
 fn cookie_client(identity: &TestIdentity) -> TestResult<Client> {

@@ -75,6 +75,29 @@ The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
 ordering rules. Its default limits are listed in
 [Defaults and limits](../reference/limits.md#cookies).
 
+### Cookie field position
+
+The jar's field is named `Cookie` on HTTP/1.1 and `cookie` on H2 and H3, and
+the profile's `CookiePlacement` positions it among the caller's fields. By
+default it goes last. `CookiePlacement::before_fields` names the fields it
+precedes: the field goes before the first of them present, else last.
+
+| Recipe | Goes before | Evidence |
+| --- | --- | --- |
+| `chromium::v153_cookie_placement` | `priority` | Chrome 153 H1 capture (last); Chromium source for the H2 and H3 `priority` field |
+| `firefox::v156_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` | Firefox 156 H1 capture (after `Referer`, before `Sec-Fetch-Dest`); Firefox source for the rest |
+
+The captures are the EventSource reconnect requests in
+`fixtures/sse/*/windows-11-26200/set-cookie-then-close.txt`. No retained H2 or
+H3 capture carries a cookie, so those positions are unverified on the wire.
+Chrome's H2 and H3 encoders and Firefox's H2 encoder also split `cookie` into
+one field per cookie (quiche `HpackEncoder::CookieToCrumbs` and
+`ValueSplittingHeaderList`, Firefox `Http2Compressor`); Phantom sends one
+field. A caller-supplied `Cookie` field keeps its
+own position and suppresses the jar's field.
+
+Set it with `ClientProfile::with_cookie_placement`.
+
 ### Request context
 
 The jar treats every request as a user-initiated top-level navigation to the

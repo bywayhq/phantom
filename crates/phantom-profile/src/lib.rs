@@ -2,6 +2,7 @@
 
 pub mod chromium;
 pub mod client_hints;
+pub mod cookie;
 pub mod edge;
 pub mod firefox;
 pub mod http2;
@@ -18,6 +19,7 @@ pub use client::{ClientProfile, Http3ClientSettings};
 pub use client_hints::{
     ClientHint, ClientHintDelivery, ClientHintSettings, InvalidClientHintSettings,
 };
+pub use cookie::CookiePlacement;
 pub use http2::{
     Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,
 };

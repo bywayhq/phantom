@@ -280,7 +280,9 @@ Supported:
   Chromium-style least-recently-used eviction, and explicit activation. It
   stores `SameSite` and `Partitioned` cookies and sends them as for a
   user-initiated top-level navigation. It rejects insecure `SameSite=None`,
-  insecure `Partitioned`, and `Secure`-over-`http://` cookies. See
+  insecure `Partitioned`, and `Secure`-over-`http://` cookies. The jar's
+  `Cookie` field goes where the profile's `CookiePlacement` puts it, with
+  Chrome 153 and Firefox 156 recipes. See
   [Cookies](../guides/connections-and-state.md#cookies).
 - Profile-defined client-hint fields with bounded exact-origin response
   `Accept-CH` state, connection-scoped H2/H3 ALPS `ACCEPT_CH`, and one bounded

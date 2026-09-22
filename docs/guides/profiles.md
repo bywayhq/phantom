@@ -21,6 +21,7 @@ are added with builder methods:
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and their delivery rules |
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
+| `with_cookie_placement(placement)` | Position of the cookie jar's `Cookie` field; last by default ([details](connections-and-state.md#cookie-field-position)) |
 
 A request fails before I/O when the profile lacks a component that the request
 needs.
@@ -29,9 +30,10 @@ needs.
 use phantom::profile::{chromium, edge, firefox, ClientProfile, Http3ClientSettings};
 
 fn profiles() -> [ClientProfile; 2] {
-    // Firefox 156: TLS and HTTP/2 recipes.
+    // Firefox 156: TLS, HTTP/2, and cookie-field recipes.
     let firefox = ClientProfile::new(firefox::v156_tls())
-        .with_http2(firefox::v156_http2());
+        .with_http2(firefox::v156_http2())
+        .with_cookie_placement(firefox::v156_cookie_placement());
 
     // Edge 153: its own TLS and client hints; H2, QUIC, and H3 match Chrome 153.
     let edge = ClientProfile::new(edge::v153_tls())

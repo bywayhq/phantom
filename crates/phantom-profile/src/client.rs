@@ -1,8 +1,8 @@
 //! Protocol settings grouped for client construction.
 
 use crate::{
-    ClientHintSettings, Http2Settings, Http3RequestSettings, Http3Settings, TlsSettings,
-    WebSocketSettings, quic::QuicTransportSettings,
+    ClientHintSettings, CookiePlacement, Http2Settings, Http3RequestSettings, Http3Settings,
+    TlsSettings, WebSocketSettings, quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -64,6 +64,7 @@ pub struct ClientProfile {
     http3: Option<Http3ClientSettings>,
     client_hints: Option<ClientHintSettings>,
     websocket: Option<WebSocketSettings>,
+    cookie_placement: CookiePlacement,
 }
 
 impl ClientProfile {
@@ -76,6 +77,7 @@ impl ClientProfile {
             http3: None,
             client_hints: None,
             websocket: None,
+            cookie_placement: CookiePlacement::last(),
         }
     }
 
@@ -107,6 +109,13 @@ impl ClientProfile {
         self
     }
 
+    /// Sets where the automatic `Cookie` request field goes.
+    #[must_use]
+    pub fn with_cookie_placement(mut self, cookie_placement: CookiePlacement) -> Self {
+        self.cookie_placement = cookie_placement;
+        self
+    }
+
     /// Returns the profile's TLS settings.
     #[must_use]
     pub fn tls(&self) -> &TlsSettings {
@@ -135,6 +144,12 @@ impl ClientProfile {
     #[must_use]
     pub fn websocket(&self) -> Option<&WebSocketSettings> {
         self.websocket.as_ref()
+    }
+
+    /// Returns where the automatic `Cookie` request field goes.
+    #[must_use]
+    pub fn cookie_placement(&self) -> &CookiePlacement {
+        &self.cookie_placement
     }
 }
 

@@ -1,6 +1,7 @@
 //! Wire settings retained from Firefox browser observations.
 
 use crate::{
+    cookie::CookiePlacement,
     http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
@@ -10,6 +11,30 @@ use crate::{
         WebSocketConnectionPolicy, WebSocketField, WebSocketNewConnection, WebSocketSettings,
     },
 };
+
+/// Returns the automatic `Cookie` field position for Firefox 156.
+///
+/// Firefox adds `Cookie` in `nsHttpChannel::PrepareToConnect`, then
+/// `Upgrade-Insecure-Requests` and the `Sec-Fetch-*` fields in
+/// `OnBeforeConnect`, and `Priority`, `Pragma`, and `Cache-Control` in
+/// `SetupChannelForTransaction`; its HTTP/2 compressor appends `te` last. The
+/// retained Firefox 156 HTTP/1.1 EventSource reconnect capture sends `Cookie`
+/// after `Referer` and before `Sec-Fetch-Dest`. The other neighbors come from
+/// Firefox source, not from a capture.
+#[must_use]
+pub fn v156_cookie_placement() -> CookiePlacement {
+    CookiePlacement::before_fields([
+        "upgrade-insecure-requests",
+        "sec-fetch-dest",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "sec-fetch-user",
+        "priority",
+        "pragma",
+        "cache-control",
+        "te",
+    ])
+}
 
 /// Returns TLS settings captured from Firefox 154.0 on macOS 15.5 and Windows 11.
 ///
