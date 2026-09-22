@@ -147,6 +147,11 @@ work has exposed the real architectural boundaries.
   genuinely distinct, and consolidate fragments that obscure one concept.
 - Require behavior-preserving refactors to retain wire fixtures, public API
   contracts, diagnostics, cancellation behavior, and the full validation gates.
+- Audit the tooling from first principles: capture and conformance scripts,
+  CI and release scripts, development helpers, GitHub workflows, and agent
+  configuration. Remove what no gate or workflow uses, merge overlapping
+  tools, give each one clear entry points and help text, follow each
+  language's idioms, and keep the documented commands in step with CI.
 
 ## Completed foundation
 
