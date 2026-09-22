@@ -99,6 +99,11 @@ work has exposed the real architectural boundaries.
   not merge. Sibling clients apply an order as a sort at encode time and
   leave unnamed caller fields in hash order; Phantom keeps the caller's own
   order for fields the template does not name.
+- Close the gaps callers expect from an HTTP client, in this order: caller-owned
+  cookie-jar export and import beside the Alt-Svc snapshot API; host-to-address
+  overrides, a caller resolver, and DNS over HTTPS where the captured browser
+  uses it; a source address or interface binding; client certificates; and one
+  narrow request hook rather than a middleware framework.
 - Functionality proposed for after the Phase 1 exit, each starting from a
   proposal with acceptance criteria and capture evidence:
   - Chrome for Android recipes from Android emulator captures.
