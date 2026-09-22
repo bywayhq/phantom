@@ -61,7 +61,7 @@ expect "$code" README.md docs/guides/client.md Cargo.lock
 # documentation-only change to it would otherwise skip the jobs that build
 # it. The scanner prints one tab-separated line per include:
 #   file <path> <location>      a fully resolved repository path
-#   prefix <path> <location>    the literal prefix before a macro variable
+#   prefix <path> <location>    the literal prefix before a macro argument
 #   unresolved <location>       a form this scanner cannot resolve
 # shellcheck disable=SC2016 # Perl source, not shell.
 include_scanner='
@@ -130,7 +130,7 @@ while (my $file = <STDIN>) {
       $base = parent($file);
       $relative = "";
       my $first = 1;
-      while ($items =~ /\G\s*(env!\s*\(\s*"CARGO_MANIFEST_DIR"\s*\)|$string|\$[A-Za-z_]\w*)\s*(?:,|$)/gc) {
+      while ($items =~ /\G\s*(env!\s*\(\s*"CARGO_MANIFEST_DIR"\s*\)|$string|\$[A-Za-z_]\w*|\$\((?s:.*))\s*(?:,|$)/gc) {
         my $item = $1;
         if ($item =~ /^env!/) {
           $base = $first ? manifest_dir(parent($file)) : undef;
