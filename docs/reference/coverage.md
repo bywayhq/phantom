@@ -522,8 +522,9 @@ Request templates:
 - The Chrome `User-Agent` value comes from the headful launch-mode SSE
   capture; the other Chrome and Edge captures ran headless. Edge templates
   leave `User-Agent` to the caller.
-- The H1 captures used plaintext loopback origins. The fetch templates'
-  placement of hints requested through `Accept-CH` is not captured.
+- The H1 captures used plaintext loopback origins. Where a `fetch` places
+  hints requested through `Accept-CH` is not captured, so the fetch
+  templates refuse to send them.
 - Not reproduced: the position of an automatic `Cookie` field.
 
 Randomized fields:

@@ -107,8 +107,9 @@ impl Http2Pool {
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
-        let prepared_validation_headers =
-            client_hints.map(|context| context.prepare(headers.clone(), None));
+        let prepared_validation_headers = client_hints
+            .map(|context| context.prepare(headers.clone(), None))
+            .transpose()?;
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
         validate_request_body_source_with_trailers(
             &method,
@@ -144,15 +145,13 @@ impl Http2Pool {
                 .await?;
             let response_timeout =
                 timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
-            let sent_headers = client_hints.map_or_else(
-                || headers.clone(),
-                |context| {
-                    context.prepare(
-                        headers.clone(),
-                        lease.connection.accept_ch_for_origin(context.origin()),
-                    )
-                },
-            );
+            let sent_headers = match client_hints {
+                Some(context) => context.prepare(
+                    headers.clone(),
+                    lease.connection.accept_ch_for_origin(context.origin()),
+                )?,
+                None => headers.clone(),
+            };
             let result = response_timeout
                 .run(async {
                     Ok::<_, RequestError>(

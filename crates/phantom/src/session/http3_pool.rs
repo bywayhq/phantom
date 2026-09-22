@@ -676,8 +676,9 @@ fn validate_wire(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<&RequestBody>,
 ) -> Result<(), RequestError> {
-    let prepared_validation_headers =
-        client_hints.map(|context| context.prepare(headers.to_vec(), None));
+    let prepared_validation_headers = client_hints
+        .map(|context| context.prepare(headers.to_vec(), None))
+        .transpose()?;
     let validation_headers = prepared_validation_headers.as_deref().unwrap_or(headers);
     connector
         .validate_request_body_source_with_trailers(
@@ -714,7 +715,7 @@ async fn dispatch(
         Some(context) => context.prepare(
             headers,
             lease.connection.accept_ch_for_origin(context.origin()),
-        ),
+        )?,
         None => headers,
     };
     let result = timeout_budget

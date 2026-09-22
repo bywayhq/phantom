@@ -156,7 +156,11 @@ impl RequestBuilder {
     /// Sending fails before I/O with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
     /// when the template is invalid or lacks an HTTP/3 list for a request that
-    /// may use HTTP/3, and with
+    /// may use HTTP/3, and before the request is sent on a connection when a
+    /// client hint requested through `Accept-CH` or ALPS `ACCEPT_CH`, or
+    /// supplied by the caller, would be sent with a template whose
+    /// [`requested_client_hint_placement`](crate::profile::RequestTemplate::requested_client_hint_placement)
+    /// is `false`. It fails before I/O with
     /// [`RequestErrorKind::IdentityMismatch`](crate::RequestErrorKind::IdentityMismatch)
     /// when a caller `User-Agent`, a caller `sec-ch-ua` or
     /// `sec-ch-ua-full-version-list`, or the profile's value of those hints

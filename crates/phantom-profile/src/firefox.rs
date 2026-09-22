@@ -398,6 +398,7 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
             weight: 42,
             exclusive: false,
         }),
+        requested_client_hint_placement: false,
     }
 }
 
@@ -451,6 +452,7 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             weight: 22,
             exclusive: false,
         }),
+        requested_client_hint_placement: false,
     }
 }
 

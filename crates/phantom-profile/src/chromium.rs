@@ -655,9 +655,10 @@ pub fn v153_windows_navigation_template() -> RequestTemplate {
 /// Unlike a navigation, the default client hints are split:
 /// `sec-ch-ua-platform` precedes `User-Agent`, and `sec-ch-ua` and
 /// `sec-ch-ua-mobile` follow it. Where Chrome puts hints requested through
-/// `Accept-CH` on such a request is not captured; this template places them
-/// after `sec-ch-ua-mobile`. `Referer` is a caller slot because its value is
-/// the page URL. The `User-Agent` value matches
+/// `Accept-CH` on such a request is not captured, so
+/// [`RequestTemplate::requested_client_hint_placement`] is `false` and the
+/// `phantom` client refuses to send a requested hint with this template.
+/// `Referer` is a caller slot because its value is the page URL. The `User-Agent` value matches
 /// [`v153_windows_navigation_template`].
 #[must_use]
 pub fn v153_windows_fetch_no_store_template() -> RequestTemplate {
@@ -719,6 +720,7 @@ pub(crate) fn v153_navigation_template(
             weight: 256,
             exclusive: true,
         }),
+        requested_client_hint_placement: true,
     }
 }
 
@@ -773,6 +775,7 @@ pub(crate) fn v153_fetch_no_store_template(
             weight: 220,
             exclusive: true,
         }),
+        requested_client_hint_placement: false,
     }
 }
 

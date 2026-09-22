@@ -359,6 +359,22 @@ fn firefox_156_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()
 }
 
 #[test]
+fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
+    // The client-hint capture recorded Chrome and Edge navigations after
+    // `Accept-CH`; no capture recorded a fetch after it.
+    for (template, placed) in [
+        (chromium::v153_windows_navigation_template(), true),
+        (edge::v153_windows_navigation_template(), true),
+        (chromium::v153_windows_fetch_no_store_template(), false),
+        (edge::v153_windows_fetch_no_store_template(), false),
+        (firefox::v156_windows_navigation_template(), false),
+        (firefox::v156_windows_fetch_no_store_template(), false),
+    ] {
+        assert_eq!(template.requested_client_hint_placement, placed);
+    }
+}
+
+#[test]
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
     let cases: [(RequestTemplate, &[&str], &str, u16); 6] = [
         (

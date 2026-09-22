@@ -100,9 +100,10 @@ pub fn v153_windows_navigation_template() -> RequestTemplate {
 /// The order and values match [`chromium::v153_windows_fetch_no_store_template`]
 /// on HTTP/1.1 and HTTP/2, including the captured HTTP/2 HEADERS priority
 /// weight 220 that differs from the navigation's 256, with `User-Agent` as a
-/// caller slot for the reason
-/// given in [`v153_windows_navigation_template`]. No capture backs this
-/// request kind on HTTP/3.
+/// caller slot for the reason given in [`v153_windows_navigation_template`].
+/// No capture backs this request kind on HTTP/3. As with Chrome, no capture
+/// shows where hints requested through `Accept-CH` go on a fetch, so a
+/// requested hint cannot be sent with this template.
 #[must_use]
 pub fn v153_windows_fetch_no_store_template() -> RequestTemplate {
     chromium::v153_fetch_no_store_template(None, v153_identity())

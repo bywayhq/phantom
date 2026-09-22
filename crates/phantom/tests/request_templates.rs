@@ -479,6 +479,27 @@ async fn edge_template_without_a_user_agent_fails_before_any_connection() -> Tes
 }
 
 #[tokio::test]
+async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> TestResult<()> {
+    let profile = ClientProfile::new(tls_settings())
+        .with_http2(chromium::v153_http2())
+        .with_client_hints(chromium::v153_windows_client_hints());
+    let client = Client::builder(profile).build()?;
+    // Nothing listens here; an attempted connection would fail differently.
+    let url = "https://127.0.0.1:9/";
+    let error = client
+        .get(HttpProtocol::Http2, url)?
+        .template(chromium::v153_windows_fetch_no_store_template())
+        .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
+        .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
+        .send()
+        .await
+        .err()
+        .ok_or("a requested hint was sent at an uncaptured fetch position")?;
+    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+    Ok(())
+}
+
+#[tokio::test]
 async fn template_without_http3_order_rejects_http3_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
     let client = Client::builder(profile).build()?;

@@ -641,7 +641,7 @@ async fn dispatch_attempt(
                 .http1
                 .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
-            let sent_headers = prepare_headers(client_hints, request_headers, None);
+            let sent_headers = prepare_headers(client_hints, request_headers, None)?;
             let mut headers = Vec::with_capacity(sent_headers.len() + 1);
             headers.push(RequestHeader::new(
                 "Host",
@@ -759,9 +759,9 @@ fn prepare_headers(
     client_hints: Option<ClientHintContext<'_>>,
     headers: Vec<RequestHeader>,
     connection_accept_ch: Option<&[u8]>,
-) -> Vec<RequestHeader> {
+) -> Result<Vec<RequestHeader>, RequestError> {
     match client_hints {
         Some(context) => context.prepare(headers, connection_accept_ch),
-        None => headers,
+        None => Ok(headers),
     }
 }

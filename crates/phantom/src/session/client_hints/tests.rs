@@ -7,7 +7,7 @@ use phantom_profile::{ClientHint, ClientHintDelivery, ClientHintSettings};
 use super::{
     ClientHintContext, ClientHintStore, OriginKey, parse_token_list, prepare_default_fields,
 };
-use crate::authority::Endpoint;
+use crate::{RequestError, authority::Endpoint};
 
 fn settings() -> ClientHintSettings {
     ClientHintSettings::new(vec![
@@ -161,7 +161,7 @@ fn unknown_only_replacement_clears_previous_preferences() {
 }
 
 #[test]
-fn connection_preferences_augment_session_state_without_persisting() {
+fn connection_preferences_augment_session_state_without_persisting() -> Result<(), RequestError> {
     let store = ClientHintStore::new(NonZeroUsize::MIN);
     let endpoint = endpoint("example.test");
     let settings = settings();
@@ -175,7 +175,7 @@ fn connection_preferences_augment_session_state_without_persisting() {
     let prepared = context.prepare(
         vec![RequestHeader::new("Sec-CH-UA-Platform-Version", "caller")],
         Some(b"Sec-CH-UA-Platform-Version, Sec-CH-Unknown"),
-    );
+    )?;
     assert_eq!(
         prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
         ["sec-ch-ua", "sec-ch-ua-arch", "Sec-CH-UA-Platform-Version"]
@@ -185,7 +185,7 @@ fn connection_preferences_augment_session_state_without_persisting() {
         Some(b"caller".as_slice())
     );
 
-    let without_connection = context.prepare(Vec::new(), None);
+    let without_connection = context.prepare(Vec::new(), None)?;
     assert_eq!(
         without_connection
             .iter()
@@ -193,10 +193,11 @@ fn connection_preferences_augment_session_state_without_persisting() {
             .collect::<Vec<_>>(),
         ["sec-ch-ua", "sec-ch-ua-arch"]
     );
+    Ok(())
 }
 
 #[test]
-fn empty_or_malformed_connection_value_does_not_clear_session_state() {
+fn empty_or_malformed_connection_value_does_not_clear_session_state() -> Result<(), RequestError> {
     let store = ClientHintStore::new(NonZeroUsize::MIN);
     let endpoint = endpoint("example.test");
     let settings = settings();
@@ -208,12 +209,13 @@ fn empty_or_malformed_connection_value_does_not_clear_session_state() {
         ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
 
     for value in [&b""[..], &b"\xff"[..], &b"\"not-a-token\""[..]] {
-        let prepared = context.prepare(Vec::new(), Some(value));
+        let prepared = context.prepare(Vec::new(), Some(value))?;
         assert_eq!(
             prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
             ["sec-ch-ua", "sec-ch-ua-arch"]
         );
     }
+    Ok(())
 }
 
 mod template_slots {
@@ -282,7 +284,9 @@ mod template_slots {
                 "accept"
             ]
         );
-        // Hints requested through Accept-CH follow `sec-ch-ua-mobile`.
+        // Slot placement puts requested hints after `sec-ch-ua-mobile`; no
+        // capture backs that, so the client refuses to send them with this
+        // template (see `requested_hints_fail_without_a_captured_position`).
         let requested = prepared(&template, false, &hints, &[], Some(ALL_REQUESTED));
         assert_eq!(requested[6], "sec-ch-ua-full-version");
         assert_eq!(requested[14], "accept");
@@ -303,6 +307,62 @@ mod template_slots {
                 "sec-ch-ua-mobile",
                 "Accept"
             ]
+        );
+    }
+
+    #[test]
+    fn requested_hints_fail_without_a_captured_position() {
+        use std::num::NonZeroUsize;
+
+        use http::{HeaderMap, HeaderValue};
+
+        use super::super::{ClientHintContext, ClientHintStore};
+        use crate::RequestErrorKind;
+
+        let hints = chromium::v153_windows_client_hints();
+        let fetch = chromium::v153_windows_fetch_no_store_template();
+        let navigation = chromium::v153_windows_navigation_template();
+        let endpoint = super::endpoint("example.test");
+        let origin = "https://example.test";
+        let store = ClientHintStore::new(NonZeroUsize::MIN);
+        let context = |template| {
+            ClientHintContext::new(&endpoint, origin, &hints, Some(&store))
+                .with_template(Some(template))
+        };
+        let kind = |result: Result<Vec<RequestHeader>, crate::RequestError>| {
+            result.err().map(|error| error.kind())
+        };
+        let fields = expand(&fetch.http2_fields, &[], Some(&hints));
+
+        // Default hints alone are the captured fetch shape.
+        assert_eq!(kind(context(&fetch).prepare(fields.clone(), None)), None);
+
+        // A hint requested through ALPS ACCEPT_CH, or supplied by the caller.
+        assert_eq!(
+            kind(context(&fetch).prepare(fields.clone(), Some(b"Sec-CH-UA-Arch"))),
+            Some(RequestErrorKind::RequestTemplate)
+        );
+        let caller = [RequestHeader::new("sec-ch-ua-arch", "\"x86\"")];
+        let with_caller = expand(&fetch.http2_fields, &caller, Some(&hints));
+        assert_eq!(
+            kind(context(&fetch).prepare(with_caller, None)),
+            Some(RequestErrorKind::RequestTemplate)
+        );
+
+        // A hint the origin requested through a response `Accept-CH`.
+        let mut learned = HeaderMap::new();
+        learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
+        store.learn_and_should_retry(&endpoint, &hints, &learned, &[]);
+        assert_eq!(
+            kind(context(&fetch).prepare(fields, None)),
+            Some(RequestErrorKind::RequestTemplate)
+        );
+
+        // The navigation capture shows where requested hints go.
+        let navigation_fields = expand(&navigation.http2_fields, &[], Some(&hints));
+        assert_eq!(
+            kind(context(&navigation).prepare(navigation_fields, Some(b"Sec-CH-UA-Model"))),
+            None
         );
     }
 

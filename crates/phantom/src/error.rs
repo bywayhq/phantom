@@ -239,8 +239,9 @@ pub enum RequestErrorKind {
     AuthorityHeader,
     /// A request field is not valid for the selected operation.
     InvalidHeader,
-    /// The request template is invalid or has no field order for a protocol
-    /// the request may use.
+    /// The request template is invalid, has no field order for a protocol
+    /// the request may use, or has no captured position for a client hint the
+    /// request would send.
     RequestTemplate,
     /// The request's identity fields disagree with the request template: a
     /// `User-Agent` or brand-list client hint names another browser or
@@ -467,6 +468,14 @@ impl RequestError {
         Self::without_source(
             RequestErrorKind::RequestTemplate,
             "the request template has no HTTP/3 field order for a request that may use HTTP/3",
+        )
+    }
+
+    pub(crate) fn request_template_requested_hint() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "the request template has no captured position for client hints requested \
+             through Accept-CH",
         )
     }
 

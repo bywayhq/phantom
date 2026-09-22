@@ -151,6 +151,13 @@ pub struct RequestTemplate {
     /// depend on stream 0, because a request's own stream ID is not known
     /// before it is sent.
     pub http2_priority: Option<Http2Priority>,
+    /// Whether a capture shows where this request kind places client hints
+    /// that an origin requested through `Accept-CH`.
+    ///
+    /// When `false`, the template's client-hint slots are backed only for
+    /// hints the profile sends by default, and a client must refuse to send a
+    /// requested hint with it rather than guess a position.
+    pub requested_client_hint_placement: bool,
 }
 
 impl RequestTemplate {

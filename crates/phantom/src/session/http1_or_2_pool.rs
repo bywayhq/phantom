@@ -527,7 +527,7 @@ impl PoolEntry {
                     http2_headers,
                     client_hints
                         .and_then(|context| connection.accept_ch_for_origin(context.origin())),
-                );
+                )?;
                 let result = timeout_budget
                     .run(
                         TimeoutPhase::ResponseHead,
@@ -677,8 +677,8 @@ pub(crate) fn validate_request(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<&RequestBody>,
 ) -> Result<(Vec<RequestHeader>, Vec<RequestHeader>), RequestError> {
-    let http1_sent_headers = prepare_headers(client_hints, http1_headers, None);
-    let http2_validation_headers = prepare_headers(client_hints, http2_headers.to_vec(), None);
+    let http1_sent_headers = prepare_headers(client_hints, http1_headers, None)?;
+    let http2_validation_headers = prepare_headers(client_hints, http2_headers.to_vec(), None)?;
     let mut http1_wire_headers = Vec::with_capacity(http1_sent_headers.len() + 1);
     http1_wire_headers.push(RequestHeader::new(
         "Host",
@@ -808,10 +808,10 @@ fn prepare_headers(
     client_hints: Option<ClientHintContext<'_>>,
     headers: Vec<RequestHeader>,
     connection_accept_ch: Option<&[u8]>,
-) -> Vec<RequestHeader> {
+) -> Result<Vec<RequestHeader>, RequestError> {
     match client_hints {
         Some(context) => context.prepare(headers, connection_accept_ch),
-        None => headers,
+        None => Ok(headers),
     }
 }
 

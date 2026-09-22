@@ -30,11 +30,15 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry, Client,
-    HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseInfo, Route, Socks5Proxy,
-    TimeoutPhase,
+    HttpProtocol, RequestErrorKind, RequestHeader, RequestTimeouts, ResponseInfo, Route,
+    Socks5Proxy, TimeoutPhase,
     profile::{ClientProfile, chromium},
 };
-use tokio::{net::UdpSocket, task::JoinHandle, time::timeout};
+use tokio::{
+    net::{TcpListener, UdpSocket},
+    task::JoinHandle,
+    time::timeout,
+};
 
 use h3_support::client_settings;
 use http3_upgrade_support::{
@@ -641,6 +645,56 @@ async fn race_never_changes_route() -> TestResult<()> {
             .ok_or("the alternative saw no request")?;
         assert_eq!(request.authority.as_deref(), Some(authority.as_str()));
         assert_eq!(request.server_name.as_deref(), Some(ORIGIN_NAME));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn race_refuses_an_unplaceable_requested_hint_before_either_candidate_connects()
+-> TestResult<()> {
+    bounded(async {
+        let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_port = origin.local_addr()?.port();
+        let origin_connections = Arc::new(AtomicUsize::new(0));
+        let accepted = Arc::clone(&origin_connections);
+        let origin_task = tokio::spawn(async move {
+            while origin.accept().await.is_ok() {
+                accepted.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+        let alternative = Blackhole::bind().await?;
+        let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
+        let client =
+            Client::builder(profile().with_client_hints(chromium::v153_windows_client_hints()))
+                .alt_svc(maximum_origins)
+                .alt_svc_policy(race_policy(Duration::ZERO)?)
+                .build()?;
+        client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
+            format!("https://{ORIGIN_NAME}:{origin_port}"),
+            ALTERNATIVE_HOST,
+            alternative.port,
+            SystemTime::now() + Duration::from_secs(3600),
+        )]))?;
+
+        // The template has a list for every protocol the race may use but no
+        // captured position for a requested hint.
+        let mut template = chromium::v153_windows_navigation_template();
+        template.requested_client_hint_placement = false;
+        let error = client
+            .get_negotiated(&format!("https://{ORIGIN_NAME}:{origin_port}/refused"))?
+            .template(template)
+            .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
+            .send()
+            .await
+            .err()
+            .ok_or("a requested hint was sent at an uncaptured position")?;
+        assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+
+        drop(client);
+        origin_task.abort();
+        assert_eq!(origin_connections.load(Ordering::SeqCst), 0);
+        assert_eq!(alternative.datagrams(), 0);
         Ok(())
     })
     .await

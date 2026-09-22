@@ -13,7 +13,7 @@ use phantom_profile::{
 use sfv::{BareItem, List, ListEntry, Parser};
 use tracing::debug;
 
-use crate::authority::Endpoint;
+use crate::{RequestError, authority::Endpoint};
 
 const ACCEPT_CH: HeaderName = HeaderName::from_static("accept-ch");
 const CRITICAL_CH: HeaderName = HeaderName::from_static("critical-ch");
@@ -53,11 +53,18 @@ impl<'a> ClientHintContext<'a> {
         self.origin
     }
 
+    /// Adds the enabled client hints to `caller`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a request-template error when the template does not capture
+    /// where requested hints go and a hint requested through `Accept-CH` or
+    /// ALPS `ACCEPT_CH`, or supplied by the caller, would be sent.
     pub(crate) fn prepare(
         self,
         caller: Vec<RequestHeader>,
         connection_accept_ch: Option<&[u8]>,
-    ) -> Vec<RequestHeader> {
+    ) -> Result<Vec<RequestHeader>, RequestError> {
         let stored = self
             .store
             .and_then(|store| store.active_indices(&OriginKey::new(self.endpoint)));
@@ -74,14 +81,31 @@ impl<'a> ClientHintContext<'a> {
                 None
             }
         });
-        prepare_fields(
+        let prepared = prepare_fields(
             self.settings,
             stored.as_deref(),
             connection.as_deref(),
             caller,
             self.template,
-        )
+        );
+        let unplaced = self
+            .template
+            .is_some_and(|template| !template.requested_client_hint_placement);
+        if unplaced && sends_requested_hint(self.settings, &prepared) {
+            return Err(RequestError::request_template_requested_hint());
+        }
+        Ok(prepared)
     }
+}
+
+/// Returns whether `fields` carry a hint the profile sends only on request.
+fn sends_requested_hint(settings: &ClientHintSettings, fields: &[RequestHeader]) -> bool {
+    fields.iter().any(|field| {
+        settings.hints().iter().any(|hint| {
+            hint.delivery() != ClientHintDelivery::Default
+                && hint.name().eq_ignore_ascii_case(field.name())
+        })
+    })
 }
 
 pub(super) struct ClientHintStore {
