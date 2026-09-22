@@ -48,8 +48,11 @@
 //! No feature is enabled by default. QUIC qlog and NSS key logging are
 //! features of internal crates and are not exposed here.
 //!
-//! The repository guides (`docs/guides/client.md`, `docs/reference/coverage.md`) describe the
-//! supported protocol, route, and state combinations in detail.
+//! # Further reading
+//!
+//! The repository's `docs/` directory holds task guides (client, profiles,
+//! routes and proxies, retries, HTTP/3 and Alt-Svc, content decoding, SSE, and
+//! WebSocket) and `docs/reference/coverage.md`, the detailed support contract.
 
 // Compile-check the Rust examples in the repository guides as doctests.
 #[cfg(doctest)]
@@ -63,6 +66,26 @@ struct GettingStartedDoctests;
 #[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/client.md")]
 struct ClientGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/profiles.md")]
+struct ProfilesGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/routes-and-proxies.md")]
+struct RoutesGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/retries.md")]
+struct RetriesGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/http3.md")]
+struct Http3GuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/content-decoding.md")]
+struct ContentDecodingGuideDoctests;
 
 #[cfg(all(doctest, feature = "sse"))]
 #[doc = include_str!("../../../docs/guides/sse.md")]

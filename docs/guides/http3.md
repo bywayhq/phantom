@@ -1,0 +1,167 @@
+# HTTP/3 and Alt-Svc
+
+HTTP/3 (H3) runs over QUIC instead of TCP. Phantom offers two ways to use it:
+
+- **Exact H3**: `get(HttpProtocol::Http3, ...)` always uses H3 and never falls
+  back to H1 or H2.
+- **Alt-Svc upgrade**: a negotiated H1/H2 response can advertise an H3
+  endpoint through the `Alt-Svc` field. With Alt-Svc enabled, a later
+  negotiated request to the same origin uses it.
+
+Both need H3 settings on the profile. Packet-level details are in
+[HTTP/3 internals](../internals/http3.md).
+
+## Add HTTP/3 to a profile
+
+H3 needs its own TLS ClientHello, QUIC transport parameters, HTTP/3 connection
+settings, and request settings, grouped as `Http3ClientSettings`:
+
+```rust
+use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
+use phantom::{Client, HttpProtocol};
+
+async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
+    let http3 = Http3ClientSettings::new(
+        chromium::v152_http3_tls(),
+        chromium::v152_quic(),
+        chromium::v152_http3(),
+        chromium::v152_http3_request(),
+    );
+    let profile = ClientProfile::new(chromium::v152_tls()).with_http3(http3);
+
+    let client = Client::builder(profile).build()?;
+    let response = client
+        .get(HttpProtocol::Http3, "https://example.com/")?
+        .send()
+        .await?;
+    println!("{}", response.status());
+    Ok(())
+}
+```
+
+The TCP TLS settings passed to `ClientProfile::new` stay separate from the H3
+TLS settings; each protocol uses only its own.
+
+## Routes for HTTP/3
+
+Exact H3 accepts three kinds of route:
+
+- direct QUIC;
+- local-DNS `socks5://` or remote-DNS `socks5h://` through RFC 1928 UDP
+  ASSOCIATE; and
+- an RFC 9298 CONNECT-UDP (MASQUE) proxy.
+
+It rejects HTTP forwarding and HTTP CONNECT before origin I/O. See
+[Routes and proxies](routes-and-proxies.md) for configuration.
+
+## Alt-Svc
+
+Alt-Svc lets an origin say "this same service is also available over H3 at
+this host and port". Phantom's support is opt-in and bounded.
+
+```rust
+use std::num::NonZeroUsize;
+
+use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
+use phantom::{Client, ResponseInfo};
+
+async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
+    let http3 = Http3ClientSettings::new(
+        chromium::v152_http3_tls(),
+        chromium::v152_quic(),
+        chromium::v152_http3(),
+        chromium::v152_http3_request(),
+    );
+    let profile = ClientProfile::new(chromium::v152_tls())
+        .with_http2(chromium::v152_http2())
+        .with_http3(http3);
+    let client = Client::builder(profile)
+        .alt_svc(NonZeroUsize::new(64).expect("64 is nonzero"))
+        .build()?;
+
+    // The first negotiated request uses H1 or H2 and may learn an `h3` alternative.
+    let first = client.get_negotiated("https://example.com/")?.send().await?;
+    first.into_body().collect_with_limit(1 << 20).await?;
+
+    // A later negotiated request may use the learned alternative.
+    let second = client.get_negotiated("https://example.com/")?.send().await?;
+    if let Some(info) = second.extensions().get::<ResponseInfo>() {
+        println!("{:?}", info.protocol());
+    }
+    Ok(())
+}
+```
+
+### How an alternative is learned and used
+
+An authenticated negotiated H1/H2 response can advertise `h3`. Phantom
+applies `Age` to `ma` (the advertised maximum age), replaces the origin's
+previous alternatives, and uses the first fresh canonical `h3` alternative on
+the next negotiated request.
+
+The alternative changes only the QUIC network location. The URI, authority,
+TLS identity, cookies, client hints, route key, and timeouts remain those of
+the origin.
+
+On that managed Alt-Svc H3 attempt, Phantom automatically sends one canonical
+`Alt-Used` value naming the alternative with an explicit port. It does not add
+`Alt-Used` to exact H3 requests or ordinary negotiated H1/H2 requests.
+Caller-supplied `Alt-Used` request fields and trailers are reserved and
+rejected before network I/O. This support makes no browser-specific
+field-order claim.
+
+### HTTP/2 ALTSVC frames
+
+A negotiated H2 response also teaches HTTP/2 ALTSVC frames (RFC 7838 section
+4) that arrived before its final headers, in arrival order and before the
+response's own `Alt-Svc` field.
+
+- A stream-0 frame applies only when its origin is exactly the request's
+  canonical ASCII origin, such as `https://example.com` or
+  `https://example.com:8443`.
+- A frame on the request's stream applies to the request origin.
+- Malformed frames, frames for another origin, frames on exact H2 requests,
+  and frames received while Alt-Svc is disabled change nothing.
+- Each connection keeps at most 16 undelivered frames.
+
+### Persisting Alt-Svc state
+
+Alt-Svc state stays in memory unless the caller persists it.
+
+- `Client::export_alt_svc` returns an `AltSvcSnapshot`, or `None` when Alt-Svc
+  is disabled. Each entry holds only the canonical origin, the alternative
+  host and port, and an absolute `SystemTime` expiry rounded down to a whole
+  second, least recently used first.
+- Phantom provides no serialization format. Rebuild entries with
+  `AltSvcSnapshotEntry::new` and pass them to `Client::import_alt_svc`.
+- Import revalidates every entry and rejects the whole snapshot with a typed
+  `AltSvcSnapshotError` if one origin or alternative is not canonical.
+- Import drops expired entries, clamps lifetimes without extending them, gives
+  already-held alternatives precedence, and keeps the most recently used
+  entries within the store capacity.
+
+The store is keyed by origin for direct routes, so a snapshot describes
+direct-route alternatives only. It never contains TLS tickets, connections,
+routes, cookies, or credentials, and its `Debug` output omits hosts.
+
+### Pooling
+
+One origin-and-route pool entry keeps connections for up to four transport
+locations, so alternating exact H3 and Alt-Svc H3 requests reuse their own
+connections under the same admission bounds instead of replacing each other.
+
+### Failures
+
+Alternative setup failure is a typed H3 failure for that request and evicts
+the advertisement; it never silently falls back to H1 or H2. A visible `421`
+response also evicts it. `Client::clear_alt_svc` clears the whole store.
+
+## Not implemented
+
+- Alt-Svc connection racing and multiple-alternative racing.
+- Alt-Svc upgrades on proxy routes, and proxy-route snapshots.
+- WebSocket over H3.
+- QUIC session tickets.
+
+[Alt-Svc evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence)
+lists the tests behind this behavior.
