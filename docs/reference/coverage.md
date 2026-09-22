@@ -266,6 +266,12 @@ Supported:
 - Opt-in status retry for idempotent requests on caller-listed
   408/425/429/5xx statuses, with an optional capped `Retry-After` and a
   request-wide budget.
+- Opt-in per-request browser field templates: captured field order and
+  values per protocol, caller slots, client-hint slots, and a pre-I/O check
+  that rejects a caller `User-Agent` or brand-list client hint naming another
+  browser family or major version. Recipes cover address-bar navigations and
+  same-origin no-store `fetch` GETs; see
+  [Request templates](../guides/profiles.md#request-templates).
 - One WHATWG/IDNA endpoint boundary shared by wire authority and state keys.
 - Protocol-specific TCP and QUIC TLS settings.
 - Additive DER trust roots.
@@ -320,7 +326,8 @@ Supported:
   [Cookies](../guides/connections-and-state.md#cookies).
 - Profile-defined client-hint fields with bounded exact-origin response
   `Accept-CH` state, connection-scoped H2/H3 ALPS `ACCEPT_CH`, and one bounded
-  `Critical-CH` retry for safe methods. See
+  `Critical-CH` retry for safe methods. A request template places them at its
+  captured slots; otherwise they precede the caller's fields. See
   [Client hints](../guides/profiles.md#client-hints).
 - Opt-in finite redirects for `https://` requests with WHATWG resolution,
   `https://`-only targets, browser method and body transitions, and
@@ -492,11 +499,26 @@ How the recipes differ:
 - `chromium::v153_*` differ from 152 only in the trust-anchor ID list (28 IDs;
   the most frequent of 35 per-process orders in 60 processes).
 - Edge 153 matches Chrome 153 on H2, QUIC, and H3 and omits trust-anchor IDs,
-  so `edge::` carries only `v153_tls`, `v153_http3_tls`, and
-  `v153_windows_client_hints`.
+  so `edge::` carries only `v153_tls`, `v153_http3_tls`,
+  `v153_windows_client_hints`, and its request templates.
 - `firefox::v156_tls` drops FFDHE-2048/3072 and uses a 240-byte ECH GREASE
   payload; `v156_http2` equals `v154_http2` apart from its captured extended
   CONNECT pseudo order and priority.
+
+Request templates:
+
+- The navigation templates match every retained page request: Chrome 153
+  over H1 (the SSE, WebSocket, and client-hint captures), H2 (the WebSocket
+  captures), and H3 (the H3 startup capture); Edge 153 over H1, H2, and H3;
+  Firefox 156 over H1 and H2. The fetch templates match every retained
+  no-store report `fetch` of the WebSocket captures over H1 and H2.
+- The Chrome `User-Agent` value comes from the headful launch-mode SSE
+  capture; the other Chrome and Edge captures ran headless. Edge templates
+  leave `User-Agent` to the caller.
+- The H1 captures used plaintext loopback origins. The fetch templates'
+  placement of hints requested through `Accept-CH` is not captured.
+- Not reproduced: the per-request H2 HEADERS weight of a `fetch` (Chrome 220,
+  Firefox 22) and the position of an automatic `Cookie` field.
 
 Randomized fields:
 

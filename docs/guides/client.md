@@ -95,6 +95,12 @@ scheme, protocol, and route combination.
 global order. Ordinary methods can carry owned bytes or a pull-driven
 `http_body::Body<Data = Bytes>`.
 
+Phantom adds no browser fields such as `User-Agent`, `Accept`, or
+`Sec-Fetch-*` on its own. `RequestBuilder::template` applies a captured
+[request template](profiles.md#request-templates) that supplies them in
+browser order and rejects a `User-Agent` or `sec-ch-ua` that names another
+browser or version.
+
 Owned bodies can be replayed where a configured redirect requires it.
 Streaming bodies are one-shot. Phantom validates a supplied `Content-Length`;
 unknown-length H1 uploads use chunked transfer coding, while H2 and H3 omit the

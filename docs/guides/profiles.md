@@ -3,7 +3,9 @@
 A profile is the part of Phantom that decides what a server can observe: the
 TLS ClientHello, HTTP/2 SETTINGS and pseudo-header order, QUIC transport
 parameters, HTTP/3 settings, and client hints. This guide explains how to
-build one from the built-in recipes and what those recipes cover.
+build one from the built-in recipes, what those recipes cover, and how
+[request templates](#request-templates) supply browser fields for
+individual requests.
 
 A profile only shapes network behavior. Phantom is not a browser engine and
 does not emulate the DOM, JavaScript, rendering, canvas, fonts, WebRTC, or
@@ -127,6 +129,138 @@ that attempt rather than connecting without it. The TCP SYN itself (window, MSS,
 options, TTL) comes from the host OS, which should match the platform the
 profile presents.
 
+## Request templates
+
+A profile shapes connections, but the fields of each request are caller
+data: without help, `User-Agent`, `Accept`, `Sec-Fetch-*`, `priority`, and
+their order are whatever the caller sends. A `RequestTemplate` supplies them
+for one kind of browser request. For each protocol it lists the fields in
+captured order, with captured values, the positions of caller-supplied
+fields, and the positions of client hints. `RequestBuilder::template` applies
+one to a request.
+
+| Recipe | Request | HTTP/1.1 | HTTP/2 | HTTP/3 | `User-Agent` |
+| --- | --- | --- | --- | --- | --- |
+| `chromium::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured headful Chrome 153 value |
+| `chromium::v153_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 153 value |
+| `edge::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Caller slot |
+| `edge::v153_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Caller slot |
+| `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
+| `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
+
+An address-bar navigation is an HTML document request with
+`Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`. "No" means no retained
+capture backs that protocol, so the template has no list for it. Every
+template was captured on Windows 11 and carries the capture machine's
+`en-US` `Accept-Language`.
+
+```rust
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{Client, HttpProtocol, RequestHeader};
+
+async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = ClientProfile::new(chromium::v153_tls())
+        .with_http2(chromium::v153_http2())
+        .with_client_hints(chromium::v153_windows_client_hints());
+    let client = Client::builder(profile).build()?;
+
+    let page = client
+        .get(HttpProtocol::Http2, "https://example.com/")?
+        .template(chromium::v153_windows_navigation_template())
+        .send()
+        .await?;
+    page.into_body().collect_with_limit(1 << 20).await?;
+
+    // `Referer` is a caller slot: its value is the page URL.
+    let data = client
+        .get(HttpProtocol::Http2, "https://example.com/data.json")?
+        .template(chromium::v153_windows_fetch_no_store_template())
+        .header(RequestHeader::new("referer", "https://example.com/"))
+        .send()
+        .await?;
+    println!("{}", data.status());
+    Ok(())
+}
+```
+
+### How a templated request is assembled
+
+- Each attempt uses the template's list for the protocol it runs on, after
+  `Host` on HTTP/1.1 or after the pseudo-header fields on HTTP/2 and HTTP/3.
+  An ALPN-negotiated request uses the list for the protocol ALPN selects.
+- A caller field whose name matches a template entry takes that entry's
+  position and field-name spelling and keeps its own value and sensitivity.
+  A literal entry with no caller field emits its captured value; a caller
+  slot with no caller field emits nothing.
+- Other caller fields follow the template in the caller's order, and the
+  cookie jar's automatic `Cookie` field comes after them. The templates do
+  not place `Cookie`.
+- The profile's client hints fill the template's hint slots. Only hints the
+  profile would send anyway are emitted: default hints, and hints the origin
+  requested through `Accept-CH` or ALPS `ACCEPT_CH`.
+- Every redirect hop uses the same template. Phantom does not adjust
+  template values such as `Sec-Fetch-Site` across a redirect.
+
+Where Chromium puts client hints depends on the request kind, and the
+templates record it. A navigation sends them as one block in profile order
+after `Connection` on HTTP/1.1 and first on HTTP/2 and HTTP/3; after
+`Accept-CH`, the requested hints join that block, as the retained
+client-hint capture shows. A `fetch` splits the defaults: `sec-ch-ua-platform`
+precedes `User-Agent`, and `sec-ch-ua` and `sec-ch-ua-mobile` follow it. No
+capture shows where Chrome puts hints requested through `Accept-CH` on a
+`fetch`; the fetch templates place them after `sec-ch-ua-mobile`. Without a
+template, automatic hints precede every caller field.
+
+### Identity check
+
+A template claims one browser family and major version. Before any I/O, a
+templated request is checked against that claim:
+
+- A caller `User-Agent` must carry the template's product tokens with its
+  major version and none of its excluded tokens. The Chrome 153 templates
+  require a `Chrome/153` token, which a copied `HeadlessChrome/153` is not,
+  and reject `Edg` and `Firefox`; the Edge templates require `Edg/153` and
+  reject `HeadlessChrome`; the Firefox templates require `Firefox/156` and
+  reject `Chrome`.
+- A caller `sec-ch-ua` or `sec-ch-ua-full-version-list`, and the profile's
+  value of either hint, must list the template's brands with its major
+  version. Firefox sends neither hint, so any such field contradicts a
+  Firefox template.
+
+A contradiction fails with `RequestErrorKind::IdentityMismatch`. Phantom
+never rewrites or drops the field. An invalid template, or one without an
+HTTP/3 list for a request that may use HTTP/3 (an exact H3 request, or a
+negotiated request on a client with Alt-Svc enabled), fails with
+`RequestErrorKind::RequestTemplate`.
+
+The check rejects instead of warning or waiting for an opt-in. A template
+is an explicit claim, so a request that contradicts it is a caller error.
+Sending it would put a cross-layer mismatch on the wire that a server can
+record, and it cannot be recalled; failing early costs nothing when the
+fields agree. Requests without a template are not checked, because a
+`ClientProfile` carries no browser identity to compare with, and inferring
+one from TLS settings would mean branching on a family name. The check
+covers only family and major version. It does not compare full versions or
+platforms, check that the profile's TLS and HTTP/2 recipes are the same
+browser's, or require a `User-Agent` to be present.
+
+### Limits of the templates
+
+- Only address-bar navigations and same-origin no-store `fetch` GETs are
+  captured. There are no templates for link or script navigations,
+  subresources such as images, scripts, and stylesheets, `XMLHttpRequest`,
+  cross-origin `fetch`, or requests with a body.
+- The HTTP/1.1 captures used plaintext loopback origins, which Chrome treats
+  as secure. Fields sent to a plaintext non-loopback origin are not
+  captured.
+- HTTP/2 HEADERS priority comes from the profile, not the template. Chrome
+  sends weight 220 on a `fetch` and Firefox weight 22, while the recipes carry
+  their navigation weights, 256 and 42.
+- Every Edge capture ran headless, so the Edge templates leave `User-Agent`
+  to the caller. The Firefox value comes from headless captures; Firefox
+  sent no headless marker, but no headful Firefox capture confirms it.
+- Firefox has no HTTP/3 recipe, so its templates have no HTTP/3 list.
+
 ## Custom profiles
 
 Built-in and custom profiles use the same typed model. Start from a recipe and
@@ -161,7 +295,8 @@ Origin keys include the effective port. Client clones share the bounded LRU
 (least recently used) store; independently built clients do not.
 `Client::clear_client_hints` clears all retained selections. Caller-supplied
 configured hint fields win in their existing positions, while automatic fields
-retain profile order.
+retain profile order. A [request template](#request-templates) moves both
+into its client-hint slots.
 
 ### Connection-level `ACCEPT_CH`
 
