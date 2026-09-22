@@ -146,13 +146,39 @@ To emulate a cross-site subresource request, where a browser would withhold
 your own `Cookie` field. It suppresses the jar's field, and the response still
 updates the jar.
 
+### Trustworthy origins
+
+`Secure` cookies are not tied to `https://`. A URL may set and receive them
+when its origin is *potentially trustworthy*, which for the HTTP and HTTPS URLs
+the jar accepts means:
+
+- any `https://` URL; or
+- an `http://` URL whose host is a loopback IP literal (anything in
+  `127.0.0.0/8`, or exactly `::1`), or the name `localhost` or a `.localhost`
+  subdomain such as `app.localhost`, ignoring case and one trailing dot.
+
+Nothing else qualifies. `http://127.0.0.1:8080` and `http://app.localhost` are
+trustworthy; `http://[::ffff:127.0.0.1]`, `http://localhost.test`, and
+`http://example.test` are not.
+
+This is Chromium's rule, `cookie_util::ProvisionalAccessScheme` over
+`net::IsLocalhost`, which it applies to setting a cookie and to sending one
+alike, so a local development server over plain HTTP keeps its `Secure`,
+`__Secure-`, and `__Host-` cookies. The same test decides whether a cookie may
+overwrite an existing `Secure` cookie of the same name.
+
+The `Secure` attribute itself is still required where a rule asks for it: a
+trustworthy origin does not let a `SameSite=None` or `Partitioned` cookie omit
+`Secure`.
+
 ### Cookies the jar rejects
 
 The jar rejects, as Chromium does:
 
 - `SameSite=None` without `Secure`;
 - `Partitioned` without `Secure`;
-- any `Secure` cookie set by an `http://` URL;
+- any `Secure` or `__Secure-`/`__Host-` cookie set by a URL that is not a
+  [potentially trustworthy origin](#trustworthy-origins);
 - a `Domain` that is a public suffix, including a private registry such as
   `github.io` and an unlisted top-level label such as `corp` or `lan`, unless
   it equals the request host (then the cookie becomes host-only); and

@@ -349,7 +349,9 @@ Supported:
   - stores `SameSite` and `Partitioned` cookies and sends them as for a
     user-initiated top-level navigation;
   - rejects insecure `SameSite=None`, insecure `Partitioned`, and `Secure`
-    cookies set over `http://`; and
+    cookies set by an origin that is not potentially trustworthy, which as
+    in Chromium covers `https://` and the `http://` loopback and
+    `localhost` origins; and
   - places the `Cookie` field where the profile's `CookiePlacement` puts it,
     with Chrome 153 and Firefox 156 recipes.
 
