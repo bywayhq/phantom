@@ -474,8 +474,7 @@ impl RequestError {
     pub(crate) fn request_template_requested_hint() -> Self {
         Self::without_source(
             RequestErrorKind::RequestTemplate,
-            "the request template has no captured position for client hints requested \
-             through Accept-CH",
+            "the request template has no captured position for a requested client hint",
         )
     }
 
