@@ -57,7 +57,10 @@ work has exposed the real architectural boundaries.
 - The HTTP/3 extended CONNECT foundation is complete in `phantom-net`.
   Exact H3 over RFC 9298 CONNECT-UDP proxies is complete over HTTP/3,
   HTTP/2, and HTTP/1.1 proxy legs with Basic proxy authentication. WebSocket
-  over H3 and named-browser H2 WebSocket recipes remain in Phase 1.
+  over H3 remains in Phase 1. Named Chrome 153, Edge 153, and Firefox 156 H2
+  WebSocket recipes with a profile connection policy are complete; per-profile
+  HPACK indexing, per-message compression policy, and a REFUSED_STREAM retry
+  policy remain.
 - The Chrome 152 H2 WebSocket recipe requires a retained browser capture of
   the extended-CONNECT opening handshake, including pseudo-header and ordinary
   field order, priority, compression offer, and failure behavior. The generic
