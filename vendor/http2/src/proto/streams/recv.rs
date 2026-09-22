@@ -72,9 +72,15 @@ const MAX_QUEUED_ALTSVC_FRAMES: usize = 16;
 #[derive(Debug)]
 pub(super) enum Event {
     Headers(peer::PollMessage),
-    Data(Bytes),
+    Data(DataEvent),
     Trailers(HeaderMap),
     InformationalHeaders(peer::PollMessage),
+}
+
+#[derive(Debug)]
+pub(super) struct DataEvent {
+    pub(super) payload: Bytes,
+    pub(super) is_budgeted: bool,
 }
 
 #[derive(Debug)]
@@ -550,23 +556,27 @@ impl Recv {
     }
 
     /// Release any unclaimed capacity for a closed stream.
-    pub fn release_closed_capacity(&mut self, stream: &mut store::Ptr, task: &mut Option<Waker>) {
+    pub fn release_closed_capacity(
+        &mut self,
+        stream: &mut store::Ptr,
+        task: &mut Option<Waker>,
+        counts: &mut Counts,
+    ) {
         debug_assert_eq!(stream.ref_count, 0);
 
-        if stream.in_flight_recv_data == 0 {
-            return;
+        if stream.in_flight_recv_data != 0 {
+            tracing::trace!(
+                "auto-release closed stream ({:?}) capacity: {:?}",
+                stream.id,
+                stream.in_flight_recv_data,
+            );
+
+            self.release_connection_capacity(stream.in_flight_recv_data, task);
+            stream.in_flight_recv_data = 0;
         }
 
-        tracing::trace!(
-            "auto-release closed stream ({:?}) capacity: {:?}",
-            stream.id,
-            stream.in_flight_recv_data,
-        );
-
-        self.release_connection_capacity(stream.in_flight_recv_data, task);
-        stream.in_flight_recv_data = 0;
-
-        self.clear_recv_buffer(stream);
+        // Buffered small DATA frames still hold connection budget.
+        self.clear_recv_buffer(stream, counts);
     }
 
     /// Set the "target" connection window size.
@@ -810,7 +820,18 @@ impl Recv {
             debug_assert!(_res.is_ok());
         }
 
-        let event = Event::Data(frame.into_payload());
+        // An empty DATA frame without END_STREAM has no effect on the HTTP
+        // message. Padding has already been accounted for and released above,
+        // so there is no event to pass to the user.
+        if frame.payload().is_empty() && !frame.is_end_stream() {
+            return Ok(());
+        }
+
+        let is_budgeted = !frame.is_end_stream();
+        let event = Event::Data(DataEvent {
+            payload: frame.into_payload(),
+            is_budgeted,
+        });
 
         // Push the frame onto the recv buffer
         stream.pending_recv.push_back(&mut self.buffer, event);
@@ -993,9 +1014,13 @@ impl Recv {
         stream.notify_push();
     }
 
-    pub(super) fn clear_recv_buffer(&mut self, stream: &mut Stream) {
-        while stream.pending_recv.pop_front(&mut self.buffer).is_some() {
-            // drop it
+    pub(super) fn clear_recv_buffer(&mut self, stream: &mut Stream, counts: &mut Counts) {
+        while let Some(event) = stream.pending_recv.pop_front(&mut self.buffer) {
+            if let Event::Data(data) = event {
+                if data.is_budgeted {
+                    counts.release_data_frame(data.payload.len());
+                }
+            }
         }
     }
 
@@ -1250,9 +1275,9 @@ impl Recv {
         &mut self,
         cx: &Context,
         stream: &mut Stream,
-    ) -> Poll<Option<Result<Bytes, proto::Error>>> {
+    ) -> Poll<Option<Result<DataEvent, proto::Error>>> {
         match stream.pending_recv.pop_front(&mut self.buffer) {
-            Some(Event::Data(payload)) => Poll::Ready(Some(Ok(payload))),
+            Some(Event::Data(data)) => Poll::Ready(Some(Ok(data))),
             Some(event) => {
                 // Frame is trailer
                 stream.pending_recv.push_front(&mut self.buffer, event);

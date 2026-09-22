@@ -1526,6 +1526,9 @@ where
                                 .builder
                                 .local_max_error_reset_streams,
                             settings: self.builder.settings.clone(),
+                            data_frame_budget: proto::auto_data_frame_budget(
+                                self.builder.initial_target_connection_window_size,
+                            ),
                             headers_stream_dependency: None,
                             headers_pseudo_order: None,
                             priorities: None,

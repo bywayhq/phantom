@@ -1471,6 +1471,9 @@ where
                 reset_stream_max: builder.reset_stream_max,
                 remote_reset_stream_max: builder.pending_accept_reset_stream_max,
                 local_error_reset_streams_max: builder.local_max_error_reset_streams,
+                data_frame_budget: proto::auto_data_frame_budget(
+                    builder.initial_target_connection_window_size,
+                ),
                 headers_pseudo_order: builder.headers_pseudo_order,
                 headers_stream_dependency: builder.headers_stream_dependency,
                 priorities: builder.priorities,

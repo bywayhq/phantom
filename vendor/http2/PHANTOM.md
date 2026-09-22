@@ -198,6 +198,34 @@ dispatch (`src/proto/connection.rs`), client-only queueing
 they apply to one request while the next keeps the connection defaults
 (`src/client/tests.rs`).
 
+## Security backports
+
+The fork is based on h2 0.4.15 and does not carry later upstream fixes on its
+own. `empty-data-frame-budget.patch` backports the fix for RUSTSEC-2026-0258
+(GHSA-q83h-524g-xf6h, unbounded small and empty DATA frames), combining
+hyperium/h2 #935 (h2 0.4.16), #940 (0.4.17), #945 and #946 (0.4.19):
+
+- <https://rustsec.org/advisories/RUSTSEC-2026-0258.html>
+- <https://github.com/hyperium/h2/pull/935> (`193833e`)
+- <https://github.com/hyperium/h2/pull/940> (`c12d782`)
+- <https://github.com/hyperium/h2/pull/945> (`3850acd`)
+- <https://github.com/hyperium/h2/pull/946> (`c7e89e9`)
+
+A non-final DATA frame with an empty decoded payload, including a padded one,
+is released for flow control and discarded instead of queued. At most 100 such
+frames are accepted over the connection's lifetime. Other non-final frames
+smaller than 256 bytes charge `256 - len` against a connection budget, larger
+frames replenish it, and reading or discarding a buffered small frame returns
+its charge. The budget is half the initial target connection window, with a
+minimum of 25,600 bytes. Exhausting either limit sends
+`GOAWAY(ENHANCE_YOUR_CALM, "too_many_data_frames")`. Final DATA frames are never
+charged. The configurable `data_frame_budget` builder option from #942 is not
+ported because Phantom does not expose it. The patch changes
+`src/proto/{mod,connection}.rs`, `src/proto/streams/{counts,mod,recv,streams}.rs`,
+and the builders in `src/{client,server}.rs`, and carries upstream's unit tests.
+Upstream's own dropped-`RecvStream` flow-control release (#930) is not part of
+this backport.
+
 ## Refreshing the vendor copy
 
 Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never

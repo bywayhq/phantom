@@ -74,6 +74,9 @@ pub struct Config {
     /// When this gets exceeded, we issue GOAWAYs.
     pub local_max_error_reset_streams: Option<usize>,
 
+    /// connection-level budget (in bytes) for DATA framing overhead.
+    pub data_frame_budget: usize,
+
     /// Priority of the headers stream
     pub headers_stream_dependency: Option<StreamDependency>,
 

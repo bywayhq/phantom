@@ -685,7 +685,17 @@ impl Inner {
 
         self.counts.transition(stream, |counts, stream| {
             let sz = frame.flow_controlled_len();
-            let res = actions.recv.recv_data(frame, stream);
+            let is_end_stream = frame.is_end_stream();
+            let payload_len = frame.payload().len();
+            let mut res = actions.recv.recv_data(frame, stream);
+            // A stream can receive at most one final DATA frame, so it cannot
+            // be used to create unbounded framing overhead on that stream.
+            if res.is_ok() && !is_end_stream {
+                res = counts.record_data_frame(payload_len).map_err(|_| {
+                    tracing::debug!("too many small DATA frames");
+                    Error::library_go_away_data(Reason::ENHANCE_YOUR_CALM, "too_many_data_frames")
+                });
+            }
 
             // Any stream error after receiving a DATA frame means
             // we won't give the data to the user, and so they can't
@@ -1607,7 +1617,19 @@ impl OpaqueStreamRef {
 
         let mut stream = me.store.resolve(self.key);
 
-        me.actions.recv.poll_data(cx, &mut stream)
+        me.actions
+            .recv
+            .poll_data(cx, &mut stream)
+            .map(|result| match result {
+                Some(Ok(data)) => {
+                    if data.is_budgeted {
+                        me.counts.release_data_frame(data.payload.len());
+                    }
+                    Some(Ok(data.payload))
+                }
+                Some(Err(err)) => Some(Err(err)),
+                None => None,
+            })
     }
 
     pub fn poll_trailers(&mut self, cx: &Context) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
@@ -1655,7 +1677,9 @@ impl OpaqueStreamRef {
 
         let mut stream = me.store.resolve(self.key);
         stream.is_recv = false;
-        me.actions.recv.clear_recv_buffer(&mut stream);
+        me.actions
+            .recv
+            .clear_recv_buffer(&mut stream, &mut me.counts);
     }
 
     pub fn stream_id(&self) -> StreamId {
@@ -1739,7 +1763,7 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
             // it anymore.
             actions
                 .recv
-                .release_closed_capacity(stream, &mut actions.task);
+                .release_closed_capacity(stream, &mut actions.task, counts);
 
             // We won't be able to reach our push promises anymore
             let mut ppp = stream.pending_push_promises.take();

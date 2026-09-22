@@ -69,6 +69,14 @@ can expire or be evicted, not a reviewed, committed seed set, and a failing
 input is kept only as a short-lived workflow artifact until it is minimized
 into a regression.
 
+HTTP/2 receive bounds have raw-peer regressions in
+`crates/phantom-net/src/http2/tests/adversarial_*.rs`. Floods of empty,
+padded-empty, and unread one-byte DATA frames each end with exactly one
+`GOAWAY(ENHANCE_YOUR_CALM)` at the first frame over the backported
+RUSTSEC-2026-0258 limit (the empty flood runs with both the Chrome and Firefox
+profiles); 100 empty frames are tolerated and never surface as body chunks. These are
+robustness tests against a hostile peer, not browser-capture evidence.
+
 ## Ordered request-trailer evidence
 
 Declared streaming-body-produced request trailers are covered through the

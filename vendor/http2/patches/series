@@ -6,4 +6,5 @@ ordered-header-table-updates.patch
 continuation-bounds.patch
 altsvc-frames.patch
 headers-frame-overrides.patch
+empty-data-frame-budget.patch
 publish-identity.patch

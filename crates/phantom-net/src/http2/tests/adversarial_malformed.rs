@@ -108,55 +108,63 @@ async fn run_malformed_peer(mut stream: DuplexStream, case: MalformedCase) -> Te
     establish_baseline(&mut stream).await?;
     write_fault(&mut stream, case).await?;
     stream.flush().await?;
+    expect_one_goaway(
+        &mut stream,
+        case.name(),
+        case.expected_reason(),
+        case.expected_debug_data(),
+    )
+    .await
+}
 
-    let frame = read_frame(&mut stream)
+/// Reads exactly one client GOAWAY for last-stream ID 0, then end of stream.
+pub(super) async fn expect_one_goaway(
+    stream: &mut DuplexStream,
+    name: &str,
+    expected_reason: u32,
+    expected_debug_data: &[u8],
+) -> TestResult<()> {
+    let frame = read_frame(stream)
         .await?
-        .ok_or_else(|| format!("{} closed without GOAWAY", case.name()))?;
+        .ok_or_else(|| format!("{name} closed without GOAWAY"))?;
     if frame.frame_type != 0x07 || frame.flags != 0 || frame.stream_id != 0 {
         return Err(format!(
-            "{} produced frame type {:#04x} instead of GOAWAY",
-            case.name(),
+            "{name} produced frame type {:#04x} instead of GOAWAY",
             frame.frame_type
         )
         .into());
     }
     if frame.payload.len() < 8 {
-        return Err(format!("{} produced a truncated GOAWAY", case.name()).into());
+        return Err(format!("{name} produced a truncated GOAWAY").into());
     }
     let last_stream_id = u32::from_be_bytes(frame.payload[..4].try_into()?);
     if last_stream_id != 0 {
-        return Err(format!(
-            "{} produced GOAWAY last-stream ID {last_stream_id}, expected 0",
-            case.name()
-        )
-        .into());
+        return Err(
+            format!("{name} produced GOAWAY last-stream ID {last_stream_id}, expected 0").into(),
+        );
     }
     let reason = u32::from_be_bytes(frame.payload[4..8].try_into()?);
-    if reason != case.expected_reason() {
-        return Err(format!(
-            "{} produced GOAWAY code {reason}, expected {}",
-            case.name(),
-            case.expected_reason()
-        )
-        .into());
+    if reason != expected_reason {
+        return Err(
+            format!("{name} produced GOAWAY code {reason}, expected {expected_reason}").into(),
+        );
     }
-    let expected = case.expected_debug_data();
-    if &frame.payload[8..] != expected {
+    if &frame.payload[8..] != expected_debug_data {
         return Err(format!(
-            "{} produced GOAWAY debug data {:?}, expected {:?}",
-            case.name(),
+            "{name} produced GOAWAY debug data {:?}, expected {:?}",
             &frame.payload[8..],
-            expected
+            expected_debug_data
         )
         .into());
     }
-    if read_frame(&mut stream).await?.is_some() {
-        return Err(format!("{} produced more than one terminal reaction", case.name()).into());
+    if read_frame(stream).await?.is_some() {
+        return Err(format!("{name} produced more than one terminal reaction").into());
     }
     Ok(())
 }
 
-async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<()> {
+/// Accepts the client preface, completes SETTINGS, and waits for stream 1.
+pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<()> {
     let mut preface = [0_u8; CLIENT_PREFACE.len()];
     stream.read_exact(&mut preface).await?;
     if preface.as_slice() != CLIENT_PREFACE {
@@ -268,7 +276,7 @@ async fn write_cumulative_header_abuse(stream: &mut DuplexStream) -> TestResult<
     Ok(())
 }
 
-async fn write_frame(
+pub(super) async fn write_frame(
     stream: &mut DuplexStream,
     frame_type: u8,
     flags: u8,
@@ -289,7 +297,7 @@ async fn write_frame(
     Ok(())
 }
 
-async fn read_frame(stream: &mut DuplexStream) -> TestResult<Option<RawFrame>> {
+pub(super) async fn read_frame(stream: &mut DuplexStream) -> TestResult<Option<RawFrame>> {
     let mut header = [0_u8; 9];
     if stream.read(&mut header[..1]).await? == 0 {
         return Ok(None);
@@ -379,9 +387,9 @@ impl MalformedCase {
     }
 }
 
-struct RawFrame {
-    frame_type: u8,
-    flags: u8,
-    stream_id: u32,
-    payload: Vec<u8>,
+pub(super) struct RawFrame {
+    pub(super) frame_type: u8,
+    pub(super) flags: u8,
+    pub(super) stream_id: u32,
+    pub(super) payload: Vec<u8>,
 }
