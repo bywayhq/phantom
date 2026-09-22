@@ -153,7 +153,15 @@ have shown where the real architectural boundaries are.
   3. Bounded `text()`, `bytes()`, and typed-JSON response helpers over the
      existing inclusive cap, where the bounded form is the only form. A
      response helper must never set a request field: no helper may add
-     `Accept` or `Accept-Encoding`.
+     `Accept` or `Accept-Encoding`. The typed helper takes an optional
+     `serde` dependency behind its own feature, which stays off by default
+     like every other feature. It decodes what arrived whatever the
+     response declares, because a helper that reads `Content-Type` makes
+     its behavior depend on a server field rather than caller intent.
+     The same feature may carry a serialized form of the cookie-jar and
+     Alt-Svc snapshots. Snapshots stay typed values that are revalidated
+     on import, so a serialized snapshot can never widen what an import
+     accepts.
   4. Re-export the ecosystem types the public API already names, including
      `Bytes`, which appears in `RequestBuilder::body` but cannot be named
      without a matching direct dependency.
