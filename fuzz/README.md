@@ -60,6 +60,17 @@ asserts that no `http://` request receives a `Cookie` field and that no
 `http://` URL can store one, and `alt_svc_snapshot` asserts that a snapshot
 the client exported passes the client's own import revalidation.
 
+`cookie_jar` asserts those two rules for named hosts only. The jar's storage
+gate requires the `https` scheme literally, while its store treats a loopback
+authority as a trustworthy origin and does send a `Secure` cookie to
+`http://127.0.0.1`. Until that asymmetry is resolved, loopback URLs in the
+target only add coverage and constrain nothing.
+
+On a Windows host the built target loads the MSVC AddressSanitizer runtime at
+startup. Put the MSVC `Hostx64/x64` directory on `PATH` before
+`cargo fuzz run`, or the target exits with `STATUS_DLL_NOT_FOUND` before
+libFuzzer starts.
+
 A crash or timeout must be minimized and promoted into an ordinary
 deterministic regression before its generated artifact is removed.
 Generated corpora, artifacts, coverage output, and build products are not
