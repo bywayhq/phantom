@@ -239,7 +239,8 @@ capture shows where Chrome puts hints requested through `Accept-CH` on a
 profile sends only on request fails before any I/O, on `http://` origins
 too. Once an origin has asked for such a hint through `Accept-CH` or ALPS
 `ACCEPT_CH`, the request fails before it is sent on the connection. That
-includes the retry a `Critical-CH` response asks for. Without a template, automatic hints precede every caller field.
+includes the retry a `Critical-CH` response asks for. Without a template,
+automatic hints precede every caller field.
 
 ### Identity check
 
@@ -260,8 +261,8 @@ templated request is checked against that claim:
   its major version and no other brand except the one GREASE brand Chromium
   derives from that major version: `"Not_A Brand";v="8"` for 153. A list
   naming both `Google Chrome` and `Microsoft Edge` fails, and so does
-  Chrome 152's `"Not?A_Brand";v="24"` on a 153 template. Firefox sends neither hint, so
-  any such field contradicts a Firefox template.
+  Chrome 152's `"Not?A_Brand";v="24"` on a 153 template. Firefox sends
+  neither hint, so any such field contradicts a Firefox template.
 
 A contradiction fails with `RequestErrorKind::IdentityMismatch`. Phantom
 never rewrites or drops the field. An invalid template, or one without an

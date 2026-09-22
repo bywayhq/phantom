@@ -362,6 +362,9 @@ const V156_WINDOWS_USER_AGENT: &str =
 /// The `User-Agent` value is the one Firefox sent in those headless
 /// captures. `Accept-Language` is the capture machine's `en-US` locale. A
 /// caller field with the same name replaces a captured value in place.
+/// Firefox sends no client hints, so the template has no client-hint slot,
+/// and the `phantom` client refuses it with a profile that sends default
+/// client hints.
 #[must_use]
 pub fn v156_windows_navigation_template() -> RequestTemplate {
     RequestTemplate {
@@ -413,7 +416,9 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
 /// [`RequestTemplate::http2_priority`] records it so the fetch does not go
 /// out with the connection's navigation weight.
 /// `Referer` is a caller slot because its value is the page URL. The
-/// `User-Agent` value matches [`v156_windows_navigation_template`].
+/// `User-Agent` value matches [`v156_windows_navigation_template`]. Like it,
+/// this template has no client-hint slot, and the `phantom` client refuses
+/// it with a profile that sends default client hints.
 #[must_use]
 pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
     RequestTemplate {

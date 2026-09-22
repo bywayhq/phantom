@@ -425,7 +425,8 @@ fn default_profile_hints_need_a_template_with_a_hint_slot() {
         ),
         Some(RequestErrorKind::RequestTemplate)
     );
-    // A hint sent only on request is refused when it would be sent.
+    // `check` allows a requested-only hint, because `prepare` refuses it
+    // when it would be sent.
     assert_eq!(
         kind(
             &firefox,
