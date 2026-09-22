@@ -1,9 +1,45 @@
 use std::num::NonZeroUsize;
 
+use url::Url;
+
 use super::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
 
 fn nonzero(value: usize) -> NonZeroUsize {
     NonZeroUsize::new(value).unwrap_or(NonZeroUsize::MIN)
+}
+
+/// Returns the `Cookie` value a request to `url` sends, recording the use.
+fn send(jar: &CookieJar, url: &str) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    Ok(jar.request_value_for_url(&Url::parse(url)?))
+}
+
+/// Fills `https://one.test` with one `Secure` and five other cookies, an
+/// unrelated `other.test` cookie, and returns the names of the one.test
+/// cookies left after a seventh is stored under a per-domain limit of six.
+fn domain_eviction_survivors(
+    jar: &CookieJar,
+    between: impl FnOnce(&CookieJar) -> Result<(), Box<dyn std::error::Error>>,
+) -> Result<Vec<&'static str>, Box<dyn std::error::Error>> {
+    let base = "https://one.test";
+    jar.set_cookie(base, "secure=1; Secure; Path=/secure")?;
+    for name in ["a", "b", "c", "d", "e"] {
+        jar.set_cookie(base, &format!("{name}=1; Path=/{name}"))?;
+    }
+    jar.set_cookie("https://other.test/", "other=1")?;
+    between(jar)?;
+
+    // The seventh one.test cookie exceeds 6; one sixth is purged to leave 5.
+    jar.set_cookie(base, "f=1; Path=/f")?;
+
+    Ok(["secure", "a", "b", "c", "d", "e", "f"]
+        .into_iter()
+        .filter(|name| {
+            jar.request_value(&format!("{base}/{name}"))
+                .ok()
+                .flatten()
+                .is_some()
+        })
+        .collect())
 }
 
 #[test]
@@ -303,34 +339,31 @@ fn secure_and_path_matching_follow_request_url() -> Result<(), Box<dyn std::erro
 fn domain_limit_evicts_least_recent_insecure_cookies_first()
 -> Result<(), Box<dyn std::error::Error>> {
     let jar = CookieJar::with_limits(CookieLimits::new(nonzero(64), nonzero(6), nonzero(100)));
-    let base = "https://one.test";
-    jar.set_cookie(base, "secure=1; Secure; Path=/secure")?;
-    for name in ["a", "b", "c", "d", "e"] {
-        jar.set_cookie(base, &format!("{name}=1; Path=/{name}"))?;
-    }
-    jar.set_cookie("https://other.test/", "other=1")?;
-    assert_eq!(
-        jar.request_value(&format!("{base}/a"))?.as_deref(),
-        Some("a=1")
-    );
+    let retained = domain_eviction_survivors(&jar, |jar| {
+        assert_eq!(send(jar, "https://one.test/a")?.as_deref(), Some("a=1"));
+        Ok(())
+    })?;
 
-    // The seventh one.test cookie exceeds 6; one sixth is purged to leave 5.
-    jar.set_cookie(base, "f=1; Path=/f")?;
-
-    let retained = ["secure", "a", "b", "c", "d", "e", "f"]
-        .into_iter()
-        .filter(|name| {
-            jar.request_value(&format!("{base}/{name}"))
-                .ok()
-                .flatten()
-                .is_some()
-        })
-        .collect::<Vec<_>>();
     assert_eq!(retained, ["secure", "a", "d", "e", "f"]);
     assert_eq!(
         jar.request_value("https://other.test/")?.as_deref(),
         Some("other=1")
     );
+    Ok(())
+}
+
+#[test]
+fn inspecting_the_jar_does_not_change_eviction_order() -> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::with_limits(CookieLimits::new(nonzero(64), nonzero(6), nonzero(100)));
+    let retained = domain_eviction_survivors(&jar, |jar| {
+        assert_eq!(
+            jar.request_value("https://one.test/a")?.as_deref(),
+            Some("a=1")
+        );
+        Ok(())
+    })?;
+
+    assert_eq!(retained, ["secure", "c", "d", "e", "f"]);
     Ok(())
 }
 

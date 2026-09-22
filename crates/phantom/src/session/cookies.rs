@@ -60,12 +60,19 @@ impl CookieJar {
 
     /// Returns the exact request `Cookie` field value for `url`.
     ///
+    /// Inspecting the jar does not count as a use: unlike a request that
+    /// sends the cookies, this call leaves the eviction order unchanged.
+    ///
     /// # Errors
     ///
     /// Returns [`CookieError`] when `url` is invalid or unsupported.
     pub fn request_value(&self, url: &str) -> Result<Option<String>, CookieError> {
         let url = parse_url(url)?;
-        Ok(self.state.lock().request_value(&url))
+        Ok(self
+            .state
+            .lock()
+            .matching_value(&url)
+            .map(|(value, _)| value))
     }
 
     /// Removes every cookie from the jar.
@@ -87,8 +94,10 @@ impl CookieJar {
         self.len() == 0
     }
 
+    /// Returns the `Cookie` field value for a request about to be sent to
+    /// `url` and records the sent cookies as used.
     pub(crate) fn request_value_for_url(&self, url: &Url) -> Option<String> {
-        self.state.lock().request_value(url)
+        self.state.lock().send_value(url)
     }
 
     pub(crate) fn store_response_headers(&self, url: &Url, headers: &HeaderMap) {
@@ -329,7 +338,22 @@ impl JarState {
         }
     }
 
-    fn request_value(&mut self, url: &Url) -> Option<String> {
+    /// Returns the `Cookie` field value for `url` and records its cookies as
+    /// used for eviction.
+    fn send_value(&mut self, url: &Url) -> Option<String> {
+        let (value, sent) = self.matching_value(url)?;
+        for key in sent {
+            let last_access = self.next_access();
+            if let Some(metadata) = self.metadata.get_mut(&key) {
+                metadata.last_access = last_access;
+            }
+        }
+        Some(value)
+    }
+
+    /// Returns the `Cookie` field value for `url` and the keys of the cookies
+    /// in it, without recording a use.
+    fn matching_value(&mut self, url: &Url) -> Option<(String, Vec<CookieKey>)> {
         self.purge_expired();
         let site = schemeful_site(url);
         let mut cookies = Vec::new();
@@ -376,13 +400,7 @@ impl JarState {
             value.push_str(cookie.value());
             sent.push(key);
         }
-        for key in sent {
-            let last_access = self.next_access();
-            if let Some(metadata) = self.metadata.get_mut(&key) {
-                metadata.last_access = last_access;
-            }
-        }
-        Some(value)
+        Some((value, sent))
     }
 
     fn next_access(&mut self) -> u64 {

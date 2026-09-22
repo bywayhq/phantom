@@ -149,7 +149,8 @@ used cookies of that domain are evicted, non-`Secure` ones first, down to five
 sixths of the limit (150 of 180 by default). If the jar then holds more than
 the total limit, the least recently used cookies anywhere are evicted,
 non-`Secure` ones first, down to ten elevenths of it (3,000 of 3,300). Storing
-or sending a cookie counts as a use.
+a cookie or sending it in a request counts as a use; inspecting the jar with
+`CookieJar::request_value` does not.
 
 This follows Chromium's `CookieMonster::GarbageCollect` with three
 differences:
