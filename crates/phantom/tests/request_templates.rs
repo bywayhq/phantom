@@ -451,6 +451,45 @@ async fn firefox_fetch_sends_the_captured_report_request() -> TestResult<()> {
     .await
 }
 
+/// A negotiated request that ALPN puts on HTTP/2 goes through the pooled
+/// negotiated dispatch, which must also send the template's HEADERS priority
+/// instead of the connection's navigation priority.
+#[tokio::test]
+async fn negotiated_http2_request_sends_the_template_priority() -> TestResult<()> {
+    let browser = chrome();
+    let identity = TestIdentity::generate()?;
+    let (client_done, wait_for_client) = oneshot::channel();
+    let (url, server) = serve_http2(&identity, wait_for_client).await?;
+    let client =
+        Client::builder(ClientProfile::new(tls_settings()).with_http2(browser.http2.clone()))
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+    let sent = client
+        .get_negotiated(&url)?
+        .template(chromium::v153_windows_fetch_no_store_template())
+        .header(RequestHeader::new("referer", url.as_str()))
+        .send();
+    let response = timeout(TEST_TIMEOUT, sent).await??;
+    let protocol = response
+        .extensions()
+        .get::<ResponseInfo>()
+        .map(ResponseInfo::protocol);
+    assert_eq!(protocol, Some(HttpProtocol::Http2));
+    response.into_body().collect().await?;
+    let _ = client_done.send(());
+    let observed = timeout(TEST_TIMEOUT, server).await???;
+
+    let captured = captured_priority(&browser, Kind::Fetch)?;
+    assert!(captured.is_some(), "the capture carries HEADERS priority");
+    assert_eq!(observed.priority, captured);
+    assert_ne!(
+        captured,
+        captured_priority(&browser, Kind::Navigation)?,
+        "the fetch priority differs from the connection's"
+    );
+    Ok(())
+}
+
 /// The jar's `Cookie` in a templated request, placed by the profile's
 /// `CookiePlacement` after template expansion and before client-hint slots
 /// are filled.
