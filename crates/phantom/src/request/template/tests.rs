@@ -1,7 +1,7 @@
 use phantom_net::request::RequestHeader;
 use phantom_profile::{RequestField, RequestTemplate, chromium, edge, firefox};
 
-use super::{ProtocolScope, check, expand, is_grease_brand, user_agent_products};
+use super::{ProtocolScope, check, expand, grease_brand, user_agent_products};
 use crate::{HttpProtocol, RequestErrorKind};
 
 const CHROME_153: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -319,6 +319,25 @@ fn brand_lists_with_extra_brands_are_rejected() {
             &chrome,
             r#""Google Chrome";v="153", "Not_A Brand";v="153", "Chromium";v="153""#,
         ),
+        // Well-shaped GREASE brands Chromium derives from another major
+        // version: Chrome 152's brand, Chrome 153's brand with 152's version,
+        // and a brand no 153 build sends.
+        (
+            &chrome,
+            r#""Chromium";v="153", "Not?A_Brand";v="24", "Google Chrome";v="153""#,
+        ),
+        (
+            &chrome,
+            r#""Google Chrome";v="153", "Not_A Brand";v="24", "Chromium";v="153""#,
+        ),
+        (
+            &chrome,
+            r#""Google Chrome";v="153", "Not(A:Brand";v="99", "Chromium";v="153""#,
+        ),
+        (
+            &edge,
+            r#""Microsoft Edge";v="153", "Not?A_Brand";v="24", "Chromium";v="153""#,
+        ),
     ] {
         let caller = [RequestHeader::new("sec-ch-ua", value)];
         assert_eq!(
@@ -328,9 +347,9 @@ fn brand_lists_with_extra_brands_are_rejected() {
         );
     }
 
-    // One GREASE brand is allowed, and so is none.
+    // Chrome 153's own GREASE brand is allowed once, and so is none.
     for value in [
-        r#""Chromium";v="153", "Not?A_Brand";v="24", "Google Chrome";v="153""#,
+        r#""Chromium";v="153", "Not_A Brand";v="8", "Google Chrome";v="153""#,
         r#""Google Chrome";v="153", "Chromium";v="153""#,
     ] {
         let caller = [RequestHeader::new("sec-ch-ua", value)];
@@ -343,16 +362,15 @@ fn brand_lists_with_extra_brands_are_rejected() {
 }
 
 #[test]
-fn grease_brands_follow_chromiums_algorithm() {
+fn grease_brand_is_derived_from_the_major_version() {
     // Chrome 152 and 153 values from the retained client-hint captures.
-    assert!(is_grease_brand("Not?A_Brand", Some(24)));
-    assert!(is_grease_brand("Not_A Brand", Some(8)));
-    assert!(is_grease_brand("Not(A:Brand", Some(99)));
-    assert!(!is_grease_brand("Not_A Brand", None));
-    assert!(!is_grease_brand("Not_A Brand", Some(153)));
-    assert!(!is_grease_brand("NotXA Brand", Some(8)));
-    assert!(!is_grease_brand("Not A Brand ", Some(8)));
-    assert!(!is_grease_brand("Microsoft Edge", Some(8)));
+    assert_eq!(grease_brand(152), ("Not?A_Brand".to_owned(), 24));
+    assert_eq!(grease_brand(153), ("Not_A Brand".to_owned(), 8));
+    // The index wraps from the last character to the first, and the
+    // version cycles through all three choices.
+    assert_eq!(grease_brand(10), ("Not_A Brand".to_owned(), 99));
+    assert_eq!(grease_brand(154), ("Not A(Brand".to_owned(), 99));
+    assert_eq!(grease_brand(155), ("Not(A:Brand".to_owned(), 24));
 }
 
 #[test]

@@ -118,7 +118,8 @@ pub struct RequestIdentity {
     /// with these major versions.
     ///
     /// A client rejects a list that repeats one of these brands or names any
-    /// other brand than one Chromium GREASE brand, such as `Not_A Brand`.
+    /// other brand than the one GREASE brand Chromium derives from their
+    /// shared major version, such as `"Not_A Brand";v="8"` for 153.
     ///
     /// `None` means the browser sends no user-agent client hints, so any
     /// such field contradicts the template.

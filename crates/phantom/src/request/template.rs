@@ -1,7 +1,9 @@
 //! Expansion and identity checks for browser request templates.
 
 use phantom_net::request::RequestHeader;
-use phantom_profile::{ClientHintSettings, RequestField, RequestIdentity, RequestTemplate};
+use phantom_profile::{
+    ClientHintSettings, ProductVersion, RequestField, RequestIdentity, RequestTemplate,
+};
 use sfv::{BareItem, ListEntry, Parser};
 
 use crate::{HttpProtocol, RequestError};
@@ -249,12 +251,14 @@ fn user_agent_products(value: &str) -> Vec<(&str, &str)> {
 /// Checks a `sec-ch-ua`-style structured-field list of branded versions.
 ///
 /// The list must name every required brand exactly once with its major
-/// version, and nothing else except at most one GREASE brand, so a list that
-/// adds another browser's brand is rejected.
+/// version, and nothing else except at most once the GREASE brand Chromium
+/// derives from that major version, so a list that adds another browser's
+/// brand, or another version's GREASE brand, is rejected.
 fn brands_agree(identity: &RequestIdentity, value: &[u8]) -> bool {
     let Some(required) = &identity.client_hint_brands else {
         return false;
     };
+    let grease_brand = shared_major(required).map(grease_brand);
     let Ok(text) = std::str::from_utf8(value) else {
         return false;
     };
@@ -284,7 +288,11 @@ fn brands_agree(identity: &RequestIdentity, value: &[u8]) -> bool {
                 return false;
             }
             seen[index] = true;
-        } else if is_grease_brand(brand, version) && !grease {
+        } else if !grease
+            && grease_brand
+                .as_ref()
+                .is_some_and(|(name, major)| name == brand && version == Some(*major))
+        {
             grease = true;
         } else {
             return false;
@@ -305,19 +313,24 @@ const GREASE_BRAND_CHARACTERS: &[u8; 11] = b" (:-./);=?_";
 /// Versions Chromium's GREASE brand algorithm chooses from.
 const GREASE_BRAND_MAJORS: [u32; 3] = [8, 99, 24];
 
-/// Returns whether `brand` with major version `major` has the shape of a
-/// Chromium GREASE brand, such as `"Not_A Brand";v="8"`.
-fn is_grease_brand(brand: &str, major: Option<u32>) -> bool {
-    let shape = brand
-        .strip_prefix("Not")
-        .and_then(|rest| rest.strip_suffix("Brand"))
-        .is_some_and(|middle| match middle.as_bytes() {
-            [first, b'A', second] => {
-                GREASE_BRAND_CHARACTERS.contains(first) && GREASE_BRAND_CHARACTERS.contains(second)
-            }
-            _ => false,
-        });
-    shape && major.is_some_and(|major| GREASE_BRAND_MAJORS.contains(&major))
+/// Returns the one GREASE brand and major version Chromium sends for major
+/// version `seed`, such as `("Not_A Brand", 8)` for 153.
+fn grease_brand(seed: u32) -> (String, u32) {
+    let character = |offset: u32| {
+        let index = (seed % 11 + offset) % 11;
+        char::from(GREASE_BRAND_CHARACTERS[index as usize])
+    };
+    let major = GREASE_BRAND_MAJORS[(seed % 3) as usize];
+    (format!("Not{}A{}Brand", character(0), character(1)), major)
+}
+
+/// Returns the major version every required brand carries, which seeds
+/// Chromium's GREASE brand; `None` when they disagree or there are none.
+fn shared_major(required: &[ProductVersion]) -> Option<u32> {
+    let (first, rest) = required.split_first()?;
+    rest.iter()
+        .all(|product| product.major == first.major)
+        .then_some(first.major)
 }
 
 fn major(version: &str) -> Option<u32> {

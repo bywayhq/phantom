@@ -245,9 +245,10 @@ templated request is checked against that claim:
   instead of sending Edge brand hints with no `User-Agent`.
 - A caller `sec-ch-ua` or `sec-ch-ua-full-version-list`, and the profile's
   value of either hint, must list each of the template's brands once with
-  its major version and no other brand except one GREASE brand in the shape
-  Chromium generates, such as `"Not_A Brand";v="8"`. A list naming both
-  `Google Chrome` and `Microsoft Edge` fails. Firefox sends neither hint, so
+  its major version and no other brand except the one GREASE brand Chromium
+  derives from that major version: `"Not_A Brand";v="8"` for 153. A list
+  naming both `Google Chrome` and `Microsoft Edge` fails, and so does
+  Chrome 152's `"Not?A_Brand";v="24"` on a 153 template. Firefox sends neither hint, so
   any such field contradicts a Firefox template.
 
 A contradiction fails with `RequestErrorKind::IdentityMismatch`. Phantom
