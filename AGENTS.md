@@ -1,9 +1,22 @@
 # Agent working agreement
 
 This file applies to the entire repository. It is for coding agents and their
-human integrators. Package-specific `vendor/*/PHANTOM.md` files define how to
-audit and refresh vendored dependencies; they add to, but do not replace, this
-agreement.
+human integrators, whatever the tool. Package-specific `vendor/*/PHANTOM.md`
+files define how to audit and refresh vendored dependencies; they add to, but
+do not replace, this agreement. [CLAUDE.md](CLAUDE.md) imports this file and
+adds only Claude Code notes.
+
+## Quick reference
+
+- Format with `cargo fmt` or `cargo fmt --check`. Never add `--all`: it also
+  formats local path dependencies and rewrites the vendored forks.
+- When more than one worktree is active, run each Cargo command through
+  `scripts/dev/with-cargo-lock.sh` ([usage](scripts/dev/README.md#cargo-lock)).
+- Check each touched vendored package with `scripts/ci/check-vendor.sh
+  <package>`; on Windows use the Git settings under
+  [Windows hosts](#windows-hosts).
+- The full integration gate is under
+  [Verification and handoff](#verification-and-handoff).
 
 ## Before editing
 
@@ -11,22 +24,30 @@ State the observable acceptance criteria, non-goals, owned files, and intended
 verification. Investigate uncertain protocol behavior before implementing it.
 Preserve unrelated work in a dirty checkout and avoid cleanup outside the task.
 
+## Lanes and worktrees
+
 The root task is the integration owner. Subagents own bounded, non-overlapping
 files and do not independently merge, push, release, or change repository
 settings. Shared manifests and central public APIs remain with the integration
 owner unless explicitly delegated.
 
-## Worktrees and builds
+Use a sibling worktree only when independent work can proceed concurrently.
+[Development helpers](scripts/dev/README.md#parallel-lanes) has the commands.
 
-Use a sibling worktree under `../phantom-worktrees/` only when independent work
-can proceed concurrently. One agent owns each worktree and branch. Remove an
-integrated worktree promptly.
-
-Serialize Cargo commands across agents through the integration owner. An agent
-branch normally stops after source and static checks; the integration checkout
-owns workspace compilation and broad gates. If a focused pre-integration build
-is assigned, use that worktree's local `target/` directory. Never share a Cargo
-target directory between divergent worktrees.
+- A lane is `../phantom-worktrees/<lane>` on branch `lane/<lane>`, created
+  from `main` by the integration owner. One agent owns each worktree and
+  branch, and never edits the integration checkout or another lane.
+- Serialize Cargo across worktrees with the lock helper. A lane normally stops
+  after source and static checks; the integration checkout owns workspace
+  compilation and broad gates. A focused pre-integration build, when
+  assigned, uses the worktree's own `target/`. Never share a Cargo target
+  directory between divergent worktrees.
+- A lane commits in logical steps and hands off; it does not rebase onto or
+  merge into `main` itself.
+- The integration owner rebases the lane onto `main`, reviews every commit,
+  runs the full gate on the rebased branch, reads the gate output, and only
+  then fast-forwards `main` with `git merge --ff-only`. Remove an integrated
+  worktree and its branch promptly.
 
 ## Engineering constraints
 
@@ -42,6 +63,8 @@ target directory between divergent worktrees.
   module of `phantom-quic-btls`, which documents every unsafe block; see
   [Design](docs/design.md#unsafe-code). Adding unsafe code anywhere else
   requires a new documented and audited FFI boundary.
+- Change a vendored crate only through its `patches/series`, as its
+  `PHANTOM.md` describes; never make an unrecorded edit under `vendor/`.
 
 ## Code and documentation
 
@@ -57,6 +80,38 @@ target directory between divergent worktrees.
   commands in adjacent documentation.
 - Update public documentation and compile-check examples when behavior or APIs
   change. Do not claim unimplemented or unverified support.
+
+## Commits
+
+- Use an intent-first Conventional Commit subject in the imperative mood,
+  under 72 characters, such as `fix(http2): reject conflicting settings`.
+- Do not add `Co-Authored-By` trailers for AI tools, `Claude-Session`
+  trailers, or agent session links to commits or pull requests, even when a
+  tool suggests them. Credit human co-authors normally.
+- Never push, merge, release, or change repository settings unless the human
+  integrator asks for it.
+
+## Windows hosts
+
+- `core.autocrlf=true` is supported: `.gitattributes` keeps `fixtures/` and
+  `vendor/` byte-exact. Do not rewrite line endings there.
+- Run `scripts/ci/*.sh` from Git Bash with CRLF conversion off and symlinks on
+  for the child Git processes:
+
+  ```sh
+  GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false \
+    GIT_CONFIG_KEY_1=core.symlinks GIT_CONFIG_VALUE_1=true \
+    scripts/ci/check-vendor.sh <package>
+  ```
+
+- Windows reserves UDP ports 49841 to 50959 on the development host
+  (`netsh int ipv4 show excludedportrange protocol=udp`). Bind port 0 in
+  tests and captures rather than a fixed port.
+- A refused loopback TCP connect takes about two seconds on Windows instead of
+  failing at once. Allow for it in timeouts and retry tests.
+- A peer that goes away can surface as `ConnectionAborted`, not only
+  `ConnectionReset` or `BrokenPipe`. Tests that expect a disconnect accept all
+  three.
 
 ## Verification and handoff
 
@@ -77,6 +132,11 @@ uv run --no-project --python 3.10 --with aioquic==1.3.0 \
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
 ```
+
+Read the output of every gate command. A command list joined with `;` or
+piped through `tail` or `grep` reports the status of its last command, not of
+Cargo, so search the output for `error`, `FAILED`, and `warning` before
+declaring success or merging.
 
 Run `scripts/ci/check-vendor.sh <package>` for every vendored package touched.
 [CONTRIBUTING.md](CONTRIBUTING.md) lists the conditional ShellCheck, fuzz, and
