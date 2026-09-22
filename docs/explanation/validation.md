@@ -399,6 +399,7 @@ Where they differ:
 | `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to 500 ms (observed about 510 ms) |
 | Request after a reset before any response | one HTTP-stack resend on a new connection when the failed request reused a connection, then the retry delay | HTTP-stack transaction restarts on new connections |
 | Reconnect target after a followed `307` | redirected URL | original URL |
+| `Cookie` position on the reconnect | last of 16 fields | after `Referer`, before `Sec-Fetch-Dest` |
 
 The immediate requests after a reset are HTTP-stack resends, not EventSource
 reconnects. Three `reset-before-head` runs of Chrome 153.0.8010.48 with

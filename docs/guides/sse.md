@@ -170,6 +170,11 @@ differences are listed here.
 - **`Last-Event-ID` position.** Without a placeholder, Phantom appends the
   field after every caller field. Chrome sends it 9th of 16 fields and
   Firefox 5th of 14; `SseHeader::last_event_id` reproduces either position.
+- **`Cookie` position.** By default Phantom appends the jar's `Cookie` after
+  every caller field, where Chrome sends it. Firefox sends it after `Referer`
+  and before `Sec-Fetch-Dest`; a profile with `firefox::v156_cookie_placement`
+  reproduces that. See
+  [Cookie field position](connections-and-state.md#cookie-field-position).
 - **Small `retry` values.** By default Phantom honors any value, as Chrome
   does. Firefox raises values below 500 ms; `min_retry(500 ms)` reproduces
   that.

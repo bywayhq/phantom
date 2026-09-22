@@ -31,6 +31,8 @@ const TIMER_SLACK: Duration = Duration::from_millis(30);
 /// Paused-clock window in which no request may follow a terminal response.
 const OBSERVATION: Duration = Duration::from_secs(10);
 const FAST_RETRY: &str = "retry: 200\n";
+/// `PROBE_COOKIE` in scripts/capture/sse_reconnect.py.
+const PROBE_COOKIE: &str = "phantom_probe=1";
 
 #[derive(Clone, Copy, Debug)]
 enum Browser {
@@ -64,6 +66,8 @@ impl Browser {
 enum Reply {
     /// `200 text/event-stream` with this body, then connection close.
     Stream(&'static str),
+    /// [`Self::Stream`] that also sets `PROBE_COOKIE` with `Path=/`.
+    CookieStream(&'static str),
     Status(u16),
     PlainText,
 }
@@ -74,6 +78,12 @@ impl Reply {
             Self::Stream(body) => format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\
                  Cache-Control: no-cache\r\nConnection: close\r\n\r\n{body}"
+            )
+            .into_bytes(),
+            Self::CookieStream(body) => format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\
+                 Cache-Control: no-cache\r\nSet-Cookie: {PROBE_COOKIE}; Path=/\r\n\
+                 Connection: close\r\n\r\n{body}"
             )
             .into_bytes(),
             Self::Status(204) => b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".to_vec(),
@@ -90,7 +100,7 @@ impl Reply {
 
 // Server stimuli mirror `CATALOG` in scripts/capture/sse_reconnect.py.
 fn scenario(name: &str) -> Vec<Reply> {
-    use Reply::{PlainText, Status, Stream};
+    use Reply::{CookieStream, PlainText, Status, Stream};
     let fast = |body: &'static str| Stream(leak(format!("{FAST_RETRY}{body}")));
     match name {
         "id-then-close" => vec![fast("id: phantom-1\ndata: a\n\n"), Status(204)],
@@ -115,6 +125,10 @@ fn scenario(name: &str) -> Vec<Reply> {
         "reconnect-404" => vec![fast("data: a\n\n"), Status(404)],
         "reconnect-500" => vec![fast("data: a\n\n"), Status(500)],
         "reconnect-wrong-content-type" => vec![fast("data: a\n\n"), PlainText],
+        "set-cookie-then-close" => vec![
+            CookieStream(leak(format!("{FAST_RETRY}data: a\n\n"))),
+            Status(204),
+        ],
         _ => panic!("scenario {name} has no Phantom replay"),
     }
 }
@@ -306,6 +320,73 @@ async fn terminal_reconnect_responses_end_both_browsers_and_phantom() -> TestRes
     Ok(())
 }
 
+/// Replays the stream response's `Set-Cookie` with each browser's
+/// `CookiePlacement` preset: the jar's field lands last of Chrome's 16
+/// reconnect fields, and between `Referer` and `Sec-Fetch-Dest` among
+/// Firefox's 14.
+#[cfg(feature = "cookies")]
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn cookie_placement_presets_reproduce_each_browser_reconnect() -> TestResult<()> {
+    use phantom::profile::{chromium, firefox};
+
+    for (browser, placement, expected_index, field_count) in [
+        (Browser::Chrome, chromium::v153_cookie_placement(), 15, 16),
+        (Browser::Firefox, firefox::v156_cookie_placement(), 7, 14),
+    ] {
+        let fixture = Fixture::load(browser, "set-cookie-then-close")?;
+        let reconnect = fixture
+            .sse_requests(0)?
+            .into_iter()
+            .nth(1)
+            .ok_or("fixture lacks the reconnect request")?;
+        assert_eq!(
+            reconnect.lines.len(),
+            field_count,
+            "{browser:?} field count"
+        );
+        assert_eq!(
+            reconnect.position(b"cookie"),
+            Some(expected_index),
+            "{browser:?} Cookie position"
+        );
+        assert_eq!(reconnect.header(b"cookie"), Some(PROBE_COOKIE.as_bytes()));
+        for run in 1..fixture.runs()? {
+            assert_eq!(
+                fixture.sse_requests(run)?[1].names(),
+                reconnect.names(),
+                "{browser:?} run {run} field order"
+            );
+        }
+
+        let template = reconnect
+            .lines
+            .iter()
+            .filter(|line| !field_named(line, b"host") && !field_named(line, b"cookie"))
+            .map(|line| {
+                let (name, value) = split_field(line)?;
+                Ok(SseHeader::field(RequestHeader::new(name, value)))
+            })
+            .collect::<TestResult<Vec<_>>>()?;
+        let profile = ClientProfile::new(tls_settings()).with_cookie_placement(placement);
+        let client = Client::builder(profile).cookies().build()?;
+        let phantom = replay_with(client, "set-cookie-then-close", |builder| {
+            browser.configure(builder).headers(template)
+        })
+        .await?;
+
+        let [initial, resumed] = phantom.requests.as_slice() else {
+            return Err("Phantom did not make exactly two requests".into());
+        };
+        assert_eq!(initial.header(b"cookie"), None);
+        assert_eq!(
+            without_host(&resumed.lines),
+            without_host(&reconnect.lines),
+            "{browser:?} reconnect fields"
+        );
+    }
+    Ok(())
+}
+
 /// One recorded Phantom run of a scenario.
 struct PhantomRun {
     requests: Vec<Request>,
@@ -315,6 +396,15 @@ struct PhantomRun {
 }
 
 async fn replay(
+    name: &str,
+    configure: impl FnOnce(SseRequestBuilder) -> SseRequestBuilder,
+) -> TestResult<PhantomRun> {
+    let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
+    replay_with(client, name, configure).await
+}
+
+async fn replay_with(
+    client: Client,
     name: &str,
     configure: impl FnOnce(SseRequestBuilder) -> SseRequestBuilder,
 ) -> TestResult<PhantomRun> {
@@ -340,7 +430,6 @@ async fn replay(
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((requests, extra))
     });
 
-    let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
     let builder = client
         .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
         .max_reconnects(8);
