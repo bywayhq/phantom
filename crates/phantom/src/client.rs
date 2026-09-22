@@ -9,7 +9,7 @@ use phantom_net::{
 use phantom_profile::CookiePlacement;
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
-use phantom_profile::{ClientHintSettings, ClientProfile};
+use phantom_profile::{ClientHintSettings, ClientProfile, TcpSettings};
 
 #[cfg(feature = "cookies")]
 use crate::CookieJar;
@@ -546,6 +546,9 @@ impl ClientBuilder {
             .tls()
             .validate()
             .map_err(BuildError::invalid_tls_profile)?;
+        if let Some(tcp) = self.profile.tcp() {
+            tcp.validate().map_err(BuildError::invalid_tcp_profile)?;
+        }
         if let Some(client_hints) = self.profile.client_hints() {
             client_hints
                 .validate()
@@ -595,6 +598,7 @@ impl ClientBuilder {
         }
 
         let roots = || self.additional_roots.iter().map(AsRef::as_ref);
+        let tcp = self.profile.tcp();
         let supports_http1 = self
             .profile
             .tls()
@@ -611,6 +615,7 @@ impl ClientBuilder {
                 } else {
                     Http1TlsConnector::new_with_additional_roots(self.profile.tls(), roots())
                 }
+                .map(|connector| with_tcp(connector, tcp, Http1TlsConnector::with_tcp_settings))
             })
             .transpose()
             .map_err(BuildError::http1)?;
@@ -631,6 +636,7 @@ impl ClientBuilder {
                         roots(),
                     )
                 }
+                .map(|connector| with_tcp(connector, tcp, Http2TlsConnector::with_tcp_settings))
             })
             .transpose()
             .map_err(BuildError::http2)?;
@@ -651,6 +657,7 @@ impl ClientBuilder {
                     settings.request(),
                     roots(),
                 )
+                .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
             })
             .transpose()
             .map_err(BuildError::http3)?;
@@ -702,6 +709,7 @@ impl ClientBuilder {
                     Some(settings) => connector.with_http2_settings(settings),
                     None => connector,
                 })
+                .map(|connector| with_tcp(connector, tcp, HttpsProxyConnector::with_tcp_settings))
             })
             .transpose()
             .map_err(BuildError::https_proxy)?;
@@ -737,6 +745,7 @@ impl ClientBuilder {
                 } else {
                     Http1TlsConnector::new_with_additional_roots(&tls, roots())
                 }
+                .map(|connector| with_tcp(connector, tcp, Http1TlsConnector::with_tcp_settings))
                 .map_err(BuildError::http1)
             })
             .transpose()?;
@@ -759,6 +768,14 @@ impl ClientBuilder {
         });
         let state = self.options.build(&inner);
         Ok(Client { inner, state })
+    }
+}
+
+/// Applies the profile's TCP socket options, when it has any, to a connector.
+fn with_tcp<C>(connector: C, tcp: Option<&TcpSettings>, apply: fn(C, &TcpSettings) -> C) -> C {
+    match tcp {
+        Some(settings) => apply(connector, settings),
+        None => connector,
     }
 }
 
@@ -789,7 +806,9 @@ fn validate_websocket_policy(
 mod tests {
     use std::num::NonZeroUsize;
 
-    use phantom_profile::{ClientProfile, Http3ClientSettings, chromium};
+    use std::time::Duration;
+
+    use phantom_profile::{ClientProfile, Http3ClientSettings, TcpKeepalive, chromium};
 
     use super::{Client, HttpProtocol};
     use crate::{BuildErrorKind, HttpProxy, Route, ServerAuthentication};
@@ -799,6 +818,74 @@ mod tests {
         assert_eq!(HttpProtocol::Http1.trace_name(), "http/1.1");
         assert_eq!(HttpProtocol::Http2.trace_name(), "h2");
         assert_eq!(HttpProtocol::Http3.trace_name(), "h3");
+    }
+
+    #[test]
+    fn profile_tcp_settings_reach_every_tcp_connector() -> Result<(), Box<dyn std::error::Error>> {
+        let tcp = chromium::v153_tcp();
+        let http3 = Http3ClientSettings::new(
+            chromium::v153_http3_tls(),
+            chromium::v153_quic(),
+            chromium::v153_http3(),
+            chromium::v153_http3_request(),
+        );
+        let profile = ClientProfile::new(chromium::v153_tls())
+            .with_tcp(tcp)
+            .with_http2(chromium::v153_http2())
+            .with_http3(http3);
+        #[cfg(feature = "websocket")]
+        let profile = profile.with_websocket(chromium::v153_websocket());
+        let route = Route::http_connect(HttpProxy::new("https://proxy.example")?);
+        let client = Client::builder(profile).route(route).build()?;
+        let inner = &client.inner;
+
+        let expected = Some(&tcp);
+        assert_eq!(
+            inner.http1.as_ref().and_then(|c| c.tcp_settings()),
+            expected
+        );
+        assert_eq!(
+            inner.http2.as_ref().and_then(|c| c.tcp_settings()),
+            expected
+        );
+        assert_eq!(
+            inner.http1_or_2.as_ref().and_then(|c| c.tcp_settings()),
+            expected
+        );
+        assert_eq!(
+            inner.http3.as_ref().and_then(|c| c.tcp_settings()),
+            expected
+        );
+        assert_eq!(
+            inner.https_proxy.as_ref().and_then(|c| c.tcp_settings()),
+            expected
+        );
+        #[cfg(feature = "websocket")]
+        assert_eq!(
+            inner
+                .websocket_http1
+                .as_ref()
+                .and_then(|c| c.tcp_settings()),
+            expected
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_tcp_profile_has_invalid_profile_category() -> Result<(), &'static str> {
+        let mut tcp = chromium::v153_tcp();
+        tcp.keepalive = Some(TcpKeepalive {
+            idle: Duration::ZERO,
+            interval: None,
+        });
+        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+        let error = Client::builder(profile)
+            .build()
+            .err()
+            .ok_or("a zero keepalive idle time was accepted")?;
+
+        assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+        Ok(())
     }
 
     #[test]

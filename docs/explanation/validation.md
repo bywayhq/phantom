@@ -19,6 +19,7 @@ does not cover.
   [WebSocket](#websocket-browser-evidence).
 - Browser captures: [cross-platform parity](#cross-platform-transport-parity),
   [Chrome 153, Edge 153, and Firefox 156](#chrome-153-edge-153-and-firefox-156-recipes).
+- Browser source: [TCP socket options](#tcp-socket-option-evidence).
 - Other: [external suites](#external-suites),
   [diagnostics and performance](#diagnostics-and-performance),
   [contributor gates](#contributor-gates).
@@ -795,6 +796,55 @@ Limits:
   these versions exists; the platform-free 153 and 156 transport names rest
   on the 152 and 154 finding that these layers did not depend on the platform.
 - Headless launches, except the headful client-hint check.
+
+## TCP socket option evidence
+
+Socket options are not visible in a capture, so the TCP recipes rest on
+browser source at the profiled release tags rather than on retained fixtures.
+The citations are to Chromium tag `153.0.8010.48` and Firefox tag
+`FIREFOX_156_0_RELEASE`.
+
+| Recipe | Source behavior |
+| --- | --- |
+| `chromium::v153_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-73`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:463-486`). |
+| `firefox::v156_tcp` | `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on every socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1454`). |
+
+Differences from the browsers:
+
+- Chromium ignores a failure to set either option
+  (`net/socket/tcp_socket_win.cc:71-72`). Phantom fails that connection
+  attempt instead, so no connection proceeds with options the profile did not
+  ask for.
+- Chromium on macOS sets only the keepalive idle time
+  (`net/socket/tcp_socket_posix.cc:101-105`), and Android and iOS builds enable
+  no keepalive. `chromium::v153_tcp` describes Windows and Linux; a macOS
+  profile sets `TcpKeepalive::interval` to `None`.
+- Firefox's keepalive is not modeled. It changes per HTTP connection: a
+  10-second idle time for about the first 60 seconds of an HTTP/1 connection,
+  then 600 seconds, with an RTT-derived probe interval, and none after HTTP/2
+  negotiation (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`,
+  `:2124-2239`; `modules/libpref/init/all.js:1270-1278`). `firefox::v156_tcp`
+  leaves `SO_KEEPALIVE` at the operating-system default.
+- Edge's network-stack source is not public and no capture shows socket
+  options, so there is no Edge TCP recipe.
+
+`phantom-net` tests read the options back from connected sockets with
+`socket2` getters. `tcp::tests::connected_socket_carries_requested_options`
+checks `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time
+and interval; Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values.
+`tcp::tests::paths` reads back every socket opened by the direct, forward
+proxy, HTTP CONNECT (with and without Basic), HTTPS proxy, SOCKS5 (remote and
+local DNS), HTTP/1.1-or-HTTP/2, and SOCKS5 UDP control paths. The facade test
+`profile_tcp_settings_reach_every_tcp_connector` checks that a profile's
+settings reach each TCP connector the client builds, including the WebSocket
+HTTP/1.1 connector.
+
+Limits:
+
+- No capture confirms the options, including keepalive probe timing on an
+  idle connection.
+- Source at one tag per browser; build-time or field-trial changes to these
+  options would not be seen.
 
 ## External suites
 

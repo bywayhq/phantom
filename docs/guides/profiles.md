@@ -17,6 +17,7 @@ are added with builder methods:
 | Method | Adds |
 | --- | --- |
 | `ClientProfile::new(tls)` | TLS ClientHello for H1 and H2 |
+| `with_tcp(settings)` | TCP socket options for every TCP connection |
 | `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, and pseudo-header order |
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and their delivery rules |
@@ -30,8 +31,10 @@ needs.
 use phantom::profile::{chromium, edge, firefox, ClientProfile, Http3ClientSettings};
 
 fn profiles() -> [ClientProfile; 2] {
-    // Firefox 156: TLS, HTTP/2, and cookie-field recipes.
+    // Firefox 156: TLS, HTTP/2, and cookie-field recipes, plus its
+    // source-derived TCP options.
     let firefox = ClientProfile::new(firefox::v156_tls())
+        .with_tcp(firefox::v156_tcp())
         .with_http2(firefox::v156_http2())
         .with_cookie_placement(firefox::v156_cookie_placement());
 
@@ -65,6 +68,11 @@ fn profiles() -> [ClientProfile; 2] {
 [Coverage](../reference/coverage.md#browser-profiles) records the exact builds
 and how the recipes differ from each other.
 
+TCP recipes are not in the table because socket options are not visible in a
+capture. `chromium::v153_tcp` and `firefox::v156_tcp` come from browser source
+at the profiled release tags; see
+[TCP socket options](#tcp-socket-options).
+
 Only `chromium::v153_http2` and `firefox::v156_http2` carry a captured
 extended CONNECT pseudo-header order, which H2 WebSocket needs. Other HTTP/2
 recipes leave it unset. The WebSocket recipes and their limits are described
@@ -86,6 +94,30 @@ client-family name.
   because client hints carry platform data on the wire.
 - The former `macos` names of the Chrome 152 and Firefox 154 transport recipes
   remain as hidden compatibility aliases.
+
+## TCP socket options
+
+`TcpSettings` sets `TCP_NODELAY` and the keepalive idle time and interval on
+every TCP socket before it connects: origin connections, HTTP, HTTPS, and
+SOCKS5 proxy connections, and the TCP control connection of a SOCKS5 UDP
+association. Without `with_tcp`, sockets keep their operating-system defaults.
+
+- `chromium::v153_tcp` disables Nagle's algorithm and sets a 45-second
+  keepalive idle time and interval, as Chromium does on Windows and Linux.
+  Chromium on macOS sets only the idle time; set `TcpKeepalive::interval` to
+  `None` for that platform.
+- `firefox::v156_tcp` disables Nagle's algorithm and leaves keepalive
+  untouched, because Firefox's keepalive changes over a connection's life and
+  is not modeled.
+- There is no Edge recipe; Edge's socket options have no public source or
+  capture evidence.
+
+Keepalive times must be whole seconds from 1 to 32,767. Windows sets the idle
+time and interval together, so a keepalive without an interval fails there
+with `ErrorKind::Unsupported`. A socket option the OS rejects fails that
+connection attempt rather than connecting without it. The TCP SYN itself
+(window, MSS, options, TTL) comes from the host OS, which should match the
+platform the profile presents.
 
 ## Custom profiles
 

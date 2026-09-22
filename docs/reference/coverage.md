@@ -19,6 +19,7 @@ does not count.
 ## Contents
 
 - [At a glance](#at-a-glance)
+- [TCP](#tcp)
 - [TLS over TCP](#tls-over-tcp)
 - [HTTP/1.1](#http11)
 - [HTTP/2](#http2)
@@ -36,6 +37,7 @@ does not count.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
+| TCP | Profile `TCP_NODELAY` and keepalive from browser source, on every TCP path | Firefox keepalive schedule |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse | Parallel connection policy |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT | HPACK representation parity for extended CONNECT |
@@ -46,6 +48,25 @@ does not count.
 
 The [route matrix](route-matrix.md) lists every scheme, protocol, and route
 combination.
+
+## TCP
+
+Supported:
+
+- Profile TCP socket options (`ClientProfile::with_tcp`): `TCP_NODELAY` and
+  keepalive idle time and interval, applied before connecting on every TCP
+  connection, including proxy and SOCKS5 UDP control connections. A socket
+  option the OS rejects fails that connection attempt.
+- `chromium::v153_tcp` (Windows and Linux) and `firefox::v156_tcp`
+  (`TCP_NODELAY` only), from browser source. See
+  [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
+
+Not modeled:
+
+- Firefox's per-connection keepalive schedule and Chromium's macOS
+  idle-only keepalive as a named recipe.
+- An Edge TCP recipe; no public source or capture shows Edge's options.
+- The TCP SYN itself (window, MSS, options, TTL), which the host OS decides.
 
 ## TLS over TCP
 

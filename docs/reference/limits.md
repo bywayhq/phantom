@@ -73,6 +73,7 @@ Chromium purges to the same 150 and 3,000. See
 | Stacked content codings | 3 |
 | zstd window | 8 MiB |
 | Decoded data frame size | 16 KiB |
+| TCP keepalive idle time and interval | Whole seconds, 1 to 32,767 |
 
 The H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it:
 each field line counts its name and value lengths plus 32 bytes. The 256 KiB

@@ -168,10 +168,11 @@ pub mod profile {
         Http2PseudoHeader, Http2Setting, Http2Settings, Http3ClientSettings, Http3PseudoHeader,
         Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings, Http3Setting,
         Http3SettingOrder, Http3Settings, InvalidClientHintSettings, InvalidHttp2Settings,
-        InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProfileId, InvalidTlsSettings,
-        InvalidWebSocketSettings, NamedGroup, Platform, ProfileId, ProfileMetadata,
-        SignatureScheme, TlsSettings, TlsVersion, WebSocketConnectionPolicy,
-        WebSocketDeflateParameter, WebSocketField, WebSocketNewConnection, WebSocketSettings,
+        InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProfileId, InvalidTcpSettings,
+        InvalidTlsSettings, InvalidWebSocketSettings, NamedGroup, Platform, ProfileId,
+        ProfileMetadata, SignatureScheme, TcpKeepalive, TcpSettings, TlsSettings, TlsVersion,
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+        WebSocketNewConnection, WebSocketSettings,
     };
 
     /// Chromium-family recipes implemented by the public facade.
@@ -179,7 +180,8 @@ pub mod profile {
         pub use phantom_profile::chromium::{
             v152_http2, v152_http3, v152_http3_request, v152_http3_tls, v152_macos_client_hints,
             v152_quic, v152_tls, v153_cookie_placement, v153_http2, v153_http3, v153_http3_request,
-            v153_http3_tls, v153_quic, v153_tls, v153_websocket, v153_windows_client_hints,
+            v153_http3_tls, v153_quic, v153_tcp, v153_tls, v153_websocket,
+            v153_windows_client_hints,
         };
 
         #[doc(hidden)]
@@ -192,7 +194,8 @@ pub mod profile {
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
         pub use phantom_profile::firefox::{
-            v154_http2, v154_tls, v156_cookie_placement, v156_http2, v156_tls, v156_websocket,
+            v154_http2, v154_tls, v156_cookie_placement, v156_http2, v156_tcp, v156_tls,
+            v156_websocket,
         };
 
         #[doc(hidden)]
