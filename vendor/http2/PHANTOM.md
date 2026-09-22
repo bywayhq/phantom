@@ -259,6 +259,22 @@ changes `src/client.rs`, `src/server.rs` (which leaves the limit unset),
 `src/proto/streams/{counts,mod,recv,stream}.rs`, and adds client regressions
 for the limit and one head beyond it in `src/client/tests.rs`.
 
+Upstream h2 0.4.17 also caps the HPACK encoder table at 4 KiB whatever the
+peer's `SETTINGS_HEADER_TABLE_SIZE` (hyperium/h2 #941, `67734f8`,
+<https://github.com/hyperium/h2/pull/941>). That change is deliberately not
+ported, because it would change request bytes. Chromium's quiche
+`HpackEncoder::ApplyHeaderTableSizeSetting` has no upper bound unless
+`SetHeaderTableSizeUpperBound` is called, and Chromium's `SpdySession` does not
+call it. Firefox's `Http2Compressor::SetMaxBufferSize` also adopts the peer
+value. Both announce the new size in a dynamic-table-size update at the start
+of the next field block and then index against the larger table. With the cap,
+a peer advertising 65,536 would get no update, and later blocks would diverge
+once the client's own entries exceed 4 KiB. The exposure is small. The table
+allocates nothing in proportion to its maximum and holds only fields the
+client itself encodes. Phantom limits each request to 100 fields and
+32 KiB, and fields larger than three quarters of the table are never indexed.
+Phantom's regressions pin the uncapped update for 65,536 and 2^32 - 1.
+
 ## Refreshing the vendor copy
 
 Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never

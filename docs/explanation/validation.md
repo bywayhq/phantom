@@ -84,7 +84,11 @@ nonempty, and cumulative CONTINUATION floods also run against the Firefox
 ceiling. Eight informational responses precede a final response; the ninth,
 alone or in a burst of 1,000, fails with
 `Http2Error::TooManyInformationalResponses` and one
-`RST_STREAM(ENHANCE_YOUR_CALM)` while a sibling request succeeds. These are
+`RST_STREAM(ENHANCE_YOUR_CALM)` while a sibling request succeeds. A peer
+`SETTINGS_HEADER_TABLE_SIZE` of 65,536 or 2^32 - 1 produces the same
+uncapped dynamic-table-size update that Chromium's quiche encoder and
+Firefox's compressor emit, and the connection stays usable. Upstream h2's
+4 KiB encoder cap is not ported (see `vendor/http2/PHANTOM.md`). These are
 robustness tests against a hostile peer, not browser-capture evidence.
 
 ## Ordered request-trailer evidence

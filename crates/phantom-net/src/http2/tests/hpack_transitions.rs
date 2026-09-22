@@ -24,6 +24,13 @@ const HEADER_TABLE_ZERO_UNKNOWN_AND_DEFAULT: &[u8] = &[
     0x00, 0x01, 0x00, 0x00, 0x10, 0x00, // HEADER_TABLE_SIZE = 4096
 ];
 
+const HEADER_TABLE_65536: &[u8] = &[
+    0x00, 0x01, 0x00, 0x01, 0x00, 0x00, // HEADER_TABLE_SIZE = 65,536
+];
+const HEADER_TABLE_MAXIMUM: &[u8] = &[
+    0x00, 0x01, 0xff, 0xff, 0xff, 0xff, // HEADER_TABLE_SIZE = 2^32 - 1
+];
+
 #[tokio::test]
 async fn initial_zero_table_size_starts_first_field_block_with_update() -> TestResult<()> {
     bounded_peer_test(run_case(HEADER_TABLE_ZERO_AND_UNKNOWN, &[0x20])).await
@@ -34,6 +41,23 @@ async fn duplicate_initial_table_sizes_preserve_minimum_then_final_update() -> T
     bounded_peer_test(run_case(
         HEADER_TABLE_ZERO_UNKNOWN_AND_DEFAULT,
         &[0x20, 0x3f, 0xe1, 0x1f],
+    ))
+    .await
+}
+
+// Chromium's quiche HpackEncoder and Firefox's Http2Compressor both adopt a
+// larger peer table size without a cap and announce it in the next field
+// block, so the update must not be clamped.
+#[tokio::test]
+async fn larger_peer_table_size_is_announced_uncapped() -> TestResult<()> {
+    bounded_peer_test(run_case(HEADER_TABLE_65536, &[0x3f, 0xe1, 0xff, 0x03])).await
+}
+
+#[tokio::test]
+async fn maximum_peer_table_size_is_announced_and_connection_stays_usable() -> TestResult<()> {
+    bounded_peer_test(run_case(
+        HEADER_TABLE_MAXIMUM,
+        &[0x3f, 0xe0, 0xff, 0xff, 0xff, 0x0f],
     ))
     .await
 }
