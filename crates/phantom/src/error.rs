@@ -6,7 +6,7 @@ use phantom_net::{
     http2::{Http2Error, Http2ProtocolErrorKind, Http2TlsError},
     http3::{
         ConnectUdpError, ConnectUdpErrorKind, Http3ConnectorError, Http3ConnectorErrorKind,
-        Http3Error,
+        Http3Error, Http3Unprocessed,
     },
     proxy::{HttpConnectError, HttpConnectErrorKind, Socks5Error, Socks5ErrorKind},
     request::RequestBodyError,
@@ -889,7 +889,14 @@ impl RequestError {
     pub(crate) fn http3_stream(source: Http3ConnectorError) -> Self {
         let unprocessed = StdError::source(&source)
             .and_then(|source| source.downcast_ref::<Http3Error>())
-            .is_some_and(|error| error.unprocessed().is_some());
+            .and_then(Http3Error::unprocessed)
+            .is_some_and(|signal| match signal {
+                // Rejected 0-RTT data is not processed (RFC 9001, section
+                // 4.6.2), so it is unprocessed like the other two signals.
+                Http3Unprocessed::RequestRejected
+                | Http3Unprocessed::GoAway
+                | Http3Unprocessed::EarlyDataRejected => true,
+            });
         let mut error = Self::http3(source);
         if unprocessed {
             error.retryability = RequestRetryability::Unprocessed;
@@ -995,6 +1002,22 @@ impl RequestError {
     /// caller.
     pub(crate) fn is_unprocessed_request(&self) -> bool {
         self.retryability == RequestRetryability::Unprocessed
+    }
+
+    /// Returns whether the request went out as HTTP/3 early data that the
+    /// server rejected, so the server did not process it.
+    pub(crate) fn is_http3_early_data_rejected(&self) -> bool {
+        let mut source = self
+            .source
+            .as_deref()
+            .map(|source| source as &(dyn StdError + 'static));
+        while let Some(error) = source {
+            if let Some(error) = error.downcast_ref::<Http3Error>() {
+                return error.unprocessed() == Some(Http3Unprocessed::EarlyDataRejected);
+            }
+            source = error.source();
+        }
+        false
     }
 
     /// Returns the stable failure category.

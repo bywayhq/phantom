@@ -11,7 +11,7 @@ use bytes::Bytes;
 use h3::{ConnectionState, client::PeerSettings};
 use http::{Request, Response};
 use tokio::{runtime::Handle, sync::Mutex};
-use tracing::{Instrument, debug_span, field};
+use tracing::{Instrument, debug, debug_span, field};
 
 use crate::accept_ch::AcceptCh;
 
@@ -20,7 +20,9 @@ use super::{
     Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol, PendingRequest,
     RequestRecvStream, RequestSendStream, ResponseHeadError, body,
     datagram::DatagramFlow,
-    driver_unavailable, receive_response,
+    driver_unavailable,
+    early_data::{EarlyData, EarlyDataOutcome},
+    receive_response,
     request::PreparedRequest,
     upload::{RequestSend, UploadError},
 };
@@ -52,6 +54,7 @@ struct ConnectionInner {
     connector_identity: Option<Arc<()>>,
     runtime: Handle,
     accept_ch: AcceptCh,
+    early_data: Option<EarlyData>,
 }
 
 impl Http3Connection {
@@ -62,6 +65,7 @@ impl Http3Connection {
         quinn: quinn::Connection,
         connector_identity: Option<Arc<()>>,
         accept_ch: AcceptCh,
+        early_data: Option<EarlyData>,
     ) -> Self {
         Self {
             inner: Arc::new(ConnectionInner {
@@ -74,6 +78,7 @@ impl Http3Connection {
                 connector_identity,
                 runtime: Handle::current(),
                 accept_ch,
+                early_data,
             }),
         }
     }
@@ -86,6 +91,39 @@ impl Http3Connection {
     #[must_use]
     pub fn accept_ch_for_origin(&self, origin: &str) -> Option<&[u8]> {
         self.inner.accept_ch.for_origin(origin)
+    }
+
+    /// Returns whether this connection sent early (0-RTT) data.
+    ///
+    /// Only a connector from [`super::Http3Connector::with_early_data`] sends
+    /// early data, and only when it resumes with a ticket that permits it.
+    /// Such a connection is returned before its handshake completes: the
+    /// first replay-safe request goes out as early data, and every other
+    /// request waits for the handshake.
+    #[must_use]
+    pub fn sent_early_data(&self) -> bool {
+        self.inner.early_data.is_some()
+    }
+
+    /// Waits for the handshake and returns whether the server accepted this
+    /// connection's early data, or `None` when it sent none.
+    ///
+    /// `Some(false)` also covers a connection that closed before its
+    /// handshake completed.
+    pub async fn early_data_accepted(&self) -> Option<bool> {
+        let early_data = self.inner.early_data.as_ref()?;
+        Some(early_data.outcome().await == EarlyDataOutcome::Accepted)
+    }
+
+    /// Fails a request that must not be replayed until early data on this
+    /// connection is settled, and when it was rejected.
+    async fn await_early_data_answer(&self) -> Result<(), Http3Error> {
+        match &self.inner.early_data {
+            Some(early_data) if early_data.outcome().await == EarlyDataOutcome::Rejected => {
+                Err(Http3Error::early_data_rejected())
+            }
+            _ => Ok(()),
+        }
     }
 
     /// Returns whether this connection's TLS handshake resumed a session.
@@ -115,6 +153,36 @@ impl Http3Connection {
         &self,
         prepared: PreparedRequest,
     ) -> Result<Response<Http3Body>, Http3Error> {
+        let early_data = match &self.inner.early_data {
+            None => "none",
+            Some(_) if !prepared.is_replay_safe() => {
+                // Early data is replayable; anything else waits for the handshake.
+                self.await_early_data_answer().await?;
+                "after_handshake"
+            }
+            Some(early_data) if early_data.settled().is_none() => "sent",
+            Some(_) => "after_handshake",
+        };
+        let result = self.send_prepared_request_now(prepared, early_data).await;
+        match (result, &self.inner.early_data) {
+            (Err(_), Some(early_data))
+                if early_data.outcome().await == EarlyDataOutcome::Rejected =>
+            {
+                debug!("HTTP/3 early data rejected; the request was not processed");
+                Err(Http3Error::early_data_rejected())
+            }
+            (result, _) => result,
+        }
+    }
+
+    /// Sends one request; `early_data` names how it relates to the
+    /// connection's early data for the trace: `none` on a connection that
+    /// sent none, `sent` before the handshake completed, or `after_handshake`.
+    async fn send_prepared_request_now(
+        &self,
+        prepared: PreparedRequest,
+        early_data: &'static str,
+    ) -> Result<Response<Http3Body>, Http3Error> {
         let method = prepared.method().clone();
         let body_bytes = prepared.body_len();
         let has_body = prepared.has_body();
@@ -125,6 +193,7 @@ impl Http3Connection {
             body_bytes = body_bytes.unwrap_or(0),
             body_length_known = body_bytes.is_some(),
             has_body,
+            early_data,
             status = field::Empty,
             outcome = field::Empty,
         );
@@ -229,6 +298,7 @@ impl Http3Connection {
             outcome = field::Empty,
         );
         let result = async {
+            self.await_early_data_answer().await?;
             let mut peer_settings = {
                 let sender = self.inner.sender.lock().await;
                 sender
@@ -371,6 +441,7 @@ impl Http3Connection {
         &self,
         request: Request<()>,
     ) -> Result<ConnectUdpExchange, Http3Error> {
+        self.await_early_data_answer().await?;
         let router = self.inner.datagrams.as_ref().ok_or_else(|| {
             Http3Error::without_source(
                 Http3ErrorKind::Configuration,
@@ -439,6 +510,15 @@ impl Http3Connection {
 
     pub(super) fn is_reusable(&self) -> bool {
         if self.inner.quinn.close_reason().is_some() {
+            return false;
+        }
+        if self
+            .inner
+            .early_data
+            .as_ref()
+            .and_then(EarlyData::settled)
+            .is_some_and(|outcome| outcome != EarlyDataOutcome::Accepted)
+        {
             return false;
         }
         if self

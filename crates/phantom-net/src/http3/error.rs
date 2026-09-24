@@ -62,6 +62,12 @@ pub enum Http3Unprocessed {
     /// reported here: the HTTP/3 backend does not expose the `GOAWAY`
     /// identifier needed to prove that its stream was not processed.
     GoAway,
+    /// The request was sent as early (0-RTT) data and the server rejected
+    /// that data. RFC 9001, section 4.6.2: rejected 0-RTT packets are not
+    /// processed. Requests that waited for the handshake on the same
+    /// connection report this too, because Quinn reset the streams the
+    /// HTTP/3 connection opened before the handshake.
+    EarlyDataRejected,
 }
 
 /// Error returned by a forced HTTP/3 transaction.
@@ -92,6 +98,15 @@ impl Http3Error {
             kind,
             message,
             unprocessed: None,
+            source: None,
+        }
+    }
+
+    pub(super) const fn early_data_rejected() -> Self {
+        Self {
+            kind: Http3ErrorKind::Protocol,
+            message: "the server rejected early data; the request was not processed",
+            unprocessed: Some(Http3Unprocessed::EarlyDataRejected),
             source: None,
         }
     }

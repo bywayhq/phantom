@@ -235,6 +235,7 @@ async fn alternative_setup(
             Http3SetupControl {
                 connecting: Some(&connecting),
                 attempt_limit: Some(ALTERNATIVE_SETUP_LIMIT),
+                ..Http3SetupControl::default()
             },
         )
         .await

@@ -797,6 +797,36 @@ impl ClientBuilder {
         self
     }
 
+    /// Lets a resumed HTTP/3 connection send a replay-safe request as early
+    /// (0-RTT) data.
+    ///
+    /// # Replay
+    ///
+    /// Early data is replayable. An attacker who records a connection's first
+    /// flight can deliver it to the server again, and the server may process
+    /// each copy (RFC 8446, section 8; RFC 9001, section 9.2). This option is
+    /// off by default, and no named browser recipe enables it: no retained
+    /// capture shows a browser sending HTTP/3 early data.
+    ///
+    /// Only a request that is safe to replay goes out as early data: a safe
+    /// method (`GET`, `HEAD`, `OPTIONS`, or `TRACE`) with no body and no
+    /// trailers, the rule Chromium applies to a request of default
+    /// idempotency. It is sent on a new connection that presents a ticket
+    /// permitting early data; a request that finds a pooled connection uses
+    /// it as usual. Every other request waits for a handshake. If the server
+    /// rejects the early data, it processed none of it, and Phantom sends the
+    /// request again after a handshake over the same route and protocol.
+    ///
+    /// Building fails with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
+    /// unless the profile has HTTP/3 settings whose TLS settings enable
+    /// `session_tickets`, because early data needs a resumed session.
+    #[must_use]
+    pub fn http3_early_data(mut self) -> Self {
+        self.options.http3_early_data = true;
+        self
+    }
+
     /// Enables a bounded in-memory cookie jar owned by the client.
     ///
     /// By default the client has no cookie jar. This jar uses the default
@@ -958,9 +988,26 @@ impl ClientBuilder {
                 )
                 .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
                 .map(|connector| self.with_qlog(connector))
+                .map(|connector| {
+                    if self.options.http3_early_data {
+                        connector.with_early_data()
+                    } else {
+                        connector
+                    }
+                })
             })
             .transpose()
             .map_err(BuildError::http3)?;
+        if self.options.http3_early_data
+            && !self
+                .profile
+                .http3()
+                .is_some_and(|settings| settings.tls().session_tickets)
+        {
+            return Err(BuildError::invalid_policy(
+                "HTTP/3 early data requires HTTP/3 TLS settings with session tickets",
+            ));
+        }
         // CONNECT-UDP's outer connection authenticates the proxy with proxy
         // trust roots; HTTP/3 cannot disable verification.
         let connect_udp_http3 = self

@@ -655,6 +655,7 @@ mod connect_udp;
 mod connection;
 mod connector;
 mod datagram;
+mod early_data;
 mod extended_connect;
 mod profile;
 mod qpack;

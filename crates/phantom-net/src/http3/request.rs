@@ -44,6 +44,15 @@ impl PreparedRequest {
         self.body.is_some()
     }
 
+    /// Returns whether sending this request twice is harmless: a safe method
+    /// (RFC 9110, section 9.2.1) with no body and no trailers. Chromium sends
+    /// a request as early data on the same condition when the caller states
+    /// no idempotency (`HttpUtil::IsMethodSafe` in
+    /// `net/http/http_network_transaction.cc` at tag `154.0.8037.58`).
+    pub(super) fn is_replay_safe(&self) -> bool {
+        self.request.method().is_safe() && self.body.is_none() && self.trailers.is_none()
+    }
+
     pub(super) fn into_parts(self) -> (Request<()>, Option<RequestBody>, Option<PreparedTrailers>) {
         (self.request, self.body, self.trailers)
     }

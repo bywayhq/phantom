@@ -148,22 +148,11 @@ impl Http3Connector {
     /// one proxy is never presented directly or through another route. The
     /// clone keeps this connector's identity, so connections it opens remain
     /// usable with this connector. A connector not produced by this method
-    /// never resumes, and resumption never sends early data.
+    /// never resumes. Resumption sends early data only after
+    /// [`Self::with_early_data`].
     #[must_use]
     pub fn with_isolated_session_cache(&self) -> Self {
-        Self {
-            crypto: Arc::new(self.crypto.with_isolated_session_cache()),
-            settings: self.settings.clone(),
-            request_settings: self.request_settings.clone(),
-            max_datagram_frame_size: self.max_datagram_frame_size,
-            max_udp_payload_size: self.max_udp_payload_size,
-            identity: Arc::clone(&self.identity),
-            tcp: self.tcp,
-            #[cfg(feature = "keylog")]
-            key_log: self.key_log.clone(),
-            #[cfg(feature = "qlog")]
-            qlog_dir: self.qlog_dir.clone(),
-        }
+        self.with_crypto(self.crypto.with_isolated_session_cache())
     }
 
     /// Returns whether connections from this connector resume sessions.
@@ -180,8 +169,52 @@ impl Http3Connector {
     /// this connector's identity, profile, and ticket cache.
     #[must_use]
     pub fn without_ticket_offers(&self) -> Self {
+        self.with_crypto(self.crypto.without_ticket_offers())
+    }
+
+    /// Returns a clone that sends early (0-RTT) data on resumed connections.
+    ///
+    /// # Replay
+    ///
+    /// Early data is replayable. An attacker who records a connection's first
+    /// flight can deliver it to the server again, and the server may process
+    /// each copy (RFC 8446, section 8; RFC 9001, section 9.2). No named
+    /// browser recipe enables this, and it is off unless requested.
+    ///
+    /// A connection from the clone sends early data only when it presents a
+    /// ticket that permits it, which needs [`Self::with_isolated_session_cache`]
+    /// and a profile with `session_tickets`. Such a connection is returned
+    /// before its handshake completes. Only a replay-safe request, a safe
+    /// method (`GET`, `HEAD`, `OPTIONS`, or `TRACE`) with no body and no
+    /// trailers, is sent before the handshake; every other request, including
+    /// extended CONNECT and CONNECT-UDP, waits for it. If the server rejects
+    /// the early data, requests on the connection fail with
+    /// [`Http3Unprocessed::EarlyDataRejected`](super::Http3Unprocessed): the
+    /// server processed none of them, and the connection is not reused.
+    ///
+    /// The clone shares this connector's ticket cache and identity.
+    #[must_use]
+    pub fn with_early_data(&self) -> Self {
+        self.with_crypto(self.crypto.with_early_data())
+    }
+
+    /// Returns a clone that never sends early data, sharing the ticket cache
+    /// and identity.
+    #[must_use]
+    pub fn without_early_data(&self) -> Self {
+        self.with_crypto(self.crypto.without_early_data())
+    }
+
+    /// Returns whether resumed connections from this connector may send early
+    /// (0-RTT) data.
+    #[must_use]
+    pub fn sends_early_data(&self) -> bool {
+        self.crypto.sends_early_data()
+    }
+
+    fn with_crypto(&self, crypto: QuicClientConfig) -> Self {
         Self {
-            crypto: Arc::new(self.crypto.without_ticket_offers()),
+            crypto: Arc::new(crypto),
             settings: self.settings.clone(),
             request_settings: self.request_settings.clone(),
             max_datagram_frame_size: self.max_datagram_frame_size,

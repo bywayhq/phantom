@@ -74,6 +74,7 @@ pub(crate) struct ClientOptions {
     pub(crate) max_client_hint_origins: NonZeroUsize,
     pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
     pub(crate) alt_svc_policy: AltSvcPolicy,
+    pub(crate) http3_early_data: bool,
     #[cfg(feature = "cookies")]
     pub(crate) cookie_jar: Option<CookieJar>,
 }
@@ -98,6 +99,7 @@ impl Default for ClientOptions {
             max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
             max_alt_svc_origins: None,
             alt_svc_policy: AltSvcPolicy::sequential(),
+            http3_early_data: false,
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }

@@ -16,6 +16,7 @@ use tracing::{debug, debug_span, field};
 
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask};
+use early_data::EarlyData;
 #[cfg(test)]
 use request::prepare_request;
 use request::{PreparedRequest, prepare_profiled_request_body_with_trailers};
@@ -24,6 +25,7 @@ use tokio::runtime::Handle;
 use crate::direct::{RuntimeUnavailable, poll_tokio_io};
 
 mod alps;
+mod early_data;
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
 pub use connect_udp::{ConnectUdpError, ConnectUdpErrorKind};
@@ -456,49 +458,62 @@ async fn connect(
     path_mtu: Option<u16>,
 ) -> Result<Http3Connection, Http3Error> {
     let mut builder = settings::builder(settings, &crypto)?;
+    let sends_early_data = crypto.sends_early_data();
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
-    let connection = endpoint
-        .connect(remote, server_name)
-        .map_err(|error| {
-            Http3Error::with_source(
-                Http3ErrorKind::Connect,
-                "failed to begin QUIC connection",
-                error,
-            )
-        })?
-        .await
-        .map_err(connection_error)?;
-    let handshake = require_h3(&connection)?;
+    let connecting = endpoint.connect(remote, server_name).map_err(|error| {
+        Http3Error::with_source(
+            Http3ErrorKind::Connect,
+            "failed to begin QUIC connection",
+            error,
+        )
+    })?;
+    // A connection that sends early data is used before its handshake ends,
+    // so its TLS metadata, including any peer ALPS, is not read here.
+    let (connection, early_data) = if sends_early_data {
+        match connecting.into_0rtt() {
+            Ok((connection, accepted)) => {
+                debug!("QUIC connection sending early data before its handshake completes");
+                let early_data = EarlyData::spawn(connection.clone(), accepted);
+                (connection, Some(early_data))
+            }
+            Err(connecting) => (connecting.await.map_err(connection_error)?, None),
+        }
+    } else {
+        (connecting.await.map_err(connection_error)?, None)
+    };
     let mut accept_ch = crate::accept_ch::AcceptCh::default();
-    if let Some(peer_settings) = handshake.peer_application_settings() {
-        accept_ch = alps::decode(peer_settings).map_err(|error| {
-            Http3Error::with_source(
-                Http3ErrorKind::Protocol,
-                "peer HTTP/3 ALPS metadata is invalid",
-                error,
-            )
-        })?;
-        debug!(
-            accept_ch_entry_count = accept_ch.len(),
-            ignored_accept_ch_entry_count = accept_ch.ignored_len(),
-            "HTTP/3 peer application settings decoded"
-        );
-        builder
-            .peer_application_settings(peer_settings)
-            .map_err(|error| {
+    if early_data.is_none() {
+        let handshake = require_h3(&connection)?;
+        if let Some(peer_settings) = handshake.peer_application_settings() {
+            accept_ch = alps::decode(peer_settings).map_err(|error| {
                 Http3Error::with_source(
                     Http3ErrorKind::Protocol,
-                    "peer HTTP/3 application settings are invalid",
+                    "peer HTTP/3 ALPS metadata is invalid",
                     error,
                 )
             })?;
+            debug!(
+                accept_ch_entry_count = accept_ch.len(),
+                ignored_accept_ch_entry_count = accept_ch.ignored_len(),
+                "HTTP/3 peer application settings decoded"
+            );
+            builder
+                .peer_application_settings(peer_settings)
+                .map_err(|error| {
+                    Http3Error::with_source(
+                        Http3ErrorKind::Protocol,
+                        "peer HTTP/3 application settings are invalid",
+                        error,
+                    )
+                })?;
+        }
+        debug!(
+            session_resumed = handshake.session_resumed(),
+            "QUIC connection established with exact h3 ALPN"
+        );
     }
-    debug!(
-        session_resumed = handshake.session_resumed(),
-        "QUIC connection established with exact h3 ALPN"
-    );
 
     let (h3_driver, sender) = builder
         .build(h3_quinn::Connection::new(connection.clone()))
@@ -521,6 +536,7 @@ async fn connect(
         connection,
         connector_identity,
         accept_ch,
+        early_data,
     ))
 }
 

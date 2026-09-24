@@ -123,6 +123,51 @@ impl Http3Pool {
             client_hints,
             body.as_ref(),
         )?;
+        if connector.sends_early_data() && is_replay_safe(&method, body.as_ref(), &trailers) {
+            let early = self
+                .admit(endpoint, route, timeout_budget)
+                .await?
+                .connect(
+                    connector,
+                    connect_udp_proxy,
+                    endpoint,
+                    route,
+                    transport,
+                    timeout_budget,
+                    retries,
+                    Http3SetupControl {
+                        early_data: true,
+                        ..Http3SetupControl::default()
+                    },
+                )
+                .await?;
+            let result = dispatch(
+                early,
+                connector,
+                method.clone(),
+                authority,
+                target.clone(),
+                headers.clone(),
+                trailers.clone(),
+                client_hints,
+                None,
+                timeout_budget,
+                retries,
+            )
+            .await;
+            match result {
+                Err(error) if error.is_http3_early_data_rejected() => {
+                    // Rejected early data was not processed (RFC 9001,
+                    // section 4.6.2). The request is sent again after a
+                    // handshake, over the same route and protocol.
+                    debug!(
+                        outcome = "early_data_rejected",
+                        "HTTP/3 early data rejected; sending after the handshake"
+                    );
+                }
+                result => return result,
+            }
+        }
         let leased = self
             .acquire_lease(
                 connector,
@@ -327,8 +372,12 @@ struct PoolEntry {
     turns: ConnectTurns,
     admission: Arc<Admission>,
     /// Origin connector with this entry's own QUIC ticket cache, so a ticket
-    /// is presented only on the origin and route that learned it.
+    /// is presented only on the origin and route that learned it. It never
+    /// sends early data.
     origin: OnceLock<Http3Connector>,
+    /// The origin connector's early-data twin, sharing its ticket cache, when
+    /// the client enables HTTP/3 early data.
+    origin_early: OnceLock<Option<Http3Connector>>,
     /// Outer HTTP/3 CONNECT-UDP proxy connector, with its own ticket cache.
     http3_proxy: OnceLock<Http3Connector>,
     /// Proxy TLS connector for a TCP CONNECT-UDP leg, with its own session cache.
@@ -342,6 +391,7 @@ impl PoolEntry {
             turns: std::sync::Mutex::new(Vec::new()),
             admission,
             origin: OnceLock::new(),
+            origin_early: OnceLock::new(),
             http3_proxy: OnceLock::new(),
             tcp_proxy: OnceLock::new(),
         }
@@ -403,7 +453,14 @@ impl PoolEntry {
             }
         }
 
-        let connect = self.connect(connector, connect_udp_proxy, endpoint, route, transport);
+        let connect = self.connect(
+            connector,
+            connect_udp_proxy,
+            endpoint,
+            route,
+            transport,
+            control.early_data,
+        );
         let connection = match control.attempt_limit {
             Some(limit) => tokio::time::timeout(limit, connect).await.map_err(|_| {
                 debug!(
@@ -420,6 +477,12 @@ impl PoolEntry {
             token: Arc::new(()),
             location,
         };
+        if slot.connection.sent_early_data() {
+            // Until the server accepts its early data, the connection serves
+            // only the replay-safe request that opened it.
+            drop(turn);
+            return Ok(slot.unpooled_lease());
+        }
         let lease = slot.lease();
         let mut slots = self.slots.lock().await;
         if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
@@ -445,11 +508,21 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
         transport: Http3TransportTarget<'_>,
+        early_data: bool,
     ) -> Result<Http3Connection, RequestError> {
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
         let origin = self
             .origin
-            .get_or_init(|| connector.with_isolated_session_cache());
+            .get_or_init(|| connector.without_early_data().with_isolated_session_cache());
+        let early_origin = self
+            .origin_early
+            .get_or_init(|| {
+                connector
+                    .sends_early_data()
+                    .then(|| origin.with_early_data())
+            })
+            .as_ref()
+            .filter(|_| early_data);
         let http3_proxy = match route {
             Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none() => {
                 let base = connect_udp_http3(connect_udp_proxy)?;
@@ -465,7 +538,7 @@ impl PoolEntry {
             || http3_proxy.is_some_and(|(proxy, host)| proxy.has_ticket_for(host));
         let first = self
             .connect_with(
-                origin,
+                early_origin.unwrap_or(origin),
                 http3_proxy.map(|(proxy, _)| proxy),
                 endpoint,
                 route,
@@ -584,6 +657,20 @@ impl PoolEntry {
         })
     }
 
+    /// Pools a connection whose early data the server accepted, unless its
+    /// location already has one.
+    async fn adopt(&self, slot: ConnectionSlot) {
+        let mut slots = self.slots.lock().await;
+        if slots.iter().any(|pooled| pooled.location == slot.location) {
+            return;
+        }
+        if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
+            slots.pop_front();
+            debug!(outcome = "evicted", "HTTP/3 transport location evicted");
+        }
+        slots.push_back(slot);
+    }
+
     async fn invalidate(&self, token: &Arc<()>) {
         let mut slots = self.slots.lock().await;
         if let Some(position) = slots
@@ -674,6 +761,9 @@ pub(crate) struct Http3SetupControl<'a> {
     /// Limit on one connection attempt once the turn is held, reported as a
     /// connect-phase timeout.
     pub(crate) attempt_limit: Option<Duration>,
+    /// Whether a new connection may carry the request as early data. Set only
+    /// for a replay-safe request on a client that enables HTTP/3 early data.
+    pub(crate) early_data: bool,
 }
 
 /// One admitted request that has not acquired a connection yet.
@@ -853,6 +943,18 @@ async fn dispatch(
         .await;
     match result {
         Ok(Ok(response)) => {
+            if let Some(location) = lease.adopt_at {
+                // A response means the handshake has completed.
+                if lease.connection.early_data_accepted().await == Some(true) {
+                    entry
+                        .adopt(ConnectionSlot {
+                            connection: lease.connection.clone(),
+                            token: lease.token,
+                            location,
+                        })
+                        .await;
+                }
+            }
             let (parts, body) = response.into_parts();
             Ok((
                 http::Response::from_parts(parts, ResponseBody::http3_with_guard(body, permit)),
@@ -876,6 +978,14 @@ async fn dispatch(
             Err(error)
         }
     }
+}
+
+/// Returns whether sending `method` twice is harmless: a safe method (RFC
+/// 9110, section 9.2.1) with no body and no trailers. This is the method rule
+/// Phantom applies to critical client-hint replays, and the rule Chromium
+/// applies to early data for a request of default idempotency.
+fn is_replay_safe(method: &Method, body: Option<&RequestBody>, trailers: &[RequestHeader]) -> bool {
+    method.is_safe() && body.is_none() && trailers.is_empty()
 }
 
 /// Expands the CONNECT-UDP path for the transport target before I/O.
@@ -919,6 +1029,17 @@ impl ConnectionSlot {
         ConnectionLease {
             connection: self.connection.clone(),
             token: Arc::clone(&self.token),
+            adopt_at: None,
+        }
+    }
+
+    /// A lease on a connection kept out of the pool until the request that
+    /// opened it shows the server accepted its early data.
+    fn unpooled_lease(self) -> ConnectionLease {
+        ConnectionLease {
+            connection: self.connection,
+            token: self.token,
+            adopt_at: Some(self.location),
         }
     }
 }
@@ -926,6 +1047,8 @@ impl ConnectionSlot {
 struct ConnectionLease {
     connection: Http3Connection,
     token: Arc<()>,
+    /// Where to pool the connection once its early data is accepted.
+    adopt_at: Option<TransportLocation>,
 }
 
 #[cfg(test)]
@@ -986,6 +1109,26 @@ mod tests {
             std::task::Poll::Ready(output) => Some(output),
             std::task::Poll::Pending => None,
         }
+    }
+
+    #[test]
+    fn only_bodiless_safe_requests_without_trailers_are_replay_safe() {
+        use http::Method;
+        use phantom_net::http3::RequestHeader;
+        use phantom_net::request::RequestBody;
+
+        use super::is_replay_safe;
+
+        for method in [Method::GET, Method::HEAD, Method::OPTIONS, Method::TRACE] {
+            assert!(is_replay_safe(&method, None, &[]), "{method}");
+        }
+        for method in [Method::POST, Method::PUT, Method::DELETE, Method::CONNECT] {
+            assert!(!is_replay_safe(&method, None, &[]), "{method}");
+        }
+        let body = RequestBody::from_bytes(bytes::Bytes::from_static(b"body"));
+        assert!(!is_replay_safe(&Method::GET, Some(&body), &[]));
+        let trailer = RequestHeader::new("x-trailer", "1");
+        assert!(!is_replay_safe(&Method::GET, None, &[trailer]));
     }
 
     #[test]
