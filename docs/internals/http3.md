@@ -443,7 +443,7 @@ identity stay the same. By default, a failed alternative setup is terminal and
 evicts the advertisement, with no H1 or H2 fallback. An opt-in racing policy
 instead races the alternative's setup against a delayed origin setup, and
 marks a failed alternative broken; see
-[Racing](../guides/http3.md#racing).
+[Racing](../guides/http3.md#race-the-alternative-against-the-origin).
 
 One pool entry per origin and route keeps connections for up to four
 transport locations, so alternating exact-H3 and Alt-Svc H3 requests reuse

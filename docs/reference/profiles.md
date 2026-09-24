@@ -40,7 +40,7 @@ build that can be recaptured and reverified.
   ([TCP socket options](#tcp-socket-options)).
 - H2 WebSocket needs a captured pseudo-header order for extended CONNECT.
   Only `chromium::v154_http2` and `firefox::v156_http2` carry one
-  ([Profile connection policy](../guides/websocket.md#profile-connection-policy)).
+  ([Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does)).
 
 ## Recipe names and platforms
 
