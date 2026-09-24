@@ -15,7 +15,7 @@ use crate::{
 };
 
 use super::{
-    ProtocolSelection, RequestBodySource, ResolvedRequest,
+    PreparedRequestTemplate, ProtocolSelection, RequestBodySource, ResolvedRequest,
     alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc, send_once_raced},
     replay::{ReplayClass, ReplayState},
 };
@@ -470,8 +470,8 @@ pub(super) fn attempt_headers(
 ) -> Vec<RequestHeader> {
     let fields = request
         .template
-        .as_deref()
-        .and_then(|template| super::template::fields_for(template, protocol));
+        .as_ref()
+        .and_then(|template| template.fields_for(protocol));
     // `send` rejects a template without a list for any protocol the request
     // may use, so a missing list never reaches this point with a template.
     let mut headers = match fields {
@@ -513,7 +513,7 @@ pub(super) fn attempt_client_hints<'a>(
         .map(|(settings, origin)| {
             client
                 .client_hint_context(&request.endpoint, origin, settings)
-                .with_template(request.template.as_deref())
+                .with_template(request.template.as_ref())
         })
 }
 
@@ -775,8 +775,8 @@ async fn dispatch_attempt(
 fn http2_priority(request: &ResolvedRequest) -> Option<Http2Priority> {
     request
         .template
-        .as_deref()
-        .and_then(|template| template.http2_priority)
+        .as_ref()
+        .and_then(PreparedRequestTemplate::http2_priority)
 }
 
 fn proxy_authentication_error(error: HttpConnectError) -> RequestError {

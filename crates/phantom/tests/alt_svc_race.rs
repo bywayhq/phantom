@@ -30,8 +30,8 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry, Client,
-    HttpProtocol, RequestErrorKind, RequestHeader, RequestTimeouts, ResponseInfo, Route,
-    Socks5Proxy, TimeoutPhase,
+    HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader, RequestTimeouts,
+    ResponseInfo, Route, Socks5Proxy, TimeoutPhase,
     profile::{ClientProfile, chromium},
 };
 use tokio::{
@@ -690,7 +690,7 @@ async fn race_refuses_an_unplaceable_requested_hint_before_either_candidate_conn
         template.requested_client_hint_placement = false;
         let error = client
             .get_negotiated(&format!("https://{ORIGIN_NAME}:{origin_port}/refused"))?
-            .template(template)
+            .template(&PreparedRequestTemplate::new(template)?)
             .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
             .send()
             .await

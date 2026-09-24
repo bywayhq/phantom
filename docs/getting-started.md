@@ -129,12 +129,14 @@ request template supplies them, as recorded from Chrome 154:
 
 ```rust
 use phantom::profile::chromium;
-use phantom::{Client, HttpProtocol};
+use phantom::{Client, HttpProtocol, PreparedRequestTemplate};
 
 async fn navigate(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    // Validate the template once and reuse it for every navigation.
+    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
     let page = client
         .get(HttpProtocol::Http2, "https://example.com/")?
-        .template(chromium::v154_windows_navigation_template())
+        .template(&navigation)
         .send()
         .await?;
 

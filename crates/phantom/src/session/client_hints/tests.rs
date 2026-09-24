@@ -223,7 +223,12 @@ mod template_slots {
     use phantom_profile::{ClientHintSettings, RequestTemplate, chromium, edge};
 
     use super::super::prepare_fields;
-    use crate::request::template::expand;
+    use crate::{PreparedRequestTemplate, request::template::expand};
+
+    fn prepare(template: &RequestTemplate) -> PreparedRequestTemplate {
+        PreparedRequestTemplate::new(template.clone())
+            .unwrap_or_else(|error| panic!("built-in template is invalid: {error}"))
+    }
 
     const ALL_REQUESTED: &[usize] = &[2, 3, 5, 6, 7, 8, 9, 10];
 
@@ -240,7 +245,7 @@ mod template_slots {
             &template.http2_fields
         };
         let expanded = expand(fields, caller, Some(hints));
-        prepare_fields(hints, stored, None, expanded, Some(template))
+        prepare_fields(hints, stored, None, expanded, Some(&prepare(template)))
             .iter()
             .map(|header| header.name().to_owned())
             .collect()
@@ -332,20 +337,25 @@ mod template_slots {
         let kind = |result: Result<Vec<RequestHeader>, crate::RequestError>| {
             result.err().map(|error| error.kind())
         };
+        let prepared_fetch = prepare(&fetch);
+        let prepared_navigation = prepare(&navigation);
         let fields = expand(&fetch.http2_fields, &[], Some(&hints));
 
         // Default hints alone are the captured fetch shape.
-        assert_eq!(kind(context(&fetch).prepare(fields.clone(), None)), None);
+        assert_eq!(
+            kind(context(&prepared_fetch).prepare(fields.clone(), None)),
+            None
+        );
 
         // A hint requested through ALPS ACCEPT_CH, or supplied by the caller.
         assert_eq!(
-            kind(context(&fetch).prepare(fields.clone(), Some(b"Sec-CH-UA-Arch"))),
+            kind(context(&prepared_fetch).prepare(fields.clone(), Some(b"Sec-CH-UA-Arch"))),
             Some(RequestErrorKind::RequestTemplate)
         );
         let caller = [RequestHeader::new("sec-ch-ua-arch", "\"x86\"")];
         let with_caller = expand(&fetch.http2_fields, &caller, Some(&hints));
         assert_eq!(
-            kind(context(&fetch).prepare(with_caller, None)),
+            kind(context(&prepared_fetch).prepare(with_caller, None)),
             Some(RequestErrorKind::RequestTemplate)
         );
 
@@ -354,14 +364,16 @@ mod template_slots {
         learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
         store.learn_and_should_retry(&endpoint, &hints, &learned, &[]);
         assert_eq!(
-            kind(context(&fetch).prepare(fields, None)),
+            kind(context(&prepared_fetch).prepare(fields, None)),
             Some(RequestErrorKind::RequestTemplate)
         );
 
         // The navigation capture shows where requested hints go.
         let navigation_fields = expand(&navigation.http2_fields, &[], Some(&hints));
         assert_eq!(
-            kind(context(&navigation).prepare(navigation_fields, Some(b"Sec-CH-UA-Model"))),
+            kind(
+                context(&prepared_navigation).prepare(navigation_fields, Some(b"Sec-CH-UA-Model"))
+            ),
             None
         );
 
@@ -371,7 +383,7 @@ mod template_slots {
         slotless.requested_client_hint_placement = true;
         let slotless_fields = expand(&slotless.http2_fields, &[], None);
         assert_eq!(
-            kind(context(&slotless).prepare(slotless_fields, Some(b"Sec-CH-UA-Arch"))),
+            kind(context(&prepare(&slotless)).prepare(slotless_fields, Some(b"Sec-CH-UA-Arch"))),
             Some(RequestErrorKind::RequestTemplate)
         );
     }
@@ -385,7 +397,7 @@ mod template_slots {
             RequestHeader::new("SEC-CH-UA-MOBILE", "?1"),
         ];
         let expanded = expand(&template.http2_fields, &caller, Some(&hints));
-        let prepared = prepare_fields(&hints, None, None, expanded, Some(&template));
+        let prepared = prepare_fields(&hints, None, None, expanded, Some(&prepare(&template)));
         let mobile = prepared
             .iter()
             .position(|header| header.name() == "sec-ch-ua-mobile");

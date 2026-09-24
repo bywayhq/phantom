@@ -94,22 +94,26 @@ fn chrome_on_macos() -> ClientProfile {
 
 ## Apply a captured request template
 
-Send the fields a browser sends for one kind of request, in its order, with
-`RequestBuilder::template`.
+Send the fields a browser sends for one kind of request, in its order.
+`PreparedRequestTemplate::new` validates a template once; pass the result to
+`RequestBuilder::template` on each request.
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
-use phantom::{Client, HttpProtocol, RequestHeader};
+use phantom::{Client, HttpProtocol, PreparedRequestTemplate, RequestHeader};
 
 async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
     let profile = ClientProfile::new(chromium::v154_tls())
         .with_http2(chromium::v154_http2())
         .with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
+    // Prepare each template once and reuse it for every request.
+    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+    let fetch = PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
 
     let page = client
         .get(HttpProtocol::Http2, "https://example.com/")?
-        .template(chromium::v154_windows_navigation_template())
+        .template(&navigation)
         .send()
         .await?;
     page.into_body().collect_with_limit(1 << 20).await?;
@@ -117,7 +121,7 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
     // `Referer` is a caller slot: its value is the page URL.
     let data = client
         .get(HttpProtocol::Http2, "https://example.com/data.json")?
-        .template(chromium::v154_windows_fetch_no_store_template())
+        .template(&fetch)
         .header(RequestHeader::new("referer", "https://example.com/"))
         .send()
         .await?;

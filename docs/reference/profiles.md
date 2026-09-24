@@ -243,7 +243,7 @@ and version together.
 | Failure | Error |
 | --- | --- |
 | A required caller slot is empty | `RequestErrorKind::RequestTemplate` |
-| Invalid template | `RequestErrorKind::RequestTemplate` |
+| Invalid template data | `InvalidRequestTemplate` from `PreparedRequestTemplate::new` |
 | No HTTP/3 list on a request that may use HTTP/3 (exact H3, or negotiated with Alt-Svc enabled) | `RequestErrorKind::RequestTemplate` |
 
 ## Client hints

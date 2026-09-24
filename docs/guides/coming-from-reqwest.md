@@ -61,12 +61,14 @@ let request = client.get("https://example.com/").header("accept-language", "en-U
 
 ```rust
 use phantom::profile::chromium;
-use phantom::{Client, HttpProtocol, RequestBuilder, RequestHeader};
+use phantom::{Client, HttpProtocol, PreparedRequestTemplate, RequestBuilder, RequestHeader};
 
-fn fields(client: &Client) -> Result<RequestBuilder, phantom::RequestError> {
+fn fields(client: &Client) -> Result<RequestBuilder, Box<dyn std::error::Error>> {
+    // Prepare the template once; reuse it across requests.
+    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
     Ok(client
         .get(HttpProtocol::Http2, "https://example.com/")?
-        .template(chromium::v154_windows_navigation_template())
+        .template(&navigation)
         .header(RequestHeader::new("x-trace", "1")))
 }
 ```
@@ -76,7 +78,7 @@ fn fields(client: &Client) -> Result<RequestBuilder, phantom::RequestError> {
   [header order](../fingerprinting.md#header-order) is part of the
   fingerprint. Without a template, fields go out in the order you add them.
 - Phantom adds no `User-Agent`, `Accept`, or `Sec-Fetch-*` field. A template
-  supplies them and must name the profile's browser
+  supplies them; use one from the profile's browser
   ([Apply a captured request template](profiles.md#apply-a-captured-request-template)).
 
 ## POST a body

@@ -244,10 +244,10 @@ pub enum RequestErrorKind {
     AuthorityHeader,
     /// A request field is not valid for the selected operation.
     InvalidHeader,
-    /// The request template is invalid, has no field order for a protocol
-    /// the request may use, has a required caller slot the request leaves
-    /// empty, or has no captured position for a client hint the request
-    /// would send.
+    /// The request template has no field order for a protocol the request
+    /// may use, has differing `Accept-Encoding` values for a decoded
+    /// response, has a required caller slot the request leaves empty, or has
+    /// no captured position for a client hint the request would send.
     RequestTemplate,
     /// The selected protocol is absent from the client profile, or a
     /// negotiated request's profile lacks HTTP/2 or `http/1.1` ALPN.
@@ -472,17 +472,6 @@ impl RequestError {
         Self::without_source(
             RequestErrorKind::AuthorityHeader,
             "Host is derived from the request URI and must not be supplied as a request field",
-        )
-    }
-
-    pub(crate) fn invalid_request_template(
-        source: phantom_profile::InvalidRequestTemplate,
-    ) -> Self {
-        Self::with_source(
-            RequestErrorKind::RequestTemplate,
-            None,
-            "invalid request template",
-            source,
         )
     }
 

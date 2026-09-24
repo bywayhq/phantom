@@ -14,7 +14,7 @@
 use std::env;
 
 use phantom::{
-    Client, HttpProtocol,
+    Client, HttpProtocol, PreparedRequestTemplate,
     profile::{ClientProfile, chromium},
 };
 
@@ -33,6 +33,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_client_hints(chromium::v154_windows_client_hints())
         .with_cookie_placement(chromium::v154_cookie_placement());
     let client = Client::builder(profile).cookies().build()?;
+    // Validate the template once and reuse it for both requests.
+    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
 
     for attempt in 1..=2 {
         if let Some(jar) = client.cookie_jar() {
@@ -43,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Stores every `Set-Cookie` from the response in the shared jar.
         let response = client
             .get(HttpProtocol::Http2, &url)?
-            .template(chromium::v154_windows_navigation_template())
+            .template(&navigation)
             .send()
             .await?;
         println!("request {attempt}: {}", response.status());

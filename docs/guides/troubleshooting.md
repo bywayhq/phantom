@@ -139,12 +139,14 @@ resent. `RequestBody` also reports an error from your own body stream.
 
 `RequestTemplate` means the template cannot place a field the request would
 send: no HTTP/3 list for a request that may use H3, no slot for the profile's
-client hints, or conflicting `Accept-Encoding` values with decoding on. It
-also means a required caller slot is empty: the Edge templates require your
-`User-Agent`
-([Required caller fields](../reference/profiles.md#required-caller-fields)).
+client hints, or conflicting `Accept-Encoding` values with decoding on.
 Firefox templates have neither an HTTP/3 list nor hint slots
-([Template limits](../reference/profiles.md#template-limits)).
+([Template limits](../reference/profiles.md#template-limits)). It also means
+a required caller slot is empty: the Edge templates require your `User-Agent`
+([Required caller fields](../reference/profiles.md#required-caller-fields)).
+
+Invalid template data fails earlier, at `PreparedRequestTemplate::new`, with
+`InvalidRequestTemplate`.
 
 ## A request field or URI is rejected
 

@@ -16,7 +16,7 @@
 use std::{env, process};
 
 use phantom::{
-    Client, HttpProtocol, HttpProxy, Route, Socks5Proxy,
+    Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, Route, Socks5Proxy,
     profile::{ClientProfile, chromium},
 };
 
@@ -44,10 +44,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_http2(chromium::v154_http2())
         .with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile).route(route).build()?;
+    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
 
     let response = client
         .get(HttpProtocol::Http2, &url)?
-        .template(chromium::v154_windows_navigation_template())
+        .template(&navigation)
         .send()
         .await?;
     println!("{}", response.status());

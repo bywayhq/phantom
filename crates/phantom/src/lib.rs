@@ -136,7 +136,7 @@ pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use content_coding::{ContentCoding, ContentDecoding};
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use redirect::RedirectPolicy;
-pub use request::RequestBuilder;
+pub use request::{PreparedRequestTemplate, RequestBuilder};
 pub use response::ResponseInfo;
 pub use retry::{RetryPolicy, StatusRetry, StatusRetryError};
 pub use route::{

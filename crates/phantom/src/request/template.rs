@@ -1,19 +1,102 @@
 //! Expansion and checks for browser request templates.
 
+use std::sync::Arc;
+
 use phantom_net::request::RequestHeader;
-use phantom_profile::{ClientHintDelivery, ClientHintSettings, RequestField, RequestTemplate};
+use phantom_profile::{
+    ClientHintDelivery, ClientHintSettings, Http2Priority, InvalidRequestTemplate, RequestField,
+    RequestTemplate,
+    request_template::{ClientHintSlot, client_hint_placement},
+};
 
 use crate::{HttpProtocol, RequestError};
 
-/// Returns the template's field list for `protocol`, if one was captured.
-pub(crate) fn fields_for(
-    template: &RequestTemplate,
-    protocol: HttpProtocol,
-) -> Option<&[RequestField]> {
-    match protocol {
-        HttpProtocol::Http1 => Some(&template.http1_fields),
-        HttpProtocol::Http2 => Some(&template.http2_fields),
-        HttpProtocol::Http3 => template.http3_fields.as_deref(),
+/// A validated request template that requests share without copying it.
+///
+/// [`PreparedRequestTemplate::new`] validates the template once. Pass the
+/// result to [`RequestBuilder::template`](crate::RequestBuilder::template)
+/// for each request; cloning it copies a reference count, not the fields.
+#[derive(Clone, Debug)]
+pub struct PreparedRequestTemplate(Arc<Prepared>);
+
+#[derive(Debug)]
+struct Prepared {
+    template: RequestTemplate,
+    /// Client-hint placement, the same on every protocol list.
+    client_hint_slots: Vec<ClientHintSlot>,
+    /// The HTTP/1.1 list's literal `Accept-Encoding`.
+    accept_encoding: Option<Box<str>>,
+    /// Whether every protocol list has the same literal `Accept-Encoding`.
+    accept_encoding_agrees: bool,
+    /// Names of required caller slots on any protocol list.
+    required_fields: Vec<Box<str>>,
+}
+
+impl PreparedRequestTemplate {
+    /// Validates `template` and prepares it for sending.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`RequestTemplate::validate`] when the template
+    /// data is invalid.
+    pub fn new(template: RequestTemplate) -> Result<Self, InvalidRequestTemplate> {
+        template.validate()?;
+        let client_hint_slots = client_hint_placement(&template.http2_fields);
+        let (accept_encoding, accept_encoding_agrees) = {
+            let mut codings = lists(&template).map(|fields| literal(fields, "accept-encoding"));
+            let first = codings.next().flatten();
+            let agrees = codings.all(|coding| coding == first);
+            (first.map(Box::from), agrees)
+        };
+        let mut required_fields: Vec<Box<str>> = Vec::new();
+        for field in lists(&template).flatten() {
+            if let RequestField::Caller {
+                name,
+                required: true,
+            } = field
+                && !required_fields
+                    .iter()
+                    .any(|seen| seen.eq_ignore_ascii_case(name))
+            {
+                required_fields.push(name.clone());
+            }
+        }
+        Ok(Self(Arc::new(Prepared {
+            template,
+            client_hint_slots,
+            accept_encoding,
+            accept_encoding_agrees,
+            required_fields,
+        })))
+    }
+
+    /// Returns the template's field list for `protocol`, if one was captured.
+    pub(crate) fn fields_for(&self, protocol: HttpProtocol) -> Option<&[RequestField]> {
+        let template = &self.0.template;
+        match protocol {
+            HttpProtocol::Http1 => Some(&template.http1_fields),
+            HttpProtocol::Http2 => Some(&template.http2_fields),
+            HttpProtocol::Http3 => template.http3_fields.as_deref(),
+        }
+    }
+
+    /// Returns each client-hint slot with the fields that follow it.
+    pub(crate) fn client_hint_slots(&self) -> &[ClientHintSlot] {
+        &self.0.client_hint_slots
+    }
+
+    pub(crate) fn requested_client_hint_placement(&self) -> bool {
+        self.0.template.requested_client_hint_placement
+    }
+
+    pub(crate) fn http2_priority(&self) -> Option<Http2Priority> {
+        self.0.template.http2_priority
+    }
+
+    /// Returns the template's literal `Accept-Encoding`, for decoding
+    /// decisions made before the protocol is chosen.
+    pub(crate) fn accept_encoding(&self) -> Option<&str> {
+        self.0.accept_encoding.as_deref()
     }
 }
 
@@ -101,40 +184,36 @@ pub(crate) struct ProtocolScope {
     pub(crate) content_decoding: bool,
 }
 
-/// Validates the template against the request before any I/O.
+/// Checks the prepared template against the request before any I/O.
 ///
 /// # Errors
 ///
-/// Returns a request-template error for invalid template data, a protocol
-/// the template has no field order for, a required caller slot the caller
-/// leaves empty, profile hints sent by default when the template has no
-/// client-hint slot, or a caller field carrying a hint the profile sends only
-/// on request when the template does not capture where such hints go.
+/// Returns a request-template error for a protocol the template has no
+/// field order for, differing `Accept-Encoding` values when the response
+/// will be decoded, a required caller slot the caller leaves empty, profile
+/// hints sent by default when the template has no client-hint slot, or a
+/// caller field carrying a hint the profile sends only on request when the
+/// template does not capture where such hints go.
 pub(crate) fn check(
-    template: &RequestTemplate,
+    prepared: &PreparedRequestTemplate,
     scope: ProtocolScope,
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
 ) -> Result<(), RequestError> {
-    template
-        .validate()
-        .map_err(RequestError::invalid_request_template)?;
+    let template = &prepared.0.template;
     let missing_http3 = template.http3_fields.is_none()
         && (scope.exact == Some(HttpProtocol::Http3) || (scope.exact.is_none() && scope.alt_svc));
     if missing_http3 {
         return Err(RequestError::request_template_protocol());
     }
-    if scope.content_decoding {
-        let mut codings = lists(template).map(|fields| literal(fields, "accept-encoding"));
-        let first = codings.next().flatten();
-        if codings.any(|coding| coding != first) {
-            return Err(RequestError::request_template_accept_encoding());
-        }
+    if scope.content_decoding && !prepared.0.accept_encoding_agrees {
+        return Err(RequestError::request_template_accept_encoding());
     }
 
-    let missing_required = lists(template).flatten().any(|field| {
-        matches!(field, RequestField::Caller { name, required: true }
-            if !caller.iter().any(|header| header.name().eq_ignore_ascii_case(name)))
+    let missing_required = prepared.0.required_fields.iter().any(|name| {
+        !caller
+            .iter()
+            .any(|header| header.name().eq_ignore_ascii_case(name))
     });
     if missing_required {
         return Err(RequestError::request_template_required_field());
@@ -155,14 +234,7 @@ pub(crate) fn check(
     }
     // Without a slot, automatic hints would go before every template field,
     // a position no capture shows. A Firefox template has none.
-    let has_hint_slot = lists(template).any(|fields| {
-        fields.iter().any(|field| {
-            matches!(
-                field,
-                RequestField::ClientHint { .. } | RequestField::ClientHints
-            )
-        })
-    });
+    let has_hint_slot = !prepared.0.client_hint_slots.is_empty();
     let sends_default_hints = hints.is_some_and(|settings| {
         settings
             .hints()
@@ -173,12 +245,6 @@ pub(crate) fn check(
         return Err(RequestError::request_template_unslotted_hints());
     }
     Ok(())
-}
-
-/// Returns the template's literal `Accept-Encoding`, for decoding decisions
-/// made before the protocol is chosen.
-pub(crate) fn accept_encoding(template: &RequestTemplate) -> Option<&str> {
-    literal(&template.http1_fields, "accept-encoding")
 }
 
 /// Returns every protocol list the template has.

@@ -1,7 +1,7 @@
 use phantom_net::request::RequestHeader;
 use phantom_profile::{RequestField, RequestTemplate, chromium, edge, firefox};
 
-use super::{ProtocolScope, check, expand};
+use super::{PreparedRequestTemplate, ProtocolScope, check, expand};
 use crate::{HttpProtocol, RequestErrorKind};
 
 const CHROME_154: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -27,7 +27,9 @@ fn kind(
     caller: &[RequestHeader],
     hints: Option<&phantom_profile::ClientHintSettings>,
 ) -> Option<RequestErrorKind> {
-    check(template, scope, caller, hints)
+    let prepared = PreparedRequestTemplate::new(template.clone())
+        .unwrap_or_else(|error| panic!("template is invalid: {error}"));
+    check(&prepared, scope, caller, hints)
         .err()
         .map(|error| error.kind())
 }
@@ -332,12 +334,14 @@ fn a_request_that_may_use_http3_needs_an_http3_list() {
 }
 
 #[test]
-fn invalid_templates_and_disagreeing_accept_encoding_are_rejected() {
+fn invalid_templates_fail_to_prepare_and_disagreeing_accept_encoding_is_rejected() {
     let mut template = firefox::v156_windows_navigation_template();
     template.http2_fields.push(RequestField::caller("cookie"));
     assert_eq!(
-        kind(&template, exact(HttpProtocol::Http2), &[], None),
-        Some(RequestErrorKind::RequestTemplate)
+        PreparedRequestTemplate::new(template)
+            .err()
+            .map(|error| error.field()),
+        Some("http2_fields")
     );
 
     let mut template = firefox::v156_windows_navigation_template();

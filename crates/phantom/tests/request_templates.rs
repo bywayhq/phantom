@@ -29,8 +29,8 @@ use std::{
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, ClientBuilder, ContentCoding, ContentDecoding, HttpProtocol, RedirectPolicy,
-    RequestErrorKind, RequestHeader, ResponseInfo,
+    Client, ClientBuilder, ContentCoding, ContentDecoding, HttpProtocol, PreparedRequestTemplate,
+    RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo,
     profile::{
         ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate,
         chromium, edge, firefox,
@@ -213,7 +213,7 @@ async fn send_with(
 
     let response = client
         .get(protocol, &url)?
-        .template(template)
+        .template(&PreparedRequestTemplate::new(template)?)
         .headers(caller)
         .send()
         .await?;
@@ -466,7 +466,9 @@ async fn negotiated_http2_request_sends_the_template_priority() -> TestResult<()
             .build()?;
     let sent = client
         .get_negotiated(&url)?
-        .template(chromium::v154_windows_fetch_no_store_template())
+        .template(&PreparedRequestTemplate::new(
+            chromium::v154_windows_fetch_no_store_template(),
+        )?)
         .header(RequestHeader::new("referer", url.as_str()))
         .send();
     let response = timeout(TEST_TIMEOUT, sent).await??;
@@ -737,7 +739,9 @@ async fn redirect_hop() -> TestResult<()> {
         .build()?;
     let response = client
         .get(HttpProtocol::Http1, &first_url)?
-        .template(chromium::v154_windows_navigation_template())
+        .template(&PreparedRequestTemplate::new(
+            chromium::v154_windows_navigation_template(),
+        )?)
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
         .content_decoding(ContentDecoding::advertised(1 << 20))
         .send()
@@ -799,7 +803,7 @@ async fn edge_template_without_a_user_agent_fails_before_any_connection() -> Tes
     ] {
         let error = client
             .get(HttpProtocol::Http2, url)?
-            .template(template)
+            .template(&PreparedRequestTemplate::new(template)?)
             .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
             .send()
             .await
@@ -820,7 +824,9 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
     let url = "https://127.0.0.1:9/";
     let error = client
         .get(HttpProtocol::Http2, url)?
-        .template(chromium::v154_windows_fetch_no_store_template())
+        .template(&PreparedRequestTemplate::new(
+            chromium::v154_windows_fetch_no_store_template(),
+        )?)
         .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
         .send()
@@ -833,7 +839,9 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
     // does, so it is refused there too.
     let error = client
         .get(HttpProtocol::Http1, "http://127.0.0.1:9/")?
-        .template(chromium::v154_windows_fetch_no_store_template())
+        .template(&PreparedRequestTemplate::new(
+            chromium::v154_windows_fetch_no_store_template(),
+        )?)
         .header(RequestHeader::new("referer", "http://127.0.0.1:9/"))
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
         .send()
@@ -885,10 +893,12 @@ async fn fetch_template_after_accept_ch_fails_before_the_request_is_sent() -> Te
     )
     .await?;
     let client = chrome_hints_client(&identity)?;
+    // One prepared template serves every request.
+    let template = PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
     let fetch = || {
         client.get(HttpProtocol::Http1, &url).map(|request| {
             request
-                .template(chromium::v154_windows_fetch_no_store_template())
+                .template(&template)
                 .header(RequestHeader::new("referer", url.as_str()))
         })
     };
@@ -924,7 +934,9 @@ async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> Te
         TEST_TIMEOUT,
         client
             .get(HttpProtocol::Http1, &url)?
-            .template(chromium::v154_windows_fetch_no_store_template())
+            .template(&PreparedRequestTemplate::new(
+                chromium::v154_windows_fetch_no_store_template(),
+            )?)
             .header(RequestHeader::new("referer", url.as_str()))
             .send(),
     )
@@ -944,7 +956,9 @@ async fn template_without_http3_order_rejects_http3_before_any_connection() -> T
     let client = Client::builder(profile).build()?;
     let error = client
         .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
-        .template(firefox::v156_windows_fetch_no_store_template())
+        .template(&PreparedRequestTemplate::new(
+            firefox::v156_windows_fetch_no_store_template(),
+        )?)
         .send()
         .await
         .err()

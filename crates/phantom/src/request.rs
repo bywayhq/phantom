@@ -1,4 +1,4 @@
-use std::{borrow::Cow, error::Error as StdError, fmt, sync::Arc};
+use std::{borrow::Cow, error::Error as StdError, fmt};
 
 use bytes::Bytes;
 use http::{Method, Response, Uri};
@@ -7,7 +7,6 @@ use phantom_net::{
     http1::{AbsoluteForm, OriginForm},
     request::{RequestBody, RequestHeader, RequestTrailerName},
 };
-use phantom_profile::RequestTemplate;
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
@@ -23,6 +22,8 @@ mod alt_svc_attempt;
 mod attempt;
 mod replay;
 pub(crate) mod template;
+
+pub use template::PreparedRequestTemplate;
 
 use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use replay::ReplayState;
@@ -185,10 +186,13 @@ impl RequestBuilder {
     /// replaces the connection's HEADERS priority for this request's stream.
     /// Every redirect hop uses the same template.
     ///
-    /// Sending fails before I/O with
+    /// The template was validated when it was prepared. Sending fails before
+    /// I/O with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
-    /// when the template is invalid or lacks an HTTP/3 list for a request that
-    /// may use HTTP/3, when the caller leaves a required caller slot empty,
+    /// when the template lacks an HTTP/3 list for a request that may use
+    /// HTTP/3, when content decoding is enabled and the protocol lists carry
+    /// different `Accept-Encoding` values, when the caller leaves a required
+    /// caller slot empty,
     /// when the template has no client-hint slot and the profile sends client
     /// hints by default, or when the caller supplies a client hint the profile
     /// sends only on request, with a template whose
@@ -197,8 +201,8 @@ impl RequestBuilder {
     /// on a connection when a hint requested through `Accept-CH` or ALPS
     /// `ACCEPT_CH` would be sent. Phantom does not compare `User-Agent` or
     /// `sec-ch-ua` values with the template.
-    pub fn template(mut self, template: RequestTemplate) -> Self {
-        self.request.template = Some(Arc::new(template));
+    pub fn template(mut self, template: &PreparedRequestTemplate) -> Self {
+        self.request.template = Some(template.clone());
         self
     }
 
@@ -490,7 +494,7 @@ impl RequestBuilder {
             return Err(RequestError::alt_used_header());
         }
         let content_decoding = self.content_decoding;
-        if let Some(template) = self.request.template.as_deref() {
+        if let Some(template) = &self.request.template {
             let scope = template::ProtocolScope {
                 exact: match self.selection {
                     ProtocolSelection::Exact(protocol) => Some(protocol),
@@ -508,7 +512,7 @@ impl RequestBuilder {
         }
         if content_decoding.is_enabled() {
             AdvertisedContentCodings::from_request_headers(&decoding_headers(
-                self.request.template.as_deref(),
+                self.request.template.as_ref(),
                 &self.headers,
             ))?;
         }
@@ -553,7 +557,7 @@ impl RequestBuilder {
             let decoding = FinalDecoding::new(
                 content_decoding,
                 &method,
-                &decoding_headers(request.template.as_deref(), &request_headers),
+                &decoding_headers(request.template.as_ref(), &request_headers),
             )?;
             let outcome = send_once(
                 &client,
@@ -633,7 +637,7 @@ impl RequestBuilder {
                     let decoded_content_codings = FinalDecoding::new(
                         content_decoding,
                         redirect.method(),
-                        &decoding_headers(resolved.template.as_deref(), redirect.headers()),
+                        &decoding_headers(resolved.template.as_ref(), redirect.headers()),
                     )?
                     .apply(&mut response, outcome.protocol);
                     response.extensions_mut().insert(ResponseInfo::new(
@@ -670,13 +674,13 @@ impl RequestBuilder {
 /// A template's literal `Accept-Encoding` is sent when the caller supplies
 /// none, so it is advertised too.
 fn decoding_headers<'a>(
-    template: Option<&RequestTemplate>,
+    template: Option<&PreparedRequestTemplate>,
     headers: &'a [RequestHeader],
 ) -> Cow<'a, [RequestHeader]> {
     let caller_supplied = headers
         .iter()
         .any(|header| header.name().eq_ignore_ascii_case("accept-encoding"));
-    match template.and_then(template::accept_encoding) {
+    match template.and_then(PreparedRequestTemplate::accept_encoding) {
         Some(value) if !caller_supplied => {
             let mut headers = headers.to_vec();
             headers.push(RequestHeader::new("accept-encoding", value));
@@ -891,7 +895,7 @@ struct ResolvedRequest {
     endpoint: Endpoint,
     target: OriginForm,
     absolute_target: AbsoluteForm,
-    template: Option<Arc<RequestTemplate>>,
+    template: Option<PreparedRequestTemplate>,
 }
 
 impl ResolvedRequest {

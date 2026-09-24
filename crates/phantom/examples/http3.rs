@@ -14,7 +14,7 @@
 use std::env;
 
 use phantom::{
-    Client, HttpProtocol, ResponseInfo,
+    Client, HttpProtocol, PreparedRequestTemplate, ResponseInfo,
     profile::{ClientProfile, Http3ClientSettings, chromium},
 };
 
@@ -39,10 +39,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_http3(http3)
         .with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
+    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
 
     let response = client
         .get(HttpProtocol::Http3, &url)?
-        .template(chromium::v154_windows_navigation_template())
+        .template(&navigation)
         .send()
         .await?;
     println!("status: {}", response.status());

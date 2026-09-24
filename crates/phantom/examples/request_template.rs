@@ -14,7 +14,7 @@
 use std::env;
 
 use phantom::{
-    Client, HttpProtocol, RequestHeader,
+    Client, HttpProtocol, PreparedRequestTemplate, RequestHeader,
     profile::{ClientProfile, chromium},
 };
 use url::Url;
@@ -38,10 +38,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_http2(chromium::v154_http2())
         .with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
+    // Prepare each template once and reuse it for every request.
+    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+    let fetch = PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
 
     let page = client
         .get(HttpProtocol::Http2, page_url.as_str())?
-        .template(chromium::v154_windows_navigation_template())
+        .template(&navigation)
         .send()
         .await?;
     println!("navigation {page_url}: {}", page.status());
@@ -51,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `Referer` is a caller slot in the fetch template: its value is the page URL.
     let data = client
         .get(HttpProtocol::Http2, fetch_url.as_str())?
-        .template(chromium::v154_windows_fetch_no_store_template())
+        .template(&fetch)
         .header(RequestHeader::new("referer", page_url.as_str()))
         .send()
         .await?;

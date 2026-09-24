@@ -235,7 +235,8 @@ did not process. See
 
 A `RequestTemplate`: for one kind of browser request, the captured field
 order and values for each protocol, slots for caller fields and client hints,
-and the captured H2 priority. See
+and the captured H2 priority. `PreparedRequestTemplate::new` validates one
+for use with `RequestBuilder::template`. See
 [Request templates](../guides/profiles.md#apply-a-captured-request-template).
 
 ## Route

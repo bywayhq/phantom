@@ -6,14 +6,11 @@ use std::{
 
 use http::{HeaderMap, header::HeaderName};
 use phantom_net::request::RequestHeader;
-use phantom_profile::{
-    ClientHintDelivery, ClientHintSettings, RequestTemplate,
-    request_template::{ClientHintSlot, client_hint_placement},
-};
+use phantom_profile::{ClientHintDelivery, ClientHintSettings, request_template::ClientHintSlot};
 use sfv::{BareItem, List, ListEntry, Parser};
 use tracing::debug;
 
-use crate::{RequestError, authority::Endpoint};
+use crate::{PreparedRequestTemplate, RequestError, authority::Endpoint};
 
 const ACCEPT_CH: HeaderName = HeaderName::from_static("accept-ch");
 const CRITICAL_CH: HeaderName = HeaderName::from_static("critical-ch");
@@ -24,7 +21,7 @@ pub(crate) struct ClientHintContext<'a> {
     origin: &'a str,
     settings: &'a ClientHintSettings,
     store: Option<&'a ClientHintStore>,
-    template: Option<&'a RequestTemplate>,
+    template: Option<&'a PreparedRequestTemplate>,
 }
 
 impl<'a> ClientHintContext<'a> {
@@ -44,7 +41,7 @@ impl<'a> ClientHintContext<'a> {
     }
 
     /// Places automatic hints at the template's client-hint slots.
-    pub(crate) fn with_template(mut self, template: Option<&'a RequestTemplate>) -> Self {
+    pub(crate) fn with_template(mut self, template: Option<&'a PreparedRequestTemplate>) -> Self {
         self.template = template;
         self
     }
@@ -92,8 +89,7 @@ impl<'a> ClientHintContext<'a> {
         // A template without slots places no hint; `check` already refused
         // default hints for it, so only requested hints remain.
         let unplaced = self.template.is_some_and(|template| {
-            !template.requested_client_hint_placement
-                || client_hint_placement(&template.http2_fields).is_empty()
+            !template.requested_client_hint_placement() || template.client_hint_slots().is_empty()
         });
         if unplaced && sends_requested_hint(self.settings, &prepared) {
             return Err(RequestError::request_template_requested_hint());
@@ -225,18 +221,16 @@ fn prepare_fields(
     stored: Option<&[usize]>,
     connection: Option<&[usize]>,
     caller: Vec<RequestHeader>,
-    template: Option<&RequestTemplate>,
+    template: Option<&PreparedRequestTemplate>,
 ) -> Vec<RequestHeader> {
     let enabled = |index: usize| {
         settings.hints()[index].delivery() == ClientHintDelivery::Default
             || stored.is_some_and(|indices| indices.binary_search(&index).is_ok())
             || connection.is_some_and(|indices| indices.binary_search(&index).is_ok())
     };
-    // Any protocol's list works: validation requires the same placement on
-    // every protocol.
-    let slots = template.map(|template| client_hint_placement(&template.http2_fields));
-    if let Some(slots) = slots.filter(|slots| !slots.is_empty()) {
-        return place_in_slots(settings, &slots, enabled, caller);
+    let slots = template.map_or(&[][..], PreparedRequestTemplate::client_hint_slots);
+    if !slots.is_empty() {
+        return place_in_slots(settings, slots, enabled, caller);
     }
 
     let caller_names = caller
