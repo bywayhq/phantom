@@ -26,7 +26,10 @@ use http::{HeaderMap, Method, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt, Full};
 use phantom::profile::{ClientProfile, chromium};
-use phantom::{HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo};
+use phantom::{
+    HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
+    Route,
+};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
@@ -36,9 +39,9 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use h2_support::{accept_client_preface, read_request_headers, write_frame};
-#[cfg(feature = "cookies")]
-use tls_support::client_builder;
-use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, read_head, test_client};
+use tls_support::{
+    H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, test_client,
+};
 use tracing_support::OutcomeSubscriber;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -691,6 +694,76 @@ async fn selected_protocol_is_recorded_when_request_is_cancelled() -> TestResult
         );
         server.abort();
         assert!(server.await.is_err());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn negotiated_plaintext_request_uses_http1() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nplain")
+                .await?;
+            stream.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(request)
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .get_negotiated(&format!("http://{address}/cleartext"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
+
+        // The origin reads an HTTP/1.1 head in the clear: no TLS, no h2c.
+        assert_eq!(
+            server.await??,
+            format!("GET /cleartext HTTP/1.1\r\nHost: {address}\r\n\r\n").as_bytes()
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn negotiated_plaintext_request_is_forwarded_over_http1() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            stream.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(request)
+        });
+
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+        let client = client_builder(&identity, true).route(route).build()?;
+        let response = client
+            .get_negotiated("http://origin.test/forwarded")?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+        response.into_body().collect().await?;
+
+        assert_eq!(
+            proxy.await??,
+            b"GET http://origin.test/forwarded HTTP/1.1\r\nHost: origin.test\r\n\r\n"
+        );
         Ok(())
     })
     .await

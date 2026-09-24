@@ -328,7 +328,9 @@ Supported:
 - A pooled facade for exact H1, H2, and H3 that is cheap to clone.
 - Pooled H1/H2 selection over a direct or SOCKS5 route, with optional later H3
   selection through Alt-Svc on the same route. H3 is tried sequentially by
-  default, or raced against the origin under an opt-in policy.
+  default, or raced against the origin under an opt-in policy. A negotiated
+  `http://` request uses H1 on any route that carries exact H1 `http://`, and
+  learns no Alt-Svc alternative.
 - Owned request builders with explicit methods.
 - Ordered [trailers](glossary.md#trailers), either static or produced by a
   declared streaming body, on exact H1/H2/H3 and negotiated requests.
@@ -540,8 +542,9 @@ Supported HTTP proxies:
   TLS-encrypted proxies. Basic authentication is challenge-driven: the first
   request is anonymous, and exactly one replay follows on a fresh connection
   over the same route. A caller's own `Proxy-Authorization` field is forwarded
-  when the proxy has no configured credentials. Forwarding never switches to
-  CONNECT or another protocol.
+  when the proxy has no configured credentials. A negotiated `http://` request
+  is forwarded as H1. Forwarding never switches to CONNECT or another
+  protocol.
 - HTTP/1.1 CONNECT over plaintext proxies or TLS proxies verified with
   their own trust settings, including one bounded Basic retry after a challenge.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
@@ -557,8 +560,8 @@ Supported HTTP proxies:
 Supported [SOCKS5](glossary.md#socks5):
 
 - SOCKS5 with local or remote DNS and optional RFC 1929 credentials, for exact
-  H1/H2 origin TLS, negotiated H1-or-H2 origin TLS, exact H1 plaintext
-  `http://`, and H1 WS/WSS.
+  H1/H2 origin TLS, negotiated H1-or-H2 origin TLS, plaintext H1 `http://`
+  (exact or negotiated), and H1 WS/WSS.
 - Negotiated HTTPS over SOCKS5 can upgrade through a learned Alt-Svc
   alternative, dialing it over the same proxy with UDP ASSOCIATE. The
   advertisement is keyed to that route and is never reused directly or through

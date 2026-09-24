@@ -204,6 +204,10 @@ impl Client {
     /// protocol. Client cookies and learned client hints apply. Negotiated
     /// generations are isolated from the exact-protocol pools.
     ///
+    /// An `http://` origin has no TLS stream for ALPN, so the request is sent
+    /// as exact HTTP/1.1 over the route, as a browser sends it, reports
+    /// [`HttpProtocol::Http1`], and learns no Alt-Svc alternative.
+    ///
     /// # Errors
     ///
     /// Returns a [`crate::RequestError`] before any I/O, with kind:
@@ -220,8 +224,7 @@ impl Client {
     /// - [`InvalidTarget`](crate::RequestErrorKind::InvalidTarget) when `uri`
     ///   has a fragment or its path and query are not a valid request target.
     ///
-    /// [`RequestBuilder::send`] rejects an `http://` URI and an unsupported
-    /// route, also before I/O.
+    /// [`RequestBuilder::send`] rejects an unsupported route, also before I/O.
     pub fn get_negotiated(&self, uri: &str) -> Result<RequestBuilder, crate::RequestError> {
         self.request_negotiated(Method::GET, uri)
     }
@@ -248,8 +251,7 @@ impl Client {
     /// - [`InvalidTarget`](crate::RequestErrorKind::InvalidTarget) when `uri`
     ///   has a fragment or its path and query are not a valid request target.
     ///
-    /// [`RequestBuilder::send`] rejects an `http://` URI and an unsupported
-    /// route, also before I/O.
+    /// [`RequestBuilder::send`] rejects an unsupported route, also before I/O.
     pub fn request_negotiated(
         &self,
         method: Method,

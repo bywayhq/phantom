@@ -24,7 +24,8 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 | Request | Direct | H1 proxy | H2 proxy | SOCKS5 | CONNECT-UDP |
 | --- | --- | --- | --- | --- | --- |
 | `http://`, exact H1 | Plaintext TCP | Absolute-form forwarding | Rejected | Plaintext H1 in a TCP tunnel | Rejected |
-| `http://`, exact H2 or H3, or negotiated | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `http://`, negotiated | Plaintext TCP, H1 | Absolute-form forwarding, H1 | Rejected | Plaintext H1 in a TCP tunnel | Rejected |
+| `http://`, exact H2 or H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
 | `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
 | `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
@@ -46,6 +47,9 @@ Notes:
   so negotiated requests through it store no Alt-Svc advertisement and stay on
   H1 or H2. See
   [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
+- A negotiated `http://` request has no TLS stream for ALPN, so it is sent as
+  H1, as a browser sends it, and follows the exact H1 row. It reports H1 as
+  its protocol and learns no Alt-Svc alternative.
 - WebSocket and SSE requests need the matching Cargo feature.
 - A `ws://` or `wss://` request over H3 fails when the builder is created.
 - SSE event sources follow the ordinary rows for their scheme and protocol.

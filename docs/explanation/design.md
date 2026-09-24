@@ -441,7 +441,7 @@ reconnect budget, because the same request would fail the same way.
 ### Forward-proxy authentication
 
 Forward-proxy Basic authentication is request-scoped; the client learns no
-state from it. Every logical exact-H1 forwarding request starts without
+state from it. Every logical forwarding request starts without
 credentials. A strict, valid Basic `407` challenge permits one replay on a
 fresh connection with the same complete route. A second `407`, or a challenge
 Phantom cannot use, is a typed proxy failure. A proxy without configured

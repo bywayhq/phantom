@@ -71,9 +71,9 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
   request fails; Phantom does not retry with another ALPN offer or protocol.
   A tunnel cannot carry QUIC, so these requests never learn an Alt-Svc `h3`
   alternative.
-- `http://` and `ws://` origins use absolute-form forwarding, for exact
-  HTTP/1.1 only. It never switches to CONNECT, H2, H3, negotiated requests,
-  or a direct route.
+- `http://` and `ws://` origins use absolute-form forwarding over HTTP/1.1.
+  A negotiated `http://` request is forwarded as H1, because cleartext has no
+  ALPN. Forwarding never switches to CONNECT, H2, H3, or a direct route.
 - With an `https://` proxy, Phantom verifies the proxy's certificate under
   the proxy trust settings. Basic credentials sent to an `http://` proxy
   travel unencrypted.
@@ -134,8 +134,8 @@ fn socks_route() -> Result<Route, Box<dyn std::error::Error>> {
 - Exact H1 and H2, negotiated requests, and H1 `ws://` and `wss://`
   WebSockets use an RFC 1928 CONNECT tunnel. The origin keeps its own
   certificate verification and SNI.
-- An exact H1 `http://` request uses the same tunnel and stays plaintext
-  inside it.
+- An H1 `http://` request, exact or negotiated, uses the same tunnel and
+  stays plaintext inside it.
 - With Alt-Svc enabled, a negotiated request can later upgrade to H3 over the
   same proxy ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
 - Exact H3 uses an RFC 1928 UDP ASSOCIATE relay. Its TCP control connection

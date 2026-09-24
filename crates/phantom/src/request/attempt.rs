@@ -51,6 +51,23 @@ pub(super) async fn send_once(
         ProtocolSelection::Exact(protocol) => {
             send_once_exact(client, request, protocol, attempt, route, lifecycle).await
         }
+        // Cleartext has no ALPN and browsers do not use h2c, so HTTP/1.1 is
+        // the one protocol of the negotiated set an `http://` origin can use.
+        // It is chosen before any I/O, and nothing is learned from Alt-Svc.
+        ProtocolSelection::Http1Or2 if request.uri.scheme_str() == Some("http") => {
+            lifecycle
+                .request_span
+                .record("selected_protocol", HttpProtocol::Http1.trace_name());
+            send_once_exact(
+                client,
+                request,
+                HttpProtocol::Http1,
+                attempt,
+                route,
+                lifecycle,
+            )
+            .await
+        }
         ProtocolSelection::Http1Or2 => {
             send_once_negotiated(client, request, attempt, route, lifecycle).await
         }

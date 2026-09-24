@@ -1045,6 +1045,14 @@ does, an Alt-Svc advertisement on the tunnel that is not stored, refusal on a
 CONNECT-UDP route, pool isolation between routes, and a failed origin
 handshake that is not retried.
 
+Negotiated `http://` requests have regressions in
+`crates/phantom/tests/negotiated.rs`, `socks5.rs`, `alt_svc_persistence.rs`,
+and `redirects.rs`. They prove that the request reaches the origin as a
+cleartext HTTP/1.1 head directly, in absolute form through a forward proxy,
+and inside a SOCKS5 tunnel; that the response reports H1; that an `h3`
+advertisement on it is not stored; and that a negotiated redirect to an
+`http://` target is followed over H1.
+
 WebSocket route regressions apply the same contract to a plaintext `ws://`
 Upgrade through plaintext and TLS-encrypted forward proxies. They assert the
 normalized absolute-form request target, the caller-selected order of

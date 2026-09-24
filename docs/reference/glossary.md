@@ -169,8 +169,9 @@ Hash summaries of a TLS ClientHello used to label clients. See
 ## Negotiated protocol
 
 A request mode with one TLS handshake in which the server picks H1 or H2
-through [ALPN](#alpn). With the Alt-Svc store enabled, a later negotiated
-request can use a learned H3 alternative. Compare
+through [ALPN](#alpn). An `http://` request has no TLS handshake, so it uses
+H1. With the Alt-Svc store enabled, a later negotiated HTTPS request can use a
+learned H3 alternative. Compare
 [exact protocol](#exact-protocol).
 
 ## Normalization

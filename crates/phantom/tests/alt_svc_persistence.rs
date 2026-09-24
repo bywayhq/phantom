@@ -11,6 +11,7 @@ mod tls_support;
 
 use std::{
     future::Future,
+    net::Ipv4Addr,
     num::NonZeroUsize,
     time::{Duration, SystemTime},
 };
@@ -22,13 +23,13 @@ use phantom::{
     ResponseInfo,
     profile::{ClientProfile, chromium},
 };
-use tokio::time::timeout;
+use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use h3_support::client_settings;
 use http3_upgrade_support::{
     AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse, UpgradeScript,
 };
-use tls_support::{TestIdentity, TestResult, tls_settings};
+use tls_support::{TestIdentity, TestResult, read_head, tls_settings};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";
@@ -287,6 +288,47 @@ async fn import_requires_alt_svc_enabled() -> TestResult<()> {
         .ok_or("import succeeded without Alt-Svc")?;
     assert_eq!(error.kind(), AltSvcSnapshotErrorKind::Disabled);
     Ok(())
+}
+
+#[tokio::test]
+async fn negotiated_plaintext_response_teaches_no_alternative() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            read_head(&mut stream).await?;
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nAlt-Svc: h3=\":443\"; ma=3600\r\nContent-Length: 0\r\n\r\n",
+                )
+                .await?;
+            stream.flush().await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let client = client(&identity, 8)?;
+        let response = client
+            .get_negotiated(&format!("http://{address}/advertises"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let protocol = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .map(ResponseInfo::protocol);
+        assert_eq!(protocol, Some(HttpProtocol::Http1));
+        response.into_body().collect().await?;
+        server.await??;
+
+        assert_eq!(
+            client.export_alt_svc().map(|snapshot| snapshot.len()),
+            Some(0)
+        );
+        Ok(())
+    })
+    .await
 }
 
 async fn learning_fixture(

@@ -77,8 +77,9 @@ async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
   or H3 (HTTP/1.1, HTTP/2, HTTP/3).
 - `get_negotiated` and `request_negotiated` are
   [negotiated](../reference/glossary.md#negotiated-protocol): one TLS
-  handshake, direct or through a SOCKS5 tunnel. The server's `h2` selects H2;
-  `http/1.1` or no ALPN selects H1. With
+  handshake, direct or through a SOCKS5 or HTTP proxy tunnel. The server's
+  `h2` selects H2; `http/1.1` or no ALPN selects H1. An `http://` URL has no
+  TLS handshake, so a negotiated request for it uses H1. With
   [Alt-Svc](../reference/glossary.md#alt-svc) enabled, a later negotiated
   request on the same route can move to a learned H3 endpoint
   ([HTTP/3 and Alt-Svc](http3.md)).

@@ -1168,13 +1168,6 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .err()
             .ok_or("HTTP/2 forwarding unexpectedly succeeded")?;
         assert_eq!(h2_error.kind(), RequestErrorKind::UnsupportedRoute);
-        let negotiated_error = h2_client
-            .get_negotiated("http://origin.test/")?
-            .send()
-            .await
-            .err()
-            .ok_or("negotiated forwarding unexpectedly succeeded")?;
-        assert_eq!(negotiated_error.kind(), RequestErrorKind::UnsupportedRoute);
 
         let h3_profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
         let h3_client = Client::builder(h3_profile)

@@ -498,6 +498,63 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
     .await
 }
 
+#[tokio::test]
+async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let secure_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let secure_address = secure_listener.local_addr()?;
+        let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
+        let plain_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let plain_address = plain_listener.local_addr()?;
+        let location = format!("http://{plain_address}/plain");
+        let secure = tokio::spawn(async move {
+            let mut stream = accept_tls(&secure_listener, &acceptor).await?;
+            let head = tls_support::read_head(&mut stream).await?;
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await?;
+            stream.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(head)
+        });
+        let plain = tokio::spawn(async move {
+            let (mut stream, _) = plain_listener.accept().await?;
+            let head = tls_support::read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nplain")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(head)
+        });
+
+        let session = test_client(&identity, true)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let response = session
+            .get_negotiated(&format!("https://{secure_address}/start"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_response_info(&response, &format!("http://{plain_address}/plain"))?;
+        let protocol = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .map(ResponseInfo::protocol);
+        assert_eq!(protocol, Some(HttpProtocol::Http1));
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
+
+        assert!(secure.await??.starts_with(b"GET /start HTTP/1.1\r\n"));
+        assert!(plain.await??.starts_with(b"GET /plain HTTP/1.1\r\n"));
+        Ok(())
+    })
+    .await
+}
+
 async fn send_redirect_probe(
     session: &phantom::Session,
     address: std::net::SocketAddr,

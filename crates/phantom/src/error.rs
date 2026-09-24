@@ -457,7 +457,7 @@ impl RequestError {
     pub(crate) fn unsupported_scheme() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedScheme,
-            "request URI must use HTTPS unless exact HTTP/1.1 is selected for plaintext HTTP",
+            "plaintext HTTP requires exact HTTP/1.1 or HTTP/1.1-or-HTTP/2 negotiation",
         )
     }
 

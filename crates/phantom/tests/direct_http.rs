@@ -355,13 +355,6 @@ async fn non_http1_plaintext_fails_before_tcp_io() -> TestResult<()> {
                 .ok_or("non-HTTP/1 plaintext request unexpectedly succeeded")?;
             assert_eq!(error.kind(), RequestErrorKind::UnsupportedScheme);
         }
-        let negotiated_error = client
-            .get_negotiated(&target)?
-            .send()
-            .await
-            .err()
-            .ok_or("negotiated plaintext request unexpectedly succeeded")?;
-        assert_eq!(negotiated_error.kind(), RequestErrorKind::UnsupportedScheme);
         assert!(
             timeout(NO_CONNECTION_WINDOW, origin.accept())
                 .await
