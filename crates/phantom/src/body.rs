@@ -17,8 +17,49 @@ use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
 
 /// Streaming response body returned by the public client.
 ///
-/// Dropping an incomplete body preserves the selected protocol's cancellation
-/// behavior and bounded driver teardown.
+/// `ResponseBody` implements [`http_body::Body`] with [`RequestError`] as its
+/// error. Read it frame by frame, or use [`Self::collect_with_limit`] for a
+/// bounded buffer. Dropping an incomplete body preserves the selected
+/// protocol's cancellation behavior and bounded driver teardown.
+///
+/// # Frame errors
+///
+/// A frame error is a [`RequestError`] with kind:
+///
+/// - [`Timeout`](crate::RequestErrorKind::Timeout) when the request's
+///   [`read_idle`](crate::RequestTimeouts::read_idle) or
+///   [`total`](crate::RequestTimeouts::total) limit elapses;
+/// - [`ContentDecoding`](crate::RequestErrorKind::ContentDecoding) or
+///   [`ResponseBodyLimit`](crate::RequestErrorKind::ResponseBodyLimit) when
+///   content decoding is enabled and the coded data is rejected or exceeds
+///   its decoded-byte cap;
+/// - [`Http1`](crate::RequestErrorKind::Http1),
+///   [`Http2`](crate::RequestErrorKind::Http2), or
+///   [`Http3`](crate::RequestErrorKind::Http3) when the transport fails;
+/// - [`RequestBody`](crate::RequestErrorKind::RequestBody) when a request
+///   body still uploading after an early response head fails; or
+/// - [`RuntimeUnavailable`](crate::RequestErrorKind::RuntimeUnavailable) or
+///   [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a
+///   configured timeout cannot be armed.
+///
+/// # Examples
+///
+/// ```no_run
+/// use http_body_util::BodyExt;
+/// use phantom::{Client, HttpProtocol, RequestError};
+///
+/// async fn count_bytes(client: &Client) -> Result<usize, RequestError> {
+///     let response = client.get(HttpProtocol::Http2, "https://example.com/")?.send().await?;
+///     let mut body = response.into_body();
+///     let mut received = 0;
+///     while let Some(frame) = body.frame().await {
+///         if let Ok(data) = frame?.into_data() {
+///             received += data.len();
+///         }
+///     }
+///     Ok(received)
+/// }
+/// ```
 #[must_use = "response bodies must be read or deliberately dropped"]
 pub struct ResponseBody {
     inner: Option<ResponseBodyInner>,
@@ -45,7 +86,15 @@ impl ResponseBody {
     ///
     /// Trailers are consumed and discarded. If the data exceeds
     /// `maximum_bytes`, the body is dropped immediately so the selected
-    /// protocol can cancel the incomplete stream.
+    /// protocol can cancel the incomplete stream. With content decoding,
+    /// `maximum_bytes` counts decoded bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`RequestError`] with kind
+    /// [`ResponseBodyLimit`](crate::RequestErrorKind::ResponseBodyLimit) when
+    /// the data exceeds `maximum_bytes`, or any frame error listed on
+    /// [`ResponseBody`].
     pub async fn collect_with_limit(mut self, maximum_bytes: usize) -> Result<Bytes, RequestError> {
         let mut collected = BytesMut::new();
         let mut length = 0usize;
