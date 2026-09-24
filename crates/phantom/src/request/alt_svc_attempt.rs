@@ -22,7 +22,7 @@ use super::{
 use crate::{
     AltSvcRace, Client, HttpProtocol, RequestError, Route,
     session::{
-        alt_svc::{AlternativeTarget, Discovery, PendingLookup, invalidates_alternative},
+        alt_svc::{AlternativeTarget, PendingLookup, invalidates_alternative},
         http1_or_2_pool,
         http3_pool::{self, Http3Lease, Http3SetupControl, Http3TransportTarget},
     },
@@ -62,19 +62,9 @@ pub(super) fn plan(client: &Client, request: &ResolvedRequest, route: &Route) ->
     let race = client.alt_svc_policy().race_settings();
     let alternative = match client.alt_svc_location(&request.endpoint, route) {
         Some(alternative) => alternative,
-        None => match client.https_record_alternative(&request.endpoint, route) {
-            Some((alternative, Discovery::Advertised)) => {
-                tracing::debug!(outcome = "advertised", "HTTPS records advertise h3");
-                alternative
-            }
-            Some((alternative, Discovery::Pending(lookup))) => {
-                tracing::debug!(outcome = "pending", "HTTPS record lookup in flight");
-                return match race {
-                    Some(race) => NegotiatedPlan::Race(alternative, race, Some(lookup)),
-                    None => NegotiatedPlan::Origin,
-                };
-            }
-            Some((_, Discovery::NotAdvertised)) | None => return NegotiatedPlan::Origin,
+        None => match https_record_plan(client, request, route, race) {
+            Ok(alternative) => alternative,
+            Err(plan) => return plan,
         },
     };
     match race {
@@ -83,6 +73,45 @@ pub(super) fn plan(client: &Client, request: &ResolvedRequest, route: &Route) ->
         Some(_) if alternative.is_broken() => NegotiatedPlan::Origin,
         Some(race) => NegotiatedPlan::Race(alternative, race, None),
     }
+}
+
+/// Returns the origin's own location when its cached HTTPS records advertise
+/// `h3`, or the plan for a request whose records say otherwise or are still
+/// being looked up.
+#[cfg(feature = "https-records")]
+fn https_record_plan(
+    client: &Client,
+    request: &ResolvedRequest,
+    route: &Route,
+    race: Option<AltSvcRace>,
+) -> Result<AlternativeTarget, NegotiatedPlan> {
+    use crate::session::alt_svc::Discovery;
+
+    match client.https_record_alternative(&request.endpoint, route) {
+        Some((alternative, Discovery::Advertised)) => {
+            tracing::debug!(outcome = "advertised", "HTTPS records advertise h3");
+            Ok(alternative)
+        }
+        Some((alternative, Discovery::Pending(lookup))) => {
+            tracing::debug!(outcome = "pending", "HTTPS record lookup in flight");
+            Err(match race {
+                Some(race) => NegotiatedPlan::Race(alternative, race, Some(lookup)),
+                None => NegotiatedPlan::Origin,
+            })
+        }
+        Some((_, Discovery::NotAdvertised)) | None => Err(NegotiatedPlan::Origin),
+    }
+}
+
+/// Without the `https-records` feature there are no HTTPS records to consult.
+#[cfg(not(feature = "https-records"))]
+fn https_record_plan(
+    _client: &Client,
+    _request: &ResolvedRequest,
+    _route: &Route,
+    _race: Option<AltSvcRace>,
+) -> Result<AlternativeTarget, NegotiatedPlan> {
+    Err(NegotiatedPlan::Origin)
 }
 
 pub(super) async fn send_once_alt_svc(

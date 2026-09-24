@@ -58,6 +58,7 @@ enum AlternativeSource {
     /// A stored Alt-Svc advertisement, named on the wire by `Alt-Used`.
     AltSvc { alt_used: Box<str>, generation: u64 },
     /// An HTTPS DNS record for the origin's own location.
+    #[cfg(feature = "https-records")]
     HttpsRecord,
 }
 
@@ -75,6 +76,7 @@ impl AlternativeTarget {
 
     /// Returns the origin's own location, as an HTTPS record advertising
     /// `h3` names it.
+    #[cfg(feature = "https-records")]
     pub(super) fn https_record(origin: &Endpoint, broken: bool) -> Self {
         Self {
             location: AltSvcLocation::origin(origin),
@@ -99,6 +101,7 @@ impl AlternativeTarget {
     pub(crate) fn alt_used(&self) -> Option<&str> {
         match &self.source {
             AlternativeSource::AltSvc { alt_used, .. } => Some(alt_used),
+            #[cfg(feature = "https-records")]
             AlternativeSource::HttpsRecord => None,
         }
     }
@@ -107,6 +110,7 @@ impl AlternativeTarget {
     pub(super) const fn generation(&self) -> Option<u64> {
         match &self.source {
             AlternativeSource::AltSvc { generation, .. } => Some(*generation),
+            #[cfg(feature = "https-records")]
             AlternativeSource::HttpsRecord => None,
         }
     }
@@ -127,6 +131,7 @@ pub(super) struct AltSvcLocation {
 }
 
 impl AltSvcLocation {
+    #[cfg(feature = "https-records")]
     fn origin(origin: &Endpoint) -> Self {
         Self {
             host: origin.host().to_ascii_lowercase().into(),
@@ -332,6 +337,7 @@ impl AltSvcStore {
     }
 
     /// Returns whether `location` is in a broken period for `origin` and `route`.
+    #[cfg(feature = "https-records")]
     pub(super) fn is_broken(
         &self,
         origin: &Endpoint,
@@ -896,8 +902,21 @@ pub(crate) fn invalidates_alternative(error: &RequestError) -> bool {
     }
 }
 
+#[cfg(feature = "https-records")]
 mod https_records;
+#[cfg(feature = "https-records")]
 pub(crate) use https_records::{Discovery, HttpsRecordDiscovery, PendingLookup};
+
+/// An HTTPS-record lookup; none can exist without the `https-records` feature.
+#[cfg(not(feature = "https-records"))]
+pub(crate) enum PendingLookup {}
+
+#[cfg(not(feature = "https-records"))]
+impl PendingLookup {
+    pub(crate) async fn advertises_h3(self) -> bool {
+        match self {}
+    }
+}
 
 mod policy;
 pub use policy::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace};

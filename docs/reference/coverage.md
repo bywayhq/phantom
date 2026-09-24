@@ -299,7 +299,8 @@ Supported requests and routes:
   for the record TTL (at most one day, 60 seconds without one) in at most the
   Alt-Svc store's number of origins. Records are parsed into typed fields
   (`alpn`, `no-default-alpn`, `port`, `ipv4hint`, `ipv6hint`, `mandatory`,
-  and `ech` kept as raw bytes), and a malformed record is a typed error. See
+  and `ech` kept as raw bytes), and a malformed record is a typed error.
+  Requires the `https-records` feature. See
   [Find HTTP/3 through HTTPS DNS records](../guides/http3.md#find-http3-through-https-dns-records).
 
 Supported wire behavior:

@@ -159,6 +159,7 @@ No feature is enabled by default. Add them to the `phantom` line in
 | Feature | Adds |
 | --- | --- |
 | `cookies` | A cookie jar owned by the client, with size limits |
+| `https-records` | HTTP/3 discovery from HTTPS DNS records, and the `phantom::dns` lookup types |
 | `sse` | Server-sent events, with a limited number of reconnects |
 | `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 extended CONNECT with an HTTP/2 profile that sets its pseudo-header order |
 | `websocket-deflate` | Opt-in `permessage-deflate`; turns on `websocket` |

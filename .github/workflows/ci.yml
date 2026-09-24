@@ -210,6 +210,7 @@ jobs:
         run: |
           cargo check -p phantom-http --no-default-features --locked
           cargo check -p phantom-http --no-default-features --features cookies --locked
+          cargo check -p phantom-http --no-default-features --features https-records --locked
           cargo check -p phantom-http --no-default-features --features sse --locked
           cargo check -p phantom-http --no-default-features --features websocket --locked
           cargo check -p phantom-http --no-default-features --features websocket-deflate --locked
@@ -220,10 +221,13 @@ jobs:
           cargo check -p phantom-http --no-default-features --features serde --locked
           cargo check -p phantom-http --no-default-features --features cookies,serde --locked
           cargo check -p phantom-http --no-default-features --features diagnostics --locked
+          cargo check -p phantom-http --no-default-features --features cookies,https-records --locked
           cargo check -p phantom-http --all-features --locked
           cargo check -p phantom-net --no-default-features --locked
+          cargo check -p phantom-net --no-default-features --features https-records --locked
           cargo check -p phantom-net --no-default-features --features qlog --locked
           cargo check -p phantom-net --no-default-features --features keylog --locked
+          cargo check -p phantom-net --no-default-features --features https-records,qlog --locked
           cargo check -p phantom-quic-btls --no-default-features --locked
           cargo check -p phantom-quic-btls --no-default-features --features keylog --locked
 
@@ -407,6 +411,7 @@ jobs:
       - name: Check optional features
         run: |
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies --locked
+          cargo "+$MSRV" check -p phantom-http --no-default-features --features https-records --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features sse --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features websocket --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features websocket-deflate --locked
@@ -417,9 +422,12 @@ jobs:
           cargo "+$MSRV" check -p phantom-http --no-default-features --features serde --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,serde --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features diagnostics --locked
+          cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,https-records --locked
           cargo "+$MSRV" check -p phantom-http --all-features --locked
+          cargo "+$MSRV" check -p phantom-net --no-default-features --features https-records --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features keylog --locked
+          cargo "+$MSRV" check -p phantom-net --no-default-features --features https-records,qlog --locked
           cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features keylog --locked
 
   # The one status check branch protection requires. It must list every other

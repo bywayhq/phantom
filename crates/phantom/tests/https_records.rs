@@ -1,5 +1,7 @@
 //! HTTP/3 discovery from HTTPS DNS records, against a loopback resolver.
 
+#![cfg(feature = "https-records")]
+
 #[allow(dead_code)]
 #[path = "support/h3.rs"]
 mod h3_support;

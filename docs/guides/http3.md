@@ -175,7 +175,9 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 An origin can advertise H3 in an [HTTPS DNS record](../reference/glossary.md#https-record),
 so the first request to it can use H3 without an earlier Alt-Svc response.
 Enable discovery with `ClientBuilder::https_record_discovery`, which needs
-`ClientBuilder::alt_svc`:
+`ClientBuilder::alt_svc`. The method and the `phantom::dns` module exist only
+with the `https-records` feature, which adds the `hickory-resolver`
+dependency:
 
 ```rust
 use std::num::NonZeroUsize;

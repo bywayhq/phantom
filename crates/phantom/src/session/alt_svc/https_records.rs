@@ -118,10 +118,6 @@ impl HttpsRecordDiscovery {
         }
     }
 
-    pub(crate) fn capacity(&self) -> NonZeroUsize {
-        self.cache.capacity
-    }
-
     /// Returns the cached result for `origin`, starting a shared lookup when
     /// there is none.
     ///

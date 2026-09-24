@@ -40,6 +40,7 @@
 //! | Feature | Adds |
 //! | --- | --- |
 //! | `cookies` | `CookieJar` and client-owned cookie handling |
+//! | `https-records` | The `dns` module and HTTP/3 discovery from HTTPS DNS records |
 //! | `sse` | Server-sent event decoding and bounded reconnects |
 //! | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
@@ -86,7 +87,8 @@ struct RoutesGuideDoctests;
 #[doc = include_str!("../../../docs/guides/retries.md")]
 struct RetriesGuideDoctests;
 
-#[cfg(doctest)]
+// The guide's HTTPS-record example needs the `https-records` feature.
+#[cfg(all(doctest, feature = "https-records"))]
 #[doc = include_str!("../../../docs/guides/http3.md")]
 struct Http3GuideDoctests;
 
@@ -235,7 +237,9 @@ pub mod profile {
 
 /// HTTPS DNS record (RFC 9460) lookups used for HTTP/3 discovery.
 ///
-/// See [`ClientBuilder::https_record_discovery`].
+/// See [`ClientBuilder::https_record_discovery`]. Requires the
+/// `https-records` feature.
+#[cfg(feature = "https-records")]
 pub mod dns {
     pub use phantom_net::dns::{
         AliasRecord, EchConfigList, HttpsLookupError, HttpsLookupErrorKind, HttpsRecord,

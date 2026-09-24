@@ -8,6 +8,8 @@ rust-version.workspace = true
 version.workspace = true
 
 [features]
+# HTTPS DNS record (RFC 9460) lookups through hickory-resolver.
+https-records = ["dep:hickory-resolver"]
 keylog = ["phantom-quic-btls/keylog"]
 qlog = ["quinn/qlog"]
 
@@ -18,7 +20,7 @@ flate2.workspace = true
 h3.workspace = true
 h3-datagram.workspace = true
 h3-quinn.workspace = true
-hickory-resolver = { version = "=0.26.3", default-features = false, features = ["system-config", "tokio"] }
+hickory-resolver = { version = "0.26.3", optional = true, default-features = false, features = ["system-config", "tokio"] }
 http = "1.4.0"
 http2 = { workspace = true, features = ["unstable"] }
 http-body = "1.0.1"

@@ -10,10 +10,13 @@
 //! It is an internal crate with no stability guarantee. Applications should
 //! depend on `phantom-http`. The optional `qlog` feature enables HTTP/3 qlog
 //! output, and `keylog` enables NSS key logging on every TLS context; the
-//! facade exposes both through its `diagnostics` feature.
+//! facade exposes both through its `diagnostics` feature. The optional
+//! `https-records` feature adds [`dns`], HTTPS DNS record lookups, and the
+//! resolver dependency they need.
 
 mod accept_ch;
 mod direct;
+#[cfg(feature = "https-records")]
 pub mod dns;
 pub mod http1;
 /// One-handshake HTTP/1.1 or HTTP/2 selection over TLS ALPN.

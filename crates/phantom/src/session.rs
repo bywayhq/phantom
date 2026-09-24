@@ -75,6 +75,7 @@ pub(crate) struct ClientOptions {
     pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
     pub(crate) alt_svc_policy: AltSvcPolicy,
     pub(crate) http3_early_data: bool,
+    #[cfg(feature = "https-records")]
     pub(crate) https_record_resolver: Option<phantom_net::dns::HttpsRecordResolver>,
     #[cfg(feature = "cookies")]
     pub(crate) cookie_jar: Option<CookieJar>,
@@ -101,6 +102,7 @@ impl Default for ClientOptions {
             max_alt_svc_origins: None,
             alt_svc_policy: AltSvcPolicy::sequential(),
             http3_early_data: false,
+            #[cfg(feature = "https-records")]
             https_record_resolver: None,
             #[cfg(feature = "cookies")]
             cookie_jar: None,
@@ -129,6 +131,7 @@ pub(crate) struct ClientState {
     pub(crate) http3: http3_pool::Http3Pool,
     alt_svc: Option<alt_svc::AltSvcStore>,
     alt_svc_policy: AltSvcPolicy,
+    #[cfg(feature = "https-records")]
     https_records: Option<alt_svc::HttpsRecordDiscovery>,
     client_hints: Option<client_hints::ClientHintStore>,
     #[cfg(feature = "cookies")]
@@ -155,6 +158,7 @@ impl ClientOptions {
                 "Alt-Svc racing requires an Alt-Svc store",
             ));
         }
+        #[cfg(feature = "https-records")]
         if self.https_record_resolver.is_some() && self.max_alt_svc_origins.is_none() {
             return Err(BuildError::invalid_policy(
                 "HTTPS record discovery requires an Alt-Svc store",
@@ -193,6 +197,7 @@ impl ClientOptions {
             ),
             alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
             alt_svc_policy: self.alt_svc_policy,
+            #[cfg(feature = "https-records")]
             https_records: self
                 .https_record_resolver
                 .zip(self.max_alt_svc_origins)
@@ -337,6 +342,7 @@ impl Client {
     /// proxied request no `DNS_ALPN_H3` job because "proxied connections
     /// perform DNS on the proxy", Phantom sends no HTTPS query for a request
     /// whose route is a proxy.
+    #[cfg(feature = "https-records")]
     pub(crate) fn https_record_alternative(
         &self,
         endpoint: &crate::authority::Endpoint,
@@ -656,18 +662,16 @@ impl fmt::Debug for Client {
                     .map(alt_svc::AltSvcStore::capacity),
             )
             .field("alt_svc_policy", &self.state.alt_svc_policy)
-            .field(
-                "https_record_discovery_enabled",
-                &self.state.https_records.is_some(),
-            )
-            .field(
-                "max_https_record_origins",
-                &self
-                    .state
-                    .https_records
-                    .as_ref()
-                    .map(alt_svc::HttpsRecordDiscovery::capacity),
-            )
+            .field("https_record_discovery_enabled", &{
+                #[cfg(feature = "https-records")]
+                {
+                    self.state.https_records.is_some()
+                }
+                #[cfg(not(feature = "https-records"))]
+                {
+                    false
+                }
+            })
             .field(
                 "max_client_hint_origins",
                 &self

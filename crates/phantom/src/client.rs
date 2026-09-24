@@ -493,7 +493,16 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("max_alt_svc_origins", &self.options.max_alt_svc_origins)
             .field("alt_svc_policy", &self.options.alt_svc_policy)
-            .field("https_record_resolver", &self.options.https_record_resolver)
+            .field("https_record_discovery", &{
+                #[cfg(feature = "https-records")]
+                {
+                    self.options.https_record_resolver.is_some()
+                }
+                #[cfg(not(feature = "https-records"))]
+                {
+                    false
+                }
+            })
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {
@@ -850,6 +859,9 @@ impl ClientBuilder {
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     /// Concurrent requests for one origin share one lookup. Proxy routes never
     /// query.
+    ///
+    /// Requires the `https-records` feature.
+    #[cfg(feature = "https-records")]
     #[must_use]
     pub fn https_record_discovery(mut self, resolver: crate::dns::HttpsRecordResolver) -> Self {
         self.options.https_record_resolver = Some(resolver);
