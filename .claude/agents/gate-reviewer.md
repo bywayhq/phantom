@@ -29,7 +29,14 @@ correctness, the brief, or a stated rule:
 5. Tests and docs: behavior changes without focused tests; test names that do
    not describe behavior; public behavior changes without documentation;
    claims of support the diff does not verify; fixtures without provenance.
-6. Commits: subjects that are not Conventional Commits under 72 characters,
+6. Documentation: pages that break
+   [Writing the documentation](../../docs/internals/documentation.md), such as
+   a page serving two readers, rationale or evidence left in a guide,
+   fingerprinting or a term re-explained instead of linked, stock phrases,
+   repeated sentence templates, or bold used for emphasis. A user-visible
+   change without a `CHANGELOG.md` entry, or a breaking change without a
+   "Migrate:" note.
+7. Commits: subjects that are not Conventional Commits under 72 characters,
    and any AI `Co-Authored-By`, `Claude-Session`, or session-link trailer.
 
 Output one line per finding: `path:line: severity: problem. fix.` Severity is
