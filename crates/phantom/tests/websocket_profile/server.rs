@@ -575,15 +575,19 @@ impl WireDecoder {
                 ("without-indexing", 4)
             };
             let index = read_integer(block, &mut cursor, prefix)?;
+            let mut name_huffman = None;
+            let mut value_huffman = None;
             let name = if kind == "indexed" {
                 self.name(index)?
             } else {
                 let name = if index == 0 {
-                    read_literal_name(block, &mut cursor)?
+                    let (name, huffman) = read_literal_name(block, &mut cursor)?;
+                    name_huffman = Some(huffman);
+                    name
                 } else {
                     self.name(index)?
                 };
-                skip_string(block, &mut cursor)?;
+                value_huffman = Some(skip_string(block, &mut cursor)?);
                 if kind == "incremental" {
                     self.table.insert(0, name.clone());
                 }
@@ -595,6 +599,8 @@ impl WireDecoder {
                     Representation {
                         kind: kind.to_owned(),
                         index,
+                        name_huffman,
+                        value_huffman,
                     },
                 ));
             }
@@ -640,27 +646,31 @@ fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult
     }
 }
 
-fn read_literal_name(block: &[u8], cursor: &mut usize) -> TestResult<Option<String>> {
+/// Returns a literal field name and whether it was Huffman-coded.
+fn read_literal_name(block: &[u8], cursor: &mut usize) -> TestResult<(Option<String>, bool)> {
     let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
     let bytes = block
         .get(*cursor..*cursor + length)
         .ok_or("HPACK string is truncated")?;
     *cursor += length;
-    Ok(match (huffman, bytes) {
+    let name = match (huffman, bytes) {
         (true, PROTOCOL_HUFFMAN) => Some(":protocol".to_owned()),
         (true, _) => None,
         (false, raw) => Some(String::from_utf8_lossy(raw).into_owned()),
-    })
+    };
+    Ok((name, huffman))
 }
 
-fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<()> {
+/// Skips a literal string and returns whether it was Huffman-coded.
+fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<bool> {
+    let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
     if block.len() < *cursor + length {
         return Err("HPACK string is truncated".into());
     }
     *cursor += length;
-    Ok(())
+    Ok(huffman)
 }
 
 struct RecordingIo<T> {

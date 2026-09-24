@@ -22,7 +22,8 @@ pub use client_hints::{
 };
 pub use cookie::CookiePlacement;
 pub use http2::{
-    Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings,
+    Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
+    Http2Settings, Http2StaticNameIndex, InvalidHttp2Settings,
 };
 pub use http3::{
     Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use super::{v154_http2, v154_http3_tls, v154_tls, v154_windows_client_hints};
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
-use crate::http2::{Http2Settings, session_capture::SessionCapture};
+use crate::http2::{Http2HpackSettings, Http2Settings, session_capture::SessionCapture};
 
 const INITIAL_CONNECTION_WINDOW: u32 = 65_535;
 const V154_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
@@ -168,11 +168,16 @@ fn chrome_154_http2_recipe_matches_windows_captures() -> Result<(), Box<dyn std:
     assert_eq!(capture.value("client")?, "Google Chrome");
     assert_eq!(capture.value("client_version")?, "154.0.8037.58");
     assert_eq!(capture.value("scenario")?, "accept");
-    // Navigation HEADERS carry no extended CONNECT shape; the WebSocket
-    // recipe tests compare that shape with every captured CONNECT.
+    // Navigation HEADERS carry no extended CONNECT shape, and one block shows
+    // only the static-name choice; the WebSocket recipe tests compare the whole
+    // encoder identity with every captured CONNECT.
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
+        hpack: Http2HpackSettings {
+            static_name_index: settings.hpack.static_name_index,
+            ..Http2HpackSettings::default()
+        },
         ..settings
     };
     let observed = capture.navigation_settings()?;

@@ -3,7 +3,8 @@ use std::future::poll_fn;
 use http::Response;
 use http_body_util::BodyExt;
 use phantom_profile::{
-    Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, chromium::v154_http2,
+    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
+    chromium::v154_http2,
 };
 use phantom_testkit::http2::{
     CLIENT_CONNECTION_PREFACE, CaptureCompletion, CaptureLimits, capture_client_frames,
@@ -177,6 +178,7 @@ async fn emits_every_supported_setting_in_declared_order() -> TestResult<()> {
             weight: 1,
             exclusive: false,
         }),
+        hpack: Http2HpackSettings::default(),
     };
     bounded_peer_test(async {
         let (client, mut server) = duplex(64 * 1024);
@@ -306,13 +308,20 @@ async fn headers_carry_chrome_priority_and_pseudo_order() -> TestResult<()> {
                 0x7f, // :authority
                 0x87, // :scheme https
                 0x84, // :path /
-                0x53, 0x83, 0xf9, 0x63, 0xe7, // accept: */*
+                // Chrome Huffman-codes a literal only when that shortens it, so
+                // `*/*` and the name `te`, which both code to their own length,
+                // are sent raw. The retained capture shows the same
+                // representation for an ordinary GET:
+                // fixtures/websocket/chrome/154.0.8037.58/windows-11-26200/
+                // accept.txt:330 records `accept: */*` as
+                // `repr:incremental,index:19,value_huffman:false`.
+                0x53, 0x03, 0x2a, 0x2f, 0x2a, // accept: */*
                 0x40, 0x86, 0xf2, 0xb5, 0x85, 0xac, 0xa3, 0x4f, 0x84, 0x1d, 0x15, 0xce,
                 0x3f, // x-repeat: alpha
                 0x40, 0x86, 0xf2, 0xb5, 0x26, 0x92, 0x4a, 0x0b, 0x85, 0x8c, 0xa9, 0xf0, 0x52,
                 0xd5, // x-middle: between
                 0x7f, 0x00, 0x83, 0x8c, 0xa9, 0x1f, // x-repeat: beta
-                0x40, 0x82, 0x49, 0x7f, 0x86, 0x4d, 0x83, 0x35, 0x05, 0xb1,
+                0x40, 0x02, 0x74, 0x65, 0x86, 0x4d, 0x83, 0x35, 0x05, 0xb1,
                 0x1f, // te: trailers
             ]
         );
@@ -366,9 +375,15 @@ async fn content_length_zero_is_emitted_in_declared_wire_order() -> TestResult<(
                 0x7f, // :authority
                 0x87, // :scheme https
                 0x84, // :path /
-                0x40, 0x86, 0xf2, 0xb4, 0x65, 0x94, 0xf6, 0x17, 0x81, 0x1f, // x-before: a
-                0x0f, 0x0d, 0x81, 0x07, // content-length: 0
-                0x40, 0x85, 0xf2, 0xb0, 0xe5, 0x49, 0x6c, 0x81, 0x8f, // x-after: b
+                // Every value here codes to one byte, its own length, so
+                // Chrome's rule sends all three raw. The capture shows the
+                // same for one-byte ordinary values:
+                // fixtures/websocket/chrome/154.0.8037.58/windows-11-26200/
+                // accept.txt:289 records `upgrade-insecure-requests: 1` as
+                // `value_huffman:false`.
+                0x40, 0x86, 0xf2, 0xb4, 0x65, 0x94, 0xf6, 0x17, 0x01, 0x61, // x-before: a
+                0x0f, 0x0d, 0x01, 0x30, // content-length: 0
+                0x40, 0x85, 0xf2, 0xb0, 0xe5, 0x49, 0x6c, 0x01, 0x62, // x-after: b
             ]
         );
 

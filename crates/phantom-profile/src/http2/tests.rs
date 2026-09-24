@@ -1,4 +1,7 @@
-use super::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, InvalidHttp2Settings};
+use super::{
+    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
+    InvalidHttp2Settings,
+};
 
 fn settings() -> Http2Settings {
     Http2Settings {
@@ -16,7 +19,25 @@ fn settings() -> Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
         headers_priority: None,
+        hpack: Http2HpackSettings::default(),
     }
+}
+
+#[test]
+fn rejects_a_repeated_literal_pseudo_header() {
+    let mut settings = settings();
+    settings.hpack.literal_pseudo_headers =
+        vec![Http2PseudoHeader::Method, Http2PseudoHeader::Method];
+    assert_field(settings.validate(), "hpack.literal_pseudo_headers");
+}
+
+#[test]
+fn accepts_distinct_literal_pseudo_headers() -> Result<(), Box<dyn std::error::Error>> {
+    let mut settings = settings();
+    settings.hpack.literal_pseudo_headers =
+        vec![Http2PseudoHeader::Method, Http2PseudoHeader::Protocol];
+    settings.validate()?;
+    Ok(())
 }
 
 #[test]

@@ -2,7 +2,10 @@
 
 use crate::{
     cookie::CookiePlacement,
-    http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
+    http2::{
+        Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
+        Http2Settings, Http2StaticNameIndex,
+    },
     request_template::{ProductVersion, RequestField, RequestIdentity, RequestTemplate},
     tcp::TcpSettings,
     tls::{
@@ -192,6 +195,15 @@ pub fn v156_tcp() -> TcpSettings {
 /// The extended CONNECT shape comes from the same captures: `:method`,
 /// `:path`, `:authority`, `:scheme`, `:protocol`, and HEADERS priority
 /// non-exclusive on stream 0 with weight 22 instead of the navigation's 42.
+///
+/// The HPACK choices come from every block in those captures. Every
+/// pseudo-header may enter the dynamic table, so `:method: CONNECT` and
+/// `:protocol` are indexed incrementally. A repeated static name takes the
+/// higher entry, which names `:method` with 3 and `:path` with 5 on every
+/// request rather than only on extended CONNECT. A literal string is
+/// Huffman-coded whenever the coded form is no longer than the raw one: all
+/// 831 coding decisions in the retained Firefox captures follow that rule,
+/// and the 135 ties among them are coded.
 #[must_use]
 pub fn v156_http2() -> Http2Settings {
     Http2Settings {
@@ -225,6 +237,11 @@ pub fn v156_http2() -> Http2Settings {
             weight: 42,
             exclusive: false,
         }),
+        hpack: Http2HpackSettings {
+            literal_pseudo_headers: Vec::new(),
+            static_name_index: Http2StaticNameIndex::Highest,
+            huffman_coding: Http2HuffmanCoding::WhenNotLonger,
+        },
     }
 }
 

@@ -62,23 +62,6 @@ const FIREFOX_ACCEPT: &str = fixture!("firefox/156.0/windows-11-26200/accept.txt
 const FIREFOX_FRESH: &str = fixture!("firefox/156.0/windows-11-26200/fresh-origin.txt");
 const FIREFOX_NO_CONNECT: &str = fixture!("firefox/156.0/windows-11-26200/no-connect-protocol.txt");
 
-/// HPACK differences between Phantom's encoder and Chromium's for CONNECT.
-///
-/// Chromium inserts only `:authority` into the dynamic table; Phantom's
-/// encoder also inserts `:method CONNECT` and `:protocol`. See
-/// `docs/guides/websocket.md`.
-const CHROMIUM_HPACK_DIFFERENCES: &[(&str, &str, &str, &str)] = &[
-    (":method", "kind", "without-indexing", "incremental"),
-    (":protocol", "kind", "without-indexing", "incremental"),
-];
-
-/// HPACK differences between Phantom's encoder and Firefox's for CONNECT.
-///
-/// Firefox names `:method` and `:path` with the last matching static entry
-/// (3 and 5); Phantom's encoder uses the first (2 and 4).
-const FIREFOX_HPACK_DIFFERENCES: &[(&str, &str, &str, &str)] =
-    &[(":method", "index", "3", "2"), (":path", "index", "5", "4")];
-
 #[tokio::test]
 async fn chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shape() -> TestResult<()>
 {
@@ -88,13 +71,7 @@ async fn chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shap
     ] {
         let capture = Capture::parse(fixture)?;
         assert_eq!(capture.value("client")?, client_name);
-        assert_reuses_session(
-            &capture,
-            chromium::v154_http2(),
-            chromium::v154_websocket(),
-            CHROMIUM_HPACK_DIFFERENCES,
-        )
-        .await?;
+        assert_reuses_session(&capture, chromium::v154_http2(), chromium::v154_websocket()).await?;
     }
     Ok(())
 }
@@ -106,9 +83,68 @@ async fn firefox_reuses_a_capable_pooled_session_with_the_captured_connect_shape
         &Capture::parse(FIREFOX_ACCEPT)?,
         firefox::v156_http2(),
         firefox::v156_websocket(),
-        FIREFOX_HPACK_DIFFERENCES,
     )
     .await
+}
+
+/// The captured HPACK shapes of extended CONNECT tell the families apart.
+///
+/// `chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shape`
+/// and its Firefox counterpart compare every emitted pseudo-field with the
+/// capture, so a recipe that claimed the other family's choices would already
+/// fail them. This test states the separation directly: it pins what each
+/// capture records, and asserts that each recipe emits its own shape and not
+/// the other's. Swapping the two recipes' HPACK settings fails both the
+/// equalities and the inequalities below.
+#[tokio::test]
+async fn hpack_shapes_of_extended_connect_separate_the_client_families() -> TestResult<()> {
+    // Chrome 154 and Edge 153: literal without indexing, naming static entry 2
+    // (`:method: GET`), with `CONNECT` sent raw because Huffman ties with it.
+    let chromium_method = Representation {
+        kind: "without-indexing".to_owned(),
+        index: 2,
+        name_huffman: None,
+        value_huffman: Some(false),
+    };
+    // Firefox 156: incremental indexing against static entry 3
+    // (`:method: POST`), Huffman-coded.
+    let firefox_method = Representation {
+        kind: "incremental".to_owned(),
+        index: 3,
+        name_huffman: None,
+        value_huffman: Some(true),
+    };
+    assert_ne!(chromium_method, firefox_method);
+
+    for (fixture, expected) in [
+        (CHROME_ACCEPT, &chromium_method),
+        (EDGE_ACCEPT, &chromium_method),
+        (FIREFOX_ACCEPT, &firefox_method),
+    ] {
+        let capture = Capture::parse(fixture)?;
+        assert_eq!(&captured_pseudo(&capture, ":method")?, expected);
+    }
+
+    let chromium_emitted =
+        emitted_connect_pseudo(chromium::v154_http2(), chromium::v154_websocket()).await?;
+    let firefox_emitted =
+        emitted_connect_pseudo(firefox::v156_http2(), firefox::v156_websocket()).await?;
+
+    assert_eq!(pseudo(&chromium_emitted, ":method")?, &chromium_method);
+    assert_eq!(pseudo(&firefox_emitted, ":method")?, &firefox_method);
+    assert_ne!(pseudo(&chromium_emitted, ":method")?, &firefox_method);
+    assert_ne!(pseudo(&firefox_emitted, ":method")?, &chromium_method);
+
+    // `:protocol` separates them by representation kind alone, and `:path` by
+    // which static entry names it, on every request rather than only CONNECT.
+    assert_eq!(
+        pseudo(&chromium_emitted, ":protocol")?.kind,
+        "without-indexing"
+    );
+    assert_eq!(pseudo(&firefox_emitted, ":protocol")?.kind, "incremental");
+    assert_eq!(pseudo(&chromium_emitted, ":path")?.index, 4);
+    assert_eq!(pseudo(&firefox_emitted, ":path")?.index, 5);
+    Ok(())
 }
 
 #[tokio::test]
@@ -177,7 +213,7 @@ async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<
         assert_eq!(connection.protocol.as_deref(), Some("h2"));
         assert!(connection.h1.is_empty());
         assert_eq!(methods(connection), ["CONNECT"]);
-        assert_connect_matches(&connection.h2[0], &connect, FIREFOX_HPACK_DIFFERENCES)?;
+        assert_connect_matches(&connection.h2[0], &connect)?;
         Ok(())
     })
     .await
@@ -750,7 +786,6 @@ async fn assert_reuses_session(
     capture: &Capture,
     http2: Http2Settings,
     settings: WebSocketSettings,
-    hpack_differences: &[(&str, &str, &str, &str)],
 ) -> TestResult<()> {
     assert_eq!(capture.value("scenario")?, "accept");
     let ordinary_priority = http2.headers_priority.map(|priority| {
@@ -787,7 +822,7 @@ async fn assert_reuses_session(
                 .collect::<Vec<_>>(),
             [1, 3, 5]
         );
-        assert_connect_matches(&connection.h2[1], &connect, hpack_differences)?;
+        assert_connect_matches(&connection.h2[1], &connect)?;
         for ordinary in [&connection.h2[0], &connection.h2[2]] {
             assert_eq!(ordinary.priority, ordinary_priority);
             assert_eq!(ordinary.pseudo.len(), ordinary_pseudo);
@@ -868,10 +903,15 @@ fn assert_http1_upgrade(connection: &ConnectionLog, capture: &Capture) -> TestRe
     Ok(())
 }
 
+/// Compares one emitted extended CONNECT with the capture it models.
+///
+/// Every pseudo-field's HPACK representation must match: the representation
+/// kind, the static name index, and both Huffman flags. A dynamic index is
+/// compared only by kind, because its value depends on what the connection
+/// encoded earlier rather than on the recipe.
 fn assert_connect_matches(
     observed: &H2Headers,
     connect: &fixture::CapturedConnect,
-    hpack_differences: &[(&str, &str, &str, &str)],
 ) -> TestResult<()> {
     assert_eq!(observed.method, "CONNECT");
     assert_eq!(observed.priority, Some(connect.priority));
@@ -889,37 +929,67 @@ fn assert_connect_matches(
     );
     assert_eq!(observed.fields, expected_fields(&connect.fields));
 
-    let mut differences = Vec::new();
     for ((name, ours), (_, _, captured)) in observed.pseudo.iter().zip(&connect.pseudo) {
-        if ours.kind != captured.kind {
-            differences.push((
-                name.clone(),
-                "kind",
-                captured.kind.clone(),
-                ours.kind.clone(),
-            ));
-        } else if captured.index <= 61 && ours.index != captured.index {
-            differences.push((
-                name.clone(),
-                "index",
-                captured.index.to_string(),
-                ours.index.to_string(),
-            ));
-        }
+        let captured = if captured.index > 61 {
+            // A dynamic index depends on the connection's earlier blocks.
+            Representation {
+                index: ours.index,
+                ..captured.clone()
+            }
+        } else {
+            captured.clone()
+        };
+        assert_eq!(*ours, captured, "HPACK representation of {name}");
     }
-    let expected = hpack_differences
-        .iter()
-        .map(|(name, aspect, captured, ours)| {
-            (
-                (*name).to_owned(),
-                *aspect,
-                (*captured).to_owned(),
-                (*ours).to_owned(),
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(differences, expected, "HPACK representation differences");
     Ok(())
+}
+
+/// Returns the pseudo-field representations of one profile's extended CONNECT.
+///
+/// The WebSocket opens on a pooled session that already carried an ordinary
+/// request, as the captures do, so the dynamic table holds the same entries.
+async fn emitted_connect_pseudo(
+    http2: Http2Settings,
+    settings: WebSocketSettings,
+) -> TestResult<Vec<(String, Representation)>> {
+    let mut pseudo = Vec::new();
+    bounded(async {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let client = profile_client(&identity, http2, settings)?;
+        ordinary_get(&client, &server).await?;
+        let socket = websocket(&client, &server)?.connect().await?;
+        exchange(socket).await?;
+        let connections = server.connections()?;
+        pseudo = connections[0]
+            .h2
+            .iter()
+            .find(|headers| headers.method == "CONNECT")
+            .ok_or("session carried no extended CONNECT")?
+            .pseudo
+            .clone();
+        Ok(())
+    })
+    .await?;
+    Ok(pseudo)
+}
+
+/// Returns one pseudo-field's representation from an emitted block.
+fn pseudo<'a>(block: &'a [(String, Representation)], name: &str) -> TestResult<&'a Representation> {
+    block
+        .iter()
+        .find_map(|(field, representation)| (field == name).then_some(representation))
+        .ok_or_else(|| format!("emitted block omitted {name}").into())
+}
+
+/// Returns one pseudo-field's representation from a capture's first CONNECT.
+fn captured_pseudo(capture: &Capture, name: &str) -> TestResult<Representation> {
+    capture
+        .connect()?
+        .pseudo
+        .into_iter()
+        .find_map(|(field, _, representation)| (field == name).then_some(representation))
+        .ok_or_else(|| format!("captured CONNECT omitted {name}").into())
 }
 
 /// Captured fields, less the compression offer when it cannot be generated.

@@ -7,13 +7,17 @@
 
 use std::collections::BTreeMap;
 
-use crate::http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
+use crate::http2::{
+    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
+    Http2StaticNameIndex,
+};
 
 type CaptureResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 const FORMAT: &str = "phantom-http2-websocket-v1";
 const INITIAL_CONNECTION_WINDOW: u32 = 65_535;
 const METHOD_HEX: &str = "3a6d6574686f64";
+const PATH_HEX: &str = "3a70617468";
 const GET_HEX: &str = "474554";
 
 /// One retained `format=phantom-http2-websocket-v1` session capture.
@@ -94,6 +98,30 @@ impl<'a> SessionCapture<'a> {
         Err(format!("{prefix} first HEADERS omitted :method").into())
     }
 
+    /// Returns which static entry named `:path` in the connection's first
+    /// HEADERS.
+    ///
+    /// `:path` is the one repeated static name every navigation carries with a
+    /// value that matches neither entry, so its index alone separates the two
+    /// choices RFC 7541 leaves open.
+    fn static_name_index(&self, prefix: &str) -> CaptureResult<Http2StaticNameIndex> {
+        let count: usize = self
+            .value(&format!("{prefix}_headers_0_field_count"))?
+            .parse()?;
+        for index in 0..count {
+            let field = self.value(&format!("{prefix}_headers_0_field_{index}"))?;
+            if field_attribute(field, "name_hex")? != PATH_HEX {
+                continue;
+            }
+            return match field_attribute(field, "index")? {
+                "4" => Ok(Http2StaticNameIndex::Lowest),
+                "5" => Ok(Http2StaticNameIndex::Highest),
+                other => Err(format!("{prefix} named `:path` with entry {other}").into()),
+            };
+        }
+        Err(format!("{prefix} first HEADERS omitted :path").into())
+    }
+
     fn connection_settings(&self, prefix: &str) -> CaptureResult<Http2Settings> {
         let frames: usize = self.value(&format!("{prefix}_frame_count"))?.parse()?;
         let mut initial_settings = None;
@@ -141,6 +169,13 @@ impl<'a> SessionCapture<'a> {
             extended_connect_pseudo_header_order: None,
             extended_connect_priority: None,
             headers_priority: Some(headers_priority),
+            // Only the static-name index is decidable from one navigation
+            // block; the WebSocket recipe tests compare the whole encoder
+            // identity with every captured block.
+            hpack: Http2HpackSettings {
+                static_name_index: self.static_name_index(prefix)?,
+                ..Http2HpackSettings::default()
+            },
         })
     }
 }

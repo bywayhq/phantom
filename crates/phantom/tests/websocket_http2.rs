@@ -55,6 +55,7 @@ enum HpackRepresentation {
     IncrementalIndexedName(usize),
     IncrementalNewName,
     UnindexedIndexedName(usize),
+    UnindexedNewName,
 }
 
 #[tokio::test]
@@ -218,9 +219,11 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
         assert_eq!(request.protocol.as_deref(), Some("websocket"));
         assert_eq!(
             request.pseudo_header_representations,
+            // The Chromium recipe keeps `:method` and `:protocol` literal and
+            // names repeated static entries with the lower index.
             [
-                HpackRepresentation::IncrementalIndexedName(2),
-                HpackRepresentation::IncrementalNewName,
+                HpackRepresentation::UnindexedIndexedName(2),
+                HpackRepresentation::UnindexedNewName,
                 HpackRepresentation::IncrementalIndexedName(1),
                 HpackRepresentation::Indexed(7),
                 HpackRepresentation::UnindexedIndexedName(4),
@@ -629,10 +632,13 @@ fn hpack_representations(block: &[u8], count: usize) -> TestResult<Vec<HpackRepr
         } else {
             let name = read_hpack_integer(block, &mut cursor, 4)?;
             if name == 0 {
-                return Err("unexpected literal pseudo-header name without indexing".into());
+                skip_hpack_string(block, &mut cursor)?;
+                skip_hpack_string(block, &mut cursor)?;
+                HpackRepresentation::UnindexedNewName
+            } else {
+                skip_hpack_string(block, &mut cursor)?;
+                HpackRepresentation::UnindexedIndexedName(name)
             }
-            skip_hpack_string(block, &mut cursor)?;
-            HpackRepresentation::UnindexedIndexedName(name)
         };
         representations.push(representation);
     }

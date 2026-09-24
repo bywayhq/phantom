@@ -78,6 +78,58 @@ pub enum Http2PseudoHeader {
     Protocol,
 }
 
+/// Which HPACK static entry names a field whose name has several entries.
+///
+/// RFC 7541 appendix A lists `:method`, `:path`, and `:scheme` twice, so a
+/// field whose value matches neither entry can be named by either index. A
+/// value that does match an entry is still sent as that entry's own index.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2StaticNameIndex {
+    /// `:method` 2, `:path` 4, and `:scheme` 6.
+    #[default]
+    Lowest,
+    /// `:method` 3, `:path` 5, and `:scheme` 7.
+    Highest,
+}
+
+/// When a literal HPACK name or value is Huffman-coded.
+///
+/// RFC 7541 section 5.2 leaves the choice to the encoder, and the flag is on
+/// the wire for every literal string. The rules differ only when the coded
+/// form is exactly as long as the raw one, which short values such as `13`,
+/// `*/*`, and `CONNECT` all are.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2HuffmanCoding {
+    /// Code every literal string, whatever it costs.
+    #[default]
+    Always,
+    /// Code only when the coded form is strictly shorter.
+    WhenShorter,
+    /// Code whenever the coded form is no longer than the raw one.
+    WhenNotLonger,
+}
+
+/// HPACK encoder choices that RFC 7541 leaves to the encoder.
+///
+/// A peer decodes the same fields whichever choice is made, so these describe
+/// a client's wire fingerprint rather than its semantics. They belong to the
+/// connection because an HPACK encoder holds them for its whole lifetime.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Http2HpackSettings {
+    /// Pseudo-headers never inserted into the dynamic table.
+    ///
+    /// A listed pseudo-header whose name and value both match a static entry
+    /// is still sent as that index. Otherwise it is sent as a literal without
+    /// indexing, naming the static entry when one matches its name.
+    pub literal_pseudo_headers: Vec<Http2PseudoHeader>,
+    /// Which static entry names a field whose name has several entries.
+    pub static_name_index: Http2StaticNameIndex,
+    /// When a literal name or value is Huffman-coded.
+    pub huffman_coding: Http2HuffmanCoding,
+}
+
 /// Priority information carried by each outgoing request HEADERS frame.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Http2Priority {
@@ -119,6 +171,8 @@ pub struct Http2Settings {
     /// A value applies only to the extended CONNECT request, including one sent
     /// on a pooled connection opened for ordinary requests.
     pub extended_connect_priority: Option<Http2Priority>,
+    /// HPACK encoder choices used for every field block on the connection.
+    pub hpack: Http2HpackSettings,
 }
 
 impl Http2Settings {
@@ -136,6 +190,7 @@ impl Http2Settings {
         }
 
         validate_pseudo_header_order(&self.pseudo_header_order)?;
+        validate_literal_pseudo_headers(&self.hpack.literal_pseudo_headers)?;
         if let Some(order) = &self.extended_connect_pseudo_header_order {
             validate_extended_connect_pseudo_header_order(order)?;
         }
@@ -287,6 +342,23 @@ fn validate_pseudo_header_order(order: &[Http2PseudoHeader]) -> Result<(), Inval
         present[index] = true;
     }
 
+    Ok(())
+}
+
+fn validate_literal_pseudo_headers(
+    headers: &[Http2PseudoHeader],
+) -> Result<(), InvalidHttp2Settings> {
+    const FIELD: &str = "hpack.literal_pseudo_headers";
+    let mut seen = Vec::with_capacity(headers.len());
+    for header in headers {
+        if seen.contains(header) {
+            return Err(InvalidHttp2Settings::new(
+                FIELD,
+                "each pseudo-header may be listed once",
+            ));
+        }
+        seen.push(*header);
+    }
     Ok(())
 }
 

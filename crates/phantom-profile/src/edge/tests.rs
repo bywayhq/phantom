@@ -1,7 +1,7 @@
 use super::{v153_http3_tls, v153_tls, v153_windows_client_hints};
 use crate::chromium;
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
-use crate::http2::{Http2Settings, session_capture::SessionCapture};
+use crate::http2::{Http2HpackSettings, Http2Settings, session_capture::SessionCapture};
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -82,10 +82,17 @@ fn edge_153_http2_session_capture_matches_the_chromium_recipe()
     assert_eq!(capture.value("scenario")?, "accept");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
+    // One navigation block shows only the static-name choice; the WebSocket
+    // recipe tests compare the whole encoder identity with every CONNECT.
+    let settings = chromium::v154_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
-        ..chromium::v154_http2()
+        hpack: Http2HpackSettings {
+            static_name_index: settings.hpack.static_name_index,
+            ..Http2HpackSettings::default()
+        },
+        ..settings
     };
     for run in observed {
         assert_eq!(run, navigation);

@@ -5,12 +5,15 @@
 
 use ::http2::{
     client,
-    ext::HeadersFrameOverrides,
+    ext::{HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, StaticNameIndex},
     frame::{PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId},
 };
 use bytes::Bytes;
 use http::{Method, Request, Response};
-use phantom_profile::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings};
+use phantom_profile::{
+    Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
+    Http2Settings, Http2StaticNameIndex,
+};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
@@ -539,6 +542,45 @@ pub(crate) fn priority_overrides(
     Ok(HeadersFrameOverrides::new().stream_dependency(stream_dependency(priority)?))
 }
 
+/// Builds the connection's HPACK encoder identity from profile settings.
+///
+/// Each choice is part of the encoder's identity rather than a per-request
+/// decision, so it belongs to the connection and applies to ordinary requests
+/// and extended CONNECT alike.
+///
+/// # Errors
+///
+/// Returns [`Http2Error::UnsupportedSetting`] for a choice this backend cannot
+/// express.
+fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfile, Http2Error> {
+    let mut literal = Vec::with_capacity(hpack.literal_pseudo_headers.len());
+    for header in &hpack.literal_pseudo_headers {
+        literal.push(match header {
+            Http2PseudoHeader::Method => PseudoId::Method,
+            Http2PseudoHeader::Authority => PseudoId::Authority,
+            Http2PseudoHeader::Scheme => PseudoId::Scheme,
+            Http2PseudoHeader::Path => PseudoId::Path,
+            Http2PseudoHeader::Protocol => PseudoId::Protocol,
+            _ => return Err(Http2Error::UnsupportedSetting),
+        });
+    }
+    let static_name_index = match hpack.static_name_index {
+        Http2StaticNameIndex::Lowest => StaticNameIndex::Lowest,
+        Http2StaticNameIndex::Highest => StaticNameIndex::Highest,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
+    let huffman_coding = match hpack.huffman_coding {
+        Http2HuffmanCoding::Always => HuffmanCoding::Always,
+        Http2HuffmanCoding::WhenShorter => HuffmanCoding::WhenShorter,
+        Http2HuffmanCoding::WhenNotLonger => HuffmanCoding::WhenNotLonger,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
+    Ok(HpackEncoderProfile::new()
+        .literal_pseudo_headers(literal)
+        .static_name_index(static_name_index)
+        .huffman_coding(huffman_coding))
+}
+
 fn stream_dependency(priority: Http2Priority) -> Result<StreamDependency, Http2Error> {
     // Stream 1 is the first client stream, which would then depend on itself.
     if priority.dependency_stream_id == 1 {
@@ -588,6 +630,7 @@ fn translate_settings_with_pseudo_order(
     client.initial_connection_window_size(settings.initial_connection_window_size);
     client.local_max_header_list_size(limits::MAX_RESPONSE_HEADER_LIST_BYTES);
     client.max_informational_responses(limits::MAX_INFORMATIONAL_RESPONSES);
+    client.hpack_encoder_profile(hpack_encoder_profile(&settings.hpack)?);
     let mut order = SettingsOrder::builder();
 
     for setting in &settings.initial_settings {

@@ -5,7 +5,10 @@ use std::time::Duration;
 use crate::{
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     cookie::CookiePlacement,
-    http2::{Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings},
+    http2::{
+        Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
+        Http2Settings, Http2StaticNameIndex,
+    },
     http3::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
         Http3Setting, Http3SettingOrder, Http3Settings,
@@ -267,6 +270,15 @@ pub fn v154_tcp() -> TcpSettings {
 /// `:authority`, `:scheme`, `:path`, `:protocol`, and HEADERS priority
 /// exclusive on stream 0 with weight 147 instead of the navigation's 256.
 ///
+/// The HPACK choices come from every block in those captures. `:method` and
+/// `:protocol` are never inserted into the dynamic table, so `:method:
+/// CONNECT` is sent as a literal without indexing naming static entry 2, and
+/// `:protocol` as a literal without indexing with a literal name. A repeated
+/// static name takes the lower entry, `:method` 2 and `:path` 4. A literal
+/// string is Huffman-coded only when the coded form is strictly shorter: all
+/// 774 coding decisions in the retained Chrome and Edge captures follow that
+/// rule, and the 105 ties among them, such as `CONNECT` and `13`, are raw.
+///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -302,6 +314,11 @@ pub fn v154_http2() -> Http2Settings {
             weight: 256,
             exclusive: true,
         }),
+        hpack: Http2HpackSettings {
+            literal_pseudo_headers: vec![Http2PseudoHeader::Method, Http2PseudoHeader::Protocol],
+            static_name_index: Http2StaticNameIndex::Lowest,
+            huffman_coding: Http2HuffmanCoding::WhenShorter,
+        },
     }
 }
 

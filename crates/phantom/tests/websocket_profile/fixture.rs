@@ -5,12 +5,20 @@ use std::collections::BTreeMap;
 use super::TestResult;
 
 /// One HPACK field representation as the capture tool classifies it.
+///
+/// The two Huffman flags are `None` where the representation carries no such
+/// string: an indexed field has neither, and a field named by an index has no
+/// literal name.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Representation {
     /// `indexed`, `incremental`, or `without-indexing`.
     pub(crate) kind: String,
     /// Static or dynamic table index; 0 for a literal name.
     pub(crate) index: usize,
+    /// Whether a literal field name is Huffman-coded.
+    pub(crate) name_huffman: Option<bool>,
+    /// Whether the field value is Huffman-coded.
+    pub(crate) value_huffman: Option<bool>,
 }
 
 /// A captured client extended CONNECT HEADERS frame.
@@ -159,6 +167,8 @@ impl Capture {
                 Representation {
                     kind: kind.to_owned(),
                     index: attribute(field, "index")?.parse()?,
+                    name_huffman: huffman_flag(field, "name_huffman")?,
+                    value_huffman: huffman_flag(field, "value_huffman")?,
                 },
             ));
         }
@@ -172,6 +182,16 @@ fn attribute<'a>(record: &'a str, name: &str) -> TestResult<&'a str> {
         .split(',')
         .find_map(|item| item.strip_prefix(name)?.strip_prefix(':'))
         .ok_or_else(|| format!("capture record omitted {name}").into())
+}
+
+/// Reads one `name_huffman` or `value_huffman` attribute.
+fn huffman_flag(record: &str, name: &str) -> TestResult<Option<bool>> {
+    match attribute(record, name)? {
+        "none" => Ok(None),
+        "true" => Ok(Some(true)),
+        "false" => Ok(Some(false)),
+        other => Err(format!("capture recorded {name} as {other}").into()),
+    }
 }
 
 fn decode_hex(value: &str) -> TestResult<String> {

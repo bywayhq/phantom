@@ -1,6 +1,7 @@
 use super::{v156_http2, v156_tls};
 use crate::http2::{
-    Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, session_capture::SessionCapture,
+    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
+    session_capture::SessionCapture,
 };
 use crate::tls::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
@@ -182,11 +183,16 @@ fn firefox_156_http2_recipe_matches_windows_session_capture()
         })
     );
 
-    // Navigation HEADERS carry no extended CONNECT shape; the WebSocket
-    // recipe tests compare that shape with every captured CONNECT.
+    // Navigation HEADERS carry no extended CONNECT shape, and one block shows
+    // only the static-name choice; the WebSocket recipe tests compare the whole
+    // encoder identity with every captured CONNECT.
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
+        hpack: Http2HpackSettings {
+            static_name_index: settings.hpack.static_name_index,
+            ..Http2HpackSettings::default()
+        },
         ..settings
     };
     let observed = capture.navigation_settings()?;
