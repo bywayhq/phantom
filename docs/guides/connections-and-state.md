@@ -64,15 +64,12 @@ async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- Idle connections count toward the bound. A request reuses the most
-  recently used idle connection before it opens another, and waits in
-  arrival order once the bound is reached.
-- Without `with_http1`, a client keeps one H1 connection per origin and
-  route and runs its requests one after another.
-  `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
-  profile's bound.
-- Negotiated requests keep one connection per origin whatever the profile
-  says ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
+- Idle connections count toward the
+  [connection bound](../reference/glossary.md#connection-bound), and a
+  request waits once the bound is reached. Without `with_http1` the bound
+  is 1; `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces
+  it. Negotiated requests and other rules:
+  [HTTP/1.1 connections](../reference/profiles.md#http11-connections).
 
 ## Follow redirects
 
@@ -155,7 +152,7 @@ async fn with_cookies() -> Result<(), Box<dyn std::error::Error>> {
 ## Save and restore cookies
 
 Copy a client's cookies into another client, or rebuild them from your own
-storage, with `CookieSnapshot`.
+storage, with a [snapshot](../reference/glossary.md#snapshot) (`CookieSnapshot`).
 
 ```rust
 use phantom::{Client, CookieSnapshot, CookieSnapshotEntry, CookieSnapshotError, CookieSourceScheme};
@@ -187,8 +184,8 @@ fn restore_session(client: &Client, value: &str) -> Result<(), CookieSnapshotErr
 - Import checks each entry as the `Set-Cookie` field a response from its
   scheme and domain would send. One refused entry rejects the whole snapshot
   and leaves the jar unchanged; `CookieSnapshotError::entry_index` names it.
-- Import merges: cookies the jar already holds win, and expiry is never
-  extended ([snapshot rules](../reference/cookies.md#snapshots)).
+- Import merges with what the jar holds
+  ([merge rules](../reference/cookies.md#merge-rules)).
 
 ## Place the cookie field where a browser does
 

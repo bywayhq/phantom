@@ -336,8 +336,7 @@ async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult
         // The HPACK representations are not compared. The encoder's dynamic
         // table is connection-wide, so the first attempt's entries shrink the
         // second block; Chrome's capture shrinks the same way, from a 177-byte
-        // block to a 58-byte one. Which representation each field takes is the
-        // open indexing gap recorded in docs/reference/coverage.md.
+        // block to a 58-byte one.
         Ok(())
     })
     .await

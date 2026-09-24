@@ -65,7 +65,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   fields, so struct literals that name every field no longer compile:
   `TlsSettings::ech_grease_aeads` (`6d7a24c`),
   `Http2Settings::extended_connect_priority` (`4f64c99`),
-  `Http2Settings::hpack` (`5502db6`), and
+  `Http2Settings::hpack` (`c41222c`), and
   `Http3RequestSettings::extended_connect_pseudo_header_order` (`7b76049`).
   Migrate: add `ech_grease_aeads: Vec::new()`,
   `extended_connect_priority: None`, `hpack: Default::default()`, and
@@ -149,7 +149,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - HPACK encoder identity: `Http2Settings::hpack` (`Http2HpackSettings`)
   states which pseudo-headers stay out of the dynamic table, which static
   entry names a repeated name (`Http2StaticNameIndex`), and when a literal is
-  Huffman-coded (`Http2HuffmanCoding`). (`5502db6`)
+  Huffman-coded (`Http2HuffmanCoding`). (`5502db6`, `c41222c`)
 
 ### Changed
 
@@ -174,8 +174,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   (`e51b9cc`, `f56d3a3`, `0b0367e`, `bf61599`, `e2d1778`)
 - `chromium::v154_http2` and `firefox::v156_http2` set their browser's HPACK
   encoder choices, so WebSocket CONNECT matches the captures' HPACK
-  representations. The choices hold for the whole connection, so the HPACK
-  block of every HTTP/2 request on these recipes changes. (`c41222c`)
+  representations. The choices apply to every request on the connection, not
+  only CONNECT, so ordinary requests can encode differently too; on Firefox
+  this changes the `:path` name index for most paths. (`c41222c`)
 - `btls-sys` comes from `https://github.com/bywayhq/btls` instead of
   `https://github.com/0xARYA/btls`, at the same revision and archive
   checksum, and the `phantom-btls` and `phantom-tokio-btls` forks move to

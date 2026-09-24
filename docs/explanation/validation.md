@@ -552,6 +552,7 @@ Loopback tests in `crates/phantom/tests/session_http1_parallel.rs`:
 | `named_recipe_opens_six_connections_to_one_origin` | Both recipes open six connections and hold a seventh request |
 | `profile_without_http1_policy_keeps_one_connection_per_origin` | A profile without `Http1Settings` keeps one connection |
 | `requests_cancelled_during_connection_setup_leave_the_full_bound` | Requests dropped while their connection is being set up do not use up the bound |
+| `custom_profile_carries_its_own_http1_bound` | A custom `Http1Settings` bound reaches the client |
 
 How to reproduce: read the cited files at the tags above, and run the listed
 tests.
