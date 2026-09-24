@@ -91,6 +91,29 @@ impl Route {
         }
     }
 
+    /// Returns whether a negotiated `https://` request may use this route.
+    ///
+    /// Negotiation needs one TLS stream to the origin whose ALPN selects H1 or
+    /// H2, and the Alt-Svc upgrade that rides on it needs a UDP path to the
+    /// advertised alternative authority over the same route. Only a route that
+    /// carries both qualifies:
+    ///
+    /// - [`Route::Direct`] carries both.
+    /// - [`Route::Socks5`] carries both: RFC 1928 CONNECT for the origin TLS
+    ///   stream and UDP ASSOCIATE for QUIC to the alternative.
+    /// - [`Route::HttpProxy`] carries only TCP. An RFC 9110 section 9.3.6
+    ///   CONNECT tunnel cannot carry QUIC, so a learned `h3` alternative would
+    ///   never be reachable and would have to fall back to the proxy's TCP
+    ///   leg, which Phantom does not do.
+    /// - [`Route::ConnectUdp`] carries only QUIC, so it has no TLS stream for
+    ///   ALPN to select a protocol on.
+    pub(crate) const fn carries_negotiated_https(&self) -> bool {
+        match self {
+            Self::Direct | Self::Socks5(_) => true,
+            Self::HttpProxy(_) | Self::ConnectUdp(_) => false,
+        }
+    }
+
     pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
         match self {
             Self::HttpProxy(proxy) => Some(proxy),

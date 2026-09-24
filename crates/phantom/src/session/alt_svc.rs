@@ -16,7 +16,7 @@ use phantom_net::{
 };
 use tracing::debug;
 
-use crate::{RequestError, RequestErrorKind, TimeoutPhase, authority::Endpoint};
+use crate::{RequestError, RequestErrorKind, Route, TimeoutPhase, authority::Endpoint};
 
 const DEFAULT_MAX_AGE: u64 = 24 * 60 * 60;
 const MAX_DELTA_SECONDS: u64 = 1 << 31;
@@ -137,9 +137,10 @@ impl AltSvcStore {
         self.capacity
     }
 
-    pub(super) fn learn(&self, origin: &Endpoint, headers: &OrderedResponseHeaders) {
+    pub(super) fn learn(&self, origin: &Endpoint, route: &Route, headers: &OrderedResponseHeaders) {
         self.learn_fields_at(
             origin,
+            route,
             headers.iter().map(|field| (field.name(), field.value())),
             Instant::now(),
         );
@@ -150,9 +151,10 @@ impl AltSvcStore {
     /// A stream-0 frame applies only when its origin is byte-identical to the
     /// request's canonical ASCII origin serialization; a request-stream frame
     /// applies to the request origin (RFC 7838 section 4).
-    pub(super) fn learn_frames(&self, origin: &Endpoint, frames: &AltSvcFrames) {
+    pub(super) fn learn_frames(&self, origin: &Endpoint, route: &Route, frames: &AltSvcFrames) {
         self.learn_frames_at(
             origin,
+            route,
             frames.as_slice().iter().map(|frame| {
                 let scope = match frame.scope() {
                     AltSvcFrameScope::Connection(origin) => Some(origin.as_ref()),
@@ -167,6 +169,7 @@ impl AltSvcStore {
     fn learn_frames_at<'a>(
         &self,
         origin: &Endpoint,
+        route: &Route,
         frames: impl IntoIterator<Item = (Option<&'a [u8]>, &'a [u8])>,
         now: Instant,
     ) {
@@ -176,25 +179,25 @@ impl AltSvcStore {
                 debug!(outcome = "other_origin", "ignored Alt-Svc frame");
                 continue;
             }
-            self.learn_fields_at(origin, [("alt-svc", value)], now);
+            self.learn_fields_at(origin, route, [("alt-svc", value)], now);
         }
     }
 
-    pub(super) fn get(&self, origin: &Endpoint) -> Option<AltSvcSelection> {
-        self.get_at(origin, Instant::now())
+    pub(super) fn get(&self, origin: &Endpoint, route: &Route) -> Option<AltSvcSelection> {
+        self.get_at(origin, route, Instant::now())
     }
 
     #[cfg(test)]
-    fn remove(&self, origin: &Endpoint) {
-        self.remove_key(&OriginKey::new(origin));
+    fn remove(&self, origin: &Endpoint, route: &Route) {
+        self.remove_key(&StoreKey::new(origin, route));
     }
 
-    pub(super) fn remove_if_current(&self, origin: &Endpoint, generation: u64) {
-        let key = OriginKey::new(origin);
+    pub(super) fn remove_if_current(&self, origin: &Endpoint, route: &Route, generation: u64) {
+        let key = StoreKey::new(origin, route);
         let mut entries = self.lock_entries();
         if let Some(position) = entries
             .iter()
-            .position(|entry| entry.origin == key && entry.generation == generation)
+            .position(|entry| entry.key == key && entry.generation == generation)
         {
             entries.remove(position);
             debug!(
@@ -213,24 +216,26 @@ impl AltSvcStore {
     pub(super) fn mark_broken(
         &self,
         origin: &Endpoint,
+        route: &Route,
         location: &AltSvcLocation,
         backoff: AltSvcBrokenBackoff,
     ) {
-        self.mark_broken_at(origin, location, backoff, Instant::now());
+        self.mark_broken_at(origin, route, location, backoff, Instant::now());
     }
 
     fn mark_broken_at(
         &self,
         origin: &Endpoint,
+        route: &Route,
         location: &AltSvcLocation,
         backoff: AltSvcBrokenBackoff,
         now: Instant,
     ) {
-        let origin = OriginKey::new(origin);
+        let key = StoreKey::new(origin, route);
         let mut broken = self.lock_broken();
         let mut record = match broken
             .iter()
-            .position(|record| record.origin == origin && &record.location == location)
+            .position(|record| record.key == key && &record.location == location)
             .and_then(|position| broken.remove(position))
         {
             Some(record) => record,
@@ -239,7 +244,7 @@ impl AltSvcStore {
                     broken.pop_front();
                 }
                 BrokenRecord {
-                    origin,
+                    key,
                     location: location.clone(),
                     failures: 0,
                     until: now,
@@ -276,22 +281,22 @@ impl AltSvcStore {
     }
 
     /// Clears the failure history of `location` after it connected.
-    pub(super) fn confirm(&self, origin: &Endpoint, location: &AltSvcLocation) {
-        let origin = OriginKey::new(origin);
+    pub(super) fn confirm(&self, origin: &Endpoint, route: &Route, location: &AltSvcLocation) {
+        let key = StoreKey::new(origin, route);
         let mut broken = self.lock_broken();
         if let Some(position) = broken
             .iter()
-            .position(|record| record.origin == origin && &record.location == location)
+            .position(|record| record.key == key && &record.location == location)
         {
             broken.remove(position);
             debug!(outcome = "confirmed", "cleared Alt-Svc broken state");
         }
     }
 
-    fn is_broken_at(&self, origin: &OriginKey, location: &AltSvcLocation, now: Instant) -> bool {
-        self.lock_broken().iter().any(|record| {
-            &record.origin == origin && &record.location == location && record.until > now
-        })
+    fn is_broken_at(&self, key: &StoreKey, location: &AltSvcLocation, now: Instant) -> bool {
+        self.lock_broken()
+            .iter()
+            .any(|record| &record.key == key && &record.location == location && record.until > now)
     }
 
     fn lock_broken(&self) -> MutexGuard<'_, VecDeque<BrokenRecord>> {
@@ -304,6 +309,7 @@ impl AltSvcStore {
     fn learn_fields_at<'a>(
         &self,
         origin: &Endpoint,
+        route: &Route,
         fields: impl IntoIterator<Item = (&'a str, &'a [u8])>,
         now: Instant,
     ) {
@@ -315,7 +321,7 @@ impl AltSvcStore {
                 return;
             }
         };
-        let key = OriginKey::new(origin);
+        let key = StoreKey::new(origin, route);
         match update {
             Update::Clear => self.remove_key(&key),
             Update::Replace(None) => self.remove_key(&key),
@@ -327,7 +333,7 @@ impl AltSvcStore {
                 }
                 let expires_at = expiration_at(now, remaining);
                 self.replace(Entry {
-                    origin: key,
+                    key,
                     location: alternative.location,
                     expires_at,
                     generation: self.next_generation.fetch_add(1, Ordering::Relaxed),
@@ -336,10 +342,10 @@ impl AltSvcStore {
         }
     }
 
-    fn get_at(&self, origin: &Endpoint, now: Instant) -> Option<AltSvcSelection> {
-        let key = OriginKey::new(origin);
+    fn get_at(&self, origin: &Endpoint, route: &Route, now: Instant) -> Option<AltSvcSelection> {
+        let key = StoreKey::new(origin, route);
         let mut entries = self.lock_entries();
-        let position = entries.iter().position(|entry| entry.origin == key)?;
+        let position = entries.iter().position(|entry| entry.key == key)?;
         let entry = entries.remove(position)?;
         if entry.expires_at <= now {
             debug!(outcome = "expired", "removed expired Alt-Svc origin");
@@ -359,7 +365,7 @@ impl AltSvcStore {
         let mut entries = self.lock_entries();
         if let Some(position) = entries
             .iter()
-            .position(|candidate| candidate.origin == entry.origin)
+            .position(|candidate| candidate.key == entry.key)
         {
             entries.remove(position);
         }
@@ -371,9 +377,9 @@ impl AltSvcStore {
         debug!(outcome = "stored", "updated Alt-Svc client state");
     }
 
-    fn remove_key(&self, origin: &OriginKey) {
+    fn remove_key(&self, key: &StoreKey) {
         let mut entries = self.lock_entries();
-        if let Some(position) = entries.iter().position(|entry| &entry.origin == origin) {
+        if let Some(position) = entries.iter().position(|entry| &entry.key == key) {
             entries.remove(position);
             debug!(outcome = "cleared", "removed Alt-Svc client state");
         }
@@ -424,8 +430,49 @@ impl OriginKey {
     }
 }
 
-struct BrokenRecord {
+/// Identity of one learned alternative: the origin it was advertised for and
+/// the route that carried the advertisement.
+///
+/// An advertisement describes a location the client can reach over the path it
+/// arrived on. A different route reaches a different network, or cannot carry
+/// QUIC at all, so it must never reuse another route's alternative. The route
+/// is therefore part of the key, exactly as it is in the H1, H2, and H3
+/// connection pools.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct StoreKey {
     origin: OriginKey,
+    route: Route,
+}
+
+impl StoreKey {
+    fn new(endpoint: &Endpoint, route: &Route) -> Self {
+        Self {
+            origin: OriginKey::new(endpoint),
+            route: route.clone(),
+        }
+    }
+
+    /// Returns the direct-route key for an origin restored from a snapshot.
+    const fn new_direct(origin: OriginKey) -> Self {
+        Self {
+            origin,
+            route: Route::Direct,
+        }
+    }
+
+    const fn origin(&self) -> &OriginKey {
+        &self.origin
+    }
+
+    /// Returns whether this key names the direct route, the only route whose
+    /// alternatives an [`AltSvcSnapshot`] describes.
+    const fn is_direct(&self) -> bool {
+        matches!(self.route, Route::Direct)
+    }
+}
+
+struct BrokenRecord {
+    key: StoreKey,
     location: AltSvcLocation,
     /// Failures since the alternative last connected.
     failures: u32,
@@ -433,7 +480,7 @@ struct BrokenRecord {
 }
 
 struct Entry {
-    origin: OriginKey,
+    key: StoreKey,
     location: AltSvcLocation,
     expires_at: Instant,
     generation: u64,

@@ -27,7 +27,7 @@ use super::{
     http2_pool::{is_graceful_goaway, send_on},
 };
 use crate::{
-    HttpProtocol, RequestError, ResponseBody,
+    HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode,
     authority::Endpoint,
     error::is_unprocessed_http2,
     retry::{ConnectionSetupRetryState, acquire_unselected_with_retries},
@@ -64,6 +64,7 @@ impl Http1Or2Pool {
         &self,
         connector: &Http1Or2TlsConnector,
         endpoint: &Endpoint,
+        route: &Route,
         request_span: &Span,
         method: Method,
         target: OriginForm,
@@ -93,7 +94,7 @@ impl Http1Or2Pool {
         let mut leased = leased;
         let entry = match &leased {
             Some(leased) => Arc::clone(&leased.entry),
-            None => self.entry(PoolKey::new(endpoint)).await,
+            None => self.entry(PoolKey::new(endpoint, route)).await,
         };
         // Same eligibility as the exact HTTP/2 pool: only a bodyless GET
         // without trailers may repeat after GOAWAY(NO_ERROR).
@@ -129,6 +130,7 @@ impl Http1Or2Pool {
                         .acquire_selected(
                             connector,
                             endpoint,
+                            route,
                             request_span,
                             selection,
                             std::mem::take(&mut fresh_http1_connection),
@@ -184,11 +186,12 @@ impl Http1Or2Pool {
         &self,
         connector: &Http1Or2TlsConnector,
         endpoint: &Endpoint,
+        route: &Route,
         request_span: &Span,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<NegotiatedLease, RequestError> {
-        let entry = self.entry(PoolKey::new(endpoint)).await;
+        let entry = self.entry(PoolKey::new(endpoint, route)).await;
         let selection = timeout_budget
             .run(
                 TimeoutPhase::PoolAdmission,
@@ -200,6 +203,7 @@ impl Http1Or2Pool {
             .acquire_selected(
                 connector,
                 endpoint,
+                route,
                 request_span,
                 selection,
                 false,
@@ -242,8 +246,9 @@ impl Http1Or2Pool {
     pub(crate) async fn admit_current_http2_connection(
         &self,
         endpoint: &Endpoint,
+        route: &Route,
     ) -> Result<Option<(Http2Connection, AdmissionPermit)>, RequestError> {
-        let key = PoolKey::new(endpoint);
+        let key = PoolKey::new(endpoint, route);
         let entry = {
             let state = self.state.lock().await;
             state
@@ -271,8 +276,8 @@ impl Http1Or2Pool {
     /// This neither opens a connection, creates a pool entry, admits a
     /// request, nor changes eviction order. An entry whose connection is
     /// being set up, or an HTTP/1.1 generation, counts as unavailable.
-    pub(crate) async fn has_available_http2(&self, endpoint: &Endpoint) -> bool {
-        let key = PoolKey::new(endpoint);
+    pub(crate) async fn has_available_http2(&self, endpoint: &Endpoint, route: &Route) -> bool {
+        let key = PoolKey::new(endpoint, route);
         let entry = {
             let state = self.state.lock().await;
             state
@@ -345,13 +350,15 @@ struct PoolState {
 struct PoolKey {
     host: Box<str>,
     port: u16,
+    route: Route,
 }
 
 impl PoolKey {
-    fn new(endpoint: &Endpoint) -> Self {
+    fn new(endpoint: &Endpoint, route: &Route) -> Self {
         Self {
             host: endpoint.host().to_ascii_lowercase().into(),
             port: endpoint.port(),
+            route: route.clone(),
         }
     }
 }
@@ -416,6 +423,7 @@ impl PoolEntry {
         &self,
         connector: &Http1Or2TlsConnector,
         endpoint: &Endpoint,
+        route: &Route,
         request_span: &Span,
         selection: AdmissionPermit,
         fresh_http1: bool,
@@ -427,7 +435,7 @@ impl PoolEntry {
         }
         loop {
             let lease = acquire_unselected_with_retries(timeout_budget, retries, || {
-                self.acquire(connector, endpoint)
+                self.acquire(connector, endpoint, route)
             })
             .await?;
             let protocol = lease.protocol();
@@ -586,6 +594,7 @@ impl PoolEntry {
         &self,
         connector: &Http1Or2TlsConnector,
         endpoint: &Endpoint,
+        route: &Route,
     ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
         if let Some(slot) = current.as_ref() {
@@ -604,10 +613,43 @@ impl PoolEntry {
         let connector = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
-        let connection = connector
-            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
-            .await
-            .map_err(RequestError::http1_or_2_connection_setup)?;
+        let connection = match route {
+            Route::Direct => connector
+                .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                .await
+                .map_err(RequestError::http1_or_2_connection_setup)?,
+            // The origin keeps its own TLS identity: the proxy carries the
+            // stream, and `endpoint.host()` remains the verified name and SNI.
+            Route::Socks5(proxy) => match proxy.dns_mode() {
+                Socks5DnsMode::Local => connector
+                    .connect_socks5_local_with_auth(
+                        proxy.host(),
+                        proxy.port(),
+                        proxy.auth(),
+                        endpoint.host(),
+                        endpoint.port(),
+                        endpoint.host(),
+                    )
+                    .await
+                    .map_err(RequestError::http1_or_2_connection_setup)?,
+                Socks5DnsMode::Remote => connector
+                    .connect_socks5_remote_with_auth(
+                        proxy.host(),
+                        proxy.port(),
+                        proxy.auth(),
+                        endpoint.host(),
+                        endpoint.port(),
+                        endpoint.host(),
+                    )
+                    .await
+                    .map_err(RequestError::http1_or_2_connection_setup)?,
+            },
+            // Refused before admission by `ensure_request_supported`; neither
+            // route is reinterpreted as another transport here.
+            Route::HttpProxy(_) | Route::ConnectUdp(_) => {
+                return Err(RequestError::unsupported_negotiated_route());
+            }
+        };
         let slot = ConnectionSlot {
             connection: connection.into(),
             token: Arc::new(()),
@@ -828,7 +870,7 @@ mod tests {
     use std::{num::NonZeroUsize, sync::Arc};
 
     use super::{Http1Or2Pool, PoolKey};
-    use crate::authority::Endpoint;
+    use crate::{HttpProxy, Route, Socks5Proxy, authority::Endpoint};
 
     #[tokio::test]
     async fn pre_selection_admission_survives_lru_eviction()
@@ -838,11 +880,11 @@ mod tests {
         let first = Endpoint::new("first.test:443".parse()?, 443)?;
         let second = Endpoint::new("second.test:443".parse()?, 443)?;
 
-        let first_entry = pool.entry(PoolKey::new(&first)).await;
+        let first_entry = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
         let permit = first_entry.admit_before_selection().await?;
-        pool.entry(PoolKey::new(&second)).await;
+        pool.entry(PoolKey::new(&second, &Route::Direct)).await;
         drop(first_entry);
-        let replacement = pool.entry(PoolKey::new(&first)).await;
+        let replacement = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
 
         // A held permit keeps the original instance, so the recreated entry
         // counts against the same semaphore instead of a fresh one.
@@ -853,6 +895,48 @@ mod tests {
         assert_eq!(replacement.selection_admission.available_active(), 0);
         drop(permit);
         assert_eq!(replacement.selection_admission.available_active(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn negotiated_connections_are_never_shared_across_routes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let four = NonZeroUsize::new(4).ok_or("zero capacity")?;
+        let pool = Http1Or2Pool::new(four, four, four, four, four);
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let socks5 = Route::socks5(Socks5Proxy::new("socks5://proxy.test:1080")?);
+        let other = Route::socks5(Socks5Proxy::new("socks5://other.test:1080")?);
+
+        let direct = pool.entry(PoolKey::new(&endpoint, &Route::Direct)).await;
+        let proxied = pool.entry(PoolKey::new(&endpoint, &socks5)).await;
+        let same_proxy = pool.entry(PoolKey::new(&endpoint, &socks5)).await;
+
+        assert!(!Arc::ptr_eq(&direct, &proxied));
+        assert!(Arc::ptr_eq(&proxied, &same_proxy));
+        assert!(!Arc::ptr_eq(
+            &proxied,
+            &pool.entry(PoolKey::new(&endpoint, &other)).await
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn only_direct_and_socks5_routes_carry_negotiated_https()
+    -> Result<(), Box<dyn std::error::Error>> {
+        assert!(Route::Direct.carries_negotiated_https());
+        assert!(
+            Route::socks5(Socks5Proxy::new("socks5h://proxy.test:1080")?)
+                .carries_negotiated_https()
+        );
+        // A CONNECT tunnel is TCP, so it cannot reach an `h3` alternative.
+        assert!(
+            !Route::http_proxy(HttpProxy::new("http://proxy.test:8080")?)
+                .carries_negotiated_https()
+        );
+        assert!(
+            !Route::http_proxy(HttpProxy::new("https://proxy.test:8443")?)
+                .carries_negotiated_https()
+        );
         Ok(())
     }
 }

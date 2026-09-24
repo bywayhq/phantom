@@ -821,7 +821,7 @@ mod tests {
     use std::{num::NonZeroUsize, sync::Arc};
 
     use super::{Http3Pool, Http3TransportTarget, PoolKey, TransportLocation};
-    use crate::{Route, authority::Endpoint};
+    use crate::{Route, Socks5Proxy, authority::Endpoint};
 
     #[tokio::test]
     async fn per_origin_admission_survives_lru_eviction() -> Result<(), Box<dyn std::error::Error>>
@@ -888,6 +888,31 @@ mod tests {
         assert_eq!(key, PoolKey::new(&endpoint, &Route::Direct));
         assert_eq!(alternative, matching);
         assert_ne!(alternative, origin);
+        Ok(())
+    }
+
+    #[test]
+    fn an_alternative_learned_on_one_route_uses_that_route_s_entry()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let proxied = Route::socks5(Socks5Proxy::new("socks5h://proxy.test:1080")?);
+        let other = Route::socks5(Socks5Proxy::new("socks5h://other.test:1080")?);
+
+        // The same alternative location on another route is another entry, so
+        // a proxied alternative never reuses a direct connection or another
+        // proxy's.
+        assert_ne!(
+            PoolKey::new(&endpoint, &proxied),
+            PoolKey::new(&endpoint, &Route::Direct)
+        );
+        assert_ne!(
+            PoolKey::new(&endpoint, &proxied),
+            PoolKey::new(&endpoint, &other)
+        );
+        assert_eq!(
+            PoolKey::new(&endpoint, &proxied),
+            PoolKey::new(&endpoint, &proxied)
+        );
         Ok(())
     }
 }

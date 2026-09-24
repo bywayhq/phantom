@@ -37,8 +37,14 @@ pub(super) enum NegotiatedPlan {
     Race(AlternativeTarget, AltSvcRace),
 }
 
-pub(super) fn plan(client: &Client, request: &ResolvedRequest) -> NegotiatedPlan {
-    let Some(alternative) = client.alt_svc_location(&request.endpoint) else {
+/// Chooses how one negotiated request uses this route's learned alternative.
+///
+/// The store is keyed by origin and route, so only an alternative learned on
+/// `route` can be selected here, and it is reached over `route` as well. A
+/// route that cannot carry QUIC never reaches this point: negotiated requests
+/// are refused on it before any I/O, in `ensure_request_supported`.
+pub(super) fn plan(client: &Client, request: &ResolvedRequest, route: &Route) -> NegotiatedPlan {
+    let Some(alternative) = client.alt_svc_location(&request.endpoint, route) else {
         return NegotiatedPlan::Origin;
     };
     match client.alt_svc_policy().race_settings() {
@@ -112,7 +118,7 @@ pub(super) async fn send_once_raced(
     let origin_delay = if client
         .state
         .http1_or_2
-        .has_available_http2(&request.endpoint)
+        .has_available_http2(&request.endpoint, route)
         .await
     {
         Duration::ZERO
@@ -125,6 +131,7 @@ pub(super) async fn send_once_raced(
             client.state.http1_or_2.acquire_lease(
                 negotiated,
                 &request.endpoint,
+                route,
                 request_span,
                 timeout_budget,
                 retries,
@@ -146,7 +153,7 @@ pub(super) async fn send_once_raced(
                 outcome = "alternative",
                 "Alt-Svc race chose the alternative"
             );
-            client.confirm_alt_svc(&request.endpoint, &alternative);
+            client.confirm_alt_svc(&request.endpoint, route, &alternative);
             send_on_alternative(
                 client,
                 request,
@@ -164,6 +171,7 @@ pub(super) async fn send_once_raced(
                 Candidate::Failed(error) if invalidates_alternative(&error) => {
                     client.mark_alt_svc_broken(
                         &request.endpoint,
+                        route,
                         &alternative,
                         race.broken_backoff(),
                     );
@@ -176,6 +184,7 @@ pub(super) async fn send_once_raced(
                     continue_alternative(
                         client.clone(),
                         request.endpoint.clone(),
+                        route.clone(),
                         alternative,
                         race,
                         setup,
@@ -183,7 +192,7 @@ pub(super) async fn send_once_raced(
                 }
                 Candidate::Pending(_) => {}
             }
-            send_once_origin(client, request, attempt, lifecycle, Some(leased)).await
+            send_once_origin(client, request, attempt, route, lifecycle, Some(leased)).await
         }
     }
 }
@@ -260,6 +269,7 @@ pub(super) const ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
 fn continue_alternative<F>(
     client: Client,
     endpoint: crate::authority::Endpoint,
+    route: Route,
     alternative: AlternativeTarget,
     race: AltSvcRace,
     setup: Pin<Box<F>>,
@@ -276,12 +286,17 @@ fn continue_alternative<F>(
                 match setup.await {
                     Ok(leased) => {
                         drop(leased);
-                        client.confirm_alt_svc(&endpoint, &alternative);
+                        client.confirm_alt_svc(&endpoint, &route, &alternative);
                         tracing::debug!(outcome = "connected", "orphaned alternative connected");
                     }
                     Err(error) if invalidates_alternative(&error) => {
                         tracing::debug!(outcome = "failed", "orphaned alternative failed");
-                        client.mark_alt_svc_broken(&endpoint, &alternative, race.broken_backoff());
+                        client.mark_alt_svc_broken(
+                            &endpoint,
+                            &route,
+                            &alternative,
+                            race.broken_backoff(),
+                        );
                     }
                     Err(_) => {}
                 }
@@ -434,7 +449,7 @@ async fn send_on_alternative(
                     continue;
                 }
                 if invalidates_alternative(&error) {
-                    client.remove_alt_svc_if_current(endpoint, alternative.generation());
+                    client.remove_alt_svc_if_current(endpoint, route, alternative.generation());
                 }
                 return Err(error);
             }
@@ -444,7 +459,7 @@ async fn send_on_alternative(
 
         if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
             store_cookies(client, request, &response);
-            client.remove_alt_svc_if_current(endpoint, alternative.generation());
+            client.remove_alt_svc_if_current(endpoint, route, alternative.generation());
             return Ok(AttemptOutcome {
                 response,
                 protocol: HttpProtocol::Http3,
@@ -454,6 +469,7 @@ async fn send_on_alternative(
         let critical_retry_requested = observe_response(
             client,
             request,
+            route,
             &response,
             &sent_headers,
             AttemptPath::Alternative,

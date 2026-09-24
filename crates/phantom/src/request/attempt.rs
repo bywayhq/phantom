@@ -156,6 +156,7 @@ async fn send_once_exact(
         let critical_retry_requested = observe_response(
             client,
             request,
+            route,
             &response,
             &sent_headers,
             AttemptPath::Exact,
@@ -188,10 +189,10 @@ async fn send_once_negotiated(
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
-    if !matches!(route, Route::Direct) {
+    if !route.carries_negotiated_https() {
         return Err(RequestError::unsupported_negotiated_route());
     }
-    match plan(client, request) {
+    match plan(client, request, route) {
         NegotiatedPlan::Alternative(alternative) => {
             send_once_alt_svc(client, request, attempt, route, lifecycle, alternative).await
         }
@@ -207,7 +208,9 @@ async fn send_once_negotiated(
             )
             .await
         }
-        NegotiatedPlan::Origin => send_once_origin(client, request, attempt, lifecycle, None).await,
+        NegotiatedPlan::Origin => {
+            send_once_origin(client, request, attempt, route, lifecycle, None).await
+        }
     }
 }
 
@@ -219,6 +222,7 @@ pub(super) async fn send_once_origin(
     client: &Client,
     request: &ResolvedRequest,
     attempt: AttemptRequest<'_>,
+    route: &Route,
     lifecycle: AttemptLifecycle<'_>,
     mut leased: Option<NegotiatedLease>,
 ) -> Result<AttemptOutcome, RequestError> {
@@ -255,6 +259,7 @@ pub(super) async fn send_once_origin(
             .send_request(
                 connector,
                 endpoint,
+                route,
                 request_span,
                 method.clone(),
                 request.target.clone(),
@@ -289,6 +294,7 @@ pub(super) async fn send_once_origin(
         let critical_retry_requested = observe_response(
             client,
             request,
+            route,
             &response,
             &sent_headers,
             AttemptPath::Negotiated,
@@ -497,13 +503,14 @@ pub(super) fn attempt_client_hints<'a>(
 pub(super) fn observe_response(
     client: &Client,
     request: &ResolvedRequest,
+    route: &Route,
     response: &Response<ResponseBody>,
     sent_headers: &[RequestHeader],
     path: AttemptPath,
 ) -> bool {
     store_cookies(client, request, response);
     if path.learns_alt_svc() {
-        client.learn_alt_svc(&request.endpoint, response);
+        client.learn_alt_svc(&request.endpoint, route, response);
     }
     (!path.requires_https_for_client_hints() || request.uri.scheme_str() == Some("https"))
         && client.inner.client_hints.as_ref().is_some_and(|settings| {

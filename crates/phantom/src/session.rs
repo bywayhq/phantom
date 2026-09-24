@@ -206,7 +206,7 @@ impl Client {
             && let Some(session) = self
                 .state
                 .http1_or_2
-                .admit_current_http2_connection(endpoint)
+                .admit_current_http2_connection(endpoint, route)
                 .await?
         {
             return Ok(Some(session));
@@ -261,11 +261,12 @@ impl Client {
     pub(crate) fn alt_svc_location(
         &self,
         endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
     ) -> Option<alt_svc::AlternativeTarget> {
         self.state
             .alt_svc
             .as_ref()?
-            .get(endpoint)
+            .get(endpoint, route)
             .map(|selection| alt_svc::AlternativeTarget::new(&selection))
     }
 
@@ -277,21 +278,23 @@ impl Client {
     pub(crate) fn mark_alt_svc_broken(
         &self,
         endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
         alternative: &alt_svc::AlternativeTarget,
         backoff: AltSvcBrokenBackoff,
     ) {
         if let Some(store) = &self.state.alt_svc {
-            store.mark_broken(endpoint, alternative.location(), backoff);
+            store.mark_broken(endpoint, route, alternative.location(), backoff);
         }
     }
 
     pub(crate) fn confirm_alt_svc(
         &self,
         endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
         alternative: &alt_svc::AlternativeTarget,
     ) {
         if let Some(store) = &self.state.alt_svc {
-            store.confirm(endpoint, alternative.location());
+            store.confirm(endpoint, route, alternative.location());
         }
     }
 
@@ -302,6 +305,7 @@ impl Client {
     pub(crate) fn learn_alt_svc<B>(
         &self,
         endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
         response: &http::Response<B>,
     ) {
         let Some(store) = &self.state.alt_svc else {
@@ -313,7 +317,7 @@ impl Client {
             .extensions()
             .get::<phantom_net::http2::AltSvcFrames>()
         {
-            store.learn_frames(endpoint, frames);
+            store.learn_frames(endpoint, route, frames);
         }
         let Some(headers) = response
             .extensions()
@@ -321,16 +325,17 @@ impl Client {
         else {
             return;
         };
-        store.learn(endpoint, headers);
+        store.learn(endpoint, route, headers);
     }
 
     pub(crate) fn remove_alt_svc_if_current(
         &self,
         endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
         generation: u64,
     ) {
         if let Some(store) = &self.state.alt_svc {
-            store.remove_if_current(endpoint, generation);
+            store.remove_if_current(endpoint, route, generation);
         }
     }
 
@@ -379,7 +384,8 @@ impl Client {
     /// Returns `None` when the client was built without
     /// [`ClientBuilder::alt_svc`](crate::ClientBuilder::alt_svc). Expiry is
     /// the remaining lifetime as wall-clock time, rounded down to a second.
-    /// Snapshots describe direct-route alternatives only.
+    /// The store keys each alternative by origin and route; an export keeps
+    /// the direct-route entries and omits every proxy-route one.
     #[must_use]
     pub fn export_alt_svc(&self) -> Option<AltSvcSnapshot> {
         self.state
@@ -396,7 +402,8 @@ impl Client {
     /// extended. Alternatives this client already holds take precedence and
     /// imported entries rank as least recently used, so capacity keeps held
     /// entries and then the most recently used snapshot entries. Every
-    /// imported entry receives a fresh generation, like a learned one.
+    /// imported entry receives a fresh generation, like a learned one, and
+    /// belongs to the direct route, so no import can reach a proxy route.
     ///
     /// # Errors
     ///

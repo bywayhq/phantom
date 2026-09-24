@@ -10,7 +10,7 @@ use std::{
 use tracing::debug;
 
 use super::{
-    AltSvcLocation, AltSvcStore, Entry, MAX_DELTA_SECONDS, OriginKey, canonical_origin,
+    AltSvcLocation, AltSvcStore, Entry, MAX_DELTA_SECONDS, OriginKey, StoreKey, canonical_origin,
     expiration_at,
 };
 use crate::authority::Endpoint;
@@ -20,8 +20,13 @@ use crate::authority::Endpoint;
 /// A snapshot contains only each origin's canonical ASCII serialization, the
 /// alternative's QUIC host and port, and an absolute expiry rounded down to a
 /// whole second. It holds no connection, TLS ticket, route, cookie, or
-/// credential state. The client store is keyed by origin for direct routes, so
-/// a snapshot describes alternatives for the direct route only.
+/// credential state.
+///
+/// The client store keys each alternative by origin and route. A snapshot
+/// carries no route, so exporting keeps the direct-route entries and skips
+/// every proxy-route one, and importing restores direct-route entries only.
+/// A proxy route's alternatives therefore never cross a snapshot into another
+/// route or another client's configuration.
 ///
 /// Phantom does not serialize snapshots; callers persist the accessor values
 /// in a format of their choice and rebuild entries with
@@ -211,11 +216,12 @@ impl AltSvcStore {
         AltSvcSnapshot::new(
             entries
                 .iter()
+                .filter(|entry| entry.key.is_direct())
                 .filter_map(|entry| {
                     let remaining = entry.expires_at.checked_duration_since(now)?;
                     let expires_at = floor_to_second(system_now.checked_add(remaining)?);
                     (expires_at > system_now).then(|| AltSvcSnapshotEntry {
-                        origin: entry.origin.serialize().into(),
+                        origin: entry.key.origin().serialize().into(),
                         alternative_host: entry.location.host.clone(),
                         alternative_port: entry.location.port,
                         expires_at,
@@ -256,14 +262,15 @@ impl AltSvcStore {
                 continue;
             };
             let remaining = remaining.min(Duration::from_secs(MAX_DELTA_SECONDS));
+            let key = StoreKey::new_direct(origin);
             if remaining.is_zero()
                 || entries.len() == self.capacity.get()
-                || entries.iter().any(|held| held.origin == origin)
+                || entries.iter().any(|held| held.key == key)
             {
                 continue;
             }
             entries.push_front(Entry {
-                origin,
+                key,
                 location,
                 expires_at: expiration_at_duration(now, remaining),
                 generation: self
