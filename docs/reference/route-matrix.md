@@ -1,8 +1,11 @@
 # Route matrix
 
 This table shows what Phantom does for each combination of request scheme,
-protocol, and route. "Rejected" means a typed error before any proxy or origin
-I/O. No cell falls back to another row or column.
+protocol, and [route](glossary.md#route). "Rejected" means a typed error
+before any proxy or origin I/O. No cell falls back to another row or column.
+
+> For builders choosing a route. Configuration is in
+> [Routes and proxies](../guides/routes-and-proxies.md).
 
 Columns:
 
@@ -14,9 +17,9 @@ Columns:
 - **CONNECT-UDP**: an `https://` template over its default H3 leg or an
   explicit H2 or H1 leg.
 
-Rows use H1, H2, and H3 for HTTP/1.1, HTTP/2, and HTTP/3. "Exact" forces one
-protocol; "negotiated" lets TLS ALPN choose H1 or H2. See
-[Key terms](../guides/client.md#key-terms).
+Rows use [H1, H2, and H3](glossary.md#h1-h2-h3) for HTTP/1.1, HTTP/2, and
+HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
+[negotiated](glossary.md#negotiated-protocol) lets TLS ALPN choose H1 or H2.
 
 | Request | Direct | H1 proxy | H2 proxy | SOCKS5 | CONNECT-UDP |
 | --- | --- | --- | --- | --- | --- |
@@ -48,5 +51,9 @@ Notes:
   connection. See
   [Profile connection policy](../guides/websocket.md#profile-connection-policy).
 
-For configuration, see [Routes and proxies](../guides/routes-and-proxies.md).
-For WebSocket rules, see [WebSocket](../guides/websocket.md).
+## Next
+
+- [Routes and proxies](../guides/routes-and-proxies.md): configure each
+  route.
+- [WebSocket](../guides/websocket.md): the WebSocket rules behind the `ws://`
+  and `wss://` rows.

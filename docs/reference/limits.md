@@ -1,8 +1,10 @@
 # Defaults and limits
 
-Phantom bounds every piece of state it keeps. This page lists those bounds
-and their defaults. Policies that stay off until you enable them, such as
-timeouts, redirects, and retries, come first.
+This page lists every bound on the state Phantom keeps, with its default, and
+the policies that stay off until you enable them.
+
+> For builders looking up a default. [Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)
+> explains why every piece of state has a bound.
 
 ## Off by default
 
@@ -19,8 +21,8 @@ timeouts, redirects, and retries, come first.
 
 ## Connection pools
 
-`ClientBuilder` can set each bound to any nonzero value. A pool key is the
-origin plus the complete route.
+`ClientBuilder` can set each bound to any nonzero value. A
+[pool key](glossary.md#pool-key) is the origin plus the complete route.
 
 | Bound | Default | Builder method |
 | --- | --- | --- |
@@ -100,7 +102,7 @@ applies it to encoded header-block bytes and to its own decoded
 serialization, so the two ceilings match only approximately.
 
 The cap of 8 informational responses is Phantom's own bound, not a browser
-value. It applies to every profile on H1, H2, and H3.
+value, and applies to every profile.
 
 ## Server-sent events
 
@@ -132,3 +134,9 @@ value. It applies to every profile on H1, H2, and H3.
 | DATAGRAM capsule | 65,535 bytes |
 
 Details are in [HTTP/3 internals](../internals/http3.md#connect-udp-masque).
+
+## Next
+
+- [Coverage](coverage.md): what each layer supports.
+- [Connections, redirects, and cookies](../guides/connections-and-state.md):
+  how the pools and the cookie jar behave.
