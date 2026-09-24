@@ -92,5 +92,5 @@ Report a reproducible bug with the
 
 - [How servers recognize a client](fingerprinting.md): the place to start if
   fingerprinting is new to you.
-- [Getting started](getting-started.md): the fastest path to a working
+- [Getting started](getting-started.md): one path from zero to a working
   request.
