@@ -1,68 +1,125 @@
 # Design
 
 Phantom aims to send what a recorded browser sends and to fail visibly when it
-cannot. This page explains the principles behind that aim and the ownership
-and safety boundaries that follow from them. It is for reviewers,
-maintainers, and users who want to know why Phantom behaves as it does. For
-configuration, see [Using the client](../guides/client.md). For the evidence
-behind each claim, see [Validation](validation.md).
+cannot. This page explains the rules that follow from that aim, why each one
+exists, and what it costs you.
+
+> For specialists and curious builders who have used
+> [the client](../guides/client.md).
+
+For the evidence behind each claim, see [Validation](validation.md).
 
 ## Principles
 
-1. **Recorded browser behavior is the specification.** The target is what a
-   real browser sends, as captured on the wire, rather than everything a
-   standard permits. When a capture cannot show a behavior, such as a TCP
-   socket option, the browser's source code at the profiled release is the
-   evidence.
-2. **Profiles describe clients; transports apply settings.** Browser identity
-   lives only in profile data. Transport code applies whatever settings a
-   profile holds and never branches on a browser family, so a new browser
-   needs a new profile rather than new transport code.
-3. **Order that is visible on the wire stays in order.** When a peer can see
-   the order of fields, settings, or extensions, no layer sorts, hashes, or
-   regroups them.
-4. **Unsupported behavior is an error.** Phantom never silently changes
-   protocol, route, or fingerprint to complete a request. A silent change
-   would send traffic the caller did not choose, so Phantom returns an error
-   instead.
-5. **A setting is public only when it is applied and tested.** Every public
-   option changes what Phantom does, and a test observes the change.
-6. **Mutable state has one owner and a finite bound.** Caches, pools, and
-   queues belong to a client rather than the process, and each has a limit.
+Each principle has its own section below: the rule, why Phantom keeps it, and
+what it costs the user.
 
-## Runtime shape
+1. [Recorded browser behavior is the specification.](#recorded-browser-behavior-is-the-specification)
+2. [No silent fallback.](#no-silent-fallback)
+3. [Order is part of the fingerprint.](#order-is-part-of-the-fingerprint)
+4. [Profiles hold identity; transports apply settings.](#profiles-hold-identity-transports-apply-settings)
+5. [A setting is public only when it is applied and tested.](#a-setting-is-public-only-when-it-is-applied-and-tested)
+6. [State belongs to one client and has a bound.](#state-belongs-to-one-client-and-has-a-bound)
+7. [Retries never change what the server sees.](#retries-and-replays)
+8. [The safety boundary stays narrow.](#safety-boundary)
 
-```mermaid
-flowchart LR
-    App --> Client
-    Profile --> Client
-    Route --> Client
-    Client --> H1
-    Client --> H2
-    Client --> H3
-    H1 --> TLS
-    H2 --> TLS
-    H3 --> QUIC
-    QUIC --> BoringSSL
-```
+[How the pieces fit](#how-the-pieces-fit) then describes the crates and
+protocol boundaries that carry these rules.
 
-| Crate | Owns |
-| --- | --- |
-| `phantom-http` (library `phantom`) | Request policy and client state |
-| `phantom-profile` | Typed wire settings |
-| `phantom-net` | Concrete protocol and routing mechanisms |
-| `phantom-quic-btls` | The BoringSSL provider for Quinn, isolated |
-| `phantom-testkit` | Test-only capture infrastructure |
+## Recorded browser behavior is the specification
 
-Phantom reuses mature protocol engines. It patches them narrowly, and only
-when their public APIs cannot preserve measured behavior or the required
-failure semantics.
+The target is what a real browser sends, as captured on the wire, rather than
+everything a standard permits. When a capture cannot show a behavior, such as
+a TCP socket option, the browser's source code at the profiled release is the
+evidence.
 
-## State and connections
+Why: a server compares a client with the browsers it claims to be. A choice
+the standard allows but no browser makes is itself a signal. For that reason
+no named recipe opens a WebSocket over HTTP/3: no shipping browser does so by
+default (see [Coverage](../reference/coverage.md#server-sent-events-and-websocket)).
+
+The cost: Phantom covers only what has been captured or read. It carries one
+version per browser, from Windows 11 captures, and a new browser release needs
+new captures before its recipes exist. Behavior no capture shows, such as
+Edge's TCP options, has no recipe at all.
+
+## No silent fallback
+
+Phantom never silently changes protocol, route, or fingerprint to complete a
+request. When it cannot do what the caller chose, it returns a typed error.
+Conflicts between a profile and connection policy fail before any I/O.
+
+Why: a silent change sends traffic the caller did not choose. An HTTP/3
+request that quietly retries over HTTP/2 presents a different fingerprint, and
+a proxied request that quietly goes direct leaves from a different address.
+Either change can matter more to the caller than the failed request.
+
+The cost: some requests fail where a general-purpose client would succeed. An
+exact H3 request fails when UDP is blocked. A negotiated request through an
+HTTP or CONNECT-UDP proxy is refused before any proxy I/O. An exact H2
+WebSocket to a peer that did not enable extended CONNECT fails rather than
+using HTTP/1.1. To try another protocol or route, catch the error and send a
+new request that names it.
+
+## Order is part of the fingerprint
+
+When a peer can see the order of fields, settings, or extensions, no layer
+sorts, hashes, or regroups them. Request fields go out in the order the caller
+or the [request template](../reference/glossary.md#request-template) gives,
+and every transport returns the response fields in wire order alongside the
+standard `http::Response` view.
+
+Why: browsers differ in the order of their TLS extensions, H2 SETTINGS, and
+request fields, and servers read that order (see
+[Header order](../fingerprinting.md#header-order)). Phantom reuses mature
+protocol engines, and patches them narrowly where their public APIs cannot
+preserve measured behavior or the required failure semantics.
+
+The cost: you choose the field order, either directly or through a template.
+Phantom depends on patched forks of its TLS, HTTP/2, QUIC, HTTP/3, and
+WebSocket libraries, and another crate in your build cannot replace them (see
+[Adding Phantom to a project](../guides/downstream.md)). Some order is still
+out of reach: the vendored HPACK encoder chooses field representations
+itself, which leaves a recorded gap for WebSocket CONNECT.
+
+## Profiles hold identity; transports apply settings
+
+Browser identity lives only in profile data. Transport code applies whatever
+settings a profile holds and never branches on a browser family or on the
+host operating system, so a new browser needs a new profile rather than new
+transport code. OS-specific code exists only for real differences in sockets,
+trust stores, native builds, or profiling.
+
+Why: with one code path per protocol, every profile runs the same tested
+lifecycle. A branch on the browser name would create combinations that only
+one profile exercises, and would hide part of the identity in code where no
+capture comparison reaches it.
+
+The cost: there is no single switch that means "be Chrome". You build a
+`ClientProfile` from recipes, layer by layer. Nothing stops you from combining
+a Chrome TLS recipe with a Firefox H2 recipe, and the result matches no
+browser. The request-template identity check rejects only a caller
+`User-Agent` or brand-list client hint that names another browser family or
+major version.
+
+## A setting is public only when it is applied and tested
+
+Every public option changes what Phantom does, and a test observes the
+change.
+
+Why: an option that parses but has no effect tells the caller something false
+about the traffic.
+
+The cost: some controls you might expect are absent until they are complete.
+There is no public TLS ticket policy yet, and the qlog and key-log paths are
+features of internal crates that `phantom-http` does not expose.
+
+## State belongs to one client and has a bound
 
 The client owns every connection and all cross-request state. Cookies, client
 hints, Alt-Svc advertisements, redirects, TLS sessions, and future DNS state
-belong to one client, never to the process.
+belong to one client, never to the process. Caches, pools, and queues each
+have a limit.
 
 Pool keys include origin, route, protocol, and wire-profile identity, so a
 connection is never reused across a security or fingerprint boundary.
@@ -72,12 +129,28 @@ pipelines. HTTP/2 (H2) and HTTP/3 (H3) run concurrent streams within local and
 peer limits. Waiters are bounded, cancellation is scoped to a stream where
 possible, and a draining connection accepts no new work.
 
+Why: shared process state would let what one client learned change what
+another sends, such as a session ticket resumed under a different profile.
+Unbounded state lets a peer grow memory without limit.
+
+The cost: clones of a client share its state, but separately built clients
+share nothing, so each new client makes new handshakes and relearns hints and
+alternatives. When a limit is reached, the least recently used entry is
+evicted. The defaults are in [Defaults and limits](../reference/limits.md).
+
 ## Retries and replays
 
 A retry can change what a server sees, so every retry class is bounded and
 none changes the route, the exact protocol, the negotiated selection rule, or
 the Alt-Svc alternative in use. The [retries guide](../guides/retries.md)
 covers configuration. This section records the boundaries each class keeps.
+
+Why: a browser's recovery is part of its behavior, and a request sent twice
+can have effects twice.
+
+The cost: apart from one H2 `GOAWAY` replay, Phantom retries nothing unless
+you configure it, so a transient failure reaches your code as an error.
+Firefox's transaction restarts on fresh connections are not reproduced.
 
 ### Connection-setup retries
 
@@ -88,8 +161,8 @@ and every internal replacement connection.
   acquisition, before the origin request body is polled or any request byte is
   dispatched.
 - The negotiated H1/H2 pool may spend it only on a TCP connect failure before
-  TLS starts, when ALPN (Application-Layer Protocol Negotiation) has not yet
-  selected a protocol. TLS and ALPN failures are terminal.
+  TLS starts, when [ALPN](../reference/glossary.md#alpn) has not yet selected a
+  protocol. TLS and ALPN failures are terminal.
 
 Setup retries therefore stay inside exact-protocol pools and the negotiated
 pool's pre-TLS connect step. They cannot absorb TLS, ALPN, proxy negotiation,
@@ -159,17 +232,20 @@ Phantom returns the response instead of waiting. The intermediate body is
 dropped unread rather than drained, so an unbounded body cannot stall the
 retry.
 
-## Async and features
+## Safety boundary
 
-Phantom is async-first and targets Tokio. Library code does not create a
-global runtime or install a tracing subscriber. Supporting another runtime
-would need a second implementation that preserves cancellation, timer,
-socket, DNS, and driver-lifecycle behavior.
+A fingerprinting client works inside the TLS handshake and a native TLS
+library, where a mistake is a security bug. Phantom keeps that work inside
+three narrow boundaries: TLS verification stays on unless the caller turns it
+off, unsafe code lives in one module, and vendored changes go through a
+recorded patch series.
 
-Each optional Cargo feature adds a coherent public capability. Features are
-not backend toggles.
+The cost: verification can be disabled only for H1 and H2 conformance
+testing, and your build cannot swap Phantom's patched dependencies for stock
+ones. Recoverable input and network failures return typed errors; runtime
+library code must not panic.
 
-## TLS boundary
+### TLS boundary
 
 A TLS profile is an ordered wire offer, not a security grade. Connection
 policy decides separately whether to accept a peer.
@@ -183,11 +259,76 @@ controlled TLS conformance testing over TCP. It applies only to H1 and H2,
 cannot be combined with additional roots or HTTP/3, and does not change the
 profile's ClientHello.
 
-Conflicts between a profile and connection policy fail before any I/O.
-Recoverable input and network failures return typed errors; runtime library
-code must not panic.
+### Dependency policy
 
-## Protocol boundaries
+A change to a vendored dependency must name its upstream revision, explain
+the missing seam, carry a reproducible patch, preserve stock defaults, and
+include focused tests. `scripts/ci/check-vendor.sh` verifies each patched
+package; [Vendoring](../internals/vendoring.md) describes the workflow.
+
+Backend types stay private, and runtime crates never depend on the testkit.
+See [HTTP/3 internals](../internals/http3.md) for the boundaries specific to
+H3.
+
+### Unsafe code
+
+The workspace forbids `unsafe_code`. The single exception is
+`phantom-quic-btls`, the audited FFI crate that drives BoringSSL's QUIC TLS
+API for Quinn.
+
+- The crate overrides the workspace lint with `unsafe_code = "deny"` and
+  `unsafe_op_in_unsafe_fn = "deny"`, and allows unsafe code only in its
+  private `backend` module, which is the complete FFI boundary.
+- Every unsafe block there carries a `SAFETY` comment;
+  `clippy::undocumented_unsafe_blocks` is denied.
+- No raw pointer or `btls-sys` item crosses the crate's public API. Callers
+  supply only the safe `btls` `SslContext` wrapper.
+
+Safe protocol code in the crate cannot add unsafe operations without moving
+them into `backend`, where review concentrates. A change to that module needs
+the same scrutiny as a vendored patch: a stated invariant for every unsafe
+block, and tests that exercise the failure paths. The macOS and Windows CI
+jobs also run the crate's unit tests in release mode to check the native
+link. [Fuzzing and sanitizers](validation.md#fuzzing-and-sanitizers) records
+which failure paths have tests.
+
+## How the pieces fit
+
+### Runtime shape
+
+```mermaid
+flowchart LR
+    App --> Client
+    Profile --> Client
+    Route --> Client
+    Client --> H1
+    Client --> H2
+    Client --> H3
+    H1 --> TLS
+    H2 --> TLS
+    H3 --> QUIC
+    QUIC --> BoringSSL
+```
+
+| Crate | Owns |
+| --- | --- |
+| `phantom-http` (library `phantom`) | Request policy and client state |
+| `phantom-profile` | Typed wire settings |
+| `phantom-net` | Concrete protocol and routing mechanisms |
+| `phantom-quic-btls` | The BoringSSL provider for Quinn, isolated |
+| `phantom-testkit` | Test-only capture infrastructure |
+
+### Async and features
+
+Phantom is async-first and targets Tokio. Library code does not create a
+global runtime or install a tracing subscriber. Supporting another runtime
+would need a second implementation that preserves cancellation, timer,
+socket, DNS, and driver-lifecycle behavior.
+
+Each optional Cargo feature adds a coherent public capability. Features are
+not backend toggles.
+
+### Protocol boundaries
 
 - H1 and H2 share TCP and TLS construction but keep their own lifecycle and
   serialization.
@@ -209,8 +350,6 @@ code must not panic.
   the request once, on the winner. A losing alternative that fails is marked
   broken with a bounded doubling backoff instead of being evicted, as
   Chromium does.
-- Every transport returns the standard `http::Response` view plus the
-  response fields in wire order.
 - Response content decoding is an opt-in facade body stage above every
   transport. It is gated by the caller's own `Accept-Encoding`, never edits
   request fields, and keeps the response fields as the wire view.
@@ -257,34 +396,8 @@ trailers can be replayed; a one-shot streaming body fails before Phantom opens
 a retry connection. This lifecycle never changes the selected protocol or
 route, and never falls back to a direct connection.
 
-## Dependency policy
+## Next
 
-A change to a vendored dependency must name its upstream revision, explain
-the missing seam, carry a reproducible patch, preserve stock defaults, and
-include focused tests. `scripts/ci/check-vendor.sh` verifies each patched
-package; [Vendoring](../internals/vendoring.md) describes the workflow.
-
-Backend types stay private, and runtime crates never depend on the testkit.
-See [HTTP/3 internals](../internals/http3.md) for the boundaries specific to
-H3.
-
-## Unsafe code
-
-The workspace forbids `unsafe_code`. The single exception is
-`phantom-quic-btls`, the audited FFI crate that drives BoringSSL's QUIC TLS
-API for Quinn.
-
-- The crate overrides the workspace lint with `unsafe_code = "deny"` and
-  `unsafe_op_in_unsafe_fn = "deny"`, and allows unsafe code only in its
-  private `backend` module, which is the complete FFI boundary.
-- Every unsafe block there carries a `SAFETY` comment;
-  `clippy::undocumented_unsafe_blocks` is denied.
-- No raw pointer or `btls-sys` item crosses the crate's public API. Callers
-  supply only the safe `btls` `SslContext` wrapper.
-
-Safe protocol code in the crate cannot add unsafe operations without moving
-them into `backend`, where review concentrates. A change to that module needs
-the same scrutiny as a vendored patch: a stated invariant for every unsafe
-block, and tests that exercise the failure paths. The macOS and Windows CI
-jobs also run the crate's unit tests in release mode to check the native
-link.
+- [Validation](validation.md): the evidence behind each claim.
+- [Coverage](../reference/coverage.md): what these rules support today.
+- [Retries and replays](../guides/retries.md): configuring the retry classes.
