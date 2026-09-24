@@ -1,4 +1,4 @@
-//! Client-neutral profile identity, provenance, and wire settings.
+//! Client-neutral profile wire settings.
 
 pub mod chromium;
 pub mod client_hints;
@@ -15,7 +15,6 @@ pub mod tls;
 pub mod websocket;
 
 mod client;
-mod identity;
 
 pub use client::{ClientProfile, Http3ClientSettings};
 pub use client_hints::{
@@ -31,9 +30,6 @@ pub use http3::{
     Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
     Http3Setting, Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings,
     InvalidHttp3Settings,
-};
-pub use identity::{
-    ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
 };
 pub use request_template::{InvalidRequestTemplate, RequestField, RequestTemplate};
 pub use tcp::{InvalidTcpSettings, TcpAddressRacing, TcpKeepalive, TcpSettings};
