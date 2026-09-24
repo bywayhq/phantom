@@ -44,9 +44,10 @@ fn profiles() -> [ClientProfile; 2] {
         .with_http2(firefox::v156_http2())
         .with_cookie_placement(firefox::v156_cookie_placement());
 
-    // Edge 153: its own TLS and client hints; its H2, QUIC, and H3 match
-    // the Chromium recipes.
+    // Edge 153: its own TLS and client hints; its HTTP/1.1 bound, H2, QUIC,
+    // and H3 match the Chromium recipes.
     let edge = ClientProfile::new(edge::v153_tls())
+        .with_http1(chromium::v154_http1())
         .with_http2(chromium::v154_http2())
         .with_http3(Http3ClientSettings::new(
             edge::v153_http3_tls(),
