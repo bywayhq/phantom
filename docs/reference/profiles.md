@@ -1,4 +1,4 @@
-# Browser profile reference
+# Profile reference
 
 Lookup tables for profile components, built-in recipes, TCP socket options,
 request templates, the template identity check, and client hints. For how to

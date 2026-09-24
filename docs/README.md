@@ -44,7 +44,7 @@ Task guides for using Phantom in an application.
 
 - [Coverage](reference/coverage.md): the support contract, layer by layer,
   with planned work.
-- [Profiles](reference/profiles.md): every built-in recipe and what it
+- [Profile reference](reference/profiles.md): every built-in recipe and what it
   covers.
 - [Route matrix](reference/route-matrix.md): every scheme, protocol, and
   route combination.
@@ -78,7 +78,7 @@ Task guides for using Phantom in an application.
   and diagnostics.
 - [Vendored forks](internals/vendoring.md): patched dependencies and
   downstream CI.
-- [Capture tooling](../scripts/capture/README.md): how to record and compare
+- [Capture tools](../scripts/capture/README.md): how to record and compare
   browser captures.
 - [Development helpers](../scripts/dev/README.md): the shared Cargo lock and
   parallel worktree lanes.

@@ -103,5 +103,5 @@ becomes unknown.
   decoding's off state.
 - [Content-decoding evidence](../explanation/validation.md#content-decoding-evidence):
   the tests behind this behavior.
-- [Profiles](profiles.md#apply-a-captured-request-template): templates that set
+- [Browser profiles](profiles.md#apply-a-captured-request-template): templates that set
   `Accept-Encoding` for you.

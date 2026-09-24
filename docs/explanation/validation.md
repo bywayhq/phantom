@@ -340,7 +340,7 @@ Limits:
   because `chrome_http3.py` opens that path in text mode. Its bytes and pinned
   SHA-256 are stable in the repository, but rerunning the documented command
   on another platform would not reproduce that hash; see
-  [the capture README](../../scripts/capture/README.md).
+  [Capture tools](../../scripts/capture/README.md).
 - The comparison with Chrome 153 is recorded, not reproducible; see
   [Comparison with Chrome 153](#comparison-with-chrome-153).
 - Launches are headless, except one headful client-hint run and five headful
@@ -628,7 +628,7 @@ captured reconnect fields, with `SseHeader::last_event_id` at the captured
 position, reproduces the browser's field lines except the `Host` port.
 
 How to reproduce: `scripts/capture/sse_reconnect.py`;
-[the capture README](../../scripts/capture/README.md) has the commands. The
+[Capture tools](../../scripts/capture/README.md) has the commands. The
 Chrome 153 comparison is under
 [Comparison with Chrome 153](#comparison-with-chrome-153).
 
@@ -1274,5 +1274,5 @@ evidence.
   back.
 - [Design](design.md): why Phantom returns an error when it cannot
   honor a request.
-- [Capture tooling](../../scripts/capture/README.md): record a capture
+- [Capture tools](../../scripts/capture/README.md): record a capture
   yourself.
