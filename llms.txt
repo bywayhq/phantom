@@ -15,7 +15,8 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - Header order is part of the fingerprint. Add fields in the order you want them sent; do not sort or deduplicate them.
 - `RequestErrorKind` and `BuildErrorKind` are non-exhaustive; every `match` needs a fallback arm.
 - Requests need a Tokio runtime with I/O and time enabled.
-- Cargo features `cookies`, `sse`, `websocket`, and `websocket-deflate` are off by default; `full` enables all of them.
+- Cargo features `cookies`, `sse`, `websocket`, `websocket-deflate`, and `serde` (cookie-jar snapshots, with `cookies`) are off by default; `full` enables all of them.
+- A cookie snapshot from `Client::export_cookies` holds cookie values, which are credentials. `Client::import_cookies` rejects the whole snapshot if one entry is invalid, and never replaces a cookie the jar already holds.
 - Read a response body to the end, or with `collect_with_limit`, when you want the connection reused.
 
 ## Start
@@ -48,7 +49,7 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - [Route matrix](docs/reference/route-matrix.md): every scheme, protocol, and route combination
 - [Defaults and limits](docs/reference/limits.md): default bounds and off-by-default policies
 - [WebSocket reference](docs/reference/websocket.md): WebSocket routes, templates, response checks, recipes, and compression
-- [Cookie jar rules](docs/reference/cookies.md): what the cookie jar stores, sends, rejects, and evicts
+- [Cookie jar rules](docs/reference/cookies.md): what the cookie jar stores, sends, rejects, and evicts, and how snapshots import
 - [Glossary](docs/reference/glossary.md): terms used across the documentation
 - API: `cargo doc -p phantom-http --all-features --no-deps --open`
 

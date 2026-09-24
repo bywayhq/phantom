@@ -248,6 +248,13 @@ The H2 or H3 frame each side sends at connection start with its parameters,
 such as table sizes and window sizes. Values and their order differ between
 browsers. See [HTTP/2](../fingerprinting.md#http2).
 
+## Snapshot
+
+A value holding a client's cookies (`CookieSnapshot`) or learned Alt-Svc
+alternatives (`AltSvcSnapshot`), for storage you own. Import revalidates
+every entry. See [Snapshots](cookies.md#snapshots) and
+[Keep Alt-Svc state across restarts](../guides/http3.md#keep-alt-svc-state-across-restarts).
+
 ## SNI
 
 Server Name Indication: the host name a client names in its ClientHello. An

@@ -160,6 +160,7 @@ No feature is enabled by default. Add them to the `phantom` line in
 | `sse` | Server-sent events, with a limited number of reconnects |
 | `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 extended CONNECT with an HTTP/2 profile that sets its pseudo-header order |
 | `websocket-deflate` | Opt-in `permessage-deflate`; turns on `websocket` |
+| `serde` | `Serialize` and `Deserialize` for cookie-jar snapshots, with `cookies` |
 | `full` | All of the above |
 
 The QUIC diagnostics features, `qlog` on `phantom-net` and `keylog` on

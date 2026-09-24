@@ -1,7 +1,7 @@
 # Cookie jar rules
 
 The rules the optional cookie jar applies when it stores and sends cookies:
-request context, trustworthy origins, rejections, and eviction.
+request context, trustworthy origins, rejections, eviction, and snapshots.
 
 > For builders looking up a cookie rule. Setup is in
 > [Keep cookies between requests](../guides/connections-and-state.md#keep-cookies-between-requests).
@@ -69,6 +69,65 @@ same 150 and 3,000, with three differences:
 - the `Priority` attribute is ignored;
 - the total purge does not spare cookies used in the last 30 days; and
 - partitioned cookies share the ordinary limits instead of per-partition ones.
+
+## Snapshots
+
+`Client::export_cookies` returns a `CookieSnapshot` of the jar's unexpired
+cookies, or `None` when the client has no jar. `Client::import_cookies` loads
+one into a client. Setup is in
+[Save and restore cookies](../guides/connections-and-state.md#save-and-restore-cookies).
+
+### What an entry holds
+
+Each `CookieSnapshotEntry` keeps the cookie's name, value, domain, host-only
+flag, path, `Secure`, `HttpOnly`, `SameSite`, partition key (such as
+`https://example.com`), the scheme of the URL that set it
+(`CookieSourceScheme`), and its expiry rounded down to a whole second.
+
+- Session cookies are exported with no expiry.
+- Entries are in creation order, and an import keeps that order, so a
+  restored jar builds the same `Cookie` field.
+- A snapshot holds no connection, TLS ticket, route, or Alt-Svc state.
+- `CookieSnapshotEntry::new` builds a host-only session cookie with no
+  attributes; its `with_` methods set the rest.
+- With the `serde` feature, `CookieSnapshot` and its entries implement
+  `Serialize` and `Deserialize`. `Debug` output omits names, values,
+  domains, paths, and partition keys.
+
+### Import checks
+
+Import rebuilds each entry as the `Set-Cookie` field a response from its
+scheme and domain would send, and applies the jar's storage rules and byte
+limit to it, as listed in [Cookies the jar rejects](#cookies-the-jar-rejects).
+An import can therefore store only a cookie a response could have stored.
+
+| Entry | `CookieSnapshotErrorKind` |
+| --- | --- |
+| (The client has no cookie jar) | `Disabled` |
+| Domain not the canonical lowercase host, or a name, value, path, or attribute that does not survive as a `Set-Cookie` field unchanged | `InvalidCookie` |
+| `Set-Cookie` field over the jar's byte limit | `CookieTooLarge` |
+| Domain cookie on a public suffix | `PublicSuffix` |
+| `__Secure-` or `__Host-` requirement not met | `InvalidPrefix` |
+| `Secure` from an origin that is not potentially trustworthy, or `SameSite=None` or `Partitioned` without `Secure` | `UnsupportedPolicy` |
+| Partition key other than the schemeful site of the scheme and domain, or on a cookie the jar would not partition | `InvalidPartitionKey` |
+
+One refused entry rejects the whole snapshot and leaves the jar unchanged.
+`CookieSnapshotError::entry_index` names the entry.
+
+### Merge rules
+
+A valid snapshot merges without removing held cookies.
+
+- Expired entries are skipped, and expiry is never extended.
+- A later entry with the same name, domain, path, host-only flag, and
+  partitioned flag replaces an earlier one.
+- A held cookie with the same key wins, as does a held `Secure` cookie that
+  an entry from an untrustworthy origin would overlay.
+- Imported cookies rank as older than every held cookie for ordering and
+  eviction.
+- The count limits admit imported cookies up to each limit instead of
+  evicting, so the jar keeps every held cookie and then the newest snapshot
+  entries.
 
 ## Next
 

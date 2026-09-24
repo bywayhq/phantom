@@ -149,6 +149,46 @@ async fn with_cookies() -> Result<(), Box<dyn std::error::Error>> {
   deterministic ordering ([rules](../reference/cookies.md)).
 - A `Cookie` field you supply keeps its own position and suppresses the
   jar's field; the response still updates the jar.
+- `Client::export_cookies` and `Client::import_cookies` move the jar through
+  storage you own ([next task](#save-and-restore-cookies)).
+
+## Save and restore cookies
+
+Copy a client's cookies into another client, or rebuild them from your own
+storage, with `CookieSnapshot`.
+
+```rust
+use phantom::{Client, CookieSnapshot, CookieSnapshotEntry, CookieSnapshotError, CookieSourceScheme};
+
+fn copy_cookies(from: &Client, to: &Client) -> Result<(), CookieSnapshotError> {
+    // `None` means `from` was built without a cookie jar.
+    if let Some(snapshot) = from.export_cookies() {
+        to.import_cookies(&snapshot)?;
+    }
+    Ok(())
+}
+
+fn restore_session(client: &Client, value: &str) -> Result<(), CookieSnapshotError> {
+    // A cookie your storage kept, as a response from https://example.com set it.
+    let entry =
+        CookieSnapshotEntry::new(CookieSourceScheme::Https, "session", value, "example.com", "/")
+            .with_secure(true)
+            .with_http_only(true);
+    client.import_cookies(&CookieSnapshot::new(vec![entry]))
+}
+```
+
+- An export holds the jar's unexpired cookies in creation order, session
+  cookies included. Phantom picks no file format: persist each
+  `CookieSnapshotEntry`'s accessor values, or enable the `serde` Cargo
+  feature to serialize the snapshot.
+- A snapshot holds cookie values, which are often session credentials. Store
+  it as you would a password.
+- Import checks each entry as the `Set-Cookie` field a response from its
+  scheme and domain would send. One refused entry rejects the whole snapshot
+  and leaves the jar unchanged; `CookieSnapshotError::entry_index` names it.
+- Import merges: cookies the jar already holds win, and expiry is never
+  extended ([snapshot rules](../reference/cookies.md#snapshots)).
 
 ## Place the cookie field where a browser does
 
