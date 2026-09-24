@@ -15,7 +15,7 @@ Find the error or behavior you see, why Phantom produces it, and the fix.
 | `UnsupportedScheme`, `Redirect` | [A request or redirect is rejected](#a-request-or-redirect-is-rejected) |
 | `RequestBody` | [A streaming body cannot be sent again](#a-streaming-body-cannot-be-sent-again) |
 | `RequestTemplate` | [A request template rejects the request](#a-request-template-rejects-the-request) |
-| `InvalidUri`, `InvalidAuthority`, `InvalidTarget`, `AuthorityHeader`, `InvalidHeader` | [A request field or URI is rejected](#a-request-field-or-uri-is-rejected) |
+| `InvalidUri`, `InvalidAuthority`, `InvalidTarget`, `InvalidHeader` | [A request field or URI is rejected](#a-request-field-or-uri-is-rejected) |
 | `Resolve`, `Connect`, `Proxy`, `Tls`, `Capacity` | [The connection cannot be opened](#the-connection-cannot-be-opened) |
 | `ResponseBodyLimit`, `ContentDecoding` | [Reading the body fails](#reading-the-body-fails) |
 | A new connection for every request | [The connection is not reused](#the-connection-is-not-reused) |
@@ -150,13 +150,12 @@ Invalid template data fails earlier, at `PreparedRequestTemplate::new`, with
 
 ## A request field or URI is rejected
 
-Each fails before any I/O. `AuthorityHeader`: you supplied `Host`, which
-Phantom derives from the URI. `InvalidHeader`: a malformed `Accept-Encoding`
-with decoding on, an `Alt-Used` field, or `Proxy-Authorization` on an
-`http://` request unless the route is an HTTP proxy without configured
-credentials. `InvalidTarget`: the URI has a fragment, or its path or query is
-not a valid request target. `InvalidUri`,
-`InvalidAuthority`: the URI, host, or port does not parse.
+Each fails before any I/O. `InvalidHeader`: you supplied `Host`, which
+Phantom derives from the URI; a malformed `Accept-Encoding` with decoding on;
+an `Alt-Used` field; or `Proxy-Authorization` on an `http://` request unless
+the route is an HTTP proxy without configured credentials. `InvalidTarget`:
+the URI has a fragment, or its path or query is not a valid request target.
+`InvalidUri`, `InvalidAuthority`: the URI, host, or port does not parse.
 
 ## The connection cannot be opened
 

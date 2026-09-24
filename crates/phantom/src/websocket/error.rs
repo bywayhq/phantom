@@ -122,8 +122,7 @@ impl WebSocketError {
             }
             RequestErrorKind::UnsupportedScheme => WebSocketErrorKind::UnsupportedScheme,
             RequestErrorKind::InvalidAuthority => WebSocketErrorKind::InvalidAuthority,
-            RequestErrorKind::AuthorityHeader
-            | RequestErrorKind::InvalidHeader
+            RequestErrorKind::InvalidHeader
             | RequestErrorKind::RequestTemplate
             | RequestErrorKind::InvalidTimeout
             | RequestErrorKind::RequestBody

@@ -264,9 +264,8 @@ pub enum RequestErrorKind {
     UnsupportedScheme,
     /// The URI authority is missing or invalid.
     InvalidAuthority,
-    /// A caller supplied an authority field owned by the facade.
-    AuthorityHeader,
-    /// A request field is not valid for the selected operation.
+    /// A request field is not valid for the selected operation, such as a
+    /// caller `Host`, which the client derives from the URI.
     InvalidHeader,
     /// The request template has no field order for a protocol the request
     /// may use, has differing `Accept-Encoding` values for a decoded
@@ -494,7 +493,7 @@ impl RequestError {
 
     pub(crate) fn authority_header() -> Self {
         Self::without_source(
-            RequestErrorKind::AuthorityHeader,
+            RequestErrorKind::InvalidHeader,
             "Host is derived from the request URI and must not be supplied as a request field",
         )
     }

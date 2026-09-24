@@ -1,4 +1,4 @@
-use std::{borrow::Cow, error::Error as StdError, fmt};
+use std::{error::Error as StdError, fmt};
 
 use bytes::Bytes;
 use http::{Method, Response, Uri};
@@ -155,7 +155,7 @@ impl RequestBuilder {
     ///
     /// A new builder has no caller fields. The URI supplies the authority, so
     /// a `Host` field fails [`Self::send`] with
-    /// [`RequestErrorKind::AuthorityHeader`](crate::RequestErrorKind::AuthorityHeader).
+    /// [`RequestErrorKind::InvalidHeader`](crate::RequestErrorKind::InvalidHeader).
     pub fn header(mut self, header: RequestHeader) -> Self {
         self.headers.push(header);
         self
@@ -377,13 +377,11 @@ impl RequestBuilder {
     ///
     /// - [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a
     ///   timeout or retry delay exceeds the runtime clock range;
-    /// - [`AuthorityHeader`](crate::RequestErrorKind::AuthorityHeader) for a
-    ///   caller `Host` field;
     /// - [`InvalidHeader`](crate::RequestErrorKind::InvalidHeader) for a
-    ///   caller `Alt-Used` field while Alt-Svc learning is enabled, a
-    ///   `Proxy-Authorization` field on an `http://` request unless the route
-    ///   is an HTTP proxy without configured credentials, or a malformed
-    ///   `Accept-Encoding` while content decoding is enabled;
+    ///   caller `Host` field, a caller `Alt-Used` field while Alt-Svc learning
+    ///   is enabled, a `Proxy-Authorization` field on an `http://` request
+    ///   unless the route is an HTTP proxy without configured credentials, or
+    ///   a malformed `Accept-Encoding` while content decoding is enabled;
     /// - [`RequestTemplate`](crate::RequestErrorKind::RequestTemplate) as
     ///   described on [`Self::template`];
     /// - [`RequestBody`](crate::RequestErrorKind::RequestBody) when static
@@ -510,12 +508,13 @@ impl RequestBuilder {
                 self.client.inner.client_hints.as_ref(),
             )?;
         }
-        if content_decoding.is_enabled() {
-            AdvertisedContentCodings::from_request_headers(&decoding_headers(
-                self.request.template.as_ref(),
-                &self.headers,
-            ))?;
-        }
+        // Redirects never change `Accept-Encoding`, so the codings the first
+        // request advertises decide how the final response is decoded.
+        let advertised = if content_decoding.is_enabled() {
+            advertised_codings(self.request.template.as_ref(), &self.headers)?
+        } else {
+            AdvertisedContentCodings::default()
+        };
 
         let Self {
             client,
@@ -554,11 +553,7 @@ impl RequestBuilder {
 
         if policy.max_hops().is_none() {
             let mut body = body;
-            let decoding = FinalDecoding::new(
-                content_decoding,
-                &method,
-                &decoding_headers(request.template.as_ref(), &request_headers),
-            )?;
+            let decoding = FinalDecoding::new(content_decoding, advertised, &method);
             let outcome = send_once(
                 &client,
                 &request,
@@ -634,12 +629,9 @@ impl RequestBuilder {
                             .body_mut()
                             .apply_timeouts(timeout_budget, outcome.protocol)?;
                     }
-                    let decoded_content_codings = FinalDecoding::new(
-                        content_decoding,
-                        redirect.method(),
-                        &decoding_headers(resolved.template.as_ref(), redirect.headers()),
-                    )?
-                    .apply(&mut response, outcome.protocol);
+                    let decoded_content_codings =
+                        FinalDecoding::new(content_decoding, advertised, redirect.method())
+                            .apply(&mut response, outcome.protocol);
                     response.extensions_mut().insert(ResponseInfo::new(
                         resolved.uri.clone(),
                         redirect.followed(),
@@ -669,24 +661,25 @@ impl RequestBuilder {
     }
 }
 
-/// Returns the fields whose `Accept-Encoding` selects content decoding.
+/// Returns the content codings the request advertises.
 ///
 /// A template's literal `Accept-Encoding` is sent when the caller supplies
 /// none, so it is advertised too.
-fn decoding_headers<'a>(
+fn advertised_codings(
     template: Option<&PreparedRequestTemplate>,
-    headers: &'a [RequestHeader],
-) -> Cow<'a, [RequestHeader]> {
+    headers: &[RequestHeader],
+) -> Result<AdvertisedContentCodings, RequestError> {
     let caller_supplied = headers
         .iter()
         .any(|header| header.name().eq_ignore_ascii_case("accept-encoding"));
     match template.and_then(PreparedRequestTemplate::accept_encoding) {
         Some(value) if !caller_supplied => {
-            let mut headers = headers.to_vec();
-            headers.push(RequestHeader::new("accept-encoding", value));
-            Cow::Owned(headers)
+            AdvertisedContentCodings::from_request_headers(&[RequestHeader::new(
+                "accept-encoding",
+                value,
+            )])
         }
-        _ => Cow::Borrowed(headers),
+        _ => AdvertisedContentCodings::from_request_headers(headers),
     }
 }
 
@@ -698,21 +691,12 @@ struct FinalDecoding {
 }
 
 impl FinalDecoding {
-    fn new(
-        policy: ContentDecoding,
-        method: &Method,
-        headers: &[RequestHeader],
-    ) -> Result<Self, RequestError> {
-        let advertised = if policy.is_enabled() {
-            AdvertisedContentCodings::from_request_headers(headers)?
-        } else {
-            AdvertisedContentCodings::default()
-        };
-        Ok(Self {
+    fn new(policy: ContentDecoding, advertised: AdvertisedContentCodings, method: &Method) -> Self {
+        Self {
             policy,
             advertised,
             method: method.clone(),
-        })
+        }
     }
 
     fn apply(
