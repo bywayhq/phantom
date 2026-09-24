@@ -462,7 +462,7 @@ Supported WebSocket (`websocket` feature):
   and deflate offers. A recipe also carries what its client does when the peer
   refuses the CONNECT stream: Chrome 154 and Edge 153 reopen once on the same
   session, Firefox 156 reopens nothing. See
-  [Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does).
+  [Profile connection policy](websocket.md#profile-connection-policy).
 
 Planned or not captured:
 

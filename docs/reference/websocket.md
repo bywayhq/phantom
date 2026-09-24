@@ -1,0 +1,196 @@
+# WebSocket reference
+
+The rules behind a WebSocket connect: routes, opening templates, response
+checks, the profile connection policy, the browser recipes and where they
+differ from the captures, and compression.
+
+> For builders looking up a WebSocket rule. Usage is in the
+> [WebSocket guide](../guides/websocket.md).
+
+Frame, message, and write-buffer limits are in
+[Defaults and limits](limits.md#websocket). Why the connection and retry
+rules work this way is in [Design](../explanation/design.md#websocket-and-sse).
+
+## Routes
+
+| Route | H1 | H2 |
+| --- | --- | --- |
+| Direct | `ws://` and `wss://` | `wss://` |
+| HTTP proxy, HTTP/1.1 transport | `ws://` (forwarded), `wss://` (CONNECT tunnel) | `wss://` (CONNECT tunnel) |
+| HTTPS proxy, HTTP/2 transport (`HttpProxy::with_http2_transport`) | `wss://` (CONNECT stream) | `wss://` (CONNECT stream) |
+| SOCKS5 (`socks5://` or `socks5h://`) | `ws://` and `wss://` | `wss://` |
+
+Any other combination fails with a typed error before proxy or origin I/O;
+the [route matrix](route-matrix.md) covers every scheme, protocol, and route.
+
+| Route | Rule |
+| --- | --- |
+| Forwarded `ws://` | A plaintext `ws://` request through an HTTP proxy uses an RFC 6455-compatible `http://` absolute-form target and never changes to CONNECT. The proxy connection can be plaintext or use its own authenticated TLS. An H2 proxy transport cannot forward plaintext, so H1 `ws://` through it fails. |
+| SOCKS5 | After the tunnel is up, `ws://` sends the same origin-form Upgrade as a direct connection. `socks5://` resolves the origin locally; `socks5h://` sends the canonical DNS name to the proxy. Username and password authentication applies only to SOCKS negotiation. |
+| H2 through a proxy | Phantom opens a dedicated tunnel, then runs origin TLS, the HTTP/2 preface, and extended CONNECT inside it, as on a direct route. The origin must still enable extended CONNECT. |
+| Proxy credentials | Literal `Proxy-Authorization` fields are rejected. With Basic credentials on the proxy, each connection starts anonymously and replays once, on a fresh connection over the same route, only after a strict `407` Basic challenge. No challenge state is kept. |
+| Proxy failure | A proxy rejection, SOCKS5 failure, or proxy ALPN mismatch is a terminal proxy error. Phantom never falls back to a direct connection or from H2 to an H1 Upgrade. |
+
+## Opening templates
+
+The opening request is an ordered template of literal fields and typed
+placeholders for values Phantom manages: the URI authority, the random key,
+client cookies, and, with `websocket-deflate`, the compression offer. Literal
+fields keep their order and casing.
+
+| Source | Applies to |
+| --- | --- |
+| Built-in H1 or H2 template | Every builder, when nothing else is set |
+| `WebSocketSettings` on the profile | Every builder on that client; replaces the built-in templates |
+| `WebSocketRequestBuilder::headers` | One connection; replaces the whole template. Fails under `websocket_with_profile_policy`. |
+
+All validation finishes before network I/O.
+
+| Rule | H1 | H2 |
+| --- | --- | --- |
+| Authority placeholder | Exactly one | Rejected |
+| Key placeholder | Exactly one | Rejected |
+| `Upgrade`, `Connection` | One valid `Upgrade: websocket`; one `Connection` containing `Upgrade` | Rejected |
+| Version | 13 | Default field `sec-websocket-version: 13` |
+| Literal `Host`, `Sec-WebSocket-Key` | Rejected | Rejected |
+| Uppercase field names | Allowed | Rejected |
+| Literal `Sec-WebSocket-Extensions` | Rejected; use the `permessage_deflate` placeholder | Rejected |
+| Literal `Proxy-Authorization` | Rejected | Rejected |
+
+On H2, the `:method`, `:authority`, `:scheme`, `:path`, and
+`:protocol = websocket` pseudo-fields come from the request and the profile's
+extended-CONNECT pseudo-header order. The default ordinary fields are
+`sec-websocket-version: 13`, the compression placeholder when enabled, and
+the cookie placeholder.
+
+## Response checks
+
+| Check | H1 | H2 |
+| --- | --- | --- |
+| Success status | `101` over HTTP/1.1 | Any 2xx |
+| Accept value | Exactly one matching `Sec-WebSocket-Accept` | `Sec-WebSocket-Accept` rejected |
+| `Upgrade`, `Connection` | Valid tokens required | Rejected |
+| Body framing or transfer coding | Rejected | Transfer coding rejected |
+| Extensions | Only an offered extension; the compression response is parsed strictly before the codec is installed | Same |
+| Subprotocol | At most one of the offered values | Same |
+
+A duplicate, malformed, unknown, or contradictory compression selection
+fails the handshake. Any other status is returned through
+`WebSocketError::response`, with its streaming body and ordered fields.
+
+## Profile connection policy
+
+`WebSocketSettings` holds the ordered H1 and H2 templates, the
+`permessage-deflate` offer, and a `WebSocketConnectionPolicy`.
+`Client::websocket_with_profile_policy` applies the policy; the `websocket`
+and `websocket_with_protocol` builders use only the templates. The policy
+chooses once, before any WebSocket bytes are sent:
+
+1. `ws://` always uses an HTTP/1.1 Upgrade.
+2. For `wss://`, a pooled, reusable H2 session to the same origin and route
+   whose peer enabled `SETTINGS_ENABLE_CONNECT_PROTOCOL` carries the
+   WebSocket as a new extended CONNECT stream. Phantom checks the negotiated
+   H1/H2 pool (direct routes only) before the exact H2 pool, and opens
+   nothing to look.
+3. Otherwise `without_http2_session` or `with_incapable_http2_session` names
+   the new connection:
+   - `Http1Upgrade`: a TLS connection offering `http1_alpn_protocols`, which
+     must include `http/1.1` and not `h2`. An ALPS offer whose protocol is no
+     longer offered is dropped from this connection's ClientHello; every
+     other TLS field is unchanged.
+   - `Http2ExtendedConnect`: a connection with the profile's ordinary TLS
+     offer.
+
+A rejection, refused stream, reset, missing peer setting, or ALPN mismatch on
+the chosen connection is a typed error.
+
+## Browser recipes
+
+| Recipe | Pooled capable H2 session | No H2 session | Session without the setting |
+| --- | --- | --- | --- |
+| `chromium::v154_websocket` (Chrome 154 and Edge 153) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session |
+| `firefox::v156_websocket` | Extended CONNECT on it | New connection offering `h2,http/1.1`; extended CONNECT | New TLS connection offering only `http/1.1`; H1 Upgrade |
+
+| Recipe | Refused CONNECT stream | Empty message with deflate |
+| --- | --- | --- |
+| `chromium::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set |
+| `firefox::v156_websocket` | Reported to the caller | Uncompressed, RSV1 clear |
+
+The paired H2 recipes carry the captured extended-CONNECT pseudo-header order
+and a separate `extended_connect_priority`:
+
+| H2 recipe | CONNECT priority | Ordinary request priority |
+| --- | --- | --- |
+| `chromium::v154_http2` | Exclusive on stream 0, weight 147 | Weight 256 |
+| `firefox::v156_http2` | Non-exclusive on stream 0, weight 22 | Weight 42 |
+
+The recipes' H1 and H2 templates reproduce the captured field order,
+spelling, and fixed values. `User-Agent`, `Origin`, `Accept-Encoding`,
+`Accept-Language`, and, for Firefox, `Sec-Fetch-Site` and
+`sec-fetch-storage-access` are caller slots. Fixture tests replay every
+retained capture against the recipes, and loopback tests compare Phantom's
+CONNECT HEADERS and H1 openings with the captures
+([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence)).
+
+### Differences from the captures
+
+The recipes do not reproduce:
+
+- HPACK representations for CONNECT. Chrome sends `:method CONNECT`,
+  `:path`, and `:protocol` without indexing and inserts only `:authority`
+  into the dynamic table. Firefox names `:method` and `:path` with static
+  entries 3 and 5. Phantom's encoder inserts `:method CONNECT` and
+  `:protocol` into the dynamic table, and names `:method` and `:path` with
+  static entries 2 and 4.
+- Huffman choices. Phantom Huffman-codes every string, where Chrome sends
+  shorter raw strings such as `CONNECT` and `13` literally.
+- Firefox's leading dynamic-table size update, which Phantom does not emit.
+- Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, its CONNECT on
+  stream 3 of a new connection (Phantom uses stream 1), and the second H2
+  connection it opens and closes when reusing a session.
+- Chrome's `RST_STREAM(CANCEL)` after a rejection or an unoffered extension.
+- Chrome's variable fragmentation of large uncompressed messages, and its
+  compression offer on every opening (Phantom offers only when enabled).
+- The `Cookie` field position, which no capture shows.
+
+The vendored `http2` encoder chooses each representation, name index, and
+Huffman coding internally and keeps one dynamic table per connection, so no
+profile setting reaches it. Closing the HPACK gap needs a new entry in
+`vendor/http2/patches/series`.
+
+## Compression
+
+The `websocket-deflate` feature compiles RFC 7692 `permessage-deflate`
+support; each connection opts in with
+`WebSocketRequestBuilder::permessage_deflate`.
+
+| Setting | Default | Method |
+| --- | --- | --- |
+| Offer | `permessage-deflate; client_max_window_bits` | `offer_parameters` (any RFC-valid ordered combination, including no parameters and a bare or valued `client_max_window_bits`) |
+| Server context takeover | Allowed | `server_no_context_takeover` |
+| Client context takeover | Allowed | `client_no_context_takeover` |
+| Server window | Not offered | `server_max_window_bits` (8 to 15) |
+| Local encoder window cap | 15 bits; the offer is unchanged | `client_max_window_bits` (8 to 15) |
+| Compression level | 6 | `compression_level` (0 to 9) |
+| Empty messages | Compressed, RSV1 set | `compress_empty_messages`, or `WebSocketSettings::empty_message_compression` through `PerMessageDeflate::from_profile` |
+
+- Duplicate parameters and invalid window widths fail before I/O.
+- `WebSocket::negotiated_permessage_deflate` returns what the server
+  selected.
+- After negotiation every text and binary message is compressed. Ping, Pong,
+  and Close frames never are.
+- An uncompressed empty message is sent with RSV1 clear and an empty payload.
+  Non-empty messages are compressed either way, so the encoder history is
+  never skipped.
+- If the two sides' compression state diverges, the connection ends rather
+  than decoding later frames with a mismatched dictionary.
+- Tracing records uncompressed byte counts, never payload contents.
+
+## Next
+
+- [WebSocket guide](../guides/websocket.md): open, shape, and compress a
+  WebSocket.
+- [WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence):
+  the captures behind the recipes.
+- [Design](../explanation/design.md#websocket-and-sse): why the connection
+  choice never falls back.

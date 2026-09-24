@@ -211,7 +211,9 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
   unoffered extension, and at most one offered subprotocol.
 - The recipes do not reproduce the browsers' HPACK encoding of CONNECT, some
   stream and reset behavior, or Chrome's message fragmentation; see
-  [WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence).
+  [Differences from the captures](../reference/websocket.md#differences-from-the-captures).
+- Every route, template, and response rule is in the
+  [WebSocket reference](../reference/websocket.md).
 - No browser capture covers a proxied WebSocket.
 - WebSocket over HTTP/3 is not implemented.
 

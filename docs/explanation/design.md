@@ -391,6 +391,57 @@ failure on the chosen connection never falls back to another connection or
 protocol. The accepted stream keeps both DATA directions and the connection
 driver.
 
+WebSocket connections never enter the client's ordinary HTTP pool, except as
+one stream on a pooled H2 session under a profile policy. That stream takes
+the same per-origin H2 slot an ordinary request takes, and holds the slot and
+a lease on the session for its whole life, like a response body. Both are
+released when the WebSocket is dropped or reaches a terminal state, such as a
+completed close handshake. On any H2 WebSocket, receive-window capacity is
+returned as the caller consumes bytes, a graceful shutdown sends
+`END_STREAM`, and dropping early resets only the CONNECT stream.
+
+A profile may reopen a refused WebSocket once. When a recipe sets
+`refused_stream_retry` to `SameSessionOnce` and the peer answers the extended
+CONNECT with `RST_STREAM(REFUSED_STREAM)`, Phantom sends the same opening
+fields once more on the same session, on the next stream. RFC 9113, Section
+8.7 makes the refusal proof that the peer processed nothing, and the opening
+fields are the only bytes written to the stream, so nothing the peer saw is
+replayed. The rule applies only on a pooled H2 session, the only case the
+captures cover. A refusal on a connection opened for the WebSocket, a second
+refusal, a `GOAWAY`, a local reset, and every other stream failure are
+returned unchanged, and no other connection, route, or protocol is tried.
+
+Phantom owns the opening handshake and the response checks. After a
+validated handshake it hands the stream to the vendored `tokio-tungstenite`,
+which serves only as the RFC 6455 frame and message engine; its client
+handshake, TLS connectors, and public types are not exposed. Secure
+connections use Phantom's BoringSSL TLS profile, H1 openings go through the
+client's ordered HTTP/1 serializer, and WebSocket shares the client's ordered
+response metadata, cookies, runtime errors, and tracing. The engine's patch
+series:
+
+- keeps frames and messages out of dependency logs;
+- returns a failure to get mask entropy as a typed error instead of
+  panicking;
+- adds the compression state machine, so RSV1, fragments, interleaved control
+  frames, context takeover, UTF-8 validation, and the decompressed size limit
+  share one state; and
+- adds the fragment-count limit, without changing default behavior.
+
+The public client is tested against a pinned Autobahn fuzzing server
+([External suites](validation.md#external-suites)).
+
+`SseEventSource` keeps its state across a cancelled `next_event`: a scheduled
+reconnect deadline, including an active idle deadline, and an in-flight
+reconnect request both carry over to the next call. `SseStream` keeps partial
+decoder state the same way. Each initial or reconnect attempt applies the
+pool-admission, connection, and response-head timeouts separately. The
+read-idle and total timers stop once an event-stream response is accepted,
+because an SSE stream is meant to outlive an ordinary request. Input,
+policy, route, and runtime failures end the source at once rather than
+drawing on the reconnect budget, because the same request would fail the same
+way.
+
 ### Forward-proxy authentication
 
 Forward-proxy Basic authentication is request-scoped; the client learns no

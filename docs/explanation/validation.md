@@ -642,7 +642,8 @@ Limits:
 
 What is claimed: Phantom's profile WebSocket connection policy and recipes
 open a WebSocket the way Chrome 154, Edge 153, and Firefox 156 do, apart from
-the differences the WebSocket guide lists.
+the [differences](../reference/websocket.md#differences-from-the-captures)
+the WebSocket reference lists.
 
 Evidence: `fixtures/websocket/` retains WebSocket openings from headless
 Chrome 154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
@@ -697,10 +698,10 @@ Further observations:
 
 `crates/phantom/tests/websocket_profile.rs` drives
 `Client::websocket_with_profile_policy` against a loopback origin and
-compares what the origin observes with these captures. The WebSocket guide
-lists where Phantom's recipes still differ from the captured browsers, such
-as Chrome's retry after `RST_STREAM(REFUSED_STREAM)`; see
-[Browser recipes](../guides/websocket.md#open-a-websocket-the-way-the-browser-does).
+compares what the origin observes with these captures. The WebSocket
+reference lists where Phantom's recipes still differ from the captured
+browsers; see
+[Differences from the captures](../reference/websocket.md#differences-from-the-captures).
 
 Direct H2 WebSocket regressions use an authenticated loopback peer that
 advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL`. They assert that Phantom waits

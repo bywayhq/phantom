@@ -111,6 +111,20 @@ value, and applies to every profile.
 | Frame size | 16 MiB | `WebSocketLimits` |
 | Reassembled message size | 64 MiB | `WebSocketLimits` |
 | Data frames per message | 131,072 | `WebSocketLimits` |
+| Outbound write buffer | Message limit plus 128 KiB plus 14 bytes | Follows the message limit |
+| `permessage-deflate` client window | 15 bits | `PerMessageDeflate::client_max_window_bits` |
+| `permessage-deflate` compression level | 6 | `PerMessageDeflate::compression_level` |
+
+- The frame count includes the first text or binary frame and every
+  continuation, including empty ones. Interleaved Ping, Pong, and Close
+  frames do not count.
+- A message with too many frames fails with `WebSocketErrorKind::Capacity`
+  and closes the transport. The check runs before decompression or
+  reassembly, so many tiny or empty frames cannot cause unbounded work.
+- Decompressed bytes count against the message limit as they expand, so an
+  oversized compressed message stops early.
+- On a pooled H2 session, a WebSocket holds one of the origin's
+  `max_concurrent_http2_requests_per_origin` slots for its life.
 
 ## CONNECT-UDP
 
