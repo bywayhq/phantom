@@ -74,17 +74,17 @@ have shown where the real architectural boundaries are.
   - Keep every native patch. Two of them have no upstream equivalent, and
     dropping any of them changes what goes on the wire, which is a
     fidelity regression rather than a packaging tradeoff.
-- Complete the remaining client and proxy-route work without adding direct or
-  cross-protocol fallback.
+- Open more than one HTTP/1.1 connection per origin and route. Phantom
+  opens exactly one and serializes every request on it, while a browser
+  opens up to six per host, so a caller issuing concurrent requests is
+  distinguishable within one session. The bound is hardcoded rather than
+  configured, and `limits.md` carries active bounds for HTTP/2 and HTTP/3
+  with no HTTP/1.1 row. Model the browser's parallel connection policy in
+  the profile, and record the bound where the others are recorded.
 - Per-profile HPACK indexing for WebSockets. The per-message compression
   policy and the `REFUSED_STREAM` reopening are complete; indexing is blocked
   on the vendored `http2` encoder, which chooses every representation
   internally and keeps one dynamic table per connection.
-- Complete the remaining WebSocket protocol functionality before broad
-  robustness work.
-- For H3 upgrade, UDP-capable proxying, and extended CONNECT, prove route and
-  failure semantics end to end, then implement each vertical slice without
-  silent fallback.
 - Offer a caller-configurable RFC 9220 WebSocket over HTTP/3, on the HTTP/3
   extended CONNECT foundation that already carries CONNECT-UDP. No named
   browser recipe may reach it, because no shipping browser opens one by
