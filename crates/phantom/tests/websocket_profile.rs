@@ -66,7 +66,7 @@ const FIREFOX_NO_CONNECT: &str = fixture!("firefox/156.0/windows-11-26200/no-con
 ///
 /// Chromium inserts only `:authority` into the dynamic table; Phantom's
 /// encoder also inserts `:method CONNECT` and `:protocol`. See
-/// `docs/guides/websocket.md`.
+/// `docs/reference/websocket.md#differences-from-the-captures`.
 const CHROMIUM_HPACK_DIFFERENCES: &[(&str, &str, &str, &str)] = &[
     (":method", "kind", "without-indexing", "incremental"),
     (":protocol", "kind", "without-indexing", "incremental"),
