@@ -86,3 +86,18 @@ path = "examples/proxy.rs"
 [[example]]
 name = "http3"
 path = "examples/http3.rs"
+
+[[example]]
+name = "cookies"
+path = "examples/cookies.rs"
+required-features = ["cookies"]
+
+[[example]]
+name = "sse"
+path = "examples/sse.rs"
+required-features = ["sse"]
+
+[[example]]
+name = "websocket"
+path = "examples/websocket.rs"
+required-features = ["websocket"]
