@@ -9,7 +9,7 @@ use crate::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
         Http2Settings, Http2StaticNameIndex,
     },
-    request_template::{ProductVersion, RequestField, RequestIdentity, RequestTemplate},
+    request_template::{RequestField, RequestTemplate},
     tcp::TcpSettings,
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
@@ -375,7 +375,6 @@ const V156_WINDOWS_USER_AGENT: &str =
 #[must_use]
 pub fn v156_windows_navigation_template() -> RequestTemplate {
     RequestTemplate {
-        identity: v156_identity(),
         http1_fields: vec![
             RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
             RequestField::literal("Accept", V156_NAVIGATION_ACCEPT),
@@ -429,7 +428,6 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
     RequestTemplate {
-        identity: v156_identity(),
         http1_fields: vec![
             RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
             RequestField::literal("Accept", "*/*"),
@@ -465,18 +463,6 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             exclusive: false,
         }),
         requested_client_hint_placement: false,
-    }
-}
-
-fn v156_identity() -> RequestIdentity {
-    RequestIdentity {
-        user_agent_products: vec![ProductVersion::new("Firefox", 156)],
-        excluded_user_agent_products: vec![
-            Box::from("Chrome"),
-            Box::from("HeadlessChrome"),
-            Box::from("Edg"),
-        ],
-        client_hint_brands: None,
     }
 }
 

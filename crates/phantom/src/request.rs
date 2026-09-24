@@ -188,19 +188,15 @@ impl RequestBuilder {
     /// Sending fails before I/O with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
     /// when the template is invalid or lacks an HTTP/3 list for a request that
-    /// may use HTTP/3, when the template has no client-hint slot and the
-    /// profile sends client hints by default, or when the caller supplies a
-    /// client hint the profile sends only on request, with a template whose
+    /// may use HTTP/3, when the caller leaves a required caller slot empty,
+    /// when the template has no client-hint slot and the profile sends client
+    /// hints by default, or when the caller supplies a client hint the profile
+    /// sends only on request, with a template whose
     /// [`requested_client_hint_placement`](crate::profile::RequestTemplate::requested_client_hint_placement)
     /// is `false`. With such a template it fails before the request is sent
     /// on a connection when a hint requested through `Accept-CH` or ALPS
-    /// `ACCEPT_CH` would be sent. It fails before I/O with
-    /// [`RequestErrorKind::IdentityMismatch`](crate::RequestErrorKind::IdentityMismatch)
-    /// when a caller `User-Agent`, a caller `sec-ch-ua` or
-    /// `sec-ch-ua-full-version-list`, or the profile's value of those hints
-    /// names another browser or major version than the template, or when the
-    /// template leaves a required `User-Agent` to the caller and the caller
-    /// supplies none. Phantom never rewrites such a field.
+    /// `ACCEPT_CH` would be sent. Phantom does not compare `User-Agent` or
+    /// `sec-ch-ua` values with the template.
     pub fn template(mut self, template: RequestTemplate) -> Self {
         self.request.template = Some(Arc::new(template));
         self
@@ -384,8 +380,7 @@ impl RequestBuilder {
     ///   `Proxy-Authorization` field on an `http://` request unless the route
     ///   is an HTTP proxy without configured credentials, or a malformed
     ///   `Accept-Encoding` while content decoding is enabled;
-    /// - [`RequestTemplate`](crate::RequestErrorKind::RequestTemplate) and
-    ///   [`IdentityMismatch`](crate::RequestErrorKind::IdentityMismatch) as
+    /// - [`RequestTemplate`](crate::RequestErrorKind::RequestTemplate) as
     ///   described on [`Self::template`];
     /// - [`RequestBody`](crate::RequestErrorKind::RequestBody) when static
     ///   trailers are combined with body-produced trailers;

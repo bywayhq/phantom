@@ -25,11 +25,16 @@ pub enum RequestField {
         /// Captured field value.
         value: Box<str>,
     },
-    /// The position of a caller-supplied field; emits nothing when the caller
-    /// supplies no field with this name.
+    /// The position of a caller-supplied field.
+    ///
+    /// An optional slot emits nothing when the caller supplies no field with
+    /// this name. A client refuses to send a request that leaves a required
+    /// slot empty.
     Caller {
         /// Exact field-name spelling emitted with the caller's value.
         name: Box<str>,
+        /// Whether a request with this template must supply the field.
+        required: bool,
     },
     /// The position of one client hint when it is sent.
     ClientHint {
@@ -51,10 +56,22 @@ impl RequestField {
         }
     }
 
-    /// Creates a caller-supplied field slot.
+    /// Creates an optional caller-supplied field slot.
     #[must_use]
     pub fn caller(name: impl Into<Box<str>>) -> Self {
-        Self::Caller { name: name.into() }
+        Self::Caller {
+            name: name.into(),
+            required: false,
+        }
+    }
+
+    /// Creates a caller-supplied field slot that every request must fill.
+    #[must_use]
+    pub fn required_caller(name: impl Into<Box<str>>) -> Self {
+        Self::Caller {
+            name: name.into(),
+            required: true,
+        }
     }
 
     /// Creates the position of one client hint.
@@ -67,7 +84,7 @@ impl RequestField {
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
-            Self::Literal { name, .. } | Self::Caller { name } | Self::ClientHint { name } => {
+            Self::Literal { name, .. } | Self::Caller { name, .. } | Self::ClientHint { name } => {
                 Some(name)
             }
             Self::ClientHints => None,
@@ -79,53 +96,6 @@ impl RequestField {
     }
 }
 
-/// A product token and major version, such as `Chrome/153`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ProductVersion {
-    /// Product name, compared exactly.
-    pub name: Box<str>,
-    /// Major version: the leading integer of the version text.
-    pub major: u32,
-}
-
-impl ProductVersion {
-    /// Creates a product token and major version.
-    #[must_use]
-    pub fn new(name: impl Into<Box<str>>, major: u32) -> Self {
-        Self {
-            name: name.into(),
-            major,
-        }
-    }
-}
-
-/// Browser family and version a template's request claims.
-///
-/// A client uses this to reject a `User-Agent` or `sec-ch-ua` value that
-/// names another browser or version than the template it is sent with.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RequestIdentity {
-    /// `User-Agent` product tokens that must be present with these major
-    /// versions, such as `Chrome/153`.
-    ///
-    /// When this is nonempty, a request must carry a `User-Agent`: either
-    /// every protocol list has a literal one, or the caller supplies it.
-    pub user_agent_products: Vec<ProductVersion>,
-    /// `User-Agent` product-token names that must be absent, such as `Edg`
-    /// for Chrome or `Chrome` for Firefox.
-    pub excluded_user_agent_products: Vec<Box<str>>,
-    /// Brands that `sec-ch-ua` and `sec-ch-ua-full-version-list` must list
-    /// with these major versions.
-    ///
-    /// A client rejects a list that repeats one of these brands or names any
-    /// other brand than the one GREASE brand Chromium derives from their
-    /// shared major version, such as `"Not_A Brand";v="8"` for 153.
-    ///
-    /// `None` means the browser sends no user-agent client hints, so any
-    /// such field contradicts the template.
-    pub client_hint_brands: Option<Vec<ProductVersion>>,
-}
-
 /// Ordered fields for one kind of ordinary browser request.
 ///
 /// Each protocol has its own list because browsers order and spell fields
@@ -134,8 +104,6 @@ pub struct RequestIdentity {
 /// generates them.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RequestTemplate {
-    /// Browser identity that caller identity fields must agree with.
-    pub identity: RequestIdentity,
     /// Ordered HTTP/1.1 fields after `Host`.
     pub http1_fields: Vec<RequestField>,
     /// Ordered ordinary HTTP/2 fields after the pseudo-header fields.
@@ -210,7 +178,7 @@ impl RequestTemplate {
                 ));
             }
         }
-        validate_identity(&self.identity)
+        Ok(())
     }
 }
 
@@ -412,41 +380,6 @@ fn is_connection_specific(field: &RequestField, lower: &str) -> bool {
         return !matches!(field, RequestField::Literal { value, .. } if &**value == "trailers");
     }
     CONNECTION_SPECIFIC.contains(&lower)
-}
-
-fn validate_identity(identity: &RequestIdentity) -> Result<(), InvalidRequestTemplate> {
-    let names = identity
-        .user_agent_products
-        .iter()
-        .map(|product| &product.name)
-        .chain(&identity.excluded_user_agent_products)
-        .chain(
-            identity
-                .client_hint_brands
-                .iter()
-                .flatten()
-                .map(|b| &b.name),
-        );
-    for name in names {
-        if name.is_empty() || name.bytes().any(|byte| !matches!(byte, b' '..=b'~')) {
-            return Err(InvalidRequestTemplate::new(
-                "identity",
-                "product and brand names must be non-empty visible ASCII",
-            ));
-        }
-    }
-    if identity.user_agent_products.iter().any(|product| {
-        identity
-            .excluded_user_agent_products
-            .iter()
-            .any(|excluded| excluded == &product.name)
-    }) {
-        return Err(InvalidRequestTemplate::new(
-            "identity",
-            "a User-Agent product cannot be both required and excluded",
-        ));
-    }
-    Ok(())
 }
 
 const fn is_token_byte(byte: u8) -> bool {

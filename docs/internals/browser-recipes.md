@@ -120,10 +120,9 @@ module needs a `pub mod` line in `crates/phantom-profile/src/lib.rs`.
   `firefox::v156_*` are. A fork may build on the current Chromium recipes and
   change only what its captures show. `edge::v153_tls` is
   `chromium::v154_tls()` with `requested_trust_anchor_ids` set to `None`.
-- Request templates need a `RequestIdentity` naming the `User-Agent` products
-  and client-hint brands the template requires. See `v153_identity` in
-  `edge.rs`. Leave `User-Agent` as a caller slot when no headful capture backs
-  a literal value, as the Edge templates do.
+- Leave `User-Agent` in a request template as a required caller slot
+  (`RequestField::required_caller`) when no headful capture backs a literal
+  value, as the Edge templates do.
 - Express a captured behavior through existing settings. If a setting cannot
   express it, add the setting to the profile type and apply it in the
   transport; never add a branch on the browser.

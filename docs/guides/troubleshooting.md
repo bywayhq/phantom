@@ -14,7 +14,7 @@ Find the error or behavior you see, why Phantom produces it, and the fix.
 | `UnsupportedRoute`, `ProtocolUnavailable` | [A negotiated request is rejected on a proxy route](#a-negotiated-request-is-rejected-on-a-proxy-route) |
 | `UnsupportedScheme`, `Redirect` | [A request or redirect is rejected](#a-request-or-redirect-is-rejected) |
 | `RequestBody` | [A streaming body cannot be sent again](#a-streaming-body-cannot-be-sent-again) |
-| `IdentityMismatch`, `RequestTemplate` | [A request template rejects my User-Agent](#a-request-template-rejects-my-user-agent) |
+| `RequestTemplate` | [A request template rejects the request](#a-request-template-rejects-the-request) |
 | `InvalidUri`, `InvalidAuthority`, `InvalidTarget`, `AuthorityHeader`, `InvalidHeader` | [A request field or URI is rejected](#a-request-field-or-uri-is-rejected) |
 | `Resolve`, `Connect`, `Proxy`, `Tls`, `Capacity` | [The connection cannot be opened](#the-connection-cannot-be-opened) |
 | `ResponseBodyLimit`, `ContentDecoding` | [Reading the body fails](#reading-the-body-fails) |
@@ -135,17 +135,14 @@ a `Critical-CH` retry that needs it again fails with `RequestBody` before the
 second attempt starts. Send an owned body with `body` when the request may be
 resent. `RequestBody` also reports an error from your own body stream.
 
-## A request template rejects my User-Agent
-
-`IdentityMismatch` means a `User-Agent`, a `sec-ch-ua`, or the profile's
-client hints name another browser or major version than the template.
-Phantom never rewrites the field. Use the template for the browser you name,
-or remove your `User-Agent` and let the template supply it; Edge templates
-require yours ([Identity check](../reference/profiles.md#identity-check)).
+## A request template rejects the request
 
 `RequestTemplate` means the template cannot place a field the request would
 send: no HTTP/3 list for a request that may use H3, no slot for the profile's
-client hints, or conflicting `Accept-Encoding` values with decoding on.
+client hints, or conflicting `Accept-Encoding` values with decoding on. It
+also means a required caller slot is empty: the Edge templates require your
+`User-Agent`
+([Required caller fields](../reference/profiles.md#required-caller-fields)).
 Firefox templates have neither an HTTP/3 list nor hint slots
 ([Template limits](../reference/profiles.md#template-limits)).
 

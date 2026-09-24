@@ -1,11 +1,7 @@
-//! Expansion and identity checks for browser request templates.
+//! Expansion and checks for browser request templates.
 
 use phantom_net::request::RequestHeader;
-use phantom_profile::{
-    ClientHintDelivery, ClientHintSettings, ProductVersion, RequestField, RequestIdentity,
-    RequestTemplate,
-};
-use sfv::{BareItem, ListEntry, Parser};
+use phantom_profile::{ClientHintDelivery, ClientHintSettings, RequestField, RequestTemplate};
 
 use crate::{HttpProtocol, RequestError};
 
@@ -62,7 +58,7 @@ pub(crate) fn expand(
                     expanded.push(RequestHeader::new(&**name, value.as_bytes()));
                 }
             }
-            RequestField::Caller { name } | RequestField::ClientHint { name } => {
+            RequestField::Caller { name, .. } | RequestField::ClientHint { name } => {
                 place(name, &mut expanded);
             }
             RequestField::ClientHints => {
@@ -105,18 +101,15 @@ pub(crate) struct ProtocolScope {
     pub(crate) content_decoding: bool,
 }
 
-/// Validates the template and the request's identity fields before any I/O.
+/// Validates the template against the request before any I/O.
 ///
 /// # Errors
 ///
 /// Returns a request-template error for invalid template data, a protocol
-/// the template has no field order for, profile hints sent by default when
-/// the template has no client-hint slot, or a caller field carrying a hint
-/// the profile sends only on request when the template does not capture
-/// where such hints go; and an identity-mismatch error when
-/// a caller `User-Agent`, a caller brand-list client hint, or the profile's
-/// brand-list client hint contradicts the template's identity, or when the
-/// identity requires `User-Agent` products and no `User-Agent` would be sent.
+/// the template has no field order for, a required caller slot the caller
+/// leaves empty, profile hints sent by default when the template has no
+/// client-hint slot, or a caller field carrying a hint the profile sends only
+/// on request when the template does not capture where such hints go.
 pub(crate) fn check(
     template: &RequestTemplate,
     scope: ProtocolScope,
@@ -139,28 +132,12 @@ pub(crate) fn check(
         }
     }
 
-    let identity = &template.identity;
-    let caller_user_agent = caller
-        .iter()
-        .any(|header| header.name().eq_ignore_ascii_case("user-agent"));
-    let template_user_agent = lists(template).all(|fields| literal(fields, "user-agent").is_some());
-    if !identity.user_agent_products.is_empty() && !caller_user_agent && !template_user_agent {
-        return Err(RequestError::identity_mismatch(
-            "the request template requires a User-Agent, and neither it nor the caller supplies one",
-        ));
-    }
-    for header in caller {
-        let name = header.name();
-        if name.eq_ignore_ascii_case("user-agent") && !user_agent_agrees(identity, header.value()) {
-            return Err(RequestError::identity_mismatch(
-                "User-Agent names another browser or version than the request template",
-            ));
-        }
-        if is_brand_list(name) && !brands_agree(identity, header.value()) {
-            return Err(RequestError::identity_mismatch(
-                "a brand-list client hint names another browser or version than the request template",
-            ));
-        }
+    let missing_required = lists(template).flatten().any(|field| {
+        matches!(field, RequestField::Caller { name, required: true }
+            if !caller.iter().any(|header| header.name().eq_ignore_ascii_case(name)))
+    });
+    if missing_required {
+        return Err(RequestError::request_template_required_field());
     }
     // A caller hint is sent even where automatic hints are not, such as to
     // an `http://` origin, so it is refused here rather than only when the
@@ -175,17 +152,6 @@ pub(crate) fn check(
     });
     if !template.requested_client_hint_placement && requested_by_caller {
         return Err(RequestError::request_template_requested_hint());
-    }
-    let profile_brands = hints
-        .into_iter()
-        .flat_map(ClientHintSettings::hints)
-        .filter(|hint| is_brand_list(hint.name()));
-    for hint in profile_brands {
-        if !brands_agree(identity, hint.value()) {
-            return Err(RequestError::identity_mismatch(
-                "the profile's client hints name another browser or version than the request template",
-            ));
-        }
     }
     // Without a slot, automatic hints would go before every template field,
     // a position no capture shows. A Firefox template has none.
@@ -234,147 +200,6 @@ fn literal<'a>(fields: &'a [RequestField], name: &str) -> Option<&'a str> {
         } if field_name.eq_ignore_ascii_case(name) => Some(&**value),
         _ => None,
     })
-}
-
-fn is_brand_list(name: &str) -> bool {
-    name.eq_ignore_ascii_case("sec-ch-ua")
-        || name.eq_ignore_ascii_case("sec-ch-ua-full-version-list")
-}
-
-/// Checks `User-Agent` product tokens; parenthesized comments are skipped.
-fn user_agent_agrees(identity: &RequestIdentity, value: &[u8]) -> bool {
-    let Ok(value) = std::str::from_utf8(value) else {
-        return false;
-    };
-    let products = user_agent_products(value);
-    let required = identity.user_agent_products.iter().all(|required| {
-        products.iter().any(|(name, version)| {
-            *name == &*required.name && major(version) == Some(required.major)
-        })
-    });
-    let excluded = products.iter().any(|(name, _)| {
-        identity
-            .excluded_user_agent_products
-            .iter()
-            .any(|excluded| &**excluded == *name)
-    });
-    required && !excluded
-}
-
-fn user_agent_products(value: &str) -> Vec<(&str, &str)> {
-    let mut products = Vec::new();
-    let mut depth = 0_usize;
-    let mut start = None;
-    for (index, character) in value.char_indices().chain([(value.len(), ' ')]) {
-        match character {
-            '(' => {
-                depth += 1;
-                start = None;
-            }
-            ')' => depth = depth.saturating_sub(1),
-            ' ' | '\t' if depth == 0 => {
-                if let Some(token) = start.take().map(|start| &value[start..index]) {
-                    let (name, version) = token.split_once('/').unwrap_or((token, ""));
-                    products.push((name, version));
-                }
-            }
-            _ if depth == 0 && start.is_none() => start = Some(index),
-            _ => {}
-        }
-    }
-    products
-}
-
-/// Checks a `sec-ch-ua`-style structured-field list of branded versions.
-///
-/// The list must name every required brand exactly once with its major
-/// version, and nothing else except at most once the GREASE brand Chromium
-/// derives from that major version, so a list that adds another browser's
-/// brand, or another version's GREASE brand, is rejected.
-fn brands_agree(identity: &RequestIdentity, value: &[u8]) -> bool {
-    let Some(required) = &identity.client_hint_brands else {
-        return false;
-    };
-    let grease_brand = shared_major(required).map(grease_brand);
-    let Ok(text) = std::str::from_utf8(value) else {
-        return false;
-    };
-    let Ok(list) = Parser::new(text).parse::<sfv::List>() else {
-        return false;
-    };
-    let mut seen = vec![false; required.len()];
-    let mut grease = false;
-    for entry in &list {
-        let ListEntry::Item(item) = entry else {
-            return false;
-        };
-        let BareItem::String(brand) = &item.bare_item else {
-            return false;
-        };
-        let version = item
-            .params
-            .iter()
-            .find_map(|(key, value)| match value {
-                BareItem::String(version) if key.as_str() == "v" => Some(version.as_str()),
-                _ => None,
-            })
-            .and_then(major);
-        let brand = brand.as_str();
-        if let Some(index) = required.iter().position(|product| *product.name == *brand) {
-            if seen[index] || version != Some(required[index].major) {
-                return false;
-            }
-            seen[index] = true;
-        } else if !grease
-            && grease_brand
-                .as_ref()
-                .is_some_and(|(name, major)| name == brand && version == Some(*major))
-        {
-            grease = true;
-        } else {
-            return false;
-        }
-    }
-    seen.into_iter().all(|seen| seen)
-}
-
-/// Characters Chromium's GREASE brand algorithm places around the `A`.
-///
-/// `GetGreasedUserAgentBrandVersion` in Chromium's
-/// `components/embedder_support/user_agent_utils.cc` builds the brand as
-/// `"Not" + c[seed % 11] + "A" + c[(seed + 1) % 11] + "Brand"` over these
-/// characters, with the version `["8", "99", "24"][seed % 3]`; the seed is the
-/// browser's major version. See also the UA-CH specification's "create
-/// arbitrary brands" algorithm.
-const GREASE_BRAND_CHARACTERS: &[u8; 11] = b" (:-./);=?_";
-/// Versions Chromium's GREASE brand algorithm chooses from.
-const GREASE_BRAND_MAJORS: [u32; 3] = [8, 99, 24];
-
-/// Returns the one GREASE brand and major version Chromium sends for major
-/// version `seed`, such as `("Not_A Brand", 8)` for 153.
-fn grease_brand(seed: u32) -> (String, u32) {
-    let character = |offset: u32| {
-        let index = (seed % 11 + offset) % 11;
-        char::from(GREASE_BRAND_CHARACTERS[index as usize])
-    };
-    let major = GREASE_BRAND_MAJORS[(seed % 3) as usize];
-    (format!("Not{}A{}Brand", character(0), character(1)), major)
-}
-
-/// Returns the major version every required brand carries, which seeds
-/// Chromium's GREASE brand; `None` when they disagree or there are none.
-fn shared_major(required: &[ProductVersion]) -> Option<u32> {
-    let (first, rest) = required.split_first()?;
-    rest.iter()
-        .all(|product| product.major == first.major)
-        .then_some(first.major)
-}
-
-fn major(version: &str) -> Option<u32> {
-    let digits = version
-        .split(|character: char| !character.is_ascii_digit())
-        .next()?;
-    digits.parse().ok()
 }
 
 #[cfg(test)]

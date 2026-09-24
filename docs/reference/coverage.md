@@ -343,9 +343,7 @@ Supported:
 - Opt-in per-request browser field templates. A template holds:
   - the captured field order and values for each protocol;
   - slots for caller fields and client hints;
-  - the captured H2 HEADERS priority for its request kind; and
-  - a check before any I/O that rejects a caller `User-Agent` or brand-list
-    client hint naming another browser family or major version.
+  - the captured H2 HEADERS priority for its request kind.
 
   Recipes cover address-bar navigations and same-origin no-store `fetch`
   GETs. See [Request templates](../guides/profiles.md#apply-a-captured-request-template).

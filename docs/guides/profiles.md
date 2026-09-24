@@ -134,10 +134,11 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
   field. A caller slot, such as `Referer` or Edge's `User-Agent`, sends
   nothing until you fill it
   ([assembly rules](../reference/profiles.md#template-assembly)).
-- A template claims one browser family and major version. A `User-Agent` or
-  `sec-ch-ua` that names another fails with
-  `RequestErrorKind::IdentityMismatch` before any I/O; Phantom never rewrites
-  the field ([identity check](../reference/profiles.md#identity-check)).
+- The Edge templates require your `User-Agent`; a request without one fails
+  with `RequestErrorKind::RequestTemplate` before any I/O. Phantom does not
+  compare your `User-Agent` or `sec-ch-ua` with the template, so use the
+  template, client hints, and `User-Agent` of one browser and version
+  ([required caller fields](../reference/profiles.md#required-caller-fields)).
 
 ## Send client hints
 

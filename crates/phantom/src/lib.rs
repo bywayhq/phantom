@@ -193,10 +193,10 @@ pub mod profile {
         Http3SettingOrder, Http3Settings, InvalidClientHintSettings, InvalidHttp2Settings,
         InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProfileId,
         InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
-        NamedGroup, Platform, ProductVersion, ProfileId, ProfileMetadata, RequestField,
-        RequestIdentity, RequestTemplate, SignatureScheme, TcpAddressRacing, TcpKeepalive,
-        TcpSettings, TlsSettings, TlsVersion, WebSocketConnectionPolicy, WebSocketDeflateParameter,
-        WebSocketField, WebSocketNewConnection, WebSocketSettings,
+        NamedGroup, Platform, ProfileId, ProfileMetadata, RequestField, RequestTemplate,
+        SignatureScheme, TcpAddressRacing, TcpKeepalive, TcpSettings, TlsSettings, TlsVersion,
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+        WebSocketNewConnection, WebSocketSettings,
     };
 
     /// Chromium-family recipes implemented by the public facade.

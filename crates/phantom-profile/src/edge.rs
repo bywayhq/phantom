@@ -9,7 +9,7 @@
 //! [`chromium::v154_http2`], [`chromium::v154_websocket`],
 //! [`chromium::v154_quic`], [`chromium::v154_http3`], and
 //! [`chromium::v154_http3_request`] recipes. The TLS offers, client hints, and
-//! request identity differ, so only they have Edge recipes here.
+//! `User-Agent` differ, so only they have Edge recipes here.
 //!
 //! There is no Edge TCP recipe. Socket options are not visible in captures,
 //! and Edge's network-stack source is not public, so no retained evidence
@@ -18,7 +18,7 @@
 use crate::{
     chromium,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
-    request_template::{ProductVersion, RequestIdentity, RequestTemplate},
+    request_template::RequestTemplate,
     tls::TlsSettings,
 };
 
@@ -87,15 +87,14 @@ pub fn v153_windows_client_hints() -> ClientHintSettings {
 /// Edge sends the fields of [`chromium::v154_windows_navigation_template`] in
 /// the same order and with the same values on HTTP/1.1, HTTP/2, and HTTP/3,
 /// except `User-Agent` and the brand-bearing client hints, which come from
-/// [`v153_windows_client_hints`]. `User-Agent` is a caller slot: every
-/// retained Edge capture ran headless and sent `HeadlessChrome`, and no
-/// headful Edge capture backs a literal value. The template's identity
-/// requires an `Edg/153` product and rejects `HeadlessChrome`, so the
-/// `phantom` client fails a request without a caller `User-Agent` instead of
-/// sending Edge brand hints with no `User-Agent`.
+/// [`v153_windows_client_hints`]. `User-Agent` is a required caller slot:
+/// every retained Edge capture ran headless and sent `HeadlessChrome`, and no
+/// headful Edge capture backs a literal value. The `phantom` client fails a
+/// request without a caller `User-Agent` instead of sending Edge brand hints
+/// with no `User-Agent`.
 #[must_use]
 pub fn v153_windows_navigation_template() -> RequestTemplate {
-    chromium::v154_navigation_template(None, v153_identity())
+    chromium::v154_navigation_template(None)
 }
 
 /// Returns same-origin no-store `fetch` request fields observed from Edge
@@ -104,24 +103,14 @@ pub fn v153_windows_navigation_template() -> RequestTemplate {
 /// The order and values match [`chromium::v154_windows_fetch_no_store_template`]
 /// on HTTP/1.1 and HTTP/2, including the captured HTTP/2 HEADERS priority
 /// weight 220 that differs from the navigation's 256, with `User-Agent` as a
-/// caller slot for the reason given in [`v153_windows_navigation_template`].
+/// required caller slot for the reason given in
+/// [`v153_windows_navigation_template`].
 /// No capture backs this request kind on HTTP/3. As with Chrome, no capture
 /// shows where hints requested through `Accept-CH` go on a fetch, so a
 /// requested hint cannot be sent with this template.
 #[must_use]
 pub fn v153_windows_fetch_no_store_template() -> RequestTemplate {
-    chromium::v154_fetch_no_store_template(None, v153_identity())
-}
-
-fn v153_identity() -> RequestIdentity {
-    RequestIdentity {
-        user_agent_products: vec![ProductVersion::new("Edg", 153)],
-        excluded_user_agent_products: vec![Box::from("HeadlessChrome"), Box::from("Firefox")],
-        client_hint_brands: Some(vec![
-            ProductVersion::new("Microsoft Edge", 153),
-            ProductVersion::new("Chromium", 153),
-        ]),
-    }
+    chromium::v154_fetch_no_store_template(None)
 }
 
 #[cfg(test)]

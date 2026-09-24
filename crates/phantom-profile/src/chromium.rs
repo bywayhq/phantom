@@ -14,7 +14,7 @@ use crate::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
         Http3Setting, Http3SettingOrder, Http3Settings,
     },
-    request_template::{ProductVersion, RequestField, RequestIdentity, RequestTemplate},
+    request_template::{RequestField, RequestTemplate},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
@@ -440,7 +440,7 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 /// a captured value in place.
 #[must_use]
 pub fn v154_windows_navigation_template() -> RequestTemplate {
-    v154_navigation_template(Some(V154_WINDOWS_USER_AGENT), v154_identity())
+    v154_navigation_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
 /// Returns same-origin `fetch` request fields observed from Chrome 154.0.8037.58 on
@@ -471,28 +471,15 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 /// `User-Agent` value matches [`v154_windows_navigation_template`].
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
-    v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT), v154_identity())
+    v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
-fn v154_identity() -> RequestIdentity {
-    RequestIdentity {
-        user_agent_products: vec![ProductVersion::new("Chrome", 154)],
-        excluded_user_agent_products: vec![Box::from("Edg"), Box::from("Firefox")],
-        client_hint_brands: Some(vec![
-            ProductVersion::new("Chromium", 154),
-            ProductVersion::new("Google Chrome", 154),
-        ]),
-    }
-}
-
-/// Builds the Chromium 154 navigation lists with a literal or caller `User-Agent`.
-pub(crate) fn v154_navigation_template(
-    user_agent: Option<&str>,
-    identity: RequestIdentity,
-) -> RequestTemplate {
+/// Builds the Chromium 154 navigation lists with a literal or required caller
+/// `User-Agent`.
+pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTemplate {
     let user_agent = |name: &str| match user_agent {
         Some(value) => RequestField::literal(name, value),
-        None => RequestField::caller(name),
+        None => RequestField::required_caller(name),
     };
     let http2_fields = vec![
         RequestField::ClientHints,
@@ -508,7 +495,6 @@ pub(crate) fn v154_navigation_template(
         RequestField::literal("priority", "u=0, i"),
     ];
     RequestTemplate {
-        identity,
         http1_fields: vec![
             RequestField::literal("Connection", "keep-alive"),
             RequestField::ClientHints,
@@ -533,17 +519,14 @@ pub(crate) fn v154_navigation_template(
     }
 }
 
-/// Builds the Chromium 154 no-store fetch lists with a literal or caller `User-Agent`.
-pub(crate) fn v154_fetch_no_store_template(
-    user_agent: Option<&str>,
-    identity: RequestIdentity,
-) -> RequestTemplate {
+/// Builds the Chromium 154 no-store fetch lists with a literal or required
+/// caller `User-Agent`.
+pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestTemplate {
     let user_agent = |name: &str| match user_agent {
         Some(value) => RequestField::literal(name, value),
-        None => RequestField::caller(name),
+        None => RequestField::required_caller(name),
     };
     RequestTemplate {
-        identity,
         http1_fields: vec![
             RequestField::literal("Connection", "keep-alive"),
             RequestField::literal("Pragma", "no-cache"),

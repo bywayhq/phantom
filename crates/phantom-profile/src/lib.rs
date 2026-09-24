@@ -35,9 +35,7 @@ pub use http3::{
 pub use identity::{
     ClientFamily, EmptyClientVersion, InvalidProfileId, Platform, ProfileId, ProfileMetadata,
 };
-pub use request_template::{
-    InvalidRequestTemplate, ProductVersion, RequestField, RequestIdentity, RequestTemplate,
-};
+pub use request_template::{InvalidRequestTemplate, RequestField, RequestTemplate};
 pub use tcp::{InvalidTcpSettings, TcpAddressRacing, TcpKeepalive, TcpSettings};
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,

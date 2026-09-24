@@ -106,12 +106,12 @@ one profile exercises, and would hide part of the identity in code where no
 capture comparison reaches it.
 
 Nothing stops you from combining a Chrome TLS recipe with a Firefox H2 recipe,
-and the result matches no browser. The request-template identity check
-rejects only a caller `User-Agent` or brand-list client hint that names
-another browser family or major version. It rejects and does not warn,
-because a template is an explicit claim. A request that contradicts it would
-put a mismatch between layers on the wire, where a server can record it and it
-cannot be taken back. When the fields agree, the check costs nothing.
+and the result matches no browser. A request template does not compare your
+`User-Agent` or `sec-ch-ua` with its browser either. An earlier check matched
+the `User-Agent` against a hand-kept list of product tokens and let through
+Chromium forks that were not on the list, such as Opera and Vivaldi. The one
+case it caught that data alone cannot prevent, an Edge template sent with no
+`User-Agent`, is now a required caller slot.
 
 ## A setting is public only when it is applied and tested
 

@@ -125,7 +125,6 @@ impl WebSocketError {
             RequestErrorKind::AuthorityHeader
             | RequestErrorKind::InvalidHeader
             | RequestErrorKind::RequestTemplate
-            | RequestErrorKind::IdentityMismatch
             | RequestErrorKind::InvalidTimeout
             | RequestErrorKind::RequestBody
             | RequestErrorKind::ResponseBodyLimit

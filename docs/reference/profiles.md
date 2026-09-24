@@ -1,7 +1,7 @@
 # Profile reference
 
 Lookup tables for profile components, built-in recipes, TCP socket options,
-HTTP/1.1 connections, request templates, the template identity check, and
+HTTP/1.1 connections, request templates, required caller fields, and
 client hints. For how to
 use them, see [Browser profiles](../guides/profiles.md).
 
@@ -137,8 +137,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | --- | --- | --- | --- | --- | --- |
 | `chromium::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured headful Chrome 154 value |
 | `chromium::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
-| `edge::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Caller slot |
-| `edge::v153_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Caller slot |
+| `edge::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
+| `edge::v153_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
 
@@ -146,7 +146,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
   `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
 - "No" means no retained capture covers that protocol, so the template has
   no field list for it.
-- A caller slot has no captured value; you supply the field.
+- A caller slot has no captured value; you supply the field. A request that
+  leaves a required caller slot empty fails before any I/O.
 - Every template was captured on Windows 11 and carries the capture machine's
   `en-US` `Accept-Language`.
 
@@ -228,34 +229,20 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 The template's priority replaces the H2 recipe's connection priority, which
 is the navigation weight.
 
-## Identity check
+## Required caller fields
 
-A template claims one browser family and major version. Before any I/O,
-Phantom checks a templated request against that claim.
+The Edge templates mark `User-Agent` as a required caller slot, because no
+headful Edge capture backs a literal value. A request with such a template
+and no field of that name fails before any I/O. Phantom does not read the
+value you supply.
 
-| Template | `User-Agent` must contain | `User-Agent` must not contain | Allowed GREASE brand |
-| --- | --- | --- | --- |
-| Chrome 154 | `Chrome/154` (a copied `HeadlessChrome/154` does not match) | `Edg`, `Firefox` | `"Not A(Brand";v="99"` |
-| Edge 153 | `Edg/153` | `HeadlessChrome`, `Firefox` | `"Not_A Brand";v="8"` |
-| Firefox 156 | `Firefox/156` | `Chrome`, `HeadlessChrome`, `Edg` | None: any `sec-ch-ua` or `sec-ch-ua-full-version-list` contradicts it |
-
-- The request must have a `User-Agent`. The Edge templates leave it to you,
-  so an Edge-templated request without one fails rather than sending Edge
-  brand hints with no `User-Agent`.
-- A `sec-ch-ua` or `sec-ch-ua-full-version-list`, yours or the profile's, must
-  list each template brand once with its major version. The only other brand
-  allowed is the GREASE brand above. A list naming both `Google Chrome` and
-  `Microsoft Edge` fails, and so does Chrome 153's `"Not_A Brand";v="8"` on a
-  154 template.
-- Requests without a template are not checked; a `ClientProfile` carries no
-  browser identity to compare with.
-- The check compares family and major version only. It does not compare full
-  versions or platforms, or check that the TLS and HTTP/2 recipes come from
-  the same browser.
+Phantom does not compare your `User-Agent` or `sec-ch-ua` with the template's
+browser. Use the template, client-hint recipe, and `User-Agent` of one browser
+and version together.
 
 | Failure | Error |
 | --- | --- |
-| A field contradicts the template | `RequestErrorKind::IdentityMismatch`; the field is never rewritten or dropped |
+| A required caller slot is empty | `RequestErrorKind::RequestTemplate` |
 | Invalid template | `RequestErrorKind::RequestTemplate` |
 | No HTTP/3 list on a request that may use HTTP/3 (exact H3, or negotiated with Alt-Svc enabled) | `RequestErrorKind::RequestTemplate` |
 

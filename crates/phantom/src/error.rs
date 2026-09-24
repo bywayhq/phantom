@@ -245,14 +245,10 @@ pub enum RequestErrorKind {
     /// A request field is not valid for the selected operation.
     InvalidHeader,
     /// The request template is invalid, has no field order for a protocol
-    /// the request may use, or has no captured position for a client hint the
-    /// request would send.
+    /// the request may use, has a required caller slot the request leaves
+    /// empty, or has no captured position for a client hint the request
+    /// would send.
     RequestTemplate,
-    /// The request's identity fields disagree with the request template: a
-    /// `User-Agent` or brand-list client hint names another browser or
-    /// version, or the template requires a `User-Agent` that neither the
-    /// template nor the caller supplies.
-    IdentityMismatch,
     /// The selected protocol is absent from the client profile, or a
     /// negotiated request's profile lacks HTTP/2 or `http/1.1` ALPN.
     ProtocolUnavailable,
@@ -518,8 +514,11 @@ impl RequestError {
         )
     }
 
-    pub(crate) fn identity_mismatch(message: &'static str) -> Self {
-        Self::without_source(RequestErrorKind::IdentityMismatch, message)
+    pub(crate) fn request_template_required_field() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "the request template has a required caller slot that the request leaves empty",
+        )
     }
 
     pub(crate) fn alt_used_header() -> Self {

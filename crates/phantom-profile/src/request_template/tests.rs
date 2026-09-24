@@ -150,7 +150,7 @@ fn assert_matches(
                     "{label}: {name} was {seen_value:?}"
                 );
             }
-            RequestField::Caller { name } => {
+            RequestField::Caller { name, .. } => {
                 if observed.peek().is_some_and(|(seen, _)| seen == &**name) {
                     observed.next();
                 }
@@ -557,16 +557,6 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
         template.validate().map_err(|error| error.field()),
         Err("http1_fields"),
         "hints placed differently on HTTP/1.1"
-    );
-
-    let mut template = chromium::v154_windows_navigation_template();
-    template
-        .identity
-        .excluded_user_agent_products
-        .push("Chrome".into());
-    assert_eq!(
-        template.validate().map_err(|error| error.field()),
-        Err("identity")
     );
 
     for (dependency_stream_id, weight) in [(3, 220), (0, 0), (0, 257)] {
