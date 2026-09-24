@@ -35,10 +35,11 @@ The evidence falls into four kinds:
 | --- | --- | --- |
 | [TLS, H2, QUIC, and H3 recipes](#cross-platform-transport-parity) | Chrome 152 and Firefox 154 captures on macOS and Windows, replayed by recipe tests | One macOS build and one Windows build; no Linux; headless launches |
 | [Chrome 153, Edge 153, and Firefox 156 recipes](#chrome-153-edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; platform independence inferred from 152 and 154 |
+| [Chrome 154 captures](#chrome-154-captures) | Windows captures of every Chrome layer, compared with the Chrome 153 fixtures | Evidence only; no recipe reads them; one Windows build; no Chrome for Testing build exists at this version |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
-| [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 153 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
-| [WebSocket openings](#websocket-browser-evidence) | Chrome 153, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
-| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 153 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
+| [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 153, Chrome 154, and Firefox 156 captures; the 153 set is replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
+| [WebSocket openings](#websocket-browser-evidence) | Chrome 153, Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
+| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 153 and Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
 | [Connection and status retries](#connection-retry-evidence) | Loopback tests | Not browser retry policy; some paths have no recovery test |
@@ -427,6 +428,149 @@ Limits:
   platform.
 - Headless launches only, except the headful client-hint check.
 
+### Chrome 154 captures
+
+Google Chrome 154.0.8037.58, the stable build installed on the Windows 11
+capture host (build 26200, x64), was captured in every area that holds a
+Chrome fixture. Each run used a fresh temporary profile and a loopback
+listener bound to port 0, and each capture repeats the launch flags recorded
+in the Chrome 153 fixture for the same layer. Chrome ran without
+`--disable-field-trial-config`, as the branded Chrome 153 fixtures did: every
+QUIC capture carries `max_idle_timeout` 30000 ms and the `ORIG` connection
+option, not the testing configuration's 300000 ms and `ORIGNOIP`.
+
+These captures are evidence. No profile recipe reads them, and no recipe
+changed for them.
+
+No Chrome for Testing build of 154.0.8037.58 is published, so this version has
+no build-flavor comparison and no `*-chrome-for-testing` fixture. The Chrome
+for Testing 154 list ends at 154.0.8037.57, a different build that would need
+its own version directory.
+
+| Layer | Samples | Result against Chrome 153 |
+| --- | --- | --- |
+| TLS ClientHello | 61 fresh processes | Equal on legacy version, cipher suites, extension membership, supported groups, EC point formats, signature algorithms, ALPN, supported versions, key-share groups, and every compared extension payload. The 28 trust-anchor IDs are unchanged, but every process now sends them in one ascending order |
+| HTTP/2 startup | 3 processes | Byte-identical preface, SETTINGS pairs and their order, connection WINDOW_UPDATE, and empty ALPS payload |
+| QUIC ClientHello, QUIC and H3 startup | 3 processes | Equal on every non-GREASE transport parameter, the five H3 SETTINGS with their id and value widths, the QPACK stream prefixes, and the seventeen request fields in order; trust-anchor IDs sorted as above |
+| Client hints | 3 headless runs and 1 headful | The same eleven hint names, order, and `default` or `accept-ch` delivery, and the same two navigation field orders; only persona values changed, and the headful run matched the headless runs exactly |
+| WebSocket openings | 3 runs of each of 9 scenarios | Equal on every compared field; see [WebSocket browser evidence](#websocket-browser-evidence) |
+| EventSource reconnects | 10 runs of each of 17 scenarios, and 5 headless with 5 headful `retry-750` runs | Equal on shape and fields, with every attempt median within 6 ms; see [SSE browser reconnect evidence](#sse-browser-reconnect-evidence) |
+| Alt-Svc racing | 10 runs per scenario, 2 for `broken-backoff` | Equal on every recorded job decision, bound job, and brokenness lifetime; see [Alt-Svc racing evidence](#alt-svc-racing-evidence) |
+
+The persona values that changed are the Chromium brand list and the build
+number. Chrome 153 sent `"Google Chrome";v="153", "Not_A Brand";v="8",
+"Chromium";v="153"`; Chrome 154 sends `"Chromium";v="154", "Google
+Chrome";v="154", "Not A(Brand";v="99"`. The greased brand's name, version, and
+position in the list all differ. `sec-ch-ua-full-version`,
+`sec-ch-ua-full-version-list`, and the `user-agent` build number follow the new
+version. Every other hint value, and every hint name and position, is
+unchanged.
+
+#### Chrome 154 trust-anchor ID order
+
+Chrome 153 serialized its trust-anchor ID list by iterating an
+`absl::flat_hash_set`, so the order was fixed within a browser process and
+differed between processes: 35 distinct orders across 60 processes, recorded
+in [Chrome trust-anchor ID order](#chrome-trust-anchor-id-order). Chromium
+commit `942bda4298c1` (2026-08-28) sorts the list before encoding. Chrome 154
+shows that change.
+
+Sixty fresh headless processes, one TCP ClientHello each, produced one order.
+The retained `client-hello.txt` from a further process and all three QUIC
+ClientHellos carry the same order. It is the 28 Chrome 153 IDs in ascending
+byte order, from `82df130201` to `d679090f`.
+`fixtures/tls/chrome/154.0.8037.58/windows-11-26200/trust-anchor-orders.txt`
+retains the order, its count, and the per-process sequence.
+
+Each process contributed one connection. These captures therefore show that
+the order no longer varies between processes; they do not on their own show
+that it is fixed within a process, which the Chrome 153 evidence established
+with 48 connections per process.
+
+#### What still varies per connection
+
+The per-connection randomness described in
+[Cross-platform transport parity](#cross-platform-transport-parity) is
+unchanged. Across the 61 TCP ClientHellos:
+
+- the extension order differed on all 61, always with the same 19-entry
+  multiset and a GREASE extension both first and last;
+- ECH GREASE used HKDF-SHA256 with AES-128-GCM on all 61, with a 32-byte
+  `enc` and a payload of 144, 176, 208, or 240 bytes (19, 14, 16, and 12
+  samples);
+- the GREASE cipher suite, group, signature algorithm, and version values
+  differed per connection.
+
+In the QUIC captures the transport-parameter order, the GREASE
+transport-parameter id and length, the GREASE H3 setting id and value, and the
+position of the reserved version inside `version_information` differ per
+connection, as they did at Chrome 153. The QUIC ClientHello carries no GREASE
+cipher suite, group, or extension in either version.
+
+#### Capture commands and launches
+
+Every fixture records its own launch arguments, with the profile path replaced
+by a placeholder. Chromium launches repeat the flags of the Chrome 153 fixture
+for the same layer, with the page URL on the loopback port the listener bound.
+
+| Capture | Command |
+| --- | --- |
+| TLS ClientHellos and trust-anchor orders | `cargo run -p phantom-testkit --example capture_client_hello 127.0.0.1:0 "Google Chrome" 154.0.8037.58 "Windows 11 Home 10.0.26200 x64" command-line "<launch arguments>"`, once per fresh browser process |
+| HTTP/2 startup | `cargo run -p phantom-net --example capture_http2_tls 127.0.0.1:0 ...`, once per fresh browser process |
+| QUIC ClientHello and H3 startup | `scripts/capture/chrome_http3.py --listen 127.0.0.1:<port> --client-hello ...`, once per fresh browser process |
+| Client hints | `scripts/capture/client_hints.py --browser chrome --repeat 3` |
+| WebSocket openings | `scripts/capture/http2_websocket.py --browser chrome --scenario all --repeat 3` |
+| EventSource reconnects | `scripts/capture/sse_reconnect.py --browser chrome --scenario all --repeat 10` |
+| Alt-Svc racing | `scripts/capture/alt_svc_race.py --browser chrome --repeat 10`, and `--scenario broken-backoff --repeat 2` |
+
+The TLS and HTTP/2 launches use `--headless=new`,
+`--user-data-dir=<temporary-profile>`, `--no-first-run`,
+`--no-default-browser-check`, `--disable-background-networking`,
+`--disable-component-update`, `--disable-default-apps`, `--disable-quic`,
+`--no-proxy-server`,
+`--host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost`,
+`--ignore-certificate-errors`, and `--dump-dom`, followed by
+`https://server.phantom.test:<port>/`.
+
+The HTTP/3 launch replaces `--disable-quic` and `--ignore-certificate-errors`
+with `--enable-quic`, `--origin-to-force-quic-on=server.phantom.test:<port>`,
+a port-qualified `--host-resolver-rules`, and
+`--ignore-certificate-errors-spki-list=<certificate-spki>`. The client-hint,
+WebSocket, SSE, and Alt-Svc tools launch through `browser_launch.py`, whose
+longer flag list each of those fixtures records.
+
+`chrome_http3.py` takes a fixed listen address, so its port came from a
+loopback UDP socket bound to port 0 and then released; every other listener
+bound port 0 itself. Fixture `listen_address` lines therefore hold the chosen
+ephemeral port, and `trust-anchor-orders.txt`, which aggregates 60 separate
+listeners, records `127.0.0.1:0`.
+
+Retained fixtures:
+
+- `fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt` and
+  `trust-anchor-orders.txt`
+- `fixtures/http2/chrome/154.0.8037.58/windows-11-26200/client-startup.txt`
+- `fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt` and
+  `quic-client-hello-{1,2}.txt`
+- `fixtures/client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt`
+- `fixtures/websocket/chrome/154.0.8037.58/windows-11-26200/`, nine scenarios
+- `fixtures/sse/chrome/154.0.8037.58/windows-11-26200/`, seventeen scenarios
+  and `launch-mode/`
+- `fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200/`, seven scenarios
+
+Limits:
+
+- One Windows build, and one branded Chrome build. No macOS or Linux capture
+  of this version exists, and no Chrome for Testing build of it is published,
+  so neither platform nor build flavor is isolated at 154.
+- No test replays these fixtures yet, and no recipe carries the sorted
+  trust-anchor order.
+- Launches are headless, except one headful client-hint run and five headful
+  `retry-750` SSE runs.
+- Chrome 154 was compared against the retained Chrome 153 Windows fixtures
+  only. Where a Chrome 153 observation itself rests on a normalization, the
+  Chrome 154 result inherits it.
+
 ### TCP socket option evidence
 
 A capture cannot show socket options, so the TCP recipes rest on browser
@@ -762,6 +906,21 @@ Source citations are to tag `153.0.8010.48`.
 | Existing H2 session (`existing-h2-session`) | The request after learning uses the existing H2 session at once (wait 0) 10/10 while the alternative job keeps running and connects QUIC; the next two same-page requests use that QUIC session 10/10. | Zero wait with an available SPDY session unless `delay_main_job_with_available_spdy_session` (`http_stream_factory_job_controller.cc` line 744; default false, `net/quic/quic_context.h` line 238) |
 | Broken expiry and backoff (`broken-backoff`) | About 290 s after the first failure the alternative is still broken; about 305 s after it QUIC is tried again, fails, and is broken for 599 s, both runs. | `ComputeBrokenAlternativeServiceExpirationDelay`: 300 s initial, `initial << broken_count`, capped at 2 days (`net/http/broken_alternative_services.cc` lines 22, 58, 62; `net/base/features.cc` lines 1027 and 1037; `exponential_backoff_on_initial_delay_` defaults to true in `broken_alternative_services.h` line 236) |
 
+Chrome 154.0.8037.58 was captured with the same scenarios and repeat counts,
+retained under `fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200/`. Every
+row above holds: the main job waits 0 ms on a fresh profile and 4 to 10 ms
+(median 8) once QUIC has worked, the alternative is bound 10 of 10 times on a
+fresh profile, TCP wins a blackholed, certificate-failing, or ALPN-failing
+alternative 10 of 10 times and the orphaned QUIC job fails with `-356`, the
+initial broken period is 299 to 300 s and the period after a second failure is
+599 to 600 s, and an existing H2 session binds at once while the alternative
+keeps connecting. Two observations vary per run rather than per version: in one
+`race-after-learning` run the NetLog recorded the main job as having opened a
+new connection instead of being cancelled, while the alternative was still the
+bound job; and in two `quic-bad-certificate` runs the first race after learning
+was the `/hold` image rather than `/r/r1`, so the tool aggregated those runs
+separately.
+
 Phantom's opt-in `AltSvcPolicy::race` follows these rows:
 
 - Alternative setup starts first. Origin setup starts after the caller's
@@ -973,6 +1132,19 @@ services, because release builds ignore those services' test-only switches.
 That traffic used separate remote connections and never reached the loopback
 listener.
 
+Chrome 154.0.8037.58 was captured again with the same tool, the same seventeen
+scenarios, and the same ten fresh-profile runs each, and is retained beside the
+Chrome 153 fixtures under
+`fixtures/sse/chrome/154.0.8037.58/windows-11-26200/`. Every scenario matches
+Chrome 153 on request shape, reconnect field order, `Last-Event-ID` spelling,
+position, and raw bytes, connection reuse, and the absence of any request after
+a terminal response. Each attempt median lies within six milliseconds of the
+Chrome 153 median, so the observations and the table above hold for Chrome 154
+unchanged, including the 3 s default delay, the honored `retry: 0` and
+`retry: 100`, the redirected reconnect target, and `Cookie` last of sixteen
+fields. Its own five-run headless and headful `retry-750` comparison, retained
+under `launch-mode/`, gave medians within four milliseconds of each other.
+
 Limits:
 
 - The captures cover plaintext HTTP/1.1 only. H2, H3, macOS, and Safari
@@ -1059,6 +1231,19 @@ Negative cases cover an absent peer setting without CONNECT dispatch or H1
 fallback, streaming non-2xx rejection responses, direct-`wss://` route
 validation, and a stream-scoped reset. These are standards-level
 deterministic fixtures, not named-browser evidence.
+
+Chrome 154.0.8037.58 was captured with the same nine scenarios and three runs
+each, retained under
+`fixtures/websocket/chrome/154.0.8037.58/windows-11-26200/`. Its CONNECT
+pseudo-field order and HPACK representations, its exclusive parent-0 weight-147
+CONNECT priority, its `permessage-deflate; client_max_window_bits` offer, its
+`http/1.1`-only ALPN offer on a fresh origin and when the peer omits
+`SETTINGS_ENABLE_CONNECT_PROTOCOL`, its `RST_STREAM(CANCEL)` after a `403` and
+after an unoffered extension, its retry after `RST_STREAM(REFUSED_STREAM)`, its
+RSV1 and fragmentation behavior, and its HTTP/1.1 opening field order all equal
+Chrome 153. The Chrome column of the table above therefore describes Chrome 154
+as well. The count of idle speculative connections and the number of frames the
+uncompressed 1 MiB message is split into vary between runs of both versions.
 
 Limits:
 
