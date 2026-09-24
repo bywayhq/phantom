@@ -192,6 +192,8 @@ jobs:
           cargo check -p phantom-http --no-default-features --features cookies,websocket --locked
           cargo check -p phantom-http --no-default-features --features cookies,websocket-deflate --locked
           cargo check -p phantom-http --no-default-features --features sse,websocket --locked
+          cargo check -p phantom-http --no-default-features --features serde --locked
+          cargo check -p phantom-http --no-default-features --features cookies,serde --locked
           cargo check -p phantom-http --all-features --locked
           cargo check -p phantom-net --no-default-features --locked
           cargo check -p phantom-net --no-default-features --features qlog --locked
@@ -385,6 +387,8 @@ jobs:
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,websocket --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,websocket-deflate --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features sse,websocket --locked
+          cargo "+$MSRV" check -p phantom-http --no-default-features --features serde --locked
+          cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,serde --locked
           cargo "+$MSRV" check -p phantom-http --all-features --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked
           cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features keylog --locked
