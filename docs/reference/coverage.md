@@ -44,7 +44,7 @@ connection is not enough.
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse | Parallel connection policy |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT | HPACK representation parity for extended CONNECT |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
-| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing | Multiple-alternative racing, WebSocket over H3 |
+| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing, WebSocket over H3 |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
 | SSE and WebSocket | Feature-gated, bounded, with browser comparisons and Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, proxy WebSocket captures |
 
@@ -198,9 +198,10 @@ Supported requests and routes:
   reused per route. Remote-DNS DOMAIN targets need no local lookup of the
   origin and present a stable logical QUIC peer.
 - RFC 9298 CONNECT-UDP proxies (see [Routes](#routes)).
-- Opt-in, bounded Alt-Svc upgrade from negotiated direct HTTPS. Phantom adds a
-  canonical `Alt-Used` field with an explicit port and keeps the origin
-  authority, SNI, and authentication identity.
+- Opt-in, bounded Alt-Svc upgrade from negotiated HTTPS on a direct or SOCKS5
+  route. Phantom adds a canonical `Alt-Used` field with an explicit port and
+  keeps the origin authority, SNI, and authentication identity. The
+  alternative is dialed over the route that learned it.
 
 Supported wire behavior:
 
@@ -268,9 +269,9 @@ Planned:
 Supported:
 
 - A pooled facade for exact H1, H2, and H3 that is cheap to clone.
-- Pooled direct H1/H2 selection, with optional later H3 selection through
-  Alt-Svc. H3 is tried sequentially by default, or raced against the origin
-  under an opt-in policy.
+- Pooled H1/H2 selection over a direct or SOCKS5 route, with optional later H3
+  selection through Alt-Svc on the same route. H3 is tried sequentially by
+  default, or raced against the origin under an opt-in policy.
 - Owned request builders with explicit methods.
 - Ordered trailers, either static or produced by a declared streaming body, on
   exact H1/H2/H3 and negotiated requests.
@@ -317,7 +318,7 @@ Supported:
   origin and route.
 - Bounded admission per origin for negotiated requests before protocol
   selection, converted to H1 or H2 admission after ALPN.
-- A bounded opt-in Alt-Svc store keyed by exact origin:
+- A bounded opt-in Alt-Svc store keyed by exact origin and route:
   - `Age`/`ma` handling, replacement, expiry, and `clear`;
   - eviction after a setup failure or a `421` response;
   - learning from H2 ALTSVC frames for the exact origin on negotiated
@@ -328,7 +329,8 @@ Supported:
     managed H3 attempts; and
   - export and import of direct-route snapshots by the caller (canonical
     origin, location, and expiry in whole seconds; revalidated on import and
-    never extended).
+    never extended). A snapshot carries no route, so export omits proxy-route
+    entries and import restores direct-route entries only.
 - One bounded budget of setup retries before dispatch per request, shared by
   redirects and internal replacement attempts.
 - A bounded retry after a graceful H2 `GOAWAY`, for exact and negotiated H2.
@@ -337,9 +339,9 @@ Supported:
   opened. It applies to any method with no body or an owned body, and replays
   on a different connection with the same route and protocol.
 - Bounded retention of H1/H2 TLS tickets.
-- Alt-Svc broken state per origin and alternative, with capped doubling
-  backoff. A successful connection to the alternative or `clear_alt_svc`
-  clears it.
+- Alt-Svc broken state per origin, route, and alternative, with capped
+  doubling backoff. A successful connection to the alternative or
+  `clear_alt_svc` clears it.
 - An optional bounded cookie jar that the caller activates explicitly:
   - deterministic path and creation order;
   - Public Suffix List checks (including private and unlisted suffixes),
@@ -449,8 +451,12 @@ Supported HTTP proxies:
 
 Supported SOCKS5:
 
-- SOCKS5 with local or remote DNS and optional RFC 1929 credentials, for H1/H2 origin
-  TLS and H1 WS/WSS.
+- SOCKS5 with local or remote DNS and optional RFC 1929 credentials, for exact
+  H1/H2 origin TLS, negotiated H1-or-H2 origin TLS, and H1 WS/WSS.
+- Negotiated HTTPS over SOCKS5 can upgrade through a learned Alt-Svc
+  alternative, dialing it over the same proxy with UDP ASSOCIATE. The
+  advertisement is keyed to that route and is never reused directly or through
+  another proxy.
 - Exact H3 over local-DNS `socks5://` or remote-DNS `socks5h://` through
   RFC 1928 UDP ASSOCIATE. The TCP control connection is retained, the target
   is a fixed IP or canonical domain, connections are reused per route, and
@@ -480,6 +486,14 @@ Across all routes:
 - Trust settings and ticket caches are kept separate for HTTPS proxies and
   origins.
 
+Deliberately excluded:
+
+- Negotiated HTTPS, and therefore the Alt-Svc upgrade, over an HTTP proxy or a
+  CONNECT-UDP proxy. A CONNECT tunnel is TCP and cannot reach an `h3`
+  alternative; CONNECT-UDP carries QUIC only and offers no TLS stream for ALPN.
+  Both are typed refusals before any proxy I/O, never a fallback. See
+  [Routes that carry the upgrade](../guides/http3.md#routes-that-carry-the-upgrade).
+
 Planned:
 
 - Other proxy authentication schemes, and learned challenge state.
@@ -487,7 +501,6 @@ Planned:
 - Plaintext forwarding over H2.
 - Custom SOCKS5 resolvers.
 - CONNECT-UDP proxy authentication schemes other than Basic.
-- Alt-Svc upgrade on proxy routes.
 
 ## Validation
 

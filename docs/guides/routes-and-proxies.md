@@ -19,7 +19,7 @@ Terms such as H1, H2, H3, exact, and negotiated are defined in
 | --- | --- | --- |
 | Direct | `Route::direct()`, the default | Every scheme and protocol |
 | HTTP proxy | `Route::http_proxy(HttpProxy)` | HTTPS origins through CONNECT; `http://` origins through HTTP/1.1 forwarding |
-| SOCKS5 | `Route::socks5(Socks5Proxy)` | H1/H2 over a TCP tunnel; exact H3 over UDP ASSOCIATE |
+| SOCKS5 | `Route::socks5(Socks5Proxy)` | Exact and negotiated H1/H2 over a TCP tunnel; exact and Alt-Svc H3 over UDP ASSOCIATE |
 | CONNECT-UDP | `Route::connect_udp(ConnectUdpProxy)` | Exact H3 only |
 
 The [route matrix](../reference/route-matrix.md) lists every supported and
@@ -170,6 +170,19 @@ fn socks_route() -> Result<Route, Box<dyn std::error::Error>> {
 }
 ```
 
+### Negotiated HTTPS over SOCKS5
+
+`get_negotiated` opens one TLS handshake inside an RFC 1928 CONNECT tunnel and
+lets ALPN choose H1 or H2. The origin keeps its own certificate verification
+and SNI; the proxy only carries the bytes. Negotiated connections are pooled
+per origin **and** route, so a direct connection and a proxied one to the same
+origin never substitute for each other.
+
+With Alt-Svc enabled, such a request can learn an `h3` alternative and a later
+request can upgrade to it over the same proxy, using UDP ASSOCIATE. SOCKS5 is
+the only proxy route that carries both legs; see
+[Routes that carry the upgrade](http3.md#routes-that-carry-the-upgrade).
+
 ### HTTP/3 over SOCKS5
 
 Exact H3 asks the proxy for a UDP relay with an RFC 1928 UDP ASSOCIATE
@@ -265,7 +278,9 @@ capability mismatch is a typed proxy error; Phantom never switches legs.
 `407` challenge, once, on a fresh proxy connection. A second `407` fails with
 an authentication error.
 
-H1, H2, negotiated requests, and WebSocket reject this route before I/O. Only
+H1, H2, negotiated requests, and WebSocket reject this route before I/O. A
+negotiated request needs a TLS stream for ALPN, which a QUIC-only route cannot
+provide, so it cannot learn or use an Alt-Svc alternative here either. Only
 failures to resolve or connect to the proxy are retryable. When the proxy
 rejects the request, the typed error's source exposes the status. See
 [HTTP/3 internals](../internals/http3.md#connect-udp-masque) for the full

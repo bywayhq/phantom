@@ -759,7 +759,11 @@ fn ensure_request_supported(
                 Route::Direct | Route::Socks5(_) | Route::ConnectUdp(_) => Ok(()),
                 Route::HttpProxy(_) => Err(RequestError::unsupported_route(HttpProtocol::Http3)),
             },
-            ProtocolSelection::Http1Or2 if !matches!(route, Route::Direct) => {
+            // Negotiation needs one origin TLS stream for ALPN, and the
+            // Alt-Svc upgrade that rides on it needs QUIC to the advertised
+            // alternative over the same route; see
+            // `Route::carries_negotiated_https`.
+            ProtocolSelection::Http1Or2 if !route.carries_negotiated_https() => {
                 Err(RequestError::unsupported_negotiated_route())
             }
             // CONNECT-UDP carries only QUIC; TCP protocols never use it.

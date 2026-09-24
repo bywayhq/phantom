@@ -31,13 +31,15 @@ have shown where the real architectural boundaries are.
   opt-in reused-connection replay.
 - The SOCKS5 UDP proxy slice. Exact H3 supports local-DNS `socks5://` and
   remote-DNS `socks5h://` through RFC 1928 UDP ASSOCIATE.
-- The current H3 upgrade slices. Negotiated direct HTTPS requests can opt
-  into bounded Alt-Svc learning. They keep the origin authority and SNI while
-  dialing an advertised `h3` location, send a canonical `Alt-Used` with an
-  explicit port only on that managed attempt, and apply explicit failure and
-  `421` eviction without fallback. H2 ALTSVC frames, caller-owned Alt-Svc
-  persistence, per-location H3 pool slots, and opt-in racing with backoff for
-  broken alternatives are also complete.
+- The current H3 upgrade slices. Negotiated HTTPS requests on a direct or
+  SOCKS5 route can opt into bounded Alt-Svc learning. They keep the origin
+  authority and SNI while dialing an advertised `h3` location over the route
+  that learned it, send a canonical `Alt-Used` with an explicit port only on
+  that managed attempt, and apply explicit failure and `421` eviction without
+  fallback. H2 ALTSVC frames, caller-owned Alt-Svc persistence, per-location
+  H3 pool slots, and opt-in racing with backoff for broken alternatives are
+  also complete. The store is keyed by origin and route, so an advertisement
+  never crosses routes.
 - The first extended CONNECT slice. Explicitly configured custom H2 profiles
   can open exact direct `wss://` WebSockets after the peer opts in through
   SETTINGS. The slice includes a dedicated five-pseudo-header order, duplex
@@ -54,7 +56,6 @@ have shown where the real architectural boundaries are.
   Phantom name with its own `links` key.
 - Complete the remaining client and proxy-route work without adding direct or
   cross-protocol fallback.
-- Alt-Svc upgrade on proxy routes.
 - WebSocket over H3.
 - Per-profile HPACK indexing, a per-message compression policy, and a
   `REFUSED_STREAM` retry policy for WebSockets.

@@ -96,8 +96,9 @@ disabled.
 
 ## Next steps
 
-- Let the server choose the protocol: `get_negotiated` performs one direct TLS
-  handshake that selects HTTP/1.1 or HTTP/2.
+- Let the server choose the protocol: `get_negotiated` performs one TLS
+  handshake, direct or through a SOCKS5 tunnel, that selects HTTP/1.1 or
+  HTTP/2.
 - Use HTTP/3: see [HTTP/3 and Alt-Svc](guides/http3.md).
 - Pick a different browser: see [Browser profiles](guides/profiles.md).
 - Configure timeouts, retries, and responses: see

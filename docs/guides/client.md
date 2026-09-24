@@ -80,10 +80,12 @@ return the client's configured defaults.
 ## Choose a protocol
 
 - `get` and `request` use exactly H1, H2, or H3.
-- `get_negotiated` and `request_negotiated` make one direct TLS handshake. The
-  request uses H2 if the server selects `h2`, and H1 if it selects `http/1.1`
-  or sends no ALPN. With Alt-Svc enabled, a later negotiated request can move
-  to a learned H3 endpoint; see [HTTP/3 and Alt-Svc](http3.md).
+- `get_negotiated` and `request_negotiated` make one TLS handshake, direct or
+  through a SOCKS5 tunnel. The request uses H2 if the server selects `h2`, and
+  H1 if it selects `http/1.1` or sends no ALPN. With Alt-Svc enabled, a later
+  negotiated request on the same route can move to a learned H3 endpoint; see
+  [HTTP/3 and Alt-Svc](http3.md). HTTP proxy and CONNECT-UDP routes reject
+  negotiated requests before any I/O.
 - H3 runs over QUIC on a separate path. It works directly, through SOCKS5 with
   local or remote DNS (RFC 1928 UDP ASSOCIATE), or through an RFC 9298
   CONNECT-UDP proxy.

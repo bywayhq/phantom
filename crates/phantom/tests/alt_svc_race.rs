@@ -610,8 +610,10 @@ async fn race_never_changes_route() -> TestResult<()> {
             .build()?;
         import_alternative(&client, &fixture, fixture.alternative_address().port())?;
 
-        // A proxy route is never swapped for a direct race; negotiation
-        // rejects it before either candidate performs I/O.
+        // The imported alternative belongs to the direct route. A negotiated
+        // request on a SOCKS5 route keeps that route: it neither reuses the
+        // direct alternative nor falls back to a direct connection, so it
+        // fails on the proxy leg that has no TCP listener.
         let proxy = Route::socks5(Socks5Proxy::new(&format!(
             "socks5://127.0.0.1:{}",
             blackhole.port
@@ -623,8 +625,16 @@ async fn race_never_changes_route() -> TestResult<()> {
             .await
             .err()
             .ok_or("a raced request must keep its proxy route")?;
-        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+        assert!(
+            matches!(
+                error.kind(),
+                RequestErrorKind::Proxy | RequestErrorKind::Connect
+            ),
+            "expected a proxy-leg failure, got {:?}",
+            error.kind()
+        );
         assert_eq!(fixture.snapshot()?.alternative_connections, 0);
+        assert_eq!(fixture.snapshot()?.origin_connections, 0);
 
         // On the direct route the winning alternative keeps the origin's
         // authority and TLS name; only the QUIC location differs.

@@ -23,7 +23,7 @@ protocol; "negotiated" lets TLS ALPN choose H1 or H2. See
 | `http://`, exact H1 | Plaintext TCP | Absolute-form forwarding | Rejected | Rejected | Rejected |
 | `http://`, exact H2 or H3, or negotiated | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
-| `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | Rejected | Rejected | Rejected | Rejected |
+| `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | Rejected | Rejected | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
 | `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
 | `ws://`, H1 | Plaintext Upgrade | Absolute-form forwarded Upgrade | Rejected | Plaintext Upgrade in a TCP tunnel | Rejected |
 | `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
@@ -34,6 +34,11 @@ protocol; "negotiated" lets TLS ALPN choose H1 or H2. See
 Notes:
 
 - Every supported cell has a public loopback regression test.
+- Negotiation needs a TLS stream to the origin for ALPN, and the optional
+  Alt-Svc H3 upgrade that rides on it needs a UDP path to the advertised
+  alternative over the same route. HTTP proxies carry only TCP and CONNECT-UDP
+  carries only QUIC, so both reject negotiated requests before any proxy I/O.
+  See [Routes that carry the upgrade](../guides/http3.md#routes-that-carry-the-upgrade).
 - WebSocket and SSE requests need the matching Cargo feature.
 - A `ws://` or `wss://` request over H3 fails when the builder is created.
 - SSE event sources follow the ordinary rows for their scheme and protocol.

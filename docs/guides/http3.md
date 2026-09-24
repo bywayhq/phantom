@@ -100,6 +100,38 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
 `ResponseInfo::protocol` tells you which protocol carried a response.
 
+### Routes that carry the upgrade
+
+The upgrade needs two things from one route: a TLS stream to the origin for
+ALPN to select H1 or H2 on, and a UDP path to the advertised alternative
+authority. Phantom never falls back, so a route that cannot provide both
+rejects a negotiated request before any proxy or origin I/O, with
+`RequestErrorKind::UnsupportedRoute`.
+
+| Route | Negotiated HTTPS and Alt-Svc upgrade | Why |
+| --- | --- | --- |
+| Direct | Yes | TCP for ALPN, UDP for QUIC. |
+| SOCKS5 (`socks5://`, `socks5h://`) | Yes | RFC 1928 CONNECT carries the origin TLS stream; RFC 1928 UDP ASSOCIATE carries QUIC to the alternative. |
+| HTTP proxy (forwarding or CONNECT, HTTP/1.1 or HTTP/2 transport) | Rejected | A CONNECT tunnel is a TCP byte stream, so an `h3` alternative is unreachable. |
+| CONNECT-UDP (MASQUE) | Rejected | The route carries QUIC only, so there is no TLS stream for ALPN to select a protocol on. |
+
+An alternative learned over one route is used only over that route. The store
+is keyed by origin **and** route, as the connection pools are, so an
+advertisement seen through one proxy is never dialed through another proxy or
+directly, and a location that is broken on one route is not broken on another.
+
+Chromium behaves the same way for HTTP and HTTPS proxies. At 153.0.8010.48 it
+creates the alternative job even when proxied, then fails it with
+`ERR_NO_SUPPORTED_PROXIES` unless every hop of the proxy chain speaks QUIC
+(`net/http/http_stream_factory_job.cc` lines 858-868), because "MASQUE defines
+mechanisms to carry QUIC traffic over non-QUIC proxies" whose performance
+"would be worse than simply using H/1 or H/2 to reach the destination".
+Chromium then resumes its main TCP job; Phantom has no such fallback, so it
+refuses the route up front instead. Chromium has no SOCKS5 UDP ASSOCIATE at
+all (`net/socket/socks5_client_socket.cc` defines only `kTunnelCommand`), so
+its SOCKS5 routes never carry QUIC; Phantom's do, as they already do for
+exact H3.
+
 ### How an alternative is learned and used
 
 Only an authenticated, negotiated H1 or H2 response can advertise `h3`. When
@@ -154,16 +186,20 @@ import it yourself:
   Alternatives the client already holds take precedence, and the most
   recently used entries are kept within the store capacity.
 
-The store is keyed by origin for direct routes, so a snapshot describes only
-direct-route alternatives. It never contains TLS tickets, connections,
-routes, cookies, or credentials, and its `Debug` output omits hosts.
+A snapshot carries no route. Exporting therefore keeps the direct-route
+entries and omits every proxy-route one, and importing restores direct-route
+entries only, so a proxy route's alternatives never cross a snapshot into
+another route. A snapshot never contains TLS tickets, connections, routes,
+cookies, or credentials, and its `Debug` output omits hosts.
 
 ### Pooling
 
 A pool entry for one origin and route keeps connections for up to four QUIC
 locations. Exact H3 and Alt-Svc H3 requests to the same origin therefore
 reuse their own connections, under the same admission limits, instead of
-replacing each other.
+replacing each other. The route is part of the entry key, so a direct
+alternative and the same alternative reached through a SOCKS5 proxy are
+separate connections.
 
 ### Failures
 

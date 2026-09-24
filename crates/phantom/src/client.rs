@@ -488,8 +488,13 @@ impl ClientBuilder {
     /// Enables bounded, in-memory Alt-Svc learning for negotiated HTTPS requests.
     ///
     /// A fresh `h3` alternative is used by a later negotiated request without
-    /// changing its origin identity. Alternative setup failure is terminal for
-    /// that request and never falls back implicitly to H1 or H2.
+    /// changing its origin identity or its route. Alternative setup failure is
+    /// terminal for that request and never falls back implicitly to H1 or H2.
+    ///
+    /// The store is keyed by origin and route, so an alternative learned on
+    /// one route is only ever dialed over that route. Negotiated requests, and
+    /// therefore this learning, run on direct and SOCKS5 routes; see
+    /// [`Route`](crate::Route).
     #[must_use]
     pub fn alt_svc(mut self, maximum_origins: NonZeroUsize) -> Self {
         self.options.max_alt_svc_origins = Some(maximum_origins);

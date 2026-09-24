@@ -150,16 +150,37 @@ async fn serve_one_socks5_udp_associate_for_target(
     expected_target: Socks5UdpTarget,
     script: Socks5UdpScript,
 ) -> TestResult<ObservedSocks5UdpRelay> {
-    if !listener.local_addr()?.ip().is_loopback() || !origin.ip().is_loopback() {
+    if !listener.local_addr()?.ip().is_loopback() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "SOCKS5 UDP fixture requires loopback listener and origin addresses",
+            "SOCKS5 UDP fixture requires a loopback listener address",
+        )
+        .into());
+    }
+    let (control, _) = listener.accept().await?;
+    serve_socks5_udp_associate_stream(control, origin, expected_target, script).await
+}
+
+/// Serves one already-accepted SOCKS5 UDP association relaying to `origin`.
+///
+/// Taking the stream lets one listener serve a CONNECT tunnel and a UDP
+/// association concurrently, as a negotiated request and its Alt-Svc
+/// alternative need.
+pub(crate) async fn serve_socks5_udp_associate_stream(
+    mut control: TcpStream,
+    origin: SocketAddr,
+    expected_target: Socks5UdpTarget,
+    script: Socks5UdpScript,
+) -> TestResult<ObservedSocks5UdpRelay> {
+    if !origin.ip().is_loopback() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "SOCKS5 UDP fixture requires a loopback origin address",
         )
         .into());
     }
     validate_expected_target(&expected_target)?;
 
-    let (mut control, _) = listener.accept().await?;
     let authentication = match script.authentication {
         Socks5UdpAuthentication::None => {
             negotiate_no_auth(&mut control).await?;
