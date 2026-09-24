@@ -1,19 +1,19 @@
 # How servers recognize a client
 
 This page explains how a server can tell which program made a request without
-reading its `User-Agent`, and which of those signals Phantom reproduces.
+reading its `User-Agent`, and why copying a browser's headers is not enough.
 
 > For evaluators and builders who are new to request fingerprinting.
 
 ## The short version
 
-Every HTTP client makes many small choices before it sends a request: which TLS cipher suites to offer and in what order, how
-large an HTTP/2 flow-control window to ask for, which order to write header
-fields in. Browsers make these choices in their own code, and one browser build makes
+Every HTTP client makes many small choices before it sends a request: which
+TLS cipher suites to offer and in what order, how large an HTTP/2
+flow-control window to ask for, which order to write header fields in.
+Browsers make these choices in their own code, and one browser build makes
 them the same way every time, apart from a few values it randomizes per
-connection. A server that records them
-gets a **fingerprint**: a description of the program, independent of what the
-program says about itself.
+connection. A server that records them gets a **fingerprint**: a description
+of the program, independent of what the program says about itself.
 
 Think of the TLS fingerprint as a `User-Agent` the client cannot edit. The
 `User-Agent` field is one line of text that any library can set to anything.
@@ -70,8 +70,8 @@ Here are the first two frames Chrome 154 sent on Windows 11, from
   00ef0001                increment              = 15663105
 ```
 
-Firefox 156 on the same machine sent different values from a different set
-of settings (from `fixtures/websocket/firefox/156.0/windows-11-26200/accept.txt`):
+Firefox 156 on the same machine sent a different set of settings and values
+(from `fixtures/websocket/firefox/156.0/windows-11-26200/accept.txt`):
 
 | | Chrome 154 | Firefox 156 |
 | --- | --- | --- |
