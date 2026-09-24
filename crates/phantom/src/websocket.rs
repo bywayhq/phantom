@@ -270,11 +270,11 @@ impl WebSocketRequestBuilder {
     ///
     /// Returns [`WebSocketError`] with kind:
     ///
-    /// - [`WebSocketErrorKind::InvalidRequest`] for invalid opening fields,
-    ///   compression offer, or target, or a replaced field sequence under
-    ///   profile policy, before I/O;
+    /// - [`WebSocketErrorKind::InvalidRequest`] for invalid opening fields or
+    ///   compression offer, or a replaced field sequence under profile
+    ///   policy, before I/O;
     /// - [`WebSocketErrorKind::ProtocolUnavailable`] when the profile lacks
-    ///   the selected protocol, or the WebSocket policy under profile policy;
+    ///   the selected protocol or, under profile policy, a WebSocket recipe;
     /// - [`WebSocketErrorKind::UnsupportedRoute`] when the route or scheme
     ///   cannot carry the protocol, such as `ws://` over HTTP/2, before I/O;
     /// - [`WebSocketErrorKind::Connect`], [`WebSocketErrorKind::Proxy`],
