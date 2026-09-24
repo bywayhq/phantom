@@ -56,7 +56,7 @@ type LookupFuture =
 #[derive(Clone)]
 enum Backend {
     Dns {
-        resolver: TokioResolver,
+        resolver: Arc<TokioResolver>,
         nameservers: usize,
     },
     Function(Arc<dyn Fn(String, u16) -> LookupFuture + Send + Sync>),
@@ -142,7 +142,7 @@ impl HttpsRecordResolver {
         .map_err(|error| HttpsLookupError::configuration(error.to_string()))?;
         Ok(Self {
             backend: Backend::Dns {
-                resolver,
+                resolver: Arc::new(resolver),
                 nameservers: count,
             },
         })
