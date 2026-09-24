@@ -178,8 +178,16 @@ Conditional checks:
 
 ## Continuous integration
 
-Changes reach `main` through pull requests. The one required status check is
-`CI required`, the last job in [CI](.github/workflows/ci.yml). It passes only
+Changes reach `main` through pull requests, and land by a fast-forward push
+after the pull request is green. The ruleset on `main` requires signed
+commits, which GitHub cannot produce for a rebase merge, so the integrator
+fast-forwards locally rather than merging from the web interface. A squash
+merge would sign, but it would flatten each lane's logical commits, which the
+working agreement keeps. The ruleset therefore enforces the required check,
+signatures, and linear history rather than a pull request as such.
+
+The one required status check is `CI required`, the last job in
+[CI](.github/workflows/ci.yml). It passes only
 when the change classification below succeeded, every job that the
 classification and the event call for succeeded, and every other job was
 skipped. A failed, cancelled, or unclassified run never counts as passing.
