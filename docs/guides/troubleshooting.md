@@ -112,8 +112,11 @@ Add the recipe to the profile.
 
 ## A request or redirect is rejected
 
-`UnsupportedScheme` means an `http://` URI on anything but exact H1. Send
-plaintext requests with `HttpProtocol::Http1`. `Redirect` before I/O means
+`UnsupportedScheme` means a scheme other than `http` or `https`, or an
+`http://` URI on anything but exact H1. Send plaintext requests with
+`HttpProtocol::Http1`. An exact H1 `http://` request through SOCKS5 or
+CONNECT-UDP fails with `UnsupportedRoute`; plaintext goes direct or through
+an HTTP proxy. `Redirect` before I/O means
 the client has a redirect policy and the URI is `http://`; use a second
 client without one for plaintext origins. `Redirect` after a response means a
 target that is not `https://`, more than one `Location`, or an exhausted
@@ -147,7 +150,8 @@ Firefox templates have neither an HTTP/3 list nor hint slots
 Each fails before any I/O. `AuthorityHeader`: you supplied `Host`, which
 Phantom derives from the URI. `InvalidHeader`: a malformed `Accept-Encoding`
 with decoding on, an `Alt-Used` field, or `Proxy-Authorization` on a
-plaintext request. `InvalidTarget`: the URI has a fragment. `InvalidUri`,
+plaintext request. `InvalidTarget`: the URI has a fragment, or its path or query is not a valid
+request target. `InvalidUri`,
 `InvalidAuthority`: the URI, host, or port does not parse.
 
 ## The connection cannot be opened
