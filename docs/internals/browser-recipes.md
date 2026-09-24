@@ -84,7 +84,7 @@ has the exact Chrome 154 commands and launch arguments to repeat.
 - Some layers cannot be captured. TCP socket options do not appear on the
   wire, so `chromium::v154_tcp` rests on Chromium source at the release tag.
   Edge has no TCP recipe, because its network source is not public. Say which
-  layers have no evidence rather than borrowing another browser's.
+  layers have no evidence; do not borrow another browser's.
 
 ## Step 2: retain the fixtures
 

@@ -236,8 +236,7 @@ budget.
 A usable response never turns into a timeout. If a delay cannot finish before
 the total deadline, or an honored `Retry-After` exceeds the caller's cap,
 Phantom returns the response instead of waiting. The intermediate body is
-dropped unread rather than drained, so an unbounded body cannot stall the
-retry.
+dropped unread, so an unbounded body cannot stall the retry.
 
 ## Safety boundary
 
@@ -257,9 +256,9 @@ library code must not panic.
 A TLS profile is an ordered wire offer, not a security grade. Connection
 policy decides separately whether to accept a peer.
 
-By default, Phantom verifies the certificate chain and hostname. Additional
-DER roots add to the bundled roots rather than replacing them. HTTPS-proxy
-trust and origin trust are configured independently.
+By default, Phantom verifies the certificate chain and hostname. Additional DER
+roots add to the bundled roots. HTTPS-proxy trust and origin trust are
+configured independently.
 
 `ServerAuthentication::Disabled` turns verification off explicitly, for
 controlled TLS conformance testing over TCP. It applies only to H1 and H2,
@@ -435,10 +434,9 @@ reconnect request both carry over to the next call. `SseStream` keeps partial
 decoder state the same way. Each initial or reconnect attempt applies the
 pool-admission, connection, and response-head timeouts separately. The
 read-idle and total timers stop once an event-stream response is accepted,
-because an SSE stream is meant to outlive an ordinary request. Input,
-policy, route, and runtime failures end the source at once rather than
-drawing on the reconnect budget, because the same request would fail the same
-way.
+because an SSE stream is meant to outlive an ordinary request. Input, policy,
+route, and runtime failures end the source at once and do not draw on the
+reconnect budget, because the same request would fail the same way.
 
 ### Forward-proxy authentication
 

@@ -22,8 +22,8 @@ needs.
 ## Built-in recipes
 
 Phantom carries one version per browser: the current stable build on the
-capture host. Older versions are retired rather than half-maintained, so a
-recipe name always points at a build that can be recaptured and reverified.
+capture host. Older versions are retired, so a recipe name always points at a
+build that can be recaptured and reverified.
 
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |

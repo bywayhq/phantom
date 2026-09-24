@@ -94,9 +94,9 @@ While you edit, keep the
 [engineering constraints](AGENTS.md#engineering-constraints). In short:
 implement the smallest complete vertical slice, and keep unrelated formatting,
 renames, dependency updates, and cleanup out of it. Preserve observable
-ordering, and fail explicitly rather than fall back when a requested protocol,
-route, or fingerprint cannot be honored. Expose configuration only once it is
-applied, validated, and tested. Keep recoverable failures panic-free, and add
+ordering, and return an error when a requested protocol, route, or
+fingerprint cannot be honored; never fall back. Expose configuration only
+once it is applied, validated, and tested. Keep recoverable failures panic-free, and add
 no unsafe code outside the audited FFI module in
 [Design](docs/explanation/design.md#unsafe-code). When public behavior
 changes, update the guide, coverage contract, or design boundary, and never
