@@ -272,6 +272,36 @@ have shown where the real architectural boundaries are.
   offer. It may instead belong to the Phase 5 tooling audit, which already
   covers the capture scripts it overlaps.
 
+### Caller-configurable capability, off by default
+
+Each of these was refused or deferred because no capture justified it. Under
+the rule above that is a reason to keep it out of the named recipes, not out
+of the library. Every one stays off by default and unreachable from a named
+recipe.
+
+1. A WebSocket handshake timeout, and an explicit handshake retry. Browsers
+   apply neither, so no recipe may, but a caller running a long-lived client
+   against their own server has no way to bound a stalled opening today.
+2. A caller-pinned alternative, in place of a learned one. Learning needs a
+   TLS stream on the route, which is why the upgrade is refused on
+   CONNECT-UDP and on HTTP proxy routes. A caller who already knows the
+   alternative does not need to learn it, and pinning sidesteps the
+   prerequisite entirely.
+3. Racing more than one alternative, bounded and caller-chosen, whatever the
+   capture of a browser turns out to show.
+4. QUIC session resumption and early data as a caller opt-in, separate from
+   whether a recipe sends it. Early data is replayable by design, so the
+   option states that and stays off unless asked for.
+5. `Expect: 100-continue` on a caller's own request.
+6. Caller-owned conditional-request validators, ahead of any cache.
+7. An opt-in buffered request body that may be replayed, for a caller who
+   wants a retry to survive a body they can afford to hold. A streaming body
+   stays one-shot.
+8. Keepalive schedule and address-selection knobs on a custom profile,
+   independent of which browser's model a named recipe carries.
+9. WebSocket reuse of a pooled HTTP/2 session on a proxy route, which is
+   gated to the direct route today only because no capture covers it.
+
 ### Deliberate non-goals for this phase
 
 - No middleware or interceptor framework. Middleware is where
