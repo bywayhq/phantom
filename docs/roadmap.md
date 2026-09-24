@@ -122,6 +122,29 @@ have shown where the real architectural boundaries are.
   non-browser profiles are added only from fresh capture evidence.
 - Named-browser extended CONNECT recipes come only from captures. The generic
   configurable H2 implementation is not evidence for such a recipe.
+- The profile matrix is deliberately small, not finished. It carries one
+  current version per browser because the versions before it were stale,
+  partly captured, or expressed as deltas over each other, so every new
+  recipe inherited another recipe's baseline. Each recipe now stands on
+  its own captures, and the matrix is meant to grow from there. Growth
+  keeps the property that makes it worth having: a comparable client
+  ships a hundred profiles that nothing verifies, and a smaller set that
+  replays byte for byte against retained captures is worth more than a
+  larger set that does not. The cost of a browser is now measured rather
+  than guessed: about an hour of capture automation across the seven
+  areas, and roughly two differences per browser major. What turns that
+  from a recurring manual job into something that maintains itself is the
+  scheduled capture workflow, which is the real prerequisite for a large
+  matrix.
+- Named-browser extended CONNECT recipes come only from captures. A Chrome 152
+  H2 WebSocket recipe needs a retained browser capture of the extended
+  CONNECT opening handshake, including pseudo-header and ordinary field order,
+  priority, compression offer, and failure behavior. The generic configurable
+  H2 implementation is not evidence for that recipe.
+- Chrome `152.0.7977.64` is expected to share the retained `.83` transport
+  fingerprint under the major-version policy. That stays an unverified
+  assumption until a `.64` capture is compared. Exact full-version client
+  hints are persona data and must not inherit `.83` values by accident.
 
 ## Phase 2: Ergonomics
 
