@@ -452,6 +452,37 @@ per transport location, not per entry, and the slot table is never locked
 across connection setup, so a slow setup to one location does not delay
 another.
 
+### Racing
+
+Under `AltSvcPolicy::race`, one request runs two candidates:
+
+- Before any I/O, Phantom validates both the H3 and the H1/H2 form of the
+  request.
+- Each candidate holds its own pool admission and makes at most one setup
+  attempt. Both keep the request's origin authority, TLS name, and route.
+- The request body, including a one-shot stream, is built only for the
+  winner, and the request is dispatched once.
+- Cancelling the request before a winner cancels both setups. The connect and
+  total deadlines bound each setup and the whole race.
+- When the alternative wins, a still-connecting origin setup is cancelled.
+
+When the origin wins, an alternative setup that has begun connecting keeps
+running in the background, like Chromium's orphaned alternative job. If it
+connects, the connection is pooled for later requests. If it fails, including
+at the 4-second limit, the alternative is marked broken. Until it finishes,
+it keeps its H3 admission permit for the origin and route.
+
+A setup still waiting for admission, or for another setup to the same QUIC
+location, has done no network work, so it is cancelled instead. The
+background setup runs on the Tokio runtime that ran the request. If that
+runtime is gone, the setup is dropped, nothing is pooled or marked broken,
+and the next request races the alternative again.
+
+Setups for one origin and route run one at a time per QUIC location. A request
+to a location waits while another setup connects to that location, then
+reuses the connection if that setup succeeded. Exact H3 to the origin's own
+location does not wait for a background alternative setup.
+
 ## Setup retries
 
 Caller-configured exact-H3 retries can repeat typed DNS, endpoint, or QUIC
