@@ -9,18 +9,26 @@
 //! `CookieJar::store_response_headers`, which converts `HeaderMap` bytes to
 //! `&str`, and that conversion is why this harness must supply text.
 //!
-//! Two invariants are asserted, both of which a real confusion in attribute
-//! parsing, scheme gating, or domain matching would break:
+//! Three invariants are asserted, each of which a real confusion in attribute
+//! parsing, origin gating, or domain matching would break:
 //!
 //! 1. Every field stored into `secure_jar` ends in `; Secure`, and `Secure`
 //!    has no "off" spelling, so every cookie it holds is secure-only. No
-//!    `http://` request may therefore receive a `Cookie` field from it.
-//! 2. The jar documents that it rejects a `Secure` cookie set by an `http://`
-//!    URL, so a jar that only ever received `; Secure` fields over `http://`
-//!    must stay empty.
+//!    request to an origin that is not potentially trustworthy may therefore
+//!    receive a `Cookie` field from it.
+//! 2. The jar rejects a `Secure` cookie set by an origin that is not
+//!    potentially trustworthy, so a jar that only ever received `; Secure`
+//!    fields from such an origin must stay empty.
+//! 3. A loopback authority is potentially trustworthy under either scheme, so
+//!    the scheme must be invisible there in both directions: the same fields
+//!    stored from `http://` and from `https://` leave the same number of
+//!    cookies and produce the same `Cookie` field. See [`LOOPBACK_URLS`].
 //!
-//! Both invariants exclude loopback authorities, where the jar's two scheme
-//! rules already disagree; see [`LOOPBACK_URLS`].
+//! Invariants 1 and 2 are asserted over named hosts, which no rule makes
+//! trustworthy over `http://`. Invariant 3 is what guards the loopback rule,
+//! and it fails in whichever direction a scheme test is inverted: a storage
+//! gate that refuses `http://` empties one jar, and a matching gate that
+//! refuses it empties one `Cookie` field.
 
 #[cfg(test)]
 mod tests;
@@ -32,20 +40,26 @@ use crate::seed;
 /// Secure origins used to store cookies and to read them back.
 const SECURE_URLS: [&str; 2] = ["https://sub.example.com/a/b", "https://example.com/"];
 
-/// Insecure origins for the same hosts and paths.
+/// Insecure origins for the same hosts and paths. A named host is never
+/// potentially trustworthy over `http://`.
 const INSECURE_URLS: [&str; 2] = ["http://sub.example.com/a/b", "http://example.com/"];
 
-/// Loopback origins, which the asserted invariants deliberately exclude.
+/// Loopback origins, which are potentially trustworthy under either scheme.
 ///
-/// The jar's store treats a loopback authority as a trustworthy origin and
-/// sends `Secure` cookies to `http://127.0.0.1`, while the jar's own storage
-/// gate requires the `https` scheme literally. The two rules disagree, so
-/// loopback URLs only add coverage here and constrain nothing.
+/// Chromium treats a loopback authority as trustworthy for setting a cookie
+/// and for sending one alike, and the jar follows it, so these two URLs must
+/// behave identically. They share a host and a path and differ only in scheme
+/// and port, and no cookie rule reads the port.
 const LOOPBACK_URLS: [&str; 2] = ["https://127.0.0.1:8443/a", "http://127.0.0.1:8080/a"];
 
 /// `Set-Cookie` fields whose storage and retrieval must keep working.
+///
+/// `Partitioned` earns its place: its partition key is schemeful, so it is the
+/// one attribute whose stored state differs between the two loopback origins,
+/// and invariant 3 holds only because each jar is read back over the scheme it
+/// was filled from.
 pub const VALID_SET_COOKIES: &[u8] =
-    b"id=1; Path=/\nsession=abc; Domain=example.com; Max-Age=600\n__Host-h=v; Path=/; Secure\n__Secure-s=v; Secure; SameSite=None\nempty=";
+    b"id=1; Path=/\nsession=abc; Domain=example.com; Max-Age=600\n__Host-h=v; Path=/; Secure\n__Secure-s=v; Secure; SameSite=None\npart=v; Path=/; Partitioned\nempty=";
 
 /// Largest number of `Set-Cookie` fields one input applies to one jar.
 const MAX_FIELDS: usize = 24;
@@ -94,7 +108,7 @@ pub fn drive(fields: &[String]) -> bool {
             .expect("a fixed origin URL must stay valid");
         assert!(
             value.is_none(),
-            "a Secure cookie was offered to an http:// request for {origin}"
+            "a Secure cookie was offered to the untrustworthy origin {origin}"
         );
     }
 
@@ -102,7 +116,31 @@ pub fn drive(fields: &[String]) -> bool {
     store_secure(&rejected_jar, &INSECURE_URLS, fields);
     assert!(
         rejected_jar.is_empty(),
-        "an http:// URL stored a Secure cookie"
+        "an untrustworthy origin stored a Secure cookie"
+    );
+
+    // A loopback authority is trustworthy under either scheme, so the scheme
+    // must change neither what is stored nor what is sent back. Each jar is
+    // read over the scheme it was filled from, because a `Partitioned`
+    // cookie's key is schemeful.
+    let [loopback_secure, loopback_plain] = LOOPBACK_URLS;
+    let secure_loopback_jar = CookieJar::default();
+    store_secure(&secure_loopback_jar, &[loopback_secure], fields);
+    let plain_loopback_jar = CookieJar::default();
+    store_secure(&plain_loopback_jar, &[loopback_plain], fields);
+    assert_eq!(
+        plain_loopback_jar.len(),
+        secure_loopback_jar.len(),
+        "{loopback_plain} and {loopback_secure} stored different cookie counts"
+    );
+    assert_eq!(
+        plain_loopback_jar
+            .request_value(loopback_plain)
+            .expect("a fixed origin URL must stay valid"),
+        secure_loopback_jar
+            .request_value(loopback_secure)
+            .expect("a fixed origin URL must stay valid"),
+        "a loopback origin's Cookie field depended on its scheme"
     );
 
     // Unmarked fields exercise the ordinary storage, matching, eviction, and

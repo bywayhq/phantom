@@ -81,20 +81,24 @@ so a second transaction reaches a second response head — the path that resets
 the ordered-header observer — rather than end of stream.
 
 Two targets also assert a policy invariant that a real confusion would break.
-`cookie_jar` marks every stored field `Secure` and asserts that no `http://`
-request receives a `Cookie` field and that no `http://` URL can store one.
-`alt_svc_snapshot` asserts that a snapshot the client exported passes the
-client's own import revalidation; the origin half of that round trip is the
-real cross-check, because a stored alternative's host is revalidated against
-the request host on the way in and re-emitted verbatim on the way out.
+`cookie_jar` marks every stored field `Secure` and asserts that no request to
+an origin that is not potentially trustworthy receives a `Cookie` field and
+that no such origin can store one. `alt_svc_snapshot` asserts that a snapshot
+the client exported passes the client's own import revalidation; the origin
+half of that round trip is the real cross-check, because a stored
+alternative's host is revalidated against the request host on the way in and
+re-emitted verbatim on the way out.
 
-`cookie_jar` asserts those two rules for named hosts only. The jar's storage
-gate requires the `https` scheme literally, while its store treats a loopback
-authority as a trustworthy origin and does send a `Secure` cookie to
-`http://127.0.0.1`. Aligning storage with the trustworthy-origin rule is the
-`cookie-secure-origin` lane's work, not a fuzzing concern; until it lands,
-loopback URLs in the target only add coverage and constrain nothing. Widen
-[`LOOPBACK_URLS`](src/cookie_jar.rs) back into the asserted sets with it.
+`cookie_jar` asserts those two rules over named hosts, which no rule makes
+trustworthy over `http://`. Loopback authorities are trustworthy under either
+scheme, so [`LOOPBACK_URLS`](src/cookie_jar.rs) carries a third assertion
+instead: the same fields stored from `http://127.0.0.1` and from
+`https://127.0.0.1` must leave the same number of cookies and produce the same
+`Cookie` field. That is what guards the symmetry between the jar's storage
+gate and its matching gate, and it fails whichever of the two a change
+inverts. Each jar is read back over the scheme it was filled from, because a
+`Partitioned` cookie's key is schemeful; the seed carries a `Partitioned`
+field so the fuzzer reaches that path.
 
 ## Where a check belongs
 
