@@ -19,6 +19,21 @@ policies that stay off until you enable them.
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 
+## Timeouts
+
+`RequestTimeouts` sets each phase; none is set by default.
+
+| Timeout phase | Method | Limits |
+| --- | --- | --- |
+| Pool admission | `pool_admission` | Waiting for a free connection slot |
+| Connect | `connect` | DNS, proxy, transport, TLS, and protocol setup |
+| Response head | `response_head` | Sending the request and body, then waiting for the status and fields |
+| Read idle | `read_idle` | Time without data while reading the response body |
+| Total | `total` | The whole operation |
+
+Each phase limit restarts for every redirect, retry, and replay. The total
+limit is one deadline over all attempts, delays, and the final response body.
+
 ## Connection pools
 
 `ClientBuilder` can set each bound to any nonzero value. A

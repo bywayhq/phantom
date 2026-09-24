@@ -39,14 +39,8 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 }
 ```
 
-| Timeout phase | Method | Limits |
-| --- | --- | --- |
-| Pool admission | `pool_admission` | Waiting for a free connection slot |
-| Connect | `connect` | DNS, proxy, transport, TLS, and protocol setup |
-| Response head | `response_head` | Sending the request and body, then waiting for the status and fields |
-| Read idle | `read_idle` | Time without data while reading the response body |
-| Total | `total` | The whole operation |
-
+- `RequestTimeouts` limits five phases: pool admission, connect, response
+  head, read idle, and total ([timeout phases](../reference/limits.md#timeouts)).
 - Client settings are fixed once `build` returns. A request can override only
   the route, timeouts (`RequestBuilder::timeouts`), and retry policy, and can
   opt into content decoding.
@@ -198,9 +192,9 @@ fn classify(error: &RequestError) -> &'static str {
 - A browser name implies no route, trust, redirect, retry, or timeout policy.
   A client with a redirect policy rejects `http://` requests.
 - WebSocket connects apply none of the client's timeouts, retries, or
-  redirects ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)). An SSE event
-  source applies timeouts per attempt and stops the read-idle and total
-  timers once the stream is open ([SSE](sse.md)).
+  redirects ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)).
+- An SSE event source applies timeouts per attempt and stops the read-idle
+  and total timers once the stream is open ([SSE](sse.md)).
 - HTTP proxy and CONNECT-UDP routes reject negotiated requests before I/O.
 - A redirect that keeps the method resends the owned body and static
   trailers; one that changes to GET drops both. A streaming body that must be

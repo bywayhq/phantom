@@ -88,16 +88,12 @@ async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
 
 - `ws://` always uses an H1 Upgrade. For `wss://`, a pooled H2 session to
   the same origin and route whose peer enabled extended CONNECT carries the
-  WebSocket as a new stream.
-- Otherwise `chromium::v154_websocket` (Chrome 154, Edge 153) opens TLS
-  offering only `http/1.1` for an H1 Upgrade. `firefox::v156_websocket` opens
-  an H2 connection, or an H1-only one when its pooled session lacks the
-  setting.
+  WebSocket as a new stream; otherwise the recipe picks the connection
+  ([browser recipes](../reference/websocket.md#browser-recipes)).
 - The choice is made once; a failure is never retried on another connection
   or protocol.
-- `headers` fails under this builder. Fill the recipe's caller slots with
-  `header`: `User-Agent`, `Origin`, `Accept-Encoding`, `Accept-Language`, and
-  for Firefox `Sec-Fetch-Site` and `sec-fetch-storage-access`.
+- `headers` fails under this builder. Fill the recipe's caller slots, such as
+  `User-Agent` and `Origin`, with `header`.
 
 ## Order the opening request fields
 
@@ -133,11 +129,10 @@ async fn open_ordered(client: &Client) -> Result<(), Box<dyn std::error::Error>>
 - `header` fills the first `caller_field` slot of the same name (compared
   case-insensitively) in the slot's spelling, or appends. Unfilled slots emit
   nothing.
-- An H1 template needs exactly one authority placeholder, one key
-  placeholder, `Upgrade: websocket`, a `Connection` field that contains
-  `Upgrade`, and version 13.
-  An H2 template rejects those, `Host`, and uppercase names. Both reject
-  literal `Proxy-Authorization` and `Sec-WebSocket-Extensions`, before I/O.
+- A template that breaks the
+  [opening template rules](../reference/websocket.md#opening-templates) fails
+  before I/O. An H1 template needs the authority and key placeholders; an H2
+  template rejects them.
 
 ## Bound a connect with a timeout
 
@@ -194,32 +189,29 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 
 ## Limits
 
-- Frame, message, and per-message frame-count limits are in
-  [Defaults and limits](../reference/limits.md#websocket); set them with
-  `WebSocketLimits`. Too many frames fails with
-  `WebSocketErrorKind::Capacity` before decompression. Decompressed bytes
-  count against the message limit.
-- WebSocket works over direct, HTTP proxy, and SOCKS5 routes. `ws://` through
-  an HTTP proxy is forwarded, never tunneled with CONNECT, so it fails through
-  an HTTP/2 proxy transport, which cannot forward plaintext. Other unsupported combinations fail before any
-  I/O; see the [route matrix](../reference/route-matrix.md). No failure falls
-  back to a direct connection or to H1.
+- A message over the frame, message, or frame-count limit fails with
+  `WebSocketErrorKind::Capacity`; set the limits with `WebSocketLimits`
+  ([defaults](../reference/limits.md#websocket)).
+- A `ws://` request through an HTTP/2 proxy transport fails, because an HTTP
+  proxy forwards `ws://` and that transport cannot forward plaintext.
+- Other unsupported route combinations fail before any I/O
+  ([route matrix](../reference/route-matrix.md)). No failure falls back to a
+  direct connection or to H1.
 - A WebSocket on a pooled H2 session holds one of the origin's
   `max_concurrent_http2_requests_per_origin` slots for its life, and fails
   with `WebSocketErrorKind::Capacity` when the wait queue is full.
-- The server's response is checked strictly: one matching accept value, no
-  unoffered extension, and at most one offered subprotocol.
+- A response with a wrong accept value, an unoffered extension, or an
+  unoffered subprotocol fails the connect
+  ([response checks](../reference/websocket.md#response-checks)).
 - The recipes do not reproduce the browsers' HPACK encoding of CONNECT, some
-  stream and reset behavior, or Chrome's message fragmentation; see
-  [Differences from the captures](../reference/websocket.md#differences-from-the-captures).
-- Every route, template, and response rule is in the
-  [WebSocket reference](../reference/websocket.md).
+  stream and reset behavior, or Chrome's message fragmentation
+  ([differences](../reference/websocket.md#differences-from-the-captures)).
 - No browser capture covers a proxied WebSocket.
 - WebSocket over HTTP/3 is not implemented.
 
 ## Next
 
-- [Profiles](profiles.md): add a WebSocket recipe to a profile.
+- [Browser profiles](profiles.md): add a WebSocket recipe to a profile.
 - [Routes and proxies](routes-and-proxies.md): configure a proxy.
 - [WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence):
   the captures behind the recipes.
