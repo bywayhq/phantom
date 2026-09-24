@@ -15,20 +15,19 @@ Brave and Opera are queued in the [roadmap](../roadmap.md).
 
 ## Rules that shape every step
 
-- Evidence comes first. Capture, record the capture in Validation, and only
-  then write or change the recipe.
-- Identity lives in the profile. The runtime never branches on the browser
-  name or the host OS, so a new browser adds data in `phantom-profile` and no
-  transport conditionals in `phantom-net`.
-- Captured order is data. Keep extension, SETTINGS, pseudo-header, and field
-  order exactly as captured; normalize only the per-connection randomness
-  listed in [Capture normalization](../explanation/validation.md#capture-normalization).
-- A Chromium fork is not Chrome. Edge 153 proved that a fork can change the
-  ClientHello, so each fork needs its own captures in every area, and a layer
-  it shares with Chrome is shared only after a test shows the capture equals
-  the Chromium recipe.
+- Capture, record the capture in Validation, and only then write or change
+  the recipe.
+- The runtime never branches on the browser name or the host OS, so a new
+  browser adds data in `phantom-profile` and no transport conditionals in
+  `phantom-net`.
+- Keep extension, SETTINGS, pseudo-header, and field order exactly as
+  captured; normalize only the per-connection randomness listed in
+  [Capture normalization](../explanation/validation.md#capture-normalization).
+- Edge 153 showed that a Chromium fork can change the ClientHello, so each
+  fork needs its own captures in every area. A layer it shares with Chrome is
+  shared only after a test shows the capture equals the Chromium recipe.
 - Phantom carries one version per browser: the current stable build on the
-  capture host. A new version replaces the old one rather than adding to it.
+  capture host. A new version replaces the old one.
 - Captures come from the Windows 11 development host, the only capture host.
   A Windows capture never backs a macOS or Linux recipe.
 - Launching a local browser needs the human's approval for the session, as
