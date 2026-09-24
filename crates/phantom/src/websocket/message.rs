@@ -49,6 +49,16 @@ const DEFAULT_MAX_MESSAGE_FRAGMENTS: NonZeroUsize = match NonZeroUsize::new(128 
 };
 
 /// Frame, message, fragment-count, and write-buffer bounds for one connection.
+///
+/// [`WebSocketLimits::default`] allows 16 MiB frames, 64 MiB reassembled
+/// messages, and 131,072 data frames per message. The outbound write buffer
+/// holds the message limit plus 128 KiB plus 14 bytes. Apply other limits
+/// with [`WebSocketRequestBuilder::limits`](crate::WebSocketRequestBuilder::limits).
+///
+/// An incoming frame or message over its limit fails with
+/// [`WebSocketErrorKind::Capacity`](crate::WebSocketErrorKind::Capacity) and
+/// closes the transport. Decompressed bytes count against the message limit
+/// as they expand.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WebSocketLimits {
     max_frame_size: NonZeroUsize,
@@ -65,8 +75,10 @@ impl WebSocketLimits {
     ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] when a frame may exceed the message bound or
-    /// when the write-buffer bound cannot be represented.
+    /// Returns [`WebSocketError`] with kind
+    /// [`WebSocketErrorKind::Capacity`](crate::WebSocketErrorKind::Capacity)
+    /// when `max_frame_size` exceeds `max_message_size`, or when the message
+    /// limit plus the write-buffer overhead overflows `usize`.
     pub fn new(
         max_frame_size: NonZeroUsize,
         max_message_size: NonZeroUsize,
@@ -155,7 +167,10 @@ impl WebSocketCloseFrame {
     ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] for a reserved or untransmittable code, or
+    /// Returns [`WebSocketError`] with kind
+    /// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest)
+    /// for a reserved or untransmittable code, or
+    /// [`WebSocketErrorKind::Capacity`](crate::WebSocketErrorKind::Capacity)
     /// when the UTF-8 reason exceeds 123 bytes.
     pub fn new(code: u16, reason: impl Into<String>) -> Result<Self, WebSocketError> {
         if !CloseCode::from(code).is_allowed() {
