@@ -9,10 +9,42 @@ use crate::{RequestError, request::RequestBodySource};
 
 /// Client policy for following HTTP redirects.
 ///
+/// The default, equal to [`RedirectPolicy::none`], returns every redirect
+/// response to the caller. Set the policy for a whole client with
+/// [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy);
+/// there is no per-request override.
+///
 /// Only `https://` requests can follow redirects: a client with a limited
 /// policy rejects `http://` requests before I/O, and a 301, 302, 303, 307, or
 /// 308 whose resolved `Location` is not `https://` fails with
-/// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
+/// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect). A
+/// redirect without `Location` is returned unchanged. More than one
+/// `Location`, a location that does not resolve, or a hop past the limit
+/// also fails with that kind, and the redirect response is not returned.
+///
+/// Each hop keeps the request's route and protocol rule, its total timeout,
+/// and its retry budget. A 307 or 308 resends the method and body; a one-shot
+/// streaming body cannot be resent and fails with
+/// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
+/// A cross-origin hop removes `Authorization`, `Cookie`, `Cookie2`, and
+/// `Proxy-Authorization` fields and trailers.
+///
+/// # Examples
+///
+/// ```
+/// use std::num::NonZeroUsize;
+///
+/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::{Client, RedirectPolicy};
+///
+/// # fn run() -> Result<(), Box<dyn std::error::Error>> {
+/// let policy = RedirectPolicy::limited(NonZeroUsize::new(5).expect("five is nonzero"));
+/// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+/// let client = Client::builder(profile).redirect_policy(policy).build()?;
+/// # drop(client);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RedirectPolicy {
     maximum: Option<NonZeroUsize>,
@@ -26,6 +58,9 @@ impl RedirectPolicy {
     }
 
     /// Follows at most `maximum` redirect responses per request.
+    ///
+    /// A redirect that would exceed `maximum` fails with
+    /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
     #[must_use]
     pub const fn limited(maximum: NonZeroUsize) -> Self {
         Self {
