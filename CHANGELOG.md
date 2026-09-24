@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Phantom's patched dependencies are renamed `phantom-*` forks that Phantom's
+  manifests reference by exact version and path, and the root `[patch]`
+  tables are gone. A downstream crate now depends on Phantom with one line.
+  (`9067a25`)
+  Migrate: delete the `[patch]` table you copied from Phantom's root
+  manifest; it patches packages that no longer appear in the dependency
+  graph. See [Adding Phantom to a project](docs/guides/downstream.md).
 - The browser recipes now carry one version per browser: Chrome
   154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0, captured on Windows 11.
   `chromium::v152_*` and every `v152_macos_*` alias, `chromium::v153_*`,
@@ -21,13 +28,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   are removed from `phantom-profile` and the `phantom` facade. The new
   recipes send a different fingerprint: Chrome 154 sorts its trust-anchor IDs
   and sends a new `sec-ch-ua` brand list. (`f129363`)
-  Migrate: replace `chromium::v152_macos_tls`, `v152_tls`, or `v153_tls` with
-  `chromium::v154_tls`, and do the same for `_http2`, `_http3`, `_http3_tls`,
-  `_http3_request`, and `_quic`. Replace `chromium::v152_macos_client_hints`
-  with `chromium::v154_windows_client_hints`; no macOS client-hint recipe
-  remains. Replace `firefox::v154_macos_tls` and `firefox::v154_macos_http2`
-  with `firefox::v156_tls` and `firefox::v156_http2`. `safari::v18_5_macos_tls`
-  has no replacement; build your own `TlsSettings` if you need it.
+  Migrate: rename every `chromium::v152_*`, `chromium::v152_macos_*`, and
+  `chromium::v153_*` function to the `chromium::v154_*` function with the same
+  suffix, such as `v153_tcp` to `v154_tcp` or `v153_windows_navigation_template`
+  to `v154_windows_navigation_template`. Replace
+  `chromium::v152_macos_client_hints` with
+  `chromium::v154_windows_client_hints`; no macOS client-hint recipe remains.
+  Rename every `firefox::v154_*` and `firefox::v154_macos_*` function to
+  `firefox::v156_*`, such as `v154_tls` to `v156_tls`.
+  `safari::v18_5_macos_tls` has no replacement; build your own `TlsSettings`
+  if you need it.
 - The one-shot `phantom_net::http3::send_request`, `send_request_with_body`,
   `send_request_with_body_and_trailers`, `send_request_with_qlog`, and
   `send_request_with_body_and_qlog` take ordered request input instead of
@@ -70,7 +80,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Chrome 154, Edge 153, and Firefox 156 recipes for TLS, HTTP/2, HTTP/3, QUIC,
   TCP, WebSocket, cookie placement, client hints, and request templates.
-  Edge has TLS, HTTP/3 TLS, client-hint, and template recipes only.
+  Edge has TLS, HTTP/3 TLS, client-hint, and template recipes only, and
+  Firefox has no HTTP/3, QUIC, or client-hint recipe.
   (`4a01b7f`, `be02e93`)
 - Request templates: `RequestTemplate` and `RequestBuilder::template` send a
   captured navigation or no-store fetch field list for each protocol, with
