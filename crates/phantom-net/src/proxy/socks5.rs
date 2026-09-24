@@ -11,7 +11,6 @@ use crate::direct::{DirectConnectError, connect_tcp, poll_tokio_io};
 
 /// Stable category of SOCKS5 tunnel failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum Socks5ErrorKind {
     /// The remote target cannot be encoded as a SOCKS5 address.
     InvalidTarget,

@@ -28,7 +28,6 @@ pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
 
 /// Error returned by an HTTP/1.1 connection or request.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum Http1Error {
     /// The request contained more headers than the fixed safety bound.
     TooManyHeaders {

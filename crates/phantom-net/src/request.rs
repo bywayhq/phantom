@@ -23,7 +23,6 @@ const MAX_REQUEST_TRAILER_BYTES: usize = 32 * 1024;
 
 /// Stable category of a caller-provided request-body failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum RequestBodyErrorKind {
     /// The caller-provided body returned an error.
     Source,

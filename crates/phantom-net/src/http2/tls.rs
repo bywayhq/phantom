@@ -1458,7 +1458,6 @@ fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'stat
 
 /// Error returned while establishing HTTP/2 over TLS or opening a request.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum Http2TlsError {
     /// The network request was polled outside a Tokio runtime.
     RuntimeUnavailable,

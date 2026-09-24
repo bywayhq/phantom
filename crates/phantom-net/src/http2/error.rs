@@ -8,7 +8,6 @@ use crate::request::RequestBodyError;
 
 /// Stable classification of an HTTP/2 protocol-driver failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum Http2ProtocolErrorKind {
     /// The underlying byte transport failed.
     Transport,
@@ -107,7 +106,6 @@ impl StdError for Http2ProtocolError {
 
 /// Error returned by a one-shot HTTP/2 transaction.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum Http2Error {
     /// The HTTP/2 profile is internally inconsistent.
     InvalidSettings(InvalidHttp2Settings),

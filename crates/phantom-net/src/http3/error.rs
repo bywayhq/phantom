@@ -2,7 +2,6 @@ use std::{error::Error as StdError, fmt};
 
 /// Stable category of a forced HTTP/3 transaction failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum Http3ErrorKind {
     /// The request cannot be represented by the current HTTP/3 path.
     Request,
@@ -50,7 +49,6 @@ impl Http3ErrorKind {
 /// A request carrying this signal was either refused by the peer before any
 /// processing or never sent at all. No response head was received.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum Http3Unprocessed {
     /// The peer reset the request stream or stopped reading it with
     /// `H3_REQUEST_REJECTED` before a response head. RFC 9114, section 4.1.1,

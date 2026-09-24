@@ -814,15 +814,9 @@ impl ClientBuilder {
                 .map_err(BuildError::invalid_websocket_profile)?;
         }
 
-        let authentication_disabled = match self.server_authentication {
-            ServerAuthentication::WebPki => false,
-            ServerAuthentication::Disabled => true,
-            _ => {
-                return Err(BuildError::invalid_policy(
-                    "unsupported server-authentication policy",
-                ));
-            }
-        };
+        // `ServerAuthentication` is public and non-exhaustive, so compare
+        // rather than match: phantom-net defines exactly these two policies.
+        let authentication_disabled = self.server_authentication == ServerAuthentication::Disabled;
         if authentication_disabled {
             if !self.additional_roots.is_empty() {
                 return Err(BuildError::invalid_policy(
@@ -836,15 +830,8 @@ impl ClientBuilder {
             }
         }
 
-        let proxy_authentication_disabled = match self.proxy_server_authentication {
-            ServerAuthentication::WebPki => false,
-            ServerAuthentication::Disabled => true,
-            _ => {
-                return Err(BuildError::invalid_policy(
-                    "unsupported proxy server-authentication policy",
-                ));
-            }
-        };
+        let proxy_authentication_disabled =
+            self.proxy_server_authentication == ServerAuthentication::Disabled;
         if proxy_authentication_disabled && !self.proxy_additional_roots.is_empty() {
             return Err(BuildError::invalid_policy(
                 "disabled proxy server authentication cannot be combined with proxy roots",

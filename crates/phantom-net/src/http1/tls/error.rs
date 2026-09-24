@@ -5,7 +5,6 @@ use crate::proxy::{HttpConnectError, Socks5Error};
 
 /// Error returned before an HTTP/1 response is available.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum Http1TlsError {
     /// The network request was polled outside a Tokio runtime.
     RuntimeUnavailable,

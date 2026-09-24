@@ -113,16 +113,17 @@ impl BuildError {
                 .source()
                 .and_then(|source| source.downcast_ref::<phantom_net::http1::TlsError>())
                 .map_or(BuildErrorKind::ProtocolConfiguration, |error| {
-                    match error.kind() {
-                        TlsErrorKind::TrustStore => BuildErrorKind::TrustStore,
-                        TlsErrorKind::InvalidConfiguration => BuildErrorKind::InvalidProfile,
-                        _ => BuildErrorKind::ProtocolConfiguration,
-                    }
+                    tls_build_error_kind(error.kind())
                 }),
             Http1Or2TlsErrorKind::InvalidConfiguration | Http1Or2TlsErrorKind::Http2 => {
                 BuildErrorKind::InvalidProfile
             }
-            _ => BuildErrorKind::ProtocolConfiguration,
+            Http1Or2TlsErrorKind::RuntimeUnavailable
+            | Http1Or2TlsErrorKind::Connect
+            | Http1Or2TlsErrorKind::Socks5Proxy
+            | Http1Or2TlsErrorKind::HttpProxy
+            | Http1Or2TlsErrorKind::Http1
+            | Http1Or2TlsErrorKind::UnsupportedAlpn => BuildErrorKind::ProtocolConfiguration,
         };
         Self::with_source(
             kind,
@@ -135,22 +136,29 @@ impl BuildError {
         let kind = match source.kind() {
             Http3ConnectorErrorKind::InvalidProfile => BuildErrorKind::InvalidProfile,
             Http3ConnectorErrorKind::TrustStore => BuildErrorKind::TrustStore,
-            _ => BuildErrorKind::ProtocolConfiguration,
+            Http3ConnectorErrorKind::ProtocolConfiguration
+            | Http3ConnectorErrorKind::RuntimeUnavailable
+            | Http3ConnectorErrorKind::Resolve
+            | Http3ConnectorErrorKind::Proxy
+            | Http3ConnectorErrorKind::Request
+            | Http3ConnectorErrorKind::Endpoint
+            | Http3ConnectorErrorKind::Connect
+            | Http3ConnectorErrorKind::Connection
+            | Http3ConnectorErrorKind::Handshake
+            | Http3ConnectorErrorKind::Protocol
+            | Http3ConnectorErrorKind::Local
+            | Http3ConnectorErrorKind::ExtendedConnectUnavailable => {
+                BuildErrorKind::ProtocolConfiguration
+            }
         };
         Self::with_source(kind, "failed to configure HTTP/3", source)
     }
 
     pub(crate) fn https_proxy(source: HttpConnectError) -> Self {
+        // Only the proxy TLS context is built here; every other failure is
+        // a connector configuration error.
         let kind = match &source {
-            HttpConnectError::ProxyTls(error) if error.kind() == TlsErrorKind::TrustStore => {
-                BuildErrorKind::TrustStore
-            }
-            HttpConnectError::ProxyTls(error)
-                if error.kind() == TlsErrorKind::InvalidConfiguration =>
-            {
-                BuildErrorKind::InvalidProfile
-            }
-            HttpConnectError::MissingHttp1Alpn => BuildErrorKind::ProtocolConfiguration,
+            HttpConnectError::ProxyTls(error) => tls_build_error_kind(error.kind()),
             _ => BuildErrorKind::ProtocolConfiguration,
         };
         Self::with_source(kind, "failed to configure HTTPS proxy", source)
@@ -201,31 +209,47 @@ impl StdError for BuildError {
     }
 }
 
+fn tls_build_error_kind(kind: TlsErrorKind) -> BuildErrorKind {
+    match kind {
+        TlsErrorKind::TrustStore => BuildErrorKind::TrustStore,
+        TlsErrorKind::InvalidConfiguration => BuildErrorKind::InvalidProfile,
+        TlsErrorKind::BackendConfiguration
+        | TlsErrorKind::UnsupportedSetting
+        | TlsErrorKind::Handshake => BuildErrorKind::ProtocolConfiguration,
+    }
+}
+
 fn classify_http1_build_error(error: &Http1TlsError) -> BuildErrorKind {
     match error {
-        Http1TlsError::Tls(source) if source.kind() == TlsErrorKind::TrustStore => {
-            BuildErrorKind::TrustStore
-        }
-        Http1TlsError::Tls(source) if source.kind() == TlsErrorKind::InvalidConfiguration => {
-            BuildErrorKind::InvalidProfile
-        }
+        Http1TlsError::Tls(source) => tls_build_error_kind(source.kind()),
         Http1TlsError::MissingHttp1Alpn => BuildErrorKind::InvalidProfile,
-        _ => BuildErrorKind::ProtocolConfiguration,
+        Http1TlsError::RuntimeUnavailable
+        | Http1TlsError::Connect(_)
+        | Http1TlsError::ForwardProxyConnect(_)
+        | Http1TlsError::Proxy(_)
+        | Http1TlsError::Socks5Proxy(_)
+        | Http1TlsError::Http1(_)
+        | Http1TlsError::UnsupportedAlpn { .. } => BuildErrorKind::ProtocolConfiguration,
     }
 }
 
 fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
     match error {
-        Http2TlsError::Tls(source) if source.kind() == TlsErrorKind::TrustStore => {
-            BuildErrorKind::TrustStore
-        }
-        Http2TlsError::Tls(source) if source.kind() == TlsErrorKind::InvalidConfiguration => {
-            BuildErrorKind::InvalidProfile
-        }
+        Http2TlsError::Tls(source) => tls_build_error_kind(source.kind()),
         Http2TlsError::Http2(Http2Error::InvalidSettings(_)) | Http2TlsError::MissingHttp2Alpn => {
             BuildErrorKind::InvalidProfile
         }
-        _ => BuildErrorKind::ProtocolConfiguration,
+        // Other HTTP/2 errors describe a request or connection, not settings.
+        Http2TlsError::Http2(_)
+        | Http2TlsError::RuntimeUnavailable
+        | Http2TlsError::Connect(_)
+        | Http2TlsError::Proxy(_)
+        | Http2TlsError::Socks5Proxy(_)
+        | Http2TlsError::MissingNegotiatedAlpn
+        | Http2TlsError::UnsupportedAlpn { .. }
+        | Http2TlsError::InvalidPeerApplicationSettings { .. } => {
+            BuildErrorKind::ProtocolConfiguration
+        }
     }
 }
 
@@ -659,7 +683,9 @@ impl RequestError {
                 Http1TlsError::Socks5Proxy(error) => socks5_request_error_kind(error.kind()),
                 Http1TlsError::Proxy(_) => RequestErrorKind::Proxy,
                 Http1TlsError::Tls(_) => RequestErrorKind::Tls,
-                _ => RequestErrorKind::Http1,
+                Http1TlsError::Http1(_)
+                | Http1TlsError::UnsupportedAlpn { .. }
+                | Http1TlsError::MissingHttp1Alpn => RequestErrorKind::Http1,
             }
         };
         let retryability = if matches!(
@@ -709,7 +735,11 @@ impl RequestError {
                 Http2TlsError::Socks5Proxy(error) => socks5_request_error_kind(error.kind()),
                 Http2TlsError::Proxy(_) => RequestErrorKind::Proxy,
                 Http2TlsError::Tls(_) => RequestErrorKind::Tls,
-                _ => RequestErrorKind::Http2,
+                Http2TlsError::Http2(_)
+                | Http2TlsError::MissingNegotiatedAlpn
+                | Http2TlsError::UnsupportedAlpn { .. }
+                | Http2TlsError::InvalidPeerApplicationSettings { .. }
+                | Http2TlsError::MissingHttp2Alpn => RequestErrorKind::Http2,
             }
         };
         Self::with_source(
@@ -769,7 +799,10 @@ impl RequestError {
             Http1Or2TlsErrorKind::InvalidConfiguration => {
                 (RequestErrorKind::ProtocolUnavailable, None)
             }
-            _ => (RequestErrorKind::Tls, None),
+            // Handled above from the source.
+            Http1Or2TlsErrorKind::Socks5Proxy | Http1Or2TlsErrorKind::HttpProxy => {
+                (RequestErrorKind::Proxy, None)
+            }
         };
         Self::with_source(
             kind,
@@ -786,7 +819,13 @@ impl RequestError {
             Http1Or2TlsError::Connect(_) => true,
             Http1Or2TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
             Http1Or2TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
-            _ => false,
+            Http1Or2TlsError::RuntimeUnavailable
+            | Http1Or2TlsError::Tls(_)
+            | Http1Or2TlsError::Http1(_)
+            | Http1Or2TlsError::Http2(_)
+            | Http1Or2TlsError::UnsupportedAlpn { .. }
+            | Http1Or2TlsError::MissingHttp1Alpn
+            | Http1Or2TlsError::MissingHttp2Alpn => false,
         };
         let mut error = Self::http1_or_2(source);
         if retryable {
@@ -828,7 +867,14 @@ impl RequestError {
                     RequestErrorKind::Connect
                 }
                 Http3ConnectorErrorKind::Handshake => RequestErrorKind::Tls,
-                _ => RequestErrorKind::Http3,
+                Http3ConnectorErrorKind::InvalidProfile
+                | Http3ConnectorErrorKind::TrustStore
+                | Http3ConnectorErrorKind::ProtocolConfiguration
+                | Http3ConnectorErrorKind::Request
+                | Http3ConnectorErrorKind::Connection
+                | Http3ConnectorErrorKind::Protocol
+                | Http3ConnectorErrorKind::Local
+                | Http3ConnectorErrorKind::ExtendedConnectUnavailable => RequestErrorKind::Http3,
             }
         };
         Self::with_source(
@@ -979,7 +1025,11 @@ fn is_retryable_http1_connection_setup(source: &Http1TlsError) -> bool {
         Http1TlsError::Connect(_) | Http1TlsError::ForwardProxyConnect(_) => true,
         Http1TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
         Http1TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
-        _ => false,
+        Http1TlsError::RuntimeUnavailable
+        | Http1TlsError::Tls(_)
+        | Http1TlsError::Http1(_)
+        | Http1TlsError::UnsupportedAlpn { .. }
+        | Http1TlsError::MissingHttp1Alpn => false,
     }
 }
 
@@ -988,7 +1038,13 @@ fn is_retryable_http2_connection_setup(source: &Http2TlsError) -> bool {
         Http2TlsError::Connect(_) => true,
         Http2TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
         Http2TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
-        _ => false,
+        Http2TlsError::RuntimeUnavailable
+        | Http2TlsError::Tls(_)
+        | Http2TlsError::Http2(_)
+        | Http2TlsError::MissingNegotiatedAlpn
+        | Http2TlsError::UnsupportedAlpn { .. }
+        | Http2TlsError::InvalidPeerApplicationSettings { .. }
+        | Http2TlsError::MissingHttp2Alpn => false,
     }
 }
 
@@ -1011,7 +1067,12 @@ fn socks5_request_error_kind(kind: Socks5ErrorKind) -> RequestErrorKind {
         Socks5ErrorKind::Resolve => RequestErrorKind::Resolve,
         // Every other SOCKS5 failure, a refused proxy connect included, is a
         // proxy failure and never the direct-transport `Connect` category.
-        _ => RequestErrorKind::Proxy,
+        Socks5ErrorKind::InvalidTarget
+        | Socks5ErrorKind::InvalidAuthentication
+        | Socks5ErrorKind::Connect
+        | Socks5ErrorKind::Negotiation
+        | Socks5ErrorKind::Authentication
+        | Socks5ErrorKind::Rejected => RequestErrorKind::Proxy,
     }
 }
 
@@ -1035,16 +1096,24 @@ enum Http3ProxyFailure {
 impl Http3ProxyFailure {
     fn request_error_kind(self) -> RequestErrorKind {
         match self {
-            Self::Socks5(Socks5ErrorKind::RuntimeUnavailable) => {
-                RequestErrorKind::RuntimeUnavailable
-            }
-            Self::Socks5(Socks5ErrorKind::Resolve) => RequestErrorKind::Resolve,
-            Self::Socks5(_) => RequestErrorKind::Proxy,
+            Self::Socks5(kind) => socks5_request_error_kind(kind),
             Self::ConnectUdp(ConnectUdpErrorKind::RuntimeUnavailable) => {
                 RequestErrorKind::RuntimeUnavailable
             }
             Self::ConnectUdp(ConnectUdpErrorKind::Resolve) => RequestErrorKind::Resolve,
-            Self::ConnectUdp(_) => RequestErrorKind::Proxy,
+            Self::ConnectUdp(
+                ConnectUdpErrorKind::InvalidRequest
+                | ConnectUdpErrorKind::Configuration
+                | ConnectUdpErrorKind::Connect
+                | ConnectUdpErrorKind::Handshake
+                | ConnectUdpErrorKind::UnsupportedProtocol
+                | ConnectUdpErrorKind::ExtendedConnectUnavailable
+                | ConnectUdpErrorKind::DatagramUnavailable
+                | ConnectUdpErrorKind::DatagramCapacity
+                | ConnectUdpErrorKind::Rejected
+                | ConnectUdpErrorKind::Authentication
+                | ConnectUdpErrorKind::Protocol,
+            ) => RequestErrorKind::Proxy,
         }
     }
 
@@ -1099,7 +1168,9 @@ pub(crate) fn is_unprocessed_http2(error: &Http2Error) -> bool {
         Http2Error::Protocol(error) if error.is_remote() => match error.kind() {
             Http2ProtocolErrorKind::StreamReset => error.reason_code() == Some(REFUSED_STREAM),
             Http2ProtocolErrorKind::ConnectionError => true,
-            _ => false,
+            Http2ProtocolErrorKind::Transport
+            | Http2ProtocolErrorKind::Protocol
+            | Http2ProtocolErrorKind::Local => false,
         },
         _ => false,
     }

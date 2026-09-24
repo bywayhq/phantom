@@ -593,7 +593,6 @@ where
 
 /// Category of a TLS connection failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum TlsErrorKind {
     /// Settings were internally inconsistent or incomplete.
     InvalidConfiguration,

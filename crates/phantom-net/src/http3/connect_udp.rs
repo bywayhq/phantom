@@ -75,7 +75,6 @@ const STREAM_READ_CHUNK: usize = 16 * 1024;
 
 /// Stable category of a CONNECT-UDP proxy failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum ConnectUdpErrorKind {
     /// The CONNECT-UDP request, proxy server name, or fields are invalid.
     InvalidRequest,
