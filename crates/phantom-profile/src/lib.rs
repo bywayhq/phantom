@@ -5,6 +5,7 @@ pub mod client_hints;
 pub mod cookie;
 pub mod edge;
 pub mod firefox;
+pub mod http1;
 pub mod http2;
 pub mod http3;
 pub mod quic;
@@ -21,6 +22,7 @@ pub use client_hints::{
     ClientHint, ClientHintDelivery, ClientHintSettings, InvalidClientHintSettings,
 };
 pub use cookie::CookiePlacement;
+pub use http1::Http1Settings;
 pub use http2::{
     Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
     Http2Settings, Http2StaticNameIndex, InvalidHttp2Settings,

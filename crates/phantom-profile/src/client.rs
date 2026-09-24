@@ -1,8 +1,8 @@
 //! Protocol settings grouped for client construction.
 
 use crate::{
-    ClientHintSettings, CookiePlacement, Http2Settings, Http3RequestSettings, Http3Settings,
-    TcpSettings, TlsSettings, WebSocketSettings, quic::QuicTransportSettings,
+    ClientHintSettings, CookiePlacement, Http1Settings, Http2Settings, Http3RequestSettings,
+    Http3Settings, TcpSettings, TlsSettings, WebSocketSettings, quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -61,6 +61,7 @@ impl Http3ClientSettings {
 pub struct ClientProfile {
     tcp: Option<TcpSettings>,
     tls: TlsSettings,
+    http1: Option<Http1Settings>,
     http2: Option<Http2Settings>,
     http3: Option<Http3ClientSettings>,
     client_hints: Option<ClientHintSettings>,
@@ -75,6 +76,7 @@ impl ClientProfile {
         Self {
             tcp: None,
             tls,
+            http1: None,
             http2: None,
             http3: None,
             client_hints: None,
@@ -89,6 +91,16 @@ impl ClientProfile {
     #[must_use]
     pub fn with_tcp(mut self, tcp: TcpSettings) -> Self {
         self.tcp = Some(tcp);
+        self
+    }
+
+    /// Adds the HTTP/1.1 connection policy to the profile.
+    ///
+    /// Without it, a client keeps one HTTP/1.1 connection per origin and route
+    /// and runs that pool key's requests on it one at a time.
+    #[must_use]
+    pub fn with_http1(mut self, http1: Http1Settings) -> Self {
+        self.http1 = Some(http1);
         self
     }
 
@@ -139,6 +151,12 @@ impl ClientProfile {
         &self.tls
     }
 
+    /// Returns the profile's HTTP/1.1 connection policy when configured.
+    #[must_use]
+    pub fn http1(&self) -> Option<&Http1Settings> {
+        self.http1.as_ref()
+    }
+
     /// Returns the profile's HTTP/2 settings when configured.
     #[must_use]
     pub fn http2(&self) -> Option<&Http2Settings> {
@@ -184,6 +202,7 @@ mod tests {
 
         assert_eq!(profile.tls(), &tls);
         assert_eq!(profile.tcp(), None);
+        assert_eq!(profile.http1(), None);
         assert_eq!(profile.http2(), None);
         assert_eq!(profile.http3(), None);
     }
@@ -194,6 +213,14 @@ mod tests {
         let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
 
         assert_eq!(profile.tcp(), Some(&tcp));
+    }
+
+    #[test]
+    fn with_http1_owns_and_exposes_http1_settings() {
+        let http1 = chromium::v154_http1();
+        let profile = ClientProfile::new(chromium::v154_tls()).with_http1(http1);
+
+        assert_eq!(profile.http1(), Some(&http1));
     }
 
     #[test]

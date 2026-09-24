@@ -1,7 +1,10 @@
 //! Wire settings retained from Firefox browser observations.
 
+use std::num::NonZeroUsize;
+
 use crate::{
     cookie::CookiePlacement,
+    http1::Http1Settings,
     http2::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
         Http2Settings, Http2StaticNameIndex,
@@ -180,6 +183,30 @@ pub fn v156_tcp() -> TcpSettings {
         nodelay: true,
         keepalive: None,
         address_racing: None,
+    }
+}
+
+/// Returns the HTTP/1.1 connection policy of Firefox 156.0.
+///
+/// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture:
+/// `network.http.max-persistent-connections-per-server` is 6
+/// (`modules/libpref/init/all.js:1158-1161`). Firefox applies it to direct
+/// and CONNECT-tunneled connections and counts active connections together
+/// with those still connecting
+/// (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1150-1157`, `:1342-1378`;
+/// `netwerk/protocol/http/ConnectionEntry.cpp:284-292`).
+///
+/// Three differences are not modeled. Phantom also counts idle connections,
+/// which Firefox reuses before it opens another. Firefox uses
+/// `network.http.max-persistent-connections-per-proxy`, 32, for plaintext
+/// requests forwarded through an HTTP proxy (`modules/libpref/init/all.js:1167-1170`),
+/// where this recipe keeps 6. And urgent-start requests may exceed the limit
+/// by `network.http.max-urgent-start-excessive-connections-per-host`, 3
+/// (`modules/libpref/init/all.js:1163-1165`).
+#[must_use]
+pub fn v156_http1() -> Http1Settings {
+    Http1Settings {
+        max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
     }
 }
 

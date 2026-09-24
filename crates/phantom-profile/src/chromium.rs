@@ -1,10 +1,11 @@
 //! Wire settings retained from Chromium-family browser observations.
 
-use std::time::Duration;
+use std::{num::NonZeroUsize, time::Duration};
 
 use crate::{
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     cookie::CookiePlacement,
+    http1::Http1Settings,
     http2::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
         Http2Settings, Http2StaticNameIndex,
@@ -254,6 +255,29 @@ pub fn v154_tcp() -> TcpSettings {
         address_racing: Some(TcpAddressRacing {
             fallback_delay: Duration::from_millis(300),
         }),
+    }
+}
+
+/// Returns the HTTP/1.1 connection policy of Chromium 154.0.8037.58.
+///
+/// From Chromium source at tag `154.0.8037.58`, not from a capture: the
+/// normal socket pool allows six sockets per group, `g_max_sockets_per_group`
+/// (`net/socket/client_socket_pool_manager.cc:46-58`). A group is one
+/// scheme, host, and port within the pool of one proxy chain
+/// (`net/socket/client_socket_pool.h:130-153`,
+/// `net/socket/client_socket_pool_manager_impl.h:48`), which Phantom keys as
+/// one origin and route. Idle sockets, connecting sockets, and sockets in use all
+/// occupy a slot (`net/socket/transport_client_socket_pool.h:356-363`), and a
+/// request takes the most recently used idle socket before it opens another
+/// (`net/socket/transport_client_socket_pool.cc:530-560`).
+///
+/// Chromium's other socket limits are not modeled: 256 sockets per pool and
+/// 128 per proxy chain (`net/socket/client_socket_pool_manager.cc:37-44`,
+/// `:60-66`), and 255 per group for WebSocket connections.
+#[must_use]
+pub fn v154_http1() -> Http1Settings {
+    Http1Settings {
+        max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
     }
 }
 
