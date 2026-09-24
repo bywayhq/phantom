@@ -1,7 +1,7 @@
 # How servers recognize a client
 
-This page explains how a server can tell which program made a request without
-reading its `User-Agent`, and why copying a browser's headers is not enough.
+Learn how a server tells which program made a request without reading its
+`User-Agent`, and why copying a browser's headers is not enough.
 
 > For evaluators and builders who are new to request fingerprinting.
 

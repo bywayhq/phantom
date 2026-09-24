@@ -1,8 +1,8 @@
 # WebSocket
 
-This guide shows how to open a WebSocket over HTTP/1.1 (H1) or HTTP/2 (H2),
-shape the opening request like a browser's, and compress messages. It needs
-the optional `websocket` feature; compression also needs `websocket-deflate`.
+Open a WebSocket over HTTP/1.1 (H1) or HTTP/2 (H2), shape its opening request
+like a browser's, and compress messages. You need the optional `websocket`
+feature; compression also needs `websocket-deflate`.
 
 > For builders who have read [Getting started](../getting-started.md).
 

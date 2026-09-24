@@ -1,7 +1,7 @@
 # Route matrix
 
-This table shows what Phantom does for each combination of request scheme,
-protocol, and [route](glossary.md#route). "Rejected" means a typed error
+Find what Phantom does for each combination of request scheme, protocol, and
+[route](glossary.md#route). "Rejected" means a typed error
 before any proxy or origin I/O. No cell falls back to another row or column.
 
 > For builders choosing a route. Configuration is in

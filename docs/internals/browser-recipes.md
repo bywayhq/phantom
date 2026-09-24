@@ -1,8 +1,8 @@
 # Add a browser recipe
 
-This page walks through adding a browser build to Phantom's profile matrix:
-capture it, retain the fixtures, write the recipe functions, replay the
-captures in tests, and update the documentation that makes claims about it.
+Add a browser build to Phantom's profile matrix: capture it, retain the
+fixtures, write the recipe functions, replay the captures in tests, and update
+the documentation that makes claims about it.
 
 > For contributors who have read
 > [Evidence rules](../explanation/validation.md#evidence-rules).

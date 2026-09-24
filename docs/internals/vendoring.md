@@ -1,8 +1,8 @@
 # Vendored forks
 
 Phantom patches several dependencies to control wire behavior their upstream
-APIs cannot express. This page lists the forks, shows how to change one, and
-describes how CI proves that a downstream build uses only these forks.
+APIs cannot express. Find the forks, change one through its patch series, and
+see how CI proves that a downstream build uses only these forks.
 
 > For contributors changing a patched dependency. To add Phantom to a project,
 > read [Adding Phantom to a project](../guides/downstream.md) instead.

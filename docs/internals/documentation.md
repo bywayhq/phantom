@@ -1,7 +1,9 @@
 # Writing the documentation
 
-This page is for anyone who edits Phantom's documentation, human or agent. It
-sets who each page is for, where content belongs, and how the prose reads.
+Edit Phantom's documentation, as a human or an agent: who each page is for,
+where content belongs, and how the prose reads.
+
+> For contributors who edit the documentation.
 
 ## Readers
 

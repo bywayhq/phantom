@@ -1,8 +1,8 @@
 # Capture tools
 
-These tools record what a real browser sends to a loopback server and write
-it as a fixture under [`fixtures/`](../../fixtures/). This page shows how to
-run each one.
+Record what a real browser sends to a loopback server and keep it as a
+fixture under [`fixtures/`](../../fixtures/). Start with
+[Which tool to run](#which-tool-to-run).
 
 > For contributors recording browser evidence. Read
 > [Add a browser recipe](../../docs/internals/browser-recipes.md) first when
