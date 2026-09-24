@@ -4,8 +4,8 @@ This page is Phantom's support contract: what works today and what is
 planned, layer by layer. Anything not listed as supported is unsupported.
 
 > For evaluators deciding whether Phantom fits, and specialists checking a
-> claim. New to fingerprinting? Read
-> [How servers recognize a client](../fingerprinting.md) first.
+> claim. Read [How servers recognize a client](../fingerprinting.md) first if
+> fingerprinting is new to you.
 
 ## At a glance
 
