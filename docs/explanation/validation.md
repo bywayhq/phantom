@@ -109,6 +109,14 @@ allocator is replaced process-wide, so a `CallbackState` owner that the ex-data
 destructor fails to free is reported whichever side allocated it. The workflow
 is advisory, not a required check.
 
+The job skips
+`http3::tests::adversarial::ninth_informational_response_fails_the_request`.
+That test bounds an informational flood with a five-second deadline, and
+instrumentation slows the flood enough that the deadline expires before the
+bound is reached, so it reports a timeout rather than a memory defect. It
+asserts a deadline rather than an allocation, and the uninstrumented
+workspace run covers it.
+
 Four callback-failure paths carry most of that FFI risk. A null `SSL_CIPHER`
 and a secret length that disagrees with the cipher are both rejected before any
 copy, and both have tests. A panic inside a callback is contained by
