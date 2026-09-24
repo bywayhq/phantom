@@ -3,6 +3,9 @@
 //! The crate captures protocol bytes without interpreting browser identity or
 //! providing production networking abstractions.
 
+/// A scripted loopback DNS responder that records queries.
+pub mod dns;
+
 /// Helpers for capturing an HTTP/2 client connection preface and initial frames.
 pub mod http2;
 
