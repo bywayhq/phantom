@@ -398,14 +398,18 @@ Supported WebSocket (`websocket` feature):
   The peer capability gate applies, with no route or H1 fallback.
 - Ordered, customizable handshakes, and Basic authentication to a forward
   proxy when it sends a challenge.
-- Typed opt-in `permessage-deflate` (`websocket-deflate` feature).
+- Typed opt-in `permessage-deflate` (`websocket-deflate` feature), including
+  the per-profile empty-message rule: Chrome 153 and Edge 153 compress a
+  zero-length message and set RSV1, Firefox 156 sends it with RSV1 clear.
 - Client cookies, bounded messages, `Stream`/`Sink`, and strict response
   validation for each protocol.
 - A profile WebSocket connection policy with Chrome 153/Edge 153 and Firefox
   156 recipes. Depending on the recipe, it reuses a capable H2 session or
   opens either an `http/1.1`-only Upgrade connection or a new H2 connection.
   It uses the captured CONNECT pseudo-header order, priority, field templates,
-  and deflate offers. See
+  and deflate offers. A recipe also carries what its client does when the peer
+  refuses the CONNECT stream: Chrome 153 and Edge 153 reopen once on the same
+  session, Firefox 156 reopens nothing. See
   [Profile connection policy](../guides/websocket.md#profile-connection-policy).
 
 Planned or not captured:
@@ -414,15 +418,27 @@ Planned or not captured:
   resend, after a reused H1 connection closes before a response, is already
   available as opt-in reused-connection replay.
 - SSE behavior over H2 and H3, on macOS, and in Safari is not yet captured.
-- Other WebSocket extensions, named compression and send policies, and
-  automatic reconnect.
+- Other WebSocket extensions, named send policies beyond the empty-message
+  rule, and automatic reconnect.
 - Remaining gaps in the WebSocket recipes: HPACK representation parity,
-  Firefox's stream `WINDOW_UPDATE` and empty-message RSV1, Chrome's
-  `REFUSED_STREAM` retry, and proxy captures. Retained Chrome 153, Edge 153,
-  and Firefox 156 Windows captures show that Chromium uses H2 WebSockets only
-  on an existing session that advertises the setting, while Firefox also
-  opens fresh H2 connections. Pseudo-header order, priority, deflate offer,
-  and send policy differ by family.
+  Firefox's stream `WINDOW_UPDATE`, and proxy captures. Retained Chrome 153,
+  Edge 153, and Firefox 156 Windows captures show that Chromium uses H2
+  WebSockets only on an existing session that advertises the setting, while
+  Firefox also opens fresh H2 connections. Pseudo-header order, priority,
+  deflate offer, and send policy differ by family.
+  - HPACK representation parity is blocked on the vendored `http2` encoder.
+    It chooses each field's representation, name index, and Huffman coding
+    internally from nghttp2-derived rules, and its dynamic table is
+    connection-wide, so a profile cannot ask for the captured choices. The
+    captures show Chrome and Edge sending `:method: CONNECT` as a literal
+    without indexing with an unencoded value, and Firefox sending it with
+    incremental indexing against the `:method: POST` name index; Phantom emits
+    incremental indexing against `:method: GET` for both. Closing this needs a
+    new entry in `vendor/http2/patches/series`.
+  - Firefox's stream `WINDOW_UPDATE` is visible in the captures, which show it
+    on every Firefox stream rather than only the CONNECT stream, so it belongs
+    to the HTTP/2 request path rather than to a WebSocket recipe.
+  - No capture records a WebSocket opened through a proxy.
 - WebSocket over HTTP/3. No shipping browser opens one by default:
   Chromium has the implementation but keeps
   `kEnableWebsocketsOverHttp3` disabled by default, with no

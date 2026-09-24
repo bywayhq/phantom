@@ -48,7 +48,8 @@ have shown where the real architectural boundaries are.
 - Exact H3 over RFC 9298 CONNECT-UDP proxies, over HTTP/3, HTTP/2, and
   HTTP/1.1 proxy legs, with Basic proxy authentication.
 - Named Chrome 153, Edge 153, and Firefox 156 H2 WebSocket recipes with a
-  profile connection policy.
+  profile connection policy, a per-profile empty-message compression rule, and
+  a per-profile `REFUSED_STREAM` reopening.
 
 ### Remaining
 
@@ -75,8 +76,10 @@ have shown where the real architectural boundaries are.
     fidelity regression rather than a packaging tradeoff.
 - Complete the remaining client and proxy-route work without adding direct or
   cross-protocol fallback.
-- Per-profile HPACK indexing, a per-message compression policy, and a
-  `REFUSED_STREAM` retry policy for WebSockets.
+- Per-profile HPACK indexing for WebSockets. The per-message compression
+  policy and the `REFUSED_STREAM` reopening are complete; indexing is blocked
+  on the vendored `http2` encoder, which chooses every representation
+  internally and keeps one dynamic table per connection.
 - Complete the remaining WebSocket protocol functionality before broad
   robustness work.
 - For H3 upgrade, UDP-capable proxying, and extended CONNECT, prove route and

@@ -145,8 +145,18 @@ network and peer allow. To bound it, wrap the `connect` future in
 
 A redirect or any other non-success response is returned through
 `WebSocketError::response`. Phantom never follows redirects, reconnects, sends
-heartbeats, or switches protocol for you. The only replay is the Basic
-proxy-authentication retry described under [Routes](#routes).
+heartbeats, or switches protocol for you.
+
+Two replays exist, and neither is caller policy. One is the Basic
+proxy-authentication retry described under [Routes](#routes). The other is the
+profile's refused-stream rule: when a recipe sets
+`WebSocketConnectionPolicy::refused_stream_retry` to `SameSessionOnce` and the
+peer answers the extended CONNECT with `RST_STREAM(REFUSED_STREAM)`, Phantom
+sends the same opening fields once more on that same session and the next
+stream. RFC 9113, section 8.7 makes the refusal proof that the peer processed
+nothing, and the opening fields are the only bytes written to the stream, so
+nothing already sent is replayed. A second refusal is returned, no other
+failure is reopened, and no other connection, route, or protocol is tried.
 
 ## Send and receive messages
 
@@ -342,6 +352,13 @@ captured extended-CONNECT pseudo-header order and a separate
 - Chrome: exclusive on stream 0 with weight 147, instead of 256.
 - Firefox: non-exclusive on stream 0 with weight 22, instead of 42.
 
+Each recipe also carries two behaviours the captures disagree on:
+
+| Recipe | Refused CONNECT stream | Empty message with deflate |
+| --- | --- | --- |
+| `chromium::v153_websocket` | Reopen once on the same session | Compressed, RSV1 set |
+| `firefox::v156_websocket` | Reported to the caller | Uncompressed, RSV1 clear |
+
 The recipes' H1 and H2 templates reproduce the captured field order,
 spelling, and fixed values. These fields are caller slots: `User-Agent`,
 `Origin`, `Accept-Encoding`, `Accept-Language`, and, for Firefox,
@@ -356,16 +373,14 @@ These recipes do not reproduce:
   entries 3 and 5; Phantom's encoder indexes both fields and uses entries 2
   and 4. Phantom also Huffman-codes every string, where Chrome sends shorter
   raw strings such as `CONNECT` and `13` literally, and it emits no leading
-  dynamic-table size update where Firefox does.
+  dynamic-table size update where Firefox does. The vendored `http2` encoder
+  decides all of this internally and keeps one dynamic table per connection,
+  so no profile setting can reach it; closing the gap needs a new entry in
+  that fork's patch series.
 - Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, its CONNECT on
   stream 3 of a new connection (Phantom uses stream 1), and the second H2
   connection it opens and closes when reusing a session.
-- Chrome's retry of the same fields on the next stream after
-  `RST_STREAM(REFUSED_STREAM)`, and its `RST_STREAM(CANCEL)` after a
-  rejection or an unoffered extension.
-- Firefox's uncompressed empty message. Phantom's send policy sets RSV1 on
-  every compressed message, as Chrome does. A per-message policy needs a
-  frame-engine patch.
+- Chrome's `RST_STREAM(CANCEL)` after a rejection or an unoffered extension.
 - Chrome's variable fragmentation of large uncompressed messages, its
   always-sent compression offer (Phantom offers only when enabled), and the
   cookie field position, which no capture shows.
@@ -385,7 +400,15 @@ direction, the local encoder cap, and the compression level.
 `WebSocket::negotiated_permessage_deflate` returns what the server selected.
 
 After negotiation, every text and binary message is compressed. Ping, Pong,
-and Close frames never are. Decompressed data counts against
+and Close frames never are.
+
+An empty message is the one case browsers disagree on, so
+`PerMessageDeflate::compress_empty_messages` selects the rule and a profile
+recipe supplies it through `WebSocketSettings::empty_message_compression`. On
+by default, a zero-length message is deflated into a one-byte frame with RSV1
+set, as Chrome 153 and Edge 153 do. Off, it is sent with RSV1 clear and an
+empty payload, as Firefox 156 does. Non-empty messages are compressed either
+way, so the encoder history is never skipped. Decompressed data counts against
 `WebSocketLimits::max_message_size` as it expands, so an oversized message
 stops early. If the two sides' compression state diverges, the connection
 ends rather than decoding later frames with a mismatched dictionary. Tracing
@@ -423,8 +446,8 @@ Windows captures listed in
 
 Still open:
 
-- Codec output parity and browser heuristics for which messages to compress.
-  Phantom compresses every text and binary message after negotiation.
+- Codec output parity, and browser heuristics beyond the empty-message rule
+  for which messages to compress.
 - Proxied WebSockets. No browser capture goes through a proxy, so a proxied
   profile-policy WebSocket follows the same rules without captured evidence
   for that route.
