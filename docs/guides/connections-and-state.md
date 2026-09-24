@@ -31,12 +31,48 @@ async fn in_background(client: &Client) -> Result<(), Box<dyn std::error::Error>
 
 - Clones share pools, cookies, learned hints, Alt-Svc state, and TLS
   tickets. Separately built clients share nothing.
-- H1 connections carry one request at a time, without pipelining. H2 and H3
+- H1 connections carry one request at a time, without pipelining; the
+  profile decides how many run in parallel
+  ([next task](#send-http11-requests-to-one-origin-in-parallel)). H2 and H3
   multiplex requests within the peer's limits and the client's own.
 - A pool key is the origin plus the complete route. Admission and retained
   connections are bounded per key
   ([Defaults and limits](../reference/limits.md#connection-pools)).
 - Dropping one H2 or H3 request cancels its stream, not unrelated work.
+
+## Send HTTP/1.1 requests to one origin in parallel
+
+Open several H1 connections to one origin, up to a browser's per-host limit,
+with the profile's `Http1Settings`.
+
+```rust
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{Client, HttpProtocol};
+
+async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
+    // Chromium keeps up to 6 H1 connections to each origin and route.
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http1(chromium::v154_http1());
+    let client = Client::builder(profile).build()?;
+
+    let first = client.get(HttpProtocol::Http1, "https://example.com/a")?.send();
+    let second = client.get(HttpProtocol::Http1, "https://example.com/b")?.send();
+    // Each request runs on its own connection.
+    let (first, second) = tokio::join!(first, second);
+    println!("{} {}", first?.status(), second?.status());
+    Ok(())
+}
+```
+
+- Idle connections count toward the bound. A request reuses the most
+  recently used idle connection before it opens another, and waits in
+  arrival order once the bound is reached.
+- Without `with_http1`, a client keeps one H1 connection per origin and
+  route and runs its requests one after another.
+  `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
+  profile's bound.
+- Negotiated requests keep one connection per origin whatever the profile
+  says ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 
 ## Follow redirects
 

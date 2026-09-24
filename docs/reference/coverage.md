@@ -31,8 +31,9 @@ Read the matrix with these conditions:
 
 - Every capture comes from one Windows 11 build (10.0.26200). No macOS or Linux
   capture of these builds exists, so platform independence is not claimed.
-- H1 has no settings of its own. Its captured part is the request field order
-  that request templates carry.
+- H1's captured part is the request field order that request templates
+  carry. Its connection bound (`Http1Settings`, 6 per origin and route) comes
+  from Chrome and Firefox source; Edge has no H1 connection recipe.
 - Edge's H2, QUIC, H3, and WebSocket layers use the Chromium recipes, which
   equal Edge's captures on every compared field.
 - Firefox's H2 recipe rests on H2 session captures, not on raw startup bytes.

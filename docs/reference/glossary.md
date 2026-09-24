@@ -77,6 +77,13 @@ of MASQUE. Phantom sends exact H3 through it, over an H3 proxy leg by default
 or over an explicitly selected H2 extended CONNECT or H1 Upgrade leg. See the
 [route matrix](route-matrix.md).
 
+## Connection bound
+
+The most H1 connections a client keeps open to one [pool key](#pool-key),
+idle ones included. Browsers cap it per host, and Phantom takes it from the
+profile's `Http1Settings`. See
+[HTTP/1.1 connections](profiles.md#http11-connections).
+
 ## Connection-setup retry
 
 A new connection attempt after a typed setup failure, before any request byte

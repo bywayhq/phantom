@@ -25,6 +25,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; no macOS or Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
+| [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
@@ -511,6 +512,55 @@ Limits:
   server-side field-trial configuration, so the source cannot rule out a
   trial that enables Happy Eyeballs v3 or a different fallback delay for some
   users.
+
+### HTTP/1.1 connection bound evidence
+
+What is claimed: `chromium::v154_http1` and `firefox::v156_http1` allow 6
+HTTP/1.1 connections to one origin and route, as those browsers do at the
+profiled release tags, and the client opens connections up to the profile's
+bound.
+
+Evidence: a capture of one page load cannot show a limit that the page never
+reached, so the recipes rest on browser source at Chromium tag
+`154.0.8037.58` and Firefox tag `FIREFOX_156_0_RELEASE`.
+
+| Recipe | Source behavior |
+| --- | --- |
+| `chromium::v154_http1` | The normal socket pool allows six sockets per group, `g_max_sockets_per_group` (`net/socket/client_socket_pool_manager.cc:46-58`). A group is one scheme, host, and port within the pool of one proxy chain (`net/socket/client_socket_pool.h:130-153`, `net/socket/client_socket_pool_manager_impl.h:48`), which Phantom keys as one origin and route. Idle, connecting, and in-use sockets all occupy a slot (`net/socket/transport_client_socket_pool.h:356-363`), and a request takes the most recently used idle socket before it opens another (`net/socket/transport_client_socket_pool.cc:530-560`). |
+| `firefox::v156_http1` | `network.http.max-persistent-connections-per-server` is 6 (`modules/libpref/init/all.js:1158-1161`). Firefox applies it to direct and CONNECT-tunneled connections and counts active connections together with those still connecting (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1150-1157`, `:1342-1378`; `netwerk/protocol/http/ConnectionEntry.cpp:284-292`). |
+
+Differences from the browsers:
+
+- Chromium also caps sockets at 256 per pool and 128 per proxy chain
+  (`net/socket/client_socket_pool_manager.cc:37-44`, `:60-66`), and allows
+  255 per group for WebSocket connections. Phantom does not model these caps.
+- Firefox counts idle connections separately and reuses them before it opens
+  another; Phantom counts them toward the bound. Firefox uses
+  `network.http.max-persistent-connections-per-proxy`, 32, for plaintext
+  requests forwarded through an HTTP proxy (`modules/libpref/init/all.js:1167-1170`),
+  where the recipe keeps 6, and lets urgent-start requests exceed the limit
+  by 3 (`modules/libpref/init/all.js:1163-1165`).
+- Edge's network-stack source is not public, so there is no Edge recipe.
+
+Loopback tests in `crates/phantom/tests/session_http1_parallel.rs`:
+
+| Test | What it proves |
+| --- | --- |
+| `concurrent_requests_open_connections_up_to_the_bound_then_wait` | `max_concurrent_http1_requests_per_origin` replaces the recipe's bound; requests open connections up to it, and a further request waits for a free connection |
+| `idle_connection_is_reused_before_another_opens` | A freed connection is reused before a new one opens |
+| `bound_is_counted_per_route_to_one_origin` | Each route to one origin has its own bound |
+| `named_recipe_opens_six_connections_to_one_origin` | Both recipes open six connections and hold a seventh request |
+| `profile_without_http1_policy_keeps_one_connection_per_origin` | A profile without `Http1Settings` keeps one connection |
+| `requests_cancelled_during_connection_setup_leave_the_full_bound` | Requests dropped while their connection is being set up do not use up the bound |
+
+How to reproduce: read the cited files at the tags above, and run the listed
+tests.
+
+Limits:
+
+- No capture confirms the limit or the reuse order.
+- The source was read at one tag per browser, so field-trial changes would
+  not be seen.
 
 ### Recorded coverage losses
 

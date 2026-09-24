@@ -8,9 +8,10 @@ template, and send client hints.
 A [profile](../reference/glossary.md#profile) decides what a server can
 observe about your client's connections: the TLS ClientHello, HTTP/2 SETTINGS
 and pseudo-header order, QUIC transport parameters, HTTP/3 settings, TCP
-socket options, and [client hints](../fingerprinting.md#client-hints). You
-build one from [recipes](../reference/glossary.md#recipe), most of them taken
-from browser [captures](../reference/glossary.md#capture). The fields of each
+socket options, HTTP/1.1 connection counts, and
+[client hints](../fingerprinting.md#client-hints). You build one from
+[recipes](../reference/glossary.md#recipe), most of them taken from browser
+[captures](../reference/glossary.md#capture). The fields of each
 request, such as `User-Agent`, come from a request template instead.
 
 ## Choose a built-in profile
@@ -29,8 +30,8 @@ fn profiles() -> [ClientProfile; 2] {
         .with_http2(firefox::v156_http2())
         .with_cookie_placement(firefox::v156_cookie_placement());
 
-    // Edge 153: its own TLS and client hints; its HTTP/1.1 bound, H2, QUIC,
-    // and H3 match the Chromium recipes.
+    // Edge 153: its own TLS and client hints; its H2, QUIC, and H3 match the
+    // Chromium recipes. It borrows Chromium's HTTP/1.1 connection bound.
     let edge = ClientProfile::new(edge::v153_tls())
         .with_http1(chromium::v154_http1())
         .with_http2(chromium::v154_http2())
@@ -53,6 +54,10 @@ fn profiles() -> [ClientProfile; 2] {
   recipe.
 - A request fails before any network I/O if the profile lacks a component it
   needs, such as HTTP/3 settings for an H3 request.
+- `with_http1` sets how many H1 connections the client keeps to each origin
+  and route. `chromium::v154_http1` and `firefox::v156_http1` allow 6, from
+  browser source; without `with_http1` the client keeps one
+  ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 - A `windows` in a recipe name records where it was captured. The runtime
   never branches on the host OS or the browser name
   ([Recipe names and platforms](../reference/profiles.md#recipe-names-and-platforms)).
@@ -181,6 +186,10 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
 - There is no Edge TCP recipe, and Firefox's keepalive schedule and address
   selection are not modeled
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
+- There is no Edge HTTP/1.1 connection recipe: no source or capture shows
+  Edge 153's value. Negotiated requests keep one connection per origin
+  whatever the profile says
+  ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 - Templates cover only address-bar navigations and same-origin no-store
   `fetch` GETs. Firefox templates have no HTTP/3 list and no hint slots
   ([template limits](../reference/profiles.md#template-limits)).

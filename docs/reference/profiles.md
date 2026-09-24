@@ -1,7 +1,8 @@
 # Profile reference
 
 Lookup tables for profile components, built-in recipes, TCP socket options,
-request templates, the template identity check, and client hints. For how to
+HTTP/1.1 connections, request templates, the template identity check, and
+client hints. For how to
 use them, see [Browser profiles](../guides/profiles.md).
 
 > For builders and specialists looking up a recipe or template detail.
@@ -12,6 +13,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | --- | --- |
 | `ClientProfile::new(tls)` | TLS ClientHello for H1 and H2 |
 | `with_tcp(settings)` | TCP socket options for every TCP connection |
+| `with_http1(settings)` | How many HTTP/1.1 connections to keep per origin and route |
 | `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, and pseudo-header order |
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
@@ -40,6 +42,9 @@ build that can be recaptured and reverified.
   a capture. `chromium::v154_tcp` and `firefox::v156_tcp` come from the
   browsers' source code at the profiled release tags
   ([TCP socket options](#tcp-socket-options)).
+- HTTP/1.1 connection recipes are not in the table either, for the same
+  reason. `chromium::v154_http1` and `firefox::v156_http1` come from browser
+  source ([HTTP/1.1 connections](#http11-connections)).
 - H2 WebSocket needs a captured pseudo-header order for extended CONNECT.
   Only `chromium::v154_http2` and `firefox::v156_http2` carry one
   ([Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does)).
@@ -93,6 +98,38 @@ resolved addresses.
 Phantom applies these settings exactly or fails; it never connects with
 options the profile did not ask for. Evidence:
 [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
+
+## HTTP/1.1 connections
+
+An HTTP/1.1 connection carries one request at a time, so a browser runs
+requests to one host in parallel over several connections, up to a fixed
+per-host limit. `Http1Settings::max_connections_per_origin` sets that limit
+for each origin and route.
+
+| Recipe | Connections per origin and route | Source |
+| --- | --- | --- |
+| None (no `with_http1`) | 1; requests run one after another | Not a browser value |
+| `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
+| `firefox::v156_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
+| Edge | Not covered | Edge 153's value has not been read from a source or a capture |
+
+- Idle connections, and connections still being established, count toward
+  the limit.
+- A request reuses the most recently used idle connection before it opens
+  another. Once the limit is reached, it waits in arrival order, up to the
+  waiter limit in [Defaults and limits](limits.md#connection-pools).
+- `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
+  profile's value.
+- Negotiated requests, which let ALPN choose between HTTP/1.1 and HTTP/2,
+  keep one connection per origin whatever the profile says.
+- Firefox allows 32 connections for plaintext requests forwarded through an
+  HTTP proxy, and 3 more for urgent-start requests; its recipe keeps 6 for
+  both. Firefox also leaves idle connections out of its count.
+- Chromium's caps across groups, 256 sockets per pool and 128 per proxy
+  chain, are not modeled.
+
+Each recipe's rustdoc cites the source lines. Evidence:
+[HTTP/1.1 connection bound evidence](../explanation/validation.md#http11-connection-bound-evidence).
 
 ## Request templates
 
