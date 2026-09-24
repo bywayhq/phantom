@@ -59,6 +59,8 @@ pub(crate) struct ClientOptions {
     pub(crate) retry_policy: RetryPolicy,
     pub(crate) request_timeouts: RequestTimeouts,
     pub(crate) max_retained_http1_connections: NonZeroUsize,
+    /// Replaces the profile's HTTP/1.1 connection bound when set.
+    pub(crate) max_concurrent_http1_requests_per_origin: Option<NonZeroUsize>,
     pub(crate) max_pending_http1_requests_per_origin: NonZeroUsize,
     pub(crate) max_retained_http2_connections: NonZeroUsize,
     pub(crate) max_concurrent_http2_requests_per_origin: NonZeroUsize,
@@ -80,6 +82,7 @@ impl Default for ClientOptions {
             retry_policy: RetryPolicy::none(),
             request_timeouts: RequestTimeouts::default(),
             max_retained_http1_connections: DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS,
+            max_concurrent_http1_requests_per_origin: None,
             max_pending_http1_requests_per_origin: DEFAULT_MAX_PENDING_HTTP1_REQUESTS_PER_ORIGIN,
             max_retained_http2_connections: DEFAULT_MAX_RETAINED_HTTP2_CONNECTIONS,
             max_concurrent_http2_requests_per_origin:
@@ -154,6 +157,8 @@ impl ClientOptions {
             request_timeouts: self.request_timeouts,
             http1: http1_pool::Http1Pool::new(
                 self.max_retained_http1_connections,
+                self.max_concurrent_http1_requests_per_origin
+                    .unwrap_or(inner.http1_connections_per_origin),
                 self.max_pending_http1_requests_per_origin,
             ),
             http1_or_2: http1_or_2_pool::Http1Or2Pool::new(
@@ -439,6 +444,10 @@ impl fmt::Debug for Client {
                 &self.state.http1.capacity(),
             )
             .field(
+                "max_concurrent_http1_requests_per_origin",
+                &self.state.http1.max_active(),
+            )
+            .field(
                 "max_pending_http1_requests_per_origin",
                 &self.state.http1.max_pending(),
             )
@@ -544,7 +553,18 @@ impl SessionBuilder {
         self
     }
 
-    /// Sets the number of sequential requests allowed to wait for each HTTP/1.1 origin and route.
+    /// Sets the local active-request bound for each HTTP/1.1 origin and route.
+    ///
+    /// Each active HTTP/1.1 request holds its own connection, so this is also
+    /// the most connections open at once to the pool key, idle ones included.
+    /// It replaces the profile's HTTP/1.1 connection bound for the new client.
+    #[must_use]
+    pub fn max_concurrent_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_concurrent_http1_requests_per_origin = Some(maximum);
+        self
+    }
+
+    /// Sets the number of requests allowed to wait for each HTTP/1.1 origin and route.
     #[must_use]
     pub fn max_pending_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_pending_http1_requests_per_origin = maximum;
@@ -666,6 +686,10 @@ impl fmt::Debug for SessionBuilder {
             .field(
                 "max_retained_http1_connections",
                 &self.options.max_retained_http1_connections,
+            )
+            .field(
+                "max_concurrent_http1_requests_per_origin",
+                &self.options.max_concurrent_http1_requests_per_origin,
             )
             .field(
                 "max_pending_http1_requests_per_origin",

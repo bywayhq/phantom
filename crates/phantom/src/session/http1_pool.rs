@@ -1,7 +1,7 @@
 use std::{
     collections::VecDeque,
     num::NonZeroUsize,
-    sync::{Arc, OnceLock},
+    sync::{Arc, MutexGuard, OnceLock, PoisonError},
 };
 
 use http::Method;
@@ -29,16 +29,29 @@ pub(crate) enum Http1ConnectionMode {
     Forward,
 }
 
+/// Exact HTTP/1.1 connections, grouped by origin and route.
+///
+/// Each pool key keeps up to `max_active` connections, idle ones included.
+/// A request first passes the key's admission, which lets at most
+/// `max_active` requests through and queues the rest in arrival order. It
+/// then takes the most recently used idle connection, or opens one when none
+/// is idle.
 pub(crate) struct Http1Pool {
     capacity: NonZeroUsize,
+    max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
     state: Mutex<PoolState>,
 }
 
 impl Http1Pool {
-    pub(super) fn new(capacity: NonZeroUsize, max_pending: NonZeroUsize) -> Self {
+    pub(super) fn new(
+        capacity: NonZeroUsize,
+        max_active: NonZeroUsize,
+        max_pending: NonZeroUsize,
+    ) -> Self {
         Self {
             capacity,
+            max_active,
             max_pending,
             state: Mutex::new(PoolState::default()),
         }
@@ -46,6 +59,10 @@ impl Http1Pool {
 
     pub(super) const fn capacity(&self) -> NonZeroUsize {
         self.capacity
+    }
+
+    pub(super) const fn max_active(&self) -> NonZeroUsize {
+        self.max_active
     }
 
     pub(super) const fn max_pending(&self) -> NonZeroUsize {
@@ -127,19 +144,20 @@ impl Http1Pool {
                 entry.admit(),
             )
             .await?;
-        let lease = acquire_with_retries(HttpProtocol::Http1, timeout_budget, retries, || async {
-            entry
-                .acquire(
-                    connector,
-                    https_proxy,
-                    endpoint,
-                    route,
-                    mode,
-                    forward_authorization || fresh_connection,
-                )
-                .await
-        })
-        .await?;
+        let mut lease =
+            acquire_with_retries(HttpProtocol::Http1, timeout_budget, retries, || async {
+                entry
+                    .acquire(
+                        connector,
+                        https_proxy,
+                        endpoint,
+                        route,
+                        mode,
+                        forward_authorization || fresh_connection,
+                    )
+                    .await
+            })
+            .await?;
         let result = timeout_budget
             .run(
                 TimeoutPhase::ResponseHead,
@@ -179,24 +197,31 @@ impl Http1Pool {
                     // A zero-length 407 may already have released its transport
                     // lease as reusable. Retire the generation before exposing
                     // the response so an authentication retry must reconnect.
-                    entry.invalidate(&lease.token).await;
+                    lease.retire();
                 }
                 let (parts, body) = response.into_parts();
                 Ok(http::Response::from_parts(
                     parts,
-                    ResponseBody::http1_with_guard(body, permit),
+                    ResponseBody::http1_with_guard(
+                        body,
+                        RequestGuard {
+                            _lease: lease,
+                            _permit: permit,
+                        },
+                    ),
                 ))
             }
             Ok(Err(error)) => {
+                // The lease drops before the permit, so the next admitted
+                // request finds a reusable connection idle.
+                drop(lease);
                 drop(permit);
-                if !lease.connection.is_reusable() {
-                    entry.invalidate(&lease.token).await;
-                }
                 Err(RequestError::http1(error.into()))
             }
             Err(error) => {
+                lease.retire();
+                drop(lease);
                 drop(permit);
-                entry.invalidate(&lease.token).await;
                 Err(error)
             }
         }
@@ -220,8 +245,8 @@ impl Http1Pool {
         }
         let admission = state
             .admissions
-            .get(&key, NonZeroUsize::MIN, self.max_pending);
-        let entry = Arc::new(PoolEntry::new(admission));
+            .get(&key, self.max_active, self.max_pending);
+        let entry = Arc::new(PoolEntry::new(admission, self.max_active));
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
@@ -253,16 +278,19 @@ impl PoolKey {
 }
 
 struct PoolEntry {
-    current: Mutex<Option<ConnectionSlot>>,
+    connections: Arc<EntryConnections>,
     admission: Arc<Admission>,
     connector: OnceLock<Http1TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
 }
 
 impl PoolEntry {
-    fn new(admission: Arc<Admission>) -> Self {
+    fn new(admission: Arc<Admission>, max_connections: NonZeroUsize) -> Self {
         Self {
-            current: Mutex::new(None),
+            connections: Arc::new(EntryConnections {
+                max: max_connections,
+                set: std::sync::Mutex::new(ConnectionSet::default()),
+            }),
             admission,
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
@@ -282,25 +310,16 @@ impl PoolEntry {
         mode: Http1ConnectionMode,
         force_new_connection: bool,
     ) -> Result<ConnectionLease, RequestError> {
-        let mut current = self.current.lock().await;
-        if !force_new_connection {
-            if let Some(slot) = current.as_ref()
-                && slot.connection.is_reusable()
-            {
+        let reservation = match self.connections.checkout(force_new_connection) {
+            Checkout::Idle(lease) => {
                 debug!(
                     outcome = "hit",
                     "HTTP/1 connection acquired from client pool"
                 );
-                return Ok(slot.lease());
+                return Ok(lease);
             }
-        } else if current.take().is_some() {
-            // Proxy-authentication and reused-connection replays both need a
-            // connection that has carried no earlier request.
-            debug!(
-                outcome = "authentication_retry",
-                "HTTP/1 pooled connection retired before a fresh-connection attempt"
-            );
-        }
+            Checkout::Reserved(reservation) => reservation,
+        };
 
         debug!(outcome = "connect", "HTTP/1 client pool opening connection");
         let connection = match mode {
@@ -443,91 +462,157 @@ impl PoolEntry {
                 }
             }
         };
-        let slot = ConnectionSlot {
-            connection,
-            token: Arc::new(()),
-        };
-        let lease = slot.lease();
-        *current = Some(slot);
-        Ok(lease)
+        Ok(reservation.into_lease(connection))
+    }
+}
+
+/// The connections of one pool key.
+///
+/// Admission lets at most `max` requests past it, and each holds at most one
+/// lease, so a request that finds no idle connection always has room to open
+/// one. A lease returns its connection before the request's admission permit
+/// is released.
+struct EntryConnections {
+    max: NonZeroUsize,
+    set: std::sync::Mutex<ConnectionSet>,
+}
+
+#[derive(Default)]
+struct ConnectionSet {
+    /// Connections with no request, least recently used first.
+    idle: Vec<Http1Connection>,
+    /// Connections leased to a request, and connections being opened.
+    leased: usize,
+}
+
+impl ConnectionSet {
+    fn open(&self) -> usize {
+        self.idle.len() + self.leased
+    }
+}
+
+enum Checkout {
+    /// An idle connection that has carried an earlier request.
+    Idle(ConnectionLease),
+    /// A slot for a connection the caller opens.
+    Reserved(Reservation),
+}
+
+impl EntryConnections {
+    fn lock(&self) -> MutexGuard<'_, ConnectionSet> {
+        self.set.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    async fn invalidate(&self, token: &Arc<()>) {
-        let mut current = self.current.lock().await;
-        if current
-            .as_ref()
-            .is_some_and(|slot| Arc::ptr_eq(&slot.token, token))
-        {
-            current.take();
-            debug!(
+    /// Leases the most recently used idle connection, or reserves a slot for a
+    /// new connection when none is idle or `force_new_connection` is set.
+    fn checkout(self: &Arc<Self>, force_new_connection: bool) -> Checkout {
+        let mut set = self.lock();
+        set.idle.retain(Http1Connection::is_reusable);
+        let idle = if force_new_connection {
+            if set.open() >= self.max.get() && !set.idle.is_empty() {
+                // Proxy-authentication and reused-connection replays both need
+                // a connection that has carried no earlier request. Close the
+                // least recently used idle one to stay within the bound.
+                set.idle.remove(0);
+                debug!(
+                    outcome = "authentication_retry",
+                    "HTTP/1 pooled connection retired before a fresh-connection attempt"
+                );
+            }
+            None
+        } else {
+            set.idle.pop()
+        };
+        set.leased += 1;
+        let reservation = Reservation {
+            connections: Arc::clone(self),
+            released: false,
+        };
+        match idle {
+            Some(connection) => Checkout::Idle(reservation.into_lease(connection)),
+            None => Checkout::Reserved(reservation),
+        }
+    }
+
+    /// Frees one leased slot, keeping `connection` idle when it is reusable.
+    fn release(&self, connection: Option<Http1Connection>) {
+        let mut set = self.lock();
+        set.leased = set.leased.saturating_sub(1);
+        match connection {
+            Some(connection) if connection.is_reusable() => set.idle.push(connection),
+            _ => debug!(
                 outcome = "invalidated",
                 "HTTP/1 pooled connection invalidated"
-            );
+            ),
         }
+    }
+
+    #[cfg(test)]
+    fn open(&self) -> usize {
+        self.lock().open()
     }
 }
 
-struct ConnectionSlot {
-    connection: Http1Connection,
-    token: Arc<()>,
+/// A slot counted against the pool key's bound before its connection exists.
+///
+/// Dropping it, for example when connection setup fails or the request is
+/// cancelled, frees the slot.
+struct Reservation {
+    connections: Arc<EntryConnections>,
+    released: bool,
 }
 
-impl ConnectionSlot {
-    fn lease(&self) -> ConnectionLease {
+impl Reservation {
+    fn into_lease(self, connection: Http1Connection) -> ConnectionLease {
         ConnectionLease {
-            connection: self.connection.clone(),
-            token: Arc::clone(&self.token),
+            reservation: self,
+            connection,
+            retired: false,
         }
     }
 }
 
+impl Drop for Reservation {
+    fn drop(&mut self) {
+        if !self.released {
+            self.connections.release(None);
+        }
+    }
+}
+
+/// One request's hold on a pool-key connection.
+///
+/// Dropping it returns a still-reusable connection to the idle list unless it
+/// was retired.
 struct ConnectionLease {
+    reservation: Reservation,
     connection: Http1Connection,
-    token: Arc<()>,
+    retired: bool,
+}
+
+impl ConnectionLease {
+    /// Keeps this connection from serving another request.
+    fn retire(&mut self) {
+        self.retired = true;
+    }
+}
+
+impl Drop for ConnectionLease {
+    fn drop(&mut self) {
+        let connection = (!self.retired).then(|| self.connection.clone());
+        self.reservation.connections.release(connection);
+        self.reservation.released = true;
+    }
+}
+
+/// Held by a response body until it completes or is dropped.
+///
+/// Fields drop in declaration order, so the connection returns to the idle
+/// list before the admission permit lets the next request in.
+struct RequestGuard {
+    _lease: ConnectionLease,
+    _permit: AdmissionPermit,
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{num::NonZeroUsize, sync::Arc};
-
-    use super::{Http1ConnectionMode, Http1Pool, PoolKey};
-    use crate::{Route, authority::Endpoint};
-
-    #[tokio::test]
-    async fn per_origin_admission_survives_lru_eviction() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let one = NonZeroUsize::MIN;
-        let pool = Http1Pool::new(one, one);
-        let first = Endpoint::new("first.test:443".parse()?, 443)?;
-        let second = Endpoint::new("second.test:443".parse()?, 443)?;
-
-        let first_entry = pool
-            .entry(PoolKey::new(
-                &first,
-                &Route::Direct,
-                Http1ConnectionMode::TlsOrigin,
-            ))
-            .await;
-        let permit = first_entry.admit().await?;
-        pool.entry(PoolKey::new(
-            &second,
-            &Route::Direct,
-            Http1ConnectionMode::TlsOrigin,
-        ))
-        .await;
-        drop(first_entry);
-        let replacement = pool
-            .entry(PoolKey::new(
-                &first,
-                &Route::Direct,
-                Http1ConnectionMode::TlsOrigin,
-            ))
-            .await;
-
-        assert!(Arc::ptr_eq(permit.admission(), &replacement.admission));
-        assert_eq!(replacement.admission.available_active(), 0);
-        drop(permit);
-        assert_eq!(replacement.admission.available_active(), 1);
-        Ok(())
-    }
-}
+mod tests;

@@ -164,11 +164,11 @@ pub mod profile {
     pub use phantom_profile::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientFamily, ClientHelloExtension,
         ClientHelloExtensionOrder, ClientHint, ClientHintDelivery, ClientHintSettings,
-        ClientProfile, CookiePlacement, EchGreaseAead, EmptyClientVersion, Http2Priority,
-        Http2PseudoHeader, Http2Setting, Http2Settings, Http3ClientSettings, Http3PseudoHeader,
-        Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings, Http3Setting,
-        Http3SettingOrder, Http3Settings, InvalidClientHintSettings, InvalidHttp2Settings,
-        InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProfileId,
+        ClientProfile, CookiePlacement, EchGreaseAead, EmptyClientVersion, Http1Settings,
+        Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, Http3ClientSettings,
+        Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
+        Http3Setting, Http3SettingOrder, Http3Settings, InvalidClientHintSettings,
+        InvalidHttp2Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProfileId,
         InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
         NamedGroup, Platform, ProductVersion, ProfileId, ProfileMetadata, RequestField,
         RequestIdentity, RequestTemplate, SignatureScheme, TcpAddressRacing, TcpKeepalive,
@@ -179,16 +179,17 @@ pub mod profile {
     /// Chromium-family recipes implemented by the public facade.
     pub mod chromium {
         pub use phantom_profile::chromium::{
-            v154_cookie_placement, v154_http2, v154_http3, v154_http3_request, v154_http3_tls,
-            v154_quic, v154_tcp, v154_tls, v154_websocket, v154_windows_client_hints,
-            v154_windows_fetch_no_store_template, v154_windows_navigation_template,
+            v154_cookie_placement, v154_http1, v154_http2, v154_http3, v154_http3_request,
+            v154_http3_tls, v154_quic, v154_tcp, v154_tls, v154_websocket,
+            v154_windows_client_hints, v154_windows_fetch_no_store_template,
+            v154_windows_navigation_template,
         };
     }
 
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
         pub use phantom_profile::firefox::{
-            v156_cookie_placement, v156_http2, v156_tcp, v156_tls, v156_websocket,
+            v156_cookie_placement, v156_http1, v156_http2, v156_tcp, v156_tls, v156_websocket,
             v156_windows_fetch_no_store_template, v156_windows_navigation_template,
         };
     }

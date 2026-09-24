@@ -65,6 +65,8 @@ pub(crate) struct ClientInner {
     pub(crate) connect_udp_proxy: Option<ConnectUdpConnectors>,
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
     pub(crate) client_hints: Option<ClientHintSettings>,
+    /// The profile's HTTP/1.1 connection bound per origin and route.
+    pub(crate) http1_connections_per_origin: NonZeroUsize,
     /// Profile position of the jar's `Cookie` field.
     #[cfg(feature = "cookies")]
     pub(crate) cookie_placement: CookiePlacement,
@@ -286,6 +288,10 @@ impl fmt::Debug for ClientBuilder {
                 &self.options.max_retained_http1_connections,
             )
             .field(
+                "max_concurrent_http1_requests_per_origin",
+                &self.options.max_concurrent_http1_requests_per_origin,
+            )
+            .field(
                 "max_pending_http1_requests_per_origin",
                 &self.options.max_pending_http1_requests_per_origin,
             )
@@ -426,7 +432,21 @@ impl ClientBuilder {
         self
     }
 
-    /// Sets the number of sequential requests allowed to wait per HTTP/1.1 pool key.
+    /// Sets the local active-request bound for each HTTP/1.1 pool key.
+    ///
+    /// Each active HTTP/1.1 request holds its own connection, so this is also
+    /// the most connections open at once to the pool key, idle ones included.
+    /// It replaces the profile's [`Http1Settings`] bound. Without either, the
+    /// bound is one connection.
+    ///
+    /// [`Http1Settings`]: crate::profile::Http1Settings
+    #[must_use]
+    pub fn max_concurrent_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_concurrent_http1_requests_per_origin = Some(maximum);
+        self
+    }
+
+    /// Sets the number of requests allowed to wait per HTTP/1.1 pool key.
     #[must_use]
     pub fn max_pending_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_pending_http1_requests_per_origin = maximum;
@@ -768,6 +788,10 @@ impl ClientBuilder {
             connect_udp_proxy,
             https_proxy,
             client_hints,
+            http1_connections_per_origin: self
+                .profile
+                .http1()
+                .map_or(NonZeroUsize::MIN, |http1| http1.max_connections_per_origin),
             #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
