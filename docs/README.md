@@ -1,49 +1,28 @@
 # Phantom documentation
 
-## What Phantom does
+Phantom is a Rust HTTP client that reproduces a chosen browser's network
+fingerprint; [How servers recognize a client](fingerprinting.md) explains what
+that means. This index lists every page by what you want to do.
 
-A server can tell HTTP clients apart without trusting any header value. It
-also sees the TLS handshake, the HTTP/2 settings, and the order of the fields.
-Those details differ between Chrome, Firefox, curl, and a Rust library, and
-together they form the client's fingerprint.
+> For anyone looking for a page. New readers start at the top.
 
-Phantom lets you choose that fingerprint. You pick a browser profile, and
-Phantom reproduces the layers its recipes cover. Most recipes come from
-recordings of a real browser and are compared with them in tests.
+## Start here
 
-These terms appear throughout the documentation:
-
-| Term | Meaning |
-| --- | --- |
-| Profile | Everything a server can observe about how the client connects |
-| Recipe | A ready-made part of a profile, such as `chromium::v154_tls()`. Most come from browser captures; TCP recipes come from browser source |
-| Capture | A recording of a real browser's traffic that a recipe is compared with |
-| H1, H2, H3 | HTTP/1.1, HTTP/2, and HTTP/3 |
-| Route | How the client reaches a server: directly or through a proxy |
-
-## Where to start
-
-- To try Phantom, read [Getting started](getting-started.md), then
-  [Using the client](guides/client.md).
-- To decide whether Phantom fits, read [Coverage](reference/coverage.md) for
-  what works today and [Validation](explanation/validation.md) for the
-  evidence behind it.
-- To look up an API, build the rustdoc of the `phantom-http` crate with
-  `cargo doc -p phantom-http --all-features --no-deps --open`.
-
-## Learn
-
+- [How servers recognize a client](fingerprinting.md): how a server tells
+  clients apart without reading headers.
+- [Why Phantom](why-phantom.md): when Phantom fits, when it does not, and how
+  it compares with other clients.
 - [Getting started](getting-started.md): build Phantom and send your first
   request.
 
-## Guides
+## Build
 
-Task-focused pages for using Phantom in an application.
+Task guides for using Phantom in an application.
 
-- [Using the client](guides/client.md): profiles, clients, protocols, bodies,
+- [Using the client](guides/client.md): clients, protocols, bodies,
   trailers, timeouts, responses, and errors.
-- [Browser profiles](guides/profiles.md): built-in recipes, custom profiles,
-  and client hints.
+- [Browser profiles](guides/profiles.md): built-in recipes, request
+  templates, custom profiles, and client hints.
 - [Routes and proxies](guides/routes-and-proxies.md): HTTP, SOCKS5, and
   CONNECT-UDP proxies, authentication, and trust roots.
 - [Retries and replays](guides/retries.md): when Phantom may send a request
@@ -61,31 +40,36 @@ Task-focused pages for using Phantom in an application.
   dependencies, and why another crate cannot swap out Phantom's patched
   dependencies.
 
-## Reference
+## Look up
 
-- [Coverage](reference/coverage.md): the detailed support contract, layer by
-  layer, with planned work.
-- [Route matrix](reference/route-matrix.md): every scheme, protocol, and route
-  combination.
-- [Defaults and limits](reference/limits.md): default bounds and off-by-default
-  policies.
+- [Coverage](reference/coverage.md): the support contract, layer by layer,
+  with planned work.
+- [Profiles](reference/profiles.md): every built-in recipe and what it
+  covers.
+- [Route matrix](reference/route-matrix.md): every scheme, protocol, and
+  route combination.
+- [Defaults and limits](reference/limits.md): default bounds and
+  off-by-default policies.
+- [Glossary](reference/glossary.md): the terms these pages use.
+- API reference: run `cargo doc -p phantom-http --all-features --no-deps
+  --open` in a checkout.
 
-## Explanation
+## Understand the evidence
 
+- [Validation](explanation/validation.md): how each claim is proved, and the
+  captures and tests behind it.
 - [Design](explanation/design.md): principles, ownership, and safety
   boundaries.
-- [Validation](explanation/validation.md): how claims are proved, and the
-  evidence behind each feature.
 
-## Project
+## Contribute
 
-- [Roadmap](roadmap.md): current and planned phases.
-- [Contributing](../CONTRIBUTING.md): setup, change discipline, gates, and pull
-  requests.
-- [Security policy](../SECURITY.md): how to report a vulnerability.
-
-## Internals (for contributors)
-
+- [Contributing](../CONTRIBUTING.md): setup, change discipline, checks, and
+  pull requests.
+- [Roadmap](roadmap.md): what comes next.
+- [Writing the documentation](internals/documentation.md): readers, page
+  types, and prose rules for these pages.
+- [Browser recipes](internals/browser-recipes.md): how a browser recipe is
+  captured and added.
 - [HTTP/3 internals](internals/http3.md): QUIC, QPACK, CONNECT-UDP, capture,
   and diagnostics.
 - [Vendored forks](internals/vendoring.md): patched dependencies and
@@ -94,18 +78,19 @@ Task-focused pages for using Phantom in an application.
   browser captures.
 - [Development helpers](../scripts/dev/README.md): the shared Cargo lock and
   parallel worktree lanes.
+- [Security policy](../SECURITY.md): how to report a vulnerability.
 
-## Writing rules
-
-- Guides describe behavior that exists today and lead with a usable path.
-- Design defines stable invariants, not usage steps.
-- Coverage is the single detailed support contract.
-- Validation explains how claims are proved, not what the product promises.
-- Internals contain specialist detail that would distract most readers.
-- Planned work appears in the roadmap or the planned lists of coverage.
-- Content is linked rather than repeated.
-- Rust examples in `README.md`, `getting-started.md`, and every guide compile
-  as doctests.
-
-Reproducible bugs use the repository's
+Report a reproducible bug with the
 [bug-report form](https://github.com/bywayhq/phantom/issues/new?template=bug_report.yml).
+
+## For coding agents
+
+- [`llms.txt`](../llms.txt): what an agent must do and never do with
+  Phantom's API, with links to the pages above.
+
+## Next
+
+- [How servers recognize a client](fingerprinting.md): the place to start if
+  fingerprinting is new to you.
+- [Getting started](getting-started.md): the fastest path to a working
+  request.
