@@ -1105,7 +1105,12 @@ Further observations:
 
 - Chromium sends no `sec-websocket-key`, fetch metadata, or client hints on
   H2 CONNECT. Its HPACK encoder sends `:method`, `:path`, and `:protocol`
-  without indexing.
+  without indexing, names a repeated static entry with the lower index, and
+  Huffman-codes a literal string only when that shortens it. Across the 27
+  retained WebSocket captures, all 774 Chrome and Edge coding decisions follow
+  that rule and all 831 Firefox decisions follow the weaker one, coding
+  whenever the result is no longer; the two differ only on the 105 and 135
+  ties, such as `CONNECT`, `13`, `*/*`, `?0`, `?1`, and `1`.
 - Firefox H2 CONNECT adds fetch metadata (and `sec-fetch-storage-access` from
   a cross-site page) and follows it with a stream `WINDOW_UPDATE`.
 - Both browsers compress a 64 KiB random message even though the output

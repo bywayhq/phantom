@@ -375,17 +375,18 @@ spelling, and fixed values. These fields are caller slots: `User-Agent`,
 retained capture against the recipes, and loopback tests compare Phantom's
 emitted CONNECT HEADERS and H1 openings with the captures.
 
+Each recipe also states its HPACK encoder identity in
+[`Http2Settings::hpack`](https://docs.rs/phantom-http/latest/phantom/profile/struct.Http2Settings.html),
+so the emitted CONNECT block matches the capture's representation, static name
+index, and Huffman flags for every pseudo-field. Chrome and Edge keep
+`:method` and `:protocol` out of the dynamic table, name repeated static
+entries with the lower index, and Huffman-code only what the coding shortens,
+so `CONNECT` and `13` go raw. Firefox indexes both fields incrementally, names
+them with entries 3 and 5, and codes whatever the coding does not lengthen.
+
 These recipes do not reproduce:
 
-- HPACK representations of `:method CONNECT` and `:protocol`. Chrome sends
-  both without indexing, and Firefox names `:method` and `:path` with static
-  entries 3 and 5; Phantom's encoder indexes both fields and uses entries 2
-  and 4. Phantom also Huffman-codes every string, where Chrome sends shorter
-  raw strings such as `CONNECT` and `13` literally, and it emits no leading
-  dynamic-table size update where Firefox does. The vendored `http2` encoder
-  decides all of this internally and keeps one dynamic table per connection,
-  so no profile setting can reach it; closing the gap needs a new entry in
-  that fork's patch series.
+- Firefox's leading dynamic-table size update.
 - Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, its CONNECT on
   stream 3 of a new connection (Phantom uses stream 1), and the second H2
   connection it opens and closes when reusing a session.

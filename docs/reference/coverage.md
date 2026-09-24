@@ -42,7 +42,7 @@ connection is not enough.
 | TCP | Profile `TCP_NODELAY`, keepalive, and Chromium Happy Eyeballs from browser source, on every TCP path | Firefox keepalive and address selection |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse | Parallel connection policy |
-| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT | HPACK representation parity for extended CONNECT |
+| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity | Dynamic-table size updates |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
@@ -150,6 +150,12 @@ Supported:
 - Per-request HEADERS overrides. An extended CONNECT stream on a pooled
   session carries the profile's pseudo-header order and priority, while
   ordinary streams keep theirs.
+- A profile HPACK encoder identity: which pseudo-headers stay out of the
+  dynamic table, which static entry names a repeated name, and when a literal
+  string is Huffman-coded. An HPACK encoder holds these for the life of a
+  connection, so they apply to every field block it sends, ordinary requests
+  included, and not only to extended CONNECT. A profile that states none of
+  them keeps the encoder's own behavior.
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
 - Opt-in typed connection-setup retries before dispatch.
@@ -163,7 +169,7 @@ Supported:
 Planned:
 
 - Broader retry classes.
-- Per-profile HPACK representations for extended CONNECT.
+- Per-profile leading dynamic-table size updates.
 - Captured extended CONNECT behavior through proxies.
 
 ## QUIC
@@ -436,21 +442,20 @@ Planned or not captured:
 - SSE behavior over H2 and H3, on macOS, and in Safari is not yet captured.
 - Other WebSocket extensions, named send policies beyond the empty-message
   rule, and automatic reconnect.
-- Remaining gaps in the WebSocket recipes: HPACK representation parity,
-  Firefox's stream `WINDOW_UPDATE`, and proxy captures. Retained Chrome 154,
-  Edge 153, and Firefox 156 Windows captures show that Chromium uses H2
-  WebSockets only on an existing session that advertises the setting, while
-  Firefox also opens fresh H2 connections. Pseudo-header order, priority,
-  deflate offer, and send policy differ by family.
-  - HPACK representation parity is blocked on the vendored `http2` encoder.
-    It chooses each field's representation, name index, and Huffman coding
-    internally from nghttp2-derived rules, and its dynamic table is
-    connection-wide, so a profile cannot ask for the captured choices. The
-    captures show Chrome and Edge sending `:method: CONNECT` as a literal
-    without indexing with an unencoded value, and Firefox sending it with
-    incremental indexing against the `:method: POST` name index; Phantom emits
-    incremental indexing against `:method: GET` for both. Closing this needs a
-    new entry in `vendor/http2/patches/series`.
+- Remaining gaps in the WebSocket recipes: Firefox's leading dynamic-table
+  size update, Firefox's stream `WINDOW_UPDATE`, and proxy captures. Retained
+  Chrome 154, Edge 153, and Firefox 156 Windows captures show that Chromium
+  uses H2 WebSockets only on an existing session that advertises the setting,
+  while Firefox also opens fresh H2 connections. Pseudo-header order,
+  priority, deflate offer, send policy, and HPACK encoder identity differ by
+  family.
+  - HPACK representation parity is reached through
+    `Http2Settings::hpack`, which states the three encoder choices RFC 7541
+    leaves open: which pseudo-headers stay out of the dynamic table, which
+    static entry names a repeated name, and when a literal string is
+    Huffman-coded. `crates/phantom/tests/websocket_profile.rs` compares every
+    emitted CONNECT pseudo-field with the capture's `repr`, static `index`,
+    `name_huffman`, and `value_huffman`.
   - Firefox's stream `WINDOW_UPDATE` is visible in the captures, which show it
     on every Firefox stream rather than only the CONNECT stream, so it belongs
     to the HTTP/2 request path rather than to a WebSocket recipe.
