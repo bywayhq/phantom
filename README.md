@@ -11,7 +11,7 @@ explains each signal in a few minutes of reading.
 
 Phantom reproduces those layers from recordings of real browsers, and tests
 compare its output with the recordings. It never falls back to another
-protocol or route without telling you. Phantom is maintained by
+protocol or route. Phantom is maintained by
 [Byway](https://github.com/bywayhq).
 
 > Phantom is experimental and pre-1.0. It is not on crates.io, and its API can
@@ -24,13 +24,13 @@ protocol or route without telling you. Phantom is maintained by
 | --- | --- | --- | --- |
 | TLS ClientHello | Yes | Yes | Yes |
 | HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes |
-| QUIC and HTTP/3 | Yes | Yes | No capture |
+| QUIC and HTTP/3 | Yes | Yes | Not covered |
 | Client hints | Yes | Yes | Not sent by Firefox |
 | Navigation and `fetch` request templates | Yes | Yes | Yes |
 | WebSocket openings | Yes | Yes | Yes |
-| TCP socket options, from browser source | Yes | No source | Yes |
+| TCP socket options, from browser source | Yes | Not covered | Partial: `TCP_NODELAY` only |
 
-Every recipe comes from Windows 11 captures of one build per browser.
+Every captured recipe comes from Windows 11 captures of one build per browser.
 [Coverage](docs/reference/coverage.md) is the full support contract, and
 [Validation](docs/explanation/validation.md) lists the evidence for each row.
 
@@ -83,7 +83,9 @@ I/O and timers enabled.
 phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
 ```
 
-Pin an exact commit, `a84e73c` or later. The minimum supported Rust version
+Pin an exact commit, `be02e93` or later; earlier commits lack the Chrome 154
+recipes used on this page. The documentation describes the commit it ships
+with. The minimum supported Rust version
 is 1.88; development uses the toolchain in `rust-toolchain.toml`. Phantom
 builds BoringSSL from source, so the build needs Git, CMake, Clang, and a
 C++ toolchain; see [Prerequisites](docs/getting-started.md#prerequisites).
@@ -100,8 +102,8 @@ No Cargo feature is enabled by default:
 
 ## What Phantom is not
 
-Phantom shapes network traffic only. It is not a browser: it does not run
-JavaScript or produce DOM, canvas, font, WebRTC, or device signals. Optional
+Phantom shapes network traffic only and is not a browser;
+[Coverage](docs/reference/coverage.md#at-a-glance) lists what it leaves out. Optional
 behavior such as redirects, retries, timeouts, cookies, and decompression
 stays off until you turn it on. [Why Phantom](docs/why-phantom.md#when-not-to-use-phantom)
 lists the cases where another tool fits better.
