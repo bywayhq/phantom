@@ -44,8 +44,18 @@ impl PerMessageDeflateOfferParameter {
 
 /// Client policy for the RFC 7692 `permessage-deflate` extension.
 ///
-/// The default offer is `permessage-deflate; client_max_window_bits`, and
-/// every outgoing message is compressed once the server accepts the offer.
+/// Compression is off until
+/// [`WebSocketRequestBuilder::permessage_deflate`][enable] supplies a policy.
+/// The default policy offers
+/// `permessage-deflate; client_max_window_bits`, caps the local encoder
+/// window at 15 bits, uses compression level 6, and compresses empty
+/// messages. Every outgoing message is compressed once the server accepts
+/// the offer.
+///
+/// Every fallible method returns [`WebSocketError`] with kind
+/// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest).
+///
+/// [enable]: crate::WebSocketRequestBuilder::permessage_deflate
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PerMessageDeflate {
     offer_parameters: Vec<PerMessageDeflateOfferParameter>,
@@ -74,8 +84,10 @@ impl PerMessageDeflate {
     ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] when the profile offer is invalid or
-    /// contains a parameter this client does not support.
+    /// Returns [`WebSocketError`] with kind
+    /// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest)
+    /// when the profile offer is invalid or contains a parameter or
+    /// empty-message rule this client does not support.
     pub fn from_profile(settings: &WebSocketSettings) -> Result<Self, WebSocketError> {
         let mut parameters = Vec::with_capacity(settings.permessage_deflate_offer.len());
         for parameter in &settings.permessage_deflate_offer {
@@ -139,8 +151,10 @@ impl PerMessageDeflate {
     ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] for a duplicate parameter, too many
-    /// parameters, or an invalid window width.
+    /// Returns [`WebSocketError`] with kind
+    /// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest)
+    /// for a duplicate parameter, more than four parameters, or a window width
+    /// outside 8 to 15.
     pub fn offer_parameters(
         mut self,
         parameters: impl IntoIterator<Item = PerMessageDeflateOfferParameter>,
@@ -179,9 +193,13 @@ impl PerMessageDeflate {
 
     /// Sets the maximum server encoder window, from 8 through 15 bits.
     ///
+    /// The default offer has no `server_max_window_bits` parameter.
+    ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] when `bits` is outside the RFC 7692 range.
+    /// Returns [`WebSocketError`] with kind
+    /// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest)
+    /// when `bits` is outside the RFC 7692 range.
     pub fn server_max_window_bits(mut self, bits: u8) -> Result<Self, WebSocketError> {
         validate_window_bits(bits)?;
         self.set_parameter(
@@ -193,12 +211,14 @@ impl PerMessageDeflate {
 
     /// Sets the local client encoder cap, from 8 through 15 bits.
     ///
-    /// The default bare offer parameter remains unchanged. Use
+    /// The default is 15. The bare offer parameter remains unchanged. Use
     /// [`Self::offer_parameters`] to attach a value to the wire offer.
     ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] when `bits` is outside the RFC 7692 range.
+    /// Returns [`WebSocketError`] with kind
+    /// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest)
+    /// when `bits` is outside the RFC 7692 range.
     pub fn client_max_window_bits(mut self, bits: u8) -> Result<Self, WebSocketError> {
         validate_window_bits(bits)?;
         self.client_max_window_bits = bits;
@@ -207,9 +227,13 @@ impl PerMessageDeflate {
 
     /// Sets the DEFLATE compression level from 0 through 9.
     ///
+    /// The default is 6. The level is not part of the offer.
+    ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] when `level` is outside the codec range.
+    /// Returns [`WebSocketError`] with kind
+    /// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest)
+    /// when `level` is above 9.
     pub fn compression_level(mut self, level: u8) -> Result<Self, WebSocketError> {
         if level > 9 {
             return Err(WebSocketError::invalid_request(

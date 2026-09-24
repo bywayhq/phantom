@@ -30,6 +30,27 @@ use super::{
 /// Close replies are flushed before their event is returned. Dropping this
 /// value closes the transport immediately; use [`WebSocket::close`] to send a
 /// graceful Close frame first.
+///
+/// Phantom never reconnects a WebSocket or sends heartbeats. Once
+/// [`WebSocket::receive`] reports the end of the connection or a transport or
+/// framing error, every later operation fails with
+/// [`WebSocketErrorKind::Closed`](crate::WebSocketErrorKind::Closed).
+/// `WebSocket` also implements `Stream` and `Sink`.
+///
+/// # Examples
+///
+/// ```no_run
+/// use phantom::{Client, WebSocketMessage};
+///
+/// async fn echo(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+///     let mut socket = client.websocket("wss://example.com/events")?.connect().await?;
+///
+///     socket.send(WebSocketMessage::Text("hello".into())).await?;
+///     println!("{:?}", socket.receive().await?);
+///     socket.close(None).await?;
+///     Ok(())
+/// }
+/// ```
 pub struct WebSocket {
     socket: Option<WebSocketStream<WebSocketIo>>,
     handshake: Response<()>,
@@ -180,6 +201,23 @@ impl WebSocket {
     ///
     /// A cancelled send has the usual asynchronous write ambiguity; callers
     /// must not retry it blindly. Payloads are never included in tracing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WebSocketError`] with kind:
+    ///
+    /// - [`WebSocketErrorKind::Capacity`](crate::WebSocketErrorKind::Capacity)
+    ///   when a text or binary message exceeds
+    ///   [`WebSocketLimits::max_message_size`], a Ping or Pong payload exceeds
+    ///   125 bytes, or the write buffer is full; an oversized message is
+    ///   rejected before any byte is written;
+    /// - [`WebSocketErrorKind::Closed`](crate::WebSocketErrorKind::Closed)
+    ///   after the connection has closed or failed;
+    /// - [`WebSocketErrorKind::Io`](crate::WebSocketErrorKind::Io) when
+    ///   writing to the transport fails;
+    /// - [`WebSocketErrorKind::Protocol`](crate::WebSocketErrorKind::Protocol)
+    ///   for a send the framing rules forbid, such as data after a Close
+    ///   frame.
     pub async fn send(&mut self, message: WebSocketMessage) -> Result<(), WebSocketError> {
         let kind = message.trace_kind();
         let bytes = message.payload_len();
@@ -223,6 +261,23 @@ impl WebSocket {
     /// This operation is cancellation-safe: cancelling it before completion
     /// does not discard a message. An automatic Pong or Close reply is flushed
     /// before the corresponding event is returned.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WebSocketError`] with kind:
+    ///
+    /// - [`WebSocketErrorKind::Capacity`](crate::WebSocketErrorKind::Capacity)
+    ///   when an incoming frame, message, or fragment count exceeds
+    ///   [`WebSocketLimits`];
+    /// - [`WebSocketErrorKind::Protocol`](crate::WebSocketErrorKind::Protocol)
+    ///   or [`WebSocketErrorKind::InvalidUtf8`](crate::WebSocketErrorKind::InvalidUtf8)
+    ///   when the peer breaks a framing rule or sends invalid UTF-8 text;
+    /// - [`WebSocketErrorKind::AbnormalClosure`](crate::WebSocketErrorKind::AbnormalClosure)
+    ///   when the peer ends the transport without a Close handshake;
+    /// - [`WebSocketErrorKind::Io`](crate::WebSocketErrorKind::Io) when
+    ///   reading from or writing a reply to the transport fails;
+    /// - [`WebSocketErrorKind::Closed`](crate::WebSocketErrorKind::Closed)
+    ///   when the connection has already ended.
     pub async fn receive(&mut self) -> Result<WebSocketMessage, WebSocketError> {
         let span = debug_span!(
             "websocket.receive",
@@ -251,6 +306,10 @@ impl WebSocket {
     ///
     /// Continue calling [`WebSocket::receive`] to await the peer's Close reply
     /// when a complete graceful shutdown is required.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`WebSocket::send`].
     pub async fn close(
         &mut self,
         frame: Option<WebSocketCloseFrame>,

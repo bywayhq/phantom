@@ -38,6 +38,17 @@ use phantom_profile::{WebSocketNewConnection, WebSocketRefusedStreamRetry};
 use trace::OperationOutcome;
 
 /// Builder for one ordered WebSocket opening handshake.
+///
+/// Created by [`Client::websocket`], [`Client::websocket_with_protocol`], or
+/// [`Client::websocket_with_profile_policy`]. Unless changed, the builder
+/// uses the profile's WebSocket field template (or Phantom's default opening
+/// fields when the profile has none), [`WebSocketLimits::default`], the
+/// client's route, and no compression.
+///
+/// The client's [`RequestTimeouts`](crate::RequestTimeouts),
+/// [`RetryPolicy`](crate::RetryPolicy), and
+/// [`RedirectPolicy`](crate::RedirectPolicy) do not apply to a WebSocket
+/// connect. The client's profile, route, trust roots, and cookie jar do.
 #[must_use = "WebSocket builders do nothing until connect is awaited"]
 pub struct WebSocketRequestBuilder {
     client: Client,
@@ -213,18 +224,26 @@ impl WebSocketRequestBuilder {
     }
 
     /// Sets validated frame and message bounds for the resulting connection.
+    ///
+    /// The default is [`WebSocketLimits::default`].
     pub fn limits(mut self, limits: WebSocketLimits) -> Self {
         self.limits = limits;
         self
     }
 
     /// Overrides the client's route for this connection.
+    ///
+    /// A route that cannot carry the WebSocket's scheme and protocol, such as
+    /// a CONNECT-UDP route, makes [`Self::connect`] fail before I/O with
+    /// [`WebSocketErrorKind::UnsupportedRoute`].
     pub fn route(mut self, route: Route) -> Self {
         self.route = Some(route);
         self
     }
 
     /// Enables `permessage-deflate` with the supplied wire and codec policy.
+    ///
+    /// Compression is off by default, and no extension is offered.
     #[cfg(feature = "websocket-deflate")]
     pub fn permessage_deflate(mut self, policy: PerMessageDeflate) -> Self {
         self.permessage_deflate = Some(policy);
@@ -249,8 +268,31 @@ impl WebSocketRequestBuilder {
     ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] for invalid pre-I/O configuration, route or
-    /// TLS failure, HTTP rejection, invalid `101` fields, or framing setup.
+    /// Returns [`WebSocketError`] with kind:
+    ///
+    /// - [`WebSocketErrorKind::InvalidRequest`] for invalid opening fields,
+    ///   compression offer, or target, or a replaced field sequence under
+    ///   profile policy, before I/O;
+    /// - [`WebSocketErrorKind::ProtocolUnavailable`] when the profile lacks
+    ///   the selected protocol, or the WebSocket policy under profile policy;
+    /// - [`WebSocketErrorKind::UnsupportedRoute`] when the route or scheme
+    ///   cannot carry the protocol, such as `ws://` over HTTP/2, before I/O;
+    /// - [`WebSocketErrorKind::Connect`], [`WebSocketErrorKind::Proxy`],
+    ///   [`WebSocketErrorKind::Tls`], [`WebSocketErrorKind::Http1`], or
+    ///   [`WebSocketErrorKind::Http2`] when resolution, connection, proxy
+    ///   setup, TLS, or the HTTP exchange fails;
+    /// - [`WebSocketErrorKind::Capacity`] when a pooled HTTP/2 session's
+    ///   per-origin waiting bound is full;
+    /// - [`WebSocketErrorKind::HandshakeRejected`] when the server answers
+    ///   with an ordinary response, including a redirect; read it with
+    ///   [`WebSocketError::response`];
+    /// - [`WebSocketErrorKind::InvalidHandshake`] when the accepting response
+    ///   breaks the handshake rules, for example with a wrong
+    ///   `Sec-WebSocket-Accept`, an unsupported extension, or a subprotocol
+    ///   that was not offered;
+    /// - [`WebSocketErrorKind::RuntimeUnavailable`] or
+    ///   [`WebSocketErrorKind::Random`] when the runtime cannot do network I/O
+    ///   or the handshake nonce cannot be generated.
     pub async fn connect(self) -> Result<WebSocket, WebSocketError> {
         let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
         let span = debug_span!(
