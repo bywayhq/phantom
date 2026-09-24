@@ -502,16 +502,20 @@ fn parse_url(value: &str) -> Result<Url, CookieError> {
 fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError> {
     let trustworthy = is_potentially_trustworthy(url);
     let secure = cookie.secure() == Some(true);
-    // `IsCookiePrefixValid` routes both prefixes through
-    // `HasValidSecurePrefixAttributes`, which asks for `Secure` and a
-    // non-`kNonCryptographic` access scheme (153.0.8010.48,
-    // `net/cookies/cookie_util.cc` lines 105-116 and 818-838).
+    // `IsCookiePrefixValid` sends `kSecure` to `HasValidSecurePrefixAttributes`,
+    // which asks for `Secure` and a non-`kNonCryptographic` access scheme
+    // (153.0.8010.48, `net/cookies/cookie_util.cc` lines 105-116 and 818-838).
     if has_ascii_prefix(cookie.name(), "__Secure-") && (!secure || !trustworthy) {
         return Err(CookieError::new(
             CookieErrorKind::InvalidPrefix,
             "__Secure- cookies require Secure and a trustworthy origin",
         ));
     }
+    // `kHost` goes to `HasValidHostPrefixAttributes` (`net/cookies/cookie_util.cc`
+    // lines 120-137), which adds `Path=/` and an empty `Domain` to the same
+    // secure-prefix test. Chromium also admits a `Domain` equal to an
+    // IP-literal host, which Phantom does not; see the cookie jar's "Not
+    // modeled" entries in `docs/reference/coverage.md`.
     if has_ascii_prefix(cookie.name(), "__Host-")
         && (!secure || !trustworthy || cookie.path() != Some("/") || cookie.domain().is_some())
     {
@@ -520,6 +524,9 @@ fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError>
             "__Host- cookies require Secure, Path=/, a trustworthy origin, and no Domain",
         ));
     }
+    // `CookieBase::IsSetPermittedInContext` excludes `EXCLUDE_SECURE_ONLY` only
+    // for a `kNonCryptographic` origin, so a `kTrustworthy` one may set a
+    // `Secure` cookie (`net/cookies/cookie_base.cc` lines 320-355).
     if secure && !trustworthy {
         return Err(CookieError::new(
             CookieErrorKind::UnsupportedPolicy,
@@ -554,7 +561,7 @@ fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError>
 /// `net/cookies/cookie_util.cc` lines 709-714): a cryptographic scheme, or
 /// `net::IsLocalhost` (`net/base/url_util.cc` lines 468-477 and 582-589),
 /// which accepts a loopback IP literal (`127.0.0.0/8` or exactly `::1`, per
-/// `net/base/ip_address.cc` lines 267-279) and the host `localhost` or any
+/// `net/base/ip_address.cc` lines 267-282) and the host `localhost` or any
 /// `.localhost` subdomain, ignoring one trailing dot and ASCII case.
 ///
 /// The network service reaches the same answer for an HTTP or HTTPS URL
@@ -585,7 +592,17 @@ fn is_potentially_trustworthy(url: &Url) -> bool {
 /// trailing-dot forms `is_potentially_trustworthy` accepts. Raising the
 /// scheme keeps one rule for storing and sending; only the scheme differs,
 /// and `CookieStore::matches` reads nothing else from it beyond the host and
-/// path, which are unchanged.
+/// path, which are unchanged. Raising may also drop a now-default port, which
+/// no cookie rule reads.
+///
+/// The raise cannot fail here. `Url::set_scheme` refuses only a change across
+/// the special/non-special boundary, a `file` target with an authority, a
+/// trailing remainder in the new scheme, or a special target for a host-less
+/// URL (url 2.5.8, `src/lib.rs` lines 2462-2480); `http` and `https` are both
+/// special, and a trustworthy `http` origin has already proved it has a host.
+/// The fallback exists so that a future change cannot panic here, but it
+/// would quietly narrow the secure decision to `cookie_store`'s rule, so it
+/// is asserted in debug builds.
 fn secure_context_url(url: &Url) -> Cow<'_, Url> {
     if url.scheme() == "https" || !is_potentially_trustworthy(url) {
         return Cow::Borrowed(url);
@@ -593,7 +610,13 @@ fn secure_context_url(url: &Url) -> Cow<'_, Url> {
     let mut secure = url.clone();
     match secure.set_scheme("https") {
         Ok(()) => Cow::Owned(secure),
-        Err(()) => Cow::Borrowed(url),
+        Err(()) => {
+            debug_assert!(
+                false,
+                "raising a trustworthy http origin to https must succeed"
+            );
+            Cow::Borrowed(url)
+        }
     }
 }
 
