@@ -224,6 +224,26 @@ have shown where the real architectural boundaries are.
 - Broaden fuzzing, sanitizer coverage, lifecycle regressions, and soak tests.
 - Keep vendored patches reproducible, and review dependency updates in
   isolation.
+- Audit the vendored H3 engine against both Hyperium and the independently
+  maintained [`0x676e67/http3`](https://github.com/0x676e67/http3) fork before
+  its next refresh. Treat the fork as a source of focused fixes and regression
+  cases, not as a replacement dependency: its Sans-I/O rewrite, Rust 1.98
+  baseline, and fingerprint-control surface do not match Phantom's current
+  contracts or Rust 1.88 MSRV.
+  - Correct QPACK field-section Base calculation after dynamic-table eviction.
+    Port the fork's
+    [absolute-Base regression](https://github.com/0x676e67/http3/commit/087a3404c80e31dac4616a0fb1c8a424ffa51b60)
+    and prove that reusing an acknowledged retained field emits no duplicate
+    insertion, uses the absolute insertion count, and does not become blocked.
+  - Backport Hyperium's
+    [buffered-write fix](https://github.com/hyperium/h3/commit/14a14224242862de31e780a7907fe8839b893fd6)
+    with its cancellation regressions. A cancelled DATA write must be flushed
+    before another frame, and the Quinn adapter must flush every buffered frame
+    before FIN so the peer cannot observe a truncated HTTP/3 message.
+  - Review later QPACK, header validation, stream-drop, and driver-lifecycle
+    fixes one commit at a time. Keep only changes that reproduce against
+    Phantom, preserve ordered SETTINGS and fields, retain bounded ownership and
+    cancellation behavior, and pass the vendored and workspace gates.
 - Document the TCP/IP stack fingerprint as decided by the host rather than
   emulating it. A client cannot set the window scale, SACK, timestamps, or
   TCP option order from user space. Setting only the reachable fields, such
