@@ -1,14 +1,18 @@
 # Adding Phantom to a project
 
-Phantom is not on crates.io yet. Depend on it through a pinned git revision or
-a pinned path checkout. Either way it is one dependency line, with no
-`[patch]` table.
+Add Phantom to your Cargo project from a pinned git revision or a pinned path
+checkout, and check that your build keeps Phantom's patched dependencies.
+
+> For builders who have read [Getting started](../getting-started.md).
+
+Phantom is not on crates.io yet. Either way of depending on it is one
+dependency line, with no `[patch]` table.
 
 The package is named `phantom-http`, because `phantom` is taken on crates.io.
 The library crate is still `phantom`, and the dependency key below keeps
 `use phantom::...` working.
 
-## Git dependency
+## Depend on a pinned git revision
 
 Pin an exact commit, `a84e73c` or later. Earlier commits predate the
 MIT OR Apache-2.0 license files and carry no license grant.
@@ -23,7 +27,7 @@ manifests refer to them by path inside the repository. To upgrade, review the
 Phantom changes, move `rev`, and commit it together with the resulting
 `Cargo.lock` change.
 
-## Path dependency
+## Depend on a pinned path checkout
 
 A submodule pinned to one commit, or any other checkout of an exact commit,
 works the same way:
@@ -43,7 +47,7 @@ If you are upgrading from an older Phantom revision that required a root
 `[patch]` table, remove that table. It patches packages that no longer appear
 in the dependency graph.
 
-## Fingerprint safety
+## Keep Phantom's patched dependencies
 
 Phantom patches several dependencies, such as its TLS, HTTP/2, QUIC, and
 HTTP/3 libraries, to control what they send. Those patched copies live in this
@@ -60,16 +64,7 @@ The stock packages (`btls`, `tokio-btls`, `h3`, `h3-datagram`, `h3-quinn`,
 dependencies uses one of them, it compiles as a separate crate. Its types do
 not mix with Phantom's, and Phantom's behavior does not change.
 
-One exception applies to BoringSSL. `btls-sys` still comes from the reviewed
-fork `https://github.com/bywayhq/btls` at a pinned revision, and it declares
-`links = "boringssl"`. Cargo therefore rejects a graph that also contains
-another package with the same `links` key, such as `boring-sys`. Publishing
-`btls-sys` under a Phantom name with its own `links` key is a planned release
-step. Even then, BoringSSL symbol prefixing is currently disabled on Apple
-and Windows targets, so linking two copies of BoringSSL there would still
-fail at link time.
-
-## Validate from the downstream root
+## Check your project from its root
 
 After you resolve and commit your `Cargo.lock`, check your project from its
 repository root:
@@ -83,3 +78,20 @@ Phantom's own CI checks path and git consumers the same way; see
 [Downstream CI](../internals/vendoring.md#downstream-ci). That does not replace
 your own checks: run the commands above, and your own build and tests, against
 your committed lockfile and toolchain.
+
+## Limits
+
+- `btls-sys` still comes from the reviewed fork
+  `https://github.com/0xARYA/btls` at a pinned revision, and declares
+  `links = "boringssl"`. Cargo rejects a graph that also contains another
+  package with that `links` key, such as `boring-sys`.
+- Publishing `btls-sys` under a Phantom name with its own `links` key is a
+  planned release step. Even then, BoringSSL symbol prefixing is disabled on
+  Apple and Windows targets, so two copies of BoringSSL would still fail to
+  link there.
+
+## Next
+
+- [Using the client](client.md): build a client and send requests.
+- [Vendored forks](../internals/vendoring.md#vendored-forks): what each
+  patched package changes.
