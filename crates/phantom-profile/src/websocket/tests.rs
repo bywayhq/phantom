@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use super::{
-    WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField, WebSocketNewConnection,
-    WebSocketSettings,
+    WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
+    WebSocketField, WebSocketNewConnection, WebSocketRefusedStreamRetry, WebSocketSettings,
 };
 use crate::{
     AlpsSettings, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings, chromium, firefox,
@@ -61,14 +61,18 @@ fn chromium_153_websocket_recipe_matches_chrome_and_edge_captures() -> TestResul
     let tls = chromium::v153_tls();
     // Chrome used its page session in two of three `refused-stream` runs; in
     // the third the session closed before the socket opened.
-    for (fixtures, client, reused, http1) in [
-        (CHROME, "Google Chrome", 14, 7),
-        (EDGE, "Microsoft Edge", 15, 6),
+    // Chrome's first `refused-stream` run opened over HTTP/1.1 instead, so it
+    // carries no refusal to compare.
+    for (fixtures, client, reused, http1, refused) in [
+        (CHROME, "Google Chrome", 14, 7, 2),
+        (EDGE, "Microsoft Edge", 15, 6, 3),
     ] {
         let summary = assert_recipe_matches(&fixtures, client, &recipe, &http2, &tls)?;
         assert_eq!(summary.reused_sessions, reused, "{client}");
         assert_eq!(summary.new_http2_connections, 0, "{client}");
         assert_eq!(summary.http1_upgrade_connections, http1, "{client}");
+        assert_eq!(summary.empty_message_runs, 6, "{client}");
+        assert_eq!(summary.refused_stream_runs, refused, "{client}");
     }
     Ok(())
 }
@@ -85,6 +89,8 @@ fn firefox_156_websocket_recipe_matches_captures() -> TestResult {
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 3);
     assert_eq!(summary.http1_upgrade_connections, 3);
+    assert_eq!(summary.empty_message_runs, 6);
+    assert_eq!(summary.refused_stream_runs, 3);
     Ok(())
 }
 
@@ -175,6 +181,10 @@ struct PolicySummary {
     reused_sessions: usize,
     new_http2_connections: usize,
     http1_upgrade_connections: usize,
+    /// Runs that sent an empty message over a compressed socket.
+    empty_message_runs: usize,
+    /// Runs whose extended CONNECT stream was refused.
+    refused_stream_runs: usize,
 }
 
 fn assert_recipe_matches(
@@ -202,6 +212,20 @@ fn assert_recipe_matches(
         assert_eq!(capture.value("scenario")?, scenario);
         let secure = capture.value("socket_scheme")? == "wss";
         for run in 0..capture.value("repeat_count")?.parse::<usize>()? {
+            if let Some(observed) = capture.empty_message_compression(run)? {
+                assert_eq!(
+                    observed, recipe.empty_message_compression,
+                    "{client} {scenario} run {run}"
+                );
+                summary.empty_message_runs += 1;
+            }
+            if let Some(observed) = capture.refused_stream_retry(run)? {
+                assert_eq!(
+                    observed, recipe.connection.refused_stream_retry,
+                    "{client} {scenario} run {run}"
+                );
+                summary.refused_stream_runs += 1;
+            }
             let mut websocket_connection = None;
             for connect in capture.connect_headers(run)? {
                 assert_eq!(connect.pseudo, expected_pseudo, "{scenario} run {run}");
@@ -445,6 +469,62 @@ impl<'a> Capture<'a> {
         Ok(found)
     }
 
+    /// The empty-message rule this run's compressed socket followed, if it
+    /// sent an empty message while `permessage-deflate` was in use.
+    fn empty_message_compression(
+        &self,
+        run: usize,
+    ) -> TestResult<Option<WebSocketEmptyMessageCompression>> {
+        for socket in 0..self.value(&format!("run_{run}_websocket_count"))?.parse()? {
+            let prefix = format!("run_{run}_websocket_{socket}");
+            if self.value(&format!("{prefix}_extensions_selected_hex"))? == "none" {
+                continue;
+            }
+            let Some(count) = self.fields.get(format!("{prefix}_message_count").as_str()) else {
+                continue;
+            };
+            for index in 0..count.parse::<usize>()? {
+                let message = self.value(&format!("{prefix}_message_{index}"))?;
+                if attribute(message, "decoded_length")? != "0" {
+                    continue;
+                }
+                return Ok(Some(if attribute(message, "rsv1")? == "true" {
+                    WebSocketEmptyMessageCompression::Compressed
+                } else {
+                    WebSocketEmptyMessageCompression::Uncompressed
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// What this run did after an extended CONNECT stream was refused, if one
+    /// was refused at all.
+    fn refused_stream_retry(&self, run: usize) -> TestResult<Option<WebSocketRefusedStreamRetry>> {
+        let count: usize = self.value(&format!("run_{run}_websocket_count"))?.parse()?;
+        let mut refused = None;
+        for socket in 0..count {
+            let record = self.value(&format!("run_{run}_websocket_{socket}"))?;
+            if attribute(record, "protocol")? != "h2" {
+                continue;
+            }
+            let connection = attribute(record, "connection")?;
+            let stream: u32 = attribute(record, "stream")?.parse()?;
+            match attribute(record, "outcome")? {
+                "refused" => refused = Some((connection, stream)),
+                "accepted" => {
+                    if refused.is_some_and(|(refused_connection, refused_stream)| {
+                        refused_connection == connection && stream > refused_stream
+                    }) {
+                        return Ok(Some(WebSocketRefusedStreamRetry::SameSessionOnce));
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(refused.map(|_| WebSocketRefusedStreamRetry::None))
+    }
+
     fn header_count(&self, prefix: &str) -> TestResult<usize> {
         self.fields
             .get(format!("{prefix}_headers_count").as_str())
@@ -505,6 +585,7 @@ fn policy_type_is_plain_profile_data() {
         without_http2_session: WebSocketNewConnection::Http2ExtendedConnect,
         with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
         http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
+        refused_stream_retry: WebSocketRefusedStreamRetry::None,
     };
     assert_eq!(policy, firefox::v156_websocket().connection);
 }

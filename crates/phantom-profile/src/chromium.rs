@@ -16,8 +16,8 @@ use crate::{
         SignatureScheme, TlsSettings, TlsVersion,
     },
     websocket::{
-        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
-        WebSocketNewConnection, WebSocketSettings,
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
+        WebSocketField, WebSocketNewConnection, WebSocketRefusedStreamRetry, WebSocketSettings,
     },
 };
 
@@ -565,6 +565,13 @@ pub fn v153_http2() -> Http2Settings {
 /// client_max_window_bits`; Chrome always sends it, while Phantom sends it
 /// only when the caller enables compression. Edge 153.0.4234.48 matches this
 /// recipe on every compared field.
+///
+/// The `refused-stream` captures show both clients answering
+/// `RST_STREAM(REFUSED_STREAM)` with one further extended CONNECT on the same
+/// H2 session and the next client stream id, which the peer then accepted; no
+/// data frame had been sent on the refused stream. The `accept-deflate`
+/// captures show both compressing a zero-length text message into one byte
+/// with RSV1 set.
 #[must_use]
 pub fn v153_websocket() -> WebSocketSettings {
     WebSocketSettings {
@@ -572,6 +579,7 @@ pub fn v153_websocket() -> WebSocketSettings {
             without_http2_session: WebSocketNewConnection::Http1Upgrade,
             with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
             http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
+            refused_stream_retry: WebSocketRefusedStreamRetry::SameSessionOnce,
         },
         http1_fields: vec![
             WebSocketField::authority("Host"),
@@ -600,6 +608,7 @@ pub fn v153_websocket() -> WebSocketSettings {
             WebSocketField::client_cookies("cookie"),
         ],
         permessage_deflate_offer: vec![WebSocketDeflateParameter::ClientMaxWindowBits(None)],
+        empty_message_compression: WebSocketEmptyMessageCompression::Compressed,
     }
 }
 

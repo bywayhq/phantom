@@ -58,6 +58,10 @@ impl WebSocketRequestBuilder {
 
         let engine_config = WebSocket::engine_config(limits);
         #[cfg(feature = "websocket-deflate")]
+        let compress_empty_messages = permessage_deflate
+            .as_ref()
+            .is_none_or(super::PerMessageDeflate::compresses_empty_messages);
+        #[cfg(feature = "websocket-deflate")]
         let engine_config =
             permessage_deflate.map_or(Ok(engine_config), |policy| policy.apply(engine_config))?;
         #[cfg(feature = "websocket-deflate")]
@@ -310,6 +314,8 @@ impl WebSocketRequestBuilder {
                     engine_config,
                     #[cfg(feature = "websocket-deflate")]
                     negotiated,
+                    #[cfg(feature = "websocket-deflate")]
+                    compress_empty_messages,
                 )
                 .await)
             }

@@ -3,7 +3,9 @@ use tokio_tungstenite::tungstenite::protocol::{
     PerMessageDeflateOfferParameter as EngineOfferParameter, Role, WebSocketConfig,
 };
 
-use phantom_profile::{WebSocketDeflateParameter, WebSocketSettings};
+use phantom_profile::{
+    WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketSettings,
+};
 
 use super::WebSocketError;
 
@@ -42,12 +44,14 @@ impl PerMessageDeflateOfferParameter {
 
 /// Client policy for the RFC 7692 `permessage-deflate` extension.
 ///
-/// The default offer is `permessage-deflate; client_max_window_bits`.
+/// The default offer is `permessage-deflate; client_max_window_bits`, and
+/// every outgoing message is compressed once the server accepts the offer.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PerMessageDeflate {
     offer_parameters: Vec<PerMessageDeflateOfferParameter>,
     client_max_window_bits: u8,
     compression_level: u8,
+    compress_empty_messages: bool,
 }
 
 impl PerMessageDeflate {
@@ -58,13 +62,15 @@ impl PerMessageDeflate {
             offer_parameters: vec![PerMessageDeflateOfferParameter::ClientMaxWindowBits(None)],
             client_max_window_bits: 15,
             compression_level: 6,
+            compress_empty_messages: true,
         }
     }
 
-    /// Creates the default client policy with a profile's ordered offer.
+    /// Creates the default client policy with a profile's ordered offer and
+    /// empty-message rule.
     ///
-    /// Only the wire offer comes from the profile; the local encoder cap and
-    /// compression level keep their defaults.
+    /// Only the wire offer and that rule come from the profile; the local
+    /// encoder cap and compression level keep their defaults.
     ///
     /// # Errors
     ///
@@ -93,7 +99,37 @@ impl PerMessageDeflate {
                 }
             });
         }
-        Self::new().offer_parameters(parameters)
+        let compress_empty_messages = match settings.empty_message_compression {
+            WebSocketEmptyMessageCompression::Compressed => true,
+            WebSocketEmptyMessageCompression::Uncompressed => false,
+            _ => {
+                return Err(WebSocketError::invalid_request(
+                    "profile names an unsupported empty-message compression rule",
+                ));
+            }
+        };
+        Ok(Self::new()
+            .offer_parameters(parameters)?
+            .compress_empty_messages(compress_empty_messages))
+    }
+
+    /// Sets whether an empty text or binary message is compressed.
+    ///
+    /// With this on, the default, an empty message is deflated like any other
+    /// and carries RSV1, as Chrome 153 and Edge 153 do. With it off, an empty
+    /// message is sent with a zero-length payload and RSV1 clear, as Firefox
+    /// 156 does; every non-empty message is still compressed. The setting has
+    /// no effect until the server accepts the offer.
+    #[must_use]
+    pub const fn compress_empty_messages(mut self, enabled: bool) -> Self {
+        self.compress_empty_messages = enabled;
+        self
+    }
+
+    /// Returns whether an empty message is compressed.
+    #[must_use]
+    pub const fn compresses_empty_messages(&self) -> bool {
+        self.compress_empty_messages
     }
 
     /// Replaces the complete ordered parameter sequence in the offer.

@@ -10,7 +10,8 @@ use crate::{
         EchGreaseAead, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
     },
     websocket::{
-        WebSocketConnectionPolicy, WebSocketField, WebSocketNewConnection, WebSocketSettings,
+        WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
+        WebSocketNewConnection, WebSocketRefusedStreamRetry, WebSocketSettings,
     },
 };
 
@@ -292,6 +293,12 @@ pub fn v156_http2() -> Http2Settings {
 /// cookie placeholder's final position is not observed. The compression
 /// offer is bare `permessage-deflate`; Firefox always sends it, while Phantom
 /// sends it only when the caller enables compression.
+///
+/// In the `refused-stream` captures Firefox answers
+/// `RST_STREAM(REFUSED_STREAM)` by failing the WebSocket with close code
+/// 1006, on every run, so its refusal is not retried. In the `accept-deflate`
+/// captures it sends a zero-length text message uncompressed, with RSV1 clear
+/// and an empty payload, while compressing every non-empty message.
 #[must_use]
 pub fn v156_websocket() -> WebSocketSettings {
     WebSocketSettings {
@@ -299,6 +306,7 @@ pub fn v156_websocket() -> WebSocketSettings {
             without_http2_session: WebSocketNewConnection::Http2ExtendedConnect,
             with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
             http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
+            refused_stream_retry: WebSocketRefusedStreamRetry::None,
         },
         http1_fields: vec![
             WebSocketField::authority("Host"),
@@ -336,6 +344,7 @@ pub fn v156_websocket() -> WebSocketSettings {
             WebSocketField::client_cookies("cookie"),
         ],
         permessage_deflate_offer: Vec::new(),
+        empty_message_compression: WebSocketEmptyMessageCompression::Uncompressed,
     }
 }
 

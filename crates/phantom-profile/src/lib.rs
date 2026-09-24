@@ -43,6 +43,7 @@ pub use tls::{
     TlsSettings, TlsVersion,
 };
 pub use websocket::{
-    InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
-    WebSocketNewConnection, WebSocketSettings,
+    InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
+    WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
+    WebSocketRefusedStreamRetry, WebSocketSettings,
 };

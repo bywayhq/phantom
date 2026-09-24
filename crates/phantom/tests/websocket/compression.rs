@@ -156,3 +156,71 @@ async fn preserves_custom_offer_parameter_order_and_values() -> TestResult<()> {
     })
     .await
 }
+
+/// The retained `accept-deflate` and `h1-accept-deflate` captures disagree on
+/// one message only: Chrome 153 and Edge 153 deflate a zero-length text
+/// message into a one-byte frame with RSV1 set, while Firefox 156 sends it
+/// with RSV1 clear and an empty payload. Every non-empty message stays
+/// compressed in both.
+#[tokio::test]
+async fn empty_message_follows_the_configured_compression_rule() -> TestResult<()> {
+    for (compress_empty, expected_rsv1, expected_payload_len) in
+        [(true, true, 1_usize), (false, false, 0_usize)]
+    {
+        bounded(async move {
+            let identity = TestIdentity::generate()?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let address = listener.local_addr()?;
+            let acceptor = identity.acceptor(H1_ALPN)?;
+            let server = tokio::spawn(async move {
+                let mut stream = accept_tls(listener, acceptor).await?;
+                let request = read_head(&mut stream).await?;
+                let key = header_value(&request, "sec-websocket-key")
+                    .ok_or("opening handshake omitted Sec-WebSocket-Key")?;
+                let accept = websocket_accept(key);
+                let response = format!(
+                    "HTTP/1.1 101 Switching Protocols\r\n\
+                     Upgrade: websocket\r\n\
+                     Connection: Upgrade\r\n\
+                     Sec-WebSocket-Accept: {accept}\r\n\
+                     Sec-WebSocket-Extensions: permessage-deflate\r\n\r\n"
+                );
+                stream.write_all(response.as_bytes()).await?;
+                stream.flush().await?;
+                let empty = read_client_frame(&mut stream).await?;
+                let non_empty = read_client_frame(&mut stream).await?;
+                Ok::<_, Box<dyn Error + Send + Sync>>((empty, non_empty))
+            });
+
+            let mut socket = test_client(&identity, false)?
+                .websocket(&format!("wss://{address}/empty-message"))?
+                .permessage_deflate(
+                    PerMessageDeflate::new().compress_empty_messages(compress_empty),
+                )
+                .connect()
+                .await?;
+            socket.send(WebSocketMessage::Text(String::new())).await?;
+            socket
+                .send(WebSocketMessage::Text("compressible".into()))
+                .await?;
+
+            let (empty, non_empty) = server.await??;
+            assert_eq!(empty.opcode, 0x1, "empty opcode with {compress_empty}");
+            assert_eq!(
+                empty.rsv1, expected_rsv1,
+                "empty RSV1 with {compress_empty}"
+            );
+            assert_eq!(
+                empty.payload.len(),
+                expected_payload_len,
+                "empty payload with {compress_empty}"
+            );
+            // The rule applies to empty messages only.
+            assert!(non_empty.rsv1, "non-empty RSV1 with {compress_empty}");
+            assert_ne!(non_empty.payload, b"compressible");
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
+}

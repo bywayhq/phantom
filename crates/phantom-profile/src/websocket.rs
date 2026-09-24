@@ -106,6 +106,21 @@ pub enum WebSocketDeflateParameter {
     ClientMaxWindowBits(Option<u8>),
 }
 
+/// Whether an empty data message is compressed once `permessage-deflate` is
+/// negotiated.
+///
+/// This is the only per-message compression decision the retained captures
+/// disagree on. Every client in them compresses each non-empty text and binary
+/// message and sets RSV1 on it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum WebSocketEmptyMessageCompression {
+    /// Compress it like any other message and set RSV1.
+    Compressed,
+    /// Send a zero-length payload with RSV1 clear.
+    Uncompressed,
+}
+
 /// The connection opened when no pooled HTTP/2 session can carry a WebSocket.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -117,6 +132,27 @@ pub enum WebSocketNewConnection {
     /// A new connection with the profile's TLS and HTTP/2 settings, then RFC
     /// 8441 extended CONNECT.
     Http2ExtendedConnect,
+}
+
+/// What a client does when the peer answers an extended CONNECT with
+/// `RST_STREAM(REFUSED_STREAM)`.
+///
+/// RFC 9113, section 8.7 says such a stream was closed before the peer
+/// processed anything on it, so only the HEADERS the client already sent can
+/// be sent again. This describes captured client behavior, not caller policy:
+/// a client's retry policy stays a caller concern and never applies to a
+/// WebSocket opening.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum WebSocketRefusedStreamRetry {
+    /// The refusal is reported to the caller.
+    None,
+    /// One further extended CONNECT opens on the same HTTP/2 session.
+    ///
+    /// The opening fields are re-encoded for a fresh stream on that same
+    /// session. A second refusal is reported to the caller. No other failure
+    /// is retried, and no other connection or protocol is tried.
+    SameSessionOnce,
 }
 
 /// How a client chooses the connection for a `wss://` WebSocket.
@@ -138,6 +174,11 @@ pub struct WebSocketConnectionPolicy {
     /// The list must offer `http/1.1` and must not offer `h2`, so ALPN cannot
     /// select a protocol that the Upgrade cannot use.
     pub http1_alpn_protocols: Vec<Box<[u8]>>,
+    /// What happens when the peer refuses the extended CONNECT stream.
+    ///
+    /// It applies only to an extended CONNECT on a pooled HTTP/2 session,
+    /// which is the only case the captures cover.
+    pub refused_stream_retry: WebSocketRefusedStreamRetry,
 }
 
 impl WebSocketConnectionPolicy {
@@ -207,6 +248,11 @@ pub struct WebSocketSettings {
     /// An empty list offers bare `permessage-deflate`. The offer is sent only
     /// when the caller enables compression.
     pub permessage_deflate_offer: Vec<WebSocketDeflateParameter>,
+    /// How an empty text or binary message is sent once the offer is accepted.
+    ///
+    /// It applies only while `permessage-deflate` is in use; without it every
+    /// message is sent with RSV1 clear.
+    pub empty_message_compression: WebSocketEmptyMessageCompression,
 }
 
 impl WebSocketSettings {

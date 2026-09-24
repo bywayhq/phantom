@@ -8,6 +8,37 @@ use tokio_tungstenite::tungstenite::{
 
 use super::WebSocketError;
 
+/// Rewrites an empty data message so it is sent with RSV1 clear.
+///
+/// `permessage-deflate` otherwise deflates every text and binary message,
+/// which turns an empty payload into a one-byte compressed frame. Firefox 156
+/// instead sends the empty payload as it is, so this hands the engine a ready
+/// frame with RSV1 clear rather than a message for it to compress. Only an
+/// empty payload is rewritten, so no encoder history is skipped: the peer's
+/// inflater never sees the frame, and RFC 7692, section 6 lets an
+/// uncompressed message appear at any point in a context-takeover stream.
+///
+/// Every other message, and every message on an uncompressed connection, is
+/// returned unchanged.
+#[cfg(feature = "websocket-deflate")]
+pub(super) fn send_empty_message_uncompressed(message: EngineMessage) -> EngineMessage {
+    use tokio_tungstenite::tungstenite::protocol::frame::{
+        Frame,
+        coding::{Data, OpCode},
+    };
+
+    let opcode = match &message {
+        EngineMessage::Text(value) if value.is_empty() => Data::Text,
+        EngineMessage::Binary(value) if value.is_empty() => Data::Binary,
+        _ => return message,
+    };
+    EngineMessage::Frame(Frame::message(
+        Bytes::new(),
+        OpCode::Data(opcode),
+        /* is_final */ true,
+    ))
+}
+
 const CONTROL_PAYLOAD_MAX: usize = 125;
 const CLOSE_REASON_MAX: usize = 123;
 pub(super) const WRITE_BUFFER_SIZE: usize = 128 * 1024;

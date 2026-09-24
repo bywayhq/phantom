@@ -10,7 +10,10 @@ use phantom_net::{http1::Http1Upgrade, http2::Http2ExtendedConnectStream};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_tungstenite::{
     WebSocketStream,
-    tungstenite::protocol::{Role, WebSocketConfig},
+    tungstenite::{
+        Message as EngineMessage,
+        protocol::{Role, WebSocketConfig},
+    },
 };
 use tracing::{Instrument, Span, debug_span, field};
 
@@ -18,7 +21,7 @@ use tracing::{Instrument, Span, debug_span, field};
 use super::NegotiatedPerMessageDeflate;
 use super::{
     OperationOutcome, WebSocketCloseFrame, WebSocketError, WebSocketLimits, WebSocketMessage,
-    message::WRITE_BUFFER_SIZE,
+    message::{self, WRITE_BUFFER_SIZE},
 };
 
 /// One established, exclusively owned WebSocket connection.
@@ -34,6 +37,9 @@ pub struct WebSocket {
     limits: WebSocketLimits,
     #[cfg(feature = "websocket-deflate")]
     permessage_deflate: Option<NegotiatedPerMessageDeflate>,
+    /// The profile's empty-message rule, meaningful only while compressing.
+    #[cfg(feature = "websocket-deflate")]
+    compress_empty_messages: bool,
     pending_incoming: Option<WebSocketMessage>,
 }
 
@@ -60,6 +66,7 @@ impl WebSocket {
         #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
             NegotiatedPerMessageDeflate,
         >,
+        #[cfg(feature = "websocket-deflate")] compress_empty_messages: bool,
     ) -> Self {
         Self::new(
             WebSocketIo::Http1(stream),
@@ -69,6 +76,8 @@ impl WebSocket {
             config,
             #[cfg(feature = "websocket-deflate")]
             permessage_deflate,
+            #[cfg(feature = "websocket-deflate")]
+            compress_empty_messages,
         )
         .await
     }
@@ -83,6 +92,7 @@ impl WebSocket {
         #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
             NegotiatedPerMessageDeflate,
         >,
+        #[cfg(feature = "websocket-deflate")] compress_empty_messages: bool,
     ) -> Self {
         Self::new(
             WebSocketIo::Http2 {
@@ -95,6 +105,8 @@ impl WebSocket {
             config,
             #[cfg(feature = "websocket-deflate")]
             permessage_deflate,
+            #[cfg(feature = "websocket-deflate")]
+            compress_empty_messages,
         )
         .await
     }
@@ -108,6 +120,7 @@ impl WebSocket {
         #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
             NegotiatedPerMessageDeflate,
         >,
+        #[cfg(feature = "websocket-deflate")] compress_empty_messages: bool,
     ) -> Self {
         let socket = WebSocketStream::from_raw_socket(stream, Role::Client, Some(config)).await;
         Self {
@@ -117,6 +130,8 @@ impl WebSocket {
             limits,
             #[cfg(feature = "websocket-deflate")]
             permessage_deflate,
+            #[cfg(feature = "websocket-deflate")]
+            compress_empty_messages,
             pending_incoming: None,
         }
     }
@@ -158,6 +173,15 @@ impl WebSocket {
         self.limits
     }
 
+    /// Applies the profile's empty-message rule to one outgoing message.
+    fn for_wire(&self, message: EngineMessage) -> EngineMessage {
+        #[cfg(feature = "websocket-deflate")]
+        if self.permessage_deflate.is_some() && !self.compress_empty_messages {
+            return message::send_empty_message_uncompressed(message);
+        }
+        message
+    }
+
     /// Sends and flushes one complete message.
     ///
     /// A cancelled send has the usual asynchronous write ambiguity; callers
@@ -174,7 +198,7 @@ impl WebSocket {
         );
         let outcome = OperationOutcome::new(&span);
         let engine_message = match message.into_engine(self.limits) {
-            Ok(message) => message,
+            Ok(message) => self.for_wire(message),
             Err(error) => {
                 outcome.finish("error", Some(error.kind()));
                 return Err(error);
@@ -401,7 +425,7 @@ impl Sink<WebSocketMessage> for WebSocket {
 
     fn start_send(self: Pin<&mut Self>, message: WebSocketMessage) -> Result<(), Self::Error> {
         let this = self.get_mut();
-        let message = message.into_engine(this.limits)?;
+        let message = this.for_wire(message.into_engine(this.limits)?);
         let socket = this.socket.as_mut().ok_or_else(WebSocketError::closed)?;
         Pin::new(socket)
             .start_send(message)
