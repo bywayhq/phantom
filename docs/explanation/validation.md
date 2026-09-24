@@ -753,17 +753,33 @@ Capture conditions:
 - Chrome keeps `HappyEyeballsV3` disabled (`net/base/features.cc`
   line 124), so these are `HttpStreamFactory::JobController` decisions.
 
-Source citations are to tag `153.0.8010.48`.
-
-| Question | Chrome 153 observation | Chrome 154 | Source cross-check |
+| Scenario | Observed | Phantom | Conclusion |
 | --- | --- | --- | --- |
-| First new connection after learning (`race-after-learning`) | QUIC job starts first; main TCP job logs `should_wait:true`, then `HTTP_STREAM_JOB_DELAYED delay:0` and resumes 1-2 ms later; first TCP connect 0-1 ms after the first QUIC packet (server: 1.4-1.6 ms after the first datagram, one 11.9 ms outlier). QUIC bound 10/10; the main job was cancelled 10/10, yet its connection was still established and stayed idle without a request. | Main job waits 0 ms; alternative bound 10/10 | Main job blocked while an alternative job exists (`http_stream_factory_job_controller.cc` line 1084); wait is 0 while QUIC has never worked on the network (`quic_session_pool.cc` line 1590) |
-| After QUIC worked (`race-after-quic-worked`, second race) | `HTTP_STREAM_JOB_DELAYED` 3-8 ms (median 7.5); QUIC connected within the wait, the main job never started, QUIC bound 10/10. | Main job waits 4-10 ms (median 8) | Wait is 1.5 x smoothed RTT, or 300 ms without RTT stats, plus a non-Android 0 ms additional delay (`quic_session_pool.cc` lines 1606-1616), capped at 3 s (`http_stream_factory_job_controller.cc` line 143); the RTT-dependent value is only what loopback produced |
-| UDP blackhole (`udp-blackhole`) | TCP starts 0-1 ms after QUIC (fresh profile) and wins 10/10; the orphaned QUIC job fails with `-356` after the 4 s handshake idle timeout; the next request logs `is_broken:true` and creates only a main job; polled expiry 299-300 s after the failure. | TCP wins 10/10; orphaned QUIC job fails with `-356`; broken 299-300 s | Orphaned alternative runs to completion to report brokenness (lines 1160-1167); marked broken only when the main job succeeded (lines 1257-1302); the 4 s is `max_idle_time_before_crypto_handshake` = `kInitialIdleTimeoutSecs` (5 s; `net/quic/quic_context.h` line 172, quiche 2c4a1246 `quic_constants.h` line 159) less the one second quiche removes from a client idle timeout (`quic_connection.cc` lines 4983-4984) |
-| QUIC certificate failure (`quic-bad-certificate`) | QUIC fails in about 1 ms; TCP wins 10/10; broken for 299-300 s; the next request does not use QUIC. | TCP wins 10/10; broken 299-300 s | Same reporting path |
-| QUIC ALPN failure (`quic-bad-alpn`) | Same as the certificate failure: broken 10/10 for 299-300 s. | TCP wins 10/10; broken 299-300 s | Same reporting path |
-| Existing H2 session (`existing-h2-session`) | The request after learning uses the existing H2 session at once (wait 0) 10/10 while the alternative job keeps running and connects QUIC; the next two same-page requests use that QUIC session 10/10. | Binds the H2 session at once while the alternative keeps connecting | Zero wait with an available SPDY session unless `delay_main_job_with_available_spdy_session` (`http_stream_factory_job_controller.cc` line 744; default false, `net/quic/quic_context.h` line 238) |
-| Broken expiry and backoff (`broken-backoff`) | About 290 s after the first failure the alternative is still broken; about 305 s after it QUIC is tried again, fails, and is broken for 599 s, both runs. | Broken 299-300 s after the first failure and 599-600 s after the second | `ComputeBrokenAlternativeServiceExpirationDelay`: 300 s initial, `initial << broken_count`, capped at 2 days (`net/http/broken_alternative_services.cc` lines 22, 58, 62; `net/base/features.cc` lines 1027 and 1037; `exponential_backoff_on_initial_delay_` defaults to true in `broken_alternative_services.h` line 236) |
+| First new connection after learning (`race-after-learning`) | Chrome 153: QUIC job starts first; main TCP job logs `should_wait:true`, then `HTTP_STREAM_JOB_DELAYED delay:0` and resumes 1-2 ms later; first TCP connect 0-1 ms after the first QUIC packet (server: 1.4-1.6 ms after the first datagram, one 11.9 ms outlier). QUIC bound 10/10; the main job was cancelled 10/10, yet its connection was still established and stayed idle without a request. Chrome 154: main job waits 0 ms; alternative bound 10/10. | Alternative setup starts first; origin setup starts after the caller's delay | The main job is blocked while an alternative job exists [1], and the wait is 0 while QUIC has never worked on the network [2] |
+| After QUIC worked (`race-after-quic-worked`, second race) | Chrome 153: `HTTP_STREAM_JOB_DELAYED` 3-8 ms (median 7.5); QUIC connected within the wait, the main job never started, QUIC bound 10/10. Chrome 154: main job waits 4-10 ms (median 8). | The caller supplies the delay | The wait is 1.5 x smoothed RTT, or 300 ms without RTT stats, plus a non-Android 0 ms additional delay [3], capped at 3 s [4]; the RTT-dependent value is only what loopback produced |
+| UDP blackhole (`udp-blackhole`) | Chrome 153: TCP starts 0-1 ms after QUIC (fresh profile) and wins 10/10; the orphaned QUIC job fails with `-356` after the 4 s handshake idle timeout; the next request logs `is_broken:true` and creates only a main job; polled expiry 299-300 s after the failure. Chrome 154: TCP wins 10/10; orphaned QUIC job fails with `-356`; broken 299-300 s. | The origin wins; the alternative stops at the 4 s limit and is marked broken | The orphaned alternative runs to completion to report brokenness [5] and is marked broken only when the main job succeeded [6]; the 4 s is `max_idle_time_before_crypto_handshake` [7] |
+| QUIC certificate failure (`quic-bad-certificate`) | Chrome 153: QUIC fails in about 1 ms; TCP wins 10/10; broken for 299-300 s; the next request does not use QUIC. Chrome 154: TCP wins 10/10; broken 299-300 s. | Origin setup starts at once; the alternative is marked broken when the origin succeeds | Same reporting path as the blackhole [5] [6] |
+| QUIC ALPN failure (`quic-bad-alpn`) | Chrome 153: same as the certificate failure, broken 10/10 for 299-300 s. Chrome 154: TCP wins 10/10; broken 299-300 s. | As for a certificate failure | Same reporting path as the blackhole [5] [6] |
+| Existing H2 session (`existing-h2-session`) | Chrome 153: the request after learning uses the existing H2 session at once (wait 0) 10/10 while the alternative job keeps running and connects QUIC; the next two same-page requests use that QUIC session 10/10. Chrome 154: binds the H2 session at once while the alternative keeps connecting. | A reusable pooled H2 connection skips the origin delay | Zero wait with an available SPDY session unless `delay_main_job_with_available_spdy_session`, which defaults to false [8] |
+| Broken expiry and backoff (`broken-backoff`) | Chrome 153: about 290 s after the first failure the alternative is still broken; about 305 s after it QUIC is tried again, fails, and is broken for 599 s, both runs. Chrome 154: broken 299-300 s after the first failure and 599-600 s after the second. | `AltSvcBrokenBackoff::CHROMIUM_153`: 300 s, doubling, capped at two days | `ComputeBrokenAlternativeServiceExpirationDelay`: 300 s initial, `initial << broken_count`, capped at 2 days [9] |
+
+Source citations, at tag `153.0.8010.48` unless noted:
+
+1. `http_stream_factory_job_controller.cc` line 1084.
+2. `quic_session_pool.cc` line 1590.
+3. `quic_session_pool.cc` lines 1606-1616.
+4. `http_stream_factory_job_controller.cc` line 143.
+5. `http_stream_factory_job_controller.cc` lines 1160-1167.
+6. `http_stream_factory_job_controller.cc` lines 1257-1302.
+7. `kInitialIdleTimeoutSecs` is 5 s (`net/quic/quic_context.h` line 172;
+   quiche 2c4a1246 `quic_constants.h` line 159), less the one second quiche
+   removes from a client idle timeout (`quic_connection.cc` lines 4983-4984).
+8. `http_stream_factory_job_controller.cc` line 744; the default is in
+   `net/quic/quic_context.h` line 238.
+9. `net/http/broken_alternative_services.cc` lines 22, 58, and 62;
+   `net/base/features.cc` lines 1027 and 1037;
+   `exponential_backoff_on_initial_delay_` defaults to true in
+   `broken_alternative_services.h` line 236.
 
 The Chrome 154 captures used the same scenarios and repeat counts. Two
 observations varied between runs of the same build: in one
