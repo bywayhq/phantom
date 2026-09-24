@@ -37,6 +37,10 @@ pub enum BuildErrorKind {
 }
 
 /// Error returned while constructing a [`crate::Client`].
+///
+/// [`Self::kind`] gives the stable category. The `Display` text and the
+/// [`source`](std::error::Error::source) chain describe the exact cause and may change
+/// between releases.
 #[derive(Debug)]
 pub struct BuildError {
     kind: BuildErrorKind,
@@ -231,7 +235,8 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
 pub enum RequestErrorKind {
     /// The request URI is syntactically invalid.
     InvalidUri,
-    /// The URI scheme is not supported by this client slice.
+    /// The URI scheme is neither `http` nor `https`, or is `http` for a
+    /// request that plaintext HTTP cannot carry.
     UnsupportedScheme,
     /// The URI authority is missing or invalid.
     InvalidAuthority,
@@ -248,11 +253,13 @@ pub enum RequestErrorKind {
     /// version, or the template requires a `User-Agent` that neither the
     /// template nor the caller supplies.
     IdentityMismatch,
-    /// The selected protocol is absent from the client profile.
+    /// The selected protocol is absent from the client profile, or a
+    /// negotiated request's profile lacks HTTP/2 or `http/1.1` ALPN.
     ProtocolUnavailable,
     /// The selected route cannot carry the requested protocol.
     UnsupportedRoute,
-    /// The URI target cannot be represented as origin-form.
+    /// The URI has a fragment, or its target cannot be represented as
+    /// origin-form or absolute-form.
     InvalidTarget,
     /// Redirect policy rejected a response or target.
     Redirect,
@@ -277,7 +284,8 @@ pub enum RequestErrorKind {
     /// A response content coding was unsupported, not advertised by the
     /// caller's `Accept-Encoding`, or malformed.
     ContentDecoding,
-    /// TLS setup or negotiation failed.
+    /// TLS or QUIC handshake failed, or a negotiated request's server
+    /// selected an ALPN protocol other than `h2` or `http/1.1`.
     Tls,
     /// HTTP/1 request or response processing failed.
     Http1,
@@ -288,6 +296,28 @@ pub enum RequestErrorKind {
 }
 
 /// Error returned by a public client request or response body.
+///
+/// Branch on [`Self::kind`], which is stable. [`Self::protocol`] and
+/// [`Self::timeout_phase`] add detail when they apply. The `Display` text and
+/// the [`source`](std::error::Error::source) chain describe the exact cause and may
+/// change between releases.
+///
+/// # Examples
+///
+/// ```no_run
+/// use phantom::{Client, HttpProtocol, RequestError, RequestErrorKind};
+///
+/// async fn fetch(client: &Client) -> Result<(), RequestError> {
+///     match client.get(HttpProtocol::Http2, "https://example.com/")?.send().await {
+///         Ok(response) => println!("status {}", response.status()),
+///         Err(error) if error.kind() == RequestErrorKind::Timeout => {
+///             println!("timed out in {:?}", error.timeout_phase());
+///         }
+///         Err(error) => return Err(error),
+///     }
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug)]
 pub struct RequestError {
     kind: RequestErrorKind,
@@ -935,6 +965,9 @@ impl RequestError {
     }
 
     /// Returns the exact protocol involved in the failure, when applicable.
+    ///
+    /// Returns `None` for failures before a protocol applies, such as URI
+    /// validation or negotiated connection setup before ALPN selection.
     #[must_use]
     pub fn protocol(&self) -> Option<HttpProtocol> {
         self.protocol
