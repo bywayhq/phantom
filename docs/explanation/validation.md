@@ -239,6 +239,14 @@ permutation template;
 capture's transport parameters byte for byte from that recipe with fixed
 entropy.
 
+No capture shows Chrome resuming a QUIC session. The QUIC recipe enables
+`session_tickets` because Chromium 154 keeps a QUIC session cache per crypto
+configuration (`QuicSessionPool`) and quiche enables BoringSSL client session
+caching. `resumed_chrome_154_client_hello_keeps_the_captured_shape`, in
+`crates/phantom-net/src/http3/tests/resumption.rs`, resumes a loopback
+connection with the Chrome 154 recipe and requires the resumed ClientHello to
+match the retained captures apart from the added `pre_shared_key` extension.
+
 #### Comparison with Chrome 153
 
 Chrome 154 was compared against the Chrome 153 Windows fixtures while those

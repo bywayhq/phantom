@@ -88,6 +88,7 @@ order and the differences from Chromium.
 | --- | --- |
 | Undelivered HTTP/2 ALTSVC frames per connection | 16 |
 | Raced Alt-Svc alternative setup, including name resolution | 4 seconds |
+| QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |

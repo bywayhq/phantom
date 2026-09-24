@@ -234,6 +234,17 @@ Supported:
 - An exact, seeded [transport-parameter](glossary.md#transport-parameters)
   serializer with randomized permitted order and [GREASE](glossary.md#grease).
 - A reusable connection lifecycle owned by H3.
+- TLS 1.3 session resumption when the H3 TLS settings enable
+  `session_tickets`, as the Chrome 154 and Edge 153 recipes do. Each client
+  pool entry (exact origin and route) keeps its own cache of at most four
+  tickets, filled only by authenticated connections and presented only for the
+  same verified server name. Tickets are single-use and expire at the server's
+  lifetime; an expired ticket falls back to a full handshake. A handshake that
+  presented a ticket and failed is repeated once with a full handshake on the
+  same route. A test proves a resumed Chrome 154 ClientHello matches the
+  retained captures apart from the added `pre_shared_key`.
+- No early (0-RTT) data. Every connection, resumed or not, completes its
+  handshake before the first request.
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
   exposed as `ClientBuilder::key_log` behind the `diagnostics` feature.
 - A QUIC v1 packet analyzer that retains no payloads, and a comparator of
@@ -395,7 +406,8 @@ Supported:
   the stream, and H3 `H3_REQUEST_REJECTED` or `GOAWAY` before the stream
   opened. It applies to any method with no body or an owned body, and replays
   on a different connection with the same route and protocol.
-- Bounded retention of H1/H2 TLS tickets.
+- Bounded retention of TLS tickets for H1/H2 and of QUIC tickets for H3,
+  partitioned by exact origin and route.
 - Alt-Svc broken state per origin, route, and alternative, with capped
   doubling backoff. A successful connection to the alternative or
   `clear_alt_svc` clears it.
@@ -452,7 +464,7 @@ Planned:
 - Cookie contexts the caller selects (cross-site and embedded requests, and
   cross-site CHIPS partitions).
 - Permissions and delegation context.
-- QUIC tickets and DNS state.
+- DNS state.
 - Persistence of Alt-Svc brokenness, reset on network change, and proxy-route
   snapshots.
 - Broader policy and retry classes.

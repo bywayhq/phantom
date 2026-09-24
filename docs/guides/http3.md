@@ -44,6 +44,11 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
   `socks5h://`), and a CONNECT-UDP (MASQUE) proxy. HTTP forwarding and HTTP
   CONNECT proxies cannot carry QUIC, so Phantom rejects them before any origin
   I/O. See [Routes and proxies](routes-and-proxies.md).
+- With the Chrome 154 and Edge 153 recipes, which enable `session_tickets`,
+  a later QUIC connection to the same origin over the same route resumes the
+  TLS session with a ticket from an earlier one. Tickets are never shared
+  between origins or routes; see
+  [Session tickets](../internals/http3.md#session-tickets).
 
 ## Upgrade to HTTP/3 when the server advertises it
 
@@ -194,7 +199,7 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
 - Not implemented: racing more than one alternative, DNS HTTPS-record
   (`dns_alpn_h3`) jobs, persisting brokenness or clearing it on a network
   change, an RTT-derived racing delay, proxy-route snapshots, WebSocket over
-  H3, and QUIC session tickets.
+  H3, and QUIC early (0-RTT) data.
 
 ## Next
 

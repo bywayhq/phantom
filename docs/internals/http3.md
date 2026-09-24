@@ -452,6 +452,42 @@ per transport location, not per entry, and the slot table is never locked
 across connection setup, so a slow setup to one location does not delay
 another.
 
+### Session tickets
+
+When the H3 TLS settings enable `session_tickets`, as the Chrome 154 and Edge
+153 recipes do, the pool keeps the TLS 1.3 tickets a server issues and
+presents one on the next QUIC connection to the same origin over the same
+route. A resumed ClientHello adds only the `pre_shared_key` extension to the
+recipe's offer. A TLS 1.3-only ClientHello carries no `session_ticket`
+extension, so the first ClientHello of a connection is unchanged.
+
+The H3 connector builds its TLS context through a hook that installs the QUIC
+adapter's ticket delivery instead of the scoped-session callback used for TCP.
+The key-log callback is installed on the same context, so key logging covers
+resumed connections too. Tickets follow the same isolation as TLS tickets on
+TCP:
+
+- Each pool entry, meaning one origin and one route, derives its own
+  connector through `Http3Connector::with_isolated_session_cache`, with its
+  own ticket cache. A ticket learned directly is never presented through a
+  proxy, and a ticket learned through one proxy is never presented directly
+  or through another. The outer connection to a CONNECT-UDP proxy has a
+  separate cache in the same entry. Separately built clients share nothing.
+- A ticket is stored only after its connection authenticated the server, and
+  is presented only for that verified server name.
+- Each cache holds at most four tickets and evicts the least recently stored,
+  so a client's total is bounded by its H3 pool capacity. Evicting a ticket
+  only costs a full handshake later.
+- Tickets are single-use, as BoringSSL marks every TLS 1.3 session, and
+  expire at the server's ticket lifetime. An expired ticket is dropped and the
+  connection makes a full handshake without error.
+- If a handshake that presented a ticket fails, the entry repeats the attempt
+  once with a full handshake over the same route and protocol, through
+  `Http3Connector::without_ticket_offers`.
+
+Resumption sends no early (0-RTT) data: the first request on every
+connection waits for the handshake to complete.
+
 ### Racing
 
 Under `AltSvcPolicy::race`, one request runs two candidates:

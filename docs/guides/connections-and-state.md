@@ -238,8 +238,8 @@ fn forget(client: &Client) {
   keyed by exact origin for negotiated HTTPS requests; `export_alt_svc` and
   `import_alt_svc` move it through storage you own, and `alt_svc_policy`
   opts into racing ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
-- TLS session tickets for H1/H2 are bounded, keyed by exact origin and
-  route, and never used for early data.
+- TLS session tickets for H1/H2, and QUIC session tickets for H3, are
+  bounded, keyed by exact origin and route, and never used for early data.
 
 ## Limits
 
