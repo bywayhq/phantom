@@ -13,12 +13,17 @@ mod retry_after;
 /// Policy for retrying requests after connection failures or, when opted in,
 /// retryable response statuses.
 ///
-/// Retries are disabled by default. An eligible connection-setup retry occurs
-/// inside the selected H1, H2, or H3 pool, or before ALPN selection in the
-/// negotiated H1/H2 pool, before the origin request or body is dispatched, so
-/// methods and one-shot streaming bodies are not replayed. TLS, ALPN, proxy
-/// negotiation, timeouts, HTTP responses, and protocol failures are not
-/// retried.
+/// The default, equal to [`RetryPolicy::none`], retries nothing. Set it for a
+/// client with [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy);
+/// [`RequestBuilder::retry_policy`](crate::RequestBuilder::retry_policy)
+/// replaces the whole policy for one request. Every retry and replay keeps the
+/// request's route and its exact protocol or negotiated selection rule.
+///
+/// An eligible connection-setup retry occurs inside the selected H1, H2, or H3
+/// pool, or before ALPN selection in the negotiated H1/H2 pool, before the
+/// origin request or body is dispatched, so methods and one-shot streaming
+/// bodies are not replayed. Connection-setup retries never cover TLS, ALPN,
+/// proxy negotiation, timeouts, HTTP responses, or protocol failures.
 ///
 /// [`with_reused_connection_replay`](Self::with_reused_connection_replay)
 /// separately opts into replaying an idempotent HTTP/1.1 request whose reused
@@ -27,6 +32,30 @@ mod retry_after;
 /// into replaying an HTTP/2 or HTTP/3 request that the peer reported as not
 /// processed. [`with_status_retry`](Self::with_status_retry) separately opts
 /// into repeating idempotent requests that received a caller-listed status.
+/// The replay and status-retry classes never resend a one-shot streaming
+/// body; such a request returns the original error or response.
+///
+/// A delay or `Retry-After` limit must be small enough to add to the runtime
+/// clock. A client policy that exceeds it makes
+/// [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
+/// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy); a
+/// per-request policy that exceeds it makes
+/// [`RequestBuilder::send`](crate::RequestBuilder::send) fail with
+/// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
+///
+/// # Examples
+///
+/// ```
+/// use std::{num::NonZeroUsize, time::Duration};
+///
+/// use phantom::RetryPolicy;
+///
+/// let policy = RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::from_millis(200))
+///     .with_reused_connection_replay(true);
+/// assert_eq!(policy.max_connection_failures(), Some(NonZeroUsize::MIN));
+/// assert!(policy.reused_connection_replay());
+/// assert_eq!(RetryPolicy::default(), RetryPolicy::none());
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RetryPolicy {
     maximum_connection_failures: Option<NonZeroUsize>,
@@ -53,7 +82,9 @@ impl RetryPolicy {
     /// Retries at most `maximum` eligible connection-establishment failures.
     ///
     /// Each retry waits for `delay` before starting another connection attempt.
-    /// The complete request's total timeout continues through this delay.
+    /// The complete request's total timeout continues through this delay. One
+    /// budget of `maximum` covers every redirect hop of a request. The other
+    /// retry classes start disabled; chain their methods to enable them.
     #[must_use]
     pub const fn connection_failures(maximum: NonZeroUsize, delay: Duration) -> Self {
         Self {
@@ -260,6 +291,9 @@ pub struct StatusRetry {
 impl StatusRetry {
     /// Retries at most `maximum` responses per request whose status is in
     /// `statuses`, waiting `delay` before each retry.
+    ///
+    /// `Retry-After` is ignored until [`Self::honor_retry_after`] is set. The
+    /// `maximum` budget is shared by every redirect hop of a request.
     ///
     /// # Errors
     ///
