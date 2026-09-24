@@ -1,19 +1,14 @@
 # Server-sent events
 
-Server-sent events (SSE) are a stream of text events sent over one long-lived
-HTTP response. They are the protocol behind the browser `EventSource` API.
-The optional `sse` feature adds two APIs on top of Phantom's streaming
-response body:
+This guide shows how to read a server-sent event (SSE) stream, the protocol
+behind the browser `EventSource` API, and how to reconnect it the way a
+browser does. Both APIs need the optional `sse` feature.
 
-- `SseStream` decodes events from one response. You pull each event.
-- `Client::event_source` also reconnects when the stream ends or fails, within
-  limits you set.
+> For builders who have read [Getting started](../getting-started.md).
 
-Neither API creates a background task, channel, or event queue: nothing runs
-unless you read from it. Default limits are listed in
-[Defaults and limits](../reference/limits.md#server-sent-events).
+## Read an event stream
 
-## Reading a response
+`SseStream` decodes events from one response and never reconnects:
 
 ```rust
 use phantom::{Client, HttpProtocol, SseStream};
@@ -40,10 +35,14 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 - no content encoding other than `identity`, even when the request enabled
   `ContentDecoding`.
 
-## Reconnecting with an event source
+Nothing runs unless you call `next_event`: there is no background task,
+channel, or event queue. `next_event` is cancellation-safe, so you can drop a
+pending call in `tokio::select!` without losing data.
 
-Use `Client::event_source` when you want the stream to resume after a
-disconnect, as a browser's `EventSource` does:
+## Reconnect with Last-Event-ID
+
+`Client::event_source` resumes the stream after a disconnect, as a browser's
+`EventSource` does:
 
 ```rust
 use std::time::Duration;
@@ -67,25 +66,26 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-[Reconnect behavior](#reconnect-behavior) describes what the event source
-carries across reconnects and when it gives up.
+- The source carries the last `id` and `retry` values across reconnects and
+  sends `Last-Event-ID` when the ID is nonempty. Reconnects keep the same
+  exact protocol, client cookies, redirect policy, ordered fields, and route.
+- It waits `initial_retry` (default 3 seconds) before each reconnect until
+  the server sends `retry`. It adds no jitter.
+- Initial failures, disconnects, and idle timeouts share one budget of
+  `max_reconnects` (default 3). Only resolution, connection, proxy,
+  capacity, timeout, TLS, and protocol failures are retried. When the budget
+  runs out, `next_event` returns `SseErrorKind::ReconnectLimit`, or
+  `SseErrorKind::IdleTimeout` if the idle timeout fired last. Other failures,
+  and a committed ID that is not a valid field value, return
+  `SseErrorKind::Request` at once.
+- A `204` response stops the source for good.
 
-## Request fields
+## Place Last-Event-ID among your own fields
 
-The event source sends these fields in order by default:
-
-- `Accept: text/event-stream`
-- `Cache-Control: no-cache`
-
-Names are lowercase for HTTP/2 and HTTP/3. You can change the list two ways:
-
-- `header` appends one literal field.
-- `headers` replaces the whole list with `SseHeader` entries, so you can
-  reproduce another request shape exactly.
-
-When reconnecting, the event source sends `Last-Event-ID`, the ID of the last
-event it received. `SseHeader::last_event_id` marks where that field goes and
-how its name is spelled:
+By default the source sends `Accept: text/event-stream` and
+`Cache-Control: no-cache`, lowercase on HTTP/2 and HTTP/3. `header` appends
+one field. `headers` replaces the list, and `SseHeader::last_event_id` marks
+where the ID goes and how its name is spelled:
 
 ```rust
 use phantom::{Client, HttpProtocol, RequestHeader, SseHeader};
@@ -109,134 +109,76 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Placeholder rules:
-
-- The placeholder emits the current event ID at its position, and nothing
-  while the ID is empty.
-- A list may hold at most one placeholder. Its name must spell
-  `Last-Event-ID` in any case, or in lowercase for HTTP/2 and HTTP/3.
-- Without a placeholder, a nonempty ID is appended after every other field.
+- The placeholder emits nothing while the ID is empty.
+- A list holds at most one placeholder. Its name must spell `Last-Event-ID`
+  in any case, or in lowercase for HTTP/2 and HTTP/3.
+- Without a placeholder, a nonempty ID goes after every other field.
 - `connect` rejects a literal `Last-Event-ID` field or an invalid placeholder
-  with `SseErrorKind::InvalidRequestHeader` before any I/O. This keeps a
-  reconnect from sending the field twice.
+  with `SseErrorKind::InvalidRequestHeader` before any I/O.
 
-## Decoding and limits
+## Reconnect like Chrome or Firefox
 
-Decoding follows the WHATWG event-stream rules for UTF-8 replacement, a
-leading byte-order mark, CR, LF, and CRLF line endings, comments, fields,
-persistent event IDs, and retry durations. An event missing its terminating
-blank line is discarded at the end of the body.
+The default delays match Chrome 154. For Firefox 156, wait 5 seconds before
+the first reconnect and raise short server `retry` values to 500 ms:
 
-The default limits are 64 KiB per line and 1 MiB per event. Set both with
-`SseLimits` before decoding begins. Exceeding a limit, or a failure in the
-underlying response body, returns a typed `SseError` and releases the body at
-once.
+```rust
+use std::time::Duration;
 
-## Reconnect behavior
+use phantom::{Client, HttpProtocol, SseEventSource};
 
-### Cancellation
+async fn firefox_like(
+    client: &Client,
+) -> Result<SseEventSource, Box<dyn std::error::Error>> {
+    let response = client
+        .event_source(HttpProtocol::Http1, "https://example.com/events")?
+        .initial_retry(Duration::from_secs(5))
+        .min_retry(Duration::from_millis(500))
+        .connect()
+        .await?;
+    Ok(response.into_body())
+}
+```
 
-Both `next_event` methods are cancellation-safe: you can drop a pending call,
-for example in `tokio::select!`, without losing data.
+- `min_retry` raises every shorter delay: the initial delay, a server value,
+  and the wait before retrying the initial request.
+  `SseEventSource::retry_delay` reports the raised value.
+- Browsers send `Pragma: no-cache` and their navigation-context fields too.
+  Supply them in order with `headers`, and place `Last-Event-ID` where the
+  browser does: 9th of 16 fields in Chrome, 5th of 14 in Firefox.
+- `Cookie` goes after every caller field, where Chrome sends it. For
+  Firefox's position, use a profile with `firefox::v156_cookie_placement`;
+  see [Cookie field position](connections-and-state.md#cookie-field-position).
 
-- `SseStream` keeps partial decoder state for the next call. It reads a
-  single response and never reconnects.
-- `SseEventSource` keeps a scheduled reconnect deadline, including an active
-  idle deadline, across a cancelled read. An in-flight reconnect request is
-  kept for the next read.
+## Limits
 
-### What carries across reconnects
+- The browser comparison covers HTTP/1.1 captures only.
+- Browsers reconnect without a limit; Phantom stops after `max_reconnects`.
+  Raise it to keep reconnecting.
+- The source's idle timeout is off by default, as in browsers. When set, it
+  starts when a response is accepted and resets on every HTTP DATA frame,
+  including comments and empty frames.
+- `request_timeouts` on the event-source builder replaces the client's
+  request timeouts for each attempt. The read-idle and total timers stop once
+  a stream is established.
+- A redirected stream reconnects to the original URL and follows the redirect
+  policy again, as Firefox does. Chrome reconnects to the redirected URL. No
+  setting changes this.
+- The source waits the retry delay after every failed attempt, as Chrome
+  does. After a reused HTTP/1 connection closes before a response, Chrome
+  resends once at once; `RetryPolicy::with_reused_connection_replay` opts into
+  that resend.
+- Decoding follows the WHATWG event-stream rules. An event without its
+  terminating blank line is discarded at the end of the body.
+- Lines over 64 KiB or events over 1 MiB fail with a typed `SseError` and
+  release the body. Set other limits with `SseLimits`; see
+  [Defaults and limits](../reference/limits.md#server-sent-events).
+- The source does not decode compressed content or model browser renderer
+  events.
 
-The event source carries the last committed `id` and `retry` values from one
-response to the next. It sends one `Last-Event-ID` field when the ID is
-nonempty. Reconnects use the same exact protocol, client cookies, redirect
-policy, ordered caller fields, and route.
+## Next
 
-A `204` response stops the source permanently.
-
-### Which failures are retried
-
-Initial transport failures, later disconnects, and idle timeouts all draw on
-the same finite reconnect budget. The event source retries only resolution,
-connection, proxy, capacity, timeout, TLS, and protocol failures.
-
-Input, policy, route, and runtime failures return `SseErrorKind::Request` at
-once, because the same request would fail the same way. So does a committed
-event ID that cannot be sent as a `Last-Event-ID` field value; the source
-ends before sending another request.
-
-### Delays
-
-| Setting | Default | Effect |
-| --- | --- | --- |
-| `initial_retry` | 3 seconds | Delay before a reconnect until the server sends `retry`. |
-| `max_reconnects` | 3 | Number of reconnect requests allowed. |
-| `min_retry` | Unset | Floor for every delay. |
-
-With `min_retry` unset, every valid server `retry` value is used exactly.
-When set, any shorter delay is raised to it: the initial delay, a server
-value, or the wait before retrying the initial request.
-`SseEventSource::retry_delay` reports the raised value.
-
-The event source adds no reconnect jitter.
-
-### Timeouts
-
-`SseRequestBuilder::request_timeouts` replaces the client's ordinary request
-timeouts for every initial or reconnect attempt. Pool-admission, connection,
-and response-head limits apply to each attempt separately. The general
-read-idle and total timers stop once an event-stream response is
-established, because an SSE stream is meant to outlive an ordinary request.
-
-The event source's own idle timeout is off by default. When set, it starts
-when a response is accepted and resets on every HTTP DATA frame, including
-comments, partial events, and empty frames. When it fires, the response is
-released and the source reconnects if the budget allows.
-
-### Errors when the budget runs out
-
-- `SseErrorKind::IdleTimeout`: the idle timeout fired with no reconnect
-  left.
-- `SseErrorKind::ReconnectLimit`: the budget ran out after transport
-  failures or an ordinary end of body.
-
-The controller does not decode compressed content or model browser renderer
-events.
-
-## Differences from captured browsers
-
-[SSE browser reconnect evidence](../explanation/validation.md#sse-browser-reconnect-evidence)
-compares this controller with Chrome 154 and Firefox 156 over HTTP/1.1.
-
-The `id`, `retry`, termination, cookie, and no-jitter behavior match both
-browsers. The three-second default delay matches Chrome. `min_retry` and a
-placeholder list reproduce the Firefox clamp and either browser's
-`Last-Event-ID` position. `crates/phantom/tests/sse_browser_reconnect.rs`
-replays the retained captures against those settings.
-
-The remaining differences:
-
-| Behavior | Phantom | Browsers | To match |
-| --- | --- | --- | --- |
-| Reconnect budget | Stops after a finite, configurable count. | Reconnected every time. The captures show at most three reconnects, so they do not show whether a browser limit exists. | Raise `max_reconnects`. |
-| Idle timeout | Optional, off by default. | Kept an idle stream open. | Leave it off. |
-| `Last-Event-ID` position | Without a placeholder, after every caller field. | Chrome sends it 9th of 16 fields; Firefox 5th of 14. | `SseHeader::last_event_id` |
-| `Cookie` position | After every caller field by default, where Chrome sends it. | Firefox sends it after `Referer` and before `Sec-Fetch-Dest`. | A profile with `firefox::v156_cookie_placement`; see [Cookie field position](connections-and-state.md#cookie-field-position). |
-| Small `retry` values | Honors any value, as Chrome does. | Firefox raises values below 500 ms. | `min_retry(500 ms)` |
-| Redirected streams | Reconnects to the original URL and follows the redirect policy again, as Firefox does. | Chrome reconnects to the redirected URL. | No setting. |
-| Default fields | `Accept` and `Cache-Control`. | Both also send `Pragma: no-cache` and their navigation-context fields. | Supply them in order with `SseRequestBuilder::headers`. |
-
-### Network errors before a response
-
-Phantom's event source waits the retry delay after every failed attempt, as
-Chrome's does. The browsers also made some immediate requests, but those are
-resends inside the HTTP stack, within one EventSource request, not
-EventSource reconnects:
-
-- Chrome resends once after a reused keep-alive connection closes before a
-  response.
-- Firefox also restarts the transaction on fresh connections.
-
-By default, Phantom's HTTP/1 layer does not resend after such a close, so the
-next request waits the retry delay.
-`RetryPolicy::with_reused_connection_replay` opts into one resend.
+- [SSE browser reconnect evidence](../explanation/validation.md#sse-browser-reconnect-evidence):
+  the Chrome and Firefox captures behind these settings.
+- [Retries and replays](retries.md): the retry policy the reconnect resend
+  uses.
+- [WebSocket](websocket.md): two-way messages instead of a server stream.
