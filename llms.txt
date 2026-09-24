@@ -36,6 +36,10 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - [Server-sent events](docs/guides/sse.md): the `sse` feature
 - [WebSocket](docs/guides/websocket.md): the `websocket` and `websocket-deflate` features
 - [Adding Phantom to a project](docs/guides/downstream.md): git and path dependencies
+- [Coming from reqwest](docs/guides/coming-from-reqwest.md): reqwest concepts mapped to Phantom, and behaviors that differ
+- [Troubleshooting](docs/guides/troubleshooting.md): error kinds mapped to causes and fixes
+- [Examples](crates/phantom/examples/README.md): runnable programs, one per guide task
+- [Changelog](CHANGELOG.md): breaking changes between commits, each with a migration note
 
 ## Reference
 

@@ -25,8 +25,9 @@ phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom"
 ```
 
 Cargo resolves every Phantom fork from that same commit, because Phantom's
-manifests refer to them by path inside the repository. To upgrade, review the
-Phantom changes, move `rev`, and commit it together with the resulting
+manifests refer to them by path inside the repository. To upgrade, read
+[CHANGELOG.md](../../CHANGELOG.md) for the breaking changes and their
+migration notes, move `rev`, and commit it together with the resulting
 `Cargo.lock` change.
 
 ## Depend on a pinned path checkout
