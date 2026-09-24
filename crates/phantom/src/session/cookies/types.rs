@@ -14,6 +14,11 @@ const fn nonzero(value: usize) -> NonZeroUsize {
 
 /// Bounds applied to one in-memory cookie jar.
 ///
+/// [`CookieLimits::default`] allows 4,096 bytes per `Set-Cookie` field, 180
+/// cookies per registrable domain, and 3,300 cookies in total. The two count
+/// bounds are Chromium's `kDomainMaxCookies` and `kMaxCookies`. Every bound
+/// must be nonzero.
+///
 /// A `Set-Cookie` field above the byte bound is rejected. The count bounds
 /// never reject a cookie: when an insert exceeds one, the jar evicts least
 /// recently used cookies, non-`Secure` first, down to five sixths of the
@@ -27,6 +32,8 @@ pub struct CookieLimits {
 
 impl CookieLimits {
     /// Creates cookie-field, per-registrable-domain, and total-count bounds.
+    ///
+    /// The defaults are 4,096 bytes, 180 cookies, and 3,300 cookies.
     #[must_use]
     pub const fn new(
         max_cookie_bytes: NonZeroUsize,

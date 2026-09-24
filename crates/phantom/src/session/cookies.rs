@@ -41,6 +41,28 @@ pub use types::{CookieError, CookieErrorKind, CookieLimits};
 /// When a new cookie takes a registrable domain or the whole jar past its
 /// [`CookieLimits`] count, the least recently used cookies are evicted,
 /// non-`Secure` cookies first.
+///
+/// A client has no jar unless
+/// [`ClientBuilder::cookies`](crate::ClientBuilder::cookies) creates one with
+/// [`CookieLimits::default`] or
+/// [`ClientBuilder::cookie_jar`](crate::ClientBuilder::cookie_jar) supplies
+/// one. The jar lives in memory only and is dropped with its client.
+///
+/// # Examples
+///
+/// ```
+/// use phantom::CookieJar;
+///
+/// # fn main() -> Result<(), phantom::CookieError> {
+/// let jar = CookieJar::default();
+/// jar.set_cookie("https://example.com/", "session=abc; Path=/")?;
+/// assert_eq!(
+///     jar.request_value("https://example.com/account")?.as_deref(),
+///     Some("session=abc"),
+/// );
+/// # Ok(())
+/// # }
+/// ```
 pub struct CookieJar {
     limits: CookieLimits,
     state: Mutex<JarState>,
@@ -48,6 +70,8 @@ pub struct CookieJar {
 
 impl CookieJar {
     /// Creates an empty jar with caller-supplied bounds.
+    ///
+    /// [`CookieJar::default`] uses [`CookieLimits::default`].
     #[must_use]
     pub fn with_limits(limits: CookieLimits) -> Self {
         Self {
@@ -60,8 +84,23 @@ impl CookieJar {
     ///
     /// # Errors
     ///
-    /// Returns [`CookieError`] for an invalid URL, malformed or unsupported
-    /// cookie, public-suffix violation, or byte limit.
+    /// Returns [`CookieError`] with kind:
+    ///
+    /// - [`CookieErrorKind::InvalidUrl`] when `url` does not parse, is not
+    ///   `http` or `https`, or has no host;
+    /// - [`CookieErrorKind::CookieTooLarge`] when the field is longer than
+    ///   [`CookieLimits::max_cookie_bytes`];
+    /// - [`CookieErrorKind::InvalidSetCookie`] when the field is malformed or
+    ///   its attributes do not apply to `url`;
+    /// - [`CookieErrorKind::InvalidPrefix`] for a `__Secure-` or `__Host-`
+    ///   cookie that does not meet its prefix rules;
+    /// - [`CookieErrorKind::UnsupportedPolicy`] for a `Secure` cookie from an
+    ///   origin that is not potentially trustworthy, or a `SameSite=None` or
+    ///   `Partitioned` cookie without `Secure`;
+    /// - [`CookieErrorKind::PublicSuffix`] for a `Domain` that is a public
+    ///   suffix other than the URL's host;
+    /// - [`CookieErrorKind::SecureOverlay`] when a cookie from an origin that
+    ///   is not potentially trustworthy would replace a `Secure` one.
     pub fn set_cookie(&self, url: &str, set_cookie: &str) -> Result<(), CookieError> {
         let url = parse_url(url)?;
         self.state.lock().store(set_cookie, &url, self.limits)
@@ -78,7 +117,8 @@ impl CookieJar {
     ///
     /// # Errors
     ///
-    /// Returns [`CookieError`] when `url` is invalid or unsupported.
+    /// Returns [`CookieError`] with kind [`CookieErrorKind::InvalidUrl`] when
+    /// `url` does not parse, is not `http` or `https`, or has no host.
     pub fn request_value(&self, url: &str) -> Result<Option<String>, CookieError> {
         let url = parse_url(url)?;
         Ok(self
