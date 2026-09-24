@@ -141,13 +141,16 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.88.0 check --workspace --all-targets --locked
-uvx ruff@0.16.7 check scripts/capture scripts/conformance
-uvx ruff@0.16.7 format --check scripts/capture scripts/conformance
+uvx ruff@0.16.7 check scripts/capture scripts/conformance scripts/docs
+uvx ruff@0.16.7 format --check scripts/capture scripts/conformance scripts/docs
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   --with h2==4.4.1 --with hpack==4.2.0 \
   python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
+uv run --no-project --python 3.10 \
+  python -m unittest discover -s scripts/docs/tests -p 'test_*.py'
+uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 ```
 
 - Never run `cargo fmt --all`: it also formats path dependencies and rewrites
@@ -217,7 +220,7 @@ before merging a change to the QUIC or TLS paths.
 
 | Workflow | Pull request | Push to `main` | Weekly schedule and manual dispatch |
 | --- | --- | --- | --- |
-| [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Features, Downstream, Vendor, MSRV, and the Windows Platform job | Same, plus the macOS Platform job | Every job, whatever changed |
+| [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Documentation, Features, Downstream, Vendor, MSRV, and the Windows Platform job | Same, plus the macOS Platform job | Every job, whatever changed |
 | [Parser fuzzing](.github/workflows/fuzz.yml) | 15 seconds per target when parser paths change | Same as pull requests | 300 seconds per target |
 | [Sanitizers](.github/workflows/sanitizers.yml) | `phantom-quic-btls` and the HTTP/3 loopback tests under ASan when QUIC, TLS, testkit, or vendored paths change; each job times out at 60 minutes | Same as pull requests | Both jobs, whatever changed |
 | Conformance suites | Only with the `conformance` label | When the suite's paths change | Yes, with the workflow's scheduled or chosen case set |
@@ -241,7 +244,7 @@ one.
 
 | Class | Paths | Jobs that run |
 | --- | --- | --- |
-| Documentation | Markdown outside `crates/`, `fixtures/`, `fuzz/`, and `vendor/`; anything under `docs/`; the license files; `.github/CODEOWNERS`; `.github/ISSUE_TEMPLATE/` | Classification and `CI required` only |
+| Documentation | Markdown outside `crates/`, `fixtures/`, `fuzz/`, and `vendor/`; anything under `docs/`; the license files; `.github/CODEOWNERS`; `.github/ISSUE_TEMPLATE/` | Classification, Documentation, and `CI required` |
 | Doctest sources | `README.md`, `docs/getting-started.md`, `docs/guides/` | Quality only, when no code changed |
 | Code | Every other path, including workflows, manifests, fixtures, and scripts | Every job for the event |
 
@@ -274,7 +277,10 @@ gh run list --workflow autobahn.yml --branch <branch>
 ## Write documentation
 
 Follow [Writing the documentation](docs/internals/documentation.md) for
-readers, page types, page shape, and prose rules.
+readers, page types, page shape, and prose rules, and run
+`python scripts/docs/check_docs.py` before you commit. Add an entry under
+`Unreleased` in [CHANGELOG.md](CHANGELOG.md) for every user-visible change; a
+breaking change also needs a "Migrate:" note.
 
 ## Commits and pull requests
 

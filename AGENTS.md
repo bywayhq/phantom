@@ -18,6 +18,9 @@ An agent that uses Phantom as a library, rather than changing it, should read
 - Check each touched vendored package with `scripts/ci/check-vendor.sh
   <package>`; on Windows use the Git settings under
   [Windows hosts](#windows-hosts).
+- Documentation follows
+  [Writing the documentation](docs/internals/documentation.md); check it with
+  `python scripts/docs/check_docs.py`.
 - The full integration gate is under
   [Verification and handoff](#verification-and-handoff).
 
@@ -83,6 +86,12 @@ Use a sibling worktree only when independent work can proceed concurrently.
   commands in adjacent documentation.
 - Update public documentation and compile-check examples when behavior or APIs
   change. Do not claim unimplemented or unverified support.
+- Add a `CHANGELOG.md` entry under `Unreleased` for every user-visible change.
+  A breaking change also needs a "Migrate:" note that names the old and new
+  API. Mark a breaking commit with `!` in its subject.
+- Write documentation to
+  [Writing the documentation](docs/internals/documentation.md): one reader and
+  one job per page, and no stock phrases or other machine-written tells.
 
 ## Commits
 
@@ -127,13 +136,16 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.88.0 check --workspace --all-targets --locked
-uvx ruff@0.16.7 check scripts/capture scripts/conformance
-uvx ruff@0.16.7 format --check scripts/capture scripts/conformance
+uvx ruff@0.16.7 check scripts/capture scripts/conformance scripts/docs
+uvx ruff@0.16.7 format --check scripts/capture scripts/conformance scripts/docs
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   --with h2==4.4.1 --with hpack==4.2.0 \
   python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
+uv run --no-project --python 3.10 \
+  python -m unittest discover -s scripts/docs/tests -p 'test_*.py'
+uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 ```
 
 Read the output of every gate command. A command list joined with `;` or

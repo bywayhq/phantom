@@ -29,6 +29,8 @@
       "Bash(uvx ruff@0.16.7 check *)",
       "Bash(uvx ruff@0.16.7 format --check *)",
       "Bash(uv run --no-project --python 3.10 --with aioquic==1.3.0 * python -m unittest discover *)",
+      "Bash(python scripts/docs/check_docs.py *)",
+      "Bash(python scripts/docs/check_docs.py)",
       "PowerShell(git status *)",
       "PowerShell(git diff *)",
       "PowerShell(git log *)",
