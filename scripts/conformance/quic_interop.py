@@ -96,7 +96,7 @@ def register_client(path: Path, image: str) -> bytes:
         raise ValueError("client image must be one nonempty argument")
     document[CLIENT_NAME] = {
         "image": image,
-        "url": "https://github.com/0xARYA/phantom",
+        "url": "https://github.com/bywayhq/phantom",
         "role": "client",
     }
     path.write_text(
