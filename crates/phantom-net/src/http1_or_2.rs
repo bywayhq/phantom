@@ -13,7 +13,11 @@ use crate::{
         Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected, translate_settings,
         validate_http2,
     },
-    proxy::{Socks5Auth, Socks5Error, socks5_tunnel_local_dns, socks5_tunnel_remote_dns},
+    proxy::{
+        HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector, Socks5Auth,
+        Socks5Error, http_connect_tunnel, http_connect_tunnel_with_basic_auth,
+        socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
+    },
     tls::{TlsConnector, TlsError, trace_alpn},
 };
 
@@ -34,6 +38,8 @@ pub enum Http1Or2TlsErrorKind {
     RuntimeUnavailable,
     /// Establishing the direct TCP connection failed.
     Connect,
+    /// The HTTP proxy leg or its CONNECT request failed before origin TLS.
+    HttpProxy,
     /// The SOCKS5 proxy leg failed before TLS.
     Socks5Proxy,
     /// TLS setup or negotiation failed before an HTTP protocol was selected.
@@ -56,6 +62,9 @@ pub enum Http1Or2TlsError {
     RuntimeUnavailable,
     /// Establishing the direct TCP connection failed.
     Connect(std::io::Error),
+    /// The HTTP proxy connection, its TLS, authentication, or CONNECT request
+    /// failed.
+    Proxy(HttpConnectError),
     /// The SOCKS5 proxy negotiation or CONNECT request failed.
     Socks5Proxy(Socks5Error),
     /// TLS connector setup or handshake failed.
@@ -82,6 +91,7 @@ impl Http1Or2TlsError {
         match self {
             Self::RuntimeUnavailable => Http1Or2TlsErrorKind::RuntimeUnavailable,
             Self::Connect(_) => Http1Or2TlsErrorKind::Connect,
+            Self::Proxy(_) => Http1Or2TlsErrorKind::HttpProxy,
             Self::Socks5Proxy(_) => Http1Or2TlsErrorKind::Socks5Proxy,
             Self::Tls(_) => Http1Or2TlsErrorKind::Tls,
             Self::Http1(_) => Http1Or2TlsErrorKind::Http1,
@@ -100,6 +110,7 @@ impl fmt::Display for Http1Or2TlsError {
             Self::RuntimeUnavailable => formatter
                 .write_str("negotiated HTTP/1.1 or HTTP/2 requests require a Tokio runtime"),
             Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
+            Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
             Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
             Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
             Self::Http1(error) => write!(formatter, "HTTP/1.1 connection failed: {error}"),
@@ -123,6 +134,7 @@ impl StdError for Http1Or2TlsError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Connect(error) => Some(error),
+            Self::Proxy(error) => Some(error),
             Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http1(error) => Some(error),
@@ -132,6 +144,12 @@ impl StdError for Http1Or2TlsError {
             | Self::MissingHttp1Alpn
             | Self::MissingHttp2Alpn => None,
         }
+    }
+}
+
+impl From<HttpConnectError> for Http1Or2TlsError {
+    fn from(error: HttpConnectError) -> Self {
+        Self::Proxy(error)
     }
 }
 
@@ -293,6 +311,161 @@ impl Http1Or2TlsConnector {
                     DirectConnectError::RuntimeUnavailable => Http1Or2TlsError::RuntimeUnavailable,
                     DirectConnectError::Connect(error) => Http1Or2TlsError::Connect(error),
                 })?;
+            let stream = self.tls.connect(server_name, stream).await?;
+            select_connection(stream, client).await
+        })
+        .await
+    }
+
+    /// Tunnels through a plaintext HTTP proxy with one HTTP/1.1 CONNECT, then
+    /// selects HTTP/1.1 or HTTP/2 over origin TLS.
+    ///
+    /// The CONNECT request is validated before DNS resolution or TCP I/O, and
+    /// the proxy leg uses this connector's TCP settings. `server_name` controls
+    /// origin certificate verification and SNI. The origin TLS handshake runs
+    /// once inside the tunnel. Proxy or negotiation failure never falls back
+    /// to a direct connection, another ALPN offer, or another HTTP protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, proxy, TLS, ALPN, ALPS, or
+    /// protocol setup failures.
+    pub async fn connect_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let stream = http_connect_tunnel(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+            )
+            .await?;
+            let stream = self.tls.connect(server_name, stream).await?;
+            select_connection(stream, client).await
+        })
+        .await
+    }
+
+    /// Tunnels through a plaintext HTTP proxy using challenge-driven Basic
+    /// authentication, then selects HTTP/1.1 or HTTP/2 over origin TLS.
+    ///
+    /// The first CONNECT omits credentials. After a valid Basic challenge the
+    /// CONNECT is sent once more, with credentials, on a fresh proxy
+    /// connection. Otherwise this behaves as [`Self::connect_http_connect`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, proxy, authentication, TLS,
+    /// ALPN, ALPS, or protocol setup failures.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let stream = http_connect_tunnel_with_basic_auth(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+            let stream = self.tls.connect(server_name, stream).await?;
+            select_connection(stream, client).await
+        })
+        .await
+    }
+
+    /// Tunnels through an HTTPS proxy with `proxy_connector`, then selects
+    /// HTTP/1.1 or HTTP/2 over origin TLS inside the tunnel.
+    ///
+    /// The proxy connector owns the proxy TLS offer, trust roots, proxy
+    /// protocol, and proxy-leg TCP settings. The origin handshake uses this
+    /// connector's TLS settings and `server_name`, once. Failure never falls
+    /// back to a direct connection, another ALPN offer, or another HTTP
+    /// protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, proxy, TLS, ALPN, ALPS, or
+    /// protocol setup failures.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_https_connect(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let stream = proxy_connector
+                .connect_tunnel(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                )
+                .await?;
+            let stream = self.tls.connect(server_name, stream).await?;
+            select_connection(stream, client).await
+        })
+        .await
+    }
+
+    /// Tunnels through an HTTPS proxy using challenge-driven Basic
+    /// authentication, then selects HTTP/1.1 or HTTP/2 over origin TLS.
+    ///
+    /// Otherwise this behaves as [`Self::connect_https_connect`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, proxy, authentication, TLS,
+    /// ALPN, ALPS, or protocol setup failures.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn connect_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let stream = proxy_connector
+                .connect_tunnel_with_basic_auth(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
+                )
+                .await?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
         })
@@ -464,7 +637,7 @@ impl ConnectOutcome {
             Ok(_) => "ok",
             Err(Http1Or2TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http1Or2TlsError::Connect(_)) => "connect_error",
-            Err(Http1Or2TlsError::Socks5Proxy(_)) => "proxy_error",
+            Err(Http1Or2TlsError::Proxy(_) | Http1Or2TlsError::Socks5Proxy(_)) => "proxy_error",
             Err(Http1Or2TlsError::Tls(_)) => "tls_error",
             Err(Http1Or2TlsError::Http1(_)) => "http1_error",
             Err(Http1Or2TlsError::Http2(_)) => "http2_error",
