@@ -90,13 +90,24 @@ alternative's host is revalidated against the request host on the way in and
 re-emitted verbatim on the way out.
 
 `cookie_jar` asserts those two rules over named hosts, which no rule makes
-trustworthy over `http://`. Loopback authorities are trustworthy under either
-scheme, so [`LOOPBACK_URLS`](src/cookie_jar.rs) carries a third assertion
-instead: the same fields stored from `http://127.0.0.1` and from
-`https://127.0.0.1` must leave the same number of cookies and produce the same
-`Cookie` field. That is what guards the symmetry between the jar's storage
-gate and its matching gate, and it fails whichever of the two a change
-inverts. Each jar is read back over the scheme it was filled from, because a
+trustworthy over `http://`. Loopback and `localhost` authorities are
+trustworthy under either scheme, so
+[`TRUSTWORTHY_URL_PAIRS`](src/cookie_jar.rs) carries a third assertion
+instead: for each authority, the same fields stored over `http://` and over
+`https://` must leave the same number of cookies and produce the same `Cookie`
+field. That guards the symmetry between the jar's storage gate and its
+matching gate, and it fails whichever of the two a change inverts.
+
+Both pairs are needed, because the two gates fail on different hosts. The
+`cookie_store` crate's own secure test accepts a loopback IP literal, so the
+matching gate agrees on `127.0.0.1` whatever the jar does, and that pair
+constrains storage alone. It accepts the exact host `localhost` and nothing
+beneath it, so on `app.localhost` an `http://` request sees a `Secure` cookie
+only through the jar's own trustworthy test, and that pair constrains both
+gates. A loopback-only assertion stays green against a jar that has lost the
+matching side entirely.
+
+Each jar is read back over the scheme it was filled from, because a
 `Partitioned` cookie's key is schemeful; the seed carries a `Partitioned`
 field so the fuzzer reaches that path.
 

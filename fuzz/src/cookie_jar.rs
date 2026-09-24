@@ -19,16 +19,17 @@
 //! 2. The jar rejects a `Secure` cookie set by an origin that is not
 //!    potentially trustworthy, so a jar that only ever received `; Secure`
 //!    fields from such an origin must stay empty.
-//! 3. A loopback authority is potentially trustworthy under either scheme, so
-//!    the scheme must be invisible there in both directions: the same fields
-//!    stored from `http://` and from `https://` leave the same number of
-//!    cookies and produce the same `Cookie` field. See [`LOOPBACK_URLS`].
+//! 3. A loopback or `localhost` authority is potentially trustworthy under
+//!    either scheme, so the scheme must be invisible there in both
+//!    directions: the same fields stored from `http://` and from `https://`
+//!    leave the same number of cookies and produce the same `Cookie` field.
+//!    See [`TRUSTWORTHY_URL_PAIRS`].
 //!
 //! Invariants 1 and 2 are asserted over named hosts, which no rule makes
-//! trustworthy over `http://`. Invariant 3 is what guards the loopback rule,
-//! and it fails in whichever direction a scheme test is inverted: a storage
-//! gate that refuses `http://` empties one jar, and a matching gate that
-//! refuses it empties one `Cookie` field.
+//! trustworthy over `http://`. Invariant 3 guards the trustworthy-origin rule
+//! in both directions, and fails whichever of the jar's two gates a change
+//! inverts: a storage gate that refuses `http://` empties one jar, and a
+//! matching gate that refuses it empties one `Cookie` field.
 
 #[cfg(test)]
 mod tests;
@@ -44,18 +45,26 @@ const SECURE_URLS: [&str; 2] = ["https://sub.example.com/a/b", "https://example.
 /// potentially trustworthy over `http://`.
 const INSECURE_URLS: [&str; 2] = ["http://sub.example.com/a/b", "http://example.com/"];
 
-/// Loopback origins, which are potentially trustworthy under either scheme.
+/// Authorities that are potentially trustworthy under either scheme, each as
+/// an `[https, http]` pair that differs only in scheme and port. No cookie
+/// rule reads the port.
 ///
-/// Chromium treats a loopback authority as trustworthy for setting a cookie
-/// and for sending one alike, and the jar follows it, so these two URLs must
-/// behave identically. They share a host and a path and differ only in scheme
-/// and port, and no cookie rule reads the port.
-const LOOPBACK_URLS: [&str; 2] = ["https://127.0.0.1:8443/a", "http://127.0.0.1:8080/a"];
+/// Both pairs are needed, because the two gates fail on different hosts.
+/// `cookie_store`'s own `utils::is_secure` accepts a loopback IP literal, so
+/// the matching gate agrees there whatever the jar does, and the loopback pair
+/// constrains only the storage gate. It accepts the exact host `localhost` and
+/// nothing beneath it, so for a `.localhost` subdomain the `http://` request
+/// sees a `Secure` cookie only through the jar's own trustworthy test, and the
+/// `.localhost` pair constrains both gates.
+const TRUSTWORTHY_URL_PAIRS: [[&str; 2]; 2] = [
+    ["https://127.0.0.1:8443/a", "http://127.0.0.1:8080/a"],
+    ["https://app.localhost/a", "http://app.localhost/a"],
+];
 
 /// `Set-Cookie` fields whose storage and retrieval must keep working.
 ///
 /// `Partitioned` earns its place: its partition key is schemeful, so it is the
-/// one attribute whose stored state differs between the two loopback origins,
+/// one attribute whose stored state differs between the two origins of a pair,
 /// and invariant 3 holds only because each jar is read back over the scheme it
 /// was filled from.
 pub const VALID_SET_COOKIES: &[u8] =
@@ -77,12 +86,12 @@ pub fn fields(input: &[u8]) -> Vec<String> {
         .collect()
 }
 
-/// Every origin the harness touches, including the loopback ones.
+/// Every origin the harness touches, including the trustworthy pairs.
 fn every_url() -> impl Iterator<Item = &'static &'static str> {
     SECURE_URLS
         .iter()
         .chain(INSECURE_URLS.iter())
-        .chain(LOOPBACK_URLS.iter())
+        .chain(TRUSTWORTHY_URL_PAIRS.iter().flatten())
 }
 
 /// Stores every field, marked `Secure`, from each URL in `origins`.
@@ -95,7 +104,7 @@ fn store_secure(jar: &CookieJar, origins: &[&str], fields: &[String]) {
     }
 }
 
-/// Applies one field set to fresh jars and checks both scheme invariants.
+/// Applies one field set to fresh jars and checks all three origin invariants.
 ///
 /// Returns whether any field was stored at all, which the regressions use to
 /// prove the structural seeds still reach the jar.
@@ -119,29 +128,30 @@ pub fn drive(fields: &[String]) -> bool {
         "an untrustworthy origin stored a Secure cookie"
     );
 
-    // A loopback authority is trustworthy under either scheme, so the scheme
-    // must change neither what is stored nor what is sent back. Each jar is
-    // read over the scheme it was filled from, because a `Partitioned`
+    // A trustworthy authority is trustworthy under either scheme, so the
+    // scheme must change neither what is stored nor what is sent back. Each
+    // jar is read over the scheme it was filled from, because a `Partitioned`
     // cookie's key is schemeful.
-    let [loopback_secure, loopback_plain] = LOOPBACK_URLS;
-    let secure_loopback_jar = CookieJar::default();
-    store_secure(&secure_loopback_jar, &[loopback_secure], fields);
-    let plain_loopback_jar = CookieJar::default();
-    store_secure(&plain_loopback_jar, &[loopback_plain], fields);
-    assert_eq!(
-        plain_loopback_jar.len(),
-        secure_loopback_jar.len(),
-        "{loopback_plain} and {loopback_secure} stored different cookie counts"
-    );
-    assert_eq!(
-        plain_loopback_jar
-            .request_value(loopback_plain)
-            .expect("a fixed origin URL must stay valid"),
-        secure_loopback_jar
-            .request_value(loopback_secure)
-            .expect("a fixed origin URL must stay valid"),
-        "a loopback origin's Cookie field depended on its scheme"
-    );
+    for [over_https, over_http] in TRUSTWORTHY_URL_PAIRS {
+        let https_jar = CookieJar::default();
+        store_secure(&https_jar, &[over_https], fields);
+        let http_jar = CookieJar::default();
+        store_secure(&http_jar, &[over_http], fields);
+        assert_eq!(
+            http_jar.len(),
+            https_jar.len(),
+            "{over_http} and {over_https} stored different cookie counts"
+        );
+        assert_eq!(
+            http_jar
+                .request_value(over_http)
+                .expect("a fixed origin URL must stay valid"),
+            https_jar
+                .request_value(over_https)
+                .expect("a fixed origin URL must stay valid"),
+            "the Cookie field for {over_http} depended on its scheme"
+        );
+    }
 
     // Unmarked fields exercise the ordinary storage, matching, eviction, and
     // request-field paths without constraining the outcome.
