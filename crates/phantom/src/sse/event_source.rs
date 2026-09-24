@@ -57,6 +57,39 @@ enum ReconnectFailure {
 }
 
 /// Pull-driven server-sent event source with bounded reconnects.
+///
+/// Start one with [`Client::event_source`](crate::Client::event_source) and
+/// [`SseRequestBuilder::connect`]. After a disconnect, a body failure, or an
+/// idle timeout, the source waits [`Self::retry_delay`] and sends the request
+/// again with the committed `Last-Event-ID`, on the same exact protocol and
+/// route. Reconnects stop after the builder's
+/// [`max_reconnects`](SseRequestBuilder::max_reconnects) budget (3 by
+/// default); browsers reconnect without a limit. A 204 response closes the
+/// source. Nothing runs between calls to [`Self::next_event`]: there is no
+/// background task.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::time::Duration;
+///
+/// use phantom::{Client, HttpProtocol};
+///
+/// async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+///     let response = client
+///         .event_source(HttpProtocol::Http2, "https://example.com/events")?
+///         .idle_timeout(Duration::from_secs(30))
+///         .max_reconnects(4)
+///         .connect()
+///         .await?;
+///     let mut events = response.into_body();
+///
+///     while let Some(event) = events.next_event().await? {
+///         println!("{}: {}", event.event(), event.data());
+///     }
+///     Ok(())
+/// }
+/// ```
 #[must_use = "SSE event sources must be read, closed, or deliberately dropped"]
 pub struct SseEventSource {
     request: SseRequest,
@@ -154,8 +187,25 @@ impl SseEventSource {
     ///
     /// # Errors
     ///
-    /// Returns [`SseError`] for terminal response or decoding failures and when
-    /// the reconnect budget is exhausted.
+    /// Returns [`SseError`] with kind:
+    ///
+    /// - [`SseErrorKind::ReconnectLimit`] when the reconnect budget is spent
+    ///   after a disconnect or a failed reconnect request, or
+    ///   [`SseErrorKind::IdleTimeout`] when the idle timeout fired last;
+    /// - [`SseErrorKind::Request`] when a reconnect request fails in a way a
+    ///   repeat cannot fix (such as a redirect or route error), or the
+    ///   committed ID is not a valid field value;
+    /// - [`SseErrorKind::UnexpectedStatus`],
+    ///   [`SseErrorKind::InvalidContentType`], or
+    ///   [`SseErrorKind::UnsupportedContentEncoding`] when a reconnect
+    ///   response fails validation;
+    /// - [`SseErrorKind::LineTooLong`] or [`SseErrorKind::EventTooLarge`]
+    ///   when the stream exceeds its [`SseLimits`];
+    /// - [`SseErrorKind::InvalidReconnectDelay`] or
+    ///   [`SseErrorKind::InvalidIdleTimeout`] when a delay cannot be added to
+    ///   the runtime clock.
+    ///
+    /// Every error closes the source; later calls return `Ok(None)`.
     pub async fn next_event(&mut self) -> Result<Option<SseEvent>, SseError> {
         let span = debug_span!(
             "sse.event_source.next_event",

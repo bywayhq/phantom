@@ -92,6 +92,20 @@ impl fmt::Debug for SseHeader {
 }
 
 /// Builds one client-owned server-sent event source.
+///
+/// Created by [`Client::event_source`]. Unless changed, the builder uses:
+///
+/// - the fields `Accept: text/event-stream` and `Cache-Control: no-cache`,
+///   lowercase on HTTP/2 and HTTP/3;
+/// - the client's route and request timeouts;
+/// - [`SseLimits::default`];
+/// - no idle timeout;
+/// - an initial reconnect delay of 3 seconds and no minimum delay; and
+/// - a budget of 3 reconnect requests.
+///
+/// Every attempt is an ordinary GET on exactly the chosen protocol, so the
+/// client's retry policy, redirect policy, and cookie jar apply to each one.
+/// A redirected stream reconnects to the original URL.
 #[must_use = "SSE request builders do nothing until connect is awaited"]
 pub struct SseRequestBuilder {
     request: SseRequest,
@@ -183,7 +197,8 @@ impl SseRequestBuilder {
         self
     }
 
-    /// Sets the event-stream decoding bounds.
+    /// Sets the event-stream decoding bounds; the default is
+    /// [`SseLimits::default`].
     pub fn limits(mut self, limits: SseLimits) -> Self {
         self.limits = limits;
         self
@@ -193,13 +208,24 @@ impl SseRequestBuilder {
     ///
     /// The timeout is disabled by default. Comments, partial events, and empty
     /// DATA frames count as activity. An idle response reconnects within the
-    /// same finite budget as a disconnected response.
+    /// same finite budget as a disconnected response. A timeout too large to
+    /// add to the runtime clock makes [`Self::connect`] fail with
+    /// [`SseErrorKind::InvalidIdleTimeout`].
+    ///
+    /// [`SseErrorKind::InvalidIdleTimeout`]: crate::SseErrorKind::InvalidIdleTimeout
     pub fn idle_timeout(mut self, timeout: Duration) -> Self {
         self.idle_timeout = Some(timeout);
         self
     }
 
     /// Sets the delay used until the server supplies a valid `retry` field.
+    ///
+    /// The default is 3 seconds, as in Chrome. No jitter is added. When the
+    /// reconnect budget is nonzero, a delay too large to add to the runtime
+    /// clock makes [`Self::connect`] fail with
+    /// [`SseErrorKind::InvalidReconnectDelay`].
+    ///
+    /// [`SseErrorKind::InvalidReconnectDelay`]: crate::SseErrorKind::InvalidReconnectDelay
     pub fn initial_retry(mut self, delay: Duration) -> Self {
         self.initial_retry = delay;
         self
@@ -216,6 +242,9 @@ impl SseRequestBuilder {
     }
 
     /// Sets the finite number of requests allowed after the initial attempt.
+    ///
+    /// The default is 3. Zero disables reconnects. Failed initial attempts,
+    /// disconnects, and idle timeouts all draw from this one budget.
     pub fn max_reconnects(mut self, maximum: usize) -> Self {
         self.max_reconnects = maximum;
         self
@@ -230,8 +259,30 @@ impl SseRequestBuilder {
     ///
     /// # Errors
     ///
-    /// Returns [`SseError`] when request preparation, transport, or response
-    /// validation fails.
+    /// Returns [`SseError`] with kind:
+    ///
+    /// - [`SseErrorKind::InvalidRequestHeader`] for a literal `Last-Event-ID`
+    ///   field or an invalid or repeated placeholder, before any I/O;
+    /// - [`SseErrorKind::InvalidReconnectDelay`] or
+    ///   [`SseErrorKind::InvalidIdleTimeout`] for a delay too large to add to
+    ///   the runtime clock, before any I/O;
+    /// - [`SseErrorKind::Request`] when the request fails in a way a repeat
+    ///   cannot fix, or fails with no reconnect budget;
+    /// - [`SseErrorKind::ReconnectLimit`] when every attempt within the budget
+    ///   failed;
+    /// - [`SseErrorKind::UnexpectedStatus`],
+    ///   [`SseErrorKind::InvalidContentType`], or
+    ///   [`SseErrorKind::UnsupportedContentEncoding`][encoding] when the
+    ///   response fails validation.
+    ///
+    /// [`SseErrorKind::InvalidRequestHeader`]: crate::SseErrorKind::InvalidRequestHeader
+    /// [`SseErrorKind::InvalidReconnectDelay`]: crate::SseErrorKind::InvalidReconnectDelay
+    /// [`SseErrorKind::InvalidIdleTimeout`]: crate::SseErrorKind::InvalidIdleTimeout
+    /// [`SseErrorKind::Request`]: crate::SseErrorKind::Request
+    /// [`SseErrorKind::ReconnectLimit`]: crate::SseErrorKind::ReconnectLimit
+    /// [`SseErrorKind::UnexpectedStatus`]: crate::SseErrorKind::UnexpectedStatus
+    /// [`SseErrorKind::InvalidContentType`]: crate::SseErrorKind::InvalidContentType
+    /// [encoding]: crate::SseErrorKind::UnsupportedContentEncoding
     pub async fn connect(self) -> Result<Response<SseEventSource>, SseError> {
         let route = self
             .request

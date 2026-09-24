@@ -18,6 +18,12 @@ const DEFAULT_MAX_LINE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_EVENT_BYTES: usize = 1024 * 1024;
 
 /// Memory limits applied while decoding one server-sent event stream.
+///
+/// [`SseLimits::default`] allows lines up to 64 KiB and event blocks up to
+/// 1 MiB. Apply other limits with [`SseStream::from_response_with_limits`] or
+/// [`SseRequestBuilder::limits`]. A line or event block over its limit fails
+/// with [`SseErrorKind::LineTooLong`] or [`SseErrorKind::EventTooLarge`] and
+/// releases the response body.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SseLimits {
     max_line_bytes: usize,
@@ -27,8 +33,9 @@ pub struct SseLimits {
 impl SseLimits {
     /// Creates limits from a maximum line length and aggregate event-block size.
     ///
-    /// Both limits count encoded bytes and exclude line terminators. A zero
-    /// limit rejects the first nonempty line or event block, respectively.
+    /// Both limits count encoded bytes and exclude line terminators. Any value
+    /// is accepted; a zero limit rejects the first nonempty line or event
+    /// block, respectively.
     #[must_use]
     pub const fn new(max_line_bytes: usize, max_event_bytes: usize) -> Self {
         Self {
@@ -222,6 +229,10 @@ impl StdError for SseError {
 
 /// Pull-based decoder over Phantom's existing streaming response body.
 ///
+/// A stream reads one response and never reconnects; use
+/// [`Client::event_source`](crate::Client::event_source) for a source that
+/// resumes with `Last-Event-ID`. It has no idle timeout.
+///
 /// The stream has no background task or event queue. Dropping a pending
 /// [`SseStream::next_event`] future leaves the decoder and response body ready
 /// for the next call; dropping the stream preserves the underlying protocol's
@@ -240,9 +251,14 @@ impl SseStream {
     ///
     /// # Errors
     ///
-    /// Returns [`SseError`] unless the response is 200 OK, its content-type
-    /// essence is `text/event-stream`, and it has no non-identity content
-    /// encoding.
+    /// Returns [`SseError`] with kind:
+    ///
+    /// - [`SseErrorKind::UnexpectedStatus`] for a status other than 200 OK;
+    /// - [`SseErrorKind::InvalidContentType`] when `Content-Type` is missing,
+    ///   repeated, or has an essence other than `text/event-stream`;
+    /// - [`SseErrorKind::UnsupportedContentEncoding`] for any content coding
+    ///   other than `identity`, even when the request enabled content
+    ///   decoding.
     pub fn from_response(response: Response<ResponseBody>) -> Result<Response<Self>, SseError> {
         Self::from_response_with_limits(response, SseLimits::default())
     }
@@ -307,8 +323,10 @@ impl SseStream {
     ///
     /// # Errors
     ///
-    /// Returns [`SseError`] when a configured bound is exceeded or the
-    /// underlying response body fails.
+    /// Returns [`SseError`] with kind [`SseErrorKind::LineTooLong`] or
+    /// [`SseErrorKind::EventTooLarge`] when a limit is exceeded, or
+    /// [`SseErrorKind::Body`] when the response body fails. After an error the
+    /// body is released and later calls return `Ok(None)`.
     pub async fn next_event(&mut self) -> Result<Option<SseEvent>, SseError> {
         let span = debug_span!("sse.next_event", outcome = field::Empty);
         let outcome = SseOutcome::new(&span);
