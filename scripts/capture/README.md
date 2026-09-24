@@ -1,30 +1,49 @@
 # Capture tools
 
 These tools record what a real browser sends to a loopback server and write
-the result as a fixture under [`fixtures/`](../../fixtures/). A fixture is
-raw evidence recorded on the capture machine, not a report from a third-party
-fingerprinting service. Phantom's profiles and tests are compared against
-these fixtures.
+it as a fixture under [`fixtures/`](../../fixtures/). This page shows how to
+run each one.
 
-This page covers how to run each tool. Why each retained capture exists, and
-what it proves, belongs in
-[Validation](../../docs/explanation/validation.md).
+> For contributors recording browser evidence. Read
+> [Add a browser recipe](../../docs/internals/browser-recipes.md) first when
+> the capture is for a new recipe.
 
-Run every command from the repository root with Python 3.10. Every listener
-refuses a non-loopback address.
+A fixture is raw evidence recorded on the capture machine, not a report from a
+third-party fingerprinting service. Why each retained capture exists, and what
+it proves, belongs in [Validation](../../docs/explanation/validation.md).
+Run every command from the repository root; the Python tools need Python
+3.10. Every listener refuses a non-loopback address.
+
+## Which tool to run
+
+| To record | Run | Fixture area |
+| --- | --- | --- |
+| A TLS ClientHello over TCP | `cargo run -p phantom-testkit --example capture_client_hello` | `fixtures/tls/` |
+| HTTP/2 startup frames | `cargo run -p phantom-net --example capture_http2_tls` | `fixtures/http2/` |
+| A QUIC ClientHello and HTTP/3 startup | [`chrome_http3.py`](#http3-startup) | `fixtures/http3/` |
+| Client hints, default and after `Accept-CH` | [`client_hints.py`](#client-hints) | `fixtures/client-hints/` |
+| WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
+| EventSource reconnects | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
+| Alt-Svc racing between QUIC and TCP | [`alt_svc_race.py`](#alt-svc-racing) | `fixtures/alt-svc/` |
+
+The two Cargo examples are Rust programs, not scripts in this directory.
+[Capture commands and launches](../../docs/explanation/validation.md#capture-commands-and-launches)
+has their arguments and the browser launch flags used with them.
+`quic_packet_diff.py` and `compare_quic_flights.py` compare QUIC captures; see
+[HTTP/3 internals](../../docs/internals/http3.md#capture-workflow).
 
 ## Browser launcher
 
-The capture tools start browsers through `browser_launch.py`. Each run gets a
-new temporary profile, and the launcher removes the profile and the browser's
-process tree afterwards. Fixtures record the exact launch arguments, with the
-profile path replaced by `<temporary-profile>`.
+The Python tools start browsers through `browser_launch.py`. Each run gets a
+new temporary profile, which the launcher removes with the browser's process
+tree afterwards. Fixtures record the exact launch arguments, with the profile
+path replaced by `<temporary-profile>`.
 
 | `--browser` | How it starts |
 | --- | --- |
 | `chrome`, `edge` | `--headless=new` unless `--headful`, `--user-data-dir`, the flags in `CHROMIUM_FLAGS`, then the page URL |
 | `firefox` | `--headless` unless `--headful`, `--wait-for-browser`, `--no-remote --profile`, then the page URL |
-| `manual` | Starts no process. Each run prints its URL on standard error for a person to open |
+| `manual` | Starts no process. Each run prints its URL on standard error for a person to open. Use it for Safari and any browser that cannot be launched from the command line |
 
 `CHROMIUM_FLAGS` suppresses background requests from a fresh profile: first
 run and default-browser checks, background networking, component updates,
@@ -35,11 +54,9 @@ that turns off the same classes of traffic, including updates, captive-portal
 and connectivity checks, telemetry, Safe Browsing, DNS over HTTPS, and
 proxies.
 
-Use `manual` for Safari and for any browser that cannot be launched from the
-command line.
-
 Fixtures record `launch_mode` (`headless`, `headful`, or `manual`). Captures
-made in different modes are compared, never assumed equal.
+made in different modes are compared, never assumed equal. A coding agent
+needs the human's approval before it launches a local browser.
 
 ## EventSource reconnects
 
@@ -124,9 +141,9 @@ uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
   --output-dir fixtures/websocket/chrome/154.0.8037.58/windows-11-26200
 ```
 
-For the other retained captures, use
-`--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`
-or
+For Edge, use
+`--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`,
+and for Firefox,
 `--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe"`.
 The tool refuses `h2` and `hpack` versions other than the ones pinned above.
 
@@ -236,24 +253,23 @@ keeps its value and relative order. It refuses to retain `cookie`,
 
 `chrome_http3.py` records one browser HTTP/3 connection against an aioquic
 server, through the first request.
-[Validation](../../docs/explanation/validation.md) lists its retained fixtures
-and the launch commands used for them, and
+[Validation](../../docs/explanation/validation.md#capture-commands-and-launches)
+lists its retained fixtures and launch commands, and
 [HTTP/3 internals](../../docs/internals/http3.md#capture-workflow) describes
-what it retains.
+what it retains. Pass `--client-hello <path>` to also write the QUIC
+ClientHello.
 
-Known defect, to fix at the next Chrome capture: the tool opens
+Known defect, to fix before the next Chrome capture: the tool opens
 `client-startup.txt` in text mode, so on Windows it writes CRLF where every
-other capture tool writes LF.
+other tool writes LF.
 `fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt` is
-the one CRLF file under `fixtures/`. `.gitattributes` marks `fixtures/**` as
-`-text`, so the bytes and the SHA-256 that
+therefore the one CRLF file under `fixtures/`. Its bytes and the SHA-256 that
 `scripts/capture/tests/test_chrome_http3.py` pins are stable in the
-repository, and every parser reads the file with line splitting that strips
-the carriage return. But rerunning the documented command on a non-Windows
-host would produce LF and a different hash, so that pinned hash is not
-reproducible across platforms. Open the output path in binary mode, or with
-`newline=""`, before the next capture; do not rewrite the retained file's
-line endings.
+repository, because `.gitattributes` marks `fixtures/**` as `-text`, and every
+parser strips the carriage return. A rerun on a non-Windows host would write
+LF and a different hash. Open the output path in binary mode, or with
+`newline=""`, before the next capture. Do not rewrite the retained file's line
+endings.
 
 ## Alt-Svc racing
 
@@ -336,3 +352,10 @@ polled expiry. Aggregates summarize each request path.
 
 Loopback adds no latency, so delays that depend on round-trip time appear
 only as the values Chrome logged.
+
+## Next
+
+- [Validation](../../docs/explanation/validation.md#browser-recipes): record
+  what a new capture shows and how the browser was launched.
+- [Add a browser recipe](../../docs/internals/browser-recipes.md): turn
+  retained captures into recipe functions and replay tests.
