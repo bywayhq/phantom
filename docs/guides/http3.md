@@ -170,6 +170,41 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
   it. When both fail, Phantom returns the origin's error.
 - Racing needs `ClientBuilder::alt_svc` and never applies to a proxy route.
 
+## Find HTTP/3 through HTTPS DNS records
+
+An origin can advertise H3 in an [HTTPS DNS record](../reference/glossary.md#https-record),
+so the first request to it can use H3 without an earlier Alt-Svc response.
+Enable discovery with `ClientBuilder::https_record_discovery`, which needs
+`ClientBuilder::alt_svc`:
+
+```rust
+use std::num::NonZeroUsize;
+
+use phantom::dns::HttpsRecordResolver;
+use phantom::profile::ClientProfile;
+use phantom::Client;
+
+fn discovering_client(profile: ClientProfile) -> Result<Client, Box<dyn std::error::Error>> {
+    Ok(Client::builder(profile)
+        .alt_svc(NonZeroUsize::new(64).expect("64 is nonzero"))
+        .https_record_discovery(HttpsRecordResolver::system()?)
+        .build()?)
+}
+```
+
+- The lookup never delays a request. The first negotiated request to an
+  origin starts it: a sequential client sends that request to the origin,
+  and a racing client starts origin setup at once and H3 setup only if the
+  records list `h3`. Later requests use the cached result.
+- Only negotiated requests on the direct route with no stored Alt-Svc
+  alternative look up records. Proxy routes and IP-literal origins send no
+  query.
+- The H3 endpoint is the origin's own host and port, so the request carries
+  no `Alt-Used` field. If H3 setup fails, the location is marked broken and
+  later requests go to the origin until the backoff ends.
+- `HttpsRecordResolver::system` queries the nameservers configured on the
+  host; `HttpsRecordResolver::with_nameservers` takes explicit ones.
+
 ## Keep Alt-Svc state across restarts
 
 Alt-Svc state lives in memory. Export it, store the entries in any format,
@@ -225,11 +260,23 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
 - A raced alternative setup, including name resolution, may run for at most
   4 seconds, less than Chrome allows
   ([racing evidence](../explanation/validation.md#alt-svc-racing-evidence)).
-- Not implemented: racing more than one alternative, DNS HTTPS-record
-  (`dns_alpn_h3`) jobs, persisting brokenness or clearing it on a network
-  change, an RTT-derived racing delay, proxy-route snapshots, WebSocket over
-  H3, and early data in a named recipe. Why the recipes resume sessions but
-  send no early data is in
+- HTTPS records advertise H3 only through a ServiceMode record that lists
+  `h3` for the origin's own host and port. As in Chrome 154.0.8037.58, a
+  record is ignored when it names another target or port or lists a
+  mandatory key Phantom does not support, and all records are ignored when
+  any is in AliasMode or every one sets `no-default-alpn`. A timeout,
+  `SERVFAIL`, or malformed record counts as no advertisement. Cache bounds
+  are in [Defaults and limits](../reference/limits.md#protocol-state).
+- Phantom sends HTTPS queries from its own DNS client while the operating
+  system resolves addresses, so an observer sees DNS traffic from two
+  sources where Chrome shows one
+  ([HTTPS record evidence](../explanation/validation.md#https-dns-record-evidence)).
+- Not implemented: racing more than one alternative (a stored Alt-Svc
+  alternative is used instead of an HTTPS-record one), Encrypted Client
+  Hello from a record's `ech` value, persisting brokenness or clearing it on
+  a network change, an RTT-derived racing delay, proxy-route snapshots,
+  WebSocket over H3, and early data in a named recipe. Why the recipes
+  resume sessions but send no early data is in
   [QUIC session resumption](../explanation/validation.md#quic-session-resumption).
 
 ## Next

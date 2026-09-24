@@ -110,8 +110,8 @@ Not modeled:
 - Firefox's per-connection keepalive schedule and its address selection.
 - Chromium's macOS idle-only keepalive as a named recipe.
 - Chromium's resolver behavior before racing: its own address sorting, IPv6
-  reachability probe, partial DNS results, and HTTPS records. Phantom races
-  the system resolver's complete answer.
+  reachability probe, partial DNS results, and HTTPS records fetched with the
+  address queries. Phantom races the system resolver's complete answer.
 - Racing for HTTP/3. Chromium's QUIC job connects only to the first resolved
   address. Phantom's H3 connector tries the resolved addresses in order after
   a connection failure.
@@ -288,6 +288,19 @@ Supported requests and routes:
   on a direct or SOCKS5 route. Phantom adds a canonical `Alt-Used` field with
   an explicit port and keeps the origin authority, SNI, and authentication
   identity. The alternative is dialed over the route that learned it.
+- Opt-in H3 discovery from [HTTPS DNS records](glossary.md#https-record)
+  (RFC 9460) on the direct route,
+  for an origin with no stored Alt-Svc alternative. A ServiceMode record
+  listing `h3` for the origin's own host and port, selected by Chrome
+  154.0.8037.58's rules, sends the negotiated request over H3 to the origin,
+  without `Alt-Used`. Phantom sends the query itself over UDP, with a TCP
+  retry on truncation, to the host's or the caller's nameservers. The lookup
+  runs beside the request and never delays it; results are cached per client
+  for the record TTL (at most one day, 60 seconds without one) in at most the
+  Alt-Svc store's number of origins. Records are parsed into typed fields
+  (`alpn`, `no-default-alpn`, `port`, `ipv4hint`, `ipv6hint`, `mandatory`,
+  and `ech` kept as raw bytes), and a malformed record is a typed error. See
+  [Find HTTP/3 through HTTPS DNS records](../guides/http3.md#find-http3-through-https-dns-records).
 
 Supported wire behavior:
 
@@ -344,8 +357,11 @@ Planned:
 - Nonempty local H3 application settings.
 - Repeated packet differentials against fresh browsers.
 - Datagram APIs for specific extensions.
-- Alt-Svc racing across multiple alternatives, a racing delay derived from
-  RTT, and DNS HTTPS-record (`dns_alpn_h3`) jobs.
+- Alt-Svc racing across multiple alternatives, and a racing delay derived
+  from RTT.
+- Encrypted Client Hello using a record's `ech` value.
+- HTTPS-record queries sent with the address queries from one DNS client, as
+  Chrome does; Phantom's address lookups go through the operating system.
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.
 - MASQUE recipes captured from browsers.
 
@@ -428,6 +444,10 @@ Supported:
 - Alt-Svc broken state per origin, route, and alternative, with capped
   doubling backoff. A successful connection to the alternative or
   `clear_alt_svc` clears it.
+- With the `https-records` feature, an opt-in per-client cache of HTTPS DNS
+  record results, one entry per origin, bounded by the Alt-Svc store's
+  capacity and kept for the record TTL. It stores only whether the records
+  advertise `h3`.
 - An optional bounded cookie jar that the caller activates explicitly:
   - deterministic path and creation order;
   - Public Suffix List checks (including private and unlisted suffixes),
@@ -481,7 +501,8 @@ Planned:
 - Cookie contexts the caller selects (cross-site and embedded requests, and
   cross-site CHIPS partitions).
 - Permissions and delegation context.
-- DNS state.
+- DNS state beyond HTTPS records: address caching, host-to-address
+  overrides, and a caller-supplied address resolver.
 - Persistence of Alt-Svc brokenness, reset on network change, and proxy-route
   snapshots.
 - Broader policy and retry classes.

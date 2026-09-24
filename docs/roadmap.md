@@ -220,11 +220,11 @@ have shown where the real architectural boundaries are.
      several before building anything: whether Chrome races them, picks one by
      a stated rule, or tries them in order decides whether this is a feature
      or a documented limit.
-  2. Read HTTPS DNS resource records. This is queued today only as a
-     prerequisite for real ECH, which understates it: the record is also how a
-     browser learns `h3` for an origin it has never contacted, so without it
-     Phantom can reach HTTP/3 only after an Alt-Svc advertisement on a prior
-     TCP request. A browser reaches it on the first request.
+  2. Use real ECH from HTTPS DNS records. Phantom now reads the records: an
+     opt-in client learns `h3` from them without an Alt-Svc advertisement,
+     and each record's `ech` value is kept as raw `ECHConfigList` bytes. Next
+     is parsing that list and encrypting the inner ClientHello with it,
+     where the captured browser does.
   3. Model Firefox's per-connection keepalive schedule and its address
      selection. Phantom applies Chromium's keepalive and Happy Eyeballs v2 on
      every TCP path, so a Firefox profile currently connects with Chromium's

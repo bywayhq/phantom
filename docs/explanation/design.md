@@ -123,8 +123,8 @@ until they are complete: there is no public TLS ticket policy yet.
 ## State belongs to one client and has a bound
 
 The client owns every connection and all cross-request state. Cookies, client
-hints, Alt-Svc advertisements, redirects, TLS sessions, and future DNS state
-belong to one client, never to the process. Shared process state would let
+hints, Alt-Svc advertisements, redirects, TLS sessions, and HTTPS DNS record
+results belong to one client, never to the process. Shared process state would let
 what one client learned change what another sends, such as a session ticket
 resumed under a different profile.
 

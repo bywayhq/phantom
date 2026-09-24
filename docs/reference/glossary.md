@@ -161,6 +161,14 @@ The H2 field compression (RFC 7541). A server can see which representation,
 name index, and Huffman choice the client picked for each field. A profile
 states those choices in `Http2Settings::hpack`.
 
+## HTTPS record
+
+A DNS resource record (RFC 9460, type 65) through which an origin
+advertises how to connect to it, such as the ALPN protocols it supports,
+before the client has contacted it. With the `https-records` feature, an
+HTTPS record that lists `h3` lets a negotiated request use H3. See
+[Find HTTP/3 through HTTPS DNS records](../guides/http3.md#find-http3-through-https-dns-records).
+
 ## JA3, JA4
 
 Hash summaries of a TLS ClientHello used to label clients. See

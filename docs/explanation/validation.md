@@ -941,8 +941,10 @@ Limits, as differences from Chromium:
   including name resolution and proxy setup, to 4 s.
 - Phantom cancels a losing origin setup instead of keeping its connection
   idle.
-- Phantom does not persist brokenness, does not reset it on a network change,
-  and has no DNS HTTPS-record (`dns_alpn_h3`) job.
+- Phantom does not persist brokenness and does not reset it on a network
+  change. It races one alternative: a stored Alt-Svc alternative replaces an
+  HTTPS-record one, where Chromium runs both jobs unless they name the same
+  location.
 - A background alternative keeps its H3 admission permit for the origin and
   route until it ends.
 
@@ -1027,6 +1029,52 @@ Limits:
   snapshots on proxy routes, and racing among multiple alternatives. Racing
   between one alternative and the origin has its own
   [evidence](#alt-svc-racing-evidence).
+
+### HTTPS DNS record evidence
+
+What is claimed: with discovery enabled, an HTTPS DNS record that lists `h3`
+for the origin's own host and port sends a later negotiated request over H3
+to the origin, without an `Alt-Used` field and without delaying any request.
+
+Evidence: `crates/phantom/tests/https_records.rs` runs a loopback DNS server
+from `phantom-testkit` beside a loopback H2 origin and H3 endpoint on the
+same port. It proves that a sequential client sends the first request to the
+origin and a later one over H3 without `Alt-Used`; that a lookup delayed by
+4.5 seconds delays neither a sequential nor a racing request, and its answer
+still reaches the cache; that a failed lookup leaves requests on the origin;
+that a `421` over H3 marks the location broken; that proxy routes send no
+query; and that discovery without an Alt-Svc store fails to build. Unit tests
+in `crates/phantom/src/session/alt_svc/https_records/tests.rs` cover the
+record selection rules, one shared lookup for concurrent requests, expiry,
+the capacity bound, remembered failures, and IP-literal origins. Unit tests in
+`crates/phantom-net/src/dns/tests.rs` cover the RFC 9460 RDATA parser,
+including malformed records, and the shape of each query.
+
+The selection rules follow Chromium's source at 154.0.8037.58:
+`ExtractHttpsResults` (`net/dns/dns_response_result_extractor.cc` lines
+479-628) decides which records count, and
+`QuicSessionPool::SelectQuicVersion` (`net/quic/quic_session_pool.cc` lines
+1656-1691) requires one that lists `h3`. The query name is the host for port
+443 and `_<port>._https.<host>` otherwise, as in
+`dns_util::GetNameForHttpsQuery`.
+
+Each query carries one question with only the recursion-desired flag and no
+EDNS(0) record, the shape of Chrome's queries over plain DNS
+(`net/dns/dns_query.cc` lines 127-175). A test checks this shape; no capture
+does.
+
+Limits, as differences from Chrome:
+
+- Chrome sends the HTTPS query beside its A and AAAA queries from its own
+  DNS client (`HostResolverDnsTask::PushTransactionsNeeded`,
+  `net/dns/host_resolver_dns_task.cc` line 393) and waits at most 50 ms more
+  for it once the address answers arrive (`MaybeStartTimeoutTimer`, line
+  1122, with the limits in `net/base/features.cc` lines 88-97). Phantom
+  resolves addresses through the operating system, so its HTTPS queries come
+  from a second DNS client, and no request waits for them.
+- An unanswered query is resent after 333 ms and again 333 ms later, on the
+  resolver library's schedule rather than Chrome's.
+- A record's `ech` value is kept as `ECHConfigList` bytes and not used.
 
 ### Ordered request-trailer evidence
 
