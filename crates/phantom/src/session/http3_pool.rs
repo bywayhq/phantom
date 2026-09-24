@@ -9,7 +9,10 @@ use std::{
 };
 
 use http::Method;
-use phantom_net::http3::{Http3Connection, Http3Connector, OriginForm, RequestHeader};
+use phantom_net::http3::{
+    ConnectUdpError, ConnectUdpErrorKind, Http3Connection, Http3Connector, Http3ConnectorError,
+    Http3ConnectorErrorKind, OriginForm, RequestHeader,
+};
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
 use tokio::sync::{Mutex, OwnedMutexGuard};
@@ -323,6 +326,11 @@ struct PoolEntry {
     /// Connect turns keyed by transport location; see [`ConnectTurn`].
     turns: ConnectTurns,
     admission: Arc<Admission>,
+    /// Origin connector with this entry's own QUIC ticket cache, so a ticket
+    /// is presented only on the origin and route that learned it.
+    origin: OnceLock<Http3Connector>,
+    /// Outer HTTP/3 CONNECT-UDP proxy connector, with its own ticket cache.
+    http3_proxy: OnceLock<Http3Connector>,
     /// Proxy TLS connector for a TCP CONNECT-UDP leg, with its own session cache.
     tcp_proxy: OnceLock<HttpsProxyConnector>,
 }
@@ -333,6 +341,8 @@ impl PoolEntry {
             slots: Mutex::new(VecDeque::new()),
             turns: std::sync::Mutex::new(Vec::new()),
             admission,
+            origin: OnceLock::new(),
+            http3_proxy: OnceLock::new(),
             tcp_proxy: OnceLock::new(),
         }
     }
@@ -423,6 +433,11 @@ impl PoolEntry {
     }
 
     /// Opens one connection to `transport` on `route`.
+    ///
+    /// Connections use this entry's isolated connectors, so QUIC tickets stay
+    /// within one origin and route. When an attempt that presented a ticket
+    /// fails its TLS handshake, the attempt is repeated once with a full
+    /// handshake over the same route; nothing else about it changes.
     async fn connect(
         &self,
         connector: &Http3Connector,
@@ -432,11 +447,70 @@ impl PoolEntry {
         transport: Http3TransportTarget<'_>,
     ) -> Result<Http3Connection, RequestError> {
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
+        let origin = self
+            .origin
+            .get_or_init(|| connector.with_isolated_session_cache());
+        let http3_proxy = match route {
+            Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none() => {
+                let base = connect_udp_http3(connect_udp_proxy)?;
+                Some((
+                    self.http3_proxy
+                        .get_or_init(|| base.with_isolated_session_cache()),
+                    proxy.host(),
+                ))
+            }
+            _ => None,
+        };
+        let presented_ticket = origin.has_ticket_for(endpoint.host())
+            || http3_proxy.is_some_and(|(proxy, host)| proxy.has_ticket_for(host));
+        let first = self
+            .connect_with(
+                origin,
+                http3_proxy.map(|(proxy, _)| proxy),
+                endpoint,
+                route,
+                transport,
+                connect_udp_proxy,
+            )
+            .await;
+        match first {
+            Err(failure) if presented_ticket && failure.is_handshake() => {
+                debug!(
+                    outcome = "full_handshake_retry",
+                    "HTTP/3 handshake that presented a session ticket failed"
+                );
+                let origin = origin.without_ticket_offers();
+                let http3_proxy = http3_proxy.map(|(proxy, _)| proxy.without_ticket_offers());
+                self.connect_with(
+                    &origin,
+                    http3_proxy.as_ref(),
+                    endpoint,
+                    route,
+                    transport,
+                    connect_udp_proxy,
+                )
+                .await
+                .map_err(SetupFailure::into_request_error)
+            }
+            result => result.map_err(SetupFailure::into_request_error),
+        }
+    }
+
+    /// Opens one connection with the given connectors, without retrying.
+    async fn connect_with(
+        &self,
+        connector: &Http3Connector,
+        http3_proxy: Option<&Http3Connector>,
+        endpoint: &Endpoint,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
+    ) -> Result<Http3Connection, SetupFailure> {
         Ok(match route {
             Route::Direct => connector
                 .connect_direct(transport.host, transport.port, endpoint.host())
                 .await
-                .map_err(RequestError::http3_connection_setup)?,
+                .map_err(SetupFailure::Origin)?,
             Route::Socks5(proxy) if proxy.dns_mode() == Socks5DnsMode::Local => connector
                 .connect_socks5_local_with_auth(
                     proxy.host(),
@@ -447,7 +521,7 @@ impl PoolEntry {
                     endpoint.host(),
                 )
                 .await
-                .map_err(RequestError::http3_connection_setup)?,
+                .map_err(SetupFailure::Origin)?,
             Route::Socks5(proxy) => connector
                 .connect_socks5_remote_with_auth(
                     proxy.host(),
@@ -458,25 +532,29 @@ impl PoolEntry {
                     endpoint.host(),
                 )
                 .await
-                .map_err(RequestError::http3_connection_setup)?,
+                .map_err(SetupFailure::Origin)?,
             // One fresh outer connection and CONNECT-UDP request per inner
             // connection, including every retry on this route.
             Route::ConnectUdp(proxy) => match proxy.tcp_protocol() {
                 None => connector
                     .connect_connect_udp_with_basic_auth(
-                        connect_udp_http3(connect_udp_proxy)?,
+                        http3_proxy.ok_or_else(|| {
+                            SetupFailure::Other(RequestError::unsupported_route(
+                                HttpProtocol::Http3,
+                            ))
+                        })?,
                         proxy.host(),
                         proxy.port(),
                         proxy.authority(),
-                        connect_udp_path(proxy, transport)?,
+                        connect_udp_path(proxy, transport).map_err(SetupFailure::Other)?,
                         proxy.headers().to_vec(),
                         proxy.credentials(),
                         endpoint.host(),
                     )
                     .await
-                    .map_err(RequestError::http3_connect_udp_setup)?,
+                    .map_err(SetupFailure::ConnectUdp)?,
                 Some(protocol) => {
-                    let base = connect_udp_tcp(connect_udp_proxy)?;
+                    let base = connect_udp_tcp(connect_udp_proxy).map_err(SetupFailure::Other)?;
                     // Proxy TLS sessions stay within this origin-and-route
                     // entry, like the HTTP proxy pools.
                     let proxy_connector = self
@@ -489,17 +567,19 @@ impl PoolEntry {
                             proxy.host(),
                             proxy.port(),
                             proxy.authority(),
-                            connect_udp_path(proxy, transport)?,
+                            connect_udp_path(proxy, transport).map_err(SetupFailure::Other)?,
                             proxy.headers().to_vec(),
                             proxy.credentials(),
                             endpoint.host(),
                         )
                         .await
-                        .map_err(RequestError::http3_connect_udp_setup)?
+                        .map_err(SetupFailure::ConnectUdp)?
                 }
             },
             Route::HttpProxy(_) => {
-                return Err(RequestError::unsupported_route(HttpProtocol::Http3));
+                return Err(SetupFailure::Other(RequestError::unsupported_route(
+                    HttpProtocol::Http3,
+                )));
             }
         })
     }
@@ -515,6 +595,38 @@ impl PoolEntry {
                 outcome = "invalidated",
                 "HTTP/3 pool connection invalidated"
             );
+        }
+    }
+}
+
+/// One failed connection setup, kept typed until the ticket retry decision.
+enum SetupFailure {
+    Origin(Http3ConnectorError),
+    ConnectUdp(Http3ConnectorError),
+    Other(RequestError),
+}
+
+impl SetupFailure {
+    /// Returns whether the origin or outer-proxy TLS handshake failed.
+    fn is_handshake(&self) -> bool {
+        let error = match self {
+            Self::Origin(error) | Self::ConnectUdp(error) => error,
+            Self::Other(_) => return false,
+        };
+        match error.kind() {
+            Http3ConnectorErrorKind::Handshake => true,
+            Http3ConnectorErrorKind::Proxy => std::error::Error::source(error)
+                .and_then(|source| source.downcast_ref::<ConnectUdpError>())
+                .is_some_and(|source| source.kind() == ConnectUdpErrorKind::Handshake),
+            _ => false,
+        }
+    }
+
+    fn into_request_error(self) -> RequestError {
+        match self {
+            Self::Origin(error) => RequestError::http3_connection_setup(error),
+            Self::ConnectUdp(error) => RequestError::http3_connect_udp_setup(error),
+            Self::Other(error) => error,
         }
     }
 }

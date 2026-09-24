@@ -601,9 +601,18 @@ pub fn v154_http3() -> Http3Settings {
 /// list, except for the fields this function replaces: TLS 1.3 only, three
 /// cipher suites with no GREASE, the nine non-ML-DSA signature schemes ending
 /// in `rsa_pkcs1_sha1`, an `h3` ALPN offer and `h3` ALPS protocol, and no
-/// session ticket, GREASE, OCSP staple, or SCT request. The empty
-/// application-settings value follows Chromium's QUIC configuration. The
-/// returned value is owned and can be customized before transport setup.
+/// GREASE, OCSP staple, or SCT request. The empty application-settings value
+/// follows Chromium's QUIC configuration. The returned value is owned and can
+/// be customized before transport setup.
+///
+/// `session_tickets` is enabled: Chrome 154 keeps a QUIC session cache and
+/// resumes with TLS 1.3 tickets (`QuicSessionPool` creates a
+/// `QuicClientSessionCache` for each crypto configuration, and quiche's
+/// `TlsClientConnection::CreateSslCtx` enables BoringSSL client session
+/// caching). A TLS 1.3-only offer never carries the TLS 1.2 `session_ticket`
+/// extension, so a first ClientHello is unchanged; a resumed one adds only
+/// `pre_shared_key`. Chrome also offers 0-RTT on resumption, which no
+/// retained capture shows and this recipe does not enable.
 #[must_use]
 pub fn v154_http3_tls() -> TlsSettings {
     let mut settings = v154_tls();
@@ -631,7 +640,7 @@ pub fn v154_http3_tls() -> TlsSettings {
         settings: Box::default(),
         use_new_codepoint: true,
     });
-    settings.session_tickets = false;
+    settings.session_tickets = true;
     settings.grease = false;
     settings.grease_signature_algorithms = false;
     settings.request_ocsp_staple = false;

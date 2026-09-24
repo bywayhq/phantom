@@ -88,6 +88,19 @@ impl Http3Connection {
         self.inner.accept_ch.for_origin(origin)
     }
 
+    /// Returns whether this connection's TLS handshake resumed a session.
+    ///
+    /// Only connections opened by a connector from
+    /// [`super::Http3Connector::with_isolated_session_cache`] can resume.
+    #[must_use]
+    pub fn session_resumed(&self) -> bool {
+        self.inner
+            .quinn
+            .handshake_data()
+            .and_then(|data| data.downcast::<phantom_quic_btls::HandshakeData>().ok())
+            .is_some_and(|data| data.session_resumed())
+    }
+
     #[cfg(test)]
     pub(super) async fn send_request(
         &self,

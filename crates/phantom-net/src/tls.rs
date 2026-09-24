@@ -13,7 +13,10 @@ use std::{
 
 use btls::{
     error::ErrorStack,
-    ssl::{SslConnector as BoringConnector, SslContext, SslMethod, SslVerifyMode, SslVersion},
+    ssl::{
+        SslConnector as BoringConnector, SslContext, SslContextBuilder, SslMethod, SslVerifyMode,
+        SslVersion,
+    },
     x509::{X509, store::X509StoreBuilder},
 };
 use phantom_profile::{
@@ -141,6 +144,28 @@ impl TlsConnector {
         }
     }
 
+    /// Builds a connector for QUIC with the bundled public roots and `roots`.
+    ///
+    /// The TCP scoped-session machinery is never installed. When the profile
+    /// enables session tickets, `prepare_sessions` receives the builder so the
+    /// QUIC adapter can install its own ticket delivery. The key-log callback
+    /// is installed as for TCP connectors.
+    pub(crate) fn new_quic_with_additional_roots<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+        mut prepare_sessions: impl FnMut(&mut SslContextBuilder),
+    ) -> Result<Self, TlsError> {
+        Self::build_with_roots_and_sessions(
+            settings,
+            ServerAuthentication::WebPki,
+            webpki_root_certs::TLS_SERVER_ROOT_CERTS
+                .iter()
+                .map(AsRef::as_ref)
+                .chain(roots),
+            ClientSessions::External(&mut prepare_sessions),
+        )
+    }
+
     /// Consumes this connector and returns its configured TLS context.
     pub(crate) fn into_context(self) -> SslContext {
         self.backend.into_context()
@@ -180,6 +205,20 @@ impl TlsConnector {
         server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, TlsError> {
+        Self::build_with_roots_and_sessions(
+            settings,
+            server_authentication,
+            roots,
+            ClientSessions::Scoped,
+        )
+    }
+
+    fn build_with_roots_and_sessions<'a>(
+        settings: &TlsSettings,
+        server_authentication: ServerAuthentication,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+        sessions: ClientSessions<'_>,
+    ) -> Result<Self, TlsError> {
         let span = debug_span!(
             "tls.connector.build",
             cipher_suite_count = settings.cipher_suites.len(),
@@ -201,7 +240,7 @@ impl TlsConnector {
             error_kind = field::Empty,
         );
         let _entered = span.enter();
-        let result = Self::build_connector(settings, server_authentication, roots);
+        let result = Self::build_connector(settings, server_authentication, roots, sessions);
         record_tls_result(&span, &result);
         result
     }
@@ -210,6 +249,7 @@ impl TlsConnector {
         settings: &TlsSettings,
         server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
+        sessions: ClientSessions<'_>,
     ) -> Result<Self, TlsError> {
         settings
             .validate()
@@ -242,11 +282,19 @@ impl TlsConnector {
                 .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
         }
 
-        let scoped_sessions_enabled = settings.session_tickets
+        let tickets_verifiable = settings.session_tickets
             && matches!(server_authentication, ServerAuthentication::WebPki);
-        if scoped_sessions_enabled {
-            builder.enable_scoped_client_sessions();
-        }
+        let scoped_sessions_enabled = match sessions {
+            ClientSessions::Scoped if tickets_verifiable => {
+                builder.enable_scoped_client_sessions();
+                true
+            }
+            ClientSessions::External(prepare) if tickets_verifiable => {
+                prepare(&mut builder);
+                false
+            }
+            ClientSessions::Scoped | ClientSessions::External(_) => false,
+        };
 
         #[cfg(feature = "keylog")]
         let key_log = key_log::KeyLogSlot::default();
@@ -443,6 +491,15 @@ impl TlsConnector {
         outcome.finish(&result);
         result
     }
+}
+
+/// Which component owns client-session handling for a new context.
+enum ClientSessions<'p> {
+    /// TCP connections use scoped sessions; see
+    /// [`TlsConnector::with_isolated_session_cache`].
+    Scoped,
+    /// Another adapter, such as QUIC, installs its own session handling.
+    External(&'p mut dyn FnMut(&mut SslContextBuilder)),
 }
 
 fn record_tls_result<T>(span: &Span, result: &Result<T, TlsError>) {

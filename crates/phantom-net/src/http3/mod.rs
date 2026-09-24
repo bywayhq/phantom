@@ -495,7 +495,10 @@ async fn connect(
                 )
             })?;
     }
-    debug!("QUIC connection established with exact h3 ALPN");
+    debug!(
+        session_resumed = handshake.session_resumed(),
+        "QUIC connection established with exact h3 ALPN"
+    );
 
     let (h3_driver, sender) = builder
         .build(h3_quinn::Connection::new(connection.clone()))

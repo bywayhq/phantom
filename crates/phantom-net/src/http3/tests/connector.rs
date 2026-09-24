@@ -103,6 +103,23 @@ fn assert_connector_matches_quic_client_hello(
     startup: &str,
     client_hello: &str,
 ) -> TestResult<()> {
+    assert_client_hello_matches_capture(connector, startup, client_hello, &[]).map(drop)
+}
+
+/// TLS `pre_shared_key`, which RFC 8446 section 4.2.11 requires to be last.
+pub(super) const PRE_SHARED_KEY: u16 = 41;
+
+/// Asserts that `connector`'s next ClientHello matches a retained capture
+/// apart from `additions`, and returns its extension types in wire order.
+///
+/// The capture's extension order is permuted per connection, so the sets are
+/// compared; an offered `pre_shared_key` must additionally be last.
+pub(super) fn assert_client_hello_matches_capture(
+    connector: &Http3Connector,
+    startup: &str,
+    client_hello: &str,
+    additions: &[u16],
+) -> TestResult<Vec<u16>> {
     let parameters = TransportParameters::read(
         Side::Server,
         &mut Cursor::new(fixture_hex(startup, "transport_parameters_hex")?),
@@ -138,15 +155,25 @@ fn assert_connector_matches_quic_client_hello(
     let mut actual_extensions = actual.extension_types().to_vec();
     actual_extensions.sort_unstable();
     let mut expected_extensions = expected.extension_types().to_vec();
+    for addition in additions {
+        assert!(
+            !expected_extensions.contains(addition),
+            "capture already carries extension {addition}"
+        );
+    }
+    expected_extensions.extend_from_slice(additions);
     expected_extensions.sort_unstable();
     assert_eq!(actual_extensions, expected_extensions);
+    if additions.contains(&PRE_SHARED_KEY) {
+        assert_eq!(actual.extension_types().last(), Some(&PRE_SHARED_KEY));
+    }
     let actual_alps =
         client_hello_extension(&handshake, 0x44cd).ok_or("profiled ClientHello omitted ALPS")?;
     let expected_alps = client_hello_extension(&expected_handshake, 0x44cd)
         .ok_or("retained ClientHello omitted ALPS")?;
     assert_eq!(actual_alps, expected_alps);
     assert_eq!(actual_alps, b"\x00\x03\x02h3");
-    Ok(())
+    Ok(actual.extension_types().to_vec())
 }
 
 #[test]
@@ -450,15 +477,15 @@ fn h3_tls_settings() -> phantom_profile::TlsSettings {
     chromium::v154_http3_tls()
 }
 
-const CHROME_154_H3_STARTUP: &str = include_str!(concat!(
+pub(super) const CHROME_154_H3_STARTUP: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/client-startup.txt"
 ));
-const CHROME_154_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+pub(super) const CHROME_154_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/quic-client-hello-1.txt"
 ));
-const CHROME_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+pub(super) const CHROME_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));

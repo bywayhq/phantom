@@ -40,7 +40,8 @@ pub fn v153_tls() -> TlsSettings {
 ///
 /// The QUIC ClientHello matches [`chromium::v154_http3_tls`] without the
 /// trust-anchor IDs extension, so this reuses that recipe and removes only
-/// the ID list.
+/// the ID list. It inherits that recipe's ticket resumption, whose Chromium
+/// source basis was read at 154, not at Edge's Chromium 153 base.
 #[must_use]
 pub fn v153_http3_tls() -> TlsSettings {
     let mut settings = chromium::v154_http3_tls();

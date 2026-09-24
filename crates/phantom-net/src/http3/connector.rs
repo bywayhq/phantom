@@ -95,8 +95,16 @@ impl Http3Connector {
             .map_err(Http3ConnectorError::invalid_profile)?;
         QuicClientConfig::validate_tls_profile(tls).map_err(Http3ConnectorError::quic_tls)?;
 
-        let tls_connector = TlsConnector::new_with_additional_roots(tls, roots)
-            .map_err(Http3ConnectorError::tls)?;
+        let mut resumption_error = None;
+        let tls_connector = TlsConnector::new_quic_with_additional_roots(tls, roots, |builder| {
+            if let Err(error) = QuicClientConfig::enable_session_resumption(builder) {
+                resumption_error = Some(error);
+            }
+        })
+        .map_err(Http3ConnectorError::tls)?;
+        if let Some(error) = resumption_error {
+            return Err(Http3ConnectorError::quic_tls(error));
+        }
         #[cfg(feature = "keylog")]
         let key_log = tls_connector.key_log().clone();
         let context = tls_connector.into_context();
@@ -128,6 +136,69 @@ impl Http3Connector {
             #[cfg(feature = "qlog")]
             qlog_dir: None,
         })
+    }
+
+    /// Returns a connector clone with a fresh, empty QUIC ticket cache.
+    ///
+    /// When the TLS profile enables `session_tickets`, connections opened by
+    /// the clone retain the TLS 1.3 tickets their peers issue and present one
+    /// on a later connection to the same verified server name, resuming the
+    /// session. Tickets never leave the clone: give each origin and route its
+    /// own clone, as Phantom's client pool does, so a ticket learned through
+    /// one proxy is never presented directly or through another route. The
+    /// clone keeps this connector's identity, so connections it opens remain
+    /// usable with this connector. A connector not produced by this method
+    /// never resumes, and resumption never sends early data.
+    #[must_use]
+    pub fn with_isolated_session_cache(&self) -> Self {
+        Self {
+            crypto: Arc::new(self.crypto.with_isolated_session_cache()),
+            settings: self.settings.clone(),
+            request_settings: self.request_settings.clone(),
+            max_datagram_frame_size: self.max_datagram_frame_size,
+            max_udp_payload_size: self.max_udp_payload_size,
+            identity: Arc::clone(&self.identity),
+            tcp: self.tcp,
+            #[cfg(feature = "keylog")]
+            key_log: self.key_log.clone(),
+            #[cfg(feature = "qlog")]
+            qlog_dir: self.qlog_dir.clone(),
+        }
+    }
+
+    /// Returns whether connections from this connector resume sessions.
+    #[must_use]
+    pub fn resumes_sessions(&self) -> bool {
+        self.crypto.resumes_sessions()
+    }
+
+    /// Returns a clone that stores new tickets in this connector's cache but
+    /// never presents one.
+    ///
+    /// Use it to repeat a connection attempt with a full handshake after an
+    /// attempt that presented a ticket failed its handshake. The clone keeps
+    /// this connector's identity, profile, and ticket cache.
+    #[must_use]
+    pub fn without_ticket_offers(&self) -> Self {
+        Self {
+            crypto: Arc::new(self.crypto.without_ticket_offers()),
+            settings: self.settings.clone(),
+            request_settings: self.request_settings.clone(),
+            max_datagram_frame_size: self.max_datagram_frame_size,
+            max_udp_payload_size: self.max_udp_payload_size,
+            identity: Arc::clone(&self.identity),
+            tcp: self.tcp,
+            #[cfg(feature = "keylog")]
+            key_log: self.key_log.clone(),
+            #[cfg(feature = "qlog")]
+            qlog_dir: self.qlog_dir.clone(),
+        }
+    }
+
+    /// Returns whether a connection to `server_name` would present a ticket.
+    #[must_use]
+    pub fn has_ticket_for(&self, server_name: &str) -> bool {
+        self.crypto.has_ticket_for(server_name)
     }
 
     /// Applies TCP socket options to the TCP control connection of each
