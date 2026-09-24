@@ -92,11 +92,16 @@ struct Http3GuideDoctests;
 #[doc = include_str!("../../../docs/guides/content-decoding.md")]
 struct ContentDecodingGuideDoctests;
 
+#[cfg(all(doctest, feature = "cookies"))]
+#[doc = include_str!("../../../docs/guides/connections-and-state.md")]
+struct ConnectionsGuideDoctests;
+
 #[cfg(all(doctest, feature = "sse"))]
 #[doc = include_str!("../../../docs/guides/sse.md")]
 struct SseGuideDoctests;
 
-#[cfg(all(doctest, feature = "websocket"))]
+// The WebSocket guide includes a compression example.
+#[cfg(all(doctest, feature = "websocket-deflate"))]
 #[doc = include_str!("../../../docs/guides/websocket.md")]
 struct WebSocketGuideDoctests;
 
