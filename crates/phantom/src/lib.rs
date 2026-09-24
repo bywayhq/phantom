@@ -50,9 +50,14 @@
 //!
 //! # Further reading
 //!
-//! The repository's `docs/` directory holds task guides (client, profiles,
-//! routes and proxies, retries, HTTP/3 and Alt-Svc, content decoding, SSE, and
-//! WebSocket) and `docs/reference/coverage.md`, the detailed support contract.
+//! The repository's `docs/` directory holds the documentation;
+//! `docs/README.md` is its index. New to request fingerprinting? Start with
+//! `docs/fingerprinting.md`. `docs/reference/coverage.md` is the detailed
+//! support contract.
+//!
+//! Coding agents that use this crate should read `llms.txt` at the
+//! repository root. A git dependency checks out the whole repository, so the
+//! file matches the revision being built.
 
 // Compile-check the Rust examples in the repository guides as doctests.
 #[cfg(doctest)]

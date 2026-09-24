@@ -6,6 +6,9 @@ files define how to audit and refresh vendored dependencies; they add to, but
 do not replace, this agreement. [CLAUDE.md](CLAUDE.md) imports this file and
 adds only Claude Code notes.
 
+An agent that uses Phantom as a library, rather than changing it, should read
+[`llms.txt`](llms.txt) instead.
+
 ## Quick reference
 
 - Format with `cargo fmt` or `cargo fmt --check`. Never add `--all`: it also
