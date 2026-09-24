@@ -72,6 +72,7 @@ order and the differences from Chromium.
 | Limit | Value |
 | --- | --- |
 | Undelivered HTTP/2 ALTSVC frames per connection | 16 |
+| Raced Alt-Svc alternative setup, including name resolution | 4 seconds |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |

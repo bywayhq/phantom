@@ -1,9 +1,9 @@
 # HTTP/3 and Alt-Svc
 
 Send requests over HTTP/3 (H3), which runs over QUIC on UDP, or upgrade to H3
-when a server advertises it with [Alt-Svc](../reference/glossary.md#alt-svc). An H3 connection has its own
-[fingerprint](../fingerprinting.md#http3), so each task needs H3 settings on
-the profile.
+when a server advertises it with [Alt-Svc](../reference/glossary.md#alt-svc).
+An H3 connection has its own [fingerprint](../fingerprinting.md#http3), so
+each task needs H3 settings on the profile.
 
 > For builders who have read [Getting started](../getting-started.md).
 
@@ -50,8 +50,7 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
 Browsers discover H3 through Alt-Svc: an HTTP/1.1 or HTTP/2 response names an
 H3 endpoint, and a later request to the same origin uses it. Enable the store
 with `ClientBuilder::alt_svc`, which takes the maximum number of entries, and
-send
-[negotiated](../reference/glossary.md#negotiated-protocol) requests:
+send [negotiated](../reference/glossary.md#negotiated-protocol) requests:
 
 ```rust
 use std::num::NonZeroUsize;
@@ -181,13 +180,14 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
 - A negotiated HTTP/2 response also learns from ALTSVC frames that arrived
   before its final headers: on stream 0 when the frame's origin matches the
   request's canonical origin exactly, and on the request's own stream. Other
-  frames are ignored. Each connection keeps at most 16 undelivered frames.
+  frames are ignored; the per-connection cap is in
+  [Defaults and limits](../reference/limits.md#protocol-state).
 - A request sent to an alternative carries one `Alt-Used` field, which
   Phantom manages; a caller-supplied `Alt-Used` field or trailer is rejected
   before network I/O. Phantom makes no browser claim about its position.
 - A raced alternative setup, including name resolution, may run for at most
-  4 seconds. Chrome allows a responsive handshake up to 10 seconds, so a slow
-  alternative can fail in Phantom and succeed in Chrome.
+  4 seconds, less than Chrome allows
+  ([racing evidence](../explanation/validation.md#alt-svc-racing-evidence)).
 - Not implemented: racing more than one alternative, DNS HTTPS-record
   (`dns_alpn_h3`) jobs, persisting brokenness or clearing it on a network
   change, an RTT-derived racing delay, proxy-route snapshots, WebSocket over
