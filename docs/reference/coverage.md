@@ -599,7 +599,7 @@ TLS, H2, and QUIC protocol settings are transport recipes. They do not select
 behavior by host OS. Capture provenance stays platform-specific, because
 browser builds, system integrations, launch conditions, and release channels
 can change the bytes a browser sends.
-[Browser profiles](../reference/profiles.md#recipe-names-and-platforms) explains
+[Profile reference](profiles.md#recipe-names-and-platforms) explains
 the naming rules.
 
 Each recipe records the platform its captures came from, and no recipe
