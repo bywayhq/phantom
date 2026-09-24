@@ -17,7 +17,27 @@ pub enum Socks5DnsMode {
 /// SOCKS5 proxy configuration with explicit origin DNS ownership.
 ///
 /// `socks5://` selects local DNS and `socks5h://` selects proxy-owned DNS.
-/// Credentials in the URI, paths, and queries are rejected.
+/// Credentials in the URI, paths, and queries are rejected. A new proxy uses
+/// no authentication until [`Self::with_username_password`] is called.
+///
+/// A failed SOCKS5 negotiation, authentication, or proxy reply fails the
+/// request with a typed error. Phantom tries neither another address nor a
+/// direct connection.
+///
+/// # Examples
+///
+/// ```
+/// use phantom::{Route, Socks5DnsMode, Socks5Proxy};
+///
+/// # fn run() -> Result<(), Box<dyn std::error::Error>> {
+/// let proxy = Socks5Proxy::new("socks5h://127.0.0.1:1080")?
+///     .with_username_password("user", "password")?;
+/// assert_eq!(proxy.dns_mode(), Socks5DnsMode::Remote);
+/// let route = Route::socks5(proxy);
+/// # drop(route);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq)]
 pub struct Socks5Proxy {
     endpoint: Endpoint,
@@ -39,8 +59,17 @@ impl Socks5Proxy {
     ///
     /// # Errors
     ///
-    /// Returns [`Socks5ProxyConfigError`] when the URI is malformed or uses an
-    /// unsupported shape.
+    /// Returns [`Socks5ProxyConfigError`] with kind:
+    ///
+    /// - [`Socks5ProxyConfigErrorKind::InvalidUri`] when the URI does not
+    ///   parse;
+    /// - [`Socks5ProxyConfigErrorKind::UnsupportedScheme`] for a scheme other
+    ///   than `socks5` or `socks5h`;
+    /// - [`Socks5ProxyConfigErrorKind::InvalidAuthority`] when the authority
+    ///   is missing, contains user information, or has an invalid host or
+    ///   port;
+    /// - [`Socks5ProxyConfigErrorKind::UnexpectedPath`] for a path other than
+    ///   `/`, a query, or a fragment.
     pub fn new(uri: &str) -> Result<Self, Socks5ProxyConfigError> {
         let uri = parse_absolute_uri(uri).map_err(|error| match error {
             ParseUriError::Syntax(error) => Socks5ProxyConfigError::invalid_uri(error),
@@ -80,8 +109,9 @@ impl Socks5Proxy {
     ///
     /// # Errors
     ///
-    /// Returns [`Socks5ProxyConfigError`] when either value is empty or exceeds
-    /// the RFC 1929 one-octet length limit.
+    /// Returns [`Socks5ProxyConfigError`] with kind
+    /// [`Socks5ProxyConfigErrorKind::InvalidCredentials`] when either value is
+    /// empty or longer than 255 bytes, the RFC 1929 one-octet length limit.
     pub fn with_username_password(
         mut self,
         username: impl AsRef<str>,

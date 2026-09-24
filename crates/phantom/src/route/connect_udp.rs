@@ -87,14 +87,30 @@ impl ConnectUdpProxy {
     ///
     /// For example,
     /// `https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/`.
-    /// The proxy port defaults to 443.
+    /// The proxy port defaults to 443. The new proxy uses an HTTP/3 leg, sends
+    /// no extra fields, and has no credentials.
     ///
     /// # Errors
     ///
-    /// Returns [`ConnectUdpProxyConfigError`] when the template is not a valid
-    /// absolute `https` template, its authority is invalid or contains user
-    /// information, it contains a fragment, an unsupported expression, an
-    /// unknown variable, or omits `target_host` or `target_port`.
+    /// Returns [`ConnectUdpProxyConfigError`] with kind:
+    ///
+    /// - [`ConnectUdpProxyConfigErrorKind::InvalidTemplate`] when the template
+    ///   contains bytes other than printable ASCII, is not absolute, has a
+    ///   path that does not start with `/`, has unbalanced braces or an empty
+    ///   variable name, or does not expand to a valid request target;
+    /// - [`ConnectUdpProxyConfigErrorKind::UnsupportedScheme`] for a scheme
+    ///   other than `https`;
+    /// - [`ConnectUdpProxyConfigErrorKind::InvalidAuthority`] when the
+    ///   authority is missing, contains user information, or has an invalid
+    ///   host or port;
+    /// - [`ConnectUdpProxyConfigErrorKind::Fragment`] for a fragment;
+    /// - [`ConnectUdpProxyConfigErrorKind::UnsupportedExpression`] for an
+    ///   operator other than simple, `?`, or `&`, a value modifier, or an
+    ///   expression in the authority;
+    /// - [`ConnectUdpProxyConfigErrorKind::UnknownVariable`] for a variable
+    ///   other than `target_host` or `target_port`;
+    /// - [`ConnectUdpProxyConfigErrorKind::MissingVariable`] when
+    ///   `target_host` or `target_port` is absent.
     pub fn new(template: &str) -> Result<Self, ConnectUdpProxyConfigError> {
         use ConnectUdpProxyConfigErrorKind as Kind;
 
@@ -220,9 +236,11 @@ impl ConnectUdpProxy {
     ///
     /// # Errors
     ///
-    /// Returns [`ConnectUdpProxyConfigError`] when the username is empty or
-    /// contains a colon, either value contains non-ASCII or control
-    /// characters, or the encoded credentials exceed their bounded size.
+    /// Returns [`ConnectUdpProxyConfigError`] with kind
+    /// [`ConnectUdpProxyConfigErrorKind::InvalidCredentials`] when the
+    /// username is empty or contains a colon, either value contains non-ASCII
+    /// or control characters, or the encoded credentials exceed their bounded
+    /// size.
     pub fn with_basic_auth(
         mut self,
         username: impl AsRef<str>,
