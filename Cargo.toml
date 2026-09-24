@@ -62,5 +62,8 @@ todo = "deny"
 unimplemented = "deny"
 unwrap_used = "warn"
 
+[profile.dev]
+debug = "line-tables-only"
+
 [profile.bench]
 debug = 1
