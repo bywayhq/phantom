@@ -86,9 +86,9 @@ builds on BoringSSL (through `btls`), the `http2` fork of h2, Quinn, `h3`, and
 `tungstenite`, and patches each narrowly where its public API cannot preserve
 measured behavior or the required failure semantics. Your build depends on
 those patched forks, and another crate in it cannot replace them (see
-[Adding Phantom to a project](../guides/downstream.md)). Some order is still
-out of reach: the vendored HPACK encoder chooses field representations
-itself, which leaves a recorded gap for WebSocket CONNECT.
+[Adding Phantom to a project](../guides/downstream.md)). The `http2` fork,
+for example, lets a profile state the HPACK encoder choices that RFC 7541
+leaves open, which upstream h2 decides itself.
 
 ## Profiles hold identity; transports apply settings
 

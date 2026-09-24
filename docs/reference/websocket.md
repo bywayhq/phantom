@@ -132,18 +132,22 @@ retained capture against the recipes, and loopback tests compare Phantom's
 CONNECT HEADERS and H1 openings with the captures
 ([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence)).
 
+Each paired H2 recipe also states its HPACK encoder choices in
+`Http2Settings::hpack`, so the emitted CONNECT block matches the capture's
+representation, static name index, and Huffman flags for every pseudo-field:
+
+| H2 recipe | Kept out of the dynamic table | Repeated static name | Huffman-codes a literal |
+| --- | --- | --- | --- |
+| `chromium::v154_http2` | `:method` and `:protocol` | Lower entry: `:method` 2, `:path` 4 | Only when that shortens it, so `CONNECT` and `13` go raw |
+| `firefox::v156_http2` | None; both are indexed incrementally | Higher entry: `:method` 3, `:path` 5 | Whenever that does not lengthen it |
+
+An HPACK encoder keeps these choices for the whole connection, so they apply
+to ordinary requests on it too.
+
 ### Differences from the captures
 
 The recipes do not reproduce:
 
-- HPACK representations for CONNECT. Chrome sends `:method CONNECT`,
-  `:path`, and `:protocol` without indexing and inserts only `:authority`
-  into the dynamic table. Firefox names `:method` and `:path` with static
-  entries 3 and 5. Phantom's encoder inserts `:method CONNECT` and
-  `:protocol` into the dynamic table, and names `:method` and `:path` with
-  static entries 2 and 4.
-- Huffman choices. Phantom Huffman-codes every string, where Chrome sends
-  shorter raw strings such as `CONNECT` and `13` literally.
 - Firefox's leading dynamic-table size update, which Phantom does not emit.
 - Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, its CONNECT on
   stream 3 of a new connection (Phantom uses stream 1), and the second H2
@@ -152,11 +156,6 @@ The recipes do not reproduce:
 - Chrome's variable fragmentation of large uncompressed messages, and its
   compression offer on every opening (Phantom offers only when enabled).
 - The `Cookie` field position, which no capture shows.
-
-The vendored `http2` encoder chooses each representation, name index, and
-Huffman coding internally and keeps one dynamic table per connection, so no
-profile setting reaches it. Closing the HPACK gap needs a new entry in
-`vendor/http2/patches/series`.
 
 ## Compression
 

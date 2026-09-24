@@ -158,7 +158,8 @@ runs marked headful used a visible window.
 ## HPACK
 
 The H2 field compression (RFC 7541). A server can see which representation,
-name index, and Huffman choice the client picked for each field.
+name index, and Huffman choice the client picked for each field. A profile
+states those choices in `Http2Settings::hpack`.
 
 ## JA3, JA4
 

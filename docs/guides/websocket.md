@@ -203,8 +203,8 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 - A response with a wrong accept value, an unoffered extension, or an
   unoffered subprotocol fails the connect
   ([response checks](../reference/websocket.md#response-checks)).
-- The recipes do not reproduce the browsers' HPACK encoding of CONNECT, some
-  stream and reset behavior, or Chrome's message fragmentation
+- The recipes do not reproduce Firefox's leading dynamic-table size update,
+  some stream and reset behavior, or Chrome's message fragmentation
   ([differences](../reference/websocket.md#differences-from-the-captures)).
 - No browser capture covers a proxied WebSocket.
 - WebSocket over HTTP/3 is not implemented.

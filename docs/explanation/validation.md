@@ -752,7 +752,15 @@ Further observations:
 
 `crates/phantom/tests/websocket_profile.rs` drives
 `Client::websocket_with_profile_policy` against a loopback origin and
-compares what the origin observes with these captures. The WebSocket
+compares what the origin observes with these captures. It compares every
+emitted CONNECT pseudo-field with the capture's HPACK `repr`, static
+`index`, `name_huffman`, and `value_huffman`. A dynamic-table index itself is
+not compared, because its value depends on earlier blocks on the connection.
+`hpack_shapes_of_extended_connect_separate_the_client_families` checks that
+each recipe emits its own family's `:method` shape and not the other's. The
+test of a reopened CONNECT after `REFUSED_STREAM` does not compare HPACK
+representations, because the first attempt's dynamic-table entries shrink the
+second block; Chrome's capture shrinks the same way. The WebSocket
 reference lists where Phantom's recipes still differ from the captured
 browsers; see
 [Differences from the captures](../reference/websocket.md#differences-from-the-captures).

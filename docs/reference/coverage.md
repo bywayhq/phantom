@@ -509,13 +509,18 @@ Planned or not captured:
 
 The captures show that Chromium uses H2 WebSockets only on an existing session
 that advertises the setting, while Firefox also opens fresh H2 connections,
-and that pseudo-header order, priority, deflate offer, and send policy differ
-by family. The WebSocket recipes still differ from those captures in three
-ways:
+and that pseudo-header order, priority, deflate offer, send policy, and HPACK
+encoder identity differ by family. `Http2Settings::hpack` states the three
+encoder choices RFC 7541 leaves open: which pseudo-headers stay out of the
+dynamic table, which static entry names a repeated name, and when a literal
+string is Huffman-coded. With it, every emitted CONNECT pseudo-field matches
+the capture's representation
+([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence)).
+The WebSocket recipes still differ from those captures in three ways:
 
 | Gap | Why | What would close it |
 | --- | --- | --- |
-| HPACK representation of `:method: CONNECT` | The vendored `http2` encoder chooses each field's representation, name index, and Huffman coding from nghttp2-derived rules, and its dynamic table is connection-wide. Chrome and Edge send the field as a literal without indexing with an unencoded value; Firefox uses incremental indexing against the `:method: POST` name index; Phantom uses incremental indexing against `:method: GET` for both. | A new entry in `vendor/http2/patches/series` |
+| Firefox's leading dynamic-table size update | Firefox starts a header block with a dynamic-table size update, and no profile setting emits one. | A per-profile size-update setting |
 | Firefox's stream `WINDOW_UPDATE` | It appears on every Firefox stream, not only the CONNECT stream, so it belongs to the HTTP/2 request path. | Modeling it on the Firefox HTTP/2 request path |
 | WebSocket through a proxy | No capture records a WebSocket opened through a proxy. | A capture through a proxy |
 
