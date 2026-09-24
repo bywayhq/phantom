@@ -5,13 +5,16 @@ use std::sync::Arc;
 
 use http::Response;
 use phantom_net::http2::Http2ExtendedConnectOutcome;
+use phantom_profile::WebSocketRefusedStreamRetry;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
+use tracing::Span;
 
 #[cfg(feature = "websocket-deflate")]
 use super::NegotiatedPerMessageDeflate;
 use super::{
     AdmissionGuard, Http2Target, ResolvedWebSocket, WebSocket, WebSocketError, WebSocketLimits,
     WebSocketRequestBuilder, WebSocketTransport,
+    error::refused_extended_connect_stream,
     handshake::{prepare_http2, validate_http2_response},
 };
 #[cfg(feature = "cookies")]
@@ -84,18 +87,49 @@ impl WebSocketRequestBuilder {
         let port = request.endpoint.port();
         let authority = request.endpoint.authority().as_str();
         // A pooled session already carries its route; a stream failure there
-        // is terminal and never retried on another connection.
-        if let Http2Target::Session(session, admission) = target {
-            let outcome = connector
+        // is terminal and never retried on another connection. The one
+        // exception is a refused stream, which the profile may reopen on this
+        // same session.
+        if let Http2Target::Session(session, admission, refused_stream_retry) = target {
+            // Kept only for the one reopening the profile allows, so the
+            // ordinary path still moves the fields into the first attempt.
+            let retry_headers = match refused_stream_retry {
+                WebSocketRefusedStreamRetry::SameSessionOnce => Some(prepared.headers.clone()),
+                _ => None,
+            };
+            let first = connector
                 .send_extended_connect_on(
                     &session,
                     authority,
                     request.target.clone(),
                     prepared.headers,
                 )
-                .await
-                .map_err(RequestError::http2)
-                .map_err(WebSocketError::request)?;
+                .await;
+            let outcome = match first {
+                Ok(outcome) => outcome,
+                Err(error) => {
+                    let Some(headers) =
+                        retry_headers.filter(|_| refused_extended_connect_stream(&error))
+                    else {
+                        return Err(WebSocketError::request(RequestError::http2(error)));
+                    };
+                    // RFC 9113, section 8.7: the peer processed nothing on the
+                    // refused stream, and the opening fields were the only
+                    // bytes written to it, so nothing already sent is
+                    // replayed. A second refusal is returned.
+                    Span::current().record("refused_stream_retry", true);
+                    connector
+                        .send_extended_connect_on(
+                            &session,
+                            authority,
+                            request.target.clone(),
+                            headers,
+                        )
+                        .await
+                        .map_err(RequestError::http2)
+                        .map_err(WebSocketError::request)?
+                }
+            };
             return finish_http2(
                 outcome,
                 &request,

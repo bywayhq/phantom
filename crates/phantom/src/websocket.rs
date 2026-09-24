@@ -34,7 +34,7 @@ pub use message::{WebSocketCloseFrame, WebSocketLimits, WebSocketMessage};
 
 use handshake::{default_headers, default_http2_headers, fill_or_append, profile_headers};
 use phantom_net::http2::Http2Connection;
-use phantom_profile::WebSocketNewConnection;
+use phantom_profile::{WebSocketNewConnection, WebSocketRefusedStreamRetry};
 use trace::OperationOutcome;
 
 /// Builder for one ordered WebSocket opening handshake.
@@ -78,8 +78,9 @@ enum Http2Target {
     /// A new connection dedicated to this WebSocket.
     NewConnection,
     /// A pooled session whose peer enabled extended CONNECT, with the
-    /// per-origin admission the WebSocket holds for its whole lifetime.
-    Session(Http2Connection, AdmissionGuard),
+    /// per-origin admission the WebSocket holds for its whole lifetime and
+    /// the profile's rule for a refused stream.
+    Session(Http2Connection, AdmissionGuard, WebSocketRefusedStreamRetry),
 }
 
 /// A pool admission permit held until the WebSocket transport is released.
@@ -262,6 +263,7 @@ impl WebSocketRequestBuilder {
             route = self.request.route_trace_name(route),
             proxy_authentication_retry = field::Empty,
             proxy_attempts = field::Empty,
+            refused_stream_retry = field::Empty,
             outcome = field::Empty,
             error_kind = field::Empty,
         );
@@ -312,6 +314,7 @@ impl WebSocketRequestBuilder {
             .connection;
         let without_session = policy.without_http2_session;
         let with_incapable_session = policy.with_incapable_http2_session;
+        let refused_stream_retry = policy.refused_stream_retry;
         self.validate_policy_templates()?;
 
         let choice = if self.request.transport == WebSocketTransport::Plaintext {
@@ -331,7 +334,11 @@ impl WebSocketRequestBuilder {
                         request_span.record("connection", "http2_session");
                         self.headers = std::mem::take(&mut self.http2_headers);
                         return self
-                            .connect_http2(Http2Target::Session(session, Box::new(permit)))
+                            .connect_http2(Http2Target::Session(
+                                session,
+                                Box::new(permit),
+                                refused_stream_retry,
+                            ))
                             .await;
                     }
                     Ok(false) => with_incapable_session,

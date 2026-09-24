@@ -3,6 +3,8 @@ use std::{error::Error as StdError, fmt};
 use http::Response;
 use tokio_tungstenite::tungstenite::{Error as EngineError, error::ProtocolError};
 
+use phantom_net::http2::{Http2Error, Http2ProtocolErrorKind, Http2TlsError};
+
 use crate::{HttpProtocol, RequestError, RequestErrorKind, ResponseBody};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
@@ -284,4 +286,25 @@ impl StdError for WebSocketError {
             .as_deref()
             .map(|source| source as &(dyn StdError + 'static))
     }
+}
+
+/// Returns whether the peer refused the extended CONNECT stream before
+/// processing anything on it.
+///
+/// RFC 9113, section 8.7: a stream the peer reset with `REFUSED_STREAM` was
+/// closed before it acted on the request, so the opening fields are the only
+/// bytes the client sent on it and they can be sent again. Nothing else
+/// qualifies. A connection-level error such as `GOAWAY` is deliberately
+/// excluded: the session is going away, so reopening on it would fail again.
+pub(super) fn refused_extended_connect_stream(error: &Http2TlsError) -> bool {
+    /// RFC 9113, section 7.
+    const REFUSED_STREAM: u32 = 0x7;
+
+    matches!(
+        error,
+        Http2TlsError::Http2(Http2Error::Protocol(protocol))
+            if protocol.is_remote()
+                && protocol.kind() == Http2ProtocolErrorKind::StreamReset
+                && protocol.reason_code() == Some(REFUSED_STREAM)
+    )
 }

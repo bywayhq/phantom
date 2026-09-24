@@ -21,7 +21,7 @@ use tracing::{Instrument, Span, debug_span, field};
 use super::NegotiatedPerMessageDeflate;
 use super::{
     OperationOutcome, WebSocketCloseFrame, WebSocketError, WebSocketLimits, WebSocketMessage,
-    message::{self, WRITE_BUFFER_SIZE},
+    message::WRITE_BUFFER_SIZE,
 };
 
 /// One established, exclusively owned WebSocket connection.
@@ -177,7 +177,7 @@ impl WebSocket {
     fn for_wire(&self, message: EngineMessage) -> EngineMessage {
         #[cfg(feature = "websocket-deflate")]
         if self.permessage_deflate.is_some() && !self.compress_empty_messages {
-            return message::send_empty_message_uncompressed(message);
+            return super::message::send_empty_message_uncompressed(message);
         }
         message
     }

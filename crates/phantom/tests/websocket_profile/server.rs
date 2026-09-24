@@ -40,6 +40,9 @@ pub(crate) enum Reply {
     Accept,
     Reject,
     RefuseStream,
+    /// Refuses the first extended CONNECT stream and accepts the rest, as the
+    /// retained `refused-stream` captures' server does.
+    RefuseFirstStream,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -208,6 +211,7 @@ where
     }
     let mut connection = builder.handshake::<_, Bytes>(io).await?;
     let mut wire = WireDecoder::default();
+    let mut refused_any = false;
     while let Some(accepted) = connection.accept().await {
         let (request, mut respond) = accepted?;
         let stream_id = u32::from(respond.stream_id());
@@ -252,6 +256,14 @@ where
                     respond.send_response(response, true)?;
                 }
                 Reply::RefuseStream => respond.send_reset(::http2::Reason::REFUSED_STREAM),
+                Reply::RefuseFirstStream if !refused_any => {
+                    refused_any = true;
+                    respond.send_reset(::http2::Reason::REFUSED_STREAM);
+                }
+                Reply::RefuseFirstStream => {
+                    let send = respond.send_response(Response::new(()), false)?;
+                    tokio::spawn(echo_h2(request.into_body(), send));
+                }
             }
         } else {
             let mut send = respond.send_response(Response::new(()), false)?;

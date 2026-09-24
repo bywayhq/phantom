@@ -251,8 +251,54 @@ async fn rejected_connect_on_a_pooled_session_is_returned_without_fallback() -> 
     .await
 }
 
+/// Chrome 153 and Edge 153 answer `RST_STREAM(REFUSED_STREAM)` with one more
+/// extended CONNECT on the same session and the next client stream id, which
+/// the peer then accepted; see the retained `refused-stream` captures.
 #[tokio::test]
-async fn refused_connect_stream_is_not_retried() -> TestResult<()> {
+async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult<()> {
+    bounded(async {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let behavior = Behavior {
+            connect: Reply::RefuseFirstStream,
+            ..Behavior::ACCEPT
+        };
+        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let client = profile_client(
+            &identity,
+            chromium::v153_http2(),
+            chromium::v153_websocket(),
+        )?;
+        ordinary_get(&client, &server).await?;
+
+        let socket = websocket(&client, &server)?.connect().await?;
+        assert_eq!(socket.handshake_response().status(), 200);
+
+        let connections = server.connections()?;
+        assert_eq!(connections.len(), 1, "the reopening left the session");
+        assert_eq!(methods(&connections[0]), ["GET", "CONNECT", "CONNECT"]);
+        // The reopening repeats the recipe, so the pseudo-header order, the
+        // ordinary fields and the HEADERS priority are unchanged and only the
+        // stream id moves on.
+        let [_, refused, reopened] = &connections[0].h2[..] else {
+            return Err("session did not carry three streams".into());
+        };
+        assert_eq!(pseudo_order(reopened), pseudo_order(refused));
+        assert_eq!(reopened.fields, refused.fields);
+        assert_eq!(reopened.priority, refused.priority);
+        assert_eq!(reopened.stream_id, refused.stream_id + 2);
+        // The HPACK representations are not compared. The encoder's dynamic
+        // table is connection-wide, so the first attempt's entries shrink the
+        // second block; Chrome's capture shrinks the same way, from a 177-byte
+        // block to a 58-byte one. Which representation each field takes is the
+        // open indexing gap recorded in docs/reference/coverage.md.
+        Ok(())
+    })
+    .await
+}
+
+/// A second refusal is reported: the profile allows one reopening, not a loop.
+#[tokio::test]
+async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestResult<()> {
     bounded(async {
         let identity = Arc::new(TestIdentity::generate()?);
         let behavior = Behavior {
@@ -265,6 +311,34 @@ async fn refused_connect_stream_is_not_retried() -> TestResult<()> {
             chromium::v153_http2(),
             chromium::v153_websocket(),
         )?;
+        ordinary_get(&client, &server).await?;
+
+        let error = match websocket(&client, &server)?.connect().await {
+            Ok(_) => return Err("refused CONNECT opened a WebSocket".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), WebSocketErrorKind::Http2);
+
+        let connections = server.connections()?;
+        assert_eq!(connections.len(), 1, "refusal opened another connection");
+        assert_eq!(methods(&connections[0]), ["GET", "CONNECT", "CONNECT"]);
+        Ok(())
+    })
+    .await
+}
+
+/// Firefox 156 fails the WebSocket with close code 1006 on every refused run
+/// in the retained captures, so its recipe reopens nothing.
+#[tokio::test]
+async fn refused_connect_stream_is_not_retried_without_the_profile_rule() -> TestResult<()> {
+    bounded(async {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let behavior = Behavior {
+            connect: Reply::RefuseFirstStream,
+            ..Behavior::ACCEPT
+        };
+        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let client = profile_client(&identity, firefox::v156_http2(), firefox::v156_websocket())?;
         ordinary_get(&client, &server).await?;
 
         let error = match websocket(&client, &server)?.connect().await {
@@ -868,6 +942,15 @@ async fn exchange(mut socket: WebSocket) -> TestResult<()> {
         WebSocketMessage::Text("profile".into())
     );
     Ok(())
+}
+
+/// The pseudo-header names of one HEADERS block, in wire order.
+fn pseudo_order(headers: &H2Headers) -> Vec<&str> {
+    headers
+        .pseudo
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect()
 }
 
 fn methods(connection: &ConnectionLog) -> Vec<&str> {
