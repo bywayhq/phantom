@@ -149,9 +149,8 @@ Limits:
 ### Chrome 154 recipes
 
 What is claimed: the `chromium::v154_*` recipes, a complete Chromium set
-rather than a delta over 153 (listed in
-[Coverage](../reference/coverage.md#browser-profiles)), reproduce Google Chrome
-154.0.8037.58 on Windows 11.
+(listed in [Coverage](../reference/coverage.md#browser-profiles)), reproduce
+Google Chrome 154.0.8037.58 on Windows 11.
 
 Evidence: Chrome 154.0.8037.58, the stable build installed on the Windows 11
 capture host (build 26200, x64), was captured in every area that holds a
@@ -243,7 +242,7 @@ entropy.
 
 Chrome 154 was compared against the Chrome 153 Windows fixtures while those
 were still in the tree. They have since been removed with the Chrome 153
-recipes, so the comparison is recorded here rather than reproducible from the
+recipes, so the comparison is recorded here and cannot be reproduced from the
 repository. Where a Chrome 153 observation itself rested on a normalization,
 the Chrome 154 comparison inherits it.
 
@@ -441,12 +440,12 @@ options, and `chromium::v154_tcp` races addresses, as those browsers do at the
 profiled release tags.
 
 Evidence: a capture cannot show socket options, so the TCP recipes rest on
-browser source rather than on retained fixtures. The socket-option and Happy
-Eyeballs default citations are to Chromium tag `154.0.8037.58` and Firefox tag
-`FIREFOX_156_0_RELEASE`. The line numbers for the rest of the racing
-algorithm, which `TcpAddressRacing` and `phantom-net`'s `address_racing`
-module document, were read at Chromium tag `153.0.8010.48` and have not been
-re-read at 154; the defaults those recipes encode were.
+browser source. The socket-option and Happy Eyeballs default citations are to
+Chromium tag `154.0.8037.58` and Firefox tag `FIREFOX_156_0_RELEASE`. The line
+numbers for the rest of the racing algorithm, which `TcpAddressRacing` and
+`phantom-net`'s `address_racing` module document, were read at Chromium tag
+`153.0.8010.48` and have not been re-read at 154; the defaults those recipes
+encode were.
 
 | Recipe | Source behavior |
 | --- | --- |
@@ -767,8 +766,8 @@ Source citations are to tag `153.0.8010.48`.
 | Broken expiry and backoff (`broken-backoff`) | About 290 s after the first failure the alternative is still broken; about 305 s after it QUIC is tried again, fails, and is broken for 599 s, both runs. | Broken 299-300 s after the first failure and 599-600 s after the second | `ComputeBrokenAlternativeServiceExpirationDelay`: 300 s initial, `initial << broken_count`, capped at 2 days (`net/http/broken_alternative_services.cc` lines 22, 58, 62; `net/base/features.cc` lines 1027 and 1037; `exponential_backoff_on_initial_delay_` defaults to true in `broken_alternative_services.h` line 236) |
 
 The Chrome 154 captures used the same scenarios and repeat counts. Two
-observations vary per run rather than per version: in one `race-after-learning`
-run the NetLog recorded the main job as having opened a
+observations varied between runs of the same build: in one
+`race-after-learning` run the NetLog recorded the main job as having opened a
 new connection instead of being cancelled, while the alternative was still the
 bound job; and in two `quic-bad-certificate` runs the first race after learning
 was the `/hold` image rather than `/r/r1`, so the tool aggregated those runs
@@ -876,8 +875,8 @@ contains no host.
 
 A loopback fixture serves exact H3 on the origin's own UDP port and Alt-Svc
 H3 on a second port. Alternating requests between the two locations prove one
-QUIC connection per location in the same pool entry, rather than a
-replacement on every switch.
+QUIC connection per location in the same pool entry, with no replacement on
+every switch.
 
 The route rules follow Chromium's source at tag `153.0.8010.48`. Chromium
 creates the alternative job even when proxied, then fails it with
@@ -1208,7 +1207,7 @@ External projects serve as independent witnesses, not as pass badges:
 Each row has its own workflow under
 [`.github/workflows/`](../../.github/workflows/).
 
-Some sources are consulted rather than run. curl's test scenarios are a
+Some sources are only read, never run. curl's test scenarios are a
 reference for lifecycle, proxy, redirect, and timeout cases that become
 Phantom's own deterministic regressions; no curl suite runs in CI. Likewise,
 server-oriented h2spec and h3spec cases inform hostile client-peer tests;
@@ -1252,6 +1251,7 @@ evidence.
 
 - [Coverage](../reference/coverage.md): the support contract these records
   back.
-- [Design](design.md): why Phantom fails rather than falling back.
+- [Design](design.md): why Phantom returns an error when it cannot
+  honor a request.
 - [Capture tooling](../../scripts/capture/README.md): record a capture
   yourself.

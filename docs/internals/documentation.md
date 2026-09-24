@@ -135,8 +135,7 @@ to the feature saves the reader a failed attempt.
 - Every claim about matching a browser needs evidence in Validation. Do not
   add a claim without it.
 - When you move a fact, move it; do not drop it. Removing repetition is fine.
-- Link rather than repeat. If two pages state the same limit, one of them
-  should link to the other.
+- If two pages state the same limit, one of them should link to the other.
 
 ## Links and anchors
 
