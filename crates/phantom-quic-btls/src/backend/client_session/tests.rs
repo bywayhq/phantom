@@ -1,4 +1,5 @@
 mod provider;
+mod resumption;
 mod support;
 
 use btls_sys as ffi;

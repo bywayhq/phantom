@@ -5,7 +5,9 @@ use std::ptr::{self, NonNull};
 use std::slice;
 use std::sync::OnceLock;
 
+use btls::ssl::{SslContextBuilder, SslSession, SslSessionCacheMode};
 use btls_sys as ffi;
+use foreign_types::ForeignType;
 
 use super::callback_state::{
     Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, SecretDirection,
@@ -330,6 +332,44 @@ unsafe extern "C" fn send_alert(
             description,
         })
     })
+}
+
+/// Routes each session a peer issues to the QUIC session that received it.
+///
+/// BoringSSL reports TLS 1.3 tickets only through the context-level
+/// new-session callback, and only while client caching is enabled. The
+/// internal cache stays off so no session outlives the connection that
+/// received it except through [`crate::resumption::SessionCache`].
+pub(super) fn enable_session_delivery(builder: &mut SslContextBuilder) {
+    builder.set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
+    // SAFETY: the builder uniquely owns its context, so no SSL can read the
+    // callback slot concurrently, and `deliver_new_session` has process lifetime.
+    unsafe {
+        ffi::SSL_CTX_sess_set_new_cb(builder.as_ptr(), Some(deliver_new_session));
+    }
+}
+
+unsafe extern "C" fn deliver_new_session(
+    ssl: *mut ffi::SSL,
+    session: *mut ffi::SSL_SESSION,
+) -> c_int {
+    if session.is_null() {
+        return 0;
+    }
+    // SAFETY: `ssl` is live for this callback. An SSL without QUIC callback
+    // state yields `None`, and returning 0 leaves the session with BoringSSL.
+    let Some(state) = (unsafe { callback_state(ssl) }) else {
+        return 0;
+    };
+    // SAFETY: SSL owns the state for the duration of this callback.
+    let state = unsafe { state.as_ref() };
+    // SAFETY: `session` is non-null, and returning 1 below tells BoringSSL
+    // that this callback took its one reference, which the owner now releases.
+    let session = unsafe { SslSession::from_ptr(session) };
+    // A panic drops the moved session during unwinding, so ownership is
+    // still discharged exactly once and 1 remains the correct result.
+    let _ = catch_unwind(AssertUnwindSafe(|| state.push_session(session)));
+    1
 }
 
 #[cfg(test)]

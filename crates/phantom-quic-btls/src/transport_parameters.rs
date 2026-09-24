@@ -23,6 +23,7 @@ const QUIC_V1: u32 = 0x0000_0001;
 const MIN_ACK_DELAY_DRAFT_07: u64 = 0xff04_de1b;
 const MAX_TRANSPORT_PARAMETERS_LEN: usize = u16::MAX as usize;
 
+#[derive(Clone)]
 pub(crate) struct TransportParameterProfile {
     settings: QuicTransportSettings,
 }

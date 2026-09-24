@@ -517,8 +517,12 @@ fn hex<const N: usize>(input: &str) -> [u8; N] {
     output
 }
 
+/// The Chrome H3 recipe without tickets: these tests use contexts that are not
+/// prepared for resumption, which `resumption.rs` covers separately.
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    chromium::v154_http3_tls()
+    let mut settings = chromium::v154_http3_tls();
+    settings.session_tickets = false;
+    settings
 }
 
 fn extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {

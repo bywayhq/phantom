@@ -321,6 +321,19 @@ pub(super) fn client_context_with_key_log(
     (context, receiver)
 }
 
+/// A verifying client context whose builder was prepared for resumption.
+pub(super) fn resumption_client_context() -> OwnedContext {
+    let mut builder = SslContext::builder(SslMethod::tls())
+        .unwrap_or_else(|error| panic!("test context allocation failed: {error}"));
+    test_ok(
+        crate::QuicClientConfig::enable_session_resumption(&mut builder),
+        "session resumption preparation",
+    );
+    let context = OwnedContext(builder.build());
+    configure_client_verification(&context);
+    context
+}
+
 fn configure_client_verification(context: &OwnedContext) {
     // SAFETY: the context is live and no SSL has been created from it.
     unsafe {

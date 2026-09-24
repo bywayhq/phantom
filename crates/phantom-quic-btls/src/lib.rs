@@ -31,6 +31,7 @@ mod key_schedule;
 mod packet;
 mod quinn;
 mod reset;
+mod resumption;
 mod retry;
 mod secret;
 mod transport_parameters;

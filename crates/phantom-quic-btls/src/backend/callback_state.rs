@@ -1,7 +1,16 @@
+use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use btls::ssl::SslSession;
+
 use crate::key_schedule::{CipherSuite, TrafficSecret};
+
+/// Sessions held per connection until the client adapter collects them.
+///
+/// A server may issue several tickets; only the newest few are useful, and
+/// the bound keeps a hostile peer from growing client memory.
+const MAX_PENDING_SESSIONS: usize = 4;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum EncryptionLevel {
@@ -276,6 +285,7 @@ struct CallbackStateInner {
     buffered_by_level: [usize; 3],
     alerts: Vec<Alert>,
     completed_flushes: usize,
+    new_sessions: VecDeque<SslSession>,
 }
 
 pub(super) struct CallbackState {
@@ -467,6 +477,23 @@ impl CallbackState {
             return Err(error);
         }
         Ok(std::mem::take(&mut inner.alerts))
+    }
+
+    /// Retains one session issued through a NewSessionTicket message.
+    pub(super) fn push_session(&self, session: SslSession) {
+        let mut inner = self.lock();
+        if inner.new_sessions.len() == MAX_PENDING_SESSIONS {
+            inner.new_sessions.pop_front();
+        }
+        // A ticket is an optimization: failing to keep one never fails the connection.
+        if inner.new_sessions.try_reserve(1).is_ok() {
+            inner.new_sessions.push_back(session);
+        }
+    }
+
+    /// Removes every session issued since the previous call, oldest first.
+    pub(super) fn take_sessions(&self) -> VecDeque<SslSession> {
+        std::mem::take(&mut self.lock().new_sessions)
     }
 
     #[cfg(test)]

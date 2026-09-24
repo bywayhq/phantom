@@ -48,6 +48,7 @@ fn public_metadata_is_owned_and_debug_does_not_emit_certificates() {
     let handshake = HandshakeData {
         protocol: H3_PROTOCOL.to_vec(),
         peer_application_settings: Some(b"private ALPS payload".to_vec()),
+        session_resumed: false,
     };
     assert_eq!(handshake.protocol(), H3_PROTOCOL);
     assert_eq!(

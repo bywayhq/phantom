@@ -1,10 +1,11 @@
+use std::collections::VecDeque;
 use std::ffi::c_long;
 use std::fmt;
 use std::net::IpAddr;
 use std::ptr::{self, NonNull};
 use std::slice;
 
-use btls::ssl::{SslContext, SslRef};
+use btls::ssl::{SslContext, SslRef, SslSession, SslSessionRef};
 use btls::x509::verify::X509CheckFlags;
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
@@ -103,6 +104,7 @@ pub(super) struct ClientSession {
     ssl: OwnedSsl,
     callbacks: CallbackState,
     handshake_complete: bool,
+    offered_session: bool,
 }
 
 impl fmt::Debug for ClientSession {
@@ -110,6 +112,7 @@ impl fmt::Debug for ClientSession {
         formatter
             .debug_struct("ClientSession")
             .field("handshake_complete", &self.handshake_complete)
+            .field("offered_session", &self.offered_session)
             .finish_non_exhaustive()
     }
 }
@@ -128,14 +131,22 @@ impl ClientSession {
             server_name,
             local_transport_parameters,
             &ClientTlsProfile::default(),
+            None,
         )
     }
 
+    /// Creates a client that offers `session` for resumption when present.
+    ///
+    /// The caller must supply only a session that a handshake from `context`
+    /// authenticated for `server_name`: BoringSSL does not bind a client
+    /// session to a hostname, and a resumed handshake does not repeat
+    /// certificate verification.
     pub(super) fn new_with_profile(
         context: &SslContext,
         server_name: &str,
         local_transport_parameters: &[u8],
         tls_profile: &ClientTlsProfile,
+        session: Option<&SslSessionRef>,
     ) -> Result<Self, ClientSessionError> {
         if server_name.is_empty() {
             return Err(ClientSessionError::InvalidServerName);
@@ -198,6 +209,15 @@ impl ClientSession {
         {
             return Err(backend_failure("local QUIC transport parameters"));
         }
+        if let Some(session) = session {
+            // SAFETY: the SSL is live, unique, and has not started a handshake;
+            // the session is live for the call and SSL_set_session takes its own
+            // reference. BoringSSL drops an expired or non-QUIC session at
+            // ClientHello time and performs a full handshake instead.
+            if unsafe { ffi::SSL_set_session(pointer, session.as_ptr()) } != 1 {
+                return Err(backend_failure("session resumption"));
+            }
+        }
         // SAFETY: this uniquely owned SSL has not started a handshake.
         unsafe {
             ffi::SSL_set_connect_state(pointer);
@@ -215,6 +235,7 @@ impl ClientSession {
             ssl,
             callbacks,
             handshake_complete: false,
+            offered_session: session.is_some(),
         })
     }
 
@@ -378,6 +399,24 @@ impl ClientSession {
         !self.handshake_complete
     }
 
+    /// Returns whether the completed handshake resumed the offered session.
+    pub(super) fn session_reused(&self) -> bool {
+        // SAFETY: the SSL is live; the query reads handshake state only.
+        self.handshake_complete && unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) } != 0
+    }
+
+    /// Removes the sessions issued since the previous call, oldest first.
+    ///
+    /// Tickets arrive only after the handshake completed and verified the
+    /// peer, so a returned session is always authenticated.
+    pub(super) fn take_new_sessions(&self) -> VecDeque<SslSession> {
+        if self.handshake_complete {
+            self.callbacks.take_sessions()
+        } else {
+            VecDeque::new()
+        }
+    }
+
     pub(super) fn peer_transport_parameters(&self) -> Result<Option<Vec<u8>>, ClientSessionError> {
         self.callback_error()?;
         let mut parameters = ptr::null();
@@ -446,7 +485,7 @@ impl ClientSession {
             return Err(ClientSessionError::PeerVerificationFailed);
         }
         // SAFETY: the SSL is live and its handshake completed.
-        if unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) } != 0 {
+        if unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) } != 0 && !self.offered_session {
             return Err(ClientSessionError::ResumptionAttempted);
         }
         // SAFETY: the SSL is live and its handshake completed.

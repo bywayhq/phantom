@@ -3,9 +3,10 @@ use std::collections::VecDeque;
 use std::fmt;
 use std::io::Cursor;
 use std::net::IpAddr;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
-use btls::ssl::{KeyShare, SslContext};
+use btls::ex_data::Index;
+use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
 use phantom_profile::{AlpsSettings, CipherSuite, NamedGroup, TlsSettings, TlsVersion};
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
@@ -16,9 +17,11 @@ use rustls_pki_types::DnsName;
 
 use super::callback_state::{EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{ClientSession, ClientSessionError};
+use super::quic_callbacks::enable_session_delivery;
 #[cfg(test)]
 use crate::key_schedule::TestDerivationFailure;
 use crate::key_schedule::{PacketKeyPair, TrafficKeySchedule, TrafficKeys};
+use crate::resumption::SessionCache;
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
 use phantom_profile::quic::QuicTransportSettings;
@@ -27,15 +30,31 @@ use quinn_proto::{EndpointConfig, TransportConfig};
 const QUIC_VERSION_1: u32 = 0x0000_0001;
 const H3_PROTOCOL: &[u8] = b"h3";
 
+/// Marks a context whose builder passed through
+/// [`QuicClientConfig::enable_session_resumption`].
+struct SessionDeliveryEnabled;
+
+fn session_delivery_index() -> Option<Index<SslContext, SessionDeliveryEnabled>> {
+    static INDEX: OnceLock<Option<Index<SslContext, SessionDeliveryEnabled>>> = OnceLock::new();
+    *INDEX.get_or_init(|| SslContext::new_ex_index().ok())
+}
+
 /// Immutable BoringSSL configuration for Quinn client sessions.
 ///
 /// The supplied context must enable peer verification and contain the trust
 /// roots and fingerprint settings used by every session created from it.
 /// Session-specific QUIC requirements are applied to each owned `SSL`.
+///
+/// A configuration resumes sessions only when its TLS profile enables
+/// `session_tickets` and it was produced by
+/// [`Self::with_isolated_session_cache`]; see that method for the isolation
+/// contract.
 pub struct QuicClientConfig {
     context: SslContext,
     transport_profile: Option<TransportParameterProfile>,
     tls_profile: ClientTlsProfile,
+    sessions: Option<SessionCache>,
+    offer_tickets: bool,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -53,7 +72,10 @@ impl QuicClientConfig {
                 ech_grease_payload_length: None,
                 ech_grease_aeads: Vec::new(),
                 alps: None,
+                session_tickets: false,
             },
+            sessions: None,
+            offer_tickets: true,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -68,19 +90,121 @@ impl QuicClientConfig {
             context,
             transport_profile: Some(TransportParameterProfile::new(settings)?),
             tls_profile: ClientTlsProfile::default(),
+            sessions: None,
+            offer_tickets: true,
             #[cfg(test)]
             derivation_failure: None,
         })
     }
 
+    /// Prepares a context builder so QUIC sessions can retain tickets.
+    ///
+    /// This enables BoringSSL's client session callback, with its internal
+    /// cache off, and marks the context. Call it on the builder of every
+    /// context whose TLS profile sets `session_tickets`. It changes nothing
+    /// in a ClientHello that offers no ticket.
+    pub fn enable_session_resumption(
+        builder: &mut SslContextBuilder,
+    ) -> Result<(), QuicTlsProfileError> {
+        let index = session_delivery_index().ok_or_else(|| {
+            QuicTlsProfileError::unsupported(
+                "session_tickets",
+                "BoringSSL could not allocate the session-delivery marker",
+            )
+        })?;
+        enable_session_delivery(builder);
+        builder.set_ex_data(index, SessionDeliveryEnabled);
+        Ok(())
+    }
+
     /// Applies TLS controls that BoringSSL owns per QUIC session.
     ///
-    /// The current QUIC path requires TLS 1.3, exact `h3` ALPN, at most an
-    /// empty local H3 ALPS value, and no tickets or early data. Profiles must
-    /// state those constraints explicitly; this method never rewrites them.
+    /// The QUIC path requires TLS 1.3, exact `h3` ALPN, and at most an empty
+    /// local H3 ALPS value. Profiles must state those constraints explicitly;
+    /// this method never rewrites them.
+    ///
+    /// `session_tickets` enables TLS 1.3 session resumption. It requires a
+    /// context prepared with [`Self::enable_session_resumption`], and it takes
+    /// effect only on configurations derived with
+    /// [`Self::with_isolated_session_cache`].
     pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
-        self.tls_profile = ClientTlsProfile::new(settings)?;
+        let profile = ClientTlsProfile::new(settings)?;
+        if profile.session_tickets
+            && session_delivery_index().is_none_or(|index| self.context.ex_data(index).is_none())
+        {
+            return Err(QuicTlsProfileError::invalid(
+                "session_tickets",
+                "QUIC session tickets require a context prepared for session resumption",
+            ));
+        }
+        self.tls_profile = profile;
         Ok(self)
+    }
+
+    /// Returns a clone with a fresh, empty ticket cache of its own.
+    ///
+    /// Tickets learned through the returned configuration are presented only
+    /// by it, and only for the verified server name whose handshake received
+    /// them. Give each connection pool key, meaning each origin and route, its
+    /// own clone, so a ticket learned through one route is never presented
+    /// directly or through another. The clone shares the immutable BoringSSL
+    /// context. Without `session_tickets` the clone has no cache and never
+    /// resumes.
+    #[must_use]
+    pub fn with_isolated_session_cache(&self) -> Self {
+        Self {
+            context: self.context.clone(),
+            transport_profile: self.transport_profile.clone(),
+            tls_profile: self.tls_profile.clone(),
+            sessions: self.tls_profile.session_tickets.then(SessionCache::default),
+            offer_tickets: true,
+            #[cfg(test)]
+            derivation_failure: self.derivation_failure,
+        }
+    }
+
+    /// Returns a clone that stores new tickets in this configuration's cache
+    /// but never presents one.
+    ///
+    /// Use it to repeat a connection attempt with a full handshake after an
+    /// attempt that presented a ticket failed its handshake: nothing about
+    /// the connection's identity, protocol, or route changes.
+    #[must_use]
+    pub fn without_ticket_offers(&self) -> Self {
+        Self {
+            context: self.context.clone(),
+            transport_profile: self.transport_profile.clone(),
+            tls_profile: self.tls_profile.clone(),
+            sessions: self.sessions.clone(),
+            offer_tickets: false,
+            #[cfg(test)]
+            derivation_failure: self.derivation_failure,
+        }
+    }
+
+    /// Returns whether a connection to `server_name` would present a ticket.
+    ///
+    /// The answer can change before the connection starts, because another
+    /// connection may consume the ticket first.
+    #[must_use]
+    pub fn has_ticket_for(&self, server_name: &str) -> bool {
+        self.offer_tickets
+            && self
+                .sessions
+                .as_ref()
+                .is_some_and(|sessions| sessions.contains(server_name))
+    }
+
+    /// Returns whether connections from this configuration retain and
+    /// present session tickets.
+    #[must_use]
+    pub const fn resumes_sessions(&self) -> bool {
+        self.sessions.is_some()
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn session_cache(&self) -> Option<&SessionCache> {
+        self.sessions.as_ref()
     }
 
     /// Validates TLS controls without constructing a QUIC session.
@@ -145,6 +269,7 @@ impl std::error::Error for InvalidServerName {}
 pub struct HandshakeData {
     protocol: Vec<u8>,
     peer_application_settings: Option<Vec<u8>>,
+    session_resumed: bool,
 }
 
 impl HandshakeData {
@@ -162,6 +287,15 @@ impl HandshakeData {
     pub fn peer_application_settings(&self) -> Option<&[u8]> {
         self.peer_application_settings.as_deref()
     }
+
+    /// Returns whether the handshake resumed a session from a ticket.
+    ///
+    /// A resumed handshake authenticates the peer through the ticket, which
+    /// an earlier verified handshake for the same server name received.
+    #[must_use]
+    pub const fn session_resumed(&self) -> bool {
+        self.session_resumed
+    }
 }
 
 impl fmt::Debug for HandshakeData {
@@ -173,6 +307,7 @@ impl fmt::Debug for HandshakeData {
                 "peer_application_settings_len",
                 &self.peer_application_settings.as_ref().map(Vec::len),
             )
+            .field("session_resumed", &self.session_resumed)
             .finish()
     }
 }
@@ -225,11 +360,17 @@ impl crypto::ClientConfig for QuicClientConfig {
             params.write(&mut encoded);
             encoded
         };
+        let offered = self
+            .sessions
+            .as_ref()
+            .filter(|_| self.offer_tickets)
+            .and_then(|sessions| sessions.take(server_name));
         let mut backend = ClientSession::new_with_profile(
             &self.context,
             server_name,
             &encoded_parameters,
             &self.tls_profile,
+            offered.as_deref(),
         )
         .map_err(|error| map_start_error(server_name, error))?;
         backend
@@ -237,6 +378,10 @@ impl crypto::ClientConfig for QuicClientConfig {
             .map_err(|error| map_start_error(server_name, error))?;
 
         let mut state = SessionState::new(version, backend);
+        state.ticket_sink = self.sessions.clone().map(|sessions| TicketSink {
+            sessions,
+            server_name: server_name.into(),
+        });
         #[cfg(test)]
         if let Some(failure) = self.derivation_failure {
             state.derivation_failure = Some(failure);
@@ -257,6 +402,7 @@ pub(super) struct ClientTlsProfile {
     ech_grease_payload_length: Option<u16>,
     ech_grease_aeads: Vec<u16>,
     alps: Option<AlpsSettings>,
+    session_tickets: bool,
 }
 
 impl fmt::Debug for ClientTlsProfile {
@@ -271,6 +417,7 @@ impl fmt::Debug for ClientTlsProfile {
                 "alps",
                 &self.alps.as_ref().map(|value| value.settings.len()),
             )
+            .field("session_tickets", &self.session_tickets)
             .finish()
     }
 }
@@ -302,12 +449,6 @@ impl ClientTlsProfile {
                 "nonempty local HTTP/3 ALPS requires correlated H3 SETTINGS",
             ));
         }
-        if settings.session_tickets {
-            return Err(QuicTlsProfileError::invalid(
-                "session_tickets",
-                "the current QUIC path disables tickets and early data",
-            ));
-        }
         if settings
             .cipher_suites
             .iter()
@@ -336,6 +477,7 @@ impl ClientTlsProfile {
                 .map(|aead| aead.hpke_id())
                 .collect(),
             alps: settings.alps.clone(),
+            session_tickets: settings.session_tickets,
         })
     }
 
@@ -474,8 +616,15 @@ struct SessionState {
     handshake_data_announced: bool,
     peer_identity: Option<PeerIdentity>,
     peer_transport_parameters: Option<Vec<u8>>,
+    ticket_sink: Option<TicketSink>,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
+}
+
+/// Where an authenticated connection stores the tickets its peer issues.
+struct TicketSink {
+    sessions: SessionCache,
+    server_name: Box<str>,
 }
 
 impl SessionState {
@@ -491,6 +640,7 @@ impl SessionState {
             handshake_data_announced: false,
             peer_identity: None,
             peer_transport_parameters: None,
+            ticket_sink: None,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -530,6 +680,7 @@ impl SessionState {
             self.handshake_data = Some(HandshakeData {
                 protocol,
                 peer_application_settings: self.backend.peer_application_settings()?,
+                session_resumed: self.backend.session_reused(),
             });
         }
         if self.peer_transport_parameters.is_none() {
@@ -539,6 +690,12 @@ impl SessionState {
             self.peer_identity = Some(PeerIdentity {
                 certificates: self.backend.peer_identity()?,
             });
+        }
+        let issued = self.backend.take_new_sessions();
+        if let Some(sink) = &self.ticket_sink {
+            for session in issued {
+                sink.sessions.insert(&sink.server_name, session);
+            }
         }
         Ok(())
     }
