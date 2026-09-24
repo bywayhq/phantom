@@ -16,6 +16,7 @@ policies that stay off until you enable them.
 | Reused-connection, unprocessed-request, and status retries | None | See [Retries and replays](../guides/retries.md) |
 | Cookies | No jar | `cookies` feature, then `ClientBuilder::cookies` or `cookie_jar` |
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |
+| HTTP/3 early (0-RTT) data | Not sent | `ClientBuilder::http3_early_data` |
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 

@@ -50,6 +50,34 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
   between origins or routes; see
   [Session tickets](../internals/http3.md#session-tickets).
 
+## Send a request as early data on a resumed connection
+
+A resumed QUIC connection can carry its first request as early (0-RTT) data,
+before the handshake completes. Enable it on the builder:
+
+```rust
+use phantom::profile::ClientProfile;
+use phantom::{BuildError, Client};
+
+fn early_data_client(profile: ClientProfile) -> Result<Client, BuildError> {
+    Client::builder(profile).http3_early_data().build()
+}
+```
+
+- Early data is replayable: an attacker who records it can deliver it to the
+  server again, and the server may process each copy. The option is off by
+  default, and no named recipe enables it.
+- Only a replay-safe request opens a connection with early data: `GET`,
+  `HEAD`, `OPTIONS`, or `TRACE`, with no body and no trailers. This is the
+  rule Chromium 154 applies to a request of default idempotency. Other
+  requests wait for the handshake.
+- The server must have issued a ticket that permits early data. `build`
+  fails with `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings
+  enable `session_tickets`.
+- If the server rejects the early data, it processed none of it. Phantom
+  sends the request again after the handshake, over the same route and
+  protocol, and does not reuse the rejected connection.
+
 ## Upgrade to HTTP/3 when the server advertises it
 
 Browsers discover H3 through Alt-Svc: an HTTP/1.1 or HTTP/2 response names an
@@ -199,7 +227,8 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
 - Not implemented: racing more than one alternative, DNS HTTPS-record
   (`dns_alpn_h3`) jobs, persisting brokenness or clearing it on a network
   change, an RTT-derived racing delay, proxy-route snapshots, WebSocket over
-  H3, and QUIC early (0-RTT) data.
+  H3, and early data in a named recipe. Chromium 154 source enables it by
+  default, but no retained capture shows Chrome sending it.
 
 ## Next
 

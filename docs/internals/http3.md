@@ -485,8 +485,17 @@ TCP:
   once with a full handshake over the same route and protocol, through
   `Http3Connector::without_ticket_offers`.
 
-Resumption sends no early (0-RTT) data: the first request on every
-connection waits for the handshake to complete.
+By default resumption sends no early (0-RTT) data: the first request on
+every connection waits for the handshake to complete.
+`ClientBuilder::http3_early_data` gives the pool connector
+`Http3Connector::with_early_data`. A new connection that presents a ticket
+permitting early data then sends its first request as early data when that
+request is replay-safe: a safe method, no body, and no trailers. Other
+requests on the connection wait for the handshake. If the server rejects the
+early data, the request fails inside the pool as unprocessed
+(`Http3Unprocessed::EarlyDataRejected`), the rejected connection is not
+pooled, and the pool sends the request again after a handshake over the same
+route and protocol.
 
 ### Racing
 

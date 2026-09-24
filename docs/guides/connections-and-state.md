@@ -239,7 +239,9 @@ fn forget(client: &Client) {
   `import_alt_svc` move it through storage you own, and `alt_svc_policy`
   opts into racing ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
 - TLS session tickets for H1/H2, and QUIC session tickets for H3, are
-  bounded, keyed by exact origin and route, and never used for early data.
+  bounded and keyed by exact origin and route. Only QUIC tickets carry early
+  data, and only after `ClientBuilder::http3_early_data`
+  ([HTTP/3 and Alt-Svc](http3.md#send-a-request-as-early-data-on-a-resumed-connection)).
 
 ## Limits
 

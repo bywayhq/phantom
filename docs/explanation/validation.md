@@ -246,6 +246,11 @@ caching. `resumed_chrome_154_client_hello_keeps_the_captured_shape`, in
 `crates/phantom-net/src/http3/tests/resumption.rs`, resumes a loopback
 connection with the Chrome 154 recipe and requires the resumed ClientHello to
 match the retained captures apart from the added `pre_shared_key` extension.
+`early_data_client_hello_adds_only_early_data_and_pre_shared_key`, in
+`crates/phantom-net/src/http3/tests/early_data.rs`, does the same for a
+connection that offers early data, which adds `early_data` as well. The
+recipes do not enable early data: Chromium 154 enables client 0-RTT by
+default, but no retained capture shows Chrome sending it.
 
 #### Comparison with Chrome 153
 

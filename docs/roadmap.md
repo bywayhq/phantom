@@ -185,8 +185,9 @@ have shown where the real architectural boundaries are.
      longer than its at-risk-of-loss time.
   3. Apply the per-profile HPACK indexing decisions planned for extended
      CONNECT to ordinary requests too.
-  4. Prove that a resumed ClientHello still matches the captured shape.
-     Phantom relies on this today without evidence.
+  4. Done: a test proves a resumed Chrome 154 QUIC ClientHello matches the
+     retained captures apart from the added `pre_shared_key`. A resumed TCP
+     ClientHello has no such test yet.
 - Close the behaviour gaps that no fingerprint field reveals but a session
   does. A survey of client APIs does not surface these, because they are
   browser behaviour rather than caller surface:
@@ -201,13 +202,13 @@ have shown where the real architectural boundaries are.
   2. Establish whether a captured browser sends `Expect: 100-continue`, and on
      which upload shapes. Phantom never sends it. Whether that is correct is
      currently unknown, which is itself the gap.
-  3. Resume QUIC sessions and send early data where the captured browser does.
-     Connections are made today with no early data at all, so a resumed
-     browser connection and a Phantom connection differ in their first flight
-     whatever the ClientHello contains. This is distinct from the TLS
-     resumption parity item above: that one asks whether a resumed
-     ClientHello keeps its captured shape, this one asks whether Phantom
-     resumes at all.
+  3. Capture Chrome resuming a QUIC session. Phantom now resumes with the
+     Chrome 154 and Edge 153 recipes, but sends early data only when the
+     caller asks. Chromium 154 enables client 0-RTT by default
+     (`quic_disable_client_tls_zero_rtt` is false in quiche at the revision
+     its `DEPS` pins) for requests of default idempotency with a safe method,
+     so a resumed Chrome connection likely sends early data where Phantom's
+     recipe does not. A capture decides whether the recipe should.
 - Close the remaining transport and discovery gaps, each from evidence:
   1. Settle what a browser does when an origin advertises more than one
      alternative. Phantom races at most one. Capture an origin advertising
@@ -304,9 +305,9 @@ recipe.
    learn it, and pinning sidesteps the prerequisite entirely.
 3. Racing more than one alternative, bounded and caller-chosen, whatever the
    capture of a browser turns out to show.
-4. QUIC session resumption and early data as a caller opt-in, separate from
-   whether a recipe sends it. Early data is replayable by design, so the
-   option states that and stays off unless asked for.
+4. Done: QUIC early data as a caller opt-in
+   (`ClientBuilder::http3_early_data`), off by default and never set by a
+   recipe.
 5. `Expect: 100-continue` on a caller's own request.
 6. Caller-owned conditional-request validators, ahead of any cache.
 7. An opt-in buffered request body that may be replayed, for a caller who
