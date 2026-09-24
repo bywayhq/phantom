@@ -145,6 +145,27 @@ have shown where the real architectural boundaries are.
      CONNECT to ordinary requests too.
   4. Prove that a resumed ClientHello still matches the captured shape.
      Phantom relies on this today without evidence.
+- Close the behaviour gaps that no fingerprint field reveals but a session
+  does. A survey of client APIs does not surface these, because they are
+  browser behaviour rather than caller surface:
+  1. Revalidate with conditional requests. Phantom never sends
+     `If-None-Match` or `If-Modified-Since` and never handles a `304`, so a
+     client that fetches a resource twice refetches it in full both times. A
+     browser's cache warms, and a server watching one session sees that it
+     never does. Capture what Chrome and Firefox send on a second fetch,
+     including field position and which validator they prefer, before writing
+     any cache. Phantom stores nothing today, so the first slice can be
+     caller-owned validators rather than a cache.
+  2. Establish whether a captured browser sends `Expect: 100-continue`, and on
+     which upload shapes. Phantom never sends it. Whether that is correct is
+     currently unknown, which is itself the gap.
+  3. Resume QUIC sessions and send early data where the captured browser does.
+     Connections are made today with no early data at all, so a resumed
+     browser connection and a Phantom connection differ in their first flight
+     whatever the ClientHello contains. This is distinct from the TLS
+     resumption parity item above: that one asks whether a resumed
+     ClientHello keeps its captured shape, this one asks whether Phantom
+     resumes at all.
 - Settle whether Chrome draws its trust-anchor identifier order per process,
   as the retained 60-process capture shows, or per connection, as the nearest
   comparable clients assume. Capture many connections from one process.
