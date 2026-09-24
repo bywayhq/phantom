@@ -83,9 +83,10 @@ I/O and timers enabled.
 phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
 ```
 
-Pin an exact commit, `a84e73c` or later. Phantom builds BoringSSL from
-source, so the build needs Git, CMake, Clang, and a C++ toolchain; see
-[Prerequisites](docs/getting-started.md#prerequisites).
+Pin an exact commit, `a84e73c` or later. The minimum supported Rust version
+is 1.88; development uses the toolchain in `rust-toolchain.toml`. Phantom
+builds BoringSSL from source, so the build needs Git, CMake, Clang, and a
+C++ toolchain; see [Prerequisites](docs/getting-started.md#prerequisites).
 
 No Cargo feature is enabled by default:
 
@@ -115,10 +116,6 @@ lists the cases where another tool fits better.
   [roadmap](docs/roadmap.md).
 
 Coding agents should read [`llms.txt`](llms.txt) first.
-
-## Minimum supported Rust version
-
-Rust 1.88. Development uses the toolchain pinned in `rust-toolchain.toml`.
 
 ## Contributing and security
 
