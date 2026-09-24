@@ -150,8 +150,12 @@ pub enum WebSocketRefusedStreamRetry {
     /// One further extended CONNECT opens on the same HTTP/2 session.
     ///
     /// The opening fields are re-encoded for a fresh stream on that same
-    /// session. A second refusal is reported to the caller. No other failure
-    /// is retried, and no other connection or protocol is tried.
+    /// session. No other failure is retried, and no other connection or
+    /// protocol is tried.
+    ///
+    /// No retained run shows a second consecutive refusal, so what a client
+    /// does then is unobserved. Phantom reports it to the caller; that bound
+    /// is a choice, not capture evidence.
     SameSessionOnce,
 }
 

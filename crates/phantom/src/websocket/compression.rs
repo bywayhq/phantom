@@ -380,6 +380,28 @@ mod tests {
         );
     }
 
+    /// Guards the direction of the profile mapping: the retained
+    /// `accept-deflate` captures show Chrome 153 and Edge 153 compressing a
+    /// zero-length message and Firefox 156 sending it uncompressed, so
+    /// swapping the two arms must fail here.
+    #[test]
+    fn profile_offer_and_empty_message_rule_follow_the_recipe() -> Result<(), crate::WebSocketError>
+    {
+        use crate::profile::{chromium, firefox};
+
+        let chrome = PerMessageDeflate::from_profile(&chromium::v153_websocket())?;
+        assert!(chrome.compresses_empty_messages());
+        assert_eq!(
+            chrome.parameters(),
+            &[PerMessageDeflateOfferParameter::ClientMaxWindowBits(None)]
+        );
+
+        let firefox = PerMessageDeflate::from_profile(&firefox::v156_websocket())?;
+        assert!(!firefox.compresses_empty_messages());
+        assert_eq!(firefox.parameters(), &[]);
+        Ok(())
+    }
+
     #[test]
     fn validates_ordered_offer_parameters() -> Result<(), crate::WebSocketError> {
         use PerMessageDeflateOfferParameter::{

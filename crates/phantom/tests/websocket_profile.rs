@@ -13,6 +13,9 @@ mod server;
 #[path = "support/tls.rs"]
 mod tls_support;
 #[allow(dead_code)]
+#[path = "support/tracing.rs"]
+mod tracing_support;
+#[allow(dead_code)]
 #[path = "support/websocket.rs"]
 mod websocket_support;
 
@@ -27,8 +30,12 @@ use phantom::{
 };
 
 use fixture::{Capture, Representation};
-use server::{Behavior, ConnectionLog, H2Headers, Reply, TestServer};
+#[cfg(feature = "websocket-deflate")]
+use server::ClientDataFrame;
+use server::{Behavior, ConnectionLog, H2Headers, Reply, TestServer, client_resets};
 use tls_support::{TestIdentity, tls_settings};
+use tracing::instrument::WithSubscriber;
+use tracing_support::OutcomeSubscriber;
 use websocket_support::bounded;
 
 pub(crate) type TestResult<T> = tls_support::TestResult<T>;
@@ -286,6 +293,10 @@ async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult
         assert_eq!(reopened.fields, refused.fields);
         assert_eq!(reopened.priority, refused.priority);
         assert_eq!(reopened.stream_id, refused.stream_id + 2);
+        // The captures show Chrome cancelling a rejected stream but never a
+        // refused one, so a stray reset here would be an unobserved
+        // fingerprint change.
+        assert_eq!(connections[0].resets, [], "reopening wrote a RST_STREAM");
         // The HPACK representations are not compared. The encoder's dynamic
         // table is connection-wide, so the first attempt's entries shrink the
         // second block; Chrome's capture shrinks the same way, from a 177-byte
@@ -294,6 +305,84 @@ async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult
         Ok(())
     })
     .await
+}
+
+/// Proves the span signal the exclusion tests rely on is actually recorded, so
+/// their "no reopening" assertions cannot pass because the field never works.
+#[tokio::test]
+async fn reopening_is_recorded_in_the_connect_span() -> TestResult<()> {
+    let subscriber = OutcomeSubscriber::default();
+    async {
+        bounded(async {
+            let identity = Arc::new(TestIdentity::generate()?);
+            let behavior = Behavior {
+                connect: Reply::RefuseFirstStream,
+                ..Behavior::ACCEPT
+            };
+            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+            let client = profile_client(
+                &identity,
+                chromium::v153_http2(),
+                chromium::v153_websocket(),
+            )?;
+            ordinary_get(&client, &server).await?;
+            websocket(&client, &server)?.connect().await?;
+            Ok(())
+        })
+        .await
+    }
+    .with_subscriber(subscriber.dispatch())
+    .await?;
+    assert_eq!(
+        subscriber.refused_stream_retries_for("websocket.connect"),
+        [true]
+    );
+    Ok(())
+}
+
+/// A peer reset that is not `REFUSED_STREAM` proves nothing about processing,
+/// so it is returned. The session stays usable here, so a classifier that
+/// ignored the reason code would open a second CONNECT on the wire.
+#[tokio::test]
+async fn reset_other_than_refused_stream_is_not_reopened() -> TestResult<()> {
+    let subscriber = OutcomeSubscriber::default();
+    async {
+        bounded(async {
+            let identity = Arc::new(TestIdentity::generate()?);
+            let behavior = Behavior {
+                connect: Reply::ResetStream,
+                ..Behavior::ACCEPT
+            };
+            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+            let client = profile_client(
+                &identity,
+                chromium::v153_http2(),
+                chromium::v153_websocket(),
+            )?;
+            ordinary_get(&client, &server).await?;
+
+            let error = match websocket(&client, &server)?.connect().await {
+                Ok(_) => return Err("INTERNAL_ERROR reset opened a WebSocket".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::Http2);
+
+            let connections = server.connections()?;
+            assert_eq!(connections.len(), 1, "the reset left the session");
+            assert_eq!(methods(&connections[0]), ["GET", "CONNECT"]);
+            Ok(())
+        })
+        .await
+    }
+    .with_subscriber(subscriber.dispatch())
+    .await?;
+    assert!(
+        subscriber
+            .refused_stream_retries_for("websocket.connect")
+            .is_empty(),
+        "a non-REFUSED_STREAM reset was reopened"
+    );
+    Ok(())
 }
 
 /// A second refusal is reported: the profile allows one reopening, not a loop.
@@ -325,6 +414,55 @@ async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestRes
         Ok(())
     })
     .await
+}
+
+/// A peer that shuts the session down under the extended CONNECT fails the
+/// stream without `REFUSED_STREAM`, so it is returned rather than reopened.
+///
+/// The server sends `GOAWAY` and closes at once, as a peer abandoning a
+/// session does; the client's stream then ends as a transport failure before
+/// it processes the frame. A reopening on a session that is gone cannot reach
+/// the wire either way, so the span field is the discriminating signal here.
+#[tokio::test]
+async fn session_shutdown_under_the_connect_stream_is_not_reopened() -> TestResult<()> {
+    let subscriber = OutcomeSubscriber::default();
+    async {
+        bounded(async {
+            let identity = Arc::new(TestIdentity::generate()?);
+            let behavior = Behavior {
+                connect: Reply::GoAway,
+                ..Behavior::ACCEPT
+            };
+            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+            let client = profile_client(
+                &identity,
+                chromium::v153_http2(),
+                chromium::v153_websocket(),
+            )?;
+            ordinary_get(&client, &server).await?;
+
+            let error = match websocket(&client, &server)?.connect().await {
+                Ok(_) => return Err("session shutdown opened a WebSocket".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::Http2);
+
+            let connections = server.connections()?;
+            assert_eq!(connections.len(), 1, "shutdown opened another connection");
+            assert_eq!(methods(&connections[0]), ["GET", "CONNECT"]);
+            Ok(())
+        })
+        .await
+    }
+    .with_subscriber(subscriber.dispatch())
+    .await?;
+    assert!(
+        subscriber
+            .refused_stream_retries_for("websocket.connect")
+            .is_empty(),
+        "a session shutdown was reopened"
+    );
+    Ok(())
 }
 
 /// Firefox 156 fails the WebSocket with close code 1006 on every refused run
@@ -862,6 +1000,16 @@ fn websocket(client: &Client, server: &TestServer) -> TestResult<WebSocketReques
     Ok(client.websocket_with_profile_policy(&format!("wss://{}/echo", server.address))?)
 }
 
+/// The profile-policy builder with the recipe's own compression policy.
+#[cfg(feature = "websocket-deflate")]
+fn compressed_websocket(
+    client: &Client,
+    server: &TestServer,
+    settings: &WebSocketSettings,
+) -> TestResult<WebSocketRequestBuilder> {
+    with_profile_compression(websocket(client, server)?, settings)
+}
+
 async fn connect_like(
     client: &Client,
     server: &TestServer,
@@ -944,6 +1092,19 @@ async fn exchange(mut socket: WebSocket) -> TestResult<()> {
     Ok(())
 }
 
+/// Keeps the "no client reset" assertions honest: the scan must actually find
+/// a `RST_STREAM` when one is present, since every real run records none.
+#[test]
+fn reset_scan_finds_a_client_reset() {
+    let mut wire = Vec::from(*b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
+    // SETTINGS(0), then RST_STREAM(stream 3, CANCEL).
+    wire.extend_from_slice(&[0, 0, 0, 4, 0, 0, 0, 0, 0]);
+    wire.extend_from_slice(&[0, 0, 4, 3, 0, 0, 0, 0, 3]);
+    wire.extend_from_slice(&8_u32.to_be_bytes());
+    assert_eq!(client_resets(&wire), [(3, 8)]);
+    assert_eq!(client_resets(b"not a preface"), []);
+}
+
 /// The pseudo-header names of one HEADERS block, in wire order.
 fn pseudo_order(headers: &H2Headers) -> Vec<&str> {
     headers
@@ -951,6 +1112,68 @@ fn pseudo_order(headers: &H2Headers) -> Vec<&str> {
         .iter()
         .map(|(name, _)| name.as_str())
         .collect()
+}
+
+/// The recipe's empty-message rule must reach the wire, not just the policy
+/// object: Chrome 153 compresses a zero-length message and sets RSV1, while
+/// Firefox 156 sends it with RSV1 clear and an empty payload.
+#[cfg(feature = "websocket-deflate")]
+#[tokio::test]
+async fn profile_empty_message_rule_reaches_the_wire() -> TestResult<()> {
+    for (http2, settings, expected_empty) in [
+        (
+            chromium::v153_http2(),
+            chromium::v153_websocket(),
+            ClientDataFrame {
+                rsv1: true,
+                opcode: 0x1,
+                payload_len: 1,
+            },
+        ),
+        (
+            firefox::v156_http2(),
+            firefox::v156_websocket(),
+            ClientDataFrame {
+                rsv1: false,
+                opcode: 0x1,
+                payload_len: 0,
+            },
+        ),
+    ] {
+        bounded(async move {
+            let identity = Arc::new(TestIdentity::generate()?);
+            let behavior = Behavior {
+                deflate: true,
+                ..Behavior::ACCEPT
+            };
+            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+            let client = profile_client(&identity, http2, settings.clone())?;
+            ordinary_get(&client, &server).await?;
+
+            let mut socket = compressed_websocket(&client, &server, &settings)?
+                .connect()
+                .await?;
+            socket.send(WebSocketMessage::Text(String::new())).await?;
+            socket
+                .send(WebSocketMessage::Text("compressible".into()))
+                .await?;
+            // Reading both echoes proves the server logged both frames.
+            socket.receive().await?;
+            socket.receive().await?;
+
+            let connections = server.connections()?;
+            let [empty, non_empty] = &connections[0].client_frames[..] else {
+                return Err("session did not carry two client data frames".into());
+            };
+            assert_eq!(*empty, expected_empty);
+            // The rule is scoped to empty messages either way.
+            assert!(non_empty.rsv1);
+            assert!(non_empty.payload_len > 0);
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 fn methods(connection: &ConnectionLog) -> Vec<&str> {

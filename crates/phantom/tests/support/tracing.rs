@@ -28,6 +28,7 @@ struct CaptureState {
     error_kinds: Vec<(&'static str, String)>,
     selected_protocols: Vec<(&'static str, String)>,
     proxy_authentication_retries: Vec<(&'static str, bool)>,
+    refused_stream_retries: Vec<(&'static str, bool)>,
     proxy_attempts: Vec<(&'static str, u64)>,
     retries_performed: Vec<(&'static str, u64)>,
     retry_reasons: Vec<(&'static str, String)>,
@@ -80,6 +81,19 @@ impl OutcomeSubscriber {
     pub(crate) fn proxy_authentication_retries_for(&self, span_name: &str) -> Vec<bool> {
         self.state()
             .proxy_authentication_retries
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, retried)| *retried)
+            .collect()
+    }
+
+    /// Whether each `websocket.connect` span reopened a refused extended
+    /// CONNECT stream. Empty when no span recorded the field, which is what
+    /// a connect that never reopened looks like.
+    #[allow(dead_code)]
+    pub(crate) fn refused_stream_retries_for(&self, span_name: &str) -> Vec<bool> {
+        self.state()
+            .refused_stream_retries
             .iter()
             .filter(|(name, _)| *name == span_name)
             .map(|(_, retried)| *retried)
@@ -204,6 +218,7 @@ impl Subscriber for OutcomeSubscriber {
             && visitor.error_kind.is_none()
             && visitor.selected_protocol.is_none()
             && visitor.proxy_authentication_retry.is_none()
+            && visitor.refused_stream_retry.is_none()
             && visitor.proxy_attempts.is_none()
             && visitor.retries_performed.is_none()
             && visitor.retry_reason.is_none()
@@ -226,6 +241,9 @@ impl Subscriber for OutcomeSubscriber {
             }
             if let Some(retried) = visitor.proxy_authentication_retry {
                 state.proxy_authentication_retries.push((name, retried));
+            }
+            if let Some(retried) = visitor.refused_stream_retry {
+                state.refused_stream_retries.push((name, retried));
             }
             if let Some(attempts) = visitor.proxy_attempts {
                 state.proxy_attempts.push((name, attempts));
@@ -263,6 +281,7 @@ struct OutcomeVisitor {
     error_kind: Option<String>,
     selected_protocol: Option<String>,
     proxy_authentication_retry: Option<bool>,
+    refused_stream_retry: Option<bool>,
     proxy_attempts: Option<u64>,
     retries_performed: Option<u64>,
     retry_reason: Option<String>,
@@ -291,6 +310,8 @@ impl Visit for OutcomeVisitor {
     fn record_bool(&mut self, field: &Field, value: bool) {
         if field.name() == "proxy_authentication_retry" {
             self.proxy_authentication_retry = Some(value);
+        } else if field.name() == "refused_stream_retry" {
+            self.refused_stream_retry = Some(value);
         }
     }
 

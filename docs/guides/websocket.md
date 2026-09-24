@@ -158,6 +158,15 @@ nothing, and the opening fields are the only bytes written to the stream, so
 nothing already sent is replayed. A second refusal is returned, no other
 failure is reopened, and no other connection, route, or protocol is tried.
 
+The rule applies only to an extended CONNECT sent on a *pooled* HTTP/2
+session, which is the only case the captures cover. A refusal on a connection
+opened for this WebSocket, through
+`WebSocketNewConnection::Http2ExtendedConnect`, is returned unchanged whatever
+the recipe sets, because no capture shows a client reopening there. A
+`GOAWAY`, a locally initiated reset, and every other stream failure are
+returned unchanged too: only a peer `RST_STREAM` carrying `REFUSED_STREAM`
+qualifies.
+
 ## Send and receive messages
 
 `WebSocket` carries text, binary, Ping, Pong, and Close messages. It

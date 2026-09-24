@@ -43,6 +43,12 @@ pub(crate) enum Reply {
     /// Refuses the first extended CONNECT stream and accepts the rest, as the
     /// retained `refused-stream` captures' server does.
     RefuseFirstStream,
+    /// Resets the extended CONNECT stream with `INTERNAL_ERROR`, a peer reset
+    /// that is not `REFUSED_STREAM`, leaving the session usable.
+    ResetStream,
+    /// Answers the extended CONNECT with a connection-level GOAWAY instead of
+    /// a stream reset, so the stream fails without `REFUSED_STREAM`.
+    GoAway,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -51,6 +57,8 @@ pub(crate) struct Behavior {
     pub(crate) connect_protocol: bool,
     pub(crate) connect: Reply,
     pub(crate) upgrade: Reply,
+    /// Whether an accepted extended CONNECT selects `permessage-deflate`.
+    pub(crate) deflate: bool,
 }
 
 impl Behavior {
@@ -58,6 +66,7 @@ impl Behavior {
         connect_protocol: true,
         connect: Reply::Accept,
         upgrade: Reply::Accept,
+        deflate: false,
     };
 }
 
@@ -67,6 +76,22 @@ pub(crate) struct ConnectionLog {
     pub(crate) protocol: Option<String>,
     pub(crate) h2: Vec<H2Headers>,
     pub(crate) h1: Vec<H1Request>,
+    /// Client WebSocket data frames, in arrival order.
+    pub(crate) client_frames: Vec<ClientDataFrame>,
+    /// Client `RST_STREAM` frames as (stream, error code), filled when the
+    /// log is read so it always reflects every byte received so far.
+    pub(crate) resets: Vec<(u32, u32)>,
+    /// Every byte the client sent, for the reset scan.
+    client_wire: Arc<Mutex<Vec<u8>>>,
+}
+
+/// One WebSocket data frame the client sent.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ClientDataFrame {
+    pub(crate) rsv1: bool,
+    pub(crate) opcode: u8,
+    /// Payload length on the wire, after any compression.
+    pub(crate) payload_len: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -152,7 +177,16 @@ impl TestServer {
             .log
             .lock()
             .map_err(|_| "server log lock was poisoned")?
-            .clone())
+            .iter()
+            .map(|connection| {
+                let mut connection = connection.clone();
+                connection.resets = connection
+                    .client_wire
+                    .lock()
+                    .map_or_else(|_| Vec::new(), |wire| client_resets(&wire));
+                connection
+            })
+            .collect())
     }
 }
 
@@ -209,6 +243,9 @@ where
     if behavior.connect_protocol {
         builder.enable_connect_protocol();
     }
+    update(log, index, |connection| {
+        connection.client_wire = Arc::clone(&recorded);
+    })?;
     let mut connection = builder.handshake::<_, Bytes>(io).await?;
     let mut wire = WireDecoder::default();
     let mut refused_any = false;
@@ -248,9 +285,10 @@ where
         if method == Method::CONNECT {
             match behavior.connect {
                 Reply::Accept => {
-                    let send = respond.send_response(Response::new(()), false)?;
-                    tokio::spawn(echo_h2(request.into_body(), send));
+                    accept_connect(request, respond, behavior, log, index)?;
                 }
+                Reply::ResetStream => respond.send_reset(::http2::Reason::INTERNAL_ERROR),
+                Reply::GoAway => connection.abrupt_shutdown(::http2::Reason::NO_ERROR),
                 Reply::Reject => {
                     let response = Response::builder().status(403).body(())?;
                     respond.send_response(response, true)?;
@@ -261,8 +299,7 @@ where
                     respond.send_reset(::http2::Reason::REFUSED_STREAM);
                 }
                 Reply::RefuseFirstStream => {
-                    let send = respond.send_response(Response::new(()), false)?;
-                    tokio::spawn(echo_h2(request.into_body(), send));
+                    accept_connect(request, respond, behavior, log, index)?;
                 }
             }
         } else {
@@ -273,15 +310,84 @@ where
     Ok(())
 }
 
+/// Accepts one extended CONNECT, selecting compression when asked, and starts
+/// the echo that records the client's frames.
+fn accept_connect(
+    request: http::Request<::http2::RecvStream>,
+    mut respond: ::http2::server::SendResponse<Bytes>,
+    behavior: Behavior,
+    log: &Log,
+    index: usize,
+) -> TestResult<()> {
+    let response = if behavior.deflate {
+        Response::builder()
+            .header("sec-websocket-extensions", "permessage-deflate")
+            .body(())?
+    } else {
+        Response::new(())
+    };
+    let send = respond.send_response(response, false)?;
+    tokio::spawn(echo_h2(
+        request.into_body(),
+        send,
+        Arc::clone(log),
+        index,
+        behavior.deflate,
+    ));
+    Ok(())
+}
+
+/// Returns the client's `RST_STREAM` frames as (stream, error code).
+pub(crate) fn client_resets(wire: &[u8]) -> Vec<(u32, u32)> {
+    let mut resets = Vec::new();
+    if !wire.starts_with(PREFACE) {
+        return resets;
+    }
+    let mut offset = PREFACE.len();
+    while let Some(head) = wire.get(offset..offset + 9) {
+        let length =
+            (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+        let Some(payload) = wire.get(offset + 9..offset + 9 + length) else {
+            break;
+        };
+        if head[3] == 3 && payload.len() == 4 {
+            let id = u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff;
+            let code = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+            resets.push((id, code));
+        }
+        offset += 9 + length;
+    }
+    resets
+}
+
 /// Echoes each client WebSocket frame and ends the stream after the client.
-async fn echo_h2(mut body: ::http2::RecvStream, mut send: ::http2::SendStream<Bytes>) {
+async fn echo_h2(
+    mut body: ::http2::RecvStream,
+    mut send: ::http2::SendStream<Bytes>,
+    log: Log,
+    index: usize,
+    deflate: bool,
+) {
     let mut wire = Vec::new();
     while let Some(Ok(chunk)) = body.data().await {
         let _ = body.flow_control().release_capacity(chunk.len());
         wire.extend_from_slice(&chunk);
-        if let Some((opcode, payload)) = client_frame(&wire) {
+        if let Some((rsv1, opcode, payload)) = client_frame(&wire) {
+            // Recorded before the echo, so a client that has read the echo
+            // has already had its own frame logged.
+            let _ = update(&log, index, |connection| {
+                connection.client_frames.push(ClientDataFrame {
+                    rsv1,
+                    opcode,
+                    payload_len: payload.len(),
+                });
+            });
             let mut echo = Vec::new();
-            append_server_frame(&mut echo, true, opcode, &payload);
+            // With compression selected the client's payload is deflated, so
+            // it is echoed as uncompressed binary rather than replayed as
+            // text the client would UTF-8 validate.
+            let echo_opcode = if deflate && opcode < 0x8 { 0x2 } else { opcode };
+            append_server_frame(&mut echo, true, echo_opcode, &payload);
             if send.send_data(Bytes::from(echo), false).is_err() {
                 return;
             }
@@ -365,8 +471,9 @@ fn decode_alpn(mut wire: &[u8]) -> Vec<String> {
 }
 
 /// Unmasks one complete client frame, or returns `None` until it is complete.
-fn client_frame(wire: &[u8]) -> Option<(u8, Vec<u8>)> {
-    let opcode = wire.first()? & 0x0f;
+fn client_frame(wire: &[u8]) -> Option<(bool, u8, Vec<u8>)> {
+    let first = *wire.first()?;
+    let (rsv1, opcode) = (first & 0x40 != 0, first & 0x0f);
     let (&second, mut rest) = wire.get(1..)?.split_first()?;
     let length = match second & 0x7f {
         126 => {
@@ -380,6 +487,7 @@ fn client_frame(wire: &[u8]) -> Option<(u8, Vec<u8>)> {
     let (mask, tail) = rest.split_at_checked(4)?;
     let payload = tail.get(..length)?;
     Some((
+        rsv1,
         opcode,
         payload
             .iter()

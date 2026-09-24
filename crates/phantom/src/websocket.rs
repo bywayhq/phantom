@@ -283,7 +283,8 @@ impl WebSocketRequestBuilder {
                     .await
             }
             WebSocketSelection::Exact(HttpProtocol::Http2) => {
-                self.connect_http2(Http2Target::NewConnection).await
+                self.connect_http2(Http2Target::NewConnection, request_span)
+                    .await
             }
             WebSocketSelection::Exact(protocol) => {
                 Err(WebSocketError::protocol_unavailable(protocol))
@@ -334,11 +335,14 @@ impl WebSocketRequestBuilder {
                         request_span.record("connection", "http2_session");
                         self.headers = std::mem::take(&mut self.http2_headers);
                         return self
-                            .connect_http2(Http2Target::Session(
-                                session,
-                                Box::new(permit),
-                                refused_stream_retry,
-                            ))
+                            .connect_http2(
+                                Http2Target::Session(
+                                    session,
+                                    Box::new(permit),
+                                    refused_stream_retry,
+                                ),
+                                request_span,
+                            )
                             .await;
                     }
                     Ok(false) => with_incapable_session,
@@ -353,7 +357,8 @@ impl WebSocketRequestBuilder {
             WebSocketNewConnection::Http2ExtendedConnect => {
                 request_span.record("connection", "new_http2");
                 self.headers = std::mem::take(&mut self.http2_headers);
-                self.connect_http2(Http2Target::NewConnection).await
+                self.connect_http2(Http2Target::NewConnection, request_span)
+                    .await
             }
             WebSocketNewConnection::Http1Upgrade => {
                 request_span.record("connection", "new_http1");

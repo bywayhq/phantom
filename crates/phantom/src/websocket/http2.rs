@@ -25,6 +25,7 @@ impl WebSocketRequestBuilder {
     pub(super) async fn connect_http2(
         self,
         target: Http2Target,
+        request_span: &Span,
     ) -> Result<WebSocket, WebSocketError> {
         let Self {
             client,
@@ -95,7 +96,15 @@ impl WebSocketRequestBuilder {
             // ordinary path still moves the fields into the first attempt.
             let retry_headers = match refused_stream_retry {
                 WebSocketRefusedStreamRetry::SameSessionOnce => Some(prepared.headers.clone()),
-                _ => None,
+                WebSocketRefusedStreamRetry::None => None,
+                // Both profile enums are `non_exhaustive`, so an unknown
+                // variant is a profile this build cannot honour, not a
+                // silent "do nothing".
+                _ => {
+                    return Err(WebSocketError::invalid_request(
+                        "profile names an unsupported refused-stream rule",
+                    ));
+                }
             };
             let first = connector
                 .send_extended_connect_on(
@@ -117,7 +126,7 @@ impl WebSocketRequestBuilder {
                     // refused stream, and the opening fields were the only
                     // bytes written to it, so nothing already sent is
                     // replayed. A second refusal is returned.
-                    Span::current().record("refused_stream_retry", true);
+                    request_span.record("refused_stream_retry", true);
                     connector
                         .send_extended_connect_on(
                             &session,

@@ -71,7 +71,7 @@ fn chromium_153_websocket_recipe_matches_chrome_and_edge_captures() -> TestResul
         assert_eq!(summary.reused_sessions, reused, "{client}");
         assert_eq!(summary.new_http2_connections, 0, "{client}");
         assert_eq!(summary.http1_upgrade_connections, http1, "{client}");
-        assert_eq!(summary.empty_message_runs, 6, "{client}");
+        assert_eq!(summary.empty_messages, 6, "{client}");
         assert_eq!(summary.refused_stream_runs, refused, "{client}");
     }
     Ok(())
@@ -89,7 +89,7 @@ fn firefox_156_websocket_recipe_matches_captures() -> TestResult {
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 3);
     assert_eq!(summary.http1_upgrade_connections, 3);
-    assert_eq!(summary.empty_message_runs, 6);
+    assert_eq!(summary.empty_messages, 6);
     assert_eq!(summary.refused_stream_runs, 3);
     Ok(())
 }
@@ -181,8 +181,8 @@ struct PolicySummary {
     reused_sessions: usize,
     new_http2_connections: usize,
     http1_upgrade_connections: usize,
-    /// Runs that sent an empty message over a compressed socket.
-    empty_message_runs: usize,
+    /// Empty messages compared across every compressed socket.
+    empty_messages: usize,
     /// Runs whose extended CONNECT stream was refused.
     refused_stream_runs: usize,
 }
@@ -212,16 +212,28 @@ fn assert_recipe_matches(
         assert_eq!(capture.value("scenario")?, scenario);
         let secure = capture.value("socket_scheme")? == "wss";
         for run in 0..capture.value("repeat_count")?.parse::<usize>()? {
-            if let Some(observed) = capture.empty_message_compression(run)? {
+            for observed in capture.empty_message_compression(run)? {
                 assert_eq!(
                     observed, recipe.empty_message_compression,
                     "{client} {scenario} run {run}"
                 );
-                summary.empty_message_runs += 1;
+                summary.empty_messages += 1;
             }
             if let Some(observed) = capture.refused_stream_retry(run)? {
                 assert_eq!(
                     observed, recipe.connection.refused_stream_retry,
+                    "{client} {scenario} run {run}"
+                );
+                // The rule decides how the page's socket ended: a reopening
+                // that the peer accepts closes cleanly, and a refusal that is
+                // not reopened fails the socket abnormally.
+                let expected = match observed {
+                    WebSocketRefusedStreamRetry::SameSessionOnce => (true, 1000),
+                    _ => (false, 1006),
+                };
+                assert_eq!(
+                    capture.run_result(run)?,
+                    expected,
                     "{client} {scenario} run {run}"
                 );
                 summary.refused_stream_runs += 1;
@@ -469,12 +481,14 @@ impl<'a> Capture<'a> {
         Ok(found)
     }
 
-    /// The empty-message rule this run's compressed socket followed, if it
-    /// sent an empty message while `permessage-deflate` was in use.
+    /// Every empty message this run sent while `permessage-deflate` was in
+    /// use, across all of its sockets, so two sockets that disagree are both
+    /// compared instead of only the first.
     fn empty_message_compression(
         &self,
         run: usize,
-    ) -> TestResult<Option<WebSocketEmptyMessageCompression>> {
+    ) -> TestResult<Vec<WebSocketEmptyMessageCompression>> {
+        let mut observed = Vec::new();
         for socket in 0..self.value(&format!("run_{run}_websocket_count"))?.parse()? {
             let prefix = format!("run_{run}_websocket_{socket}");
             if self.value(&format!("{prefix}_extensions_selected_hex"))? == "none" {
@@ -488,14 +502,31 @@ impl<'a> Capture<'a> {
                 if attribute(message, "decoded_length")? != "0" {
                     continue;
                 }
-                return Ok(Some(if attribute(message, "rsv1")? == "true" {
+                observed.push(if attribute(message, "rsv1")? == "true" {
                     WebSocketEmptyMessageCompression::Compressed
                 } else {
                     WebSocketEmptyMessageCompression::Uncompressed
-                }));
+                });
             }
         }
-        Ok(None)
+        Ok(observed)
+    }
+
+    /// Whether the page's socket opened, and the close code it reported.
+    fn run_result(&self, run: usize) -> TestResult<(bool, u16)> {
+        if self.value(&format!("run_{run}_result_count"))? != "1" {
+            return Err("run did not report exactly one WebSocket result".into());
+        }
+        let record = self.value(&format!("run_{run}_result_0"))?;
+        let field = |name: &str| {
+            record
+                .split('&')
+                .find_map(|item| item.strip_prefix(name)?.strip_prefix('='))
+                .ok_or_else(|| -> Box<dyn std::error::Error> {
+                    format!("run result omitted {name}").into()
+                })
+        };
+        Ok((field("opened")? == "true", field("code")?.parse()?))
     }
 
     /// What this run did after an extended CONNECT stream was refused, if one
