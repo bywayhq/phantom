@@ -75,6 +75,7 @@ pub(crate) struct ClientOptions {
     pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
     pub(crate) alt_svc_policy: AltSvcPolicy,
     pub(crate) http3_early_data: bool,
+    pub(crate) https_record_resolver: Option<phantom_net::dns::HttpsRecordResolver>,
     #[cfg(feature = "cookies")]
     pub(crate) cookie_jar: Option<CookieJar>,
 }
@@ -100,6 +101,7 @@ impl Default for ClientOptions {
             max_alt_svc_origins: None,
             alt_svc_policy: AltSvcPolicy::sequential(),
             http3_early_data: false,
+            https_record_resolver: None,
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }
@@ -127,6 +129,7 @@ pub(crate) struct ClientState {
     pub(crate) http3: http3_pool::Http3Pool,
     alt_svc: Option<alt_svc::AltSvcStore>,
     alt_svc_policy: AltSvcPolicy,
+    https_records: Option<alt_svc::HttpsRecordDiscovery>,
     client_hints: Option<client_hints::ClientHintStore>,
     #[cfg(feature = "cookies")]
     pub(crate) cookies: Option<Arc<CookieJar>>,
@@ -150,6 +153,11 @@ impl ClientOptions {
         if self.alt_svc_policy.race_settings().is_some() && self.max_alt_svc_origins.is_none() {
             return Err(BuildError::invalid_policy(
                 "Alt-Svc racing requires an Alt-Svc store",
+            ));
+        }
+        if self.https_record_resolver.is_some() && self.max_alt_svc_origins.is_none() {
+            return Err(BuildError::invalid_policy(
+                "HTTPS record discovery requires an Alt-Svc store",
             ));
         }
         self.alt_svc_policy.validate()
@@ -185,6 +193,10 @@ impl ClientOptions {
             ),
             alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
             alt_svc_policy: self.alt_svc_policy,
+            https_records: self
+                .https_record_resolver
+                .zip(self.max_alt_svc_origins)
+                .map(|(resolver, capacity)| alt_svc::HttpsRecordDiscovery::new(resolver, capacity)),
             client_hints: inner
                 .client_hints
                 .is_some()
@@ -315,6 +327,60 @@ impl Client {
     ) {
         if let Some(store) = &self.state.alt_svc {
             store.confirm(endpoint, route, alternative.location());
+        }
+    }
+
+    /// Returns the origin's own location as an HTTP/3 alternative, with what
+    /// its HTTPS records say, when discovery applies to this request.
+    ///
+    /// Discovery runs on the direct route only. Like Chromium, which gives a
+    /// proxied request no `DNS_ALPN_H3` job because "proxied connections
+    /// perform DNS on the proxy", Phantom sends no HTTPS query for a request
+    /// whose route is a proxy.
+    pub(crate) fn https_record_alternative(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+    ) -> Option<(alt_svc::AlternativeTarget, alt_svc::Discovery)> {
+        let discovery = self.state.https_records.as_ref()?;
+        let store = self.state.alt_svc.as_ref()?;
+        if !matches!(route, crate::Route::Direct) {
+            return None;
+        }
+        let broken = store.is_broken(
+            endpoint,
+            route,
+            alt_svc::AlternativeTarget::https_record(endpoint, false).location(),
+        );
+        let target = alt_svc::AlternativeTarget::https_record(endpoint, broken);
+        if broken {
+            return Some((target, alt_svc::Discovery::NotAdvertised));
+        }
+        Some((target, discovery.discover(endpoint)))
+    }
+
+    /// Stops using `alternative` after its connection failed or it answered
+    /// `421`.
+    ///
+    /// A stored Alt-Svc advertisement is evicted, unless it was replaced
+    /// meanwhile. An HTTPS record cannot be evicted from DNS, so its location
+    /// is marked broken instead, for the racing policy's backoff or, under
+    /// the sequential policy, for [`AltSvcBrokenBackoff::CHROMIUM_153`].
+    pub(crate) fn invalidate_alternative(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+        alternative: &alt_svc::AlternativeTarget,
+    ) {
+        match alternative.generation() {
+            Some(generation) => self.remove_alt_svc_if_current(endpoint, route, generation),
+            None => {
+                let backoff = self.state.alt_svc_policy.race_settings().map_or(
+                    AltSvcBrokenBackoff::CHROMIUM_153,
+                    AltSvcRace::broken_backoff,
+                );
+                self.mark_alt_svc_broken(endpoint, route, alternative, backoff);
+            }
         }
     }
 
@@ -590,6 +656,18 @@ impl fmt::Debug for Client {
                     .map(alt_svc::AltSvcStore::capacity),
             )
             .field("alt_svc_policy", &self.state.alt_svc_policy)
+            .field(
+                "https_record_discovery_enabled",
+                &self.state.https_records.is_some(),
+            )
+            .field(
+                "max_https_record_origins",
+                &self
+                    .state
+                    .https_records
+                    .as_ref()
+                    .map(alt_svc::HttpsRecordDiscovery::capacity),
+            )
             .field(
                 "max_client_hint_origins",
                 &self

@@ -233,6 +233,17 @@ pub mod profile {
     }
 }
 
+/// HTTPS DNS record (RFC 9460) lookups used for HTTP/3 discovery.
+///
+/// See [`ClientBuilder::https_record_discovery`].
+pub mod dns {
+    pub use phantom_net::dns::{
+        AliasRecord, EchConfigList, HttpsLookupError, HttpsLookupErrorKind, HttpsRecord,
+        HttpsRecordAnswer, HttpsRecordError, HttpsRecordErrorKind, HttpsRecordLookup,
+        HttpsRecordResolver, ServiceRecord, SvcParam, TargetName,
+    };
+}
+
 /// An ordered request field preserving spelling, value bytes, and position.
 pub use phantom_net::request::RequestHeader;
 /// One declared request-trailer name retaining exact spelling and position.

@@ -5,7 +5,7 @@
 use std::{
     collections::VecDeque,
     io,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     pin::Pin,
     sync::{
         Arc, Mutex, MutexGuard,
@@ -280,10 +280,14 @@ pub(crate) struct Http3UpgradeFixture {
 }
 
 /// Exact HTTP/3 served at the origin's transport location.
+///
+/// A client that resolves `localhost` may try `::1` first, so the service
+/// also listens on the IPv6 loopback at the same port when the host has one.
+/// Each listener serves its own copy of the planned responses.
 struct OriginHttp3Service {
-    endpoint: Endpoint,
+    endpoints: Vec<Endpoint>,
     observations: Arc<SharedObservations>,
-    task: JoinHandle<TestResult<()>>,
+    tasks: Vec<JoinHandle<TestResult<()>>>,
 }
 
 impl Http3UpgradeFixture {
@@ -293,9 +297,9 @@ impl Http3UpgradeFixture {
         script: UpgradeScript,
     ) -> TestResult<Self> {
         let origin_name = origin_name.into();
-        let (listener, origin_endpoint) = if script.origin_http3_responses.is_some() {
-            let (listener, endpoint) = bind_shared_origin_port(identity).await?;
-            (listener, Some(endpoint))
+        let (listener, origin_endpoints) = if script.origin_http3_responses.is_some() {
+            let (listener, endpoints) = bind_shared_origin_port(identity).await?;
+            (listener, Some(endpoints))
         } else {
             (TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?, None)
         };
@@ -324,19 +328,24 @@ impl Http3UpgradeFixture {
             Arc::clone(&observations),
             shutdown_rx.clone(),
         ));
-        let origin_http3 = match (script.origin_http3_responses, origin_endpoint) {
-            (Some(responses), Some(endpoint)) => {
+        let origin_http3 = match (script.origin_http3_responses, origin_endpoints) {
+            (Some(responses), Some(endpoints)) => {
                 let observations = Arc::new(SharedObservations::default());
-                let task = tokio::spawn(run_alternative(
-                    endpoint.clone(),
-                    AlternativeBehavior::Responses(responses),
-                    Arc::clone(&observations),
-                    shutdown_rx.clone(),
-                ));
+                let tasks = endpoints
+                    .iter()
+                    .map(|endpoint| {
+                        tokio::spawn(run_alternative(
+                            endpoint.clone(),
+                            AlternativeBehavior::Responses(responses.clone()),
+                            Arc::clone(&observations),
+                            shutdown_rx.clone(),
+                        ))
+                    })
+                    .collect();
                 Some(OriginHttp3Service {
-                    endpoint,
+                    endpoints,
                     observations,
-                    task,
+                    tasks,
                 })
             }
             _ => None,
@@ -395,10 +404,12 @@ impl Http3UpgradeFixture {
         self.alternative_task.await??;
         let origin_http3 = match self.origin_http3 {
             Some(service) => {
-                service
-                    .endpoint
-                    .close(VarInt::from_u32(0), b"test complete");
-                service.task.await??;
+                for endpoint in &service.endpoints {
+                    endpoint.close(VarInt::from_u32(0), b"test complete");
+                }
+                for task in service.tasks {
+                    task.await??;
+                }
                 Some(service.observations)
             }
             None => None,
@@ -905,15 +916,20 @@ mod raw_http2 {
     }
 }
 
-/// Binds the H3 service's UDP endpoint first, then the origin's TCP listener on
-/// the same port number, so both share one transport location.
+/// Binds the H3 service's UDP endpoints first, then the origin's TCP listener
+/// on the same port number, so both share one transport location.
+///
+/// The H3 service listens on the IPv4 loopback and, when the host has one, on
+/// the IPv6 loopback at the same port.
 ///
 /// Candidates come from below the dynamic port range (49152 and up on Windows
 /// and Linux): under a full workspace test run, TCP clients leave many
 /// `TIME_WAIT` sockets on dynamic ports, and binding a listener there fails
 /// with `AddrInUse`. Windows also reserves blocks of UDP and TCP ports, so
 /// either bind may fail and the loop tries another candidate.
-async fn bind_shared_origin_port(identity: &TestIdentity) -> TestResult<(TcpListener, Endpoint)> {
+async fn bind_shared_origin_port(
+    identity: &TestIdentity,
+) -> TestResult<(TcpListener, Vec<Endpoint>)> {
     const FIRST: u32 = 20_000;
     const SPAN: u32 = 29_000;
     static NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -934,8 +950,20 @@ async fn bind_shared_origin_port(identity: &TestIdentity) -> TestResult<(TcpList
                 continue;
             }
         };
+        let mut endpoints = vec![endpoint];
+        match h3_endpoint(identity, SocketAddr::new(Ipv6Addr::LOCALHOST.into(), port)) {
+            Ok(endpoint) => endpoints.push(endpoint),
+            Err(error)
+                if error
+                    .downcast_ref::<std::io::Error>()
+                    .is_some_and(|error| error.kind() == std::io::ErrorKind::AddrNotAvailable) => {}
+            Err(error) => {
+                last_error = Some(error.to_string());
+                continue;
+            }
+        }
         match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
-            Ok(listener) => return Ok((listener, endpoint)),
+            Ok(listener) => return Ok((listener, endpoints)),
             Err(error)
                 if error.kind() == std::io::ErrorKind::AddrInUse
                     || error.kind() == std::io::ErrorKind::PermissionDenied =>

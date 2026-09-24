@@ -1356,6 +1356,7 @@ dependencies = [
  "phantom-net",
  "phantom-profile",
  "phantom-quinn",
+ "phantom-testkit",
  "phantom-tokio-btls",
  "phantom-tokio-tungstenite",
  "phantom-tungstenite",

@@ -493,6 +493,7 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("max_alt_svc_origins", &self.options.max_alt_svc_origins)
             .field("alt_svc_policy", &self.options.alt_svc_policy)
+            .field("https_record_resolver", &self.options.https_record_resolver)
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]
                 {
@@ -824,6 +825,34 @@ impl ClientBuilder {
     #[must_use]
     pub fn http3_early_data(mut self) -> Self {
         self.options.http3_early_data = true;
+        self
+    }
+
+    /// Lets HTTPS DNS records (RFC 9460) advertise HTTP/3 for negotiated
+    /// requests, as a learned Alt-Svc advertisement does. Off by default.
+    ///
+    /// When no Alt-Svc alternative is stored for a direct-route request, the
+    /// client looks up the origin's HTTPS records with `resolver`. If a usable
+    /// ServiceMode record lists `h3` for the origin's own host and port, the
+    /// request uses HTTP/3 at that location under the
+    /// [`AltSvcPolicy`](crate::AltSvcPolicy), without an `Alt-Used` field.
+    ///
+    /// The lookup never delays a request. While it is in flight, a sequential
+    /// client sends the request to the origin, and a racing client starts
+    /// origin setup at once and alternative setup when the lookup
+    /// advertises `h3`. A failed lookup counts as no advertisement.
+    ///
+    /// Results are cached per origin for the records' TTL, capped at one day,
+    /// or 60 seconds when there is no TTL, as after a failed lookup. The
+    /// cache holds at most the `maximum_origins` given to
+    /// [`ClientBuilder::alt_svc`], which this requires; building without it
+    /// fails with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+    /// Concurrent requests for one origin share one lookup. Proxy routes never
+    /// query.
+    #[must_use]
+    pub fn https_record_discovery(mut self, resolver: crate::dns::HttpsRecordResolver) -> Self {
+        self.options.https_record_resolver = Some(resolver);
         self
     }
 

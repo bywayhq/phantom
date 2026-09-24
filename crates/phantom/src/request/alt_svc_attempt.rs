@@ -22,7 +22,7 @@ use super::{
 use crate::{
     AltSvcRace, Client, HttpProtocol, RequestError, Route,
     session::{
-        alt_svc::{AlternativeTarget, invalidates_alternative},
+        alt_svc::{AlternativeTarget, Discovery, PendingLookup, invalidates_alternative},
         http1_or_2_pool,
         http3_pool::{self, Http3Lease, Http3SetupControl, Http3TransportTarget},
     },
@@ -34,24 +34,54 @@ use tracing::{Instrument, instrument::WithSubscriber};
 pub(super) enum NegotiatedPlan {
     Origin,
     Alternative(AlternativeTarget),
-    Race(AlternativeTarget, AltSvcRace),
+    /// Race the alternative against the origin. With a pending HTTPS-record
+    /// lookup, alternative setup starts only if the lookup advertises `h3`.
+    Race(AlternativeTarget, AltSvcRace, Option<PendingLookup>),
 }
 
-/// Chooses how one negotiated request uses this route's learned alternative.
+/// Chooses how one negotiated request uses this route's learned alternative,
+/// or else the origin's HTTPS records.
 ///
 /// The store is keyed by origin and route, so only an alternative learned on
 /// `route` can be selected here, and it is reached over `route` as well. A
 /// route that cannot carry QUIC never stores an alternative, so it always
 /// plans the origin; see `Client::learn_alt_svc`.
+///
+/// A learned Alt-Svc alternative takes precedence over HTTPS records, since
+/// Phantom races one alternative at a time. Chromium drops its
+/// `DNS_ALPN_H3` job only when the Alt-Svc alternative is the same location
+/// and otherwise runs both (`JobController::ClearInappropriateJobs`,
+/// `net/http/http_stream_factory_job_controller.cc` lines 1125-1133 at
+/// 154.0.8037.58).
+///
+/// An HTTPS-record lookup never delays the origin. While one is in flight,
+/// the sequential policy sends the request to the origin and leaves the
+/// result for later requests; the racing policy starts origin setup at once
+/// and alternative setup when the lookup advertises `h3`.
 pub(super) fn plan(client: &Client, request: &ResolvedRequest, route: &Route) -> NegotiatedPlan {
-    let Some(alternative) = client.alt_svc_location(&request.endpoint, route) else {
-        return NegotiatedPlan::Origin;
+    let race = client.alt_svc_policy().race_settings();
+    let alternative = match client.alt_svc_location(&request.endpoint, route) {
+        Some(alternative) => alternative,
+        None => match client.https_record_alternative(&request.endpoint, route) {
+            Some((alternative, Discovery::Advertised)) => {
+                tracing::debug!(outcome = "advertised", "HTTPS records advertise h3");
+                alternative
+            }
+            Some((alternative, Discovery::Pending(lookup))) => {
+                tracing::debug!(outcome = "pending", "HTTPS record lookup in flight");
+                return match race {
+                    Some(race) => NegotiatedPlan::Race(alternative, race, Some(lookup)),
+                    None => NegotiatedPlan::Origin,
+                };
+            }
+            Some((_, Discovery::NotAdvertised)) | None => return NegotiatedPlan::Origin,
+        },
     };
-    match client.alt_svc_policy().race_settings() {
+    match race {
         None => NegotiatedPlan::Alternative(alternative),
         // A broken alternative is not raced until its broken period ends.
         Some(_) if alternative.is_broken() => NegotiatedPlan::Origin,
-        Some(race) => NegotiatedPlan::Race(alternative, race),
+        Some(race) => NegotiatedPlan::Race(alternative, race, None),
     }
 }
 
@@ -81,6 +111,12 @@ pub(super) async fn send_once_alt_svc(
 /// Both candidates keep the request's origin identity and route. Both request
 /// representations are validated before either candidate performs I/O, and
 /// the request body is prepared only for the winner.
+///
+/// With a pending HTTPS-record `lookup`, the origin does not wait at all and
+/// alternative setup begins only once the lookup advertises `h3`; a lookup
+/// that fails or advertises nothing leaves the origin as the only candidate
+/// and marks nothing broken.
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn send_once_raced(
     client: &Client,
     request: &ResolvedRequest,
@@ -89,6 +125,7 @@ pub(super) async fn send_once_raced(
     lifecycle: AttemptLifecycle<'_>,
     alternative: AlternativeTarget,
     race: AltSvcRace,
+    lookup: Option<PendingLookup>,
 ) -> Result<AttemptOutcome, RequestError> {
     validate_both(client, request, &attempt, route, &alternative)?;
     let AttemptLifecycle {
@@ -104,6 +141,7 @@ pub(super) async fn send_once_raced(
         .ok_or_else(RequestError::unsupported_negotiation)?;
 
     let connecting = Arc::new(AtomicBool::new(false));
+    let awaits_lookup = lookup.is_some();
     let alternative_setup = Box::pin(alternative_setup(
         client.clone(),
         request.endpoint.clone(),
@@ -112,14 +150,17 @@ pub(super) async fn send_once_raced(
         timeout_budget,
         retries.for_alternative_setup(),
         Arc::clone(&connecting),
+        lookup,
     ));
     // Like Chromium's main job, the origin does not wait when an HTTP/2
-    // connection to it is already available.
-    let origin_delay = if client
-        .state
-        .http1_or_2
-        .has_available_http2(&request.endpoint, route)
-        .await
+    // connection to it is already available. It never waits for a DNS
+    // lookup, which would add a DNS round trip to a first request.
+    let origin_delay = if awaits_lookup
+        || client
+            .state
+            .http1_or_2
+            .has_available_http2(&request.endpoint, route)
+            .await
     {
         Duration::ZERO
     } else {
@@ -204,6 +245,11 @@ pub(super) async fn send_once_raced(
 /// `connecting` is set once the setup holds its location's connect turn. The
 /// attempt is limited to [`ALTERNATIVE_SETUP_LIMIT`] from then on, and the
 /// request's own connect and total deadlines still apply when shorter.
+///
+/// With a pending HTTPS-record `lookup`, setup first waits for it and fails
+/// without I/O when the records do not advertise `h3`. The race never
+/// returns that failure: the origin's result decides the request.
+#[allow(clippy::too_many_arguments)]
 async fn alternative_setup(
     client: Client,
     endpoint: crate::authority::Endpoint,
@@ -212,7 +258,15 @@ async fn alternative_setup(
     timeout_budget: TimeoutBudget,
     mut retries: crate::retry::ConnectionSetupRetryState,
     connecting: Arc<AtomicBool>,
+    lookup: Option<PendingLookup>,
 ) -> Result<Http3Lease, RequestError> {
+    if let Some(lookup) = lookup
+        && !lookup.advertises_h3().await
+    {
+        // `invalidates_alternative` rejects this kind, so nothing is marked
+        // broken.
+        return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
+    }
     let connector = client
         .inner
         .http3
@@ -338,10 +392,9 @@ fn validate_both(
     let hint_origin = client_hint_origin(client, request);
     let client_hints = attempt_client_hints(client, request, hint_origin.as_deref());
     let mut http3_headers = attempt_headers(client, request, HttpProtocol::Http3, &attempt.headers);
-    http3_headers.push(RequestHeader::new(
-        "alt-used",
-        alternative.authority().as_bytes(),
-    ));
+    if let Some(alt_used) = alternative.alt_used() {
+        http3_headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
+    }
     http3_pool::validate_request(
         http3,
         client.inner.connect_udp_proxy.as_ref(),
@@ -401,10 +454,9 @@ async fn send_on_alternative(
     loop {
         let mut prepared_headers =
             attempt_headers(client, request, HttpProtocol::Http3, &request_headers);
-        prepared_headers.push(RequestHeader::new(
-            "alt-used",
-            alternative.authority().as_bytes(),
-        ));
+        if let Some(alt_used) = alternative.alt_used() {
+            prepared_headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
+        }
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
         // Alternative setup failures evict the advertisement instead of retrying.
         let mut setup_retries = request_retries.for_alternative_setup();
@@ -451,7 +503,7 @@ async fn send_on_alternative(
                     continue;
                 }
                 if invalidates_alternative(&error) {
-                    client.remove_alt_svc_if_current(endpoint, route, alternative.generation());
+                    client.invalidate_alternative(endpoint, route, alternative);
                 }
                 return Err(error);
             }
@@ -461,7 +513,7 @@ async fn send_on_alternative(
 
         if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
             store_cookies(client, request, &response);
-            client.remove_alt_svc_if_current(endpoint, route, alternative.generation());
+            client.invalidate_alternative(endpoint, route, alternative);
             return Ok(AttemptOutcome {
                 response,
                 protocol: HttpProtocol::Http3,

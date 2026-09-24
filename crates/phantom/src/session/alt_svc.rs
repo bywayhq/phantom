@@ -44,22 +44,42 @@ impl AltSvcSelection {
     }
 }
 
-/// A learned alternative selected for one negotiated request.
+/// An HTTP/3 alternative selected for one negotiated request.
 #[derive(Clone, Debug)]
 pub(crate) struct AlternativeTarget {
     location: AltSvcLocation,
-    authority: Box<str>,
-    generation: u64,
+    source: AlternativeSource,
     broken: bool,
+}
+
+/// Where an alternative came from.
+#[derive(Clone, Debug)]
+enum AlternativeSource {
+    /// A stored Alt-Svc advertisement, named on the wire by `Alt-Used`.
+    AltSvc { alt_used: Box<str>, generation: u64 },
+    /// An HTTPS DNS record for the origin's own location.
+    HttpsRecord,
 }
 
 impl AlternativeTarget {
     pub(super) fn new(selection: &AltSvcSelection) -> Self {
         Self {
             location: selection.location.clone(),
-            authority: selection.location.authority(),
-            generation: selection.generation,
+            source: AlternativeSource::AltSvc {
+                alt_used: selection.location.authority(),
+                generation: selection.generation,
+            },
             broken: selection.broken,
+        }
+    }
+
+    /// Returns the origin's own location, as an HTTPS record advertising
+    /// `h3` names it.
+    pub(super) fn https_record(origin: &Endpoint, broken: bool) -> Self {
+        Self {
+            location: AltSvcLocation::origin(origin),
+            source: AlternativeSource::HttpsRecord,
+            broken,
         }
     }
 
@@ -71,13 +91,24 @@ impl AlternativeTarget {
         self.location.port()
     }
 
-    /// Returns the canonical `Alt-Used` authority with an explicit port.
-    pub(crate) fn authority(&self) -> &str {
-        &self.authority
+    /// Returns the canonical `Alt-Used` authority with an explicit port, for
+    /// an Alt-Svc alternative only.
+    ///
+    /// An HTTPS record leads to the origin's own location, which RFC 7838
+    /// does not call an alternative service, so no `Alt-Used` is sent.
+    pub(crate) fn alt_used(&self) -> Option<&str> {
+        match &self.source {
+            AlternativeSource::AltSvc { alt_used, .. } => Some(alt_used),
+            AlternativeSource::HttpsRecord => None,
+        }
     }
 
-    pub(crate) const fn generation(&self) -> u64 {
-        self.generation
+    /// Returns the store generation of an Alt-Svc alternative.
+    pub(super) const fn generation(&self) -> Option<u64> {
+        match &self.source {
+            AlternativeSource::AltSvc { generation, .. } => Some(*generation),
+            AlternativeSource::HttpsRecord => None,
+        }
     }
 
     pub(crate) const fn is_broken(&self) -> bool {
@@ -96,6 +127,13 @@ pub(super) struct AltSvcLocation {
 }
 
 impl AltSvcLocation {
+    fn origin(origin: &Endpoint) -> Self {
+        Self {
+            host: origin.host().to_ascii_lowercase().into(),
+            port: origin.port(),
+        }
+    }
+
     pub(super) fn host(&self) -> &str {
         &self.host
     }
@@ -291,6 +329,16 @@ impl AltSvcStore {
             broken.remove(position);
             debug!(outcome = "confirmed", "cleared Alt-Svc broken state");
         }
+    }
+
+    /// Returns whether `location` is in a broken period for `origin` and `route`.
+    pub(super) fn is_broken(
+        &self,
+        origin: &Endpoint,
+        route: &Route,
+        location: &AltSvcLocation,
+    ) -> bool {
+        self.is_broken_at(&StoreKey::new(origin, route), location, Instant::now())
     }
 
     fn is_broken_at(&self, key: &StoreKey, location: &AltSvcLocation, now: Instant) -> bool {
@@ -847,6 +895,9 @@ pub(crate) fn invalidates_alternative(error: &RequestError) -> bool {
         _ => false,
     }
 }
+
+mod https_records;
+pub(crate) use https_records::{Discovery, HttpsRecordDiscovery, PendingLookup};
 
 mod policy;
 pub use policy::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace};
