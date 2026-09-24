@@ -1179,7 +1179,7 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
         let h3_profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
         let h3_client = Client::builder(h3_profile)
             .add_root_certificate_der(identity.root_der.clone())
-            .route(route.clone())
+            .route(route)
             .build()?;
         let h3_error = h3_client
             .get(HttpProtocol::Http3, "http://origin.test/")?
@@ -1189,22 +1189,83 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .ok_or("HTTP/3 forwarding unexpectedly succeeded")?;
         assert_eq!(h3_error.kind(), RequestErrorKind::UnsupportedRoute);
 
-        let header_error = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/")?
-            .header(RequestHeader::new("Proxy-Authorization", "Basic secret"))
-            .send()
-            .await
-            .err()
-            .ok_or("forward Proxy-Authorization unexpectedly succeeded")?;
-        assert_eq!(header_error.kind(), RequestErrorKind::InvalidHeader);
-
         assert!(
             timeout(Duration::from_millis(100), listener.accept())
                 .await
                 .is_err(),
             "an unsupported forwarding combination reached the proxy"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn caller_proxy_authorization_is_forwarded_without_configured_credentials() -> TestResult<()>
+{
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let head = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                .await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+        let response = client
+            .get(HttpProtocol::Http1, "http://origin.test/preemptive")?
+            .header(RequestHeader::new("Proxy-Authorization", "Basic YWxpY2U6c2VjcmV0").sensitive())
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+
+        assert_eq!(
+            proxy.await??,
+            b"GET http://origin.test/preemptive HTTP/1.1\r\nHost: origin.test\r\nProxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n\r\n"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn caller_proxy_authorization_is_refused_directly_and_with_configured_credentials()
+-> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let identity = TestIdentity::generate()?;
+        let credentialed = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+
+        for (route, target) in [
+            (Route::direct(), format!("http://{address}/direct")),
+            (credentialed, "http://origin.test/configured".to_owned()),
+        ] {
+            let error = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, &target)?
+                .header(RequestHeader::new("Proxy-Authorization", "Basic secret"))
+                .send()
+                .await
+                .err()
+                .ok_or("caller Proxy-Authorization unexpectedly succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+        }
+        assert!(
+            timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_err(),
+            "a refused Proxy-Authorization request reached the network"
         );
         Ok(())
     })

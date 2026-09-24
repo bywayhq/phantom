@@ -1022,7 +1022,9 @@ trailers, and failure before a retry connection opens for a one-shot
 streaming body; typed proxy errors, without direct or protocol fallback, for a
 second `407` and for malformed or unsupported challenges; and an anonymous
 start for the next logical request, which proves that no challenge state is
-learned.
+learned. Without configured credentials, a caller's own `Proxy-Authorization`
+field reaches the proxy unchanged on the first request; on a direct route or
+a proxy with configured credentials, it fails before any network I/O.
 
 Lifecycle cases also cover a nonempty challenge body; a queued request that
 installs an intervening pooled connection without capturing the

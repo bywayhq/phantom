@@ -539,8 +539,9 @@ Supported HTTP proxies:
 - HTTP/1.1 absolute-form forwarding for `http://` origins over plaintext or
   TLS-encrypted proxies. Basic authentication is challenge-driven: the first
   request is anonymous, and exactly one replay follows on a fresh connection
-  over the same route. Forwarding never switches to CONNECT or another
-  protocol.
+  over the same route. A caller's own `Proxy-Authorization` field is forwarded
+  when the proxy has no configured credentials. Forwarding never switches to
+  CONNECT or another protocol.
 - HTTP/1.1 CONNECT over plaintext proxies or TLS proxies verified with
   their own trust settings, including one bounded Basic retry after a challenge.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly

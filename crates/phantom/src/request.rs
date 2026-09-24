@@ -381,7 +381,8 @@ impl RequestBuilder {
     ///   caller `Host` field;
     /// - [`InvalidHeader`](crate::RequestErrorKind::InvalidHeader) for a
     ///   caller `Alt-Used` field while Alt-Svc learning is enabled, a
-    ///   `Proxy-Authorization` field on an `http://` request, or a malformed
+    ///   `Proxy-Authorization` field on an `http://` request unless the route
+    ///   is an HTTP proxy without configured credentials, or a malformed
     ///   `Accept-Encoding` while content decoding is enabled;
     /// - [`RequestTemplate`](crate::RequestErrorKind::RequestTemplate) and
     ///   [`IdentityMismatch`](crate::RequestErrorKind::IdentityMismatch) as
@@ -536,8 +537,14 @@ impl RequestBuilder {
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         let mut replays = ReplayState::new();
         ensure_request_supported(selection, route, &request)?;
-        let is_plaintext_http = request.uri.scheme_str() == Some("http");
-        if is_plaintext_http
+        // A caller's preemptive field goes to the forward proxy, as it does on
+        // CONNECT. On any other route it would reach the origin, and with
+        // configured credentials it would conflict with the generated field.
+        let forwards_caller_proxy_authorization = route
+            .as_http_proxy()
+            .is_some_and(|proxy| proxy.basic_credentials().is_none());
+        if request.uri.scheme_str() == Some("http")
+            && !forwards_caller_proxy_authorization
             && request_headers
                 .iter()
                 .any(|header| header.name().eq_ignore_ascii_case("proxy-authorization"))

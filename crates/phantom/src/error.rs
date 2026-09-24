@@ -532,7 +532,7 @@ impl RequestError {
     pub(crate) fn forward_proxy_authorization_header() -> Self {
         Self::without_source(
             RequestErrorKind::InvalidHeader,
-            "Proxy-Authorization is not supported for plaintext HTTP requests",
+            "Proxy-Authorization on a plaintext HTTP request needs an HTTP proxy route without configured credentials",
         )
     }
 

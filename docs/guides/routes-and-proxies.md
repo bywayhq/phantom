@@ -80,6 +80,13 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 - A valid Basic `407` challenge allows exactly one replay on a fresh
   connection over the same route. The next logical request starts without
   credentials again ([Design](../explanation/design.md#forward-proxy-authentication)).
+- To send credentials on the first request instead, leave out
+  `with_basic_auth` and add your own `Proxy-Authorization` field: on an
+  `http://` request it goes to the forward proxy, and for an HTTPS origin you
+  add it to the CONNECT request with `HttpProxy::header`. On an `http://`
+  request, the field fails with `RequestErrorKind::InvalidHeader` before I/O
+  on any other route, where it would reach the origin, and on a proxy with
+  configured credentials.
 - `HttpProxy::header`, `headers`, and `connect_headers` order the CONNECT
   request's fields ([HTTP proxy rules](../reference/route-matrix.md#http-proxy-rules)).
 

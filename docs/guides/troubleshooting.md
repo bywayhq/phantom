@@ -152,9 +152,10 @@ Firefox templates have neither an HTTP/3 list nor hint slots
 
 Each fails before any I/O. `AuthorityHeader`: you supplied `Host`, which
 Phantom derives from the URI. `InvalidHeader`: a malformed `Accept-Encoding`
-with decoding on, an `Alt-Used` field, or `Proxy-Authorization` on a
-plaintext request. `InvalidTarget`: the URI has a fragment, or its path or query is not a valid
-request target. `InvalidUri`,
+with decoding on, an `Alt-Used` field, or `Proxy-Authorization` on an
+`http://` request unless the route is an HTTP proxy without configured
+credentials. `InvalidTarget`: the URI has a fragment, or its path or query is
+not a valid request target. `InvalidUri`,
 `InvalidAuthority`: the URI, host, or port does not parse.
 
 ## The connection cannot be opened

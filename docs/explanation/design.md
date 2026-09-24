@@ -444,7 +444,10 @@ Forward-proxy Basic authentication is request-scoped; the client learns no
 state from it. Every logical exact-H1 forwarding request starts without
 credentials. A strict, valid Basic `407` challenge permits one replay on a
 fresh connection with the same complete route. A second `407`, or a challenge
-Phantom cannot use, is a typed proxy failure.
+Phantom cannot use, is a typed proxy failure. A proxy without configured
+credentials forwards a caller's own `Proxy-Authorization` field unchanged, so
+a caller can authenticate the first request; with configured credentials that
+field is refused before I/O, because it would conflict with the generated one.
 
 The generated `Proxy-Authorization` field is marked sensitive and placed after
 the caller's fields and before generated framing. Owned bodies and static
