@@ -42,6 +42,7 @@ h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.1", path =
 http2 = { package = "phantom-http2", version = "=0.5.20-phantom.3", path = "vendor/http2" }
 quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "vendor/quinn", default-features = false, features = ["runtime-tokio"] }
 quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.1", path = "vendor/quinn-proto", default-features = false }
+serde = { version = "1.0.229", default-features = false, features = ["derive", "std"] }
 sfv = "=0.15.0"
 tokio-btls = { package = "phantom-tokio-btls", version = "=0.5.6-phantom.2", path = "vendor/tokio-btls", default-features = false }
 tokio-tungstenite = { package = "phantom-tokio-tungstenite", version = "=0.30.0-phantom.1", path = "vendor/tokio-tungstenite", default-features = false }

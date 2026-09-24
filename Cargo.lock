@@ -1115,6 +1115,8 @@ dependencies = [
  "psl",
  "rcgen",
  "rustls",
+ "serde",
+ "serde_json",
  "sfv",
  "tokio",
  "tracing",
