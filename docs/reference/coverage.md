@@ -62,7 +62,8 @@ Supported:
 - Profile address racing (`TcpAddressRacing`): Chromium's Happy Eyeballs v2
   over the complete resolver result. At most two attempts run at once, the
   losing attempt is cancelled, and the most recent failure is returned.
-- The recipes `chromium::v153_tcp` (Windows and Linux) and `firefox::v156_tcp`
+- The recipes `chromium::v153_tcp` and `chromium::v154_tcp` (Windows and
+  Linux) and `firefox::v156_tcp`
   (`TCP_NODELAY` only, attempts in resolver order), both taken from browser
   source. See
   [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
@@ -88,7 +89,7 @@ Supported:
 - Recipes backed by retained captures:
   - Chrome 152, Firefox 154, and Safari 18.5 from macOS captures. Chrome 152
     and Firefox 154 also match Windows captures.
-  - Chrome 153, Edge 153, and Firefox 156 from Windows captures.
+  - Chrome 153, Chrome 154, Edge 153, and Firefox 156 from Windows captures.
 
   See [Browser profiles](#browser-profiles).
 - Certificate and hostname verification.
@@ -594,6 +595,12 @@ How the recipes differ:
 
 - `chromium::v153_*` differ from 152 only in the trust-anchor ID list: 28 IDs,
   in the most frequent of 35 orders seen across 60 processes.
+- `chromium::v154_*` differ from 153 in two places. The trust-anchor list holds
+  the same 28 IDs, but Chrome 154 sorts them, so the recipe carries one
+  ascending order that all 60 captured processes emit. The persona values
+  change: `sec-ch-ua` is now `"Chromium";v="154", "Google Chrome";v="154",
+  "Not A(Brand";v="99"`, with the full-version fields and the `user-agent`
+  build number following. Every other compared field is equal.
 - Edge 153 matches Chrome 153 on H2, QUIC, and H3 and omits trust-anchor IDs.
   So `edge::` carries only `v153_tls`, `v153_http3_tls`,
   `v153_windows_client_hints`, and its request templates.
@@ -604,8 +611,8 @@ How the recipes differ:
 Request templates:
 
 - The navigation templates match every retained page request:
-  - Chrome 153 over H1 (the SSE, WebSocket, and client-hint captures), H2 (the
-    WebSocket captures), and H3 (the H3 startup capture);
+  - Chrome 153 and Chrome 154 over H1 (the SSE, WebSocket, and client-hint
+    captures), H2 (the WebSocket captures), and H3 (the H3 startup capture);
   - Edge 153 over H1, H2, and H3; and
   - Firefox 156 over H1 and H2.
 
@@ -635,18 +642,19 @@ Request templates:
 
 Randomized fields:
 
-- Chrome's trust-anchor ID order is fixed within a browser process and
-  differs between processes. It is a hash-iteration order, not a
-  per-connection permutation. The Chrome 152 recipe keeps the most frequently
-  observed order.
+- Chrome's trust-anchor ID order was fixed within a browser process and
+  differed between processes up to Chrome 153. It was a hash-iteration order,
+  not a per-connection permutation, and the Chrome 152 and 153 recipes keep
+  the most frequently observed order. Chrome 154 sorts the list before
+  encoding it, so its recipe carries the one ascending order.
 - Chrome's ECH GREASE uses HKDF-SHA256 with AES-128-GCM on every observed
   connection, and tests compare it exactly.
 - Firefox 154 and 156 choose their ECH GREASE AEAD per connection, between
   AES-128-GCM and ChaCha20-Poly1305. Both Firefox recipes list both, the
   backend draws one uniformly for each connection, and 200-connection
   distribution tests bound the split.
-- The Chrome 152, Chrome 153, and Edge 153 recipes leave the AEAD list empty
-  and emit AES-128-GCM on every connection.
+- The Chrome 152, Chrome 153, Chrome 154, and Edge 153 recipes leave the AEAD
+  list empty and emit AES-128-GCM on every connection.
 
 The runtime uses the validated settings it receives. It does not branch on the
 host OS or the client-family name. OS-specific code exists only for real

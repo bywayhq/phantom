@@ -51,6 +51,7 @@ macro_rules! fixture_set {
 }
 
 const CHROME: [&str; 9] = fixture_set!("chrome", "153.0.8010.48");
+const CHROME_154: [&str; 9] = fixture_set!("chrome", "154.0.8037.58");
 const EDGE: [&str; 9] = fixture_set!("edge", "153.0.4234.48");
 const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0");
 
@@ -74,6 +75,23 @@ fn chromium_153_websocket_recipe_matches_chrome_and_edge_captures() -> TestResul
         assert_eq!(summary.empty_messages, 6, "{client}");
         assert_eq!(summary.refused_stream_runs, refused, "{client}");
     }
+    Ok(())
+}
+
+#[test]
+fn chromium_154_websocket_recipe_matches_chrome_captures() -> TestResult {
+    let summary = assert_recipe_matches(
+        &CHROME_154,
+        "Google Chrome",
+        &chromium::v154_websocket(),
+        &chromium::v154_http2(),
+        &chromium::v154_tls(),
+    )?;
+    assert_eq!(summary.new_http2_connections, 0);
+    assert_eq!(summary.empty_messages, 6);
+    // Every `refused-stream` run opened over the page's H2 session and
+    // retried once on the next client stream id.
+    assert_eq!(summary.refused_stream_runs, 3);
     Ok(())
 }
 

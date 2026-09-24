@@ -3,7 +3,9 @@ use crate::{
     Http3Setting, Http3SettingOrder, Http3Settings,
 };
 
-use super::{v152_http3, v152_http3_request, v153_http3, v153_http3_request};
+use super::{
+    v152_http3, v152_http3_request, v153_http3, v153_http3_request, v154_http3, v154_http3_request,
+};
 
 const FIXTURE: &str =
     include_str!("../../../../fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt");
@@ -15,6 +17,9 @@ const V153_WINDOWS_FIXTURE: &str = include_str!(
 );
 const EDGE_153_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt"
+);
+const V154_WINDOWS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
 );
 
 #[test]
@@ -221,6 +226,28 @@ fn fixture_value(fixture: &str, index: usize) -> u64 {
 }
 
 #[test]
+fn chrome_154_http3_recipe_matches_windows_capture() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(
+        fixture_field(V154_WINDOWS_FIXTURE, "client")?,
+        "Google Chrome"
+    );
+    assert_eq!(
+        fixture_field(V154_WINDOWS_FIXTURE, "client_version")?,
+        "154.0.8037.58"
+    );
+    assert_settings_match_control_stream(V154_WINDOWS_FIXTURE, v154_http3(), v154_http3_request())
+}
+
+/// The recipe models only the pseudo-header order; ordinary request fields
+/// come from the caller. Chrome 154 keeps the 153 field order and every
+/// non-persona value.
+#[test]
+fn chrome_154_windows_h3_request_fields_match_153_capture_except_persona_values()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_request_fields_match_except_persona(V153_WINDOWS_FIXTURE, V154_WINDOWS_FIXTURE)
+}
+
+#[test]
 fn named_http3_recipes_leave_extended_connect_order_unset() {
     assert_eq!(
         v152_http3_request().extended_connect_pseudo_header_order,
@@ -228,6 +255,10 @@ fn named_http3_recipes_leave_extended_connect_order_unset() {
     );
     assert_eq!(
         v153_http3_request().extended_connect_pseudo_header_order,
+        None
+    );
+    assert_eq!(
+        v154_http3_request().extended_connect_pseudo_header_order,
         None
     );
 }

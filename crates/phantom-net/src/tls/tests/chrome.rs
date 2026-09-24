@@ -2,7 +2,7 @@
 
 use phantom_profile::{
     TlsSettings,
-    chromium::{v152_tls, v153_tls},
+    chromium::{v152_tls, v153_tls, v154_tls},
     edge,
 };
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
@@ -24,6 +24,14 @@ const CHROME_153_FIXTURE: &str = include_str!(concat!(
 ));
 const CHROME_153_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome/153.0.8010.48/",
+    "windows-11-26200/trust-anchor-orders.txt"
+));
+const CHROME_154_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome/154.0.8037.58/",
+    "windows-11-26200/client-hello.txt"
+));
+const CHROME_154_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome/154.0.8037.58/",
     "windows-11-26200/trust-anchor-orders.txt"
 ));
 const EDGE_153_FIXTURE: &str = include_str!(concat!(
@@ -86,6 +94,48 @@ async fn chrome_153_tls_recipe_emits_the_most_frequent_trust_anchor_order() -> T
     Ok(())
 }
 
+#[tokio::test]
+async fn chrome_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(CHROME_154_FIXTURE, &v154_tls(), Some(28)).await
+}
+
+/// Chrome 154 sorts its trust-anchor list before encoding it, so every
+/// browser process emits the one order the recipe carries.
+#[tokio::test]
+async fn chrome_154_tls_recipe_emits_the_sorted_trust_anchor_order() -> TestResult<()> {
+    let fields = |key: &str| {
+        CHROME_154_TRUST_ANCHOR_ORDERS
+            .lines()
+            .find_map(|line| line.strip_prefix(key))
+            .map(str::to_owned)
+    };
+    assert_eq!(fields("distinct_order_count=").as_deref(), Some("1"));
+    assert_eq!(fields("process_count=").as_deref(), Some("60"));
+    let encoded = fields("order_0=")
+        .and_then(|order| order.split_once(",ids:").map(|(_, ids)| ids.to_owned()))
+        .ok_or("trust-anchor order fixture omitted order_0")?;
+    let expected = encoded
+        .split(',')
+        .map(|id| {
+            (0..id.len())
+                .step_by(2)
+                .map(|index| u8::from_str_radix(&id[index..index + 2], 16))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut sorted = expected.clone();
+    sorted.sort_unstable();
+    assert_eq!(expected, sorted, "the captured order is not ascending");
+
+    let actual = capture_client_hello_from(&v154_tls()).await?.summary()?;
+    let actual = actual
+        .requested_trust_anchor_ids()
+        .ok_or("Chrome 154 recipe omitted trust-anchor IDs")?
+        .to_vec();
+    assert_eq!(actual, expected);
+    Ok(())
+}
+
 /// Edge 153 sends the Chrome 153 ClientHello without trust-anchor IDs.
 #[tokio::test]
 async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
@@ -97,7 +147,7 @@ async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
 #[tokio::test]
 async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> TestResult<()> {
     const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
-    for settings in [v152_tls(), v153_tls(), edge::v153_tls()] {
+    for settings in [v152_tls(), v153_tls(), v154_tls(), edge::v153_tls()] {
         assert!(settings.ech_grease_aeads.is_empty());
         for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {
             assert_eq!(

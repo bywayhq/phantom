@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::{v152_quic, v153_quic};
+use super::{v152_quic, v153_quic, v154_quic};
 use crate::quic::{
     GoogleConnectionOption, QuicTransportParameterKind, QuicTransportParameterOrder,
     QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease,
@@ -21,6 +21,10 @@ const EDGE_153_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
 const V153_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/chrome/153.0.8010.48/windows-11-26200/client-startup.txt"
+));
+const V154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
 ));
 
 #[test]
@@ -373,4 +377,16 @@ fn is_reserved_version(version: u32) -> bool {
 
 fn is_reserved_transport_parameter(identifier: u64) -> bool {
     identifier >= 27 && (identifier - 27).is_multiple_of(31)
+}
+
+#[test]
+fn chrome_154_quic_recipe_matches_windows_capture() -> Result<(), Box<dyn std::error::Error>> {
+    // The retained Chrome 154 startup fixture carries CRLF line endings, so
+    // this compares parsed lines rather than a byte substring.
+    assert!(
+        V154_WINDOWS_HTTP3_FIXTURE
+            .lines()
+            .any(|line| line == "client_version=154.0.8037.58")
+    );
+    assert_quic_settings_match_startup(V154_WINDOWS_HTTP3_FIXTURE, &v154_quic())
 }

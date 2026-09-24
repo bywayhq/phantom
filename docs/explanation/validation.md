@@ -439,8 +439,10 @@ in the Chrome 153 fixture for the same layer. Chrome ran without
 QUIC capture carries `max_idle_timeout` 30000 ms and the `ORIG` connection
 option, not the testing configuration's 300000 ms and `ORIGNOIP`.
 
-These captures are evidence. No profile recipe reads them, and no recipe
-changed for them.
+The `chromium::v154_*` recipes carry these captures. They are a complete
+Chromium recipe set, not a delta over 153: TLS, TCP, H2, WebSocket, cookie
+placement, client hints, the navigation and fetch request templates, and the
+H3, H3 TLS, H3 request, and QUIC transport recipes.
 
 No Chrome for Testing build of 154.0.8037.58 is published, so this version has
 no build-flavor comparison and no `*-chrome-for-testing` fixture. The Chrome
@@ -481,6 +483,16 @@ ClientHellos carry the same order. It is the 28 Chrome 153 IDs in ascending
 byte order, from `82df130201` to `d679090f`.
 `fixtures/tls/chrome/154.0.8037.58/windows-11-26200/trust-anchor-orders.txt`
 retains the order, its count, and the per-process sequence.
+`chromium::v154_tls` lists the 28 identifiers in that ascending order, which
+is how a `TlsSettings` expresses trust-anchor order: the wire order is the
+vector order, and the type has no sorting mode.
+`chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process`
+requires the fixture to hold one order, requires the recipe to equal it, and
+requires the recipe list to be sorted;
+`chrome_154_trust_anchor_extension_matches_the_retained_client_hello` finds
+the same encoded extension in the retained ClientHello; and
+`chrome_154_tls_recipe_emits_the_sorted_trust_anchor_order` checks the order
+the TLS connector actually emits.
 
 Each process contributed one connection. These captures therefore show that
 the order no longer varies between processes; they do not on their own show
@@ -563,8 +575,9 @@ Limits:
 - One Windows build, and one branded Chrome build. No macOS or Linux capture
   of this version exists, and no Chrome for Testing build of it is published,
   so neither platform nor build flavor is isolated at 154.
-- No test replays these fixtures yet, and no recipe carries the sorted
-  trust-anchor order.
+- `chromium::v154_tcp` rests on Chromium source at tag `154.0.8037.58`, not
+  on a capture; see
+  [TCP socket option evidence](#tcp-socket-option-evidence).
 - Launches are headless, except one headful client-hint run and five headful
   `retry-750` SSE runs.
 - Chrome 154 was compared against the retained Chrome 153 Windows fixtures

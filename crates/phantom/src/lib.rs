@@ -183,7 +183,10 @@ pub mod profile {
             v152_quic, v152_tls, v153_cookie_placement, v153_http2, v153_http3, v153_http3_request,
             v153_http3_tls, v153_quic, v153_tcp, v153_tls, v153_websocket,
             v153_windows_client_hints, v153_windows_fetch_no_store_template,
-            v153_windows_navigation_template,
+            v153_windows_navigation_template, v154_cookie_placement, v154_http2, v154_http3,
+            v154_http3_request, v154_http3_tls, v154_quic, v154_tcp, v154_tls, v154_websocket,
+            v154_windows_client_hints, v154_windows_fetch_no_store_template,
+            v154_windows_navigation_template,
         };
 
         #[doc(hidden)]

@@ -80,6 +80,16 @@ const CHROME_CLIENT_HINTS: &str =
     fixture!("client-hints/chrome/153.0.8010.48/windows-11-26200/navigation.txt");
 const EDGE_CLIENT_HINTS: &str =
     fixture!("client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt");
+const CHROME_154_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
+const CHROME_154_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
+const CHROME_154_HEADFUL_SSE: &str =
+    fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headful.txt");
+const CHROME_154_HEADLESS_SSE: &str =
+    fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headless.txt");
+const CHROME_154_HTTP3: &str =
+    fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
+const CHROME_154_CLIENT_HINTS: &str =
+    fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
 
 /// Which protocol list of a template a capture is compared with.
 #[derive(Clone, Copy, Debug)]
@@ -201,6 +211,8 @@ fn every_template_recipe_is_valid() {
     for template in [
         chromium::v153_windows_navigation_template(),
         chromium::v153_windows_fetch_no_store_template(),
+        chromium::v154_windows_navigation_template(),
+        chromium::v154_windows_fetch_no_store_template(),
         edge::v153_windows_navigation_template(),
         edge::v153_windows_fetch_no_store_template(),
         firefox::v156_windows_navigation_template(),
@@ -274,6 +286,102 @@ fn chrome_153_navigation_user_agent_is_the_headful_capture_value() -> CaptureRes
             |(name, value)| name == "User-Agent" && value.contains("HeadlessChrome/153.0.0.0")
         ));
     }
+    Ok(())
+}
+
+#[test]
+fn chrome_154_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = chromium::v154_windows_navigation_template();
+    let hints = chromium::v154_windows_client_hints();
+    let (http1, http2) = observed(
+        &[&CHROME_154_SSE, &CHROME_154_WEBSOCKET],
+        "page",
+        "document",
+    )?;
+    assert_all_match(
+        &template,
+        Protocol::Http1,
+        Some(&hints),
+        &http1,
+        170,
+        "chrome 154 h1",
+    );
+    assert_all_match(
+        &template,
+        Protocol::Http2,
+        Some(&hints),
+        &http2,
+        18,
+        "chrome 154 h2",
+    );
+    let http3 = [Capture::parse(CHROME_154_HTTP3)?.http3_request()?];
+    assert_all_match(
+        &template,
+        Protocol::Http3,
+        Some(&hints),
+        &http3,
+        1,
+        "chrome 154 h3",
+    );
+    Ok(())
+}
+
+#[test]
+fn chrome_154_navigation_user_agent_is_the_headful_capture_value() -> CaptureResult<()> {
+    let template = chromium::v154_windows_navigation_template();
+    let literal = |fields: &[RequestField]| {
+        fields.iter().find_map(|field| match field {
+            RequestField::Literal { name, value } if name.eq_ignore_ascii_case("user-agent") => {
+                Some(value.to_string())
+            }
+            _ => None,
+        })
+    };
+    let expected = literal(&template.http1_fields);
+    assert_eq!(literal(&template.http2_fields), expected);
+    assert_eq!(
+        literal(template.http3_fields.as_deref().unwrap_or(&[])),
+        expected
+    );
+
+    let headful = Capture::parse(CHROME_154_HEADFUL_SSE)?.http1_requests("page")?;
+    assert_eq!(headful.len(), 5);
+    for request in &headful {
+        let user_agent = request.iter().find(|(name, _)| name == "User-Agent");
+        assert_eq!(user_agent.map(|(_, value)| value.clone()), expected);
+    }
+    let headless = Capture::parse(CHROME_154_HEADLESS_SSE)?.http1_requests("page")?;
+    assert!(!headless.is_empty());
+    for request in &headless {
+        assert!(request.iter().any(
+            |(name, value)| name == "User-Agent" && value.contains("HeadlessChrome/154.0.0.0")
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn chrome_154_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
+    let template = chromium::v154_windows_fetch_no_store_template();
+    let hints = chromium::v154_windows_client_hints();
+    let (http1, http2) = observed(&[&CHROME_154_WEBSOCKET], "done", "empty")?;
+    assert_all_match(
+        &template,
+        Protocol::Http1,
+        Some(&hints),
+        &http1,
+        6,
+        "chrome 154",
+    );
+    assert_all_match(
+        &template,
+        Protocol::Http2,
+        Some(&hints),
+        &http2,
+        18,
+        "chrome 154",
+    );
+    assert_eq!(template.http3_fields, None);
     Ok(())
 }
 
@@ -447,6 +555,10 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
 fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> CaptureResult<()> {
     for (fixture, hints) in [
         (CHROME_CLIENT_HINTS, chromium::v153_windows_client_hints()),
+        (
+            CHROME_154_CLIENT_HINTS,
+            chromium::v154_windows_client_hints(),
+        ),
         (EDGE_CLIENT_HINTS, edge::v153_windows_client_hints()),
     ] {
         use crate::ClientHintDelivery::Default;

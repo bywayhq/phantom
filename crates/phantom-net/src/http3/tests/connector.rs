@@ -102,6 +102,24 @@ fn chrome_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<(
     Ok(())
 }
 
+#[test]
+fn chrome_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &chromium::v154_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
+    )?;
+    for client_hello in [CHROME_154_H3_CLIENT_HELLO_1, CHROME_154_H3_CLIENT_HELLO_2] {
+        assert_connector_matches_quic_client_hello(
+            &connector,
+            CHROME_154_H3_STARTUP,
+            client_hello,
+        )?;
+    }
+    Ok(())
+}
+
 /// Edge 153 offers the Chrome 153 QUIC ClientHello without trust-anchor IDs.
 #[test]
 fn edge_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
@@ -495,6 +513,18 @@ const CHROME_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
 ));
 const CHROME_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/153.0.8010.48/",
+    "windows-11-26200/quic-client-hello-2.txt"
+));
+const CHROME_154_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/154.0.8037.58/",
+    "windows-11-26200/client-startup.txt"
+));
+const CHROME_154_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/154.0.8037.58/",
+    "windows-11-26200/quic-client-hello-1.txt"
+));
+const CHROME_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
 const EDGE_153_H3_STARTUP: &str = include_str!(concat!(

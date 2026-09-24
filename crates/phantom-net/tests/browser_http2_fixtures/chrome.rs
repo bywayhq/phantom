@@ -1,4 +1,4 @@
-use phantom_profile::chromium::{v152_http2, v153_http2};
+use phantom_profile::chromium::{v152_http2, v153_http2, v154_http2};
 
 use super::{
     TestResult, assert_public_startup_matches_fixture, assert_raw_startup, fixture::Fixture,
@@ -68,6 +68,21 @@ async fn chrome_153_http2_recipe_matches_windows_capture() -> TestResult<()> {
     assert_eq!(fixture.browser_version, "153.0.8010.48");
     assert_raw_startup(&fixture).await?;
     assert_public_startup_matches_fixture(&fixture, v153_http2()).await
+}
+
+const CHROME_154_FIXTURE_TEXT: &str = include_str!(concat!(
+    "../../../../fixtures/http2/chrome/154.0.8037.58/",
+    "windows-11-26200/client-startup.txt"
+));
+
+#[tokio::test]
+async fn chrome_154_http2_recipe_matches_windows_capture() -> TestResult<()> {
+    let fixture = Fixture::parse(CHROME_154_FIXTURE_TEXT)?;
+    assert_eq!(fixture.browser, "Google Chrome");
+    assert_eq!(fixture.browser_version, "154.0.8037.58");
+    assert_eq!(fixture.launch_arguments, EXPECTED_LAUNCH_ARGUMENTS);
+    assert_raw_startup(&fixture).await?;
+    assert_public_startup_matches_fixture(&fixture, v154_http2()).await
 }
 
 /// Edge 153 has no separate HTTP/2 recipe: its startup equals Chrome 153's.
