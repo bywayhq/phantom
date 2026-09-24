@@ -14,7 +14,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
-| `with_cookie_placement(placement)` | Where the cookie jar's `Cookie` field goes; last by default ([details](../guides/connections-and-state.md#cookie-field-position)) |
+| `with_cookie_placement(placement)` | Where the cookie jar's `Cookie` field goes; last by default ([details](../guides/connections-and-state.md#place-the-cookie-field-where-a-browser-does)) |
 
 A request fails before any network I/O if the profile lacks a component it
 needs.
