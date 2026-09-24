@@ -36,11 +36,20 @@ pub struct WebSocket {
     selected_protocol: Option<Box<str>>,
     limits: WebSocketLimits,
     #[cfg(feature = "websocket-deflate")]
-    permessage_deflate: Option<NegotiatedPerMessageDeflate>,
-    /// The profile's empty-message rule, meaningful only while compressing.
-    #[cfg(feature = "websocket-deflate")]
-    compress_empty_messages: bool,
+    deflate: DeflateState,
     pending_incoming: Option<WebSocketMessage>,
+}
+
+/// What one established connection compresses, and how.
+///
+/// `negotiated` is `None` until the server accepts the offer, which is also
+/// what makes the empty-message rule take effect.
+#[cfg(feature = "websocket-deflate")]
+#[derive(Clone, Copy, Debug)]
+pub(super) struct DeflateState {
+    pub(super) negotiated: Option<NegotiatedPerMessageDeflate>,
+    /// The profile's rule for an empty text or binary message.
+    pub(super) compress_empty_messages: bool,
 }
 
 impl fmt::Debug for WebSocket {
@@ -51,7 +60,7 @@ impl fmt::Debug for WebSocket {
             .field("has_selected_protocol", &self.selected_protocol.is_some())
             .field("limits", &self.limits);
         #[cfg(feature = "websocket-deflate")]
-        debug.field("permessage_deflate", &self.permessage_deflate);
+        debug.field("permessage_deflate", &self.deflate.negotiated);
         debug.finish_non_exhaustive()
     }
 }
@@ -63,10 +72,7 @@ impl WebSocket {
         selected_protocol: Option<Box<str>>,
         limits: WebSocketLimits,
         config: WebSocketConfig,
-        #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
-            NegotiatedPerMessageDeflate,
-        >,
-        #[cfg(feature = "websocket-deflate")] compress_empty_messages: bool,
+        #[cfg(feature = "websocket-deflate")] deflate: DeflateState,
     ) -> Self {
         Self::new(
             WebSocketIo::Http1(stream),
@@ -75,9 +81,7 @@ impl WebSocket {
             limits,
             config,
             #[cfg(feature = "websocket-deflate")]
-            permessage_deflate,
-            #[cfg(feature = "websocket-deflate")]
-            compress_empty_messages,
+            deflate,
         )
         .await
     }
@@ -89,10 +93,7 @@ impl WebSocket {
         selected_protocol: Option<Box<str>>,
         limits: WebSocketLimits,
         config: WebSocketConfig,
-        #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
-            NegotiatedPerMessageDeflate,
-        >,
-        #[cfg(feature = "websocket-deflate")] compress_empty_messages: bool,
+        #[cfg(feature = "websocket-deflate")] deflate: DeflateState,
     ) -> Self {
         Self::new(
             WebSocketIo::Http2 {
@@ -104,9 +105,7 @@ impl WebSocket {
             limits,
             config,
             #[cfg(feature = "websocket-deflate")]
-            permessage_deflate,
-            #[cfg(feature = "websocket-deflate")]
-            compress_empty_messages,
+            deflate,
         )
         .await
     }
@@ -117,10 +116,7 @@ impl WebSocket {
         selected_protocol: Option<Box<str>>,
         limits: WebSocketLimits,
         config: WebSocketConfig,
-        #[cfg(feature = "websocket-deflate")] permessage_deflate: Option<
-            NegotiatedPerMessageDeflate,
-        >,
-        #[cfg(feature = "websocket-deflate")] compress_empty_messages: bool,
+        #[cfg(feature = "websocket-deflate")] deflate: DeflateState,
     ) -> Self {
         let socket = WebSocketStream::from_raw_socket(stream, Role::Client, Some(config)).await;
         Self {
@@ -129,9 +125,7 @@ impl WebSocket {
             selected_protocol,
             limits,
             #[cfg(feature = "websocket-deflate")]
-            permessage_deflate,
-            #[cfg(feature = "websocket-deflate")]
-            compress_empty_messages,
+            deflate,
             pending_incoming: None,
         }
     }
@@ -164,7 +158,7 @@ impl WebSocket {
     #[cfg(feature = "websocket-deflate")]
     #[must_use]
     pub fn negotiated_permessage_deflate(&self) -> Option<NegotiatedPerMessageDeflate> {
-        self.permessage_deflate
+        self.deflate.negotiated
     }
 
     /// Returns the active frame and message bounds.
@@ -176,7 +170,7 @@ impl WebSocket {
     /// Applies the profile's empty-message rule to one outgoing message.
     fn for_wire(&self, message: EngineMessage) -> EngineMessage {
         #[cfg(feature = "websocket-deflate")]
-        if self.permessage_deflate.is_some() && !self.compress_empty_messages {
+        if self.deflate.negotiated.is_some() && !self.deflate.compress_empty_messages {
             return super::message::send_empty_message_uncompressed(message);
         }
         message

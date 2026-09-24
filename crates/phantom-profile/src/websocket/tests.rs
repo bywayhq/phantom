@@ -512,12 +512,12 @@ impl<'a> Capture<'a> {
             let stream: u32 = attribute(record, "stream")?.parse()?;
             match attribute(record, "outcome")? {
                 "refused" => refused = Some((connection, stream)),
-                "accepted" => {
+                "accepted"
                     if refused.is_some_and(|(refused_connection, refused_stream)| {
                         refused_connection == connection && stream > refused_stream
-                    }) {
-                        return Ok(Some(WebSocketRefusedStreamRetry::SameSessionOnce));
-                    }
+                    }) =>
+                {
+                    return Ok(Some(WebSocketRefusedStreamRetry::SameSessionOnce));
                 }
                 _ => {}
             }

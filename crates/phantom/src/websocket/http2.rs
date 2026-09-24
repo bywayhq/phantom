@@ -344,9 +344,10 @@ async fn finish_http2(
                 limits,
                 engine_config,
                 #[cfg(feature = "websocket-deflate")]
-                negotiated,
-                #[cfg(feature = "websocket-deflate")]
-                compress_empty_messages,
+                super::connection::DeflateState {
+                    negotiated,
+                    compress_empty_messages,
+                },
             )
             .await)
         }
