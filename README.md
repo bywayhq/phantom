@@ -119,6 +119,7 @@ No feature is enabled by default.
 | `sse` | Server-sent events, with a limited number of reconnects |
 | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
 | `websocket-deflate` | Opt-in `permessage-deflate` compression; turns on `websocket` |
+| `serde` | Serialization of saved cookie-jar snapshots, with `cookies` |
 | `full` | All of the above |
 
 ## What Phantom is not

@@ -116,6 +116,7 @@ No feature is enabled by default.
 | `sse` | Server-sent events (SSE) decoding and finite reconnect control |
 | `websocket` | WebSocket over an ordered H1 Upgrade, or H2 extended CONNECT with an HTTP/2 profile that sets its pseudo-header order |
 | `websocket-deflate` | Opt-in `permessage-deflate`; also enables `websocket` |
+| `serde` | `Serialize` and `Deserialize` for cookie-jar snapshots, with `cookies` |
 | `full` | All capabilities above |
 
 The QUIC diagnostics features, `qlog` on `phantom-net` and `keylog` on

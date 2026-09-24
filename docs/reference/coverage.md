@@ -373,9 +373,16 @@ Supported:
     cookies set by an origin that is not potentially trustworthy. A
     potentially trustworthy origin, as in Chromium, is an `https://`
     origin or an `http://` loopback, `localhost`, or `.localhost`
-    origin; and
+    origin;
   - places the `Cookie` field where the profile's `CookiePlacement` puts it,
-    with Chrome 154 and Firefox 156 recipes.
+    with Chrome 154 and Firefox 156 recipes; and
+  - export and import of snapshots by the caller (every attribute, the
+    partition key, the setting scheme, and expiry in whole seconds; session
+    cookies included). Import revalidates each entry as the `Set-Cookie`
+    field its scheme and domain would send, under the jar's own rules, so it
+    stores only what a response could have stored. It never extends expiry,
+    replaces a held cookie, or evicts one. The optional `serde` feature
+    serializes snapshots.
 
   See [Cookies](../guides/connections-and-state.md#cookies).
 - Client-hint fields defined by the profile, with bounded `Accept-CH` state

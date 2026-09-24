@@ -83,6 +83,8 @@ builder:
 - `Client::cookie_jar` returns the active jar. Its `set_cookie`,
   `request_value`, `clear`, and `len` methods act on the same state that
   requests use.
+- `Client::export_cookies` and `Client::import_cookies` move the jar through
+  storage you own; see [Saving and restoring cookies](#saving-and-restoring-cookies).
 
 The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
 `__Secure-` and `__Host-` prefix, `SameSite`, `Partitioned`, and
@@ -219,6 +221,40 @@ differences:
   total limit is a hard bound.
 - Partitioned cookies count toward the same limits as other cookies. Chromium
   gives each partition its own per-domain limits.
+
+### Saving and restoring cookies
+
+`Client::export_cookies` returns a `CookieSnapshot` of the jar's unexpired
+cookies, or `None` when the client has no jar. `Client::import_cookies` loads
+one into another client. Phantom picks no file format: persist the accessor
+values of each `CookieSnapshotEntry` and rebuild entries with
+`CookieSnapshotEntry::new` and its `with_` methods, or enable the `serde`
+Cargo feature. A snapshot holds cookie values, which are often session
+credentials.
+
+Each entry keeps the cookie's name, value, domain, host-only flag, path,
+`Secure`, `HttpOnly`, `SameSite`, partition key (such as
+`https://example.com`), the scheme of the URL that set it, and its expiry
+rounded down to a whole second. Session cookies are exported with no expiry.
+Entries are in creation order, and an import keeps that order, so a restored
+jar builds the same `Cookie` field.
+
+Import rebuilds each entry as the `Set-Cookie` field a response from its
+scheme and domain would send, and applies the jar's storage rules and byte
+limit to it, as listed in [Cookies the jar rejects](#cookies-the-jar-rejects).
+The domain must be the canonical lowercase host, the name, value, and path
+must survive as a `Set-Cookie` field unchanged, and a partition key must be
+the schemeful site of the scheme and domain. One refused entry rejects the
+whole snapshot and leaves the jar unchanged;
+`CookieSnapshotError::entry_index` names it.
+
+A valid snapshot merges without removing held cookies. Expired entries are
+skipped and expiry is never extended. A later entry with the same name,
+domain, path, host-only flag, and partitioned flag replaces an earlier one. A
+held cookie with the same key wins, as does a held `Secure` cookie that an
+entry from an untrustworthy origin would overlay. Imported cookies rank as
+older than every held cookie for ordering and eviction. The count limits
+admit imported cookies up to each limit instead of evicting.
 
 ## Client hints
 

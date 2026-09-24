@@ -224,13 +224,11 @@ have shown where the real architectural boundaries are.
   as the retained 60-process capture shows, or per connection, as the nearest
   comparable clients assume. Capture many connections from one process.
 - Close the gaps callers expect from an HTTP client, in this order:
-  1. Caller-owned cookie-jar export and import, beside the Alt-Svc snapshot
-     API.
-  2. Host-to-address overrides, a caller resolver, and DNS over HTTPS where
+  1. Host-to-address overrides, a caller resolver, and DNS over HTTPS where
      the captured browser uses it.
-  3. A source address or interface binding.
-  4. Client certificates.
-  5. One narrow request hook rather than a middleware framework.
+  2. A source address or interface binding.
+  3. Client certificates.
+  4. One narrow request hook rather than a middleware framework.
 - Close the caller ergonomics gaps a survey of seventeen HTTP clients found,
   in this order. None of these changes a byte on the wire; each is caller-side
   only.
@@ -249,14 +247,14 @@ have shown where the real architectural boundaries are.
      existing inclusive cap, where the bounded form is the only form. A
      response helper must never set a request field: no helper may add
      `Accept` or `Accept-Encoding`. The typed helper takes an optional
-     `serde` dependency behind its own feature, which stays off by default
-     like every other feature. It decodes what arrived whatever the
-     response declares, because a helper that reads `Content-Type` makes
-     its behavior depend on a server field rather than caller intent.
-     The same feature may carry a serialized form of the cookie-jar and
-     Alt-Svc snapshots. Snapshots stay typed values that are revalidated
-     on import, so a serialized snapshot can never widen what an import
-     accepts.
+     `serde` dependency behind the existing `serde` feature, which stays
+     off by default like every other feature. It decodes what arrived
+     whatever the response declares, because a helper that reads
+     `Content-Type` makes its behavior depend on a server field rather
+     than caller intent. The feature already carries the serialized form
+     of the cookie-jar snapshot and may carry the Alt-Svc snapshot's.
+     Snapshots stay typed values that are revalidated on import, so a
+     serialized snapshot can never widen what an import accepts.
   4. Re-export the ecosystem types the public API already names, including
      `Bytes`, which appears in `RequestBuilder::body` but cannot be named
      without a matching direct dependency.
