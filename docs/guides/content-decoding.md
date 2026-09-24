@@ -28,7 +28,7 @@ async fn fetch(client: &Client) -> Result<bytes::Bytes, RequestError> {
 - Phantom never adds, removes, or moves `Accept-Encoding`. Its presence and
   position are part of the [header order](../fingerprinting.md#header-order),
   so you set it, directly or through a
-  [request template](profiles.md#request-templates). The request bytes are
+  [request template](profiles.md#apply-a-captured-request-template). The request bytes are
   the same with and without decoding.
 - Decoding supports `gzip` (and its alias `x-gzip`), `deflate`, `br`, and
   `zstd`, and accepts only codings the request advertised: by name with a
@@ -103,5 +103,5 @@ becomes unknown.
   decoding's off state.
 - [Content-decoding evidence](../explanation/validation.md#content-decoding-evidence):
   the tests behind this behavior.
-- [Profiles](profiles.md#request-templates): templates that set
+- [Profiles](profiles.md#apply-a-captured-request-template): templates that set
   `Accept-Encoding` for you.

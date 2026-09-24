@@ -125,7 +125,7 @@ fn socks_route() -> Result<Route, Box<dyn std::error::Error>> {
   WebSockets use an RFC 1928 CONNECT tunnel. The origin keeps its own
   certificate verification and SNI. With Alt-Svc enabled, a negotiated request
   can later upgrade to H3 over the same proxy
-  ([HTTP/3 and Alt-Svc](http3.md#routes-that-carry-the-upgrade)).
+  ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
 - Exact H3 uses an RFC 1928 UDP ASSOCIATE relay. The TCP control connection
   stays open for as long as the association lives, and associations stay in
   the route-keyed pool for reuse.

@@ -198,7 +198,7 @@ fn classify(error: &RequestError) -> &'static str {
 - A browser name implies no route, trust, redirect, retry, or timeout policy.
   A client with a redirect policy rejects `http://` requests.
 - WebSocket connects apply none of the client's timeouts, retries, or
-  redirects ([WebSocket](websocket.md#timeouts-and-retries)). An SSE event
+  redirects ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)). An SSE event
   source applies timeouts per attempt and stops the read-idle and total
   timers once the stream is open ([SSE](sse.md)).
 - HTTP proxy and CONNECT-UDP routes reject negotiated requests before I/O.

@@ -276,7 +276,7 @@ Supported lifecycle:
   - Broken alternatives back off as in Chromium 153: 300 seconds, doubling,
     capped at two days.
 
-  See [Racing](../guides/http3.md#racing).
+  See [Racing](../guides/http3.md#race-the-alternative-against-the-origin).
 
 Supported in `phantom-net` only (`phantom-http` does not expose it):
 
@@ -322,7 +322,7 @@ Supported:
     client hint naming another browser family or major version.
 
   Recipes cover address-bar navigations and same-origin no-store `fetch`
-  GETs. See [Request templates](../guides/profiles.md#request-templates).
+  GETs. See [Request templates](../guides/profiles.md#apply-a-captured-request-template).
 - One WHATWG/IDNA endpoint boundary, shared by the wire authority and state
   keys.
 - Separate TLS settings for TCP and QUIC.
@@ -390,13 +390,13 @@ Supported:
   - places the `Cookie` field where the profile's `CookiePlacement` puts it,
     with Chrome 154 and Firefox 156 recipes.
 
-  See [Cookies](../guides/connections-and-state.md#cookies).
+  See [Cookies](../guides/connections-and-state.md#keep-cookies-between-requests).
 - [Client-hint](glossary.md#client-hints) fields defined by the profile, with
   bounded `Accept-CH` state per exact origin from responses,
   connection-scoped H2/H3 ALPS `ACCEPT_CH`, and one bounded `Critical-CH`
   retry for safe methods. A request template places the hints at its captured
   slots. Without one, they precede the caller's fields. See
-  [Client hints](../guides/profiles.md#client-hints).
+  [Client hints](../guides/profiles.md#send-client-hints).
 - Opt-in finite redirects for `https://` requests: WHATWG URL resolution,
   `https://` targets only, browser method and body transitions, and removal of
   credentials and client hints on cross-origin hops. A client with a redirect
@@ -462,7 +462,7 @@ Supported WebSocket (`websocket` feature):
   and deflate offers. A recipe also carries what its client does when the peer
   refuses the CONNECT stream: Chrome 154 and Edge 153 reopen once on the same
   session, Firefox 156 reopens nothing. See
-  [Profile connection policy](../guides/websocket.md#profile-connection-policy).
+  [Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does).
 
 Planned or not captured:
 
@@ -569,7 +569,7 @@ Deliberately excluded:
   CONNECT-UDP proxy. A CONNECT tunnel is TCP and cannot reach an `h3`
   alternative; CONNECT-UDP carries QUIC only and offers no TLS stream for ALPN.
   Both are typed refusals before any proxy I/O, never a fallback. See
-  [Routes that carry the upgrade](../guides/http3.md#routes-that-carry-the-upgrade).
+  [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
 
 Planned:
 
@@ -613,7 +613,7 @@ TLS, H2, and QUIC protocol settings are transport recipes. They do not select
 behavior by host OS. Capture provenance stays platform-specific, because
 browser builds, system integrations, launch conditions, and release channels
 can change the bytes a browser sends.
-[Browser profiles](../guides/profiles.md#recipe-names-and-platforms) explains
+[Browser profiles](../reference/profiles.md#recipe-names-and-platforms) explains
 the naming rules.
 
 Each recipe records the platform its captures came from, and no recipe

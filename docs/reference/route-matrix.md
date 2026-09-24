@@ -41,7 +41,7 @@ Notes:
   Alt-Svc H3 upgrade that rides on it needs a UDP path to the advertised
   alternative over the same route. HTTP proxies carry only TCP and CONNECT-UDP
   carries only QUIC, so both reject negotiated requests before any proxy I/O.
-  See [Routes that carry the upgrade](../guides/http3.md#routes-that-carry-the-upgrade).
+  See [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
 - WebSocket and SSE requests need the matching Cargo feature.
 - A `ws://` or `wss://` request over H3 fails when the builder is created.
 - SSE event sources follow the ordinary rows for their scheme and protocol.
@@ -49,7 +49,7 @@ Notes:
   `websocket_with_profile_policy`, the profile's connection policy may instead
   place the WebSocket on a pooled H2 session or open an HTTP/1.1 Upgrade
   connection. See
-  [Profile connection policy](../guides/websocket.md#profile-connection-policy).
+  [Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does).
 
 ## Next
 

@@ -700,7 +700,7 @@ Further observations:
 compares what the origin observes with these captures. The WebSocket guide
 lists where Phantom's recipes still differ from the captured browsers, such
 as Chrome's retry after `RST_STREAM(REFUSED_STREAM)`; see
-[Browser recipes](../guides/websocket.md#browser-recipes).
+[Browser recipes](../guides/websocket.md#open-a-websocket-the-way-the-browser-does).
 
 Direct H2 WebSocket regressions use an authenticated loopback peer that
 advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL`. They assert that Phantom waits

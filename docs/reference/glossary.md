@@ -14,7 +14,7 @@ A response field in which an HTTPS origin asks for more
 [client hints](#client-hints) on later requests. Phantom keeps bounded
 `Accept-CH` state per exact [origin](#origin). An H2 or H3 server can make the
 same request for a whole connection with an `ACCEPT_CH` setting sent through
-[ALPS](#alps). See [Client hints](../guides/profiles.md#client-hints).
+[ALPS](#alps). See [Client hints](../guides/profiles.md#send-client-hints).
 
 ## ALPN
 
@@ -61,7 +61,7 @@ compare [recipes](#recipe) with them. See
 Request fields, such as `sec-ch-ua`, that describe the browser and platform.
 A browser sends some by default, and a server can ask for more with
 [Accept-CH](#accept-ch). Firefox sends no user-agent client hints. See
-[Client hints](../guides/profiles.md#client-hints).
+[Client hints](../guides/profiles.md#send-client-hints).
 
 ## ClientHello
 
@@ -219,7 +219,7 @@ did not process. See
 A `RequestTemplate`: for one kind of browser request, the captured field
 order and values for each protocol, slots for caller fields and client hints,
 and the captured H2 priority. See
-[Request templates](../guides/profiles.md#request-templates).
+[Request templates](../guides/profiles.md#apply-a-captured-request-template).
 
 ## Route
 

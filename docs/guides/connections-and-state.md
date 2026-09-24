@@ -9,7 +9,7 @@ A `Client` owns every piece of state that outlives one request: connection
 pools, redirect policy, cookies, learned client hints, Alt-Svc
 advertisements, and TLS session tickets. None of it is global to the process,
 and every store has a size limit
-([Design](../explanation/design.md#state-and-connections)).
+([Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)).
 
 ## Share a client between tasks
 
@@ -164,7 +164,7 @@ fn forget(client: &Client) {
 - Alt-Svc is off by default. `ClientBuilder::alt_svc` enables a bounded store
   keyed by exact origin for negotiated HTTPS requests; `export_alt_svc` and
   `import_alt_svc` move it through storage you own, and `alt_svc_policy`
-  opts into racing ([HTTP/3 and Alt-Svc](http3.md#alt-svc)).
+  opts into racing ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
 - TLS session tickets for H1/H2 are bounded, keyed by exact origin and
   route, and never used for early data.
 
