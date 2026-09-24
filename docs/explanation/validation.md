@@ -883,6 +883,16 @@ H3 on a second port. Alternating requests between the two locations prove one
 QUIC connection per location in the same pool entry, rather than a
 replacement on every switch.
 
+The route rules follow Chromium's source at tag `153.0.8010.48`. Chromium
+creates the alternative job even when proxied, then fails it with
+`ERR_NO_SUPPORTED_PROXIES` unless every hop of the proxy chain speaks QUIC
+(`net/http/http_stream_factory_job.cc` lines 858-868), and resumes its main
+TCP job. Phantom has no such fallback, so it refuses a negotiated request on
+an HTTP proxy route before any I/O. Chromium has no SOCKS5 UDP ASSOCIATE
+(`net/socket/socks5_client_socket.cc` defines only `kTunnelCommand`), so its
+SOCKS5 routes never carry QUIC; Phantom's carry the Alt-Svc upgrade, as they
+carry exact H3.
+
 Limits:
 
 - Not covered: browser `Alt-Used` ordering, upgrades on proxy routes,
