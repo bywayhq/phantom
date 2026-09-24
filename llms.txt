@@ -1,0 +1,53 @@
+# Phantom
+
+> Rust HTTP client that connects the way a chosen browser does. Phantom reproduces the TCP options, TLS ClientHello, HTTP/1.1, HTTP/2, QUIC, and HTTP/3 behavior, client hints, and request fields of Chrome 154, Edge 153, and Firefox 156, and never falls back to another protocol or route. Package `phantom-http`, library crate `phantom`. Pre-1.0 and not on crates.io; depend on a pinned git revision.
+
+When you use Phantom as a dependency, a git checkout of the pinned revision sits under `~/.cargo/git/checkouts/`. Its `docs/` directory matches the version you build against. Prefer those files over what you remember about Phantom: the API changes between commits.
+
+## Rules
+
+- Build a `ClientProfile` from the recipes of one browser version, as the examples show. Edge 153 uses the Chromium 154 HTTP/2, QUIC, and HTTP/3 recipes; that pairing is captured, not a mix.
+- Do not hand-write TLS, HTTP/2, QUIC, or HTTP/3 settings to imitate a browser. Use the recipe functions in `phantom::profile::{chromium, edge, firefox}`.
+- Pick the protocol on every request: `HttpProtocol::Http1`, `Http2`, or `Http3` with `get` or `request`, or `get_negotiated` to let TLS ALPN choose HTTP/1.1 or HTTP/2.
+- Phantom never falls back. An unsupported protocol, route, or proxy returns a typed error; handle it instead of retrying with a different protocol.
+- Redirects, retries, timeouts, cookies, Alt-Svc, and content decoding are off until you enable them on the `ClientBuilder` or request.
+- Phantom adds no browser request fields. Apply a captured `RequestTemplate` with `RequestBuilder::template` to send `User-Agent`, `Accept`, and `Sec-Fetch-*` in browser order.
+- Header order is part of the fingerprint. Add fields in the order you want them sent; do not sort or deduplicate them.
+- `RequestErrorKind` and `BuildErrorKind` are non-exhaustive; every `match` needs a fallback arm.
+- Requests need a Tokio runtime with I/O and time enabled.
+- Cargo features `cookies`, `sse`, `websocket`, and `websocket-deflate` are off by default; `full` enables all of them.
+- Read a response body to the end, or with `collect_with_limit`, when you want the connection reused.
+
+## Start
+
+- [README](README.md): what Phantom matches, install, and a first request
+- [How servers recognize a client](docs/fingerprinting.md): the fingerprinting layers Phantom reproduces
+- [Getting started](docs/getting-started.md): build Phantom and send a request
+
+## Guides
+
+- [Using the client](docs/guides/client.md): protocols, fields, bodies, trailers, timeouts, responses, errors
+- [Browser profiles](docs/guides/profiles.md): choose a built-in profile, build a custom one, request templates, client hints
+- [Routes and proxies](docs/guides/routes-and-proxies.md): HTTP, SOCKS5, and CONNECT-UDP proxies and trust roots
+- [Retries and replays](docs/guides/retries.md): when Phantom sends a request again
+- [Connections, redirects, and cookies](docs/guides/connections-and-state.md): pools, redirects, cookies
+- [HTTP/3 and Alt-Svc](docs/guides/http3.md): exact HTTP/3 and opt-in upgrade
+- [Content decoding](docs/guides/content-decoding.md): opt-in decompression
+- [Server-sent events](docs/guides/sse.md): the `sse` feature
+- [WebSocket](docs/guides/websocket.md): the `websocket` and `websocket-deflate` features
+- [Adding Phantom to a project](docs/guides/downstream.md): git and path dependencies
+
+## Reference
+
+- [Coverage](docs/reference/coverage.md): what each browser recipe covers, layer by layer; anything not listed is unsupported
+- [Browser profile reference](docs/reference/profiles.md): recipe functions, platforms, and templates
+- [Route matrix](docs/reference/route-matrix.md): every scheme, protocol, and route combination
+- [Defaults and limits](docs/reference/limits.md): default bounds and off-by-default policies
+- [Glossary](docs/reference/glossary.md): terms used across the documentation
+- API: `cargo doc -p phantom-http --all-features --no-deps --open`
+
+## Optional
+
+- [Design](docs/explanation/design.md): why Phantom behaves this way
+- [Validation](docs/explanation/validation.md): the evidence behind each claim
+- [Contributing](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md): only for changing Phantom itself
