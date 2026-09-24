@@ -25,6 +25,7 @@ origin plus the complete route.
 | Bound | Default | Builder method |
 | --- | --- | --- |
 | Retained H1 pool entries | 32 | `max_retained_http1_connections` |
+| Active H1 requests, and so H1 connections, per pool key | The profile's `Http1Settings`, otherwise 1 | `max_concurrent_http1_requests_per_origin` |
 | Waiting H1 requests per pool key | 100 | `max_pending_http1_requests_per_origin` |
 | Retained H2 pool entries | 32 | `max_retained_http2_connections` |
 | Active H2 requests per pool key | 100 | `max_concurrent_http2_requests_per_origin` |
@@ -37,6 +38,13 @@ origin plus the complete route.
 
 - Each retained entry holds one pool key's connection state. When the limit
   is reached, the least recently used entry is evicted.
+- An H1 connection carries one request at a time, so an H1 entry keeps up to
+  its active bound of connections, idle ones included. A request reuses the
+  most recently used idle connection before it opens another. The
+  `chromium::v154_http1` and `firefox::v156_http1` recipes set 6, the
+  browsers' per-host limit; a profile without `Http1Settings` keeps one
+  connection. The negotiated H1/H2 pool still keeps one connection per
+  origin.
 - An H3 entry keeps connections for up to four transport locations, so exact
   H3 and Alt-Svc H3 do not replace each other.
 - The negotiated H1/H2 pool retains at most the lower of the H1 and H2

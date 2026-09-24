@@ -16,7 +16,13 @@ built clients do not. There is no process-global cache.
 
 ## Connection pools
 
-- H1 connections are reused one request at a time, without pipelining.
+- An H1 connection carries one request at a time, without pipelining. Each
+  origin and route keeps up to the profile's H1 connection bound, idle
+  connections included; see [HTTP/1.1 connections](profiles.md#http11-connections).
+  A request reuses an idle connection before it opens another and waits in
+  arrival order once the bound is reached.
+  `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
+  profile's bound.
 - H2 and H3 multiplex requests within the peer's limits and the client's own.
 - Pool admission and retained connections are bounded per origin and route.
 - Dropping one H2 or H3 request cancels its stream, not unrelated work.

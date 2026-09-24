@@ -41,7 +41,7 @@ connection is not enough.
 | --- | --- | --- |
 | TCP | Profile `TCP_NODELAY`, keepalive, and Chromium Happy Eyeballs from browser source, on every TCP path | Firefox keepalive and address selection |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
-| HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse | Parallel connection policy |
+| HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity | Dynamic-table size updates |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
@@ -112,8 +112,14 @@ Supported:
   `Content-Length` validation.
 - Response field order, interleaving of duplicate fields, and name spelling.
 - Streaming responses with backpressure.
-- Sequential keep-alive reuse owned by the client, with bounded waiters and no
-  pipelining.
+- Keep-alive reuse owned by the client, without pipelining. Each origin and
+  route keeps up to the profile's `Http1Settings` bound of connections, idle
+  ones included, and runs one request on each. A request reuses the most
+  recently used idle connection before it opens another, and waits in
+  arrival order, up to a bounded number of waiters, once the bound is
+  reached. The Chrome 154 and Firefox 156 recipes set the browsers'
+  per-host limit of 6, from browser source. A profile without
+  `Http1Settings` keeps one connection.
 - Finite opt-in HTTPS redirects.
 - Opt-in typed connection-setup retries before dispatch.
 - Opt-in replay of an idempotent request, once, on a fresh connection when a
@@ -126,9 +132,19 @@ Supported:
 - Upgrade handoff that preserves every byte.
 - At most 8 informational (1xx) responses before the final response head.
 
+Not modeled:
+
+- Chromium's caps across groups: 256 sockets per pool and 128 per proxy
+  chain.
+- Firefox's limit of 32 for plaintext requests forwarded through an HTTP
+  proxy, where its recipe keeps 6, and the 3 extra connections it allows
+  urgent-start requests. Firefox also leaves idle connections out of its
+  count; Phantom counts them.
+- Parallel connections for negotiated H1/H2 requests, which keep one
+  connection per origin.
+
 Planned:
 
-- Parallel connection policy.
 - Broader retry classes.
 - Additional proxy modes.
 
