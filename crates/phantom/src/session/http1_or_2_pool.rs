@@ -870,7 +870,7 @@ mod tests {
     use std::{num::NonZeroUsize, sync::Arc};
 
     use super::{Http1Or2Pool, PoolKey};
-    use crate::{HttpProxy, Route, Socks5Proxy, authority::Endpoint};
+    use crate::{Route, Socks5Proxy, authority::Endpoint};
 
     #[tokio::test]
     async fn pre_selection_admission_survives_lru_eviction()
@@ -917,26 +917,6 @@ mod tests {
             &proxied,
             &pool.entry(PoolKey::new(&endpoint, &other)).await
         ));
-        Ok(())
-    }
-
-    #[test]
-    fn only_direct_and_socks5_routes_carry_negotiated_https()
-    -> Result<(), Box<dyn std::error::Error>> {
-        assert!(Route::Direct.carries_negotiated_https());
-        assert!(
-            Route::socks5(Socks5Proxy::new("socks5h://proxy.test:1080")?)
-                .carries_negotiated_https()
-        );
-        // A CONNECT tunnel is TCP, so it cannot reach an `h3` alternative.
-        assert!(
-            !Route::http_proxy(HttpProxy::new("http://proxy.test:8080")?)
-                .carries_negotiated_https()
-        );
-        assert!(
-            !Route::http_proxy(HttpProxy::new("https://proxy.test:8443")?)
-                .carries_negotiated_https()
-        );
         Ok(())
     }
 }

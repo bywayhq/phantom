@@ -610,10 +610,11 @@ async fn race_never_changes_route() -> TestResult<()> {
             .build()?;
         import_alternative(&client, &fixture, fixture.alternative_address().port())?;
 
-        // The imported alternative belongs to the direct route. A negotiated
-        // request on a SOCKS5 route keeps that route: it neither reuses the
-        // direct alternative nor falls back to a direct connection, so it
-        // fails on the proxy leg that has no TCP listener.
+        // A negotiated request on a SOCKS5 route never falls back to a direct
+        // connection: the blackhole is UDP-only, so the proxy's TCP connect is
+        // refused and the request fails on the proxy leg with neither the
+        // origin nor the alternative contacted. Route-keying of the store
+        // itself is covered by the `session::alt_svc` unit tests.
         let proxy = Route::socks5(Socks5Proxy::new(&format!(
             "socks5://127.0.0.1:{}",
             blackhole.port
@@ -625,14 +626,10 @@ async fn race_never_changes_route() -> TestResult<()> {
             .await
             .err()
             .ok_or("a raced request must keep its proxy route")?;
-        assert!(
-            matches!(
-                error.kind(),
-                RequestErrorKind::Proxy | RequestErrorKind::Connect
-            ),
-            "expected a proxy-leg failure, got {:?}",
-            error.kind()
-        );
+        // A refused SOCKS5 connect is a proxy failure. `Connect` is the
+        // direct-transport category and would mean the fallback this test
+        // forbids.
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
         assert_eq!(fixture.snapshot()?.alternative_connections, 0);
         assert_eq!(fixture.snapshot()?.origin_connections, 0);
 

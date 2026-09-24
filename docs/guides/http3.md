@@ -63,7 +63,9 @@ rejects them before any origin I/O. See
 
 Alt-Svc (RFC 7838) lets an origin say that the same service is also available
 over H3 at a given host and port. Phantom's support is opt-in: call
-`ClientBuilder::alt_svc` with the maximum number of origins to remember.
+`ClientBuilder::alt_svc` with the maximum number of entries to remember. The
+store is keyed by origin **and** route, so one origin learned over two routes
+occupies two entries.
 
 ```rust
 use std::num::NonZeroUsize;

@@ -453,7 +453,44 @@ impl StdError for ProxyConfigError {
 mod tests {
     use phantom_net::proxy::HttpConnectHeader;
 
-    use super::{HttpProxy, ProxyConfigErrorKind, Route};
+    use super::{ConnectUdpProxy, HttpProxy, ProxyConfigErrorKind, Route, Socks5Proxy};
+
+    #[test]
+    fn negotiated_https_needs_a_route_carrying_tls_and_quic()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Direct and SOCKS5 carry an origin TLS stream for ALPN and a UDP path
+        // to an advertised alternative.
+        assert!(Route::direct().carries_negotiated_https());
+        for uri in [
+            "socks5://proxy.example:1080",
+            "socks5h://proxy.example:1080",
+        ] {
+            assert!(
+                Route::socks5(Socks5Proxy::new(uri)?).carries_negotiated_https(),
+                "{uri}"
+            );
+        }
+
+        // An HTTP proxy carries only TCP, whatever its transport or protocol:
+        // a CONNECT tunnel can never reach an `h3` alternative.
+        for proxy in [
+            HttpProxy::new("http://proxy.example:8080")?,
+            HttpProxy::new("https://proxy.example:8443")?,
+            HttpProxy::new("https://proxy.example:8443")?.with_http2_transport()?,
+        ] {
+            let route = Route::http_proxy(proxy);
+            assert!(!route.carries_negotiated_https(), "{route:?}");
+        }
+
+        // CONNECT-UDP carries only QUIC, so ALPN has no stream to select on.
+        assert!(
+            !Route::connect_udp(ConnectUdpProxy::new(
+                "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/"
+            )?)
+            .carries_negotiated_https()
+        );
+        Ok(())
+    }
 
     #[test]
     fn parses_domain_ipv4_and_bracketed_ipv6_endpoints() -> Result<(), Box<dyn std::error::Error>> {

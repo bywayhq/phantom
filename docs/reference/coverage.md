@@ -316,8 +316,8 @@ Supported:
 
 - Bounded retained H1, H2, and H3 pools, with active and waiting admission per
   origin and route.
-- Bounded admission per origin for negotiated requests before protocol
-  selection, converted to H1 or H2 admission after ALPN.
+- Bounded admission per origin and route for negotiated requests before
+  protocol selection, converted to H1 or H2 admission after ALPN.
 - A bounded opt-in Alt-Svc store keyed by exact origin and route:
   - `Age`/`ma` handling, replacement, expiry, and `clear`;
   - eviction after a setup failure or a `421` response;

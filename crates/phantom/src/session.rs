@@ -188,8 +188,11 @@ impl ClientOptions {
 impl Client {
     /// Admits one stream on a pooled, reusable HTTP/2 session to the origin.
     ///
-    /// The negotiated pool holds only direct sessions and is consulted first;
-    /// the exact HTTP/2 pool is keyed by route. Nothing is opened. The
+    /// Both pools are keyed by origin and route. The negotiated pool is
+    /// consulted for the direct route only: a WebSocket reusing a negotiated
+    /// session is browser behavior captured for direct connections, and no
+    /// capture covers reusing a proxied negotiated session, so the exact
+    /// HTTP/2 pool answers for every proxy route. Nothing is opened. The
     /// returned permit is that pool's per-origin HTTP/2 admission; holding it
     /// counts the stream against the origin's active bound until dropped.
     ///
@@ -202,6 +205,8 @@ impl Client {
         endpoint: &crate::authority::Endpoint,
         route: &crate::Route,
     ) -> Result<Option<PooledHttp2Session>, crate::RequestError> {
+        // See the note above: deliberately the direct route only, even though
+        // the negotiated pool can now hold proxied sessions.
         if matches!(route, crate::Route::Direct)
             && let Some(session) = self
                 .state
@@ -531,8 +536,8 @@ impl SessionBuilder {
 
     /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
     ///
-    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
-    /// and H2 retention limits so neither maximum is exceeded.
+    /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
+    /// retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http1_connections = maximum;
@@ -550,8 +555,8 @@ impl SessionBuilder {
     ///
     /// Evicting a connection from the pool does not cancel response bodies
     /// already using it. It prevents later requests from selecting it.
-    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
-    /// and H2 retention limits so neither maximum is exceeded.
+    /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
+    /// retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http2_connections = maximum;

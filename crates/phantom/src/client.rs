@@ -418,8 +418,8 @@ impl ClientBuilder {
 
     /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
     ///
-    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
-    /// and H2 retention limits so neither maximum is exceeded.
+    /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
+    /// retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http1_connections = maximum;
@@ -435,8 +435,8 @@ impl ClientBuilder {
 
     /// Sets the maximum number of HTTP/2 connections retained for reuse.
     ///
-    /// The direct negotiated H1/H2 pool uses the lower of the configured H1
-    /// and H2 retention limits so neither maximum is exceeded.
+    /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
+    /// retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http2_connections = maximum;
@@ -486,6 +486,9 @@ impl ClientBuilder {
     }
 
     /// Enables bounded, in-memory Alt-Svc learning for negotiated HTTPS requests.
+    ///
+    /// `maximum_origins` bounds stored origin-and-route pairs: one origin
+    /// learned over N routes occupies N entries.
     ///
     /// A fresh `h3` alternative is used by a later negotiated request without
     /// changing its origin identity or its route. Alternative setup failure is

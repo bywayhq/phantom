@@ -542,7 +542,7 @@ impl RequestError {
     pub(crate) fn unsupported_negotiated_route() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedRoute,
-            "HTTP/1.1-or-HTTP/2 negotiation currently requires a direct route",
+            "HTTP/1.1-or-HTTP/2 negotiation requires a route that carries both an origin TLS stream for ALPN and a UDP path to an Alt-Svc alternative",
         )
     }
 
@@ -642,17 +642,8 @@ impl RequestError {
                 {
                     RequestErrorKind::RuntimeUnavailable
                 }
-                Http1TlsError::Socks5Proxy(error)
-                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
-                {
-                    RequestErrorKind::RuntimeUnavailable
-                }
-                Http1TlsError::Socks5Proxy(error)
-                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
-                {
-                    RequestErrorKind::Resolve
-                }
-                Http1TlsError::Proxy(_) | Http1TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
+                Http1TlsError::Socks5Proxy(error) => socks5_request_error_kind(error.kind()),
+                Http1TlsError::Proxy(_) => RequestErrorKind::Proxy,
                 Http1TlsError::Tls(_) => RequestErrorKind::Tls,
                 _ => RequestErrorKind::Http1,
             }
@@ -701,17 +692,8 @@ impl RequestError {
                 {
                     RequestErrorKind::RuntimeUnavailable
                 }
-                Http2TlsError::Socks5Proxy(error)
-                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable =>
-                {
-                    RequestErrorKind::RuntimeUnavailable
-                }
-                Http2TlsError::Socks5Proxy(error)
-                    if error.kind() == phantom_net::proxy::Socks5ErrorKind::Resolve =>
-                {
-                    RequestErrorKind::Resolve
-                }
-                Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_) => RequestErrorKind::Proxy,
+                Http2TlsError::Socks5Proxy(error) => socks5_request_error_kind(error.kind()),
+                Http2TlsError::Proxy(_) => RequestErrorKind::Proxy,
                 Http2TlsError::Tls(_) => RequestErrorKind::Tls,
                 _ => RequestErrorKind::Http2,
             }
@@ -745,12 +727,17 @@ impl RequestError {
     }
 
     pub(crate) fn http1_or_2(source: Http1Or2TlsError) -> Self {
+        // The SOCKS5 leg is classified from the source, so it reaches the same
+        // function as the exact H1 and H2 legs.
+        if let Http1Or2TlsError::Socks5Proxy(error) = &source {
+            let kind = socks5_request_error_kind(error.kind());
+            return Self::with_source(kind, None, "HTTP/1.1-or-HTTP/2 negotiation failed", source);
+        }
         let (kind, protocol) = match source.kind() {
             Http1Or2TlsErrorKind::RuntimeUnavailable => {
                 (RequestErrorKind::RuntimeUnavailable, None)
             }
             Http1Or2TlsErrorKind::Connect => (RequestErrorKind::Connect, None),
-            Http1Or2TlsErrorKind::Socks5Proxy => (negotiated_socks5_kind(&source), None),
             Http1Or2TlsErrorKind::Tls | Http1Or2TlsErrorKind::UnsupportedAlpn => {
                 (RequestErrorKind::Tls, None)
             }
@@ -986,16 +973,17 @@ fn is_retryable_socks5_kind(kind: Socks5ErrorKind) -> bool {
     matches!(kind, Socks5ErrorKind::Connect | Socks5ErrorKind::Resolve)
 }
 
-/// Classifies a SOCKS5 failure on the negotiated leg like the exact H1 and H2
-/// legs do, so the same proxy condition reports the same category whichever
-/// selection opened the connection.
-fn negotiated_socks5_kind(source: &Http1Or2TlsError) -> RequestErrorKind {
-    let Http1Or2TlsError::Socks5Proxy(error) = source else {
-        return RequestErrorKind::Proxy;
-    };
-    match error.kind() {
+/// Maps a SOCKS5 proxy-leg failure to its request category.
+///
+/// Exact H1, exact H2, and the negotiated selection all classify through this
+/// one function, so the same proxy condition reports the same category
+/// whichever selection opened the connection.
+fn socks5_request_error_kind(kind: Socks5ErrorKind) -> RequestErrorKind {
+    match kind {
         Socks5ErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
         Socks5ErrorKind::Resolve => RequestErrorKind::Resolve,
+        // Every other SOCKS5 failure, a refused proxy connect included, is a
+        // proxy failure and never the direct-transport `Connect` category.
         _ => RequestErrorKind::Proxy,
     }
 }
@@ -1132,7 +1120,7 @@ mod tests {
     use super::{
         RequestError, RequestErrorKind, is_retryable_connect_udp_kind,
         is_retryable_http_connect_kind, is_retryable_http3_connection_setup_kind,
-        is_retryable_socks5_kind,
+        is_retryable_socks5_kind, socks5_request_error_kind,
     };
     use crate::HttpProtocol;
 
@@ -1304,6 +1292,39 @@ mod tests {
         ] {
             assert!(!is_retryable_socks5_kind(kind), "{kind:?}");
         }
+    }
+
+    /// Every SOCKS5 failure category reports the same request category on the
+    /// exact H1, exact H2, and negotiated legs, because all three classify
+    /// through one function.
+    #[test]
+    fn socks5_failures_classify_the_same_for_every_protocol_selection() {
+        for (kind, expected) in [
+            (
+                Socks5ErrorKind::RuntimeUnavailable,
+                RequestErrorKind::RuntimeUnavailable,
+            ),
+            (Socks5ErrorKind::Resolve, RequestErrorKind::Resolve),
+            (Socks5ErrorKind::Connect, RequestErrorKind::Proxy),
+            (Socks5ErrorKind::InvalidTarget, RequestErrorKind::Proxy),
+            (
+                Socks5ErrorKind::InvalidAuthentication,
+                RequestErrorKind::Proxy,
+            ),
+            (Socks5ErrorKind::Negotiation, RequestErrorKind::Proxy),
+            (Socks5ErrorKind::Authentication, RequestErrorKind::Proxy),
+            (Socks5ErrorKind::Rejected, RequestErrorKind::Proxy),
+        ] {
+            assert_eq!(socks5_request_error_kind(kind), expected, "{kind:?}");
+        }
+
+        // A refused proxy TCP connect is a proxy failure, never the direct
+        // `Connect` category, and it stays retryable before dispatch.
+        assert_eq!(
+            socks5_request_error_kind(Socks5ErrorKind::Connect),
+            RequestErrorKind::Proxy
+        );
+        assert!(is_retryable_socks5_kind(Socks5ErrorKind::Connect));
     }
 
     #[test]
