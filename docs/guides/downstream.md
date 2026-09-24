@@ -61,7 +61,7 @@ dependencies uses one of them, it compiles as a separate crate. Its types do
 not mix with Phantom's, and Phantom's behavior does not change.
 
 One exception applies to BoringSSL. `btls-sys` still comes from the reviewed
-fork `https://github.com/0xARYA/btls` at a pinned revision, and it declares
+fork `https://github.com/bywayhq/btls` at a pinned revision, and it declares
 `links = "boringssl"`. Cargo therefore rejects a graph that also contains
 another package with the same `links` key, such as `boring-sys`. Publishing
 `btls-sys` under a Phantom name with its own `links` key is a planned release

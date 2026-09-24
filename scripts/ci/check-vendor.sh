@@ -67,7 +67,7 @@ check_tokio_btls_patch_replay() {
   archive="$staging/btls-$revision.tar.gz"
   curl --fail --location --silent --show-error --retry 3 \
     --output "$archive" \
-    "https://codeload.github.com/0xARYA/btls/tar.gz/$revision"
+    "https://codeload.github.com/bywayhq/btls/tar.gz/$revision"
   [[ "$(sha256_of "$archive")" == 5f181d89782afdc03c775fc10c77612ab72eaabfd2f6b25c6a77602b3de086f5 ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/btls-$revision/tokio-btls"

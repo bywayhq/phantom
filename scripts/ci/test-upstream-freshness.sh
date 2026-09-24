@@ -121,7 +121,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/0xARYA/btls", rev = "ce81167653e2d8878f2e9b2218a15b9bc8351a53" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/bywayhq/btls", rev = "ce81167653e2d8878f2e9b2218a15b9bc8351a53" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
