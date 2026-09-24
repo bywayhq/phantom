@@ -75,7 +75,6 @@ have shown where the real architectural boundaries are.
     fidelity regression rather than a packaging tradeoff.
 - Complete the remaining client and proxy-route work without adding direct or
   cross-protocol fallback.
-- WebSocket over H3.
 - Per-profile HPACK indexing, a per-message compression policy, and a
   `REFUSED_STREAM` retry policy for WebSockets.
 - Complete the remaining WebSocket protocol functionality before broad

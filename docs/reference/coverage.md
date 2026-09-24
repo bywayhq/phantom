@@ -44,7 +44,7 @@ connection is not enough.
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse | Parallel connection policy |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT | HPACK representation parity for extended CONNECT |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
-| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing, WebSocket over H3 |
+| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
 | SSE and WebSocket | Feature-gated, bounded, with browser comparisons and Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, proxy WebSocket captures |
 
@@ -260,7 +260,6 @@ Planned:
 - Datagram APIs for specific extensions.
 - Alt-Svc racing across multiple alternatives, a racing delay derived from
   RTT, and DNS HTTPS-record (`dns_alpn_h3`) jobs.
-- WebSocket over H3.
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.
 - MASQUE recipes captured from browsers.
 
@@ -424,7 +423,16 @@ Planned or not captured:
   on an existing session that advertises the setting, while Firefox also
   opens fresh H2 connections. Pseudo-header order, priority, deflate offer,
   and send policy differ by family.
-- WebSocket over H3, added only from evidence.
+- WebSocket over HTTP/3. No shipping browser opens one by default:
+  Chromium has the implementation but keeps
+  `kEnableWebsocketsOverHttp3` disabled by default, with no
+  `chrome://flags` entry and no field trial, and even with the flag set it
+  only reuses an HTTP/3 session that already advertised extended CONNECT
+  rather than dialing one. Firefox has no implementation and its tracking
+  bug is unassigned; WebKit has none. Common servers do not accept one
+  either. A named recipe would emit a handshake no browser emits, which is
+  a detection signal rather than a feature, so this stays unimplemented
+  until a browser ships it on by default.
 
 ## Routes
 

@@ -429,4 +429,6 @@ Still open:
   profile-policy WebSocket follows the same rules without captured evidence
   for that route.
 - Safari WebSocket has no capture.
-- WebSocket over HTTP/3 has no capture and is not implemented.
+- WebSocket over HTTP/3 is not implemented, and is not planned while no
+  shipping browser opens one by default. See
+  [Coverage](../reference/coverage.md) for the evidence.
