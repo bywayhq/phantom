@@ -329,6 +329,17 @@ recipe.
     intercepting proxy. It skips server chain verification only; the
     ClientHello and every other wire field stay unchanged.
   - Chrome for Android recipes from Android emulator captures.
+  - Brave and Opera recipes from captures on the development host, which
+    carries Brave 153.1.95.104 and Opera 135.0.5973.92. A Chromium fork
+    cannot be aliased to the Chrome recipe: the retained Edge capture is
+    what disproved the assumption that every Chromium browser shares one
+    fingerprint, so each fork needs its own captures across all seven
+    areas. Brave is the more interesting of the two, because it reports
+    Chrome's user agent and reduces client hints on purpose, so whether
+    its transport matches Chrome's is a question only a capture settles.
+    Schedule this after the matrix is one current version per browser,
+    so it adds a browser rather than widening a matrix already being
+    trimmed.
   - Plaintext `http://` requests on clients with a redirect policy, and
     Digest proxy authentication.
   - SOCKS4 and SOCKS4a routes. Neither carries UDP, so an exact HTTP/3
