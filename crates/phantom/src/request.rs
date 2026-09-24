@@ -827,7 +827,9 @@ fn ensure_request_supported(
 ) -> Result<(), RequestError> {
     match request.uri.scheme_str() {
         Some("http") => match (selection, route) {
-            (ProtocolSelection::Exact(HttpProtocol::Http1), Route::Direct) => Ok(()),
+            (ProtocolSelection::Exact(HttpProtocol::Http1), Route::Direct | Route::Socks5(_)) => {
+                Ok(())
+            }
             (ProtocolSelection::Exact(HttpProtocol::Http1), Route::HttpProxy(_)) => Ok(()),
             (ProtocolSelection::Exact(protocol), Route::HttpProxy(_)) => {
                 Err(RequestError::unsupported_route(protocol))

@@ -432,6 +432,60 @@ async fn websocket_canonicalizes_host_on_the_same_remote_dns_route() -> TestResu
     .await
 }
 
+#[tokio::test]
+async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin = tokio::spawn(async move {
+            let (mut stream, _) = origin_listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nplain")
+                .await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+        });
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let response = client
+            .get(
+                HttpProtocol::Http1,
+                &format!("http://{ORIGIN_NAME}:{}/plain", origin_address.port()),
+            )?
+            .send()
+            .await?;
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
+        drop(client);
+
+        // The origin reads the request head in the clear: no TLS ran.
+        assert_eq!(
+            origin.await??,
+            format!(
+                "GET /plain HTTP/1.1\r\nHost: {ORIGIN_NAME}:{}\r\n\r\n",
+                origin_address.port()
+            )
+            .as_bytes()
+        );
+        assert_eq!(
+            proxy.await??,
+            ObservedSocks5Connect {
+                host: ORIGIN_NAME.to_owned(),
+                port: origin_address.port(),
+            }
+        );
+        Ok(())
+    })
+    .await
+}
+
 #[cfg(feature = "websocket")]
 fn header_value<'a>(head: &'a [u8], name: &str) -> Option<&'a str> {
     let text = std::str::from_utf8(head).ok()?;

@@ -676,6 +676,73 @@ impl Http1TlsConnector {
         result
     }
 
+    /// Opens one plaintext HTTP/1.1 connection through a remote-DNS SOCKS5 proxy.
+    ///
+    /// The configured authentication applies only to the SOCKS5 negotiation.
+    /// The tunnel stays plaintext: this method performs no origin TLS
+    /// handshake. Proxy failure never falls back to a direct connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, proxy
+    /// authentication or negotiation fails, or the HTTP/1.1 handshake fails.
+    pub async fn connect_plaintext_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_plaintext_socks5_connect("socks5_remote_dns", async {
+            let stream = socks5_tunnel_remote_dns(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
+            Http1Connection::connect(stream).await.map_err(Into::into)
+        })
+        .await
+    }
+
+    /// Opens one plaintext HTTP/1.1 connection through a local-DNS SOCKS5 proxy.
+    ///
+    /// The configured authentication applies only to the SOCKS5 negotiation.
+    /// The tunnel stays plaintext: this method performs no origin TLS
+    /// handshake. Proxy failure never falls back to a direct connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, target
+    /// resolution fails, proxy authentication or negotiation fails, or the
+    /// HTTP/1.1 handshake fails.
+    pub async fn connect_plaintext_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_plaintext_socks5_connect("socks5_local_dns", async {
+            let stream = socks5_tunnel_local_dns(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
+            Http1Connection::connect(stream).await.map_err(Into::into)
+        })
+        .await
+    }
+
     /// Opens one plaintext HTTP/1.1 connection to a forward proxy.
     ///
     /// This method performs no TLS handshake and never connects directly to
@@ -1646,6 +1713,26 @@ impl Http1TlsConnector {
         let outcome_guard = OperationOutcome::new(&span);
         let result = operation.instrument(span.clone()).await;
         outcome_guard.finish(upgrade_outcome(&result));
+        result
+    }
+
+    async fn trace_plaintext_socks5_connect<F>(
+        &self,
+        route: &'static str,
+        operation: F,
+    ) -> Result<Http1Connection, Http1TlsError>
+    where
+        F: Future<Output = Result<Http1Connection, Http1TlsError>>,
+    {
+        let span = debug_span!(
+            "http1.proxy.connect",
+            transport = "tcp",
+            proxy_kind = route,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = operation.instrument(span.clone()).await;
+        outcome_guard.finish(connection_outcome(&result));
         result
     }
 

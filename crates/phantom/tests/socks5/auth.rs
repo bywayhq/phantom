@@ -331,6 +331,57 @@ async fn serve_two_http2_connections(
         .map_err(|_| "origin did not observe two isolated connections".into())
 }
 
+#[tokio::test]
+async fn plaintext_http1_authenticates_before_remote_dns_connect() -> TestResult<()> {
+    bounded(async {
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin = tokio::spawn(async move {
+            let (mut stream, _) = origin_listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nauth")
+                .await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+        });
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(forward_one_authenticated_socks5(
+            proxy_listener,
+            origin_address,
+        ));
+        let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+        let client = client_builder(&identity, false)
+            .route(authenticated_route("socks5h", proxy_address)?)
+            .build()?;
+
+        let response = client
+            .get(
+                HttpProtocol::Http1,
+                &format!(
+                    "http://{ORIGIN_NAME}:{}/authenticated",
+                    origin_address.port()
+                ),
+            )?
+            .send()
+            .await?;
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "auth");
+        drop(client);
+
+        assert!(
+            origin
+                .await??
+                .starts_with(b"GET /authenticated HTTP/1.1\r\n")
+        );
+        assert_remote_observation(proxy.await??, USERNAME, PASSWORD, origin_address.port());
+        Ok(())
+    })
+    .await
+}
+
 fn authenticated_route(scheme: &str, proxy: std::net::SocketAddr) -> TestResult<Route> {
     Ok(Route::socks5(
         Socks5Proxy::new(&format!("{scheme}://{proxy}"))?

@@ -1060,6 +1060,13 @@ local-DNS address resolution, username/password negotiation, an origin-form
 Upgrade with no origin TLS, and delivery of a WebSocket frame coalesced with
 the `101` response.
 
+Plaintext `http://` requests over SOCKS5 have regressions in
+`crates/phantom/tests/socks5.rs`, `socks5_local.rs`, and `socks5/auth.rs`.
+They prove that remote DNS sends the origin name in the SOCKS5 CONNECT, that
+local DNS sends a resolved IP, that RFC 1929 authentication completes before
+the CONNECT, and that the origin receives an origin-form HTTP/1.1 request
+with no TLS inside the tunnel.
+
 Limits:
 
 - No browser-capture fidelity.

@@ -25,8 +25,8 @@ use crate::{WebSocketError, WebSocketRequestBuilder};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum HttpProtocol {
-    /// HTTP/1.1 over TLS, direct plaintext TCP, or plaintext forwarding to an
-    /// HTTP proxy.
+    /// HTTP/1.1 over TLS, plaintext TCP (direct or in a SOCKS5 tunnel), or
+    /// plaintext forwarding to an HTTP proxy.
     Http1,
     /// HTTP/2 over TLS.
     Http2,
@@ -142,7 +142,7 @@ impl Client {
     ///
     /// [`RequestBuilder::send`] checks the scheme against the protocol and
     /// route, also before I/O: `http://` works only with
-    /// [`HttpProtocol::Http1`] on a direct or HTTP proxy route.
+    /// [`HttpProtocol::Http1`] on a direct, HTTP proxy, or SOCKS5 route.
     pub fn get(
         &self,
         protocol: HttpProtocol,
@@ -172,7 +172,7 @@ impl Client {
     ///
     /// [`RequestBuilder::send`] checks the scheme against the protocol and
     /// route, also before I/O: `http://` works only with
-    /// [`HttpProtocol::Http1`] on a direct or HTTP proxy route.
+    /// [`HttpProtocol::Http1`] on a direct, HTTP proxy, or SOCKS5 route.
     pub fn request(
         &self,
         protocol: HttpProtocol,

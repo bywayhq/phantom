@@ -349,15 +349,38 @@ impl PoolEntry {
                         .map_err(RequestError::http1_connection_setup)?
                 }
             }
-            Http1ConnectionMode::PlaintextOrigin => {
-                if !matches!(route, Route::Direct) {
-                    return Err(RequestError::unsupported_route(HttpProtocol::Http1));
-                }
-                connector
+            Http1ConnectionMode::PlaintextOrigin => match route {
+                Route::Direct => connector
                     .connect_plaintext_direct(endpoint.host(), endpoint.port())
                     .await
-                    .map_err(RequestError::http1_connection_setup)?
-            }
+                    .map_err(RequestError::http1_connection_setup)?,
+                Route::Socks5(proxy) => match proxy.dns_mode() {
+                    crate::Socks5DnsMode::Local => connector
+                        .connect_plaintext_socks5_local_with_auth(
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.auth(),
+                            endpoint.host(),
+                            endpoint.port(),
+                        )
+                        .await
+                        .map_err(RequestError::http1_connection_setup)?,
+                    crate::Socks5DnsMode::Remote => connector
+                        .connect_plaintext_socks5_remote_with_auth(
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.auth(),
+                            endpoint.host(),
+                            endpoint.port(),
+                        )
+                        .await
+                        .map_err(RequestError::http1_connection_setup)?,
+                },
+                // Forwarding owns HTTP proxies; CONNECT-UDP carries only QUIC.
+                Route::HttpProxy(_) | Route::ConnectUdp(_) => {
+                    return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+                }
+            },
             Http1ConnectionMode::TlsOrigin => {
                 let connector = self
                     .connector

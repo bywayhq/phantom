@@ -97,7 +97,7 @@ impl Route {
     /// Returns a SOCKS5 route using the proxy's configured DNS mode.
     ///
     /// HTTP/1.1, HTTP/2, and negotiated requests use an RFC 1928 CONNECT
-    /// tunnel. Exact HTTP/3 and an Alt-Svc upgrade to HTTP/3 use UDP
+    /// tunnel; an `http://` request stays plaintext inside it. Exact HTTP/3 and an Alt-Svc upgrade to HTTP/3 use UDP
     /// ASSOCIATE.
     #[must_use]
     pub fn socks5(proxy: Socks5Proxy) -> Self {

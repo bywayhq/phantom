@@ -657,7 +657,9 @@ async fn dispatch_attempt(
             ));
             headers.extend(sent_headers.clone());
             let mode = match (request.uri.scheme_str(), route) {
-                (Some("http"), Route::Direct) => Http1ConnectionMode::PlaintextOrigin,
+                (Some("http"), Route::Direct | Route::Socks5(_)) => {
+                    Http1ConnectionMode::PlaintextOrigin
+                }
                 (Some("http"), Route::HttpProxy(_)) => Http1ConnectionMode::Forward,
                 _ => Http1ConnectionMode::TlsOrigin,
             };

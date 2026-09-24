@@ -329,6 +329,46 @@ async fn websocket_uses_the_same_local_dns_route() -> TestResult<()> {
     .await
 }
 
+#[tokio::test]
+async fn plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin = tokio::spawn(async move {
+            let (mut stream, _) = origin_listener.accept().await?;
+            let request = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nplain")
+                .await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+        });
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let route = Route::socks5(Socks5Proxy::new(&format!("socks5://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let response = client
+            .get(
+                HttpProtocol::Http1,
+                &format!("http://{ORIGIN_NAME}:{}/plain", origin_address.port()),
+            )?
+            .send()
+            .await?;
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
+        drop(client);
+
+        assert!(origin.await??.starts_with(b"GET /plain HTTP/1.1\r\n"));
+        assert_local_target(proxy.await??, origin_address.port())?;
+        Ok(())
+    })
+    .await
+}
+
 fn assert_local_target(target: ObservedSocks5Connect, port: u16) -> TestResult<()> {
     let address = target.host.parse::<IpAddr>()?;
     if !address.is_loopback() {

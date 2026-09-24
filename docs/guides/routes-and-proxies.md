@@ -41,7 +41,7 @@ async fn routes() -> Result<(), Box<dyn std::error::Error>> {
 | --- | --- | --- |
 | Direct | `Route::direct()`, the default | Every scheme and protocol |
 | HTTP proxy | `Route::http_proxy(HttpProxy)` | HTTPS origins through CONNECT, exact or negotiated H1/H2; `http://` origins through HTTP/1.1 forwarding |
-| SOCKS5 | `Route::socks5(Socks5Proxy)` | Exact and negotiated H1/H2 over a TCP tunnel; exact and Alt-Svc H3 over UDP ASSOCIATE |
+| SOCKS5 | `Route::socks5(Socks5Proxy)` | Exact and negotiated H1/H2 and plaintext H1 over a TCP tunnel; exact and Alt-Svc H3 over UDP ASSOCIATE |
 | CONNECT-UDP | `Route::connect_udp(ConnectUdpProxy)` | Exact H3 only |
 
 An unsupported combination fails before any proxy or origin I/O. The
@@ -127,6 +127,8 @@ fn socks_route() -> Result<Route, Box<dyn std::error::Error>> {
 - Exact H1 and H2, negotiated requests, and H1 `ws://` and `wss://`
   WebSockets use an RFC 1928 CONNECT tunnel. The origin keeps its own
   certificate verification and SNI.
+- An exact H1 `http://` request uses the same tunnel and stays plaintext
+  inside it.
 - With Alt-Svc enabled, a negotiated request can later upgrade to H3 over the
   same proxy ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
 - Exact H3 uses an RFC 1928 UDP ASSOCIATE relay. Its TCP control connection

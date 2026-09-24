@@ -22,8 +22,7 @@ use http::{HeaderMap, HeaderValue, Method, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo, Route,
-    Socks5Proxy,
+    Client, HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
 };
 use tokio::{
@@ -337,7 +336,7 @@ async fn direct_plaintext_omits_client_hints() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn non_http1_and_socks5_plaintext_fail_before_tcp_io() -> TestResult<()> {
+async fn non_http1_plaintext_fails_before_tcp_io() -> TestResult<()> {
     bounded(async {
         let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin.local_addr()?;
@@ -368,18 +367,6 @@ async fn non_http1_and_socks5_plaintext_fail_before_tcp_io() -> TestResult<()> {
                 .await
                 .is_err()
         );
-
-        let proxy = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy.local_addr()?;
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let error = http1_client_with_route(route)?
-            .get(HttpProtocol::Http1, "http://origin.test/unsupported")?
-            .send()
-            .await
-            .err()
-            .ok_or("SOCKS5 plaintext request unexpectedly succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-        assert!(timeout(NO_CONNECTION_WINDOW, proxy.accept()).await.is_err());
         Ok(())
     })
     .await
@@ -387,12 +374,6 @@ async fn non_http1_and_socks5_plaintext_fail_before_tcp_io() -> TestResult<()> {
 
 fn http1_client() -> TestResult<Client> {
     Ok(Client::builder(ClientProfile::new(tls_settings())).build()?)
-}
-
-fn http1_client_with_route(route: Route) -> TestResult<Client> {
-    Ok(Client::builder(ClientProfile::new(tls_settings()))
-        .route(route)
-        .build()?)
 }
 
 fn response_protocol(response: &http::Response<phantom::ResponseBody>) -> TestResult<HttpProtocol> {

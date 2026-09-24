@@ -556,7 +556,8 @@ Supported HTTP proxies:
 Supported [SOCKS5](glossary.md#socks5):
 
 - SOCKS5 with local or remote DNS and optional RFC 1929 credentials, for exact
-  H1/H2 origin TLS, negotiated H1-or-H2 origin TLS, and H1 WS/WSS.
+  H1/H2 origin TLS, negotiated H1-or-H2 origin TLS, exact H1 plaintext
+  `http://`, and H1 WS/WSS.
 - Negotiated HTTPS over SOCKS5 can upgrade through a learned Alt-Svc
   alternative, dialing it over the same proxy with UDP ASSOCIATE. The
   advertisement is keyed to that route and is never reused directly or through
