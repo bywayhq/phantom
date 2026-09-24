@@ -37,6 +37,9 @@ Why: a server compares a client with the browsers it claims to be. A choice
 the standard allows but no browser makes is itself a signal. For that reason
 no named recipe opens a WebSocket over HTTP/3: no shipping browser does so by
 default (see [Coverage](../reference/coverage.md#server-sent-events-and-websocket)).
+For the same reason, the TLS ClientHello to an HTTPS proxy offers the
+profile's ALPN list unchanged: a browser offers the same list to a proxy, and
+a rewritten list would produce a ClientHello that no measured browser sends.
 
 The cost: Phantom covers only what has been captured or read. It carries one
 version per browser, from Windows 11 captures, and a new browser release needs
@@ -101,6 +104,11 @@ a Chrome TLS recipe with a Firefox H2 recipe, and the result matches no
 browser. The request-template identity check rejects only a caller
 `User-Agent` or brand-list client hint that names another browser family or
 major version.
+
+The identity check rejects rather than warns, because a template is an
+explicit claim. A request that contradicts it would put a mismatch between
+layers on the wire, where a server can record it and it cannot be taken back.
+When the fields agree, the check costs nothing.
 
 ## A setting is public only when it is applied and tested
 
@@ -222,8 +230,9 @@ authentication and Critical-CH handling, so an intermediate response has
 already updated cookies, client hints, and Alt-Svc.
 
 Only idempotent methods with absent or owned bodies repeat, and only for 408,
-425, 429, 500, 502, 503, or 504. Configuration rejects 421, because repeating
-it on the same target cannot succeed. One request-scoped budget spans
+425, 429, 500, 502, 503, or 504. Each of these reports a condition that a
+later identical request can clear. Configuration rejects 421, because
+repeating it on the same route and connection target cannot succeed. One request-scoped budget spans
 redirects and is separate from the setup-retry budget.
 
 A usable response never turns into a timeout. If a delay cannot finish before

@@ -22,8 +22,8 @@ needs.
 ## Built-in recipes
 
 Phantom carries one version per browser: the current stable build on the
-capture host. Older versions are retired, so a recipe name always points at a
-build that can be recaptured and reverified.
+capture host. Older versions are retired rather than half-maintained, so a
+recipe name always points at a build that can be recaptured and reverified.
 
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -286,6 +286,11 @@ support:
 - persistence, or expiry other than explicit replacement;
 - restarting a full navigation across a redirect chain already followed;
 - `ACCEPT_CH` frames sent after the handshake.
+
+Each of these needs request context or browser-engine evidence that a browser
+name cannot provide. Client-hint tests send sequences of requests on one
+client, so they check the step from an `Accept-CH` response to the next
+request and the boundary between origins, not a single fingerprint.
 
 There is no process-wide hint cache, and a profile never changes after it is
 built.
