@@ -1,5 +1,6 @@
 use crate::codec::UserError;
 use crate::codec::UserError::*;
+use crate::ext::HpackEncoderProfile;
 use crate::frame::{self, Frame, FrameSize};
 use crate::{hpack, tracing};
 
@@ -334,6 +335,10 @@ impl<T, B> FramedWrite<T, B> {
     /// Set the peer's header table size.
     pub fn set_header_table_size(&mut self, val: usize) {
         self.encoder.hpack.update_max_size(val);
+    }
+
+    pub fn set_hpack_encoder_profile(&mut self, profile: HpackEncoderProfile) {
+        self.encoder.hpack.set_profile(profile);
     }
 
     /// Retrieve the last data frame that has been sent

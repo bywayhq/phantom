@@ -1,6 +1,6 @@
 //! Extensions specific to the HTTP/2 protocol.
 
-use crate::frame::{PseudoOrder, StreamDependency};
+use crate::frame::{PseudoId, PseudoOrder, StreamDependency};
 use crate::hpack::BytesStr;
 
 use bytes::Bytes;
@@ -85,6 +85,112 @@ impl HeadersFrameOverrides {
 
     pub(crate) fn into_parts(self) -> (Option<PseudoOrder>, Option<StreamDependency>) {
         (self.pseudo_order, self.stream_dependency)
+    }
+}
+
+/// Which HPACK static entry names a field whose name has several entries.
+///
+/// The static table lists `:method`, `:path`, and `:scheme` twice, so a field
+/// whose value matches neither entry can be named by either index. The choice
+/// is visible on the wire and constant for a given encoder.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum StaticNameIndex {
+    /// The lowest-numbered entry: `:method` 2, `:path` 4, `:scheme` 6.
+    ///
+    /// This is the upstream and nghttp2 choice.
+    #[default]
+    Lowest,
+    /// The highest-numbered entry: `:method` 3, `:path` 5, `:scheme` 7.
+    Highest,
+}
+
+/// When a literal HPACK string is Huffman-coded rather than sent raw.
+///
+/// RFC 7541 section 5.2 leaves the choice to the encoder, and the flag is
+/// visible on the wire for every literal name and value.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum HuffmanCoding {
+    /// Always Huffman-code, whatever the result costs.
+    ///
+    /// This is the upstream choice.
+    #[default]
+    Always,
+    /// Huffman-code only when the coded form is strictly shorter.
+    WhenShorter,
+    /// Huffman-code whenever the coded form is no longer than the raw one.
+    WhenNotLonger,
+}
+
+/// Connection-wide HPACK encoder choices that RFC 7541 leaves open.
+///
+/// Every encoder that RFC 7541 allows produces a block the peer decodes to the
+/// same fields, so the choices below are part of a client's wire fingerprint
+/// rather than its semantics. Each one defaults to the upstream behavior, so a
+/// connection that sets nothing encodes byte-for-byte as before.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct HpackEncoderProfile {
+    literal_pseudo_headers: u8,
+    static_name_index: StaticNameIndex,
+    huffman_coding: HuffmanCoding,
+}
+
+impl HpackEncoderProfile {
+    /// Creates a profile that keeps every upstream encoder choice.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Never inserts these pseudo-headers into the dynamic table.
+    ///
+    /// A listed pseudo-header whose name and value both match a static entry
+    /// is still sent as that index; otherwise it is sent as a literal without
+    /// indexing, naming the static entry when one matches. This is the same
+    /// treatment upstream already gives `:path` and fields such as `cookie`.
+    #[must_use]
+    pub fn literal_pseudo_headers(mut self, ids: impl IntoIterator<Item = PseudoId>) -> Self {
+        for id in ids {
+            self.literal_pseudo_headers |= pseudo_bit(id);
+        }
+        self
+    }
+
+    /// Names a repeated static entry with this index.
+    #[must_use]
+    pub fn static_name_index(mut self, index: StaticNameIndex) -> Self {
+        self.static_name_index = index;
+        self
+    }
+
+    /// Huffman-codes literal names and values by this rule.
+    #[must_use]
+    pub fn huffman_coding(mut self, coding: HuffmanCoding) -> Self {
+        self.huffman_coding = coding;
+        self
+    }
+
+    pub(crate) fn is_literal_pseudo(self, id: PseudoId) -> bool {
+        self.literal_pseudo_headers & pseudo_bit(id) != 0
+    }
+
+    pub(crate) fn static_name(self) -> StaticNameIndex {
+        self.static_name_index
+    }
+
+    pub(crate) fn huffman(self) -> HuffmanCoding {
+        self.huffman_coding
+    }
+}
+
+/// Returns the bit that represents `id` in a pseudo-header set.
+fn pseudo_bit(id: PseudoId) -> u8 {
+    match id {
+        PseudoId::Method => 1 << 0,
+        PseudoId::Scheme => 1 << 1,
+        PseudoId::Authority => 1 << 2,
+        PseudoId::Path => 1 << 3,
+        PseudoId::Protocol => 1 << 4,
+        PseudoId::Status => 1 << 5,
     }
 }
 

@@ -1,4 +1,6 @@
 use super::Header;
+use crate::ext::{HpackEncoderProfile, StaticNameIndex};
+use crate::frame::PseudoId;
 
 use fnv::FnvHasher;
 use http::header;
@@ -18,6 +20,8 @@ pub struct Table {
     // Size is in bytes
     size: usize,
     max_size: usize,
+    // Caller-stated encoder choices; the default keeps upstream behavior.
+    profile: HpackEncoderProfile,
 }
 
 #[derive(Debug)]
@@ -81,6 +85,7 @@ impl Table {
                 inserted: 0,
                 size: 0,
                 max_size,
+                profile: HpackEncoderProfile::default(),
             }
         } else {
             let capacity = cmp::max(to_raw_capacity(capacity).next_power_of_two(), 8);
@@ -92,6 +97,7 @@ impl Table {
                 inserted: 0,
                 size: 0,
                 max_size,
+                profile: HpackEncoderProfile::default(),
             }
         }
     }
@@ -130,10 +136,19 @@ impl Table {
         }
     }
 
+    /// Records the caller's HPACK encoder choices.
+    ///
+    /// The table is still empty when this is called, so no entry can already
+    /// have been inserted against a different choice.
+    pub fn set_profile(&mut self, profile: HpackEncoderProfile) {
+        debug_assert!(self.slots.is_empty(), "encoder profile set after encoding");
+        self.profile = profile;
+    }
+
     /// Index the header in the HPACK table.
     pub fn index(&mut self, header: Header) -> Index {
         // Check the static table
-        let statik = index_static(&header);
+        let statik = index_static(&header, self.profile.static_name());
 
         // Don't index certain headers. This logic is borrowed from nghttp2.
         if header.skip_value_index() {
@@ -141,6 +156,13 @@ impl Table {
             // static table. At some point in the future, this might not be true
             // and this logic will need to be updated.
             debug_assert!(statik.is_some(), "skip_value_index requires a static name",);
+            return Index::new(statik, header);
+        }
+
+        // A pseudo-header the caller asked to keep literal is treated the same
+        // way, except that it need not have a static name: `:protocol` has
+        // none, and is then sent with a literal name.
+        if self.is_literal_pseudo(&header) {
             return Index::new(statik, header);
         }
 
@@ -155,6 +177,20 @@ impl Table {
         }
 
         self.index_dynamic(header, statik)
+    }
+
+    /// Returns whether the caller asked for this pseudo-header to stay literal.
+    fn is_literal_pseudo(&self, header: &Header) -> bool {
+        let id = match *header {
+            Header::Method(..) => PseudoId::Method,
+            Header::Scheme(..) => PseudoId::Scheme,
+            Header::Authority(..) => PseudoId::Authority,
+            Header::Path(..) => PseudoId::Path,
+            Header::Protocol(..) => PseudoId::Protocol,
+            Header::Status(..) => PseudoId::Status,
+            Header::Field { .. } => return false,
+        };
+        self.profile.is_literal_pseudo(id)
     }
 
     fn index_dynamic(&mut self, header: Header, statik: Option<(usize, bool)>) -> Index {
@@ -674,7 +710,11 @@ fn hash_header(header: &Header) -> HashValue {
 
 /// Checks the static table for the header. If found, returns the index and a
 /// boolean representing if the value matched as well.
-fn index_static(header: &Header) -> Option<(usize, bool)> {
+fn index_static(header: &Header, static_name_index: StaticNameIndex) -> Option<(usize, bool)> {
+    let repeated = |lowest: usize| match static_name_index {
+        StaticNameIndex::Lowest => Some((lowest, false)),
+        StaticNameIndex::Highest => Some((lowest + 1, false)),
+    };
     match *header {
         Header::Field {
             ref name,
@@ -739,17 +779,17 @@ fn index_static(header: &Header) -> Option<(usize, bool)> {
         Header::Method(ref v) => match *v {
             Method::GET => Some((2, true)),
             Method::POST => Some((3, true)),
-            _ => Some((2, false)),
+            _ => repeated(2),
         },
         Header::Scheme(ref v) => match &**v {
             "http" => Some((6, true)),
             "https" => Some((7, true)),
-            _ => Some((6, false)),
+            _ => repeated(6),
         },
         Header::Path(ref v) => match &**v {
             "/" => Some((4, true)),
             "/index.html" => Some((5, true)),
-            _ => Some((4, false)),
+            _ => repeated(4),
         },
         Header::Protocol(..) => None,
         Header::Status(ref v) => match u16::from(*v) {

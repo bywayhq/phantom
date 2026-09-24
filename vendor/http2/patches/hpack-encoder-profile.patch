@@ -1,0 +1,867 @@
+diff --git a/src/client.rs b/src/client.rs
+index 62a8f37..eca84be 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -136,7 +136,7 @@
+ //! [`Error`]: ../struct.Error.html
+ 
+ use crate::codec::{Codec, SendError, UserError};
+-use crate::ext::{OrderedHeaders, Protocol};
++use crate::ext::{HpackEncoderProfile, OrderedHeaders, Protocol};
+ #[cfg(feature = "unstable")]
+ use crate::frame::ExperimentalSettings;
+ use crate::frame::{
+@@ -368,6 +368,9 @@ pub struct Builder {
+ 
+     /// Priority stream list
+     priorities: Option<Priorities>,
++
++    /// HPACK encoder choices used for every field block sent.
++    hpack_encoder_profile: HpackEncoderProfile,
+ }
+ 
+ #[derive(Debug)]
+@@ -716,6 +719,7 @@ impl Builder {
+             headers_pseudo_order: None,
+             headers_stream_dependency: None,
+             priorities: None,
++            hpack_encoder_profile: HpackEncoderProfile::default(),
+         }
+     }
+ 
+@@ -880,6 +884,22 @@ impl Builder {
+         self
+     }
+ 
++    /// Sets the HPACK encoder choices used for every field block sent.
++    ///
++    /// RFC 7541 lets an encoder pick a representation, a static name index
++    /// among repeated names, and whether to Huffman-code a literal string.
++    /// Those choices do not change what the peer decodes, but they are visible
++    /// on the wire, and observed clients differ in them. The default keeps the
++    /// upstream encoder's behavior, so a connection that does not set this
++    /// encodes byte-for-byte as before.
++    ///
++    /// The profile applies from the first field block, so it cannot change
++    /// after entries reach the dynamic table.
++    pub fn hpack_encoder_profile(&mut self, profile: HpackEncoderProfile) -> &mut Self {
++        self.hpack_encoder_profile = profile;
++        self
++    }
++
+     /// Sets the maximum number of informational (1xx) responses accepted on
+     /// one stream before its final response.
+     ///
+@@ -1487,6 +1507,10 @@ where
+         // Create the codec
+         let mut codec = Codec::new(io);
+ 
++        // The profile decides which entries reach the dynamic table, so it is
++        // adopted before the initial SETTINGS frame can be buffered.
++        codec.set_hpack_encoder_profile(builder.hpack_encoder_profile);
++
+         if let Some(max) = builder.settings.max_frame_size() {
+             codec.set_max_recv_frame_size(max as usize);
+         }
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index eed4059..9b30d99 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -21,9 +21,11 @@ use tokio::{
+ use super::Peer;
+ use crate::{
+     codec::{SendError, UserError},
+-    ext::{HeadersFrameOverrides, OrderedHeaders},
++    ext::{
++        HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, OrderedHeaders, StaticNameIndex,
++    },
+     frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
+-    hpack::{Decoder, Encoder, Header},
++    hpack::{huffman, Decoder, Encoder, Header},
+ };
+ 
+ const A: HeaderName = HeaderName::from_static("x-a");
+@@ -257,6 +259,99 @@ async fn headers_frame_overrides_apply_to_one_request_only() {
+     .expect("HEADERS override test timed out");
+ }
+ 
++/// The builder's HPACK profile reaches the first HEADERS frame on the wire.
++///
++/// `PATCH` and `13` are the two cases the captures separate: a method with no
++/// full static entry, and a value whose Huffman form ties with the raw one.
++#[tokio::test]
++async fn hpack_encoder_profile_shapes_the_first_headers_block() {
++    let chromium = HpackEncoderProfile::new()
++        .literal_pseudo_headers([PseudoId::Method])
++        .huffman_coding(HuffmanCoding::WhenShorter);
++    let firefox = HpackEncoderProfile::new()
++        .static_name_index(StaticNameIndex::Highest)
++        .huffman_coding(HuffmanCoding::WhenNotLonger);
++
++    let mut coded_patch = BytesMut::new();
++    huffman::encode(b"PATCH", &mut coded_patch);
++    let mut coded_tie = BytesMut::new();
++    huffman::encode(b"13", &mut coded_tie);
++
++    // Literal without indexing naming `:method GET`. Huffman codes `PATCH`
++    // in five bytes, the raw length, so the value is sent raw as well.
++    assert_eq!(coded_patch.len(), b"PATCH".len());
++    let chromium_method = vec![0x02, 0x05, b'P', b'A', b'T', b'C', b'H'];
++    let chromium_tie = vec![0x40 | 17, 0x02, b'1', b'3'];
++
++    // Incremental indexing naming `:method POST`, then a coded tie value.
++    let mut firefox_method = vec![0x40 | 3, 0x80 | coded_patch.len() as u8];
++    firefox_method.extend_from_slice(&coded_patch);
++    let mut firefox_tie = vec![0x40 | 17, 0x80 | coded_tie.len() as u8];
++    firefox_tie.extend_from_slice(&coded_tie);
++
++    for (profile, method, tie) in [
++        (chromium, chromium_method, chromium_tie),
++        (firefox, firefox_method, firefox_tie),
++    ] {
++        let block = timeout(Duration::from_secs(2), first_headers_block(profile))
++            .await
++            .expect("HPACK profile test timed out");
++        assert!(
++            contains(&block, &method),
++            "block {block:?} omitted the method representation {method:?}"
++        );
++        assert!(
++            contains(&block, &tie),
++            "block {block:?} omitted the tie representation {tie:?}"
++        );
++    }
++}
++
++/// Returns the HPACK block of the first HEADERS a profiled client sends.
++async fn first_headers_block(profile: HpackEncoderProfile) -> Vec<u8> {
++    let (client_io, mut peer_io) = duplex(16 * 1024);
++    let mut builder = super::Builder::new();
++    builder.hpack_encoder_profile(profile);
++    let (sender, connection) = builder
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let driver = tokio::spawn(connection);
++
++    let mut request = Request::new(());
++    *request.method_mut() = Method::PATCH;
++    *request.uri_mut() = "https://example.test/resource"
++        .parse()
++        .expect("static request URI must parse");
++    *request.version_mut() = Version::HTTP_2;
++    request.headers_mut().append(
++        HeaderName::from_static("accept-language"),
++        HeaderValue::from_static("13"),
++    );
++    let mut sender = sender.ready().await.expect("sender never became ready");
++    let (_response, body) = sender
++        .send_request(request, true)
++        .expect("profiled request was rejected");
++    drop(body);
++
++    read_client_preface(&mut peer_io).await;
++    let block = loop {
++        let frame = read_raw_frame(&mut peer_io).await;
++        if frame.kind == 1 {
++            assert_eq!(frame.flags & 0x20, 0, "test expects no priority fields");
++            break frame.payload;
++        }
++    };
++    driver.abort();
++    block
++}
++
++fn contains(haystack: &[u8], needle: &[u8]) -> bool {
++    haystack
++        .windows(needle.len())
++        .any(|window| window == needle)
++}
++
+ #[tokio::test]
+ async fn handshake_preserves_interleaved_ordered_sensitive_trailers() {
+     timeout(Duration::from_secs(2), async {
+diff --git a/src/codec/framed_write.rs b/src/codec/framed_write.rs
+index 12a4c6f..0a27cbc 100644
+--- a/src/codec/framed_write.rs
++++ b/src/codec/framed_write.rs
+@@ -1,5 +1,6 @@
+ use crate::codec::UserError;
+ use crate::codec::UserError::*;
++use crate::ext::HpackEncoderProfile;
+ use crate::frame::{self, Frame, FrameSize};
+ use crate::{hpack, tracing};
+ 
+@@ -336,6 +337,10 @@ impl<T, B> FramedWrite<T, B> {
+         self.encoder.hpack.update_max_size(val);
+     }
+ 
++    pub fn set_hpack_encoder_profile(&mut self, profile: HpackEncoderProfile) {
++        self.encoder.hpack.set_profile(profile);
++    }
++
+     /// Retrieve the last data frame that has been sent
+     pub fn take_last_data_frame(&mut self) -> Option<frame::Data<B>> {
+         self.encoder.last_data_frame.take()
+diff --git a/src/codec/mod.rs b/src/codec/mod.rs
+index 7a6b9b6..8c9f428 100644
+--- a/src/codec/mod.rs
++++ b/src/codec/mod.rs
+@@ -7,6 +7,7 @@ pub use self::error::{SendError, UserError};
+ use self::framed_read::FramedRead;
+ use self::framed_write::FramedWrite;
+ 
++use crate::ext::HpackEncoderProfile;
+ use crate::frame::{self, Data, Frame};
+ use crate::proto::Error;
+ 
+@@ -95,6 +96,13 @@ impl<T, B> Codec<T, B> {
+         self.framed_write().set_header_table_size(val)
+     }
+ 
++    /// Set the HPACK encoder choices used for every field block sent.
++    ///
++    /// This must be called before the first field block is encoded.
++    pub fn set_hpack_encoder_profile(&mut self, profile: HpackEncoderProfile) {
++        self.framed_write().set_hpack_encoder_profile(profile)
++    }
++
+     /// Set the decoder header table size size.
+     pub fn set_recv_header_table_size(&mut self, val: usize) {
+         self.inner.set_header_table_size(val)
+diff --git a/src/ext.rs b/src/ext.rs
+index 2b96be4..45a39b2 100644
+--- a/src/ext.rs
++++ b/src/ext.rs
+@@ -1,6 +1,6 @@
+ //! Extensions specific to the HTTP/2 protocol.
+ 
+-use crate::frame::{PseudoOrder, StreamDependency};
++use crate::frame::{PseudoId, PseudoOrder, StreamDependency};
+ use crate::hpack::BytesStr;
+ 
+ use bytes::Bytes;
+@@ -88,6 +88,112 @@ impl HeadersFrameOverrides {
+     }
+ }
+ 
++/// Which HPACK static entry names a field whose name has several entries.
++///
++/// The static table lists `:method`, `:path`, and `:scheme` twice, so a field
++/// whose value matches neither entry can be named by either index. The choice
++/// is visible on the wire and constant for a given encoder.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++pub enum StaticNameIndex {
++    /// The lowest-numbered entry: `:method` 2, `:path` 4, `:scheme` 6.
++    ///
++    /// This is the upstream and nghttp2 choice.
++    #[default]
++    Lowest,
++    /// The highest-numbered entry: `:method` 3, `:path` 5, `:scheme` 7.
++    Highest,
++}
++
++/// When a literal HPACK string is Huffman-coded rather than sent raw.
++///
++/// RFC 7541 section 5.2 leaves the choice to the encoder, and the flag is
++/// visible on the wire for every literal name and value.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++pub enum HuffmanCoding {
++    /// Always Huffman-code, whatever the result costs.
++    ///
++    /// This is the upstream choice.
++    #[default]
++    Always,
++    /// Huffman-code only when the coded form is strictly shorter.
++    WhenShorter,
++    /// Huffman-code whenever the coded form is no longer than the raw one.
++    WhenNotLonger,
++}
++
++/// Connection-wide HPACK encoder choices that RFC 7541 leaves open.
++///
++/// Every encoder that RFC 7541 allows produces a block the peer decodes to the
++/// same fields, so the choices below are part of a client's wire fingerprint
++/// rather than its semantics. Each one defaults to the upstream behavior, so a
++/// connection that sets nothing encodes byte-for-byte as before.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++pub struct HpackEncoderProfile {
++    literal_pseudo_headers: u8,
++    static_name_index: StaticNameIndex,
++    huffman_coding: HuffmanCoding,
++}
++
++impl HpackEncoderProfile {
++    /// Creates a profile that keeps every upstream encoder choice.
++    #[must_use]
++    pub fn new() -> Self {
++        Self::default()
++    }
++
++    /// Never inserts these pseudo-headers into the dynamic table.
++    ///
++    /// A listed pseudo-header whose name and value both match a static entry
++    /// is still sent as that index; otherwise it is sent as a literal without
++    /// indexing, naming the static entry when one matches. This is the same
++    /// treatment upstream already gives `:path` and fields such as `cookie`.
++    #[must_use]
++    pub fn literal_pseudo_headers(mut self, ids: impl IntoIterator<Item = PseudoId>) -> Self {
++        for id in ids {
++            self.literal_pseudo_headers |= pseudo_bit(id);
++        }
++        self
++    }
++
++    /// Names a repeated static entry with this index.
++    #[must_use]
++    pub fn static_name_index(mut self, index: StaticNameIndex) -> Self {
++        self.static_name_index = index;
++        self
++    }
++
++    /// Huffman-codes literal names and values by this rule.
++    #[must_use]
++    pub fn huffman_coding(mut self, coding: HuffmanCoding) -> Self {
++        self.huffman_coding = coding;
++        self
++    }
++
++    pub(crate) fn is_literal_pseudo(self, id: PseudoId) -> bool {
++        self.literal_pseudo_headers & pseudo_bit(id) != 0
++    }
++
++    pub(crate) fn static_name(self) -> StaticNameIndex {
++        self.static_name_index
++    }
++
++    pub(crate) fn huffman(self) -> HuffmanCoding {
++        self.huffman_coding
++    }
++}
++
++/// Returns the bit that represents `id` in a pseudo-header set.
++fn pseudo_bit(id: PseudoId) -> u8 {
++    match id {
++        PseudoId::Method => 1 << 0,
++        PseudoId::Scheme => 1 << 1,
++        PseudoId::Authority => 1 << 2,
++        PseudoId::Path => 1 << 3,
++        PseudoId::Protocol => 1 << 4,
++        PseudoId::Status => 1 << 5,
++    }
++}
++
+ /// One ALTSVC frame (RFC 7838 section 4) received by a client.
+ #[derive(Clone, Eq, PartialEq)]
+ pub struct AltSvc {
+diff --git a/src/hpack/encoder.rs b/src/hpack/encoder.rs
+index c46819c..6c11e07 100644
+--- a/src/hpack/encoder.rs
++++ b/src/hpack/encoder.rs
+@@ -1,5 +1,6 @@
+ use super::table::{Index, Table};
+ use super::{huffman, Header};
++use crate::ext::{HpackEncoderProfile, HuffmanCoding};
+ use crate::tracing;
+ 
+ use bytes::{BufMut, BytesMut};
+@@ -9,6 +10,7 @@ use http::header::{HeaderName, HeaderValue};
+ pub struct Encoder {
+     table: Table,
+     size_update: Option<SizeUpdate>,
++    huffman: HuffmanCoding,
+ }
+ 
+ #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+@@ -22,9 +24,19 @@ impl Encoder {
+         Encoder {
+             table: Table::new(max_size, capacity),
+             size_update: None,
++            huffman: HuffmanCoding::default(),
+         }
+     }
+ 
++    /// Adopts the caller's HPACK encoder choices.
++    ///
++    /// This must happen before the first field block is encoded, because the
++    /// choices decide which entries reach the dynamic table.
++    pub fn set_profile(&mut self, profile: HpackEncoderProfile) {
++        self.huffman = profile.huffman();
++        self.table.set_profile(profile);
++    }
++
+     /// Queues a max size update.
+     ///
+     /// The next call to `encode` will include a dynamic size update frame.
+@@ -120,7 +132,13 @@ impl Encoder {
+             Index::Name(idx, _) => {
+                 let header = self.table.resolve(index);
+ 
+-                encode_not_indexed(idx, header.value_slice(), header.is_sensitive(), dst);
++                encode_not_indexed(
++                    idx,
++                    header.value_slice(),
++                    header.is_sensitive(),
++                    self.huffman,
++                    dst,
++                );
+             }
+             Index::Inserted(_) => {
+                 let header = self.table.resolve(index);
+@@ -129,8 +147,8 @@ impl Encoder {
+ 
+                 dst.put_u8(0b0100_0000);
+ 
+-                encode_str(header.name().as_slice(), dst);
+-                encode_str(header.value_slice(), dst);
++                encode_str(header.name().as_slice(), self.huffman, dst);
++                encode_str(header.value_slice(), self.huffman, dst);
+             }
+             Index::InsertedValue(idx, _) => {
+                 let header = self.table.resolve(index);
+@@ -138,7 +156,7 @@ impl Encoder {
+                 assert!(!header.is_sensitive());
+ 
+                 encode_int(idx, 6, 0b0100_0000, dst);
+-                encode_str(header.value_slice(), dst);
++                encode_str(header.value_slice(), self.huffman, dst);
+             }
+             Index::NotIndexed(_) => {
+                 let header = self.table.resolve(index);
+@@ -147,6 +165,7 @@ impl Encoder {
+                     header.name().as_slice(),
+                     header.value_slice(),
+                     header.is_sensitive(),
++                    self.huffman,
+                     dst,
+                 );
+             }
+@@ -166,7 +185,7 @@ impl Encoder {
+             | Index::InsertedValue(..) => {
+                 let idx = self.table.resolve_idx(last);
+ 
+-                encode_not_indexed(idx, value.as_ref(), value.is_sensitive(), dst);
++                encode_not_indexed(idx, value.as_ref(), value.is_sensitive(), self.huffman, dst);
+             }
+             Index::NotIndexed(_) => {
+                 let last = self.table.resolve(last);
+@@ -175,6 +194,7 @@ impl Encoder {
+                     last.name().as_slice(),
+                     value.as_ref(),
+                     value.is_sensitive(),
++                    self.huffman,
+                     dst,
+                 );
+             }
+@@ -192,28 +212,56 @@ fn encode_size_update(val: usize, dst: &mut BytesMut) {
+     encode_int(val, 5, 0b0010_0000, dst)
+ }
+ 
+-fn encode_not_indexed(name: usize, value: &[u8], sensitive: bool, dst: &mut BytesMut) {
++fn encode_not_indexed(
++    name: usize,
++    value: &[u8],
++    sensitive: bool,
++    huffman: HuffmanCoding,
++    dst: &mut BytesMut,
++) {
+     if sensitive {
+         encode_int(name, 4, 0b10000, dst);
+     } else {
+         encode_int(name, 4, 0, dst);
+     }
+ 
+-    encode_str(value, dst);
++    encode_str(value, huffman, dst);
+ }
+ 
+-fn encode_not_indexed2(name: &[u8], value: &[u8], sensitive: bool, dst: &mut BytesMut) {
++fn encode_not_indexed2(
++    name: &[u8],
++    value: &[u8],
++    sensitive: bool,
++    huffman: HuffmanCoding,
++    dst: &mut BytesMut,
++) {
+     if sensitive {
+         dst.put_u8(0b10000);
+     } else {
+         dst.put_u8(0);
+     }
+ 
+-    encode_str(name, dst);
+-    encode_str(value, dst);
++    encode_str(name, huffman, dst);
++    encode_str(value, huffman, dst);
+ }
+ 
+-fn encode_str(val: &[u8], dst: &mut BytesMut) {
++/// Returns whether `val` is sent Huffman-coded under `huffman`.
++fn use_huffman(val: &[u8], huffman: HuffmanCoding) -> bool {
++    match huffman {
++        HuffmanCoding::Always => true,
++        HuffmanCoding::WhenShorter => huffman::encoded_len(val) < val.len(),
++        HuffmanCoding::WhenNotLonger => huffman::encoded_len(val) <= val.len(),
++    }
++}
++
++fn encode_str(val: &[u8], huffman: HuffmanCoding, dst: &mut BytesMut) {
++    if !use_huffman(val, huffman) {
++        // A raw literal knows its own length, so the head is written first.
++        encode_int(val.len(), 7, 0, dst);
++        dst.put_slice(val);
++        return;
++    }
++
+     if !val.is_empty() {
+         let idx = position(dst);
+ 
+@@ -299,6 +347,9 @@ fn position(buf: &BytesMut) -> usize {
+ #[cfg(test)]
+ mod test {
+     use super::*;
++    use crate::ext::{Protocol, StaticNameIndex};
++    use crate::frame::PseudoId;
++    use crate::hpack::BytesStr;
+     use http::*;
+ 
+     #[test]
+@@ -693,6 +744,192 @@ mod test {
+         // Not sure what the best way to do this is.
+     }
+ 
++    /// Setting the default profile changes no byte of any block.
++    ///
++    /// The seam's identity element is what keeps every existing caller, which
++    /// never sets a profile, encoding exactly as it did before.
++    #[test]
++    fn the_default_profile_encodes_like_the_upstream_encoder() {
++        let fields = || {
++            vec![
++                method("GET"),
++                method("CONNECT"),
++                path("/echo"),
++                path("/"),
++                scheme("https"),
++                protocol("websocket"),
++                header("accept-language", "13"),
++                header("accept-language", "en-US,en;q=0.9"),
++                header("x-new", "value"),
++                header("content-length", "1234"),
++            ]
++        };
++        let mut upstream = Encoder::default();
++        let mut profiled = Encoder::default();
++        profiled.set_profile(HpackEncoderProfile::new());
++
++        // Three blocks, so the evolving dynamic table is compared too.
++        for block in 0..3 {
++            assert_eq!(
++                encode(&mut upstream, fields()),
++                encode(&mut profiled, fields()),
++                "block {block} differed under the default profile"
++            );
++        }
++        assert_eq!(upstream.table.len(), profiled.table.len());
++    }
++
++    /// Chromium keeps `:method` and `:protocol` out of its dynamic table.
++    #[test]
++    fn literal_pseudo_headers_are_never_value_indexed() {
++        let mut encoder = Encoder::default();
++        encoder.set_profile(
++            HpackEncoderProfile::new()
++                .literal_pseudo_headers([PseudoId::Method, PseudoId::Protocol]),
++        );
++
++        // Literal without indexing, naming static entry 2 (`:method GET`).
++        let res = encode(&mut encoder, vec![method("CONNECT")]);
++        assert_eq!(res[0], 2);
++        assert_eq!(res[1], 0x80 | 7);
++        assert_eq!("CONNECT", huff_decode(&res[2..]));
++        assert_eq!(0, encoder.table.len());
++
++        // Literal without indexing with a literal name.
++        let res = encode(&mut encoder, vec![protocol("websocket")]);
++        assert_eq!(res[0], 0);
++        assert_eq!(0, encoder.table.len());
++
++        // A repeat is encoded identically, because nothing was inserted.
++        let repeat = encode(&mut encoder, vec![method("CONNECT")]);
++        assert_eq!(repeat[0], 2);
++        assert_eq!("CONNECT", huff_decode(&repeat[2..]));
++    }
++
++    /// A listed pseudo-header whose value also matches stays fully indexed.
++    #[test]
++    fn literal_pseudo_headers_keep_full_static_matches_indexed() {
++        let mut encoder = Encoder::default();
++        encoder.set_profile(
++            HpackEncoderProfile::new().literal_pseudo_headers([PseudoId::Method, PseudoId::Scheme]),
++        );
++
++        assert_eq!(*encode(&mut encoder, vec![method("GET")]), [0x80 | 2]);
++        assert_eq!(*encode(&mut encoder, vec![method("POST")]), [0x80 | 3]);
++        assert_eq!(*encode(&mut encoder, vec![scheme("https")]), [0x80 | 7]);
++        assert_eq!(0, encoder.table.len());
++    }
++
++    /// Firefox names a repeated static entry with its highest index.
++    #[test]
++    fn highest_static_name_index_names_repeated_entries() {
++        let mut encoder = Encoder::default();
++        encoder.set_profile(HpackEncoderProfile::new().static_name_index(StaticNameIndex::Highest));
++
++        // Incremental indexing against `:method POST`, not `:method GET`.
++        let res = encode(&mut encoder, vec![method("CONNECT")]);
++        assert_eq!(res[0], 0b0100_0000 | 3);
++
++        // `:path` is never value-indexed, so it names entry 5, not 4.
++        let res = encode(&mut encoder, vec![path("/echo")]);
++        assert_eq!(res[0], 5);
++
++        // A value that matches a static entry is still sent as that index.
++        assert_eq!(*encode(&mut encoder, vec![method("GET")]), [0x80 | 2]);
++        assert_eq!(*encode(&mut encoder, vec![path("/")]), [0x80 | 4]);
++    }
++
++    /// The default keeps the lowest index, so existing blocks are unchanged.
++    #[test]
++    fn lowest_static_name_index_is_the_default() {
++        let mut encoder = Encoder::default();
++        assert_eq!(
++            encode(&mut encoder, vec![method("CONNECT")])[0],
++            0b0100_0000 | 2
++        );
++        let mut encoder = Encoder::default();
++        assert_eq!(encode(&mut encoder, vec![path("/echo")])[0], 4);
++    }
++
++    /// Chromium sends a literal whose Huffman form is no shorter uncoded.
++    ///
++    /// A zero-size table keeps every field literal, so the two bytes before
++    /// the value are the representation and the `accept-language` name index.
++    #[test]
++    fn huffman_when_shorter_sends_a_tie_uncoded() {
++        let mut encoder = Encoder::new(0, 0);
++        encoder.set_profile(HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenShorter));
++
++        // Huffman codes "13" in exactly two bytes, so it is sent raw.
++        let res = encode(&mut encoder, vec![header("accept-language", "13")]);
++        assert_eq!(&res[..3], &[0x0f, 0x02, 2]);
++        assert_eq!(&res[3..], b"13".as_slice());
++
++        // A value the coding does shorten is still coded.
++        let res = encode(
++            &mut encoder,
++            vec![header("accept-language", "en-US,en;q=0.9")],
++        );
++        assert_eq!(&res[..2], &[0x0f, 0x02]);
++        assert_ne!(res[2] & 0x80, 0, "a shortened value was not coded");
++        assert_eq!("en-US,en;q=0.9", huff_decode(&res[3..]));
++    }
++
++    /// Firefox codes a literal whose Huffman form ties with the raw one.
++    #[test]
++    fn huffman_when_not_longer_codes_a_tie() {
++        let mut encoder = Encoder::new(0, 0);
++        encoder
++            .set_profile(HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenNotLonger));
++
++        let res = encode(&mut encoder, vec![header("accept-language", "13")]);
++        assert_eq!(&res[..3], &[0x0f, 0x02, 0x80 | 2]);
++        assert_eq!("13", huff_decode(&res[3..]));
++    }
++
++    /// Both length rules agree with the default when coding does shorten.
++    #[test]
++    fn huffman_rules_agree_when_coding_shortens() {
++        let mut always = Encoder::default();
++        let mut shorter = Encoder::default();
++        shorter.set_profile(HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenShorter));
++        let mut not_longer = Encoder::default();
++        not_longer
++            .set_profile(HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenNotLonger));
++
++        let field = || vec![header("accept-language", "en-US,en;q=0.9")];
++        let expected = encode(&mut always, field());
++        assert_eq!(expected, encode(&mut shorter, field()));
++        assert_eq!(expected, encode(&mut not_longer, field()));
++    }
++
++    /// An empty value is one byte whatever the length rule says.
++    #[test]
++    fn huffman_rules_agree_on_an_empty_value() {
++        for coding in [
++            HuffmanCoding::Always,
++            HuffmanCoding::WhenShorter,
++            HuffmanCoding::WhenNotLonger,
++        ] {
++            let mut encoder = Encoder::new(0, 0);
++            encoder.set_profile(HpackEncoderProfile::new().huffman_coding(coding));
++            let res = encode(&mut encoder, vec![header("x-empty", "")]);
++            assert_eq!(res[res.len() - 1], 0, "{coding:?} changed the empty value");
++        }
++    }
++
++    fn protocol(s: &str) -> Header<Option<HeaderName>> {
++        Header::Protocol(Protocol::from(s))
++    }
++
++    fn scheme(s: &str) -> Header<Option<HeaderName>> {
++        Header::Scheme(BytesStr::from(s))
++    }
++
++    fn path(s: &str) -> Header<Option<HeaderName>> {
++        Header::Path(BytesStr::from(s))
++    }
++
+     fn encode(e: &mut Encoder, hdrs: Vec<Header<Option<HeaderName>>>) -> BytesMut {
+         let mut dst = BytesMut::with_capacity(1024);
+         e.encode(hdrs, &mut dst);
+diff --git a/src/hpack/huffman/mod.rs b/src/hpack/huffman/mod.rs
+index 0a3ecef..32cce91 100644
+--- a/src/hpack/huffman/mod.rs
++++ b/src/hpack/huffman/mod.rs
+@@ -40,6 +40,15 @@ pub fn decode(src: &[u8], buf: &mut BytesMut) -> Result<BytesMut, DecoderError>
+     Ok(buf.split())
+ }
+ 
++/// Returns the number of bytes `encode` would append for `src`.
++///
++/// RFC 7541 section 5.2 pads the last byte to a byte boundary with the EOS
++/// prefix, so the length is the code lengths rounded up.
++pub fn encoded_len(src: &[u8]) -> usize {
++    let bits: usize = src.iter().map(|&b| ENCODE_TABLE[b as usize].0).sum();
++    (bits + 7) / 8
++}
++
+ pub fn encode(src: &[u8], dst: &mut BytesMut) {
+     let mut bits: u64 = 0;
+     let mut bits_left = 40;
+diff --git a/src/hpack/table.rs b/src/hpack/table.rs
+index d28ec05..c34e598 100644
+--- a/src/hpack/table.rs
++++ b/src/hpack/table.rs
+@@ -1,4 +1,6 @@
+ use super::Header;
++use crate::ext::{HpackEncoderProfile, StaticNameIndex};
++use crate::frame::PseudoId;
+ 
+ use fnv::FnvHasher;
+ use http::header;
+@@ -18,6 +20,8 @@ pub struct Table {
+     // Size is in bytes
+     size: usize,
+     max_size: usize,
++    // Caller-stated encoder choices; the default keeps upstream behavior.
++    profile: HpackEncoderProfile,
+ }
+ 
+ #[derive(Debug)]
+@@ -81,6 +85,7 @@ impl Table {
+                 inserted: 0,
+                 size: 0,
+                 max_size,
++                profile: HpackEncoderProfile::default(),
+             }
+         } else {
+             let capacity = cmp::max(to_raw_capacity(capacity).next_power_of_two(), 8);
+@@ -92,6 +97,7 @@ impl Table {
+                 inserted: 0,
+                 size: 0,
+                 max_size,
++                profile: HpackEncoderProfile::default(),
+             }
+         }
+     }
+@@ -130,10 +136,19 @@ impl Table {
+         }
+     }
+ 
++    /// Records the caller's HPACK encoder choices.
++    ///
++    /// The table is still empty when this is called, so no entry can already
++    /// have been inserted against a different choice.
++    pub fn set_profile(&mut self, profile: HpackEncoderProfile) {
++        debug_assert!(self.slots.is_empty(), "encoder profile set after encoding");
++        self.profile = profile;
++    }
++
+     /// Index the header in the HPACK table.
+     pub fn index(&mut self, header: Header) -> Index {
+         // Check the static table
+-        let statik = index_static(&header);
++        let statik = index_static(&header, self.profile.static_name());
+ 
+         // Don't index certain headers. This logic is borrowed from nghttp2.
+         if header.skip_value_index() {
+@@ -144,6 +159,13 @@ impl Table {
+             return Index::new(statik, header);
+         }
+ 
++        // A pseudo-header the caller asked to keep literal is treated the same
++        // way, except that it need not have a static name: `:protocol` has
++        // none, and is then sent with a literal name.
++        if self.is_literal_pseudo(&header) {
++            return Index::new(statik, header);
++        }
++
+         // If the header is already indexed by the static table, return that
+         if let Some((n, true)) = statik {
+             return Index::Indexed(n, header);
+@@ -157,6 +179,20 @@ impl Table {
+         self.index_dynamic(header, statik)
+     }
+ 
++    /// Returns whether the caller asked for this pseudo-header to stay literal.
++    fn is_literal_pseudo(&self, header: &Header) -> bool {
++        let id = match *header {
++            Header::Method(..) => PseudoId::Method,
++            Header::Scheme(..) => PseudoId::Scheme,
++            Header::Authority(..) => PseudoId::Authority,
++            Header::Path(..) => PseudoId::Path,
++            Header::Protocol(..) => PseudoId::Protocol,
++            Header::Status(..) => PseudoId::Status,
++            Header::Field { .. } => return false,
++        };
++        self.profile.is_literal_pseudo(id)
++    }
++
+     fn index_dynamic(&mut self, header: Header, statik: Option<(usize, bool)>) -> Index {
+         debug_assert!(self.assert_valid_state("one"));
+ 
+@@ -674,7 +710,11 @@ fn hash_header(header: &Header) -> HashValue {
+ 
+ /// Checks the static table for the header. If found, returns the index and a
+ /// boolean representing if the value matched as well.
+-fn index_static(header: &Header) -> Option<(usize, bool)> {
++fn index_static(header: &Header, static_name_index: StaticNameIndex) -> Option<(usize, bool)> {
++    let repeated = |lowest: usize| match static_name_index {
++        StaticNameIndex::Lowest => Some((lowest, false)),
++        StaticNameIndex::Highest => Some((lowest + 1, false)),
++    };
+     match *header {
+         Header::Field {
+             ref name,
+@@ -739,17 +779,17 @@ fn index_static(header: &Header) -> Option<(usize, bool)> {
+         Header::Method(ref v) => match *v {
+             Method::GET => Some((2, true)),
+             Method::POST => Some((3, true)),
+-            _ => Some((2, false)),
++            _ => repeated(2),
+         },
+         Header::Scheme(ref v) => match &**v {
+             "http" => Some((6, true)),
+             "https" => Some((7, true)),
+-            _ => Some((6, false)),
++            _ => repeated(6),
+         },
+         Header::Path(ref v) => match &**v {
+             "/" => Some((4, true)),
+             "/index.html" => Some((5, true)),
+-            _ => Some((4, false)),
++            _ => repeated(4),
+         },
+         Header::Protocol(..) => None,
+         Header::Status(ref v) => match u16::from(*v) {

@@ -136,7 +136,7 @@
 //! [`Error`]: ../struct.Error.html
 
 use crate::codec::{Codec, SendError, UserError};
-use crate::ext::{OrderedHeaders, Protocol};
+use crate::ext::{HpackEncoderProfile, OrderedHeaders, Protocol};
 #[cfg(feature = "unstable")]
 use crate::frame::ExperimentalSettings;
 use crate::frame::{
@@ -368,6 +368,9 @@ pub struct Builder {
 
     /// Priority stream list
     priorities: Option<Priorities>,
+
+    /// HPACK encoder choices used for every field block sent.
+    hpack_encoder_profile: HpackEncoderProfile,
 }
 
 #[derive(Debug)]
@@ -716,6 +719,7 @@ impl Builder {
             headers_pseudo_order: None,
             headers_stream_dependency: None,
             priorities: None,
+            hpack_encoder_profile: HpackEncoderProfile::default(),
         }
     }
 
@@ -877,6 +881,22 @@ impl Builder {
     /// error.
     pub fn local_max_header_list_size(&mut self, max: u32) -> &mut Self {
         self.local_max_header_list_size = Some(max);
+        self
+    }
+
+    /// Sets the HPACK encoder choices used for every field block sent.
+    ///
+    /// RFC 7541 lets an encoder pick a representation, a static name index
+    /// among repeated names, and whether to Huffman-code a literal string.
+    /// Those choices do not change what the peer decodes, but they are visible
+    /// on the wire, and observed clients differ in them. The default keeps the
+    /// upstream encoder's behavior, so a connection that does not set this
+    /// encodes byte-for-byte as before.
+    ///
+    /// The profile applies from the first field block, so it cannot change
+    /// after entries reach the dynamic table.
+    pub fn hpack_encoder_profile(&mut self, profile: HpackEncoderProfile) -> &mut Self {
+        self.hpack_encoder_profile = profile;
         self
     }
 
@@ -1486,6 +1506,10 @@ where
 
         // Create the codec
         let mut codec = Codec::new(io);
+
+        // The profile decides which entries reach the dynamic table, so it is
+        // adopted before the initial SETTINGS frame can be buffered.
+        codec.set_hpack_encoder_profile(builder.hpack_encoder_profile);
 
         if let Some(max) = builder.settings.max_frame_size() {
             codec.set_max_recv_frame_size(max as usize);

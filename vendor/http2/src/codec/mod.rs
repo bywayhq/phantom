@@ -7,6 +7,7 @@ pub use self::error::{SendError, UserError};
 use self::framed_read::FramedRead;
 use self::framed_write::FramedWrite;
 
+use crate::ext::HpackEncoderProfile;
 use crate::frame::{self, Data, Frame};
 use crate::proto::Error;
 
@@ -93,6 +94,13 @@ impl<T, B> Codec<T, B> {
     /// Set the peer's header table size size.
     pub fn set_send_header_table_size(&mut self, val: usize) {
         self.framed_write().set_header_table_size(val)
+    }
+
+    /// Set the HPACK encoder choices used for every field block sent.
+    ///
+    /// This must be called before the first field block is encoded.
+    pub fn set_hpack_encoder_profile(&mut self, profile: HpackEncoderProfile) {
+        self.framed_write().set_hpack_encoder_profile(profile)
     }
 
     /// Set the decoder header table size size.

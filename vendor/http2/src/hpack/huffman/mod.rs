@@ -40,6 +40,15 @@ pub fn decode(src: &[u8], buf: &mut BytesMut) -> Result<BytesMut, DecoderError> 
     Ok(buf.split())
 }
 
+/// Returns the number of bytes `encode` would append for `src`.
+///
+/// RFC 7541 section 5.2 pads the last byte to a byte boundary with the EOS
+/// prefix, so the length is the code lengths rounded up.
+pub fn encoded_len(src: &[u8]) -> usize {
+    let bits: usize = src.iter().map(|&b| ENCODE_TABLE[b as usize].0).sum();
+    (bits + 7) / 8
+}
+
 pub fn encode(src: &[u8], dst: &mut BytesMut) {
     let mut bits: u64 = 0;
     let mut bits_left = 40;

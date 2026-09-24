@@ -21,9 +21,11 @@ use tokio::{
 use super::Peer;
 use crate::{
     codec::{SendError, UserError},
-    ext::{HeadersFrameOverrides, OrderedHeaders},
+    ext::{
+        HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, OrderedHeaders, StaticNameIndex,
+    },
     frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
-    hpack::{Decoder, Encoder, Header},
+    hpack::{huffman, Decoder, Encoder, Header},
 };
 
 const A: HeaderName = HeaderName::from_static("x-a");
@@ -255,6 +257,99 @@ async fn headers_frame_overrides_apply_to_one_request_only() {
     })
     .await
     .expect("HEADERS override test timed out");
+}
+
+/// The builder's HPACK profile reaches the first HEADERS frame on the wire.
+///
+/// `PATCH` and `13` are the two cases the captures separate: a method with no
+/// full static entry, and a value whose Huffman form ties with the raw one.
+#[tokio::test]
+async fn hpack_encoder_profile_shapes_the_first_headers_block() {
+    let chromium = HpackEncoderProfile::new()
+        .literal_pseudo_headers([PseudoId::Method])
+        .huffman_coding(HuffmanCoding::WhenShorter);
+    let firefox = HpackEncoderProfile::new()
+        .static_name_index(StaticNameIndex::Highest)
+        .huffman_coding(HuffmanCoding::WhenNotLonger);
+
+    let mut coded_patch = BytesMut::new();
+    huffman::encode(b"PATCH", &mut coded_patch);
+    let mut coded_tie = BytesMut::new();
+    huffman::encode(b"13", &mut coded_tie);
+
+    // Literal without indexing naming `:method GET`. Huffman codes `PATCH`
+    // in five bytes, the raw length, so the value is sent raw as well.
+    assert_eq!(coded_patch.len(), b"PATCH".len());
+    let chromium_method = vec![0x02, 0x05, b'P', b'A', b'T', b'C', b'H'];
+    let chromium_tie = vec![0x40 | 17, 0x02, b'1', b'3'];
+
+    // Incremental indexing naming `:method POST`, then a coded tie value.
+    let mut firefox_method = vec![0x40 | 3, 0x80 | coded_patch.len() as u8];
+    firefox_method.extend_from_slice(&coded_patch);
+    let mut firefox_tie = vec![0x40 | 17, 0x80 | coded_tie.len() as u8];
+    firefox_tie.extend_from_slice(&coded_tie);
+
+    for (profile, method, tie) in [
+        (chromium, chromium_method, chromium_tie),
+        (firefox, firefox_method, firefox_tie),
+    ] {
+        let block = timeout(Duration::from_secs(2), first_headers_block(profile))
+            .await
+            .expect("HPACK profile test timed out");
+        assert!(
+            contains(&block, &method),
+            "block {block:?} omitted the method representation {method:?}"
+        );
+        assert!(
+            contains(&block, &tie),
+            "block {block:?} omitted the tie representation {tie:?}"
+        );
+    }
+}
+
+/// Returns the HPACK block of the first HEADERS a profiled client sends.
+async fn first_headers_block(profile: HpackEncoderProfile) -> Vec<u8> {
+    let (client_io, mut peer_io) = duplex(16 * 1024);
+    let mut builder = super::Builder::new();
+    builder.hpack_encoder_profile(profile);
+    let (sender, connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let driver = tokio::spawn(connection);
+
+    let mut request = Request::new(());
+    *request.method_mut() = Method::PATCH;
+    *request.uri_mut() = "https://example.test/resource"
+        .parse()
+        .expect("static request URI must parse");
+    *request.version_mut() = Version::HTTP_2;
+    request.headers_mut().append(
+        HeaderName::from_static("accept-language"),
+        HeaderValue::from_static("13"),
+    );
+    let mut sender = sender.ready().await.expect("sender never became ready");
+    let (_response, body) = sender
+        .send_request(request, true)
+        .expect("profiled request was rejected");
+    drop(body);
+
+    read_client_preface(&mut peer_io).await;
+    let block = loop {
+        let frame = read_raw_frame(&mut peer_io).await;
+        if frame.kind == 1 {
+            assert_eq!(frame.flags & 0x20, 0, "test expects no priority fields");
+            break frame.payload;
+        }
+    };
+    driver.abort();
+    block
+}
+
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
 }
 
 #[tokio::test]

@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.2`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.3`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -317,6 +317,52 @@ fields the client itself encodes. Phantom limits each request to 100 fields
 and 32 KiB, and fields larger than three quarters of the table are never
 indexed. Phantom's regressions pin the uncapped update for 65,536 and
 2^32 - 1.
+
+## HPACK encoder identity
+
+RFC 7541 leaves three encoder choices open that every decoder resolves the same
+way but that are visible on the wire, and the retained WebSocket captures under
+`fixtures/websocket/` show observed clients making them differently:
+
+- Whether a field is inserted into the dynamic table. Chrome 154 and Edge 153
+  send `:method: CONNECT` and `:protocol: websocket` as literals without
+  indexing on every run; Firefox 156 indexes both incrementally.
+- Which entry names a field whose name appears twice in the static table.
+  Chrome and Edge name `:method` with entry 2 and `:path` with entry 4;
+  Firefox names them with entries 3 and 5, on every request rather than only
+  on extended CONNECT.
+- Whether a literal string is Huffman-coded. Over all 27 retained captures,
+  Chrome's and Edge's 774 coding decisions are exactly the cases where the
+  coded form is strictly shorter, and Firefox's 831 are exactly the cases
+  where it is no longer. The two rules differ only on a tie, and ties are
+  common: `CONNECT`, `13`, `*/*`, `?0`, `?1`, and `1` all code to their own
+  raw length. Upstream always codes, so it matches neither client on a tie.
+
+`hpack-encoder-profile.patch` adds `http2::ext::HpackEncoderProfile` and the
+client builder option `hpack_encoder_profile`. It states the three choices for
+the whole connection, which is where they live in an HPACK encoder, and the
+handshake adopts the profile before the initial SETTINGS frame is buffered so
+that no entry can reach the dynamic table under a different choice. Each choice
+defaults to the upstream behavior, so a connection that sets nothing encodes
+byte-for-byte as before.
+
+A listed pseudo-header joins the nghttp2-derived list that already keeps
+`:path` and `cookie` out of the dynamic table, so it is sent as an index when
+its name and value both match a static entry, and otherwise as a literal
+without indexing naming the static entry when one matches. Unlike that list, a
+listed pseudo-header need not have a static name: `:protocol` has none and is
+then sent with a literal name. The static-name choice moves only the name-only
+fallbacks for `:method`, `:path`, and `:scheme`; a full value match is still
+sent as its own index, so `:method: GET` stays entry 2 under both choices.
+Only the `:method` and `:path` fallbacks are observed; `:scheme` follows the
+same rule because it is the same static-table shape, not because a capture
+shows it.
+
+The patch changes `src/ext.rs`, `src/hpack/{encoder,table}.rs`,
+`src/hpack/huffman/mod.rs` (an encoded-length helper the length rules need),
+`src/codec/{framed_write,mod}.rs`, and `src/client.rs`, and adds encoder unit
+tests plus a client regression proving the builder option reaches the first
+HEADERS block on the wire.
 
 ## Refreshing the vendor copy
 
