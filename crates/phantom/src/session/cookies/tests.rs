@@ -475,14 +475,15 @@ fn secure_cookie_set_over_loopback_http_is_stored_and_sent_back()
     let jar = CookieJar::default();
     jar.set_cookie("http://127.0.0.1:8080/", "sid=1; Secure")?;
 
+    // `send` drives the path a real request takes, not the inspection API.
     assert_eq!(
-        jar.request_value("http://127.0.0.1:8080/")?.as_deref(),
+        send(&jar, "http://127.0.0.1:8080/")?.as_deref(),
         Some("sid=1")
     );
     // The port is not part of a cookie's identity, and a loopback origin is
     // trustworthy whatever the scheme.
     assert_eq!(
-        jar.request_value("https://127.0.0.1:8443/")?.as_deref(),
+        send(&jar, "https://127.0.0.1:8443/")?.as_deref(),
         Some("sid=1")
     );
     Ok(())
