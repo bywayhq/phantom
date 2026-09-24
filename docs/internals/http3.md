@@ -1,43 +1,62 @@
 # HTTP/3 internals
 
-This page describes how Phantom's HTTP/3 path is built, bounded, and proven.
-It is for contributors working on QUIC, HTTP/3, QPACK, CONNECT-UDP, or the H3
-capture fixtures. To use HTTP/3 from an application, read
-[HTTP/3 and Alt-Svc](../guides/http3.md) instead.
+This page describes how Phantom's HTTP/3 path is built, bounded, and proven,
+layer by layer, so that a change to one layer keeps the others' contracts.
 
-Terms used on this page:
+> For contributors working on QUIC, HTTP/3, QPACK, CONNECT-UDP, or the H3
+> capture fixtures. To use HTTP/3 from an application, read
+> [HTTP/3 and Alt-Svc](../guides/http3.md) instead.
 
-- **H3, H2, H1**: HTTP/3, HTTP/2, and HTTP/1.1.
-- **QUIC**: the UDP-based transport that carries HTTP/3 (RFC 9000).
-- **QPACK**: HTTP/3 field compression (RFC 9204). Its dynamic table is shared
-  state that the encoder and decoder keep in sync over two dedicated streams.
-- **Exact H3**: a request that must use HTTP/3. It never falls back to H2 or
-  H1.
-- **Negotiated request**: a request that starts over TCP and lets ALPN pick
-  H1 or H2. Later requests to the origin can use H3 through Alt-Svc.
+Contents:
+
+- [Stack boundary](#stack-boundary) and [profile components](#profile-components)
+- On a connection: [QPACK ownership](#qpack-ownership),
+  [request streams](#request-streams), [extended CONNECT](#extended-connect)
+- Routes: [SOCKS5](#socks5-routes) and [CONNECT-UDP](#connect-udp-masque)
+- Across connections: [pooling and Alt-Svc](#pooling-and-alt-svc),
+  [setup retries](#setup-retries)
+- Proof and tooling: [diagnostics](#diagnostics),
+  [capture workflow](#capture-workflow), [vendored seams](#vendored-seams),
+  [current limits](#current-limits)
+
+Terms: H3, H2, and H1 are HTTP/3, HTTP/2, and HTTP/1.1. QUIC (RFC 9000) is the
+UDP transport under HTTP/3. QPACK (RFC 9204) is HTTP/3 field compression; its
+dynamic table is state that encoder and decoder keep in sync over two
+dedicated streams. An [exact](../reference/glossary.md#exact-protocol) H3
+request must use HTTP/3 and never falls back. A
+[negotiated](../reference/glossary.md#negotiated-protocol) request starts over
+TCP and lets ALPN pick H1 or H2; later requests to the origin can use H3
+through [Alt-Svc](../reference/glossary.md#alt-svc).
 
 ## Stack boundary
 
-Phantom's H3 path combines five parts:
+Phantom's H3 path is a dedicated TLS 1.3 profile, Quinn for QUIC transport,
+the private `phantom-quic-btls` crypto provider, and Hyperium's `h3` engine,
+under Phantom-owned policy for connections, requests, QPACK, cancellation, and
+diagnostics. The public API exposes Phantom types, never Quinn, BoringSSL, or
+`h3` types. H3 does not go through a generic TCP transport abstraction, and it
+never falls back to H2 or H1. Each route supplies its own UDP transport, and
+every transport below Quinn is Phantom-owned except the direct socket.
 
-- a dedicated TLS 1.3 profile;
-- Quinn for QUIC transport;
-- the private `phantom-quic-btls` crypto provider;
-- Hyperium's `h3` engine;
-- Phantom-owned policy for connections, requests, QPACK, cancellation, and
-  diagnostics.
-
-The public API exposes Phantom types, never Quinn, BoringSSL, or `h3` types.
-H3 is not routed through a generic TCP transport abstraction, and it never
-falls back to H2 or H1.
-
-Each route supplies its own UDP transport:
-
-| Route | UDP transport |
-| --- | --- |
-| Direct | Quinn's UDP socket |
-| SOCKS5 (`socks5://`, `socks5h://`) | A Phantom-owned RFC 1928 UDP ASSOCIATE adapter that keeps the association's TCP control connection open |
-| CONNECT-UDP | A Phantom-owned socket that carries the inner QUIC connection in HTTP Datagrams on an outer H3 connection, or in DATAGRAM capsules on an outer H2 or H1 request stream |
+```text
+ phantom-http facade: Client, Route, H3 pool, Alt-Svc store, retries
+   |
+ phantom-net http3: Http3Connector, connection driver, request streams,
+   |                QPACK policy, route UDP sockets
+   |
+ phantom-h3, phantom-h3-quinn, phantom-h3-datagram   (vendored h3)
+   |
+ phantom-quinn, phantom-quinn-proto (QUIC)  +  phantom-quic-btls (TLS 1.3)
+   |
+ UDP transport, chosen by the route:
+   +-- direct:       Quinn's UDP socket
+   +-- SOCKS5:       RFC 1928 UDP ASSOCIATE adapter; holds the TCP control
+   |                 connection open for the association's lifetime
+   +-- CONNECT-UDP:  socket carrying the inner QUIC connection over an
+                     outer proxy connection
+                       +-- H3 leg:        HTTP Datagrams (QUIC DATAGRAM frames)
+                       +-- H2 or H1 leg:  DATAGRAM capsules on one TCP stream
+```
 
 ## Profile components
 
@@ -59,15 +78,16 @@ The connection driver owns the QPACK encoder and decoder streams.
 
 Receive-side dynamic state is bounded by the advertised table capacity,
 blocked-stream limits, field-section limits, and decoder feedback. The decoded
-field-section limit is the lower of two values: the profile's advertised
-`SETTINGS_MAX_FIELD_SECTION_SIZE`, and a local 256 KiB ceiling.
+field-section limit is the lower of the profile's advertised
+`SETTINGS_MAX_FIELD_SECTION_SIZE` and a local 256 KiB ceiling.
 `settings::builder` applies the ceiling after building the ordered SETTINGS
 list, and the vendored `h3` builder emits that list unchanged, so the ceiling
 never appears on the wire.
 
 Before encoding a request, Phantom waits for the peer's SETTINGS and applies
 bounded admission. It sends encoder instructions before the HEADERS frame that
-depends on them.
+depends on them. Request trailers, static or produced by a declared streaming
+body, use the same ordered, connection-owned QPACK path as request headers.
 
 The built-in Chrome profile reproduces the retained encoder and HEADERS bytes
 of Chrome's first request. A profile that does not opt into dynamic encoding
@@ -101,10 +121,10 @@ another protocol. `phantom-net` can open these streams on a connection opened
 by the same `Http3Connector`. `Http3ExtendedProtocol::WebSocket` is the only
 protocol today, and the `phantom-http` facade does not expose it yet.
 
-### Request
+Request:
 
 - The request is `CONNECT` with `:protocol`, `:scheme https`, `:authority`,
-  and `:path`, in the order given by the profile's
+  and `:path`, in the order of the profile's
   `Http3RequestSettings::extended_connect_pseudo_header_order`. One order
   applies to every extended protocol.
 - A profile without that order fails with a configuration error before I/O.
@@ -112,9 +132,7 @@ protocol today, and the `phantom-http` facade does not expose it yet.
 - Ordered fields follow the ordinary HTTP/3 request rules. `content-length` is
   rejected, because the tunnel has no request content.
 
-### Peer capability
-
-The client waits for the peer's SETTINGS, from ALPS or the control stream.
+Peer capability, from the peer's SETTINGS in ALPS or on the control stream:
 
 - Without `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1`, the request returns
   `Http3ErrorKind::ExtendedConnectUnavailable`. It opens no request stream and
@@ -124,7 +142,7 @@ The client waits for the peer's SETTINGS, from ALPS or the control stream.
 - The client sends no `SETTINGS_ENABLE_CONNECT_PROTOCOL` of its own, so its
   SETTINGS bytes do not change.
 
-### Response and stream
+Response and stream:
 
 - A 2xx response yields `Http3ExtendedConnectStream`: an `AsyncRead` and
   `AsyncWrite` byte stream over DATA frames. It buffers at most one received
@@ -139,25 +157,53 @@ The client waits for the peer's SETTINGS, from ALPS or the control stream.
 - An HTTP Datagram associated with the stream aborts only that stream with
   `H3_DATAGRAM_ERROR` (RFC 9297 section 2).
 
-### Tracing
-
 The `http3.extended_connect.response_head` span records method, protocol,
-extended protocol, status, and one of these outcomes: `accepted`, `rejected`,
+extended protocol, status, and one outcome: `accepted`, `rejected`,
 `capability_unavailable`, `protocol_error`, or `request_error`. Field values
 are not recorded.
 
+## SOCKS5 routes
+
+Exact H3 accepts local-DNS `socks5://` and remote-DNS `socks5h://` routes.
+The local-DNS path resolves the origin locally and fixes one IP target. The
+remote-DNS path performs no local origin lookup, and sends the canonical
+hostname in each RFC 1928 UDP request. Both establish a UDP ASSOCIATE,
+optionally authenticated with RFC 1929, and keep the TCP control connection
+open for the association's lifetime.
+
+The relay address the proxy returns:
+
+- a concrete address is used directly;
+- an unspecified address is replaced with the established TCP proxy peer's
+  IP, keeping the returned nonzero port;
+- a domain address or a zero port is rejected.
+
+The adapter rejects fragmented, malformed, wrong-target, and non-relay
+datagrams. For remote DNS, it accepts replies from the exact domain or from an
+IP on the same port, and maps accepted replies to one stable logical peer for
+Quinn.
+
+The complete route is part of pool identity, so compatible requests can reuse
+the H3 connection and its association. Authentication, negotiation, and
+rejection failures are typed and never trigger a fallback to another address.
+Proxy TCP and QUIC setup can retry only through a fresh association on the
+same configured route, under the exact-H3 setup policy. No failure can change
+the route or protocol.
+
 ## CONNECT-UDP (MASQUE)
 
-CONNECT-UDP (RFC 9298, part of the MASQUE work) lets a proxy relay UDP. Phantom
-uses it to carry an exact-H3 connection to the origin (the inner connection)
-through a proxy connection (the outer connection).
+CONNECT-UDP (RFC 9298, part of the MASQUE work) lets a proxy relay UDP.
+Phantom uses it to carry an exact-H3 connection to the origin (the inner
+connection) through a connection to the proxy (the outer connection, or proxy
+leg).
 
-`Route::connect_udp` selects it. The outer connection, called the proxy leg,
-uses HTTP/3 by default. `ConnectUdpProxy::with_http2_transport` selects
-HTTP/2 extended CONNECT, and `with_http1_transport` selects HTTP/1.1 Upgrade.
-`phantom-net` exposes the same paths as
-`Http3Connector::connect_connect_udp`, `connect_connect_udp_with_basic_auth`,
-and `connect_connect_udp_over_tcp`.
+`Route::connect_udp` selects it. The proxy leg uses HTTP/3 by default.
+`ConnectUdpProxy::with_http2_transport` selects HTTP/2 extended CONNECT, and
+`with_http1_transport` selects HTTP/1.1 Upgrade. `phantom-net` exposes the
+same paths as `Http3Connector::connect_connect_udp`,
+`connect_connect_udp_with_basic_auth`, and `connect_connect_udp_over_tcp`.
+
+No leg ever falls back to another leg, route, or protocol.
 
 ### Proxy template
 
@@ -166,17 +212,17 @@ and `connect_connect_udp_over_tcp`.
 
 - Accepted expressions: simple (`{var}`) and form-style query (`{?var}`,
   `{&var}`).
-- Rejected before I/O (RFC 9298 section 2): reserved, fragment, label,
-  path-segment, and path-style operators; value modifiers; other variables;
-  user information; fragments; non-ASCII characters; and spaces.
+- Rejected before I/O (RFC 9298 section 2): reserved, fragment, label, path-segment, and
+  path-style operators; value modifiers; other variables; user information;
+  fragments; non-ASCII characters; and spaces.
 - The proxy authority is canonicalized.
 - Values are percent-encoded outside the RFC 3986 `unreserved` set, so an
   IPv6 target is sent as `2001%3Adb8%3A%3A42` (RFC 9298 section 3).
 - The target is always sent as text. Phantom performs no local lookup of the
   target.
 
-The template scheme must be `https` on every leg. An `http://` template fails
-with `ConnectUdpProxyConfigErrorKind::UnsupportedScheme`. RFC 9298 is looser:
+The template scheme must be `https` on every leg; `http://` fails with
+`ConnectUdpProxyConfigErrorKind::UnsupportedScheme`. RFC 9298 is looser:
 section 2 requires only a non-empty scheme, and section 3.2 would permit
 HTTP/1.1 over cleartext. Phantom requires `https` because:
 
@@ -192,17 +238,16 @@ HTTP/1.1 over cleartext. Phantom requires `https` because:
 - The outer connection uses the client's proxy trust roots and the proxy host
   as SNI. The inner connection keeps the origin's trust roots, SNI, and
   authority.
-- Disabled proxy certificate verification is rejected for this route on every
-  leg.
+- Disabled proxy certificate verification is rejected for this route on
+  every leg.
 - The leg and any credentials are part of `ConnectUdpProxy` equality, so they
   separate pool entries.
-- A leg never falls back to another leg, route, or protocol.
 
 ### HTTP/3 leg
 
 Capability checks happen before a request stream opens. The proxy's SETTINGS
 must carry `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` (RFC 9220 section 3) and
-`SETTINGS_H3_DATAGRAM = 1`. Its QUIC transport parameters must carry
+`SETTINGS_H3_DATAGRAM = 1`, and its QUIC transport parameters must carry
 `max_datagram_frame_size` (RFC 9297 section 2.1.1; RFC 9221 section 3).
 Otherwise the request fails with
 `ConnectUdpErrorKind::ExtendedConnectUnavailable` or `DatagramUnavailable`,
@@ -244,10 +289,9 @@ UDP payloads travel with Context ID 0 in QUIC DATAGRAM frames.
 
 Each inner connection opens one dedicated TCP and TLS connection to the proxy
 with the client profile's TLS offer, which must include `http/1.1`. The
-HTTP/2 leg requires the proxy to select `h2`. The HTTP/1.1 leg requires
+HTTP/2 leg requires the proxy to select `h2`; the HTTP/1.1 leg requires
 `http/1.1` or no ALPN. Any other selection fails with
-`ConnectUdpErrorKind::UnsupportedProtocol`, and Phantom never retries it on
-another leg.
+`ConnectUdpErrorKind::UnsupportedProtocol`.
 
 The HTTP/2 leg sends RFC 9298 section 3.4 extended CONNECT:
 
@@ -277,7 +321,7 @@ On both legs, route fields named `Host`, `Connection`, `Upgrade`,
 `Capsule-Protocol`, `Content-Length`, or `Transfer-Encoding` are rejected
 before I/O. The HTTP/2 leg also rejects connection-specific fields.
 
-Both directions carry DATAGRAM capsules (RFC 9297 section 3.5). Each value is
+Both directions carry DATAGRAM capsules (RFC 9297 section 3.5), each holding
 Context ID 0 followed by the UDP payload.
 
 - Received capsules share the HTTP/3 leg's 256-payload queue and drop rules.
@@ -304,16 +348,15 @@ authentication on every leg. It validates credentials the same way as
 A malformed or non-Basic challenge also fails with `Authentication`. Without
 credentials, a 407 is an ordinary `Rejected` status. With credentials
 configured, a literal `Proxy-Authorization` route field is rejected before
-I/O. Credentials never appear in `Debug` output, errors, or diagnostics.
+I/O.
+Credentials never appear in `Debug` output, errors, or diagnostics.
 
 ### Datagram capacity
 
 A full inner client Initial packet is 1200 bytes (RFC 9000 section 14.1). On
 the HTTP/3 leg's first request stream, the HTTP Datagram adds a one-byte
-Quarter Stream ID and a one-byte Context ID, for 1202 bytes.
-
-Quinn reserves a conservative 50 bytes of 1-RTT packet overhead for each
-DATAGRAM frame:
+Quarter Stream ID and a one-byte Context ID, for 1202 bytes. Quinn reserves a
+conservative 50 bytes of 1-RTT packet overhead for each DATAGRAM frame:
 
 | Part | Bytes |
 | --- | --- |
@@ -324,9 +367,8 @@ DATAGRAM frame:
 | Frame type and length bound | 9 |
 
 The outer connection therefore uses a fixed initial and minimum path MTU of
-1252 bytes, and never probes below it.
-
-Before I/O, the HTTP/3 leg's outer profile must:
+1252 bytes, and never probes below it. Before I/O, the HTTP/3 leg's outer
+profile must:
 
 - send `SETTINGS_H3_DATAGRAM = 1`;
 - advertise a `max_datagram_frame_size` of at least 1205 bytes (a 1-byte frame
@@ -336,11 +378,9 @@ Before I/O, the HTTP/3 leg's outer profile must:
 Otherwise the request fails with `ConnectUdpErrorKind::Configuration`. After a
 2xx response, if the proxy's datagram limit cannot carry 1202 bytes on the
 tunnel's stream, the tunnel closes with
-`ConnectUdpErrorKind::DatagramCapacity`.
-
-Paths that cannot carry 1252-byte UDP payloads, including IPv6 minimum-MTU
-links, lose full-size inner packets. The HTTP/3 leg never falls back to
-DATAGRAM capsules.
+`ConnectUdpErrorKind::DatagramCapacity`. Paths that cannot carry 1252-byte UDP
+payloads, including IPv6 minimum-MTU links, lose full-size inner packets; the
+HTTP/3 leg never switches to DATAGRAM capsules.
 
 The HTTP/2 and HTTP/1.1 legs have no outer datagram limit. A capsule carries
 any payload up to the 65,527-byte Context ID 0 bound, and the inner connection
@@ -348,7 +388,7 @@ uses its own profile's MTU settings. These legs carry QUIC over TCP, so loss
 recovery is nested (RFC 9298 section 6). Prefer the HTTP/3 leg when the proxy
 supports it.
 
-### Diagnostics
+### CONNECT-UDP diagnostics
 
 The `proxy.connect_udp` span records:
 
@@ -377,50 +417,18 @@ source is a `ConnectUdpError`. The facade reports them as
 `RequestErrorKind::Proxy`, or as `Resolve` and `RuntimeUnavailable` for those
 kinds.
 
-Only two kinds of failure consume the exact-H3 setup retry budget: outer
-proxy resolution, and outer QUIC or TCP connection failures. Each retry opens
-a fresh outer connection and CONNECT-UDP request on the same route and leg.
+Only two kinds of failure consume the exact-H3 setup retry budget: outer proxy
+resolution, and outer QUIC or TCP connection failures. Each retry opens a
+fresh outer connection and CONNECT-UDP request on the same route and leg.
 Handshake, ALPN, SETTINGS, datagram, authentication, rejection, protocol, and
-inner QUIC failures are terminal.
-
-No failure falls back to a direct connection or to another leg, route, or
-protocol. CONNECT-UDP never learns or evicts Alt-Svc state.
+inner QUIC failures are terminal. No failure falls back to a direct
+connection. CONNECT-UDP never learns or evicts Alt-Svc state.
 
 The route is limited to exact H3. HTTP/1.1, HTTP/2, negotiated requests, and
 WebSocket reject it with `UnsupportedRoute` before I/O. Still planned:
 multiplexing several tunnels on one outer connection, proxy authentication
 schemes other than Basic, and capture evidence for a browser's MASQUE
 fingerprint.
-
-## SOCKS5 routes
-
-Exact H3 accepts local-DNS `socks5://` and remote-DNS `socks5h://` routes.
-
-- The local-DNS path resolves the origin locally and fixes one IP target.
-- The remote-DNS path performs no local origin lookup, and sends the
-  canonical hostname in each RFC 1928 UDP request.
-
-Both establish a UDP ASSOCIATE, optionally authenticated with RFC 1929, and
-keep the TCP control connection open for the association's lifetime.
-
-The relay address the proxy returns is handled as follows:
-
-- A concrete relay address is used directly.
-- An unspecified relay address is replaced with the established TCP proxy
-  peer's IP, keeping the returned nonzero port.
-- Domain relay addresses and zero ports are rejected.
-
-The adapter rejects fragmented, malformed, wrong-target, and non-relay
-datagrams. For remote DNS, it accepts replies from the exact domain or from an
-IP on the same port, and maps accepted replies to one stable logical peer for
-Quinn.
-
-The complete route is part of pool identity, so compatible requests can
-reuse the H3 connection and its association. Proxy authentication,
-negotiation, and rejection failures are typed and never trigger a fallback to
-another address. Proxy TCP and QUIC connection setup can advance or retry only
-through a fresh association on the same configured route, under the exact-H3
-setup policy. No failure can change the route or protocol.
 
 ## Pooling and Alt-Svc
 
@@ -438,11 +446,11 @@ marks a failed alternative broken; see
 [Racing](../guides/http3.md#racing).
 
 One pool entry per origin and route keeps connections for up to four
-transport locations. Alternating exact-H3 and Alt-Svc H3 requests therefore
-reuse their own connections under the same admission bounds. Setup is
-serialized per transport location, not per entry, and the slot table is never
-locked across connection setup, so a slow setup to one location does not
-delay another.
+transport locations, so alternating exact-H3 and Alt-Svc H3 requests reuse
+their own connections under the same admission bounds. Setup is serialized
+per transport location, not per entry, and the slot table is never locked
+across connection setup, so a slow setup to one location does not delay
+another.
 
 ## Setup retries
 
@@ -456,16 +464,19 @@ Opt-in status retry does not depend on the protocol and applies to exact H3,
 but its loopback tests use H1 only. Protocol, post-dispatch, and negotiated
 upgrade retry policies are not supported.
 
-## Current limits
+## Diagnostics
 
-- H3 routes: direct, local-DNS `socks5://`, remote-DNS `socks5h://`, and
-  CONNECT-UDP. HTTP proxy and HTTP CONNECT routes for H3 are planned.
-- Extension-specific datagram APIs are planned.
-- Request trailers, both static and produced by a declared streaming body,
-  use the same ordered, connection-owned QPACK path as request headers.
+Qlog and NSS key logging are off by default. They are the `qlog` feature of
+`phantom-net` and the `keylog` feature of `phantom-quic-btls`; the
+`phantom-http` facade exposes neither.
 
-[Coverage](../reference/coverage.md) has the current contract, and
-[Validation](../explanation/validation.md) has the evidence requirements.
+- A qlog capture is single-use and bounded in bytes.
+- The key-log callback writes validated TLS 1.3 records to a bounded,
+  nonblocking queue. It never performs file I/O or calls caller code.
+
+Packet analysis keeps only the protocol metadata needed for comparison. It
+does not keep request payloads, plaintext, ciphertext, addresses, connection
+IDs, packet numbers, or secrets.
 
 ## Capture workflow
 
@@ -493,20 +504,6 @@ conditions, and normalization. Fresh random values may differ between
 captures. Semantic order, membership, lengths, packet spaces, stream
 boundaries, and request markers may not be discarded to obtain a match.
 
-## Diagnostics
-
-Qlog and NSS key logging are off by default. They are the `qlog` feature of
-`phantom-net` and the `keylog` feature of `phantom-quic-btls`; the
-`phantom-http` facade exposes neither.
-
-- A qlog capture is single-use and bounded in bytes.
-- The key-log callback writes validated TLS 1.3 records to a bounded,
-  nonblocking queue. It never performs file I/O or calls caller code.
-
-Packet analysis keeps only the protocol metadata needed for comparison. It
-does not keep request payloads, plaintext, ciphertext, addresses, connection
-IDs, packet numbers, or secrets.
-
 ## Vendored seams
 
 Phantom patches its vendored `h3` and Quinn forks only where the upstream API
@@ -523,3 +520,21 @@ Each patch is recorded in its fork's patch series and checked by
 `scripts/ci/check-vendor.sh`; see [Vendored forks](vendoring.md). The QUIC
 key-schedule test vectors are reproduced and asserted in
 `crates/phantom-quic-btls/src/key_schedule/tests.rs`.
+
+## Current limits
+
+- H3 routes are direct, local-DNS `socks5://`, remote-DNS `socks5h://`, and
+  CONNECT-UDP. HTTP proxy and HTTP CONNECT routes for H3 are planned.
+- Extension-specific datagram APIs are planned.
+- The CONNECT-UDP limits are listed under
+  [Failures and retries](#failures-and-retries).
+
+[Coverage](../reference/coverage.md) has the current contract, and
+[Validation](../explanation/validation.md) has the evidence requirements.
+
+## Next
+
+- [Vendored forks](vendoring.md): how to change the `h3` and Quinn patches.
+- [Capture tools](../../scripts/capture/README.md): run `chrome_http3.py` and
+  the QUIC comparison tools.
+- [Coverage](../reference/coverage.md#http3): the HTTP/3 support contract.
