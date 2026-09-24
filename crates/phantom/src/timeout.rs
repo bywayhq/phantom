@@ -18,7 +18,30 @@ const TOKIO_TIME_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but time
 /// Every limit is disabled by default. Phase limits restart for each redirect,
 /// connection retry, or bounded internal replay. The total limit is one
 /// absolute deadline shared by every attempt, retry delay, and the final
-/// response body.
+/// response body. An elapsed limit fails with
+/// [`RequestErrorKind::Timeout`](crate::RequestErrorKind::Timeout) and names
+/// its [`TimeoutPhase`]. A duration the runtime clock cannot represent fails
+/// [`ClientBuilder::build`](crate::ClientBuilder::build) with
+/// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy), or
+/// a request with
+/// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
+/// A set limit needs a Tokio runtime with time enabled; without one the
+/// request fails with
+/// [`RequestErrorKind::RuntimeUnavailable`](crate::RequestErrorKind::RuntimeUnavailable).
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+///
+/// use phantom::RequestTimeouts;
+///
+/// let timeouts = RequestTimeouts::new()
+///     .connect(Duration::from_secs(10))
+///     .total(Duration::from_secs(60));
+/// assert_eq!(timeouts.connect_duration(), Some(Duration::from_secs(10)));
+/// assert_eq!(timeouts.read_idle_duration(), None);
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RequestTimeouts {
     pool_admission: Option<Duration>,
@@ -30,6 +53,8 @@ pub struct RequestTimeouts {
 
 impl RequestTimeouts {
     /// Creates a policy with every timeout disabled.
+    ///
+    /// This equals [`RequestTimeouts::default`].
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -42,6 +67,8 @@ impl RequestTimeouts {
     }
 
     /// Limits how long a request may wait for local pool admission.
+    ///
+    /// Default: no limit.
     #[must_use]
     pub const fn pool_admission(mut self, timeout: Duration) -> Self {
         self.pool_admission = Some(timeout);
@@ -49,6 +76,8 @@ impl RequestTimeouts {
     }
 
     /// Limits connection establishment, including DNS, proxy, TLS, and protocol setup.
+    ///
+    /// Default: no limit.
     #[must_use]
     pub const fn connect(mut self, timeout: Duration) -> Self {
         self.connect = Some(timeout);
@@ -58,7 +87,7 @@ impl RequestTimeouts {
     /// Limits dispatch through receipt of the final response head.
     ///
     /// This phase includes sending the request body, whether owned or
-    /// streamed, as well as waiting for response headers.
+    /// streamed, as well as waiting for response headers. Default: no limit.
     #[must_use]
     pub const fn response_head(mut self, timeout: Duration) -> Self {
         self.response_head = Some(timeout);
@@ -66,6 +95,8 @@ impl RequestTimeouts {
     }
 
     /// Limits inactivity between response-body frames.
+    ///
+    /// The timer restarts after each response-body frame. Default: no limit.
     #[must_use]
     pub const fn read_idle(mut self, timeout: Duration) -> Self {
         self.read_idle = Some(timeout);
@@ -73,6 +104,9 @@ impl RequestTimeouts {
     }
 
     /// Limits the complete operation across redirects, replays, and body reads.
+    ///
+    /// The deadline is fixed when the request starts and still applies while
+    /// the response body is read. Default: no limit.
     #[must_use]
     pub const fn total(mut self, timeout: Duration) -> Self {
         self.total = Some(timeout);

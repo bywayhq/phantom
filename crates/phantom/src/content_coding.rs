@@ -108,8 +108,9 @@ impl ContentDecoding {
 
     /// Decodes codings advertised by the request's `Accept-Encoding` fields.
     ///
-    /// `maximum_decoded_bytes` is an inclusive cap on the decoded stream.
-    /// Producing more fails the body with
+    /// `maximum_decoded_bytes` is an inclusive cap on the decoded stream, and
+    /// any value is accepted; `0` fails at the first decoded byte. Producing
+    /// more fails the body with
     /// [`RequestErrorKind::ResponseBodyLimit`](crate::RequestErrorKind::ResponseBodyLimit)
     /// and cancels the incomplete response.
     #[must_use]
