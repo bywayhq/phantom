@@ -16,6 +16,41 @@ pub use connect_udp::{
 pub use socks5::{Socks5DnsMode, Socks5Proxy, Socks5ProxyConfigError, Socks5ProxyConfigErrorKind};
 
 /// Route used to establish one origin connection.
+///
+/// The default is [`Route::Direct`]. Set a client-wide route with
+/// [`ClientBuilder::route`](crate::ClientBuilder::route) and override it for
+/// one request with [`RequestBuilder::route`](crate::RequestBuilder::route).
+///
+/// The route you set is the route Phantom uses. When a proxy cannot be
+/// reached, rejects the request, or cannot carry the request's scheme and
+/// protocol, the request fails with a typed error; Phantom never retries it
+/// directly or through another route. An unsupported combination of scheme,
+/// protocol, and route fails before any proxy or origin I/O. Each pooled
+/// connection belongs to one route, so requests on different routes never
+/// share a connection.
+///
+/// # Examples
+///
+/// ```no_run
+/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::{Client, HttpProtocol, Route, Socks5Proxy};
+///
+/// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+/// let profile = ClientProfile::new(chromium::v154_tls())
+///     .with_http2(chromium::v154_http2());
+/// let proxy = Socks5Proxy::new("socks5h://127.0.0.1:1080")?;
+/// let client = Client::builder(profile).route(Route::socks5(proxy)).build()?;
+///
+/// // This request skips the proxy.
+/// let response = client
+///     .get(HttpProtocol::Http2, "https://example.com/")?
+///     .route(Route::direct())
+///     .send()
+///     .await?;
+/// # drop(response);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Route {
@@ -37,10 +72,11 @@ impl Route {
         Self::Direct
     }
 
-    /// Returns an HTTP proxy route using the established CONNECT-oriented constructor.
+    /// Returns an HTTP proxy route; an older name for [`Self::http_proxy`].
     ///
-    /// Prefer [`Self::http_proxy`] when the route may also carry plaintext
-    /// HTTP/1.1 forwarding.
+    /// Both constructors return the same route, which uses CONNECT for HTTPS
+    /// origins and absolute-form forwarding for plaintext HTTP/1.1. Prefer
+    /// [`Self::http_proxy`].
     #[must_use]
     pub fn http_connect(proxy: HttpProxy) -> Self {
         Self::HttpProxy(proxy)
@@ -49,13 +85,18 @@ impl Route {
     /// Returns an HTTP proxy route.
     ///
     /// Plaintext HTTP/1.1 uses absolute-form forwarding. HTTPS protocols use
-    /// CONNECT tunneling.
+    /// CONNECT tunneling. Exact HTTP/3 and negotiated requests reject this
+    /// route before I/O, because a CONNECT tunnel carries only TCP.
     #[must_use]
     pub fn http_proxy(proxy: HttpProxy) -> Self {
         Self::HttpProxy(proxy)
     }
 
     /// Returns a SOCKS5 route using the proxy's configured DNS mode.
+    ///
+    /// HTTP/1.1, HTTP/2, and negotiated requests use an RFC 1928 CONNECT
+    /// tunnel. Exact HTTP/3 and an Alt-Svc upgrade to HTTP/3 use UDP
+    /// ASSOCIATE.
     #[must_use]
     pub fn socks5(proxy: Socks5Proxy) -> Self {
         Self::Socks5(proxy)
@@ -123,6 +164,25 @@ impl Route {
 }
 
 /// HTTP proxy configuration for forwarding and CONNECT tunneling.
+///
+/// A new proxy speaks HTTP/1.1, sends no credentials, and sends a CONNECT
+/// request whose only field is a leading `Host`. The scheme, protocol, CONNECT
+/// fields, and credentials are all part of the route, so proxies that differ
+/// in any of them never share a pooled connection.
+///
+/// # Examples
+///
+/// ```
+/// use phantom::{HttpProxy, Route};
+///
+/// # fn run() -> Result<(), Box<dyn std::error::Error>> {
+/// let proxy = HttpProxy::new("https://proxy.example:8443")?
+///     .with_basic_auth("proxy-user", "proxy-password")?;
+/// let route = Route::http_proxy(proxy);
+/// # drop(route);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq)]
 pub struct HttpProxy {
     transport: HttpProxyTransport,
@@ -148,8 +208,15 @@ impl HttpProxy {
     ///
     /// # Errors
     ///
-    /// Returns [`ProxyConfigError`] when the URI is malformed or uses an
-    /// unsupported shape.
+    /// Returns [`ProxyConfigError`] with kind:
+    ///
+    /// - [`ProxyConfigErrorKind::InvalidUri`] when the URI does not parse;
+    /// - [`ProxyConfigErrorKind::UnsupportedScheme`] for a scheme other than
+    ///   `http` or `https`;
+    /// - [`ProxyConfigErrorKind::InvalidAuthority`] when the authority is
+    ///   missing, contains user information, or has an invalid host or port;
+    /// - [`ProxyConfigErrorKind::UnexpectedPath`] for a path other than `/`, a
+    ///   query, or a fragment.
     pub fn new(uri: &str) -> Result<Self, ProxyConfigError> {
         let (transport, endpoint) = parse_http_proxy_uri(uri)?;
         Ok(Self {
@@ -172,10 +239,12 @@ impl HttpProxy {
     ///
     /// # Errors
     ///
-    /// Returns [`ProxyConfigError`] when the username is empty or contains a
-    /// colon, either value contains non-ASCII or control characters, or the
-    /// encoded credential field exceeds its bounded size. The complete
-    /// CONNECT head is validated when the request is prepared for sending.
+    /// Returns [`ProxyConfigError`] with kind
+    /// [`ProxyConfigErrorKind::InvalidCredentials`] when the username is empty
+    /// or contains a colon, either value contains non-ASCII or control
+    /// characters, or the encoded credential field exceeds its bounded size.
+    /// The complete CONNECT head is validated when the request is prepared for
+    /// sending.
     pub fn with_basic_auth(
         mut self,
         username: impl AsRef<str>,
@@ -214,8 +283,9 @@ impl HttpProxy {
     ///
     /// # Errors
     ///
-    /// Returns [`ProxyConfigError`] for an `http://` proxy, because Phantom
-    /// does not speak cleartext HTTP/2 (h2c) to proxies.
+    /// Returns [`ProxyConfigError`] with kind
+    /// [`ProxyConfigErrorKind::UnsupportedTransport`] for an `http://` proxy,
+    /// because Phantom does not speak cleartext HTTP/2 (h2c) to proxies.
     pub fn with_http2_transport(mut self) -> Result<Self, ProxyConfigError> {
         if self.transport != HttpProxyTransport::Tls {
             return Err(ProxyConfigError::unsupported_transport());
@@ -235,6 +305,10 @@ impl HttpProxy {
     }
 
     /// Replaces the literal CONNECT fields after the default leading `Host`.
+    ///
+    /// When Basic credentials are configured, the `Proxy-Authorization`
+    /// placeholder stays last. As with [`Self::header`], a literal `Host` or
+    /// request-framing field is rejected before proxy I/O.
     #[must_use]
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
         self.connect_headers = std::iter::once(HttpConnectHeader::authority("Host"))
