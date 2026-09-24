@@ -1,7 +1,7 @@
 # Defaults and limits
 
-This page lists every bound on the state Phantom keeps, with its default, and
-the policies that stay off until you enable them.
+Look up every bound on the state Phantom keeps, with its default, and the
+policies that stay off until you enable them.
 
 > For builders looking up a default. [Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)
 > explains why every piece of state has a bound.

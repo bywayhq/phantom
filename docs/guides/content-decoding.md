@@ -1,8 +1,8 @@
 # Content decoding
 
 Phantom returns each response body as the server sent it, still compressed if
-the server compressed it. This guide shows how to decompress the body of one
-request.
+the server compressed it. Turn on decoding for a request when you want its
+body decompressed.
 
 > For builders who have read [Getting started](../getting-started.md).
 

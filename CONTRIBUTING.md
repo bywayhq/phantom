@@ -1,7 +1,7 @@
 # Contributing
 
-This page takes a change from a fresh clone to a merged pull request: set up,
-make the change, run the checks, and open the pull request.
+Take a change from a fresh clone to a merged pull request: set up, make the
+change, run the checks, and open the pull request.
 
 > For contributors, human or coding agent. [AGENTS.md](AGENTS.md) is the
 > working agreement; this page condenses it and adds setup and CI detail.

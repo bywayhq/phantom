@@ -1,7 +1,7 @@
 # Why Phantom
 
-This page helps you decide whether Phantom fits your project, what it will not
-do for you, and how it differs from other clients that imitate browsers.
+Decide whether Phantom fits your project, and see which tools fit better when
+it does not.
 
 > For evaluators who have read [How servers recognize a client](fingerprinting.md).
 

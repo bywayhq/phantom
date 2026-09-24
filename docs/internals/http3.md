@@ -1,7 +1,7 @@
 # HTTP/3 internals
 
-This page describes how Phantom's HTTP/3 path is built, bounded, and proven,
-layer by layer, so that a change to one layer keeps the others' contracts.
+Change one layer of Phantom's HTTP/3 path and keep the contracts of the
+others. Each section says how its layer is built, bounded, and proven.
 
 > For contributors working on QUIC, HTTP/3, QPACK, CONNECT-UDP, or the H3
 > capture fixtures. To use HTTP/3 from an application, read

@@ -1,7 +1,7 @@
 # Validation
 
-This page records the evidence behind each claim in
-[Coverage](../reference/coverage.md), and what that evidence does not cover.
+Check the evidence behind each claim in [Coverage](../reference/coverage.md),
+and what that evidence leaves unproven.
 
 > For specialists checking a claim and evaluators deciding how far to trust
 > one.

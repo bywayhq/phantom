@@ -1,7 +1,7 @@
 # Coverage
 
-This page is Phantom's support contract: what works today and what is
-planned, layer by layer. Anything not listed as supported is unsupported.
+Phantom's support contract lists what works today and what is planned, layer
+by layer. Anything it does not list as supported is unsupported.
 
 > For evaluators deciding whether Phantom fits, and specialists checking a
 > claim. Read [How servers recognize a client](../fingerprinting.md) first if

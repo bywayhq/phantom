@@ -1,8 +1,7 @@
 # HTTP/3 and Alt-Svc
 
-This guide shows how to send requests over HTTP/3 (H3), which runs over QUIC
-on UDP, and how to upgrade to H3 when a server advertises it with
-[Alt-Svc](../reference/glossary.md#alt-svc). An H3 connection has its own
+Send requests over HTTP/3 (H3), which runs over QUIC on UDP, or upgrade to H3
+when a server advertises it with [Alt-Svc](../reference/glossary.md#alt-svc). An H3 connection has its own
 [fingerprint](../fingerprinting.md#http3), so each task needs H3 settings on
 the profile.
 
