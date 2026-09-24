@@ -9,7 +9,7 @@ A retry can change what a server sees, so every retry keeps the request's
 route and its [exact protocol](../reference/glossary.md#exact-protocol) or
 negotiated selection rule, and each class has its own bound
 ([Design](../explanation/design.md#retries-and-replays)). Retries are your
-policy, not browser behavior, so no browser recipe includes them.
+policy, so no browser recipe includes them.
 
 | Class | Default | Configure with | Applies when |
 | --- | --- | --- | --- |

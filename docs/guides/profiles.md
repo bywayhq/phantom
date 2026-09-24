@@ -172,9 +172,8 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Limits
 
-- A profile shapes network behavior only. Phantom is not a browser engine and
-  does not emulate the DOM, JavaScript, rendering, canvas, fonts, WebRTC, or
-  device fingerprints.
+- A profile shapes network behavior only
+  ([Coverage](../reference/coverage.md#at-a-glance)).
 - The TCP SYN (window, MSS, options, TTL) comes from the host OS. Run on the
   platform the profile presents if that layer matters.
 - There is no Edge TCP recipe, and Firefox's keepalive schedule and address
