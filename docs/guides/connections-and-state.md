@@ -1,236 +1,242 @@
 # Connections, redirects, and cookies
 
+Share one client's connections and state, follow redirects, keep cookies,
+and clear what a client has learned.
+
+> For builders who have read [Using the client](client.md).
+
 A `Client` owns every piece of state that outlives one request: connection
 pools, redirect policy, cookies, learned client hints, Alt-Svc
-advertisements, and TLS session tickets.
+advertisements, and TLS session tickets. None of it is global to the process,
+and every store has a size limit
+([Design](../explanation/design.md#state-and-connections)).
 
-None of this state is global to the process. Two separately built clients
-never see each other's cookies or connections, so the identity one client
-presents to a server cannot leak into another. Every store has a size limit,
-so a long-running service keeps bounded memory.
+## Share a client between tasks
 
-## Sharing a client
+Clone one client so tasks reuse its connections and state.
 
-`Client` is cheap to clone. Clones share the same bounded state; separately
-built clients do not. There is no process-global cache.
+```rust
+use phantom::{Client, HttpProtocol};
 
-## Connection pools
+async fn in_background(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    // The clone shares this client's pools, cookies, and learned state.
+    let client = client.clone();
+    let task = tokio::spawn(async move {
+        client.get(HttpProtocol::Http2, "https://example.com/")?.send().await.map(drop)
+    });
+    task.await??;
+    Ok(())
+}
+```
 
-- H1 connections are reused one request at a time, without pipelining.
-- H2 and H3 multiplex requests within the peer's limits and the client's own.
-- Pool admission and retained connections are bounded per origin and route.
+- Clones share pools, cookies, learned hints, Alt-Svc state, and TLS
+  tickets. Separately built clients share nothing.
+- H1 connections carry one request at a time, without pipelining. H2 and H3
+  multiplex requests within the peer's limits and the client's own.
+- A pool key is the origin plus the complete route. Admission and retained
+  connections are bounded per key
+  ([Defaults and limits](../reference/limits.md#connection-pools)).
 - Dropping one H2 or H3 request cancels its stream, not unrelated work.
 
-A pool key is the origin plus the complete route. The default bounds, and how
-the least recently used entry is evicted, are listed in
-[Defaults and limits](../reference/limits.md#connection-pools).
+## Follow redirects
 
-The client also keeps a bounded set of TLS session tickets to resume H1/H2
-connections. Tickets are keyed by exact origin and route and are never used
-for early data.
+Follow a bounded number of HTTPS redirects and see where the response came
+from.
 
-## Redirects
+```rust
+use std::num::NonZeroUsize;
 
-Redirects are off until you set a finite policy with
-`ClientBuilder::redirect_policy`. `RedirectPolicy::limited(n)` follows at most
-`n` redirect responses per logical request. `RedirectPolicy::none()`, the
-default, returns redirect responses to you.
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{Client, HttpProtocol, RedirectPolicy, ResponseInfo};
 
-Only HTTPS redirects are followed:
+async fn follow() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2());
+    let client = Client::builder(profile)
+        .redirect_policy(RedirectPolicy::limited(
+            NonZeroUsize::new(5).expect("five is nonzero"),
+        ))
+        .build()?;
 
-- The request must use `https://`. While a client has a redirect policy,
-  every `http://` request fails with `RequestErrorKind::Redirect` before I/O,
-  even if the response would not redirect. Use a separate client without a
-  redirect policy for plaintext origins.
-- Only 301, 302, 303, 307, and 308 with a `Location` field are followed. A
-  redirect without `Location` is returned unchanged.
-- The resolved target must also be `https://`. A target with another scheme,
-  more than one `Location` field, an invalid location, or running out of
-  redirects fails with `RequestErrorKind::Redirect`; the redirect response is
-  not returned.
+    let response = client.get(HttpProtocol::Http2, "https://example.com/old")?.send().await?;
+    if let Some(info) = response.extensions().get::<ResponseInfo>() {
+        println!("{} after {} redirects", info.effective_uri(), info.redirects_followed());
+    }
+    Ok(())
+}
+```
 
-Methods and bodies change as they do in browsers:
-
+- `RedirectPolicy::none()`, the default, returns redirect responses to you.
+- Only 301, 302, 303, 307, and 308 with a `Location` are followed, and only
+  from `https://` to `https://`. A redirect without `Location` is returned
+  unchanged.
 - 301 and 302 rewrite POST to GET, and 303 rewrites every method except GET
-  and HEAD. A rewrite drops the body, static trailers, and body-describing
-  fields.
-- 307 and 308 keep the method and replay an owned body. A one-shot streaming
-  body fails with `RequestErrorKind::RequestBody`.
+  and HEAD, dropping the body, static trailers, and body-describing fields.
+  307 and 308 keep the method and resend an owned body.
 - A cross-origin hop removes `Authorization`, `Cookie`, `Cookie2`, and
-  `Proxy-Authorization` fields and trailers, and rebuilds client hints for
-  the new origin. Cookies from the jar are recomputed for every hop.
-- Every hop keeps the request's route and exact protocol or negotiated
-  selection rule. One total timeout and one retry budget cover all hops.
+  `Proxy-Authorization` fields and trailers, and rebuilds client hints.
+  Every hop keeps the route and protocol rule, one total timeout, and one
+  retry budget.
 
-On the final response, `ResponseInfo::effective_uri` returns the URL that
-produced it, and `ResponseInfo::redirects_followed` returns the number of
-redirects followed.
+## Keep cookies between requests
 
-## Cookies
+Store `Set-Cookie` responses and send matching cookies on later requests,
+with the `cookies` Cargo feature.
 
-Cookies require the `cookies` Cargo feature, and you turn the jar on in the
-builder:
+```rust
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{Client, HttpProtocol};
 
-- `ClientBuilder::cookies` enables a bounded in-memory jar.
-- `ClientBuilder::cookie_jar` installs a `CookieJar` you built, for example
-  with `CookieJar::with_limits`.
-- `Client::cookie_jar` returns the active jar. Its `set_cookie`,
-  `request_value`, `clear`, and `len` methods act on the same state that
+async fn with_cookies() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_cookie_placement(chromium::v154_cookie_placement());
+    let client = Client::builder(profile).cookies().build()?;
+
+    if let Some(jar) = client.cookie_jar() {
+        jar.set_cookie("https://example.com/", "session=abc; Secure; HttpOnly")?;
+    }
+    // Sends the cookie, and stores any `Set-Cookie` from the response.
+    let response = client.get(HttpProtocol::Http2, "https://example.com/account")?.send().await?;
+    drop(response);
+    Ok(())
+}
+```
+
+- `ClientBuilder::cookies` enables a bounded in-memory jar;
+  `ClientBuilder::cookie_jar` installs one you built, for example with
+  `CookieJar::with_limits`. `Client::cookie_jar` returns the active jar, and
+  its `set_cookie`, `request_value`, `clear`, and `len` act on the state
   requests use.
+- The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
+  `__Secure-` and `__Host-` prefix, `SameSite`, and `Partitioned` rules, with
+  deterministic ordering ([limits](../reference/limits.md#cookies)).
+- A `Cookie` field you supply keeps its own position and suppresses the
+  jar's field; the response still updates the jar.
 
-The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
-`__Secure-` and `__Host-` prefix, `SameSite`, `Partitioned`, and
-deterministic ordering rules. Its default limits are listed in
-[Defaults and limits](../reference/limits.md#cookies).
+## Place the cookie field where a browser does
 
-### Cookie field position
+Put the jar's cookie field at the position a browser uses, with the profile's
+`CookiePlacement`.
 
-Browsers put the cookie field at a fixed position among the request fields,
-and that position is part of what a server can observe. The jar's field is
-named `Cookie` on HTTP/1.1 and `cookie` on H2 and H3. The profile's
-`CookiePlacement`, set with `ClientProfile::with_cookie_placement`, positions
-it among your fields or among a
-[request template's](profiles.md#request-templates) expanded fields. By
-default it goes last. `CookiePlacement::before_fields` names the fields it
-precedes: the cookie field goes before the first of them that is present, or
-last if none is.
+The field is named `Cookie` on HTTP/1.1 and `cookie` on H2 and H3. By default
+it goes last. `CookiePlacement::before_fields` names the fields it precedes:
+it goes before the first of them present, or last if none is. It positions
+the field among your fields or a
+[request template's](profiles.md#apply-a-captured-request-template) fields.
 
-| Recipe | Goes before | Evidence |
-| --- | --- | --- |
-| `chromium::v154_cookie_placement` | `priority` | Chrome 154 H1 capture (last); Chromium source for the H2 and H3 `priority` field |
-| `firefox::v156_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` | Firefox 156 H1 capture (after `Referer`, before `Sec-Fetch-Dest`); Firefox source for the rest |
+| Recipe | Goes before |
+| --- | --- |
+| `chromium::v154_cookie_placement` | `priority` |
+| `firefox::v156_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` |
 
-The captures are the EventSource reconnect requests in
-`fixtures/sse/*/windows-11-26200/set-cookie-then-close.txt`. No retained H2
-or H3 capture carries a cookie, so those positions are unverified on the
-wire. Chrome's H2 and H3 encoders and Firefox's H2 encoder also split
-`cookie` into one field per cookie (quiche `HpackEncoder::CookieToCrumbs` and
-`ValueSplittingHeaderList`, Firefox `Http2Compressor`); Phantom sends one
-field.
+- The H1 positions match Chrome 154 and Firefox 156 EventSource reconnect
+  captures. No retained H2 or H3 capture carries a cookie; those positions
+  come from browser source ([Coverage](../reference/coverage.md#browser-profiles)).
+- Chrome's H2 and H3 encoders and Firefox's H2 encoder split `cookie` into
+  one field per cookie (quiche `HpackEncoder::CookieToCrumbs` and
+  `ValueSplittingHeaderList`, Firefox `Http2Compressor`). Phantom sends one
+  field.
+- WebSocket openings ignore the placement. They put the jar's value at the
+  template's `client_cookies` placeholder (`WebSocketField::client_cookies`
+  in a profile, `WebSocketHeader::client_cookies` in a caller template), and
+  send no jar cookie without one.
 
-A `Cookie` field you supply keeps its own position and suppresses the jar's
-field.
+## Clear what a client has learned
 
-The placement covers HTTP requests, including event-source requests, but not
-WebSocket opening requests. Those place the jar's value where the WebSocket
-template has its `client_cookies` placeholder (`WebSocketField::client_cookies`
-in a profile, `WebSocketHeader::client_cookies` in a caller template), and
-send no jar cookie when the template has no placeholder.
+Discard learned client hints, Alt-Svc advertisements, and cookies without
+building a new client.
 
-### Request context
+```rust
+use phantom::Client;
 
-The jar treats every request as a user-initiated top-level navigation to the
-request URL, as if the URL were typed into a browser's address bar. It does
-not read `Sec-Fetch-Site`, `Referer`, or any other field you send. Redirect
-hops are treated the same way.
+fn forget(client: &Client) {
+    client.clear_client_hints();
+    client.clear_alt_svc();
+    if let Some(jar) = client.cookie_jar() {
+        jar.clear();
+    }
+}
+```
 
-`SameSite`: a navigation without an initiator is a same-site context.
-Chromium's `ComputeSameSiteContext` gives it `SAME_SITE_STRICT` for every hop,
-because `kCookieSameSiteConsidersRedirectChain` is disabled by default. The
-jar therefore stores and sends matching `SameSite=Strict`, `SameSite=Lax`, and
-`SameSite=None` cookies on every request, whatever the method. Cookies
-without `SameSite` are sent the same way.
+- Learned `Accept-CH` state is bounded and scoped to the exact secure origin
+  ([Send client hints](profiles.md#send-client-hints)).
+- Alt-Svc is off by default. `ClientBuilder::alt_svc` enables a bounded store
+  keyed by exact origin for negotiated HTTPS requests; `export_alt_svc` and
+  `import_alt_svc` move it through storage you own, and `alt_svc_policy`
+  opts into racing ([HTTP/3 and Alt-Svc](http3.md#alt-svc)).
+- TLS session tickets for H1/H2 are bounded, keyed by exact origin and
+  route, and never used for early data.
 
-`Partitioned` (CHIPS, Cookies Having Independent Partitioned State): a
-top-level request is its own top-level site, so a `Partitioned` cookie is
-keyed to the schemeful site (scheme and registrable domain) of the URL that
-set it. It is sent only to URLs with the same site. A cookie's domain always
-shares the setting host's registrable domain, so that is every URL the
-cookie domain-matches. A partitioned and an unpartitioned cookie with the
-same name, domain, and path are kept as two cookies, as in Chromium. The jar
-has no embedded or cross-site context, so it never sends a partition other
-than the request's own site.
+## Limits
 
-To emulate a cross-site subresource request, where a browser would withhold
-`SameSite=Strict` or `SameSite=Lax` cookies or use another partition, supply
-your own `Cookie` field. It suppresses the jar's field, and the response still
-updates the jar.
+- A client with a redirect policy rejects every `http://` request with
+  `RequestErrorKind::Redirect` before I/O. Use a separate client without a
+  redirect policy for plaintext origins.
+- A redirect target that is not `https://`, more than one `Location`, an
+  invalid location, or running out of redirects fails with
+  `RequestErrorKind::Redirect`; the redirect response is not returned. A 307
+  or 308 with a one-shot streaming body fails with
+  `RequestErrorKind::RequestBody`.
+- The jar treats every request and redirect hop as a user-initiated
+  top-level navigation. It does not read `Sec-Fetch-Site`, `Referer`, or any
+  other field you send. To emulate a cross-site request, supply your own
+  `Cookie` field.
+
+### Cookie request context
+
+- `SameSite`: a navigation without an initiator is same-site. Chromium's
+  `ComputeSameSiteContext` gives it `SAME_SITE_STRICT` on every hop, because
+  `kCookieSameSiteConsidersRedirectChain` is disabled by default. The jar
+  stores and sends matching `Strict`, `Lax`, `None`, and unmarked cookies on
+  every request, whatever the method.
+- `Partitioned` (CHIPS): a `Partitioned` cookie is keyed to the schemeful
+  site (scheme and registrable domain) of the URL that set it, and sent only
+  to URLs with that site. A partitioned and an unpartitioned cookie with the
+  same name, domain, and path are two cookies, as in Chromium. The jar never
+  sends a partition other than the request's own site.
 
 ### Trustworthy origins
 
-`Secure` cookies are not tied to `https://`. A URL may set and receive them
-when its origin is *potentially trustworthy*, which for the HTTP and HTTPS URLs
-the jar accepts means:
-
-- any `https://` URL; or
-- an `http://` URL whose host is a loopback IP literal (anything in
-  `127.0.0.0/8`, or exactly `::1`), or the name `localhost` or a `.localhost`
-  subdomain such as `app.localhost`, ignoring case and one trailing dot.
-
-Nothing else qualifies. `http://127.0.0.1:8080` and `http://app.localhost` are
-trustworthy; `http://[::ffff:127.0.0.1]`, `http://localhost.test`, and
-`http://example.test` are not.
-
-This is Chromium's rule, `cookie_util::ProvisionalAccessScheme` over
-`net::IsLocalhost`, which it applies to setting a cookie and to sending one
-alike, so a local development server over plain HTTP keeps its `Secure`,
-`__Secure-`, and `__Host-` cookies. The same test decides whether a cookie may
-overwrite an existing `Secure` cookie of the same name.
-
-The `Secure` attribute itself is still required where a rule asks for it: a
-trustworthy origin does not let a `SameSite=None` or `Partitioned` cookie omit
-`Secure`.
+A URL may set and receive `Secure`, `__Secure-`, and `__Host-` cookies when
+its origin is potentially trustworthy: any `https://` URL, or an `http://`
+URL whose host is a loopback IP literal (`127.0.0.0/8` or exactly `::1`),
+`localhost`, or a `.localhost` subdomain, ignoring case and one trailing dot.
+`http://127.0.0.1:8080` and `http://app.localhost` qualify;
+`http://[::ffff:127.0.0.1]`, `http://localhost.test`, and
+`http://example.test` do not. This is Chromium's
+`cookie_util::ProvisionalAccessScheme` over `net::IsLocalhost`, applied to
+setting, sending, and overwriting a `Secure` cookie. A trustworthy origin
+does not let a `SameSite=None` or `Partitioned` cookie omit `Secure`.
 
 ### Cookies the jar rejects
 
-The jar rejects, as Chromium does:
-
-- `SameSite=None` without `Secure`;
-- `Partitioned` without `Secure`;
-- any `Secure` or `__Secure-`/`__Host-` cookie set by a URL that is not a
+- `SameSite=None` or `Partitioned` without `Secure`;
+- a `Secure`, `__Secure-`, or `__Host-` cookie from a URL that is not a
   [potentially trustworthy origin](#trustworthy-origins);
-- a `Domain` that is a public suffix, including a private registry such as
-  `github.io` and an unlisted top-level label such as `corp` or `lan`, unless
-  it equals the request host (then the cookie becomes host-only); and
-- a `Set-Cookie` field longer than the byte limit.
+- a `Domain` that is a public suffix, including private registries such as
+  `github.io` and unlisted labels such as `corp` or `lan`, unless it equals
+  the request host (then the cookie becomes host-only); and
+- a `Set-Cookie` longer than the byte limit.
 
-A rejected `Set-Cookie` from a response is ignored and recorded only as a
-debug event. `CookieJar::set_cookie` returns
-`CookieErrorKind::UnsupportedPolicy`, `PublicSuffix`, `InvalidPrefix`, or
-`CookieTooLarge`.
+A rejected `Set-Cookie` is ignored and recorded as a debug event.
+`CookieJar::set_cookie` returns `CookieErrorKind::UnsupportedPolicy`,
+`PublicSuffix`, `InvalidPrefix`, or `CookieTooLarge`.
 
 ### Eviction
 
-The count limits evict cookies rather than reject them. After a cookie is
-stored:
+Count limits evict rather than reject. After a cookie is stored, a
+registrable domain over its limit loses its least recently used cookies,
+non-`Secure` first, down to five sixths of the limit (150 of 180); then a jar
+over its total limit does the same down to ten elevenths (3,000 of 3,300).
+Storing or sending a cookie counts as a use; `CookieJar::request_value` does
+not. This follows Chromium's `CookieMonster::GarbageCollect`, except that the
+`Priority` attribute is ignored, the total purge does not spare cookies used
+in the last 30 days, and partitioned cookies share the ordinary limits
+instead of per-partition ones.
 
-1. If its registrable domain holds more than the per-domain limit, the least
-   recently used cookies of that domain are evicted, non-`Secure` ones first,
-   down to five sixths of the limit (150 of 180 by default).
-2. If the jar then holds more than the total limit, the least recently used
-   cookies anywhere are evicted, non-`Secure` ones first, down to ten
-   elevenths of it (3,000 of 3,300).
+## Next
 
-Storing a cookie or sending it in a request counts as a use. Inspecting the
-jar with `CookieJar::request_value` does not.
-
-This follows Chromium's `CookieMonster::GarbageCollect` with three
-differences:
-
-- The `Priority` attribute is ignored; every cookie has Chromium's default
-  medium priority.
-- The total purge does not spare cookies used in the last 30 days, so the
-  total limit is a hard bound.
-- Partitioned cookies count toward the same limits as other cookies. Chromium
-  gives each partition its own per-domain limits.
-
-## Client hints
-
-Learned `Accept-CH` state is bounded and scoped to the exact secure origin.
-`Client::clear_client_hints` discards learned `Accept-CH` selections. See
-[Client hints](profiles.md#client-hints) for the full lifecycle.
-
-## Alt-Svc
-
-Alt-Svc lets a server advertise another endpoint, such as HTTP/3, for later
-requests. It is off by default.
-
-- `ClientBuilder::alt_svc` enables a bounded, in-memory store, keyed by exact
-  origin, for negotiated HTTPS requests.
-- `Client::clear_alt_svc` clears it.
-- `Client::export_alt_svc` and `Client::import_alt_svc` move it through
-  storage you own.
-- `ClientBuilder::alt_svc_policy` opts into racing a learned alternative
-  against the origin, with backoff for broken alternatives.
-
-See [HTTP/3 and Alt-Svc](http3.md#alt-svc).
+- [Retries and replays](retries.md): what may repeat on a pooled connection.
+- [HTTP/3 and Alt-Svc](http3.md): learn and use HTTP/3 alternatives.
+- [Defaults and limits](../reference/limits.md): pool and cookie bounds.
