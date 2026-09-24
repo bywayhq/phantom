@@ -85,9 +85,31 @@ have shown where the real architectural boundaries are.
 - For H3 upgrade, UDP-capable proxying, and extended CONNECT, prove route and
   failure semantics end to end, then implement each vertical slice without
   silent fallback.
+- Offer a caller-configurable RFC 9220 WebSocket over HTTP/3, on the HTTP/3
+  extended CONNECT foundation that already carries CONNECT-UDP. No named
+  browser recipe may reach it, because no shipping browser opens one by
+  default, but a downstream caller with their own server has a reachable
+  peer and Phantom already has the machinery. Off by default, custom
+  profiles only, refused by every named recipe.
 
 ### Rules for this phase
 
+- Capture evidence gates what a named browser recipe emits. It does not gate
+  what a caller may configure. These are separate axes, and conflating them
+  costs downstream users capability for no fidelity gain:
+  - A named recipe reproduces a captured browser and may never emit a field,
+    an order, or a protocol option that no capture shows.
+  - A caller-configurable capability may exist ahead of any capture, for a
+    downstream user with their own server or a non-browser target. It stays
+    off by default, and no named recipe may reach it without evidence. The
+    HTTP/2 extended CONNECT slice is the precedent: explicitly configured
+    custom profiles could open a `wss://` WebSocket long before any named
+    browser recipe existed.
+  - So the question for an unevidenced protocol feature is not "does a
+    browser do this" alone. It is "would a caller configure this
+    deliberately, and can we implement it without a named recipe reaching it
+    by accident". Where both answers are yes, absence of a capture is a
+    reason to keep it out of the recipes, not out of the library.
 - Extend the pre-dispatch connection retry policy (exact H1/H2/H3 and TCP
   setup for negotiated requests before ALPN) only when another replay class
   has explicit ownership and bounded lifecycle rules.

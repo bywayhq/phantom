@@ -456,7 +456,8 @@ Planned or not captured:
     on every Firefox stream rather than only the CONNECT stream, so it belongs
     to the HTTP/2 request path rather than to a WebSocket recipe.
   - No capture records a WebSocket opened through a proxy.
-- WebSocket over HTTP/3. No shipping browser opens one by default:
+- A named browser recipe for WebSocket over HTTP/3. No shipping browser
+  opens one by default:
   Chromium has the implementation but keeps
   `kEnableWebsocketsOverHttp3` disabled by default, with no
   `chrome://flags` entry and no field trial, and even with the flag set it
@@ -464,8 +465,10 @@ Planned or not captured:
   rather than dialing one. Firefox has no implementation and its tracking
   bug is unassigned; WebKit has none. Common servers do not accept one
   either. A named recipe would emit a handshake no browser emits, which is
-  a detection signal rather than a feature, so this stays unimplemented
-  until a browser ships it on by default.
+  a detection signal rather than a feature, so no named recipe will emit
+  one until a browser ships it on by default. A caller-configurable
+  RFC 9220 slice, which a downstream user could point at their own
+  server, is a separate question and stays open; see the roadmap.
 
 ## Routes
 
