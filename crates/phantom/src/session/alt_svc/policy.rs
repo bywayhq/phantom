@@ -12,6 +12,26 @@ use crate::BuildError;
 /// origin connection setup. Racing chooses a connection, never a request
 /// replay: the request is sent once, on the winner, and both candidates keep
 /// the request's origin identity and route.
+///
+/// Set the policy with
+/// [`ClientBuilder::alt_svc_policy`](crate::ClientBuilder::alt_svc_policy).
+/// It has no effect until [`ClientBuilder::alt_svc`](crate::ClientBuilder::alt_svc)
+/// enables the store; a racing policy without it makes
+/// [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
+/// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+///
+/// use phantom::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace};
+///
+/// let race = AltSvcRace::new(Duration::from_millis(300), AltSvcBrokenBackoff::CHROMIUM_153);
+/// let policy = AltSvcPolicy::race(race);
+/// assert_eq!(policy.race_settings(), Some(race));
+/// assert_eq!(AltSvcPolicy::default(), AltSvcPolicy::sequential());
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct AltSvcPolicy {
     race: Option<AltSvcRace>,
@@ -61,9 +81,9 @@ impl AltSvcPolicy {
 ///
 /// An alternative connection attempt, including name resolution and any
 /// proxy setup, runs for at most 4 seconds, Chrome 153's timeout for a
-/// blackholed alternative; reaching it is a setup failure. Chrome restarts that timeout on every received packet, so a
-/// responsive alternative whose handshake needs longer fails here but not in
-/// Chrome.
+/// blackholed alternative; reaching it is a setup failure. Chrome restarts
+/// that timeout on every received packet, so a responsive alternative whose
+/// handshake needs longer fails here but not in Chrome.
 ///
 /// When the origin wins while the alternative is connecting, alternative
 /// setup continues in the background on the current Tokio runtime and keeps
@@ -86,7 +106,9 @@ impl AltSvcRace {
     ///
     /// Chromium computes its origin delay per request from QUIC history and
     /// measured round-trip time, so Phantom takes a fixed caller value; zero
-    /// starts both candidates together.
+    /// starts both candidates together. An `origin_delay` too large to add to
+    /// the runtime clock makes [`ClientBuilder::build`](crate::ClientBuilder::build)
+    /// fail with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     #[must_use]
     pub const fn new(origin_delay: Duration, broken_backoff: AltSvcBrokenBackoff) -> Self {
         Self {
@@ -136,7 +158,9 @@ impl AltSvcBrokenBackoff {
     ///
     /// # Errors
     ///
-    /// Returns [`BuildError`] when `initial` is zero or exceeds `maximum`.
+    /// Returns [`BuildError`] with kind
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
+    /// when `initial` is zero or exceeds `maximum`.
     pub fn new(initial: Duration, maximum: Duration) -> Result<Self, BuildError> {
         if initial.is_zero() || initial > maximum {
             return Err(BuildError::invalid_policy(
