@@ -136,6 +136,15 @@ impl HttpsProxyConnector {
         self.tcp.as_ref()
     }
 
+    /// Queues the TLS secrets of this connector's connections to `sender`.
+    ///
+    /// Clones share the TLS context and its key log. The first sender
+    /// attached is kept.
+    #[cfg(feature = "keylog")]
+    pub fn attach_key_log(&self, sender: &crate::NssKeyLogSender) {
+        self.tls.key_log().attach(sender);
+    }
+
     /// Selects the application protocol spoken to the proxy.
     ///
     /// Configuration conflicts, such as HTTP/2 without an `h2` ALPN offer or

@@ -336,6 +336,7 @@ pub async fn send_request_with_body_and_qlog(
         request,
         ConnectionDiagnostics {
             qlog: Some(capture),
+            ..Default::default()
         },
     )
     .await
@@ -402,13 +403,14 @@ pub(super) async fn connect_bound(
     settings: &Http3Settings,
     connector_identity: Arc<()>,
     path_mtu: Option<u16>,
+    diagnostics: ConnectionDiagnostics,
 ) -> Result<Http3Connection, Http3Error> {
     connect(
         remote,
         server_name,
         crypto,
         settings,
-        ConnectionDiagnostics::default(),
+        diagnostics,
         Some(connector_identity),
         None,
         path_mtu,
@@ -423,13 +425,14 @@ pub(super) async fn connect_bound_with_socket(
     settings: &Http3Settings,
     connector_identity: Arc<()>,
     socket: Arc<dyn quinn::AsyncUdpSocket>,
+    diagnostics: ConnectionDiagnostics,
 ) -> Result<Http3Connection, Http3Error> {
     connect(
         remote,
         server_name,
         crypto,
         settings,
-        ConnectionDiagnostics::default(),
+        diagnostics,
         Some(connector_identity),
         Some(socket),
         None,
@@ -629,6 +632,17 @@ fn endpoint_with_socket(
         })?;
         transport_config.qlog_stream(Some(stream));
     }
+    #[cfg(feature = "qlog")]
+    if let Some(dir) = &diagnostics.qlog_dir {
+        let stream = qlog::file_stream(dir).map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Configuration,
+                "failed to create the QUIC qlog file",
+                error,
+            )
+        })?;
+        transport_config.qlog_stream(Some(stream));
+    }
     if let Some(mtu) = path_mtu {
         transport_config.initial_mtu(mtu).min_mtu(mtu);
     }
@@ -712,9 +726,12 @@ struct PendingRequest {
 }
 
 #[derive(Default)]
-struct ConnectionDiagnostics {
+pub(super) struct ConnectionDiagnostics {
     #[cfg(feature = "qlog")]
     qlog: Option<QlogCapture>,
+    /// Directory that receives this connection's qlog file.
+    #[cfg(feature = "qlog")]
+    pub(super) qlog_dir: Option<Arc<std::path::Path>>,
 }
 
 impl PendingRequest {

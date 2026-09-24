@@ -46,6 +46,11 @@ pub struct Http3Connector {
     max_udp_payload_size: u64,
     identity: Arc<()>,
     tcp: Option<TcpSettings>,
+    #[cfg(feature = "keylog")]
+    key_log: crate::tls::key_log::KeyLogSlot,
+    /// Directory that receives one qlog file per new QUIC connection.
+    #[cfg(feature = "qlog")]
+    qlog_dir: Option<Arc<std::path::Path>>,
 }
 
 impl Http3Connector {
@@ -90,9 +95,11 @@ impl Http3Connector {
             .map_err(Http3ConnectorError::invalid_profile)?;
         QuicClientConfig::validate_tls_profile(tls).map_err(Http3ConnectorError::quic_tls)?;
 
-        let context = TlsConnector::new_with_additional_roots(tls, roots)
-            .map_err(Http3ConnectorError::tls)?
-            .into_context();
+        let tls_connector = TlsConnector::new_with_additional_roots(tls, roots)
+            .map_err(Http3ConnectorError::tls)?;
+        #[cfg(feature = "keylog")]
+        let key_log = tls_connector.key_log().clone();
+        let context = tls_connector.into_context();
         let crypto = QuicClientConfig::with_transport_profile(context, quic.clone())
             .map_err(Http3ConnectorError::invalid_quic_profile)?
             .with_tls_profile(tls)
@@ -116,6 +123,10 @@ impl Http3Connector {
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
             tcp: None,
+            #[cfg(feature = "keylog")]
+            key_log,
+            #[cfg(feature = "qlog")]
+            qlog_dir: None,
         })
     }
 
@@ -137,6 +148,36 @@ impl Http3Connector {
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Queues the TLS secrets of this connector's connections to `sender`.
+    ///
+    /// Clones share the TLS context and its key log. The first sender
+    /// attached is kept.
+    #[cfg(feature = "keylog")]
+    pub fn attach_key_log(&self, sender: &crate::NssKeyLogSender) {
+        self.key_log.attach(sender);
+    }
+
+    /// Writes a qlog file for each QUIC connection this connector opens into
+    /// `dir`, which must exist.
+    ///
+    /// Each file holds one connection's QUIC events as JSON-SEQ, without
+    /// request fields or payloads. A connection whose file cannot be created
+    /// fails with a configuration error.
+    #[cfg(feature = "qlog")]
+    #[must_use]
+    pub fn with_qlog_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
+        self.qlog_dir = Some(Arc::from(dir.into()));
+        self
+    }
+
+    fn diagnostics(&self) -> super::ConnectionDiagnostics {
+        super::ConnectionDiagnostics {
+            #[cfg(feature = "qlog")]
+            qlog_dir: self.qlog_dir.clone(),
+            ..super::ConnectionDiagnostics::default()
+        }
     }
 
     #[cfg(test)]
@@ -301,6 +342,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
+                self.diagnostics(),
             )
             .await
             .map_err(Http3ConnectorError::transaction)
@@ -650,6 +692,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
+                self.diagnostics(),
             )
             .await
             .map_err(Http3ConnectorError::transaction)
@@ -728,6 +771,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
+                self.diagnostics(),
             )
             .await
             .map_err(Http3ConnectorError::transaction)
@@ -1017,6 +1061,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 path_mtu,
+                self.diagnostics(),
             )
             .await
             {
@@ -1058,6 +1103,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
+                self.diagnostics(),
             )
             .await
             {

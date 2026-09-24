@@ -8,9 +8,9 @@
 //! retry policy; the facade supplies those.
 //!
 //! It is an internal crate with no stability guarantee. Applications should
-//! depend on `phantom-http`. The optional `qlog` feature enables bounded
-//! HTTP/3 qlog capture for Phantom's tooling and tests; the facade does not
-//! expose it.
+//! depend on `phantom-http`. The optional `qlog` feature enables HTTP/3 qlog
+//! output, and `keylog` enables NSS key logging on every TLS context; the
+//! facade exposes both through its `diagnostics` feature.
 
 mod accept_ch;
 mod direct;
@@ -29,6 +29,8 @@ mod shutdown_timer;
 pub mod tcp;
 pub(crate) mod tls;
 
+#[cfg(feature = "keylog")]
+pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
 pub use tls::ServerAuthentication;
 

@@ -352,6 +352,7 @@ async fn rejects_reusing_a_qlog_capture_as_configuration() -> TestResult<()> {
         Arc::clone(&client),
         super::ConnectionDiagnostics {
             qlog: Some(capture.clone()),
+            ..Default::default()
         },
     )?;
 
@@ -360,6 +361,7 @@ async fn rejects_reusing_a_qlog_capture_as_configuration() -> TestResult<()> {
         client,
         super::ConnectionDiagnostics {
             qlog: Some(capture.clone()),
+            ..Default::default()
         },
     ) {
         Ok(_) => return Err("reused qlog capture unexpectedly configured an endpoint".into()),

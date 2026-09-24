@@ -31,6 +31,8 @@ use self::session_cache::TlsSessionCache;
 
 mod compression;
 mod configuration;
+#[cfg(feature = "keylog")]
+pub(crate) mod key_log;
 mod session_cache;
 
 /// Policy for authenticating a TLS server certificate.
@@ -69,6 +71,8 @@ pub(crate) struct TlsConnector {
     ech_grease_aeads: Box<[EchGreaseAead]>,
     scoped_sessions_enabled: bool,
     session_cache: Option<TlsSessionCache>,
+    #[cfg(feature = "keylog")]
+    key_log: key_log::KeyLogSlot,
 }
 
 impl fmt::Debug for TlsConnector {
@@ -140,6 +144,12 @@ impl TlsConnector {
     /// Consumes this connector and returns its configured TLS context.
     pub(crate) fn into_context(self) -> SslContext {
         self.backend.into_context()
+    }
+
+    /// Returns the key-log slot of this connector's TLS context.
+    #[cfg(feature = "keylog")]
+    pub(crate) fn key_log(&self) -> &key_log::KeyLogSlot {
+        &self.key_log
     }
 
     pub(crate) fn with_isolated_session_cache(&self) -> Self {
@@ -238,6 +248,11 @@ impl TlsConnector {
             builder.enable_scoped_client_sessions();
         }
 
+        #[cfg(feature = "keylog")]
+        let key_log = key_log::KeyLogSlot::default();
+        #[cfg(feature = "keylog")]
+        key_log.install(&mut builder);
+
         let alpn_wire = encode_alpn(&settings.alpn_protocols)?;
         debug!("TLS connector built");
 
@@ -253,6 +268,8 @@ impl TlsConnector {
             ech_grease_aeads: settings.ech_grease_aeads.clone().into_boxed_slice(),
             scoped_sessions_enabled,
             session_cache: None,
+            #[cfg(feature = "keylog")]
+            key_log,
         })
     }
 

@@ -164,10 +164,12 @@ No feature is enabled by default. Add them to the `phantom` line in
 | `websocket-deflate` | Opt-in `permessage-deflate`; turns on `websocket` |
 | `serde` | `Serialize` and `Deserialize` for cookie-jar snapshots, with `cookies` |
 | `full` | All of the above |
+| `diagnostics` | `ClientBuilder::key_log` and `ClientBuilder::qlog_dir`; not part of `full` |
 
-The QUIC diagnostics features, `qlog` on `phantom-net` and `keylog` on
-`phantom-quic-btls`, belong to internal crates used by capture tooling.
-`phantom-http` does not re-export them.
+`diagnostics` writes a TLS key log, so you can decrypt a capture of your own
+connections in Wireshark, and a qlog file for each QUIC connection. A key log
+holds secrets that decrypt the client's traffic, so `full` leaves the feature
+out.
 
 To read the API reference offline, run
 `cargo doc -p phantom-http --all-features --no-deps --open` in a checkout of

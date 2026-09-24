@@ -1323,10 +1323,9 @@ they are not reported as client conformance.
 
 Tracing uses static fields and bounded values. It must not record headers,
 cookies, credentials, payloads, certificates, endpoint names, or raw
-secrets. H3 qlog and NSS key logging are explicit, bounded, default-off
-paths. They are Cargo features of the internal crates (`phantom-net/qlog` and
-`phantom-quic-btls/keylog`), used by capture tooling and tests. The
-`phantom-http` facade exposes neither the features nor an API for them.
+secrets. H3 qlog and NSS key logging are explicit, default-off paths behind
+the facade's `diagnostics` feature, which turns on `phantom-net/qlog` and
+`phantom-net/keylog`.
 
 Benchmarks state exactly what they measure. The
 [benchmark report workflow](../../.github/workflows/benchmarks.yml) runs

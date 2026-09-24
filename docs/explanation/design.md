@@ -118,9 +118,7 @@ case it caught that data alone cannot prevent, an Edge template sent with no
 Every public option changes what Phantom does, and a test observes the
 change. An option that parses but has no effect tells the caller something
 false about the traffic. Some controls you might expect are therefore absent
-until they are complete: there is no public TLS ticket policy yet, and the
-qlog and key-log paths are features of internal crates that `phantom-http`
-does not expose.
+until they are complete: there is no public TLS ticket policy yet.
 
 ## State belongs to one client and has a bound
 

@@ -15,6 +15,7 @@ name = "phantom"
 [features]
 default = []
 cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
+diagnostics = ["phantom-net/keylog", "phantom-net/qlog"]
 full = ["cookies", "serde", "sse", "websocket-deflate"]
 serde = ["dep:serde"]
 sse = ["tokio/time"]

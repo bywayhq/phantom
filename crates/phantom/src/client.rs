@@ -100,6 +100,8 @@ pub(crate) struct ClientInner {
     /// HTTP/1.1 connector with the policy's Upgrade-connection ALPN offer.
     #[cfg(feature = "websocket")]
     pub(crate) websocket_http1: Option<Http1TlsConnector>,
+    #[cfg(feature = "diagnostics")]
+    pub(crate) key_log: Option<crate::KeyLog>,
 }
 
 impl Client {
@@ -118,7 +120,21 @@ impl Client {
             proxy_server_authentication: ServerAuthentication::default(),
             route: Route::Direct,
             options: ClientOptions::default(),
+            #[cfg(feature = "diagnostics")]
+            key_log_capacity: None,
+            #[cfg(feature = "diagnostics")]
+            qlog_dir: None,
         }
+    }
+
+    /// Returns the queued TLS secrets when [`ClientBuilder::key_log`]
+    /// enabled key logging.
+    ///
+    /// Clones of this client share one key log.
+    #[cfg(feature = "diagnostics")]
+    #[must_use]
+    pub fn key_log(&self) -> Option<&crate::KeyLog> {
+        self.inner.key_log.as_ref()
     }
 
     /// Starts one empty-body GET using exactly `protocol`.
@@ -395,6 +411,10 @@ pub struct ClientBuilder {
     proxy_server_authentication: ServerAuthentication,
     route: Route,
     options: ClientOptions,
+    #[cfg(feature = "diagnostics")]
+    key_log_capacity: Option<NonZeroUsize>,
+    #[cfg(feature = "diagnostics")]
+    qlog_dir: Option<std::path::PathBuf>,
 }
 
 impl fmt::Debug for ClientBuilder {
@@ -542,6 +562,41 @@ impl ClientBuilder {
     #[must_use]
     pub fn proxy_server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.proxy_server_authentication = policy;
+        self
+    }
+
+    /// Queues the TLS secrets of this client's connections for an NSS key log.
+    ///
+    /// The key log holds the TLS 1.3 traffic secrets of every TCP and QUIC
+    /// handshake the client makes, to origins and to proxies. Anyone who holds
+    /// them can decrypt a capture of those connections. Use it only to debug
+    /// your own connections, for example to read a packet capture in
+    /// Wireshark.
+    ///
+    /// Up to `capacity` lines wait in a queue until
+    /// [`KeyLog::write_pending`](crate::KeyLog::write_pending) drains it.
+    /// Handshakes never wait for the queue: a line that does not fit is
+    /// dropped and counted. Each TLS 1.3 handshake adds five lines. TLS 1.2
+    /// handshakes are not logged.
+    #[cfg(feature = "diagnostics")]
+    #[must_use]
+    pub fn key_log(mut self, capacity: NonZeroUsize) -> Self {
+        self.key_log_capacity = Some(capacity);
+        self
+    }
+
+    /// Writes a qlog file for each new QUIC connection into `dir`.
+    ///
+    /// Each file holds one connection's QUIC events as JSON-SEQ, without
+    /// request fields or payloads, and is named
+    /// `phantom-<process>-<milliseconds>-<counter>.sqlog`. The directory must
+    /// exist. A connection whose file cannot be created fails before its
+    /// handshake with
+    /// [`RequestErrorKind::Http3`](crate::RequestErrorKind::Http3).
+    #[cfg(feature = "diagnostics")]
+    #[must_use]
+    pub fn qlog_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
+        self.qlog_dir = Some(dir.into());
         self
     }
 
@@ -899,6 +954,7 @@ impl ClientBuilder {
                     roots(),
                 )
                 .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
+                .map(|connector| self.with_qlog(connector))
             })
             .transpose()
             .map_err(BuildError::http3)?;
@@ -916,6 +972,7 @@ impl ClientBuilder {
                     settings.request(),
                     self.proxy_additional_roots.iter().map(AsRef::as_ref),
                 )
+                .map(|connector| self.with_qlog(connector))
             })
             .transpose()
             .map_err(BuildError::http3)?;
@@ -991,6 +1048,28 @@ impl ClientBuilder {
             })
             .transpose()?;
 
+        #[cfg(feature = "diagnostics")]
+        let key_log = self.key_log_capacity.map(|capacity| {
+            let (sender, receiver) = phantom_net::nss_key_log_channel(capacity);
+            // The HTTP/1.1-or-HTTP/2 and CONNECT-UDP TCP connectors share
+            // these connectors' TLS contexts.
+            http1.iter().for_each(|c| c.attach_key_log(&sender));
+            http2.iter().for_each(|c| c.attach_key_log(&sender));
+            http3.iter().for_each(|c| c.attach_key_log(&sender));
+            https_proxy.iter().for_each(|c| c.attach_key_log(&sender));
+            if let Some(connector) = connect_udp_proxy
+                .as_ref()
+                .and_then(|connectors| connectors.http3.as_ref())
+            {
+                connector.attach_key_log(&sender);
+            }
+            #[cfg(feature = "websocket")]
+            websocket_http1
+                .iter()
+                .for_each(|c| c.attach_key_log(&sender));
+            crate::KeyLog::new(receiver)
+        });
+
         let inner = Arc::new(ClientInner {
             http1,
             http1_or_2,
@@ -1010,9 +1089,22 @@ impl ClientBuilder {
             websocket: self.profile.websocket().cloned(),
             #[cfg(feature = "websocket")]
             websocket_http1,
+            #[cfg(feature = "diagnostics")]
+            key_log,
         });
         let state = self.options.build(&inner);
         Ok(Client { inner, state })
+    }
+}
+
+impl ClientBuilder {
+    /// Applies the qlog directory, when one is set, to an HTTP/3 connector.
+    fn with_qlog(&self, connector: Http3Connector) -> Http3Connector {
+        #[cfg(feature = "diagnostics")]
+        if let Some(dir) = &self.qlog_dir {
+            return connector.with_qlog_dir(dir.clone());
+        }
+        connector
     }
 }
 

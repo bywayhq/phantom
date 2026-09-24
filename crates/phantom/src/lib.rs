@@ -45,9 +45,10 @@
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
 //! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
 //! | `full` | All of the above |
+//! | `diagnostics` | TLS key logging and QUIC qlog files for debugging your own connections |
 //!
-//! No feature is enabled by default. QUIC qlog and NSS key logging are
-//! features of internal crates and are not exposed here.
+//! No feature is enabled by default. `full` leaves out `diagnostics`, because
+//! a key log holds secrets that decrypt the client's traffic.
 //!
 //! # Further reading
 //!
@@ -118,6 +119,8 @@ mod authority;
 mod body;
 mod client;
 mod content_coding;
+#[cfg(feature = "diagnostics")]
+mod diagnostics;
 mod error;
 mod redirect;
 mod request;
@@ -134,6 +137,8 @@ mod websocket;
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use content_coding::{ContentCoding, ContentDecoding};
+#[cfg(feature = "diagnostics")]
+pub use diagnostics::KeyLog;
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use redirect::RedirectPolicy;
 pub use request::{PreparedRequestTemplate, RequestBuilder};

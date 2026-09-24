@@ -48,7 +48,9 @@ pub use error::{CryptoError, Result};
 pub use header::HeaderProtectionKey;
 pub use initial::{InitialKeys, derive_initial_keys};
 #[cfg(feature = "keylog")]
-pub use key_log::{NssKeyLogLine, NssKeyLogReceiver, configure_nss_key_log};
+pub use key_log::{
+    NssKeyLogLine, NssKeyLogReceiver, NssKeyLogSender, configure_nss_key_log, nss_key_log_channel,
+};
 pub use key_schedule::{DirectionKeys, EndpointSide};
 pub use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;

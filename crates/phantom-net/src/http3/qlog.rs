@@ -1,15 +1,41 @@
 use std::{
-    fmt, io,
+    fmt,
+    fs::File,
+    io,
     num::NonZeroUsize,
+    path::Path,
     sync::{
         Arc, Mutex, MutexGuard,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use tokio::sync::watch;
 
 const RECORD_SEPARATOR: u8 = 0x1e;
+
+/// Creates a new qlog file in `dir` and returns a stream that writes to it.
+///
+/// The name joins the process ID, the creation time in milliseconds, and a
+/// per-process counter, so connections never share a file.
+pub(super) fn file_stream(dir: &Path) -> io::Result<quinn::QlogStream> {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_millis());
+    let name = format!(
+        "phantom-{}-{millis}-{}.sqlog",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    );
+    let file = File::create_new(dir.join(name))?;
+    let mut config = quinn::QlogConfig::default();
+    config.writer(Box::new(file));
+    config
+        .into_stream()
+        .ok_or_else(|| io::Error::other("qlog stream initialization failed"))
+}
 
 /// In-memory bounded capture of one QUIC connection's qlog records.
 ///

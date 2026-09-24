@@ -114,6 +114,15 @@ impl Http1TlsConnector {
         self.tcp.as_ref()
     }
 
+    /// Queues the TLS secrets of this connector's connections to `sender`.
+    ///
+    /// Clones share the TLS context and its key log. The first sender
+    /// attached is kept.
+    #[cfg(feature = "keylog")]
+    pub fn attach_key_log(&self, sender: &crate::NssKeyLogSender) {
+        self.tls.key_log().attach(sender);
+    }
+
     /// Sends one empty-body HTTP/1.1 GET over a connected byte stream.
     ///
     /// The target and complete ordered header list are prepared before the

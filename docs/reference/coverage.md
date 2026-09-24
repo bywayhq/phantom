@@ -234,8 +234,8 @@ Supported:
 - An exact, seeded [transport-parameter](glossary.md#transport-parameters)
   serializer with randomized permitted order and [GREASE](glossary.md#grease).
 - A reusable connection lifecycle owned by H3.
-- A bounded opt-in NSS key-log queue behind the internal
-  `phantom-quic-btls/keylog` feature. `phantom-http` does not expose it.
+- A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
+  exposed as `ClientBuilder::key_log` behind the `diagnostics` feature.
 - A QUIC v1 packet analyzer that retains no payloads, and a comparator of
   logical flights that does not depend on packetization.
 - Controlled decrypted Chrome and Phantom captures through the first request.
@@ -287,8 +287,8 @@ Supported lifecycle:
   association.
 - Tests for the exact close codes sent to hostile peers.
 - Cancellation scoped to the stream, and bounded shutdown.
-- Bounded qlog for a single connection behind the internal `phantom-net/qlog`
-  feature. `phantom-http` does not expose it.
+- One qlog file per QUIC connection, written to `ClientBuilder::qlog_dir`
+  behind the `diagnostics` feature.
 - Opt-in Alt-Svc racing (`AltSvcPolicy::race`):
   - QUIC setup to the alternative starts first. H1/H2 setup to the origin
     starts after a delay the caller sets, or at once if the alternative fails

@@ -139,6 +139,15 @@ impl Http2TlsConnector {
         self.tcp.as_ref()
     }
 
+    /// Queues the TLS secrets of this connector's connections to `sender`.
+    ///
+    /// Clones share the TLS context and its key log. The first sender
+    /// attached is kept.
+    #[cfg(feature = "keylog")]
+    pub fn attach_key_log(&self, sender: &crate::NssKeyLogSender) {
+        self.tls.key_log().attach(sender);
+    }
+
     pub(crate) fn tls_connector(&self) -> &TlsConnector {
         &self.tls
     }

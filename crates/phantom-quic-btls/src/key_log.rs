@@ -129,6 +129,52 @@ impl fmt::Debug for NssKeyLogReceiver {
     }
 }
 
+/// The sending side of a bounded NSS key-log queue.
+///
+/// Clones share one queue, so several TLS contexts can feed one
+/// [`NssKeyLogReceiver`].
+#[derive(Clone)]
+pub struct NssKeyLogSender {
+    sender: SyncSender<NssKeyLogLine>,
+    dropped_lines: Arc<AtomicUsize>,
+}
+
+impl NssKeyLogSender {
+    /// Queues one line from BoringSSL's key-log callback without waiting.
+    ///
+    /// A malformed line, or one that finds the queue full or its receiver
+    /// gone, is discarded and counted in
+    /// [`NssKeyLogReceiver::dropped_line_count`].
+    pub fn send(&self, line: &str) {
+        enqueue_key_log_line(&self.sender, &self.dropped_lines, line);
+    }
+}
+
+impl fmt::Debug for NssKeyLogSender {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("NssKeyLogSender")
+            .finish_non_exhaustive()
+    }
+}
+
+/// Creates a bounded NSS key-log queue with exactly `capacity` slots.
+#[must_use]
+pub fn nss_key_log_channel(capacity: NonZeroUsize) -> (NssKeyLogSender, NssKeyLogReceiver) {
+    let (sender, receiver) = mpsc::sync_channel(capacity.get());
+    let dropped_lines = Arc::new(AtomicUsize::new(0));
+    (
+        NssKeyLogSender {
+            sender,
+            dropped_lines: Arc::clone(&dropped_lines),
+        },
+        NssKeyLogReceiver {
+            receiver,
+            dropped_lines,
+        },
+    )
+}
+
 /// Installs bounded, nonblocking NSS key logging on a uniquely owned TLS context builder.
 ///
 /// Key logging is disabled unless the crate's `keylog` feature is enabled and
@@ -141,18 +187,9 @@ pub fn configure_nss_key_log(
     builder: &mut SslContextBuilder,
     capacity: NonZeroUsize,
 ) -> NssKeyLogReceiver {
-    let (sender, receiver) = mpsc::sync_channel(capacity.get());
-    let dropped_lines = Arc::new(AtomicUsize::new(0));
-    let callback_dropped_lines = Arc::clone(&dropped_lines);
-
-    builder.set_keylog_callback(move |_ssl, line| {
-        enqueue_key_log_line(&sender, &callback_dropped_lines, line);
-    });
-
-    NssKeyLogReceiver {
-        receiver,
-        dropped_lines,
-    }
+    let (sender, receiver) = nss_key_log_channel(capacity);
+    builder.set_keylog_callback(move |_ssl, line| sender.send(line));
+    receiver
 }
 
 fn enqueue_key_log_line(

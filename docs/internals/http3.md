@@ -497,13 +497,16 @@ upgrade retry policies are not supported.
 
 ## Diagnostics
 
-Qlog and NSS key logging are off by default. They are the `qlog` feature of
-`phantom-net` and the `keylog` feature of `phantom-quic-btls`; the
-`phantom-http` facade exposes neither.
+Qlog and NSS key logging are off by default. They are the `qlog` and
+`keylog` features of `phantom-net`; the facade's `diagnostics` feature turns
+on both and exposes `ClientBuilder::qlog_dir` and `ClientBuilder::key_log`.
 
-- A qlog capture is single-use and bounded in bytes.
+- `qlog_dir` gives each new QUIC connection its own file, written by Quinn as
+  events happen. The in-memory `QlogCapture` used by tests is single-use and
+  bounded in bytes.
 - The key-log callback writes validated TLS 1.3 records to a bounded,
-  nonblocking queue. It never performs file I/O or calls caller code.
+  nonblocking queue that TCP and QUIC contexts share. It never performs file
+  I/O or calls caller code; the caller drains the queue.
 
 Packet analysis keeps only the protocol metadata needed for comparison. It
 does not keep request payloads, plaintext, ciphertext, addresses, connection
