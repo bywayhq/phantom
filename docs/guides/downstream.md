@@ -85,7 +85,7 @@ your committed lockfile and toolchain.
 ## Limits
 
 - `btls-sys` still comes from the reviewed fork
-  `https://github.com/0xARYA/btls` at a pinned revision, and declares
+  `https://github.com/bywayhq/btls` at a pinned revision, and declares
   `links = "boringssl"`. Cargo rejects a graph that also contains another
   package with that `links` key, such as `boring-sys`.
 - Publishing `btls-sys` under a Phantom name with its own `links` key is a

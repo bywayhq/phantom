@@ -64,10 +64,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `TlsSettings`, `Http2Settings`, and `Http3RequestSettings` gained public
   fields, so struct literals that name every field no longer compile:
   `TlsSettings::ech_grease_aeads` (`6d7a24c`),
-  `Http2Settings::extended_connect_priority` (`4f64c99`), and
+  `Http2Settings::extended_connect_priority` (`4f64c99`),
+  `Http2Settings::hpack` (`5502db6`), and
   `Http3RequestSettings::extended_connect_pseudo_header_order` (`7b76049`).
   Migrate: add `ech_grease_aeads: Vec::new()`,
-  `extended_connect_priority: None`, and
+  `extended_connect_priority: None`, `hpack: Default::default()`, and
   `extended_connect_pseudo_header_order: None` to keep the previous
   behavior, or fill the rest from a recipe with struct update syntax, such
   as `..chromium::v154_tls()`.
@@ -132,6 +133,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Per-connection ECH GREASE AEAD selection; the Firefox recipes use it.
   (`6d7a24c`)
 - `SseRequestBuilder::min_retry` sets a minimum reconnect delay. (`312c00c`)
+- Parallel HTTP/1.1 connections: `Http1Settings`, set through
+  `ClientProfile::with_http1`, bounds the HTTP/1.1 connections to each
+  origin and route, idle ones included. `chromium::v154_http1` and
+  `firefox::v156_http1` allow 6, from browser source, and
+  `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
+  profile's value. A profile without `Http1Settings` keeps one connection,
+  as before. (`8f012ec`, `b23067e`)
+- Cookie-jar snapshots: `Client::export_cookies` and
+  `Client::import_cookies` move the jar through storage the caller owns as a
+  `CookieSnapshot` of `CookieSnapshotEntry` values. Import revalidates every
+  entry and rejects the whole snapshot with `CookieSnapshotError` if one
+  fails. The optional `serde` feature, part of `full`, implements
+  `Serialize` and `Deserialize` for snapshots. (`e584e4d`, `f37e7e6`)
+- HPACK encoder identity: `Http2Settings::hpack` (`Http2HpackSettings`)
+  states which pseudo-headers stay out of the dynamic table, which static
+  entry names a repeated name (`Http2StaticNameIndex`), and when a literal is
+  Huffman-coded (`Http2HuffmanCoding`). (`5502db6`)
 
 ### Changed
 
@@ -154,6 +172,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   ceiling when the profile advertises none, and HTTP/3 caps decoded field
   sections at 256 KiB. The SETTINGS the client sends are unchanged.
   (`e51b9cc`, `f56d3a3`, `0b0367e`, `bf61599`, `e2d1778`)
+- `chromium::v154_http2` and `firefox::v156_http2` set their browser's HPACK
+  encoder choices, so WebSocket CONNECT matches the captures' HPACK
+  representations. The choices hold for the whole connection, so the HPACK
+  block of every HTTP/2 request on these recipes changes. (`c41222c`)
+- `btls-sys` comes from `https://github.com/bywayhq/btls` instead of
+  `https://github.com/0xARYA/btls`, at the same revision and archive
+  checksum, and the `phantom-btls` and `phantom-tokio-btls` forks move to
+  `0.5.6-phantom.2`. A downstream lockfile changes only the `btls-sys`
+  source and those two versions. (`7744ce3`)
 
 ### Fixed
 
