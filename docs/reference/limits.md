@@ -56,11 +56,8 @@ The optional cookie jar (`CookieLimits`) defaults to:
 
 The two count limits are Chromium's `kDomainMaxCookies` and `kMaxCookies`
 (`net/cookies/cookie_monster.cc`). Exceeding a count limit evicts cookies
-instead of rejecting the new one. The least recently used cookies go first,
-non-`Secure` before `Secure`, until the domain is down to five sixths of its
-limit (150) or the jar to ten elevenths of its limit (3,000). Chromium purges
-to the same 150 and 3,000. See
-[Eviction](../guides/connections-and-state.md#eviction) for the differences.
+instead of rejecting the new one; [Eviction](cookies.md#eviction) gives the
+order and the differences from Chromium.
 
 ## Protocol state
 

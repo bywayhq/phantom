@@ -50,6 +50,8 @@ Task guides for using Phantom in an application.
   route combination.
 - [Defaults and limits](reference/limits.md): default bounds and
   off-by-default policies.
+- [Cookie jar rules](reference/cookies.md): what the cookie jar stores,
+  sends, rejects, and evicts.
 - [Glossary](reference/glossary.md): the terms these pages use.
 - API reference: run `cargo doc -p phantom-http --all-features --no-deps
   --open` in a checkout.

@@ -110,7 +110,7 @@ async fn with_cookies() -> Result<(), Box<dyn std::error::Error>> {
   requests use.
 - The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
   `__Secure-` and `__Host-` prefix, `SameSite`, and `Partitioned` rules, with
-  deterministic ordering ([limits](../reference/limits.md#cookies)).
+  deterministic ordering ([rules](../reference/cookies.md)).
 - A `Cookie` field you supply keeps its own position and suppresses the
   jar's field; the response still updates the jar.
 
@@ -179,61 +179,12 @@ fn forget(client: &Client) {
   or 308 with a one-shot streaming body fails with
   `RequestErrorKind::RequestBody`.
 - The jar treats every request and redirect hop as a user-initiated
-  top-level navigation. It does not read `Sec-Fetch-Site`, `Referer`, or any
-  other field you send. To emulate a cross-site request, supply your own
-  `Cookie` field.
-
-### Cookie request context
-
-- `SameSite`: a navigation without an initiator is same-site. Chromium's
-  `ComputeSameSiteContext` gives it `SAME_SITE_STRICT` on every hop, because
-  `kCookieSameSiteConsidersRedirectChain` is disabled by default. The jar
-  stores and sends matching `Strict`, `Lax`, `None`, and unmarked cookies on
-  every request, whatever the method.
-- `Partitioned` (CHIPS): a `Partitioned` cookie is keyed to the schemeful
-  site (scheme and registrable domain) of the URL that set it, and sent only
-  to URLs with that site. A partitioned and an unpartitioned cookie with the
-  same name, domain, and path are two cookies, as in Chromium. The jar never
-  sends a partition other than the request's own site.
-
-### Trustworthy origins
-
-A URL may set and receive `Secure`, `__Secure-`, and `__Host-` cookies when
-its origin is potentially trustworthy: any `https://` URL, or an `http://`
-URL whose host is a loopback IP literal (`127.0.0.0/8` or exactly `::1`),
-`localhost`, or a `.localhost` subdomain, ignoring case and one trailing dot.
-`http://127.0.0.1:8080` and `http://app.localhost` qualify;
-`http://[::ffff:127.0.0.1]`, `http://localhost.test`, and
-`http://example.test` do not. This is Chromium's
-`cookie_util::ProvisionalAccessScheme` over `net::IsLocalhost`, applied to
-setting, sending, and overwriting a `Secure` cookie. A trustworthy origin
-does not let a `SameSite=None` or `Partitioned` cookie omit `Secure`.
-
-### Cookies the jar rejects
-
-- `SameSite=None` or `Partitioned` without `Secure`;
-- a `Secure`, `__Secure-`, or `__Host-` cookie from a URL that is not a
-  [potentially trustworthy origin](#trustworthy-origins);
-- a `Domain` that is a public suffix, including private registries such as
-  `github.io` and unlisted labels such as `corp` or `lan`, unless it equals
-  the request host (then the cookie becomes host-only); and
-- a `Set-Cookie` longer than the byte limit.
-
-A rejected `Set-Cookie` is ignored and recorded as a debug event.
-`CookieJar::set_cookie` returns `CookieErrorKind::UnsupportedPolicy`,
-`PublicSuffix`, `InvalidPrefix`, or `CookieTooLarge`.
-
-### Eviction
-
-Count limits evict rather than reject. After a cookie is stored, a
-registrable domain over its limit loses its least recently used cookies,
-non-`Secure` first, down to five sixths of the limit (150 of 180); then a jar
-over its total limit does the same down to ten elevenths (3,000 of 3,300).
-Storing or sending a cookie counts as a use; `CookieJar::request_value` does
-not. This follows Chromium's `CookieMonster::GarbageCollect`, except that the
-`Priority` attribute is ignored, the total purge does not spare cookies used
-in the last 30 days, and partitioned cookies share the ordinary limits
-instead of per-partition ones.
+  top-level navigation and ignores the fields you send. To emulate a
+  cross-site request, supply your own `Cookie` field.
+- The jar rejects insecure `SameSite=None` and `Partitioned` cookies, and
+  `Secure` or prefixed cookies from an origin that is not potentially
+  trustworthy. Over its count limits it evicts the least recently used
+  cookies. The full rules are in [Cookie jar rules](../reference/cookies.md).
 
 ## Next
 
