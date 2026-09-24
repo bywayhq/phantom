@@ -78,3 +78,11 @@ path = "examples/first_request.rs"
 [[example]]
 name = "request-template"
 path = "examples/request_template.rs"
+
+[[example]]
+name = "proxy"
+path = "examples/proxy.rs"
+
+[[example]]
+name = "http3"
+path = "examples/http3.rs"
