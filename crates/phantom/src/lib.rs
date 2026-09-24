@@ -96,6 +96,14 @@ struct ContentDecodingGuideDoctests;
 #[doc = include_str!("../../../docs/guides/connections-and-state.md")]
 struct ConnectionsGuideDoctests;
 
+#[cfg(all(doctest, feature = "cookies"))]
+#[doc = include_str!("../../../docs/guides/coming-from-reqwest.md")]
+struct ComingFromReqwestGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/troubleshooting.md")]
+struct TroubleshootingGuideDoctests;
+
 #[cfg(all(doctest, feature = "sse"))]
 #[doc = include_str!("../../../docs/guides/sse.md")]
 struct SseGuideDoctests;

@@ -85,8 +85,9 @@ phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom"
 
 Pin an exact commit, `be02e93` or later; earlier commits lack the Chrome 154
 recipes used on this page. The documentation describes the commit it ships
-with. The minimum supported Rust version
-is 1.88; development uses the toolchain in `rust-toolchain.toml`. Phantom
+with; [CHANGELOG.md](CHANGELOG.md) lists what changes between commits. The
+minimum supported Rust version is 1.88; development uses the toolchain in
+`rust-toolchain.toml`. Phantom
 builds BoringSSL from source, so the build needs Git, CMake, Clang, and a
 C++ toolchain; see [Prerequisites](docs/getting-started.md#prerequisites).
 

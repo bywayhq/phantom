@@ -112,6 +112,7 @@ names, and conditions instead of adjectives.
 
 Do not write these:
 
+<!-- docs-check: allow-begin word -->
 - Stock words: delve, robust, seamless, leverage, powerful, comprehensive,
   crucial, cutting-edge, effortless, unlock, elevate, streamline, navigate
   (except for browsers), landscape, ecosystem (as filler), journey.
@@ -124,9 +125,22 @@ Do not write these:
   nothing else.
 - Emoji, exclamation marks, and closers such as "In summary" or "That's it".
 - Claims that cannot be checked, such as "undetectable", "fast", or "battle-tested".
+<!-- docs-check: allow-end -->
 
 Say what Phantom does not do as plainly as what it does. A limit stated next
 to the feature saves the reader a failed attempt.
+
+For anything these rules do not settle, follow the
+[Google developer documentation style guide](https://developers.google.com/style).
+
+## Accessibility
+
+- Give every diagram a text equivalent: a sentence before it that states what
+  it shows, or a table with the same facts. Mermaid and ASCII diagrams are
+  invisible to screen readers and to agents that read the source.
+- Link text names its destination. Never use "here" or "this" as link text.
+- Keep one H1 per page and do not skip heading levels.
+- Tables need a header row. Do not use a table for layout.
 
 ## Claims
 
@@ -136,12 +150,32 @@ to the feature saves the reader a failed attempt.
   add a claim without it.
 - When you move a fact, move it; do not drop it. Removing repetition is fine.
 - If two pages state the same limit, one of them should link to the other.
+- A statement about another project, or a table that summarizes browser
+  coverage, carries the date it was last checked.
+- Every user-visible change gets an entry under `Unreleased` in
+  [CHANGELOG.md](../../CHANGELOG.md). A breaking change also gets a
+  "Migrate:" note that names the old and new API.
 
 ## Links and anchors
 
 Use relative links. Anchors follow GitHub's slug rules: lowercase, spaces
 become hyphens, punctuation is dropped. When you rename a heading, search the
 repository for links to the old anchor and fix them.
+
+## Check your changes
+
+CI runs the [documentation checker](../../scripts/docs/README.md). It covers
+links, anchors, page shape, and the banned terms above. Run it before you
+commit:
+
+```sh
+python scripts/docs/check_docs.py
+```
+
+Compile the Rust examples with
+`cargo test -p phantom-http --all-features --locked --doc`. The checker cannot
+judge reflexive lists of three, scattered bold, or whether a claim has
+evidence; a reviewer checks those.
 
 ## Next
 

@@ -39,6 +39,14 @@ Task guides for using Phantom in an application.
 - [Adding Phantom to a project](guides/downstream.md): git and path
   dependencies, and why another crate cannot swap out Phantom's patched
   dependencies.
+- [Coming from reqwest](guides/coming-from-reqwest.md): reqwest tasks side by
+  side with Phantom, and what behaves differently.
+- [Troubleshooting](guides/troubleshooting.md): each error kind, its cause,
+  and the fix.
+- [Examples](../crates/phantom/examples/README.md): runnable programs, one per
+  guide task.
+- [Changelog](../CHANGELOG.md): what changed between commits, with a
+  migration note for each breaking change.
 
 ## Look up
 

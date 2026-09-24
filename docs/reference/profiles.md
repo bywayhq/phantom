@@ -4,6 +4,8 @@ Lookup tables for profile components, built-in recipes, TCP socket options,
 request templates, the template identity check, and client hints. For how to
 use them, see [Browser profiles](../guides/profiles.md).
 
+> For builders and specialists looking up a recipe or template detail.
+
 ## Profile components
 
 | Method | Adds |
