@@ -165,6 +165,22 @@ have shown where the real architectural boundaries are.
      resumption parity item above: that one asks whether a resumed
      ClientHello keeps its captured shape, this one asks whether Phantom
      resumes at all.
+- Close the remaining transport and discovery gaps, each from evidence:
+  1. Settle what a browser does when an origin advertises more than one
+     alternative. Phantom races at most one. Capture an origin advertising
+     several before building anything: whether Chrome races them, picks one by
+     a stated rule, or tries them in order decides whether this is a feature
+     or a documented limit.
+  2. Read HTTPS DNS resource records. This is queued today only as a
+     prerequisite for real ECH, which understates it: the record is also how a
+     browser learns `h3` for an origin it has never contacted, so without it
+     Phantom can reach HTTP/3 only after an Alt-Svc advertisement on a prior
+     TCP request. A browser reaches it on the first request.
+  3. Model Firefox's per-connection keepalive schedule and its address
+     selection. Phantom applies Chromium's keepalive and Happy Eyeballs v2 on
+     every TCP path, so a Firefox profile currently connects with Chromium's
+     transport behaviour. Chromium's macOS idle-only keepalive is a named
+     recipe gap beside it.
 - Settle whether Chrome draws its trust-anchor identifier order per process,
   as the retained 60-process capture shows, or per connection, as the nearest
   comparable clients assume. Capture many connections from one process.
@@ -249,8 +265,13 @@ have shown where the real architectural boundaries are.
     intercepting proxy. It skips server chain verification only; the
     ClientHello and every other wire field stay unchanged.
   - Chrome for Android recipes from Android emulator captures.
-  - Plaintext `http://` requests on clients with a redirect policy, Digest
-    proxy authentication, and SOCKS4 routes.
+  - Plaintext `http://` requests on clients with a redirect policy, and
+    Digest proxy authentication.
+  - SOCKS4 and SOCKS4a routes. Neither carries UDP, so an exact HTTP/3
+    request and an Alt-Svc upgrade are refused on them before any I/O, as
+    they already are for an HTTP proxy route. SOCKS4 takes an IPv4
+    address and SOCKS4a a hostname, so the DNS ownership a caller chooses
+    with `Socks5DnsMode` maps onto the choice between them.
   - Real ECH from DNS HTTPS records, where the captured browser uses it.
   - Import of externally described fingerprints, limited to fields Phantom
     can reproduce byte for byte.
