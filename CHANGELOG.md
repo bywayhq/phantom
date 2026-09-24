@@ -149,7 +149,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - HPACK encoder identity: `Http2Settings::hpack` (`Http2HpackSettings`)
   states which pseudo-headers stay out of the dynamic table, which static
   entry names a repeated name (`Http2StaticNameIndex`), and when a literal is
-  Huffman-coded (`Http2HuffmanCoding`). (`5502db6`, `c41222c`)
+  Huffman-coded (`Http2HuffmanCoding`). The three types are exported from
+  `phantom::profile`, so a custom profile can set them. (`5502db6`,
+  `c41222c`)
 
 ### Changed
 
