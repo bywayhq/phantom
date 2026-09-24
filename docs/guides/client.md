@@ -1,46 +1,22 @@
 # Using the client
 
-A `Client` holds your configuration and connections; each request you build
-from it picks a protocol and adds its own fields and body. Read
-[Getting started](../getting-started.md) first. Topics with their own guides:
+Build a `Client`, send requests on the protocol you choose, and read what
+comes back.
+
+> For builders who have read [Getting started](../getting-started.md).
+
+A [profile](../reference/glossary.md#profile) fixes what the client puts on
+the wire. The `Client` holds that profile with your policies, connections,
+and state. Each request adds its method, URL, ordered fields, body, and
+protocol. Topics with their own guides: [browser profiles](profiles.md),
 [routes and proxies](routes-and-proxies.md), [retries](retries.md),
 [connections, redirects, and cookies](connections-and-state.md),
-[HTTP/3 and Alt-Svc](http3.md), [content decoding](content-decoding.md), and
-[browser profiles](profiles.md).
-
-## Key terms
-
-- **H1, H2, H3**: HTTP/1.1, HTTP/2, and HTTP/3.
-- **Profile**: the fixed description of what the client puts on the wire, such
-  as the TLS ClientHello, HTTP/2 and HTTP/3 settings, QUIC transport
-  parameters, and client hints. See [Browser profiles](profiles.md).
-- **Recipe**: a built-in profile component, such as `chromium::v154_tls()`.
-  Most come from browser captures; TCP recipes come from browser source.
-- **Exact protocol**: the request uses the protocol you chose or fails. It
-  never falls back to another one.
-- **Negotiated**: one TLS handshake in which the server picks H1 or H2 through
-  ALPN, the TLS extension that selects an application protocol.
-- **Route**: how the client reaches the server: directly, or through an HTTP,
-  SOCKS5, or CONNECT-UDP proxy.
-- **Origin**: the scheme, host, and port of a URL.
-
-## What each layer controls
-
-| Layer | Controls |
-| --- | --- |
-| Profile | TLS, HTTP/2, HTTP/3, QUIC, and client-hint wire settings. Immutable. |
-| Client | Pools, route defaults, trust, limits, redirects, connection retries, cookies, learned hints and alternatives, and TLS sessions |
-| Request | Method, URL, ordered fields and trailers, body, protocol, and per-request overrides |
-
-Built-in and custom profiles use the same types. A recipe's name records which
-browser it was captured from. The runtime never branches on that name or on
-the host operating system.
+[HTTP/3 and Alt-Svc](http3.md), and [content decoding](content-decoding.md).
 
 ## Configure the client
 
-Client settings are fixed once `build` returns. A request can override the
-route, timeouts, and retry policy, and can opt into content decoding. Nothing
-else changes per request.
+Build a client with the profile, redirect, retry, and timeout policies it
+will use for every request.
 
 ```rust
 use std::{num::NonZeroUsize, time::Duration};
@@ -71,52 +47,90 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 }
 ```
 
-Timeouts, redirects, and connection retries are off until you configure them.
-Pool and client-hint limits start at the finite defaults listed in
-[Defaults and limits](../reference/limits.md); `ClientBuilder` accepts any
-nonzero replacement. `Client::retry_policy` and `Client::request_timeouts`
-return the client's configured defaults.
+- Client settings are fixed once `build` returns. A request can override only
+  the route, timeouts, and retry policy, and can opt into content decoding.
+- Timeouts, redirects, and connection retries are off until you set them.
+  Pool and client-hint bounds start at the finite defaults in
+  [Defaults and limits](../reference/limits.md); `ClientBuilder` accepts any
+  nonzero replacement.
+- `Client::retry_policy` and `Client::request_timeouts` return the client's
+  configured defaults.
 
-## Choose a protocol
+## Choose a protocol for a request
 
-- `get` and `request` use exactly H1, H2, or H3.
-- `get_negotiated` and `request_negotiated` make one TLS handshake, direct or
-  through a SOCKS5 tunnel. The request uses H2 if the server selects `h2`, and
-  H1 if it selects `http/1.1` or sends no ALPN. With Alt-Svc enabled, a later
-  negotiated request on the same route can move to a learned H3 endpoint; see
-  [HTTP/3 and Alt-Svc](http3.md). HTTP proxy and CONNECT-UDP routes reject
-  negotiated requests before any I/O.
-- H3 runs over QUIC on a separate path. It works directly, through SOCKS5 with
-  local or remote DNS (RFC 1928 UDP ASSOCIATE), or through an RFC 9298
-  CONNECT-UDP proxy.
+Send a request on exactly one protocol, or let the TLS handshake choose
+between HTTP/1.1 and HTTP/2.
 
-A combination Phantom does not support fails with an error before any other
-protocol or route is tried. The [route matrix](../reference/route-matrix.md)
-lists every combination of scheme, protocol, and route.
+```rust
+use phantom::{Client, HttpProtocol, ResponseInfo};
 
-## Send fields, bodies, and trailers
+async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    // Exactly HTTP/2, or an error.
+    let exact = client
+        .get(HttpProtocol::Http2, "https://example.com/")?
+        .send()
+        .await?;
+    drop(exact);
 
-`RequestHeader` keeps each field exactly as you wrote it: name spelling, value
-bytes, duplicates, and position in the overall order. A body can be owned
-bytes or a pull-driven `http_body::Body<Data = Bytes>`.
+    // One TLS handshake; the server's ALPN choice decides H1 or H2.
+    let negotiated = client.get_negotiated("https://example.com/")?.send().await?;
+    if let Some(info) = negotiated.extensions().get::<ResponseInfo>() {
+        println!("negotiated {:?}", info.protocol());
+    }
+    Ok(())
+}
+```
 
-Phantom adds no browser fields such as `User-Agent`, `Accept`, or
-`Sec-Fetch-*` by itself. To send them in the order a browser does, apply a
-captured [request template](profiles.md#request-templates) with
-`RequestBuilder::template`. A template also rejects a `User-Agent` or
-`sec-ch-ua` that names a different browser or version.
+- `get` and `request` use the [exact protocol](../reference/glossary.md#exact-protocol)
+  you pass: H1, H2, or H3 (HTTP/1.1, HTTP/2, HTTP/3).
+- `get_negotiated` and `request_negotiated` are
+  [negotiated](../reference/glossary.md#negotiated-protocol): one TLS
+  handshake, direct or through a SOCKS5 tunnel. The request uses H2 if the
+  server selects `h2`, and H1 if it selects `http/1.1` or sends no ALPN. With
+  [Alt-Svc](../reference/glossary.md#alt-svc) enabled, a later negotiated
+  request on the same route can move to a learned H3 endpoint (see
+  [HTTP/3 and Alt-Svc](http3.md)).
+- H3 runs over QUIC: directly, through SOCKS5 with local or remote DNS
+  (RFC 1928 UDP ASSOCIATE), or through an RFC 9298 CONNECT-UDP proxy.
+- A combination Phantom does not support fails with an error before any other
+  protocol or [route](../reference/glossary.md#route) is tried. The
+  [route matrix](../reference/route-matrix.md) lists every combination.
 
-- An owned body can be sent again when a redirect requires it. A streaming body
-  is sent at most once.
-- Phantom checks any `Content-Length` you supply against the body.
-- A streaming body of unknown length uses chunked transfer coding on H1. H2 and
+## Send fields and a body
+
+Send request fields exactly as written, in your order, with an owned or
+streaming body.
+
+```rust
+use phantom::{Client, HttpProtocol, Method, RequestHeader};
+
+async fn post(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .request(HttpProtocol::Http1, Method::POST, "https://example.com/items")?
+        .header(RequestHeader::new("Content-Type", "application/json"))
+        .header(RequestHeader::new("X-Request-Id", "42"))
+        .body(r#"{"name":"widget"}"#)
+        .send()
+        .await?;
+    println!("{}", response.status());
+    Ok(())
+}
+```
+
+- `RequestHeader` keeps the name spelling, value bytes, duplicates, and
+  position of each field. Phantom adds no browser fields such as
+  `User-Agent`, `Accept`, or `Sec-Fetch-*`; to send them in a browser's order,
+  [apply a captured request template](profiles.md#apply-a-captured-request-template).
+- An owned body can be sent again when a redirect or replay requires it. A
+  streaming body (`RequestBuilder::streaming_body`, any
+  `http_body::Body<Data = Bytes>`) is sent at most once.
+- Phantom checks any `Content-Length` you supply against the body. A
+  streaming body of unknown length uses chunked transfer coding on H1; H2 and
   H3 omit `Content-Length` for it.
 
-### Static trailers
+## Send trailers after the body
 
-Trailers are header fields sent after the body. `RequestBuilder::trailers`
-sends an ordered list of them once the body completes successfully. They work
-on exact H1, H2, and H3 requests and on negotiated requests.
+Send an ordered list of header fields once the body completes.
 
 ```rust
 use phantom::{Client, HttpProtocol, Method, RequestHeader};
@@ -138,92 +152,102 @@ async fn send(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- Order, interleaved duplicates, and sensitivity are kept on every protocol.
-- H1 also keeps field-name spelling, uses chunked framing, and writes the
-  `Trailer` field that declares the names.
-- H2 and H3 require lowercase names. A negotiated request can end up on
-  either H1 or H2, so its trailer names must be lowercase too.
-- An invalid or forbidden trailer fails before any network I/O and before the
-  body is read.
-- If the body fails, no trailers are sent.
-
-### Trailers computed while streaming
-
-When trailer values depend on the streamed body, use
-`RequestBuilder::streaming_body_with_trailers` and declare the trailer names in
-order with `RequestTrailerName`. The body's final `Frame::trailers` must
-contain exactly those names, with the same number of each, compared after
-normalization. H1 writes the names with the declared casing; H2 and H3 require
-lowercase. You cannot combine these with static trailers. The body is still
-sent at most once, including across redirects, retries, and proxy
-authentication.
-
-### Trailers and redirects
-
-A redirect that keeps the method sends the owned body and static trailers
-again. A redirect that changes the request to GET drops both. A cross-origin
-redirect removes header and trailer fields that carry credentials before the
-next request. See [Redirects](connections-and-state.md#redirects).
+- Trailers work on exact H1, H2, and H3 and on negotiated requests. Order,
+  interleaved duplicates, and sensitivity are kept on every protocol. H1 also
+  keeps name spelling, uses chunked framing, and writes the `Trailer` field.
+- H2 and H3 require lowercase names, and so does a negotiated request, which
+  can end up on either H1 or H2.
+- When trailer values depend on the streamed body, use
+  `RequestBuilder::streaming_body_with_trailers` and declare the names in order
+  with `RequestTrailerName`. The body's final `Frame::trailers` must contain
+  exactly those names, with the same count of each. It cannot be combined
+  with static trailers.
+- A redirect that keeps the method sends the owned body and static trailers
+  again; one that changes the request to GET drops both (see
+  [Follow redirects](connections-and-state.md#follow-redirects)).
 
 ## Set timeouts
 
-Timeouts are off by default. `RequestTimeouts` can limit five phases:
+Limit how long each phase of a request may take, for the client or for one
+request.
 
-| Phase | Builder method | Limits |
+```rust
+use std::time::Duration;
+
+use phantom::{Client, HttpProtocol, RequestTimeouts};
+
+async fn fetch_with_deadline(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let timeouts = RequestTimeouts::new()
+        .pool_admission(Duration::from_secs(2))
+        .total(Duration::from_secs(5));
+    let response = client
+        .get(HttpProtocol::Http2, "https://example.com/")?
+        .timeouts(timeouts)
+        .send()
+        .await?;
+    drop(response);
+    Ok(())
+}
+```
+
+| Phase | Method | Limits |
 | --- | --- | --- |
 | Pool admission | `pool_admission` | Waiting for a free connection slot |
-| Connect | `connect` | Connection setup: DNS, proxy, transport, TLS, and protocol setup |
-| Response head | `response_head` | Sending the request, including its body, and waiting for the status line and fields |
+| Connect | `connect` | DNS, proxy, transport, TLS, and protocol setup |
+| Response head | `response_head` | Sending the request and body, then waiting for the status and fields |
 | Read idle | `read_idle` | Time without data while reading the response body |
 | Total | `total` | The whole operation |
 
 Each phase limit restarts for every redirect, retry, and internal replay. The
-total limit is one deadline shared by all attempts, retry delays, and the
-final response body. A timeout error names the phase and the protocol, and
-`RequestError::timeout_phase` returns the `TimeoutPhase`.
-`RequestBuilder::timeouts` replaces the client's timeouts for one request.
-
-An SSE event source applies these timeouts to each attempt and stops the
-read-idle and total timers once the stream is open (see [SSE](sse.md)).
-WebSocket connects apply none of them (see
-[WebSocket](websocket.md#timeouts-and-retries)).
+total limit is one deadline over all attempts, retry delays, and the final
+response body. `RequestBuilder::timeouts` replaces the client's timeouts for
+that request.
 
 ## Read the response
 
-A successful request returns `http::Response<ResponseBody>`. Two values in its
-extensions describe what happened on the wire:
+Read the status, the fields in wire order, what happened on the wire, and a
+bounded body.
 
-- `OrderedResponseHeaders` keeps the response fields in wire order, with
-  duplicates interleaved as received, on every protocol. On H1 it also keeps
-  the original name spelling.
-- `ResponseInfo` reports the effective URL, the protocol used,
-  `redirects_followed`, `retries_performed`, and `decoded_content_codings`.
+```rust
+use phantom::{Client, HttpProtocol, OrderedResponseHeaders, ResponseInfo};
 
-`ResponseInfo::retries_performed` counts connection-setup retries made under
-`RetryPolicy::connection_failures`, summed over every redirect hop. Each retry
-counts when it starts, whether or not it succeeds. The count excludes
-redirects, status retries, replays after a reused connection closed or a
-graceful `GOAWAY`, proxy-authentication replays, and `Critical-CH` retries.
+async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client.get(HttpProtocol::Http2, "https://example.com/")?.send().await?;
 
-The body streams with backpressure: data arrives only as fast as you read it.
-`ResponseBody` implements `http_body::Body<Data = Bytes>`, and body errors use
-the same `RequestError` type as the request.
+    if let Some(fields) = response.extensions().get::<OrderedResponseHeaders>() {
+        for field in fields.iter() {
+            println!("{}: {:?}", field.name(), field.value());
+        }
+    }
+    if let Some(info) = response.extensions().get::<ResponseInfo>() {
+        println!("{} after {} redirects", info.effective_uri(), info.redirects_followed());
+    }
 
+    let body = response.into_body().collect_with_limit(1 << 20).await?;
+    println!("{} bytes", body.len());
+    Ok(())
+}
+```
+
+- `OrderedResponseHeaders` keeps the fields in wire order with duplicates
+  interleaved, on every protocol; on H1 it also keeps name spelling.
+- `ResponseInfo` reports the effective URL, protocol, `redirects_followed`,
+  `retries_performed`, and `decoded_content_codings`.
+  `retries_performed` counts only connection-setup retries (see
+  [Retry when a connection fails to open](retries.md#retry-when-a-connection-fails-to-open)).
+- `ResponseBody` implements `http_body::Body<Data = Bytes>` and streams with
+  backpressure. `collect_with_limit` fails with
+  `RequestErrorKind::ResponseBodyLimit` before keeping a chunk that would pass
+  the inclusive limit, and discards trailers.
 - Read the body to the end if you want the connection reused. Dropping an
-  unfinished H1 body can close that connection; dropping an H2 or H3 body
+  unfinished H1 body can close its connection; dropping an H2 or H3 body
   cancels its stream.
-- `ResponseBody::collect_with_limit` reads the whole body up to an inclusive
-  byte limit. It fails with `RequestErrorKind::ResponseBodyLimit` before
-  keeping a chunk that would go over the limit. It discards trailers.
-
-The body is returned as sent by the server, compressed or not. To decompress
-it, see [Content decoding](content-decoding.md).
+- The body is returned as the server sent it, compressed or not; see
+  [Content decoding](content-decoding.md).
 
 ## Handle errors
 
-`BuildError::kind` and `RequestError::kind` return stable categories. The
-enums are non-exhaustive, so always include a fallback arm. Request errors also
-report the protocol and timeout phase when known.
+Sort failures into stable categories.
 
 ```rust
 use phantom::{RequestError, RequestErrorKind};
@@ -239,21 +263,39 @@ fn classify(error: &RequestError) -> &'static str {
 }
 ```
 
-Error messages and debug output leave out credentials, cookies, payloads, and
-endpoint details. For deeper investigation, use bounded tracing or protocol
-diagnostics.
+- `BuildError::kind` and `RequestError::kind` return non-exhaustive enums, so
+  keep a fallback arm.
+- `RequestError::protocol` and `RequestError::timeout_phase` report the
+  protocol and the `TimeoutPhase` when known. A timeout error names both.
+- Body errors use the same `RequestError` type as the request.
+- Error messages and debug output leave out credentials, cookies, payloads,
+  and endpoint details. Do not log sensitive inputs yourself; for deeper
+  investigation, use bounded tracing or protocol diagnostics.
 
-## Before you ship
+## Limits
 
-- Accept the [pre-1.0 distribution terms](../getting-started.md#distribution-status).
-- Use only profile components listed in [Coverage](../reference/coverage.md).
-- Run inside a Tokio runtime with I/O and time enabled.
-- Set the route, origin trust, and proxy trust explicitly.
-- Choose redirect, connection-retry, and timeout policies. None is implied by
-  a browser name. A client with a redirect policy rejects `http://` requests,
-  and WebSocket connects ignore all three (see
-  [WebSocket](websocket.md#timeouts-and-retries)).
-- Treat streaming request bodies as single-use, and read response bodies to
-  the end when connection reuse matters.
-- Handle non-exhaustive error categories, and do not log sensitive inputs.
-- Enable the cookie, SSE, or WebSocket Cargo features only when you need them.
+- Accept the [pre-1.0 distribution terms](../getting-started.md#distribution-status)
+  and use only profile components listed in
+  [Coverage](../reference/coverage.md).
+- Phantom runs inside a Tokio runtime with I/O and time enabled.
+- No route, trust, redirect, retry, or timeout policy is implied by a browser
+  name; set each one. A client with a redirect policy rejects `http://`
+  requests.
+- WebSocket connects apply none of the client's timeouts, retries, or
+  redirects (see [WebSocket](websocket.md#timeouts-and-retries)). An SSE event
+  source applies timeouts to each attempt and stops the read-idle and total
+  timers once the stream is open (see [SSE](sse.md)).
+- HTTP proxy and CONNECT-UDP routes reject negotiated requests before any
+  I/O.
+- A streaming request body is single-use: a redirect, retry, or replay that
+  needs it again fails with `RequestErrorKind::RequestBody`.
+- An invalid or forbidden trailer fails before any network I/O and before
+  the body is read. If the body fails, no trailers are sent.
+- The cookie, SSE, and WebSocket APIs need their Cargo features
+  ([Optional features](../getting-started.md#optional-features)).
+
+## Next
+
+- [Browser profiles](profiles.md): choose what the client sends on the wire.
+- [Routes and proxies](routes-and-proxies.md): send requests through a proxy.
+- [Defaults and limits](../reference/limits.md): every default and bound.
