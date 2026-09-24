@@ -51,6 +51,67 @@ Notes:
   connection. See
   [Profile connection policy](websocket.md#profile-connection-policy).
 
+## HTTP proxy rules
+
+- `HttpProxy::header` appends a CONNECT field after the leading `Host`.
+- `HttpProxy::headers` replaces the fields after `Host`.
+- `HttpProxy::connect_headers` replaces the whole sequence, and
+  `HttpConnectHeader::authority` places `Host` in it.
+- A literal `Host` or framing field in the CONNECT fields fails before proxy
+  I/O. These fields do not affect forwarded requests.
+- In HTTP/2 mode, each tunnel opens its own proxy connection with the
+  profile's HTTP/2 settings.
+- In HTTP/2 mode, the CONNECT request (RFC 9113 section 8.5) has only
+  `:method` and `:authority`, then lowercase fields.
+- In HTTP/2 mode, a connection-specific field such as `Proxy-Connection`
+  fails before I/O.
+- In HTTP/2 mode, closing the origin connection resets its stream and ends
+  its proxy connection.
+
+## SOCKS5 rules
+
+- An authentication, negotiation, or rejection failure is typed, and no
+  other address is tried.
+- A failed proxy TCP connect or QUIC setup is retried only through a fresh
+  association on the same route, under the
+  [connection-setup retry](../guides/retries.md#retry-when-a-connection-fails-to-open)
+  policy.
+- A UDP ASSOCIATE reply with a domain relay address or a zero port fails.
+- An unspecified relay address is replaced with the IP of the established TCP
+  proxy connection, keeping the returned port.
+- Fragmented, malformed, wrong-target, and non-relay datagrams are dropped.
+  With `socks5h://`, replies from the exact domain, or from an IP on the same
+  port, are accepted.
+
+## CONNECT-UDP rules
+
+- A template whose scheme is not `https` fails with
+  `ConnectUdpProxyConfigErrorKind::UnsupportedScheme`, on every leg.
+- A template without `{target_host}` and `{target_port}` in its path or query
+  fails before I/O. Only simple (`{var}`) and form-style query (`{?var}`,
+  `{&var}`) expressions are accepted.
+- The target is always sent as percent-encoded text; Phantom performs no
+  local lookup of it.
+- Disabled proxy certificate verification fails for this route on every leg,
+  including a route set per request.
+- A proxy that does not enable extended CONNECT or HTTP Datagrams fails with
+  `RequestErrorKind::Proxy` before any origin I/O.
+- An HTTP/3-leg proxy profile that cannot carry a full 1,200-byte QUIC
+  Initial fails before I/O ([limits](limits.md#connect-udp)).
+- On the HTTP/2 and HTTP/1.1 legs, a proxy that selects another ALPN
+  protocol fails; Phantom never switches legs.
+- A final status other than 2xx (101 on the HTTP/1.1 leg) fails with
+  `RequestErrorKind::Proxy`, and the error's source carries the status.
+- A caller field named `Host`, `Connection`, `Upgrade`, `Capsule-Protocol`,
+  `Content-Length`, or `Transfer-Encoding` fails before I/O.
+- A second `407`, or a malformed or non-Basic challenge, fails. Without
+  credentials, a `407` is an ordinary rejection.
+- Only failures to resolve or connect to the proxy are retried, each on a
+  fresh proxy connection with the same route and leg. Every other failure is
+  final.
+- Each origin connection opens its own connection to the proxy.
+- The route never learns or evicts Alt-Svc state.
+
 ## Next
 
 - [Routes and proxies](../guides/routes-and-proxies.md): configure each

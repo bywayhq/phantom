@@ -75,11 +75,8 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 - A valid Basic `407` challenge allows exactly one replay on a fresh
   connection over the same route. The next logical request starts without
   credentials again ([Design](../explanation/design.md#forward-proxy-authentication)).
-- To order the CONNECT request's fields, `HttpProxy::header` appends one after
-  the leading `Host`, `headers` replaces those after it, and
-  `connect_headers` replaces the whole sequence, with
-  `HttpConnectHeader::authority` placing `Host`. A literal `Host` or framing
-  field fails before proxy I/O. Forwarded requests are not affected.
+- `HttpProxy::header`, `headers`, and `connect_headers` order the CONNECT
+  request's fields ([HTTP proxy rules](../reference/route-matrix.md#http-proxy-rules)).
 
 ## Speak HTTP/2 to the proxy
 
@@ -94,13 +91,14 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
 }
 ```
 
-- The route then carries HTTPS origins only. An `http://` proxy rejects the
-  option with a `ProxyConfigError`, because Phantom does not speak h2c.
-- The ClientHello to the proxy offers the profile's ALPN list unchanged. The
-  default mode accepts `http/1.1` or no ALPN; HTTP/2 mode accepts only `h2`.
-  A mismatch is a typed proxy error; Phantom never switches proxy protocols.
-- HTTP/2 mode needs a profile that offers `h2` and carries HTTP/2 settings,
-  or the request fails before proxy I/O.
+- An `http://` proxy rejects the option with a `ProxyConfigError`, because
+  Phantom does not speak h2c. The route carries HTTPS origins only, and
+  plaintext forwarding fails before I/O.
+- A proxy that selects any ALPN protocol but `h2` fails with a typed proxy
+  error. The default mode accepts `http/1.1` or no ALPN.
+- A profile that does not offer `h2` or carry HTTP/2 settings fails before
+  proxy I/O.
+- The ClientHello to the proxy offers the profile's ALPN list unchanged.
 
 ## Send a request through a SOCKS5 proxy
 
@@ -123,12 +121,12 @@ fn socks_route() -> Result<Route, Box<dyn std::error::Error>> {
   Credentials inside the proxy URI are rejected.
 - Exact H1 and H2, negotiated requests, and H1 `ws://` and `wss://`
   WebSockets use an RFC 1928 CONNECT tunnel. The origin keeps its own
-  certificate verification and SNI. With Alt-Svc enabled, a negotiated request
-  can later upgrade to H3 over the same proxy
-  ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
-- Exact H3 uses an RFC 1928 UDP ASSOCIATE relay. The TCP control connection
-  stays open for as long as the association lives, and associations stay in
-  the route-keyed pool for reuse.
+  certificate verification and SNI.
+- With Alt-Svc enabled, a negotiated request can later upgrade to H3 over the
+  same proxy ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
+- Exact H3 uses an RFC 1928 UDP ASSOCIATE relay. Its TCP control connection
+  stays open while the association lives, and the association stays in the
+  route's pool for reuse.
 
 ## Send HTTP/3 through a CONNECT-UDP proxy
 
@@ -154,16 +152,15 @@ fn masque_route() -> Result<Route, Box<dyn std::error::Error>> {
 | HTTP/2 | `with_http2_transport` | An extended CONNECT pseudo-header order in the HTTP/2 profile, and a proxy that selects `h2` and enables extended CONNECT |
 | HTTP/1.1 | `with_http1_transport` | An `Upgrade: connect-udp` request that receives 101 |
 
-- The URI template must be `https`, contain `{target_host}` and
-  `{target_port}`, and have no user information or fragment.
-- Each inner (origin) connection opens its own outer connection to the proxy.
-  The outer connection uses the proxy trust roots; the inner one uses the
-  origin trust roots.
-- The leg is part of the route, so routes that differ only in leg never share
-  connections. An ALPN or capability mismatch is a typed proxy error;
-  Phantom never switches legs.
+- A template that is not `https`, lacks `{target_host}` or `{target_port}`,
+  or has user information or a fragment fails when you build the proxy.
+- The connection to the proxy uses the proxy trust roots; the origin
+  connection inside it uses the origin trust roots.
+- Routes that differ only in leg never share connections.
 - `with_basic_auth` sends credentials once, after a valid `407`, on a fresh
-  proxy connection. A second `407` fails.
+  proxy connection.
+- [CONNECT-UDP rules](../reference/route-matrix.md#connect-udp-rules) lists
+  every check and failure.
 
 ## Trust a private root or a proxy's root
 
@@ -191,41 +188,28 @@ fn private_roots(
   HTTPS proxies, including the outer connection of a CONNECT-UDP proxy.
   Added roots join the bundled roots.
 - `ServerAuthentication::Disabled` is for controlled conformance work.
-  Building fails when disabled origin verification is combined with added
-  origin roots or an H3 profile, and when disabled proxy verification is
-  combined with added proxy roots or a CONNECT-UDP default route. Disabled
-  proxy verification is not supported for any CONNECT-UDP route, including
-  one set per request.
+- Building fails when disabled origin verification is combined with added
+  origin roots or an H3 profile.
+- Building fails when disabled proxy verification is combined with added
+  proxy roots or a CONNECT-UDP default route. A request with a CONNECT-UDP
+  route of its own fails the same way.
 
 ## Limits
 
-- Basic `407` handling on HTTP proxies, including CONNECT tunnels and
-  plaintext WebSocket Upgrade requests, follows
-  [Forward-proxy authentication](../explanation/design.md#forward-proxy-authentication):
-  one replay, a sensitive `Proxy-Authorization` after all caller fields, and
-  a typed error for a one-shot streaming body, a second `407`, or a malformed
-  or unsupported challenge.
-- In HTTP/2 proxy mode, each tunnel opens its own proxy connection with the
-  profile's HTTP/2 settings. The CONNECT request (RFC 9113 section 8.5) has
-  only `:method` and `:authority`, then lowercase fields; connection-specific
-  fields such as `Proxy-Connection` fail before I/O. Closing the origin
-  connection resets its stream and ends its proxy connection. Plaintext
-  forwarding fails before I/O in this mode.
-- SOCKS5 authentication, negotiation, and rejection failures are typed, and
-  no other address is tried. A failed proxy TCP connect or QUIC setup is
-  retried only through a fresh association on the same route, under the
-  [connection-setup retry](retries.md#retry-when-a-connection-fails-to-open)
-  policy. The UDP relay address rules are in
-  [HTTP/3 internals](../internals/http3.md#socks5-routes).
-- Exact H3 cannot use an HTTP proxy. WebSocket over H3 extended CONNECT is
-  planned, not supported.
-- CONNECT-UDP rejects H1, H2, negotiated requests, and WebSocket before I/O,
-  so it cannot learn or use Alt-Svc. Only failures to resolve or connect to
-  the proxy are retryable, and a proxy rejection's status is in the typed
-  error's source ([full contract](../internals/http3.md#connect-udp-masque)).
+- A second `407`, a malformed or unsupported challenge, or a one-shot
+  streaming body fails an HTTP proxy request with a typed error; see
+  [Forward-proxy authentication](../explanation/design.md#forward-proxy-authentication).
+- A SOCKS5 failure never tries another address
+  ([SOCKS5 rules](../reference/route-matrix.md#socks5-rules)).
+- Exact H3 through an HTTP proxy fails before I/O. WebSocket over H3 is not
+  supported.
+- H1, H2, negotiated requests, and WebSocket fail before I/O on a
+  CONNECT-UDP route, so that route never uses Alt-Svc.
+- A CONNECT-UDP proxy rejection fails with `RequestErrorKind::Proxy`; only
+  failures to resolve or connect to the proxy are retried.
 - Configuration errors have stable kinds (`ProxyConfigErrorKind`,
   `Socks5ProxyConfigErrorKind`, `ConnectUdpProxyConfigErrorKind`).
-  Credentials are validated before I/O and kept out of diagnostics.
+- Credentials are validated before I/O and kept out of diagnostics.
 - `Route::http_connect` is an older name for `Route::http_proxy`.
 
 ## Next
