@@ -344,14 +344,15 @@ Supported:
 - An optional bounded cookie jar that the caller activates explicitly:
   - deterministic path and creation order;
   - Public Suffix List checks (including private and unlisted suffixes),
-    prefix checks, and expiry;
+    `__Secure-` and `__Host-` prefix checks, and expiry;
   - Chromium-style least-recently-used eviction;
   - stores `SameSite` and `Partitioned` cookies and sends them as for a
     user-initiated top-level navigation;
   - rejects insecure `SameSite=None`, insecure `Partitioned`, and `Secure`
-    cookies set by an origin that is not potentially trustworthy, which as
-    in Chromium covers `https://` and the `http://` loopback and
-    `localhost` origins; and
+    cookies set by an origin that is not potentially trustworthy. A
+    potentially trustworthy origin, as in Chromium, is an `https://`
+    origin or an `http://` loopback, `localhost`, or `.localhost`
+    origin; and
   - places the `Cookie` field where the profile's `CookiePlacement` puts it,
     with Chrome 153 and Firefox 156 recipes.
 
@@ -365,6 +366,20 @@ Supported:
   `https://` targets only, browser method and body transitions, and removal of
   credentials and client hints on cross-origin hops. A client with a redirect
   policy rejects `http://` requests before any I/O.
+
+Not modeled:
+
+- Chromium's `__Http-` and `__Host-Http-` cookie prefixes, which also require
+  `HttpOnly` (`net/cookies/cookie_util.cc` lines 342-347 at tag
+  `153.0.8010.48`). Chromium matches the longer prefix first, so the two names
+  fail differently in Phantom: `__Host-Http-` is caught by the `__Host-` check
+  and held to that weaker rule, and `__Http-` matches no check and is stored as
+  an ordinary cookie.
+- A `Domain` attribute on a `__Host-` cookie whose value equals an IP-literal
+  request host. Chromium's `HasValidHostPrefixAttributes` admits it; Phantom
+  rejects every `Domain` on a `__Host-` cookie. Only a request to an IP
+  literal can reach the difference, which for `http://` means a loopback
+  address.
 
 Planned:
 
