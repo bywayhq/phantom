@@ -750,6 +750,7 @@ impl RequestError {
                 (RequestErrorKind::RuntimeUnavailable, None)
             }
             Http1Or2TlsErrorKind::Connect => (RequestErrorKind::Connect, None),
+            Http1Or2TlsErrorKind::Socks5Proxy => (negotiated_socks5_kind(&source), None),
             Http1Or2TlsErrorKind::Tls | Http1Or2TlsErrorKind::UnsupportedAlpn => {
                 (RequestErrorKind::Tls, None)
             }
@@ -768,9 +769,14 @@ impl RequestError {
         )
     }
 
-    /// Marks only pre-TLS connect failures as retryable; TLS and ALPN are terminal.
+    /// Marks only pre-TLS connect and proxy failures as retryable; TLS and
+    /// ALPN are terminal.
     pub(crate) fn http1_or_2_connection_setup(source: Http1Or2TlsError) -> Self {
-        let retryable = source.kind() == Http1Or2TlsErrorKind::Connect;
+        let retryable = match &source {
+            Http1Or2TlsError::Connect(_) => true,
+            Http1Or2TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
+            _ => false,
+        };
         let mut error = Self::http1_or_2(source);
         if retryable {
             error.retryability = RequestRetryability::ConnectionSetup;
@@ -978,6 +984,20 @@ fn is_retryable_http_connect_kind(kind: HttpConnectErrorKind) -> bool {
 
 fn is_retryable_socks5_kind(kind: Socks5ErrorKind) -> bool {
     matches!(kind, Socks5ErrorKind::Connect | Socks5ErrorKind::Resolve)
+}
+
+/// Classifies a SOCKS5 failure on the negotiated leg like the exact H1 and H2
+/// legs do, so the same proxy condition reports the same category whichever
+/// selection opened the connection.
+fn negotiated_socks5_kind(source: &Http1Or2TlsError) -> RequestErrorKind {
+    let Http1Or2TlsError::Socks5Proxy(error) = source else {
+        return RequestErrorKind::Proxy;
+    };
+    match error.kind() {
+        Socks5ErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+        Socks5ErrorKind::Resolve => RequestErrorKind::Resolve,
+        _ => RequestErrorKind::Proxy,
+    }
 }
 
 fn is_retryable_http3_connection_setup_kind(kind: Http3ConnectorErrorKind) -> bool {

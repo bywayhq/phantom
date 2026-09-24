@@ -13,6 +13,7 @@ use crate::{
         Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected, translate_settings,
         validate_http2,
     },
+    proxy::{Socks5Auth, Socks5Error, socks5_tunnel_local_dns, socks5_tunnel_remote_dns},
     tls::{TlsConnector, TlsError, trace_alpn},
 };
 
@@ -33,6 +34,8 @@ pub enum Http1Or2TlsErrorKind {
     RuntimeUnavailable,
     /// Establishing the direct TCP connection failed.
     Connect,
+    /// The SOCKS5 proxy leg failed before TLS.
+    Socks5Proxy,
     /// TLS setup or negotiation failed before an HTTP protocol was selected.
     Tls,
     /// HTTP/1.1 setup failed after ALPN selection.
@@ -53,6 +56,8 @@ pub enum Http1Or2TlsError {
     RuntimeUnavailable,
     /// Establishing the direct TCP connection failed.
     Connect(std::io::Error),
+    /// The SOCKS5 proxy negotiation or CONNECT request failed.
+    Socks5Proxy(Socks5Error),
     /// TLS connector setup or handshake failed.
     Tls(TlsError),
     /// HTTP/1.1 connection setup failed after selection.
@@ -77,6 +82,7 @@ impl Http1Or2TlsError {
         match self {
             Self::RuntimeUnavailable => Http1Or2TlsErrorKind::RuntimeUnavailable,
             Self::Connect(_) => Http1Or2TlsErrorKind::Connect,
+            Self::Socks5Proxy(_) => Http1Or2TlsErrorKind::Socks5Proxy,
             Self::Tls(_) => Http1Or2TlsErrorKind::Tls,
             Self::Http1(_) => Http1Or2TlsErrorKind::Http1,
             Self::Http2(_) => Http1Or2TlsErrorKind::Http2,
@@ -94,6 +100,7 @@ impl fmt::Display for Http1Or2TlsError {
             Self::RuntimeUnavailable => formatter
                 .write_str("negotiated HTTP/1.1 or HTTP/2 requests require a Tokio runtime"),
             Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
+            Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
             Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
             Self::Http1(error) => write!(formatter, "HTTP/1.1 connection failed: {error}"),
             Self::Http2(error) => write!(formatter, "HTTP/2 connection failed: {error}"),
@@ -116,6 +123,7 @@ impl StdError for Http1Or2TlsError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Connect(error) => Some(error),
+            Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http1(error) => Some(error),
             Self::Http2(error) => Some(error),
@@ -124,6 +132,12 @@ impl StdError for Http1Or2TlsError {
             | Self::MissingHttp1Alpn
             | Self::MissingHttp2Alpn => None,
         }
+    }
+}
+
+impl From<Socks5Error> for Http1Or2TlsError {
+    fn from(error: Socks5Error) -> Self {
+        Self::Socks5Proxy(error)
     }
 }
 
@@ -285,6 +299,83 @@ impl Http1Or2TlsConnector {
         .await
     }
 
+    /// Tunnels through a SOCKS5 proxy that resolves the target, then selects
+    /// HTTP/1.1 or HTTP/2 over TLS.
+    ///
+    /// The target host is sent to the proxy as a SOCKS5 `DOMAIN` address and
+    /// is never resolved locally. `server_name` still controls certificate
+    /// verification and SNI, so the origin keeps its own identity. Proxy
+    /// failure never falls back to a direct connection or another HTTP
+    /// protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, proxy, TLS, ALPN, ALPS, or
+    /// protocol setup failures.
+    pub async fn connect_socks5_remote_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let stream = socks5_tunnel_remote_dns(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
+            let stream = self.tls.connect(server_name, stream).await?;
+            select_connection(stream, client).await
+        })
+        .await
+    }
+
+    /// Tunnels through a SOCKS5 proxy to a locally resolved target, then
+    /// selects HTTP/1.1 or HTTP/2 over TLS.
+    ///
+    /// The target is resolved locally and the selected address is sent as a
+    /// SOCKS5 `IPV4` or `IPV6` target. `server_name` still controls
+    /// certificate verification and SNI. Proxy failure never falls back to a
+    /// direct connection or another HTTP protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, resolution, proxy, TLS, ALPN,
+    /// ALPS, or protocol setup failures.
+    pub async fn connect_socks5_local_with_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        auth: Socks5Auth<'_>,
+        target_host: &str,
+        target_port: u16,
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let stream = socks5_tunnel_local_dns(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                target_host,
+                target_port,
+                auth,
+            )
+            .await?;
+            let stream = self.tls.connect(server_name, stream).await?;
+            select_connection(stream, client).await
+        })
+        .await
+    }
+
     async fn trace_connect<F>(&self, operation: F) -> Result<Http1Or2Connection, Http1Or2TlsError>
     where
         F: Future<Output = Result<Http1Or2Connection, Http1Or2TlsError>>,
@@ -373,6 +464,7 @@ impl ConnectOutcome {
             Ok(_) => "ok",
             Err(Http1Or2TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http1Or2TlsError::Connect(_)) => "connect_error",
+            Err(Http1Or2TlsError::Socks5Proxy(_)) => "proxy_error",
             Err(Http1Or2TlsError::Tls(_)) => "tls_error",
             Err(Http1Or2TlsError::Http1(_)) => "http1_error",
             Err(Http1Or2TlsError::Http2(_)) => "http2_error",
