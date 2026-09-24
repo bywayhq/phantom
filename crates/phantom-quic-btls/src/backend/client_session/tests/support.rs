@@ -17,7 +17,7 @@ use crate::backend::callback_state::{
     CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
 };
 use crate::backend::drain_error_queue;
-use crate::backend::quic_callbacks::install_on_ssl;
+use crate::backend::quic_callbacks::install_test_server_on_ssl;
 #[cfg(feature = "keylog")]
 use crate::{NssKeyLogReceiver, configure_nss_key_log};
 
@@ -74,6 +74,21 @@ impl RawServer {
         context: &OwnedContext,
         application_settings: Option<&[u8]>,
     ) -> Result<Self, ClientSessionError> {
+        Self::new_with_options(context, application_settings, false)
+    }
+
+    /// A server whose tickets permit 0-RTT and which accepts early data.
+    pub(super) fn new_accepting_early_data(
+        context: &OwnedContext,
+    ) -> Result<Self, ClientSessionError> {
+        Self::new_with_options(context, None, true)
+    }
+
+    fn new_with_options(
+        context: &OwnedContext,
+        application_settings: Option<&[u8]>,
+        early_data: bool,
+    ) -> Result<Self, ClientSessionError> {
         // SAFETY: `context` is live for the call and SSL_new retains it.
         let ssl = unsafe {
             OwnedSsl::new(
@@ -100,7 +115,21 @@ impl RawServer {
         }
         // SAFETY: the SSL has not started a handshake.
         unsafe {
-            ffi::SSL_set_early_data_enabled(pointer, 0);
+            ffi::SSL_set_early_data_enabled(pointer, c_int::from(early_data));
+        }
+        if early_data {
+            // A QUIC server accepts 0-RTT only for tickets issued under the
+            // same early-data context.
+            let context = b"phantom-test";
+            // SAFETY: the SSL is live and unstarted; the setter copies the bytes.
+            let status = unsafe {
+                ffi::SSL_set_quic_early_data_context(pointer, context.as_ptr(), context.len())
+            };
+            if status != 1 {
+                return Err(ClientSessionError::BackendFailure(
+                    "server early-data context",
+                ));
+            }
         }
         // SAFETY: the parameters are copied by the setter.
         if unsafe {
@@ -120,7 +149,7 @@ impl RawServer {
             ffi::SSL_set_accept_state(pointer);
         }
         // SAFETY: the SSL is live, unique, and has not started its handshake.
-        let callbacks = unsafe { install_on_ssl(ssl.0, FlightLimits::default()) }
+        let callbacks = unsafe { install_test_server_on_ssl(ssl.0, FlightLimits::default()) }
             .map_err(ClientSessionError::CallbackInstall)?;
         Ok(Self {
             ssl,
@@ -201,6 +230,13 @@ impl RawServer {
         }
         // SAFETY: the SSL is a live QUIC server session.
         let result = unsafe { ffi::SSL_do_handshake(self.ssl.as_ptr()) };
+        // SAFETY: the SSL is live; the query reads handshake state only.
+        let in_early_data = unsafe { ffi::SSL_in_early_data(self.ssl.as_ptr()) } != 0;
+        if result == 1 && in_early_data {
+            // An accepting server returns before the client's Finished.
+            drain_error_queue();
+            return Ok(HandshakeProgress::NeedsData);
+        }
         if result == 1 {
             self.handshake_complete = true;
             return Ok(HandshakeProgress::Complete);

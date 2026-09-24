@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::ffi::c_long;
+use std::ffi::{c_int, c_long};
 use std::fmt;
 use std::net::IpAddr;
 use std::ptr::{self, NonNull};
@@ -12,6 +12,8 @@ use foreign_types::{ForeignType, ForeignTypeRef};
 
 use super::drain_error_queue;
 use super::quic_callbacks::{CallbackInstallError, install_on_ssl};
+use crate::key_schedule::TrafficSecret;
+
 use super::{
     callback_state::{
         Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
@@ -105,6 +107,7 @@ pub(super) struct ClientSession {
     callbacks: CallbackState,
     handshake_complete: bool,
     offered_session: bool,
+    early_data_rejected: bool,
 }
 
 impl fmt::Debug for ClientSession {
@@ -132,6 +135,7 @@ impl ClientSession {
             local_transport_parameters,
             &ClientTlsProfile::default(),
             None,
+            false,
         )
     }
 
@@ -140,13 +144,15 @@ impl ClientSession {
     /// The caller must supply only a session that a handshake from `context`
     /// authenticated for `server_name`: BoringSSL does not bind a client
     /// session to a hostname, and a resumed handshake does not repeat
-    /// certificate verification.
+    /// certificate verification. With `early_data`, BoringSSL also offers
+    /// 0-RTT when the session permits it; without a session it has no effect.
     pub(super) fn new_with_profile(
         context: &SslContext,
         server_name: &str,
         local_transport_parameters: &[u8],
         tls_profile: &ClientTlsProfile,
         session: Option<&SslSessionRef>,
+        early_data: bool,
     ) -> Result<Self, ClientSessionError> {
         if server_name.is_empty() {
             return Err(ClientSessionError::InvalidServerName);
@@ -190,9 +196,10 @@ impl ClientSession {
         if options & ffi::SSL_OP_NO_TICKET as u32 == 0 {
             return Err(backend_failure("session ticket disable"));
         }
+        let early_data = early_data && session.is_some();
         // SAFETY: the SSL is live and has not started a handshake.
         unsafe {
-            ffi::SSL_set_early_data_enabled(pointer, 0);
+            ffi::SSL_set_early_data_enabled(pointer, c_int::from(early_data));
         }
         // SAFETY: ALPN bytes remain live for the copying setter call.
         if unsafe { ffi::SSL_set_alpn_protos(pointer, H3_ALPN.as_ptr(), H3_ALPN.len()) } != 0 {
@@ -236,6 +243,7 @@ impl ClientSession {
             callbacks,
             handshake_complete: false,
             offered_session: session.is_some(),
+            early_data_rejected: false,
         })
     }
 
@@ -405,6 +413,22 @@ impl ClientSession {
         self.handshake_complete && unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) } != 0
     }
 
+    /// Returns whether the peer accepted the 0-RTT data this client offered.
+    pub(super) fn early_data_accepted(&self) -> bool {
+        // SAFETY: the SSL is live; the query reads handshake state only.
+        self.handshake_complete && unsafe { ffi::SSL_early_data_accepted(self.ssl.as_ptr()) } != 0
+    }
+
+    /// Returns whether the peer rejected offered 0-RTT data.
+    pub(super) const fn early_data_rejected(&self) -> bool {
+        self.early_data_rejected
+    }
+
+    /// Removes the 0-RTT write secret installed while offering early data.
+    pub(super) fn take_early_secret(&self) -> Option<(u16, TrafficSecret)> {
+        self.callbacks.take_early_secret()
+    }
+
     /// Removes the sessions issued since the previous call, oldest first.
     ///
     /// Tickets arrive only after the handshake completed and verified the
@@ -445,21 +469,41 @@ impl ClientSession {
         if self.handshake_complete {
             return Ok(HandshakeProgress::Complete);
         }
-        // SAFETY: the SSL is live, unique, and configured for a QUIC client handshake.
-        let result = unsafe { ffi::SSL_do_handshake(self.ssl.as_ptr()) };
-        if result == 1 {
-            self.validate_completed_handshake()?;
-            self.handshake_complete = true;
-            return Ok(HandshakeProgress::Complete);
-        }
-        // SAFETY: `result` is the immediately preceding SSL operation result.
-        let ssl_error = unsafe { ffi::SSL_get_error(self.ssl.as_ptr(), result) };
-        if result == -1 && ssl_error == ffi::SSL_ERROR_WANT_READ {
-            self.callback_error()?;
-            drain_error_queue();
-            Ok(HandshakeProgress::NeedsData)
-        } else {
-            Err(self.operation_failure("TLS handshake", Some(ssl_error)))
+        loop {
+            // SAFETY: the SSL is live, unique, and configured for a QUIC client handshake.
+            let result = unsafe { ffi::SSL_do_handshake(self.ssl.as_ptr()) };
+            if result == 1 {
+                // BoringSSL returns early once the ClientHello and 0-RTT keys
+                // are out; the handshake itself is still in progress.
+                // SAFETY: the SSL is live and the query reads handshake state only.
+                if unsafe { ffi::SSL_in_early_data(self.ssl.as_ptr()) } != 0 {
+                    self.callback_error()?;
+                    return Ok(HandshakeProgress::NeedsData);
+                }
+                self.validate_completed_handshake()?;
+                self.handshake_complete = true;
+                return Ok(HandshakeProgress::Complete);
+            }
+            // SAFETY: `result` is the immediately preceding SSL operation result.
+            let ssl_error = unsafe { ffi::SSL_get_error(self.ssl.as_ptr(), result) };
+            if result == -1 && ssl_error == ffi::SSL_ERROR_WANT_READ {
+                self.callback_error()?;
+                drain_error_queue();
+                return Ok(HandshakeProgress::NeedsData);
+            }
+            if ssl_error == ffi::SSL_ERROR_EARLY_DATA_REJECTED && !self.early_data_rejected {
+                // The peer declined 0-RTT; Quinn discards the 0-RTT packets
+                // once `early_data_accepted` reports the rejection.
+                self.early_data_rejected = true;
+                drain_error_queue();
+                // SAFETY: the SSL is live and SSL_do_handshake just reported
+                // the early-data rejection this call resets.
+                unsafe {
+                    ffi::SSL_reset_early_data_reject(self.ssl.as_ptr());
+                }
+                continue;
+            }
+            return Err(self.operation_failure("TLS handshake", Some(ssl_error)));
         }
     }
 

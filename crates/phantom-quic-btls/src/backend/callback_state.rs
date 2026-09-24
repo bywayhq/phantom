@@ -46,6 +46,7 @@ pub(super) enum CallbackError {
         raw: i64,
     },
     EarlyDataUnsupported,
+    DuplicateEarlySecret,
     SecretAtInitialLevel,
     UnsupportedCipherSuite {
         id: u16,
@@ -286,6 +287,7 @@ struct CallbackStateInner {
     alerts: Vec<Alert>,
     completed_flushes: usize,
     new_sessions: VecDeque<SslSession>,
+    early_secret: Option<StoredSecret>,
 }
 
 pub(super) struct CallbackState {
@@ -477,6 +479,29 @@ impl CallbackState {
             return Err(error);
         }
         Ok(std::mem::take(&mut inner.alerts))
+    }
+
+    /// Stores the client's 0-RTT write secret; there is no 0-RTT read secret.
+    pub(super) fn set_early_secret(
+        &self,
+        cipher_suite: u16,
+        value: &[u8],
+    ) -> Result<(), CallbackError> {
+        let secret = StoredSecret::copy(cipher_suite, value)?;
+        let mut inner = self.lock();
+        if inner.early_secret.is_some() {
+            return Err(CallbackError::DuplicateEarlySecret);
+        }
+        inner.early_secret = Some(secret);
+        Ok(())
+    }
+
+    /// Removes the 0-RTT write secret and its cipher suite, if installed.
+    pub(super) fn take_early_secret(&self) -> Option<(u16, TrafficSecret)> {
+        self.lock()
+            .early_secret
+            .take()
+            .map(|secret| (secret.cipher_suite, secret.value))
     }
 
     /// Retains one session issued through a NewSessionTicket message.

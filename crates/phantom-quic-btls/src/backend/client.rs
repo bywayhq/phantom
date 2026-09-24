@@ -20,8 +20,11 @@ use super::client_session::{ClientSession, ClientSessionError};
 use super::quic_callbacks::enable_session_delivery;
 #[cfg(test)]
 use crate::key_schedule::TestDerivationFailure;
-use crate::key_schedule::{PacketKeyPair, TrafficKeySchedule, TrafficKeys};
-use crate::resumption::SessionCache;
+use crate::key_schedule::{
+    CipherSuite as QuicCipherSuite, PacketKeyPair, TrafficKeySchedule, TrafficKeys, TrafficSecret,
+    derive_direction_keys,
+};
+use crate::resumption::{ResumptionTicket, SessionCache};
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
 use phantom_profile::quic::QuicTransportSettings;
@@ -55,6 +58,7 @@ pub struct QuicClientConfig {
     tls_profile: ClientTlsProfile,
     sessions: Option<SessionCache>,
     offer_tickets: bool,
+    early_data: bool,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -76,6 +80,7 @@ impl QuicClientConfig {
             },
             sessions: None,
             offer_tickets: true,
+            early_data: false,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -92,6 +97,7 @@ impl QuicClientConfig {
             tls_profile: ClientTlsProfile::default(),
             sessions: None,
             offer_tickets: true,
+            early_data: false,
             #[cfg(test)]
             derivation_failure: None,
         })
@@ -158,6 +164,7 @@ impl QuicClientConfig {
             tls_profile: self.tls_profile.clone(),
             sessions: self.tls_profile.session_tickets.then(SessionCache::default),
             offer_tickets: true,
+            early_data: self.early_data,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -177,6 +184,59 @@ impl QuicClientConfig {
             tls_profile: self.tls_profile.clone(),
             sessions: self.sessions.clone(),
             offer_tickets: false,
+            early_data: self.early_data,
+            #[cfg(test)]
+            derivation_failure: self.derivation_failure,
+        }
+    }
+
+    /// Returns a clone that sends early (0-RTT) data when it resumes.
+    ///
+    /// # Replay
+    ///
+    /// Early data is replayable. An attacker who records the first flight can
+    /// deliver it to the server again, and the server may process each copy
+    /// (RFC 8446, section 8, and RFC 9001, section 9.2). Send only requests
+    /// whose repetition is harmless. No named browser recipe enables this.
+    ///
+    /// The clone shares this configuration's ticket cache. A connection offers
+    /// 0-RTT only when it presents a ticket that permits early data and whose
+    /// issuer's transport parameters were retained; otherwise it performs an
+    /// ordinary resumed or full handshake. When the server rejects 0-RTT, the
+    /// handshake still completes and Quinn reports the rejection through
+    /// `early_data_accepted`.
+    #[must_use]
+    pub fn with_early_data(&self) -> Self {
+        let mut config = self.clone_with_sessions(self.sessions.clone());
+        config.early_data = true;
+        config
+    }
+
+    /// Returns a clone that never sends early data, sharing the ticket cache.
+    #[must_use]
+    pub fn without_early_data(&self) -> Self {
+        let mut config = self.clone_with_sessions(self.sessions.clone());
+        config.early_data = false;
+        config
+    }
+
+    /// Returns whether this configuration opted in to early (0-RTT) data.
+    ///
+    /// A connection sends early data only when it also presents a ticket,
+    /// which needs a configuration from [`Self::with_isolated_session_cache`].
+    #[must_use]
+    pub const fn sends_early_data(&self) -> bool {
+        self.early_data
+    }
+
+    fn clone_with_sessions(&self, sessions: Option<SessionCache>) -> Self {
+        Self {
+            context: self.context.clone(),
+            transport_profile: self.transport_profile.clone(),
+            tls_profile: self.tls_profile.clone(),
+            sessions,
+            offer_tickets: self.offer_tickets,
+            early_data: self.early_data,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -365,12 +425,17 @@ impl crypto::ClientConfig for QuicClientConfig {
             .as_ref()
             .filter(|_| self.offer_tickets)
             .and_then(|sessions| sessions.take(server_name));
+        let (session, remembered) = offered.map_or((None, None), |ticket| {
+            (Some(ticket.session), ticket.peer_transport_parameters)
+        });
+        let early_data = self.early_data && remembered.is_some();
         let mut backend = ClientSession::new_with_profile(
             &self.context,
             server_name,
             &encoded_parameters,
             &self.tls_profile,
-            offered.as_deref(),
+            session.as_deref(),
+            early_data,
         )
         .map_err(|error| map_start_error(server_name, error))?;
         backend
@@ -378,6 +443,7 @@ impl crypto::ClientConfig for QuicClientConfig {
             .map_err(|error| map_start_error(server_name, error))?;
 
         let mut state = SessionState::new(version, backend);
+        state.remembered_transport_parameters = remembered.filter(|_| early_data);
         state.ticket_sink = self.sessions.clone().map(|sessions| TicketSink {
             sessions,
             server_name: server_name.into(),
@@ -617,6 +683,11 @@ struct SessionState {
     peer_identity: Option<PeerIdentity>,
     peer_transport_parameters: Option<Vec<u8>>,
     ticket_sink: Option<TicketSink>,
+    /// The client's 0-RTT write secret, present only while offering early data.
+    early_secret: Option<(u16, TrafficSecret)>,
+    /// The ticket issuer's transport parameters, applied to 0-RTT data until
+    /// the server's current parameters arrive.
+    remembered_transport_parameters: Option<Box<[u8]>>,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -641,6 +712,8 @@ impl SessionState {
             peer_identity: None,
             peer_transport_parameters: None,
             ticket_sink: None,
+            early_secret: None,
+            remembered_transport_parameters: None,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -649,6 +722,11 @@ impl SessionState {
     fn collect_backend_state(&mut self) -> Result<(), AdapterError> {
         for chunk in self.backend.drain_output()? {
             self.outbound.stage(chunk);
+        }
+        if self.early_secret.is_none()
+            && let Some(secret) = self.backend.take_early_secret()
+        {
+            self.early_secret = Some(secret);
         }
 
         if self.handshake_keys.is_none()
@@ -694,7 +772,16 @@ impl SessionState {
         let issued = self.backend.take_new_sessions();
         if let Some(sink) = &self.ticket_sink {
             for session in issued {
-                sink.sessions.insert(&sink.server_name, session);
+                sink.sessions.insert(
+                    &sink.server_name,
+                    ResumptionTicket {
+                        session,
+                        peer_transport_parameters: self
+                            .peer_transport_parameters
+                            .as_deref()
+                            .map(Box::from),
+                    },
+                );
             }
         }
         Ok(())
@@ -787,11 +874,17 @@ impl crypto::Session for QuicSession {
     }
 
     fn early_crypto(&self) -> Option<(Box<dyn crypto::HeaderKey>, Box<dyn crypto::PacketKey>)> {
-        None
+        let state = self.lock();
+        let (suite, secret) = state.early_secret.as_ref()?;
+        let suite = QuicCipherSuite::from_id(*suite).ok()?;
+        let (header, packet) = derive_direction_keys(suite, secret.as_slice())
+            .ok()?
+            .into_parts();
+        Some((Box::new(header), Box::new(packet)))
     }
 
     fn early_data_accepted(&self) -> Option<bool> {
-        Some(false)
+        Some(self.lock().backend.early_data_accepted())
     }
 
     fn is_handshaking(&self) -> bool {
@@ -817,9 +910,16 @@ impl crypto::Session for QuicSession {
 
     fn transport_parameters(&self) -> Result<Option<TransportParameters>, TransportError> {
         let state = self.lock();
+        let handshaking = state.backend.is_handshaking();
+        // Quinn asks before the server's first flight when it enables 0-RTT;
+        // the ticket issuer's parameters bound that data (RFC 9000, 7.4.1).
+        let remembered = state
+            .remembered_transport_parameters
+            .as_deref()
+            .filter(|_| handshaking && state.early_secret.is_some());
         decode_peer_transport_parameters(
-            state.peer_transport_parameters.as_deref(),
-            state.backend.is_handshaking(),
+            state.peer_transport_parameters.as_deref().or(remembered),
+            handshaking,
         )
     }
 

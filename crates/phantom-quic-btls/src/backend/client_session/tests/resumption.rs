@@ -47,7 +47,12 @@ fn handshake(
     config: &Arc<QuicClientConfig>,
     server_context: &OwnedContext,
 ) -> Box<dyn crypto::Session> {
-    let mut client = test_ok(
+    let server = test_ok(RawServer::new(server_context), "server session");
+    handshake_with(start(config), server)
+}
+
+fn start(config: &Arc<QuicClientConfig>) -> Box<dyn crypto::Session> {
+    test_ok(
         crypto::ClientConfig::start_session(
             Arc::clone(config),
             0x0000_0001,
@@ -55,9 +60,13 @@ fn handshake(
             &transport_parameters(),
         ),
         "Quinn client session",
-    );
-    let mut server = test_ok(RawServer::new(server_context), "server session");
+    )
+}
 
+fn handshake_with(
+    mut client: Box<dyn crypto::Session>,
+    mut server: RawServer,
+) -> Box<dyn crypto::Session> {
     let mut client_initial = Vec::new();
     assert!(client.write_handshake(&mut client_initial).is_none());
     test_ok(
@@ -169,15 +178,17 @@ fn expired_ticket_falls_back_to_a_full_handshake_without_error() {
     let config = Arc::new(resuming_config().with_isolated_session_cache());
     handshake(&config, &server_context);
     let cache = test_some(config.session_cache(), "isolated session cache");
-    let session = test_some(cache.take(SERVER_NAME), "issued ticket");
+    let ticket = test_some(cache.take(SERVER_NAME), "issued ticket");
+    assert!(ticket.peer_transport_parameters.is_some());
+    let session = ticket.session.clone();
 
-    // SAFETY: the test owns the only reference to this session, so moving
-    // its establishment time to the epoch races with no reader.
+    // SAFETY: the session is live, and no other thread reads it while its
+    // establishment time moves to the epoch.
     unsafe {
         ffi::SSL_SESSION_set_time(session.as_ptr(), 1);
     }
     // The cache discards the expired ticket instead of presenting it.
-    cache.insert(SERVER_NAME, session.clone());
+    cache.insert(SERVER_NAME, ticket);
     assert_eq!(cache.len(), 0);
     let fallback = handshake(&config, &server_context);
     assert!(!resumed(fallback.as_ref()));
@@ -191,6 +202,7 @@ fn expired_ticket_falls_back_to_a_full_handshake_without_error() {
             CLIENT_PARAMETERS,
             &ClientTlsProfile::default(),
             Some(&session),
+            false,
         ),
         "client with expired session",
     );
@@ -244,4 +256,92 @@ fn a_full_handshake_retry_stores_tickets_without_presenting_one() {
     assert_eq!(cache_len(&config), 2);
     let resumed_again = handshake(&config, &server_context);
     assert!(resumed(resumed_again.as_ref()));
+}
+
+fn accepting_handshake(
+    config: &Arc<QuicClientConfig>,
+    server_context: &OwnedContext,
+) -> Box<dyn crypto::Session> {
+    let server = test_ok(
+        RawServer::new_accepting_early_data(server_context),
+        "server accepting early data",
+    );
+    handshake_with(start(config), server)
+}
+
+#[test]
+fn early_data_is_offered_only_by_an_opted_in_configuration() {
+    let server_context = server_context();
+    let config = resuming_config().with_isolated_session_cache();
+    assert!(!config.sends_early_data());
+    let early = Arc::new(config.with_early_data());
+    assert!(early.sends_early_data());
+    let config = Arc::new(config);
+    accepting_handshake(&config, &server_context);
+
+    // Resuming without the opt-in installs no 0-RTT keys.
+    let ordinary = start(&config);
+    assert!(ordinary.early_crypto().is_none());
+    assert!(test_ok(ordinary.transport_parameters(), "pending parameters").is_none());
+    let ordinary = handshake_with(
+        ordinary,
+        test_ok(
+            RawServer::new_accepting_early_data(&server_context),
+            "server accepting early data",
+        ),
+    );
+    assert!(resumed(ordinary.as_ref()));
+    assert_eq!(ordinary.early_data_accepted(), Some(false));
+
+    // With the opt-in, 0-RTT keys and the issuer's remembered transport
+    // parameters are available before the server's first flight.
+    let client = start(&early);
+    assert!(client.early_crypto().is_some());
+    let remembered = test_ok(client.transport_parameters(), "remembered parameters");
+    assert!(remembered.is_some());
+    let server = test_ok(
+        RawServer::new_accepting_early_data(&server_context),
+        "server accepting early data",
+    );
+    let client = handshake_with(client, server);
+    assert!(resumed(client.as_ref()));
+    assert_eq!(client.early_data_accepted(), Some(true));
+}
+
+#[test]
+fn rejected_early_data_still_completes_the_handshake() {
+    let server_context = server_context();
+    let config = resuming_config().with_isolated_session_cache();
+    let early = Arc::new(config.with_early_data());
+    accepting_handshake(&early, &server_context);
+
+    let client = start(&early);
+    assert!(client.early_crypto().is_some());
+    let declining = test_ok(
+        RawServer::new(&server_context),
+        "server declining early data",
+    );
+    let client = handshake_with(client, declining);
+    assert_eq!(client.early_data_accepted(), Some(false));
+    assert!(client.peer_identity().is_some());
+}
+
+#[test]
+fn a_ticket_without_early_data_permission_sends_none() {
+    let server_context = server_context();
+    let early = Arc::new(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_early_data(),
+    );
+    handshake(&early, &server_context);
+
+    let client = start(&early);
+    assert!(client.early_crypto().is_none());
+    let client = handshake_with(
+        client,
+        test_ok(RawServer::new(&server_context), "server session"),
+    );
+    assert!(resumed(client.as_ref()));
+    assert_eq!(client.early_data_accepted(), Some(false));
 }

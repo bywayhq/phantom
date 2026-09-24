@@ -87,6 +87,61 @@ pub(super) unsafe fn install_on_ssl(
     ssl: NonNull<ffi::SSL>,
     limits: FlightLimits,
 ) -> Result<CallbackState, CallbackInstallError> {
+    // SAFETY: the caller upholds this function's contract.
+    unsafe { install_method_on_ssl(ssl, limits, &QUIC_METHOD) }
+}
+
+/// Installs the loopback test server's callbacks; see [`TEST_SERVER_METHOD`].
+///
+/// # Safety
+///
+/// As for [`install_on_ssl`].
+#[cfg(test)]
+pub(super) unsafe fn install_test_server_on_ssl(
+    ssl: NonNull<ffi::SSL>,
+    limits: FlightLimits,
+) -> Result<CallbackState, CallbackInstallError> {
+    // SAFETY: the caller upholds this function's contract.
+    unsafe { install_method_on_ssl(ssl, limits, &TEST_SERVER_METHOD) }
+}
+
+/// The client method, except that a 0-RTT read secret is discarded.
+///
+/// A BoringSSL server that accepts early data installs one; the loopback
+/// test harness delivers no 0-RTT packets, so the server never needs it. The
+/// client method keeps rejecting it, because a client never reads 0-RTT.
+#[cfg(test)]
+static TEST_SERVER_METHOD: ffi::SSL_QUIC_METHOD = ffi::SSL_QUIC_METHOD {
+    set_read_secret: Some(test_server_read_secret),
+    set_write_secret: Some(set_write_secret),
+    add_handshake_data: Some(add_handshake_data),
+    flush_flight: Some(flush_flight),
+    send_alert: Some(send_alert),
+};
+
+#[cfg(test)]
+unsafe extern "C" fn test_server_read_secret(
+    ssl: *mut ffi::SSL,
+    raw_level: ffi::ssl_encryption_level_t,
+    cipher: *const ffi::SSL_CIPHER,
+    secret: *const u8,
+    secret_len: usize,
+) -> c_int {
+    if raw_level == ffi::ssl_encryption_level_t::ssl_encryption_early_data {
+        return 1;
+    }
+    // SAFETY: BoringSSL supplies the arguments of this callback unchanged.
+    unsafe { set_read_secret(ssl, raw_level, cipher, secret, secret_len) }
+}
+
+/// # Safety
+///
+/// As for [`install_on_ssl`]; `method` must have process lifetime.
+unsafe fn install_method_on_ssl(
+    ssl: NonNull<ffi::SSL>,
+    limits: FlightLimits,
+    method: &'static ffi::SSL_QUIC_METHOD,
+) -> Result<CallbackState, CallbackInstallError> {
     let index = callback_ex_index()?;
     // SAFETY: `ssl` is live by the caller contract and `index` is allocated for SSL objects.
     if unsafe { !ffi::SSL_get_ex_data(ssl.as_ptr(), index).is_null() } {
@@ -96,8 +151,8 @@ pub(super) unsafe fn install_on_ssl(
     let state = CallbackState::new(limits);
     let installed_state = allocate_state(state.clone())?;
 
-    // SAFETY: `ssl` is live and `QUIC_METHOD` has process lifetime.
-    if unsafe { ffi::SSL_set_quic_method(ssl.as_ptr(), &QUIC_METHOD) } != 1 {
+    // SAFETY: `ssl` is live and `method` has process lifetime.
+    if unsafe { ffi::SSL_set_quic_method(ssl.as_ptr(), method) } != 1 {
         // SAFETY: ownership was not transferred to SSL.
         unsafe {
             release_uninstalled_state(installed_state);
@@ -265,15 +320,24 @@ unsafe extern "C" fn set_write_secret(
     // SAFETY: SSL owns the state for the duration of this callback.
     let state = unsafe { state.as_ref() };
     callback_outcome(state, || {
-        let level = encryption_level(raw_level)?;
+        // A client writes 0-RTT data only after offering a resumable session
+        // with early data enabled, and never reads it.
+        let level = if raw_level == ffi::ssl_encryption_level_t::ssl_encryption_early_data {
+            None
+        } else {
+            Some(encryption_level(raw_level)?)
+        };
         let cipher = NonNull::new(cipher.cast_mut()).ok_or(CallbackError::NullCipher)?;
         // SAFETY: BoringSSL lends a valid cipher descriptor for this callback.
         let cipher_suite = unsafe { ffi::SSL_CIPHER_get_protocol_id(cipher.as_ptr()) };
         validate_secret_len(cipher_suite, secret_len)?;
         // SAFETY: callback input remains live until the closure returns.
         unsafe {
-            with_callback_bytes(secret, secret_len, "secret", false, |secret| {
-                state.set_secret(level, SecretDirection::Local, cipher_suite, secret)
+            with_callback_bytes(secret, secret_len, "secret", false, |secret| match level {
+                Some(level) => {
+                    state.set_secret(level, SecretDirection::Local, cipher_suite, secret)
+                }
+                None => state.set_early_secret(cipher_suite, secret),
             })
         }
     })

@@ -152,20 +152,66 @@ fn null_nonempty_handshake_data_is_terminal() {
 }
 
 #[test]
-fn early_data_secret_is_rejected_before_pointer_access() {
+fn early_data_read_secret_is_rejected_before_pointer_access() {
     let test_ssl = TestSsl::client();
     let state = install(&test_ssl);
     let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
 
-    // SAFETY: invalid pointers are not read because early data is rejected first.
+    // SAFETY: invalid pointers are not read because a client never reads 0-RTT.
     let status =
-        unsafe { set_write_secret(test_ssl.ssl().as_ptr(), early, ptr::null(), ptr::null(), 0) };
+        unsafe { set_read_secret(test_ssl.ssl().as_ptr(), early, ptr::null(), ptr::null(), 0) };
     assert_eq!(status, 0);
 
     assert_eq!(
         state.terminal_error(),
         Some(CallbackError::EarlyDataUnsupported)
     );
+}
+
+#[test]
+fn early_data_write_secret_is_stored_once() {
+    let test_ssl = TestSsl::client();
+    let state = install(&test_ssl);
+    let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
+    // SAFETY: the cipher descriptor has process lifetime.
+    let cipher = unsafe { ffi::SSL_get_cipher_by_value(0x1301) };
+    assert!(!cipher.is_null());
+    let secret = [5; 32];
+
+    // SAFETY: all callback inputs remain live for the call.
+    let status = unsafe {
+        set_write_secret(
+            test_ssl.ssl().as_ptr(),
+            early,
+            cipher,
+            secret.as_ptr(),
+            secret.len(),
+        )
+    };
+    assert_eq!(status, 1);
+    assert_eq!(state.terminal_error(), None);
+
+    // SAFETY: all callback inputs remain live for the call.
+    let duplicate = unsafe {
+        set_write_secret(
+            test_ssl.ssl().as_ptr(),
+            early,
+            cipher,
+            secret.as_ptr(),
+            secret.len(),
+        )
+    };
+    assert_eq!(duplicate, 0);
+    assert_eq!(
+        state.terminal_error(),
+        Some(CallbackError::DuplicateEarlySecret)
+    );
+    let (suite, stored) = state
+        .take_early_secret()
+        .unwrap_or_else(|| panic!("the 0-RTT secret was not stored"));
+    assert_eq!(suite, 0x1301);
+    assert_eq!(stored.as_slice(), &secret);
+    assert!(state.take_early_secret().is_none());
 }
 
 #[test]

@@ -35,24 +35,35 @@ pub(crate) struct SessionCache {
 /// by the name that authenticated the original handshake.
 struct CachedSession {
     server_name: Box<str>,
-    session: SslSession,
+    ticket: ResumptionTicket,
+}
+
+/// A session to present, with the transport parameters its issuer sent.
+///
+/// A client that sends 0-RTT data must apply the server's remembered
+/// transport parameters to it (RFC 9000, section 7.4.1). BoringSSL keeps no
+/// client copy, so they are stored beside the session.
+#[derive(Clone)]
+pub(crate) struct ResumptionTicket {
+    pub(crate) session: SslSession,
+    pub(crate) peer_transport_parameters: Option<Box<[u8]>>,
 }
 
 impl SessionCache {
-    /// Stores a session issued by an authenticated peer for `server_name`.
-    pub(crate) fn insert(&self, server_name: &str, session: SslSession) {
+    /// Stores a ticket issued by an authenticated peer for `server_name`.
+    pub(crate) fn insert(&self, server_name: &str, ticket: ResumptionTicket) {
         let now = unix_time();
-        if is_expired(&session, now) {
+        if is_expired(&ticket.session, now) {
             return;
         }
         let mut sessions = self.sessions();
-        sessions.retain(|cached| !is_expired(&cached.session, now));
+        sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         if sessions.len() == MAX_SESSIONS {
             sessions.pop_front();
         }
         sessions.push_back(CachedSession {
             server_name: server_name.into(),
-            session,
+            ticket,
         });
     }
 
@@ -61,27 +72,27 @@ impl SessionCache {
     /// A session BoringSSL marks single-use is removed. Every TLS 1.3 session
     /// is single-use, to prevent correlation (RFC 8446, Appendix C.4), so for
     /// QUIC a lookup always consumes the ticket it returns.
-    pub(crate) fn take(&self, server_name: &str) -> Option<SslSession> {
+    pub(crate) fn take(&self, server_name: &str) -> Option<ResumptionTicket> {
         let now = unix_time();
         let mut sessions = self.sessions();
-        sessions.retain(|cached| !is_expired(&cached.session, now));
+        sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         let position = sessions
             .iter()
             .rposition(|cached| server_names_match(&cached.server_name, server_name))?;
-        if sessions[position].session.should_be_single_use() {
-            return sessions.remove(position).map(|cached| cached.session);
+        if sessions[position].ticket.session.should_be_single_use() {
+            return sessions.remove(position).map(|cached| cached.ticket);
         }
         let cached = sessions.remove(position)?;
-        let session = cached.session.clone();
+        let ticket = cached.ticket.clone();
         sessions.push_back(cached);
-        Some(session)
+        Some(ticket)
     }
 
     /// Returns whether an unexpired session for `server_name` is retained.
     pub(crate) fn contains(&self, server_name: &str) -> bool {
         let now = unix_time();
         let mut sessions = self.sessions();
-        sessions.retain(|cached| !is_expired(&cached.session, now));
+        sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         sessions
             .iter()
             .any(|cached| server_names_match(&cached.server_name, server_name))
