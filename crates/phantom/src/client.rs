@@ -48,7 +48,30 @@ impl HttpProtocol {
 ///
 /// Clones share connection pools, cookies when enabled, redirect policy, TLS
 /// sessions, negotiated client-hint state, and optional Alt-Svc state.
-/// Independently built clients share none of that mutable state.
+/// Independently built clients share none of that mutable state. Settings
+/// are fixed when [`ClientBuilder::build`] returns; a request can override
+/// only its route, timeouts, and retry policy, and can opt into content
+/// decoding.
+///
+/// # Examples
+///
+/// ```no_run
+/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::{Client, HttpProtocol};
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+/// let client = Client::builder(profile).build()?;
+///
+/// let response = client
+///     .get(HttpProtocol::Http2, "https://example.com/")?
+///     .send()
+///     .await?;
+/// let body = response.into_body().collect_with_limit(1 << 20).await?;
+/// println!("{} bytes", body.len());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Client {
     pub(crate) inner: Arc<ClientInner>,
@@ -81,6 +104,10 @@ pub(crate) struct ClientInner {
 
 impl Client {
     /// Starts a client builder for one owned wire profile.
+    ///
+    /// Until a builder method changes it, the client uses a direct route,
+    /// verifies servers against the bundled public roots, and has no
+    /// timeouts, redirects, retries, cookie jar, or Alt-Svc learning.
     #[must_use]
     pub fn builder(profile: ClientProfile) -> ClientBuilder {
         ClientBuilder {
@@ -96,10 +123,26 @@ impl Client {
 
     /// Starts one empty-body GET using exactly `protocol`.
     ///
+    /// The request never falls back to another protocol.
+    ///
     /// # Errors
     ///
-    /// Returns [`crate::RequestError`] when the protocol is absent from the
-    /// profile or the URI, authority, or request target is invalid.
+    /// Returns a [`crate::RequestError`] before any I/O, with kind:
+    ///
+    /// - [`ProtocolUnavailable`](crate::RequestErrorKind::ProtocolUnavailable)
+    ///   when the profile does not configure `protocol`;
+    /// - [`InvalidUri`](crate::RequestErrorKind::InvalidUri) when `uri` does
+    ///   not parse;
+    /// - [`UnsupportedScheme`](crate::RequestErrorKind::UnsupportedScheme)
+    ///   when the scheme is neither `http` nor `https`;
+    /// - [`InvalidAuthority`](crate::RequestErrorKind::InvalidAuthority) when
+    ///   the authority is missing or invalid; or
+    /// - [`InvalidTarget`](crate::RequestErrorKind::InvalidTarget) when `uri`
+    ///   has a fragment or its path and query are not a valid request target.
+    ///
+    /// [`RequestBuilder::send`] checks the scheme against the protocol and
+    /// route, also before I/O: `http://` works only with
+    /// [`HttpProtocol::Http1`] on a direct or HTTP proxy route.
     pub fn get(
         &self,
         protocol: HttpProtocol,
@@ -110,10 +153,26 @@ impl Client {
 
     /// Starts one request using exactly `protocol`.
     ///
+    /// The request never falls back to another protocol.
+    ///
     /// # Errors
     ///
-    /// Returns [`crate::RequestError`] when the protocol is absent from the
-    /// profile or the URI, authority, or request target is invalid.
+    /// Returns a [`crate::RequestError`] before any I/O, with kind:
+    ///
+    /// - [`ProtocolUnavailable`](crate::RequestErrorKind::ProtocolUnavailable)
+    ///   when the profile does not configure `protocol`;
+    /// - [`InvalidUri`](crate::RequestErrorKind::InvalidUri) when `uri` does
+    ///   not parse;
+    /// - [`UnsupportedScheme`](crate::RequestErrorKind::UnsupportedScheme)
+    ///   when the scheme is neither `http` nor `https`;
+    /// - [`InvalidAuthority`](crate::RequestErrorKind::InvalidAuthority) when
+    ///   the authority is missing or invalid; or
+    /// - [`InvalidTarget`](crate::RequestErrorKind::InvalidTarget) when `uri`
+    ///   has a fragment or its path and query are not a valid request target.
+    ///
+    /// [`RequestBuilder::send`] checks the scheme against the protocol and
+    /// route, also before I/O: `http://` works only with
+    /// [`HttpProtocol::Http1`] on a direct or HTTP proxy route.
     pub fn request(
         &self,
         protocol: HttpProtocol,
@@ -126,39 +185,66 @@ impl Client {
     /// Starts one GET that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
     /// Negotiated requests run on direct and SOCKS5 routes. The client opens
-    /// at most one current TCP/TLS generation per origin and reuses the
-    /// ALPN-selected protocol while that generation is eligible. Exact `h2`
-    /// selects HTTP/2; exact `http/1.1` or absent ALPN selects HTTP/1.1.
-    /// It does not race. An opt-in [`RetryPolicy`] may retry a TCP connect
-    /// failure before TLS starts; TLS and ALPN failures are terminal. When
-    /// bounded Alt-Svc learning is enabled, a fresh `h3` advertisement from an
-    /// earlier negotiated response selects HTTP/3 without changing the origin
-    /// identity or the route. An HTTP proxy or CONNECT-UDP route, configured
-    /// or per request, is rejected before I/O. [`crate::ResponseInfo::protocol`]
-    /// reports the selected protocol. Client cookies and learned client hints
-    /// apply. Negotiated generations are isolated from the exact-protocol
-    /// pools.
+    /// at most one current TCP/TLS generation per origin and route, and
+    /// reuses the ALPN-selected protocol while that generation is eligible.
+    /// Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN selects
+    /// HTTP/1.1. It does not race. An opt-in [`RetryPolicy`] may retry a TCP
+    /// connect failure before TLS starts; TLS and ALPN failures are terminal.
+    /// When bounded Alt-Svc learning is enabled, a fresh `h3` advertisement
+    /// from an earlier negotiated response selects HTTP/3 without changing the
+    /// origin identity or the route. An HTTP proxy or CONNECT-UDP route,
+    /// configured or per request, fails [`RequestBuilder::send`] with
+    /// [`RequestErrorKind::UnsupportedRoute`](crate::RequestErrorKind::UnsupportedRoute)
+    /// before I/O. [`crate::ResponseInfo::protocol`] reports the selected
+    /// protocol. Client cookies and learned client hints apply. Negotiated
+    /// generations are isolated from the exact-protocol pools.
     ///
     /// # Errors
     ///
-    /// Returns [`crate::RequestError`] when the profile cannot negotiate H1/H2,
-    /// a selected H3 alternative is unavailable, or the URI, authority, or
-    /// request target is invalid.
+    /// Returns a [`crate::RequestError`] before any I/O, with kind:
+    ///
+    /// - [`ProtocolUnavailable`](crate::RequestErrorKind::ProtocolUnavailable)
+    ///   when the profile lacks HTTP/2 settings or does not offer `http/1.1`
+    ///   in its TLS ALPN list;
+    /// - [`InvalidUri`](crate::RequestErrorKind::InvalidUri) when `uri` does
+    ///   not parse;
+    /// - [`UnsupportedScheme`](crate::RequestErrorKind::UnsupportedScheme)
+    ///   when the scheme is neither `http` nor `https`;
+    /// - [`InvalidAuthority`](crate::RequestErrorKind::InvalidAuthority) when
+    ///   the authority is missing or invalid; or
+    /// - [`InvalidTarget`](crate::RequestErrorKind::InvalidTarget) when `uri`
+    ///   has a fragment or its path and query are not a valid request target.
+    ///
+    /// [`RequestBuilder::send`] rejects an `http://` URI and an unsupported
+    /// route, also before I/O.
     pub fn get_negotiated(&self, uri: &str) -> Result<RequestBuilder, crate::RequestError> {
         self.request_negotiated(Method::GET, uri)
     }
 
     /// Starts one request that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
-    /// This has the same pooled-generation selection contract as
-    /// [`Self::get_negotiated`]. The request must be representable by both HTTP
-    /// versions so validation can finish before network I/O.
+    /// This has the same route and pooled-generation selection contract as
+    /// [`Self::get_negotiated`]. The request must be representable by both
+    /// HTTP versions so validation can finish before network I/O.
     ///
     /// # Errors
     ///
-    /// Returns [`crate::RequestError`] when the profile cannot negotiate H1/H2,
-    /// a selected H3 alternative is unavailable, or the URI, authority, or
-    /// request target is invalid.
+    /// Returns a [`crate::RequestError`] before any I/O, with kind:
+    ///
+    /// - [`ProtocolUnavailable`](crate::RequestErrorKind::ProtocolUnavailable)
+    ///   when the profile lacks HTTP/2 settings or does not offer `http/1.1`
+    ///   in its TLS ALPN list;
+    /// - [`InvalidUri`](crate::RequestErrorKind::InvalidUri) when `uri` does
+    ///   not parse;
+    /// - [`UnsupportedScheme`](crate::RequestErrorKind::UnsupportedScheme)
+    ///   when the scheme is neither `http` nor `https`;
+    /// - [`InvalidAuthority`](crate::RequestErrorKind::InvalidAuthority) when
+    ///   the authority is missing or invalid; or
+    /// - [`InvalidTarget`](crate::RequestErrorKind::InvalidTarget) when `uri`
+    ///   has a fragment or its path and query are not a valid request target.
+    ///
+    /// [`RequestBuilder::send`] rejects an `http://` URI and an unsupported
+    /// route, also before I/O.
     pub fn request_negotiated(
         &self,
         method: Method,
@@ -171,6 +257,19 @@ impl Client {
     ///
     /// The connect uses this client's profile, route, trust roots, and cookie
     /// jar, but not its timeouts, retry, or redirect policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`WebSocketError`] before any I/O, with kind
+    /// [`ProtocolUnavailable`](crate::WebSocketErrorKind::ProtocolUnavailable)
+    /// when the profile cannot use the selected protocol;
+    /// [`InvalidUri`](crate::WebSocketErrorKind::InvalidUri),
+    /// [`UnsupportedScheme`](crate::WebSocketErrorKind::UnsupportedScheme), or
+    /// [`InvalidAuthority`](crate::WebSocketErrorKind::InvalidAuthority) when
+    /// `uri` is not a valid `ws://` or `wss://` URI; or
+    /// [`InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest) when
+    /// `uri` has a fragment or an invalid target, or the profile's WebSocket
+    /// field template cannot be used.
     #[cfg(feature = "websocket")]
     pub fn websocket(&self, uri: &str) -> Result<WebSocketRequestBuilder, WebSocketError> {
         WebSocketRequestBuilder::new_client(self.clone(), uri)
@@ -183,6 +282,19 @@ impl Client {
     /// extended-CONNECT pseudo-header order in the HTTP/2 profile and never
     /// falls back to HTTP/1.1. HTTP/3 is rejected when the builder is created.
     /// Client timeouts, retry, and redirect policy do not apply.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`WebSocketError`] before any I/O, with kind
+    /// [`ProtocolUnavailable`](crate::WebSocketErrorKind::ProtocolUnavailable)
+    /// when the profile cannot use the selected protocol;
+    /// [`InvalidUri`](crate::WebSocketErrorKind::InvalidUri),
+    /// [`UnsupportedScheme`](crate::WebSocketErrorKind::UnsupportedScheme), or
+    /// [`InvalidAuthority`](crate::WebSocketErrorKind::InvalidAuthority) when
+    /// `uri` is not a valid `ws://` or `wss://` URI; or
+    /// [`InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest) when
+    /// `uri` has a fragment or an invalid target, or the profile's WebSocket
+    /// field template cannot be used.
     #[cfg(feature = "websocket")]
     pub fn websocket_with_protocol(
         &self,
@@ -208,8 +320,16 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`WebSocketError`] when the profile has no WebSocket settings
-    /// or the URI is invalid.
+    /// Returns a [`WebSocketError`] before any I/O, with kind
+    /// [`ProtocolUnavailable`](crate::WebSocketErrorKind::ProtocolUnavailable)
+    /// when the profile has no WebSocket settings;
+    /// [`InvalidUri`](crate::WebSocketErrorKind::InvalidUri),
+    /// [`UnsupportedScheme`](crate::WebSocketErrorKind::UnsupportedScheme), or
+    /// [`InvalidAuthority`](crate::WebSocketErrorKind::InvalidAuthority) when
+    /// `uri` is not a valid `ws://` or `wss://` URI; or
+    /// [`InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest) when
+    /// `uri` has a fragment or an invalid target, or the profile's WebSocket
+    /// field template cannot be used.
     #[cfg(feature = "websocket")]
     pub fn websocket_with_profile_policy(
         &self,
@@ -238,6 +358,28 @@ impl Client {
 }
 
 /// Builds an immutable [`Client`].
+///
+/// Each method states the value used when it is not called. Pool bounds take
+/// any nonzero value. Settings are validated only by [`Self::build`].
+///
+/// # Examples
+///
+/// ```
+/// use std::{num::NonZeroUsize, time::Duration};
+///
+/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::{Client, RequestTimeouts};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+/// let client = Client::builder(profile)
+///     .request_timeouts(RequestTimeouts::new().total(Duration::from_secs(30)))
+///     .max_retained_http2_connections(NonZeroUsize::new(8).expect("eight is nonzero"))
+///     .build()?;
+/// # drop(client);
+/// # Ok(())
+/// # }
+/// ```
 pub struct ClientBuilder {
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,
@@ -341,7 +483,12 @@ impl fmt::Debug for ClientBuilder {
 impl ClientBuilder {
     /// Adds a DER-encoded certificate to the bundled public trust roots.
     ///
-    /// Certificate and hostname verification remain enabled.
+    /// By default only the bundled public roots are trusted. Certificate and
+    /// hostname verification remain enabled. The added roots apply to origin
+    /// TLS on HTTP/1.1, HTTP/2, and HTTP/3; proxies use
+    /// [`Self::add_proxy_root_certificate_der`]. A certificate that cannot be
+    /// loaded fails [`Self::build`] with
+    /// [`BuildErrorKind::TrustStore`](crate::BuildErrorKind::TrustStore).
     #[must_use]
     pub fn add_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
         self.additional_roots.push(certificate.into());
@@ -351,8 +498,11 @@ impl ClientBuilder {
     /// Sets how TLS servers are authenticated.
     ///
     /// The default is [`ServerAuthentication::WebPki`]. Disabling
-    /// authentication is explicit and is supported for HTTP/1.1 and HTTP/2;
-    /// it cannot be combined with additional roots or HTTP/3.
+    /// authentication is explicit and is supported for HTTP/1.1 and HTTP/2.
+    /// [`Self::build`] fails with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
+    /// when disabled authentication is combined with additional roots or a
+    /// profile that configures HTTP/3.
     #[must_use]
     pub fn server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.server_authentication = policy;
@@ -361,9 +511,12 @@ impl ClientBuilder {
 
     /// Adds a DER-encoded certificate to the HTTPS-proxy trust roots.
     ///
-    /// Proxy trust is independent from origin trust. Certificate and hostname
-    /// verification remain enabled for the proxy. The roots also authenticate
-    /// the outer HTTP/3 connection of a [`Route::ConnectUdp`] route.
+    /// By default only the bundled public roots are trusted. Proxy trust is
+    /// independent from origin trust. Certificate and hostname verification
+    /// remain enabled for the proxy. The roots also authenticate the outer
+    /// HTTP/3 connection of a [`Route::ConnectUdp`] route. A certificate that
+    /// cannot be loaded fails [`Self::build`] with
+    /// [`BuildErrorKind::TrustStore`](crate::BuildErrorKind::TrustStore).
     #[must_use]
     pub fn add_proxy_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
         self.proxy_additional_roots.push(certificate.into());
@@ -372,10 +525,13 @@ impl ClientBuilder {
 
     /// Sets how an HTTPS proxy authenticates its TLS certificate.
     ///
-    /// This policy applies only to the outer proxy connection. Origin TLS uses
-    /// [`Self::server_authentication`] and its own trust roots. Disabled proxy
-    /// authentication is not supported for [`Route::ConnectUdp`], whose outer
-    /// connection is HTTP/3.
+    /// The default is [`ServerAuthentication::WebPki`]. This policy applies
+    /// only to the outer proxy connection. Origin TLS uses
+    /// [`Self::server_authentication`] and its own trust roots.
+    /// [`Self::build`] fails with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
+    /// when disabled proxy authentication is combined with proxy roots or a
+    /// [`Route::ConnectUdp`] route, whose outer connection is HTTP/3.
     #[must_use]
     pub fn proxy_server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.proxy_server_authentication = policy;
@@ -383,6 +539,9 @@ impl ClientBuilder {
     }
 
     /// Sets the default route for requests made by this client.
+    ///
+    /// The default is [`Route::Direct`]. [`RequestBuilder::route`] overrides
+    /// it for one request.
     #[must_use]
     pub fn route(mut self, route: Route) -> Self {
         self.route = route;
@@ -391,9 +550,11 @@ impl ClientBuilder {
 
     /// Sets the finite policy for following redirect responses.
     ///
-    /// Redirect following is HTTPS-only: while a policy is set, `http://`
-    /// requests fail before I/O, and a redirect to a non-`https://` target
-    /// fails with [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
+    /// The default is [`RedirectPolicy::none`], which returns a 3xx response
+    /// without following it. Redirect following is HTTPS-only: while a
+    /// limited policy is set, `http://` requests fail before I/O, and a
+    /// redirect to a non-`https://` target fails; both fail with
+    /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
     #[must_use]
     pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
         self.options.redirect_policy = policy;
@@ -402,9 +563,13 @@ impl ClientBuilder {
 
     /// Sets the policy for retrying connection-establishment failures.
     ///
-    /// Connection retries are disabled by default and apply only to
+    /// The default is [`RetryPolicy::none`]. Connection retries apply only to
     /// connection setup before dispatch: exact-protocol acquisition and
     /// negotiated H1/H2 TCP setup before ALPN selection.
+    /// [`RequestBuilder::retry_policy`] replaces the policy for one request. A
+    /// delay or `Retry-After` limit the runtime clock cannot represent fails
+    /// [`Self::build`] with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     #[must_use]
     pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.options.retry_policy = policy;
@@ -413,16 +578,21 @@ impl ClientBuilder {
 
     /// Sets the default phase and whole-operation limits for ordinary requests.
     ///
-    /// Individual [`RequestBuilder`] values may replace this policy. Every
-    /// timeout is disabled unless explicitly present in `timeouts`.
+    /// The default is [`RequestTimeouts::new`], which sets no limit.
+    /// [`RequestBuilder::timeouts`] replaces this policy for one request.
+    /// Every timeout is disabled unless explicitly present in `timeouts`. A
+    /// duration the runtime clock cannot represent fails [`Self::build`] with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     #[must_use]
     pub fn request_timeouts(mut self, timeouts: RequestTimeouts) -> Self {
         self.options.request_timeouts = timeouts;
         self
     }
 
-    /// Sets the maximum number of HTTP/1.1 connections retained for reuse.
+    /// Sets the maximum number of HTTP/1.1 pool entries retained for reuse.
     ///
+    /// The default is 32. Each entry holds one pool key's connection state;
+    /// when the limit is reached, the least recently used entry is evicted.
     /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
     /// retention limits so neither maximum is exceeded.
     #[must_use]
@@ -446,16 +616,21 @@ impl ClientBuilder {
     }
 
     /// Sets the number of requests allowed to wait per HTTP/1.1 pool key.
+    ///
+    /// The default is 100. A pool key is the origin plus the complete route.
+    /// A request beyond the limit fails with
+    /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
     #[must_use]
     pub fn max_pending_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_pending_http1_requests_per_origin = maximum;
         self
     }
 
-    /// Sets the maximum number of HTTP/2 connections retained for reuse.
+    /// Sets the maximum number of HTTP/2 pool entries retained for reuse.
     ///
-    /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
-    /// retention limits so neither maximum is exceeded.
+    /// The default is 32. When the limit is reached, the least recently used
+    /// entry is evicted. The negotiated H1/H2 pool uses the lower of the
+    /// configured H1 and H2 retention limits so neither maximum is exceeded.
     #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http2_connections = maximum;
@@ -463,6 +638,8 @@ impl ClientBuilder {
     }
 
     /// Sets the local active-request bound for each HTTP/2 pool key.
+    ///
+    /// The default is 100. The peer's stream limit also caps active requests.
     #[must_use]
     pub fn max_concurrent_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_concurrent_http2_requests_per_origin = maximum;
@@ -470,13 +647,20 @@ impl ClientBuilder {
     }
 
     /// Sets the number of requests allowed to wait per HTTP/2 pool key.
+    ///
+    /// The default is 100. A request beyond the limit fails with
+    /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
     #[must_use]
     pub fn max_pending_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_pending_http2_requests_per_origin = maximum;
         self
     }
 
-    /// Sets the maximum number of HTTP/3 connections retained for reuse.
+    /// Sets the maximum number of HTTP/3 pool entries retained for reuse.
+    ///
+    /// The default is 32. When the limit is reached, the least recently used
+    /// entry is evicted. One entry keeps connections for up to four transport
+    /// locations, so exact H3 and Alt-Svc H3 do not replace each other.
     #[must_use]
     pub fn max_retained_http3_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_retained_http3_connections = maximum;
@@ -484,6 +668,8 @@ impl ClientBuilder {
     }
 
     /// Sets the local active-request bound for each HTTP/3 pool key.
+    ///
+    /// The default is 100. The peer's stream limit also caps active requests.
     #[must_use]
     pub fn max_concurrent_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_concurrent_http3_requests_per_origin = maximum;
@@ -491,6 +677,9 @@ impl ClientBuilder {
     }
 
     /// Sets the number of requests allowed to wait per HTTP/3 pool key.
+    ///
+    /// The default is 100. A request beyond the limit fails with
+    /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
     #[must_use]
     pub fn max_pending_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_pending_http3_requests_per_origin = maximum;
@@ -498,6 +687,8 @@ impl ClientBuilder {
     }
 
     /// Sets the number of origins that may retain `Accept-CH` state.
+    ///
+    /// The default is 64.
     #[must_use]
     pub fn max_client_hint_origins(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_client_hint_origins = maximum;
@@ -506,8 +697,12 @@ impl ClientBuilder {
 
     /// Enables bounded, in-memory Alt-Svc learning for negotiated HTTPS requests.
     ///
-    /// `maximum_origins` bounds stored origin-and-route pairs: one origin
-    /// learned over N routes occupies N entries.
+    /// Alt-Svc learning is disabled by default. `maximum_origins` bounds
+    /// stored origin-and-route pairs: one origin learned over N routes
+    /// occupies N entries. [`Self::build`] fails with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
+    /// unless the profile configures HTTP/2, offers `http/1.1` in its TLS ALPN
+    /// list, and configures HTTP/3.
     ///
     /// A fresh `h3` alternative is used by a later negotiated request without
     /// changing its origin identity or its route. Alternative setup failure is
@@ -527,7 +722,8 @@ impl ClientBuilder {
     ///
     /// The default is [`AltSvcPolicy::sequential`](crate::AltSvcPolicy::sequential).
     /// A racing policy requires [`ClientBuilder::alt_svc`]; building without
-    /// it fails with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+    /// it, or with an origin delay the runtime clock cannot represent, fails
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     #[must_use]
     pub fn alt_svc_policy(mut self, policy: crate::AltSvcPolicy) -> Self {
         self.options.alt_svc_policy = policy;
@@ -535,6 +731,9 @@ impl ClientBuilder {
     }
 
     /// Enables a bounded in-memory cookie jar owned by the client.
+    ///
+    /// By default the client has no cookie jar. This jar uses the default
+    /// [`CookieLimits`](crate::CookieLimits).
     #[cfg(feature = "cookies")]
     #[must_use]
     pub fn cookies(mut self) -> Self {
@@ -543,6 +742,9 @@ impl ClientBuilder {
     }
 
     /// Enables cookie handling with a caller-created jar.
+    ///
+    /// By default the client has no cookie jar. Use this to set other
+    /// [`CookieLimits`](crate::CookieLimits).
     #[cfg(feature = "cookies")]
     #[must_use]
     pub fn cookie_jar(mut self, jar: CookieJar) -> Self {
@@ -554,10 +756,24 @@ impl ClientBuilder {
     ///
     /// # Errors
     ///
-    /// Returns [`BuildError`] when the profile is invalid, a trust root cannot
-    /// be loaded, a protocol connector cannot represent the profile, or the
-    /// profile enables no supported protocol. Use [`BuildError::kind`] for the
-    /// stable category.
+    /// Returns a [`BuildError`] whose [`BuildError::kind`] is:
+    ///
+    /// - [`InvalidProfile`](crate::BuildErrorKind::InvalidProfile) when the
+    ///   TLS, TCP, client-hint, WebSocket, HTTP/2, or HTTP/3 settings are
+    ///   invalid, or this host cannot apply the TCP settings;
+    /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
+    ///   timeout, retry delay, or Alt-Svc race delay exceeds the runtime clock
+    ///   range; disabled authentication is combined with added roots, HTTP/3,
+    ///   or a CONNECT-UDP route; Alt-Svc is enabled without negotiated H1/H2
+    ///   and HTTP/3; a racing Alt-Svc policy has no store; or the profile's
+    ///   WebSocket connection policy needs HTTP/2 settings it lacks;
+    /// - [`TrustStore`](crate::BuildErrorKind::TrustStore) when an added
+    ///   origin or proxy root cannot be loaded;
+    /// - [`ProtocolConfiguration`](crate::BuildErrorKind::ProtocolConfiguration)
+    ///   when a protocol connector cannot represent the profile, such as an
+    ///   HTTPS proxy route whose TLS ALPN list lacks `http/1.1`; or
+    /// - [`NoSupportedProtocol`](crate::BuildErrorKind::NoSupportedProtocol)
+    ///   when the profile enables no HTTP protocol Phantom implements.
     pub fn build(self) -> Result<Client, BuildError> {
         if !self.options.request_timeouts.validate() {
             return Err(BuildError::invalid_policy(
