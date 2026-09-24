@@ -7,8 +7,13 @@ use psl::Psl;
 use tracing::debug;
 use url::{Host, Url};
 
+mod snapshot;
 mod types;
 
+pub use snapshot::{
+    CookieSameSite, CookieSnapshot, CookieSnapshotEntry, CookieSnapshotError,
+    CookieSnapshotErrorKind, CookieSourceScheme,
+};
 pub use types::{CookieError, CookieErrorKind, CookieLimits};
 
 /// Bounded, thread-safe in-memory cookie jar.
@@ -209,48 +214,8 @@ impl JarState {
         url: &Url,
         limits: CookieLimits,
     ) -> Result<(), CookieError> {
-        if set_cookie.len() > limits.max_cookie_bytes().get() {
-            return Err(CookieError::new(
-                CookieErrorKind::CookieTooLarge,
-                "Set-Cookie field exceeds the configured byte limit",
-            ));
-        }
-
-        let mut raw = RawCookie::parse(set_cookie.to_owned()).map_err(|error| {
-            CookieError::with_source(
-                CookieErrorKind::InvalidSetCookie,
-                "Set-Cookie field is malformed",
-                error,
-            )
-        })?;
-        validate_policy(&raw, url)?;
-        let partitioned = raw.partitioned() == Some(true);
-        let mut cookie = Cookie::try_from_raw_cookie(&raw, url).map_err(cookie_store_error)?;
-        if is_public_suffix(&cookie.domain) {
-            let host = url.host_str().unwrap_or_default();
-            let domain = cookie.domain.as_cow().unwrap_or_default();
-            if domain == host {
-                raw.unset_domain();
-                cookie = Cookie::try_from_raw_cookie(&raw, url).map_err(cookie_store_error)?;
-            } else {
-                return Err(CookieError::new(
-                    CookieErrorKind::PublicSuffix,
-                    "cookie Domain targets a public suffix",
-                ));
-            }
-        }
-
-        // Chromium gates the secure-overwrite rule on
-        // `CookieAccessResult::is_allowed_to_access_secure_cookies`, which a
-        // trustworthy origin sets (153.0.8010.48,
-        // `net/cookies/cookie_monster.cc` lines 1532-1547 and 1782-1785).
-        if !is_potentially_trustworthy(url)
-            && self
-                .stores
-                .unpartitioned()
-                .into_iter()
-                .any(|store| overlays_secure_cookie(&cookie, store))
-        {
+        let candidate = Candidate::new(set_cookie, url, limits)?;
+        if candidate.overlays_held_secure_cookie(&self.stores) {
             return Err(CookieError::new(
                 CookieErrorKind::SecureOverlay,
                 "insecure cookie would overlay an existing secure cookie",
@@ -258,15 +223,20 @@ impl JarState {
         }
 
         self.purge_expired();
-        let key = CookieKey::from_cookie(&cookie, partitioned)?;
+        let Candidate {
+            cookie,
+            key,
+            source_scheme,
+            partition_site,
+            ..
+        } = candidate;
         let quota_domain = quota_domain(&key.domain);
         let secure = cookie.secure() == Some(true);
-        let partition_site = partitioned.then(|| schemeful_site(url));
 
         let action = match self
             .stores
             .get_mut(key.host_only, key.partitioned)
-            .insert(cookie.into_owned(), url)
+            .insert(cookie, url)
         {
             Ok(action) => action,
             Err(cookie_store::CookieError::Expired) => {
@@ -300,6 +270,7 @@ impl JarState {
                 quota_domain: quota_domain.clone(),
                 secure,
                 partition_site,
+                source_scheme,
             },
         );
         self.evict(&quota_domain, limits);
@@ -447,6 +418,79 @@ impl JarState {
     }
 }
 
+/// A cookie that passed every storage rule that does not depend on the
+/// jar's contents, as received from one URL.
+///
+/// Response storage and snapshot import both build cookies here, so an import
+/// is held to exactly the rules a `Set-Cookie` field is.
+struct Candidate {
+    cookie: Cookie<'static>,
+    key: CookieKey,
+    source_scheme: CookieSourceScheme,
+    /// Whether the setting URL is a potentially trustworthy origin.
+    trustworthy: bool,
+    /// Top-level site of a `Partitioned` cookie.
+    partition_site: Option<String>,
+}
+
+impl Candidate {
+    fn new(set_cookie: &str, url: &Url, limits: CookieLimits) -> Result<Self, CookieError> {
+        if set_cookie.len() > limits.max_cookie_bytes().get() {
+            return Err(CookieError::new(
+                CookieErrorKind::CookieTooLarge,
+                "Set-Cookie field exceeds the configured byte limit",
+            ));
+        }
+
+        let mut raw = RawCookie::parse(set_cookie.to_owned()).map_err(|error| {
+            CookieError::with_source(
+                CookieErrorKind::InvalidSetCookie,
+                "Set-Cookie field is malformed",
+                error,
+            )
+        })?;
+        validate_policy(&raw, url)?;
+        let partitioned = raw.partitioned() == Some(true);
+        let mut cookie = Cookie::try_from_raw_cookie(&raw, url).map_err(cookie_store_error)?;
+        if is_public_suffix(&cookie.domain) {
+            let host = url.host_str().unwrap_or_default();
+            let domain = cookie.domain.as_cow().unwrap_or_default();
+            if domain == host {
+                raw.unset_domain();
+                cookie = Cookie::try_from_raw_cookie(&raw, url).map_err(cookie_store_error)?;
+            } else {
+                return Err(CookieError::new(
+                    CookieErrorKind::PublicSuffix,
+                    "cookie Domain targets a public suffix",
+                ));
+            }
+        }
+        let key = CookieKey::from_cookie(&cookie, partitioned)?;
+        Ok(Self {
+            cookie: cookie.into_owned(),
+            key,
+            source_scheme: CookieSourceScheme::of(url),
+            trustworthy: is_potentially_trustworthy(url),
+            partition_site: partitioned.then(|| schemeful_site(url)),
+        })
+    }
+
+    /// Returns whether storing this cookie would overlay a held `Secure`
+    /// cookie from an origin that may not.
+    ///
+    /// Chromium gates the secure-overwrite rule on
+    /// `CookieAccessResult::is_allowed_to_access_secure_cookies`, which a
+    /// trustworthy origin sets (153.0.8010.48,
+    /// `net/cookies/cookie_monster.cc` lines 1532-1547 and 1782-1785).
+    fn overlays_held_secure_cookie(&self, stores: &Stores) -> bool {
+        !self.trustworthy
+            && stores
+                .unpartitioned()
+                .into_iter()
+                .any(|store| overlays_secure_cookie(&self.cookie, store))
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct CookieKey {
     domain: String,
@@ -484,6 +528,8 @@ struct CookieMetadata {
     secure: bool,
     /// Top-level site of a `Partitioned` cookie.
     partition_site: Option<String>,
+    /// Scheme of the URL that set the cookie.
+    source_scheme: CookieSourceScheme,
 }
 
 fn parse_url(value: &str) -> Result<Url, CookieError> {

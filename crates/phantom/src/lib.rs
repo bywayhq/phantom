@@ -43,6 +43,7 @@
 //! | `sse` | Server-sent event decoding and bounded reconnects |
 //! | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
+//! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
 //! | `full` | All of the above |
 //!
 //! No feature is enabled by default. QUIC qlog and NSS key logging are
@@ -130,7 +131,10 @@ pub use session::{
     AltSvcSnapshotError, AltSvcSnapshotErrorKind,
 };
 #[cfg(feature = "cookies")]
-pub use session::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
+pub use session::{
+    CookieError, CookieErrorKind, CookieJar, CookieLimits, CookieSameSite, CookieSnapshot,
+    CookieSnapshotEntry, CookieSnapshotError, CookieSnapshotErrorKind, CookieSourceScheme,
+};
 #[doc(hidden)]
 pub use session::{Session, SessionBuilder};
 #[cfg(feature = "sse")]

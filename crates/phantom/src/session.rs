@@ -21,7 +21,10 @@ pub use alt_svc::{
     AltSvcSnapshotError, AltSvcSnapshotErrorKind,
 };
 #[cfg(feature = "cookies")]
-pub use cookies::{CookieError, CookieErrorKind, CookieJar, CookieLimits};
+pub use cookies::{
+    CookieError, CookieErrorKind, CookieJar, CookieLimits, CookieSameSite, CookieSnapshot,
+    CookieSnapshotEntry, CookieSnapshotError, CookieSnapshotErrorKind, CookieSourceScheme,
+};
 
 const DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS: NonZeroUsize = match NonZeroUsize::new(32) {
     Some(value) => value,
@@ -372,6 +375,81 @@ impl Client {
     #[must_use]
     pub fn cookie_jar(&self) -> Option<&CookieJar> {
         self.state.cookies.as_deref()
+    }
+
+    /// Exports this client's unexpired cookies for caller-owned persistence,
+    /// oldest first.
+    ///
+    /// Returns `None` when the client was built without a cookie jar. Each
+    /// entry keeps every attribute, the partition key of a `Partitioned`
+    /// cookie, and the scheme of the URL that set it. A persistent cookie's
+    /// expiry is rounded down to a second; a session cookie has none and is
+    /// exported too, so restoring one continues the session. Exporting does
+    /// not count as a use for eviction.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use phantom::{Client, profile::ClientProfile, profile::chromium};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let profile = || ClientProfile::new(chromium::v154_tls());
+    /// let client = Client::builder(profile()).cookies().build()?;
+    /// if let Some(jar) = client.cookie_jar() {
+    ///     jar.set_cookie("https://example.com/", "sid=1; Secure; HttpOnly")?;
+    /// }
+    ///
+    /// let snapshot = client.export_cookies().ok_or("cookies are enabled")?;
+    /// let restored = Client::builder(profile()).cookies().build()?;
+    /// restored.import_cookies(&snapshot)?;
+    /// assert_eq!(
+    ///     restored
+    ///         .cookie_jar()
+    ///         .map(|jar| jar.request_value("https://example.com/"))
+    ///         .transpose()?
+    ///         .flatten()
+    ///         .as_deref(),
+    ///     Some("sid=1")
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "cookies")]
+    #[must_use]
+    pub fn export_cookies(&self) -> Option<CookieSnapshot> {
+        self.state.cookies.as_deref().map(CookieJar::export)
+    }
+
+    /// Imports cookies from a previously exported or caller-built snapshot.
+    ///
+    /// Every entry is revalidated first as the `Set-Cookie` field a response
+    /// from its source scheme and domain would send, under the same rules and
+    /// byte limit that govern response cookies, and one invalid entry rejects
+    /// the whole snapshot without changing state. An import can therefore
+    /// store only a cookie a response could have stored.
+    ///
+    /// Expired entries are dropped, a later entry with the same name, domain,
+    /// path, and host-only and partitioned flags wins, and expiry is rounded
+    /// down to a second and never extended. Cookies the jar already holds
+    /// take precedence, as does a held `Secure` cookie that an entry from an
+    /// untrustworthy origin would overlay. Imported cookies rank as created
+    /// and used before every held cookie. The jar's count limits admit
+    /// imported cookies up to each limit instead of evicting, so capacity
+    /// keeps every held cookie and then the newest snapshot entries.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CookieSnapshotError`] with
+    /// [`CookieSnapshotErrorKind::Disabled`] when the client has no cookie
+    /// jar, or with the category and index of the first entry that storage
+    /// would refuse.
+    #[cfg(feature = "cookies")]
+    pub fn import_cookies(&self, snapshot: &CookieSnapshot) -> Result<(), CookieSnapshotError> {
+        self.state
+            .cookies
+            .as_deref()
+            .ok_or_else(CookieSnapshotError::disabled)?
+            .import(snapshot)
     }
 
     /// Clears all `Accept-CH` preferences learned by this client.
