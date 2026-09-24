@@ -20,7 +20,7 @@ size limit, and delegated-credential patches.
 - Source archive: <https://codeload.github.com/0x676e67/btls/tar.gz/129887582a538b8f4dcf371d15c953335312ca37>
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
-- Reviewed dependency fork: <https://github.com/0xARYA/btls>
+- Reviewed dependency fork: <https://github.com/bywayhq/btls>
 - Reviewed dependency commit: `ce81167653e2d8878f2e9b2218a15b9bc8351a53`
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
@@ -28,7 +28,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.1`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.2`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged

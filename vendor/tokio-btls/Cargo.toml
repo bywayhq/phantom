@@ -1,6 +1,6 @@
 [package]
 name = "phantom-tokio-btls"
-version = "0.5.6-phantom.1"
+version = "0.5.6-phantom.2"
 authors = ["0x676e67 <gngppz@gmail.com>", "Alex Crichton <alex@alexcrichton.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
@@ -17,7 +17,7 @@ exclude = [
 [package.metadata.phantom]
 upstream-package = "tokio-btls"
 upstream-version = "0.5.6"
-upstream-source = "https://codeload.github.com/0xARYA/btls/tar.gz/ce81167653e2d8878f2e9b2218a15b9bc8351a53"
+upstream-source = "https://codeload.github.com/bywayhq/btls/tar.gz/ce81167653e2d8878f2e9b2218a15b9bc8351a53"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
@@ -36,7 +36,7 @@ rpk = ["btls/rpk"]
 prefix-symbols = ["btls/prefix-symbols"]
 
 [dependencies]
-btls = { package = "phantom-btls", version = "=0.5.6-phantom.1", path = "../btls" }
+btls = { package = "phantom-btls", version = "=0.5.6-phantom.2", path = "../btls" }
 tokio = "1.52.1"
 
 [dev-dependencies]
