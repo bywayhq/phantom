@@ -1,8 +1,8 @@
 # Server-sent events
 
-This guide shows how to read a server-sent event (SSE) stream, the protocol
-behind the browser `EventSource` API, and how to reconnect it the way a
-browser does. Both APIs need the optional `sse` feature.
+Read a server-sent event (SSE) stream, the protocol behind the browser
+`EventSource` API, and reconnect it the way a browser does. Both APIs need the
+optional `sse` feature.
 
 > For builders who have read [Getting started](../getting-started.md).
 
@@ -144,7 +144,7 @@ async fn firefox_like(
   `SseEventSource::retry_delay` reports the raised value.
 - Browsers send `Pragma: no-cache` and their navigation-context fields too.
   Supply them in order with `headers`, and place `Last-Event-ID` where the
-  browser does: 9th of 16 fields in Chrome, 5th of 14 in Firefox.
+  browser does: 10th of 16 fields in Chrome, 6th of 14 in Firefox.
 - `Cookie` goes after every caller field, where Chrome sends it. For
   Firefox's position, use a profile with `firefox::v156_cookie_placement`;
   see [Cookie field position](connections-and-state.md#place-the-cookie-field-where-a-browser-does).
@@ -161,12 +161,12 @@ async fn firefox_like(
   request timeouts for each attempt. The read-idle and total timers stop once
   a stream is established.
 - A redirected stream reconnects to the original URL and follows the redirect
-  policy again, as Firefox does. Chrome reconnects to the redirected URL. No
-  setting changes this.
-- The source waits the retry delay after every failed attempt, as Chrome
-  does. After a reused HTTP/1 connection closes before a response, Chrome
-  resends once at once; `RetryPolicy::with_reused_connection_replay` opts into
-  that resend.
+  policy again. No setting changes this;
+  [Validation](../explanation/validation.md#sse-browser-reconnect-evidence)
+  shows where Chrome differs.
+- The source waits the retry delay after every failed attempt. After a reused
+  HTTP/1 connection closes before a response,
+  `RetryPolicy::with_reused_connection_replay` resends once without waiting.
 - Decoding follows the WHATWG event-stream rules. An event without its
   terminating blank line is discarded at the end of the body.
 - Lines over 64 KiB or events over 1 MiB fail with a typed `SseError` and

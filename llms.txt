@@ -1,12 +1,12 @@
 # Phantom
 
-> Rust HTTP client that connects the way a chosen browser does. Phantom reproduces the TCP options, TLS ClientHello, HTTP/1.1, HTTP/2, QUIC, and HTTP/3 behavior, client hints, and request fields of Chrome 154, Edge 153, and Firefox 156, and never falls back to another protocol or route. Package `phantom-http`, library crate `phantom`. Pre-1.0 and not on crates.io; depend on a pinned git revision.
+> Rust HTTP client that connects the way a chosen browser does. Phantom reproduces the TLS ClientHello, HTTP/1.1 and HTTP/2 behavior, request fields, and WebSocket openings of Chrome 154, Edge 153, and Firefox 156; QUIC and HTTP/3 for Chrome and Edge only; client hints for Chrome and Edge (Firefox sends none); and TCP socket options from browser source for Chrome and, partly, Firefox. Edge has no TCP recipe. Phantom never falls back to another protocol or route. Package `phantom-http`, library crate `phantom`. Pre-1.0 and not on crates.io; depend on a pinned git revision.
 
 When you use Phantom as a dependency, a git checkout of the pinned revision sits under `~/.cargo/git/checkouts/`. Its `docs/` directory matches the version you build against. Prefer those files over what you remember about Phantom: the API changes between commits.
 
 ## Rules
 
-- Build a `ClientProfile` from the recipes of one browser version, as the examples show. Edge 153 uses the Chromium 154 HTTP/2, QUIC, and HTTP/3 recipes; that pairing is captured, not a mix.
+- Build a `ClientProfile` from the recipes of one browser version, as the examples show. Edge 153 uses the Chromium 154 HTTP/2, WebSocket, QUIC, and HTTP/3 recipes; Edge captures match them on every compared field, so the pairing is one browser.
 - Do not hand-write TLS, HTTP/2, QUIC, or HTTP/3 settings to imitate a browser. Use the recipe functions in `phantom::profile::{chromium, edge, firefox}`.
 - Pick the protocol on every request: `HttpProtocol::Http1`, `Http2`, or `Http3` with `get` or `request`, or `get_negotiated` to let TLS ALPN choose HTTP/1.1 or HTTP/2.
 - Phantom never falls back. An unsupported protocol, route, or proxy returns a typed error; handle it instead of retrying with a different protocol.
@@ -40,7 +40,7 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 ## Reference
 
 - [Coverage](docs/reference/coverage.md): what each browser recipe covers, layer by layer; anything not listed is unsupported
-- [Browser profile reference](docs/reference/profiles.md): recipe functions, platforms, and templates
+- [Profile reference](docs/reference/profiles.md): recipe functions, platforms, and templates
 - [Route matrix](docs/reference/route-matrix.md): every scheme, protocol, and route combination
 - [Defaults and limits](docs/reference/limits.md): default bounds and off-by-default policies
 - [WebSocket reference](docs/reference/websocket.md): WebSocket routes, templates, response checks, recipes, and compression

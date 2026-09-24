@@ -123,19 +123,18 @@ impl Client {
         RequestBuilder::new_client(self.clone(), protocol, method, uri)
     }
 
-    /// Starts one direct GET that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
+    /// Starts one GET that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
-    /// The client opens at most one current direct TCP/TLS generation per
-    /// origin and reuses the ALPN-selected protocol while that generation is
-    /// eligible. Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN
-    /// selects HTTP/1.1.
-    /// It does not race. An opt-in [`RetryPolicy`] may retry a direct TCP
-    /// connect failure before TLS starts; TLS and ALPN failures are terminal.
-    /// When bounded Alt-Svc
-    /// learning is enabled, a fresh `h3` advertisement from an earlier
-    /// negotiated response selects HTTP/3 without changing the origin identity.
-    /// Any non-direct configured or per-request route is rejected before I/O.
-    /// [`crate::ResponseInfo::protocol`]
+    /// Negotiated requests run on direct and SOCKS5 routes. The client opens
+    /// at most one current TCP/TLS generation per origin and reuses the
+    /// ALPN-selected protocol while that generation is eligible. Exact `h2`
+    /// selects HTTP/2; exact `http/1.1` or absent ALPN selects HTTP/1.1.
+    /// It does not race. An opt-in [`RetryPolicy`] may retry a TCP connect
+    /// failure before TLS starts; TLS and ALPN failures are terminal. When
+    /// bounded Alt-Svc learning is enabled, a fresh `h3` advertisement from an
+    /// earlier negotiated response selects HTTP/3 without changing the origin
+    /// identity or the route. An HTTP proxy or CONNECT-UDP route, configured
+    /// or per request, is rejected before I/O. [`crate::ResponseInfo::protocol`]
     /// reports the selected protocol. Client cookies and learned client hints
     /// apply. Negotiated generations are isolated from the exact-protocol
     /// pools.
@@ -149,7 +148,7 @@ impl Client {
         self.request_negotiated(Method::GET, uri)
     }
 
-    /// Starts one direct request that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
+    /// Starts one request that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
     /// This has the same pooled-generation selection contract as
     /// [`Self::get_negotiated`]. The request must be representable by both HTTP

@@ -35,7 +35,8 @@ cd phantom-hello
 ```
 
 Add Phantom and Tokio to `Cargo.toml`. Replace `<commit>` with a commit hash
-from the repository, `a84e73c` or later:
+from the repository, `be02e93` or later; earlier commits lack the Chrome 154
+recipes this tutorial uses:
 
 ```toml
 [dependencies]

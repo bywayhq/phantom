@@ -67,7 +67,7 @@ resolved addresses.
 | None (no `with_tcp`) | OS default | OS default | One at a time, resolver order |
 | `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
 | `firefox::v156_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
-| Edge | No recipe | No recipe | No recipe |
+| Edge | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a

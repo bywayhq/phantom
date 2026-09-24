@@ -14,8 +14,10 @@ The library crate is still `phantom`, and the dependency key below keeps
 
 ## Depend on a pinned git revision
 
-Pin an exact commit, `a84e73c` or later. Earlier commits predate the
-MIT OR Apache-2.0 license files and carry no license grant.
+Pin an exact commit, `be02e93` or later. Commits before `a84e73c` predate the
+MIT OR Apache-2.0 license files and carry no license grant, and commits before
+`be02e93` lack the Chrome 154 recipes these guides use. The documentation
+describes the commit it ships with, so read it at the commit you pin.
 
 ```toml
 [dependencies]
