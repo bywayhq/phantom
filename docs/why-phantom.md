@@ -16,7 +16,7 @@ rests on.
   priority, QUIC transport parameters, HTTP/3 SETTINGS, client hints, request
   field order, and WebSocket opening of one browser build. See
   [Consistency](fingerprinting.md#consistency) for why that matters.
-- Evidence you can check. Each browser recipe comes from traffic recorded
+- Evidence you can check. Most browser recipes come from traffic recorded
   from a real browser and retained under `fixtures/`, and tests compare
   Phantom's output with those recordings. Where a recording cannot show a
   detail, such as TCP socket options, the recipe comes from browser source
