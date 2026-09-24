@@ -70,3 +70,11 @@ required-features = ["sse"]
 [[example]]
 name = "quic-interop-client"
 path = "examples/quic_interop/main.rs"
+
+[[example]]
+name = "first-request"
+path = "examples/first_request.rs"
+
+[[example]]
+name = "request-template"
+path = "examples/request_template.rs"
