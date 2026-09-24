@@ -16,7 +16,7 @@ const EXPECTED_LAUNCH_ARGUMENTS: &str = concat!(
 );
 
 #[tokio::test]
-async fn chrome_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
+async fn chrome_154_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
     assert_eq!(fixture.value("format")?, "phantom-client-hello-v2");
     assert_eq!(fixture.value("captured_at_unix")?, "1790242735");

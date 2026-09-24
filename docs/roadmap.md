@@ -211,7 +211,7 @@ have shown where the real architectural boundaries are.
 - Close the caller ergonomics gaps a survey of seventeen HTTP clients found,
   in this order. None of these changes a byte on the wire; each is caller-side
   only.
-  1. Composed per-browser profile constructors, such as `chromium::v153()`,
+  1. Composed per-browser profile constructors, such as `chromium::v154()`,
      assembling the components that are already verified. Today a Chrome 154
      client takes seven hand-composed calls, and the caller has to know that
      the HTTP/3 leg uses `v154_http3_tls` and not `v154_tls`. Getting that

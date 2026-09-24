@@ -462,6 +462,11 @@ Limits:
 - `chromium::v154_tcp` rests on Chromium source at tag `154.0.8037.58`, not
   on a capture; see
   [TCP socket option evidence](#tcp-socket-option-evidence).
+- `client-startup.txt` is the only CRLF file under `fixtures/`, because
+  `chrome_http3.py` opens that path in text mode. Its bytes and pinned
+  SHA-256 are stable in the repository, but rerunning the documented command
+  on another platform would not reproduce that hash; see
+  [the capture README](../../scripts/capture/README.md).
 - Chrome 154 was compared against the Chrome 153 Windows fixtures while those
   were still in the tree. They have since been removed with the Chrome 153
   recipes, so that comparison is recorded here rather than reproducible from

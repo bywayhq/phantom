@@ -15,7 +15,7 @@ const EDGE_153_FIXTURE_TEXT: &str = include_str!(concat!(
 const EXPECTED_LAUNCH_ARGUMENTS: &str = "--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom";
 
 #[tokio::test]
-async fn chrome_fixture_retains_exact_metadata_and_startup_bytes() -> TestResult<()> {
+async fn chrome_154_fixture_retains_exact_metadata_and_startup_bytes() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
     assert_eq!(fixture.captured_at_unix, 1_790_242_789);
     assert_eq!(fixture.browser, "Google Chrome");

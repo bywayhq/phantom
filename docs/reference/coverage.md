@@ -62,10 +62,9 @@ Supported:
 - Profile address racing (`TcpAddressRacing`): Chromium's Happy Eyeballs v2
   over the complete resolver result. At most two attempts run at once, the
   losing attempt is cancelled, and the most recent failure is returned.
-- The recipes `chromium::v154_tcp` and `chromium::v154_tcp` (Windows and
-  Linux) and `firefox::v156_tcp`
-  (`TCP_NODELAY` only, attempts in resolver order), both taken from browser
-  source. See
+- The recipes `chromium::v154_tcp` (Windows and Linux) and
+  `firefox::v156_tcp` (`TCP_NODELAY` only, attempts in resolver order), both
+  taken from browser source. See
   [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
 
 Not modeled:
@@ -558,11 +557,19 @@ Supported:
   weekly runs that grow a cached, uncommitted corpus. Targets are the
   test-kit ClientHello and H2 frame decoders, Quinn transport parameters, and
   the production HTTP CONNECT response and proxy Basic challenge parsers.
-- Peet and Pingly as supplemental observers.
+
+Not currently used:
+
+- Third-party observers. Retained Peet and Pingly HTTP/2 observations, and the
+  Akamai-summary cross-check that replayed them, were removed with the Chrome
+  152 and Firefox 154 recipes they described. No third-party observation is
+  retained today, and no recipe rests on one. See
+  [Recorded coverage losses](#recorded-coverage-losses).
 
 Planned:
 
-- A repeated packet-shape study and a Prism comparison.
+- Restoring a supplemental observer for a current recipe, and a repeated
+  packet-shape study and Prism comparison.
 - Broader protocol fuzzing and sanitizers for native adapters.
 - Long soak tests.
 
@@ -577,11 +584,12 @@ can change the bytes a browser sends.
 [Browser profiles](../guides/profiles.md#recipe-names-and-platforms) explains
 the naming rules.
 
-Captures from more than one platform decide whether two recipes share
-component data:
+Each recipe records the platform its captures came from, and no recipe
+shares component data with a capture from another platform:
 
-- [Cross-platform transport parity](../explanation/validation.md#cross-platform-transport-parity)
-  records the Windows 11 captures behind each recipe.
+- [Capture normalization](../explanation/validation.md#capture-normalization)
+  records the Windows 11 captures behind each recipe and what a comparison
+  normalizes.
 - SSE and WebSocket browser captures are from Windows 11 (10.0.26200) only.
   Phantom does not assume macOS parity for them.
 - Chrome 154 (154.0.8037.58), Edge 153 (153.0.4234.48), and Firefox 156
@@ -658,10 +666,45 @@ The runtime uses the validated settings it receives. It does not branch on the
 host OS or the client-family name. OS-specific code exists only for real
 differences in sockets, trust stores, native builds, or profiling.
 
+### Recorded coverage losses
+
+Carrying one version per browser retires evidence along with the recipes it
+described. These are the checks Phantom used to run and no longer does. Each
+is a real reduction, not a restatement:
+
+- **Third-party HTTP/2 observations.** The Chrome 152 Pingly and Firefox 154
+  Peet and Pingly fixtures are gone, and with them
+  `assert_akamai_summary`, which compared a recipe's SETTINGS, window
+  increment, and pseudo-header order against an independent observer's
+  summary of the same browser. No current recipe has a second opinion from
+  outside this repository.
+- **Raw Firefox HTTP/2 startup bytes.** The Firefox 154 `client-startup.txt`
+  replay is gone, and no Firefox 156 equivalent exists: the raw startup tool
+  needs WebDriver certificate trust, and geckodriver is not installed on the
+  capture host. `firefox::v156_http2`'s SETTINGS and connection window now
+  rest on the HTTP/2 session captures of the WebSocket fixture set rather than
+  on a byte-exact startup frame comparison.
+- **Cross-platform transport parity.** The Chrome 152 and Firefox 154 macOS
+  and Windows capture pairs established that those transport layers did not
+  depend on the host platform. No current recipe has a second platform, so
+  platform independence is no longer claimed for any of them.
+- **The Chrome for Testing field-trial comparison.** The retained
+  `client-hello-field-trial-config.txt` that kept the testing configuration's
+  differences visible went with the Chrome 152 fixtures, and no Chrome for
+  Testing build of 154.0.8037.58 is published, so build flavor is not isolated
+  at the current version.
+- **Within-process trust-anchor stability.** The multi-connection captures
+  that showed one trust-anchor order per browser process, 48 connections from
+  each of 13 processes, were Chrome 152 and 153 and were never retained as
+  fixtures. The Chrome 154 captures take one connection per process, so they
+  show only that the order no longer differs between processes.
+
 ## Claim boundary
 
-Local raw captures and packet and frame differentials are the primary
-evidence. Pingly, Peet, and Prism are independent observers that can reveal
-missing signals, but none of them alone decides pass or fail. Phantom reports
-the concrete fields and behaviors a test covers. It does not label a whole
-profile "verified".
+Local raw captures and packet and frame differentials are the only evidence
+behind the current recipes. Independent observers such as Pingly, Peet, and
+Prism can reveal missing signals that a local capture and a local comparator
+would both miss, and none of them alone would decide pass or fail; no
+observation from one is retained today, so nothing here rests on that second
+opinion. Phantom reports the concrete fields and behaviors a test covers. It
+does not label a whole profile "verified".

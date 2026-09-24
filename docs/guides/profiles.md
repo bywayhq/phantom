@@ -89,9 +89,10 @@ operating system: the runtime uses the validated settings it receives and
 never branches on the host OS or the browser name.
 
 - A name without a platform, such as `chromium::v154_tls` or
-  `firefox::v156_http2`, means the settings matched on more than one
-  platform, or belong to a later version that relies on that finding. Each
-  recipe's rustdoc names its capture builds and platforms.
+  `firefox::v156_http2`, means the recipe carries no platform-specific data,
+  not that it was captured on more than one platform. Every current recipe
+  comes from Windows captures alone; each recipe's rustdoc names its single
+  capture build and platform.
 - A `windows` in a name means only "observed on that platform". It never
   means "selected by `target_os`". Client-hint and request-template recipes
   keep it because their values carry platform data on the wire.

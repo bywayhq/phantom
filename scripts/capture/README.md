@@ -241,6 +241,20 @@ and the launch commands used for them, and
 [HTTP/3 internals](../../docs/internals/http3.md#capture-workflow) describes
 what it retains.
 
+Known defect, to fix at the next Chrome capture: the tool opens
+`client-startup.txt` in text mode, so on Windows it writes CRLF where every
+other capture tool writes LF.
+`fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt` is
+the one CRLF file under `fixtures/`. `.gitattributes` marks `fixtures/**` as
+`-text`, so the bytes and the SHA-256 that
+`scripts/capture/tests/test_chrome_http3.py` pins are stable in the
+repository, and every parser reads the file with line splitting that strips
+the carriage return. But rerunning the documented command on a non-Windows
+host would produce LF and a different hash, so that pinned hash is not
+reproducible across platforms. Open the output path in binary mode, or with
+`newline=""`, before the next capture; do not rewrite the retained file's
+line endings.
+
 ## Alt-Svc racing
 
 `alt_svc_race.py` records how Chromium races a learned `h3` alternative
