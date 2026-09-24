@@ -31,7 +31,29 @@ use replay::ReplayState;
 ///
 /// [`Client::get`] and [`Client::request`] build exact-protocol requests;
 /// [`Client::get_negotiated`] and [`Client::request_negotiated`] build requests
-/// whose H1 or H2 selection is made by ALPN.
+/// whose H1 or H2 selection is made by ALPN. Fields, route, and policies are
+/// validated when [`Self::send`] runs, before any I/O.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::time::Duration;
+///
+/// use phantom::{Client, HttpProtocol, Method, RequestError, RequestHeader, RequestTimeouts};
+///
+/// async fn post(client: &Client) -> Result<(), RequestError> {
+///     let response = client
+///         .request(HttpProtocol::Http2, Method::POST, "https://example.com/api")?
+///         .header(RequestHeader::new("content-type", "application/json"))
+///         .body(r#"{"name":"phantom"}"#)
+///         .timeouts(RequestTimeouts::new().total(Duration::from_secs(30)))
+///         .send()
+///         .await?;
+///     let body = response.into_body().collect_with_limit(1 << 20).await?;
+///     println!("{} bytes", body.len());
+///     Ok(())
+/// }
+/// ```
 #[must_use = "request builders do nothing until send is awaited"]
 pub struct RequestBuilder {
     client: Client,
@@ -129,12 +151,18 @@ impl RequestBuilder {
     }
 
     /// Appends one ordered request field.
+    ///
+    /// A new builder has no caller fields. The URI supplies the authority, so
+    /// a `Host` field fails [`Self::send`] with
+    /// [`RequestErrorKind::AuthorityHeader`](crate::RequestErrorKind::AuthorityHeader).
     pub fn header(mut self, header: RequestHeader) -> Self {
         self.headers.push(header);
         self
     }
 
     /// Replaces the complete ordered request-field list.
+    ///
+    /// The same rules apply as for [`Self::header`].
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
         self.headers = headers;
         self
@@ -142,10 +170,11 @@ impl RequestBuilder {
 
     /// Sends the request with a browser request template's fields and order.
     ///
-    /// Each attempt emits the template's list for the protocol it uses, after
-    /// `Host` on HTTP/1.1 or the pseudo-header fields on HTTP/2 and HTTP/3.
-    /// A caller field whose name matches a template entry takes that entry's
-    /// position and spelling and keeps its value; a literal entry without one
+    /// By default no template is used. Each attempt emits the template's list
+    /// for the protocol it uses, after `Host` on HTTP/1.1 or the pseudo-header
+    /// fields on HTTP/2 and HTTP/3. A caller field whose name matches a
+    /// template entry takes that entry's position and spelling and keeps its
+    /// value; a literal entry without one
     /// emits its captured value. Other caller fields follow the template.
     /// Templates carry no `Cookie` entry: the cookie jar's field is then
     /// inserted among those fields by the profile's
@@ -179,11 +208,13 @@ impl RequestBuilder {
 
     /// Replaces the complete ordered request-trailer list.
     ///
-    /// Static trailers are emitted only after the request body completes
-    /// successfully. HTTP/1.1 preserves field-name spelling; HTTP/2 and
-    /// HTTP/3 require lowercase names. Every protocol preserves field order,
-    /// duplicate positions, values, and sensitivity. A nonempty static list
-    /// cannot be combined with body-produced trailers.
+    /// A new builder has no static trailers. Static trailers are emitted only
+    /// after the request body completes successfully. HTTP/1.1 preserves
+    /// field-name spelling; HTTP/2 and HTTP/3 require lowercase names. Every
+    /// protocol preserves field order, duplicate positions, values, and
+    /// sensitivity. A nonempty static list cannot be combined with
+    /// body-produced trailers; [`Self::send`] fails with
+    /// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
     pub fn trailers(mut self, trailers: Vec<RequestHeader>) -> Self {
         self.trailers = trailers;
         self
@@ -191,9 +222,10 @@ impl RequestBuilder {
 
     /// Sets the complete owned request body.
     ///
-    /// Non-empty bodies receive a trailing `Content-Length` field when the
-    /// caller did not supply one. Caller-supplied lengths must be canonical
-    /// and exact.
+    /// A new builder has no body. An owned body can be sent again for a
+    /// redirect or retry. Non-empty bodies receive a trailing `Content-Length`
+    /// field when the caller did not supply one. Caller-supplied lengths must
+    /// be canonical and exact.
     pub fn body(mut self, body: impl Into<Bytes>) -> Self {
         self.body = RequestBodySource::Bytes(body.into());
         self.body_declares_alt_used_trailer = false;
@@ -248,6 +280,12 @@ impl RequestBuilder {
     }
 
     /// Overrides the client's route for this request.
+    ///
+    /// Without this call the request uses the route set by
+    /// [`ClientBuilder::route`](crate::ClientBuilder::route). [`Self::send`]
+    /// fails with
+    /// [`RequestErrorKind::UnsupportedRoute`](crate::RequestErrorKind::UnsupportedRoute)
+    /// before I/O when the route cannot carry the selected protocol.
     pub fn route(mut self, route: Route) -> Self {
         self.route = Some(route);
         self
@@ -255,7 +293,12 @@ impl RequestBuilder {
 
     /// Replaces the client's timeout policy for this operation.
     ///
-    /// [`RequestTimeouts::default`] explicitly disables every client default.
+    /// Without this call the request uses the policy set by
+    /// [`ClientBuilder::request_timeouts`](crate::ClientBuilder::request_timeouts).
+    /// The whole policy is replaced, not merged: [`RequestTimeouts::default`]
+    /// explicitly disables every client default. A duration the runtime clock
+    /// cannot represent fails [`Self::send`] with
+    /// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
     pub fn timeouts(mut self, timeouts: RequestTimeouts) -> Self {
         self.timeouts = Some(timeouts);
         self
@@ -263,12 +306,16 @@ impl RequestBuilder {
 
     /// Replaces the client's connection-establishment retry policy for this request.
     ///
+    /// Without this call the request uses the policy set by
+    /// [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy).
     /// The policy applies to exact H1, H2, or H3 connection acquisition and to
     /// negotiated H1/H2 TCP connection setup before ALPN selection, always
     /// before request dispatch. Negotiated TLS and ALPN failures are terminal.
     /// Any opt-in reused-connection replay, unprocessed-request replay, or
     /// [`StatusRetry`](crate::StatusRetry) in `policy` also replaces the
-    /// client's.
+    /// client's. A delay the runtime clock cannot represent fails
+    /// [`Self::send`] with
+    /// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
     pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.retry_policy = Some(policy);
         self
@@ -276,6 +323,7 @@ impl RequestBuilder {
 
     /// Sets the response content-decoding policy for this request.
     ///
+    /// The default is [`ContentDecoding::none`], which returns the wire body.
     /// [`ContentDecoding::advertised`] decodes only codings named by this
     /// request's own ordered `Accept-Encoding` fields; Phantom never adds or
     /// moves that field. The request head is byte-identical with and without
@@ -287,7 +335,13 @@ impl RequestBuilder {
     /// three deep, mixed with `identity`, or malformed fails the first body
     /// poll with
     /// [`RequestErrorKind::ContentDecoding`](crate::RequestErrorKind::ContentDecoding);
-    /// the status and fields remain visible.
+    /// the status and fields remain visible. With decoding enabled,
+    /// [`Self::send`] fails before I/O with
+    /// [`RequestErrorKind::InvalidHeader`](crate::RequestErrorKind::InvalidHeader)
+    /// for a malformed `Accept-Encoding` field, and with
+    /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
+    /// when the template's per-protocol lists carry different literal
+    /// `Accept-Encoding` values.
     pub fn content_decoding(mut self, policy: ContentDecoding) -> Self {
         self.content_decoding = policy;
         self
@@ -317,12 +371,48 @@ impl RequestBuilder {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError`] for invalid ordered fields (including a
-    /// malformed `Accept-Encoding` when content decoding is enabled), a missing or
-    /// I/O-disabled Tokio runtime, connection or TLS failure, and protocol
-    /// failure. Inspect
-    /// [`RequestError::kind`](crate::RequestError::kind) for the stable
-    /// category.
+    /// Returns a [`RequestError`]; [`RequestError::kind`] gives the category.
+    /// These kinds are returned before any I/O:
+    ///
+    /// - [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a
+    ///   timeout or retry delay exceeds the runtime clock range;
+    /// - [`AuthorityHeader`](crate::RequestErrorKind::AuthorityHeader) for a
+    ///   caller `Host` field;
+    /// - [`InvalidHeader`](crate::RequestErrorKind::InvalidHeader) for a
+    ///   caller `Alt-Used` field while Alt-Svc learning is enabled, a
+    ///   `Proxy-Authorization` field on an `http://` request, or a malformed
+    ///   `Accept-Encoding` while content decoding is enabled;
+    /// - [`RequestTemplate`](crate::RequestErrorKind::RequestTemplate) and
+    ///   [`IdentityMismatch`](crate::RequestErrorKind::IdentityMismatch) as
+    ///   described on [`Self::template`];
+    /// - [`RequestBody`](crate::RequestErrorKind::RequestBody) when static
+    ///   trailers are combined with body-produced trailers;
+    /// - [`UnsupportedScheme`](crate::RequestErrorKind::UnsupportedScheme) or
+    ///   [`UnsupportedRoute`](crate::RequestErrorKind::UnsupportedRoute) when
+    ///   the scheme, protocol selection, and route cannot be combined; and
+    /// - [`Redirect`](crate::RequestErrorKind::Redirect) for an `http://`
+    ///   request while a redirect policy is set.
+    ///
+    /// These kinds are returned during the exchange:
+    ///
+    /// - [`RuntimeUnavailable`](crate::RequestErrorKind::RuntimeUnavailable)
+    ///   without a current Tokio runtime with I/O enabled, or with time
+    ///   enabled when a timeout is set;
+    /// - [`Resolve`](crate::RequestErrorKind::Resolve),
+    ///   [`Connect`](crate::RequestErrorKind::Connect),
+    ///   [`Proxy`](crate::RequestErrorKind::Proxy), and
+    ///   [`Tls`](crate::RequestErrorKind::Tls) for connection setup;
+    /// - [`Capacity`](crate::RequestErrorKind::Capacity) when a pool key's
+    ///   active and waiting limits are both full;
+    /// - [`Timeout`](crate::RequestErrorKind::Timeout) when a phase or total
+    ///   limit elapses; [`RequestError::timeout_phase`] names it;
+    /// - [`Http1`](crate::RequestErrorKind::Http1),
+    ///   [`Http2`](crate::RequestErrorKind::Http2), and
+    ///   [`Http3`](crate::RequestErrorKind::Http3) for protocol failures;
+    /// - [`RequestBody`](crate::RequestErrorKind::RequestBody) when the body
+    ///   fails or a streaming body would need a second attempt; and
+    /// - [`Redirect`](crate::RequestErrorKind::Redirect) when the redirect
+    ///   policy rejects a response or target.
     ///
     /// # Examples
     ///
