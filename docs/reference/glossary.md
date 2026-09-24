@@ -107,6 +107,14 @@ RFC 9220 for H3). Phantom uses it to open a WebSocket on an H2 stream, and
 only after the peer advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL`. See
 [WebSocket](../guides/websocket.md).
 
+## Fingerprint
+
+A description of a client program built from the choices it makes on the
+network, such as its TLS offer, HTTP/2 settings, and field order, independent
+of what its `User-Agent` says. Each layer leaves its own fingerprint, and a
+[profile](#profile) sets the layers Phantom reproduces. See
+[How servers recognize a client](../fingerprinting.md#the-short-version).
+
 ## Fixture
 
 A retained file under `fixtures/` that holds a [capture](#capture) together
