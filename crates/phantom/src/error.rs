@@ -397,18 +397,14 @@ impl RequestError {
     }
 
     pub(crate) fn redirect_scheme() -> Self {
-        Self::without_source(RequestErrorKind::Redirect, "redirect target must use HTTPS")
+        Self::without_source(
+            RequestErrorKind::Redirect,
+            "redirect target must use HTTP or HTTPS",
+        )
     }
 
     pub(crate) fn redirect_limit() -> Self {
         Self::without_source(RequestErrorKind::Redirect, "redirect limit was exhausted")
-    }
-
-    pub(crate) fn plaintext_redirect_policy() -> Self {
-        Self::without_source(
-            RequestErrorKind::Redirect,
-            "redirect following is not yet supported for plaintext HTTP requests",
-        )
     }
 
     pub(crate) fn request_body_not_replayable() -> Self {

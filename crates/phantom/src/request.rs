@@ -366,8 +366,9 @@ impl RequestBuilder {
     /// or body frames, and can separately opt into reused-connection replay
     /// and status retries for idempotent requests, and replay requests that
     /// the H2 or H3 peer reported as not processed. When the client has a
-    /// [`RedirectPolicy`](crate::RedirectPolicy), only `https://` requests and
-    /// redirect targets are accepted.
+    /// [`RedirectPolicy`](crate::RedirectPolicy), each `http://` or `https://`
+    /// redirect target is checked against the request's protocol selection
+    /// and route before it is sent, as the first request is.
     ///
     /// # Errors
     ///
@@ -389,9 +390,7 @@ impl RequestBuilder {
     ///   trailers are combined with body-produced trailers;
     /// - [`UnsupportedScheme`](crate::RequestErrorKind::UnsupportedScheme) or
     ///   [`UnsupportedRoute`](crate::RequestErrorKind::UnsupportedRoute) when
-    ///   the scheme, protocol selection, and route cannot be combined; and
-    /// - [`Redirect`](crate::RequestErrorKind::Redirect) for an `http://`
-    ///   request while a redirect policy is set.
+    ///   the scheme, protocol selection, and route cannot be combined.
     ///
     /// These kinds are returned during the exchange:
     ///
@@ -546,9 +545,6 @@ impl RequestBuilder {
             return Err(RequestError::forward_proxy_authorization_header());
         }
         let policy = client.state.redirect_policy;
-        if is_plaintext_http && policy.max_hops().is_some() {
-            return Err(RequestError::plaintext_redirect_policy());
-        }
 
         if policy.max_hops().is_none() {
             let mut body = body;

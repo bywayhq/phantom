@@ -9,14 +9,13 @@ mod tls_support;
 #[path = "support/tracing.rs"]
 mod tracing_support;
 
-use std::{future::Future, net::Ipv4Addr, num::NonZeroUsize, time::Duration};
+use std::{future::Future, net::Ipv4Addr, time::Duration};
 
 use bytes::Bytes;
 use http::{Method, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, HttpProtocol, HttpProxy, RedirectPolicy, RequestErrorKind, RequestHeader,
-    RequestTimeouts, Route,
+    Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, RequestTimeouts, Route,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile},
 };
 use tokio::{
@@ -1191,7 +1190,7 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
         assert_eq!(h3_error.kind(), RequestErrorKind::UnsupportedRoute);
 
         let header_error = client_builder(&identity, false)
-            .route(route.clone())
+            .route(route)
             .build()?
             .get(HttpProtocol::Http1, "http://origin.test/")?
             .header(RequestHeader::new("Proxy-Authorization", "Basic secret"))
@@ -1200,19 +1199,6 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .err()
             .ok_or("forward Proxy-Authorization unexpectedly succeeded")?;
         assert_eq!(header_error.kind(), RequestErrorKind::InvalidHeader);
-
-        let redirect_error = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .session_builder()
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/")?
-            .send()
-            .await
-            .err()
-            .ok_or("forward redirect policy unexpectedly succeeded")?;
-        assert_eq!(redirect_error.kind(), RequestErrorKind::Redirect);
 
         assert!(
             timeout(Duration::from_millis(100), listener.accept())

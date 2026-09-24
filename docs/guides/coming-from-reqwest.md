@@ -16,7 +16,7 @@ server can observe each choice
 | ALPN picks HTTP/1.1 or HTTP/2; `http1_only`, `http2_prior_knowledge` | `HttpProtocol` on every request, or `get_negotiated` to let ALPN pick |
 | `default_headers`, `user_agent` | No client-level fields; a [request template](../reference/glossary.md#request-template) or ordered `RequestHeader`s per request |
 | `json`, `form`, `query` | None; serialize the body yourself and pass bytes to `body` |
-| Follows up to 10 redirects | Follows none until you set `RedirectPolicy::limited(n)`; HTTPS only |
+| Follows up to 10 redirects | Follows none until you set `RedirectPolicy::limited(n)` |
 | `timeout`, `connect_timeout`, `read_timeout` | `RequestTimeouts` with `total`, `connect`, `read_idle`, and two more phases |
 | `Proxy::all`; system proxies from `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` | `Route` with `HttpProxy`, `Socks5Proxy`, or `ConnectUdpProxy`; no environment variables are read |
 | `cookie_store(true)` (`cookies` feature) | `ClientBuilder::cookies()` (`cookies` feature) |
@@ -140,8 +140,9 @@ fn build(profile: ClientProfile) -> Result<Client, Box<dyn std::error::Error>> {
 ```
 
 - Without a redirect policy, Phantom returns every redirect response to you.
-  With one, it follows only `https://` to `https://` and rejects `http://`
-  requests before I/O ([Follow redirects](connections-and-state.md#follow-redirects)).
+  With one, it follows `http://` and `https://` targets but never changes the
+  request's protocol or route to reach one
+  ([Follow redirects](connections-and-state.md#follow-redirects)).
 - `RequestBuilder::timeouts` replaces the timeouts for one request. The
   `pool_admission` and `response_head` phases are in
   [Configure the client](client.md#configure-the-client).

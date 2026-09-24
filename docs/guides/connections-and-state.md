@@ -73,8 +73,7 @@ async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Follow redirects
 
-Follow a bounded number of HTTPS redirects and see where the response came
-from.
+Follow a bounded number of redirects and see where the response came from.
 
 ```rust
 use std::num::NonZeroUsize;
@@ -100,14 +99,15 @@ async fn follow() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 - `RedirectPolicy::none()`, the default, returns redirect responses to you.
-- Only 301, 302, 303, 307, and 308 with a `Location` are followed, and only
-  from `https://` to `https://`. A redirect without `Location` is returned
-  unchanged.
+- Only 301, 302, 303, 307, and 308 with a `Location` are followed, between
+  `http://` and `https://` URLs in either direction. A redirect without
+  `Location` is returned unchanged.
 - 301 and 302 rewrite POST to GET, and 303 rewrites every method except GET
   and HEAD, dropping the body, static trailers, and body-describing fields.
   307 and 308 keep the method and resend an owned body.
 - A cross-origin hop removes `Authorization`, `Cookie`, `Cookie2`, and
-  `Proxy-Authorization` fields and trailers, and rebuilds client hints.
+  `Proxy-Authorization` fields and trailers, and rebuilds client hints. A
+  change between `http://` and `https://` on the same host is cross-origin.
   Every hop keeps the route and protocol rule, one total timeout, and one
   retry budget.
 
@@ -243,11 +243,13 @@ fn forget(client: &Client) {
 
 ## Limits
 
-- A client with a redirect policy rejects every `http://` request with
-  `RequestErrorKind::Redirect` before I/O. Use a separate client without a
-  redirect policy for plaintext origins.
-- A redirect target that is not `https://`, more than one `Location`, an
-  invalid location, or running out of redirects fails with
+- Each hop is checked against the request's protocol and route before it is
+  sent. A hop they cannot carry fails with that combination's error, for
+  example `RequestErrorKind::UnsupportedScheme` for an exact H2 request
+  redirected to `http://`. Phantom does not switch protocol or route to
+  follow it.
+- A redirect target that is not `http://` or `https://`, more than one
+  `Location`, an invalid location, or running out of redirects fails with
   `RequestErrorKind::Redirect`; the redirect response is not returned. A 307
   or 308 with a one-shot streaming body fails with
   `RequestErrorKind::RequestBody`.

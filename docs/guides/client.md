@@ -190,7 +190,6 @@ fn classify(error: &RequestError) -> &'static str {
   only components listed in [Coverage](../reference/coverage.md), and run
   inside a Tokio runtime with I/O and time enabled.
 - A browser name implies no route, trust, redirect, retry, or timeout policy.
-  A client with a redirect policy rejects `http://` requests.
 - WebSocket connects apply none of the client's timeouts, retries, or
   redirects ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)).
 - An SSE event source applies timeouts per attempt and stops the read-idle

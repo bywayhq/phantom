@@ -121,11 +121,8 @@ Add the recipe to the profile.
 `http://` URI on anything but exact H1. Send plaintext requests with
 `HttpProtocol::Http1`. An exact H1 `http://` request through SOCKS5 or
 CONNECT-UDP fails with `UnsupportedRoute`; plaintext goes direct or through
-an HTTP proxy. `Redirect` before I/O means
-the client has a redirect policy and the URI is `http://`; use a second
-client without one for plaintext origins. `Redirect` after a response means a
-target that is not `https://`, more than one `Location`, or an exhausted
-limit, and the redirect response is not returned. Raise the limit, or use
+an HTTP proxy. `Redirect` means a target that is not `http://` or
+`https://`, more than one `Location`, or an exhausted limit, and the redirect response is not returned. Raise the limit, or use
 `RedirectPolicy::none()` and follow the hop yourself
 ([Follow redirects](connections-and-state.md#follow-redirects)).
 

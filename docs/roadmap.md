@@ -360,8 +360,7 @@ recipe.
     Schedule this after the matrix is one current version per browser,
     so it adds a browser rather than widening a matrix already being
     trimmed.
-  - Plaintext `http://` requests on clients with a redirect policy, and
-    Digest proxy authentication.
+  - Digest proxy authentication.
   - SOCKS4 and SOCKS4a routes. Neither carries UDP, so an exact HTTP/3
     request and an Alt-Svc upgrade are refused on them before any I/O, as
     they already are for an HTTP proxy route. SOCKS4 takes an IPv4

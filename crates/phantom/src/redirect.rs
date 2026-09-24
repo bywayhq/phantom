@@ -14,20 +14,22 @@ use crate::{RequestError, request::RequestBodySource};
 /// [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy);
 /// there is no per-request override.
 ///
-/// Only `https://` requests can follow redirects: a client with a limited
-/// policy rejects `http://` requests before I/O, and a 301, 302, 303, 307, or
-/// 308 whose resolved `Location` is not `https://` fails with
+/// A 301, 302, 303, 307, or 308 is followed to an `http://` or `https://`
+/// target; any other resolved `Location` scheme fails with
 /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect). A
 /// redirect without `Location` is returned unchanged. More than one
 /// `Location`, a location that does not resolve, or a hop past the limit
 /// also fails with that kind, and the redirect response is not returned.
 ///
 /// Each hop keeps the request's route and protocol rule, its total timeout,
-/// and its retry budget. A 307 or 308 resends the method and body; a one-shot
-/// streaming body cannot be resent and fails with
-/// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
-/// A cross-origin hop removes `Authorization`, `Cookie`, `Cookie2`, and
-/// `Proxy-Authorization` fields and trailers.
+/// and its retry budget. A hop they cannot carry fails before it is sent,
+/// with the same typed error the first request would get; Phantom never
+/// changes the protocol or route to follow a redirect. A 307 or 308 resends
+/// the method and body; a one-shot streaming body cannot be resent and fails
+/// with [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
+/// A cross-origin hop, including a change between `http://` and `https://`,
+/// removes `Authorization`, `Cookie`, `Cookie2`, and `Proxy-Authorization`
+/// fields and trailers.
 ///
 /// # Examples
 ///
@@ -177,7 +179,7 @@ impl RedirectState {
             .current_url
             .join(location)
             .map_err(RequestError::invalid_redirect_url)?;
-        if next_url.scheme() != "https" {
+        if !matches!(next_url.scheme(), "http" | "https") {
             return Err(RequestError::redirect_scheme());
         }
 

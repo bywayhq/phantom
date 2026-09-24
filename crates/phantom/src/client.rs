@@ -556,10 +556,11 @@ impl ClientBuilder {
     /// Sets the finite policy for following redirect responses.
     ///
     /// The default is [`RedirectPolicy::none`], which returns a 3xx response
-    /// without following it. Redirect following is HTTPS-only: while a
-    /// limited policy is set, `http://` requests fail before I/O, and a
-    /// redirect to a non-`https://` target fails; both fail with
-    /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
+    /// without following it. Redirects are followed to `http://` and
+    /// `https://` targets. A target with another scheme fails with
+    /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect), and a
+    /// hop the request's protocol selection or route cannot carry fails with
+    /// that combination's typed error before the hop is sent.
     #[must_use]
     pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
         self.options.redirect_policy = policy;

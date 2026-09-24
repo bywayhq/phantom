@@ -129,6 +129,55 @@ fn cross_origin_redirect_strips_credentials_only() -> TestResult {
 }
 
 #[test]
+fn same_host_scheme_downgrade_strips_credentials() -> TestResult {
+    let mut state = state(Method::GET)?;
+    state.headers.push(RequestHeader::new("Cookie", "a=b"));
+    state
+        .headers
+        .push(RequestHeader::new("Proxy-Authorization", "Basic secret"));
+
+    assert!(matches!(
+        state.follow(&redirect(
+            StatusCode::MOVED_PERMANENTLY,
+            "http://example.test/final"
+        )?)?,
+        RedirectAction::Follow { same_origin: false }
+    ));
+
+    assert_eq!(state.current_url().as_str(), "http://example.test/final");
+    assert_eq!(
+        state
+            .headers()
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>(),
+        ["content-type", "x-ordered"]
+    );
+    assert_eq!(
+        state
+            .trailers()
+            .iter()
+            .map(RequestHeader::name)
+            .collect::<Vec<_>>(),
+        ["x-trailer"]
+    );
+    Ok(())
+}
+
+#[test]
+fn non_http_target_scheme_is_rejected() -> TestResult {
+    let mut state = state(Method::GET)?;
+    let error = match state.follow(&redirect(StatusCode::FOUND, "ftp://example.test/file")?) {
+        Ok(_) => return Err("ftp redirect target was accepted".into()),
+        Err(error) => error,
+    };
+
+    assert_eq!(error.kind(), RequestErrorKind::Redirect);
+    assert_eq!(state.followed(), 0);
+    Ok(())
+}
+
+#[test]
 fn configured_client_hints_are_stripped_before_cross_origin_rebuild() -> TestResult {
     let mut state = state(Method::GET)?;
     state

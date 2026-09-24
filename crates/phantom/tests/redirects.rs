@@ -339,6 +339,165 @@ async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestRes
     .await
 }
 
+#[tokio::test]
+async fn plaintext_request_that_is_not_redirected_is_sent_with_a_policy() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let head = tls_support::read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nplain")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(head)
+        });
+
+        let session = test_client(&identity, false)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let response = session
+            .get(HttpProtocol::Http1, &format!("http://{address}/plain"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let info = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response omitted redirect metadata")?;
+        assert_eq!(info.redirects_followed(), 0);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
+
+        let head = server.await??;
+        assert!(head.starts_with(b"GET /plain HTTP/1.1\r\n"));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let secure_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let secure_address = secure_listener.local_addr()?;
+        let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
+        let plain_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let plain_address = plain_listener.local_addr()?;
+        let location = format!("https://{secure_address}/secure");
+        let plain = tokio::spawn(async move {
+            let (mut stream, _) = plain_listener.accept().await?;
+            let head = tls_support::read_head(&mut stream).await?;
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 301 Moved Permanently\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(head)
+        });
+        let secure = tokio::spawn(async move {
+            let mut stream = accept_tls(&secure_listener, &acceptor).await?;
+            let head = tls_support::read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecure")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(head)
+        });
+
+        let session = test_client(&identity, false)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let response = session
+            .get(HttpProtocol::Http1, &format!("http://{plain_address}/start"))?
+            .header(phantom::RequestHeader::new("Authorization", "Bearer origin"))
+            .header(phantom::RequestHeader::new("X-Kept", "yes"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_response_info(&response, &format!("https://{secure_address}/secure"))?;
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "secure");
+
+        let plain_head = plain.await??;
+        assert!(plain_head.starts_with(b"GET /start HTTP/1.1\r\n"));
+        assert!(contains_header(&plain_head, b"authorization"));
+        let secure_head = secure.await??;
+        assert!(secure_head.starts_with(b"GET /secure HTTP/1.1\r\n"));
+        // A scheme change is a new origin, so credentials are dropped.
+        assert!(!contains_header(&secure_head, b"authorization"));
+        assert!(contains_header(&secure_head, b"x-kept"));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let secure_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let secure_address = secure_listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let plain_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let plain_address = plain_listener.local_addr()?;
+        let location = format!("http://{plain_address}/plain");
+        let (client_done, wait_for_client) = oneshot::channel::<()>();
+        let secure = tokio::spawn(async move {
+            let stream = accept_tls(&secure_listener, &acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = accept_request(&mut connection).await?;
+            assert_eq!(request.uri().path(), "/start");
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::MOVED_PERMANENTLY)
+                    .header("location", location)
+                    .header("content-length", "0")
+                    .body(())?,
+                true,
+            )?;
+            // Keep the connection served until the client has its result.
+            let _ = tokio::select! {
+                _ = wait_for_client => Ok(()),
+                closed = poll_fn(|context| connection.poll_closed(context)) => closed,
+            };
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let session = test_client(&identity, true)?
+            .session_builder()
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let error = match session
+            .get(
+                HttpProtocol::Http2,
+                &format!("https://{secure_address}/start"),
+            )?
+            .send()
+            .await
+        {
+            Ok(_) => return Err("exact HTTP/2 followed a redirect to http://".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedScheme);
+        let _ = client_done.send(());
+        drop(session);
+        secure.await??;
+        assert!(
+            timeout(Duration::from_millis(100), plain_listener.accept())
+                .await
+                .is_err(),
+            "the refused hop reached the plaintext origin"
+        );
+        Ok(())
+    })
+    .await
+}
+
 async fn send_redirect_probe(
     session: &phantom::Session,
     address: std::net::SocketAddr,

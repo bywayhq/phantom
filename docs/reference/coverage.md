@@ -156,7 +156,7 @@ Supported:
   reached. The Chrome 154 and Firefox 156 recipes set the browsers'
   per-host limit of 6, from browser source. A profile without
   `Http1Settings` keeps one connection.
-- Finite opt-in HTTPS redirects.
+- Finite opt-in redirects for `http://` and `https://` requests.
 - Opt-in typed connection-setup retries before dispatch.
 - Opt-in replay of an idempotent request, once, on a fresh connection when a
   reused keep-alive connection closes before any response byte.
@@ -428,10 +428,10 @@ Supported:
   retry for safe methods. A request template places the hints at its captured
   slots. Without one, they precede the caller's fields. See
   [Client hints](../guides/profiles.md#send-client-hints).
-- Opt-in finite redirects for `https://` requests: WHATWG URL resolution,
-  `https://` targets only, browser method and body transitions, and removal of
-  credentials and client hints on cross-origin hops. A client with a redirect
-  policy rejects `http://` requests before any I/O.
+- Opt-in finite redirects: WHATWG URL resolution, `http://` and `https://`
+  targets, browser method and body transitions, and removal of credentials
+  and client hints on cross-origin hops, including a change of scheme. Each
+  hop is checked against the request's protocol and route before it is sent.
 
 Not modeled:
 
