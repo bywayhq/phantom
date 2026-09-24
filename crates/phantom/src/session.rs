@@ -222,7 +222,12 @@ impl Client {
             .await
     }
 
-    /// Returns the policy for retrying connection-establishment failures.
+    /// Returns the client's default retry policy.
+    ///
+    /// It covers connection-setup retries, reused-connection and
+    /// unprocessed-request replays, and status retries.
+    /// [`RequestBuilder::retry_policy`](crate::RequestBuilder::retry_policy)
+    /// replaces it for one request.
     #[must_use]
     pub fn retry_policy(&self) -> RetryPolicy {
         self.state.retry_policy
@@ -363,6 +368,10 @@ impl Client {
     }
 
     /// Returns this client's cookie jar when cookie handling was enabled.
+    ///
+    /// Returns `None` unless the client was built with
+    /// [`ClientBuilder::cookies`](crate::ClientBuilder::cookies) or
+    /// [`ClientBuilder::cookie_jar`](crate::ClientBuilder::cookie_jar).
     #[cfg(feature = "cookies")]
     #[must_use]
     pub fn cookie_jar(&self) -> Option<&CookieJar> {
