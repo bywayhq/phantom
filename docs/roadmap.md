@@ -304,15 +304,33 @@ recipe.
 
 ### Deliberate non-goals for this phase
 
-- No middleware or interceptor framework. Middleware is where
-  fingerprint-breaking field injection happens: the interceptor stacks of
-  comparable clients exist so that another library in a dependency graph can
-  add a field to a request. The queued narrow hook may observe and cancel, and
-  may fill caller slots a template names; it may never append a field.
-- No erroring on a non-2xx status by default. Status stays data. The one
-  library in the survey that errors by default keeps only the status number
-  and loses the response with it.
+- No middleware framework whose hooks may append a field or change an order.
+  That is what the interceptor stacks of comparable clients exist for, and it
+  is the defect Phantom is built against: a library elsewhere in a dependency
+  graph adding a field is exactly how a recipe stops matching its capture.
+  The boundary is the mutation, not the hook. Grow the queued request hook
+  into the extension story a caller needs within it: observe a request and
+  its response, cancel, fill a slot the template names, and decide a retry.
+  That covers what callers reach for middleware to do — an authorization
+  value into a declared slot, logging, tracing, a retry rule — while a field
+  the profile never declared stays unreachable.
+- Status stays data by default. An opt-in that turns a non-2xx status into
+  an error is caller-side and changes nothing on the wire, so it belongs in
+  the library; it must carry the response, because the one library in the
+  survey that errors by default keeps only the status number and loses the
+  response with it.
 - No automatic `Link` following, no base-URL joining, and no blocking API.
+- No fallback from a proxy route to a direct connection, not even as an
+  opt-in. Every other refusal here is a default a caller may change. This
+  one is not: it sends the request from the caller's own address at the
+  moment they asked for a proxy, and it fails open rather than closed.
+  A failed proxy route returns a typed error.
+- Protocol fallback within one request stays refused, but the rule is about
+  silence rather than about TCP. A caller may opt into retrying a failed
+  exact HTTP/3 attempt over the same profile's HTTP/2 recipe, which is what
+  a browser does once it marks an alternative broken. The retry uses the
+  profile's own recipe for the protocol it lands on, never a synthesised
+  one, and a caller who did not ask for it still gets a typed error.
 
 - Functionality proposed for after the Phase 1 exit. Each item starts from a
   proposal with acceptance criteria and capture evidence:
