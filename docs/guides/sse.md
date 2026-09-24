@@ -78,7 +78,7 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
   `SseErrorKind::IdleTimeout` if the idle timeout fired last. Other failures,
   and a committed ID that is not a valid field value, return
   `SseErrorKind::Request` at once.
-- A `204` response stops the source for good.
+- A `204` response stops the source permanently.
 
 ## Place Last-Event-ID among your own fields
 
