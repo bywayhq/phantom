@@ -52,8 +52,27 @@ have shown where the real architectural boundaries are.
 
 ### Remaining
 
-- Publish to crates.io. This is blocked on packaging `btls-sys` under a
-  Phantom name with its own `links` key.
+- Publish to crates.io. What blocks this is the `btls-sys` git dependency,
+  which crates.io rejects, in the workspace root manifest and in the
+  vendored `btls` manifest. The release script already refuses to publish
+  while either remains. Bundling is not the obstacle it was assumed to be:
+  upstream already publishes `btls-sys` at about 4.9 MiB with the
+  BoringSSL sources and every native patch included, well inside the
+  10 MiB limit, so no size exemption is needed.
+  - Renaming the package and its `links` key does not by itself let a
+    dependency graph hold both Phantom and a stock `boring` or `btls`.
+    The symbol prefix derives from the build script's own crate name
+    rather than the package name, and both crates ask the linker for the
+    same static archive names. Symbol prefixing is also skipped outside
+    Linux, so coexistence stays a Linux-only property until that upstream
+    gap closes. Do not promise it elsewhere.
+  - Redistributing the BoringSSL sources makes Phantom a redistributor.
+    Carry the bundled third-party licenses, and declare a license
+    expression that covers Apache-2.0 BoringSSL rather than inheriting the
+    wrapper's own terms.
+  - Keep every native patch. Two of them have no upstream equivalent, and
+    dropping any of them changes what goes on the wire, which is a
+    fidelity regression rather than a packaging tradeoff.
 - Complete the remaining client and proxy-route work without adding direct or
   cross-protocol fallback.
 - WebSocket over H3.
