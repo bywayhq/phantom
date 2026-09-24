@@ -43,6 +43,7 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - [Browser profile reference](docs/reference/profiles.md): recipe functions, platforms, and templates
 - [Route matrix](docs/reference/route-matrix.md): every scheme, protocol, and route combination
 - [Defaults and limits](docs/reference/limits.md): default bounds and off-by-default policies
+- [WebSocket reference](docs/reference/websocket.md): WebSocket routes, templates, response checks, recipes, and compression
 - [Cookie jar rules](docs/reference/cookies.md): what the cookie jar stores, sends, rejects, and evicts
 - [Glossary](docs/reference/glossary.md): terms used across the documentation
 - API: `cargo doc -p phantom-http --all-features --no-deps --open`

@@ -50,6 +50,8 @@ Task guides for using Phantom in an application.
   route combination.
 - [Defaults and limits](reference/limits.md): default bounds and
   off-by-default policies.
+- [WebSocket reference](reference/websocket.md): WebSocket routes,
+  templates, response checks, recipes, and compression.
 - [Cookie jar rules](reference/cookies.md): what the cookie jar stores,
   sends, rejects, and evicts.
 - [Glossary](reference/glossary.md): the terms these pages use.

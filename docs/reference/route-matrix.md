@@ -49,11 +49,11 @@ Notes:
   `websocket_with_profile_policy`, the profile's connection policy may instead
   place the WebSocket on a pooled H2 session or open an HTTP/1.1 Upgrade
   connection. See
-  [Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does).
+  [Profile connection policy](websocket.md#profile-connection-policy).
 
 ## Next
 
 - [Routes and proxies](../guides/routes-and-proxies.md): configure each
   route.
-- [WebSocket](../guides/websocket.md): the WebSocket rules behind the `ws://`
+- [WebSocket reference](websocket.md#routes): the WebSocket rules behind the `ws://`
   and `wss://` rows.
