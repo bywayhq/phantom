@@ -1,0 +1,29 @@
+# CodeQL scope for Phantom.
+#
+# Code scanning runs through GitHub's default setup, which does not discover
+# this file on its own. An organization owner applies it by creating the
+# `github-codeql-config-file` custom property on the `bywayhq` organization and
+# setting its value on this repository to the path below. The settings here are
+# merged into the configuration default setup generates, so the languages,
+# query suite, and schedule stay under Settings > Advanced Security.
+#
+# `paths-ignore` is honored because every language default setup analyzes here
+# (Rust, Python, Actions) is extracted without a build.
+
+paths-ignore:
+  # Vendored upstream forks. Phantom changes them only through each package's
+  # `patches/series`, so an alert raised against the upstream source is not
+  # actionable in this repository; SECURITY.md routes those reports upstream.
+  # Vendored code is still covered by `scripts/ci/check-vendor.sh`, the
+  # upstream-freshness workflow, and the OpenSSF Scorecard vulnerabilities
+  # check, which stays enabled.
+  - vendor
+
+  # Test code. Published cryptographic test vectors and fixed test credentials
+  # are what these files are for: the `rust/hard-coded-cryptographic-value`
+  # query cannot tell a NIST known-answer vector from a production key, and
+  # matched all 136 of its first-run alerts on vectors, RFC constants, and
+  # zero-filled buffers. AGENTS.md keeps tests in `tests/` or `tests.rs`.
+  - '**/tests/**'
+  - '**/tests.rs'
+  - '**/suite_tests.rs'

@@ -86,6 +86,23 @@ Report a vulnerability in upstream code that Phantom has not modified to the
 upstream project. If Phantom's pinned or vendored copy then needs an update, a
 private report here is welcome too.
 
+## Automated analysis
+
+CodeQL runs through GitHub's default setup on pull requests, on pushes to the
+default branch, and weekly. [`.github/codeql/codeql-config.yml`](.github/codeql/codeql-config.yml)
+narrows it to code this repository can act on: it excludes `vendor/`, whose
+upstream sources change only through each package's `patches/series`, and test
+code, whose published test vectors and fixed test credentials are the point of
+the file. An organization owner applies that file with the
+`github-codeql-config-file` custom property; the languages, query suite, and
+schedule stay in the repository's Advanced Security settings.
+
+[OpenSSF Scorecard](.github/workflows/scorecard.yml) reports supply-chain
+posture to the same Security tab and is deliberately left unfiltered.
+
+A dismissed code scanning alert records its reason and a justification. Reopen
+one rather than working around it if the justification no longer holds.
+
 ## Disclosure
 
 Please allow maintainers time to reproduce, assess, and fix the issue before
