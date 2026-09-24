@@ -174,9 +174,9 @@ connection path enforces that limit and has bounded lifecycle tests. Exact
 serialization is not sufficient evidence that the advertised capability is
 implemented.
 
-The retained Chrome 152 fixture is recorded at
-`fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt` in the
-Phantom repository. A unit regression fixes its complete control-stream prefix,
+The retained Chrome fixture is recorded at
+`fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt` in
+the Phantom repository. A unit regression fixes its complete control-stream prefix,
 including setting order and the concrete GREASE identifier/value widths.
 
 The stateful QPACK encoder can be configured from peer table-capacity and

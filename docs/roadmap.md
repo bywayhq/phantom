@@ -24,7 +24,7 @@ have shown where the real architectural boundaries are.
 - Bounded response-body collection. Its inclusive cap applies to the bytes
   returned to the caller, which are decoded bytes when decoding is enabled.
   An over-limit stream is abandoned and reports a stable error category.
-- Browser-backed SSE reconnect evidence for Chrome 153 and Firefox 156 on
+- Browser-backed SSE reconnect evidence for Chrome 154 and Firefox 156 on
   Windows over HTTP/1.1. Phantom reproduces it through
   `SseHeader::last_event_id` and `min_retry`. Chrome's single resend after a
   reused keep-alive connection closes before any response is available as
@@ -47,7 +47,7 @@ have shown where the real architectural boundaries are.
 - The HTTP/3 extended CONNECT foundation in `phantom-net`.
 - Exact H3 over RFC 9298 CONNECT-UDP proxies, over HTTP/3, HTTP/2, and
   HTTP/1.1 proxy legs, with Basic proxy authentication.
-- Named Chrome 153, Edge 153, and Firefox 156 H2 WebSocket recipes with a
+- Named Chrome 154, Edge 153, and Firefox 156 H2 WebSocket recipes with a
   profile connection policy, a per-profile empty-message compression rule, and
   a per-profile `REFUSED_STREAM` reopening.
 
@@ -113,35 +113,26 @@ have shown where the real architectural boundaries are.
 - Extend the pre-dispatch connection retry policy (exact H1/H2/H3 and TCP
   setup for negotiated requests before ALPN) only when another replay class
   has explicit ownership and bounded lifecycle rules.
-- Expand the Chromium, Firefox, and Safari protocol and profile matrix only
-  from fresh captures. Do not infer missing H2, H3, QUIC, WebSocket, or SSE
-  behavior from browser-family names.
-- Add further browser versions, platforms, and non-browser profiles only from
-  fresh capture evidence.
-- Named-browser extended CONNECT recipes come only from captures. A Chrome 152
-  H2 WebSocket recipe needs a retained browser capture of the extended
-  CONNECT opening handshake, including pseudo-header and ordinary field order,
-  priority, compression offer, and failure behavior. The generic configurable
-  H2 implementation is not evidence for that recipe.
-- Chrome `152.0.7977.64` is expected to share the retained `.83` transport
-  fingerprint under the major-version policy. That stays an unverified
-  assumption until a `.64` capture is compared. Exact full-version client
-  hints are persona data and must not inherit `.83` values by accident.
+- Expand the Chromium and Firefox protocol and profile matrix only from fresh
+  captures. Do not infer missing H2, H3, QUIC, WebSocket, or SSE behavior from
+  browser-family names.
+- Carry one version per browser: the current stable build on the capture host.
+  When a browser updates, recapture it and replace the recipe rather than
+  keeping a version that can no longer be reverified. Platforms and
+  non-browser profiles are added only from fresh capture evidence.
+- Named-browser extended CONNECT recipes come only from captures. The generic
+  configurable H2 implementation is not evidence for such a recipe.
 
 ## Phase 2: Ergonomics
 
 - Make supported combinations of profile, route, timeout, body, trailer, SSE,
   and WebSocket settings easier to discover and configure, without hiding
   wire choices.
-- Complete: transport recipe names now use browser and version identity.
-  Windows captures show no platform-dependent transport field for the Chrome
-  152 TLS, H2, QUIC, and H3 recipes or the Firefox 154 TLS and H2 recipes, so
-  they are now `chromium::v152_{tls,http2,http3,http3_tls,http3_request,quic}`
-  and `firefox::v154_{tls,http2}`. The former `macos` names remain as hidden
-  compatibility aliases. Capture OS and build provenance stay in fixtures,
-  rustdoc, and documentation. `v152_macos_client_hints` keeps its platform
-  qualifier because it carries platform data, and `v18_5_macos_tls` stays
-  macOS-specific until Safari is captured elsewhere.
+- Complete: transport recipe names use browser and version identity, and the
+  tree carries one version per browser. Capture OS and build provenance stay
+  in fixtures, rustdoc, and documentation. `v154_windows_client_hints` and the
+  request templates keep their platform qualifier because their values carry
+  platform data on the wire.
 - Keep stable error categories, examples, and diagnostics in step with every
   completed functionality slice.
 - Add feature-gated JSON, form, and multipart request bodies that set only the
@@ -221,9 +212,9 @@ have shown where the real architectural boundaries are.
   in this order. None of these changes a byte on the wire; each is caller-side
   only.
   1. Composed per-browser profile constructors, such as `chromium::v153()`,
-     assembling the components that are already verified. Today a Chrome 153
+     assembling the components that are already verified. Today a Chrome 154
      client takes seven hand-composed calls, and the caller has to know that
-     the HTTP/3 leg uses `v153_http3_tls` and not `v153_tls`. Getting that
+     the HTTP/3 leg uses `v154_http3_tls` and not `v154_tls`. Getting that
      wrong is silent and emits a wrong ClientHello, which is the class of
      error Phantom exists to prevent.
   2. Error triage over the existing `kind()`, and a public replay-safety

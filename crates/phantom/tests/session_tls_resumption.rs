@@ -168,7 +168,7 @@ fn tls13_client(identity: &TestIdentity) -> TestResult<Client> {
     tls.cipher_suites = vec![CipherSuite::Aes128GcmSha256];
     tls.groups = vec![NamedGroup::X25519];
     tls.key_shares = vec![NamedGroup::X25519];
-    let profile = ClientProfile::new(tls).with_http2(chromium::v152_http2());
+    let profile = ClientProfile::new(tls).with_http2(chromium::v154_http2());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .build()?)

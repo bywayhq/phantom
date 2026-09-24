@@ -2,7 +2,7 @@
 //!
 //! Each test replays a scenario from `fixtures/sse/` against Phantom over
 //! plaintext HTTP/1.1 with the same server stimuli, then compares the reconnect
-//! requests, delays, and termination with what Chrome 153 and Firefox 156 did.
+//! requests, delays, and termination with what Chrome 154 and Firefox 156 did.
 //! Delays are measured with a paused clock, so Phantom's values are exact and
 //! browser medians may exceed them by at most `TIMER_SLACK`.
 
@@ -45,7 +45,7 @@ impl Browser {
 
     fn directory(self) -> &'static str {
         match self {
-            Self::Chrome => "chrome/153.0.8010.48/windows-11-26200",
+            Self::Chrome => "chrome/154.0.8037.58/windows-11-26200",
             Self::Firefox => "firefox/156.0/windows-11-26200",
         }
     }
@@ -330,7 +330,7 @@ async fn cookie_placement_presets_reproduce_each_browser_reconnect() -> TestResu
     use phantom::profile::{chromium, firefox};
 
     for (browser, placement, expected_index, field_count) in [
-        (Browser::Chrome, chromium::v153_cookie_placement(), 15, 16),
+        (Browser::Chrome, chromium::v154_cookie_placement(), 15, 16),
         (Browser::Firefox, firefox::v156_cookie_placement(), 7, 14),
     ] {
         let fixture = Fixture::load(browser, "set-cookie-then-close")?;

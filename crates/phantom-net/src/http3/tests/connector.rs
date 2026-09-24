@@ -22,10 +22,10 @@ use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
 #[test]
 fn constructor_rejects_tcp_tls_recipe() {
     let result = Http3Connector::new(
-        &chromium::v152_tls(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
     );
     let error = result
         .err()
@@ -35,13 +35,13 @@ fn constructor_rejects_tcp_tls_recipe() {
 
 #[test]
 fn datagram_mismatch_is_an_invalid_profile() {
-    let mut quic = chromium::v152_quic();
+    let mut quic = chromium::v154_quic();
     quic.max_datagram_frame_size = Some(0);
     let result = Http3Connector::new(
         &h3_tls_settings(),
         &quic,
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
     );
     let error = result
         .err()
@@ -54,52 +54,15 @@ fn invalid_additional_root_is_a_trust_store_failure() {
     let invalid_root = [0_u8];
     let result = Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
         [&invalid_root[..]],
     );
     let error = result
         .err()
         .unwrap_or_else(|| panic!("invalid trust root was accepted"));
     assert_eq!(error.kind(), Http3ConnectorErrorKind::TrustStore);
-}
-
-#[test]
-fn production_connector_emits_supported_chrome_h3_client_hello_fields() -> TestResult<()> {
-    assert_connector_matches_quic_client_hello(
-        &connector()?,
-        CHROME_H3_STARTUP,
-        CHROME_H3_CLIENT_HELLO,
-    )
-}
-
-#[test]
-fn chrome_152_quic_client_hello_recipe_matches_windows_chrome_for_testing_capture() -> TestResult<()>
-{
-    assert_connector_matches_quic_client_hello(
-        &connector()?,
-        WINDOWS_CHROME_H3_STARTUP,
-        WINDOWS_CHROME_H3_CLIENT_HELLO,
-    )
-}
-
-#[test]
-fn chrome_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
-    let connector = Http3Connector::new(
-        &chromium::v153_http3_tls(),
-        &chromium::v153_quic(),
-        &chromium::v153_http3(),
-        &chromium::v153_http3_request(),
-    )?;
-    for client_hello in [CHROME_153_H3_CLIENT_HELLO_1, CHROME_153_H3_CLIENT_HELLO_2] {
-        assert_connector_matches_quic_client_hello(
-            &connector,
-            CHROME_153_H3_STARTUP,
-            client_hello,
-        )?;
-    }
-    Ok(())
 }
 
 #[test]
@@ -120,14 +83,14 @@ fn chrome_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<(
     Ok(())
 }
 
-/// Edge 153 offers the Chrome 153 QUIC ClientHello without trust-anchor IDs.
+/// Edge 153 offers the Chromium QUIC ClientHello without trust-anchor IDs.
 #[test]
 fn edge_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
         &edge::v153_http3_tls(),
-        &chromium::v153_quic(),
-        &chromium::v153_http3(),
-        &chromium::v153_http3_request(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
     )?;
     for client_hello in [EDGE_153_H3_CLIENT_HELLO_1, EDGE_153_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(&connector, EDGE_153_H3_STARTUP, client_hello)?;
@@ -259,9 +222,9 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
     let identity = TestIdentity::generate()?;
     let connector = Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
         [identity.root_der()],
     )?;
     let (address, endpoint) = server_endpoint(&identity)?;
@@ -294,7 +257,7 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
         Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
     });
     let request = super::super::prepare_traced_request(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/")?,
@@ -319,9 +282,9 @@ async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
     let build_connector = || {
         Http3Connector::new_with_additional_roots(
             &h3_tls_settings(),
-            &chromium::v152_quic(),
-            &chromium::v152_http3(),
-            &chromium::v152_http3_request(),
+            &chromium::v154_quic(),
+            &chromium::v154_http3(),
+            &chromium::v154_http3_request(),
             [identity.root_der()],
         )
     };
@@ -467,9 +430,9 @@ async fn spawn_parked_get(
 fn trusting_connector(identity: &TestIdentity) -> Result<Http3Connector, Http3ConnectorError> {
     Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
         [identity.root_der()],
     )
 }
@@ -477,44 +440,16 @@ fn trusting_connector(identity: &TestIdentity) -> Result<Http3Connector, Http3Co
 fn connector() -> Result<Http3Connector, Http3ConnectorError> {
     Http3Connector::new(
         &h3_tls_settings(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
     )
 }
 
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    chromium::v152_http3_tls()
+    chromium::v154_http3_tls()
 }
 
-const CHROME_H3_STARTUP: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
-    "macos-15.5/client-startup.txt"
-));
-const CHROME_H3_CLIENT_HELLO: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
-    "macos-15.5/quic-client-hello-1.txt"
-));
-const WINDOWS_CHROME_H3_STARTUP: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
-    "windows-11-26200/client-startup.txt"
-));
-const WINDOWS_CHROME_H3_CLIENT_HELLO: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome/152.0.7977.83/",
-    "windows-11-26200/quic-client-hello-1.txt"
-));
-const CHROME_153_H3_STARTUP: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome/153.0.8010.48/",
-    "windows-11-26200/client-startup.txt"
-));
-const CHROME_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome/153.0.8010.48/",
-    "windows-11-26200/quic-client-hello-1.txt"
-));
-const CHROME_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome/153.0.8010.48/",
-    "windows-11-26200/quic-client-hello-2.txt"
-));
 const CHROME_154_H3_STARTUP: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/client-startup.txt"

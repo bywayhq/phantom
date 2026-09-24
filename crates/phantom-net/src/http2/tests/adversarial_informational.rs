@@ -1,4 +1,4 @@
-use phantom_profile::{Http2Settings, chromium::v152_http2, firefox::v154_http2};
+use phantom_profile::{Http2Settings, chromium::v154_http2, firefox::v156_http2};
 use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
 use super::adversarial_malformed::{establish_baseline, read_frame, write_frame};
@@ -28,7 +28,7 @@ async fn eight_informational_responses_precede_the_final_response() -> TestResul
             stream.flush().await?;
             drain_without_reset(&mut stream).await
         });
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
         let response = connection
             .send_get("example.test", target()?, Vec::new())
             .await?;
@@ -45,17 +45,17 @@ async fn eight_informational_responses_precede_the_final_response() -> TestResul
 
 #[tokio::test]
 async fn ninth_informational_response_is_rejected_with_chrome_profile() -> TestResult<()> {
-    bounded_peer_test(run_excess(v152_http2(), MAX_INFORMATIONAL + 1)).await
-}
-
-#[tokio::test]
-async fn ninth_informational_response_is_rejected_with_firefox_profile() -> TestResult<()> {
     bounded_peer_test(run_excess(v154_http2(), MAX_INFORMATIONAL + 1)).await
 }
 
 #[tokio::test]
+async fn ninth_informational_response_is_rejected_with_firefox_profile() -> TestResult<()> {
+    bounded_peer_test(run_excess(v156_http2(), MAX_INFORMATIONAL + 1)).await
+}
+
+#[tokio::test]
 async fn informational_burst_is_cut_off_at_the_ninth_response() -> TestResult<()> {
-    bounded_peer_test(run_excess(v152_http2(), 1_000)).await
+    bounded_peer_test(run_excess(v154_http2(), 1_000)).await
 }
 
 async fn run_excess(settings: Http2Settings, sent: usize) -> TestResult<()> {

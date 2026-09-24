@@ -2,8 +2,6 @@
 
 #[path = "browser_http2_fixtures/chrome.rs"]
 mod chrome;
-#[path = "browser_http2_fixtures/firefox.rs"]
-mod firefox;
 #[path = "browser_http2_fixtures/fixture.rs"]
 mod fixture;
 

@@ -110,7 +110,7 @@ a fresh connection over the same route when all of these hold:
   TRACE, PUT, or DELETE); and
 - the body is absent or owned bytes.
 
-Chrome 153 restarts such a request once on a new connection (see
+Chrome 154 restarts such a request once on a new connection (see
 [validation](../explanation/validation.md#sse-browser-reconnect-evidence)).
 The request may already have reached the origin, which is why this replay is
 opt-in and limited to idempotent methods.

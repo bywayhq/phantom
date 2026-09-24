@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
 use btls::ssl::{Ssl, SslAcceptor, SslVersion};
-use phantom_profile::{TlsSettings, TlsVersion, chromium::v152_tls};
+use phantom_profile::{TlsSettings, TlsVersion, chromium::v154_tls};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_btls::SslStream;
 
@@ -147,7 +147,7 @@ async fn alternating_hosts_resume_their_own_sessions_on_one_isolated_connector()
 }
 
 fn tls12_settings() -> TlsSettings {
-    let mut settings = v152_tls();
+    let mut settings = v154_tls();
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
     settings.key_shares.clear();

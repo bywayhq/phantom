@@ -3,7 +3,7 @@ use std::time::Duration;
 use bytes::Bytes;
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::{io::duplex, time::timeout};
 
 use super::{TestResult, target};
@@ -48,7 +48,7 @@ async fn response_reset_churn_preserves_sibling_and_connection() -> TestResult<(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
         let healthy = connection
             .send_get("example.test", target()?, vec![])
             .await?;

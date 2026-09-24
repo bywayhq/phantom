@@ -2,7 +2,7 @@
 //!
 //! Each test sends a templated request to a loopback origin over HTTP/1.1,
 //! HTTP/2, or HTTP/3 and compares the ordered fields the origin received with
-//! the same request kind in a retained Chrome 153, Edge 153, or Firefox 156
+//! the same request kind in a retained Chrome 154, Edge 153, or Firefox 156
 //! capture, and on HTTP/2 also the HEADERS priority. The captures ran
 //! headless, so their `User-Agent` names `HeadlessChrome`; the comparison
 //! uses the headful `Chrome` product.
@@ -57,9 +57,9 @@ macro_rules! fixture {
     };
 }
 
-const CHROME_H1: &str = fixture!("websocket/chrome/153.0.8010.48/windows-11-26200/h1-accept.txt");
-const CHROME_H2: &str = fixture!("websocket/chrome/153.0.8010.48/windows-11-26200/accept.txt");
-const CHROME_H3: &str = fixture!("http3/chrome/153.0.8010.48/windows-11-26200/client-startup.txt");
+const CHROME_H1: &str = fixture!("websocket/chrome/154.0.8037.58/windows-11-26200/h1-accept.txt");
+const CHROME_H2: &str = fixture!("websocket/chrome/154.0.8037.58/windows-11-26200/accept.txt");
+const CHROME_H3: &str = fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
 const EDGE_H1: &str = fixture!("websocket/edge/153.0.4234.48/windows-11-26200/h1-accept.txt");
 const EDGE_H2: &str = fixture!("websocket/edge/153.0.4234.48/windows-11-26200/accept.txt");
 const EDGE_H3: &str = fixture!("http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt");
@@ -77,8 +77,8 @@ struct Browser {
 
 fn chrome() -> Browser {
     Browser {
-        http2: chromium::v153_http2(),
-        hints: Some(chromium::v153_windows_client_hints()),
+        http2: chromium::v154_http2(),
+        hints: Some(chromium::v154_windows_client_hints()),
         http1_capture: CHROME_H1,
         http2_capture: CHROME_H2,
         http3_capture: Some(CHROME_H3),
@@ -87,7 +87,7 @@ fn chrome() -> Browser {
 
 fn edge() -> Browser {
     Browser {
-        http2: chromium::v153_http2(),
+        http2: chromium::v154_http2(),
         hints: Some(edge::v153_windows_client_hints()),
         http1_capture: EDGE_H1,
         http2_capture: EDGE_H2,
@@ -389,7 +389,7 @@ const TCP: &[HttpProtocol] = &[HttpProtocol::Http1, HttpProtocol::Http2];
 async fn chrome_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         chrome(),
-        chromium::v153_windows_navigation_template,
+        chromium::v154_windows_navigation_template,
         Kind::Navigation,
         ALL,
     )
@@ -422,7 +422,7 @@ async fn firefox_navigation_sends_the_captured_page_request() -> TestResult<()> 
 async fn chrome_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         chrome(),
-        chromium::v153_windows_fetch_no_store_template,
+        chromium::v154_windows_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -466,7 +466,7 @@ async fn negotiated_http2_request_sends_the_template_priority() -> TestResult<()
             .build()?;
     let sent = client
         .get_negotiated(&url)?
-        .template(chromium::v153_windows_fetch_no_store_template())
+        .template(chromium::v154_windows_fetch_no_store_template())
         .header(RequestHeader::new("referer", url.as_str()))
         .send();
     let response = timeout(TEST_TIMEOUT, sent).await??;
@@ -500,7 +500,7 @@ mod cookie_placement {
     use super::*;
 
     const CHROME_SSE_COOKIE: &str =
-        fixture!("sse/chrome/153.0.8010.48/windows-11-26200/set-cookie-then-close.txt");
+        fixture!("sse/chrome/154.0.8037.58/windows-11-26200/set-cookie-then-close.txt");
     const FIREFOX_SSE_COOKIE: &str =
         fixture!("sse/firefox/156.0/windows-11-26200/set-cookie-then-close.txt");
     /// `PROBE_COOKIE` in scripts/capture/sse_reconnect.py.
@@ -660,13 +660,13 @@ mod cookie_placement {
         let (_, captured_after) = sides(&captured)?;
         assert!(captured_after.is_empty(), "the capture sends Cookie last");
         for (template, caller) in [
-            (chromium::v153_windows_navigation_template(), Vec::new()),
-            (chromium::v153_windows_fetch_no_store_template(), referer()),
+            (chromium::v154_windows_navigation_template(), Vec::new()),
+            (chromium::v154_windows_fetch_no_store_template(), referer()),
         ] {
             let http1 = send_with_jar_cookie(
                 &browser,
                 template.clone(),
-                chromium::v153_cookie_placement(),
+                chromium::v154_cookie_placement(),
                 HttpProtocol::Http1,
                 caller.clone(),
             )
@@ -679,7 +679,7 @@ mod cookie_placement {
             let http2 = send_with_jar_cookie(
                 &browser,
                 template,
-                chromium::v153_cookie_placement(),
+                chromium::v154_cookie_placement(),
                 HttpProtocol::Http2,
                 caller,
             )
@@ -730,14 +730,14 @@ async fn redirect_hop() -> TestResult<()> {
     });
 
     let profile =
-        ClientProfile::new(tls_settings()).with_client_hints(chromium::v153_windows_client_hints());
+        ClientProfile::new(tls_settings()).with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
         .build()?;
     let response = client
         .get(HttpProtocol::Http1, &first_url)?
-        .template(chromium::v153_windows_navigation_template())
+        .template(chromium::v154_windows_navigation_template())
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
         .content_decoding(ContentDecoding::advertised(1 << 20))
         .send()
@@ -788,8 +788,8 @@ async fn redirect_hop() -> TestResult<()> {
 #[tokio::test]
 async fn contradicting_identity_fails_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v153_http2())
-        .with_client_hints(chromium::v153_windows_client_hints());
+        .with_http2(chromium::v154_http2())
+        .with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
     // Nothing listens here; an attempted connection would fail differently.
     let url = "https://127.0.0.1:9/";
@@ -798,7 +798,7 @@ async fn contradicting_identity_fails_before_any_connection() -> TestResult<()> 
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
     let error = client
         .get(HttpProtocol::Http2, url)?
-        .template(chromium::v153_windows_navigation_template())
+        .template(chromium::v154_windows_navigation_template())
         .header(RequestHeader::new("user-agent", firefox_agent))
         .send()
         .await
@@ -821,7 +821,7 @@ async fn contradicting_identity_fails_before_any_connection() -> TestResult<()> 
 #[tokio::test]
 async fn edge_template_without_a_user_agent_fails_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v153_http2())
+        .with_http2(chromium::v154_http2())
         .with_client_hints(edge::v153_windows_client_hints());
     let client = Client::builder(profile).build()?;
     // Nothing listens here; an attempted connection would fail differently.
@@ -846,14 +846,14 @@ async fn edge_template_without_a_user_agent_fails_before_any_connection() -> Tes
 #[tokio::test]
 async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v153_http2())
-        .with_client_hints(chromium::v153_windows_client_hints());
+        .with_http2(chromium::v154_http2())
+        .with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
     // Nothing listens here; an attempted connection would fail differently.
     let url = "https://127.0.0.1:9/";
     let error = client
         .get(HttpProtocol::Http2, url)?
-        .template(chromium::v153_windows_fetch_no_store_template())
+        .template(chromium::v154_windows_fetch_no_store_template())
         .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
         .send()
@@ -866,7 +866,7 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
     // does, so it is refused there too.
     let error = client
         .get(HttpProtocol::Http1, "http://127.0.0.1:9/")?
-        .template(chromium::v153_windows_fetch_no_store_template())
+        .template(chromium::v154_windows_fetch_no_store_template())
         .header(RequestHeader::new("referer", "http://127.0.0.1:9/"))
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
         .send()
@@ -901,7 +901,7 @@ async fn serve_http1_replies(
 
 fn chrome_hints_client(identity: &TestIdentity) -> TestResult<Client> {
     let profile =
-        ClientProfile::new(tls_settings()).with_client_hints(chromium::v153_windows_client_hints());
+        ClientProfile::new(tls_settings()).with_client_hints(chromium::v154_windows_client_hints());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .build()?)
@@ -921,7 +921,7 @@ async fn fetch_template_after_accept_ch_fails_before_the_request_is_sent() -> Te
     let fetch = || {
         client.get(HttpProtocol::Http1, &url).map(|request| {
             request
-                .template(chromium::v153_windows_fetch_no_store_template())
+                .template(chromium::v154_windows_fetch_no_store_template())
                 .header(RequestHeader::new("referer", url.as_str()))
         })
     };
@@ -957,7 +957,7 @@ async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> Te
         TEST_TIMEOUT,
         client
             .get(HttpProtocol::Http1, &url)?
-            .template(chromium::v153_windows_fetch_no_store_template())
+            .template(chromium::v154_windows_fetch_no_store_template())
             .header(RequestHeader::new("referer", url.as_str()))
             .send(),
     )

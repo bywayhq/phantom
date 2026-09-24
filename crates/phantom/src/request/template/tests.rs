@@ -4,8 +4,8 @@ use phantom_profile::{RequestField, RequestTemplate, chromium, edge, firefox};
 use super::{ProtocolScope, check, expand, grease_brand, user_agent_products};
 use crate::{HttpProtocol, RequestErrorKind};
 
-const CHROME_153: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36";
+const CHROME_154: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 const EDGE_153: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
 const FIREFOX_156: &str =
@@ -36,7 +36,7 @@ fn kind(
 
 #[test]
 fn caller_fields_take_template_positions_and_spelling() {
-    let template = chromium::v153_windows_fetch_no_store_template();
+    let template = chromium::v154_windows_fetch_no_store_template();
     let caller = [
         RequestHeader::new("x-trace", "1"),
         RequestHeader::new("referer", "https://example.test/page"),
@@ -61,7 +61,7 @@ fn caller_fields_take_template_positions_and_spelling() {
             "x-trace",
         ]
     );
-    assert_eq!(expanded[3].value(), CHROME_153.as_bytes());
+    assert_eq!(expanded[3].value(), CHROME_154.as_bytes());
     assert_eq!(expanded[8].value(), b"https://example.test/page");
     assert_eq!(expanded[10].value(), b"de-DE,de;q=0.9");
     assert!(expanded[10].is_sensitive());
@@ -93,12 +93,12 @@ fn unfilled_caller_slots_emit_nothing_and_hint_values_wait_for_the_connection() 
 
 #[test]
 fn caller_hints_fill_the_block_in_profile_order() {
-    let template = chromium::v153_windows_navigation_template();
+    let template = chromium::v154_windows_navigation_template();
     let caller = [
         RequestHeader::new("Sec-CH-UA-Platform", "\"Windows\""),
-        RequestHeader::new("sec-ch-ua", "\"Chromium\";v=\"153\""),
+        RequestHeader::new("sec-ch-ua", "\"Chromium\";v=\"154\""),
     ];
-    let hints = chromium::v153_windows_client_hints();
+    let hints = chromium::v154_windows_client_hints();
     let expanded = expand(&template.http2_fields, &caller, Some(&hints));
     assert_eq!(
         names(&expanded)[..3],
@@ -114,14 +114,14 @@ fn caller_hints_fill_the_block_in_profile_order() {
 fn built_in_templates_agree_with_their_own_identity_and_client_hints() {
     let cases = [
         (
-            chromium::v153_windows_navigation_template(),
-            Some(chromium::v153_windows_client_hints()),
-            CHROME_153,
+            chromium::v154_windows_navigation_template(),
+            Some(chromium::v154_windows_client_hints()),
+            CHROME_154,
         ),
         (
-            chromium::v153_windows_fetch_no_store_template(),
-            Some(chromium::v153_windows_client_hints()),
-            CHROME_153,
+            chromium::v154_windows_fetch_no_store_template(),
+            Some(chromium::v154_windows_client_hints()),
+            CHROME_154,
         ),
         (
             edge::v153_windows_navigation_template(),
@@ -169,20 +169,20 @@ fn built_in_templates_agree_with_their_own_identity_and_client_hints() {
 
 #[test]
 fn user_agent_of_another_browser_or_version_is_rejected() {
-    let chrome = chromium::v153_windows_navigation_template();
+    let chrome = chromium::v154_windows_navigation_template();
     let edge = edge::v153_windows_navigation_template();
     let firefox = firefox::v156_windows_navigation_template();
-    let headless = CHROME_153.replace(" Chrome/", " HeadlessChrome/");
-    let older = CHROME_153.replace("Chrome/153", "Chrome/152");
+    let headless = CHROME_154.replace(" Chrome/", " HeadlessChrome/");
+    let older = CHROME_154.replace("Chrome/154", "Chrome/153");
     let edge_headless = EDGE_153.replace(" Chrome/", " HeadlessChrome/");
     for (template, user_agent) in [
         (&chrome, older.as_str()),
         (&chrome, headless.as_str()),
         (&chrome, EDGE_153),
         (&chrome, FIREFOX_156),
-        (&edge, CHROME_153),
+        (&edge, CHROME_154),
         (&edge, edge_headless.as_str()),
-        (&firefox, CHROME_153),
+        (&firefox, CHROME_154),
         (
             &firefox,
             "Mozilla/5.0 (rv:155.0) Gecko/20100101 Firefox/155.0",
@@ -224,14 +224,14 @@ fn a_required_user_agent_that_nobody_supplies_is_rejected() {
 
     // Templates with a literal User-Agent need no caller value.
     for template in [
-        chromium::v153_windows_navigation_template(),
+        chromium::v154_windows_navigation_template(),
         firefox::v156_windows_fetch_no_store_template(),
     ] {
         assert_eq!(kind(&template, exact(HttpProtocol::Http1), &[], None), None);
     }
 
     // A literal on some protocol lists is not enough.
-    let mut template = chromium::v153_windows_navigation_template();
+    let mut template = chromium::v154_windows_navigation_template();
     template.http2_fields[2] = RequestField::caller("user-agent");
     assert_eq!(
         kind(&template, exact(HttpProtocol::Http1), &[], None),
@@ -241,7 +241,7 @@ fn a_required_user_agent_that_nobody_supplies_is_rejected() {
 
 #[test]
 fn brand_lists_that_contradict_the_template_are_rejected() {
-    let chrome = chromium::v153_windows_navigation_template();
+    let chrome = chromium::v154_windows_navigation_template();
     let firefox = firefox::v156_windows_navigation_template();
     let edge_brands = r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#;
     for (template, name, value) in [
@@ -249,13 +249,13 @@ fn brand_lists_that_contradict_the_template_are_rejected() {
         (
             &chrome,
             "sec-ch-ua",
-            r#""Google Chrome";v="152", "Chromium";v="152""#,
+            r#""Google Chrome";v="153", "Chromium";v="153""#,
         ),
         (&chrome, "Sec-CH-UA", "not a list ("),
         (
             &chrome,
             "sec-ch-ua-full-version-list",
-            r#""Google Chrome";v="152.0.1.2", "Chromium";v="153.0.1.2""#,
+            r#""Google Chrome";v="154.0.1.2", "Chromium";v="153.0.1.2""#,
         ),
         (&firefox, "sec-ch-ua", edge_brands),
     ] {
@@ -282,7 +282,7 @@ fn brand_lists_that_contradict_the_template_are_rejected() {
             &firefox,
             exact(HttpProtocol::Http2),
             &[],
-            Some(&chromium::v153_windows_client_hints())
+            Some(&chromium::v154_windows_client_hints())
         ),
         Some(RequestErrorKind::IdentityMismatch)
     );
@@ -290,12 +290,12 @@ fn brand_lists_that_contradict_the_template_are_rejected() {
 
 #[test]
 fn brand_lists_with_extra_brands_are_rejected() {
-    let chrome = chromium::v153_windows_navigation_template();
+    let chrome = chromium::v154_windows_navigation_template();
     let edge = edge::v153_windows_navigation_template();
     for (template, value) in [
         (
             &chrome,
-            r#""Google Chrome";v="153", "Microsoft Edge";v="153", "Chromium";v="153""#,
+            r#""Google Chrome";v="154", "Microsoft Edge";v="154", "Chromium";v="154""#,
         ),
         (
             &edge,
@@ -303,36 +303,36 @@ fn brand_lists_with_extra_brands_are_rejected() {
         ),
         (
             &chrome,
-            r#""Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153", "Opera";v="153""#,
+            r#""Google Chrome";v="154", "Not A(Brand";v="99", "Chromium";v="154", "Opera";v="154""#,
         ),
         // Two GREASE brands, a repeated brand, and a GREASE-like brand with
         // a version Chromium never chooses.
         (
             &chrome,
-            r#""Google Chrome";v="153", "Not_A Brand";v="8", "Not?A_Brand";v="24", "Chromium";v="153""#,
+            r#""Google Chrome";v="154", "Not A(Brand";v="99", "Not?A_Brand";v="24", "Chromium";v="154""#,
         ),
         (
             &chrome,
-            r#""Google Chrome";v="153", "Chromium";v="153", "Chromium";v="153""#,
+            r#""Google Chrome";v="154", "Chromium";v="154", "Chromium";v="154""#,
         ),
         (
             &chrome,
-            r#""Google Chrome";v="153", "Not_A Brand";v="153", "Chromium";v="153""#,
+            r#""Google Chrome";v="154", "Not A(Brand";v="154", "Chromium";v="154""#,
         ),
         // Well-shaped GREASE brands Chromium derives from another major
-        // version: Chrome 152's brand, Chrome 153's brand with 152's version,
-        // and a brand no 153 build sends.
+        // version: Chrome 152's brand, Chrome 154's brand with 152's version,
+        // and a brand no 154 build sends.
         (
             &chrome,
-            r#""Chromium";v="153", "Not?A_Brand";v="24", "Google Chrome";v="153""#,
+            r#""Chromium";v="154", "Not?A_Brand";v="24", "Google Chrome";v="154""#,
         ),
         (
             &chrome,
-            r#""Google Chrome";v="153", "Not_A Brand";v="24", "Chromium";v="153""#,
+            r#""Google Chrome";v="154", "Not A(Brand";v="24", "Chromium";v="154""#,
         ),
         (
             &chrome,
-            r#""Google Chrome";v="153", "Not(A:Brand";v="99", "Chromium";v="153""#,
+            r#""Google Chrome";v="154", "Not(A:Brand";v="99", "Chromium";v="154""#,
         ),
         (
             &edge,
@@ -347,10 +347,10 @@ fn brand_lists_with_extra_brands_are_rejected() {
         );
     }
 
-    // Chrome 153's own GREASE brand is allowed once, and so is none.
+    // Chrome 154's own GREASE brand is allowed once, and so is none.
     for value in [
-        r#""Chromium";v="153", "Not_A Brand";v="8", "Google Chrome";v="153""#,
-        r#""Google Chrome";v="153", "Chromium";v="153""#,
+        r#""Chromium";v="154", "Not A(Brand";v="99", "Google Chrome";v="154""#,
+        r#""Google Chrome";v="154", "Chromium";v="154""#,
     ] {
         let caller = [RequestHeader::new("sec-ch-ua", value)];
         assert_eq!(
@@ -363,13 +363,14 @@ fn brand_lists_with_extra_brands_are_rejected() {
 
 #[test]
 fn grease_brand_is_derived_from_the_major_version() {
-    // Chrome 152 and 153 values from the retained client-hint captures.
+    // The 154 value is the one in the retained Chrome 154 client-hint
+    // capture; the neighbouring versions come from the same algorithm.
+    assert_eq!(grease_brand(154), ("Not A(Brand".to_owned(), 99));
     assert_eq!(grease_brand(152), ("Not?A_Brand".to_owned(), 24));
     assert_eq!(grease_brand(153), ("Not_A Brand".to_owned(), 8));
     // The index wraps from the last character to the first, and the
     // version cycles through all three choices.
     assert_eq!(grease_brand(10), ("Not_A Brand".to_owned(), 99));
-    assert_eq!(grease_brand(154), ("Not A(Brand".to_owned(), 99));
     assert_eq!(grease_brand(155), ("Not(A:Brand".to_owned(), 24));
 }
 
@@ -378,11 +379,11 @@ fn a_referer_on_a_navigation_template_goes_after_every_template_field() {
     let caller = [RequestHeader::new("referer", "https://example.test/")];
     for (fields, last) in [
         (
-            chromium::v153_windows_navigation_template().http1_fields,
+            chromium::v154_windows_navigation_template().http1_fields,
             "Accept-Language",
         ),
         (
-            chromium::v153_windows_navigation_template().http2_fields,
+            chromium::v154_windows_navigation_template().http2_fields,
             "priority",
         ),
         (
@@ -440,7 +441,7 @@ fn default_profile_hints_need_a_template_with_a_hint_slot() {
     // A Chromium template has slots for the same profile.
     assert_eq!(
         kind(
-            &chromium::v153_windows_navigation_template(),
+            &chromium::v154_windows_navigation_template(),
             exact(HttpProtocol::Http2),
             &[],
             Some(&platform_only)
@@ -451,7 +452,7 @@ fn default_profile_hints_need_a_template_with_a_hint_slot() {
 
 #[test]
 fn a_caller_requested_hint_needs_a_template_that_places_it() {
-    let hints = chromium::v153_windows_client_hints();
+    let hints = chromium::v154_windows_client_hints();
     let caller = [
         RequestHeader::new("referer", "https://example.com/"),
         RequestHeader::new("Sec-CH-UA-Arch", "\"x86\""),
@@ -459,7 +460,7 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
     // Refused before I/O whatever the scheme: `check` sees no origin.
     assert_eq!(
         kind(
-            &chromium::v153_windows_fetch_no_store_template(),
+            &chromium::v154_windows_fetch_no_store_template(),
             exact(HttpProtocol::Http1),
             &caller,
             Some(&hints)
@@ -470,7 +471,7 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
     // default hint from the caller is never a requested one.
     assert_eq!(
         kind(
-            &chromium::v153_windows_navigation_template(),
+            &chromium::v154_windows_navigation_template(),
             exact(HttpProtocol::Http1),
             &caller,
             Some(&hints)
@@ -480,7 +481,7 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
     let default_hint = [RequestHeader::new("sec-ch-ua-mobile", "?0")];
     assert_eq!(
         kind(
-            &chromium::v153_windows_fetch_no_store_template(),
+            &chromium::v154_windows_fetch_no_store_template(),
             exact(HttpProtocol::Http1),
             &default_hint,
             Some(&hints)
@@ -491,8 +492,8 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
 
 #[test]
 fn a_request_that_may_use_http3_needs_an_http3_list() {
-    let fetch = chromium::v153_windows_fetch_no_store_template();
-    let navigation = chromium::v153_windows_navigation_template();
+    let fetch = chromium::v154_windows_fetch_no_store_template();
+    let navigation = chromium::v154_windows_navigation_template();
     let negotiated = |alt_svc| ProtocolScope {
         exact: None,
         alt_svc,

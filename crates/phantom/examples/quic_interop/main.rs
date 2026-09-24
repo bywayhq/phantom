@@ -145,12 +145,12 @@ async fn build_client(ca_pem: &Path) -> Result<Client, BoxError> {
         .ok_or_else(|| invalid_input("interop CA file is empty"))?
         .to_der()?;
 
-    let http3_tls = chromium::v152_http3_tls();
+    let http3_tls = chromium::v154_http3_tls();
     let http3 = Http3ClientSettings::new(
         http3_tls.clone(),
-        chromium::v152_quic(),
-        chromium::v152_http3(),
-        chromium::v152_http3_request(),
+        chromium::v154_quic(),
+        chromium::v154_http3(),
+        chromium::v154_http3_request(),
     );
     let profile = ClientProfile::new(http3_tls).with_http3(http3);
     Ok(Client::builder(profile)

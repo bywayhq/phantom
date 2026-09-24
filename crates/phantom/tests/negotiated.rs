@@ -755,7 +755,7 @@ async fn unsupported_offered_alpn_sends_no_http_bytes() -> TestResult<()> {
             Box::from(&b"http/1.1"[..]),
         ];
         let client =
-            phantom::Client::builder(ClientProfile::new(tls).with_http2(chromium::v152_http2()))
+            phantom::Client::builder(ClientProfile::new(tls).with_http2(chromium::v154_http2()))
                 .add_root_certificate_der(identity.root_der.clone())
                 .build()?;
         let result = client

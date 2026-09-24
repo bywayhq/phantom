@@ -1,4 +1,4 @@
-use phantom_profile::chromium::v152_tls;
+use phantom_profile::chromium::v154_tls;
 use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
 use super::{
@@ -11,7 +11,7 @@ use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 fn invalid_settings_record_connector_error_kind() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     let dispatch = Dispatch::new(subscriber.clone());
-    let mut settings = v152_tls();
+    let mut settings = v154_tls();
     settings.alpn_protocols = vec![Box::default()];
 
     let error = dispatcher::with_default(&dispatch, || {
@@ -35,7 +35,7 @@ fn successful_connector_build_records_outcome_without_error_kind() -> TestResult
     let dispatch = Dispatch::new(subscriber.clone());
 
     dispatcher::with_default(&dispatch, || {
-        TlsConnector::new_with_roots(&v152_tls(), std::iter::empty::<&[u8]>())
+        TlsConnector::new_with_roots(&v154_tls(), std::iter::empty::<&[u8]>())
     })?;
 
     assert_eq!(subscriber.outcomes_for("tls.connector.build"), ["ok"]);
@@ -45,7 +45,7 @@ fn successful_connector_build_records_outcome_without_error_kind() -> TestResult
 
 #[tokio::test]
 async fn failed_handshake_records_static_error_kind() -> TestResult<()> {
-    let connector = TlsConnector::new_with_roots(&v152_tls(), std::iter::empty::<&[u8]>())?;
+    let connector = TlsConnector::new_with_roots(&v154_tls(), std::iter::empty::<&[u8]>())?;
     let (client, server) = tokio::io::duplex(4096);
     drop(server);
     let subscriber = OutcomeSubscriber::default();
@@ -66,7 +66,7 @@ async fn failed_handshake_records_static_error_kind() -> TestResult<()> {
 
 #[tokio::test]
 async fn dropped_handshake_records_cancelled_without_error_kind() -> TestResult<()> {
-    let connector = TlsConnector::new_with_roots(&v152_tls(), std::iter::empty::<&[u8]>())?;
+    let connector = TlsConnector::new_with_roots(&v154_tls(), std::iter::empty::<&[u8]>())?;
     let (client, _server) = tokio::io::duplex(4096);
     let subscriber = OutcomeSubscriber::default();
 
@@ -87,7 +87,7 @@ async fn dropped_handshake_records_cancelled_without_error_kind() -> TestResult<
 async fn successful_handshake_records_negotiated_version_and_cipher() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(&v152_tls(), [identity.root_der()])?;
+    let connector = TlsConnector::new_with_roots(&v154_tls(), [identity.root_der()])?;
     let subscriber = OutcomeSubscriber::default();
     let dispatch = Dispatch::new(subscriber.clone());
 

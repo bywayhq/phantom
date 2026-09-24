@@ -1,9 +1,6 @@
 //! Firefox-specific TLS differential tests.
 
-use phantom_profile::{
-    TlsSettings,
-    firefox::{v154_tls, v156_tls},
-};
+use phantom_profile::{TlsSettings, firefox::v156_tls};
 use phantom_testkit::tls::ClientHelloSummary;
 
 use super::{
@@ -11,14 +8,6 @@ use super::{
 };
 use crate::tls::test_support::TestResult;
 
-const FIREFOX_FIXTURE: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/firefox/154.0/",
-    "macos-15.5/client-hello.txt"
-));
-const WINDOWS_FIREFOX_FIXTURE: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/firefox/154.0/",
-    "windows-11-26200/client-hello.txt"
-));
 const WINDOWS_FIREFOX_156_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/firefox/156.0/",
     "windows-11-26200/client-hello.txt"
@@ -37,16 +26,6 @@ const CERTIFICATE_COMPRESSION_EXTENSION: u16 = 0x001b;
 const ENCRYPTED_CLIENT_HELLO_EXTENSION: u16 = 0xfe0d;
 
 #[tokio::test]
-async fn firefox_154_macos_matches_retained_client_hello() -> TestResult<()> {
-    assert_recipe_matches_fixture(FIREFOX_FIXTURE, &v154_tls(), 281).await
-}
-
-#[tokio::test]
-async fn firefox_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(WINDOWS_FIREFOX_FIXTURE, &v154_tls(), 281).await
-}
-
-#[tokio::test]
 async fn firefox_156_tls_recipe_matches_windows_capture() -> TestResult<()> {
     assert_recipe_matches_fixture(WINDOWS_FIREFOX_156_FIXTURE, &v156_tls(), 282).await
 }
@@ -55,17 +34,6 @@ async fn firefox_156_tls_recipe_matches_windows_capture() -> TestResult<()> {
 async fn firefox_156_tls_recipe_matches_windows_capture_with_chacha20_ech_grease() -> TestResult<()>
 {
     assert_recipe_matches_fixture(WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE, &v156_tls(), 282).await
-}
-
-/// Firefox 154 draws AES-128-GCM or ChaCha20-Poly1305 for each ECH GREASE
-/// extension with equal probability; the retained captures carry one of each.
-#[tokio::test]
-async fn firefox_154_recipe_draws_either_ech_grease_aead_per_connection() -> TestResult<()> {
-    assert_recipe_draws_either_ech_grease_aead(
-        [FIREFOX_FIXTURE, WINDOWS_FIREFOX_FIXTURE],
-        &v154_tls(),
-    )
-    .await
 }
 
 /// Firefox 156 still picks the ECH GREASE AEAD per connection (7 AES-128-GCM

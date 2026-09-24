@@ -28,7 +28,7 @@ use crate::{
 };
 
 const CHROME_FIXTURE: &str = include_str!(
-    "../../../../../fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt"
+    "../../../../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
 );
 
 #[test]
@@ -36,7 +36,7 @@ fn chrome_capture_matches_dynamic_qpack_bytes() -> TestResult<()> {
     let expected = fixture_request_headers()?;
     let (authority, target, headers) = fixture_request_input(&expected)?;
     let request = crate::http3::request::prepare_get(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         &authority,
         target,
         headers,
@@ -135,8 +135,8 @@ async fn chrome_request_matches_captured_qpack_on_a_live_connection() -> TestRes
             address,
             TEST_SERVER_NAME,
             client,
-            &chromium::v152_http3(),
-            &chromium::v152_http3_request(),
+            &chromium::v154_http3(),
+            &chromium::v154_http3_request(),
             &authority,
             target,
             headers,
@@ -154,7 +154,7 @@ async fn chrome_request_matches_captured_qpack_on_a_live_connection() -> TestRes
 #[test]
 fn prepared_get_retains_cross_name_order_and_duplicates() -> TestResult<()> {
     let request = crate::http3::request::prepare_get(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         "server.phantom.test",
         OriginForm::parse("/ordered")?,
         vec![
@@ -185,7 +185,7 @@ fn prepared_get_retains_cross_name_order_and_duplicates() -> TestResult<()> {
 #[test]
 fn prepared_body_request_preserves_method_and_content_length_order() -> TestResult<()> {
     let prepared = crate::http3::request::prepare_profiled_request(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::PATCH,
         TEST_SERVER_NAME,
         OriginForm::parse("/body")?,
@@ -226,7 +226,7 @@ fn prepared_body_request_preserves_method_and_content_length_order() -> TestResu
 #[test]
 fn explicit_empty_body_remains_distinct_without_synthesized_length() -> TestResult<()> {
     let prepared = crate::http3::request::prepare_profiled_request(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/empty")?,
@@ -248,7 +248,7 @@ fn explicit_empty_body_remains_distinct_without_synthesized_length() -> TestResu
 #[test]
 fn unknown_length_stream_omits_content_length() -> TestResult<()> {
     let prepared = crate::http3::request::prepare_profiled_request_body(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/stream")?,
@@ -270,7 +270,7 @@ fn unknown_length_stream_omits_content_length() -> TestResult<()> {
 #[test]
 fn unknown_length_stream_rejects_caller_content_length() -> TestResult<()> {
     let error = crate::http3::request::prepare_profiled_request_body(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/stream")?,
@@ -304,7 +304,7 @@ impl Body for UnknownBody {
 
 #[test]
 fn body_request_rejects_ambiguous_or_incorrect_content_length() -> TestResult<()> {
-    let settings = chromium::v152_http3_request();
+    let settings = chromium::v154_http3_request();
     for headers in [
         vec![RequestHeader::new("content-length", "6")],
         vec![RequestHeader::new("content-length", "07")],
@@ -331,7 +331,7 @@ fn body_request_rejects_ambiguous_or_incorrect_content_length() -> TestResult<()
 #[test]
 fn exact_caller_content_length_keeps_its_ordered_position() -> TestResult<()> {
     let prepared = crate::http3::request::prepare_profiled_request(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::PUT,
         TEST_SERVER_NAME,
         OriginForm::parse("/body")?,
@@ -354,7 +354,7 @@ fn exact_caller_content_length_keeps_its_ordered_position() -> TestResult<()> {
 #[test]
 fn sensitive_fields_reach_semantic_and_ordered_qpack_inputs() -> TestResult<()> {
     let request = crate::http3::request::prepare_get(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         "server.phantom.test",
         OriginForm::parse("/sensitive")?,
         vec![RequestHeader::new("cookie", "secret=value").sensitive()],
@@ -376,7 +376,7 @@ fn sensitive_fields_reach_semantic_and_ordered_qpack_inputs() -> TestResult<()> 
 #[test]
 fn prepared_trailers_retain_order_duplicates_and_sensitivity() -> TestResult<()> {
     let prepared = crate::http3::request::prepare_profiled_request_body_with_trailers(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/trailers")?,
@@ -421,7 +421,7 @@ fn invalid_static_trailers_fail_during_preparation() -> TestResult<()> {
         vec![crate::request::RequestTrailerName::new("x-dynamic")],
     );
     let error = crate::http3::request::validate_profiled_request_body_with_trailers(
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/trailers")?,
@@ -450,7 +450,7 @@ fn invalid_static_trailers_fail_during_preparation() -> TestResult<()> {
         RequestHeader::new("set-cookie", "a=b"),
     ] {
         let error = crate::http3::request::prepare_profiled_request_body_with_trailers(
-            &chromium::v152_http3_request(),
+            &chromium::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
             OriginForm::parse("/trailers")?,
@@ -472,7 +472,7 @@ fn invalid_static_trailers_fail_during_preparation() -> TestResult<()> {
     )];
     for trailers in [too_many, too_large] {
         let error = crate::http3::request::prepare_profiled_request_body_with_trailers(
-            &chromium::v152_http3_request(),
+            &chromium::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
             OriginForm::parse("/trailers")?,
@@ -561,7 +561,7 @@ async fn rejects_disagreeing_order_extensions_before_connecting() -> TestResult<
 
 #[test]
 fn ordered_get_rejects_invalid_input_before_network_setup() -> TestResult<()> {
-    let settings = chromium::v152_http3_request();
+    let settings = chromium::v154_http3_request();
     let cases = [
         (
             "user@server.phantom.test",
@@ -667,8 +667,8 @@ async fn invalid_ordered_get_is_traced_before_connecting() -> TestResult<()> {
         "127.0.0.1:9".parse()?,
         TEST_SERVER_NAME,
         client_config(&identity)?,
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
         "user@server.phantom.test",
         OriginForm::parse("/")?,
         Vec::new(),
@@ -697,7 +697,7 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
         qpack_encoding: Http3QpackEncoding::Stateless,
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
     };
-    let mut invalid_request_settings = chromium::v152_http3_request();
+    let mut invalid_request_settings = chromium::v154_http3_request();
     invalid_request_settings.pseudo_header_order[3] = Http3PseudoHeader::Method;
 
     let error = expected_http3_error(
@@ -722,7 +722,7 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
             TEST_SERVER_NAME,
             client,
             &invalid_settings,
-            &chromium::v152_http3_request(),
+            &chromium::v154_http3_request(),
             http::Method::POST,
             "server.phantom.test",
             OriginForm::parse("/")?,
@@ -766,8 +766,8 @@ async fn ordered_get_completes_with_duplicate_fields() -> TestResult<()> {
         Ok::<(), Box<dyn Error + Send + Sync>>(())
     });
 
-    let settings = chromium::v152_http3();
-    let request_settings = chromium::v152_http3_request();
+    let settings = chromium::v154_http3();
+    let request_settings = chromium::v154_http3_request();
     let response = timeout(
         TEST_TIMEOUT,
         crate::http3::send_get(
@@ -841,8 +841,8 @@ async fn one_shot_request_with_body_uses_the_ordered_profile_path() -> TestResul
             address,
             TEST_SERVER_NAME,
             client,
-            &chromium::v152_http3(),
-            &chromium::v152_http3_request(),
+            &chromium::v154_http3(),
+            &chromium::v154_http3_request(),
             http::Method::POST,
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             OriginForm::parse("/ordered-post")?,

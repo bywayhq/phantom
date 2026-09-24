@@ -77,7 +77,7 @@ async fn connect_address(address: SocketAddr, settings: TcpSettings) -> io::Resu
 /// Applies every option `settings` asks for, failing on the first rejection.
 ///
 /// Chromium ignores a failure to set these options
-/// (`net/socket/tcp_socket_win.cc:71-72` at tag `153.0.8010.48`). Phantom
+/// (`net/socket/tcp_socket_win.cc:70-71` at tag `154.0.8037.58`). Phantom
 /// fails the attempt instead, so a connection never proceeds with socket
 /// options the profile did not ask for.
 fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {

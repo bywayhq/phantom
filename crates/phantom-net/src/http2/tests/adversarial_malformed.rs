@@ -1,4 +1,4 @@
-use phantom_profile::{Http2Setting, Http2Settings, chromium::v152_http2};
+use phantom_profile::{Http2Setting, Http2Settings, chromium::v154_http2};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 
 use super::{TestResult, bounded_peer_test, target};
@@ -89,7 +89,7 @@ async fn run_case(case: MalformedCase) -> TestResult<()> {
 }
 
 fn settings_for(case: MalformedCase) -> TestResult<Http2Settings> {
-    let mut settings = v152_http2();
+    let mut settings = v154_http2();
     if case.uses_small_header_budget() {
         let maximum = settings
             .initial_settings

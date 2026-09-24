@@ -21,7 +21,7 @@ exists. Read the relevant sections before capturing.
 - Each browser run uses a fresh temporary profile (`browser_launch.py`).
   Headless, headful, and manual captures are compared, never assumed equal.
 - Retain fixtures at `fixtures/<area>/<browser>/<exact-version>/<host>/`, for
-  example `fixtures/http2/chrome/153.0.8010.48/windows-11-26200/`. Provenance
+  example `fixtures/http2/chrome/154.0.8037.58/windows-11-26200/`. Provenance
   is the exact browser version and host OS; a Windows capture never backs a
   macOS recipe.
 - Fixtures are machine-focused and byte-exact (`.gitattributes` marks

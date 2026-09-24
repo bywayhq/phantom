@@ -165,9 +165,9 @@ async fn open_tunnel(
     identity: &TestIdentity,
 ) -> Result<(Arc<dyn AsyncUdpSocket>, SocketAddr), Box<dyn std::error::Error + Send + Sync>> {
     let connector = Http3Connector::new_with_additional_roots(
-        &chromium::v152_http3_tls(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
+        &chromium::v154_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
         &extended_request_settings(),
         [identity.root_der()],
     )?;
@@ -223,7 +223,7 @@ fn transmit(destination: SocketAddr, contents: &[u8]) -> udp::Transmit<'_> {
 }
 
 fn extended_request_settings() -> Http3RequestSettings {
-    let mut settings = chromium::v152_http3_request();
+    let mut settings = chromium::v154_http3_request();
     settings.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
         Http3PseudoHeader::Protocol,

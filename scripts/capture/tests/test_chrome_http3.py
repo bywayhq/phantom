@@ -28,16 +28,22 @@ from scripts.capture.http3_wire import (
 )
 from scripts.capture.quic_summary import SymbolicSpan
 
-FIXTURE_PATH = Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt")
-FIXTURE_SHA256 = "c52cd57896f824fdefdcfdda77d40fe3bd928f2a97ef5093ebd888aa8fb18aaf"
+FIXTURE_PATH = Path(
+    "fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
+)
+FIXTURE_SHA256 = "eda5fd2e48049d17b901160127ea3db4e4aa46cc6d2732c7a2bd0a6d9cf522d4"
 CLIENT_HELLO_FIXTURES = (
     (
-        Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/quic-client-hello-1.txt"),
-        "3dfea80e543ce8e990a8821e9588d29a0cf3776953440bc7cf1e1f04b4c7df42",
+        Path(
+            "fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt"
+        ),
+        "9085b2a9a9d2a0e2a9f2ab286981442f7774585080f9104317258cf89a51edcf",
     ),
     (
-        Path("fixtures/http3/chrome/152.0.7977.83/macos-15.5/quic-client-hello-2.txt"),
-        "cb6324046cd096f70422ea8ad8d902303493b744e5d797683c2d2af4bd06c034",
+        Path(
+            "fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-2.txt"
+        ),
+        "a1391bdc5e7f1641c26dc44faa59fcd77a85b85037cf65e1112755de85ef2062",
     ),
 )
 PARAMETER_PATTERN = re.compile(
@@ -203,9 +209,11 @@ class ChromeFixtureTests(unittest.TestCase):
     def test_fixture_integrity_and_ordered_schema(self) -> None:
         self.assertEqual(hashlib.sha256(self.source).hexdigest(), FIXTURE_SHA256)
         self.assertEqual(self.fixture["format"], "phantom-http3-client-startup-v2")
-        self.assertEqual(self.fixture["client_version"], "152.0.7977.83")
-        self.assertEqual(self.fixture["operating_system"], "macOS 15.5 (24F74)")
-        self.assertEqual(self.fixture["listen_address"], "127.0.0.1:9447")
+        self.assertEqual(self.fixture["client_version"], "154.0.8037.58")
+        self.assertEqual(
+            self.fixture["operating_system"], "Windows 11 Home 10.0.26200 x64"
+        )
+        self.assertEqual(self.fixture["listen_address"], "127.0.0.1:62956")
         self.assertEqual(self.fixture["quic_version"], "0x00000001")
         self.assertEqual(self.fixture["alpn"], "h3")
 
@@ -274,7 +282,7 @@ class ChromeFixtureTests(unittest.TestCase):
             self.assertEqual([key for key, _, _ in fields], expected_keys)
             fixture = {key: value for key, _, value in fields}
             self.assertEqual(fixture["format"], "phantom-quic-client-hello-v1")
-            self.assertEqual(fixture["client_version"], "152.0.7977.83")
+            self.assertEqual(fixture["client_version"], "154.0.8037.58")
             self.assertEqual(fixture["quic_version"], "0x00000001")
             self.assertEqual(fixture["alpn"], "h3")
             handshake = bytes.fromhex(fixture["handshake_hex"])
@@ -380,7 +388,7 @@ class ChromeFixtureTests(unittest.TestCase):
         self.assertIsNotNone(encoder_type)
         assert encoder_type is not None
         self.assertEqual(encoder_type[0], 2)
-        self.assertEqual(len(encoder_prefix), 437)
+        self.assertEqual(len(encoder_prefix), 436)
         self.assertEqual(
             fixture_hex(self.fixture, "request_qpack_decoder_stream_prefix_hex"),
             b"",

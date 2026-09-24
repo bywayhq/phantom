@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use http::{Method, Response};
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use phantom_testkit::http2::CLIENT_CONNECTION_PREFACE;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
@@ -84,7 +84,7 @@ async fn h2_proxy_configuration_errors_precede_proxy_io() -> TestResult<()> {
     http1_only.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
     let missing_h2 =
         HttpsProxyConnector::new_with_additional_roots(&http1_only, [identity.root_der()])?
-            .with_http2_settings(&v152_http2())
+            .with_http2_settings(&v154_http2())
             .with_protocol(HttpsProxyProtocol::Http2);
     let missing_settings =
         HttpsProxyConnector::new_with_additional_roots(&tls_settings(), [identity.root_der()])?
@@ -162,7 +162,7 @@ async fn h2_proxy_connect_emits_two_field_pseudo_order() -> TestResult<()> {
             ],
         )?;
         let exchange = tokio::spawn(async move {
-            let connection = Http2Connection::connect(client, &v152_http2()).await?;
+            let connection = Http2Connection::connect(client, &v154_http2()).await?;
             http2_connect::establish(&connection, &request)
                 .await
                 .map(drop)
@@ -323,7 +323,7 @@ async fn h2_proxy_tunnel_drop_resets_only_its_stream() -> TestResult<()> {
             ))
         });
 
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
         let first = PreparedHttp2Connect::new(
             "first.example:443",
             &[HttpConnectHeader::authority("host")],
@@ -449,7 +449,7 @@ async fn reject_one(
 fn http2_connector(identity: &TestIdentity) -> TestResult<HttpsProxyConnector> {
     Ok(
         HttpsProxyConnector::new_with_additional_roots(&tls_settings(), [identity.root_der()])?
-            .with_http2_settings(&v152_http2())
+            .with_http2_settings(&v154_http2())
             .with_protocol(HttpsProxyProtocol::Http2),
     )
 }

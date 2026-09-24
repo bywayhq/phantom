@@ -8,7 +8,7 @@ use std::{
 };
 
 use http::Method;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex};
 use tracing::instrument::WithSubscriber;
 
@@ -21,9 +21,9 @@ use crate::tracing_test::OutcomeSubscriber;
 
 #[tokio::test]
 async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
-    let mut invalid_settings = v152_http2();
+    let mut invalid_settings = v154_http2();
     invalid_settings.initial_connection_window_size = 65_534;
-    let mut self_dependent = v152_http2();
+    let mut self_dependent = v154_http2();
     self_dependent
         .headers_priority
         .as_mut()
@@ -33,20 +33,20 @@ async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
     let mut cases = vec![
         (invalid_settings, "example.test", vec![]),
         (self_dependent, "example.test", vec![]),
-        (v152_http2(), "bad authority/", vec![]),
-        (v152_http2(), "user@example.test", vec![]),
+        (v154_http2(), "bad authority/", vec![]),
+        (v154_http2(), "user@example.test", vec![]),
         (
-            v152_http2(),
+            v154_http2(),
             "example.test",
             vec![RequestHeader::new("Uppercase", "value")],
         ),
         (
-            v152_http2(),
+            v154_http2(),
             "example.test",
             vec![RequestHeader::new("bad name", "value")],
         ),
         (
-            v152_http2(),
+            v154_http2(),
             "example.test",
             vec![RequestHeader::new("x-bad", b"ok\r\ninjected")],
         ),
@@ -62,13 +62,13 @@ async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
         "trailer",
     ] {
         cases.push((
-            v152_http2(),
+            v154_http2(),
             "example.test",
             vec![RequestHeader::new(name, "value")],
         ));
     }
     cases.push((
-        v152_http2(),
+        v154_http2(),
         "example.test",
         vec![RequestHeader::new("te", "Trailers")],
     ));
@@ -76,9 +76,9 @@ async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
     let too_many = (0..=MAX_REQUEST_HEADERS)
         .map(|index| RequestHeader::new(format!("x-{index}"), "v"))
         .collect();
-    cases.push((v152_http2(), "example.test", too_many));
+    cases.push((v154_http2(), "example.test", too_many));
     cases.push((
-        v152_http2(),
+        v154_http2(),
         "example.test",
         vec![RequestHeader::new(
             "x-large",
@@ -108,7 +108,7 @@ async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
 
 #[tokio::test]
 async fn self_dependency_and_userinfo_report_specific_errors_before_io() -> TestResult<()> {
-    let mut settings = v152_http2();
+    let mut settings = v154_http2();
     settings
         .headers_priority
         .as_mut()
@@ -144,7 +144,7 @@ async fn self_dependency_and_userinfo_report_specific_errors_before_io() -> Test
             inner: client,
             touches: Arc::clone(&touches),
         },
-        &v152_http2(),
+        &v154_http2(),
         "user@example.test",
         target()?,
         vec![],
@@ -220,7 +220,7 @@ async fn nonzero_or_malformed_content_length_is_rejected_before_io() -> TestResu
                 inner: client,
                 touches: Arc::clone(&touches),
             },
-            &v152_http2(),
+            &v154_http2(),
             "example.test",
             target()?,
             vec![RequestHeader::new("content-length", value)],
@@ -246,7 +246,7 @@ async fn invalid_request_is_traced_before_stream_io() -> TestResult<()> {
             inner: client,
             touches: Arc::clone(&touches),
         },
-        &v152_http2(),
+        &v154_http2(),
         "user@example.test",
         target()?,
         Vec::new(),
@@ -300,7 +300,7 @@ async fn invalid_static_trailers_never_touch_stream() -> TestResult<()> {
                 inner: client,
                 touches: Arc::clone(&touches),
             },
-            &v152_http2(),
+            &v154_http2(),
             Method::POST,
             "example.test",
             target()?,

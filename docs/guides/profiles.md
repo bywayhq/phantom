@@ -41,14 +41,15 @@ fn profiles() -> [ClientProfile; 2] {
         .with_http2(firefox::v156_http2())
         .with_cookie_placement(firefox::v156_cookie_placement());
 
-    // Edge 153: its own TLS and client hints; H2, QUIC, and H3 match Chrome 153.
+    // Edge 153: its own TLS and client hints; its H2, QUIC, and H3 match
+    // the Chromium recipes.
     let edge = ClientProfile::new(edge::v153_tls())
-        .with_http2(chromium::v153_http2())
+        .with_http2(chromium::v154_http2())
         .with_http3(Http3ClientSettings::new(
             edge::v153_http3_tls(),
-            chromium::v153_quic(),
-            chromium::v153_http3(),
-            chromium::v153_http3_request(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
         ))
         .with_client_hints(edge::v153_windows_client_hints());
 
@@ -58,25 +59,26 @@ fn profiles() -> [ClientProfile; 2] {
 
 ## Built-in recipes
 
+Phantom carries one version per browser: the current stable build on the
+capture host. Older versions are retired rather than half-maintained, so a
+recipe name always points at a build that can be recaptured and reverified.
+
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Chrome 152 | `chromium::v152_*` | Yes | Yes | Yes | `v152_macos_client_hints` | No | macOS and Windows |
-| Chrome 153 | `chromium::v153_*` | Yes | Yes | Yes | `v153_windows_client_hints` | `v153_websocket` | Windows |
-| Edge 153 | `edge::v153_*` | Yes | Chrome 153 | Chrome 153 QUIC and H3; own H3 TLS | `v153_windows_client_hints` | Chrome 153 | Windows |
-| Firefox 154 | `firefox::v154_*` | Yes | Yes | No | No | No | macOS and Windows |
+| Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints` | `v154_websocket` | Windows |
+| Edge 153 | `edge::v153_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v153_windows_client_hints` | Chromium | Windows |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
-| Safari 18.5 | `safari::v18_5_macos_tls` | Yes | No | No | No | No | macOS |
 
 "Captured on" lists the platforms whose retained captures back the recipe.
 [Coverage](../reference/coverage.md#browser-profiles) gives the exact builds
 and how the recipes differ.
 
 - TCP recipes are not in the table, because socket options do not appear in a
-  capture. `chromium::v153_tcp` and `firefox::v156_tcp` come from the
+  capture. `chromium::v154_tcp` and `firefox::v156_tcp` come from the
   browsers' source code at the profiled release tags; see
   [TCP socket options](#tcp-socket-options).
 - H2 WebSocket needs a captured pseudo-header order for extended CONNECT.
-  Only `chromium::v153_http2` and `firefox::v156_http2` carry one. For the
+  Only `chromium::v154_http2` and `firefox::v156_http2` carry one. For the
   WebSocket recipes and their limits, see
   [Profile connection policy](websocket.md#profile-connection-policy).
 
@@ -86,16 +88,13 @@ A recipe is a set of transport settings. It does not select behavior by host
 operating system: the runtime uses the validated settings it receives and
 never branches on the host OS or the browser name.
 
-- A name without a platform, such as `chromium::v152_tls` or
-  `firefox::v154_http2`, means the settings matched on more than one
+- A name without a platform, such as `chromium::v154_tls` or
+  `firefox::v156_http2`, means the settings matched on more than one
   platform, or belong to a later version that relies on that finding. Each
   recipe's rustdoc names its capture builds and platforms.
-- A `macos` or `windows` in a name means only "observed on that platform". It
-  never means "selected by `target_os`". `safari::v18_5_macos_tls` keeps it
-  because Safari was captured only on macOS. Client-hint recipes keep it
-  because client hints carry platform data on the wire.
-- The older `macos` names of the Chrome 152 and Firefox 154 transport recipes
-  remain as hidden aliases for compatibility.
+- A `windows` in a name means only "observed on that platform". It never
+  means "selected by `target_os`". Client-hint and request-template recipes
+  keep it because their values carry platform data on the wire.
 
 ## TCP socket options
 
@@ -107,7 +106,7 @@ connection of a SOCKS5 UDP association. Without `with_tcp`, sockets keep the
 operating system's defaults and addresses are tried one at a time in resolver
 order.
 
-- `chromium::v153_tcp` disables Nagle's algorithm and sets a 45-second
+- `chromium::v154_tcp` disables Nagle's algorithm and sets a 45-second
   keepalive idle time and interval, as Chromium does on Windows and Linux. It
   races addresses as Chromium's Happy Eyeballs does: the first attempt prefers
   IPv6, a failed attempt is followed by one on the other family, and 300 ms
@@ -148,8 +147,8 @@ hints go. Apply one with `RequestBuilder::template`.
 
 | Recipe | Request | HTTP/1.1 | HTTP/2 | HTTP/3 | `User-Agent` |
 | --- | --- | --- | --- | --- | --- |
-| `chromium::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured headful Chrome 153 value |
-| `chromium::v153_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 153 value |
+| `chromium::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured headful Chrome 154 value |
+| `chromium::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
 | `edge::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Caller slot |
 | `edge::v153_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Caller slot |
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
@@ -168,14 +167,14 @@ use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, HttpProtocol, RequestHeader};
 
 async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v153_tls())
-        .with_http2(chromium::v153_http2())
-        .with_client_hints(chromium::v153_windows_client_hints());
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_client_hints(chromium::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
 
     let page = client
         .get(HttpProtocol::Http2, "https://example.com/")?
-        .template(chromium::v153_windows_navigation_template())
+        .template(chromium::v154_windows_navigation_template())
         .send()
         .await?;
     page.into_body().collect_with_limit(1 << 20).await?;
@@ -183,7 +182,7 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
     // `Referer` is a caller slot: its value is the page URL.
     let data = client
         .get(HttpProtocol::Http2, "https://example.com/data.json")?
-        .template(chromium::v153_windows_fetch_no_store_template())
+        .template(chromium::v154_windows_fetch_no_store_template())
         .header(RequestHeader::new("referer", "https://example.com/"))
         .send()
         .await?;
@@ -234,7 +233,7 @@ added afterward.
 - With `firefox::v156_cookie_placement`, a Firefox `fetch` template sends
   `Cookie` after `Referer` and before `Sec-Fetch-Dest`. A Firefox navigation
   sends it before `Upgrade-Insecure-Requests`.
-- With `chromium::v153_cookie_placement`, a Chrome or Edge template sends it
+- With `chromium::v154_cookie_placement`, a Chrome or Edge template sends it
   last on HTTP/1.1 and before the final `priority` on HTTP/2 and HTTP/3.
 
 #### Client hints in templates
@@ -274,7 +273,7 @@ Phantom checks a templated request against that claim:
 
 - A `User-Agent` you supply must contain the template's product token with
   its major version and none of its excluded tokens.
-  - Chrome 153 templates require `Chrome/153` (a copied `HeadlessChrome/153`
+  - Chrome 154 templates require `Chrome/154` (a copied `HeadlessChrome/154`
     does not match) and reject `Edg` and `Firefox`.
   - Edge 153 templates require `Edg/153` and reject `HeadlessChrome` and
     `Firefox`.
@@ -286,10 +285,11 @@ Phantom checks a templated request against that claim:
 - A `sec-ch-ua` or `sec-ch-ua-full-version-list`, whether yours or the
   profile's, must list each of the template's brands once with its major
   version. The only other brand allowed is the GREASE brand Chromium derives
-  from that major version: `"Not_A Brand";v="8"` for 153. A list naming both
-  `Google Chrome` and `Microsoft Edge` fails, and so does Chrome 152's
-  `"Not?A_Brand";v="24"` on a 153 template. Firefox sends neither hint, so
-  either field contradicts a Firefox template.
+  from that major version: `"Not A(Brand";v="99"` for 154 and
+  `"Not_A Brand";v="8"` for 153. A list naming both `Google Chrome` and
+  `Microsoft Edge` fails, and so does Chrome 153's `"Not_A Brand";v="8"` on a
+  154 template. Firefox sends neither hint, so either field contradicts a
+  Firefox template.
 
 A contradiction fails with `RequestErrorKind::IdentityMismatch`. Phantom never
 rewrites or drops the field. An invalid template fails with
@@ -349,7 +349,7 @@ more with the `Accept-CH` response field.
 values, and whether each is sent by default or only on request. The client
 separately tracks which hints each origin has requested. Each built-in
 client-hint recipe comes from a navigation capture of its browser. Phantom
-never adds Chromium client hints to a Firefox or Safari profile based on the
+never adds Chromium client hints to a Firefox profile based on the
 browser name.
 
 ### Learning from `Accept-CH`

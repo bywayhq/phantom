@@ -32,7 +32,7 @@ fn edge_153_windows_client_hints_match_navigation_capture() -> Result<(), Box<dy
 }
 
 #[test]
-fn edge_153_client_hints_share_chrome_153_names_order_and_delivery() {
+fn edge_153_client_hints_share_the_chromium_names_order_and_delivery() {
     let names = |settings: crate::ClientHintSettings| {
         settings
             .hints()
@@ -42,7 +42,7 @@ fn edge_153_client_hints_share_chrome_153_names_order_and_delivery() {
     };
     assert_eq!(
         names(v153_windows_client_hints()),
-        names(chromium::v153_windows_client_hints())
+        names(chromium::v154_windows_client_hints())
     );
 }
 
@@ -58,11 +58,11 @@ fn edge_153_recipes_keep_the_backend_ech_grease_aead_policy() {
 }
 
 #[test]
-fn edge_153_tls_recipes_remove_only_chrome_153_trust_anchor_ids()
+fn edge_153_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
     for (edge, chrome) in [
-        (v153_tls(), chromium::v153_tls()),
-        (v153_http3_tls(), chromium::v153_http3_tls()),
+        (v153_tls(), chromium::v154_tls()),
+        (v153_http3_tls(), chromium::v154_http3_tls()),
     ] {
         edge.validate()?;
         assert!(chrome.requested_trust_anchor_ids.is_some());
@@ -74,7 +74,7 @@ fn edge_153_tls_recipes_remove_only_chrome_153_trust_anchor_ids()
 }
 
 #[test]
-fn edge_153_http2_session_capture_matches_chrome_153_recipe()
+fn edge_153_http2_session_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let capture = SessionCapture::parse(SESSION_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Microsoft Edge");
@@ -85,7 +85,7 @@ fn edge_153_http2_session_capture_matches_chrome_153_recipe()
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
-        ..chromium::v153_http2()
+        ..chromium::v154_http2()
     };
     for run in observed {
         assert_eq!(run, navigation);

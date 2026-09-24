@@ -7,7 +7,7 @@ use std::{
 use bytes::Bytes;
 use http::Response;
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::{
     io::{DuplexStream, duplex},
     time::timeout,
@@ -52,7 +52,7 @@ async fn prime_request_trace_callsites() -> TestResult<()> {
     let (invalid_client, _invalid_peer) = duplex(128);
     let _ = send_get(
         invalid_client,
-        &v152_http2(),
+        &v154_http2(),
         "user@example.test",
         target()?,
         vec![],
@@ -63,7 +63,7 @@ async fn prime_request_trace_callsites() -> TestResult<()> {
     drop(closed_peer);
     let _ = send_get(
         closed_client,
-        &v152_http2(),
+        &v154_http2(),
         "example.test",
         target()?,
         vec![],

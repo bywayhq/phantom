@@ -62,7 +62,7 @@ Supported:
 - Profile address racing (`TcpAddressRacing`): Chromium's Happy Eyeballs v2
   over the complete resolver result. At most two attempts run at once, the
   losing attempt is cancelled, and the most recent failure is returned.
-- The recipes `chromium::v153_tcp` and `chromium::v154_tcp` (Windows and
+- The recipes `chromium::v154_tcp` and `chromium::v154_tcp` (Windows and
   Linux) and `firefox::v156_tcp`
   (`TCP_NODELAY` only, attempts in resolver order), both taken from browser
   source. See
@@ -86,10 +86,9 @@ Not modeled:
 Supported:
 
 - Typed, ordered profiles.
-- Recipes backed by retained captures:
-  - Chrome 152, Firefox 154, and Safari 18.5 from macOS captures. Chrome 152
-    and Firefox 154 also match Windows captures.
-  - Chrome 153, Chrome 154, Edge 153, and Firefox 156 from Windows captures.
+- Recipes backed by retained captures: Chrome 154, Edge 153, and Firefox 156,
+  all from Windows captures. Phantom carries one version per browser, the
+  current stable build on the capture host.
 
   See [Browser profiles](#browser-profiles).
 - Certificate and hostname verification.
@@ -355,7 +354,7 @@ Supported:
     origin or an `http://` loopback, `localhost`, or `.localhost`
     origin; and
   - places the `Cookie` field where the profile's `CookiePlacement` puts it,
-    with Chrome 153 and Firefox 156 recipes.
+    with Chrome 154 and Firefox 156 recipes.
 
   See [Cookies](../guides/connections-and-state.md#cookies).
 - Client-hint fields defined by the profile, with bounded `Accept-CH` state
@@ -403,7 +402,7 @@ Supported server-sent events (SSE, `sse` feature):
   - an optional idle timeout on DATA activity that is safe to cancel;
   - cookies; and
   - termination on a 204 response.
-- Differential tests that replay retained Chrome 153 and Firefox 156 Windows
+- Differential tests that replay retained Chrome 154 and Firefox 156 Windows
   HTTP/1.1 captures.
 
 Supported WebSocket (`websocket` feature):
@@ -417,16 +416,16 @@ Supported WebSocket (`websocket` feature):
 - Ordered, customizable handshakes, and Basic authentication to a forward
   proxy when it sends a challenge.
 - Typed opt-in `permessage-deflate` (`websocket-deflate` feature), including
-  the per-profile empty-message rule: Chrome 153 and Edge 153 compress a
+  the per-profile empty-message rule: Chrome 154 and Edge 153 compress a
   zero-length message and set RSV1, Firefox 156 sends it with RSV1 clear.
 - Client cookies, bounded messages, `Stream`/`Sink`, and strict response
   validation for each protocol.
-- A profile WebSocket connection policy with Chrome 153/Edge 153 and Firefox
+- A profile WebSocket connection policy with Chrome 154/Edge 153 and Firefox
   156 recipes. Depending on the recipe, it reuses a capable H2 session or
   opens either an `http/1.1`-only Upgrade connection or a new H2 connection.
   It uses the captured CONNECT pseudo-header order, priority, field templates,
   and deflate offers. A recipe also carries what its client does when the peer
-  refuses the CONNECT stream: Chrome 153 and Edge 153 reopen once on the same
+  refuses the CONNECT stream: Chrome 154 and Edge 153 reopen once on the same
   session, Firefox 156 reopens nothing. See
   [Profile connection policy](../guides/websocket.md#profile-connection-policy).
 
@@ -439,7 +438,7 @@ Planned or not captured:
 - Other WebSocket extensions, named send policies beyond the empty-message
   rule, and automatic reconnect.
 - Remaining gaps in the WebSocket recipes: HPACK representation parity,
-  Firefox's stream `WINDOW_UPDATE`, and proxy captures. Retained Chrome 153,
+  Firefox's stream `WINDOW_UPDATE`, and proxy captures. Retained Chrome 154,
   Edge 153, and Firefox 156 Windows captures show that Chromium uses H2
   WebSockets only on an existing session that advertises the setting, while
   Firefox also opens fresh H2 connections. Pseudo-header order, priority,
@@ -582,37 +581,36 @@ Captures from more than one platform decide whether two recipes share
 component data:
 
 - [Cross-platform transport parity](../explanation/validation.md#cross-platform-transport-parity)
-  records Windows 11 captures that match the Chrome 152 TLS, H2, QUIC, and H3
-  recipes and the Firefox 154 TLS and H2 recipes on every compared field.
+  records the Windows 11 captures behind each recipe.
 - SSE and WebSocket browser captures are from Windows 11 (10.0.26200) only.
   Phantom does not assume macOS parity for them.
-- Chrome 153 (153.0.8010.48), Edge 153 (153.0.4234.48), and Firefox 156
-  (156.0) recipes come from Windows 11 captures only. Their transport names
-  carry no platform because they rest on the 152/154 finding that these layers
-  did not depend on the platform.
+- Chrome 154 (154.0.8037.58), Edge 153 (153.0.4234.48), and Firefox 156
+  (156.0) recipes come from Windows 11 captures only. No macOS or Linux
+  capture of these builds exists, so platform independence is not claimed for
+  them. The retired Chrome 152 and Firefox 154 captures, which did compare two
+  platforms, are no longer in the tree.
 
 How the recipes differ:
 
-- `chromium::v153_*` differ from 152 only in the trust-anchor ID list: 28 IDs,
-  in the most frequent of 35 orders seen across 60 processes.
-- `chromium::v154_*` differ from 153 in two places. The trust-anchor list holds
-  the same 28 IDs, but Chrome 154 sorts them, so the recipe carries one
-  ascending order that all 60 captured processes emit. The persona values
-  change: `sec-ch-ua` is now `"Chromium";v="154", "Google Chrome";v="154",
-  "Not A(Brand";v="99"`, with the full-version fields and the `user-agent`
-  build number following. Every other compared field is equal.
-- Edge 153 matches Chrome 153 on H2, QUIC, and H3 and omits trust-anchor IDs.
-  So `edge::` carries only `v153_tls`, `v153_http3_tls`,
+- `chromium::v154_*` is a complete Chromium set: TLS, TCP, H2, WebSocket,
+  cookie placement, client hints, the navigation and fetch templates, and the
+  H3, H3 TLS, H3 request, and QUIC recipes. Its trust-anchor list holds 28
+  identifiers in one ascending order, which every captured process emits;
+  Chromium commit `942bda4298c1` sorts the list before encoding it. The
+  `sec-ch-ua` brand list is `"Chromium";v="154", "Google Chrome";v="154",
+  "Not A(Brand";v="99"`.
+- Edge 153 matches the Chromium H2, QUIC, and H3 recipes and omits
+  trust-anchor IDs. So `edge::` carries only `v153_tls`, `v153_http3_tls`,
   `v153_windows_client_hints`, and its request templates.
-- `firefox::v156_tls` drops FFDHE-2048/3072 and uses a 240-byte ECH GREASE
-  payload. `v156_http2` equals `v154_http2` except for its captured extended
-  CONNECT pseudo-header order and priority.
+- `firefox::v156_*` covers TLS, TCP, H2, WebSocket, cookie placement, and the
+  request templates. Firefox sends no user-agent client hints, so it has no
+  client-hint recipe, and no Firefox QUIC or H3 capture exists.
 
 Request templates:
 
 - The navigation templates match every retained page request:
-  - Chrome 153 and Chrome 154 over H1 (the SSE, WebSocket, and client-hint
-    captures), H2 (the WebSocket captures), and H3 (the H3 startup capture);
+  - Chrome 154 over H1 (the SSE, WebSocket, and client-hint captures), H2 (the
+    WebSocket captures), and H3 (the H3 startup capture);
   - Edge 153 over H1, H2, and H3; and
   - Firefox 156 over H1 and H2.
 
@@ -632,7 +630,7 @@ Request templates:
   refuse to send them. Where navigation templates place requested hints is
   captured on H1 only and inferred for H2 and H3.
 - The profile's `CookiePlacement` decides where the jar's `Cookie` field goes
-  in the expanded template. With the Chrome 153 and Firefox 156 presets, the
+  in the expanded template. With the Chrome 154 and Firefox 156 presets, the
   H1 fields on each side of it agree with the `set-cookie-then-close`
   EventSource reconnect captures: last for the Chrome templates, and after
   `Referer` and before `Sec-Fetch-Dest` for the Firefox `fetch` template.
@@ -643,34 +641,22 @@ Request templates:
 Randomized fields:
 
 - Chrome's trust-anchor ID order was fixed within a browser process and
-  differed between processes up to Chrome 153. It was a hash-iteration order,
-  not a per-connection permutation, and the Chrome 152 and 153 recipes keep
-  the most frequently observed order. Chrome 154 sorts the list before
-  encoding it, so its recipe carries the one ascending order.
+  differed between processes up to Chrome 153, a hash-iteration order rather
+  than a per-connection permutation. Chrome 154 sorts the list before encoding
+  it, so its recipe carries the one ascending order every captured process
+  emits.
 - Chrome's ECH GREASE uses HKDF-SHA256 with AES-128-GCM on every observed
   connection, and tests compare it exactly.
-- Firefox 154 and 156 choose their ECH GREASE AEAD per connection, between
-  AES-128-GCM and ChaCha20-Poly1305. Both Firefox recipes list both, the
-  backend draws one uniformly for each connection, and 200-connection
-  distribution tests bound the split.
-- The Chrome 152, Chrome 153, Chrome 154, and Edge 153 recipes leave the AEAD
-  list empty and emit AES-128-GCM on every connection.
+- Firefox 156 chooses its ECH GREASE AEAD per connection, between AES-128-GCM
+  and ChaCha20-Poly1305. The recipe lists both, the backend draws one
+  uniformly for each connection, and a 200-connection distribution test bounds
+  the split.
+- The Chrome 154 and Edge 153 recipes leave the AEAD list empty and emit
+  AES-128-GCM on every connection.
 
 The runtime uses the validated settings it receives. It does not branch on the
 host OS or the client-family name. OS-specific code exists only for real
 differences in sockets, trust stores, native builds, or profiling.
-
-### Chrome 152 build equivalence
-
-The retained Chrome 152 transport evidence is from build `152.0.7977.83`.
-Build `152.0.7977.64` is assumed, not verified, to be equivalent. Under the
-major-version profile policy it is expected to use the same transport
-fingerprint, but no `.64` capture or differential exists, and Phantom makes no
-`.64` claim until one does.
-
-The current client-hint recipe stays specific to the exact build and platform,
-because its values include the full `.83` version and macOS platform fields.
-Callers presenting `.64` must supply matching full-version hint values.
 
 ## Claim boundary
 

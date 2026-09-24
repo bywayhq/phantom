@@ -14,7 +14,7 @@ use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
 use phantom_profile::{
     AlpsSettings, CipherSuite, ClientHelloExtensionOrder, NamedGroup, SignatureScheme, TlsSettings,
-    TlsVersion, chromium::v152_http2,
+    TlsVersion, chromium::v154_http2,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, duplex},
@@ -537,11 +537,11 @@ fn constructor_requires_h2_and_validates_http2_settings() -> TestResult<()> {
     let mut tls = tls_settings();
     tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
     assert!(matches!(
-        Http2TlsConnector::new(&tls, &v152_http2()),
+        Http2TlsConnector::new(&tls, &v154_http2()),
         Err(Http2TlsError::MissingHttp2Alpn)
     ));
 
-    let mut http2 = v152_http2();
+    let mut http2 = v154_http2();
     http2.initial_connection_window_size = 65_534;
     assert!(matches!(
         Http2TlsConnector::new(&tls_settings(), &http2),
@@ -631,7 +631,7 @@ fn tls_settings() -> TlsSettings {
 fn test_connector(identity: &TestIdentity) -> TestResult<Http2TlsConnector> {
     Ok(Http2TlsConnector::new_with_roots(
         &tls_settings(),
-        &v152_http2(),
+        &v154_http2(),
         [identity.root_der()],
     )?)
 }
@@ -648,7 +648,7 @@ fn alps_test_connector(identity: &TestIdentity) -> TestResult<Http2TlsConnector>
     });
     Ok(Http2TlsConnector::new_with_roots(
         &tls,
-        &v152_http2(),
+        &v154_http2(),
         [identity.root_der()],
     )?)
 }

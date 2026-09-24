@@ -4,9 +4,7 @@ use ::http2::{
 };
 use http::{Method, Version, header::CONNECTION};
 use phantom_profile::{
-    Http2Priority, Http2PseudoHeader,
-    chromium::{v152_http2, v153_http2},
-    firefox::v156_http2,
+    Http2Priority, Http2PseudoHeader, chromium::v154_http2, firefox::v156_http2,
 };
 
 use super::super::{
@@ -75,7 +73,8 @@ fn rejects_forbidden_and_non_lowercase_fields_before_io() -> Result<(), Box<dyn 
 
 #[test]
 fn exact_extended_connect_order_is_explicit() -> Result<(), Box<dyn std::error::Error>> {
-    let mut settings = v152_http2();
+    let mut settings = v154_http2();
+    settings.extended_connect_pseudo_header_order = None;
     assert!(matches!(
         translate_extended_connect_settings(&settings),
         Err(Http2Error::MissingExtendedConnectPseudoHeaderOrder)
@@ -95,7 +94,7 @@ fn exact_extended_connect_order_is_explicit() -> Result<(), Box<dyn std::error::
 #[test]
 fn extended_connect_overrides_carry_the_profile_order_and_priority()
 -> Result<(), Box<dyn std::error::Error>> {
-    let chrome = extended_connect_overrides(&v153_http2())?;
+    let chrome = extended_connect_overrides(&v154_http2())?;
     assert_eq!(
         chrome,
         HeadersFrameOverrides::new()
@@ -132,7 +131,7 @@ fn extended_connect_overrides_carry_the_profile_order_and_priority()
 
     // Without a separate priority the connection's ordinary HEADERS priority
     // remains in effect for the CONNECT stream.
-    let mut settings = v153_http2();
+    let mut settings = v154_http2();
     settings.extended_connect_priority = None;
     let overrides = extended_connect_overrides(&settings)?;
     assert_eq!(
@@ -150,8 +149,10 @@ fn extended_connect_overrides_carry_the_profile_order_and_priority()
         )
     );
 
+    let mut settings = v154_http2();
+    settings.extended_connect_pseudo_header_order = None;
     assert!(matches!(
-        extended_connect_overrides(&v152_http2()),
+        extended_connect_overrides(&settings),
         Err(Http2Error::MissingExtendedConnectPseudoHeaderOrder)
     ));
     Ok(())
@@ -159,7 +160,7 @@ fn extended_connect_overrides_carry_the_profile_order_and_priority()
 
 #[test]
 fn extended_connect_priority_cannot_depend_on_the_first_stream() {
-    let mut settings = v153_http2();
+    let mut settings = v154_http2();
     settings.extended_connect_priority = Some(Http2Priority {
         dependency_stream_id: 1,
         weight: 147,

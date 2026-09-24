@@ -14,9 +14,9 @@
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let profile = ClientProfile::new(chromium::v152_tls())
-//!     .with_http2(chromium::v152_http2())
-//!     .with_client_hints(chromium::v152_macos_client_hints());
+//! let profile = ClientProfile::new(chromium::v154_tls())
+//!     .with_http2(chromium::v154_http2())
+//!     .with_client_hints(chromium::v154_windows_client_hints());
 //! let client = Client::builder(profile).build()?;
 //!
 //! let response = client
@@ -179,48 +179,29 @@ pub mod profile {
     /// Chromium-family recipes implemented by the public facade.
     pub mod chromium {
         pub use phantom_profile::chromium::{
-            v152_http2, v152_http3, v152_http3_request, v152_http3_tls, v152_macos_client_hints,
-            v152_quic, v152_tls, v153_cookie_placement, v153_http2, v153_http3, v153_http3_request,
-            v153_http3_tls, v153_quic, v153_tcp, v153_tls, v153_websocket,
-            v153_windows_client_hints, v153_windows_fetch_no_store_template,
-            v153_windows_navigation_template, v154_cookie_placement, v154_http2, v154_http3,
-            v154_http3_request, v154_http3_tls, v154_quic, v154_tcp, v154_tls, v154_websocket,
-            v154_windows_client_hints, v154_windows_fetch_no_store_template,
-            v154_windows_navigation_template,
-        };
-
-        #[doc(hidden)]
-        pub use phantom_profile::chromium::{
-            v152_macos_http2, v152_macos_http3, v152_macos_http3_request, v152_macos_http3_tls,
-            v152_macos_quic, v152_macos_tls,
+            v154_cookie_placement, v154_http2, v154_http3, v154_http3_request, v154_http3_tls,
+            v154_quic, v154_tcp, v154_tls, v154_websocket, v154_windows_client_hints,
+            v154_windows_fetch_no_store_template, v154_windows_navigation_template,
         };
     }
 
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
         pub use phantom_profile::firefox::{
-            v154_http2, v154_tls, v156_cookie_placement, v156_http2, v156_tcp, v156_tls,
-            v156_websocket, v156_windows_fetch_no_store_template, v156_windows_navigation_template,
+            v156_cookie_placement, v156_http2, v156_tcp, v156_tls, v156_websocket,
+            v156_windows_fetch_no_store_template, v156_windows_navigation_template,
         };
-
-        #[doc(hidden)]
-        pub use phantom_profile::firefox::{v154_macos_http2, v154_macos_tls};
     }
 
     /// Microsoft Edge recipes implemented by the public facade.
     ///
-    /// Edge 153 shares Chrome 153's H2, QUIC, and H3 recipes; only its TLS
+    /// Edge 153 shares the Chromium H2, QUIC, and H3 recipes; only its TLS
     /// ClientHellos, client hints, and request identity differ.
     pub mod edge {
         pub use phantom_profile::edge::{
             v153_http3_tls, v153_tls, v153_windows_client_hints,
             v153_windows_fetch_no_store_template, v153_windows_navigation_template,
         };
-    }
-
-    /// Safari recipes implemented by the public facade.
-    pub mod safari {
-        pub use phantom_profile::safari::v18_5_macos_tls;
     }
 }
 

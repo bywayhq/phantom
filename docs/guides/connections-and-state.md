@@ -97,7 +97,7 @@ last if none is.
 
 | Recipe | Goes before | Evidence |
 | --- | --- | --- |
-| `chromium::v153_cookie_placement` | `priority` | Chrome 153 H1 capture (last); Chromium source for the H2 and H3 `priority` field |
+| `chromium::v154_cookie_placement` | `priority` | Chrome 154 H1 capture (last); Chromium source for the H2 and H3 `priority` field |
 | `firefox::v156_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` | Firefox 156 H1 capture (after `Referer`, before `Sec-Fetch-Dest`); Firefox source for the rest |
 
 The captures are the EventSource reconnect requests in

@@ -58,26 +58,26 @@ fn assert_profiled(path: &str, sockets: &[ObservedSocket]) {
 }
 
 fn http1(settings: &TcpSettings) -> TestResult<Http1TlsConnector> {
-    Ok(Http1TlsConnector::new(&chromium::v153_tls())?.with_tcp_settings(settings))
+    Ok(Http1TlsConnector::new(&chromium::v154_tls())?.with_tcp_settings(settings))
 }
 
 fn http2(settings: &TcpSettings) -> TestResult<Http2TlsConnector> {
     Ok(
-        Http2TlsConnector::new(&chromium::v153_tls(), &chromium::v153_http2())?
+        Http2TlsConnector::new(&chromium::v154_tls(), &chromium::v154_http2())?
             .with_tcp_settings(settings),
     )
 }
 
 fn https_proxy(settings: &TcpSettings) -> TestResult<HttpsProxyConnector> {
-    Ok(HttpsProxyConnector::new(&chromium::v153_tls())?.with_tcp_settings(settings))
+    Ok(HttpsProxyConnector::new(&chromium::v154_tls())?.with_tcp_settings(settings))
 }
 
 fn http3(settings: &TcpSettings) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new(
-        &chromium::v153_http3_tls(),
-        &chromium::v153_quic(),
-        &chromium::v153_http3(),
-        &chromium::v153_http3_request(),
+        &chromium::v154_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
     )?
     .with_tcp_settings(settings))
 }
@@ -87,7 +87,7 @@ async fn connectors_without_tcp_settings_keep_os_defaults() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     observed::take();
 
-    let connector = Http1TlsConnector::new(&chromium::v153_tls())?;
+    let connector = Http1TlsConnector::new(&chromium::v154_tls())?;
     let _ = connector
         .connect_direct("127.0.0.1", peer.port, SERVER_NAME)
         .await;
@@ -170,7 +170,7 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
 async fn https_proxy_connections_apply_the_proxy_connectors_tcp_settings() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     let settings = chromium_like();
-    let origin = Http1TlsConnector::new(&chromium::v153_tls())?;
+    let origin = Http1TlsConnector::new(&chromium::v154_tls())?;
     let proxy = https_proxy(&settings)?;
     let connect_headers = [HttpConnectHeader::authority("Host")];
     observed::take();

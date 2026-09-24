@@ -160,10 +160,10 @@ async fn extended_connect_emits_configured_five_field_pseudo_order() -> TestResu
 #[test]
 fn missing_extended_connect_order_fails_before_io() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &chromium::v152_http3_tls(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
     )?;
     let error = connector
         .validate_extended_connect(
@@ -496,7 +496,7 @@ async fn datagram_on_extended_stream_aborts_only_that_stream() -> TestResult<()>
         Ok(())
     });
 
-    let settings = chromium::v152_http3();
+    let settings = chromium::v154_http3();
     let connection = timeout(
         TEST_TIMEOUT,
         super::super::connect_direct(
@@ -638,7 +638,7 @@ async fn extended_connect_span_records_outcome_without_field_values() -> TestRes
 }
 
 fn extended_request_settings() -> Http3RequestSettings {
-    let mut settings = chromium::v152_http3_request();
+    let mut settings = chromium::v154_http3_request();
     settings.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
         Http3PseudoHeader::Protocol,
@@ -651,9 +651,9 @@ fn extended_request_settings() -> Http3RequestSettings {
 
 fn extended_connector() -> TestResult<Http3Connector> {
     Ok(Http3Connector::new(
-        &chromium::v152_http3_tls(),
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
+        &chromium::v154_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
         &extended_request_settings(),
     )?)
 }

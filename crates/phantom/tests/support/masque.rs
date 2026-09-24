@@ -332,7 +332,7 @@ pub(crate) fn masque_client_settings() -> Http3ClientSettings {
 }
 
 pub(crate) fn extended_request_settings() -> Http3RequestSettings {
-    let mut settings = chromium::v152_http3_request();
+    let mut settings = chromium::v154_http3_request();
     settings.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
         Http3PseudoHeader::Protocol,

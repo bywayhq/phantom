@@ -1,4 +1,4 @@
-use super::{v154_http2, v154_tls, v156_http2, v156_tls};
+use super::{v156_http2, v156_tls};
 use crate::http2::{
     Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings, session_capture::SessionCapture,
 };
@@ -7,27 +7,14 @@ use crate::tls::{
     EchGreaseAead, NamedGroup, SignatureScheme, TlsVersion,
 };
 
-const LOCAL_FIXTURE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http2/firefox/154.0/macos-15.5/client-startup.txt"
-));
-const PEET_FIXTURE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http2/firefox/154.0/macos-15.5/peet-api-all.txt"
-));
-const PINGLY_FIXTURE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http2/firefox/154.0/macos-15.5/pingly-api-all.txt"
-));
 const V156_SESSION_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/websocket/firefox/156.0/windows-11-26200/accept.txt"
 ));
 
 #[test]
-fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::error::Error>>
-{
-    let settings = v154_tls();
+fn firefox_156_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::error::Error>> {
+    let settings = v156_tls();
     settings.validate()?;
 
     assert_eq!(settings.min_version, TlsVersion::Tls12);
@@ -52,6 +39,7 @@ fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn 
             CipherSuite::RsaAes256CbcSha,
         ]
     );
+    // Firefox 156 no longer offers FFDHE-2048 or FFDHE-3072.
     assert_eq!(
         settings.groups,
         [
@@ -60,8 +48,6 @@ fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn 
             NamedGroup::Secp256r1,
             NamedGroup::Secp384r1,
             NamedGroup::Secp521r1,
-            NamedGroup::Ffdhe2048,
-            NamedGroup::Ffdhe3072,
         ]
     );
     assert_eq!(
@@ -142,7 +128,7 @@ fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn 
         ])
     );
     assert!(settings.ech_grease);
-    assert_eq!(settings.ech_grease_payload_length, Some(239));
+    assert_eq!(settings.ech_grease_payload_length, Some(240));
     assert_eq!(
         settings.ech_grease_aeads,
         [EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305]
@@ -151,114 +137,6 @@ fn firefox_154_macos_tls_settings_match_retained_vector() -> Result<(), Box<dyn 
     assert!(settings.request_signed_certificate_timestamps);
     assert!(settings.aes_hardware);
 
-    Ok(())
-}
-
-#[test]
-fn firefox_154_macos_http2_startup_matches_local_capture() -> Result<(), Box<dyn std::error::Error>>
-{
-    let settings = v154_http2();
-    settings.validate()?;
-
-    assert_eq!(
-        settings.initial_settings,
-        [
-            Http2Setting::HeaderTableSize(65_536),
-            Http2Setting::EnablePush(false),
-            Http2Setting::InitialWindowSize(131_072),
-            Http2Setting::MaxFrameSize(16_384),
-        ]
-    );
-    assert_eq!(settings.initial_connection_window_size, 12_582_912);
-    assert_eq!(
-        fixture_value(LOCAL_FIXTURE, "initial_settings")?,
-        "0x0001:65536,0x0002:0,0x0004:131072,0x0005:16384"
-    );
-    assert_eq!(
-        fixture_value(LOCAL_FIXTURE, "connection_window_update")?,
-        "12517377"
-    );
-    assert_eq!(
-        settings.initial_connection_window_size - 65_535,
-        fixture_value(LOCAL_FIXTURE, "connection_window_update")?.parse()?
-    );
-
-    Ok(())
-}
-
-#[test]
-fn firefox_154_macos_request_shape_matches_supplemental_observations()
--> Result<(), Box<dyn std::error::Error>> {
-    let settings = v154_http2();
-    let expected_order = [
-        Http2PseudoHeader::Method,
-        Http2PseudoHeader::Path,
-        Http2PseudoHeader::Authority,
-        Http2PseudoHeader::Scheme,
-    ];
-    let expected_priority = Http2Priority {
-        dependency_stream_id: 0,
-        weight: 42,
-        exclusive: false,
-    };
-
-    assert_eq!(settings.pseudo_header_order, expected_order);
-    assert_eq!(settings.headers_priority, Some(expected_priority));
-    for fixture in [PEET_FIXTURE, PINGLY_FIXTURE] {
-        assert_eq!(
-            fixture_value(fixture, "pseudo_header_order")?,
-            "method,path,authority,scheme"
-        );
-        assert_eq!(fixture_value(fixture, "headers_priority_dependency")?, "0");
-        assert_eq!(fixture_value(fixture, "headers_priority_weight")?, "42");
-        assert_eq!(
-            fixture_value(fixture, "headers_priority_exclusive")?,
-            "false"
-        );
-    }
-
-    Ok(())
-}
-
-fn fixture_value<'a>(
-    fixture: &'a str,
-    expected_key: &str,
-) -> Result<&'a str, Box<dyn std::error::Error>> {
-    fixture
-        .lines()
-        .find_map(|line| {
-            let (key, value) = line.split_once('=')?;
-            (key == expected_key).then_some(value)
-        })
-        .ok_or_else(|| format!("fixture omitted {expected_key}").into())
-}
-
-#[test]
-fn firefox_154_compatibility_aliases_return_the_renamed_recipes() {
-    assert_eq!(super::v154_macos_tls(), super::v154_tls());
-    assert_eq!(super::v154_macos_http2(), super::v154_http2());
-}
-
-#[test]
-fn firefox_156_tls_recipe_changes_only_groups_and_ech_payload_from_154()
--> Result<(), Box<dyn std::error::Error>> {
-    let settings = v156_tls();
-    settings.validate()?;
-
-    let mut expected = v154_tls();
-    expected.groups = vec![
-        NamedGroup::X25519MlKem768,
-        NamedGroup::X25519,
-        NamedGroup::Secp256r1,
-        NamedGroup::Secp384r1,
-        NamedGroup::Secp521r1,
-    ];
-    expected.ech_grease_payload_length = Some(240);
-    assert_eq!(settings, expected);
-    assert_eq!(
-        settings.ech_grease_aeads,
-        [EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305]
-    );
     Ok(())
 }
 
@@ -276,6 +154,34 @@ fn firefox_156_http2_recipe_matches_windows_session_capture()
 
     let settings = v156_http2();
     settings.validate()?;
+    assert_eq!(
+        settings.initial_settings,
+        [
+            Http2Setting::HeaderTableSize(65_536),
+            Http2Setting::EnablePush(false),
+            Http2Setting::InitialWindowSize(131_072),
+            Http2Setting::MaxFrameSize(16_384),
+        ]
+    );
+    assert_eq!(settings.initial_connection_window_size, 12_582_912);
+    assert_eq!(
+        settings.pseudo_header_order,
+        [
+            Http2PseudoHeader::Method,
+            Http2PseudoHeader::Path,
+            Http2PseudoHeader::Authority,
+            Http2PseudoHeader::Scheme,
+        ]
+    );
+    assert_eq!(
+        settings.headers_priority,
+        Some(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 42,
+            exclusive: false,
+        })
+    );
+
     // Navigation HEADERS carry no extended CONNECT shape; the WebSocket
     // recipe tests compare that shape with every captured CONNECT.
     let navigation = Http2Settings {
@@ -288,6 +194,5 @@ fn firefox_156_http2_recipe_matches_windows_session_capture()
     for run in observed {
         assert_eq!(run, navigation);
     }
-    assert_eq!(navigation, v154_http2());
     Ok(())
 }

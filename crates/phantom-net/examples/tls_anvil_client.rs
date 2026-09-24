@@ -17,7 +17,7 @@ struct Config {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::parse(env::args().skip(1))?;
-    let mut settings = chromium::v152_tls();
+    let mut settings = chromium::v154_tls();
     settings.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
     settings.alps = None;
     let connector = Http1TlsConnector::new_with_server_authentication(

@@ -3,8 +3,8 @@ use phantom_testkit::tls::{ClientHelloSummary, is_grease};
 use super::{TestResult, fixture::Fixture, redecode};
 
 pub(super) const FIXTURE_TEXT: &str = include_str!(concat!(
-    "../../../../fixtures/tls/chrome/152.0.7977.83/",
-    "macos-15.5/client-hello.txt"
+    "../../../../fixtures/tls/chrome/154.0.8037.58/",
+    "windows-11-26200/client-hello.txt"
 ));
 const GREASE_SENTINEL: u16 = 0x0a0a;
 const EXPECTED_LAUNCH_ARGUMENTS: &str = concat!(
@@ -16,46 +16,49 @@ const EXPECTED_LAUNCH_ARGUMENTS: &str = concat!(
 );
 
 #[tokio::test]
-async fn chrome_152_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
+async fn chrome_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
     assert_eq!(fixture.value("format")?, "phantom-client-hello-v2");
-    assert_eq!(fixture.value("captured_at_unix")?, "1789473633");
+    assert_eq!(fixture.value("captured_at_unix")?, "1790242735");
     assert_eq!(fixture.value("browser")?, "Google Chrome");
-    assert_eq!(fixture.value("browser_version")?, "152.0.7977.83");
-    assert_eq!(fixture.value("operating_system")?, "macOS 15.5 (24F74)");
+    assert_eq!(fixture.value("browser_version")?, "154.0.8037.58");
+    assert_eq!(
+        fixture.value("operating_system")?,
+        "Windows 11 Home 10.0.26200 x64"
+    );
     assert_eq!(fixture.value("hostname")?, "server.phantom.test");
-    assert_eq!(fixture.value("listen_address")?, "127.0.0.1:9443");
+    assert_eq!(fixture.value("listen_address")?, "127.0.0.1:49688");
     assert_eq!(fixture.value("launch_mode")?, "command-line");
     assert_eq!(
         fixture.value("launch_arguments")?,
         EXPECTED_LAUNCH_ARGUMENTS
     );
-    assert_eq!(fixture.records().concat().len(), 2_043);
+    assert_eq!(fixture.records().concat().len(), 1_959);
 
     let summary = redecode(&fixture).await?;
     assert_browser_fields(&summary);
     assert_eq!(
         summary.extension_layout().collect::<Vec<_>>(),
         [
-            (0xeaea, 0),
-            (0x002b, 7),
-            (0xca34, 206),
-            (0x0033, 1_263),
-            (0x002d, 2),
-            (0x0000, 24),
-            (0x0017, 0),
-            (0x0005, 5),
+            (0xbaba, 0),
             (0x001b, 3),
-            (0x44cd, 5),
-            (0x0010, 14),
-            (0x0012, 0),
+            (0x002d, 2),
             (0x000b, 2),
-            (0x0023, 0),
-            (0xfe0d, 282),
-            (0xff01, 1),
-            (0x000d, 26),
             (0x000a, 12),
-            (0x7a7a, 1),
+            (0x0005, 5),
+            (0xca34, 186),
+            (0x000d, 26),
+            (0x0000, 24),
+            (0x44cd, 5),
+            (0x0012, 0),
+            (0x0023, 0),
+            (0xfe0d, 218),
+            (0x0010, 14),
+            (0x0033, 1_263),
+            (0x0017, 0),
+            (0x002b, 7),
+            (0xff01, 1),
+            (0x4a4a, 1),
         ]
     );
     Ok(())
@@ -120,7 +123,7 @@ fn assert_browser_fields(summary: &ClientHelloSummary) {
     );
     assert_eq!(
         summary.requested_trust_anchor_ids().map(<[_]>::len),
-        Some(32)
+        Some(28)
     );
 }
 

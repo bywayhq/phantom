@@ -8,8 +8,6 @@ mod chrome_quic;
 mod firefox;
 #[path = "browser_client_hello_fixtures/fixture.rs"]
 mod fixture;
-#[path = "browser_client_hello_fixtures/safari.rs"]
-mod safari;
 
 use std::{error::Error, io, time::Duration};
 

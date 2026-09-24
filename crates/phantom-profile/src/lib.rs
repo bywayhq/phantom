@@ -9,7 +9,6 @@ pub mod http2;
 pub mod http3;
 pub mod quic;
 pub mod request_template;
-pub mod safari;
 pub mod tcp;
 pub mod tls;
 pub mod websocket;

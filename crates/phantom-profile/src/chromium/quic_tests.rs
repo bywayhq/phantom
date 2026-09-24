@@ -1,26 +1,14 @@
 use std::collections::BTreeMap;
 
-use super::{v152_quic, v153_quic, v154_quic};
+use super::v154_quic;
 use crate::quic::{
     GoogleConnectionOption, QuicTransportParameterKind, QuicTransportParameterOrder,
     QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease,
 };
 
-const HTTP3_FIXTURE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http3/chrome/152.0.7977.83/macos-15.5/client-startup.txt"
-));
-const WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http3/chrome/152.0.7977.83/windows-11-26200/client-startup.txt"
-));
 const EDGE_153_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt"
-));
-const V153_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http3/chrome/153.0.8010.48/windows-11-26200/client-startup.txt"
 ));
 const V154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -28,31 +16,7 @@ const V154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
 ));
 
 #[test]
-fn chrome_152_macos_quic_settings_match_retained_startup_shape()
--> Result<(), Box<dyn std::error::Error>> {
-    assert_quic_settings_match_startup(HTTP3_FIXTURE, &v152_quic())
-}
-
-#[test]
-fn chrome_152_quic_recipe_matches_windows_chrome_for_testing_capture()
--> Result<(), Box<dyn std::error::Error>> {
-    assert_quic_settings_match_startup(WINDOWS_HTTP3_FIXTURE, &v152_quic())
-}
-
-#[test]
-fn chrome_153_quic_recipe_matches_windows_capture() -> Result<(), Box<dyn std::error::Error>> {
-    assert!(V153_WINDOWS_HTTP3_FIXTURE.contains(
-        "
-client_version=153.0.8010.48
-"
-    ));
-    assert_quic_settings_match_startup(V153_WINDOWS_HTTP3_FIXTURE, &v153_quic())?;
-    assert_eq!(v153_quic(), v152_quic());
-    Ok(())
-}
-
-#[test]
-fn chrome_153_quic_recipe_matches_windows_edge_capture() -> Result<(), Box<dyn std::error::Error>> {
+fn edge_153_quic_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
     assert!(EDGE_153_WINDOWS_HTTP3_FIXTURE.contains(
         "
 client=Microsoft Edge
@@ -63,7 +27,7 @@ client=Microsoft Edge
 client_version=153.0.4234.48
 "
     ));
-    assert_quic_settings_match_startup(EDGE_153_WINDOWS_HTTP3_FIXTURE, &v153_quic())
+    assert_quic_settings_match_startup(EDGE_153_WINDOWS_HTTP3_FIXTURE, &v154_quic())
 }
 
 fn assert_quic_settings_match_startup(

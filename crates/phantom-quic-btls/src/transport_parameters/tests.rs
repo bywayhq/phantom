@@ -9,13 +9,16 @@ use super::{
 };
 use crate::QuicVersion;
 
-const CAPTURED_PARAMETERS: &str = "070480600000050480600000110c00000001000000013a9acaca040480f00000080240647128044f52494709024067060480600000e1e690782fe06d0d0941dc5ee0276eeebb540f00030245c0200480010000010480007530";
+/// The retained Chrome 154.0.8037.58 QUIC startup capture's
+/// `transport_parameters_hex`, whose order the recipe carries as its
+/// permutation template.
+const CAPTURED_PARAMETERS: &str = "08024064070480600000110c000000019a7aaa7a00000001040480f00000090240670604806000000104800075307128044f524947200480010000c8200e4187dfa4b60190030245c00504806000000f00";
 
 #[test]
 fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v152_quic())?;
+    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
     let mut entropy = fixture_entropy();
 
     let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy)?;
@@ -28,7 +31,7 @@ fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn 
 fn entropy_changes_order_without_changing_profile_semantics() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let settings = chromium::v152_quic();
+    let settings = chromium::v154_quic();
     let profile = TransportParameterProfile::new(settings.clone())?;
     let expected_shape = parameter_shape(&captured)?;
     let captured = ParsedTransportParameters::from_encoded(&captured)?;
@@ -56,7 +59,7 @@ fn live_semantic_mismatch_fails_closed() -> Result<(), Box<dyn Error>> {
         .ok_or("missing max-data fixture value")?;
     captured[max_data + 3] = 1;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v152_quic())?;
+    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
     let mut entropy = fixture_entropy();
 
     let error = match profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy) {
@@ -73,7 +76,7 @@ fn unprofiled_live_parameter_fails_closed() -> Result<(), Box<dyn Error>> {
     let mut captured = decode_hex(CAPTURED_PARAMETERS)?;
     captured.extend_from_slice(&[0x0c, 0x00]);
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v152_quic())?;
+    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
     let mut entropy = fixture_entropy();
 
     let error = match profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy) {
@@ -96,7 +99,7 @@ fn strict_parser_rejects_truncation_and_duplicates() {
 
 #[test]
 fn constructor_rejects_quinn_incompatible_stream_windows() {
-    let mut settings = chromium::v152_quic();
+    let mut settings = chromium::v154_quic();
     settings.initial_max_stream_data_bidi_remote -= 1;
 
     let error = match TransportParameterProfile::new(settings) {
@@ -109,7 +112,7 @@ fn constructor_rejects_quinn_incompatible_stream_windows() {
 
 #[test]
 fn constructor_preserves_backend_neutral_validation_field() {
-    let mut settings = chromium::v152_quic();
+    let mut settings = chromium::v154_quic();
     settings.max_udp_payload_size = 1_199;
 
     let error = match TransportParameterProfile::new(settings) {
@@ -123,10 +126,10 @@ fn constructor_preserves_backend_neutral_validation_field() {
 fn fixture_entropy() -> WireEntropy {
     let mut bytes = [0; ENTROPY_LEN];
     bytes[..12].copy_from_slice(&[12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
-    bytes[12..17].copy_from_slice(&[0x30, 0x90, 0xc0, 0xc0, 1]);
-    bytes[17..25].copy_from_slice(&[0x01, 0x17, 0xf4, 0x24, 0xe8, 0xc5, 0x2c, 0xce]);
-    bytes[25] = 9;
-    bytes[26..35].copy_from_slice(&[0x41, 0xdc, 0x5e, 0xe0, 0x27, 0x6e, 0xee, 0xbb, 0x54]);
+    bytes[12..17].copy_from_slice(&[0x90, 0x70, 0xa0, 0x70, 0]);
+    bytes[17..25].copy_from_slice(&[0x00, 0x43, 0x19, 0x3b, 0xeb, 0x9b, 0xdc, 0x05]);
+    bytes[25] = 1;
+    bytes[26] = 0x90;
     WireEntropy::from_bytes(bytes)
 }
 

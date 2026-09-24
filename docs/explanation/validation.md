@@ -33,13 +33,12 @@ The evidence falls into four kinds:
 
 | Area | Strongest evidence | Main limits |
 | --- | --- | --- |
-| [TLS, H2, QUIC, and H3 recipes](#cross-platform-transport-parity) | Chrome 152 and Firefox 154 captures on macOS and Windows, replayed by recipe tests | One macOS build and one Windows build; no Linux; headless launches |
-| [Chrome 153, Edge 153, and Firefox 156 recipes](#chrome-153-edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; platform independence inferred from 152 and 154 |
-| [Chrome 154 captures](#chrome-154-captures) | Windows captures of every Chrome layer, compared with the Chrome 153 fixtures | Evidence only; no recipe reads them; one Windows build; no Chrome for Testing build exists at this version |
+| [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; no macOS or Linux; no Chrome for Testing build exists at this version |
+| [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
-| [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 153, Chrome 154, and Firefox 156 captures; the 153 set is replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
-| [WebSocket openings](#websocket-browser-evidence) | Chrome 153, Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
-| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 153 and Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
+| [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
+| [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
+| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
 | [Connection and status retries](#connection-retry-evidence) | Loopback tests | Not browser retry policy; some paths have no recovery test |
@@ -158,246 +157,122 @@ evidence.
 ## Browser recipes
 
 A recipe is the wire data for one browser build at one protocol layer, such
-as `chromium::v153_tls`. The sections below record the captures and source
+as `chromium::v154_tls`. The sections below record the captures and source
 reading behind each recipe and the tests that replay them.
 
-### Cross-platform transport parity
+### Capture normalization
 
-The retained Chrome 152 and Firefox 154 recipes were captured on macOS. A
-second capture set on Windows 11 (build 26200, x64) tests whether their
-transport layers depend on the host platform. Safari evidence remains
-macOS-only.
+Every recipe in this tree comes from Windows 11 (build 26200, x64) captures of
+the browser build installed on the capture host. Phantom carries one version
+per browser and retires older ones rather than half-maintaining them, so a
+recipe name always points at a build that can be recaptured and reverified.
+Retired captures, including the Chrome 152 and Firefox 154 macOS and Windows
+sets that once established cross-platform transport parity, are no longer in
+the tree, and no current claim rests on them.
 
-Branded Chrome 152 can no longer be installed on Windows. The Chrome
-comparison is therefore triangulated, so that platform is not confounded with
-build flavor or version:
-
-| Comparison | Isolates | Result |
-| --- | --- | --- |
-| Chrome for Testing 152.0.7977.83 (Windows) vs retained branded 152.0.7977.83 (macOS) | platform | equal on TLS, H2 startup, QUIC ClientHello, QUIC transport parameters, H3 SETTINGS and pseudo-header order, and captured H3 request field order and non-persona values |
-| Chrome for Testing 153.0.8010.48 vs branded Chrome 153.0.8010.48 (both Windows) | build flavor | equal on the same layers |
-| Firefox 154.0 (Windows) vs retained Firefox 154.0 (macOS) | platform | equal on TLS and H2 startup |
-
-By default, Chrome for Testing applies its bundled field-trial testing
-configuration. With that configuration it:
-
-- adds extension `0x12e0` (empty payload) to TCP and QUIC ClientHellos;
-- raises QUIC `max_idle_timeout` from 30000 ms to 300000 ms;
-- sends Google connection options `ORIGNOIP` instead of `ORIG`; and
-- moves `accept-language` before `upgrade-insecure-requests` in the H3
-  navigation request.
-
-Every equal result above therefore comes from Chrome for Testing launched with
-`--disable-field-trial-config`. Branded Chrome 153 on Windows matches that
-configuration, not the testing one. The testing-configuration capture is
-retained as
-`fixtures/tls/chrome/152.0.7977.83/windows-11-26200/client-hello-field-trial-config.txt`
-so that the difference stays visible.
-
-Comparisons normalize only per-connection randomness:
+Capture comparisons normalize only per-connection randomness:
 
 - TLS and QUIC GREASE values normalize to one sentinel. Extension order is
-  compared as a multiset, because Chrome permutes it per connection. At least
-  five fresh-profile samples per build were compared.
+  compared as a multiset, because Chrome permutes it per connection.
 - Client random, session ID, key-share bytes, ECH GREASE config ID and
   payload bytes, and the QUIC initial source connection ID reduce to lengths
   or are ignored. Chrome chooses its ECH GREASE payload length per connection,
   so that length is excluded from record-length comparison.
-- Chrome's trust-anchor ID order differs between browser processes on both
-  platforms but not between connections of one process (see
-  [Chrome trust-anchor ID order](#chrome-trust-anchor-id-order)), so the list
-  is compared as a set. Its GREASE `version_information` entry changes
-  position; the chosen version stays first.
-- Firefox 154 on Windows chooses its ECH GREASE AEAD per connection, between
-  AES-128-GCM (`0x0001`) and ChaCha20-Poly1305 (`0x0003`): 7 and 8 of 15
-  samples. The retained macOS sample carries `0x0001`. A follow-up
-  multi-connection capture saw both values in each of three processes (359
-  and 337 of 696 connections, all with a 239-byte payload). That is
-  consistent with NSS taking the choice from the low bit of fresh
+- Chrome's GREASE `version_information` entry changes position between
+  connections; the chosen version stays first. The H3 reserved setting, its
+  value width, and the GREASE QUIC transport parameter's id and length also
+  vary per connection.
+- Firefox chooses its ECH GREASE AEAD per connection, between AES-128-GCM
+  (`0x0001`) and ChaCha20-Poly1305 (`0x0003`). A multi-connection capture saw
+  both values in each of three processes (359 and 337 of 696 connections),
+  which is consistent with NSS taking the choice from the low bit of fresh
   per-handshake random bytes. The comparison therefore treats the AEAD as
-  per-connection randomness. The Firefox 154 and 156 recipes list both AEADs
-  in `ech_grease_aeads`, and the patched BoringSSL backend draws one uniformly
+  per-connection randomness. `firefox::v156_tls` lists both AEADs in
+  `ech_grease_aeads`, and the patched BoringSSL backend draws one uniformly
   per connection from fresh random bytes, keeping it across a
-  HelloRetryRequest. Each Firefox recipe test replays both retained captures,
-  then requires 200 loopback connections from one connector to contain only
-  these two values, with each count in 60..=140. A fair draw fails that bound
-  with probability below 1e-7. Only the distribution is reproduced; NSS and
-  BoringSSL draw from different random sources.
-- Every retained Chrome ClientHello, over TCP and QUIC, and all 1,248
-  follow-up Chrome connections use HKDF-SHA256 with AES-128-GCM for ECH
-  GREASE. The Chrome TLS recipe tests compare that cipher suite exactly, and
+  HelloRetryRequest. `firefox_156_recipe_draws_either_ech_grease_aead_per_connection`
+  replays both retained captures, then requires 200 loopback connections from
+  one connector to contain only these two values, with each count in 60..=140.
+  A fair draw fails that bound with probability below 1e-7. Only the
+  distribution is reproduced; NSS and BoringSSL draw from different random
+  sources.
+- Every retained Chrome and Edge ClientHello, over TCP and QUIC, uses
+  HKDF-SHA256 with AES-128-GCM for ECH GREASE. The Chrome TLS recipe tests
+  compare that cipher suite exactly, and
   `chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection` checks it
-  on 64 connections from one connector for each of Chrome 152, Chrome 153,
-  and Edge 153. Chromium-family recipes leave `ech_grease_aeads` empty and
-  rely on the backend default, which selects AES-128-GCM because the recipes
-  set `aes_hardware`.
+  on 64 connections from one connector for each of Chrome 154 and Edge 153.
+  Chromium-family recipes leave `ech_grease_aeads` empty and rely on the
+  backend default, which selects AES-128-GCM because the recipes set
+  `aes_hardware`.
 - `user-agent`, `sec-ch-ua`, `sec-ch-ua-mobile`, and `sec-ch-ua-platform` are
-  persona data and differ by platform and flavor by design. Only their
-  positions in the request field order are compared.
-
-The Chrome H3 recipe models only the request pseudo-header order; ordinary
-navigation fields are caller data. Their cross-platform equality is therefore
-checked capture to capture
-(`chrome_152_windows_h3_request_fields_match_macos_capture_except_persona_values`),
-not by replaying a recipe. The flavor comparison at 153 was made with a
-scratch comparator and is not replayed by a test.
-
-Deterministic recipe tests replay the retained Windows fixtures:
-
-- `chrome_152_tls_recipe_matches_windows_chrome_for_testing_capture`
-- `chrome_152_http2_recipe_matches_windows_chrome_for_testing_capture`
-- `chrome_152_quic_client_hello_recipe_matches_windows_chrome_for_testing_capture`
-- `chrome_152_quic_recipe_matches_windows_chrome_for_testing_capture`
-- `chrome_152_http3_recipe_matches_windows_chrome_for_testing_capture`
-- `firefox_154_tls_recipe_matches_windows_capture`
-- `firefox_154_recipe_draws_either_ech_grease_aead_per_connection`
-- `firefox_154_http2_recipe_matches_windows_capture`
+  persona data and differ by browser and build by design. Only their positions
+  in the request field order are compared.
 
 Limits:
 
-- Chrome 152 parity rests on Chrome for Testing plus the flavor comparison at
-  153. It assumes that the flavor equivalence observed at 153 also held
-  at 152.
-- One Windows build and one macOS build were compared. Linux, other Windows
-  releases, and other macOS releases are not covered.
-- Chrome for Testing publishes no checksums, so the archive hashes were
-  recorded on first use (SHA-256 below). Firefox 154.0 was verified against
-  Mozilla's signed `SHA512SUMS`.
-- Only headless launches were compared, matching the retained fixtures.
+- One Windows build, and one build per browser. No macOS or Linux capture of
+  any current recipe exists, so platform independence is not claimed.
+- Launches are headless, except the headful client-hint and SSE runs each
+  section names.
 
-| Artifact | Source | SHA-256 |
+### Edge 153 and Firefox 156 recipes
+
+Edge 153.0.4234.48 and Firefox 156.0 are the builds installed on the Windows 11
+capture host. Every capture used a fresh profile, a loopback listener, and the
+launch flags of the Chromium or Firefox fixture for the same layer. Edge ran
+without `--disable-field-trial-config`.
+
+| Browser and layer | Samples | Result against the Chromium recipes |
 | --- | --- | --- |
-| Chrome for Testing 152.0.7977.83 win64 | `https://storage.googleapis.com/chrome-for-testing-public/152.0.7977.83/win64/chrome-win64.zip` | `6ed70e277c5dd6cb7a31e2ccb8f88d071b4928984e3b47d846920764eab712e7` |
-| Chrome for Testing 153.0.8010.48 win64 | `https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.48/win64/chrome-win64.zip` | `9a4d427ec9193ef8347e864076757f7e1e9c486f0a21c4781f5ea845bffd8dd1` |
-| Firefox 154.0 win64 en-US | `https://archive.mozilla.org/pub/firefox/releases/154.0/win64/en-US/Firefox%20Setup%20154.0.exe` | SHA-512 `514dfa9f…1bd35398`, signed by Mozilla release subkey `827E 6586 0867 9618 CD34 9F93 678E 455D 7676 7AA3` |
-| geckodriver 0.37.1 win64 (H2 WebDriver launch) | GitHub release asset | `dfed9315abe8d2fbc1b6161a2ee8002452e79cf05ee92fdc653a4e26bc35edd8` |
+| Edge 153.0.4234.48 TLS | 20 processes | The Chromium ClientHello without the trust-anchor IDs extension |
+| Edge 153 QUIC ClientHello | 3 processes | The Chromium QUIC ClientHello without the trust-anchor IDs extension |
+| Edge 153 H2 startup and request HEADERS | 1 raw startup, 3 H2 session runs | Equal to `chromium::v154_http2` |
+| Edge 153 QUIC, H3 SETTINGS and request | 3 processes | Equal to `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request`; request fields equal except persona values |
+| Edge 153 client hints | 3 runs (plus 1 headful) | The Chromium names, order, and delivery; Edge brand list and version values |
+| Firefox 156.0 TLS | 12 processes | Its own fixed extension order and a 240-byte ECH GREASE payload |
+| Firefox 156 H2 startup and request HEADERS | 3 retained H2 session runs, 6 connections | `m,p,a,s` pseudo-headers; non-exclusive parent 0 weight 42 |
 
-Launch arguments are recorded in each fixture. Chrome captures use the same
-flags as the retained macOS fixtures, plus `--disable-field-trial-config` for
-Chrome for Testing. The Firefox H2 capture uses WebDriver with
-`acceptInsecureCerts` and `network.dns.forceResolve=127.0.0.1`.
+The recipes follow from those results:
 
-#### Chrome trust-anchor ID order
-
-A follow-up capture on the same Windows 11 host loaded one loopback page per
-fresh headless process. Each page opened 48 TLS connections to loopback
-listeners that recorded the ClientHello and closed. Launch flags matched the
-retained Chrome fixtures, with `--disable-field-trial-config` for Chrome for
-Testing.
-
-| Build | Processes | Connections | Orders per process | Distinct orders |
-| --- | --- | --- | --- | --- |
-| Chrome for Testing 152.0.7977.83 | 13 | 624 | 1 | 5; the most frequent (5 of 13) equals the retained macOS order |
-| Chrome 153.0.8010.48 | 13 | 624 | 1 | 7; the most frequent occurred 5 times |
-
-Every connection repeated its process's trust-anchor order, while the
-extension order differed on all 1,248 connections. The orders are neither
-rotations nor uniform permutations. Distinct orders share adjacent ordered ID
-pairs far more often than uniform shuffles would: 32 shared pairs among the
-five 152 orders against a uniform mean of 9.7, and 49 against 20.2 among the
-seven 153 orders. None of 5,000 simulated uniform sets reached either count.
-This matches the Chromium source of that period, which serialized the list by
-iterating an `absl::flat_hash_set`. Chromium commit `942bda4298c1`
-(2026-08-28) later sorts the list before encoding.
-
-The Chrome 152 recipe therefore keeps one fixed order, the retained macOS
-order. Per-connection shuffling would contradict the observed behavior. These
-multi-connection captures are not retained as fixtures.
-
-Chrome 153 advertises 28 IDs: the four `d67909xx` IDs `02`, `03`, `09`, and
-`0e` are absent, and none is new. A later capture for the Chrome 153 recipe
-recorded one ClientHello from each of 60 fresh branded Chrome 153.0.8010.48
-processes, with the retained Chrome TLS launch flags (no
-`--disable-field-trial-config`). It saw 35 distinct orders. The most frequent
-occurred 6 times and the next two 5 times each. The retained
-`client-hello.txt` from the earlier capture has an order not among the 60.
-
-`chromium::v153_tls` carries the order seen in 6 processes. Its lead over the
-runner-up is one process, so it is one real observed order, not evidence of a
-preferred Chrome order.
-`fixtures/tls/chrome/153.0.8010.48/windows-11-26200/trust-anchor-orders.txt`
-retains every order, its count, and the per-process sequence.
-`chrome_153_tls_trust_anchor_order_is_the_most_frequent_process_order` and
-`chrome_153_tls_recipe_emits_the_most_frequent_trust_anchor_order` check it.
-
-### Chrome 153, Edge 153, and Firefox 156 recipes
-
-The browsers installed on the Windows 11 capture host (build 26200, x64) were
-captured again to add version recipes. Every capture used a fresh profile, a
-loopback listener, and the launch flags of the retained fixture for the same
-layer. Chrome and Edge ran without `--disable-field-trial-config`, as the
-retained branded Chrome 153 fixtures did.
-
-| Browser and layer | Samples | Result against the prior recipe |
-| --- | --- | --- |
-| Chrome 153.0.8010.48 TLS | 60 processes | Equal to `v152_tls` except the 28 trust-anchor IDs |
-| Chrome 153 H2 startup | Retained raw startup | Equal to `v152_http2` |
-| Chrome 153 H2 request HEADERS | 3 retained H2 session runs | Pseudo-headers `m,a,s,p`; exclusive, parent 0, weight 256; equal to `v152_http2` |
-| Chrome 153 QUIC ClientHello | 3 processes | Equal to `v152_http3_tls` except the 28 trust-anchor IDs |
-| Chrome 153 QUIC, H3 SETTINGS and request | Retained startup plus 3 | Equal to `v152_quic`, `v152_http3`, and `v152_http3_request`; request fields equal except persona values |
-| Chrome 153 client hints | 3 runs (plus 1 headful) | Same 11 names, order, and delivery as the 152 macOS recipe; Windows and 153 values |
-| Edge 153.0.4234.48 TLS | 20 processes | Chrome 153 ClientHello without the trust-anchor IDs extension |
-| Edge 153 QUIC ClientHello | 3 processes | Chrome 153 QUIC ClientHello without the trust-anchor IDs extension |
-| Edge 153 H2 startup and request HEADERS | 1 raw startup, 3 H2 session runs | Equal to `chromium::v153_http2` |
-| Edge 153 QUIC, H3 SETTINGS and request | 3 processes | Equal to the Chrome 153 recipes; request fields equal except persona values |
-| Edge 153 client hints | 3 runs (plus 1 headful) | Chrome 153 names, order, and delivery; Edge brand list and version values |
-| Firefox 156.0 TLS | 12 processes | `v154_tls` without the FFDHE-2048 and FFDHE-3072 groups, with a 240-byte (was 239) ECH GREASE payload |
-| Firefox 156 H2 startup and request HEADERS | 3 retained H2 session runs, 6 connections | Equal to `v154_http2` |
-
-The new recipes follow from those differences:
-
-- `chromium::v153_tls` and `chromium::v153_http3_tls` replace only the
-  trust-anchor list of the 152 recipes.
-  `chromium::v153_{http2,http3,http3_request,quic}` return the 152 recipes
-  unchanged.
 - `edge::v153_tls` and `edge::v153_http3_tls` remove the trust-anchor IDs from
-  the Chrome 153 recipes. Edge has no H2, QUIC, or H3 recipe of its own,
-  because those layers equal Chrome 153 on every compared field.
-- `firefox::v156_tls` changes the two differing fields of `v154_tls`, and
-  `firefox::v156_http2` returns `v154_http2`.
-- Client hints carry platform and build data on the wire, so their recipes are
-  `chromium::v153_windows_client_hints` and
-  `edge::v153_windows_client_hints`.
-
-Comparisons used the normalization of
-[Cross-platform transport parity](#cross-platform-transport-parity), which
-covers GREASE values, Chromium extension order, random bytes, key shares, ECH
-GREASE payload bytes, and Chromium's per-connection ECH payload length. They
-also normalized the H3 reserved setting and its value width, the QUIC GREASE
-transport parameter length, and the position of the reserved QUIC version.
-
-Every Chrome and Edge sample, over TCP and QUIC, used HKDF-SHA256 with
-AES-128-GCM for ECH GREASE. Firefox 156 kept its fixed extension order and
-chose AES-128-GCM on 7 and ChaCha20-Poly1305 on 5 of 12 connections, each with
-a 240-byte payload. One sample of each is retained. As for 154, the recipe
-lists both AEADs, and
-`firefox_156_recipe_draws_either_ech_grease_aead_per_connection` bounds the
-per-connection split.
+  the Chromium recipes. The Chrome 153 and Chrome 154 ClientHellos differ only
+  in that extension, so the Edge captures replay against the surviving
+  Chromium recipes unchanged. Edge has no H2, QUIC, or H3 recipe of its own,
+  because those layers equal the Chromium recipes on every compared field.
+- `edge::v153_windows_client_hints` and the Edge request templates carry Edge's
+  brand list and build values.
+- `firefox::v156_tls`, `firefox::v156_http2`, `firefox::v156_websocket`,
+  `firefox::v156_tcp`, `firefox::v156_cookie_placement`, and the Firefox
+  request templates are the complete Firefox set. Firefox sends no user-agent
+  client hints, and no Firefox QUIC or H3 capture exists.
 
 Edge's full version list reports `"Chromium";v="153.0.8010.53"`, a newer
-Chromium build than branded Chrome 153.0.8010.48. Headful and headless runs
-produced identical client hints for both browsers.
+Chromium build than the branded Chrome 153 that was captured at the time.
+Headful and headless runs produced identical client hints for both browsers.
 
-The H2 request evidence reuses the navigation in the retained WebSocket
-session fixtures (`fixtures/websocket/*/accept.txt`, recorded through
+Firefox 156 kept its fixed extension order and chose AES-128-GCM on 7 and
+ChaCha20-Poly1305 on 5 of 12 connections, each with a 240-byte payload. One
+sample of each is retained.
+
+The H2 request evidence reuses the navigation in the retained WebSocket session
+fixtures (`fixtures/websocket/*/accept.txt`, recorded through
 `http2_session.py`). Those fixtures already hold each navigation's SETTINGS,
 WINDOW_UPDATE, HEADERS priority, and HPACK field order. No raw Firefox 156 H2
 startup fixture was taken: the raw startup tool needs WebDriver certificate
 trust for Firefox, and geckodriver is not installed on the host. The extended
 CONNECT pseudo-header order and priority in those fixtures differ from the
-navigation's and stay outside the named H2 recipes.
+navigation's and are carried by the WebSocket recipes and `v156_http2`.
 
 Retained fixtures:
 
-- `fixtures/tls/chrome/153.0.8010.48/windows-11-26200/trust-anchor-orders.txt`
-- `fixtures/http3/chrome/153.0.8010.48/windows-11-26200/quic-client-hello-{1,2}.txt`
-- `fixtures/client-hints/chrome/153.0.8010.48/windows-11-26200/navigation.txt`
 - `fixtures/tls/edge/153.0.4234.48/windows-11-26200/client-hello.txt`
 - `fixtures/http2/edge/153.0.4234.48/windows-11-26200/client-startup.txt`
 - `fixtures/http3/edge/153.0.4234.48/windows-11-26200/{client-startup,quic-client-hello-1,quic-client-hello-2}.txt`
 - `fixtures/client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt`
 - `fixtures/tls/firefox/156.0/windows-11-26200/client-hello.txt` (AES-128-GCM
   ECH GREASE) and `client-hello-chacha20-ech.txt`
+- `fixtures/websocket/firefox/156.0/windows-11-26200/`, nine scenarios
+- `fixtures/sse/firefox/156.0/windows-11-26200/`, seventeen scenarios
 
 Capture commands, one run per fresh browser process:
 
@@ -414,28 +289,29 @@ fixtures, with `https://server.phantom.test:<port>/`. Firefox TLS uses
 `https://localhost:9446/`. Per-process samples beyond the retained ones are
 not kept; the table gives their counts.
 
-The `chrome_153_*`, `edge_153_*`, and `firefox_156_*` tests in
-`phantom-profile` and `phantom-net` replay these fixtures. TLS and QUIC
-ClientHellos go through the public TLS and H3 connector paths, and H2 startup
-frames through the public H2 path. H3, QUIC, H2 request, and client-hint
-fields are compared against the recipe data.
+The `edge_153_*` and `firefox_156_*` tests in `phantom-profile` and
+`phantom-net` replay these fixtures. TLS and QUIC ClientHellos go through the
+public TLS and H3 connector paths, and H2 startup frames through the public H2
+path. H3, QUIC, H2 request, and client-hint fields are compared against the
+recipe data.
 
 Limits:
 
-- One Windows build, and one build per browser. No macOS or Linux capture of
-  these versions exists. The platform-free 153 and 156 transport names rest
-  on the 152 and 154 finding that these layers did not depend on the
-  platform.
+- One Windows build per browser. No macOS or Linux capture of these versions
+  exists.
 - Headless launches only, except the headful client-hint check.
+- Firefox 156 has no raw H2 startup fixture, so its SETTINGS and connection
+  window rest on the H2 session captures rather than on raw startup bytes.
 
-### Chrome 154 captures
+### Chrome 154 recipes
 
 Google Chrome 154.0.8037.58, the stable build installed on the Windows 11
 capture host (build 26200, x64), was captured in every area that holds a
 Chrome fixture. Each run used a fresh temporary profile and a loopback
 listener bound to port 0, and each capture repeats the launch flags recorded
-in the Chrome 153 fixture for the same layer. Chrome ran without
-`--disable-field-trial-config`, as the branded Chrome 153 fixtures did: every
+in the Chrome 153 fixture for the same layer, which the Chrome 154 fixtures
+now carry in their own `launch_arguments` lines. Chrome ran without
+`--disable-field-trial-config`, as the branded Chrome 153 captures did: every
 QUIC capture carries `max_idle_timeout` 30000 ms and the `ORIG` connection
 option, not the testing configuration's 300000 ms and `ORIGNOIP`.
 
@@ -473,9 +349,9 @@ unchanged.
 Chrome 153 serialized its trust-anchor ID list by iterating an
 `absl::flat_hash_set`, so the order was fixed within a browser process and
 differed between processes: 35 distinct orders across 60 processes, recorded
-in [Chrome trust-anchor ID order](#chrome-trust-anchor-id-order). Chromium
-commit `942bda4298c1` (2026-08-28) sorts the list before encoding. Chrome 154
-shows that change.
+across 60 processes of a capture that is no longer retained. Chromium commit
+`942bda4298c1` (2026-08-28) sorts the list before encoding. Chrome 154 shows
+that change.
 
 Sixty fresh headless processes, one TCP ClientHello each, produced one order.
 The retained `client-hello.txt` from a further process and all three QUIC
@@ -496,14 +372,17 @@ the TLS connector actually emits.
 
 Each process contributed one connection. These captures therefore show that
 the order no longer varies between processes; they do not on their own show
-that it is fixed within a process, which the Chrome 153 evidence established
-with 48 connections per process.
+that it is fixed within a process. Earlier multi-connection captures of
+Chrome 152 and 153, 48 connections from each of 13 fresh processes per build,
+showed one order per process and never a per-connection reshuffle; those
+captures were not retained as fixtures and their builds are no longer in the
+tree.
 
 #### What still varies per connection
 
 The per-connection randomness described in
-[Cross-platform transport parity](#cross-platform-transport-parity) is
-unchanged. Across the 61 TCP ClientHellos:
+[Capture normalization](#capture-normalization) applies. Across the 61 TCP
+ClientHellos:
 
 - the extension order differed on all 61, always with the same 19-entry
   multiset and a GREASE extension both first and last;
@@ -516,14 +395,19 @@ unchanged. Across the 61 TCP ClientHellos:
 In the QUIC captures the transport-parameter order, the GREASE
 transport-parameter id and length, the GREASE H3 setting id and value, and the
 position of the reserved version inside `version_information` differ per
-connection, as they did at Chrome 153. The QUIC ClientHello carries no GREASE
-cipher suite, group, or extension in either version.
+connection. The QUIC ClientHello carries no GREASE cipher suite, group, or
+extension. `chromium::v154_quic` keeps one captured parameter order as its
+permutation template;
+`deterministic_entropy_reproduces_captured_parameters` re-encodes the retained
+capture's transport parameters byte for byte from that recipe with fixed
+entropy.
 
 #### Capture commands and launches
 
 Every fixture records its own launch arguments, with the profile path replaced
-by a placeholder. Chromium launches repeat the flags of the Chrome 153 fixture
-for the same layer, with the page URL on the loopback port the listener bound.
+by a placeholder. Chromium launches repeat the flags the Chrome 153 fixture
+for the same layer used, with the page URL on the loopback port the listener
+bound.
 
 | Capture | Command |
 | --- | --- |
@@ -578,34 +462,41 @@ Limits:
 - `chromium::v154_tcp` rests on Chromium source at tag `154.0.8037.58`, not
   on a capture; see
   [TCP socket option evidence](#tcp-socket-option-evidence).
+- Chrome 154 was compared against the Chrome 153 Windows fixtures while those
+  were still in the tree. They have since been removed with the Chrome 153
+  recipes, so that comparison is recorded here rather than reproducible from
+  the repository.
 - Launches are headless, except one headful client-hint run and five headful
   `retry-750` SSE runs.
-- Chrome 154 was compared against the retained Chrome 153 Windows fixtures
-  only. Where a Chrome 153 observation itself rests on a normalization, the
-  Chrome 154 result inherits it.
+- Where a Chrome 153 observation itself rested on a normalization, the
+  Chrome 154 comparison inherits it.
 
 ### TCP socket option evidence
 
 A capture cannot show socket options, so the TCP recipes rest on browser
 source at the profiled release tags rather than on retained fixtures. The
-citations are to Chromium tag `153.0.8010.48` and Firefox tag
-`FIREFOX_156_0_RELEASE`.
+socket-option and Happy Eyeballs default citations are to Chromium tag
+`154.0.8037.58` and Firefox tag `FIREFOX_156_0_RELEASE`. The line numbers for
+the rest of the racing algorithm, which `TcpAddressRacing` and
+`phantom-net`'s `address_racing` module document, were read at Chromium tag
+`153.0.8010.48` and have not been re-read at 154; the defaults those recipes
+encode were.
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v153_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-73`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:463-486`). |
+| `chromium::v154_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-72`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:493-517`). |
 | `firefox::v156_tcp` | `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on every socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1454`). |
-| `chromium::v153_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:300-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:450-473`, `:580-616`, `:691-694`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
+| `chromium::v154_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:298-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:443-466`, `:573-610`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
 
 Differences from the browsers:
 
 - Chromium ignores a failure to set either option
-  (`net/socket/tcp_socket_win.cc:71-72`). Phantom fails that connection
+  (`net/socket/tcp_socket_win.cc:70-71`). Phantom fails that connection
   attempt instead, so no connection proceeds with options the profile did not
   ask for.
 - Chromium on macOS sets only the keepalive idle time
   (`net/socket/tcp_socket_posix.cc:101-105`), and Android and iOS builds
-  enable no keepalive. `chromium::v153_tcp` describes Windows and Linux; a
+  enable no keepalive. `chromium::v154_tcp` describes Windows and Linux; a
   macOS profile sets `TcpKeepalive::interval` to `None`.
 - Firefox's keepalive is not modeled. It changes per HTTP connection: a
   10-second idle time for about the first 60 seconds of an HTTP/1 connection,
@@ -885,11 +776,14 @@ Limits:
 
 ### Alt-Svc racing evidence
 
-Chrome 153.0.8010.48 on Windows 11 26200 was captured with
+Chrome 154.0.8037.58 on Windows 11 26200 was captured with
 `scripts/capture/alt_svc_race.py`. The loopback origin served H2 over TCP and
 H3 over UDP on the same port, advertised as `h3=":<port>"; ma=86400`.
 Fixtures are in
-[`fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/`](../../fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200/).
+[`fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200/`](../../fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200/).
+The timings and NetLog observations below were first recorded from Chrome
+153.0.8010.48 and were reproduced by the Chrome 154 captures on every recorded
+job decision, bound job, and brokenness lifetime.
 
 Capture conditions:
 
@@ -904,7 +798,7 @@ Capture conditions:
   names the same host on a decoy port that is never requested.
 - Every race in the NetLogs is an `alternative` job created from
   `ALT_SVC_FOUND`, never a forced-QUIC main job.
-- Chrome 153 keeps `HappyEyeballsV3` disabled (`net/base/features.cc`
+- Chrome keeps `HappyEyeballsV3` disabled (`net/base/features.cc`
   line 124), so these are `HttpStreamFactory::JobController` decisions.
 
 Source citations are to tag `153.0.8010.48`.
@@ -1054,7 +948,7 @@ Limits:
 ### SSE browser reconnect evidence
 
 `fixtures/sse/` retains HTTP/1.1 EventSource captures from headless Chrome
-153.0.8010.48 and Firefox 156.0 (build ID 20260909172920) on Windows 11
+154.0.8037.58 and Firefox 156.0 (build ID 20260909172920) on Windows 11
 (10.0.26200). They were recorded with `scripts/capture/sse_reconnect.py`
 against a plaintext loopback server. Each of the seventeen scenarios ran ten
 times on a fresh profile. Fixtures keep the raw request lines and header lines
@@ -1089,7 +983,7 @@ Observed on both browsers:
 
 Where they differ:
 
-| Behavior | Chrome 153 | Firefox 156 |
+| Behavior | Chrome 154 | Firefox 156 |
 | --- | --- | --- |
 | Delay without `retry` | 3 s | 5 s |
 | `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to 500 ms (observed about 510 ms) |
@@ -1100,7 +994,8 @@ Where they differ:
 The immediate requests after a reset are HTTP-stack resends, not EventSource
 reconnects:
 
-- Three `reset-before-head` runs of Chrome 153.0.8010.48 with
+- Three `reset-before-head` runs of Chrome 153.0.8010.48, whose captures the
+  Chrome 154 set reproduced field for field, with
   `--log-net-log --net-log-capture-mode=Everything` each showed one URL
   request that was sent on a reused keep-alive socket, failed with
   `ERR_CONNECTION_CLOSED`, logged `HTTP_TRANSACTION_RESTART_AFTER_ERROR`, and
@@ -1145,18 +1040,15 @@ services, because release builds ignore those services' test-only switches.
 That traffic used separate remote connections and never reached the loopback
 listener.
 
-Chrome 154.0.8037.58 was captured again with the same tool, the same seventeen
-scenarios, and the same ten fresh-profile runs each, and is retained beside the
-Chrome 153 fixtures under
-`fixtures/sse/chrome/154.0.8037.58/windows-11-26200/`. Every scenario matches
-Chrome 153 on request shape, reconnect field order, `Last-Event-ID` spelling,
-position, and raw bytes, connection reuse, and the absence of any request after
-a terminal response. Each attempt median lies within six milliseconds of the
-Chrome 153 median, so the observations and the table above hold for Chrome 154
-unchanged, including the 3 s default delay, the honored `retry: 0` and
-`retry: 100`, the redirected reconnect target, and `Cookie` last of sixteen
-fields. Its own five-run headless and headful `retry-750` comparison, retained
-under `launch-mode/`, gave medians within four milliseconds of each other.
+The Chrome 154 set replaced an equivalent Chrome 153 set: the same tool, the
+same seventeen scenarios, and the same ten fresh-profile runs each. Every
+scenario matched Chrome 153 on request shape, reconnect field order,
+`Last-Event-ID` spelling, position, and raw bytes, connection reuse, and the
+absence of any request after a terminal response, with each attempt median
+within six milliseconds of the Chrome 153 median. The Chrome 153 fixtures were
+removed with the Chrome 153 recipes. Chrome 154's own five-run headless and
+headful `retry-750` comparison, retained under `launch-mode/`, gave medians
+within four milliseconds of each other.
 
 Limits:
 
@@ -1166,7 +1058,7 @@ Limits:
 ### WebSocket browser evidence
 
 `fixtures/websocket/` retains WebSocket openings from headless Chrome
-153.0.8010.48, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
+154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
 (10.0.26200), recorded with `scripts/capture/http2_websocket.py`. Each of nine
 scenarios ran three times on a fresh profile against loopback listeners: TLS
 for `server.phantom.test` (ALPN `h2` and `http/1.1`, a throwaway certificate)
@@ -1190,7 +1082,7 @@ through `--ignore-certificate-errors-spki-list`; Firefox trusts it through a
 `cert_override.txt` written only into its disposable profile. Both are
 recorded with the launch arguments.
 
-| Behavior | Chrome 153 and Edge 153 | Firefox 156 |
+| Behavior | Chrome 154 and Edge 153 | Firefox 156 |
 | --- | --- | --- |
 | WebSocket on the page's H2 session with the setting | Extended CONNECT | Extended CONNECT; also opens a second H2 connection and closes it with `GOAWAY(NO_ERROR)` |
 | First connection to the origin is the WebSocket | New TLS connection offering only `http/1.1`; HTTP/1.1 Upgrade | New TLS connection offering `h2,http/1.1`; extended CONNECT |
@@ -1245,18 +1137,20 @@ fallback, streaming non-2xx rejection responses, direct-`wss://` route
 validation, and a stream-scoped reset. These are standards-level
 deterministic fixtures, not named-browser evidence.
 
-Chrome 154.0.8037.58 was captured with the same nine scenarios and three runs
-each, retained under
-`fixtures/websocket/chrome/154.0.8037.58/windows-11-26200/`. Its CONNECT
-pseudo-field order and HPACK representations, its exclusive parent-0 weight-147
-CONNECT priority, its `permessage-deflate; client_max_window_bits` offer, its
-`http/1.1`-only ALPN offer on a fresh origin and when the peer omits
+The Chrome 154 set replaced an equivalent Chrome 153 set of the same nine
+scenarios and three runs each. Its CONNECT pseudo-field order and HPACK
+representations, its exclusive parent-0 weight-147 CONNECT priority, its
+`permessage-deflate; client_max_window_bits` offer, its `http/1.1`-only ALPN
+offer on a fresh origin and when the peer omits
 `SETTINGS_ENABLE_CONNECT_PROTOCOL`, its `RST_STREAM(CANCEL)` after a `403` and
 after an unoffered extension, its retry after `RST_STREAM(REFUSED_STREAM)`, its
-RSV1 and fragmentation behavior, and its HTTP/1.1 opening field order all equal
-Chrome 153. The Chrome column of the table above therefore describes Chrome 154
-as well. The count of idle speculative connections and the number of frames the
-uncompressed 1 MiB message is split into vary between runs of both versions.
+RSV1 and fragmentation behavior, and its HTTP/1.1 opening field order all
+equalled Chrome 153, which was then removed with the Chrome 153 recipes. One
+difference is visible across the two sets: every Chrome 154 `refused-stream`
+run opened its WebSocket on the page's H2 session and so carries a refusal to
+compare, where one Chrome 153 run had opened over HTTP/1.1 instead. The count
+of idle speculative connections and the number of frames the uncompressed
+1 MiB message is split into vary between runs of both versions.
 
 Limits:
 
@@ -1346,7 +1240,7 @@ Benchmarks state exactly what they measure. The
 weekly or on demand on one Linux runner and uploads Criterion output. It is
 report-only, with no baseline comparison or regression threshold. It covers:
 
-- `phantom-net`'s `transport` bench: construction of the Chrome 152 TLS
+- `phantom-net`'s `transport` bench: construction of the Chrome 154 TLS
   connector, and H1/H2 request/response exchanges replayed over an in-memory
   stream (a warm reused H1 response head, a 12-field H1 head, 64 KiB H1
   content-length and chunked bodies, a 12-field H2 head, and a 64 KiB H2

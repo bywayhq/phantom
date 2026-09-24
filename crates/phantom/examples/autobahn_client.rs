@@ -25,7 +25,7 @@ struct Config {
 async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::parse(env::args().skip(1))?;
     let root = std::fs::read(&config.ca_der)?;
-    let profile = ClientProfile::new(chromium::v152_tls());
+    let profile = ClientProfile::new(chromium::v154_tls());
     let client = Client::builder(profile)
         .add_root_certificate_der(root)
         .build()?;

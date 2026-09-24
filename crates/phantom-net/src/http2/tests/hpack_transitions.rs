@@ -1,5 +1,5 @@
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     sync::oneshot,
@@ -80,7 +80,7 @@ async fn run_case(settings: &'static [u8], expected_prefix: &'static [u8]) -> Te
         finish_rx,
     ));
 
-    let connection = Http2Connection::connect(client, &v152_http2()).await?;
+    let connection = Http2Connection::connect(client, &v154_http2()).await?;
     ready_rx
         .await
         .map_err(|_| "raw peer stopped before acknowledging initial controls")?;

@@ -248,8 +248,8 @@ mod template_slots {
 
     #[test]
     fn navigation_hints_follow_connection_as_one_block_in_profile_order() {
-        let template = chromium::v153_windows_navigation_template();
-        let hints = chromium::v153_windows_client_hints();
+        let template = chromium::v154_windows_navigation_template();
+        let hints = chromium::v154_windows_client_hints();
         let first = prepared(&template, true, &hints, &[], None);
         assert_eq!(
             first[..5],
@@ -270,8 +270,8 @@ mod template_slots {
 
     #[test]
     fn fetch_hints_surround_user_agent_as_captured() {
-        let template = chromium::v153_windows_fetch_no_store_template();
-        let hints = chromium::v153_windows_client_hints();
+        let template = chromium::v154_windows_fetch_no_store_template();
+        let hints = chromium::v154_windows_client_hints();
         assert_eq!(
             prepared(&template, false, &hints, &[], None)[..7],
             [
@@ -319,9 +319,9 @@ mod template_slots {
         use super::super::{ClientHintContext, ClientHintStore};
         use crate::RequestErrorKind;
 
-        let hints = chromium::v153_windows_client_hints();
-        let fetch = chromium::v153_windows_fetch_no_store_template();
-        let navigation = chromium::v153_windows_navigation_template();
+        let hints = chromium::v154_windows_client_hints();
+        let fetch = chromium::v154_windows_fetch_no_store_template();
+        let navigation = chromium::v154_windows_navigation_template();
         let endpoint = super::endpoint("example.test");
         let origin = "https://example.test";
         let store = ClientHintStore::new(NonZeroUsize::MIN);
@@ -378,8 +378,8 @@ mod template_slots {
 
     #[test]
     fn caller_hint_values_keep_the_slot_position() {
-        let template = chromium::v153_windows_fetch_no_store_template();
-        let hints = chromium::v153_windows_client_hints();
+        let template = chromium::v154_windows_fetch_no_store_template();
+        let hints = chromium::v154_windows_client_hints();
         let caller = [
             RequestHeader::new("x-first", "1"),
             RequestHeader::new("SEC-CH-UA-MOBILE", "?1"),

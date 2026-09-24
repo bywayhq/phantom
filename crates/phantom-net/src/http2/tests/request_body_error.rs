@@ -9,7 +9,7 @@ use bytes::Bytes;
 use http::{Method, Response};
 use http_body::{Body, Frame};
 use http_body_util::BodyExt as _;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::time::timeout;
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
@@ -37,7 +37,7 @@ async fn request_body_error_resets_only_that_stream_and_preserves_connection() -
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
         let peer = tokio::spawn(run_peer(server));
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let error = match connection
             .send_request_body_with_trailers(

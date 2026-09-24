@@ -1,5 +1,5 @@
 use http_body_util::BodyExt;
-use phantom_profile::{Http2Settings, chromium::v152_http2, firefox::v154_http2};
+use phantom_profile::{Http2Settings, chromium::v154_http2, firefox::v156_http2};
 use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
 use super::adversarial_malformed::{
@@ -22,22 +22,22 @@ const PADDED: u8 = 0x08;
 
 #[tokio::test]
 async fn empty_data_flood_emits_one_calm_error_with_chrome_profile() -> TestResult<()> {
-    bounded_peer_test(run_flood(v152_http2(), DataFlood::Empty)).await
-}
-
-#[tokio::test]
-async fn empty_data_flood_emits_one_calm_error_with_firefox_profile() -> TestResult<()> {
     bounded_peer_test(run_flood(v154_http2(), DataFlood::Empty)).await
 }
 
 #[tokio::test]
+async fn empty_data_flood_emits_one_calm_error_with_firefox_profile() -> TestResult<()> {
+    bounded_peer_test(run_flood(v156_http2(), DataFlood::Empty)).await
+}
+
+#[tokio::test]
 async fn padded_empty_data_flood_emits_one_calm_error() -> TestResult<()> {
-    bounded_peer_test(run_flood(v152_http2(), DataFlood::PaddedEmpty)).await
+    bounded_peer_test(run_flood(v154_http2(), DataFlood::PaddedEmpty)).await
 }
 
 #[tokio::test]
 async fn unread_small_data_flood_emits_one_calm_error() -> TestResult<()> {
-    bounded_peer_test(run_flood(v152_http2(), DataFlood::Small)).await
+    bounded_peer_test(run_flood(v154_http2(), DataFlood::Small)).await
 }
 
 #[tokio::test]
@@ -45,7 +45,7 @@ async fn tolerated_empty_data_frames_are_not_delivered_as_body_chunks() -> TestR
     bounded_peer_test(async {
         let (client, server) = duplex(64 * 1024);
         let peer = tokio::spawn(run_tolerated_peer(server));
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let response = connection
             .send_get("example.test", target()?, Vec::new())

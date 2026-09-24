@@ -281,7 +281,7 @@ fn rejects_unsupported_versions_and_invalid_names_before_io() {
 fn profiled_transport_mismatch_has_a_truthful_connect_error() {
     let context = client_context(true);
     let config = test_ok(
-        QuicClientConfig::with_transport_profile(context.0, chromium::v152_quic()),
+        QuicClientConfig::with_transport_profile(context.0, chromium::v154_quic()),
         "profiled client config",
     );
 
@@ -518,7 +518,7 @@ fn hex<const N: usize>(input: &str) -> [u8; N] {
 }
 
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    chromium::v152_http3_tls()
+    chromium::v154_http3_tls()
 }
 
 fn extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {

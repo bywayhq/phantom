@@ -46,7 +46,7 @@ H2 accepts `wss://` only. It needs two things:
 
 - The HTTP/2 profile sets `extended_connect_pseudo_header_order`, the order of
   the five pseudo-header fields in the CONNECT request.
-  `chromium::v153_http2` and `firefox::v156_http2` carry captured orders;
+  `chromium::v154_http2` and `firefox::v156_http2` carry captured orders;
   older recipes leave it unset.
 - The server's initial SETTINGS enables extended CONNECT
   (`SETTINGS_ENABLE_CONNECT_PROTOCOL`).
@@ -58,7 +58,7 @@ use phantom::profile::{chromium, ClientProfile, Http2PseudoHeader};
 use phantom::{Client, HttpProtocol};
 
 async fn h2_example() -> Result<(), Box<dyn std::error::Error>> {
-    let mut http2 = chromium::v152_http2();
+    let mut http2 = chromium::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Authority,
@@ -66,7 +66,7 @@ async fn h2_example() -> Result<(), Box<dyn std::error::Error>> {
         Http2PseudoHeader::Path,
         Http2PseudoHeader::Protocol,
     ]);
-    let profile = ClientProfile::new(chromium::v152_tls()).with_http2(http2);
+    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(http2);
     let client = Client::builder(profile).build()?;
 
     let socket = client
@@ -330,9 +330,9 @@ use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, RequestHeader};
 
 async fn profile_policy_example() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v153_tls())
-        .with_http2(chromium::v153_http2())
-        .with_websocket(chromium::v153_websocket());
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_websocket(chromium::v154_websocket());
     let client = Client::builder(profile).build()?;
 
     // Fills the recipe's caller slots at their captured positions.
@@ -351,10 +351,10 @@ async fn profile_policy_example() -> Result<(), Box<dyn std::error::Error>> {
 
 | Recipe | Pooled capable H2 session | No H2 session | Session without the setting |
 | --- | --- | --- | --- |
-| `chromium::v153_websocket` (Chrome and Edge 153) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session |
+| `chromium::v154_websocket` (Chrome and Edge 153) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session |
 | `firefox::v156_websocket` | Extended CONNECT on it | New connection offering `h2,http/1.1`; extended CONNECT | New TLS connection offering only `http/1.1`; H1 Upgrade |
 
-The paired `chromium::v153_http2` and `firefox::v156_http2` recipes carry the
+The paired `chromium::v154_http2` and `firefox::v156_http2` recipes carry the
 captured extended-CONNECT pseudo-header order and a separate
 `extended_connect_priority`:
 
@@ -365,7 +365,7 @@ Each recipe also carries two behaviours the captures disagree on:
 
 | Recipe | Refused CONNECT stream | Empty message with deflate |
 | --- | --- | --- |
-| `chromium::v153_websocket` | Reopen once on the same session | Compressed, RSV1 set |
+| `chromium::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set |
 | `firefox::v156_websocket` | Reported to the caller | Uncompressed, RSV1 clear |
 
 The recipes' H1 and H2 templates reproduce the captured field order,
@@ -415,7 +415,7 @@ An empty message is the one case browsers disagree on, so
 `PerMessageDeflate::compress_empty_messages` selects the rule and a profile
 recipe supplies it through `WebSocketSettings::empty_message_compression`. On
 by default, a zero-length message is deflated into a one-byte frame with RSV1
-set, as Chrome 153 and Edge 153 do. Off, it is sent with RSV1 clear and an
+set, as Chrome 154 and Edge 153 do. Off, it is sent with RSV1 clear and an
 empty payload, as Firefox 156 does. Non-empty messages are compressed either
 way, so the encoder history is never skipped. Decompressed data counts against
 `WebSocketLimits::max_message_size` as it expands, so an oversized message
@@ -446,7 +446,7 @@ suites are used.
 
 ## Current boundary
 
-The Chrome 153 (also used for Edge 153) and Firefox 156 WebSocket recipes
+The Chrome 154 (also used for Edge 153) and Firefox 156 WebSocket recipes
 cover connection choice, extended-CONNECT pseudo-header order and priority,
 opening field templates, and compression offers. They come from the retained
 Windows captures listed in
@@ -460,7 +460,6 @@ Still open:
 - Proxied WebSockets. No browser capture goes through a proxy, so a proxied
   profile-policy WebSocket follows the same rules without captured evidence
   for that route.
-- Safari WebSocket has no capture.
 - WebSocket over HTTP/3 is not implemented, and is not planned while no
   shipping browser opens one by default. See
   [Coverage](../reference/coverage.md) for the evidence.

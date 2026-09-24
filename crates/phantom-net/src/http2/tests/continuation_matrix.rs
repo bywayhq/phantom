@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::{Http2Setting, chromium::v152_http2};
+use phantom_profile::{Http2Setting, chromium::v154_http2};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     sync::oneshot,
@@ -35,7 +35,7 @@ async fn continuation_matrix_preserves_final_response_and_reuse() -> TestResult<
         let (finish_tx, finish_rx) = oneshot::channel();
         let peer = tokio::spawn(run_peer(server, finish_rx));
 
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
         let response = connection
             .send_get("example.test", target()?, Vec::new())
             .await?;
@@ -76,7 +76,7 @@ async fn huffman_expansion_within_decoded_budget_preserves_connection() -> TestR
         let (client, server) = duplex(256 * 1024);
         let (finish_tx, finish_rx) = oneshot::channel();
         let peer = tokio::spawn(run_huffman_peer(server, finish_rx));
-        let mut settings = v152_http2();
+        let mut settings = v154_http2();
         let maximum = settings
             .initial_settings
             .iter_mut()

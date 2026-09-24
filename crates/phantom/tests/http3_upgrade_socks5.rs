@@ -457,7 +457,7 @@ async fn read_credential(stream: &mut TcpStream) -> TestResult<String> {
 
 fn upgrade_client(identity: &TestIdentity) -> TestResult<Client> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v152_http2())
+        .with_http2(chromium::v154_http2())
         .with_http3(client_settings());
     let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
     Ok(Client::builder(profile)

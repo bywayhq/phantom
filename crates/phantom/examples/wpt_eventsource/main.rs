@@ -31,7 +31,7 @@ struct Config {
 async fn main() -> Result<(), BoxError> {
     let config = Config::parse(env::args().skip(1))?;
     let root = std::fs::read(&config.ca_der)?;
-    let profile = ClientProfile::new(chromium::v152_tls());
+    let profile = ClientProfile::new(chromium::v154_tls());
     let context = Context {
         client: Client::builder(profile)
             .add_root_certificate_der(root)

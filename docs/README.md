@@ -16,7 +16,7 @@ These terms appear throughout the documentation:
 | Term | Meaning |
 | --- | --- |
 | Profile | Everything a server can observe about how the client connects |
-| Recipe | A ready-made part of a profile, such as `chromium::v152_tls()`. Most come from browser captures; TCP recipes come from browser source |
+| Recipe | A ready-made part of a profile, such as `chromium::v154_tls()`. Most come from browser captures; TCP recipes come from browser source |
 | Capture | A recording of a real browser's traffic that a recipe is compared with |
 | H1, H2, H3 | HTTP/1.1, HTTP/2, and HTTP/3 |
 | Route | How the client reaches a server: directly or through a proxy |

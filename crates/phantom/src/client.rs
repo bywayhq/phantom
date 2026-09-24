@@ -834,19 +834,19 @@ mod tests {
 
     #[test]
     fn profile_tcp_settings_reach_every_tcp_connector() -> Result<(), Box<dyn std::error::Error>> {
-        let tcp = chromium::v153_tcp();
+        let tcp = chromium::v154_tcp();
         let http3 = Http3ClientSettings::new(
-            chromium::v153_http3_tls(),
-            chromium::v153_quic(),
-            chromium::v153_http3(),
-            chromium::v153_http3_request(),
+            chromium::v154_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
         );
-        let profile = ClientProfile::new(chromium::v153_tls())
+        let profile = ClientProfile::new(chromium::v154_tls())
             .with_tcp(tcp)
-            .with_http2(chromium::v153_http2())
+            .with_http2(chromium::v154_http2())
             .with_http3(http3);
         #[cfg(feature = "websocket")]
-        let profile = profile.with_websocket(chromium::v153_websocket());
+        let profile = profile.with_websocket(chromium::v154_websocket());
         let route = Route::http_connect(HttpProxy::new("https://proxy.example")?);
         let client = Client::builder(profile).route(route).build()?;
         let inner = &client.inner;
@@ -885,12 +885,12 @@ mod tests {
 
     #[test]
     fn invalid_tcp_profile_has_invalid_profile_category() -> Result<(), &'static str> {
-        let mut tcp = chromium::v153_tcp();
+        let mut tcp = chromium::v154_tcp();
         tcp.keepalive = Some(TcpKeepalive {
             idle: Duration::ZERO,
             interval: None,
         });
-        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
         let error = Client::builder(profile)
             .build()
             .err()
@@ -903,12 +903,12 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn keepalive_without_interval_is_an_invalid_profile_on_windows() -> Result<(), &'static str> {
-        let mut tcp = chromium::v153_tcp();
+        let mut tcp = chromium::v154_tcp();
         tcp.keepalive = Some(TcpKeepalive {
             idle: Duration::from_secs(45),
             interval: None,
         });
-        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
         let error = Client::builder(profile)
             .build()
             .err()
@@ -921,19 +921,19 @@ mod tests {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     #[test]
     fn idle_only_keepalive_builds_where_the_host_supports_it() -> Result<(), BuildError> {
-        let mut tcp = chromium::v153_tcp();
+        let mut tcp = chromium::v154_tcp();
         tcp.keepalive = Some(TcpKeepalive {
             idle: Duration::from_secs(45),
             interval: None,
         });
-        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
 
         Client::builder(profile).build().map(drop)
     }
 
     #[test]
     fn invalid_proxy_root_has_trust_store_category() -> Result<(), &'static str> {
-        let profile = ClientProfile::new(chromium::v152_tls());
+        let profile = ClientProfile::new(chromium::v154_tls());
         let error = Client::builder(profile)
             .add_proxy_root_certificate_der(b"not-a-certificate".as_slice())
             .build()
@@ -946,7 +946,7 @@ mod tests {
 
     #[test]
     fn disabled_proxy_authentication_rejects_proxy_roots() -> Result<(), &'static str> {
-        let profile = ClientProfile::new(chromium::v152_tls());
+        let profile = ClientProfile::new(chromium::v154_tls());
         let error = Client::builder(profile)
             .proxy_server_authentication(ServerAuthentication::Disabled)
             .add_proxy_root_certificate_der(b"unused".as_slice())
@@ -960,9 +960,9 @@ mod tests {
 
     #[test]
     fn https_proxy_requires_http1_in_the_tls_recipe() -> Result<(), &'static str> {
-        let mut tls = chromium::v152_tls();
+        let mut tls = chromium::v154_tls();
         tls.alpn_protocols = vec![Box::from(&b"h2"[..])];
-        let profile = ClientProfile::new(tls).with_http2(chromium::v152_http2());
+        let profile = ClientProfile::new(tls).with_http2(chromium::v154_http2());
         let route = Route::http_connect(
             HttpProxy::new("https://proxy.example")
                 .map_err(|_| "valid HTTPS proxy route was rejected")?,
@@ -981,7 +981,7 @@ mod tests {
     fn alt_svc_requires_negotiated_http1_or_2_and_http3() -> Result<(), &'static str> {
         let capacity = NonZeroUsize::MIN;
         let without_http3 =
-            ClientProfile::new(chromium::v152_tls()).with_http2(chromium::v152_http2());
+            ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
         let error = Client::builder(without_http3)
             .alt_svc(capacity)
             .build()
@@ -990,12 +990,12 @@ mod tests {
         assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
 
         let http3 = Http3ClientSettings::new(
-            chromium::v152_http3_tls(),
-            chromium::v152_quic(),
-            chromium::v152_http3(),
-            chromium::v152_http3_request(),
+            chromium::v154_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
         );
-        let without_negotiation = ClientProfile::new(chromium::v152_http3_tls()).with_http3(http3);
+        let without_negotiation = ClientProfile::new(chromium::v154_http3_tls()).with_http3(http3);
         let error = Client::builder(without_negotiation)
             .alt_svc(capacity)
             .build()

@@ -25,12 +25,12 @@ use phantom::{Client, HttpProtocol};
 
 async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
     let http3 = Http3ClientSettings::new(
-        chromium::v152_http3_tls(),
-        chromium::v152_quic(),
-        chromium::v152_http3(),
-        chromium::v152_http3_request(),
+        chromium::v154_http3_tls(),
+        chromium::v154_quic(),
+        chromium::v154_http3(),
+        chromium::v154_http3_request(),
     );
-    let profile = ClientProfile::new(chromium::v152_tls()).with_http3(http3);
+    let profile = ClientProfile::new(chromium::v154_tls()).with_http3(http3);
 
     let client = Client::builder(profile).build()?;
     let response = client
@@ -75,13 +75,13 @@ use phantom::{Client, ResponseInfo};
 
 async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
     let http3 = Http3ClientSettings::new(
-        chromium::v152_http3_tls(),
-        chromium::v152_quic(),
-        chromium::v152_http3(),
-        chromium::v152_http3_request(),
+        chromium::v154_http3_tls(),
+        chromium::v154_quic(),
+        chromium::v154_http3(),
+        chromium::v154_http3_request(),
     );
-    let profile = ClientProfile::new(chromium::v152_tls())
-        .with_http2(chromium::v152_http2())
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
         .with_http3(http3);
     let client = Client::builder(profile)
         .alt_svc(NonZeroUsize::new(64).expect("64 is nonzero"))
@@ -215,7 +215,7 @@ Request) response also evicts the advertisement.
 
 Racing starts setting up the alternative, starts the origin after a delay you
 choose, and sends the request on whichever is ready first. It is modeled on
-Chrome 153's captured behavior, with the differences listed below. Enable it with
+Chrome 154's captured behavior, with the differences listed below. Enable it with
 `ClientBuilder::alt_svc_policy(AltSvcPolicy::race(...))`, which requires
 `ClientBuilder::alt_svc`. Racing is a declared choice between two candidates,
 not a fallback.
@@ -247,7 +247,7 @@ An alternative connection attempt may run for at most 4 seconds, or less
 under the request's connect and total deadlines. Reaching the limit is a
 setup failure.
 
-This follows Chrome 153, which fails an unreachable alternative after
+This follows Chrome 154, which fails an unreachable alternative after
 4 seconds: its client QUIC idle timeout before the handshake completes.
 Chrome restarts that timer whenever a packet arrives, so it allows a
 responsive handshake up to 10 seconds. Phantom cannot see handshake packets

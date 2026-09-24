@@ -50,22 +50,19 @@ macro_rules! fixture_set {
     };
 }
 
-const CHROME: [&str; 9] = fixture_set!("chrome", "153.0.8010.48");
-const CHROME_154: [&str; 9] = fixture_set!("chrome", "154.0.8037.58");
+const CHROME: [&str; 9] = fixture_set!("chrome", "154.0.8037.58");
 const EDGE: [&str; 9] = fixture_set!("edge", "153.0.4234.48");
 const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0");
 
 #[test]
-fn chromium_153_websocket_recipe_matches_chrome_and_edge_captures() -> TestResult {
-    let recipe = chromium::v153_websocket();
-    let http2 = chromium::v153_http2();
-    let tls = chromium::v153_tls();
-    // Chrome used its page session in two of three `refused-stream` runs; in
-    // the third the session closed before the socket opened.
-    // Chrome's first `refused-stream` run opened over HTTP/1.1 instead, so it
-    // carries no refusal to compare.
+fn chromium_154_websocket_recipe_matches_chrome_and_edge_captures() -> TestResult {
+    let recipe = chromium::v154_websocket();
+    let http2 = chromium::v154_http2();
+    let tls = chromium::v154_tls();
+    // Every `refused-stream` run of both browsers opened over the page's H2
+    // session, so each carries a refusal to compare.
     for (fixtures, client, reused, http1, refused) in [
-        (CHROME, "Google Chrome", 14, 7, 2),
+        (CHROME, "Google Chrome", 15, 6, 3),
         (EDGE, "Microsoft Edge", 15, 6, 3),
     ] {
         let summary = assert_recipe_matches(&fixtures, client, &recipe, &http2, &tls)?;
@@ -75,23 +72,6 @@ fn chromium_153_websocket_recipe_matches_chrome_and_edge_captures() -> TestResul
         assert_eq!(summary.empty_messages, 6, "{client}");
         assert_eq!(summary.refused_stream_runs, refused, "{client}");
     }
-    Ok(())
-}
-
-#[test]
-fn chromium_154_websocket_recipe_matches_chrome_captures() -> TestResult {
-    let summary = assert_recipe_matches(
-        &CHROME_154,
-        "Google Chrome",
-        &chromium::v154_websocket(),
-        &chromium::v154_http2(),
-        &chromium::v154_tls(),
-    )?;
-    assert_eq!(summary.new_http2_connections, 0);
-    assert_eq!(summary.empty_messages, 6);
-    // Every `refused-stream` run opened over the page's H2 session and
-    // retried once on the next client stream id.
-    assert_eq!(summary.refused_stream_runs, 3);
     Ok(())
 }
 
@@ -114,8 +94,8 @@ fn firefox_156_websocket_recipe_matches_captures() -> TestResult {
 
 #[test]
 fn http1_upgrade_tls_settings_replace_only_alpn_and_unoffered_alps() {
-    let policy = chromium::v153_websocket().connection;
-    let base = chromium::v153_tls();
+    let policy = chromium::v154_websocket().connection;
+    let base = chromium::v154_tls();
     let derived = policy.http1_tls_settings(&base);
 
     assert_eq!(derived.alpn_protocols, [Box::from(*b"http/1.1")]);
@@ -148,7 +128,7 @@ fn validation_rejects_alpn_that_cannot_carry_an_upgrade() {
 
 #[test]
 fn validation_rejects_templates_unusable_by_their_protocol() {
-    let mut settings = chromium::v153_websocket();
+    let mut settings = chromium::v154_websocket();
     settings
         .http2_fields
         .push(WebSocketField::caller("User-Agent"));
@@ -157,13 +137,13 @@ fn validation_rejects_templates_unusable_by_their_protocol() {
         Err("http2_fields")
     );
 
-    let mut settings = chromium::v153_websocket();
+    let mut settings = chromium::v154_websocket();
     settings
         .http2_fields
         .push(WebSocketField::key("sec-websocket-key"));
     assert!(settings.validate().is_err());
 
-    let mut settings = chromium::v153_websocket();
+    let mut settings = chromium::v154_websocket();
     settings
         .http1_fields
         .retain(|field| !matches!(field, WebSocketField::Key { .. }));
@@ -172,7 +152,7 @@ fn validation_rejects_templates_unusable_by_their_protocol() {
         Err("http1_fields")
     );
 
-    let mut settings = chromium::v153_websocket();
+    let mut settings = chromium::v154_websocket();
     settings
         .http1_fields
         .push(WebSocketField::literal("Bad Name", "x"));

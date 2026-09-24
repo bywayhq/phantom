@@ -1,7 +1,7 @@
 # Getting started
 
 In about fifteen minutes you build Phantom and send one HTTP/2 request with
-Chrome 152's TLS handshake, HTTP/2 settings, and client hints. Most of that
+Chrome 154's TLS handshake, HTTP/2 settings, and client hints. Most of that
 time is the first build of BoringSSL. When you finish, continue with
 [Using the client](guides/client.md).
 
@@ -57,9 +57,9 @@ use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, HttpProtocol, RequestHeader};
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v152_tls())
-        .with_http2(chromium::v152_http2())
-        .with_client_hints(chromium::v152_macos_client_hints());
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_client_hints(chromium::v154_windows_client_hints());
 
     let client = Client::builder(profile).build()?;
     let response = client
@@ -75,10 +75,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 What each step does:
 
-1. `ClientProfile::new(chromium::v152_tls())` starts from Chrome 152's TLS
+1. `ClientProfile::new(chromium::v154_tls())` starts from Chrome 154's TLS
    ClientHello, the first message the client sends on every HTTPS
    connection.
-2. `with_http2` adds Chrome 152's HTTP/2 settings, and `with_client_hints`
+2. `with_http2` adds Chrome 154's HTTP/2 settings, and `with_client_hints`
    adds its client-hint fields.
 3. `Client::builder(profile).build()` creates a client. Build it once and
    clone it; clones share pools and state.

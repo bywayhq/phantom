@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn new_owns_tls_settings_without_enabling_http2() {
-        let tls = chromium::v152_tls();
+        let tls = chromium::v154_tls();
         let profile = ClientProfile::new(tls.clone());
 
         assert_eq!(profile.tls(), &tls);
@@ -190,16 +190,16 @@ mod tests {
 
     #[test]
     fn with_tcp_owns_and_exposes_tcp_settings() {
-        let tcp = chromium::v153_tcp();
-        let profile = ClientProfile::new(chromium::v153_tls()).with_tcp(tcp);
+        let tcp = chromium::v154_tcp();
+        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
 
         assert_eq!(profile.tcp(), Some(&tcp));
     }
 
     #[test]
     fn with_http2_owns_and_exposes_http2_settings() {
-        let tls = chromium::v152_tls();
-        let http2 = chromium::v152_http2();
+        let tls = chromium::v154_tls();
+        let http2 = chromium::v154_http2();
         let profile = ClientProfile::new(tls.clone()).with_http2(http2.clone());
 
         assert_eq!(profile.tls(), &tls);
@@ -213,17 +213,17 @@ mod tests {
             "value",
             ClientHintDelivery::Default,
         )]);
-        let profile = ClientProfile::new(chromium::v152_tls()).with_client_hints(hints.clone());
+        let profile = ClientProfile::new(chromium::v154_tls()).with_client_hints(hints.clone());
 
         assert_eq!(profile.client_hints(), Some(&hints));
     }
 
     #[test]
     fn http3_settings_own_and_expose_each_protocol_layer() {
-        let tls = chromium::v152_tls();
-        let quic_transport = chromium::v152_quic();
-        let http3 = chromium::v152_http3();
-        let request = chromium::v152_http3_request();
+        let tls = chromium::v154_tls();
+        let quic_transport = chromium::v154_quic();
+        let http3 = chromium::v154_http3();
+        let request = chromium::v154_http3_request();
         let settings = Http3ClientSettings::new(
             tls.clone(),
             quic_transport.clone(),
@@ -239,8 +239,8 @@ mod tests {
 
     #[test]
     fn with_http3_owns_and_exposes_http3_settings() {
-        let tcp_tls = chromium::v152_tls();
-        let mut http3_tls = chromium::v152_tls();
+        let tcp_tls = chromium::v154_tls();
+        let mut http3_tls = chromium::v154_tls();
         http3_tls.min_version = TlsVersion::Tls13;
         http3_tls.max_version = TlsVersion::Tls13;
         http3_tls.cipher_suites = vec![
@@ -251,12 +251,12 @@ mod tests {
         http3_tls.alpn_protocols = vec![Box::from(*b"h3")];
         http3_tls.alps = None;
         http3_tls.session_tickets = false;
-        let http2 = chromium::v152_http2();
+        let http2 = chromium::v154_http2();
         let http3 = Http3ClientSettings::new(
             http3_tls.clone(),
-            chromium::v152_quic(),
-            chromium::v152_http3(),
-            chromium::v152_http3_request(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
         );
         let profile = ClientProfile::new(tcp_tls.clone())
             .with_http2(http2.clone())

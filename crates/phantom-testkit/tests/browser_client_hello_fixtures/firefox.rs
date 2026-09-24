@@ -3,18 +3,21 @@ use phantom_testkit::tls::is_grease;
 use super::{TestResult, fixture::Fixture, redecode};
 
 const FIXTURE_TEXT: &str = include_str!(concat!(
-    "../../../../fixtures/tls/firefox/154.0/",
-    "macos-15.5/client-hello.txt"
+    "../../../../fixtures/tls/firefox/156.0/",
+    "windows-11-26200/client-hello.txt"
 ));
 
 #[tokio::test]
-async fn firefox_154_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
+async fn firefox_156_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
     assert_eq!(fixture.value("format")?, "phantom-client-hello-v2");
-    assert_eq!(fixture.value("captured_at_unix")?, "1789497815");
+    assert_eq!(fixture.value("captured_at_unix")?, "1790020622");
     assert_eq!(fixture.value("browser")?, "Mozilla Firefox");
-    assert_eq!(fixture.value("browser_version")?, "154.0");
-    assert_eq!(fixture.value("operating_system")?, "macOS 15.5 (24F74)");
+    assert_eq!(fixture.value("browser_version")?, "156.0");
+    assert_eq!(
+        fixture.value("operating_system")?,
+        "Windows 11 Home 10.0.26200 x64"
+    );
     assert_eq!(fixture.value("hostname")?, "localhost");
     assert_eq!(fixture.value("listen_address")?, "127.0.0.1:9446");
     assert_eq!(fixture.value("launch_mode")?, "command-line");
@@ -22,7 +25,7 @@ async fn firefox_154_fixture_retains_exact_metadata_and_client_hello() -> TestRe
         fixture.value("launch_arguments")?,
         "--headless --no-remote --profile <temporary-profile>"
     );
-    assert_eq!(fixture.records().concat().len(), 1_890);
+    assert_eq!(fixture.records().concat().len(), 1_887);
 
     let summary = redecode(&fixture).await?;
     assert_eq!(summary.legacy_version(), 0x0303);
@@ -35,7 +38,7 @@ async fn firefox_154_fixture_retains_exact_metadata_and_client_hello() -> TestRe
     );
     assert_eq!(
         summary.supported_groups(),
-        [0x11ec, 0x001d, 0x0017, 0x0018, 0x0019, 0x0100, 0x0101]
+        [0x11ec, 0x001d, 0x0017, 0x0018, 0x0019]
     );
     assert_eq!(summary.ec_point_formats(), [0]);
     assert_eq!(
@@ -68,7 +71,7 @@ async fn firefox_154_fixture_retains_exact_metadata_and_client_hello() -> TestRe
             (0x0000, 14),
             (0x0017, 0),
             (0xff01, 1),
-            (0x000a, 16),
+            (0x000a, 12),
             (0x000b, 2),
             (0x0023, 0),
             (0x0010, 14),
@@ -81,7 +84,7 @@ async fn firefox_154_fixture_retains_exact_metadata_and_client_hello() -> TestRe
             (0x002d, 2),
             (0x001c, 2),
             (0x001b, 7),
-            (0xfe0d, 281),
+            (0xfe0d, 282),
         ]
     );
     Ok(())

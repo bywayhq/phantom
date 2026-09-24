@@ -34,7 +34,7 @@ pub(crate) fn client_builder(identity: &TestIdentity, http2: bool) -> ClientBuil
     }
     let mut profile = ClientProfile::new(tls);
     if http2 {
-        profile = profile.with_http2(chromium::v152_http2());
+        profile = profile.with_http2(chromium::v154_http2());
     }
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }

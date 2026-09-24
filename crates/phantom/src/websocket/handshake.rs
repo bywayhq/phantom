@@ -754,7 +754,7 @@ mod tests {
 
     #[test]
     fn profile_templates_convert_to_valid_openings() -> Result<(), super::WebSocketError> {
-        let settings = chromium::v153_websocket();
+        let settings = chromium::v154_websocket();
         let http1 = prepare(
             profile_headers(&settings.http1_fields)?,
             "example.test",

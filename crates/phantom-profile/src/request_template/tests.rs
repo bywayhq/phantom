@@ -64,33 +64,22 @@ macro_rules! websocket_set {
     };
 }
 
-const CHROME_SSE: [&str; 17] = sse_set!("chrome/153.0.8010.48");
+const CHROME_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
 const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/156.0");
-const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/153.0.8010.48");
+const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
 const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/153.0.4234.48");
 const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/156.0");
 const CHROME_HEADFUL_SSE: &str =
-    fixture!("sse/chrome/153.0.8010.48/windows-11-26200/launch-mode/retry-750-headful.txt");
+    fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headful.txt");
 const CHROME_HEADLESS_SSE: &str =
-    fixture!("sse/chrome/153.0.8010.48/windows-11-26200/launch-mode/retry-750-headless.txt");
+    fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headless.txt");
 const CHROME_HTTP3: &str =
-    fixture!("http3/chrome/153.0.8010.48/windows-11-26200/client-startup.txt");
+    fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
 const EDGE_HTTP3: &str = fixture!("http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt");
 const CHROME_CLIENT_HINTS: &str =
-    fixture!("client-hints/chrome/153.0.8010.48/windows-11-26200/navigation.txt");
+    fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
 const EDGE_CLIENT_HINTS: &str =
     fixture!("client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt");
-const CHROME_154_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
-const CHROME_154_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
-const CHROME_154_HEADFUL_SSE: &str =
-    fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headful.txt");
-const CHROME_154_HEADLESS_SSE: &str =
-    fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headless.txt");
-const CHROME_154_HTTP3: &str =
-    fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
-const CHROME_154_CLIENT_HINTS: &str =
-    fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
-
 /// Which protocol list of a template a capture is compared with.
 #[derive(Clone, Copy, Debug)]
 enum Protocol {
@@ -209,8 +198,6 @@ fn assert_all_match(
 #[test]
 fn every_template_recipe_is_valid() {
     for template in [
-        chromium::v153_windows_navigation_template(),
-        chromium::v153_windows_fetch_no_store_template(),
         chromium::v154_windows_navigation_template(),
         chromium::v154_windows_fetch_no_store_template(),
         edge::v153_windows_navigation_template(),
@@ -223,9 +210,9 @@ fn every_template_recipe_is_valid() {
 }
 
 #[test]
-fn chrome_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = chromium::v153_windows_navigation_template();
-    let hints = chromium::v153_windows_client_hints();
+fn chrome_154_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = chromium::v154_windows_navigation_template();
+    let hints = chromium::v154_windows_client_hints();
     let (http1, http2) = observed(&[&CHROME_SSE, &CHROME_WEBSOCKET], "page", "document")?;
     assert_all_match(
         &template,
@@ -256,8 +243,8 @@ fn chrome_153_navigation_matches_every_captured_page_request() -> CaptureResult<
 }
 
 #[test]
-fn chrome_153_navigation_user_agent_is_the_headful_capture_value() -> CaptureResult<()> {
-    let template = chromium::v153_windows_navigation_template();
+fn chrome_154_navigation_user_agent_is_the_headful_capture_value() -> CaptureResult<()> {
+    let template = chromium::v154_windows_navigation_template();
     let literal = |fields: &[RequestField]| {
         fields.iter().find_map(|field| match field {
             RequestField::Literal { name, value } if name.eq_ignore_ascii_case("user-agent") => {
@@ -283,105 +270,9 @@ fn chrome_153_navigation_user_agent_is_the_headful_capture_value() -> CaptureRes
     assert!(!headless.is_empty());
     for request in &headless {
         assert!(request.iter().any(
-            |(name, value)| name == "User-Agent" && value.contains("HeadlessChrome/153.0.0.0")
-        ));
-    }
-    Ok(())
-}
-
-#[test]
-fn chrome_154_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = chromium::v154_windows_navigation_template();
-    let hints = chromium::v154_windows_client_hints();
-    let (http1, http2) = observed(
-        &[&CHROME_154_SSE, &CHROME_154_WEBSOCKET],
-        "page",
-        "document",
-    )?;
-    assert_all_match(
-        &template,
-        Protocol::Http1,
-        Some(&hints),
-        &http1,
-        170,
-        "chrome 154 h1",
-    );
-    assert_all_match(
-        &template,
-        Protocol::Http2,
-        Some(&hints),
-        &http2,
-        18,
-        "chrome 154 h2",
-    );
-    let http3 = [Capture::parse(CHROME_154_HTTP3)?.http3_request()?];
-    assert_all_match(
-        &template,
-        Protocol::Http3,
-        Some(&hints),
-        &http3,
-        1,
-        "chrome 154 h3",
-    );
-    Ok(())
-}
-
-#[test]
-fn chrome_154_navigation_user_agent_is_the_headful_capture_value() -> CaptureResult<()> {
-    let template = chromium::v154_windows_navigation_template();
-    let literal = |fields: &[RequestField]| {
-        fields.iter().find_map(|field| match field {
-            RequestField::Literal { name, value } if name.eq_ignore_ascii_case("user-agent") => {
-                Some(value.to_string())
-            }
-            _ => None,
-        })
-    };
-    let expected = literal(&template.http1_fields);
-    assert_eq!(literal(&template.http2_fields), expected);
-    assert_eq!(
-        literal(template.http3_fields.as_deref().unwrap_or(&[])),
-        expected
-    );
-
-    let headful = Capture::parse(CHROME_154_HEADFUL_SSE)?.http1_requests("page")?;
-    assert_eq!(headful.len(), 5);
-    for request in &headful {
-        let user_agent = request.iter().find(|(name, _)| name == "User-Agent");
-        assert_eq!(user_agent.map(|(_, value)| value.clone()), expected);
-    }
-    let headless = Capture::parse(CHROME_154_HEADLESS_SSE)?.http1_requests("page")?;
-    assert!(!headless.is_empty());
-    for request in &headless {
-        assert!(request.iter().any(
             |(name, value)| name == "User-Agent" && value.contains("HeadlessChrome/154.0.0.0")
         ));
     }
-    Ok(())
-}
-
-#[test]
-fn chrome_154_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
-    let template = chromium::v154_windows_fetch_no_store_template();
-    let hints = chromium::v154_windows_client_hints();
-    let (http1, http2) = observed(&[&CHROME_154_WEBSOCKET], "done", "empty")?;
-    assert_all_match(
-        &template,
-        Protocol::Http1,
-        Some(&hints),
-        &http1,
-        6,
-        "chrome 154",
-    );
-    assert_all_match(
-        &template,
-        Protocol::Http2,
-        Some(&hints),
-        &http2,
-        18,
-        "chrome 154",
-    );
-    assert_eq!(template.http3_fields, None);
     Ok(())
 }
 
@@ -429,11 +320,11 @@ fn firefox_156_navigation_matches_every_captured_page_request() -> CaptureResult
 }
 
 #[test]
-fn chromium_153_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
+fn chromium_154_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
     for (template, hints, set, label) in [
         (
-            chromium::v153_windows_fetch_no_store_template(),
-            chromium::v153_windows_client_hints(),
+            chromium::v154_windows_fetch_no_store_template(),
+            chromium::v154_windows_client_hints(),
             &CHROME_WEBSOCKET,
             "chrome",
         ),
@@ -471,9 +362,9 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
     // The client-hint capture recorded Chrome and Edge navigations after
     // `Accept-CH`; no capture recorded a fetch after it.
     for (template, placed) in [
-        (chromium::v153_windows_navigation_template(), true),
+        (chromium::v154_windows_navigation_template(), true),
         (edge::v153_windows_navigation_template(), true),
-        (chromium::v153_windows_fetch_no_store_template(), false),
+        (chromium::v154_windows_fetch_no_store_template(), false),
         (edge::v153_windows_fetch_no_store_template(), false),
         (firefox::v156_windows_navigation_template(), false),
         (firefox::v156_windows_fetch_no_store_template(), false),
@@ -486,13 +377,13 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
     let cases: [(RequestTemplate, &[&str], &str, u16); 6] = [
         (
-            chromium::v153_windows_navigation_template(),
+            chromium::v154_windows_navigation_template(),
             &CHROME_WEBSOCKET,
             "document",
             256,
         ),
         (
-            chromium::v153_windows_fetch_no_store_template(),
+            chromium::v154_windows_fetch_no_store_template(),
             &CHROME_WEBSOCKET,
             "empty",
             220,
@@ -541,8 +432,8 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
     // The fetch weights differ from the connection recipes' HEADERS
     // priority, so the template, not the H2 settings, must supply them.
     assert_ne!(
-        chromium::v153_windows_fetch_no_store_template().http2_priority,
-        chromium::v153_http2().headers_priority
+        chromium::v154_windows_fetch_no_store_template().http2_priority,
+        chromium::v154_http2().headers_priority
     );
     assert_ne!(
         firefox::v156_windows_fetch_no_store_template().http2_priority,
@@ -554,11 +445,7 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
 #[test]
 fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> CaptureResult<()> {
     for (fixture, hints) in [
-        (CHROME_CLIENT_HINTS, chromium::v153_windows_client_hints()),
-        (
-            CHROME_154_CLIENT_HINTS,
-            chromium::v154_windows_client_hints(),
-        ),
+        (CHROME_CLIENT_HINTS, chromium::v154_windows_client_hints()),
         (EDGE_CLIENT_HINTS, edge::v153_windows_client_hints()),
     ] {
         use crate::ClientHintDelivery::Default;
@@ -611,7 +498,7 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
 
 #[test]
 fn validation_rejects_generated_repeated_and_misplaced_fields() {
-    let mut template = chromium::v153_windows_navigation_template();
+    let mut template = chromium::v154_windows_navigation_template();
     template.http2_fields[1] = RequestField::literal("Upgrade-Insecure-Requests", "1");
     assert_eq!(
         template.validate().map_err(|error| error.field()),
@@ -630,12 +517,12 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
         RequestField::caller("COOKIE"),
         RequestField::literal("Cookie", "a=b"),
     ] {
-        let mut template = chromium::v153_windows_navigation_template();
+        let mut template = chromium::v154_windows_navigation_template();
         template.http1_fields.push(field);
         assert!(template.validate().is_err(), "HTTP/1.1 Cookie");
     }
     for protocol in [Protocol::Http2, Protocol::Http3] {
-        let mut template = chromium::v153_windows_navigation_template();
+        let mut template = chromium::v154_windows_navigation_template();
         let list = match protocol {
             Protocol::Http2 => &mut template.http2_fields,
             _ => template.http3_fields.get_or_insert_with(Vec::new),
@@ -658,13 +545,13 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
     template.http1_fields.push(RequestField::ClientHints);
     assert!(template.validate().is_err(), "hint slot at the end");
 
-    let mut template = chromium::v153_windows_fetch_no_store_template();
+    let mut template = chromium::v154_windows_fetch_no_store_template();
     template
         .http2_fields
         .retain(|field| field != &RequestField::ClientHints);
     assert!(template.validate().is_err(), "single slots need a block");
 
-    let mut template = chromium::v153_windows_navigation_template();
+    let mut template = chromium::v154_windows_navigation_template();
     template.http1_fields.swap(1, 2);
     assert_eq!(
         template.validate().map_err(|error| error.field()),
@@ -672,7 +559,7 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
         "hints placed differently on HTTP/1.1"
     );
 
-    let mut template = chromium::v153_windows_navigation_template();
+    let mut template = chromium::v154_windows_navigation_template();
     template
         .identity
         .excluded_user_agent_products
@@ -683,7 +570,7 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
     );
 
     for (dependency_stream_id, weight) in [(3, 220), (0, 0), (0, 257)] {
-        let mut template = chromium::v153_windows_fetch_no_store_template();
+        let mut template = chromium::v154_windows_fetch_no_store_template();
         template.http2_priority = Some(crate::Http2Priority {
             dependency_stream_id,
             weight,
@@ -732,10 +619,10 @@ fn cookie_placement_presets_find_their_neighbours_in_every_template_list() {
 
     // Chromium: last on HTTP/1.1, which sends no `Priority`; before the
     // final `priority` field on HTTP/2 and HTTP/3.
-    let placement = chromium::v153_cookie_placement();
+    let placement = chromium::v154_cookie_placement();
     for template in [
-        chromium::v153_windows_navigation_template(),
-        chromium::v153_windows_fetch_no_store_template(),
+        chromium::v154_windows_navigation_template(),
+        chromium::v154_windows_fetch_no_store_template(),
         edge::v153_windows_navigation_template(),
         edge::v153_windows_fetch_no_store_template(),
     ] {
@@ -763,7 +650,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
             "{name}"
         );
 
-        let mut template = chromium::v153_windows_navigation_template();
+        let mut template = chromium::v154_windows_navigation_template();
         if let Some(fields) = &mut template.http3_fields {
             fields.push(RequestField::caller(name));
         }
@@ -791,7 +678,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
 
     // HTTP/1.1 lists keep `Connection: keep-alive`.
     assert!(
-        chromium::v153_windows_navigation_template()
+        chromium::v154_windows_navigation_template()
             .http1_fields
             .contains(&RequestField::literal("Connection", "keep-alive"))
     );
@@ -800,7 +687,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
 #[test]
 fn client_hint_placement_names_fields_up_to_the_first_literal() {
     let chrome =
-        client_hint_placement(&chromium::v153_windows_fetch_no_store_template().http1_fields);
+        client_hint_placement(&chromium::v154_windows_fetch_no_store_template().http1_fields);
     let edge = client_hint_placement(&edge::v153_windows_fetch_no_store_template().http2_fields);
     let names = |slots: &[super::ClientHintSlot]| {
         slots
@@ -833,8 +720,8 @@ fn client_hint_placement_names_fields_up_to_the_first_literal() {
 #[test]
 fn comparison_rejects_another_browsers_request() -> CaptureResult<()> {
     let (firefox_pages, _) = observed(&[&FIREFOX_WEBSOCKET], "page", "document")?;
-    let chrome = chromium::v153_windows_navigation_template();
-    let hints = chromium::v153_windows_client_hints();
+    let chrome = chromium::v154_windows_navigation_template();
+    let hints = chromium::v154_windows_client_hints();
     let outcome = std::panic::catch_unwind(|| {
         assert_matches(
             &chrome.http1_fields,

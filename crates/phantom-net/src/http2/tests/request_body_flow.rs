@@ -9,7 +9,7 @@ use std::{
 use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::{
     io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex},
     sync::oneshot,
@@ -32,7 +32,7 @@ async fn request_body_obeys_ordered_flow_control_and_reuses_connection() -> Test
         let (client, server) = duplex(256 * 1024);
         let (finish_tx, finish_rx) = oneshot::channel();
         let peer = tokio::spawn(run_flow_control_peer(server, finish_rx));
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let root = connection
             .send_get("example.test", OriginForm::parse("/")?, Vec::new())

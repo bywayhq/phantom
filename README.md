@@ -59,8 +59,8 @@ module that calls BoringSSL's QUIC API.
 | Area | Available today |
 | --- | --- |
 | Protocols | HTTP/1.1, HTTP/2, and HTTP/3. Choose one exactly, let the server pick between HTTP/1.1 and HTTP/2, or opt in to Alt-Svc upgrade to HTTP/3 |
-| Browsers | Chrome 152 and 153, Edge 153, Firefox 154 and 156, Safari 18.5 (TLS only). [What each recipe covers](docs/guides/profiles.md#built-in-recipes) |
-| Request templates | Captured navigation and `fetch` request fields for Chrome 153, Edge 153, and Firefox 156 |
+| Browsers | Chrome 154, Edge 153, Firefox 156: one version per browser, the current stable build on the capture host. [What each recipe covers](docs/guides/profiles.md#built-in-recipes) |
+| Request templates | Captured navigation and `fetch` request fields for Chrome 154, Edge 153, and Firefox 156 |
 | Proxies | HTTP (CONNECT and forwarding), SOCKS5, and CONNECT-UDP for HTTP/3 |
 | Client state | Connection pools, redirects, retries, cookies, client hints, Alt-Svc, and TLS session reuse, each opt-in where it changes behavior |
 | Streaming | Server-sent events and WebSocket |
@@ -77,9 +77,9 @@ use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, HttpProtocol, RequestHeader};
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v152_tls())
-        .with_http2(chromium::v152_http2())
-        .with_client_hints(chromium::v152_macos_client_hints());
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_client_hints(chromium::v154_windows_client_hints());
 
     let client = Client::builder(profile).build()?;
     let response = client
@@ -93,7 +93,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-To the server, this request has Chrome 152's TLS handshake, HTTP/2 settings,
+To the server, this request has Chrome 154's TLS handshake, HTTP/2 settings,
 and client hints. It always uses HTTP/2. Use `get_negotiated` instead to let
 the server choose HTTP/1.1 or HTTP/2 in one handshake. Requests run inside a
 Tokio runtime with I/O and timers enabled.

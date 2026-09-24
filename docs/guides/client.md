@@ -14,7 +14,7 @@ from it picks a protocol and adds its own fields and body. Read
 - **Profile**: the fixed description of what the client puts on the wire, such
   as the TLS ClientHello, HTTP/2 and HTTP/3 settings, QUIC transport
   parameters, and client hints. See [Browser profiles](profiles.md).
-- **Recipe**: a built-in profile component, such as `chromium::v152_tls()`.
+- **Recipe**: a built-in profile component, such as `chromium::v154_tls()`.
   Most come from browser captures; TCP recipes come from browser source.
 - **Exact protocol**: the request uses the protocol you chose or fails. It
   never falls back to another one.
@@ -49,8 +49,8 @@ use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, RedirectPolicy, RequestTimeouts, RetryPolicy};
 
 fn build() -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v152_tls())
-        .with_http2(chromium::v152_http2());
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2());
     let timeouts = RequestTimeouts::new()
         .connect(Duration::from_secs(10))
         .response_head(Duration::from_secs(20))

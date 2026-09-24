@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     sync::oneshot,
@@ -20,7 +20,7 @@ async fn legal_control_and_fragmentation_probes_preserve_connection() -> TestRes
         let (finish_tx, finish_rx) = oneshot::channel();
         let peer = tokio::spawn(run_adversarial_peer(server, finish_rx));
 
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
         let first = connection
             .send_get("example.test", target()?, Vec::new())
             .await?;

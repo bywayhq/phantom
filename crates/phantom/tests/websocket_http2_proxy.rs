@@ -483,7 +483,7 @@ fn h2_websocket_client(
     proxy_root: Option<Vec<u8>>,
     route: Route,
 ) -> TestResult<Client> {
-    let mut http2 = chromium::v152_http2();
+    let mut http2 = chromium::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,

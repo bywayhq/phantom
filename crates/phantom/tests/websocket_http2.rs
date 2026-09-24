@@ -364,7 +364,7 @@ async fn non_success_response_preserves_status_and_body() -> TestResult<()> {
 }
 
 fn http2_websocket_client(identity: &TestIdentity) -> TestResult<Client> {
-    let mut http2 = chromium::v152_http2();
+    let mut http2 = chromium::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,

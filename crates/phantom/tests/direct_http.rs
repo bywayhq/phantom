@@ -342,7 +342,7 @@ async fn non_http1_and_socks5_plaintext_fail_before_tcp_io() -> TestResult<()> {
         let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin.local_addr()?;
         let profile = ClientProfile::new(tls_settings())
-            .with_http2(chromium::v152_http2())
+            .with_http2(chromium::v154_http2())
             .with_http3(client_settings());
         let client = Client::builder(profile).build()?;
         let target = format!("http://{origin_address}/unsupported");

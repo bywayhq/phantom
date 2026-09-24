@@ -69,7 +69,7 @@ fn request_debug_reports_shape_without_body_contents() -> TestResult<()> {
 
 #[test]
 fn runtime_without_io_returns_error_and_records_error_outcomes() -> TestResult<()> {
-    let profile = ClientProfile::new(chromium::v152_tls());
+    let profile = ClientProfile::new(chromium::v154_tls());
     let client = Client::builder(profile).build()?;
     let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
     let subscriber = OutcomeSubscriber::default();
@@ -1037,13 +1037,13 @@ fn invalid_http2_profile_has_stable_build_category() -> TestResult<()> {
     let mut tls = tls_settings();
     tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
     let error =
-        match Client::builder(ClientProfile::new(tls).with_http2(chromium::v152_http2())).build() {
+        match Client::builder(ClientProfile::new(tls).with_http2(chromium::v154_http2())).build() {
             Ok(_) => return Err("HTTP/2 profile without h2 ALPN was accepted".into()),
             Err(error) => error,
         };
     assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
 
-    let mut http2 = chromium::v152_http2();
+    let mut http2 = chromium::v154_http2();
     http2.initial_connection_window_size = 65_534;
     let error = match Client::builder(ClientProfile::new(tls_settings()).with_http2(http2)).build()
     {
@@ -1077,10 +1077,10 @@ fn contradictory_server_authentication_policy_fails_during_build() -> TestResult
 #[test]
 fn disabled_server_authentication_rejects_http3_during_build() -> TestResult<()> {
     let http3 = Http3ClientSettings::new(
-        chromium::v152_http3_tls(),
-        chromium::v152_quic(),
-        chromium::v152_http3(),
-        chromium::v152_http3_request(),
+        chromium::v154_http3_tls(),
+        chromium::v154_quic(),
+        chromium::v154_http3(),
+        chromium::v154_http3_request(),
     );
     let error = match Client::builder(ClientProfile::new(tls_settings()).with_http3(http3))
         .server_authentication(ServerAuthentication::Disabled)

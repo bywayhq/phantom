@@ -5,19 +5,19 @@ use phantom_testkit::tls::ClientHelloSummary;
 use super::TestResult;
 
 const FIRST: &str = include_str!(concat!(
-    "../../../../fixtures/http3/chrome/152.0.7977.83/",
-    "macos-15.5/quic-client-hello-1.txt"
+    "../../../../fixtures/http3/chrome/154.0.8037.58/",
+    "windows-11-26200/quic-client-hello-1.txt"
 ));
 const SECOND: &str = include_str!(concat!(
-    "../../../../fixtures/http3/chrome/152.0.7977.83/",
-    "macos-15.5/quic-client-hello-2.txt"
+    "../../../../fixtures/http3/chrome/154.0.8037.58/",
+    "windows-11-26200/quic-client-hello-2.txt"
 ));
 const EXPECTED_EXTENSIONS: [u16; 12] = [
     0x0000, 0x000a, 0x000d, 0x0010, 0x001b, 0x002b, 0x002d, 0x0033, 0x0039, 0x44cd, 0xca34, 0xfe0d,
 ];
 
 #[test]
-fn chrome_152_quic_client_hello_retains_stable_fields() -> TestResult<()> {
+fn chrome_154_quic_client_hello_retains_stable_fields() -> TestResult<()> {
     let captures = [QuicFixture::parse(FIRST)?, QuicFixture::parse(SECOND)?];
     let summaries = captures
         .iter()
@@ -26,8 +26,8 @@ fn chrome_152_quic_client_hello_retains_stable_fields() -> TestResult<()> {
 
     for (capture, summary) in captures.iter().zip(&summaries) {
         assert_eq!(capture.client, "Google Chrome");
-        assert_eq!(capture.client_version, "152.0.7977.83");
-        assert_eq!(capture.operating_system, "macOS 15.5 (24F74)");
+        assert_eq!(capture.client_version, "154.0.8037.58");
+        assert_eq!(capture.operating_system, "Windows 11 Home 10.0.26200 x64");
         assert_eq!(capture.hostname, "server.phantom.test");
         assert!(capture.listen_address.ip().is_loopback());
         assert_eq!(capture.quic_version, 1);
@@ -47,7 +47,7 @@ fn chrome_152_quic_client_hello_retains_stable_fields() -> TestResult<()> {
         assert_eq!(summary.alpn_protocols(), [b"h3".as_slice()]);
         assert_eq!(
             summary.requested_trust_anchor_ids().map(<[_]>::len),
-            Some(32)
+            Some(28)
         );
 
         let mut extensions = summary.extension_types().to_vec();

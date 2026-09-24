@@ -1,7 +1,7 @@
 //! Fixture-backed tests of profile WebSocket connection choice and openings.
 //!
 //! Each test drives `Client::websocket_with_profile_policy` against a loopback
-//! origin and compares what the origin observed with a retained Chrome 153,
+//! origin and compares what the origin observed with a retained Chrome 154,
 //! Edge 153, or Firefox 156 capture from `fixtures/websocket/`.
 #![cfg(feature = "websocket")]
 
@@ -50,11 +50,11 @@ macro_rules! fixture {
     };
 }
 
-const CHROME_ACCEPT: &str = fixture!("chrome/153.0.8010.48/windows-11-26200/accept.txt");
-const CHROME_FRESH: &str = fixture!("chrome/153.0.8010.48/windows-11-26200/fresh-origin.txt");
+const CHROME_ACCEPT: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/accept.txt");
+const CHROME_FRESH: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/fresh-origin.txt");
 const CHROME_NO_CONNECT: &str =
-    fixture!("chrome/153.0.8010.48/windows-11-26200/no-connect-protocol.txt");
-const CHROME_H1: &str = fixture!("chrome/153.0.8010.48/windows-11-26200/h1-accept.txt");
+    fixture!("chrome/154.0.8037.58/windows-11-26200/no-connect-protocol.txt");
+const CHROME_H1: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/h1-accept.txt");
 const FIREFOX_H1: &str = fixture!("firefox/156.0/windows-11-26200/h1-accept.txt");
 const EDGE_ACCEPT: &str = fixture!("edge/153.0.4234.48/windows-11-26200/accept.txt");
 const EDGE_FRESH: &str = fixture!("edge/153.0.4234.48/windows-11-26200/fresh-origin.txt");
@@ -90,8 +90,8 @@ async fn chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shap
         assert_eq!(capture.value("client")?, client_name);
         assert_reuses_session(
             &capture,
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
             CHROMIUM_HPACK_DIFFERENCES,
         )
         .await?;
@@ -119,8 +119,8 @@ async fn chromium_without_a_session_upgrades_on_a_new_http1_only_connection() ->
         bounded(async {
             let identity = Arc::new(TestIdentity::generate()?);
             let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
-            let settings = chromium::v153_websocket();
-            let client = profile_client(&identity, chromium::v153_http2(), settings.clone())?;
+            let settings = chromium::v154_websocket();
+            let client = profile_client(&identity, chromium::v154_http2(), settings.clone())?;
 
             let socket = upgrade_like(&client, &server, &capture, &settings).await?;
             assert_eq!(socket.handshake_response().version(), Version::HTTP_11);
@@ -140,7 +140,7 @@ async fn chromium_without_a_session_upgrades_on_a_new_http1_only_connection() ->
 async fn chromium_with_an_incapable_session_upgrades_on_a_new_http1_only_connection()
 -> TestResult<()> {
     let capture = Capture::parse(CHROME_NO_CONNECT)?;
-    assert_incapable_session_upgrades(&capture, chromium::v153_http2(), chromium::v153_websocket())
+    assert_incapable_session_upgrades(&capture, chromium::v154_http2(), chromium::v154_websocket())
         .await
 }
 
@@ -188,8 +188,8 @@ async fn plaintext_websocket_upgrades_with_the_captured_http1_fields() -> TestRe
     for (fixture, http2, settings) in [
         (
             CHROME_H1,
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
         ),
         (FIREFOX_H1, firefox::v156_http2(), firefox::v156_websocket()),
     ] {
@@ -235,8 +235,8 @@ async fn rejected_connect_on_a_pooled_session_is_returned_without_fallback() -> 
         let server = TestServer::start(Arc::clone(&identity), behavior).await?;
         let client = profile_client(
             &identity,
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
         )?;
         ordinary_get(&client, &server).await?;
 
@@ -258,7 +258,7 @@ async fn rejected_connect_on_a_pooled_session_is_returned_without_fallback() -> 
     .await
 }
 
-/// Chrome 153 and Edge 153 answer `RST_STREAM(REFUSED_STREAM)` with one more
+/// Chrome 154 and Edge 153 answer `RST_STREAM(REFUSED_STREAM)` with one more
 /// extended CONNECT on the same session and the next client stream id, which
 /// the peer then accepted; see the retained `refused-stream` captures.
 #[tokio::test]
@@ -272,8 +272,8 @@ async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult
         let server = TestServer::start(Arc::clone(&identity), behavior).await?;
         let client = profile_client(
             &identity,
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
         )?;
         ordinary_get(&client, &server).await?;
 
@@ -322,8 +322,8 @@ async fn reopening_is_recorded_in_the_connect_span() -> TestResult<()> {
             let server = TestServer::start(Arc::clone(&identity), behavior).await?;
             let client = profile_client(
                 &identity,
-                chromium::v153_http2(),
-                chromium::v153_websocket(),
+                chromium::v154_http2(),
+                chromium::v154_websocket(),
             )?;
             ordinary_get(&client, &server).await?;
             websocket(&client, &server)?.connect().await?;
@@ -356,8 +356,8 @@ async fn reset_other_than_refused_stream_is_not_reopened() -> TestResult<()> {
             let server = TestServer::start(Arc::clone(&identity), behavior).await?;
             let client = profile_client(
                 &identity,
-                chromium::v153_http2(),
-                chromium::v153_websocket(),
+                chromium::v154_http2(),
+                chromium::v154_websocket(),
             )?;
             ordinary_get(&client, &server).await?;
 
@@ -397,8 +397,8 @@ async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestRes
         let server = TestServer::start(Arc::clone(&identity), behavior).await?;
         let client = profile_client(
             &identity,
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
         )?;
         ordinary_get(&client, &server).await?;
 
@@ -436,8 +436,8 @@ async fn session_shutdown_under_the_connect_stream_is_not_reopened() -> TestResu
             let server = TestServer::start(Arc::clone(&identity), behavior).await?;
             let client = profile_client(
                 &identity,
-                chromium::v153_http2(),
-                chromium::v153_websocket(),
+                chromium::v154_http2(),
+                chromium::v154_websocket(),
             )?;
             ordinary_get(&client, &server).await?;
 
@@ -532,8 +532,8 @@ async fn rejected_http1_upgrade_is_returned_without_another_connection() -> Test
         let server = TestServer::start(Arc::clone(&identity), behavior).await?;
         let client = profile_client(
             &identity,
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
         )?;
 
         let error = match websocket(&client, &server)?.connect().await {
@@ -582,7 +582,7 @@ async fn exact_http2_uses_the_profile_template_and_connect_priority() -> TestRes
 #[tokio::test]
 async fn profile_policy_requires_websocket_settings() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let profile = ClientProfile::new(tls_settings()).with_http2(chromium::v153_http2());
+    let profile = ClientProfile::new(tls_settings()).with_http2(chromium::v154_http2());
     let client = Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .build()?;
@@ -601,8 +601,8 @@ async fn profile_policy_rejects_a_replaced_field_sequence_before_io() -> TestRes
         let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
         let client = profile_client(
             &identity,
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
         )?;
         let error = match websocket(&client, &server)?
             .headers(vec![WebSocketHeader::field(RequestHeader::new(
@@ -732,9 +732,12 @@ async fn pooled_websocket_fails_with_capacity_when_origin_waiters_are_full() -> 
 
 #[test]
 fn websocket_policy_needs_an_extended_connect_order() -> TestResult<()> {
+    let mut http2 = chromium::v154_http2();
+    http2.extended_connect_pseudo_header_order = None;
+    http2.extended_connect_priority = None;
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v152_http2())
-        .with_websocket(chromium::v153_websocket());
+        .with_http2(http2)
+        .with_websocket(chromium::v154_websocket());
     let error = match Client::builder(profile).build() {
         Ok(_) => return Err("policy without an extended CONNECT order was accepted".into()),
         Err(error) => error,
@@ -977,8 +980,8 @@ fn bounded_client(
     max_pending: NonZeroUsize,
 ) -> TestResult<Client> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v153_http2())
-        .with_websocket(chromium::v153_websocket());
+        .with_http2(chromium::v154_http2())
+        .with_websocket(chromium::v154_websocket());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .max_concurrent_http2_requests_per_origin(max_active)
@@ -1115,15 +1118,15 @@ fn pseudo_order(headers: &H2Headers) -> Vec<&str> {
 }
 
 /// The recipe's empty-message rule must reach the wire, not just the policy
-/// object: Chrome 153 compresses a zero-length message and sets RSV1, while
+/// object: Chrome 154 compresses a zero-length message and sets RSV1, while
 /// Firefox 156 sends it with RSV1 clear and an empty payload.
 #[cfg(feature = "websocket-deflate")]
 #[tokio::test]
 async fn profile_empty_message_rule_reaches_the_wire() -> TestResult<()> {
     for (http2, settings, expected_empty) in [
         (
-            chromium::v153_http2(),
-            chromium::v153_websocket(),
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
             ClientDataFrame {
                 rsv1: true,
                 opcode: 0x1,

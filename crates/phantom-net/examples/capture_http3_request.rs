@@ -1,4 +1,4 @@
-//! Sends Phantom's Chrome 152 HTTP/3 request to the loopback capture server.
+//! Sends Phantom's Chrome 154 HTTP/3 request to the loopback capture server.
 //!
 //! The server owns packet decryption and fixture output. This client only
 //! supplies the profiled TLS, QUIC transport, HTTP/3 settings, and request
@@ -21,12 +21,12 @@ async fn main() -> CaptureResult<()> {
     require_loopback(arguments.remote)?;
 
     let certificate = X509::from_pem(&fs::read(&arguments.trust_root)?)?.to_der()?;
-    let tls = chromium::v152_http3_tls();
+    let tls = chromium::v154_http3_tls();
     let connector = Http3Connector::new_with_additional_roots(
         &tls,
-        &chromium::v152_quic(),
-        &chromium::v152_http3(),
-        &chromium::v152_http3_request(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
         std::iter::once(certificate.as_slice()),
     )?;
 

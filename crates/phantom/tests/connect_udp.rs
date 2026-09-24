@@ -685,8 +685,17 @@ async fn http2_leg_without_profile_extended_connect_order_fails_before_io() -> T
         let (origin_identity, proxy_identity) = identities()?;
         let proxy =
             MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay).await?;
-        // The default HTTP/2 profile has no verified extended CONNECT order.
-        let client = client_builder(&origin_identity, &proxy_identity)
+        // A profile whose HTTP/2 settings carry no extended CONNECT order
+        // cannot send one, whatever the route asks for.
+        let mut http2 = chromium::v154_http2();
+        http2.extended_connect_pseudo_header_order = None;
+        http2.extended_connect_priority = None;
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(http2)
+            .with_http3(masque_client_settings());
+        let client = Client::builder(profile)
+            .add_root_certificate_der(origin_identity.root_der.clone())
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .route(Route::connect_udp(
                 ConnectUdpProxy::new(&proxy.template())?.with_http2_transport(),
             ))
@@ -1054,7 +1063,7 @@ fn leg_client(
     proxy: &TestIdentity,
     route: ConnectUdpProxy,
 ) -> TestResult<Client> {
-    let mut http2 = chromium::v152_http2();
+    let mut http2 = chromium::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,
@@ -1078,7 +1087,7 @@ fn identities() -> TestResult<(TestIdentity, TestIdentity)> {
 
 fn profile() -> ClientProfile {
     ClientProfile::new(tls_settings())
-        .with_http2(chromium::v152_http2())
+        .with_http2(chromium::v154_http2())
         .with_http3(masque_client_settings())
 }
 

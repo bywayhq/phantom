@@ -58,13 +58,13 @@ fn client() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
         let http3 = Http3ClientSettings::new(
-            chromium::v152_http3_tls(),
-            chromium::v152_quic(),
-            chromium::v152_http3(),
-            chromium::v152_http3_request(),
+            chromium::v154_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
         );
-        let profile = ClientProfile::new(chromium::v152_tls())
-            .with_http2(chromium::v152_http2())
+        let profile = ClientProfile::new(chromium::v154_tls())
+            .with_http2(chromium::v154_http2())
             .with_http3(http3);
         let capacity = NonZeroUsize::new(ORIGIN_CAPACITY).expect("a non-zero store capacity");
         Client::builder(profile)

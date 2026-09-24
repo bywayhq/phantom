@@ -166,7 +166,7 @@ fn host_check_requires_an_interval_where_windows_semantics_apply() {
 #[test]
 fn this_host_accepts_the_chromium_recipe() {
     assert_eq!(
-        check_host_support(&phantom_profile::chromium::v153_tcp()),
+        check_host_support(&phantom_profile::chromium::v154_tcp()),
         Ok(())
     );
 }

@@ -3,7 +3,7 @@ use std::{future::poll_fn, task::Poll};
 use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::{io::DuplexStream, sync::oneshot, time::timeout};
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
@@ -17,7 +17,7 @@ async fn cancelling_a_stalled_upload_resets_only_that_stream() -> TestResult<()>
         let (client, server) = tokio::io::duplex(64 * 1024);
         let (accepted_tx, accepted_rx) = oneshot::channel();
         let peer = tokio::spawn(run_peer(server, accepted_tx));
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let root = connection
             .send_get("example.test", OriginForm::parse("/")?, Vec::new())

@@ -3,7 +3,7 @@ use std::{future::poll_fn, time::Duration};
 use bytes::Bytes;
 use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v152_http2;
+use phantom_profile::chromium::v154_http2;
 use tokio::time::timeout;
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
@@ -14,7 +14,7 @@ async fn early_final_response_cancels_upload_and_preserves_connection() -> TestR
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
         let peer = tokio::spawn(run_peer(server));
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let response = timeout(
             Duration::from_secs(1),
@@ -70,7 +70,7 @@ async fn early_incomplete_response_keeps_uploading_until_the_body_is_sent() -> T
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
         let peer = tokio::spawn(run_streaming_peer(server, UPLOAD_BYTES));
-        let connection = Http2Connection::connect(client, &v152_http2()).await?;
+        let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let response = connection
             .send_request_body(

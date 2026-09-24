@@ -54,10 +54,10 @@ Capture Chrome on Windows:
 uv run --no-project --python 3.10 python -m scripts.capture.sse_reconnect \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
-  --client-version 153.0.8010.48 \
+  --client-version 154.0.8037.58 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --scenario all --repeat 10 \
-  --output-dir fixtures/sse/chrome/153.0.8010.48/windows-11-26200
+  --output-dir fixtures/sse/chrome/154.0.8037.58/windows-11-26200
 ```
 
 For Firefox, use
@@ -118,10 +118,10 @@ uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
   --with cryptography==50.0.1 python -m scripts.capture.http2_websocket \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
-  --client-version 153.0.8010.48 \
+  --client-version 154.0.8037.58 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --scenario all --repeat 3 \
-  --output-dir fixtures/websocket/chrome/153.0.8010.48/windows-11-26200
+  --output-dir fixtures/websocket/chrome/154.0.8037.58/windows-11-26200
 ```
 
 For the other retained captures, use
@@ -208,10 +208,10 @@ Capture Chrome on Windows:
 uv run --no-project --python 3.10 python -m scripts.capture.client_hints \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
-  --client-version 153.0.8010.48 \
+  --client-version 154.0.8037.58 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --repeat 3 \
-  --output fixtures/client-hints/chrome/153.0.8010.48/windows-11-26200/navigation.txt
+  --output fixtures/client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt
 ```
 
 For Edge, use
@@ -255,12 +255,12 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.alt_svc_race \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
-  --client-version 153.0.8010.48 \
+  --client-version 154.0.8037.58 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --scenario race-after-learning race-after-quic-worked udp-blackhole \
     quic-bad-certificate quic-bad-alpn existing-h2-session \
   --repeat 10 --netlog-dir <scratch-directory> \
-  --output-dir fixtures/alt-svc/chrome/153.0.8010.48/windows-11-26200
+  --output-dir fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200
 ```
 
 The retained `broken-backoff` fixture used
