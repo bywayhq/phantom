@@ -1,8 +1,8 @@
 # Design
 
 Phantom aims to send what a recorded browser sends and to fail visibly when it
-cannot. This page explains the rules that follow from that aim, why each one
-exists, and what it costs you.
+cannot. Read why each rule below follows from that aim, and what it costs you
+when you build on Phantom.
 
 > For specialists and curious builders who have used
 > [the client](../guides/client.md).
@@ -10,9 +10,6 @@ exists, and what it costs you.
 For the evidence behind each claim, see [Validation](validation.md).
 
 ## Principles
-
-Each principle has its own section below: the rule, why Phantom keeps it, and
-what it costs the user.
 
 1. [Recorded browser behavior is the specification.](#recorded-browser-behavior-is-the-specification)
 2. [No silent fallback.](#no-silent-fallback)
@@ -28,41 +25,51 @@ protocol boundaries that carry these rules.
 
 ## Recorded browser behavior is the specification
 
-The target is what a real browser sends, as captured on the wire, rather than
+The target is what a real browser sends, as captured on the wire, and not
 everything a standard permits. When a capture cannot show a behavior, such as
 a TCP socket option, the browser's source code at the profiled release is the
 evidence.
 
-Why: a server compares a client with the browsers it claims to be. A choice
-the standard allows but no browser makes is itself a signal. For that reason
-no named recipe opens a WebSocket over HTTP/3: no shipping browser does so by
-default (see [Coverage](../reference/coverage.md#server-sent-events-and-websocket)).
-For the same reason, the TLS ClientHello to an HTTPS proxy offers the
-profile's ALPN list unchanged: a browser offers the same list to a proxy, and
-a rewritten list would produce a ClientHello that no measured browser sends.
+A server compares a client with the browsers it claims to be, so a choice the
+standard allows but no browser makes is itself a signal. The TLS ClientHello
+to an HTTPS proxy therefore offers the profile's ALPN list unchanged: a
+browser offers the same list to a proxy, and a rewritten list would produce a
+ClientHello that no measured browser sends.
 
-The cost: Phantom covers only what has been captured or read. It carries one
+The same reasoning keeps WebSocket over HTTP/3 out of every named recipe. No
+shipping browser opens one by default. Chromium has the implementation but
+keeps `kEnableWebsocketsOverHttp3` disabled by default, with no
+`chrome://flags` entry and no field trial; even with the flag set, it only
+reuses an HTTP/3 session that already advertised extended CONNECT and never
+dials one. Firefox has no implementation and its tracking bug is unassigned;
+WebKit has none. Common servers do not accept one either. A named recipe would
+emit a handshake no browser emits, so none will until a browser ships it on by
+default. A caller-configurable RFC 9220 slice, which a downstream user could
+point at their own server, is a separate question and stays open on the
+[roadmap](../roadmap.md).
+
+Phantom therefore covers only what has been captured or read. It carries one
 version per browser, from Windows 11 captures, and a new browser release needs
-new captures before its recipes exist. Behavior no capture shows, such as
-Edge's TCP options, has no recipe at all.
+new captures before its recipes exist. Behavior no capture or public source
+shows, such as Edge's TCP options, has no recipe at all.
 
 ## No silent fallback
 
-Phantom never silently changes protocol, route, or fingerprint to complete a
-request. When it cannot do what the caller chose, it returns a typed error.
-Conflicts between a profile and connection policy fail before any I/O.
+An exact H3 request fails when UDP is blocked. That is deliberate: Phantom
+never silently changes protocol, route, or fingerprint to complete a request.
+When it cannot do what the caller chose, it returns a typed error, and
+conflicts between a profile and connection policy fail before any I/O.
 
-Why: a silent change sends traffic the caller did not choose. An HTTP/3
-request that quietly retries over HTTP/2 presents a different fingerprint, and
-a proxied request that quietly goes direct leaves from a different address.
+A silent change sends traffic the caller did not choose. An HTTP/3 request
+that quietly retries over HTTP/2 presents a different fingerprint, and a
+proxied request that quietly goes direct leaves from a different address.
 Either change can matter more to the caller than the failed request.
 
-The cost: some requests fail where a general-purpose client would succeed. An
-exact H3 request fails when UDP is blocked. A negotiated request through an
-HTTP or CONNECT-UDP proxy is refused before any proxy I/O. An exact H2
-WebSocket to a peer that did not enable extended CONNECT fails rather than
-using HTTP/1.1. To try another protocol or route, catch the error and send a
-new request that names it.
+Some requests therefore fail where a general-purpose client would succeed. A
+negotiated request through an HTTP or CONNECT-UDP proxy is refused before any
+proxy I/O. An exact H2 WebSocket to a peer that did not enable extended
+CONNECT fails and does not drop to HTTP/1.1. To try another protocol or route,
+catch the error and send a new request that names it.
 
 ## Order is part of the fingerprint
 
@@ -70,64 +77,65 @@ When a peer can see the order of fields, settings, or extensions, no layer
 sorts, hashes, or regroups them. Request fields go out in the order the caller
 or the [request template](../reference/glossary.md#request-template) gives,
 and every transport returns the response fields in wire order alongside the
-standard `http::Response` view.
+standard `http::Response` view. Browsers differ in the order of their TLS
+extensions, H2 SETTINGS, and request fields, and servers read that order (see
+[Header order](../fingerprinting.md#header-order)).
 
-Why: browsers differ in the order of their TLS extensions, H2 SETTINGS, and
-request fields, and servers read that order (see
-[Header order](../fingerprinting.md#header-order)). Phantom reuses mature
-protocol engines, and patches them narrowly where their public APIs cannot
-preserve measured behavior or the required failure semantics.
-
-The cost: you choose the field order, either directly or through a template.
-Phantom depends on patched forks of its TLS, HTTP/2, QUIC, HTTP/3, and
-WebSocket libraries, and another crate in your build cannot replace them (see
+You choose the field order, either directly or through a template. Phantom
+builds on BoringSSL (through `btls`), the `http2` fork of h2, Quinn, `h3`, and
+`tungstenite`, and patches each narrowly where its public API cannot preserve
+measured behavior or the required failure semantics. Your build depends on
+those patched forks, and another crate in it cannot replace them (see
 [Adding Phantom to a project](../guides/downstream.md)). Some order is still
 out of reach: the vendored HPACK encoder chooses field representations
 itself, which leaves a recorded gap for WebSocket CONNECT.
 
 ## Profiles hold identity; transports apply settings
 
-Browser identity lives only in profile data. Transport code applies whatever
-settings a profile holds and never branches on a browser family or on the
-host operating system, so a new browser needs a new profile rather than new
-transport code. OS-specific code exists only for real differences in sockets,
-trust stores, native builds, or profiling.
+There is no single switch that means "be Chrome". You build a `ClientProfile`
+from recipes, layer by layer, because browser identity lives only in profile
+data. Transport code applies whatever settings a profile holds and never
+branches on a browser family or on the host operating system, so a new
+browser needs a new profile and no new transport code. OS-specific code
+exists only for real differences in sockets, trust stores, native builds, or
+profiling.
 
-Why: with one code path per protocol, every profile runs the same tested
+With one code path per protocol, every profile runs the same tested
 lifecycle. A branch on the browser name would create combinations that only
 one profile exercises, and would hide part of the identity in code where no
 capture comparison reaches it.
 
-The cost: there is no single switch that means "be Chrome". You build a
-`ClientProfile` from recipes, layer by layer. Nothing stops you from combining
-a Chrome TLS recipe with a Firefox H2 recipe, and the result matches no
-browser. The request-template identity check rejects only a caller
-`User-Agent` or brand-list client hint that names another browser family or
-major version.
-
-The identity check rejects rather than warns, because a template is an
-explicit claim. A request that contradicts it would put a mismatch between
-layers on the wire, where a server can record it and it cannot be taken back.
-When the fields agree, the check costs nothing.
+Nothing stops you from combining a Chrome TLS recipe with a Firefox H2 recipe,
+and the result matches no browser. The request-template identity check
+rejects only a caller `User-Agent` or brand-list client hint that names
+another browser family or major version. It rejects and does not warn,
+because a template is an explicit claim. A request that contradicts it would
+put a mismatch between layers on the wire, where a server can record it and it
+cannot be taken back. When the fields agree, the check costs nothing.
 
 ## A setting is public only when it is applied and tested
 
 Every public option changes what Phantom does, and a test observes the
-change.
-
-Why: an option that parses but has no effect tells the caller something false
-about the traffic.
-
-The cost: some controls you might expect are absent until they are complete.
-There is no public TLS ticket policy yet, and the qlog and key-log paths are
-features of internal crates that `phantom-http` does not expose.
+change. An option that parses but has no effect tells the caller something
+false about the traffic. Some controls you might expect are therefore absent
+until they are complete: there is no public TLS ticket policy yet, and the
+qlog and key-log paths are features of internal crates that `phantom-http`
+does not expose.
 
 ## State belongs to one client and has a bound
 
 The client owns every connection and all cross-request state. Cookies, client
 hints, Alt-Svc advertisements, redirects, TLS sessions, and future DNS state
-belong to one client, never to the process. Caches, pools, and queues each
-have a limit.
+belong to one client, never to the process. Shared process state would let
+what one client learned change what another sends, such as a session ticket
+resumed under a different profile.
+
+Caches, pools, and queues each have a limit, because unbounded state lets a
+peer grow memory without limit. When a limit is reached, the least recently
+used entry is evicted; the defaults are in
+[Defaults and limits](../reference/limits.md). Clones of a client share its
+state, but separately built clients share nothing, so each new client makes
+new handshakes and relearns hints and alternatives.
 
 Pool keys include origin, route, protocol, and wire-profile identity, so a
 connection is never reused across a security or fingerprint boundary.
@@ -137,28 +145,17 @@ pipelines. HTTP/2 (H2) and HTTP/3 (H3) run concurrent streams within local and
 peer limits. Waiters are bounded, cancellation is scoped to a stream where
 possible, and a draining connection accepts no new work.
 
-Why: shared process state would let what one client learned change what
-another sends, such as a session ticket resumed under a different profile.
-Unbounded state lets a peer grow memory without limit.
-
-The cost: clones of a client share its state, but separately built clients
-share nothing, so each new client makes new handshakes and relearns hints and
-alternatives. When a limit is reached, the least recently used entry is
-evicted. The defaults are in [Defaults and limits](../reference/limits.md).
-
 ## Retries and replays
 
-A retry can change what a server sees, so every retry class is bounded and
-none changes the route, the exact protocol, the negotiated selection rule, or
-the Alt-Svc alternative in use. The [retries guide](../guides/retries.md)
-covers configuration. This section records the boundaries each class keeps.
-
-Why: a browser's recovery is part of its behavior, and a request sent twice
-can have effects twice.
-
-The cost: apart from one H2 `GOAWAY` replay, Phantom retries nothing unless
-you configure it, so a transient failure reaches your code as an error.
+A browser's recovery is part of its behavior, and a request sent twice can
+have effects twice. Every retry class is therefore bounded, and none changes
+the route, the exact protocol, the negotiated selection rule, or the Alt-Svc
+alternative in use. Apart from one H2 `GOAWAY` replay, Phantom retries nothing
+unless you configure it, so a transient failure reaches your code as an error.
 Firefox's transaction restarts on fresh connections are not reproduced.
+
+The [retries guide](../guides/retries.md) covers configuration. The sections
+below record the boundaries each class keeps.
 
 ### Connection-setup retries
 
@@ -224,16 +221,17 @@ retires the refusing connection so the replay uses another one.
 
 ### Status retry
 
-Status retry is caller policy, not browser behavior, so it lives on
-`RetryPolicy` and never in a profile. It runs per hop, after proxy
+Status retry is caller policy, so it lives on `RetryPolicy` and never in a
+profile. It runs per hop, after proxy
 authentication and Critical-CH handling, so an intermediate response has
 already updated cookies, client hints, and Alt-Svc.
 
 Only idempotent methods with absent or owned bodies repeat, and only for 408,
 425, 429, 500, 502, 503, or 504. Each of these reports a condition that a
 later identical request can clear. Configuration rejects 421, because
-repeating it on the same route and connection target cannot succeed. One request-scoped budget spans
-redirects and is separate from the setup-retry budget.
+repeating it on the same route and connection target cannot succeed. One
+request-scoped budget spans redirects and is separate from the setup-retry
+budget.
 
 A usable response never turns into a timeout. If a delay cannot finish before
 the total deadline, or an honored `Retry-After` exceeds the caller's cap,
@@ -249,7 +247,7 @@ three narrow boundaries: TLS verification stays on unless the caller turns it
 off, unsafe code lives in one module, and vendored changes go through a
 recorded patch series.
 
-The cost: verification can be disabled only for H1 and H2 conformance
+In practice, verification can be disabled only for H1 and H2 conformance
 testing, and your build cannot swap Phantom's patched dependencies for stock
 ones. Recoverable input and network failures return typed errors; runtime
 library code must not panic.

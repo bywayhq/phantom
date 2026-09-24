@@ -472,36 +472,22 @@ Planned or not captured:
 - SSE over H2 and H3, on macOS, and in Safari is not yet captured.
 - Other WebSocket extensions, named send policies beyond the empty-message
   rule, and automatic reconnect.
-- Remaining gaps in the WebSocket recipes. The captures show that Chromium
-  uses H2 WebSockets only on an existing session that advertises the setting,
-  while Firefox also opens fresh H2 connections, and that pseudo-header order,
-  priority, deflate offer, and send policy differ by family. The recipes
-  still differ from them in three ways:
-  - HPACK representation parity is blocked on the vendored `http2` encoder.
-    It chooses each field's representation, name index, and Huffman coding
-    internally from nghttp2-derived rules, and its dynamic table is
-    connection-wide, so a profile cannot ask for the captured choices. The
-    captures show Chrome and Edge sending `:method: CONNECT` as a literal
-    without indexing with an unencoded value, and Firefox sending it with
-    incremental indexing against the `:method: POST` name index; Phantom emits
-    incremental indexing against `:method: GET` for both. Closing this needs a
-    new entry in `vendor/http2/patches/series`.
-  - Firefox's stream `WINDOW_UPDATE` appears in the captures on every Firefox
-    stream rather than only the CONNECT stream, so it belongs to the HTTP/2
-    request path rather than to a WebSocket recipe.
-  - No capture records a WebSocket opened through a proxy.
 - A named browser recipe for WebSocket over HTTP/3. No shipping browser opens
-  one by default. Chromium has the implementation but keeps
-  `kEnableWebsocketsOverHttp3` disabled by default, with no `chrome://flags`
-  entry and no field trial; even with the flag set it only reuses an HTTP/3
-  session that already advertised extended CONNECT rather than dialing one.
-  Firefox has no implementation and its tracking bug is unassigned; WebKit
-  has none. Common servers do not accept one either. A named recipe would
-  emit a handshake no browser emits, which is a detection signal, so no named
-  recipe will emit one until a browser ships it on by default. A
-  caller-configurable RFC 9220 slice, which a downstream user could point at
-  their own server, is a separate question and stays open; see the
-  [roadmap](../roadmap.md).
+  one by default;
+  [Design](../explanation/design.md#recorded-browser-behavior-is-the-specification)
+  explains why no recipe will emit one until a browser does.
+
+The captures show that Chromium uses H2 WebSockets only on an existing session
+that advertises the setting, while Firefox also opens fresh H2 connections,
+and that pseudo-header order, priority, deflate offer, and send policy differ
+by family. The WebSocket recipes still differ from those captures in three
+ways:
+
+| Gap | Why | What would close it |
+| --- | --- | --- |
+| HPACK representation of `:method: CONNECT` | The vendored `http2` encoder chooses each field's representation, name index, and Huffman coding from nghttp2-derived rules, and its dynamic table is connection-wide. Chrome and Edge send the field as a literal without indexing with an unencoded value; Firefox uses incremental indexing against the `:method: POST` name index; Phantom uses incremental indexing against `:method: GET` for both. | A new entry in `vendor/http2/patches/series` |
+| Firefox's stream `WINDOW_UPDATE` | It appears on every Firefox stream, not only the CONNECT stream, so it belongs to the HTTP/2 request path. | Modeling it on the Firefox HTTP/2 request path |
+| WebSocket through a proxy | No capture records a WebSocket opened through a proxy. | A capture through a proxy |
 
 ## Routes
 
