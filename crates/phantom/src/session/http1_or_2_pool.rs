@@ -15,6 +15,7 @@ use phantom_net::{
         Http2Connection, Http2Error, Http2ProtocolErrorKind,
         validate_request_body_source_with_trailers as validate_http2_request_body_source_with_trailers,
     },
+    proxy::HttpsProxyConnector,
     request::{OriginForm, RequestBody, RequestHeader},
 };
 use phantom_profile::Http2Priority;
@@ -63,6 +64,7 @@ impl Http1Or2Pool {
     pub(crate) async fn send_request(
         &self,
         connector: &Http1Or2TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
         request_span: &Span,
@@ -129,6 +131,7 @@ impl Http1Or2Pool {
                     entry
                         .acquire_selected(
                             connector,
+                            https_proxy,
                             endpoint,
                             route,
                             request_span,
@@ -182,9 +185,11 @@ impl Http1Or2Pool {
 
     /// Admits one request and acquires its ALPN-selected connection without
     /// dispatching; the lease holds the selected protocol's admission.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn acquire_lease(
         &self,
         connector: &Http1Or2TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
         request_span: &Span,
@@ -202,6 +207,7 @@ impl Http1Or2Pool {
         let (lease, permit) = entry
             .acquire_selected(
                 connector,
+                https_proxy,
                 endpoint,
                 route,
                 request_span,
@@ -369,6 +375,7 @@ struct PoolEntry {
     http1_admission: Arc<Admission>,
     http2_admission: Arc<Admission>,
     connector: OnceLock<Http1Or2TlsConnector>,
+    https_proxy: OnceLock<HttpsProxyConnector>,
 }
 
 impl PoolEntry {
@@ -383,6 +390,7 @@ impl PoolEntry {
             http1_admission,
             http2_admission,
             connector: OnceLock::new(),
+            https_proxy: OnceLock::new(),
         }
     }
 
@@ -422,6 +430,7 @@ impl PoolEntry {
     async fn acquire_selected(
         &self,
         connector: &Http1Or2TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
         request_span: &Span,
@@ -435,7 +444,7 @@ impl PoolEntry {
         }
         loop {
             let lease = acquire_unselected_with_retries(timeout_budget, retries, || {
-                self.acquire(connector, endpoint, route)
+                self.acquire(connector, https_proxy, endpoint, route)
             })
             .await?;
             let protocol = lease.protocol();
@@ -593,6 +602,7 @@ impl PoolEntry {
     async fn acquire(
         &self,
         connector: &Http1Or2TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
     ) -> Result<ConnectionLease, RequestError> {
@@ -644,9 +654,73 @@ impl PoolEntry {
                     .await
                     .map_err(RequestError::http1_or_2_connection_setup)?,
             },
-            // Refused before admission by `ensure_request_supported`; neither
-            // route is reinterpreted as another transport here.
-            Route::HttpProxy(_) | Route::ConnectUdp(_) => {
+            // One CONNECT tunnel carries one origin TLS handshake, as the
+            // exact H1 and H2 pools do; ALPN inside it selects the protocol.
+            Route::HttpProxy(proxy) => {
+                let connect_authority = endpoint.tunnel_authority();
+                if proxy.uses_tls() {
+                    let base =
+                        https_proxy.ok_or_else(RequestError::unsupported_negotiated_route)?;
+                    let proxy_connector = self
+                        .https_proxy
+                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                    if let Some(credentials) = proxy.basic_credentials() {
+                        // The retry state machine is large; one allocation per
+                        // authenticated proxy connection bounds this future.
+                        Box::pin(connector.connect_https_connect_with_basic_auth(
+                            proxy_connector,
+                            proxy.host(),
+                            proxy.port(),
+                            proxy.host(),
+                            &connect_authority,
+                            proxy.ordered_connect_headers(),
+                            credentials,
+                            endpoint.host(),
+                        ))
+                        .await
+                        .map_err(RequestError::http1_or_2_connection_setup)?
+                    } else {
+                        connector
+                            .connect_https_connect(
+                                proxy_connector,
+                                proxy.host(),
+                                proxy.port(),
+                                proxy.host(),
+                                &connect_authority,
+                                proxy.ordered_connect_headers(),
+                                endpoint.host(),
+                            )
+                            .await
+                            .map_err(RequestError::http1_or_2_connection_setup)?
+                    }
+                } else if let Some(credentials) = proxy.basic_credentials() {
+                    // See the TLS-proxy branch above.
+                    Box::pin(connector.connect_http_connect_with_basic_auth(
+                        proxy.host(),
+                        proxy.port(),
+                        &connect_authority,
+                        proxy.ordered_connect_headers(),
+                        credentials,
+                        endpoint.host(),
+                    ))
+                    .await
+                    .map_err(RequestError::http1_or_2_connection_setup)?
+                } else {
+                    connector
+                        .connect_http_connect(
+                            proxy.host(),
+                            proxy.port(),
+                            &connect_authority,
+                            proxy.ordered_connect_headers(),
+                            endpoint.host(),
+                        )
+                        .await
+                        .map_err(RequestError::http1_or_2_connection_setup)?
+                }
+            }
+            // Refused before admission by `ensure_request_supported`; the route
+            // is never reinterpreted as another transport here.
+            Route::ConnectUdp(_) => {
                 return Err(RequestError::unsupported_negotiated_route());
             }
         };
@@ -870,7 +944,7 @@ mod tests {
     use std::{num::NonZeroUsize, sync::Arc};
 
     use super::{Http1Or2Pool, PoolKey};
-    use crate::{Route, Socks5Proxy, authority::Endpoint};
+    use crate::{HttpProxy, Route, Socks5Proxy, authority::Endpoint};
 
     #[tokio::test]
     async fn pre_selection_admission_survives_lru_eviction()
@@ -916,6 +990,41 @@ mod tests {
         assert!(!Arc::ptr_eq(
             &proxied,
             &pool.entry(PoolKey::new(&endpoint, &other)).await
+        ));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn negotiated_connections_through_http_proxies_are_keyed_by_proxy()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let eight = NonZeroUsize::new(8).ok_or("zero capacity")?;
+        let pool = Http1Or2Pool::new(eight, eight, eight, eight, eight);
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let plaintext = Route::http_proxy(HttpProxy::new("http://proxy.test:8080")?);
+        let routes = [
+            Route::Direct,
+            plaintext.clone(),
+            Route::http_proxy(HttpProxy::new("http://other.test:8080")?),
+            Route::http_proxy(HttpProxy::new("https://proxy.test:8080")?),
+            Route::http_proxy(HttpProxy::new("https://proxy.test:8080")?.with_http2_transport()?),
+            Route::http_proxy(
+                HttpProxy::new("http://proxy.test:8080")?.with_basic_auth("user", "secret")?,
+            ),
+            Route::socks5(Socks5Proxy::new("socks5://proxy.test:8080")?),
+        ];
+
+        let mut entries = Vec::new();
+        for route in &routes {
+            entries.push(pool.entry(PoolKey::new(&endpoint, route)).await);
+        }
+        for (index, entry) in entries.iter().enumerate() {
+            for other in &entries[index + 1..] {
+                assert!(!Arc::ptr_eq(entry, other));
+            }
+        }
+        assert!(Arc::ptr_eq(
+            &entries[1],
+            &pool.entry(PoolKey::new(&endpoint, &plaintext)).await
         ));
         Ok(())
     }

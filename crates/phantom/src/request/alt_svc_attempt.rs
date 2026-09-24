@@ -41,8 +41,8 @@ pub(super) enum NegotiatedPlan {
 ///
 /// The store is keyed by origin and route, so only an alternative learned on
 /// `route` can be selected here, and it is reached over `route` as well. A
-/// route that cannot carry QUIC never reaches this point: negotiated requests
-/// are refused on it before any I/O, in `ensure_request_supported`.
+/// route that cannot carry QUIC never stores an alternative, so it always
+/// plans the origin; see `Client::learn_alt_svc`.
 pub(super) fn plan(client: &Client, request: &ResolvedRequest, route: &Route) -> NegotiatedPlan {
     let Some(alternative) = client.alt_svc_location(&request.endpoint, route) else {
         return NegotiatedPlan::Origin;
@@ -130,6 +130,7 @@ pub(super) async fn send_once_raced(
         || {
             client.state.http1_or_2.acquire_lease(
                 negotiated,
+                client.inner.https_proxy.as_ref(),
                 &request.endpoint,
                 route,
                 request_span,

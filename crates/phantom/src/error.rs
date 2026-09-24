@@ -572,7 +572,7 @@ impl RequestError {
     pub(crate) fn unsupported_negotiated_route() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedRoute,
-            "HTTP/1.1-or-HTTP/2 negotiation requires a route that carries both an origin TLS stream for ALPN and a UDP path to an Alt-Svc alternative",
+            "HTTP/1.1-or-HTTP/2 negotiation requires a route that carries an origin TLS stream for ALPN",
         )
     }
 
@@ -763,6 +763,15 @@ impl RequestError {
             let kind = socks5_request_error_kind(error.kind());
             return Self::with_source(kind, None, "HTTP/1.1-or-HTTP/2 negotiation failed", source);
         }
+        // The HTTP proxy leg classifies as it does for exact H1 and H2.
+        if let Http1Or2TlsError::Proxy(error) = &source {
+            let kind = if error.kind() == HttpConnectErrorKind::RuntimeUnavailable {
+                RequestErrorKind::RuntimeUnavailable
+            } else {
+                RequestErrorKind::Proxy
+            };
+            return Self::with_source(kind, None, "HTTP/1.1-or-HTTP/2 negotiation failed", source);
+        }
         let (kind, protocol) = match source.kind() {
             Http1Or2TlsErrorKind::RuntimeUnavailable => {
                 (RequestErrorKind::RuntimeUnavailable, None)
@@ -791,6 +800,7 @@ impl RequestError {
     pub(crate) fn http1_or_2_connection_setup(source: Http1Or2TlsError) -> Self {
         let retryable = match &source {
             Http1Or2TlsError::Connect(_) => true,
+            Http1Or2TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
             Http1Or2TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
             _ => false,
         };

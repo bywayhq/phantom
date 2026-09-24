@@ -189,7 +189,7 @@ async fn send_once_negotiated(
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
-    if !route.carries_negotiated_https() {
+    if !route.carries_origin_tls_for_alpn() {
         return Err(RequestError::unsupported_negotiated_route());
     }
     match plan(client, request, route) {
@@ -258,6 +258,7 @@ pub(super) async fn send_once_origin(
             .http1_or_2
             .send_request(
                 connector,
+                client.inner.https_proxy.as_ref(),
                 endpoint,
                 route,
                 request_span,

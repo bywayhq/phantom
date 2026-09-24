@@ -51,8 +51,8 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 - A failure qualifies only when its typed error proves nothing was sent: DNS
   resolution; a direct, forward-proxy, or SOCKS TCP connection; SOCKS local
   resolution; direct or SOCKS5-carried QUIC setup; or resolving or connecting
-  to a CONNECT-UDP proxy. A negotiated request retries only a failed direct
-  TCP connect, before TLS and ALPN.
+  to a CONNECT-UDP proxy. A negotiated request retries only a failed direct,
+  HTTP proxy, or SOCKS5 connect, before origin TLS and ALPN.
 - One budget covers redirects, H2 replacement connections, and the
   connections opened for proxy-authentication and client-hint replays. Each
   attempt gets a fresh connect timeout; the total timeout stays absolute.

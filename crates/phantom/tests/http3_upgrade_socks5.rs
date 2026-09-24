@@ -27,8 +27,7 @@ use std::{
 use http::StatusCode;
 use http_body_util::BodyExt;
 use phantom::{
-    Client, ConnectUdpProxy, HttpProtocol, HttpProxy, RequestErrorKind, ResponseInfo, Route,
-    Socks5Proxy,
+    Client, ConnectUdpProxy, HttpProtocol, RequestErrorKind, ResponseInfo, Route, Socks5Proxy,
     profile::{ClientProfile, chromium},
 };
 use tokio::{
@@ -201,38 +200,27 @@ async fn upgrades_through_one_proxy(dns: Socks5Dns, auth: ProxyAuth) -> TestResu
 }
 
 #[tokio::test]
-async fn negotiated_requests_are_refused_on_routes_that_cannot_carry_quic() -> TestResult<()> {
+async fn negotiated_request_is_refused_on_a_route_without_origin_tls() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let client = upgrade_client(&identity)?;
 
-        // An HTTP proxy carries only TCP, so a learned `h3` alternative could
-        // never be reached over it. A CONNECT-UDP proxy carries only QUIC, so
-        // there is no TLS stream for ALPN to select a protocol on. Both are
-        // refused before any proxy or origin I/O, and neither falls back.
-        let routes = [
-            Route::http_proxy(HttpProxy::new("http://127.0.0.1:1")?),
-            Route::http_proxy(HttpProxy::new("https://127.0.0.1:1")?),
-            Route::http_proxy(HttpProxy::new("https://127.0.0.1:1")?.with_http2_transport()?),
-            Route::connect_udp(ConnectUdpProxy::new(
+        // A CONNECT-UDP proxy carries only QUIC, so there is no TLS stream for
+        // ALPN to select a protocol on. The request is refused before any
+        // proxy or origin I/O and does not fall back. HTTP proxy routes make
+        // negotiated requests but learn no alternative; see
+        // `tests/negotiated_proxy.rs`.
+        let error = client
+            .get_negotiated("https://origin.test/refused")?
+            .route(Route::connect_udp(ConnectUdpProxy::new(
                 "https://127.0.0.1:1/.well-known/masque/udp/{target_host}/{target_port}/",
-            )?),
-        ];
-        for route in routes {
-            let trace = route.clone();
-            let error = client
-                .get_negotiated("https://origin.test/refused")?
-                .route(route)
-                .send()
-                .await
-                .err()
-                .ok_or_else(|| format!("negotiated request was accepted on {trace:?}"))?;
-            assert_eq!(
-                error.kind(),
-                RequestErrorKind::UnsupportedRoute,
-                "{trace:?}"
-            );
-        }
+            )?))
+            .send()
+            .await
+            .err()
+            .ok_or("negotiated request was accepted on a CONNECT-UDP route")?;
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+        assert_eq!(error.protocol(), None);
         Ok(())
     })
     .await

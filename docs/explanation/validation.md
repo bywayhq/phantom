@@ -962,11 +962,12 @@ The route rules follow Chromium's source at tag `153.0.8010.48`. Chromium
 creates the alternative job even when proxied, then fails it with
 `ERR_NO_SUPPORTED_PROXIES` unless every hop of the proxy chain speaks QUIC
 (`net/http/http_stream_factory_job.cc` lines 858-868), and resumes its main
-TCP job. Phantom has no such fallback, so it refuses a negotiated request on
-an HTTP proxy route before any I/O. Chromium has no SOCKS5 UDP ASSOCIATE
-(`net/socket/socks5_client_socket.cc` defines only `kTunnelCommand`), so its
-SOCKS5 routes never carry QUIC; Phantom's carry the Alt-Svc upgrade, as they
-carry exact H3.
+TCP job. Phantom has no such fallback, so on an HTTP proxy route it never
+learns the alternative: negotiated requests run in a CONNECT tunnel and stay
+on H1 or H2, where Chromium ends up after its failed QUIC job. Chromium has
+no SOCKS5 UDP ASSOCIATE (`net/socket/socks5_client_socket.cc` defines only
+`kTunnelCommand`), so its SOCKS5 routes never carry QUIC; Phantom's carry the
+Alt-Svc upgrade, as they carry exact H3.
 
 Limits:
 
@@ -1033,6 +1034,14 @@ The HTTP/2 proxy transport has separate CONNECT regressions for H1 and H2
 origins in `crates/phantom/tests/proxy_h2.rs`, including rejection of
 plaintext forwarding before I/O. H3 over SOCKS5 has its own
 [evidence](#h3-socks5-udp-evidence).
+
+Negotiated requests through plaintext, TLS, and HTTP/2 proxy transports have
+regressions in `crates/phantom/tests/negotiated_proxy.rs`. They cover `h2`
+and `http/1.1` selection inside the tunnel, the same CONNECT fields and Basic
+retry as an exact request, a refused CONNECT that fails as an exact request
+does, an Alt-Svc advertisement on the tunnel that is not stored, refusal on a
+CONNECT-UDP route, pool isolation between routes, and a failed origin
+handshake that is not retried.
 
 WebSocket route regressions apply the same contract to a plaintext `ws://`
 Upgrade through plaintext and TLS-encrypted forward proxies. They assert the

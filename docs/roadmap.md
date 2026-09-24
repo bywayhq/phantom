@@ -296,9 +296,8 @@ recipe.
    against their own server has no way to bound a stalled opening today.
 2. A caller-pinned alternative, in place of a learned one. Learning needs a
    TLS stream on the route, which is why the upgrade is refused on
-   CONNECT-UDP and on HTTP proxy routes. A caller who already knows the
-   alternative does not need to learn it, and pinning sidesteps the
-   prerequisite entirely.
+   CONNECT-UDP. A caller who already knows the alternative does not need to
+   learn it, and pinning sidesteps the prerequisite entirely.
 3. Racing more than one alternative, bounded and caller-chosen, whatever the
    capture of a browser turns out to show.
 4. QUIC session resumption and early data as a caller opt-in, separate from

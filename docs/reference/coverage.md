@@ -547,6 +547,11 @@ Supported HTTP proxies:
   (RFC 9113 §8.5 CONNECT). Each tunnel uses its own proxy connection, the
   profile's ALPN is offered unchanged, and a selection mismatch is a typed
   error with no fallback.
+- Negotiated HTTPS through either CONNECT transport, with the same CONNECT
+  request and Basic retry as exact requests. One origin TLS handshake runs in
+  the tunnel and ALPN selects H1 or H2; a failed handshake is not retried with
+  another offer. The route learns no Alt-Svc alternative, because the tunnel
+  cannot carry QUIC.
 
 Supported [SOCKS5](glossary.md#socks5):
 
@@ -587,11 +592,13 @@ Across all routes:
 
 Deliberately excluded:
 
-- Negotiated HTTPS, and therefore the Alt-Svc upgrade, over an HTTP proxy or a
-  CONNECT-UDP proxy. A CONNECT tunnel is TCP and cannot reach an `h3`
-  alternative; CONNECT-UDP carries QUIC only and offers no TLS stream for ALPN.
-  Both are typed refusals before any proxy I/O, never a fallback. See
-  [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
+- Negotiated HTTPS over a CONNECT-UDP proxy, which carries QUIC only and
+  offers no TLS stream for ALPN. It is a typed refusal before any proxy I/O,
+  never a fallback.
+- The Alt-Svc upgrade over an HTTP proxy. A CONNECT tunnel is TCP and cannot
+  reach an `h3` alternative, so the route stores no advertisement and its
+  negotiated requests stay on H1 or H2. See
+  [Upgrade to HTTP/3](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
 
 Planned:
 

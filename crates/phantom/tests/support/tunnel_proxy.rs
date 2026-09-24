@@ -35,6 +35,45 @@ pub(crate) async fn http1_connect(
     Ok(request)
 }
 
+/// Challenges the first plaintext HTTP/1.1 CONNECT with Basic, then tunnels
+/// the second connection's CONNECT to `origin`.
+///
+/// Returns the anonymous head, the authorized head, and whether the
+/// challenged connection carried a second request.
+pub(crate) async fn http1_challenge_then_connect(
+    listener: TcpListener,
+    origin: SocketAddr,
+) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
+    let (mut first, _) = listener.accept().await?;
+    let anonymous = read_head(&mut first).await?;
+    first.write_all(BASIC_CHALLENGE).await?;
+    first.flush().await?;
+    let challenged = tokio::spawn(async move {
+        let mut rest = Vec::new();
+        // A reset after the challenge is a hang-up, not a second request.
+        let _ = first.read_to_end(&mut rest).await;
+        !rest.is_empty()
+    });
+
+    let (mut second, _) = listener.accept().await?;
+    let authorized = read_head(&mut second).await?;
+    establish_relay(second, origin).await?;
+    Ok((anonymous, authorized, challenged.await?))
+}
+
+/// Accepts one TLS HTTP/1.1 CONNECT and tunnels it to `origin`.
+pub(crate) async fn https1_connect(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+) -> TestResult<Vec<u8>> {
+    let (tcp, _) = listener.accept().await?;
+    let mut downstream = accept_tls_stream(tcp, acceptor).await?;
+    let request = read_head(&mut downstream).await?;
+    establish_relay(downstream, origin).await?;
+    Ok(request)
+}
+
 /// Accepts one plaintext HTTP/1.1 CONNECT and answers it with `status`.
 pub(crate) async fn http1_connect_status(
     listener: TcpListener,

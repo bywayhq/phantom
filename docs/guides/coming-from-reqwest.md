@@ -147,8 +147,8 @@ fn build(profile: ClientProfile) -> Result<Client, Box<dyn std::error::Error>> {
   [Configure the client](client.md#configure-the-client).
 - The [route](../reference/glossary.md#route) you set is the only route: a
   proxy failure is an error, never a direct connection. An HTTP proxy route
-  rejects `get_negotiated`. SOCKS5 and CONNECT-UDP are in
-  [Routes and proxies](routes-and-proxies.md).
+  carries `get_negotiated` but never upgrades it to H3 through Alt-Svc.
+  SOCKS5 and CONNECT-UDP are in [Routes and proxies](routes-and-proxies.md).
 - For a browser's cookie position, build the profile with
   `with_cookie_placement(chromium::v154_cookie_placement())`
   ([Place the cookie field](connections-and-state.md#place-the-cookie-field-where-a-browser-does)).

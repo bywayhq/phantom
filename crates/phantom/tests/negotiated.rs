@@ -26,10 +26,7 @@ use http::{HeaderMap, Method, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt, Full};
 use phantom::profile::{ClientProfile, chromium};
-use phantom::{
-    HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
-    Route,
-};
+use phantom::{HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
@@ -39,9 +36,9 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use h2_support::{accept_client_preface, read_request_headers, write_frame};
-use tls_support::{
-    H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, test_client,
-};
+#[cfg(feature = "cookies")]
+use tls_support::client_builder;
+use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, read_head, test_client};
 use tracing_support::OutcomeSubscriber;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -697,31 +694,6 @@ async fn selected_protocol_is_recorded_when_request_is_cancelled() -> TestResult
         Ok(())
     })
     .await
-}
-
-#[tokio::test]
-async fn negotiated_request_rejects_proxy_route_before_io() -> TestResult<()> {
-    let identity = TestIdentity::generate()?;
-    let listener = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-    listener.set_nonblocking(true)?;
-    let proxy_address = listener.local_addr()?;
-    let proxy = HttpProxy::new(&format!("http://{proxy_address}"))?;
-    let client = client_builder(&identity, true)
-        .route(Route::http_connect(proxy))
-        .build()?;
-
-    let result = client.get_negotiated("https://example.test/")?.send().await;
-    let error = match result {
-        Ok(_) => return Err("negotiated request accepted an HTTP proxy".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-    assert_eq!(error.protocol(), None);
-    assert!(matches!(
-        listener.accept(),
-        Err(error) if error.kind() == io::ErrorKind::WouldBlock
-    ));
-    Ok(())
 }
 
 #[tokio::test]

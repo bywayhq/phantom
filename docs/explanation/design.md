@@ -66,8 +66,8 @@ proxied request that quietly goes direct leaves from a different address.
 Either change can matter more to the caller than the failed request.
 
 Some requests therefore fail where a general-purpose client would succeed. A
-negotiated request through an HTTP or CONNECT-UDP proxy is refused before any
-proxy I/O. An exact H2 WebSocket to a peer that did not enable extended
+negotiated request through a CONNECT-UDP proxy is refused before any proxy
+I/O. An exact H2 WebSocket to a peer that did not enable extended
 CONNECT fails and does not drop to HTTP/1.1. To try another protocol or route,
 catch the error and send a new request that names it.
 

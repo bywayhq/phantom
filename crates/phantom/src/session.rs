@@ -329,6 +329,11 @@ impl Client {
         let Some(store) = &self.state.alt_svc else {
             return;
         };
+        // A route without a UDP path could never dial an `h3` alternative, so
+        // its advertisements are not stored.
+        if !route.carries_quic_alternative() {
+            return;
+        }
         // ALTSVC frames precede the response HEADERS on the wire, so they are
         // applied before the response's own Alt-Svc field.
         if let Some(frames) = response

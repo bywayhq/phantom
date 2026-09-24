@@ -84,9 +84,11 @@ impl Route {
 
     /// Returns an HTTP proxy route.
     ///
-    /// Plaintext HTTP/1.1 uses absolute-form forwarding. HTTPS protocols use
-    /// CONNECT tunneling. Exact HTTP/3 and negotiated requests reject this
-    /// route before I/O, because a CONNECT tunnel carries only TCP.
+    /// Plaintext HTTP/1.1 uses absolute-form forwarding. Exact HTTP/1.1,
+    /// exact HTTP/2, and negotiated HTTPS requests use CONNECT tunneling.
+    /// Exact HTTP/3 rejects this route before I/O, because a CONNECT tunnel
+    /// carries only TCP; for the same reason, negotiated requests on this
+    /// route never learn an Alt-Svc HTTP/3 alternative.
     #[must_use]
     pub fn http_proxy(proxy: HttpProxy) -> Self {
         Self::HttpProxy(proxy)
@@ -135,20 +137,38 @@ impl Route {
     /// Returns whether a negotiated `https://` request may use this route.
     ///
     /// Negotiation needs one TLS stream to the origin whose ALPN selects H1 or
-    /// H2, and the Alt-Svc upgrade that rides on it needs a UDP path to the
-    /// advertised alternative authority over the same route. Only a route that
-    /// carries both qualifies:
+    /// H2:
     ///
-    /// - [`Route::Direct`] carries both.
-    /// - [`Route::Socks5`] carries both: RFC 1928 CONNECT for the origin TLS
-    ///   stream and UDP ASSOCIATE for QUIC to the alternative.
-    /// - [`Route::HttpProxy`] carries only TCP. An RFC 9110 section 9.3.6
-    ///   CONNECT tunnel cannot carry QUIC, so a learned `h3` alternative would
-    ///   never be reachable and would have to fall back to the proxy's TCP
-    ///   leg, which Phantom does not do.
+    /// - [`Route::Direct`] opens that stream itself.
+    /// - [`Route::Socks5`] carries it in an RFC 1928 CONNECT.
+    /// - [`Route::HttpProxy`] carries it in an RFC 9110 section 9.3.6 CONNECT
+    ///   tunnel, as a browser behind a proxy does.
     /// - [`Route::ConnectUdp`] carries only QUIC, so it has no TLS stream for
     ///   ALPN to select a protocol on.
-    pub(crate) const fn carries_negotiated_https(&self) -> bool {
+    ///
+    /// Whether the same route can also reach an HTTP/3 alternative is a
+    /// separate question; see [`Self::carries_quic_alternative`].
+    pub(crate) const fn carries_origin_tls_for_alpn(&self) -> bool {
+        match self {
+            Self::Direct | Self::Socks5(_) | Self::HttpProxy(_) => true,
+            Self::ConnectUdp(_) => false,
+        }
+    }
+
+    /// Returns whether a negotiated request on this route may learn and dial
+    /// an Alt-Svc `h3` alternative.
+    ///
+    /// The upgrade needs a UDP path to the advertised alternative authority
+    /// over the same route that carried the advertisement:
+    ///
+    /// - [`Route::Direct`] sends QUIC itself.
+    /// - [`Route::Socks5`] sends QUIC through RFC 1928 UDP ASSOCIATE.
+    /// - [`Route::HttpProxy`] carries only TCP. A CONNECT tunnel cannot carry
+    ///   QUIC, so a learned alternative could never be dialed, and Phantom
+    ///   does not move the request to another route instead.
+    /// - [`Route::ConnectUdp`] never makes negotiated requests; see
+    ///   [`Self::carries_origin_tls_for_alpn`].
+    pub(crate) const fn carries_quic_alternative(&self) -> bool {
         match self {
             Self::Direct | Self::Socks5(_) => true,
             Self::HttpProxy(_) | Self::ConnectUdp(_) => false,
@@ -530,39 +550,40 @@ mod tests {
     use super::{ConnectUdpProxy, HttpProxy, ProxyConfigErrorKind, Route, Socks5Proxy};
 
     #[test]
-    fn negotiated_https_needs_a_route_carrying_tls_and_quic()
+    fn negotiation_and_quic_alternatives_are_separate_route_capabilities()
     -> Result<(), Box<dyn std::error::Error>> {
         // Direct and SOCKS5 carry an origin TLS stream for ALPN and a UDP path
         // to an advertised alternative.
-        assert!(Route::direct().carries_negotiated_https());
+        assert!(Route::direct().carries_origin_tls_for_alpn());
+        assert!(Route::direct().carries_quic_alternative());
         for uri in [
             "socks5://proxy.example:1080",
             "socks5h://proxy.example:1080",
         ] {
-            assert!(
-                Route::socks5(Socks5Proxy::new(uri)?).carries_negotiated_https(),
-                "{uri}"
-            );
+            let route = Route::socks5(Socks5Proxy::new(uri)?);
+            assert!(route.carries_origin_tls_for_alpn(), "{uri}");
+            assert!(route.carries_quic_alternative(), "{uri}");
         }
 
-        // An HTTP proxy carries only TCP, whatever its transport or protocol:
-        // a CONNECT tunnel can never reach an `h3` alternative.
+        // An HTTP proxy tunnels the origin TLS stream, whatever its transport
+        // or protocol, but a CONNECT tunnel can never reach an `h3`
+        // alternative.
         for proxy in [
             HttpProxy::new("http://proxy.example:8080")?,
             HttpProxy::new("https://proxy.example:8443")?,
             HttpProxy::new("https://proxy.example:8443")?.with_http2_transport()?,
         ] {
             let route = Route::http_proxy(proxy);
-            assert!(!route.carries_negotiated_https(), "{route:?}");
+            assert!(route.carries_origin_tls_for_alpn(), "{route:?}");
+            assert!(!route.carries_quic_alternative(), "{route:?}");
         }
 
         // CONNECT-UDP carries only QUIC, so ALPN has no stream to select on.
-        assert!(
-            !Route::connect_udp(ConnectUdpProxy::new(
-                "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/"
-            )?)
-            .carries_negotiated_https()
-        );
+        let route = Route::connect_udp(ConnectUdpProxy::new(
+            "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/",
+        )?);
+        assert!(!route.carries_origin_tls_for_alpn());
+        assert!(!route.carries_quic_alternative());
         Ok(())
     }
 

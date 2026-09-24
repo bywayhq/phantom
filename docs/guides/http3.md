@@ -87,10 +87,13 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 - Only direct and SOCKS5 routes carry the upgrade: they give both a TLS
-  stream for ALPN and a UDP path for QUIC. On an HTTP proxy or CONNECT-UDP
-  route, a negotiated request fails with `RequestErrorKind::UnsupportedRoute`
-  before any I/O. The store is keyed by origin and route, so an alternative
-  learned over one route is used only over that route.
+  stream for ALPN and a UDP path for QUIC. An HTTP proxy carries negotiated
+  requests in a CONNECT tunnel, but the tunnel cannot carry QUIC, so Phantom
+  learns no alternative there and those requests stay on HTTP/1.1 or HTTP/2.
+  On a CONNECT-UDP route, a negotiated request fails with
+  `RequestErrorKind::UnsupportedRoute` before any I/O. The store is keyed by
+  origin and route, so an alternative learned over one route is used only
+  over that route.
 - By default a failed alternative returns a typed H3 error and evicts the
   advertisement; Phantom does not resend over HTTP/1.1 or HTTP/2. A `421`
   response also evicts it. `Client::clear_alt_svc` clears the whole store.

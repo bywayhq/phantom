@@ -40,7 +40,7 @@ async fn routes() -> Result<(), Box<dyn std::error::Error>> {
 | Route | Constructor | Carries |
 | --- | --- | --- |
 | Direct | `Route::direct()`, the default | Every scheme and protocol |
-| HTTP proxy | `Route::http_proxy(HttpProxy)` | HTTPS origins through CONNECT; `http://` origins through HTTP/1.1 forwarding |
+| HTTP proxy | `Route::http_proxy(HttpProxy)` | HTTPS origins through CONNECT, exact or negotiated H1/H2; `http://` origins through HTTP/1.1 forwarding |
 | SOCKS5 | `Route::socks5(Socks5Proxy)` | Exact and negotiated H1/H2 over a TCP tunnel; exact and Alt-Svc H3 over UDP ASSOCIATE |
 | CONNECT-UDP | `Route::connect_udp(ConnectUdpProxy)` | Exact H3 only |
 
@@ -64,8 +64,13 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 }
 ```
 
-- `https://` origins (exact H1 or H2) and `wss://` use a CONNECT tunnel; the
-  origin's TLS runs inside it.
+- `https://` origins (exact H1 or H2, or negotiated) and `wss://` use a
+  CONNECT tunnel; the origin's TLS runs inside it.
+- A negotiated request opens one CONNECT tunnel per connection and lets ALPN
+  in the origin handshake choose H1 or H2. If that handshake fails, the
+  request fails; Phantom does not retry with another ALPN offer or protocol.
+  A tunnel cannot carry QUIC, so these requests never learn an Alt-Svc `h3`
+  alternative.
 - `http://` and `ws://` origins use absolute-form forwarding, for exact
   HTTP/1.1 only. It never switches to CONNECT, H2, H3, negotiated requests,
   or a direct route.

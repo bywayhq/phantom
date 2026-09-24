@@ -195,7 +195,8 @@ fn classify(error: &RequestError) -> &'static str {
   redirects ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)).
 - An SSE event source applies timeouts per attempt and stops the read-idle
   and total timers once the stream is open ([SSE](sse.md)).
-- HTTP proxy and CONNECT-UDP routes reject negotiated requests before I/O.
+- A CONNECT-UDP route rejects negotiated requests before I/O. An HTTP proxy
+  route carries them but never upgrades them to H3 through Alt-Svc.
 - A redirect that keeps the method resends the owned body and static
   trailers; one that changes to GET drops both. A streaming body that must be
   sent again fails with `RequestErrorKind::RequestBody`.

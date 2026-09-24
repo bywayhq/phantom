@@ -100,11 +100,16 @@ protocol; that request has a different fingerprint.
 
 ## A negotiated request is rejected on a proxy route
 
-`get_negotiated` and `request_negotiated` fail with `UnsupportedRoute` on an
-HTTP proxy or CONNECT-UDP route: negotiation needs a TLS stream to the origin
-and a UDP path for Alt-Svc, and neither route carries both. Exact H3 on an
-HTTP proxy fails the same way. Use a SOCKS5 route, or an exact protocol the
-route carries ([route matrix](../reference/route-matrix.md)).
+`get_negotiated` and `request_negotiated` fail with `UnsupportedRoute` on a
+CONNECT-UDP route: negotiation needs a TLS stream to the origin, and that
+route carries only QUIC. Exact H3 on an HTTP proxy fails the same way, because
+a CONNECT tunnel carries only TCP. Use a direct, SOCKS5, or HTTP proxy route
+for negotiated requests, or an exact protocol the route carries
+([route matrix](../reference/route-matrix.md)).
+
+Negotiated requests through an HTTP proxy succeed but always use H1 or H2:
+the tunnel cannot carry QUIC, so Phantom learns no Alt-Svc alternative there.
+For the H3 upgrade through a proxy, use SOCKS5.
 
 `ProtocolUnavailable` means the profile lacks a component the request needs:
 HTTP/3 settings for H3, or both HTTP/1.1 and HTTP/2 for a negotiated request.

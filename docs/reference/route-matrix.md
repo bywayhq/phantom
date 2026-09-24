@@ -26,7 +26,7 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 | `http://`, exact H1 | Plaintext TCP | Absolute-form forwarding | Rejected | Rejected | Rejected |
 | `http://`, exact H2 or H3, or negotiated | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
-| `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | Rejected | Rejected | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
+| `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
 | `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
 | `ws://`, H1 | Plaintext Upgrade | Absolute-form forwarded Upgrade | Rejected | Plaintext Upgrade in a TCP tunnel | Rejected |
 | `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
@@ -37,11 +37,15 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 Notes:
 
 - Every supported cell has a public loopback regression test.
-- Negotiation needs a TLS stream to the origin for ALPN, and the optional
-  Alt-Svc H3 upgrade that rides on it needs a UDP path to the advertised
-  alternative over the same route. HTTP proxies carry only TCP and CONNECT-UDP
-  carries only QUIC, so both reject negotiated requests before any proxy I/O.
-  See [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
+- Negotiation needs a TLS stream to the origin for ALPN. An HTTP proxy
+  carries it in one CONNECT tunnel per connection, over either proxy
+  transport. CONNECT-UDP carries only QUIC, so it rejects negotiated requests
+  before any proxy I/O.
+- The optional Alt-Svc H3 upgrade also needs a UDP path to the advertised
+  alternative over the same route. An HTTP proxy's tunnel cannot carry QUIC,
+  so negotiated requests through it store no Alt-Svc advertisement and stay on
+  H1 or H2. See
+  [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
 - WebSocket and SSE requests need the matching Cargo feature.
 - A `ws://` or `wss://` request over H3 fails when the builder is created.
 - SSE event sources follow the ordinary rows for their scheme and protocol.

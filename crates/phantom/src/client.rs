@@ -184,16 +184,21 @@ impl Client {
 
     /// Starts one GET that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
-    /// Negotiated requests run on direct and SOCKS5 routes. The client opens
-    /// at most one current TCP/TLS generation per origin and route, and
+    /// Negotiated requests run on direct, SOCKS5, and HTTP proxy routes; an
+    /// HTTP proxy carries each connection in one CONNECT tunnel. The client
+    /// opens at most one current TCP/TLS generation per origin and route, and
     /// reuses the ALPN-selected protocol while that generation is eligible.
     /// Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN selects
     /// HTTP/1.1. It does not race. An opt-in [`RetryPolicy`] may retry a TCP
-    /// connect failure before TLS starts; TLS and ALPN failures are terminal.
+    /// or proxy connect failure before TLS starts; TLS and ALPN failures are
+    /// terminal.
     /// When bounded Alt-Svc learning is enabled, a fresh `h3` advertisement
     /// from an earlier negotiated response selects HTTP/3 without changing the
-    /// origin identity or the route. An HTTP proxy or CONNECT-UDP route,
-    /// configured or per request, fails [`RequestBuilder::send`] with
+    /// origin identity or the route. Alternatives are learned only on direct
+    /// and SOCKS5 routes, because a CONNECT tunnel cannot carry QUIC; over an
+    /// HTTP proxy, negotiated requests stay on HTTP/2 or HTTP/1.1. A
+    /// CONNECT-UDP route, configured or per request, fails
+    /// [`RequestBuilder::send`] with
     /// [`RequestErrorKind::UnsupportedRoute`](crate::RequestErrorKind::UnsupportedRoute)
     /// before I/O. [`crate::ResponseInfo::protocol`] reports the selected
     /// protocol. Client cookies and learned client hints apply. Negotiated
@@ -709,9 +714,10 @@ impl ClientBuilder {
     /// terminal for that request and never falls back implicitly to H1 or H2.
     ///
     /// The store is keyed by origin and route, so an alternative learned on
-    /// one route is only ever dialed over that route. Negotiated requests, and
-    /// therefore this learning, run on direct and SOCKS5 routes; see
-    /// [`Route`](crate::Route).
+    /// one route is only ever dialed over that route. Learning runs only on
+    /// direct and SOCKS5 routes. An HTTP proxy route makes negotiated requests
+    /// but stores no advertisement, because its CONNECT tunnel cannot carry
+    /// QUIC; see [`Route`](crate::Route).
     #[must_use]
     pub fn alt_svc(mut self, maximum_origins: NonZeroUsize) -> Self {
         self.options.max_alt_svc_origins = Some(maximum_origins);
