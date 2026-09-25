@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, time::Duration};
 
 use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Request, Response, StatusCode};
@@ -15,6 +15,11 @@ const DATA_FRAME: u8 = 0x00;
 const SETTINGS_FRAME: u8 = 0x04;
 const GOAWAY_FRAME: u8 = 0x07;
 const RESERVED_TYPE: u8 = 0x21;
+// An unbounded informational flood never ends, so this deadline only has to
+// separate a bounded flood from a hang; no assertion depends on the window.
+// Under AddressSanitizer on Windows the bounded exchange takes about seven
+// seconds, above `TEST_TIMEOUT`.
+const FLOOD_TEST_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[tokio::test(flavor = "current_thread")]
 async fn frame_before_settings_closes_with_missing_settings() -> TestResult<()> {
@@ -294,7 +299,7 @@ async fn ninth_informational_response_fails_the_request() -> TestResult<()> {
     });
 
     let result = timeout(
-        TEST_TIMEOUT,
+        FLOOD_TEST_TIMEOUT,
         send_test_request(
             address,
             TEST_SERVER_NAME,

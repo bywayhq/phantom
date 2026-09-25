@@ -148,13 +148,6 @@ jobs:
 
       # Only `--lib`: doctests and the fixture integration tests add build time
       # without reaching the FFI boundary. An empty filter matches every test.
-      # `ninth_informational_response_fails_the_request` bounds an
-      # informational flood with a five-second deadline. Instrumentation
-      # slows the flood enough that the deadline expires before the bound
-      # is reached, so it reports a timeout rather than a memory defect.
-      # It asserts a deadline, not an allocation, and the uninstrumented
-      # workspace run covers it, so this job skips it rather than reporting
-      # a failure that says nothing about memory safety.
       - name: Run tests under AddressSanitizer
         env:
           FILTER: ${{ matrix.filter }}
@@ -164,4 +157,3 @@ jobs:
           -p "$PACKAGE" --lib --all-features --locked
           --target "$SANITIZER_TARGET"
           -- "$FILTER"
-          --skip http3::tests::adversarial::ninth_informational_response_fails_the_request
