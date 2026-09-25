@@ -51,6 +51,8 @@ pub struct Http3Connector {
     /// Directory that receives one qlog file per new QUIC connection.
     #[cfg(feature = "qlog")]
     qlog_dir: Option<Arc<std::path::Path>>,
+    #[cfg(test)]
+    early_peer_alps: Option<Arc<[u8]>>,
 }
 
 impl Http3Connector {
@@ -135,6 +137,8 @@ impl Http3Connector {
             key_log,
             #[cfg(feature = "qlog")]
             qlog_dir: None,
+            #[cfg(test)]
+            early_peer_alps: None,
         })
     }
 
@@ -225,6 +229,8 @@ impl Http3Connector {
             key_log: self.key_log.clone(),
             #[cfg(feature = "qlog")]
             qlog_dir: self.qlog_dir.clone(),
+            #[cfg(test)]
+            early_peer_alps: self.early_peer_alps.clone(),
         }
     }
 
@@ -280,8 +286,18 @@ impl Http3Connector {
         super::ConnectionDiagnostics {
             #[cfg(feature = "qlog")]
             qlog_dir: self.qlog_dir.clone(),
+            #[cfg(test)]
+            early_peer_alps: self.early_peer_alps.clone(),
             ..super::ConnectionDiagnostics::default()
         }
+    }
+
+    /// Makes each early-data connection read `alps` as its peer's ALPS when
+    /// its handshake completes, in place of what the handshake carried.
+    #[cfg(test)]
+    pub(super) fn with_test_early_peer_alps(mut self, alps: &[u8]) -> Self {
+        self.early_peer_alps = Some(Arc::from(alps));
+        self
     }
 
     #[cfg(test)]

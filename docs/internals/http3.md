@@ -497,6 +497,21 @@ early data, the request fails inside the pool as unprocessed
 pooled, and the pool sends the request again after a handshake over the same
 route and protocol.
 
+A connection that sends early data is built before its handshake delivers the
+server's TLS metadata. When the handshake completes with the early data
+accepted, the connection applies the same checks a connection without early
+data applies before its first request: the exact `h3` ALPN, the ALPS
+`ACCEPT_CH` entries, and the ALPS SETTINGS. The HTTP/3 driver applies the ALPS
+SETTINGS through `h3::client::Connection::apply_peer_application_settings`,
+from the vendored `late-application-settings.patch`, and reconciles them with
+control-stream SETTINGS that arrived first. Only then does the connection
+report its early data as accepted. If the metadata is invalid, the connection
+is closed, the request that opened it fails with the same `Http3Error` a full
+handshake reports, and the pool never adopts it. The request that opened the
+connection was sent before any ALPS was known, so it carries no client hints
+requested through ALPS `ACCEPT_CH`; later requests on the adopted connection
+do.
+
 ### Racing
 
 Under `AltSvcPolicy::race`, one request runs two candidates:

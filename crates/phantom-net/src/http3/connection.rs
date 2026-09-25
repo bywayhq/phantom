@@ -2,7 +2,7 @@ use std::{
     future::poll_fn,
     pin::pin,
     sync::{
-        Arc,
+        Arc, OnceLock,
         atomic::{AtomicU8, Ordering},
     },
 };
@@ -53,7 +53,9 @@ struct ConnectionInner {
     signal: AtomicU8,
     connector_identity: Option<Arc<()>>,
     runtime: Handle,
-    accept_ch: AcceptCh,
+    /// Set before the connection is returned, or, on a connection that sent
+    /// early data, when its accepted handshake completes.
+    accept_ch: Arc<OnceLock<AcceptCh>>,
     early_data: Option<EarlyData>,
 }
 
@@ -64,7 +66,7 @@ impl Http3Connection {
         datagrams: Option<DatagramRouter>,
         quinn: quinn::Connection,
         connector_identity: Option<Arc<()>>,
-        accept_ch: AcceptCh,
+        accept_ch: Arc<OnceLock<AcceptCh>>,
         early_data: Option<EarlyData>,
     ) -> Self {
         Self {
@@ -87,19 +89,23 @@ impl Http3Connection {
     ///
     /// The lookup is an exact byte match against the origin serialized in the
     /// peer's HTTP/3 `ACCEPT_CH` frame. The metadata is immutable and remains
-    /// scoped to this connection.
+    /// scoped to this connection. A connection that sent early data learns it
+    /// when its handshake completes with the early data accepted; before
+    /// then, and on a connection whose early data was rejected, this returns
+    /// `None`.
     #[must_use]
     pub fn accept_ch_for_origin(&self, origin: &str) -> Option<&[u8]> {
-        self.inner.accept_ch.for_origin(origin)
+        self.inner.accept_ch.get()?.for_origin(origin)
     }
 
     /// Returns whether this connection sent early (0-RTT) data.
     ///
     /// Only a connector from [`super::Http3Connector::with_early_data`] sends
     /// early data, and only when it resumes with a ticket that permits it.
-    /// Such a connection is returned before its handshake completes: the
-    /// first replay-safe request goes out as early data, and every other
-    /// request waits for the handshake.
+    /// Such a connection is returned before its handshake completes. Every
+    /// replay-safe request sent before the server's answer to the early data
+    /// settles goes out as early data; every other request waits for the
+    /// handshake.
     #[must_use]
     pub fn sent_early_data(&self) -> bool {
         self.inner.early_data.is_some()
@@ -108,21 +114,28 @@ impl Http3Connection {
     /// Waits for the handshake and returns whether the server accepted this
     /// connection's early data, or `None` when it sent none.
     ///
-    /// `Some(false)` also covers a connection that closed before its
-    /// handshake completed.
+    /// Once the handshake completes, the connection checks and applies the
+    /// peer's TLS metadata as a connection without early data does before its
+    /// first request: the `h3` ALPN, the ALPS `ACCEPT_CH` entries, and the
+    /// ALPS SETTINGS. `Some(false)` also covers a connection whose metadata
+    /// failed those checks, which is closed, and a connection that closed
+    /// before its handshake completed.
     pub async fn early_data_accepted(&self) -> Option<bool> {
         let early_data = self.inner.early_data.as_ref()?;
         Some(early_data.outcome().await == EarlyDataOutcome::Accepted)
     }
 
     /// Fails a request that must not be replayed until early data on this
-    /// connection is settled, and when it was rejected.
+    /// connection is settled, and when it was rejected or the completed
+    /// handshake was invalid.
     async fn await_early_data_answer(&self) -> Result<(), Http3Error> {
-        match &self.inner.early_data {
-            Some(early_data) if early_data.outcome().await == EarlyDataOutcome::Rejected => {
-                Err(Http3Error::early_data_rejected())
-            }
-            _ => Ok(()),
+        let Some(early_data) = &self.inner.early_data else {
+            return Ok(());
+        };
+        match early_data.outcome().await {
+            EarlyDataOutcome::Rejected => Err(Http3Error::early_data_rejected()),
+            EarlyDataOutcome::Invalid(invalid) => Err(invalid.error()),
+            EarlyDataOutcome::Accepted | EarlyDataOutcome::Failed => Ok(()),
         }
     }
 
@@ -164,12 +177,19 @@ impl Http3Connection {
             Some(_) => "after_handshake",
         };
         let result = self.send_prepared_request_now(prepared, early_data).await;
-        match (result, &self.inner.early_data) {
-            (Err(_), Some(early_data))
-                if early_data.outcome().await == EarlyDataOutcome::Rejected =>
-            {
+        let Some(early_data) = &self.inner.early_data else {
+            return result;
+        };
+        // A response head arrives only after the handshake completed, so the
+        // outcome settles without waiting on the network.
+        match (result, early_data.outcome().await) {
+            (Err(_), EarlyDataOutcome::Rejected) => {
                 debug!("HTTP/3 early data rejected; the request was not processed");
                 Err(Http3Error::early_data_rejected())
+            }
+            (_, EarlyDataOutcome::Invalid(invalid)) => {
+                debug!("HTTP/3 early-data handshake metadata is invalid; the connection closed");
+                Err(invalid.error())
             }
             (result, _) => result,
         }

@@ -251,9 +251,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   is off by default and no recipe enables it. `build` fails with
   `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings enable
   `session_tickets`. If the server rejects the early data, the request is
-  sent again after the handshake over the same route and protocol.
-  `Http3Connector` and `phantom_quic_btls::QuicClientConfig` gain
-  `with_early_data`, `without_early_data`, and `sends_early_data`.
+  sent again after the handshake over the same route and protocol. When the
+  server accepts the early data, the connection applies the server's ALPS
+  SETTINGS and `ACCEPT_CH` entries once the handshake completes, and a
+  connection whose ALPS is invalid is closed and its request fails, as on a
+  full handshake. `Http3Connector` and `phantom_quic_btls::QuicClientConfig`
+  gain `with_early_data`, `without_early_data`, and `sends_early_data`.
   `Http3Connection` gains `sent_early_data` and `early_data_accepted`.
   (`31da936`, `550e6f6`)
 

@@ -18,6 +18,13 @@ use crate::shutdown_timer;
 
 type DriverResult = Result<(), h3::error::ConnectionError>;
 
+/// Peer ALPS that reached an early-data connection after its HTTP/3 driver
+/// started, and the channel that reports whether the driver applied it.
+pub(super) struct LateApplicationSettings {
+    pub(super) payload: Vec<u8>,
+    pub(super) applied: oneshot::Sender<Result<(), h3::error::ConnectionError>>,
+}
+
 pub(super) struct DriverTask {
     terminal: Option<oneshot::Sender<DriverSignal>>,
 }
@@ -27,12 +34,13 @@ impl DriverTask {
         driver: h3::client::Connection<h3_quinn::Connection, Bytes>,
         endpoint: quinn::Endpoint,
         connection: quinn::Connection,
+        late_settings: Option<oneshot::Receiver<LateApplicationSettings>>,
     ) -> Self {
         let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);
         let span = debug_span!("http3.connection_driver", outcome = field::Empty);
         let handle = runtime.spawn(
-            drive(driver)
+            drive(driver, late_settings)
                 .instrument(span.clone())
                 .with_subscriber(dispatch.clone()),
         );
@@ -100,8 +108,24 @@ impl DriverSignal {
     }
 }
 
-async fn drive(mut driver: h3::client::Connection<h3_quinn::Connection, Bytes>) -> DriverResult {
-    let error = poll_fn(|context| driver.poll_close(context)).await;
+async fn drive(
+    mut driver: h3::client::Connection<h3_quinn::Connection, Bytes>,
+    mut late_settings: Option<oneshot::Receiver<LateApplicationSettings>>,
+) -> DriverResult {
+    let error = poll_fn(|context| {
+        // The driver owns the HTTP/3 connection state, so peer ALPS that
+        // arrives after it started is applied here, between polls.
+        if let Some(receiver) = late_settings.as_mut()
+            && let Poll::Ready(received) = Pin::new(receiver).poll(context)
+        {
+            late_settings = None;
+            if let Ok(LateApplicationSettings { payload, applied }) = received {
+                let _ = applied.send(driver.apply_peer_application_settings(&payload));
+            }
+        }
+        driver.poll_close(context)
+    })
+    .await;
     if error.is_h3_no_error() {
         Ok(())
     } else {

@@ -328,3 +328,148 @@ async fn early_data_client_hello_adds_only_early_data_and_pre_shared_key() -> Te
     server.abort();
     Ok(())
 }
+
+/// Encodes one HTTP/3 frame whose type and length fit one varint byte each,
+/// or a two-byte type for `ACCEPT_CH` (0x89).
+fn alps_frame(frame_type: u64, payload: &[u8]) -> Vec<u8> {
+    let mut frame = match u8::try_from(frame_type) {
+        Ok(frame_type) if frame_type < 0x40 => vec![frame_type],
+        _ => vec![0x40 | ((frame_type >> 8) as u8), frame_type as u8],
+    };
+    frame.push(u8::try_from(payload.len()).unwrap_or(u8::MAX));
+    frame.extend_from_slice(payload);
+    frame
+}
+
+/// Extracts the HTTP/3 error behind a connector request failure.
+fn http3_error<'a>(error: &'a (dyn std::error::Error + 'static)) -> Option<&'a Http3Error> {
+    error
+        .downcast_ref::<Http3ConnectorError>()
+        .and_then(std::error::Error::source)
+        .and_then(|source| source.downcast_ref::<Http3Error>())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn accepted_early_data_applies_peer_alps_once_the_handshake_completes() -> TestResult<()> {
+    const ORIGIN: &str = "https://server.phantom.test";
+    let identity = TestIdentity::generate()?;
+    let served = Served::default();
+    let isolated = trusting_connector(&identity)?.with_isolated_session_cache();
+    // A SETTINGS frame the server's control stream agrees with, then an
+    // ACCEPT_CH entry for the origin.
+    let mut alps = alps_frame(0x04, &[0x06, 0x60, 0x00]);
+    let mut entry = vec![u8::try_from(ORIGIN.len())?];
+    entry.extend_from_slice(ORIGIN.as_bytes());
+    entry.push(14);
+    entry.extend_from_slice(b"Sec-CH-UA-Arch");
+    alps.extend(alps_frame(0x89, &entry));
+    let early = isolated.with_early_data().with_test_early_peer_alps(&alps);
+    let (address, _endpoint, server) = learn_ticket(&identity, &isolated, &served).await?;
+
+    let (relay, relay_task) = delaying_relay(address).await?;
+    let connection = connect(&early, relay).await?;
+    assert!(connection.sent_early_data());
+    // The handshake has not completed, so no ALPS is known yet.
+    assert_eq!(connection.accept_ch_for_origin(ORIGIN), None);
+    let first = send(&early, &connection, Method::GET, "/early", None).await?;
+    assert_eq!(first.status(), StatusCode::OK);
+    assert_eq!(connection.early_data_accepted().await, Some(true));
+    assert_eq!(
+        connection.accept_ch_for_origin(ORIGIN),
+        Some(&b"Sec-CH-UA-Arch"[..])
+    );
+    assert!(early.can_reuse(&connection).await);
+    let second = send(&early, &connection, Method::GET, "/reused", None).await?;
+    assert_eq!(second.status(), StatusCode::OK);
+
+    drop((connection, first, second));
+    relay_task.abort();
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn invalid_peer_alps_on_accepted_early_data_fails_the_request_and_closes() -> TestResult<()> {
+    let cases: [(&str, Vec<u8>, &str); 2] = [
+        // An ACCEPT_CH entry that ends inside its origin length.
+        (
+            "/accept-ch",
+            alps_frame(0x89, &[0x05]),
+            "peer HTTP/3 ALPS metadata is invalid",
+        ),
+        // A SETTINGS frame that ends inside a varint.
+        (
+            "/settings",
+            alps_frame(0x04, &[0x01, 0x40]),
+            "peer HTTP/3 application settings are invalid",
+        ),
+    ];
+    for (path, alps, message) in cases {
+        let identity = TestIdentity::generate()?;
+        let served = Served::default();
+        let isolated = trusting_connector(&identity)?.with_isolated_session_cache();
+        let early = isolated.with_early_data().with_test_early_peer_alps(&alps);
+        let (address, _endpoint, server) = learn_ticket(&identity, &isolated, &served).await?;
+
+        let (relay, relay_task) = delaying_relay(address).await?;
+        let connection = connect(&early, relay).await?;
+        assert!(connection.sent_early_data());
+        let error = match send(&early, &connection, Method::GET, path, None).await {
+            Ok(_) => return Err(format!("{path}: invalid ALPS produced a response").into()),
+            Err(error) => error,
+        };
+        let error = http3_error(error.as_ref()).ok_or("request failure lost its HTTP/3 error")?;
+        assert_eq!(
+            error.kind(),
+            super::super::Http3ErrorKind::Protocol,
+            "{path}"
+        );
+        assert_eq!(error.to_string(), message, "{path}");
+        assert_eq!(error.unprocessed(), None, "{path}");
+        assert_eq!(
+            connection.early_data_accepted().await,
+            Some(false),
+            "{path}"
+        );
+        assert!(!early.can_reuse(&connection).await, "{path}");
+        assert_eq!(
+            connection.accept_ch_for_origin("https://server.phantom.test"),
+            None
+        );
+
+        drop(connection);
+        relay_task.abort();
+        server.abort();
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn alps_settings_that_conflict_with_the_control_stream_close_the_connection() -> TestResult<()>
+{
+    let identity = TestIdentity::generate()?;
+    let served = Served::default();
+    let isolated = trusting_connector(&identity)?.with_isolated_session_cache();
+    // The server's control stream sends SETTINGS_ENABLE_CONNECT_PROTOCOL = 0,
+    // which may not follow an ALPS value of 1, as on a full handshake.
+    let early = isolated
+        .with_early_data()
+        .with_test_early_peer_alps(&alps_frame(0x04, &[0x08, 0x01]));
+    let (address, _endpoint, server) = learn_ticket(&identity, &isolated, &served).await?;
+
+    let (relay, relay_task) = delaying_relay(address).await?;
+    let connection = connect(&early, relay).await?;
+    let _ = send(&early, &connection, Method::GET, "/conflict", None).await;
+    let closed = timeout(TEST_TIMEOUT, async {
+        while early.can_reuse(&connection).await {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    assert!(closed.is_ok(), "the conflicting connection stayed reusable");
+
+    drop(connection);
+    relay_task.abort();
+    server.abort();
+    Ok(())
+}
