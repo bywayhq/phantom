@@ -35,6 +35,7 @@ struct CaptureState {
     reused_connection_replays: Vec<(&'static str, u64)>,
     unprocessed_replays: Vec<(&'static str, u64)>,
     status_retries: Vec<(&'static str, u64)>,
+    early_data: Vec<(&'static str, String)>,
 }
 
 impl OutcomeSubscriber {
@@ -160,6 +161,17 @@ impl OutcomeSubscriber {
             .collect()
     }
 
+    /// The `early_data` field each span of this name was created with.
+    #[allow(dead_code)]
+    pub(crate) fn early_data_for(&self, span_name: &str) -> Vec<String> {
+        self.state()
+            .early_data
+            .iter()
+            .filter(|(name, _)| *name == span_name)
+            .map(|(_, early_data)| early_data.clone())
+            .collect()
+    }
+
     fn state(&self) -> MutexGuard<'_, CaptureState> {
         match self.state.lock() {
             Ok(state) => state,
@@ -205,9 +217,14 @@ impl Subscriber for OutcomeSubscriber {
 
     fn new_span(&self, attributes: &Attributes<'_>) -> Id {
         let id = self.next_span_id.fetch_add(1, Ordering::Relaxed) + 1;
-        self.state()
-            .span_names
-            .insert(id, attributes.metadata().name());
+        let name = attributes.metadata().name();
+        let mut visitor = EarlyDataVisitor::default();
+        attributes.record(&mut visitor);
+        let mut state = self.state();
+        state.span_names.insert(id, name);
+        if let Some(early_data) = visitor.early_data {
+            state.early_data.push((name, early_data));
+        }
         Id::from_u64(id)
     }
 
@@ -273,6 +290,22 @@ impl Subscriber for OutcomeSubscriber {
     fn enter(&self, _span: &Id) {}
 
     fn exit(&self, _span: &Id) {}
+}
+
+/// Reads the `early_data` field an HTTP/3 request span is created with.
+#[derive(Default)]
+struct EarlyDataVisitor {
+    early_data: Option<String>,
+}
+
+impl Visit for EarlyDataVisitor {
+    fn record_str(&mut self, field: &Field, value: &str) {
+        if field.name() == "early_data" {
+            self.early_data = Some(value.to_owned());
+        }
+    }
+
+    fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
 }
 
 #[derive(Default)]

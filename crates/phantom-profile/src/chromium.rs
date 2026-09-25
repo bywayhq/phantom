@@ -660,10 +660,10 @@ pub fn v154_http3() -> Http3Settings {
 /// caching (`quiche/quic/core/crypto/tls_client_connection.cc` at quiche
 /// revision `80bf9559`, which Chromium's `DEPS` pins at that tag). A TLS
 /// 1.3-only offer never carries the TLS 1.2 `session_ticket` extension, so a
-/// first ClientHello is unchanged; a resumed one adds only `pre_shared_key`.
-/// A resumed Chrome 154 connection also offers early data and sends QUIC
-/// transport parameter `0x3127` (`initial_rtt_us`). This recipe sends neither
-/// on its own, so a resumed Phantom connection still differs from Chrome's.
+/// first ClientHello is unchanged. The retained resumption captures show a
+/// resumed Chrome 154 ClientHello adding `early_data` and, last,
+/// `pre_shared_key`; [`v154_quic`] sets `early_data` so a resumed connection
+/// offers it too.
 #[must_use]
 pub fn v154_http3_tls() -> TlsSettings {
     let mut settings = v154_tls();
@@ -730,6 +730,14 @@ pub fn v154_http3_request() -> Http3RequestSettings {
 /// version, and the reserved transport parameter remain runtime-generated.
 /// This is a QUIC transport recipe; use it with [`v154_http3`] for the HTTP/3
 /// application settings captured from the same client.
+///
+/// The retained resumption captures of Chrome 154 and Edge 153 add two
+/// things to a resumed connection. Its ClientHello offers early data, so
+/// `early_data` is set; it takes effect with H3 TLS settings that enable
+/// session tickets, such as [`v154_http3_tls`]. Its transport parameters add
+/// `initial_rtt_us` (`0x3127`) with a two-byte id, a one-byte length, and a
+/// minimal-length value, at a position permuted with the others. A fresh
+/// connection sends neither.
 #[must_use]
 pub fn v154_quic() -> QuicTransportSettings {
     use QuicTransportParameterKind as Kind;
@@ -795,8 +803,10 @@ pub fn v154_quic() -> QuicTransportSettings {
                 One,
             ),
             parameter(Kind::InitialSourceConnectionId { length: 0 }, One, One),
+            parameter(Kind::InitialRtt, Two, One),
         ],
         parameter_order: QuicTransportParameterOrder::Permuted,
+        early_data: true,
     }
 }
 

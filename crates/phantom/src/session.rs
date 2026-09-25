@@ -74,7 +74,8 @@ pub(crate) struct ClientOptions {
     pub(crate) max_client_hint_origins: NonZeroUsize,
     pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
     pub(crate) alt_svc_policy: AltSvcPolicy,
-    pub(crate) http3_early_data: bool,
+    /// The caller's HTTP/3 early-data choice; `None` keeps the profile's.
+    pub(crate) http3_early_data: Option<bool>,
     #[cfg(feature = "https-records")]
     pub(crate) https_record_resolver: Option<phantom_net::dns::HttpsRecordResolver>,
     #[cfg(feature = "cookies")]
@@ -101,7 +102,7 @@ impl Default for ClientOptions {
             max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
             max_alt_svc_origins: None,
             alt_svc_policy: AltSvcPolicy::sequential(),
-            http3_early_data: false,
+            http3_early_data: None,
             #[cfg(feature = "https-records")]
             https_record_resolver: None,
             #[cfg(feature = "cookies")]

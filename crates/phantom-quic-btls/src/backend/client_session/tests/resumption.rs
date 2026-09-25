@@ -345,3 +345,30 @@ fn a_ticket_without_early_data_permission_sends_none() {
     assert!(resumed(client.as_ref()));
     assert_eq!(client.early_data_accepted(), Some(false));
 }
+
+#[test]
+fn a_profile_offers_early_data_only_with_session_tickets() {
+    let quic = chromium::v154_quic();
+    assert!(quic.early_data);
+    let offering = test_ok(
+        test_ok(
+            QuicClientConfig::with_transport_profile(resumption_client_context().0, quic.clone()),
+            "Chrome QUIC profile",
+        )
+        .with_tls_profile(&resuming_tls_settings()),
+        "Chrome H3 TLS profile",
+    );
+    assert!(offering.sends_early_data());
+    assert!(!offering.without_early_data().sends_early_data());
+
+    // Without tickets no connection resumes, so nothing could be offered.
+    let ticketless = test_ok(
+        test_ok(
+            QuicClientConfig::with_transport_profile(resumption_client_context().0, quic),
+            "Chrome QUIC profile",
+        )
+        .with_tls_profile(&ticketless_tls_settings()),
+        "ticketless H3 TLS profile",
+    );
+    assert!(!ticketless.sends_early_data());
+}

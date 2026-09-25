@@ -123,7 +123,7 @@ impl Http3Pool {
             client_hints,
             body.as_ref(),
         )?;
-        if connector.sends_early_data() && is_replay_safe(&method, body.as_ref(), &trailers) {
+        if connector.sends_early_data() {
             let early = self
                 .admit(endpoint, route, timeout_budget)
                 .await?
@@ -141,31 +141,57 @@ impl Http3Pool {
                     },
                 )
                 .await?;
-            let result = dispatch(
-                early,
-                connector,
-                method.clone(),
-                authority,
-                target.clone(),
-                headers.clone(),
-                trailers.clone(),
-                client_hints,
-                None,
-                timeout_budget,
-                retries,
-            )
-            .await;
-            match result {
-                Err(error) if error.is_http3_early_data_rejected() => {
-                    // Rejected early data was not processed (RFC 9001,
-                    // section 4.6.2). The request is sent again after a
-                    // handshake, over the same route and protocol.
-                    debug!(
-                        outcome = "early_data_rejected",
-                        "HTTP/3 early data rejected; sending after the handshake"
-                    );
+            if is_replay_safe(&method, body.as_ref(), &trailers) {
+                let result = dispatch(
+                    early,
+                    connector,
+                    method.clone(),
+                    authority,
+                    target.clone(),
+                    headers.clone(),
+                    trailers.clone(),
+                    client_hints,
+                    None,
+                    timeout_budget,
+                    retries,
+                )
+                .await;
+                match result {
+                    Err(error) if error.is_http3_early_data_rejected() => {
+                        // Rejected early data was not processed (RFC 9001,
+                        // section 4.6.2). The request is sent again after a
+                        // handshake, over the same route and protocol.
+                        debug!(
+                            outcome = "early_data_rejected",
+                            "HTTP/3 early data rejected; sending after the handshake"
+                        );
+                    }
+                    result => return result,
                 }
-                result => return result,
+            } else if let Some(settled) = early.settle_early_data(timeout_budget).await? {
+                // A new connection offered early data, as the captured
+                // browsers' connections do, but this request must not be
+                // replayed, so it goes out only once the handshake accepted
+                // the early data, and keeps its body until then.
+                return dispatch(
+                    settled,
+                    connector,
+                    method,
+                    authority,
+                    target,
+                    headers,
+                    trailers,
+                    client_hints,
+                    body,
+                    timeout_budget,
+                    retries,
+                )
+                .await;
+            } else {
+                debug!(
+                    outcome = "early_data_rejected",
+                    "HTTP/3 early data not accepted; the request waits for a new handshake"
+                );
             }
         }
         let leased = self
@@ -373,7 +399,8 @@ struct PoolEntry {
     admission: Arc<Admission>,
     /// Origin connector with this entry's own QUIC ticket cache, so a ticket
     /// is presented only on the origin and route that learned it. It never
-    /// sends early data.
+    /// sends early data; it opens the connection that replaces one whose
+    /// early data was rejected.
     origin: OnceLock<Http3Connector>,
     /// The origin connector's early-data twin, sharing its ticket cache, when
     /// the client enables HTTP/3 early data.
@@ -761,8 +788,9 @@ pub(crate) struct Http3SetupControl<'a> {
     /// Limit on one connection attempt once the turn is held, reported as a
     /// connect-phase timeout.
     pub(crate) attempt_limit: Option<Duration>,
-    /// Whether a new connection may carry the request as early data. Set only
-    /// for a replay-safe request on a client that enables HTTP/3 early data.
+    /// Whether a new connection offers early data. Set on a client that
+    /// enables HTTP/3 early data; only a replay-safe request is then sent
+    /// before the handshake completes.
     pub(crate) early_data: bool,
 }
 
@@ -816,6 +844,47 @@ pub(crate) struct Http3Lease {
     entry: Arc<PoolEntry>,
     lease: ConnectionLease,
     permit: AdmissionPermit,
+}
+
+impl Http3Lease {
+    /// Waits, within the connect phase, until a new connection that sent
+    /// early data completes its handshake.
+    ///
+    /// Returns the lease with its connection pooled when the server accepted
+    /// the early data, and the lease unchanged for a connection that sent
+    /// none. Returns `None` when the server rejected the early data or the
+    /// handshake failed; that connection is never reused, and dropping the
+    /// lease releases its admission.
+    async fn settle_early_data(
+        self,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<Option<Self>, RequestError> {
+        let Some(location) = self.lease.adopt_at.clone() else {
+            return Ok(Some(self));
+        };
+        let accepted = timeout_budget
+            .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
+                Ok(self.lease.connection.early_data_accepted().await)
+            })
+            .await?;
+        if accepted != Some(true) {
+            return Ok(None);
+        }
+        self.entry
+            .adopt(ConnectionSlot {
+                connection: self.lease.connection.clone(),
+                token: Arc::clone(&self.lease.token),
+                location,
+            })
+            .await;
+        Ok(Some(Self {
+            lease: ConnectionLease {
+                adopt_at: None,
+                ..self.lease
+            },
+            ..self
+        }))
+    }
 }
 
 /// Checks one request's H3 and route representation before any I/O.

@@ -50,34 +50,41 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
   between origins or routes; see
   [Session tickets](../internals/http3.md#session-tickets).
 
-## Send a request as early data on a resumed connection
+## Turn off early data on resumed connections
 
-A resumed QUIC connection can carry its first request as early (0-RTT) data,
-before the handshake completes. Enable it on the builder:
+With the Chrome 154 and Edge 153 recipes, a resumed QUIC connection offers
+early (0-RTT) data in its ClientHello, as those browsers do, and may send a
+replay-safe first request before the handshake completes. Turn it off on the
+builder:
 
 ```rust
 use phantom::profile::ClientProfile;
 use phantom::{BuildError, Client};
 
-fn early_data_client(profile: ClientProfile) -> Result<Client, BuildError> {
-    Client::builder(profile).http3_early_data().build()
+fn client_without_early_data(profile: ClientProfile) -> Result<Client, BuildError> {
+    Client::builder(profile).http3_early_data(false).build()
 }
 ```
 
 - Early data is replayable: an attacker who records it can deliver it to the
-  server again, and the server may process each copy. The option is off by
-  default, and no named recipe enables it.
-- Only a replay-safe request opens a connection with early data: `GET`,
-  `HEAD`, `OPTIONS`, or `TRACE`, with no body and no trailers. Other
-  requests wait for the handshake.
+  server again, and the server may process each copy. Turning it off changes
+  the resumed ClientHello, which then lacks the `early_data` extension the
+  captured browsers send.
+- `http3_early_data(true)` turns early data on for a profile whose QUIC
+  settings leave `early_data` unset. `build` then fails with
+  `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings enable
+  `session_tickets`.
+- Only a replay-safe request is sent as early data: `GET`, `HEAD`,
+  `OPTIONS`, or `TRACE`, with no body and no trailers. Other requests wait
+  for the handshake, even on a connection that offered early data. With the
+  recipes' dynamic QPACK policy, a request also waits for the server's
+  SETTINGS, which on a resumed connection arrive as the handshake completes.
   [QUIC session resumption](../explanation/validation.md#quic-session-resumption)
   gives the Chromium source for this rule.
-- The server must have issued a ticket that permits early data. `build`
-  fails with `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings
-  enable `session_tickets`.
-- If the server rejects the early data, it processed none of it. Phantom
-  sends the request again after the handshake, over the same route and
-  protocol, and does not reuse the rejected connection.
+- The server must have issued a ticket that permits early data. If it
+  rejects the early data, it processed none of it. Phantom sends the request
+  again after a handshake, over the same route and protocol, on a new
+  connection.
 
 ## Upgrade to HTTP/3 when the server advertises it
 
@@ -277,9 +284,7 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   alternative is used instead of an HTTPS-record one), Encrypted Client
   Hello from a record's `ech` value, persisting brokenness or clearing it on
   a network change, an RTT-derived racing delay, proxy-route snapshots,
-  WebSocket over H3, and early data in a named recipe. Why the recipes
-  resume sessions but send no early data is in
-  [QUIC session resumption](../explanation/validation.md#quic-session-resumption).
+  WebSocket over H3, and early data on an Alt-Svc racing attempt.
 
 ## Next
 

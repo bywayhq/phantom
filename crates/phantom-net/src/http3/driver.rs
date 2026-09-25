@@ -35,6 +35,7 @@ impl DriverTask {
         endpoint: quinn::Endpoint,
         connection: quinn::Connection,
         late_settings: Option<oneshot::Receiver<LateApplicationSettings>>,
+        round_trip: Option<super::RoundTripRecorder>,
     ) -> Self {
         let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);
@@ -51,6 +52,7 @@ impl DriverTask {
                 terminal_signal,
                 endpoint,
                 connection,
+                round_trip,
                 DriverOutcome::new(span),
             )
             .with_subscriber(dispatch),
@@ -138,6 +140,7 @@ async fn supervise_driver(
     mut terminal: oneshot::Receiver<DriverSignal>,
     endpoint: quinn::Endpoint,
     connection: quinn::Connection,
+    round_trip: Option<super::RoundTripRecorder>,
     mut outcome: DriverOutcome,
 ) {
     let event = poll_fn(|context| {
@@ -177,6 +180,9 @@ async fn supervise_driver(
         }
     }
 
+    if let Some(round_trip) = round_trip {
+        round_trip.at_close(&connection);
+    }
     endpoint.close(quinn::VarInt::from_u32(0), b"");
     let _ = wait_for_idle(&endpoint).await;
 }

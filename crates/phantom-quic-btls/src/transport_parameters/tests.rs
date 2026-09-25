@@ -1,6 +1,9 @@
-use std::{collections::BTreeSet, error::Error};
+use std::{collections::BTreeSet, error::Error, time::Duration};
 
-use phantom_profile::{chromium, quic::QuicTransportSettings};
+use phantom_profile::{
+    chromium,
+    quic::{QuicTransportParameterKind, QuicTransportSettings},
+};
 use quinn_proto::{Side, transport_parameters::TransportParameters};
 
 use super::{
@@ -21,7 +24,7 @@ fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn 
     let profile = TransportParameterProfile::new(chromium::v154_quic())?;
     let mut entropy = fixture_entropy();
 
-    let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy)?;
+    let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy)?;
 
     assert_eq!(encoded, captured);
     Ok(())
@@ -39,7 +42,7 @@ fn entropy_changes_order_without_changing_profile_semantics() -> Result<(), Box<
 
     for seed in 0..16 {
         let mut entropy = seeded_entropy(seed);
-        let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy)?;
+        let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy)?;
 
         assert_eq!(parameter_shape(&encoded)?, expected_shape);
         assert_profile_semantics(&encoded, &settings, &captured)?;
@@ -47,6 +50,56 @@ fn entropy_changes_order_without_changing_profile_semantics() -> Result<(), Box<
     }
 
     assert!(orders.len() > 1, "transport-parameter order did not vary");
+    Ok(())
+}
+
+#[test]
+fn a_resumed_connection_adds_only_initial_rtt_as_a_minimal_varint() -> Result<(), Box<dyn Error>> {
+    let captured = decode_hex(CAPTURED_PARAMETERS)?;
+    let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
+    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
+    let mut fresh_shape = parameter_shape(&captured)?;
+    // Loopback and 50 ms values from the resumption captures, and the
+    // one-byte and eight-byte extremes.
+    for (rtt, value) in [
+        (Duration::from_micros(2_509), vec![0x49, 0xcd]),
+        (Duration::from_micros(54_894), vec![0x80, 0x00, 0xd6, 0x6e]),
+        (Duration::from_micros(63), vec![0x3f]),
+        (
+            Duration::from_secs(1_100),
+            vec![0xc0, 0x00, 0x00, 0x00, 0x41, 0x90, 0xab, 0x00],
+        ),
+    ] {
+        let mut orders = BTreeSet::new();
+        for seed in 0..16 {
+            let encoded = profile.encode_with_entropy(
+                &params,
+                QuicVersion::V1,
+                Some(rtt),
+                &mut seeded_entropy(seed),
+            )?;
+            let parsed = ParsedTransportParameters::from_encoded(&encoded)?;
+            assert_eq!(parsed.value(0x3127)?, value.as_slice());
+            let order = parameter_order(&encoded)?;
+            orders.insert(order.iter().position(|id| *id == 0x3127));
+            let mut expected = fresh_shape.clone();
+            expected.push((0x3127, 2, 1, value.len()));
+            expected.sort_unstable();
+            assert_eq!(parameter_shape(&encoded)?, expected);
+        }
+        assert!(orders.len() > 1, "initial_rtt_us kept one position");
+    }
+
+    // A measurement below one microsecond has nothing to send.
+    let encoded = profile.encode_with_entropy(
+        &params,
+        QuicVersion::V1,
+        Some(Duration::from_nanos(900)),
+        &mut fixture_entropy(),
+    )?;
+    assert_eq!(encoded, captured);
+    fresh_shape.sort_unstable();
+    assert_eq!(parameter_shape(&encoded)?, fresh_shape);
     Ok(())
 }
 
@@ -62,7 +115,7 @@ fn live_semantic_mismatch_fails_closed() -> Result<(), Box<dyn Error>> {
     let profile = TransportParameterProfile::new(chromium::v154_quic())?;
     let mut entropy = fixture_entropy();
 
-    let error = match profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy) {
+    let error = match profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy) {
         Ok(_) => return Err("mismatched live semantics were accepted".into()),
         Err(error) => error,
     };
@@ -79,7 +132,7 @@ fn unprofiled_live_parameter_fails_closed() -> Result<(), Box<dyn Error>> {
     let profile = TransportParameterProfile::new(chromium::v154_quic())?;
     let mut entropy = fixture_entropy();
 
-    let error = match profile.encode_with_entropy(&params, QuicVersion::V1, &mut entropy) {
+    let error = match profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy) {
         Ok(_) => return Err("unprofiled live state was accepted".into()),
         Err(error) => error,
     };
@@ -228,7 +281,13 @@ fn assert_profile_semantics(
         .collect::<Vec<_>>();
     assert_eq!(grease.len(), 1);
     assert!((0..=15).contains(&grease[0].1.len()));
-    assert_eq!(parsed.values.len(), settings.wire_parameters.len());
+    // A fresh connection omits `initial_rtt_us`.
+    let fresh_parameters = settings
+        .wire_parameters
+        .iter()
+        .filter(|parameter| parameter.kind != QuicTransportParameterKind::InitialRtt)
+        .count();
+    assert_eq!(parsed.values.len(), fresh_parameters);
     validate_version_information(encoded)?;
     Ok(())
 }

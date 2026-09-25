@@ -6,7 +6,7 @@ use quinn_proto::transport_parameters::TransportParameters;
 use super::{QuicTransportProfileError, field_for_identifier, profile_error};
 
 pub(super) const ENTROPY_LEN: usize = 1_024;
-const MAX_VARINT: u64 = (1 << 62) - 1;
+pub(super) const MAX_VARINT: u64 = (1 << 62) - 1;
 
 pub(super) struct ParsedTransportParameters {
     pub(super) values: BTreeMap<u64, Vec<u8>>,

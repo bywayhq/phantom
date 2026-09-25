@@ -37,14 +37,19 @@ fn assert_quic_settings_match_startup(
     settings.validate()?;
     let mut captured = parse_quic_transport_parameters(fixture)?;
 
-    assert_eq!(captured.len(), settings.wire_parameters.len());
+    use QuicTransportParameterKind as Kind;
+    // A fresh connection omits the parameters sent only on resumption.
+    let fresh_parameters = settings
+        .wire_parameters
+        .iter()
+        .filter(|parameter| parameter.kind != Kind::InitialRtt);
+    assert_eq!(captured.len(), fresh_parameters.clone().count());
     assert_eq!(
         settings.parameter_order,
         QuicTransportParameterOrder::Permuted
     );
 
-    use QuicTransportParameterKind as Kind;
-    for parameter in &settings.wire_parameters {
+    for parameter in fresh_parameters {
         let observed_index = captured
             .iter()
             .position(|observed| parameter_matches(&parameter.kind, observed.id))
@@ -146,6 +151,7 @@ fn assert_quic_settings_match_startup(
             Kind::MaxIdleTimeout { value_width } => {
                 assert_quic_scalar(&observed, 0x01, *value_width, settings.max_idle_timeout_ms)?
             }
+            Kind::InitialRtt => return Err("a fresh capture carried initial_rtt_us".into()),
         }
     }
     assert!(captured.is_empty());
@@ -169,6 +175,7 @@ fn parameter_matches(kind: &QuicTransportParameterKind, observed_id: u64) -> boo
         Kind::MaxUdpPayloadSize { .. } => observed_id == 0x03,
         Kind::MaxDatagramFrameSize { .. } => observed_id == 0x20,
         Kind::MaxIdleTimeout { .. } => observed_id == 0x01,
+        Kind::InitialRtt => observed_id == 0x3127,
     }
 }
 
@@ -353,4 +360,160 @@ fn chrome_154_quic_recipe_matches_windows_capture() -> Result<(), Box<dyn std::e
             .any(|line| line == "client_version=154.0.8037.58")
     );
     assert_quic_settings_match_startup(V154_WINDOWS_HTTP3_FIXTURE, &v154_quic())
+}
+
+const RESUMPTION_FIXTURES: [&str; 6] = [
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-accept-delayed.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-reject.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-accept-delayed.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-reject.txt"
+    )),
+];
+
+/// Every resumed Chromium connection in the resumption captures offers early
+/// data and adds only `initial_rtt_us` to the fresh parameter set; no fresh
+/// connection sends it. The captures retain raw ClientHello bytes for the
+/// first run's connections, which also fix the parameter's widths.
+#[test]
+fn chromium_resumption_captures_match_the_quic_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    let settings = v154_quic();
+    assert!(settings.early_data);
+    let initial_rtt = settings
+        .wire_parameters
+        .iter()
+        .find(|parameter| parameter.kind == QuicTransportParameterKind::InitialRtt)
+        .ok_or("the recipe omits initial_rtt_us")?;
+    for fixture in RESUMPTION_FIXTURES {
+        let fields: BTreeMap<&str, &str> = fixture
+            .lines()
+            .filter_map(|line| line.split_once('='))
+            .collect();
+        let field = |connection: &str, name: &str| {
+            fields
+                .get(format!("{connection}_{name}").as_str())
+                .copied()
+                .ok_or_else(|| format!("{connection} omitted {name}"))
+        };
+        let mut resumed_connections = 0;
+        let mut raw_resumed_connections = 0;
+        for (key, resumed) in &fields {
+            let Some(connection) = key.strip_suffix("_resumed") else {
+                continue;
+            };
+            if !connection.starts_with("run_") {
+                continue;
+            }
+            let resumed = *resumed == "true";
+            let identifiers = field(connection, "transport_parameter_ids")?
+                .split(',')
+                .map(|identifier| match identifier {
+                    "grease" => Ok(None),
+                    identifier => identifier.parse::<u64>().map(Some),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let expected: Vec<&QuicTransportParameterKind> = settings
+                .wire_parameters
+                .iter()
+                .map(|parameter| &parameter.kind)
+                .filter(|kind| resumed || **kind != QuicTransportParameterKind::InitialRtt)
+                .collect();
+            assert_eq!(identifiers.len(), expected.len(), "{connection}");
+            for kind in expected {
+                let matching = identifiers
+                    .iter()
+                    .filter(|identifier| match identifier {
+                        Some(identifier) => parameter_matches(kind, *identifier),
+                        None => matches!(kind, QuicTransportParameterKind::Grease(_)),
+                    })
+                    .count();
+                assert_eq!(matching, 1, "{connection}: {kind:?}");
+            }
+            if !resumed {
+                assert_eq!(field(connection, "initial_rtt_us")?, "none");
+                continue;
+            }
+            resumed_connections += 1;
+            assert_eq!(field(connection, "early_data_offered")?, "true");
+            let Ok(client_hello) = field(connection, "client_hello_hex") else {
+                continue;
+            };
+            raw_resumed_connections += 1;
+            let parameters = decode_transport_parameter_bytes(
+                client_hello_extension(&decode_hex(client_hello)?, 0x39)
+                    .ok_or("captured ClientHello omitted QUIC transport parameters")?,
+            )?;
+            let captured_rtt = parameters
+                .iter()
+                .find(|parameter| parameter.id == 0x3127)
+                .ok_or("a resumed ClientHello omitted initial_rtt_us")?;
+            assert_eq!(captured_rtt.id_width, initial_rtt.id_width);
+            assert_eq!(captured_rtt.length_width, initial_rtt.length_width);
+            let (value, width) = decode_quic_varint(&captured_rtt.value)?;
+            assert_eq!(width, minimal_width(value));
+            assert_eq!(value.to_string(), field(connection, "initial_rtt_us")?);
+        }
+        assert!(raw_resumed_connections > 0);
+        assert_eq!(
+            resumed_connections.to_string(),
+            fields["summary_later_connections_resumed"]
+        );
+    }
+    Ok(())
+}
+
+fn minimal_width(value: u64) -> QuicVarIntWidth {
+    [
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::Two,
+        QuicVarIntWidth::Four,
+    ]
+    .into_iter()
+    .find(|width| width.can_encode(value))
+    .unwrap_or(QuicVarIntWidth::Eight)
+}
+
+/// Returns one extension body of a ClientHello handshake message.
+fn client_hello_extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {
+    let read_u16 = |offset: usize| {
+        Some(u16::from_be_bytes([
+            *client_hello.get(offset)?,
+            *client_hello.get(offset + 1)?,
+        ]))
+    };
+    // Handshake header, legacy version, and random.
+    let mut offset = 4 + 2 + 32;
+    offset += 1 + usize::from(*client_hello.get(offset)?);
+    offset += 2 + usize::from(read_u16(offset)?);
+    offset += 1 + usize::from(*client_hello.get(offset)?);
+    let end = offset + 2 + usize::from(read_u16(offset)?);
+    offset += 2;
+    while offset < end {
+        let kind = read_u16(offset)?;
+        let len = usize::from(read_u16(offset + 2)?);
+        let body = client_hello.get(offset + 4..offset + 4 + len)?;
+        if kind == expected {
+            return Some(body);
+        }
+        offset += 4 + len;
+    }
+    None
 }

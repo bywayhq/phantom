@@ -33,6 +33,7 @@ fn minimal_valid_settings() -> QuicTransportSettings {
             QuicVarIntWidth::One,
         )],
         parameter_order: QuicTransportParameterOrder::Fixed,
+        early_data: false,
     }
 }
 
@@ -247,4 +248,33 @@ fn version_information_requires_the_chosen_version_in_available_versions() {
         validation_result(&settings),
         Err("wire_parameters.version_information")
     );
+}
+
+#[test]
+fn initial_rtt_needs_a_two_byte_identifier_and_room_for_any_varint() {
+    let mut settings = minimal_valid_settings();
+    settings.wire_parameters.push(parameter(
+        QuicTransportParameterKind::InitialRtt,
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::One,
+    ));
+    assert_eq!(
+        validation_result(&settings),
+        Err("wire_parameters.id_width")
+    );
+
+    let mut settings = minimal_valid_settings();
+    settings.wire_parameters.push(parameter(
+        QuicTransportParameterKind::InitialRtt,
+        QuicVarIntWidth::Two,
+        QuicVarIntWidth::One,
+    ));
+    assert_eq!(validation_result(&settings), Ok(()));
+
+    settings.wire_parameters.push(parameter(
+        QuicTransportParameterKind::InitialRtt,
+        QuicVarIntWidth::Two,
+        QuicVarIntWidth::One,
+    ));
+    assert_eq!(validation_result(&settings), Err("wire_parameters"));
 }

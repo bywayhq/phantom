@@ -152,8 +152,11 @@ impl Http3Connector {
     /// one proxy is never presented directly or through another route. The
     /// clone keeps this connector's identity, so connections it opens remain
     /// usable with this connector. A connector not produced by this method
-    /// never resumes. Resumption sends early data only after
-    /// [`Self::with_early_data`].
+    /// never resumes. A resumed connection offers early data when the QUIC
+    /// profile sets `early_data` or after [`Self::with_early_data`], and
+    /// advertises `initial_rtt_us` when the profile lists that parameter and
+    /// an earlier connection from the clone measured a round-trip time to the
+    /// same server.
     #[must_use]
     pub fn with_isolated_session_cache(&self) -> Self {
         self.with_crypto(self.crypto.with_isolated_session_cache())
@@ -178,12 +181,15 @@ impl Http3Connector {
 
     /// Returns a clone that sends early (0-RTT) data on resumed connections.
     ///
+    /// A connector sends early data from the start when its QUIC profile sets
+    /// `early_data`, as the Chrome 154 recipe does; [`Self::without_early_data`]
+    /// turns it off.
+    ///
     /// # Replay
     ///
     /// Early data is replayable. An attacker who records a connection's first
     /// flight can deliver it to the server again, and the server may process
-    /// each copy (RFC 8446, section 8; RFC 9001, section 9.2). No named
-    /// browser recipe enables this, and it is off unless requested.
+    /// each copy (RFC 8446, section 8; RFC 9001, section 9.2).
     ///
     /// A connection from the clone sends early data only when it presents a
     /// ticket that permits it, which needs [`Self::with_isolated_session_cache`]

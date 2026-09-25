@@ -170,6 +170,15 @@ pub enum QuicTransportParameterKind {
     },
     /// Google connection options (`0x3128`).
     GoogleConnectionOptions(Vec<GoogleConnectionOption>),
+    /// `initial_rtt_us` (`0x3127`), sent only on a connection that resumes a
+    /// session.
+    ///
+    /// The value is the round-trip time, in microseconds, that the runtime
+    /// last measured to the same server, encoded as a minimal-length varint.
+    /// A connection that presents no ticket, or that has no measurement to
+    /// send, omits the parameter, and the remaining parameters keep their
+    /// order policy.
+    InitialRtt,
     /// One reserved parameter whose identifier and payload are generated at runtime.
     Grease(QuicTransportGrease),
 }
@@ -193,6 +202,7 @@ impl QuicTransportParameterKind {
             Self::VersionInformation(_) => ParameterIdentity::VersionInformation,
             Self::MaxDatagramFrameSize { .. } => ParameterIdentity::MaxDatagramFrameSize,
             Self::GoogleConnectionOptions(_) => ParameterIdentity::GoogleConnectionOptions,
+            Self::InitialRtt => ParameterIdentity::InitialRtt,
             Self::Grease(_) => ParameterIdentity::Grease,
         }
     }
@@ -211,6 +221,7 @@ impl QuicTransportParameterKind {
             Self::VersionInformation(_) => Some(0x11),
             Self::MaxDatagramFrameSize { .. } => Some(0x20),
             Self::GoogleConnectionOptions(_) => Some(0x3128),
+            Self::InitialRtt => Some(0x3127),
             Self::Grease(_) => None,
         }
     }
@@ -255,6 +266,15 @@ pub struct QuicTransportSettings {
     pub wire_parameters: Vec<QuicTransportParameter>,
     /// Whether to preserve or permute the configured parameter order.
     pub parameter_order: QuicTransportParameterOrder,
+    /// Whether a connection that resumes a TLS session offers early (0-RTT)
+    /// data.
+    ///
+    /// When set, a resumed connection's ClientHello carries the TLS
+    /// `early_data` extension whenever its ticket permits early data. Which
+    /// requests travel as early data is the runtime's replay policy, not
+    /// profile data. Only a resumed connection can offer early data, so this
+    /// has no effect unless the TLS settings enable session tickets.
+    pub early_data: bool,
 }
 
 impl QuicTransportSettings {
@@ -371,6 +391,8 @@ impl QuicTransportSettings {
             QuicTransportParameterKind::GoogleConnectionOptions(options) => {
                 validate_google_connection_options(options)?
             }
+            // The longest varint the runtime may encode.
+            QuicTransportParameterKind::InitialRtt => QuicVarIntWidth::Eight.encoded_len() as u64,
             QuicTransportParameterKind::Grease(grease) => validate_grease(grease)?,
         };
 
@@ -511,6 +533,7 @@ enum ParameterIdentity {
     VersionInformation,
     MaxDatagramFrameSize,
     GoogleConnectionOptions,
+    InitialRtt,
     Grease,
 }
 

@@ -489,7 +489,7 @@ pub(super) const CHROME_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
-const EDGE_153_H3_STARTUP: &str = include_str!(concat!(
+pub(super) const EDGE_153_H3_STARTUP: &str = include_str!(concat!(
     "../../../../../fixtures/http3/edge/153.0.4234.48/",
     "windows-11-26200/client-startup.txt"
 ));
@@ -502,7 +502,7 @@ const EDGE_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "windows-11-26200/quic-client-hello-2.txt"
 ));
 
-fn fixture_hex(
+pub(super) fn fixture_hex(
     fixture: &str,
     field: &str,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
@@ -526,7 +526,7 @@ fn fixture_hex(
         .collect()
 }
 
-fn client_hello_extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {
+pub(super) fn client_hello_extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {
     let mut offset = 4 + 2 + 32;
     offset += 1 + usize::from(*client_hello.get(offset)?);
     let cipher_len = usize::from(u16::from_be_bytes([
@@ -558,7 +558,7 @@ fn client_hello_extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {
     None
 }
 
-fn sorted_trust_anchor_ids(summary: &ClientHelloSummary) -> Option<Vec<Vec<u8>>> {
+pub(super) fn sorted_trust_anchor_ids(summary: &ClientHelloSummary) -> Option<Vec<Vec<u8>>> {
     summary.requested_trust_anchor_ids().map(|identifiers| {
         let mut identifiers = identifiers.to_vec();
         identifiers.sort_unstable();

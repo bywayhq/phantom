@@ -23,6 +23,7 @@ fn downstream_code_can_build_a_custom_quic_profile() {
             length_width: QuicVarIntWidth::One,
         }],
         parameter_order: QuicTransportParameterOrder::Fixed,
+        early_data: false,
     };
 
     assert!(settings.validate().is_ok());

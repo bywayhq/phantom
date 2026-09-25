@@ -240,8 +240,8 @@ fn forget(client: &Client) {
   opts into racing ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
 - TLS session tickets for H1/H2, and QUIC session tickets for H3, are
   bounded and keyed by exact origin and route. Only QUIC tickets carry early
-  data, and only after `ClientBuilder::http3_early_data`
-  ([HTTP/3 and Alt-Svc](http3.md#send-a-request-as-early-data-on-a-resumed-connection)).
+  data, when the profile or `ClientBuilder::http3_early_data` enables it
+  ([HTTP/3 and Alt-Svc](http3.md#turn-off-early-data-on-resumed-connections)).
 
 ## Limits
 

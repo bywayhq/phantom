@@ -2,7 +2,10 @@ use std::{
     any::Any,
     future::{Future, poll_fn},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket},
-    sync::{Arc, OnceLock},
+    sync::{
+        Arc, OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
     task::Poll,
     time::Duration,
 };
@@ -462,6 +465,7 @@ async fn connect(
 ) -> Result<Http3Connection, Http3Error> {
     let mut builder = settings::builder(settings, &crypto)?;
     let sends_early_data = crypto.sends_early_data();
+    let round_trip = RoundTripRecorder::new(&crypto, server_name);
     #[cfg(test)]
     let peer_alps_override = diagnostics.early_peer_alps.clone();
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
@@ -505,6 +509,9 @@ async fn connect(
                 })?;
         }
         let _ = accept_ch.set(decoded);
+        if let Some(round_trip) = &round_trip {
+            round_trip.after_handshake(&connection);
+        }
         debug!(
             session_resumed = handshake.session_resumed(),
             "QUIC connection established with exact h3 ALPN"
@@ -536,6 +543,7 @@ async fn connect(
         endpoint,
         connection.clone(),
         late_settings_receiver,
+        round_trip.clone(),
     );
     let early_data = zero_rtt
         .zip(late_settings)
@@ -547,6 +555,7 @@ async fn connect(
                     quinn,
                     accept_ch,
                     late_settings,
+                    round_trip,
                     #[cfg(test)]
                     peer_alps_override,
                 )
@@ -574,6 +583,7 @@ async fn complete_early_handshake(
     connection: quinn::Connection,
     accept_ch: Arc<OnceLock<AcceptCh>>,
     late_settings: oneshot::Sender<LateApplicationSettings>,
+    round_trip: Option<RoundTripRecorder>,
     #[cfg(test)] peer_alps_override: Option<Arc<[u8]>>,
 ) -> EarlyDataOutcome {
     let handshake = match require_h3(&connection) {
@@ -621,11 +631,53 @@ async fn complete_early_handshake(
         }
     }
     let _ = accept_ch.set(decoded);
+    if let Some(round_trip) = &round_trip {
+        round_trip.after_handshake(&connection);
+    }
     debug!(
         session_resumed = handshake.session_resumed(),
         "QUIC early-data handshake completed with exact h3 ALPN"
     );
     EarlyDataOutcome::Accepted
+}
+
+/// Feeds one connection's round-trip time to its connector's ticket cache,
+/// which a later resumed connection to the same server advertises as
+/// `initial_rtt_us` when its profile includes that parameter.
+///
+/// The value is recorded once the handshake completes, then again when the
+/// connection ends, so a later connection sends the latest measurement. A
+/// connection whose handshake never completed has only Quinn's initial
+/// estimate, which is never recorded.
+#[derive(Clone)]
+pub(super) struct RoundTripRecorder {
+    crypto: Arc<QuicClientConfig>,
+    server_name: Arc<str>,
+    measured: Arc<AtomicBool>,
+}
+
+impl RoundTripRecorder {
+    /// Returns a recorder, or `None` when the connector keeps no tickets.
+    fn new(crypto: &Arc<QuicClientConfig>, server_name: &str) -> Option<Self> {
+        crypto.resumes_sessions().then(|| Self {
+            crypto: Arc::clone(crypto),
+            server_name: server_name.into(),
+            measured: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
+    fn after_handshake(&self, connection: &quinn::Connection) {
+        self.measured.store(true, Ordering::Release);
+        self.crypto
+            .record_round_trip_time(&self.server_name, connection.rtt());
+    }
+
+    pub(super) fn at_close(&self, connection: &quinn::Connection) {
+        if self.measured.load(Ordering::Acquire) {
+            self.crypto
+                .record_round_trip_time(&self.server_name, connection.rtt());
+        }
+    }
 }
 
 /// Decodes the `ACCEPT_CH` entries of a peer's HTTP/3 ALPS payload.

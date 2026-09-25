@@ -16,7 +16,8 @@ mod wire;
 #[cfg(test)]
 use wire::{ENTROPY_LEN, decode_varint};
 use wire::{
-    ParsedTransportParameters, WireEntropy, encode_varint, is_reserved_transport_parameter,
+    MAX_VARINT, ParsedTransportParameters, WireEntropy, encode_varint,
+    is_reserved_transport_parameter,
 };
 
 const QUIC_V1: u32 = 0x0000_0001;
@@ -112,6 +113,11 @@ impl TransportParameterProfile {
         Ok(())
     }
 
+    /// Whether a connection that resumes a session offers early data.
+    pub(crate) const fn early_data(&self) -> bool {
+        self.settings.early_data
+    }
+
     pub(crate) fn receives_datagrams(&self) -> bool {
         self.settings
             .max_datagram_frame_size
@@ -182,6 +188,7 @@ impl TransportParameterProfile {
                 | Kind::InitialMaxStreamsUni { .. }
                 | Kind::InitialSourceConnectionId { .. }
                 | Kind::MaxDatagramFrameSize { .. }
+                | Kind::InitialRtt
                 | Kind::Grease(_) => {}
                 _ => {
                     return Err(profile_error(
@@ -194,25 +201,42 @@ impl TransportParameterProfile {
         Ok(())
     }
 
+    /// Encodes the profile's parameters for one connection.
+    ///
+    /// `initial_rtt` is the round-trip time to send as `initial_rtt_us`; the
+    /// caller passes it only for a connection that resumes a session. Without
+    /// it, or when it rounds to zero microseconds, the parameter is omitted
+    /// and the others are ordered as on a fresh connection.
     pub(crate) fn encode(
         &self,
         params: &TransportParameters,
         version: QuicVersion,
+        initial_rtt: Option<Duration>,
     ) -> Result<Vec<u8>, QuicTransportProfileError> {
         let mut entropy = WireEntropy::random()?;
-        self.encode_with_entropy(params, version, &mut entropy)
+        self.encode_with_entropy(params, version, initial_rtt, &mut entropy)
     }
 
     fn encode_with_entropy(
         &self,
         params: &TransportParameters,
         version: QuicVersion,
+        initial_rtt: Option<Duration>,
         entropy: &mut WireEntropy,
     ) -> Result<Vec<u8>, QuicTransportProfileError> {
         let stock = ParsedTransportParameters::new(params)?;
         self.validate_stock(&stock)?;
+        let initial_rtt_us = initial_rtt
+            .map(|rtt| u64::try_from(rtt.as_micros()).map_or(MAX_VARINT, |us| us.min(MAX_VARINT)))
+            .filter(|us| *us > 0);
 
-        let mut order: Vec<usize> = (0..self.settings.wire_parameters.len()).collect();
+        let mut order: Vec<usize> = (0..self.settings.wire_parameters.len())
+            .filter(|index| {
+                initial_rtt_us.is_some()
+                    || self.settings.wire_parameters[*index].kind
+                        != QuicTransportParameterKind::InitialRtt
+            })
+            .collect();
         if matches!(
             self.settings.parameter_order,
             QuicTransportParameterOrder::Permuted
@@ -223,7 +247,8 @@ impl TransportParameterProfile {
         let mut output = Vec::new();
         for index in order {
             let parameter = &self.settings.wire_parameters[index];
-            let (identifier, value) = self.parameter_value(parameter, &stock, version, entropy)?;
+            let (identifier, value) =
+                self.parameter_value(parameter, &stock, version, initial_rtt_us, entropy)?;
             encode_varint(identifier, parameter.id_width, &mut output)?;
             encode_varint(
                 u64::try_from(value.len()).map_err(|_| {
@@ -326,9 +351,10 @@ impl TransportParameterProfile {
                     )
                 })?,
             )),
-            Kind::VersionInformation(_) | Kind::GoogleConnectionOptions(_) | Kind::Grease(_) => {
-                None
-            }
+            Kind::VersionInformation(_)
+            | Kind::GoogleConnectionOptions(_)
+            | Kind::InitialRtt
+            | Kind::Grease(_) => None,
             _ => {
                 return Err(profile_error(
                     "wire_parameters",
@@ -344,6 +370,7 @@ impl TransportParameterProfile {
         parameter: &QuicTransportParameter,
         stock: &ParsedTransportParameters,
         version: QuicVersion,
+        initial_rtt_us: Option<u64>,
         entropy: &mut WireEntropy,
     ) -> Result<(u64, Vec<u8>), QuicTransportProfileError> {
         use QuicTransportParameterKind as Kind;
@@ -420,6 +447,12 @@ impl TransportParameterProfile {
                 }
                 Ok((0x3128, value))
             }
+            Kind::InitialRtt => {
+                let value = initial_rtt_us.ok_or_else(|| {
+                    profile_error("initial_rtt", "no round-trip time to advertise")
+                })?;
+                encoded_scalar(0x3127, value, minimal_width(value))
+            }
             Kind::Grease(grease) => {
                 let identifier = entropy.reserved_transport_parameter_id()?;
                 let len = entropy.uniform_inclusive(
@@ -485,6 +518,18 @@ impl TransportParameterProfile {
     }
 }
 
+/// Returns the shortest QUIC varint width that holds `value`.
+fn minimal_width(value: u64) -> QuicVarIntWidth {
+    [
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::Two,
+        QuicVarIntWidth::Four,
+    ]
+    .into_iter()
+    .find(|width| width.can_encode(value))
+    .unwrap_or(QuicVarIntWidth::Eight)
+}
+
 fn varint(field: &'static str, value: u64) -> Result<VarInt, QuicTransportProfileError> {
     VarInt::from_u64(value)
         .map_err(|_| profile_error(field, "value cannot be represented by Quinn"))
@@ -502,6 +547,7 @@ fn field_for_identifier(identifier: u64) -> &'static str {
         0x09 => "initial_max_streams_uni",
         0x0f => "initial_source_connection_id",
         0x20 => "max_datagram_frame_size",
+        0x3127 => "initial_rtt",
         _ => "wire_parameters",
     }
 }

@@ -7,13 +7,17 @@
 //! the connection that received it authenticated the peer, and is presented
 //! only for the same verified server name.
 //!
+//! The cache also keeps the round-trip time last measured to each server
+//! name, which a resumed connection advertises as `initial_rtt_us` when its
+//! transport profile includes that parameter. It follows the same isolation.
+//!
 //! Memory is bounded per cache, so a client's total is bounded by the number
 //! of caches it keeps: one per pool entry, which its pool already caps.
 //! Locks are held only for in-memory lookup and insertion, never across I/O.
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use btls::ssl::SslSession;
 
@@ -26,7 +30,15 @@ pub(crate) const MAX_SESSIONS: usize = 4;
 
 #[derive(Clone, Default)]
 pub(crate) struct SessionCache {
-    sessions: Arc<Mutex<VecDeque<CachedSession>>>,
+    state: Arc<Mutex<CacheState>>,
+}
+
+#[derive(Default)]
+struct CacheState {
+    sessions: VecDeque<CachedSession>,
+    /// The latest round-trip time per server name, least recently recorded
+    /// first, bounded like the tickets.
+    round_trip_times: VecDeque<(Box<str>, Duration)>,
 }
 
 /// A resumable session and the verified name of the peer that issued it.
@@ -56,7 +68,8 @@ impl SessionCache {
         if is_expired(&ticket.session, now) {
             return;
         }
-        let mut sessions = self.sessions();
+        let mut state = self.state();
+        let sessions = &mut state.sessions;
         sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         if sessions.len() == MAX_SESSIONS {
             sessions.pop_front();
@@ -74,7 +87,8 @@ impl SessionCache {
     /// QUIC a lookup always consumes the ticket it returns.
     pub(crate) fn take(&self, server_name: &str) -> Option<ResumptionTicket> {
         let now = unix_time();
-        let mut sessions = self.sessions();
+        let mut state = self.state();
+        let sessions = &mut state.sessions;
         sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         let position = sessions
             .iter()
@@ -91,25 +105,48 @@ impl SessionCache {
     /// Returns whether an unexpired session for `server_name` is retained.
     pub(crate) fn contains(&self, server_name: &str) -> bool {
         let now = unix_time();
-        let mut sessions = self.sessions();
+        let mut state = self.state();
+        let sessions = &mut state.sessions;
         sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         sessions
             .iter()
             .any(|cached| server_names_match(&cached.server_name, server_name))
     }
 
+    /// Records the round-trip time a connection to `server_name` measured,
+    /// replacing any earlier value for that name.
+    pub(crate) fn record_round_trip_time(&self, server_name: &str, rtt: Duration) {
+        let mut state = self.state();
+        let times = &mut state.round_trip_times;
+        times.retain(|(name, _)| !server_names_match(name, server_name));
+        if times.len() == MAX_SESSIONS {
+            times.pop_front();
+        }
+        times.push_back((server_name.into(), rtt));
+    }
+
+    /// Returns the round-trip time last recorded for `server_name`.
+    pub(crate) fn round_trip_time(&self, server_name: &str) -> Option<Duration> {
+        self.state()
+            .round_trip_times
+            .iter()
+            .rev()
+            .find(|(name, _)| server_names_match(name, server_name))
+            .map(|(_, rtt)| *rtt)
+    }
+
     #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
-        self.sessions().len()
+        self.state().sessions.len()
     }
 
     #[cfg(test)]
     pub(crate) fn shares_storage_with(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.sessions, &other.sessions)
+        Arc::ptr_eq(&self.state, &other.state)
     }
 
-    fn sessions(&self) -> MutexGuard<'_, VecDeque<CachedSession>> {
-        self.sessions.lock().unwrap_or_else(PoisonError::into_inner)
+    fn state(&self) -> MutexGuard<'_, CacheState> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -144,7 +181,30 @@ fn unix_time() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::server_names_match;
+    use std::time::Duration;
+
+    use super::{MAX_SESSIONS, SessionCache, server_names_match};
+
+    #[test]
+    fn round_trip_times_keep_the_latest_value_per_server_name() {
+        let cache = SessionCache::default();
+        assert_eq!(cache.round_trip_time("example.test"), None);
+        cache.record_round_trip_time("example.test", Duration::from_millis(40));
+        cache.record_round_trip_time("EXAMPLE.test", Duration::from_millis(3));
+        assert_eq!(
+            cache.round_trip_time("example.test"),
+            Some(Duration::from_millis(3))
+        );
+
+        for index in 0..MAX_SESSIONS {
+            cache.record_round_trip_time(&format!("{index}.test"), Duration::from_millis(1));
+        }
+        assert_eq!(cache.round_trip_time("example.test"), None);
+        assert_eq!(
+            cache.clone().round_trip_time("0.test"),
+            Some(Duration::from_millis(1))
+        );
+    }
 
     #[test]
     fn server_names_match_like_certificate_verification() {

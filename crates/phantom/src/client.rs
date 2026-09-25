@@ -808,33 +808,42 @@ impl ClientBuilder {
         self
     }
 
-    /// Lets a resumed HTTP/3 connection send a replay-safe request as early
-    /// (0-RTT) data.
+    /// Sets whether a resumed HTTP/3 connection offers early (0-RTT) data,
+    /// overriding the profile.
+    ///
+    /// Without this call the profile decides: a client offers early data
+    /// when its HTTP/3 QUIC settings set `early_data`, as the Chrome 154 and
+    /// Edge 153 recipes do, because the captured browsers offer it on every
+    /// resumed connection. `false` turns it off for such a profile; `true`
+    /// turns it on for a profile that leaves it unset.
     ///
     /// # Replay
     ///
     /// Early data is replayable. An attacker who records a connection's first
     /// flight can deliver it to the server again, and the server may process
-    /// each copy (RFC 8446, section 8; RFC 9001, section 9.2). This option is
-    /// off by default, and no named browser recipe enables it: no retained
-    /// capture shows a browser sending HTTP/3 early data.
+    /// each copy (RFC 8446, section 8; RFC 9001, section 9.2).
     ///
     /// Only a request that is safe to replay goes out as early data: a safe
     /// method (`GET`, `HEAD`, `OPTIONS`, or `TRACE`) with no body and no
     /// trailers, the rule Chromium applies to a request of default
     /// idempotency. It is sent on a new connection that presents a ticket
     /// permitting early data; a request that finds a pooled connection uses
-    /// it as usual. Every other request waits for a handshake. If the server
-    /// rejects the early data, it processed none of it, and Phantom sends the
-    /// request again after a handshake over the same route and protocol.
+    /// it as usual. Any other request that opens a new connection offers
+    /// early data in its ClientHello, as the captured browsers do, but is
+    /// sent only after the handshake. A profile with dynamic QPACK encoding,
+    /// as in the Chrome 154 recipe, also holds each request until the
+    /// server's SETTINGS arrive, which on a resumed connection is when the
+    /// handshake completes. If the server rejects the early data, it
+    /// processed none of it, and Phantom sends the request again after a
+    /// handshake over the same route and protocol.
     ///
-    /// Building fails with
+    /// Building with `true` fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
     /// unless the profile has HTTP/3 settings whose TLS settings enable
     /// `session_tickets`, because early data needs a resumed session.
     #[must_use]
-    pub fn http3_early_data(mut self) -> Self {
-        self.options.http3_early_data = true;
+    pub fn http3_early_data(mut self, enabled: bool) -> Self {
+        self.options.http3_early_data = Some(enabled);
         self
     }
 
@@ -1030,17 +1039,15 @@ impl ClientBuilder {
                 )
                 .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
                 .map(|connector| self.with_qlog(connector))
-                .map(|connector| {
-                    if self.options.http3_early_data {
-                        connector.with_early_data()
-                    } else {
-                        connector
-                    }
+                .map(|connector| match self.options.http3_early_data {
+                    Some(true) => connector.with_early_data(),
+                    Some(false) => connector.without_early_data(),
+                    None => connector,
                 })
             })
             .transpose()
             .map_err(BuildError::http3)?;
-        if self.options.http3_early_data
+        if self.options.http3_early_data == Some(true)
             && !self
                 .profile
                 .http3()

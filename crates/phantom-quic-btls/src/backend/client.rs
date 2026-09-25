@@ -4,6 +4,7 @@ use std::fmt;
 use std::io::Cursor;
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::time::Duration;
 
 use btls::ex_data::Index;
 use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
@@ -87,17 +88,21 @@ impl QuicClientConfig {
     }
 
     /// Wraps a BoringSSL context and applies a validated QUIC transport profile.
+    ///
+    /// The configuration offers early data on resumption when the profile
+    /// sets `early_data`, as if [`Self::with_early_data`] had been called.
     pub fn with_transport_profile(
         context: SslContext,
         settings: QuicTransportSettings,
     ) -> Result<Self, QuicTransportProfileError> {
+        let transport_profile = TransportParameterProfile::new(settings)?;
         Ok(Self {
             context,
-            transport_profile: Some(TransportParameterProfile::new(settings)?),
+            early_data: transport_profile.early_data(),
+            transport_profile: Some(transport_profile),
             tls_profile: ClientTlsProfile::default(),
             sessions: None,
             offer_tickets: true,
-            early_data: false,
             #[cfg(test)]
             derivation_failure: None,
         })
@@ -132,7 +137,9 @@ impl QuicClientConfig {
     /// `session_tickets` enables TLS 1.3 session resumption. It requires a
     /// context prepared with [`Self::enable_session_resumption`], and it takes
     /// effect only on configurations derived with
-    /// [`Self::with_isolated_session_cache`].
+    /// [`Self::with_isolated_session_cache`]. Without `session_tickets` no
+    /// connection resumes, so this also clears the early-data offer that a
+    /// transport profile's `early_data` set.
     pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
         let profile = ClientTlsProfile::new(settings)?;
         if profile.session_tickets
@@ -142,6 +149,9 @@ impl QuicClientConfig {
                 "session_tickets",
                 "QUIC session tickets require a context prepared for session resumption",
             ));
+        }
+        if !profile.session_tickets {
+            self.early_data = false;
         }
         self.tls_profile = profile;
         Ok(self)
@@ -197,7 +207,7 @@ impl QuicClientConfig {
     /// Early data is replayable. An attacker who records the first flight can
     /// deliver it to the server again, and the server may process each copy
     /// (RFC 8446, section 8, and RFC 9001, section 9.2). Send only requests
-    /// whose repetition is harmless. No named browser recipe enables this.
+    /// whose repetition is harmless.
     ///
     /// The clone shares this configuration's ticket cache. A connection offers
     /// 0-RTT only when it presents a ticket that permits early data and whose
@@ -220,7 +230,7 @@ impl QuicClientConfig {
         config
     }
 
-    /// Returns whether this configuration opted in to early (0-RTT) data.
+    /// Returns whether this configuration offers early (0-RTT) data.
     ///
     /// A connection sends early data only when it also presents a ticket,
     /// which needs a configuration from [`Self::with_isolated_session_cache`].
@@ -239,6 +249,19 @@ impl QuicClientConfig {
             early_data: self.early_data,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
+        }
+    }
+
+    /// Records the round-trip time a connection to `server_name` measured.
+    ///
+    /// A later connection from a configuration that shares this ticket cache,
+    /// and that presents a ticket for the same name, advertises the most
+    /// recent value as `initial_rtt_us` when its transport profile includes
+    /// that parameter. Without a ticket cache this does nothing. Record only a
+    /// measurement taken after the handshake produced an RTT sample.
+    pub fn record_round_trip_time(&self, server_name: &str, rtt: Duration) {
+        if let Some(sessions) = &self.sessions {
+            sessions.record_round_trip_time(server_name, rtt);
         }
     }
 
@@ -406,26 +429,34 @@ impl crypto::ClientConfig for QuicClientConfig {
         validate_server_name_inner(server_name)
             .map_err(|_| ConnectError::InvalidServerName(server_name.into()))?;
 
+        let offered = self
+            .sessions
+            .as_ref()
+            .filter(|_| self.offer_tickets)
+            .and_then(|sessions| {
+                let ticket = sessions.take(server_name)?;
+                Some((ticket, sessions.round_trip_time(server_name)))
+            });
+        // Only a connection that presents a ticket advertises a round-trip
+        // time, as in every resumed Chromium connection in the captures.
+        let initial_rtt = offered.as_ref().and_then(|(_, rtt)| *rtt);
         let encoded_parameters = if let Some(profile) = &self.transport_profile {
-            profile.encode(params, version).map_err(|error| {
-                let message = error.to_string();
-                if error.is_entropy_failure() {
-                    ConnectError::TransportParameterEncoding(message)
-                } else {
-                    ConnectError::InvalidTransportParameters(message)
-                }
-            })?
+            profile
+                .encode(params, version, initial_rtt)
+                .map_err(|error| {
+                    let message = error.to_string();
+                    if error.is_entropy_failure() {
+                        ConnectError::TransportParameterEncoding(message)
+                    } else {
+                        ConnectError::InvalidTransportParameters(message)
+                    }
+                })?
         } else {
             let mut encoded = Vec::new();
             params.write(&mut encoded);
             encoded
         };
-        let offered = self
-            .sessions
-            .as_ref()
-            .filter(|_| self.offer_tickets)
-            .and_then(|sessions| sessions.take(server_name));
-        let (session, remembered) = offered.map_or((None, None), |ticket| {
+        let (session, remembered) = offered.map_or((None, None), |(ticket, _)| {
             (Some(ticket.session), ticket.peer_transport_parameters)
         });
         let early_data = self.early_data && remembered.is_some();

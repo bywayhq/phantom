@@ -24,7 +24,7 @@ use crate::tracing_test::OutcomeSubscriber;
 /// request as early data.
 const RELAY_DELAY: Duration = Duration::from_millis(150);
 
-type Served = Arc<Mutex<Vec<String>>>;
+pub(super) type Served = Arc<Mutex<Vec<String>>>;
 
 fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new_with_additional_roots(
@@ -38,7 +38,10 @@ fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
 
 /// A QUIC server configuration whose tickets permit early data when
 /// `early_data` is set, and which then accepts it.
-fn server_config(identity: &TestIdentity, early_data: bool) -> TestResult<quinn::ServerConfig> {
+pub(super) fn server_config(
+    identity: &TestIdentity,
+    early_data: bool,
+) -> TestResult<quinn::ServerConfig> {
     let certificate = CertificateDer::from(identity.leaf_der().to_vec());
     let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
         identity.private_key_der().to_vec(),
@@ -54,7 +57,7 @@ fn server_config(identity: &TestIdentity, early_data: bool) -> TestResult<quinn:
 }
 
 /// Serves every request on every connection with `200`, recording paths.
-fn spawn_h3_server(endpoint: quinn::Endpoint, served: Served) -> JoinHandle<()> {
+pub(super) fn spawn_h3_server(endpoint: quinn::Endpoint, served: Served) -> JoinHandle<()> {
     tokio::spawn(async move {
         while let Some(incoming) = endpoint.accept().await {
             let served = Arc::clone(&served);
@@ -165,7 +168,7 @@ async fn send(
 }
 
 /// Learns a ticket that permits early data and returns the server address.
-async fn learn_ticket(
+pub(super) async fn learn_ticket(
     identity: &TestIdentity,
     isolated: &Http3Connector,
     served: &Served,
@@ -183,17 +186,19 @@ async fn learn_ticket(
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn replay_safe_request_is_sent_as_early_data_only_when_enabled() -> TestResult<()> {
+async fn replay_safe_request_is_sent_as_early_data_only_when_offered() -> TestResult<()> {
     OutcomeSubscriber::install_dynamic_callsite_fallback();
     let identity = TestIdentity::generate()?;
     let served = Served::default();
-    let isolated = trusting_connector(&identity)?.with_isolated_session_cache();
-    let early = isolated.with_early_data();
-    assert!(!isolated.sends_early_data());
+    // The Chrome 154 recipe offers early data; the plain clone shares its
+    // ticket cache but does not.
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let isolated = early.without_early_data();
     assert!(early.sends_early_data());
+    assert!(!isolated.sends_early_data());
     let (address, _endpoint, server) = learn_ticket(&identity, &isolated, &served).await?;
 
-    // Without the opt-in the connection resumes and waits for its handshake.
+    // Without early data the connection resumes and waits for its handshake.
     let (relay, plain_relay) = delaying_relay(address).await?;
     let plain = connect(&isolated, relay).await?;
     assert!(plain.session_resumed());
