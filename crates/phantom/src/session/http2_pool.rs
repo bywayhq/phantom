@@ -18,6 +18,7 @@ use tracing::debug;
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
+    http2_connections::{Choice, Http2Spread, OpenStream, StreamCount},
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
@@ -70,6 +71,7 @@ pub(crate) struct Http2Pool {
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
+    max_connections: NonZeroUsize,
     state: Mutex<PoolState>,
 }
 
@@ -83,8 +85,20 @@ impl Http2Pool {
             capacity,
             max_active,
             max_pending,
+            max_connections: NonZeroUsize::MIN,
             state: Mutex::new(PoolState::default()),
         }
+    }
+
+    /// Lets each pool key open up to `maximum` connections; see
+    /// [`Http2Spread`].
+    pub(super) const fn with_max_connections(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_connections = maximum;
+        self
+    }
+
+    pub(super) const fn max_connections(&self) -> NonZeroUsize {
+        self.max_connections
     }
 
     pub(super) const fn capacity(&self) -> NonZeroUsize {
@@ -207,7 +221,9 @@ impl Http2Pool {
                     return Ok((
                         http::Response::from_parts(
                             parts,
-                            ResponseBody::http2_with_guard(body, permit),
+                            // The stream count drops first, so the request the
+                            // permit admits next sees this stream ended.
+                            ResponseBody::http2_with_guard(body, (lease.stream, permit)),
                         ),
                         sent_headers,
                     ));
@@ -297,7 +313,10 @@ impl Http2Pool {
         let admission = state
             .admissions
             .get(&key, self.max_active, self.max_pending);
-        let entry = Arc::new(PoolEntry::new(admission));
+        let entry = Arc::new(PoolEntry::new(
+            admission,
+            Http2Spread::new(self.max_connections, self.max_active),
+        ));
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
@@ -346,16 +365,21 @@ impl PoolKey {
 }
 
 struct PoolEntry {
-    current: Mutex<Option<ConnectionSlot>>,
+    /// The key's connections, oldest first. The lock is held while a new
+    /// connection is set up, so requests to the key open one at a time.
+    connections: Mutex<Connections>,
     admission: Arc<Admission>,
     connector: OnceLock<Http2TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
 }
 
 impl PoolEntry {
-    fn new(admission: Arc<Admission>) -> Self {
+    fn new(admission: Arc<Admission>, spread: Http2Spread) -> Self {
         Self {
-            current: Mutex::new(None),
+            connections: Mutex::new(Connections {
+                slots: Vec::new(),
+                spread,
+            }),
             admission,
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
@@ -366,12 +390,21 @@ impl PoolEntry {
         Arc::clone(&self.admission).admit(HttpProtocol::Http2).await
     }
 
+    /// Returns the connection a new stream would use, without counting one.
+    ///
+    /// A WebSocket holds admission rather than a counted stream, so it does
+    /// not steer later requests to another connection.
     #[cfg(feature = "websocket")]
     async fn current_reusable(&self) -> Option<Http2Connection> {
-        let current = self.current.lock().await;
-        current
-            .as_ref()
-            .filter(|slot| slot.connection.is_reusable())
+        let mut connections = self.connections.lock().await;
+        connections.retain_reusable();
+        let index = match connections.choose() {
+            Choice::Use(index) => index,
+            Choice::Open => 0,
+        };
+        connections
+            .slots
+            .get(index)
             .map(|slot| slot.connection.clone())
     }
 
@@ -383,9 +416,10 @@ impl PoolEntry {
         route: &Route,
         mode: Http2ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
-        let mut current = self.current.lock().await;
-        if let Some(slot) = current.as_ref()
-            && slot.connection.is_reusable()
+        let mut connections = self.connections.lock().await;
+        connections.retain_reusable();
+        if let Choice::Use(index) = connections.choose()
+            && let Some(slot) = connections.slots.get(index)
         {
             debug!(
                 outcome = "hit",
@@ -518,19 +552,21 @@ impl PoolEntry {
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),
+            streams: StreamCount::default(),
         };
         let lease = slot.lease();
-        *current = Some(slot);
+        connections.slots.push(slot);
         Ok(lease)
     }
 
     async fn invalidate(&self, token: &Arc<()>) {
-        let mut current = self.current.lock().await;
-        if current
-            .as_ref()
-            .is_some_and(|slot| Arc::ptr_eq(&slot.token, token))
+        let mut connections = self.connections.lock().await;
+        if let Some(position) = connections
+            .slots
+            .iter()
+            .position(|slot| Arc::ptr_eq(&slot.token, token))
         {
-            current.take();
+            connections.slots.remove(position);
             debug!(
                 outcome = "invalidated",
                 "HTTP/2 client pool connection invalidated"
@@ -539,16 +575,40 @@ impl PoolEntry {
     }
 }
 
+/// One pool key's HTTP/2 connections and how streams spread across them.
+struct Connections {
+    slots: Vec<ConnectionSlot>,
+    spread: Http2Spread,
+}
+
+impl Connections {
+    fn retain_reusable(&mut self) {
+        self.slots.retain(|slot| slot.connection.is_reusable());
+    }
+
+    fn choose(&mut self) -> Choice {
+        self.spread.choose(
+            self.slots
+                .iter()
+                .map(|slot| (&slot.connection, &slot.streams)),
+        )
+    }
+}
+
 struct ConnectionSlot {
     connection: Http2Connection,
     token: Arc<()>,
+    streams: StreamCount,
 }
 
 impl ConnectionSlot {
+    /// Leases the connection for one stream, counted until the lease's
+    /// stream guard drops.
     fn lease(&self) -> ConnectionLease {
         ConnectionLease {
             connection: self.connection.clone(),
             token: Arc::clone(&self.token),
+            stream: self.streams.open(),
         }
     }
 }
@@ -556,6 +616,7 @@ impl ConnectionSlot {
 struct ConnectionLease {
     connection: Http2Connection,
     token: Arc<()>,
+    stream: OpenStream,
 }
 
 #[cfg(test)]

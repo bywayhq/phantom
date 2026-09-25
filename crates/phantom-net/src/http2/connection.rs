@@ -553,6 +553,19 @@ impl Http2Connection {
         matches!(sender.poll_ready(&mut context), Poll::Ready(Ok(())))
     }
 
+    /// Returns the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`.
+    ///
+    /// `None` means the peer has set no limit, which includes the time before
+    /// its first SETTINGS frame is processed. The value is a snapshot; the
+    /// peer may change it at any time.
+    #[must_use]
+    pub fn peer_max_concurrent_streams(&self) -> Option<usize> {
+        self.inner
+            .sender()
+            .map(client::SendRequest::current_max_send_streams)
+            .filter(|limit| *limit != usize::MAX)
+    }
+
     /// Returns the raw `Accept-CH` field value carried through ALPS for `origin`.
     ///
     /// `origin` must use the canonical ASCII origin serialization. The value is

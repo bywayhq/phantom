@@ -184,6 +184,22 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `ClientBuilder::max_http2_connections_per_origin`: lets exact HTTP/2 and
+  negotiated requests that select HTTP/2 open up to that many connections per
+  origin and route. A request opens another only when every connection
+  carries as many streams as the lower of the active bound and the peer's
+  `SETTINGS_MAX_CONCURRENT_STREAMS`, and new streams go to the least-loaded
+  connection. The default stays one connection, as browsers keep.
+- `ClientBuilder::negotiated_setup_wait_limit`: bounds how long a negotiated
+  request waits for another request's handshake to an origin that selected
+  HTTP/2 before, as Chromium 154 does at 300 ms. The default stays
+  unbounded, as in Firefox 156.
+- `AltSvcRace::with_alternative_setup_limit` and
+  `AltSvcRace::alternative_setup_limit`: the raced alternative's connection
+  setup limit, still 4 seconds by default.
+- `Http2Connection::peer_max_concurrent_streams` in `phantom-net`.
+- [Tune throughput and latency](docs/guides/performance.md), and a table of
+  every timer in [Defaults and limits](docs/reference/limits.md#delays-and-timers).
 - `RequestField::ByForwarding`, with the `RequestField::unless_forwarded` and
   `RequestField::when_forwarded` constructors: a template field whose value
   depends on whether an HTTP proxy forwards the request (absolute form on

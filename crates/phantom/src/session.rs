@@ -13,6 +13,7 @@ pub(crate) mod client_hints;
 mod cookies;
 pub(crate) mod http1_or_2_pool;
 pub(crate) mod http1_pool;
+mod http2_connections;
 pub(crate) mod http2_pool;
 pub(crate) mod http3_pool;
 
@@ -68,6 +69,11 @@ pub(crate) struct ClientOptions {
     pub(crate) max_retained_http2_connections: NonZeroUsize,
     pub(crate) max_concurrent_http2_requests_per_origin: NonZeroUsize,
     pub(crate) max_pending_http2_requests_per_origin: NonZeroUsize,
+    /// HTTP/2 connections per pool key, exact and negotiated; 1 as browsers.
+    pub(crate) max_http2_connections_per_origin: NonZeroUsize,
+    /// Longest wait for another request's handshake to a key that selected
+    /// HTTP/2 before; `None` waits for it to finish, as Firefox does.
+    pub(crate) negotiated_setup_wait_limit: Option<std::time::Duration>,
     pub(crate) max_retained_http3_connections: NonZeroUsize,
     pub(crate) max_concurrent_http3_requests_per_origin: NonZeroUsize,
     pub(crate) max_pending_http3_requests_per_origin: NonZeroUsize,
@@ -95,6 +101,8 @@ impl Default for ClientOptions {
             max_concurrent_http2_requests_per_origin:
                 DEFAULT_MAX_CONCURRENT_HTTP2_REQUESTS_PER_ORIGIN,
             max_pending_http2_requests_per_origin: DEFAULT_MAX_PENDING_HTTP2_REQUESTS_PER_ORIGIN,
+            max_http2_connections_per_origin: NonZeroUsize::MIN,
+            negotiated_setup_wait_limit: None,
             max_retained_http3_connections: DEFAULT_MAX_RETAINED_HTTP3_CONNECTIONS,
             max_concurrent_http3_requests_per_origin:
                 DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
@@ -165,6 +173,14 @@ impl ClientOptions {
                 "HTTPS record discovery requires an Alt-Svc store",
             ));
         }
+        if self
+            .negotiated_setup_wait_limit
+            .is_some_and(|limit| std::time::Instant::now().checked_add(limit).is_none())
+        {
+            return Err(BuildError::invalid_policy(
+                "negotiated setup wait limit exceeds the runtime clock range",
+            ));
+        }
         self.alt_svc_policy.validate()
     }
 
@@ -187,12 +203,15 @@ impl ClientOptions {
                 self.max_retained_http2_connections,
                 self.max_concurrent_http2_requests_per_origin,
                 self.max_pending_http2_requests_per_origin,
-            ),
+            )
+            .with_max_http2_connections(self.max_http2_connections_per_origin)
+            .with_setup_wait_limit(self.negotiated_setup_wait_limit),
             http2: http2_pool::Http2Pool::new(
                 self.max_retained_http2_connections,
                 self.max_concurrent_http2_requests_per_origin,
                 self.max_pending_http2_requests_per_origin,
-            ),
+            )
+            .with_max_connections(self.max_http2_connections_per_origin),
             http3: http3_pool::Http3Pool::new(
                 self.max_retained_http3_connections,
                 self.max_concurrent_http3_requests_per_origin,
@@ -632,6 +651,10 @@ impl fmt::Debug for Client {
             .field(
                 "max_pending_http2_requests_per_origin",
                 &self.state.http2.max_pending(),
+            )
+            .field(
+                "max_http2_connections_per_origin",
+                &self.state.http2.max_connections(),
             )
             .field(
                 "max_retained_http3_connections",

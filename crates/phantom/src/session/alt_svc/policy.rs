@@ -67,6 +67,15 @@ impl AltSvcPolicy {
                     "Alt-Svc origin delay is not representable",
                 ))
             }
+            Some(race)
+                if std::time::Instant::now()
+                    .checked_add(race.alternative_setup_limit)
+                    .is_none() =>
+            {
+                Err(BuildError::invalid_policy(
+                    "Alt-Svc alternative setup limit is not representable",
+                ))
+            }
             Some(_) | None => Ok(()),
         }
     }
@@ -80,8 +89,9 @@ impl AltSvcPolicy {
 /// candidate to finish setup carries the request.
 ///
 /// An alternative connection attempt, including name resolution and any
-/// proxy setup, runs for at most 4 seconds, Chrome 153's timeout for a
-/// blackholed alternative; reaching it is a setup failure. Chrome restarts
+/// proxy setup, runs for at most 4 seconds by default, Chrome 153's timeout
+/// for a blackholed alternative; reaching it is a setup failure.
+/// [`AltSvcRace::with_alternative_setup_limit`] changes it. Chrome restarts
 /// that timeout on every received packet, so a responsive alternative whose
 /// handshake needs longer fails here but not in Chrome.
 ///
@@ -99,7 +109,28 @@ impl AltSvcPolicy {
 pub struct AltSvcRace {
     origin_delay: Duration,
     broken_backoff: AltSvcBrokenBackoff,
+    alternative_setup_limit: Duration,
 }
+
+/// Longest time one raced alternative connection attempt may run once it
+/// holds its location's connect turn: Chromium's client QUIC idle timeout
+/// before the handshake completes.
+///
+/// At 153.0.8010.48, `QuicParams::max_idle_time_before_crypto_handshake` is
+/// `quic::kInitialIdleTimeoutSecs` (`net/quic/quic_context.h` line 172), 5
+/// seconds at the pinned quiche revision 2c4a1246
+/// (`quiche/quic/core/quic_constants.h` line 159), and quiche shortens a
+/// client's idle timeout by one second (`QuicConnection::SetNetworkTimeouts`,
+/// `quic_connection.cc` lines 4983-4984). The `udp-blackhole` capture shows
+/// the orphaned QUIC job failing with `ERR_QUIC_HANDSHAKE_FAILED` 4002-4016
+/// ms after it started.
+///
+/// Chromium restarts that timer on every received packet and lets a
+/// responsive handshake run for up to 10 seconds
+/// (`kMaxTimeForCryptoHandshakeSecs`). Phantom cannot observe handshake
+/// packets at this layer, so it bounds the whole attempt instead, including
+/// name resolution and proxy setup that Chromium's timer does not cover.
+const DEFAULT_ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
 
 impl AltSvcRace {
     /// Creates racing parameters.
@@ -114,7 +145,32 @@ impl AltSvcRace {
         Self {
             origin_delay,
             broken_backoff,
+            alternative_setup_limit: DEFAULT_ALTERNATIVE_SETUP_LIMIT,
         }
+    }
+
+    /// Sets how long one alternative connection attempt may run, including
+    /// name resolution and proxy setup.
+    ///
+    /// The default is 4 seconds, Chrome 153's limit for an alternative that
+    /// never answers. A shorter limit marks an unreachable alternative broken
+    /// sooner, and it also fails a slow but working alternative that Chrome
+    /// would have used. The limit changes when Phantom gives up on the QUIC
+    /// handshake, which the alternative's server can observe. The request's
+    /// own connect and total timeouts still apply when shorter. A limit the
+    /// runtime clock cannot represent makes
+    /// [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+    #[must_use]
+    pub const fn with_alternative_setup_limit(mut self, limit: Duration) -> Self {
+        self.alternative_setup_limit = limit;
+        self
+    }
+
+    /// Returns how long one alternative connection attempt may run.
+    #[must_use]
+    pub const fn alternative_setup_limit(self) -> Duration {
+        self.alternative_setup_limit
     }
 
     /// Returns how long origin setup waits after alternative setup starts.

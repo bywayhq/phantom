@@ -539,6 +539,14 @@ impl fmt::Debug for ClientBuilder {
                 &self.options.max_pending_http2_requests_per_origin,
             )
             .field(
+                "max_http2_connections_per_origin",
+                &self.options.max_http2_connections_per_origin,
+            )
+            .field(
+                "negotiated_setup_wait_limit",
+                &self.options.negotiated_setup_wait_limit,
+            )
+            .field(
                 "max_retained_http3_connections",
                 &self.options.max_retained_http3_connections,
             )
@@ -809,6 +817,8 @@ impl ClientBuilder {
     /// Sets the local active-request bound for each HTTP/2 pool key.
     ///
     /// The default is 100. The peer's stream limit also caps active requests.
+    /// The bound covers all of a pool key's connections when
+    /// [`Self::max_http2_connections_per_origin`] allows more than one.
     #[must_use]
     pub fn max_concurrent_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_concurrent_http2_requests_per_origin = maximum;
@@ -822,6 +832,51 @@ impl ClientBuilder {
     #[must_use]
     pub fn max_pending_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
         self.options.max_pending_http2_requests_per_origin = maximum;
+        self
+    }
+
+    /// Lets each HTTP/2 pool key open up to `maximum` connections.
+    ///
+    /// The default is 1, as Chrome, Edge, and Firefox keep one HTTP/2
+    /// connection per origin. With a higher limit, a request opens another
+    /// connection only when every connection to the pool key has as many
+    /// streams in flight as it can carry: the lower of
+    /// [`Self::max_concurrent_http2_requests_per_origin`] and the peer's
+    /// `SETTINGS_MAX_CONCURRENT_STREAMS`. Each connection makes its own TCP
+    /// and TLS handshake and sends the profile's full HTTP/2 preface. A new
+    /// stream goes to the connection with the fewest streams in flight. At
+    /// the limit, the least-loaded connection takes the stream and holds it
+    /// until the peer allows it.
+    ///
+    /// This applies to exact HTTP/2 requests and to negotiated requests
+    /// whose connections select HTTP/2. The active and waiting bounds stay
+    /// per pool key, across all its connections, so a connection count
+    /// above one helps only when the peer's stream limit is below
+    /// [`Self::max_concurrent_http2_requests_per_origin`]. A server can see
+    /// several simultaneous connections from one client, which no browser
+    /// opens to one origin.
+    #[must_use]
+    pub fn max_http2_connections_per_origin(mut self, maximum: NonZeroUsize) -> Self {
+        self.options.max_http2_connections_per_origin = maximum;
+        self
+    }
+
+    /// Bounds how long a negotiated request waits for another request's TLS
+    /// handshake to an origin that selected HTTP/2 before.
+    ///
+    /// By default the request waits until that handshake finishes, as
+    /// Firefox 156 does, so a stalled handshake stalls every request queued
+    /// behind it. Chromium 154 waits at most 300 ms. After `limit`, the
+    /// request opens a connection of its own; if both select HTTP/2, the one
+    /// that finishes second closes and its requests join the first, unless
+    /// [`Self::max_http2_connections_per_origin`] allows both. The server
+    /// sees a second TLS handshake that a Firefox profile would not make.
+    ///
+    /// A `limit` the runtime clock cannot represent fails [`Self::build`]
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+    #[must_use]
+    pub fn negotiated_setup_wait_limit(mut self, limit: std::time::Duration) -> Self {
+        self.options.negotiated_setup_wait_limit = Some(limit);
         self
     }
 
@@ -1003,8 +1058,8 @@ impl ClientBuilder {
     ///   TLS, TCP, client-hint, WebSocket, HTTP/2, or HTTP/3 settings are
     ///   invalid, or this host cannot apply the TCP settings;
     /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
-    ///   timeout, retry delay, or Alt-Svc race delay exceeds the runtime clock
-    ///   range; disabled authentication is combined with added roots, HTTP/3,
+    ///   timeout, retry delay, negotiated setup wait limit, or Alt-Svc race
+    ///   delay or setup limit exceeds the runtime clock range; disabled authentication is combined with added roots, HTTP/3,
     ///   or a CONNECT-UDP route; Alt-Svc is enabled without negotiated H1/H2
     ///   and HTTP/3; a racing Alt-Svc policy has no store; or the profile's
     ///   WebSocket connection policy needs HTTP/2 settings it lacks;

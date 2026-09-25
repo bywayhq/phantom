@@ -64,7 +64,7 @@ pub(super) fn plan(client: &Client, request: &ResolvedRequest, route: &Route) ->
         Some(alternative) => alternative,
         None => match https_record_plan(client, request, route, race) {
             Ok(alternative) => alternative,
-            Err(plan) => return plan,
+            Err(plan) => return *plan,
         },
     };
     match race {
@@ -84,7 +84,7 @@ fn https_record_plan(
     request: &ResolvedRequest,
     route: &Route,
     race: Option<AltSvcRace>,
-) -> Result<AlternativeTarget, NegotiatedPlan> {
+) -> Result<AlternativeTarget, Box<NegotiatedPlan>> {
     use crate::session::alt_svc::Discovery;
 
     match client.https_record_alternative(&request.endpoint, route) {
@@ -94,12 +94,12 @@ fn https_record_plan(
         }
         Some((alternative, Discovery::Pending(lookup))) => {
             tracing::debug!(outcome = "pending", "HTTPS record lookup in flight");
-            Err(match race {
+            Err(Box::new(match race {
                 Some(race) => NegotiatedPlan::Race(alternative, race, Some(lookup)),
                 None => NegotiatedPlan::Origin,
-            })
+            }))
         }
-        Some((_, Discovery::NotAdvertised)) | None => Err(NegotiatedPlan::Origin),
+        Some((_, Discovery::NotAdvertised)) | None => Err(Box::new(NegotiatedPlan::Origin)),
     }
 }
 
@@ -110,8 +110,8 @@ fn https_record_plan(
     _request: &ResolvedRequest,
     _route: &Route,
     _race: Option<AltSvcRace>,
-) -> Result<AlternativeTarget, NegotiatedPlan> {
-    Err(NegotiatedPlan::Origin)
+) -> Result<AlternativeTarget, Box<NegotiatedPlan>> {
+    Err(Box::new(NegotiatedPlan::Origin))
 }
 
 pub(super) async fn send_once_alt_svc(
@@ -180,6 +180,7 @@ pub(super) async fn send_once_raced(
         retries.for_alternative_setup(),
         Arc::clone(&connecting),
         lookup,
+        race.alternative_setup_limit(),
     ));
     // Like Chromium's main job, the origin does not wait when an HTTP/2
     // connection to it is already available. It never waits for a DNS
@@ -272,8 +273,9 @@ pub(super) async fn send_once_raced(
 /// unfinished setup can outlive the request that started it.
 ///
 /// `connecting` is set once the setup holds its location's connect turn. The
-/// attempt is limited to [`ALTERNATIVE_SETUP_LIMIT`] from then on, and the
-/// request's own connect and total deadlines still apply when shorter.
+/// attempt is limited to the race's alternative setup limit from then on,
+/// and the request's own connect and total deadlines still apply when
+/// shorter.
 ///
 /// With a pending HTTPS-record `lookup`, setup first waits for it and fails
 /// without I/O when the records do not advertise `h3`. The race never
@@ -288,6 +290,7 @@ async fn alternative_setup(
     mut retries: crate::retry::ConnectionSetupRetryState,
     connecting: Arc<AtomicBool>,
     lookup: Option<PendingLookup>,
+    setup_limit: Duration,
 ) -> Result<Http3Lease, RequestError> {
     if let Some(lookup) = lookup
         && !lookup.advertises_h3().await
@@ -317,38 +320,18 @@ async fn alternative_setup(
             &mut retries,
             Http3SetupControl {
                 connecting: Some(&connecting),
-                attempt_limit: Some(ALTERNATIVE_SETUP_LIMIT),
+                attempt_limit: Some(setup_limit),
                 ..Http3SetupControl::default()
             },
         )
         .await
 }
 
-/// Longest time one alternative connection attempt may run once it holds
-/// its location's connect turn: Chromium's client QUIC idle timeout before
-/// the handshake completes.
-///
-/// At 153.0.8010.48, `QuicParams::max_idle_time_before_crypto_handshake` is
-/// `quic::kInitialIdleTimeoutSecs` (`net/quic/quic_context.h` line 172), 5
-/// seconds at the pinned quiche revision 2c4a1246
-/// (`quiche/quic/core/quic_constants.h` line 159), and quiche shortens a
-/// client's idle timeout by one second (`QuicConnection::SetNetworkTimeouts`,
-/// `quic_connection.cc` lines 4983-4984). The `udp-blackhole` capture shows
-/// the orphaned QUIC job failing with `ERR_QUIC_HANDSHAKE_FAILED` 4002-4016
-/// ms after it started.
-///
-/// Chromium restarts that timer on every received packet and lets a
-/// responsive handshake run for up to 10 seconds
-/// (`kMaxTimeForCryptoHandshakeSecs`). Phantom cannot observe handshake
-/// packets at this layer, so it bounds the whole attempt instead, including
-/// name resolution and proxy setup that Chromium's timer does not cover.
-pub(super) const ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
-
 /// Lets an alternative that lost to the origin while connecting finish.
 ///
 /// Like Chromium's orphaned alternative job, a finished connection stays
 /// pooled for later requests and clears the alternative's failure history,
-/// while a failure, including reaching [`ALTERNATIVE_SETUP_LIMIT`], marks it
+/// while a failure, including reaching the race's setup limit, marks it
 /// broken. Without a Tokio runtime handle the setup is dropped instead:
 /// nothing is pooled or marked, and the alternative is raced again.
 fn continue_alternative<F>(

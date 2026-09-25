@@ -347,6 +347,76 @@ async fn blackholed_alternative_connects_once_and_is_not_raced_after_its_limit()
 }
 
 #[tokio::test]
+async fn configured_alternative_setup_limit_abandons_a_blackholed_alternative_sooner()
+-> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ],
+                AlternativeBehavior::responses([]),
+            ),
+        )
+        .await?;
+        let blackhole = Blackhole::bind().await?;
+        let limit = Duration::from_millis(300);
+        let race = race_policy(Duration::from_millis(50))?
+            .race_settings()
+            .ok_or("the race policy has no race settings")?
+            .with_alternative_setup_limit(limit);
+        assert_eq!(race.alternative_setup_limit(), limit);
+        let client = client_builder(&identity)?
+            .alt_svc_policy(AltSvcPolicy::race(race))
+            .build()?;
+        import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
+
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http2);
+        drain(first).await?;
+        // Well before the default 4 s, the attempt has stopped sending.
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        let after_limit = blackhole.datagrams();
+        assert!(after_limit > 0);
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        assert_eq!(blackhole.datagrams(), after_limit);
+
+        // The abandoned alternative is broken, so it is not raced again.
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http2);
+        drain(second).await?;
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(blackhole.datagrams(), after_limit);
+        assert_eq!(blackhole.peers(), 1);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn alternative_setup_limit_defaults_to_chrome_s_four_seconds() -> TestResult<()> {
+    let race = race_policy(Duration::ZERO)?
+        .race_settings()
+        .ok_or("the race policy has no race settings")?;
+    assert_eq!(race.alternative_setup_limit(), Duration::from_secs(4));
+    Ok(())
+}
+
+#[tokio::test]
 async fn exact_http3_is_not_delayed_by_a_background_alternative_setup() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
