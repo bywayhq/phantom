@@ -31,6 +31,7 @@ Phantom's claims rest on four kinds of evidence:
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
+| [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | Browser behavior only; no Phantom replay test yet |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
 | [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins, proxy authentication, or SOCKS |
 | [Connection and status retries](#connection-retry-evidence) | Loopback tests | Not browser retry policy; some paths have no recovery test |
@@ -431,8 +432,9 @@ Chromium recipes on every compared field. `edge::v153_windows_client_hints`
 and the Edge request templates carry Edge's brand list and build values. The
 complete Firefox set is `firefox::v156_tls`, `v156_http2`, `v156_websocket`,
 `v156_tcp`, `v156_cookie_placement`, and the Firefox request templates.
-Firefox sends no user-agent client hints, and no Firefox QUIC or H3 capture
-exists.
+Firefox sends no user-agent client hints, and no Firefox QUIC startup
+capture backs a recipe. The only Firefox H3 captures are the
+[QUIC resumption captures](#quic-resumption-and-0-rtt-evidence).
 
 Edge's full version list reports `"Chromium";v="153.0.8010.53"`, a newer
 Chromium build than the branded Chrome 153 that was captured at the time.
@@ -1188,6 +1190,104 @@ Limits, as differences from Chrome:
 - An unanswered query is resent after 333 ms and again 333 ms later, on the
   resolver library's schedule rather than Chrome's.
 - A record's `ech` value is kept as `ECHConfigList` bytes and not used.
+
+### QUIC resumption and 0-RTT evidence
+
+What is claimed: nothing about Phantom yet. These captures record what
+Chrome 154, Edge 153, and Firefox 156 send when they resume a QUIC session,
+for a later comparison with Phantom's resumed H3 connections.
+
+Evidence: `fixtures/http3/<browser>/<version>/windows-11-26200/` retains
+`resumption-accept.txt` (5 runs), `resumption-accept-delayed.txt` (3 runs),
+and `resumption-reject.txt` (3 runs) for headless Chrome 154.0.8037.58,
+Edge 153.0.4234.48, and Firefox 156.0 on Windows 11 (10.0.26200). Versions
+are the file versions of the installed binaries. Each run used a fresh
+profile against an aioquic 1.3.0 server that sends one NewSessionTicket per
+connection with `max_early_data_size` 0xffffffff, and forced five new
+connections: the first navigation, six concurrent `fetch` calls (`GET`,
+`HEAD`, `OPTIONS`, `POST`, `PUT`, `DELETE`), a lone `POST`, a lone `GET`, and
+a second navigation. `accept-delayed` holds each connection's datagrams for
+50 ms before the server handles them; `reject` resumes the ticket but ignores
+the `early_data` offer. Chromium ran with `--disable-field-trial-config`.
+
+Observed on all three browsers:
+
+- Every resumed connection used the ticket from the connection immediately
+  before it, and offered `pre_shared_key` with one 64-byte identity and a
+  48-byte binder, `psk_key_exchange_modes` `psk_dhe_ke` (1), and
+  `early_data`. `psk_key_exchange_modes` is also in every fresh ClientHello.
+- Against the same run's fresh ClientHello, a resumed one adds exactly
+  `early_data` (0x2a) and `pre_shared_key` (0x29). `pre_shared_key` is always
+  last; `early_data` takes a random position, because extension order is
+  permuted on every connection. Cipher suites, key-share groups (X25519MLKEM768
+  and X25519 for Chromium; X25519MLKEM768, X25519, and P-256 for Firefox), and
+  every other extension body are unchanged, apart from key-share values and
+  ECH GREASE, which are random per connection, and the transport parameters
+  in the table below.
+- On a connection that resumed with early data, `GET`, `HEAD`, and `OPTIONS`
+  requests issued before the handshake completed arrived in 0-RTT packets.
+  `POST`, `PUT`, and `DELETE` never did: each arrived in 1-RTT, including a
+  `POST` that was the only request on its connection. A 0-RTT `fetch` `GET`
+  carries the same fields in the same order as a 1-RTT one.
+- When the server ignored `early_data`, the browsers still sent 0-RTT
+  packets, then every request arrived in 1-RTT, and later connections still
+  offered `early_data`.
+
+Where they differ:
+
+| Behavior | Chrome 154 and Edge 153 | Firefox 156 |
+| --- | --- | --- |
+| Transport parameters added on resumption | `initial_rtt_us` (0x3127), carrying the previous connections' RTT: 952-6414 µs on loopback, 41449-59157 µs with the 50 ms delay | None |
+| `version_information` | Unchanged apart from the reserved version's position, which varies per connection | Chosen version becomes QUIC v2 (0x6b3343cf), and the resumed connection starts in v2 packets; fresh connections start in v1 and are upgraded by aioquic |
+| Later connections that resumed (`accept`, `reject`) | Chrome 39 of 39; Edge 37 of 37 | 22 of 32 |
+| Resumption in `accept-delayed` | 12 of 12 | 0 of 12 |
+| Second navigation in 0-RTT (`accept`) | 0 of 5 | 2 of 5 |
+| Second navigation in 0-RTT (`accept-delayed`) | 3 of 3 | none resumed |
+
+The Chromium navigation arrived in 1-RTT because of a preconnect. A
+diagnostic Chrome run with `--log-net-log`, not retained, showed a preconnect
+job (`is_preconnect: true`) open the QUIC session about 5 ms before the
+navigation request, reach `QUIC_SESSION_ZERO_RTT_STATE
+AttemptedAndSucceeded`, and complete the loopback handshake before the request
+bound to it. With 50 ms of added delay the navigation was issued during the
+handshake and arrived in 0-RTT on all three runs of both browsers.
+
+The same log explains the extra connection at startup in 4 of 5 Chrome and
+4 of 5 Edge `accept` runs. A first preconnect opened a fresh session
+(`QUIC_SESSION_ZERO_RTT_STATE NotAttempted`). The pool then logged
+`QUIC_SESSION_POOL_MARK_ALL_ACTIVE_SESSIONS_GOING_AWAY`, and a second
+preconnect opened a session that resumed the first session's ticket and
+carried the first navigation. The first session stayed open and idle.
+
+Firefox did not resume after every connection. One run with
+`MOZ_LOG=nsHttp:5,SSLTokensCache:5` in the `accept-delayed` scenario showed no
+`ResumptionToken` event and no token stored for the origin, so each later
+connection started without a PSK. Why the token was not released was not
+investigated. Firefox needs
+`network.http.http3.disable_when_third_party_roots_found=false` to keep an H3
+connection whose certificate is trusted through `cert_override.txt`.
+
+How to reproduce: `scripts/capture/quic_resumption.py`;
+[Capture tools](../../scripts/capture/README.md#quic-resumption-and-0-rtt)
+has the commands and launch flags.
+
+Limits:
+
+- Loopback only. Whether a navigation reaches 0-RTT depends on handshake time
+  against preconnect timing, which the 50 ms delay only approximates.
+- The server sends one ticket per connection, so how many tickets a browser
+  keeps, and which it prefers, is not observed.
+- Chromium's `initial_rtt_us` appeared only on connections that also resumed.
+  These captures cannot tell whether it follows the ticket or Chromium's
+  stored network statistics for the server.
+- No test replays these fixtures against Phantom yet.
+- Headless launches on one Windows build; no TCP TLS resumption capture.
+- Chromium ran with `--disable-field-trial-config`; the retained Chrome 154
+  startup captures ran without it. The fresh ClientHello of Chrome `accept`
+  run 0 still has the same extension set and transport-parameter values as
+  the retained `quic-client-hello-1.txt`, apart from the reserved version's
+  position in `version_information`. Other fresh ClientHellos were not
+  compared with the startup captures.
 
 ### Ordered request-trailer evidence
 
