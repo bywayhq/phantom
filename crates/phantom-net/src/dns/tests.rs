@@ -4,7 +4,7 @@ use phantom_testkit::dns::{DnsAnswer, DnsReply, DnsServer};
 
 use super::{
     HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver, TargetName,
-    query_name,
+    https_answers_from_message, query_name,
 };
 
 type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -484,5 +484,214 @@ async fn malformed_answer_record_is_a_typed_error() -> TestResult<()> {
         .err()
         .ok_or("malformed record parsed")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::MalformedRecord);
+    Ok(())
+}
+
+const TYPE_CNAME: u16 = 5;
+const TYPE_HTTPS: u16 = 65;
+const CLASS_IN: u16 = 1;
+const CLASS_CH: u16 = 3;
+
+/// One answer record: owner, type, class, and RDATA.
+type RawRecord<'a> = (&'a str, u16, u16, Vec<u8>);
+
+fn wire_name(name: &str) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    for label in name.split('.').filter(|label| !label.is_empty()) {
+        bytes.push(u8::try_from(label.len()).unwrap_or(u8::MAX));
+        bytes.extend_from_slice(label.as_bytes());
+    }
+    bytes.push(0);
+    bytes
+}
+
+/// Appends uncompressed answer records with a 300-second TTL.
+fn push_answers(message: &mut Vec<u8>, answers: &[RawRecord<'_>]) {
+    for (owner, record_type, class, rdata) in answers {
+        message.extend_from_slice(&wire_name(owner));
+        message.extend_from_slice(&record_type.to_be_bytes());
+        message.extend_from_slice(&class.to_be_bytes());
+        message.extend_from_slice(&300_u32.to_be_bytes());
+        message.extend_from_slice(&u16::try_from(rdata.len()).unwrap_or(u16::MAX).to_be_bytes());
+        message.extend_from_slice(rdata);
+    }
+}
+
+/// A NOERROR response to an HTTPS query for `question`.
+fn response(question: &str, answers: &[RawRecord<'_>]) -> Vec<u8> {
+    let mut message = vec![0, 1, 0x81, 0x80, 0, 1];
+    message.extend_from_slice(
+        &u16::try_from(answers.len())
+            .unwrap_or(u16::MAX)
+            .to_be_bytes(),
+    );
+    message.extend_from_slice(&[0, 0, 0, 0]);
+    message.extend_from_slice(&wire_name(question));
+    message.extend_from_slice(&TYPE_HTTPS.to_be_bytes());
+    message.extend_from_slice(&CLASS_IN.to_be_bytes());
+    push_answers(&mut message, answers);
+    message
+}
+
+fn h3_record() -> Vec<u8> {
+    rdata(1, &[], &[(1, b"h3")])
+}
+
+fn owners(message: &[u8]) -> TestResult<Vec<String>> {
+    let lookup = https_answers_from_message("origin.example.test", 443, message)?;
+    Ok(lookup
+        .answers()
+        .iter()
+        .map(|answer| answer.owner().to_owned())
+        .collect())
+}
+
+fn lookup_error(message: &[u8]) -> TestResult<HttpsLookupErrorKind> {
+    match https_answers_from_message("origin.example.test", 443, message) {
+        Ok(lookup) => Err(format!("unusable response produced {lookup:?}").into()),
+        Err(error) => Ok(error.kind()),
+    }
+}
+
+#[test]
+fn answers_at_the_end_of_the_cname_chain_are_kept_in_any_record_order() -> TestResult<()> {
+    let cname_a = (
+        "origin.example.test",
+        TYPE_CNAME,
+        CLASS_IN,
+        wire_name("a.example.test"),
+    );
+    let cname_b = (
+        "a.example.test",
+        TYPE_CNAME,
+        CLASS_IN,
+        wire_name("b.example.test"),
+    );
+    let https = ("B.Example.test", TYPE_HTTPS, CLASS_IN, h3_record());
+    for answers in [
+        [cname_a.clone(), cname_b.clone(), https.clone()],
+        [https.clone(), cname_b.clone(), cname_a.clone()],
+    ] {
+        let message = response("origin.example.test", &answers);
+        assert_eq!(owners(&message)?, ["B.Example.test"]);
+    }
+    Ok(())
+}
+
+#[test]
+fn an_answer_owned_by_another_name_makes_the_response_unusable() -> TestResult<()> {
+    let direct = ("origin.example.test", TYPE_HTTPS, CLASS_IN, h3_record());
+    let stray = ("other.example.test", TYPE_HTTPS, CLASS_IN, h3_record());
+    let message = response("origin.example.test", &[direct.clone(), stray]);
+    assert_eq!(lookup_error(&message)?, HttpsLookupErrorKind::Resolve);
+
+    // A record at an intermediate alias is not at the end of the chain.
+    let cname = (
+        "origin.example.test",
+        TYPE_CNAME,
+        CLASS_IN,
+        wire_name("a.example.test"),
+    );
+    let message = response("origin.example.test", &[cname, direct]);
+    assert_eq!(lookup_error(&message)?, HttpsLookupErrorKind::Resolve);
+    Ok(())
+}
+
+#[test]
+fn other_classes_and_types_are_ignored() -> TestResult<()> {
+    let answers = [
+        ("other.example.test", TYPE_HTTPS, CLASS_CH, h3_record()),
+        (
+            "origin.example.test",
+            TYPE_CNAME,
+            CLASS_CH,
+            wire_name("x.example.test"),
+        ),
+        ("other.example.test", 1, CLASS_IN, vec![192, 0, 2, 1]),
+        ("origin.example.test", TYPE_HTTPS, CLASS_IN, h3_record()),
+    ];
+    let message = response("origin.example.test", &answers);
+    assert_eq!(owners(&message)?, ["origin.example.test"]);
+    Ok(())
+}
+
+#[test]
+fn a_cname_loop_ends() -> TestResult<()> {
+    let answers = [
+        (
+            "origin.example.test",
+            TYPE_CNAME,
+            CLASS_IN,
+            wire_name("a.example.test"),
+        ),
+        (
+            "a.example.test",
+            TYPE_CNAME,
+            CLASS_IN,
+            wire_name("origin.example.test"),
+        ),
+        ("origin.example.test", TYPE_HTTPS, CLASS_IN, h3_record()),
+    ];
+    // Both aliases are consumed and the chain stops back at the query name.
+    let message = response("origin.example.test", &answers);
+    assert_eq!(owners(&message)?, ["origin.example.test"]);
+    Ok(())
+}
+
+#[test]
+fn an_undecodable_message_is_a_resolve_error() -> TestResult<()> {
+    let mut message = response(
+        "origin.example.test",
+        &[("origin.example.test", TYPE_HTTPS, CLASS_IN, h3_record())],
+    );
+    message.truncate(message.len() - 1);
+    assert_eq!(lookup_error(&message)?, HttpsLookupErrorKind::Resolve);
+    Ok(())
+}
+
+/// Answers every query with its own question and `answers`, byte for byte.
+async fn raw_dns_server(answers: Vec<RawRecord<'static>>) -> TestResult<std::net::SocketAddr> {
+    let socket = tokio::net::UdpSocket::bind("127.0.0.1:0").await?;
+    let address = socket.local_addr()?;
+    tokio::spawn(async move {
+        let mut buffer = vec![0; 512];
+        while let Ok((length, peer)) = socket.recv_from(&mut buffer).await {
+            // The query carries one question and nothing after it.
+            let Some(question) = buffer.get(12..length) else {
+                continue;
+            };
+            let mut message = buffer[..2].to_vec();
+            message.extend_from_slice(&[0x81, 0x80, 0, 1]);
+            message.extend_from_slice(&u16::try_from(answers.len()).unwrap_or(0).to_be_bytes());
+            message.extend_from_slice(&[0, 0, 0, 0]);
+            message.extend_from_slice(question);
+            push_answers(&mut message, &answers);
+            let _ = socket.send_to(&message, peer).await;
+        }
+    });
+    Ok(address)
+}
+
+#[tokio::test]
+async fn resolver_rejects_an_answer_owned_by_another_name() -> TestResult<()> {
+    // hickory accepts this response: one record answers the question, so it
+    // hands back the whole answer section, stray record included.
+    let address = raw_dns_server(vec![
+        (
+            "origin.example.test",
+            TYPE_HTTPS,
+            CLASS_IN,
+            rdata(1, &[], &[(1, b"h2")]),
+        ),
+        ("other.example.test", TYPE_HTTPS, CLASS_IN, h3_record()),
+    ])
+    .await?;
+    let resolver = HttpsRecordResolver::with_nameservers([address])?;
+    let error = resolver
+        .lookup("origin.example.test", 443)
+        .await
+        .err()
+        .ok_or("a stray answer was accepted")?;
+    assert_eq!(error.kind(), HttpsLookupErrorKind::Resolve);
     Ok(())
 }

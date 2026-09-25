@@ -15,6 +15,7 @@
 //! that of a browser that sends its address queries from the same stub.
 
 use std::{
+    collections::HashMap,
     error::Error as StdError,
     fmt,
     future::Future,
@@ -28,7 +29,8 @@ use hickory_resolver::{
     config::{ConnectionConfig, NameServerConfig, ResolveHosts, ResolverConfig, ResolverOpts},
     net::{DnsError, NetError, runtime::TokioRuntimeProvider},
     proto::{
-        rr::{Name, RData, RecordType},
+        op::Message,
+        rr::{DNSClass, LowerName, Name, RData, Record, RecordType, rdata::CNAME},
         serialize::binary::BinEncodable,
     },
 };
@@ -172,7 +174,7 @@ impl HttpsRecordResolver {
         };
         let query_name = query_name(host, port);
         let name = Name::from_ascii(&query_name).map_err(|_| HttpsLookupError::invalid_name())?;
-        let lookup = match resolver.lookup(name, RecordType::HTTPS).await {
+        let lookup = match resolver.lookup(name.clone(), RecordType::HTTPS).await {
             Ok(lookup) => lookup,
             Err(NetError::Dns(DnsError::NoRecordsFound(no_records))) => {
                 return Ok(HttpsRecordLookup {
@@ -182,30 +184,98 @@ impl HttpsRecordResolver {
             }
             Err(error) => return Err(HttpsLookupError::resolve(error)),
         };
-        let mut answers = Vec::new();
-        for record in lookup.answers() {
-            let RData::HTTPS(https) = &record.data else {
-                continue;
-            };
-            // hickory has already decoded the RDATA; re-encoding it without
-            // name compression recovers the RFC 9460 wire form, so one parser
-            // defines the typed record whatever the transport.
-            let rdata = https
-                .to_bytes()
-                .map_err(|error| HttpsLookupError::resolve(error.into()))?;
-            let parsed =
-                HttpsRecord::from_rdata(&rdata).map_err(HttpsLookupError::malformed_record)?;
-            answers.push(HttpsRecordAnswer {
-                owner: dotted(&record.name.to_ascii()),
-                ttl: record.ttl,
-                record: parsed,
-            });
-        }
         Ok(HttpsRecordLookup {
-            answers: answers.into_boxed_slice(),
+            answers: https_answers(&name, lookup.answers())?,
             negative_ttl: None,
         })
     }
+}
+
+/// Extracts the HTTPS records that answer `query` from an answer section.
+///
+/// hickory returns a response's whole answer section when any record in it
+/// matches the question, so the section can carry HTTPS records owned by
+/// other names. As in Chromium's `ValidateNamesAndAliases`
+/// (`net/dns/dns_response_result_extractor.cc` at 154.0.8037.58), every
+/// HTTPS record must be owned by the end of the CNAME chain that starts at
+/// `query`, or the whole response is unusable. Records of a class other than
+/// `IN` are ignored, as Chromium ignores them.
+fn https_answers(
+    query: &Name,
+    records: &[Record],
+) -> Result<Box<[HttpsRecordAnswer]>, HttpsLookupError> {
+    let mut aliases = HashMap::new();
+    for record in records {
+        if let RData::CNAME(CNAME(target)) = &record.data
+            && record.dns_class == DNSClass::IN
+        {
+            aliases
+                .entry(LowerName::new(&record.name))
+                .or_insert(target);
+        }
+    }
+    // Each step consumes an alias, so a CNAME loop ends within the map's size.
+    let mut owner = query;
+    for _ in 0..aliases.len() {
+        match aliases.remove(&LowerName::new(owner)) {
+            Some(target) => owner = target,
+            None => break,
+        }
+    }
+    let mut answers = Vec::new();
+    for record in records {
+        let RData::HTTPS(https) = &record.data else {
+            continue;
+        };
+        if record.dns_class != DNSClass::IN {
+            continue;
+        }
+        if record.name != *owner {
+            return Err(HttpsLookupError::unexpected_owner());
+        }
+        // hickory has already decoded the RDATA; re-encoding it without
+        // name compression recovers the RFC 9460 wire form, so one parser
+        // defines the typed record whatever the transport.
+        let rdata = https
+            .to_bytes()
+            .map_err(|error| HttpsLookupError::resolve(error.into()))?;
+        let parsed = HttpsRecord::from_rdata(&rdata).map_err(HttpsLookupError::malformed_record)?;
+        answers.push(HttpsRecordAnswer {
+            owner: dotted(&record.name.to_ascii()),
+            ttl: record.ttl,
+            record: parsed,
+        });
+    }
+    Ok(answers.into_boxed_slice())
+}
+
+/// Decodes a DNS response `message` and extracts its HTTPS answers for the
+/// `https` origin `host` and `port`, as [`HttpsRecordResolver::lookup`]
+/// extracts them from a resolver's answer section.
+///
+/// This is a fuzzing seam, not supported API. It applies none of the
+/// resolver's own response handling: no ID or question matching, response
+/// code, truncation retry, CNAME follow-up query, or negative answer.
+///
+/// # Errors
+///
+/// Returns [`HttpsLookupErrorKind::InvalidName`] when `host` cannot form a
+/// query name, [`HttpsLookupErrorKind::Resolve`] when `message` does not
+/// decode, and [`HttpsLookupErrorKind::MalformedRecord`] as `lookup` does.
+#[doc(hidden)]
+pub fn https_answers_from_message(
+    host: &str,
+    port: u16,
+    message: &[u8],
+) -> Result<HttpsRecordLookup, HttpsLookupError> {
+    let name =
+        Name::from_ascii(query_name(host, port)).map_err(|_| HttpsLookupError::invalid_name())?;
+    let message =
+        Message::from_vec(message).map_err(|error| HttpsLookupError::resolve(error.into()))?;
+    Ok(HttpsRecordLookup {
+        answers: https_answers(&name, &message.answers)?,
+        negative_ttl: None,
+    })
 }
 
 impl fmt::Debug for HttpsRecordResolver {
@@ -266,6 +336,9 @@ impl HttpsRecordLookup {
     }
 
     /// Returns the HTTPS answer records in response order.
+    ///
+    /// A lookup through DNS returns only records owned by the query name or,
+    /// when the name is an alias, by the end of its CNAME chain.
     #[must_use]
     pub fn answers(&self) -> &[HttpsRecordAnswer] {
         &self.answers
@@ -329,7 +402,9 @@ pub enum HttpsLookupErrorKind {
     /// The origin host cannot form a DNS query name.
     InvalidName,
     /// No nameserver returned a usable response: a timeout, a network
-    /// error, an error response code, or an undecodable message.
+    /// error, an error response code, an undecodable message, or an HTTPS
+    /// answer owned by a name other than the end of the query name's CNAME
+    /// chain.
     Resolve,
     /// An HTTPS answer record's RDATA is malformed.
     MalformedRecord,
@@ -365,6 +440,16 @@ impl HttpsLookupError {
             kind: HttpsLookupErrorKind::Resolve,
             detail: None,
             source: Some(Box::new(source)),
+        }
+    }
+
+    fn unexpected_owner() -> Self {
+        Self {
+            kind: HttpsLookupErrorKind::Resolve,
+            detail: Some(
+                "an HTTPS answer is owned by a name the query did not resolve to".to_owned(),
+            ),
+            source: None,
         }
     }
 

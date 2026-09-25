@@ -410,6 +410,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the association. (`783290c`, `09f3547`, `aa041a9`)
 - HTTP/3 datagrams for closed request streams are dropped instead of failing
   the datagram router. (`d78b04d`)
+- `HttpsRecordResolver::lookup` fails with `HttpsLookupErrorKind::Resolve`
+  when a response carries an HTTPS record owned by a name other than the end
+  of the query's CNAME chain, as Chromium does. Before, such a record was
+  returned and could decide whether HTTP/3 discovery advertised `h3`.
 
 ### Removed
 
