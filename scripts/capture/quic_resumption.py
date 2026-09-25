@@ -1079,7 +1079,9 @@ def render_fixture(
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--browser", choices=("chrome", "edge", "firefox", "manual"), required=True
+        "--browser",
+        choices=(*CHROMIUM_BROWSERS, "firefox", "manual"),
+        required=True,
     )
     parser.add_argument("--browser-path", type=Path)
     parser.add_argument("--client")

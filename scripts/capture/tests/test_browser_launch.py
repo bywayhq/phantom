@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from scripts.capture.browser_launch import (
+    CHROMIUM_BROWSERS,
     CHROMIUM_FLAGS,
     PROFILE_PLACEHOLDER,
     LaunchedBrowser,
@@ -94,6 +95,17 @@ class BrowserLaunchTests(unittest.TestCase):
                 URL,
             ],
         )
+
+    def test_chromium_forks_launch_with_the_chromium_arguments(self) -> None:
+        chrome = LaunchPlan("chrome", Path("chrome.exe"), headless=True)
+        for browser, client in (("brave", "Brave"), ("opera", "Opera")):
+            plan = LaunchPlan(browser, Path(f"{browser}.exe"), headless=True)
+
+            self.assertIn(browser, CHROMIUM_BROWSERS)
+            self.assertEqual(plan.client_name, client)
+            self.assertEqual(
+                plan.recorded_arguments(URL), chrome.recorded_arguments(URL)
+            )
 
     def test_manual_plan_never_starts_a_process(self) -> None:
         plan = LaunchPlan("manual", None, headless=False)

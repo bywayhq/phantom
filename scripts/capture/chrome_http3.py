@@ -475,6 +475,9 @@ def main() -> None:
     parser.add_argument("--launch-arguments", required=True)
     parser.add_argument("--packet-summary", type=Path)
     parser.add_argument("--client-hello", type=Path)
+    # Standard output is text mode, which writes CRLF on Windows; `--output`
+    # writes the startup fixture with LF line endings.
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     if aioquic.__version__ != SUPPORTED_AIOQUIC:
@@ -493,7 +496,10 @@ def main() -> None:
         if result.client_hello_fixture is None:
             raise RuntimeError("ClientHello fixture was requested but not produced")
         write_text_fixture(args.client_hello, result.client_hello_fixture)
-    print(result.fixture, end="")
+    if args.output is not None:
+        write_text_fixture(args.output, result.fixture)
+    else:
+        print(result.fixture, end="")
 
 
 if __name__ == "__main__":

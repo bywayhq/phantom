@@ -91,7 +91,8 @@ CREDENTIAL_SUPPLY = {
     "browsingContext.navigate",
     "manual": "manual",
 }
-CREDENTIAL_SUPPLY["edge"] = CREDENTIAL_SUPPLY["chrome"]
+for _browser in CHROMIUM_BROWSERS:
+    CREDENTIAL_SUPPLY.setdefault(_browser, CREDENTIAL_SUPPLY["chrome"])
 
 
 @dataclass(frozen=True)
