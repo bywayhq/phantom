@@ -25,6 +25,7 @@ pub(super) struct AltSvcSelection {
     location: AltSvcLocation,
     generation: u64,
     broken: bool,
+    origin_quic_recently_broken: bool,
 }
 
 impl AltSvcSelection {
@@ -50,6 +51,7 @@ pub(crate) struct AlternativeTarget {
     location: AltSvcLocation,
     source: AlternativeSource,
     broken: bool,
+    origin_quic_recently_broken: bool,
 }
 
 /// Where an alternative came from.
@@ -71,17 +73,23 @@ impl AlternativeTarget {
                 generation: selection.generation,
             },
             broken: selection.broken,
+            origin_quic_recently_broken: selection.origin_quic_recently_broken,
         }
     }
 
     /// Returns the origin's own location, as an HTTPS record advertising
     /// `h3` names it.
     #[cfg(feature = "https-records")]
-    pub(super) fn https_record(origin: &Endpoint, broken: bool) -> Self {
+    pub(super) fn https_record(
+        origin: &Endpoint,
+        broken: bool,
+        origin_quic_recently_broken: bool,
+    ) -> Self {
         Self {
             location: AltSvcLocation::origin(origin),
             source: AlternativeSource::HttpsRecord,
             broken,
+            origin_quic_recently_broken,
         }
     }
 
@@ -119,6 +127,24 @@ impl AlternativeTarget {
         self.broken
     }
 
+    /// Returns whether a raced setup to this alternative may offer early
+    /// (0-RTT) data.
+    ///
+    /// Chromium's QUIC attempt requires handshake confirmation, and so sends
+    /// no early data, when QUIC to the origin's own host and port was
+    /// recently broken: in a broken period, or failed and not confirmed
+    /// since (`QuicSessionAttempt::DoCreateSession`,
+    /// `net/quic/quic_session_attempt.cc` lines 83-84 and 227-228,
+    /// `QuicSessionPool::WasQuicRecentlyBroken`,
+    /// `net/quic/quic_session_pool.cc` lines 2553-2560, and
+    /// `BrokenAlternativeServices::WasRecentlyBroken`,
+    /// `net/http/broken_alternative_services.cc` lines 198-206, at
+    /// 154.0.8037.58). Otherwise the attempt completes once 0-RTT keys are
+    /// set, and a replay-safe request goes out as early data.
+    pub(crate) const fn allows_early_data(&self) -> bool {
+        !self.origin_quic_recently_broken
+    }
+
     pub(super) const fn location(&self) -> &AltSvcLocation {
         &self.location
     }
@@ -131,7 +157,6 @@ pub(super) struct AltSvcLocation {
 }
 
 impl AltSvcLocation {
-    #[cfg(feature = "https-records")]
     fn origin(origin: &Endpoint) -> Self {
         Self {
             host: origin.host().to_ascii_lowercase().into(),
@@ -347,6 +372,24 @@ impl AltSvcStore {
         self.is_broken_at(&StoreKey::new(origin, route), location, Instant::now())
     }
 
+    /// Returns whether QUIC to `origin`'s own host and port failed a race
+    /// and has not connected since, whether or not its broken period ended.
+    #[cfg(feature = "https-records")]
+    pub(super) fn origin_quic_recently_broken(&self, origin: &Endpoint, route: &Route) -> bool {
+        self.has_failed(
+            &StoreKey::new(origin, route),
+            &AltSvcLocation::origin(origin),
+        )
+    }
+
+    /// Returns whether `location` has a failure record, which outlives its
+    /// broken period until the location connects again.
+    fn has_failed(&self, key: &StoreKey, location: &AltSvcLocation) -> bool {
+        self.lock_broken()
+            .iter()
+            .any(|record| &record.key == key && &record.location == location)
+    }
+
     fn is_broken_at(&self, key: &StoreKey, location: &AltSvcLocation, now: Instant) -> bool {
         self.lock_broken()
             .iter()
@@ -406,10 +449,12 @@ impl AltSvcStore {
             return None;
         }
         let broken = self.is_broken_at(&key, &entry.location, now);
+        let origin_quic_recently_broken = self.has_failed(&key, &AltSvcLocation::origin(origin));
         let selection = AltSvcSelection {
             location: entry.location.clone(),
             generation: entry.generation,
             broken,
+            origin_quic_recently_broken,
         };
         entries.push_back(entry);
         Some(selection)

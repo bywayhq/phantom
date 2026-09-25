@@ -1778,6 +1778,25 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
 - Reaching the 4-second limit marks the alternative broken, matching the
   blackhole rows. Nothing is marked when both candidates fail, and a broken
   alternative is not raced.
+- A raced setup offers early data when the client does. Chromium's QUIC
+  attempt requires handshake confirmation only when QUIC to the request
+  origin's own host and port was recently broken, meaning broken or failed
+  and not confirmed since (`net/quic/quic_session_attempt.cc` lines 83-84
+  and 227-228; `net/quic/quic_session_pool.cc` lines 2553-2560, whose
+  session key `QuicSessionRequest::Request` builds from the request URL at
+  lines 442-443;
+  `net/http/broken_alternative_services.cc` lines 198-206). Otherwise
+  `QuicChromiumClientSession::CryptoConnect` activates the session once 0-RTT
+  encryption is established (`net/quic/quic_chromium_client_session.cc`
+  lines 1602-1606), so the job can complete, and its request be sent, before
+  the handshake. Chromium also requires confirmation until QUIC has worked
+  on the current network (`net/quic/quic_session_pool.cc` lines 2388-2392);
+  a Phantom client resumes only after a connection that worked.
+  `a_raced_alternative_sends_a_replay_safe_request_as_early_data`, in
+  `crates/phantom/tests/http3_early_data.rs`, races a resumed alternative
+  whose server datagrams are held, and the `GET` reaches it; the store test
+  `early_data_waits_until_quic_to_the_origin_connects_again` covers the
+  recently broken rule.
 - `AltSvcBrokenBackoff::CHROMIUM_153` holds a 300 s initial period that
   doubles up to two days. A failure inside an active broken period counts
   toward the next period without extending the current one
@@ -2644,7 +2663,6 @@ Limits:
   request bytes, encoded from the remembered SETTINGS. Phantom's new session
   encodes from the server's SETTINGS once they arrive, so its encoder-stream
   bytes match only when the server's QPACK settings did not change.
-- A connection opened by an Alt-Svc racing attempt offers no early data.
 - Headless launches on one Windows build; no TCP TLS resumption capture.
 - Chromium ran with `--disable-field-trial-config`; the retained Chrome 154
   startup captures ran without it. The fresh ClientHello of Chrome `accept`

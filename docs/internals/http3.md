@@ -668,6 +668,14 @@ Under `AltSvcPolicy::race`, one request runs two candidates:
   total deadlines bound each setup and the whole race.
 - When the alternative wins, a still-connecting origin setup is cancelled.
 
+A raced setup offers early data when the client does, as Chromium's QUIC
+job does, unless QUIC to the origin's own host and port failed a race and has
+not connected since. A setup that resumes with early data returns its
+connection before the handshake completes, as any early-data connection does
+(see [Session tickets](#session-tickets)), so it can win at once, and a
+replay-safe request on it goes out as early data. If that handshake then
+fails, the request fails with the handshake error; the origin is not tried.
+
 When the origin wins, an alternative setup that has begun connecting keeps
 running in the background, like Chromium's orphaned alternative job. If it
 connects, the connection is pooled for later requests. If it fails, including

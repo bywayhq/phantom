@@ -15,23 +15,31 @@ mod tracing_support;
 use std::{
     collections::HashMap,
     future::Future,
-    net::{Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    num::NonZeroUsize,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use bytes::{Buf, Bytes};
 use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestTimeouts, TimeoutPhase,
+    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
+    BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseInfo,
+    TimeoutPhase,
     profile::{ClientProfile, Http3ClientSettings, chromium},
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use tokio::{net::UdpSocket, sync::mpsc, task::JoinHandle, time::timeout};
+use tokio::{
+    net::{TcpListener, UdpSocket},
+    sync::mpsc,
+    task::JoinHandle,
+    time::timeout,
+};
 use tracing::instrument::WithSubscriber;
 
 use h3_support::client_settings;
@@ -339,6 +347,116 @@ async fn resumed_connection_sends_get_early_and_holds_post() -> TestResult<()> {
         );
         server.await??;
         drop(client);
+        relay_task.abort();
+        Ok(())
+    })
+    .await
+}
+
+/// A raced Alt-Svc alternative offers early data like any other new
+/// connection. Chromium's QUIC job completes once 0-RTT keys are set unless
+/// QUIC to the origin was recently broken, so its request can leave in 0-RTT
+/// packets. Once a raced connection has issued a ticket, the next race
+/// resumes, wins before its handshake completes, and sends its `GET` as
+/// early data: the `GET` reaches the alternative while every server datagram
+/// is held.
+#[tokio::test]
+async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> TestResult<()> {
+    bounded(async {
+        let identity =
+            TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;
+        let endpoint = quinn::Endpoint::server(
+            server_config(&identity, true)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let (gate, gate_open) = tokio::sync::watch::channel(true);
+        let (relay, relay_task) = gated_relay(endpoint.local_addr()?, gate_open).await?;
+        let (arrived_tx, mut arrived) = mpsc::unbounded_channel();
+        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+        let (closed_tx, mut closed) = mpsc::unbounded_channel::<()>();
+        let server_gate = gate.subscribe();
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let mut connecting = endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
+                connecting.handshake_data().await?;
+                let quic = match connecting.into_0rtt() {
+                    Ok((connection, _accepted)) => connection,
+                    Err(connecting) => connecting.await?,
+                };
+                let mut connection = h3::server::Connection::<_, Bytes>::new(
+                    h3_quinn::Connection::new(quic.clone()),
+                )
+                .await?;
+                let resolver = connection
+                    .accept()
+                    .await?
+                    .ok_or("connection closed before its request")?;
+                let (request, mut stream) = resolver.resolve_request().await?;
+                let gate_was_open = *server_gate.borrow();
+                let _ = arrived_tx.send((request.uri().path().to_owned(), gate_was_open));
+                stream
+                    .send_response(Response::builder().status(StatusCode::OK).body(())?)
+                    .await?;
+                stream.finish().await?;
+                read.recv().await.ok_or("client stopped")?;
+                quic.close(0u32.into(), b"served");
+                drop(connection);
+                endpoint.wait_idle().await;
+                let _ = closed_tx.send(());
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        // The origin accepts TCP but never answers; the race gives it no
+        // chance, because the alternative wins well before the delay.
+        let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_url = format!("https://localhost:{}", origin.local_addr()?.port());
+        let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
+        let client = Client::builder(chrome_profile().with_http2(chromium::v154_http2()))
+            .add_root_certificate_der(identity.root_der.clone())
+            .alt_svc(NonZeroUsize::new(8).ok_or("zero Alt-Svc capacity")?)
+            .alt_svc_policy(AltSvcPolicy::race(AltSvcRace::new(
+                Duration::from_secs(10),
+                backoff,
+            )))
+            .build()?;
+        client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
+            origin_url.clone(),
+            "127.0.0.1",
+            relay.port(),
+            SystemTime::now() + Duration::from_secs(3600),
+        )]))?;
+        let subscriber = OutcomeSubscriber::default();
+
+        for (path, early) in [("/first", false), ("/raced", true)] {
+            gate.send_replace(!early);
+            let request = tokio::spawn({
+                let client = client.clone();
+                let url = format!("{origin_url}{path}");
+                async move {
+                    let response = client.get_negotiated(&url)?.send().await?;
+                    let protocol = response
+                        .extensions()
+                        .get::<ResponseInfo>()
+                        .map(ResponseInfo::protocol);
+                    response.into_body().collect().await?;
+                    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(protocol)
+                }
+                .with_subscriber(subscriber.dispatch())
+            });
+            assert_eq!(arrived.recv().await, Some((path.to_owned(), !early)));
+            gate.send_replace(true);
+            assert_eq!(request.await??, Some(HttpProtocol::Http3));
+            read_tx.send(())?;
+            closed.recv().await.ok_or("server stopped")?;
+        }
+        assert_eq!(
+            subscriber.early_data_for("http3.response_head"),
+            ["none", "sent"]
+        );
+
+        server.await??;
+        drop((client, origin));
         relay_task.abort();
         Ok(())
     })

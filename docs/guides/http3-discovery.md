@@ -40,6 +40,10 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
   not raced until the backoff ends. `CHROMIUM_153` is 300 seconds, doubling
   per failure, capped at two days; a successful alternative connection resets
   it. When both fail, Phantom returns the origin's error.
+- A raced alternative offers early data when the client does, as Chrome's
+  does, so a resumed alternative can win at once and send a replay-safe
+  request as early data. It does not after QUIC to the origin's own host and
+  port failed a race, until that location connects again.
 - Racing needs `ClientBuilder::alt_svc` and never applies to a proxy route.
 
 ## Find HTTP/3 through HTTPS DNS records

@@ -832,6 +832,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   is sent once more on a new connection when the proxy closes the first one
   before answering it, or answers it with `GOAWAY` or `REFUSED_STREAM`.
   Error kinds and the single-replay rule are unchanged.
+- Wire change for Alt-Svc racing (`AltSvcPolicy::race`) on clients that
+  offer HTTP/3 early data, as the Chrome 154 and Edge 153 recipes do. A raced
+  alternative setup now offers early data like other new connections, unless
+  QUIC to the origin's own host and port failed a race and has not connected
+  since, as Chromium's QUIC job does. A resumed alternative can win the race
+  before its handshake completes, and a replay-safe request on it is sent as
+  early data.
 - Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
   The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
   where a direct request has `Connection: keep-alive`, in the same position,

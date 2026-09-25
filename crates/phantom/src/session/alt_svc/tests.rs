@@ -1,6 +1,9 @@
 use std::{num::NonZeroUsize, time::Duration};
 
-use super::{AltSvcBrokenBackoff, AltSvcLocation, AltSvcStore, invalidates_alternative};
+use super::{
+    AltSvcBrokenBackoff, AltSvcLocation, AltSvcStore, AlternativeTarget, StoreKey,
+    invalidates_alternative,
+};
 use crate::{HttpProtocol, RequestError, Route, TimeoutPhase, authority::Endpoint};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -663,5 +666,42 @@ fn snapshots_carry_direct_route_alternatives_only() -> TestResult {
             .collect::<Vec<_>>(),
         ["https://origin.example"]
     );
+    Ok(())
+}
+
+fn allows_early_data(
+    store: &AltSvcStore,
+    origin: &Endpoint,
+    now: std::time::Instant,
+) -> TestResult<bool> {
+    let selection = store
+        .get_at(origin, &DIRECT, now)
+        .ok_or("alternative not learned")?;
+    Ok(AlternativeTarget::new(&selection).allows_early_data())
+}
+
+#[test]
+fn early_data_waits_until_quic_to_the_origin_connects_again() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::new(4).ok_or("zero capacity")?);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\"alt.example:8443\"", now);
+    assert!(allows_early_data(&store, &origin, now)?);
+
+    // A failure of another alternative location does not count.
+    let alternative = location(&store, &origin, now)?;
+    store.mark_broken_at(&origin, &DIRECT, &alternative, backoff()?, now);
+    assert!(allows_early_data(&store, &origin, now)?);
+
+    // Chromium keys the check by QUIC at the origin's own host and port, and
+    // it holds after the broken period until that location connects again.
+    let own = AltSvcLocation::origin(&origin);
+    store.mark_broken_at(&origin, &DIRECT, &own, backoff()?, now);
+    assert!(!allows_early_data(&store, &origin, now)?);
+    let later = now + Duration::from_secs(3600);
+    assert!(!store.is_broken_at(&StoreKey::new(&origin, &DIRECT), &own, later));
+    assert!(!allows_early_data(&store, &origin, later)?);
+    store.confirm(&origin, &DIRECT, &own);
+    assert!(allows_early_data(&store, &origin, later)?);
     Ok(())
 }

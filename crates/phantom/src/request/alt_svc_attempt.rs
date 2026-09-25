@@ -306,6 +306,10 @@ async fn alternative_setup(
         .http3
         .as_ref()
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
+    // Like Chromium's QUIC job, the setup offers early data unless QUIC to
+    // the origin was recently broken; a resumed connection is then ready
+    // before its handshake completes.
+    let early_data = connector.sends_early_data() && alternative.allows_early_data();
     let admission = client
         .state
         .http3
@@ -323,7 +327,7 @@ async fn alternative_setup(
             Http3SetupControl {
                 connecting: Some(&connecting),
                 attempt_limit: Some(setup_limit),
-                ..Http3SetupControl::default()
+                early_data,
             },
         )
         .await

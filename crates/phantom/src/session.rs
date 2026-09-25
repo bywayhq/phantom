@@ -944,9 +944,13 @@ impl Client {
         let broken = store.is_broken(
             endpoint,
             route,
-            alt_svc::AlternativeTarget::https_record(endpoint, false).location(),
+            alt_svc::AlternativeTarget::https_record(endpoint, false, false).location(),
         );
-        let target = alt_svc::AlternativeTarget::https_record(endpoint, broken);
+        let target = alt_svc::AlternativeTarget::https_record(
+            endpoint,
+            broken,
+            store.origin_quic_recently_broken(endpoint, route),
+        );
         if broken {
             return Some((target, alt_svc::Discovery::NotAdvertised));
         }

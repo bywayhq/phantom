@@ -162,8 +162,8 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
 - A request sent to an alternative carries one `Alt-Used` field, which
   Phantom manages; a caller-supplied `Alt-Used` field or trailer is rejected
   before network I/O. Phantom makes no browser claim about its position.
-- Not implemented: WebSocket over H3, more than one H3 connection per origin
-  and route, and early data on an Alt-Svc racing attempt.
+- Not implemented: WebSocket over H3, and more than one H3 connection per
+  origin and route.
 
 ## Next
 

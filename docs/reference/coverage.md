@@ -314,7 +314,7 @@ Known gaps:
   same encoder-stream and request bytes, encoded from the remembered
   SETTINGS. Phantom's new session encodes from the server's SETTINGS, and
   keeps a connection open whose server lowered a remembered limit, which
-  Chromium closes. An Alt-Svc racing attempt offers no early data.
+  Chromium closes.
 - No H3 recipe exists for Firefox, whose resumed connections switch to QUIC
   v2, which Phantom does not implement.
 
@@ -406,6 +406,10 @@ Supported lifecycle:
   - Alternative setup is limited to 4 seconds.
   - A losing alternative keeps connecting in the background and is then
     pooled or marked broken.
+  - A raced setup offers early data when the client does, unless QUIC to the
+    origin's own host and port failed a race and has not connected since,
+    as in Chromium 154. A resumed alternative can then win before its
+    handshake completes and carry a replay-safe request as early data.
   - Broken alternatives back off as in Chromium 153: 300 seconds, doubling,
     capped at two days.
 
