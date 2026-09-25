@@ -31,6 +31,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
+| [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | Plaintext origins only; not replayed against Phantom |
 | [Connection and status retries](#connection-retry-evidence) | Loopback tests | Not browser retry policy; some paths have no recovery test |
 | [Content decoding](#content-decoding-evidence) | Unit and loopback tests; browser source for documented divergences | No browser-parity claim |
 | [Response-body limits](#response-body-limit-evidence) | Unit tests and an H1 loopback test | No H2 or H3 test exceeds a limit |
@@ -1179,10 +1180,102 @@ with no TLS inside the tunnel.
 
 Limits:
 
-- No browser-capture fidelity.
+- No browser-capture fidelity. [Proxy route browser
+  evidence](#proxy-route-browser-evidence) records what browsers send on
+  these routes, and where Phantom differs.
 - Not covered: redirects, negotiated H1/H2 forwarding, H2 proxy transport,
   other authentication schemes, forwarding an HTTPS origin, and H3 through an
   HTTP forward proxy.
+
+### Proxy route browser evidence
+
+What is claimed: nothing about Phantom yet. These captures record what
+Chrome 154, Edge 153, and Firefox 156 send to an HTTP proxy for plaintext
+`http://` and `ws://` origins. They show that two cells of the
+[route matrix](../reference/route-matrix.md) do not follow the browsers.
+
+Evidence: `fixtures/proxy/` retains captures from headless Chrome
+154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
+(10.0.26200). Each of six scenarios ran three times on a fresh profile, and
+the three runs agree on every request line, field order, and forwarding
+choice. One page load makes a navigation, a `ws://` opening, and a `fetch()`.
+The scenarios cross three routes with two origins:
+
+- routes: direct, a plaintext HTTP proxy, and a TLS proxy for
+  `proxy.phantom.test` that offers ALPN `h2` and `http/1.1`;
+- origins: `127.0.0.1` and the name `origin.phantom.test`.
+
+The loopback proxy answers as the origin itself, so nothing leaves the
+machine.
+
+The fixtures keep H1 request lines and field lines in hex, the proxy
+connection's ALPN offer and SNI, every H2 frame in both directions, and each
+client HPACK block with its representations. Browser background traffic that
+reached the proxy (Google, Microsoft, and Mozilla hosts) is kept as method
+and authority only.
+
+| Behavior | Chrome 154 and Edge 153 | Firefox 156 |
+| --- | --- | --- |
+| `ws://` through a plaintext proxy | `CONNECT host:port`, then the origin-form Upgrade inside the tunnel | Same |
+| CONNECT field order | `Host`, `Proxy-Connection: keep-alive`, `User-Agent` | `User-Agent`, `Proxy-Connection: keep-alive`, `Connection: keep-alive`, `Host` |
+| `http://` through a plaintext proxy | Absolute-form; `Proxy-Connection: keep-alive` second, where a direct request has `Connection: keep-alive` | Absolute-form; fields identical to a direct request, with `Connection: keep-alive` and no `Proxy-Connection` |
+| `http://` through the TLS proxy | ALPN `h2` to the proxy; H2 request with `:scheme` `http` and the origin in `:authority` | Same |
+| Pseudo-field order of that request | `:method`, `:authority`, `:scheme`, `:path` | `:method`, `:path`, `:authority`, `:scheme`, and `te: trailers` last |
+| `ws://` through the TLS proxy | H2 CONNECT (`:method`, `:authority`, `user-agent`) on the page's proxy session, then the H1 Upgrade in the stream | Same CONNECT fields, on a second H2 connection to the proxy |
+
+`Accept-Encoding` depends on the origin, not on the route:
+
+| Origin | All three browsers, direct or through either proxy |
+| --- | --- |
+| `127.0.0.1` | `gzip, deflate, br, zstd` |
+| `origin.phantom.test` | `gzip, deflate` |
+
+The browsers treat a loopback origin as potentially trustworthy. Chromium
+also adds client hints and fetch metadata to it, and Firefox adds fetch
+metadata. A named plaintext origin gets none of these, direct or proxied.
+The other plaintext captures under `fixtures/` use a `127.0.0.1` origin, so
+their `Accept-Encoding`, client hints, and fetch metadata are what a browser
+sends to loopback, not to a named plaintext origin.
+
+Further observations:
+
+- The Upgrade inside a tunnel has the same fields in the same order as the
+  direct Upgrade to the same origin.
+- On Chromium's proxy session every HEADERS frame is exclusive with parent 0:
+  weight 256 for the navigation, 147 for the CONNECT, and 220 for the
+  `fetch()`, in all 12 Chrome and Edge runs.
+- Chromium ignores its proxy setting for loopback origins unless
+  `--proxy-bypass-list=<-loopback>` is passed. Firefox needs
+  `network.proxy.allow_hijacking_localhost`.
+- Chromium applies `--ignore-certificate-errors-spki-list` to the proxy
+  certificate. Firefox accepts a `cert_override.txt` entry for the proxy's
+  host and port in its disposable profile. Neither needs a system trust
+  store change.
+
+Against the route matrix:
+
+- `ws://` H1 through an H1 proxy: Phantom forwards an absolute-form Upgrade.
+  Every captured browser tunnels with CONNECT instead.
+- `http://` exact H1 through an H2 proxy: Phantom rejects it before I/O.
+  Every captured browser forwards it over H2 to the proxy.
+- `ws://` H1 through an H2 proxy: Phantom rejects it. Every captured browser
+  opens a CONNECT stream and sends the Upgrade inside it.
+
+How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
+--scenario all --repeat 3`; see
+[Proxy routes](../../scripts/capture/README.md#proxy-routes).
+
+Limits:
+
+- Plaintext origins only. `https://` and `wss://` origins through a proxy are
+  not captured.
+- No proxy authentication, `407` challenge, PAC-selected plaintext proxy, or
+  SOCKS proxy.
+- Firefox reaches the TLS proxy through a PAC result, because its manual
+  settings cannot name a TLS proxy. Chromium uses `--proxy-server`.
+- Chromium was launched with `--disable-field-trial-config`; field trials in
+  a normal profile may change these results.
+- No Phantom test replays these fixtures.
 
 ### H3 SOCKS5 UDP evidence
 

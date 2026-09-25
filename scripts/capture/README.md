@@ -25,6 +25,7 @@ Run every command from the repository root; the Python tools need Python
 | WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
 | EventSource reconnects | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
 | Alt-Svc racing between QUIC and TCP | [`alt_svc_race.py`](#alt-svc-racing) | `fixtures/alt-svc/` |
+| Plaintext requests and `ws://` openings through HTTP proxies | [`proxy_route.py`](#proxy-routes) | `fixtures/proxy/` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
 [Capture commands and launches](../../docs/explanation/validation.md#capture-commands-and-launches)
@@ -352,6 +353,86 @@ polled expiry. Aggregates summarize each request path.
 
 Loopback adds no latency, so delays that depend on round-trip time appear
 only as the values Chrome logged.
+
+## Proxy routes
+
+`proxy_route.py` records what a browser sends for a plaintext `http://` page
+and its `ws://` opening, directly and through an HTTP proxy. It writes one
+`format=phantom-proxy-route-v1` fixture per scenario.
+
+Capture Chrome on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
+  --with cryptography==50.0.1 python -m scripts.capture.proxy_route \
+  --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.58 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --scenario all --repeat 3 \
+  --output-dir fixtures/proxy/chrome/154.0.8037.58/windows-11-26200
+```
+
+For Edge, use
+`--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`,
+and for Firefox,
+`--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe"`.
+
+The tool binds three loopback listeners on port 0:
+
+- the origin, plaintext HTTP/1.1;
+- a plaintext HTTP proxy;
+- a TLS proxy for `proxy.phantom.test`, offering ALPN `h2` and `http/1.1`,
+  with a certificate generated for the capture.
+
+Neither proxy forwards anything. Each answers as the origin, so an
+absolute-form request, a CONNECT tunnel, and an HTTP/2 stream all reach the
+same page handler. The page opens `ws://` on its own origin, waits for one
+server message, and reports to `/done`.
+
+| Scenario | Route | Origin |
+| --- | --- | --- |
+| `direct-loopback` | none | `127.0.0.1` |
+| `direct-hostname` | none | `origin.phantom.test` |
+| `http-proxy-loopback` | plaintext HTTP proxy | `127.0.0.1` |
+| `http-proxy-hostname` | plaintext HTTP proxy | `origin.phantom.test` |
+| `https-proxy-loopback` | TLS proxy offering `h2` | `127.0.0.1` |
+| `https-proxy-hostname` | TLS proxy offering `h2` | `origin.phantom.test` |
+
+Browsers send `Accept-Encoding`, client hints, and fetch metadata to a
+loopback origin that they omit for a named plaintext origin, so every route
+runs with both.
+
+Each browser gets these proxy settings, recorded with the launch:
+
+- Chromium drops `--no-proxy-server` from `CHROMIUM_FLAGS`, because it
+  overrides `--proxy-server`. It receives `--disable-field-trial-config`,
+  `--host-resolver-rules` for both test names, `--proxy-server`, and
+  `--proxy-bypass-list=<-loopback>`. For the TLS proxy it also receives the
+  certificate's `--ignore-certificate-errors-spki-list` value.
+- Firefox uses `network.proxy.type=1` with `network.proxy.http` and
+  `network.proxy.http_port` for the plaintext proxy. Its manual settings
+  cannot name a TLS proxy, so for that route it uses
+  `network.proxy.type=2` with a `data:` PAC URL that returns
+  `HTTPS proxy.phantom.test:<port>`, and a `cert_override.txt` in its
+  temporary profile. Both routes set
+  `network.proxy.allow_hijacking_localhost=true` and an empty
+  `network.proxy.no_proxies_on`.
+
+For each run the fixture keeps:
+
+- every connection with its listener, ALPN offer, SNI, and negotiated
+  protocol;
+- every HTTP/1.1 request line and header line in hex, with its form
+  (`origin`, `absolute`, or `authority`) and the tunnel it arrived in;
+- for HTTP/2 connections, every frame in both directions and each client
+  HPACK block with its representations and decoded fields in order.
+
+Browser background traffic also reaches the proxy. A request whose authority
+is neither test origin is recorded as `kind:background` with its method and
+authority only; its tunnel bytes are discarded, and its HPACK block is marked
+`background=true` without fields. The tool refuses to write `cookie`,
+`authorization`, or `proxy-authorization`.
 
 ## Next
 
