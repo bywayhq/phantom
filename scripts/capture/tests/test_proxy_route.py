@@ -582,6 +582,97 @@ class ProxyAuthTests(unittest.TestCase):
             f"value_hex:{b'redacted:capture-credential'.hex()},redacted:true\n", text
         )
 
+    def test_connect_policy_challenges_only_connect(self) -> None:
+        run = CaptureRun(
+            "0123456789abcdef",
+            "http-proxy-auth-secure-hostname",
+            proxy_credential=PROXY_CREDENTIAL,
+        )
+        exchange = Http1Exchange(run, 0, proxy=True)
+        page = (
+            b"GET http://origin.phantom.test:9/page?run=" + run.token.encode() + b" "
+            b"HTTP/1.1\r\nHost: origin.phantom.test:9\r\n\r\n"
+        )
+        self.assertTrue(self.feed(exchange, page).startswith(b"HTTP/1.1 200 OK"))
+        connect = b"CONNECT origin.phantom.test:443 HTTP/1.1\r\n"
+        self.assertEqual(self.feed(exchange, connect + b"\r\n"), CHALLENGE)
+        self.assertFalse(exchange.closing)
+        response = self.feed(
+            exchange, connect + proxy_field(PROXY_CREDENTIAL) + b"\r\n"
+        )
+        self.assertEqual(response, b"HTTP/1.1 200 Connection established\r\n\r\n")
+        # The secure page's tunnel ends before any origin TLS.
+        self.assertTrue(exchange.closing)
+        self.assertEqual(self.feed(exchange, b"\x16\x03\x01"), b"")
+        self.assertEqual(
+            [(r.kind, r.status, r.proxy_authorization) for r in run.requests],
+            [
+                ("page", 200, "none"),
+                ("https-connect", 407, "none"),
+                ("https-connect", 200, "capture-credential"),
+            ],
+        )
+        wss = Http1Exchange(run, 1, proxy=True)
+        self.feed(
+            wss,
+            b"CONNECT origin.phantom.test:8443 HTTP/1.1\r\n"
+            + proxy_field(PROXY_CREDENTIAL)
+            + b"\r\n",
+        )
+        self.assertEqual(run.requests[-1].kind, "wss-connect")
+
+    def test_probe_policy_challenges_only_the_probe_and_signals_ready(self) -> None:
+        run = CaptureRun(
+            "0123456789abcdef",
+            "http-proxy-auth-remembered-hostname",
+            proxy_credential=PROXY_CREDENTIAL,
+        )
+        exchange = Http1Exchange(run, 0, proxy=True)
+
+        def request(path: bytes, credential: bytes | None = None) -> bytes:
+            return self.feed(
+                exchange,
+                b"GET http://origin.phantom.test:9"
+                + path
+                + b"run="
+                + run.token.encode()
+                + b" HTTP/1.1\r\nHost: origin.phantom.test:9\r\n"
+                + proxy_field(credential)
+                + b"\r\n",
+            )
+
+        first = request(b"/page?")
+        self.assertIn(b"fetch('/probe?run=", first)
+        self.assertEqual(request(b"/probe?"), CHALLENGE)
+        self.assertTrue(
+            request(b"/probe?", PROXY_CREDENTIAL).startswith(b"HTTP/1.1 204 ")
+        )
+        self.assertFalse(run.ready.is_set())
+        request(b"/ready?", PROXY_CREDENTIAL)
+        self.assertTrue(run.ready.is_set())
+        second = request(b"/page?step=2&", PROXY_CREDENTIAL)
+        self.assertIn(b"fetch('/done?run=", second)
+        self.assertEqual(
+            [(r.kind, r.status, r.proxy_authorization) for r in run.requests],
+            [
+                ("page", 200, "none"),
+                ("probe", 407, "none"),
+                ("probe", 204, "capture-credential"),
+                ("ready", 204, "capture-credential"),
+                ("page", 200, "capture-credential"),
+            ],
+        )
+
+    def test_secure_page_opens_an_https_fetch_then_a_wss_socket(self) -> None:
+        page = (
+            CaptureRun("0123456789abcdef", "https-proxy-secure-hostname")
+            .page()
+            .decode()
+        )
+        self.assertIn("fetch('https://origin.phantom.test:443/tls?run=", page)
+        self.assertIn("new WebSocket('wss://origin.phantom.test:8443/tls?run=", page)
+        self.assertLess(page.index("https://"), page.index("wss://"))
+
     def test_auth_page_opens_two_websockets_in_turn(self) -> None:
         page = auth_run().page().decode()
         self.assertIn("open(0);", page)
@@ -695,6 +786,23 @@ class LaunchTests(unittest.TestCase):
         self.assertEqual(preferences["network.proxy.http"], "127.0.0.1")
         self.assertEqual(preferences["network.proxy.http_port"], 1002)
         self.assertEqual(plan.profile_files, ())
+
+    def test_firefox_secure_page_also_sets_the_ssl_proxy(self) -> None:
+        def preferences(scenario: str) -> dict[str, object]:
+            plan = launch_plan(
+                "firefox",
+                Path("firefox.exe"),
+                True,
+                SCENARIOS[scenario],
+                self.server,
+                CERTIFICATE,
+            )
+            return dict(plan.firefox_preferences)
+
+        secure = preferences("http-proxy-auth-secure-hostname")
+        self.assertEqual(secure["network.proxy.ssl"], "127.0.0.1")
+        self.assertEqual(secure["network.proxy.ssl_port"], 1002)
+        self.assertNotIn("network.proxy.ssl", preferences("http-proxy-hostname"))
 
     def test_cli_rejects_non_loopback_listener(self) -> None:
         with (

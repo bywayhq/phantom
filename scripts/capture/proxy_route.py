@@ -1,4 +1,4 @@
-"""Record what a browser sends to an HTTP proxy for plaintext origins."""
+"""Record what a browser sends to an HTTP proxy for plaintext and TLS origins."""
 
 from __future__ import annotations
 
@@ -66,6 +66,10 @@ WEBSOCKET_MESSAGE = b"\x81\x07phantom"
 # ws:// openings an auth scenario page makes one after another.
 AUTH_WEBSOCKETS = 2
 DIRECT_FLAG = "--no-proxy-server"
+# CONNECT ports of the `secure` page: an https:// fetch and a wss:// opening.
+# The proxy answers 200 and closes, so no origin TLS completes; the ports
+# only tell the two tunnels apart.
+SECURE_CONNECT_KINDS = {b"443": "https-connect", b"8443": "wss-connect"}
 # Chromium field trials can change network behavior between otherwise equal
 # launches; the proxy captures pin the built-in defaults.
 CHROMIUM_EXTRA_FLAGS = ("--disable-field-trial-config",)
@@ -100,6 +104,14 @@ class Scenario:
     # Both proxy listeners answer capture requests without the expected
     # Proxy-Authorization with 407, and the page opens two ws:// in turn.
     auth: bool = False
+    # websocket: ws:// on the page's origin (two in turn with auth).
+    # secure: an https:// fetch, then a wss:// opening, each through CONNECT.
+    # remembered: a fetch to /probe, then a second navigation over the
+    # remote protocol.
+    page: str = "websocket"
+    # Which capture requests an auth scenario challenges: all, connect
+    # (CONNECT only), or probe (the /probe fetch only).
+    challenge: str = "all"
 
 
 SCENARIOS = {
@@ -161,6 +173,56 @@ SCENARIOS = {
         "hostname",
         auth=True,
     ),
+    "http-proxy-secure-hostname": Scenario(
+        "CONNECT for an https:// fetch and a wss:// opening through a "
+        "plaintext HTTP proxy",
+        "http",
+        "hostname",
+        page="secure",
+    ),
+    "https-proxy-secure-hostname": Scenario(
+        "CONNECT for an https:// fetch and a wss:// opening through a TLS "
+        "proxy offering h2",
+        "https",
+        "hostname",
+        page="secure",
+    ),
+    "http-proxy-auth-secure-hostname": Scenario(
+        "CONNECT for an https:// fetch and a wss:// opening through a "
+        "plaintext HTTP proxy that challenges CONNECT with Basic auth",
+        "http",
+        "hostname",
+        auth=True,
+        page="secure",
+        challenge="connect",
+    ),
+    "https-proxy-auth-secure-hostname": Scenario(
+        "CONNECT for an https:// fetch and a wss:// opening through a TLS "
+        "proxy offering h2 that challenges CONNECT with Basic auth",
+        "https",
+        "hostname",
+        auth=True,
+        page="secure",
+        challenge="connect",
+    ),
+    "http-proxy-auth-remembered-hostname": Scenario(
+        "a fetch challenged by a plaintext HTTP proxy, then a navigation "
+        "with the remembered credentials",
+        "http",
+        "hostname",
+        auth=True,
+        page="remembered",
+        challenge="probe",
+    ),
+    "https-proxy-auth-remembered-hostname": Scenario(
+        "a fetch challenged by a TLS proxy offering h2, then a navigation "
+        "with the remembered credentials",
+        "https",
+        "hostname",
+        auth=True,
+        page="remembered",
+        challenge="probe",
+    ),
 }
 
 
@@ -215,9 +277,15 @@ class CaptureRun:
     finished: float | None = None
     timed_out: bool = False
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    # Set when a `remembered` page is ready for its second navigation.
+    ready: asyncio.Event = field(default_factory=asyncio.Event)
 
     def __post_init__(self) -> None:
         self.started = self.clock()
+
+    @property
+    def scenario_spec(self) -> Scenario:
+        return SCENARIOS[self.scenario]
 
     def now(self) -> float:
         return self.clock() - self.started
@@ -233,8 +301,13 @@ class CaptureRun:
     def note(self, text: str) -> None:
         self.remote_events.append((self.now(), text))
 
-    def page(self) -> bytes:
+    def page(self, step: str = "") -> bytes:
         token = self.token
+        kind = self.scenario_spec.page
+        if kind == "secure":
+            return self.secure_page()
+        if kind == "remembered":
+            return self.remembered_page(step)
         if self.proxy_credential is not None:
             return self.sequential_page()
         return (
@@ -252,6 +325,46 @@ class CaptureRun:
             "socket.onclose = (event) => done('close-' + event.code);\n"
             "setTimeout(() => done('timeout'), 10000);\n"
             "</script>\n"
+        ).encode()
+
+    def secure_page(self) -> bytes:
+        """Open an https:// fetch, then a wss:// opening, then report."""
+        token = self.token
+        return (
+            "<!doctype html><meta charset=utf-8>"
+            '<link rel=icon href="data:,"><script>\n'
+            "async function run() {\n"
+            "  const outcomes = [];\n"
+            "  try {\n"
+            f"    await fetch('https://{ORIGIN_HOST}:443/tls?run={token}',"
+            " {mode: 'no-cors'});\n"
+            "    outcomes.push('fetch-ok');\n"
+            "  } catch (error) { outcomes.push('fetch-error'); }\n"
+            "  outcomes.push(await new Promise((resolve) => {\n"
+            f"    const socket = new WebSocket('wss://{ORIGIN_HOST}:8443/tls?run={token}');\n"
+            "    socket.onerror = () => resolve('websocket-error');\n"
+            "    socket.onclose = () => resolve('websocket-close');\n"
+            "    setTimeout(() => resolve('websocket-timeout'), 5000);\n"
+            "  }));\n"
+            f"  fetch('/done?run={token}&secure=' + outcomes.join('.'));\n"
+            "}\n"
+            "run();\n"
+            "</script>\n"
+        ).encode()
+
+    def remembered_page(self, step: str) -> bytes:
+        """Step 1 fetches /probe, then /ready; step 2 reports to /done."""
+        token = self.token
+        if step == "2":
+            script = f"fetch('/done?run={token}&step=2');\n"
+        else:
+            script = (
+                f"fetch('/probe?run={token}')"
+                f".then(() => fetch('/ready?run={token}'));\n"
+            )
+        return (
+            "<!doctype html><meta charset=utf-8>"
+            '<link rel=icon href="data:,"><script>\n' + script + "</script>\n"
         ).encode()
 
     def sequential_page(self) -> bytes:
@@ -286,6 +399,11 @@ class CaptureRun:
             "setTimeout(() => { outcomes.push('timeout'); done(); }, 10000);\n"
             "</script>\n"
         ).encode()
+
+
+def connect_kind(authority: bytes) -> str:
+    """The kind of a capture CONNECT: a secure page's tunnel or ws://."""
+    return SECURE_CONNECT_KINDS.get(authority.rsplit(b":", 1)[-1], "connect")
 
 
 def is_capture_authority(authority: bytes) -> bool:
@@ -327,11 +445,15 @@ def route(
     query = parse_qs(parts.query, keep_blank_values=True)
     owned = query.get("run", [""])[0] == run.token
     if method == b"GET" and owned and parts.path == "/page":
-        body = run.page()
+        body = run.page(query.get("step", [""])[0])
         fields = [(b"content-type", b"text/html; charset=utf-8")]
     elif method == b"GET" and owned and parts.path == "/done":
         run.finish({key: values[0] for key, values in query.items() if key != "run"})
         return "done", 204, [(b"cache-control", b"no-store")], b""
+    elif method == b"GET" and owned and parts.path in ("/probe", "/ready"):
+        if parts.path == "/ready":
+            run.ready.set()
+        return parts.path[1:], 204, [(b"cache-control", b"no-store")], b""
     else:
         return "other", 404, [(b"content-length", b"0")], b""
     fields.append((b"content-length", str(len(body)).encode()))
@@ -356,14 +478,28 @@ def challenge_fields() -> list[tuple[bytes, bytes]]:
 def challenged_kind(run: CaptureRun, method: bytes, target: bytes) -> str:
     """The kind a request would have had, without routing it."""
     if method == b"CONNECT":
-        return "connect"
+        return connect_kind(target)
     parts = urlsplit(target.decode("latin-1"))
     query = parse_qs(parts.query, keep_blank_values=True)
     if query.get("run", [""])[0] != run.token:
         return "other"
-    return {"/page": "page", "/done": "done", "/echo": "websocket"}.get(
-        parts.path, "other"
-    )
+    return {
+        "/page": "page",
+        "/done": "done",
+        "/echo": "websocket",
+        "/probe": "probe",
+        "/ready": "ready",
+    }.get(parts.path, "other")
+
+
+def challenges(run: CaptureRun, method: bytes, target: bytes) -> bool:
+    """Whether the scenario's challenge policy covers this capture request."""
+    policy = run.scenario_spec.challenge
+    if policy == "connect":
+        return method == b"CONNECT"
+    if policy == "probe":
+        return challenged_kind(run, method, target) == "probe"
+    return True
 
 
 class Http1Exchange:
@@ -388,6 +524,9 @@ class Http1Exchange:
         # Set after a WebSocket upgrade or a background tunnel; later bytes
         # are not HTTP and are discarded.
         self.detached = False
+        # Set after a secure page's CONNECT: the connection closes once the
+        # 200 is written, before any origin TLS.
+        self.closing = False
 
     def feed(self, data: bytes) -> bytes:
         """Consume client bytes; return the bytes to send back."""
@@ -436,16 +575,18 @@ class Http1Exchange:
             and expected is not None
             and not background
             and request.proxy_authorization != "capture-credential"
+            and challenges(self.run, method, target)
         ):
             # The connection stays open so a retry can reuse it.
             request.kind = challenged_kind(self.run, method, target)
             request.status = 407
             return response_head(407, challenge_fields())
         if method == b"CONNECT":
-            request.kind = "background" if background else "connect"
+            request.kind = "background" if background else connect_kind(target)
             request.status = 200
             self.tunnel = "h1-connect"
-            self.detached = background
+            self.detached = background or request.kind != "connect"
+            self.closing = request.kind != "connect" and not background
             return b"HTTP/1.1 200 Connection established\r\n\r\n"
         if background:
             request.kind, request.status = "background", 404
@@ -534,16 +675,29 @@ class Http2Proxy:
             expected is not None
             and not background
             and record.proxy_authorization != "capture-credential"
+            and challenges(
+                self.run,
+                method,
+                record.authority if method == b"CONNECT" else pseudo.get(b":path", b""),
+            )
         ):
-            record.kind = challenged_kind(self.run, method, pseudo.get(b":path", b""))
+            record.kind = challenged_kind(
+                self.run,
+                method,
+                record.authority if method == b"CONNECT" else pseudo.get(b":path", b""),
+            )
             record.status = 407
             response = [(b":status", b"407")]
             response.extend((name.lower(), value) for name, value in challenge_fields())
             self.h2.send_headers(stream_id, response, end_stream=True)
             return
         if method == b"CONNECT" and b":protocol" not in pseudo:
-            record.kind = "background" if background else "connect"
+            record.kind = "background" if background else connect_kind(record.authority)
             record.status = 200
+            if record.kind not in ("background", "connect"):
+                # A secure page's tunnel ends at once, before any origin TLS.
+                self.h2.send_headers(stream_id, [(b":status", b"200")], end_stream=True)
+                return
             self.h2.send_headers(stream_id, [(b":status", b"200")])
             self.tunnels[stream_id] = None
             if not background:
@@ -654,6 +808,8 @@ async def serve_http1(exchange: Http1Exchange, channel: PlainChannel) -> None:
         if not data:
             return
         await channel.write(exchange.feed(data))
+        if exchange.closing:
+            return
 
 
 # -- Fixture ---------------------------------------------------------------
@@ -951,6 +1107,16 @@ def launch_plan(
                     ("network.proxy.http_port", http_proxy[1]),
                 ]
             )
+            if scenario.page == "secure":
+                # Manual `http` settings cover http:// and ws:// only; an
+                # https:// fetch needs the `ssl` proxy, as a user who picks
+                # "Also use this proxy for HTTPS" sets it.
+                preferences.extend(
+                    [
+                        ("network.proxy.ssl", http_proxy[0]),
+                        ("network.proxy.ssl_port", http_proxy[1]),
+                    ]
+                )
         elif scenario.proxy == "https":
             # Manual proxy settings cannot name a TLS proxy; a PAC result can.
             pac = (
@@ -1063,6 +1229,16 @@ class ProxyBrowserDriver:
             print(f"remote driver failed: {error!r}", file=sys.stderr, flush=True)
         return self
 
+    async def navigate(self, url: str) -> None:
+        """Navigate the page again over the remote protocol."""
+        if self.remote is None:
+            print(f"open {url}", file=sys.stderr, flush=True)
+            return
+        try:
+            await self.remote.navigate(url)
+        except Exception as error:  # noqa: BLE001 - recorded as evidence
+            self.note(f"event:driver-failure,error:{type(error).__name__}")
+
     async def __aexit__(self, *details: object) -> None:
         if self.remote is not None:
             await self.remote.close()
@@ -1091,8 +1267,12 @@ async def capture_scenario(
         )
         server.run = run
         try:
-            async with drive(page_url(server, SCENARIOS[name], run.token)):
+            url = page_url(server, SCENARIOS[name], run.token)
+            async with drive(url) as driver:
                 try:
+                    if SCENARIOS[name].page == "remembered":
+                        await asyncio.wait_for(run.ready.wait(), timeout=run_timeout)
+                        await driver.navigate(url + "&step=2")
                     await asyncio.wait_for(run.done.wait(), timeout=run_timeout)
                 except asyncio.TimeoutError:
                     run.timed_out = True

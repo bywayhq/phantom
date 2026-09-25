@@ -376,6 +376,7 @@ class ChromiumAuthDriver:
         self.credentials = credentials
         self.note = note
         self.connection: RemoteConnection | None = None
+        self.session: str | None = None
 
     async def start(self, profile: Path, url: str) -> None:
         endpoint = await wait_for_endpoint(chromium_endpoint, profile)
@@ -386,12 +387,18 @@ class ChromiumAuthDriver:
             "Target.attachToTarget", {"targetId": target, "flatten": True}
         )
         session = attached["sessionId"]
+        self.session = session
         await self.connection.call(
             "Fetch.enable",
             {"handleAuthRequests": True, "patterns": [{"urlPattern": "*"}]},
             session,
         )
         await self.connection.call("Page.navigate", {"url": url}, session)
+
+    async def navigate(self, url: str) -> None:
+        """Navigate the attached page again, as the address bar does."""
+        assert self.connection is not None and self.session is not None
+        await self.connection.call("Page.navigate", {"url": url}, self.session)
 
     async def page_target(self) -> str:
         assert self.connection is not None
@@ -428,6 +435,7 @@ class FirefoxAuthDriver:
         self.credentials = credentials
         self.note = note
         self.connection: RemoteConnection | None = None
+        self.context: str | None = None
 
     async def start(self, profile: Path, url: str) -> None:
         endpoint = await wait_for_endpoint(firefox_endpoint, profile)
@@ -440,8 +448,17 @@ class FirefoxAuthDriver:
         await self.connection.call("network.addIntercept", {"phases": ["authRequired"]})
         tree = await self.connection.call("browsingContext.getTree", {})
         context = tree["contexts"][0]["context"]
+        self.context = context
         await self.connection.call(
             "browsingContext.navigate", {"context": context, "url": url, "wait": "none"}
+        )
+
+    async def navigate(self, url: str) -> None:
+        """Navigate the top-level context again, as the address bar does."""
+        assert self.connection is not None and self.context is not None
+        await self.connection.call(
+            "browsingContext.navigate",
+            {"context": self.context, "url": url, "wait": "none"},
         )
 
     async def handle(self, event: dict) -> None:

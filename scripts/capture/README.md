@@ -477,6 +477,12 @@ server message, and reports to `/done`.
 | `http-proxy-auth-hostname` | plaintext HTTP proxy, Basic auth | `origin.phantom.test` |
 | `https-proxy-auth-loopback` | TLS proxy offering `h2`, Basic auth | `127.0.0.1` |
 | `https-proxy-auth-hostname` | TLS proxy offering `h2`, Basic auth | `origin.phantom.test` |
+| `http-proxy-secure-hostname` | plaintext HTTP proxy | `origin.phantom.test`, then `https://` and `wss://` tunnels |
+| `https-proxy-secure-hostname` | TLS proxy offering `h2` | `origin.phantom.test`, then `https://` and `wss://` tunnels |
+| `http-proxy-auth-secure-hostname` | plaintext HTTP proxy, Basic auth on CONNECT | `origin.phantom.test`, then `https://` and `wss://` tunnels |
+| `https-proxy-auth-secure-hostname` | TLS proxy offering `h2`, Basic auth on CONNECT | `origin.phantom.test`, then `https://` and `wss://` tunnels |
+| `http-proxy-auth-remembered-hostname` | plaintext HTTP proxy, Basic auth on `/probe` | `origin.phantom.test`, navigated twice |
+| `https-proxy-auth-remembered-hostname` | TLS proxy offering `h2`, Basic auth on `/probe` | `origin.phantom.test`, navigated twice |
 
 The four `-auth-` scenarios show when a browser sends `Proxy-Authorization`
 after its first 407. Both proxy listeners require the throwaway credential
@@ -495,6 +501,29 @@ the first challenge.
 Browsers send `Accept-Encoding`, client hints, and fetch metadata to a
 loopback origin that they omit for a named plaintext origin, so every route
 runs with both.
+
+The six scenarios added for CONNECT and credential placement change the
+page:
+
+- A `-secure-` page fetches `https://origin.phantom.test:443/tls` and then
+  opens `wss://origin.phantom.test:8443/tls`, each through a CONNECT tunnel.
+  The proxy records each CONNECT head, answers `200`, and closes the tunnel
+  (on HTTP/2, the `200` HEADERS frame ends the stream), so no origin TLS
+  completes and the page reports the failures to `/done`. The port tells the
+  two tunnels apart: the fixture records kind `https-connect` for 443 and
+  `wss-connect` for 8443. Browsers retry the failed tunnel, so a run holds
+  more than one of each. In the auth variant only CONNECT requests are
+  challenged: the page loads without credentials, the first `https://`
+  CONNECT gets the 407, and the later ones carry the remembered credential.
+  Firefox's manual proxy settings cover `http://` and `ws://` only, so the
+  `-secure-` plaintext-proxy launch also sets `network.proxy.ssl` and
+  `network.proxy.ssl_port` to the same proxy.
+- A `-remembered-` page fetches `/probe`, the only request the proxy
+  challenges, and then `/ready`. When `/ready` arrives, the tool navigates
+  the page again over the remote protocol (`Page.navigate` or
+  `browsingContext.navigate`) to `/page?...&step=2`, which reports to
+  `/done`. The run holds a challenged `fetch()`, its replay, and a
+  navigation that carries the remembered credential.
 
 Each browser gets these proxy settings, recorded with the launch:
 
