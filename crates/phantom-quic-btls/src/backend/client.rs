@@ -25,7 +25,7 @@ use crate::key_schedule::{
     CipherSuite as QuicCipherSuite, PacketKeyPair, TrafficKeySchedule, TrafficKeys, TrafficSecret,
     derive_direction_keys,
 };
-use crate::resumption::{ResumptionTicket, SessionCache};
+use crate::resumption::{ApplicationState, ResumptionTicket, SessionCache};
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
 use phantom_profile::quic::QuicTransportSettings;
@@ -60,6 +60,7 @@ pub struct QuicClientConfig {
     sessions: Option<SessionCache>,
     offer_tickets: bool,
     early_data: bool,
+    application_state: Option<ApplicationState>,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -82,6 +83,7 @@ impl QuicClientConfig {
             sessions: None,
             offer_tickets: true,
             early_data: false,
+            application_state: None,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -103,6 +105,7 @@ impl QuicClientConfig {
             tls_profile: ClientTlsProfile::default(),
             sessions: None,
             offer_tickets: true,
+            application_state: None,
             #[cfg(test)]
             derivation_failure: None,
         })
@@ -175,6 +178,7 @@ impl QuicClientConfig {
             sessions: self.tls_profile.session_tickets.then(SessionCache::default),
             offer_tickets: true,
             early_data: self.early_data,
+            application_state: None,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -195,6 +199,7 @@ impl QuicClientConfig {
             sessions: self.sessions.clone(),
             offer_tickets: false,
             early_data: self.early_data,
+            application_state: self.application_state.clone(),
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -247,9 +252,27 @@ impl QuicClientConfig {
             sessions,
             offer_tickets: self.offer_tickets,
             early_data: self.early_data,
+            application_state: self.application_state.clone(),
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
+    }
+
+    /// Returns a clone whose connection exchanges application state with
+    /// the ticket cache through `state`.
+    ///
+    /// The clone shares this configuration's ticket cache. Use it for one
+    /// connection, with a new [`ApplicationState`] each time. The connection
+    /// holds the tickets it receives until [`ApplicationState::store`]
+    /// records the state to keep with them. It offers early data only with a
+    /// ticket stored with application state, and [`ApplicationState::remembered`]
+    /// then returns that state. HTTP/3 keeps the server's SETTINGS this way
+    /// (RFC 9114, section 7.2.4.2).
+    #[must_use]
+    pub fn with_application_state(&self, state: &ApplicationState) -> Self {
+        let mut config = self.clone_with_sessions(self.sessions.clone());
+        config.application_state = Some(state.clone());
+        config
     }
 
     /// Records the round-trip time a connection to `server_name` measured.
@@ -456,10 +479,20 @@ impl crypto::ClientConfig for QuicClientConfig {
             params.write(&mut encoded);
             encoded
         };
-        let (session, remembered) = offered.map_or((None, None), |(ticket, _)| {
-            (Some(ticket.session), ticket.peer_transport_parameters)
-        });
-        let early_data = self.early_data && remembered.is_some();
+        let (session, remembered, remembered_state) =
+            offered.map_or((None, None, None), |(ticket, _)| {
+                (
+                    Some(ticket.session),
+                    ticket.peer_transport_parameters,
+                    ticket.application_state,
+                )
+            });
+        // Early data needs the issuer's transport parameters and, for a
+        // connection that keeps application state, the state stored with the
+        // ticket, as a Chromium client needs both.
+        let early_data = self.early_data
+            && remembered.is_some()
+            && (self.application_state.is_none() || remembered_state.is_some());
         let mut backend = ClientSession::new_with_profile(
             &self.context,
             server_name,
@@ -479,6 +512,15 @@ impl crypto::ClientConfig for QuicClientConfig {
             sessions,
             server_name: server_name.into(),
         });
+        if let Some(application_state) = &self.application_state {
+            application_state.start(
+                self.sessions
+                    .clone()
+                    .map(|sessions| (sessions, Box::from(server_name))),
+                remembered_state.filter(|_| early_data),
+            );
+            state.application_state = Some(application_state.clone());
+        }
         #[cfg(test)]
         if let Some(failure) = self.derivation_failure {
             state.derivation_failure = Some(failure);
@@ -714,6 +756,8 @@ struct SessionState {
     peer_identity: Option<PeerIdentity>,
     peer_transport_parameters: Option<Vec<u8>>,
     ticket_sink: Option<TicketSink>,
+    /// Holds received tickets until their application state is known.
+    application_state: Option<ApplicationState>,
     /// The client's 0-RTT write secret, present only while offering early data.
     early_secret: Option<(u16, TrafficSecret)>,
     /// The ticket issuer's transport parameters, applied to 0-RTT data until
@@ -743,6 +787,7 @@ impl SessionState {
             peer_identity: None,
             peer_transport_parameters: None,
             ticket_sink: None,
+            application_state: None,
             early_secret: None,
             remembered_transport_parameters: None,
             #[cfg(test)]
@@ -803,16 +848,18 @@ impl SessionState {
         let issued = self.backend.take_new_sessions();
         if let Some(sink) = &self.ticket_sink {
             for session in issued {
-                sink.sessions.insert(
-                    &sink.server_name,
-                    ResumptionTicket {
-                        session,
-                        peer_transport_parameters: self
-                            .peer_transport_parameters
-                            .as_deref()
-                            .map(Box::from),
-                    },
-                );
+                let ticket = ResumptionTicket {
+                    session,
+                    peer_transport_parameters: self
+                        .peer_transport_parameters
+                        .as_deref()
+                        .map(Box::from),
+                    application_state: None,
+                };
+                match &self.application_state {
+                    Some(application_state) => application_state.receive(ticket),
+                    None => sink.sessions.insert(&sink.server_name, ticket),
+                }
             }
         }
         Ok(())

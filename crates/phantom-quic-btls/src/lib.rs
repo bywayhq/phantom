@@ -55,6 +55,7 @@ pub use key_log::{
 pub use key_schedule::{DirectionKeys, EndpointSide};
 pub use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;
+pub use resumption::ApplicationState;
 pub use retry::{retry_integrity_tag, verify_retry_integrity};
 pub use transport_parameters::QuicTransportProfileError;
 

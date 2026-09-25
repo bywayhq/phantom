@@ -11,7 +11,8 @@ use super::super::{ClientSession, HandshakeProgress};
 use super::support::*;
 use crate::backend::callback_state::EncryptionLevel;
 use crate::backend::client::ClientTlsProfile;
-use crate::{HandshakeData, QuicClientConfig, QuicTlsProfileErrorKind};
+use crate::resumption::{MAX_APPLICATION_STATE_LEN, MAX_HELD_TICKETS};
+use crate::{ApplicationState, HandshakeData, QuicClientConfig, QuicTlsProfileErrorKind};
 
 /// A Chrome HTTP/3 TLS profile with ticket resumption enabled.
 fn resuming_tls_settings() -> phantom_profile::TlsSettings {
@@ -371,4 +372,112 @@ fn a_profile_offers_early_data_only_with_session_tickets() {
         "ticketless H3 TLS profile",
     );
     assert!(!ticketless.sends_early_data());
+}
+
+#[test]
+fn application_state_is_stored_with_held_tickets_and_read_back_for_early_data() {
+    let server_context = server_context();
+    let early = resuming_config()
+        .with_isolated_session_cache()
+        .with_early_data();
+    let learning_state = ApplicationState::new();
+    let learning = Arc::new(early.with_application_state(&learning_state));
+    accepting_handshake(&learning, &server_context);
+
+    // The ticket waits for the state to keep with it.
+    assert_eq!(cache_len(&early), 0);
+    assert_eq!(learning_state.held_len(), 1);
+    assert!(learning_state.store(b"remembered settings"));
+    assert_eq!(cache_len(&early), 1);
+    assert_eq!(learning_state.held_len(), 0);
+    assert!(!learning_state.store(b"later settings"));
+
+    // A sibling cache, as for another route, has neither ticket nor state.
+    let sibling_state = ApplicationState::new();
+    let sibling = Arc::new(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_early_data()
+            .with_application_state(&sibling_state),
+    );
+    let other_route = start(&sibling);
+    assert!(other_route.early_crypto().is_none());
+    assert_eq!(sibling_state.remembered(), None);
+
+    let resuming_state = ApplicationState::new();
+    let resuming = Arc::new(early.with_application_state(&resuming_state));
+    let client = start(&resuming);
+    assert!(client.early_crypto().is_some());
+    assert_eq!(
+        resuming_state.remembered().as_deref(),
+        Some(&b"remembered settings"[..])
+    );
+    let client = handshake_with(
+        client,
+        test_ok(
+            RawServer::new_accepting_early_data(&server_context),
+            "server accepting early data",
+        ),
+    );
+    assert_eq!(client.early_data_accepted(), Some(true));
+}
+
+#[test]
+fn early_data_needs_a_ticket_stored_with_application_state() {
+    let server_context = server_context();
+    let early = resuming_config()
+        .with_isolated_session_cache()
+        .with_early_data();
+    // A connection without a handle stores its ticket without state.
+    accepting_handshake(&Arc::new(early.with_early_data()), &server_context);
+    assert_eq!(cache_len(&early), 1);
+
+    let state = ApplicationState::new();
+    let client = start(&Arc::new(early.with_application_state(&state)));
+    assert!(client.early_crypto().is_none());
+    assert_eq!(state.remembered(), None);
+    let client = handshake_with(
+        client,
+        test_ok(
+            RawServer::new_accepting_early_data(&server_context),
+            "server accepting early data",
+        ),
+    );
+    assert!(resumed(client.as_ref()));
+    assert_eq!(client.early_data_accepted(), Some(false));
+}
+
+#[test]
+fn held_tickets_are_bounded_and_dropped_with_oversized_state() {
+    let server_context = server_context();
+    let config = resuming_config().with_isolated_session_cache();
+    let full = Arc::new(config.without_ticket_offers());
+    for _ in 0..3 {
+        handshake(&full, &server_context);
+    }
+    let cache = test_some(config.session_cache(), "isolated session cache");
+    let tickets: Vec<_> = (0..3)
+        .map(|_| test_some(cache.take(SERVER_NAME), "retained ticket"))
+        .collect();
+    assert_eq!(cache.len(), 0);
+
+    let state = ApplicationState::new();
+    state.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
+    for ticket in tickets.iter().cloned() {
+        state.receive(ticket);
+    }
+    assert_eq!(state.held_len(), MAX_HELD_TICKETS);
+    assert!(state.store(b"settings"));
+    assert_eq!(cache.len(), MAX_HELD_TICKETS);
+    let stored = test_some(cache.take(SERVER_NAME), "stored ticket");
+    assert_eq!(stored.application_state.as_deref(), Some(&b"settings"[..]));
+
+    let refused = ApplicationState::new();
+    refused.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
+    refused.receive(tickets[0].clone());
+    assert!(!refused.store(&[0; MAX_APPLICATION_STATE_LEN + 1]));
+    assert_eq!(refused.held_len(), 0);
+    refused.receive(tickets[1].clone());
+    assert_eq!(refused.held_len(), 0);
+    assert_eq!(cache.len(), MAX_HELD_TICKETS - 1);
 }

@@ -11,6 +11,11 @@
 //! name, which a resumed connection advertises as `initial_rtt_us` when its
 //! transport profile includes that parameter. It follows the same isolation.
 //!
+//! A connection given an [`ApplicationState`] stores application state, such
+//! as the server's HTTP/3 SETTINGS, with each ticket it receives, and holds
+//! its tickets until that state is known. A later connection that offers
+//! early data with one of those tickets reads the state back.
+//!
 //! Memory is bounded per cache, so a client's total is bounded by the number
 //! of caches it keeps: one per pool entry, which its pool already caps.
 //! Locks are held only for in-memory lookup and insertion, never across I/O.
@@ -20,6 +25,16 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use btls::ssl::SslSession;
+
+/// Largest application state stored with a ticket, in bytes.
+///
+/// HTTP/3 stores the server's SETTINGS frame, which the vendored engine keeps
+/// to at most eight known settings, far below this bound.
+pub(crate) const MAX_APPLICATION_STATE_LEN: usize = 1024;
+
+/// Tickets one connection holds while its application state is unknown,
+/// matching the two a Chromium client handshaker holds.
+pub(crate) const MAX_HELD_TICKETS: usize = 2;
 
 /// Tickets retained per cache; the least recently stored is evicted first.
 ///
@@ -55,10 +70,148 @@ struct CachedSession {
 /// A client that sends 0-RTT data must apply the server's remembered
 /// transport parameters to it (RFC 9000, section 7.4.1). BoringSSL keeps no
 /// client copy, so they are stored beside the session.
+///
+/// The application state is what the issuing connection recorded through its
+/// [`ApplicationState`], if it had one.
 #[derive(Clone)]
 pub(crate) struct ResumptionTicket {
     pub(crate) session: SslSession,
     pub(crate) peer_transport_parameters: Option<Box<[u8]>>,
+    pub(crate) application_state: Option<Arc<[u8]>>,
+}
+
+/// One connection's application state for session resumption.
+///
+/// HTTP/3 uses it to remember the server's SETTINGS with each session ticket
+/// (RFC 9114, section 7.2.4.2), as Chromium does. Give each connection its
+/// own handle through [`crate::QuicClientConfig::with_application_state`]:
+///
+/// - When the connection presents a ticket and offers early data,
+///   [`Self::remembered`] returns the state stored with that ticket.
+/// - Tickets the connection receives are held until [`Self::store`] records
+///   the state to keep with them, then stored in the configuration's ticket
+///   cache with it. At most two tickets are held; a connection that never
+///   records its state stores none of its tickets.
+///
+/// The state follows the ticket cache's isolation: it is stored only with
+/// tickets in that cache, and read back only by a connection that presents
+/// one of them for the same verified server name.
+#[derive(Clone, Default)]
+pub struct ApplicationState {
+    inner: Arc<Mutex<ApplicationStateInner>>,
+}
+
+#[derive(Default)]
+struct ApplicationStateInner {
+    /// The state stored with the ticket presented for early data.
+    remembered: Option<Arc<[u8]>>,
+    /// The state to keep with tickets this connection receives.
+    stored: Option<Arc<[u8]>>,
+    /// Set when the state was too large to keep; later tickets are dropped.
+    refused: bool,
+    held: VecDeque<ResumptionTicket>,
+    cache: Option<(SessionCache, Box<str>)>,
+}
+
+impl ApplicationState {
+    /// Returns an empty handle for one new connection.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Returns the application state stored with the ticket this connection
+    /// presented, when the connection offers early data with it.
+    #[must_use]
+    pub fn remembered(&self) -> Option<Arc<[u8]>> {
+        self.lock().remembered.clone()
+    }
+
+    /// Records the state to keep with every ticket this connection receives,
+    /// and stores the tickets held until now.
+    ///
+    /// Only the first call has an effect. State longer than 1024 bytes is
+    /// not kept, and neither is any ticket from this connection. Returns
+    /// whether the state was recorded.
+    pub fn store(&self, state: &[u8]) -> bool {
+        let mut inner = self.lock();
+        if inner.stored.is_some() || inner.refused {
+            return false;
+        }
+        if state.len() > MAX_APPLICATION_STATE_LEN {
+            inner.refused = true;
+            inner.held.clear();
+            return false;
+        }
+        let state: Arc<[u8]> = Arc::from(state);
+        inner.stored = Some(Arc::clone(&state));
+        let held = std::mem::take(&mut inner.held);
+        if let Some((cache, server_name)) = &inner.cache {
+            for mut ticket in held {
+                ticket.application_state = Some(Arc::clone(&state));
+                cache.insert(server_name, ticket);
+            }
+        }
+        true
+    }
+
+    /// Binds the handle to the connection that `start_session` begins.
+    pub(crate) fn start(
+        &self,
+        cache: Option<(SessionCache, Box<str>)>,
+        remembered: Option<Arc<[u8]>>,
+    ) {
+        let mut inner = self.lock();
+        inner.cache = cache;
+        inner.remembered = remembered;
+    }
+
+    /// Stores `ticket` with the recorded state, or holds it until the state
+    /// is recorded.
+    pub(crate) fn receive(&self, mut ticket: ResumptionTicket) {
+        let mut inner = self.lock();
+        if inner.refused {
+            return;
+        }
+        if let Some(state) = inner.stored.clone() {
+            ticket.application_state = Some(state);
+            if let Some((cache, server_name)) = &inner.cache {
+                cache.insert(server_name, ticket);
+            }
+            return;
+        }
+        if inner.held.len() == MAX_HELD_TICKETS {
+            inner.held.pop_front();
+        }
+        inner.held.push_back(ticket);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn held_len(&self) -> usize {
+        self.lock().held.len()
+    }
+
+    fn lock(&self) -> MutexGuard<'_, ApplicationStateInner> {
+        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+impl std::fmt::Debug for ApplicationState {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let inner = self.lock();
+        formatter
+            .debug_struct("ApplicationState")
+            .field(
+                "remembered_len",
+                &inner.remembered.as_ref().map(|state| state.len()),
+            )
+            .field(
+                "stored_len",
+                &inner.stored.as_ref().map(|state| state.len()),
+            )
+            .field("held_tickets", &inner.held.len())
+            .finish()
+    }
 }
 
 impl SessionCache {
