@@ -1186,11 +1186,12 @@ Limits, as differences from Chrome:
 
 What is claimed: with the Chrome 154 or Edge 153 recipe, a resumed Phantom
 H3 connection offers the ClientHello extensions and QUIC transport parameters
-these captures show for that browser. Phantom may send `GET`, `HEAD`, and
-`OPTIONS` requests as early data and never sends `POST`, `PUT`, or `DELETE`
-early. With the recipes' dynamic QPACK policy, though, a request waits for
-the server's SETTINGS, so it leaves in 1-RTT packets where the browsers used
-0-RTT; see the limits below. The Firefox 156 captures record browser
+these captures show for that browser. Phantom sends `GET`, `HEAD`, and
+`OPTIONS` requests issued before the handshake completes in 0-RTT packets,
+as the browsers did, and never sends `POST`, `PUT`, or `DELETE` early. Like
+Chromium, it starts a resumed connection from the server SETTINGS remembered
+with the ticket, so the recipes' dynamic QPACK policy can encode a request
+before the server's SETTINGS arrive. The Firefox 156 captures record browser
 behavior only; Firefox has no H3 recipe.
 
 Evidence: `fixtures/http3/<browser>/<version>/windows-11-26200/` retains
@@ -1263,6 +1264,38 @@ investigated. Firefox needs
 `network.http.http3.disable_when_third_party_roots_found=false` to keep an H3
 connection whose certificate is trusted through `cert_override.txt`.
 
+Each Chrome and Edge connection that sent a request in 0-RTT also sent 0-RTT
+data on client stream 10, and no other resumed connection did. Stream 10 is
+Chromium's QPACK encoder stream (see the source below), so Chromium inserted
+into the dynamic table in 0-RTT, using the table capacity the aioquic server
+advertised on the ticket's connection.
+
+Chromium's source shows what it remembers. Chrome 154.0.8037.58's `DEPS`
+pins quiche `80bf9559d3a4c08dde4b85abc46d190a88ffef64`; paths below are under
+`quiche/quic/core/` at that revision:
+
+- `http/quic_spdy_client_session_base.cc`, lines 82-89: after the client
+  applies the server's control-stream SETTINGS, it serializes the frame and
+  passes it to the crypto stream as the ticket's application state.
+  `tls_client_handshaker.cc`, lines 731-737 and 778-794, holds up to two
+  tickets that arrive before that state and stores them once it is known.
+- `tls_client_handshaker.cc`, lines 216-245, and
+  `http/quic_spdy_session.cc`, lines 1069-1088: when a connection enters early
+  data, the client applies the remembered SETTINGS before the server's
+  arrive. A ticket without decodable state closes the connection.
+- `http/quic_spdy_session.cc`, lines 1224-1289, with
+  `qpack/qpack_header_table.h`, lines 215-224, and `qpack/qpack_encoder.cc`,
+  lines 433-439: the server's SETTINGS must repeat a remembered nonzero QPACK
+  table capacity exactly, and must not lower the field-section or
+  blocked-stream limits. `http/quic_spdy_client_session_base.cc`, lines
+  49-80, also rejects omitting a remembered non-default limit when the early
+  data was accepted. The close is `QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH`,
+  sent as `H3_SETTINGS_ERROR` (`quic_error_codes.cc`, lines 708-711).
+- `http/quic_spdy_session.cc`, lines 1629-1676: the client opens its control
+  stream, then its QPACK decoder stream, then its encoder stream, so they are
+  client streams 2, 6, and 10. `qpack/qpack_send_stream.cc`, lines 32-51,
+  writes a QPACK stream's type byte only with its first instruction.
+
 Replay against Phantom:
 
 - `chromium_resumption_captures_match_the_quic_recipe`, in
@@ -1289,12 +1322,13 @@ Replay against Phantom:
   captured values 2509 µs and 54894 µs as `0x49cd` and `0x8000d66e`, varies
   the parameter's position with the permutation, and omits it when there is
   nothing to send.
-- `resumed_connection_sends_get_early_and_holds_post_with_stateless_qpack`,
-  in `crates/phantom/tests/http3_early_data.rs`, uses the Chrome 154 recipes
-  with no early-data setting from the caller, and stateless QPACK request
-  encoding in place of the recipe's dynamic policy. A relay holds every
-  server datagram, so no handshake can complete: a resumed connection's `GET`
-  reaches the server through it, and a resumed connection's `POST` does not
+- `resumed_connection_sends_get_early_and_holds_post`, in
+  `crates/phantom/tests/http3_early_data.rs`, uses the Chrome 154 recipes,
+  with their dynamic QPACK policy and no early-data setting from the caller.
+  A relay holds every server datagram, so no handshake can complete and the
+  server's SETTINGS never reach the client: a resumed connection's `GET`
+  reaches the server through it, so it left in 0-RTT packets, encoded with
+  the remembered SETTINGS. A resumed connection's `POST` does not arrive
   until the relay opens. The `POST`'s connection still offered early data.
 - `concurrent_requests_share_one_resumed_connection`, in the same file,
   sends `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, and `DELETE` at once to a
@@ -1303,9 +1337,31 @@ Replay against Phantom:
   connection. Other tests there show a rejected `POST` resent with its whole
   body, a failed handshake failing the request without a second connection,
   and the connect timeout bounding the wait for the early-data answer.
-  `dynamic_qpack_holds_a_replay_safe_request_until_the_handshake`, in
-  `crates/phantom-net/src/http3/tests/early_data.rs`, shows the recipe's
-  `GET` opening its stream after the handshake.
+- `dynamic_qpack_sends_a_replay_safe_request_early_from_remembered_settings`,
+  in `crates/phantom-net/src/http3/tests/early_data.rs`, shows the recipe's
+  `GET` opening its stream before the handshake on a connection that started
+  from remembered SETTINGS.
+  `a_server_that_reduces_a_remembered_setting_is_closed_with_settings_error`
+  resumes against a server that lowers the field-section limit it advertised
+  on the ticket's connection, and the server sees the connection closed with
+  `H3_SETTINGS_ERROR` (0x109).
+  `remembered_settings_stay_with_their_ticket_cache_and_server_name` shows
+  that neither another pool entry's cache nor another server name starts
+  from them.
+- In `crates/phantom-quic-btls/src/backend/client_session/tests/resumption.rs`,
+  `application_state_is_stored_with_held_tickets_and_read_back_for_early_data`
+  shows a ticket held until its connection records the SETTINGS and read
+  back only through the same cache;
+  `early_data_needs_a_ticket_stored_with_application_state` and
+  `held_tickets_are_bounded_and_dropped_with_oversized_state` cover the
+  bounds.
+- The vendored `h3` tests `dynamic_request_uses_remembered_settings_before_any_peer_settings`,
+  `remembered_settings_apply_until_compatible_control_settings_replace_them`,
+  `control_settings_incompatible_with_remembered_settings_are_rejected`,
+  `late_application_settings_incompatible_with_remembered_settings_are_rejected`,
+  and `remembered_settings_do_not_stand_in_for_the_control_stream_settings`
+  fix the encoder-stream and HEADERS bytes sent from remembered SETTINGS and
+  each compatibility rule.
 
 Phantom sends as `initial_rtt_us` the smoothed round-trip time that Quinn
 last measured on a connection to the same server name through the same pool
@@ -1334,18 +1390,25 @@ Limits:
   and Phantom's would not; no capture shows such a connection.
 - The `initial_rtt_us` value is Phantom's own measurement, so the tests
   compare its encoding, not its value.
-- With the Chrome 154 and Edge 153 recipes, only the H3 control stream
-  travels in 0-RTT packets today, and every request leaves in 1-RTT. Their
-  dynamic QPACK policy encodes a request only after the server's SETTINGS
-  arrive, and on a resumed connection those come with the server's first
-  flight, which also completes the handshake. The browsers sent `GET`,
-  `HEAD`, and `OPTIONS` in 0-RTT. The [roadmap](../roadmap.md) has the item
-  that closes this.
-  Each Chromium connection that sent a request in 0-RTT also sent 0-RTT data
-  on client stream 10, and no other resumed connection did.
-  If that stream is the QPACK encoder stream, Chromium inserted into the
-  dynamic table in 0-RTT from the previous connection's SETTINGS, which RFC
-  9114 section 7.2.4.2 permits. Phantom does not remember SETTINGS.
+- Phantom opens its QPACK encoder stream as client stream 6 and its decoder
+  stream as stream 10, and writes the encoder stream's type byte when the
+  connection starts. Chromium uses stream 10 for its encoder and writes the
+  type byte with the first instruction. So Phantom's 0-RTT encoder
+  instructions travel on stream 6, where Chromium's travel on stream 10.
+  The [roadmap](../roadmap.md) has the item.
+- Phantom keeps only the SETTINGS it understands, where Chromium keeps the
+  whole frame; the kept values are the same. Phantom also rejects a server
+  that disables a remembered extended CONNECT, HTTP Datagram, or WebTransport
+  setting, or lowers a remembered WebTransport session limit, which quiche
+  does not check. The tests use a server built on the vendored `h3`, which
+  advertises no QPACK table capacity, so they show a request sent from
+  remembered SETTINGS but no dynamic-table insert in 0-RTT; the vendored
+  `h3` test fixes those bytes.
+- When the server rejects early data and then sends SETTINGS incompatible
+  with the remembered ones, Chromium closes the connection with the
+  transport error `INTERNAL_ERROR` and skips the check for omitted settings;
+  Phantom applies every check and closes with `H3_SETTINGS_ERROR`. Phantom
+  does not reuse a rejected connection either way.
 - When the server rejects early data, the captured browsers send the request
   again on the same connection. Phantom does not reuse the rejected
   connection: it sends the request on a new one, which offers no early data.

@@ -84,7 +84,9 @@ field-section limit is the lower of the profile's advertised
 list, and the vendored `h3` builder emits that list unchanged, so the ceiling
 never appears on the wire.
 
-Before encoding a request, Phantom waits for the peer's SETTINGS and applies
+Before encoding a request, Phantom waits for the peer's SETTINGS, or on an
+early-data connection uses the
+[SETTINGS remembered with the ticket](#remembered-settings), and applies
 bounded admission. It sends encoder instructions before the HEADERS frame that
 depends on them. Request trailers, static or produced by a declared streaming
 body, use the same ordered, connection-owned QPACK path as request headers.
@@ -504,12 +506,11 @@ their own. Every request on such a connection follows one rule
 
 - A replay-safe request (a safe method, no body, and no trailers) goes out
   as early data while the early data is unanswered, with the client hints
-  known before the handshake, unless the profile's dynamic QPACK policy
-  holds it until the server's SETTINGS arrive. Those come with the server's
-  first flight, which completes the handshake, so under the Chrome 154
-  recipe only the control stream travels in 0-RTT. The vendored `h3` has no
-  way yet to start a connection from the previous connection's SETTINGS
-  (RFC 9114, section 7.2.4.2).
+  known before the handshake. Under a dynamic QPACK policy it is encoded
+  with the SETTINGS remembered with the ticket; see
+  [Remembered SETTINGS](#remembered-settings). A connection that started
+  without them holds such a request until the server's SETTINGS arrive, with
+  the server's first flight.
 - Every other request waits in the pool, within the connect timeout phase,
   for `Http3Connector::early_data_settled_on`, and keeps its body until
   then. It is then sent with the client hints the handshake's ALPS
@@ -527,6 +528,48 @@ their own. Every request on such a connection follows one rule
   again, and no second connection is opened.
 - If the connect timeout expires first, that request fails with a
   connect-phase timeout and the connection stays pooled for the others.
+
+#### Remembered SETTINGS
+
+A connection that offers early data starts from the server SETTINGS
+remembered with its ticket, as RFC 9114 section 7.2.4.2 allows and Chromium
+does; [QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)
+cites the Chromium source.
+
+- `phantom-quic-btls` stores opaque application state with each ticket
+  through a per-connection `ApplicationState`, which
+  `QuicClientConfig::with_application_state` attaches. `connect` in
+  `crates/phantom-net/src/http3/mod.rs` gives every connection from a
+  connector that keeps tickets its own handle.
+- The state is the SETTINGS frame from the server's control stream, as the
+  HTTP/3 driver applied it, from the vendored
+  `h3::client::Connection::peer_settings_to_remember`. It holds only the
+  settings `h3` understands, so it stays under 150 bytes; the cache refuses
+  state over 1 KiB.
+- Tickets that arrive before those SETTINGS are held, at most two per
+  connection, and stored once the driver records the SETTINGS. A connection
+  that closes first, or whose SETTINGS fail validation, stores none of its
+  tickets.
+- The state lives in the ticket's cache entry, so it has the ticket's
+  isolation and bounds: one cache per origin and route, at most four
+  tickets, read back only for the same verified server name, and consumed
+  with the ticket.
+- A connection offers early data only with a ticket that carries state.
+  `h3::client::Builder::remembered_peer_settings` then seeds the peer view
+  and the QPACK encoder's table capacity and blocked-stream limit before the
+  connection starts, so the encoder-stream instructions and the request
+  HEADERS both go out in 0-RTT packets. The remembered SETTINGS stand in for
+  the control stream's SETTINGS only as values: a control stream whose first
+  frame is not SETTINGS is still an error.
+- The server's SETTINGS, from ALPS or the control stream, must repeat a
+  remembered nonzero QPACK table capacity (RFC 9204, section 3.2.3) and must
+  not omit or lower a remembered blocked-stream, field-section, or
+  WebTransport session limit, or disable a remembered extended CONNECT,
+  HTTP Datagram, or WebTransport setting. Otherwise the driver closes the
+  connection with `H3_SETTINGS_ERROR`, the code Chromium sends.
+- If the server rejects the early data, the connection is not reused, so its
+  remembered SETTINGS go with it; the request is sent again on a connection
+  without early data, which starts from nothing remembered.
 
 A resumed connection also advertises `initial_rtt_us` (`0x3127`) when the
 transport profile lists `QuicTransportParameterKind::InitialRtt`, as
@@ -652,6 +695,8 @@ Phantom patches its vendored `h3` and Quinn forks only where the upstream API
 cannot express a measured or safety-critical behavior:
 
 - ordered H3 SETTINGS and bounded dynamic QPACK integration;
+- starting an early-data connection from remembered peer SETTINGS, and
+  exposing the peer's control-stream SETTINGS to remember;
 - immediate stream cancellation through the Quinn adapter;
 - a peer-SETTINGS readiness signal for extended CONNECT, and poll-driven
   request DATA for the extended CONNECT byte stream;

@@ -53,13 +53,9 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
 ## Turn off early data on resumed connections
 
 With the Chrome 154 and Edge 153 recipes, a resumed QUIC connection offers
-early (0-RTT) data in its ClientHello, as those browsers do. Today only the
-H3 control stream travels in 0-RTT packets: the recipes' dynamic QPACK
-policy holds every request until the server's SETTINGS arrive, which on a
-resumed connection is when the handshake completes, so requests leave in
-1-RTT packets. The browsers sent `GET`, `HEAD`, and `OPTIONS` in 0-RTT;
-closing that gap is on the [roadmap](../roadmap.md). Turn early data off on
-the builder:
+early (0-RTT) data in its ClientHello, as those browsers do, and sends
+replay-safe requests in 0-RTT packets, as the browsers send `GET`, `HEAD`,
+and `OPTIONS`. Turn early data off on the builder:
 
 ```rust
 use phantom::profile::ClientProfile;
@@ -78,10 +74,12 @@ fn client_without_early_data(profile: ClientProfile) -> Result<Client, BuildErro
   settings leave `early_data` unset. `build` then fails with
   `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings enable
   `session_tickets`.
-- Under a stateless QPACK policy, a replay-safe request is sent as early
-  data: `GET`, `HEAD`, `OPTIONS`, or `TRACE`, with no body and no trailers.
-  Other requests wait for the handshake, even on a connection that offered
-  early data.
+- A replay-safe request is sent as early data: `GET`, `HEAD`, `OPTIONS`, or
+  `TRACE`, with no body and no trailers. Other requests wait for the
+  handshake, even on a connection that offered early data. Under the
+  recipes' dynamic QPACK policy, early requests are encoded with the server
+  SETTINGS remembered with the ticket; see
+  [Session tickets](../internals/http3.md#session-tickets).
   [QUIC session resumption](../explanation/validation.md#quic-session-resumption)
   gives the Chromium source for this rule.
 - Concurrent requests to a resumed origin share one connection while its

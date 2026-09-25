@@ -253,13 +253,20 @@ Supported:
   over the same route; a failed handshake or invalid handshake metadata
   fails the waiting requests. Concurrent requests to a resumed origin share
   one connection while its early data is unanswered.
+- Server SETTINGS remembered with each session ticket, as Chromium keeps
+  them, in the same cache and under the same isolation as the ticket. A
+  connection that offers early data starts from them, so under the recipes'
+  dynamic QPACK policy a replay-safe request leaves in 0-RTT packets, as in
+  resumed Chrome 154 and Edge 153 connections. Server SETTINGS that change a
+  remembered QPACK table capacity, or omit or lower another remembered value,
+  close the connection with `H3_SETTINGS_ERROR` (RFC 9114, section 7.2.4.2).
 - QUIC transport parameter `initial_rtt_us` (`0x3127`) on resumed
   connections, carrying the round-trip time last measured to the same server
   through the same pool entry, as a minimal-length varint.
 - Tests replay the retained resumed Chrome 154 and Edge 153 connections
   against Phantom's resumed ClientHello and transport parameters, and check,
-  with stateless QPACK encoding, that a resumed connection sends `GET` as
-  early data and holds `POST`
+  with the recipes' dynamic QPACK policy, that a resumed connection sends
+  `GET` as early data and holds `POST`
   ([QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
   exposed as `ClientBuilder::key_log` behind the `diagnostics` feature.
@@ -269,13 +276,10 @@ Supported:
 
 Known gaps:
 
-- With the Chrome 154 and Edge 153 recipes, only the H3 control stream
-  travels in 0-RTT packets; every request leaves in 1-RTT. The recipes'
-  dynamic QPACK policy encodes a request only after the server's SETTINGS
-  arrive, which on a resumed connection is when the handshake completes,
-  while resumed Chrome 154 and Edge 153 connections send `GET`, `HEAD`, and
-  `OPTIONS` in 0-RTT. Phantom does not remember the previous connection's
-  SETTINGS for early data; the [roadmap](../roadmap.md) has the item.
+- Phantom's QPACK encoder stream is client stream 6, and its type byte is
+  sent when a connection starts. Chrome 154 and Edge 153 use stream 10 and
+  send the type byte with the first encoder instruction, so their 0-RTT
+  encoder instructions travel on a different stream than Phantom's.
 - After a server rejects early data, the captured browsers send the request
   again on the same connection; Phantom sends it on a new connection, which
   offers no early data. An Alt-Svc racing attempt offers no early data.

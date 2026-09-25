@@ -244,13 +244,14 @@ have shown where the real architectural boundaries are.
   2. Establish whether a captured browser sends `Expect: 100-continue`, and on
      which upload shapes. Phantom never sends it. Whether that is correct is
      currently unknown, which is itself the gap.
-  3. Send early data in 0-RTT packets under the Chrome recipe. Its dynamic
-     QPACK policy holds each request until the server's SETTINGS arrive, and
-     on a resumed connection they arrive as the handshake completes, so the
-     request leaves in 1-RTT. Remember the server's SETTINGS with the ticket
-     and start an early-data connection from them, as RFC 9114 section
-     7.2.4.2 allows and the resumption captures suggest Chromium does. This
-     needs a vendored `h3` seam.
+  3. Open the QPACK streams in Chromium's order. Chromium opens its decoder
+     stream before its encoder stream, so its encoder is client stream 10,
+     and writes a QPACK stream's type byte only with its first instruction.
+     Phantom's encoder is stream 6 and sends its type byte when the
+     connection starts. So a connection that sends no request writes to a
+     stream Chrome 154 leaves unused, and encoder instructions, in 0-RTT or
+     later, travel on stream 6 instead of 10. This needs a vendored `h3` seam
+     and a capture that records stream types.
   4. Resend on the same connection when a server rejects early data. The
      captured Chrome 154, Edge 153, and Firefox 156 connections send every
      request again in 1-RTT on the connection whose early data was rejected.

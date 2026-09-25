@@ -152,15 +152,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   field `early_data`, and `chromium::v154_quic` sets it, so these recipes
   offer early (0-RTT) data on every resumed connection: the resumed
   ClientHello now carries `early_data`, as resumed Chrome 154 and Edge 153
-  connections do. With these recipes only the H3 control stream travels in
-  0-RTT packets today: their dynamic QPACK policy holds every request until
-  the server's SETTINGS arrive, which on a resumed connection is when the
-  handshake completes, so requests leave in 1-RTT packets where the browsers
-  sent `GET`, `HEAD`, and `OPTIONS` in 0-RTT. Remembering the previous
-  connection's SETTINGS is a roadmap item. Under a stateless QPACK policy, a
-  replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE` with no body and
-  no trailers) on an unanswered resumed connection is sent as early data,
-  which a server can process more than once. Requests to a resumed origin
+  connections do. A replay-safe request (`GET`, `HEAD`, `OPTIONS`, or
+  `TRACE` with no body and no trailers) on an unanswered resumed connection
+  is sent as early data, which a server can process more than once; with
+  the named recipes this needs the remembered SETTINGS described under
+  Changed. Requests to a resumed origin
   share the connection while its early data is unanswered; any request that
   is not sent early waits for the answer and keeps its body. A rejection
   sends it again on a new connection; a failed handshake or invalid
@@ -384,6 +380,29 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `ClientBuilder::preemptive_proxy_authentication(false)`. CONNECT-UDP
   tunnels still start without credentials.
 
+- Wire change for resumed HTTP/3 connections from the Chrome 154 and Edge
+  153 recipes: replay-safe requests (`GET`, `HEAD`, `OPTIONS`, or `TRACE`
+  with no body and no trailers) now leave in 0-RTT packets, as resumed
+  Chrome 154 and Edge 153 connections send `GET`, `HEAD`, and `OPTIONS`.
+  Before, the recipes' dynamic QPACK policy held each request until the
+  server's SETTINGS arrived with the completed handshake, so only the H3
+  control stream traveled in 0-RTT. Each connection now keeps the server's
+  control-stream SETTINGS with the session tickets it receives, in the
+  ticket's cache and under its isolation, and a connection that offers early
+  data starts from the SETTINGS kept with its ticket (RFC 9114, section
+  7.2.4.2), as Chromium does. Its QPACK encoder instructions and request
+  HEADERS then go out before the handshake completes. If the server's
+  SETTINGS change a remembered QPACK table capacity, or omit or lower
+  another remembered value, the connection closes with `H3_SETTINGS_ERROR`.
+  A connection holds the tickets it receives, at most two, until the
+  server's SETTINGS arrive, and stores none if they never do.
+  `phantom_quic_btls` gains `ApplicationState` and
+  `QuicClientConfig::with_application_state`, and
+  `phantom_net::http3::Http3Connection` gains
+  `started_from_remembered_settings`. The vendored `phantom-h3` 0.0.8-phantom.3
+  adds `client::Builder::remembered_peer_settings` and
+  `client::Connection::peer_settings_to_remember`; `phantom-h3-datagram`
+  0.0.2-phantom.3 and `phantom-h3-quinn` 0.0.10-phantom.3 follow its pin.
 - Wire change for plaintext `http://` requests. To an origin that is not
   potentially trustworthy (not HTTPS, loopback, `localhost`, or
   `.localhost`), the built-in request templates leave out the `Sec-Fetch-*`
