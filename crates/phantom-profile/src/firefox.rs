@@ -1,9 +1,10 @@
 //! Wire settings retained from Firefox browser observations.
 
-use std::num::NonZeroUsize;
+use std::{num::NonZeroUsize, time::Duration};
 
 use crate::{
     cookie::CookiePlacement,
+    dns_cache::DnsCacheSettings,
     http1::Http1Settings,
     http2::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
@@ -184,6 +185,34 @@ pub fn v156_tcp() -> TcpSettings {
         nodelay: true,
         keepalive: None,
         address_racing: None,
+    }
+}
+
+/// Returns the address cache of Firefox 156.0 release builds.
+///
+/// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture.
+/// `network.dnsCacheEntries` is 1600 outside nightly builds
+/// (`modules/libpref/init/StaticPrefList.yaml:15551-15559`), and an answer
+/// without a TTL from the operating system is kept for
+/// `network.dnsCacheExpiration`, 60 seconds (`:15561-15565`;
+/// `netwerk/dns/nsHostResolver.cpp:1310-1317`). A failed lookup is kept for
+/// `NEGATIVE_RECORD_LIFETIME`, 60 seconds
+/// (`netwerk/dns/nsHostResolver.cpp:65-67`, `:1303-1308`).
+///
+/// Two parts are not modeled. On Windows `network.dns.get-ttl` is on
+/// (`modules/libpref/init/StaticPrefList.yaml:15567-15575`), so Firefox keeps
+/// an answer for its record TTL; Phantom sees no TTL and keeps each answer
+/// for 60 seconds. Firefox also serves an expired answer for up to
+/// `network.dnsCacheExpirationGracePeriod`, 600 seconds, while it resolves
+/// the name again in the background (`:15584-15589`;
+/// `netwerk/dns/nsHostResolver.cpp:1265-1283`); Phantom resolves an expired
+/// name before it connects.
+#[must_use]
+pub fn v156_dns_cache() -> DnsCacheSettings {
+    DnsCacheSettings {
+        max_entries: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
+        ttl: Duration::from_secs(60),
+        negative_ttl: Some(Duration::from_secs(60)),
     }
 }
 

@@ -1,9 +1,9 @@
 //! Protocol settings grouped for client construction.
 
 use crate::{
-    ClientHintSettings, CookiePlacement, Http1Settings, Http2Settings, Http3RequestSettings,
-    Http3Settings, ProxyConnectTemplate, TcpSettings, TlsSettings, WebSocketSettings,
-    quic::QuicTransportSettings,
+    ClientHintSettings, CookiePlacement, DnsCacheSettings, Http1Settings, Http2Settings,
+    Http3RequestSettings, Http3Settings, ProxyConnectTemplate, TcpSettings, TlsSettings,
+    WebSocketSettings, quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -61,6 +61,7 @@ impl Http3ClientSettings {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClientProfile {
     tcp: Option<TcpSettings>,
+    dns_cache: Option<DnsCacheSettings>,
     tls: TlsSettings,
     http1: Option<Http1Settings>,
     http2: Option<Http2Settings>,
@@ -77,6 +78,7 @@ impl ClientProfile {
     pub fn new(tls: TlsSettings) -> Self {
         Self {
             tcp: None,
+            dns_cache: None,
             tls,
             http1: None,
             http2: None,
@@ -94,6 +96,15 @@ impl ClientProfile {
     #[must_use]
     pub fn with_tcp(mut self, tcp: TcpSettings) -> Self {
         self.tcp = Some(tcp);
+        self
+    }
+
+    /// Adds the address cache the client keeps for its own DNS lookups.
+    ///
+    /// Without it, the client resolves a host name for every new connection.
+    #[must_use]
+    pub fn with_dns_cache(mut self, dns_cache: DnsCacheSettings) -> Self {
+        self.dns_cache = Some(dns_cache);
         self
     }
 
@@ -159,6 +170,12 @@ impl ClientProfile {
     #[must_use]
     pub fn tcp(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Returns the profile's address cache settings when configured.
+    #[must_use]
+    pub fn dns_cache(&self) -> Option<&DnsCacheSettings> {
+        self.dns_cache.as_ref()
     }
 
     /// Returns the profile's TLS settings.
@@ -235,6 +252,15 @@ mod tests {
         let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
 
         assert_eq!(profile.tcp(), Some(&tcp));
+    }
+
+    #[test]
+    fn with_dns_cache_owns_and_exposes_dns_cache_settings() {
+        let dns_cache = chromium::v154_dns_cache();
+        let profile = ClientProfile::new(chromium::v154_tls()).with_dns_cache(dns_cache);
+
+        assert_eq!(profile.dns_cache(), Some(&dns_cache));
+        assert_eq!(ClientProfile::new(chromium::v154_tls()).dns_cache(), None);
     }
 
     #[test]

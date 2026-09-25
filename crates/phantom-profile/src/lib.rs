@@ -3,6 +3,7 @@
 pub mod chromium;
 pub mod client_hints;
 pub mod cookie;
+pub mod dns_cache;
 pub mod edge;
 pub mod firefox;
 pub mod http1;
@@ -22,6 +23,7 @@ pub use client_hints::{
     ClientHint, ClientHintDelivery, ClientHintSettings, InvalidClientHintSettings,
 };
 pub use cookie::CookiePlacement;
+pub use dns_cache::DnsCacheSettings;
 pub use http1::Http1Settings;
 pub use http2::{
     Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,

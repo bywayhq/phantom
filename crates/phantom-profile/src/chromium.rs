@@ -5,6 +5,7 @@ use std::{num::NonZeroUsize, time::Duration};
 use crate::{
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     cookie::CookiePlacement,
+    dns_cache::DnsCacheSettings,
     http1::Http1Settings,
     http2::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
@@ -256,6 +257,41 @@ pub fn v154_tcp() -> TcpSettings {
         address_racing: Some(TcpAddressRacing {
             fallback_delay: Duration::from_millis(300),
         }),
+    }
+}
+
+/// Returns the address cache of Chromium 154.0.8037.58's system-resolver
+/// path.
+///
+/// From Chromium source at tag `154.0.8037.58`, not from a capture: a DNS
+/// cache is not visible on the wire, only the queries it saves. Each
+/// `URLRequestContext`, one per browser profile, creates its resolver with
+/// caching enabled (`net/url_request/url_request_context_builder.cc:363-382`),
+/// and its `ResolveContext` holds a `HostCache` of `kDefaultCacheSize = 1000`
+/// entries in builds with the built-in DNS client, which every Blink build
+/// has (`net/dns/resolve_context.cc:109-121`, `net/dns/BUILD.gn:9`).
+///
+/// An answer from the operating system resolver carries no TTL, so Chromium
+/// keeps it for `kCacheEntryTTLSeconds = 60` and a failure for
+/// `kNegativeCacheEntryTTLSeconds = 0`
+/// (`net/dns/host_resolver_manager_job.cc:54-58`, `:799-815`). A failure
+/// without a positive TTL is never cached
+/// (`net/dns/host_resolver_manager.cc:1284-1291`). When the cache is full,
+/// the entry that expires soonest is evicted, stale entries first
+/// (`net/dns/host_cache.cc:886-916`, `:1289-1319`).
+///
+/// Chromium's built-in DNS client, enabled by default on Windows, macOS,
+/// Linux, ChromeOS, and Android (`net/base/features.cc:42-48`), instead keeps
+/// an answer for its record TTL, at least 60 seconds
+/// (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`), and a negative
+/// answer for its SOA TTL (`:907-908`). Phantom resolves through the operating
+/// system and sees no TTL, so this recipe follows the system-resolver path.
+#[must_use]
+pub fn v154_dns_cache() -> DnsCacheSettings {
+    DnsCacheSettings {
+        max_entries: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
+        ttl: Duration::from_secs(60),
+        negative_ttl: None,
     }
 }
 
