@@ -6,6 +6,7 @@ use crate::error::ErrorStack;
 use crate::hpke::HpkeKey;
 use crate::{cvt_0i, cvt_p};
 
+/// Builds the ECH keys a server decrypts ClientHelloInner with.
 pub struct SslEchKeysBuilder {
     keys: SslEchKeys,
 }
@@ -20,6 +21,12 @@ impl SslEchKeysBuilder {
         }
     }
 
+    /// Wraps an owned `SSL_ECH_KEYS` pointer.
+    ///
+    /// # Safety
+    ///
+    /// `keys` must be a valid, uniquely owned `SSL_ECH_KEYS` pointer; the
+    /// builder frees it on drop.
     pub unsafe fn from_ptr(keys: *mut ffi::SSL_ECH_KEYS) -> Self {
         Self {
             keys: unsafe { SslEchKeys::from_ptr(keys) },

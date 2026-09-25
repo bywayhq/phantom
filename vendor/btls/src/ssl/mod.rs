@@ -89,7 +89,6 @@ use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
-use crate::ssl::ech::SslEchKeys;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::symm::CipherCtxRef;
@@ -112,7 +111,7 @@ pub use self::connector::{
 };
 #[cfg(feature = "credential")]
 pub use self::credential::{SslCredential, SslCredentialBuilder, SslCredentialRef};
-pub use self::ech::SslEchKeysRef;
+pub use self::ech::{SslEchKeys, SslEchKeysBuilder, SslEchKeysRef};
 pub use self::error::{Error, ErrorCode, HandshakeError};
 
 mod async_callbacks;

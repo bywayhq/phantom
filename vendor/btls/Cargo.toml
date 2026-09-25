@@ -1,6 +1,6 @@
 [package]
 name = "phantom-btls"
-version = "0.5.6-phantom.2"
+version = "0.5.6-phantom.3"
 authors = ["0x676e67 <gngppz@gmail.com>", "Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "Apache-2.0"
 description = "Phantom fork of btls 0.5.6; not a general-purpose replacement"

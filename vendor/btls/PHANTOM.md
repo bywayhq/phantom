@@ -28,7 +28,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.2`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.3`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -82,6 +82,12 @@ per-connection list of allowed HPKE AEADs; each handshake draws one uniformly
 with `RAND_bytes`, and a HelloRetryRequest reuses the first ClientHello's
 extension. An empty list preserves BoringSSL's hardware-based choice.
 
+The upstream wrapper exposes `SslContextBuilder::set_ech_keys` but keeps the
+`SslEchKeys` type it takes, and `SslEchKeysBuilder`, in a private module, so
+no caller outside the crate can build server ECH keys. Phantom's tests run a
+loopback server that decrypts ECH to prove the client's real ECH path from
+HTTPS records, and its capture server uses the same keys.
+
 The upstream record-size-limit patch advertised RFC 8449 without enforcing it.
 The dependency fork negotiates directional limits, applies them to the traffic-
 key epoch that produced each protected record, fragments outgoing handshake and
@@ -123,6 +129,10 @@ The patches are additive:
   32 connections configured with AES-128-GCM and ChaCha20-Poly1305 produce
   both, and oversized, unknown, and repeated lists are rejected with a
   populated error stack.
+- `ech-server-keys.patch` re-exports `SslEchKeys` and `SslEchKeysBuilder`
+  from `btls::ssl` and documents the builder's existing unsafe pointer
+  constructor. It adds no unsafe code. `src/ssl/test/ech.rs` imports
+  `SslEchKeys` through the public path.
 - `SslContextBuilder::set_record_size_limit` and
   `SslRef::set_record_size_limit` expose checked, fallible RFC 8449 controls.
 - `src/ssl/test/patches.rs` proves range validation and bidirectional

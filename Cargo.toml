@@ -31,7 +31,7 @@ version = "0.1.0"
 # Patched dependencies resolve to Phantom's renamed forks under `vendor/`. The
 # dependency keys keep the upstream crate names, so source code is unchanged
 # and the stock packages never enter the build graph. See docs/guides/downstream.md.
-btls = { package = "phantom-btls", version = "=0.5.6-phantom.2", path = "vendor/btls", default-features = false }
+btls = { package = "phantom-btls", version = "=0.5.6-phantom.3", path = "vendor/btls", default-features = false }
 btls-sys = { git = "https://github.com/bywayhq/btls", rev = "ce81167653e2d8878f2e9b2218a15b9bc8351a53", default-features = false }
 brotli = "9.0.0"
 bytes = "=1.12.1"
@@ -44,7 +44,7 @@ quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "ven
 quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.1", path = "vendor/quinn-proto", default-features = false }
 serde = { version = "1.0.229", default-features = false, features = ["derive", "std"] }
 sfv = "=0.15.0"
-tokio-btls = { package = "phantom-tokio-btls", version = "=0.5.6-phantom.2", path = "vendor/tokio-btls", default-features = false }
+tokio-btls = { package = "phantom-tokio-btls", version = "=0.5.6-phantom.3", path = "vendor/tokio-btls", default-features = false }
 tokio-tungstenite = { package = "phantom-tokio-tungstenite", version = "=0.30.0-phantom.1", path = "vendor/tokio-tungstenite", default-features = false }
 tungstenite = { package = "phantom-tungstenite", version = "=0.30.0-phantom.1", path = "vendor/tungstenite", default-features = false }
 wreq-proto = { package = "phantom-wreq-proto", version = "=0.2.5-phantom.3", path = "vendor/wreq-proto" }

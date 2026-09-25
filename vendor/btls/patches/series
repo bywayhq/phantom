@@ -6,4 +6,5 @@ concurrent-aead.patch
 tls-key-update.patch
 scoped-client-sessions.patch
 ech-grease-aead.patch
+ech-server-keys.patch
 publish-identity.patch

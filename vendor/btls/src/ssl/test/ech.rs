@@ -2,9 +2,9 @@
 use std::sync::{Arc, Mutex};
 
 use crate::hpke::HpkeKey;
-use crate::ssl::ech::SslEchKeys;
 use crate::ssl::test::server::{ClientSslBuilder, Server};
 use crate::ssl::HandshakeError;
+use crate::ssl::SslEchKeys;
 #[cfg(not(feature = "fips"))]
 use crate::ssl::{ExtensionType, Ssl, SslContext, SslMethod, SslRef};
 
