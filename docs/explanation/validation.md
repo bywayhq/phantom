@@ -597,18 +597,34 @@ while a handshake to a server known to speak HTTP/2 is in flight.
 
 | Browser | Source behavior |
 | --- | --- |
-| Chromium 154 | Every HTTPS job registers with `SpdySessionPool::RequestSession` (`net/http/http_stream_factory_job.cc:749-777`). The first job for a session key is the blocking request (`net/spdy/spdy_session_pool.cc:269-302`). A later job is held only when `HttpServerProperties` says the server supports HTTP/2 (`net/http/http_stream_factory_job.cc:1417-1429`), until the blocking request finishes (`net/spdy/spdy_session_pool.cc:531-548`) or `kHTTP2ThrottleMs`, 300 ms, passes (`net/http/http_stream_factory_job.h:62`). Support is recorded when a connection negotiates HTTP/2 (`net/http/http_stream_factory_job.cc:1304-1306`). Without it, each job asks the socket pool for its own socket at once, up to the group limit. A job whose socket negotiated HTTP/2 after another session to the key appeared closes its socket and uses that session (`:1245-1280`), and a new session closes the group's idle sockets (`:1283-1287`). `HttpStreamPool`, which applies the same rule with the same 300 ms delay (`net/http/http_stream_pool_attempt_manager.cc:1597-1615`, `net/http/http_stream_pool_attempt_manager.h:100`), runs only with `kHappyEyeballsV3`, off by default (`net/base/features.cc:124`). |
+| Chromium 154 | Every HTTPS job registers with `SpdySessionPool::RequestSession` (`net/http/http_stream_factory_job.cc:749-775`). The first job for a session key is the blocking request (`net/spdy/spdy_session_pool.cc:269-303`). A later job is held only when `HttpServerProperties` says the server supports HTTP/2 (`net/http/http_stream_factory_job.cc:1417-1429`), until the blocking request finishes (`net/spdy/spdy_session_pool.cc:536-545`) or `kHTTP2ThrottleMs`, 300 ms, passes (`net/http/http_stream_factory_job.h:62`). Support is recorded when a connection negotiates HTTP/2 (`net/http/http_stream_factory_job.cc:1304-1306`). Without it, each job asks the socket pool for its own socket at once, up to the group limit. A job whose socket negotiated HTTP/2 after another session to the key appeared closes its socket and uses that session (`:1245-1280`), and a new session closes the group's idle sockets (`:1283-1287`). `HttpStreamPool`, which applies the same rule with the same 300 ms delay (`net/http/http_stream_pool_attempt_manager.cc:1597-1615`, `net/http/http_stream_pool_attempt_manager.h:100`), runs only with `kHappyEyeballsV3`, off by default (`net/base/features.cc:124`). |
 | Firefox 156 | `nsHttpConnectionMgr::MakeNewConnection` opens no connection while `ConnectionEntry::RestrictConnections` holds (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1399-1409`). That requires `mUsingSpdy` and an attempt still negotiating, or an active connection whose ALPN result is pending or that can take another stream (`netwerk/protocol/http/ConnectionEntry.cpp:225-282`). `mUsingSpdy` starts false (`:38`) and is set only when a connection reports HTTP/2 (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1007-1024`), so a new entry opens connections in parallel up to the limit. |
 
+Both browsers keep the fact once learned. Every writer of Chromium's flag
+sets it to true (`net/http/http_stream_factory_job.cc:1304-1306`,
+`net/http/http_stream_pool_attempt_manager.cc:823-825`), and so does every
+writer of Firefox's (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1023`,
+`:3920`). Chromium keys it by scheme, host, and port, plus the network
+anonymization key when partitioning is on, but not by proxy
+(`net/http/http_server_properties.cc:75-86`,
+`net/http/http_stream_factory_job.cc:386-391`), and keeps the 500 most
+recently used servers (`net/http/http_server_properties.h:97`,
+`net/http/http_server_properties.cc:124-125`). Firefox keeps it on the
+`ConnectionEntry`, whose key includes the proxy of a CONNECT tunnel or
+SOCKS route (`netwerk/protocol/http/nsHttpConnectionInfo.cpp:212-232`).
+
 Phantom follows both: a pool key that has never selected HTTP/2 starts
-handshakes in parallel up to the bound, and a key that has holds each new
-handshake until the one in flight finishes. Differences:
+handshakes in parallel up to the bound, requests past the bound wait for a
+handshake to finish, and a key that has selected HTTP/2 holds each new
+handshake until the one in flight finishes. The client remembers the keys
+that selected HTTP/2, 500 at most, keyed by origin and route. Differences:
 
 - Chromium stops holding after 300 ms; Phantom, like Firefox, holds until
   the handshake in flight finishes or fails.
-- Chromium keeps HTTP/2 support in `HttpServerProperties`, which outlives
-  sockets and is saved to disk. Phantom keeps it in the pool entry, so an
-  evicted entry, or a new client, starts as a first contact.
+- Chromium shares HTTP/2 support across proxies and saves it to disk.
+  Phantom keys it by origin and route, as Firefox does and as Phantom keys
+  its other learned state, so a new route or a new client starts as a
+  first contact.
 - Chromium closes a waiting job's socket, handshake finished or not, when a
   session to the key becomes available
   (`net/http/http_stream_factory_job.cc:1337-1342`). Phantom lets every
@@ -638,6 +654,12 @@ Loopback tests in `crates/phantom/tests/negotiated_parallel.rs`:
 | `first_contact_with_an_h2_origin_converges_on_one_connection` | Parallel first handshakes that all select HTTP/2 leave one connection carrying every request |
 | `concurrent_requests_to_a_known_h2_origin_wait_for_the_handshake_in_flight` | Once HTTP/2 was selected, concurrent requests open one connection |
 | `negotiated_http1_through_an_http_proxy_opens_one_tunnel_per_connection` | Each HTTP/1.1 connection through an HTTP proxy has its own CONNECT tunnel |
+| `burst_past_the_http1_limits_to_a_new_h2_origin_succeeds_on_one_connection` | Twenty first-contact requests, past the H1 active and waiting bounds, all succeed over one HTTP/2 connection; the other handshake's connection closes |
+| `burst_to_a_new_http1_origin_meets_the_http1_limits` | Once a handshake selects HTTP/1.1, the H1 bound runs, the H1 waiting bound queues, and the rest fail with `Capacity` for HTTP/1.1 |
+| `short_pool_admission_timeout_spares_requests_waiting_for_a_handshake` | Waiting for another request's handshake counts under the connect limit, not pool admission |
+| `setup_retry_delay_releases_the_connection_slot` | With a bound of one, a request in its setup retry delay leaves the slot to another request |
+| `reused_connection_replay_opens_a_fresh_connection_past_idle_ones` | A reused-connection replay opens a new connection rather than taking another idle one |
+| `requests_cancelled_during_handshakes_release_their_slots` | Requests dropped mid-handshake free their slots |
 
 How to reproduce: read the cited files at the tags above, and run the listed
 tests.

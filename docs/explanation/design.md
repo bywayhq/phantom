@@ -174,8 +174,10 @@ response, or post-dispatch failures.
 A negotiated request first takes a bounded pre-selection admission, sized by
 the larger of the H1 and H2 active and waiting limits. To open a connection
 or use an idle H1 one, it also takes one of the pool key's H1 connection
-slots. After ALPN, the pre-selection admission converts to the selected
-protocol's admission. The request holds its pre-selection permit across the
+slots. While no connection to the key has selected H1, a request that
+finds every slot in a handshake waits for one to finish rather than queue
+for a slot, since an H2 result serves it without one. After ALPN, the
+pre-selection admission converts to the selected protocol's admission. The request holds its pre-selection permit across the
 retry delay, but gives back its connection slot and holds no lock. Bounds
 and queue order therefore stay stable, and another request can open a
 connection, or install an H2 connection, in the meantime.

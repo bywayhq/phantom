@@ -28,7 +28,7 @@ policies that stay off until you enable them.
 | Timeout phase | Method | Limits |
 | --- | --- | --- |
 | Pool admission | `pool_admission` | Waiting for a free connection slot |
-| Connect | `connect` | DNS, proxy, transport, TLS, and protocol setup |
+| Connect | `connect` | DNS, proxy, transport, TLS, and protocol setup, including a negotiated request's wait for another request's TLS handshake to the same pool key |
 | Response head | `response_head` | Sending the request and body, then waiting for the status and fields |
 | Read idle | `read_idle` | Time without data while reading the response body |
 | Total | `total` | The whole operation |
@@ -66,10 +66,17 @@ limit is one deadline over all attempts, delays, and the final response body.
 - The negotiated H1/H2 pool applies the same bound to each pool key.
   Connections that selected H1 and connections still in their TLS handshake
   count toward it. A pool key whose connection selected H2 keeps that one
-  connection for all its requests, under the H2 active bound. Before a
-  connection has selected H1, a request past the waiting bound fails with
-  `RequestErrorKind::Capacity` and no protocol. The handshake rules are in
+  connection for all its requests, under the H2 active and waiting bounds.
+  Until a connection to the key has selected H1, a request that finds every
+  connection slot in a handshake waits for a handshake to finish instead of
+  counting against the H1 waiting bound. Once one has, the H1 waiting bound
+  applies. The handshake rules are in
   [HTTP/1.1 connections](profiles.md#http11-connections).
+- The bound and the H2 memory below are per pool key, so each route to one
+  origin has its own. Twenty routes to one origin can keep 20 times the
+  bound of H1 connections, idle ones included, and a route's first burst to
+  an H2 origin can open up to the bound of TLS handshakes, all but one of
+  which close.
 - An H3 entry keeps connections for up to four transport locations, so exact
   H3 and Alt-Svc H3 do not replace each other.
 - The negotiated H1/H2 pool retains at most the lower of the H1 and H2
@@ -112,6 +119,7 @@ order and the differences from Chromium.
 | TCP keepalive idle time and interval | Whole seconds, 1 to 32,767 |
 | TCP address-racing fallback delay | Nonzero, at most 10 seconds |
 | Concurrent TCP attempts per connection with address racing | 2 |
+| Pool keys remembered as having selected HTTP/2 through negotiation, per client | 500, least recently used evicted |
 
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
 field line counts its name and value lengths plus 32 bytes. The 256 KiB

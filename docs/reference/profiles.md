@@ -131,10 +131,14 @@ for each origin and route.
 - Until a connection to an origin and route has selected HTTP/2, concurrent
   negotiated requests start their handshakes in parallel, up to the limit,
   as Chromium and Firefox do for a server they have not yet seen speak
-  HTTP/2. If several select HTTP/2, the first is kept and the others close.
-  After one has selected HTTP/2, a request that finds a handshake to the
+  HTTP/2. Requests beyond the limit wait for a handshake to finish. If
+  several select HTTP/2, the first is kept and the others close.
+- After one has selected HTTP/2, a request that finds a handshake to the
   same origin and route in progress waits for it instead of starting its
-  own.
+  own. The client remembers this for 500 origin and route pairs, beyond the
+  life of their connections and pool entries, and a later HTTP/1.1
+  selection does not clear it, as in both browsers. A new route to the
+  origin, or a new client, starts over.
 - Firefox allows 32 connections for plaintext requests forwarded through an
   HTTP proxy, and 3 more for urgent-start requests; its recipe keeps 6 for
   both. Firefox also leaves idle connections out of its count.
