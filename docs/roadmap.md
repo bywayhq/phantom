@@ -103,10 +103,25 @@ have shown where the real architectural boundaries are.
      `gzip, deflate`. They offer `gzip, deflate, br, zstd` only to
      `127.0.0.1`. A request template for a plaintext named origin must not
      carry the HTTPS value.
-  2. Chromium forwards absolute-form requests with `Proxy-Connection:
-     keep-alive` where a direct request has `Connection: keep-alive`.
-     Firefox sends its direct fields unchanged. Check what Phantom's
-     forwarding path emits against both before claiming parity.
+  2. `Proxy-Connection` on H1 forwarding. Chromium forwards absolute-form
+     requests with `Proxy-Connection: keep-alive` second, where a direct
+     request has `Connection: keep-alive`; Firefox sends its direct fields
+     unchanged. Phantom sends a template's H1 list unchanged on every route,
+     and every built-in template starts with a literal
+     `Connection: keep-alive`, so forwarding matches Firefox and not Chrome
+     or Edge. A template has no field whose name depends on the route. The
+     fix is a template slot, such as a `RequestField` variant that emits
+     `Proxy-Connection: keep-alive` when forwarding and
+     `Connection: keep-alive` otherwise, used by the Chromium and Edge
+     templates and expanded with the route in hand. Until then a caller can
+     forward with a custom template whose H1 list names
+     `Proxy-Connection` in that position.
+  3. CONNECT fields. Chromium sends `Host`, `Proxy-Connection: keep-alive`,
+     and `User-Agent`; Firefox sends `User-Agent`,
+     `Proxy-Connection: keep-alive`, `Connection: keep-alive`, and `Host`.
+     Phantom's default CONNECT carries only `Host`; `HttpProxy::headers` and
+     `HttpProxy::connect_headers` can set the captured fields, but no recipe
+     supplies them.
 
 ### Rules for this phase
 
