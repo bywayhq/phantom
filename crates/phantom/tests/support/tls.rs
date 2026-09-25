@@ -122,6 +122,14 @@ impl TestIdentity {
         Self::generate_with_sans(vec![SanType::DnsName(name.try_into()?)])
     }
 
+    pub(crate) fn generate_for_dns_names(names: &[&str]) -> TestResult<Self> {
+        let names = names
+            .iter()
+            .map(|name| Ok(SanType::DnsName((*name).try_into()?)))
+            .collect::<TestResult<Vec<_>>>()?;
+        Self::generate_with_sans(names)
+    }
+
     pub(crate) fn generate_for_ip_and_dns(
         address: std::net::IpAddr,
         name: &str,
