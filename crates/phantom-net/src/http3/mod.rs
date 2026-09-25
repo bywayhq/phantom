@@ -869,17 +869,30 @@ fn endpoint_with_socket(
                 .map_err(endpoint_error)?
         }
         None => {
-            let bind_address = match remote.ip() {
-                IpAddr::V4(_) => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
-                IpAddr::V6(_) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
-            };
-            let socket = UdpSocket::bind(bind_address).map_err(endpoint_error)?;
+            let socket =
+                UdpSocket::bind(endpoint_bind_address(remote.ip())).map_err(endpoint_error)?;
             socket.set_nonblocking(true).map_err(endpoint_error)?;
             quinn::Endpoint::new(endpoint_config, None, socket, runtime).map_err(endpoint_error)?
         }
     };
     endpoint.set_default_client_config(client_config);
     Ok(endpoint)
+}
+
+/// Returns the local address for a QUIC endpoint that sends to `remote`.
+///
+/// A loopback remote gets the loopback address of its family, so a local
+/// peer never leaves a socket listening on every interface. The kernel
+/// chooses that same source address for an unspecified bind, so the packets
+/// on the wire do not change. Any other remote gets the unspecified address.
+fn endpoint_bind_address(remote: IpAddr) -> SocketAddr {
+    let ip = match remote {
+        IpAddr::V4(ip) if ip.is_loopback() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+        IpAddr::V6(ip) if ip.is_loopback() => IpAddr::V6(Ipv6Addr::LOCALHOST),
+        IpAddr::V4(_) => IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+        IpAddr::V6(_) => IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+    };
+    SocketAddr::new(ip, 0)
 }
 
 fn endpoint_error(error: impl std::error::Error + Send + Sync + 'static) -> Http3Error {

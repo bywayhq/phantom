@@ -1,6 +1,10 @@
 #[cfg(feature = "qlog")]
 use std::num::NonZeroUsize;
-use std::{error::Error, net::SocketAddr, sync::Arc};
+use std::{
+    error::Error,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::Arc,
+};
 
 use btls::{
     ssl::{SslContext, SslMethod, SslVerifyMode},
@@ -380,6 +384,35 @@ async fn rejects_reusing_a_qlog_capture_as_configuration() -> TestResult<()> {
         .await
         .map_err(|_| "qlog capture did not complete after endpoint drop")?;
     Ok(())
+}
+
+#[test]
+fn endpoint_binds_loopback_only_for_a_loopback_remote() {
+    for (remote, bind) in [
+        (
+            IpAddr::from(Ipv4Addr::LOCALHOST),
+            IpAddr::from(Ipv4Addr::LOCALHOST),
+        ),
+        (
+            Ipv4Addr::new(127, 0, 0, 2).into(),
+            Ipv4Addr::LOCALHOST.into(),
+        ),
+        (Ipv6Addr::LOCALHOST.into(), Ipv6Addr::LOCALHOST.into()),
+        (
+            Ipv4Addr::new(192, 0, 2, 1).into(),
+            Ipv4Addr::UNSPECIFIED.into(),
+        ),
+        (
+            Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1).into(),
+            Ipv6Addr::UNSPECIFIED.into(),
+        ),
+    ] {
+        assert_eq!(
+            super::endpoint_bind_address(remote),
+            SocketAddr::new(bind, 0),
+            "{remote}"
+        );
+    }
 }
 
 #[tokio::test(flavor = "current_thread")]

@@ -291,7 +291,9 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
         Vec::new(),
         Some(Bytes::from_static(b"payload")),
     )?;
-    let unusable = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), address.port());
+    // QUIC rejects a zero remote port before sending, and a loopback address
+    // keeps the endpoint bound to loopback.
+    let unusable = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0);
 
     let response = connector
         .send_prepared_to_addresses(vec![unusable, address], TEST_SERVER_NAME, request)

@@ -1,10 +1,10 @@
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use phantom_testkit::dns::{DnsAnswer, DnsReply, DnsServer};
 
 use super::{
     HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver, TargetName,
-    https_answers_from_message, query_name,
+    bind_loopback_nameserver, https_answers_from_message, nameserver, query_name,
 };
 
 type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -326,6 +326,36 @@ fn arbitrary_rdata_never_panics() {
         }
         bytes.truncate(usize::from(next()) % (bytes.len() + 1));
         let _ = HttpsRecord::from_rdata(&bytes);
+    }
+}
+
+fn bind_addresses(address: IpAddr) -> Vec<Option<SocketAddr>> {
+    bind_loopback_nameserver(nameserver(address, 53))
+        .connections
+        .iter()
+        .map(|connection| connection.bind_addr)
+        .collect()
+}
+
+#[test]
+fn loopback_nameserver_sockets_bind_to_loopback() {
+    let ipv4 = Some(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)));
+    assert_eq!(bind_addresses(Ipv4Addr::LOCALHOST.into()), [ipv4, ipv4]);
+    assert_eq!(
+        bind_addresses(Ipv4Addr::new(127, 0, 0, 53).into()),
+        [ipv4, ipv4]
+    );
+    let ipv6 = Some(SocketAddr::from((Ipv6Addr::LOCALHOST, 0)));
+    assert_eq!(bind_addresses(Ipv6Addr::LOCALHOST.into()), [ipv6, ipv6]);
+}
+
+#[test]
+fn other_nameserver_sockets_keep_the_default_bind() {
+    for address in [
+        IpAddr::from(Ipv4Addr::new(192, 0, 2, 53)),
+        IpAddr::from(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 53)),
+    ] {
+        assert_eq!(bind_addresses(address), [None, None]);
     }
 }
 

@@ -19,7 +19,7 @@ use std::{
     error::Error as StdError,
     fmt,
     future::Future,
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     pin::Pin,
     sync::Arc,
 };
@@ -124,6 +124,10 @@ impl HttpsRecordResolver {
                 "no DNS nameserver is configured".to_owned(),
             ));
         }
+        let nameservers: Vec<_> = nameservers
+            .into_iter()
+            .map(bind_loopback_nameserver)
+            .collect();
         let count = nameservers.len();
         let mut options = ResolverOpts::default();
         // One question, recursion desired, no OPT record: see the module docs.
@@ -295,6 +299,33 @@ fn nameserver(address: IpAddr, port: u16) -> NameServerConfig {
     let mut tcp = ConnectionConfig::tcp();
     tcp.port = port;
     NameServerConfig::new(address, true, vec![udp, tcp])
+}
+
+/// Binds the client sockets for a loopback nameserver to the loopback
+/// address of its family.
+///
+/// hickory otherwise binds its UDP sockets to the unspecified address, which
+/// listens on every interface. The kernel chooses the loopback source for a
+/// loopback destination either way, so the queries on the wire do not
+/// change. The port stays 0, so hickory still picks a random source port.
+/// Other nameservers, and connections that already name a bind address, are
+/// left as they are.
+fn bind_loopback_nameserver(mut nameserver: NameServerConfig) -> NameServerConfig {
+    if let Some(bind) = loopback_bind_address(nameserver.ip) {
+        for connection in &mut nameserver.connections {
+            connection.bind_addr.get_or_insert(bind);
+        }
+    }
+    nameserver
+}
+
+fn loopback_bind_address(remote: IpAddr) -> Option<SocketAddr> {
+    let ip = match remote {
+        IpAddr::V4(ip) if ip.is_loopback() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+        IpAddr::V6(ip) if ip.is_loopback() => IpAddr::V6(Ipv6Addr::LOCALHOST),
+        _ => return None,
+    };
+    Some(SocketAddr::new(ip, 0))
 }
 
 /// Returns the fully qualified HTTPS query name for an `https` origin.
