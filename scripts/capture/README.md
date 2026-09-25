@@ -21,6 +21,7 @@ Run every command from the repository root; the Python tools need Python
 | A TLS ClientHello over TCP | `cargo run -p phantom-testkit --example capture_client_hello` | `fixtures/tls/` |
 | HTTP/2 startup frames | `cargo run -p phantom-net --example capture_http2_tls` | `fixtures/http2/` |
 | A QUIC ClientHello and HTTP/3 startup | [`chrome_http3.py`](#http3-startup) | `fixtures/http3/` |
+| QUIC session resumption and 0-RTT requests | [`quic_resumption.py`](#quic-resumption-and-0-rtt) | `fixtures/http3/` |
 | Client hints, default and after `Accept-CH` | [`client_hints.py`](#client-hints) | `fixtures/client-hints/` |
 | WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
 | EventSource reconnects | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
@@ -271,6 +272,80 @@ parser strips the carriage return. A rerun on a non-Windows host would write
 LF and a different hash. Open the output path in binary mode, or with
 `newline=""`, before the next capture. Do not rewrite the retained file's line
 endings.
+
+## QUIC resumption and 0-RTT
+
+`quic_resumption.py` records what a browser sends when it resumes a QUIC
+session: the resumed ClientHello, whether it offers early data, and which
+requests travel in 0-RTT packets. It writes one
+`format=phantom-quic-resumption-v1` fixture per scenario, named
+`resumption-<scenario>.txt`.
+
+Capture Chrome on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.quic_resumption   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario accept --repeat 5   --output-dir fixtures/http3/chrome/154.0.8037.58/windows-11-26200
+```
+
+The retained `accept-delayed` and `reject` fixtures used `--repeat 3`. For
+Edge, use
+`--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`,
+and for Firefox,
+`--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe"`.
+The tool refuses an aioquic version other than 1.3.0.
+
+Each run serves `server.phantom.test` over HTTP/3 from aioquic on a loopback
+UDP port bound to port 0. The server sends one NewSessionTicket per
+connection, with `max_early_data_size` 0xffffffff. After it answers
+`/retire`, it sends an H3 `GOAWAY` and, 50 ms later, closes the connection
+with `H3_NO_ERROR`. The page then waits 300 ms, so each step below starts on a
+new connection:
+
+1. the first navigation and `/retire`;
+2. `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, and `DELETE` issued together;
+3. a `POST` alone;
+4. a `GET` alone;
+5. a navigation to `/navigate`, which then requests `/done` and ends the run.
+
+| Scenario | Server | Question |
+| --- | --- | --- |
+| `accept` | Accepts early data | Resumed ClientHello shape and which requests travel in 0-RTT |
+| `accept-delayed` | Accepts early data; holds each connection's datagrams 50 ms before handling the first | Whether requests issued during a slower handshake travel in 0-RTT |
+| `reject` | Resumes the ticket but ignores the `early_data` offer | Whether the browser resends its early requests in 1-RTT |
+
+For each connection the fixture keeps:
+
+- client packet counts per type, and the QUIC version of the first packet
+  and of the handshake;
+- whether the server resumed a ticket, which connection issued it, and
+  whether early data was offered and accepted;
+- the ClientHello's extension order, key-share groups, PSK modes, PSK
+  identity and binder lengths, transport-parameter order,
+  `version_information`, and Chromium's `initial_rtt_us` parameter;
+- how the ClientHello differs from the run's first, fresh ClientHello;
+- the packet-number spaces each client stream arrived in.
+
+For each request it keeps the method, path, body length, and the spaces its
+stream arrived in. Run 0 also keeps each raw ClientHello and each request's
+field names in order. Summary lines count these across runs.
+
+The server decrypts in memory. No TLS secret or key log is written.
+
+Chromium receives `--enable-quic`,
+`--origin-to-force-quic-on=server.phantom.test:<port>`,
+`--host-resolver-rules=MAP server.phantom.test 127.0.0.1, MAP * ~NOTFOUND`,
+the certificate's `--ignore-certificate-errors-spki-list`, and
+`--disable-field-trial-config`. `--keep-field-trial-config` omits the last
+flag. `--netlog-dir` adds `--log-net-log` for diagnosis; NetLogs are not
+fixture inputs.
+
+Firefox receives `network.http.http3.enable=true`,
+`network.http.http3.alt-svc-mapping-for-testing` naming the loopback port,
+`network.dns.localDomains`, and a `cert_override.txt` in its temporary
+profile. It also receives
+`network.http.http3.disable_when_third_party_roots_found=false`: without it,
+Firefox verifies the overridden certificate and then closes the HTTP/3
+connection because the chain ends at a third-party root.
 
 ## Alt-Svc racing
 
