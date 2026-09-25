@@ -243,13 +243,12 @@ Supported:
   presented a ticket and failed is repeated once with a full handshake on the
   same route. A test compares a resumed Phantom ClientHello with the
   retained Chrome 154 captures, which are all fresh connections, and requires
-  every field to match except the added `pre_shared_key`. No capture shows a
-  resumed Chrome ClientHello.
+  every field to match except the added `pre_shared_key`.
 - Early (0-RTT) data only when the caller enables
-  `ClientBuilder::http3_early_data`; no named recipe does, and no retained
-  capture shows a browser sending it. Only a request with a safe method, no
-  body, and no trailers opens a new resumed connection with early data; every
-  other request waits for the handshake. If the server rejects the early
+  `ClientBuilder::http3_early_data`; no named recipe does (see the known
+  gaps below). Only a request with a safe method, no body, and no trailers
+  opens a new resumed connection with early data; every other request waits
+  for the handshake. If the server rejects the early
   data, the request is sent again after the handshake over the same route. A
   test compares the resulting ClientHello with the same fresh-connection
   Chrome 154 captures and requires every field to match except the added
@@ -262,11 +261,11 @@ Supported:
 
 Known gaps:
 
-- Chrome 154 very likely sends early (0-RTT) data on a resumed connection for
-  a safe request: Chromium enables client 0-RTT by default. The Chrome 154 and
-  Edge 153 recipes do not, so a resumed Phantom ClientHello lacks the
-  `early_data` extension that such a Chrome ClientHello would carry. No
-  capture of a resumed Chrome connection exists yet; see
+- The Chrome 154 and Edge 153 recipes resume with `pre_shared_key`, but omit
+  `early_data` unless the caller opts into early data, and never send QUIC
+  transport parameter `0x3127` (`initial_rtt_us`). Resumed Chrome 154 and
+  Edge 153 connections send both, and carry `GET`, `HEAD`, and `OPTIONS`
+  requests as early data. A follow-up will align the recipes; see
   [QUIC session resumption](../explanation/validation.md#quic-session-resumption).
 
 Planned:

@@ -614,9 +614,9 @@ pub fn v154_http3() -> Http3Settings {
 /// revision `80bf9559`, which Chromium's `DEPS` pins at that tag). A TLS
 /// 1.3-only offer never carries the TLS 1.2 `session_ticket` extension, so a
 /// first ClientHello is unchanged; a resumed one adds only `pre_shared_key`.
-/// Chrome very likely also sends early (0-RTT) data on a resumed connection;
-/// this recipe does not, and no retained capture shows a resumed Chrome
-/// connection.
+/// A resumed Chrome 154 connection also offers early data and sends QUIC
+/// transport parameter `0x3127` (`initial_rtt_us`). This recipe sends neither
+/// on its own, so a resumed Phantom connection still differs from Chrome's.
 #[must_use]
 pub fn v154_http3_tls() -> TlsSettings {
     let mut settings = v154_tls();

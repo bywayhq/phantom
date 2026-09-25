@@ -243,8 +243,7 @@ entropy.
 
 `chromium::v154_http3_tls`, and `edge::v153_http3_tls` through it, enable
 `session_tickets`, so a later QUIC connection to an origin resumes the TLS
-session. This rests on Chromium source, not on a capture. At tag
-`154.0.8037.58`:
+session. The recipes rest on Chromium source. At tag `154.0.8037.58`:
 
 - `QuicSessionPool::CreateCryptoConfigHandle` gives each crypto configuration
   its own `quic::QuicClientSessionCache` (`net/quic/quic_session_pool.cc`
@@ -267,23 +266,30 @@ requires every field to match except the added `pre_shared_key` extension.
 `crates/phantom-net/src/http3/tests/early_data.rs`, does the same for a
 connection that offers early data, which also adds `early_data`.
 
+Chromium enables client early (0-RTT) data by default. The quiche
+`QuicCryptoClientConfig` constructor passes `!quic_disable_client_tls_zero_rtt`
+to `CreateSslCtx` (`quiche/quic/core/crypto/quic_crypto_client_config.cc`
+lines 84-85), and that flag defaults to false
+(`quiche/common/quiche_protocol_flags_list.h` line 209).
+`HttpNetworkTransaction` lets a request of default idempotency use early data
+when `HttpUtil::IsMethodSafe` accepts its method
+(`net/http/http_network_transaction.cc` lines 435-439). Phantom applies the
+same method rule to `ClientBuilder::http3_early_data`, and requires no body
+and no trailers as well.
+
 Limits:
 
-- No capture shows Chrome resuming a QUIC session, so nothing compares a
-  resumed Phantom ClientHello with a resumed Chrome one.
-- Chrome very likely sends early (0-RTT) data on a resumed connection. The
-  quiche `QuicCryptoClientConfig` constructor passes
-  `!quic_disable_client_tls_zero_rtt` to `CreateSslCtx`
-  (`quiche/quic/core/crypto/quic_crypto_client_config.cc` lines 84-85), and
-  that flag defaults to false (`quiche/common/quiche_protocol_flags_list.h`
-  line 209). `HttpNetworkTransaction` lets a request of default idempotency
-  use early data when `HttpUtil::IsMethodSafe` accepts its method
-  (`net/http/http_network_transaction.cc` lines 435-439). Phantom applies
-  the same method rule to `ClientBuilder::http3_early_data`, and requires no
-  body and no trailers as well.
-- The recipes do not enable early data, so a resumed Phantom ClientHello lacks
-  the `early_data` extension that Chrome's likely carries. A capture of a
-  resumed Chrome connection decides whether the recipe should send it.
+- The retained QUIC captures are all fresh connections, so the tests above
+  show that resumption adds only `pre_shared_key` to Phantom's offer, not that
+  the result matches a resumed browser connection.
+- Resumed Chrome 154 and Edge 153 connections on Windows differ from
+  Phantom's. Captures of them, not yet in the repository, show every resumed
+  ClientHello carrying `pre_shared_key` (last), `psk_key_exchange_modes`, and
+  `early_data`; `GET`, `HEAD`, and `OPTIONS` requests sent as early data, and
+  `POST`, `PUT`, and `DELETE` never; and QUIC transport parameter `0x3127`
+  (`initial_rtt_us`) only on resumed connections. The recipes omit
+  `early_data` unless the caller opts into early data, and never send
+  `0x3127`. A follow-up will align the recipes with those captures.
 
 #### Comparison with Chrome 153
 

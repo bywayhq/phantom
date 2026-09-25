@@ -185,13 +185,15 @@ have shown where the real architectural boundaries are.
      longer than its at-risk-of-loss time.
   3. Apply the per-profile HPACK indexing decisions planned for extended
      CONNECT to ordinary requests too.
-  4. Prove that a resumed ClientHello keeps the captured shape. This needs a
-     capture of Chrome resuming a session. A test compares a resumed Phantom
-     QUIC ClientHello with the retained Chrome 154 captures, which are all
-     fresh connections, and requires every field to match except the added
-     `pre_shared_key`; that shows resumption adds nothing else, not that
-     Chrome's resumed ClientHello looks the same. A resumed TCP ClientHello
-     has no such test yet.
+  4. Prove that a resumed ClientHello keeps the captured shape. A test
+     compares a resumed Phantom QUIC ClientHello with the retained Chrome 154
+     captures, which are all fresh connections, and requires every field to
+     match except the added `pre_shared_key`. Resumed Chrome 154 and Edge 153
+     connections differ from Phantom's in two ways: their ClientHello carries
+     `early_data`, which the recipes send only when the caller opts in, and
+     they add QUIC transport parameter `0x3127` (`initial_rtt_us`), which
+     Phantom never sends. Align both, and test against resumed captures. A
+     resumed TCP ClientHello has no such test yet.
 - Close the behaviour gaps that no fingerprint field reveals but a session
   does. A survey of client APIs does not surface these, because they are
   browser behaviour rather than caller surface:
@@ -206,13 +208,12 @@ have shown where the real architectural boundaries are.
   2. Establish whether a captured browser sends `Expect: 100-continue`, and on
      which upload shapes. Phantom never sends it. Whether that is correct is
      currently unknown, which is itself the gap.
-  3. Capture Chrome resuming a QUIC session. Phantom now resumes with the
-     Chrome 154 and Edge 153 recipes, but sends early data only when the
-     caller asks. Chromium 154 enables client 0-RTT by default
-     (`quic_disable_client_tls_zero_rtt` is false in quiche at the revision
-     its `DEPS` pins) for requests of default idempotency with a safe method,
-     so a resumed Chrome connection likely sends early data where Phantom's
-     recipe does not. A capture decides whether the recipe should.
+  3. Send early data where the captured browser does. Phantom resumes with
+     the Chrome 154 and Edge 153 recipes but sends early data only when the
+     caller asks, while resumed Chrome 154 and Edge 153 connections send
+     `GET`, `HEAD`, and `OPTIONS` requests as early data and never `POST`,
+     `PUT`, or `DELETE`. The ClientHello side of this gap is item 4 of the
+     wire gaps above.
 - Close the remaining transport and discovery gaps, each from evidence:
   1. Settle what a browser does when an origin advertises more than one
      alternative. Phantom races at most one. Capture an origin advertising
