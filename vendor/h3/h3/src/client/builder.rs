@@ -204,6 +204,34 @@ impl Builder {
         Ok(self)
     }
 
+    /// Starts the connection from peer SETTINGS remembered from an earlier
+    /// connection, for a client that resumes with early (0-RTT) data.
+    ///
+    /// `payload` is a SETTINGS frame as returned by
+    /// [`Connection::peer_settings_to_remember`] on the connection that
+    /// received the session ticket. It is validated as
+    /// [`Self::peer_application_settings`] validates its payload; an empty
+    /// payload remembers nothing.
+    ///
+    /// The remembered values initialize the peer semantic view and the QPACK
+    /// encoder before the peer's SETTINGS arrive (RFC 9114, section 7.2.4.2),
+    /// so a dynamic QPACK request can be encoded at once. They do not replace
+    /// the control stream's required SETTINGS frame. Later SETTINGS, from the
+    /// control stream or from application settings, must stay compatible
+    /// with them: a remembered nonzero QPACK table capacity must be repeated
+    /// exactly (RFC 9204, section 3.2.3); a remembered QPACK blocked-stream
+    /// limit, field-section limit, or WebTransport session limit must not be
+    /// omitted or reduced; and a remembered enabled extension setting must
+    /// not be omitted or disabled. A violation closes the connection with
+    /// `H3_SETTINGS_ERROR`.
+    pub fn remembered_peer_settings(
+        &mut self,
+        payload: &[u8],
+    ) -> Result<&mut Self, ApplicationSettingsError> {
+        self.config.remembered_settings = decode_application_settings(payload)?;
+        Ok(self)
+    }
+
     /// Indicates that the client supports HTTP/3 datagrams
     ///
     /// See: <https://www.rfc-editor.org/rfc/rfc9297#section-2.1.1>
@@ -220,7 +248,8 @@ impl Builder {
 
     /// Enables stateful QPACK encoding for request fields.
     ///
-    /// When enabled, requests wait for the peer's SETTINGS frame and the
+    /// When enabled, requests wait for the peer's SETTINGS frame, or for
+    /// remembered or application settings that stand in for it, and the
     /// encoder stream before publishing a dependent HEADERS frame. The default
     /// remains stateless request encoding.
     pub fn enable_dynamic_qpack(&mut self, enabled: bool) -> &mut Self {
@@ -430,6 +459,36 @@ mod tests {
             .peer_application_settings(&[0x21, 0x00, 0x04, 0x00, 0x40, 0x5f, 0x00])
             .expect("unknown frames around SETTINGS must be ignored");
         assert!(builder.config.peer_settings.is_some());
+    }
+
+    #[test]
+    fn remembered_peer_settings_are_validated_and_kept_apart_from_application_settings() {
+        let mut builder = Builder::new();
+        builder
+            .remembered_peer_settings(&[])
+            .expect("an empty payload remembers nothing");
+        assert!(builder.config.remembered_settings.is_none());
+        assert_eq!(
+            builder.remembered_peer_settings(&[0x04, 0x02, 0x01]).err(),
+            Some(ApplicationSettingsError::Malformed)
+        );
+        assert_eq!(
+            builder.remembered_peer_settings(&[0x00, 0x00]).err(),
+            Some(ApplicationSettingsError::ForbiddenFrame)
+        );
+
+        builder
+            .remembered_peer_settings(&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02])
+            .expect("one SETTINGS frame must be valid");
+        let settings: crate::config::Settings = builder
+            .config
+            .remembered_settings
+            .as_ref()
+            .expect("remembered settings must be retained")
+            .into();
+        assert_eq!(settings.qpack_max_table_capacity, 32);
+        assert_eq!(settings.qpack_blocked_streams, 2);
+        assert!(builder.config.peer_settings.is_none());
     }
 
     #[test]

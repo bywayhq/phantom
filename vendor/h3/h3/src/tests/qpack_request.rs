@@ -207,6 +207,73 @@ async fn dynamic_request_emits_the_encoder_and_field_section_bytes() {
     .expect("dynamic request did not complete");
 }
 
+#[tokio::test]
+async fn dynamic_request_uses_remembered_settings_before_any_peer_settings() {
+    let mut pair = Pair::default();
+    let endpoint = pair.server_inner();
+    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
+        endpoint.accept().await.unwrap().await.unwrap()
+    });
+    let (expected_instructions, expected_block) =
+        dynamic_request_bytes("https://localhost/remembered");
+    let (captured, captured_rx) = oneshot::channel();
+
+    // The server sends no SETTINGS, so the encoder can only use the
+    // remembered table capacity and blocked-stream limit.
+    let server = async move {
+        let mut critical = accept_client_critical_streams(&server_connection).await;
+        let mut instructions = vec![0; expected_instructions.len()];
+        critical
+            .encoder
+            .read_exact(&mut instructions)
+            .await
+            .unwrap();
+        assert_eq!(instructions, expected_instructions);
+
+        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
+        let (frame_type, payload) = read_frame(&mut request).await;
+        assert_eq!(frame_type, 0x01);
+        assert_eq!(payload, expected_block);
+
+        captured.send(()).unwrap();
+        server_connection.close(0_u32.into(), b"test complete");
+        drop(critical);
+    };
+
+    let client = async move {
+        let mut builder = client::builder();
+        builder
+            .send_grease(false)
+            .enable_dynamic_qpack(true)
+            .remembered_peer_settings(PEER_DYNAMIC_APPLICATION_SETTINGS)
+            .unwrap();
+        let (mut driver, mut sender) = builder
+            .build::<_, _, Bytes>(client_connection)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            let mut stream = sender
+                .send_request(
+                    Request::get("https://localhost/remembered")
+                        .body(())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+            captured_rx.await.unwrap();
+        };
+        let ((), _) = tokio::join!(request, drive);
+    };
+
+    tokio::time::timeout(TEST_TIMEOUT, async {
+        tokio::join!(server, client);
+    })
+    .await
+    .expect("request waited for peer SETTINGS despite remembered settings");
+}
+
 fn stateless_request_block(uri: &'static str) -> Vec<u8> {
     let request = Request::get(uri).body(()).unwrap();
     let (parts, ()) = request.into_parts();

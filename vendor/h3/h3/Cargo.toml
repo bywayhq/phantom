@@ -1,6 +1,6 @@
 [package]
 name = "phantom-h3"
-version = "0.0.8-phantom.2"
+version = "0.0.8-phantom.3"
 rust-version = "1.74"
 authors = [
     "Sean McArthur <sean@seanmonstar.com>",
@@ -63,7 +63,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 ] }
 futures = { version = "0.3.28" }
 tokio-util = { version = "0.7.9" }
-h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.2", path = "../h3-datagram" }
+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.3", path = "../h3-datagram" }
 
 [lib]
 name = "h3"

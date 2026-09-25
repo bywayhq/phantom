@@ -97,6 +97,75 @@ fn reconcile_peer_settings(
     Ok(merged)
 }
 
+/// Checks peer SETTINGS that follow early data against the remembered SETTINGS
+/// that the early data used.
+///
+/// Omitting or reducing a remembered value is incompatible, and so is any
+/// change to a remembered nonzero QPACK table capacity.
+fn check_remembered_settings(
+    remembered: &frame::Settings,
+    received: &frame::Settings,
+) -> Result<(), String> {
+    // A remembered nonzero capacity must be repeated exactly (RFC 9204,
+    // section 3.2.3).
+    if let Some(capacity) = remembered
+        .get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY)
+        .filter(|capacity| *capacity != 0)
+    {
+        if received.get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY) != Some(capacity) {
+            return Err(format!(
+                "peer QPACK table capacity differs from the remembered {capacity}"
+            ));
+        }
+    }
+
+    // After accepting 0-RTT, a server must not reduce a limit the early data
+    // relied on, nor omit a setting remembered with a non-default value
+    // (RFC 9114, section 7.2.4.2).
+    for (id, name) in [
+        (
+            frame::SettingId::QPACK_MAX_BLOCKED_STREAMS,
+            "QPACK blocked-stream limit",
+        ),
+        (
+            frame::SettingId::MAX_HEADER_LIST_SIZE,
+            "field-section limit",
+        ),
+        (
+            frame::SettingId::ENABLE_CONNECT_PROTOCOL,
+            "extended CONNECT setting",
+        ),
+        (frame::SettingId::H3_DATAGRAM, "HTTP/3 datagram setting"),
+        (
+            frame::SettingId::ENABLE_WEBTRANSPORT,
+            "WebTransport setting",
+        ),
+        (
+            frame::SettingId::WEBTRANSPORT_MAX_SESSIONS,
+            "WebTransport session limit",
+        ),
+    ] {
+        let Some(previous) = remembered.get(id) else {
+            continue;
+        };
+        // Every present field-section limit differs from the unlimited
+        // default; the other settings default to zero.
+        if previous == 0 && id != frame::SettingId::MAX_HEADER_LIST_SIZE {
+            continue;
+        }
+        match received.get(id) {
+            Some(value) if value >= previous => {}
+            Some(value) => {
+                return Err(format!(
+                    "peer {name} {value} reduces the remembered {previous}"
+                ));
+            }
+            None => return Err(format!("peer omitted the remembered {name} {previous}")),
+        }
+    }
+    Ok(())
+}
+
 #[allow(missing_docs)]
 pub struct AcceptedStreams<C, B>
 where
@@ -239,6 +308,8 @@ where
     peer_application_settings: Option<frame::Settings>,
     /// The SETTINGS frame received on the peer's control stream.
     peer_control_settings: Option<frame::Settings>,
+    /// Peer SETTINGS remembered from an earlier connection for early data.
+    remembered_settings: Option<frame::Settings>,
     pub(crate) handled_connection_error: Option<ConnectionError>,
     pub send_grease_frame: bool,
     // tells if the grease steam should be sent
@@ -502,6 +573,7 @@ where
             got_peer_control_frame: false,
             peer_application_settings: config.peer_settings,
             peer_control_settings: None,
+            remembered_settings: config.remembered_settings,
             send_grease_frame: config.send_grease,
             config,
             accepted_streams: Default::default(),
@@ -510,7 +582,13 @@ where
             // start at first step
             grease_step: GreaseStatus::NotStarted(PhantomData),
         };
+        // Early data starts from the SETTINGS of the connection that issued
+        // the ticket (RFC 9114, section 7.2.4.2).
+        if let Some(settings) = config.remembered_settings {
+            conn_inner.configure_peer_view((&settings).into())?;
+        }
         if let Some(settings) = config.peer_settings {
+            conn_inner.check_remembered_settings(&settings)?;
             conn_inner.apply_peer_settings((&settings).into())?;
         }
         conn_inner.send_control_stream_headers().await?;
@@ -519,6 +597,17 @@ where
     }
 
     fn apply_peer_settings(
+        &mut self,
+        semantic_settings: crate::config::Settings,
+    ) -> Result<(), ConnectionError> {
+        self.configure_peer_view(semantic_settings)?;
+        self.got_peer_settings = true;
+        Ok(())
+    }
+
+    /// Makes `semantic_settings` the peer view that requests and the QPACK
+    /// encoder use, without recording that the peer sent SETTINGS.
+    fn configure_peer_view(
         &mut self,
         semantic_settings: crate::config::Settings,
     ) -> Result<(), ConnectionError> {
@@ -538,7 +627,6 @@ where
                 format!("invalid peer QPACK settings: {error}"),
             )));
         }
-        self.got_peer_settings = true;
         self.set_settings(semantic_settings);
         self.mark_peer_settings_ready();
         if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
@@ -562,6 +650,7 @@ where
                 "peer application settings were already applied".to_string(),
             )));
         }
+        self.check_remembered_settings(&settings)?;
         self.peer_application_settings = Some(settings);
         let semantic_settings = match self.peer_control_settings.as_ref() {
             Some(control) => match reconcile_peer_settings(&settings, control) {
@@ -576,6 +665,30 @@ where
             None => (&settings).into(),
         };
         self.apply_peer_settings(semantic_settings)
+    }
+
+    /// Closes the connection with `H3_SETTINGS_ERROR` when `settings` are
+    /// incompatible with remembered SETTINGS.
+    fn check_remembered_settings(
+        &mut self,
+        settings: &frame::Settings,
+    ) -> Result<(), ConnectionError> {
+        let Some(remembered) = self.remembered_settings.as_ref() else {
+            return Ok(());
+        };
+        match check_remembered_settings(remembered, settings) {
+            Ok(()) => Ok(()),
+            Err(message) => Err(self.handle_connection_error(InternalConnectionError::new(
+                Code::H3_SETTINGS_ERROR,
+                message,
+            ))),
+        }
+    }
+
+    /// Returns the SETTINGS frame received and applied from the peer's
+    /// control stream.
+    pub(crate) fn peer_control_settings(&self) -> Option<&frame::Settings> {
+        self.peer_control_settings.as_ref()
     }
 
     pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
@@ -1142,6 +1255,9 @@ where
                             "second settings frame received".to_string(),
                         ),
                     )));
+                }
+                if let Err(error) = self.check_remembered_settings(&settings) {
+                    return Poll::Ready(Err(error));
                 }
                 let semantic_settings = match self.peer_application_settings.as_ref() {
                     Some(application_settings) => {

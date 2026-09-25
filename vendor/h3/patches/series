@@ -14,4 +14,5 @@ ordered-request-trailers.patch
 extended-connect-readiness.patch
 poll-send-data.patch
 late-application-settings.patch
+remembered-settings.patch
 publish-identity.patch

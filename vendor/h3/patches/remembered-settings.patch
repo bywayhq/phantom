@@ -1,0 +1,620 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index 7768cd53..f0e5f477 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -204,6 +204,34 @@ impl Builder {
+         Ok(self)
+     }
+ 
++    /// Starts the connection from peer SETTINGS remembered from an earlier
++    /// connection, for a client that resumes with early (0-RTT) data.
++    ///
++    /// `payload` is a SETTINGS frame as returned by
++    /// [`Connection::peer_settings_to_remember`] on the connection that
++    /// received the session ticket. It is validated as
++    /// [`Self::peer_application_settings`] validates its payload; an empty
++    /// payload remembers nothing.
++    ///
++    /// The remembered values initialize the peer semantic view and the QPACK
++    /// encoder before the peer's SETTINGS arrive (RFC 9114, section 7.2.4.2),
++    /// so a dynamic QPACK request can be encoded at once. They do not replace
++    /// the control stream's required SETTINGS frame. Later SETTINGS, from the
++    /// control stream or from application settings, must stay compatible
++    /// with them: a remembered nonzero QPACK table capacity must be repeated
++    /// exactly (RFC 9204, section 3.2.3); a remembered QPACK blocked-stream
++    /// limit, field-section limit, or WebTransport session limit must not be
++    /// omitted or reduced; and a remembered enabled extension setting must
++    /// not be omitted or disabled. A violation closes the connection with
++    /// `H3_SETTINGS_ERROR`.
++    pub fn remembered_peer_settings(
++        &mut self,
++        payload: &[u8],
++    ) -> Result<&mut Self, ApplicationSettingsError> {
++        self.config.remembered_settings = decode_application_settings(payload)?;
++        Ok(self)
++    }
++
+     /// Indicates that the client supports HTTP/3 datagrams
+     ///
+     /// See: <https://www.rfc-editor.org/rfc/rfc9297#section-2.1.1>
+@@ -220,7 +248,8 @@ impl Builder {
+ 
+     /// Enables stateful QPACK encoding for request fields.
+     ///
+-    /// When enabled, requests wait for the peer's SETTINGS frame and the
++    /// When enabled, requests wait for the peer's SETTINGS frame, or for
++    /// remembered or application settings that stand in for it, and the
+     /// encoder stream before publishing a dependent HEADERS frame. The default
+     /// remains stateless request encoding.
+     pub fn enable_dynamic_qpack(&mut self, enabled: bool) -> &mut Self {
+@@ -432,6 +461,36 @@ mod tests {
+         assert!(builder.config.peer_settings.is_some());
+     }
+ 
++    #[test]
++    fn remembered_peer_settings_are_validated_and_kept_apart_from_application_settings() {
++        let mut builder = Builder::new();
++        builder
++            .remembered_peer_settings(&[])
++            .expect("an empty payload remembers nothing");
++        assert!(builder.config.remembered_settings.is_none());
++        assert_eq!(
++            builder.remembered_peer_settings(&[0x04, 0x02, 0x01]).err(),
++            Some(ApplicationSettingsError::Malformed)
++        );
++        assert_eq!(
++            builder.remembered_peer_settings(&[0x00, 0x00]).err(),
++            Some(ApplicationSettingsError::ForbiddenFrame)
++        );
++
++        builder
++            .remembered_peer_settings(&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02])
++            .expect("one SETTINGS frame must be valid");
++        let settings: crate::config::Settings = builder
++            .config
++            .remembered_settings
++            .as_ref()
++            .expect("remembered settings must be retained")
++            .into();
++        assert_eq!(settings.qpack_max_table_capacity, 32);
++        assert_eq!(settings.qpack_blocked_streams, 2);
++        assert!(builder.config.peer_settings.is_none());
++    }
++
+     #[test]
+     fn ordered_settings_reject_duplicates_and_forbidden_identifiers() {
+         let mut builder = Builder::new();
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 52abe8b7..4a7c21ce 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -588,6 +588,20 @@ where
+         }
+     }
+ 
++    /// Returns the SETTINGS frame received on the peer's control stream,
++    /// encoded, once it has been received and applied.
++    ///
++    /// A client that keeps session tickets stores this value with the tickets
++    /// the connection receives, and passes it to
++    /// [`super::Builder::remembered_peer_settings`] when it resumes with early
++    /// data. Only settings this implementation understands are included.
++    pub fn peer_settings_to_remember(&self) -> Option<Vec<u8>> {
++        let settings = self.inner.peer_control_settings()?;
++        let mut encoded = Vec::new();
++        settings.encode(&mut encoded);
++        Some(encoded)
++    }
++
+     /// Wait until the connection is closed
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub async fn wait_idle(&mut self) -> ConnectionError
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index 8f30de9b..f4768d84 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -43,6 +43,10 @@ pub struct Config {
+ 
+     /// Peer SETTINGS received through TLS application settings.
+     pub(crate) peer_settings: Option<frame::Settings>,
++
++    /// Peer SETTINGS remembered from the connection that issued the session
++    /// ticket this connection resumes with early data.
++    pub(crate) remembered_settings: Option<frame::Settings>,
+ }
+ 
+ /// HTTP/3 Settings
+@@ -134,6 +138,7 @@ impl TryFrom<Config> for frame::Settings {
+                 },
+             ordered_settings: _,
+             peer_settings: _,
++            remembered_settings: _,
+         } = value;
+ 
+         if send_grease {
+@@ -242,6 +247,7 @@ impl Default for Config {
+             settings: Default::default(),
+             ordered_settings: None,
+             peer_settings: None,
++            remembered_settings: None,
+         }
+     }
+ }
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index d878abea..1297d8ed 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -97,6 +97,75 @@ fn reconcile_peer_settings(
+     Ok(merged)
+ }
+ 
++/// Checks peer SETTINGS that follow early data against the remembered SETTINGS
++/// that the early data used.
++///
++/// Omitting or reducing a remembered value is incompatible, and so is any
++/// change to a remembered nonzero QPACK table capacity.
++fn check_remembered_settings(
++    remembered: &frame::Settings,
++    received: &frame::Settings,
++) -> Result<(), String> {
++    // A remembered nonzero capacity must be repeated exactly (RFC 9204,
++    // section 3.2.3).
++    if let Some(capacity) = remembered
++        .get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY)
++        .filter(|capacity| *capacity != 0)
++    {
++        if received.get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY) != Some(capacity) {
++            return Err(format!(
++                "peer QPACK table capacity differs from the remembered {capacity}"
++            ));
++        }
++    }
++
++    // After accepting 0-RTT, a server must not reduce a limit the early data
++    // relied on, nor omit a setting remembered with a non-default value
++    // (RFC 9114, section 7.2.4.2).
++    for (id, name) in [
++        (
++            frame::SettingId::QPACK_MAX_BLOCKED_STREAMS,
++            "QPACK blocked-stream limit",
++        ),
++        (
++            frame::SettingId::MAX_HEADER_LIST_SIZE,
++            "field-section limit",
++        ),
++        (
++            frame::SettingId::ENABLE_CONNECT_PROTOCOL,
++            "extended CONNECT setting",
++        ),
++        (frame::SettingId::H3_DATAGRAM, "HTTP/3 datagram setting"),
++        (
++            frame::SettingId::ENABLE_WEBTRANSPORT,
++            "WebTransport setting",
++        ),
++        (
++            frame::SettingId::WEBTRANSPORT_MAX_SESSIONS,
++            "WebTransport session limit",
++        ),
++    ] {
++        let Some(previous) = remembered.get(id) else {
++            continue;
++        };
++        // Every present field-section limit differs from the unlimited
++        // default; the other settings default to zero.
++        if previous == 0 && id != frame::SettingId::MAX_HEADER_LIST_SIZE {
++            continue;
++        }
++        match received.get(id) {
++            Some(value) if value >= previous => {}
++            Some(value) => {
++                return Err(format!(
++                    "peer {name} {value} reduces the remembered {previous}"
++                ));
++            }
++            None => return Err(format!("peer omitted the remembered {name} {previous}")),
++        }
++    }
++    Ok(())
++}
++
+ #[allow(missing_docs)]
+ pub struct AcceptedStreams<C, B>
+ where
+@@ -239,6 +308,8 @@ where
+     peer_application_settings: Option<frame::Settings>,
+     /// The SETTINGS frame received on the peer's control stream.
+     peer_control_settings: Option<frame::Settings>,
++    /// Peer SETTINGS remembered from an earlier connection for early data.
++    remembered_settings: Option<frame::Settings>,
+     pub(crate) handled_connection_error: Option<ConnectionError>,
+     pub send_grease_frame: bool,
+     // tells if the grease steam should be sent
+@@ -502,6 +573,7 @@ where
+             got_peer_control_frame: false,
+             peer_application_settings: config.peer_settings,
+             peer_control_settings: None,
++            remembered_settings: config.remembered_settings,
+             send_grease_frame: config.send_grease,
+             config,
+             accepted_streams: Default::default(),
+@@ -510,7 +582,13 @@ where
+             // start at first step
+             grease_step: GreaseStatus::NotStarted(PhantomData),
+         };
++        // Early data starts from the SETTINGS of the connection that issued
++        // the ticket (RFC 9114, section 7.2.4.2).
++        if let Some(settings) = config.remembered_settings {
++            conn_inner.configure_peer_view((&settings).into())?;
++        }
+         if let Some(settings) = config.peer_settings {
++            conn_inner.check_remembered_settings(&settings)?;
+             conn_inner.apply_peer_settings((&settings).into())?;
+         }
+         conn_inner.send_control_stream_headers().await?;
+@@ -521,6 +599,17 @@ where
+     fn apply_peer_settings(
+         &mut self,
+         semantic_settings: crate::config::Settings,
++    ) -> Result<(), ConnectionError> {
++        self.configure_peer_view(semantic_settings)?;
++        self.got_peer_settings = true;
++        Ok(())
++    }
++
++    /// Makes `semantic_settings` the peer view that requests and the QPACK
++    /// encoder use, without recording that the peer sent SETTINGS.
++    fn configure_peer_view(
++        &mut self,
++        semantic_settings: crate::config::Settings,
+     ) -> Result<(), ConnectionError> {
+         let qpack = &mut self.qpack_streams;
+         let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
+@@ -538,7 +627,6 @@ where
+                 format!("invalid peer QPACK settings: {error}"),
+             )));
+         }
+-        self.got_peer_settings = true;
+         self.set_settings(semantic_settings);
+         self.mark_peer_settings_ready();
+         if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
+@@ -562,6 +650,7 @@ where
+                 "peer application settings were already applied".to_string(),
+             )));
+         }
++        self.check_remembered_settings(&settings)?;
+         self.peer_application_settings = Some(settings);
+         let semantic_settings = match self.peer_control_settings.as_ref() {
+             Some(control) => match reconcile_peer_settings(&settings, control) {
+@@ -578,6 +667,30 @@ where
+         self.apply_peer_settings(semantic_settings)
+     }
+ 
++    /// Closes the connection with `H3_SETTINGS_ERROR` when `settings` are
++    /// incompatible with remembered SETTINGS.
++    fn check_remembered_settings(
++        &mut self,
++        settings: &frame::Settings,
++    ) -> Result<(), ConnectionError> {
++        let Some(remembered) = self.remembered_settings.as_ref() else {
++            return Ok(());
++        };
++        match check_remembered_settings(remembered, settings) {
++            Ok(()) => Ok(()),
++            Err(message) => Err(self.handle_connection_error(InternalConnectionError::new(
++                Code::H3_SETTINGS_ERROR,
++                message,
++            ))),
++        }
++    }
++
++    /// Returns the SETTINGS frame received and applied from the peer's
++    /// control stream.
++    pub(crate) fn peer_control_settings(&self) -> Option<&frame::Settings> {
++        self.peer_control_settings.as_ref()
++    }
++
+     pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
+         Arc::clone(&self.qpack_streams.decoder)
+     }
+@@ -1143,6 +1256,9 @@ where
+                         ),
+                     )));
+                 }
++                if let Err(error) = self.check_remembered_settings(&settings) {
++                    return Poll::Ready(Err(error));
++                }
+                 let semantic_settings = match self.peer_application_settings.as_ref() {
+                     Some(application_settings) => {
+                         match reconcile_peer_settings(application_settings, &settings) {
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+index 501035c9..f024295d 100644
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -1816,6 +1816,209 @@ async fn invalid_or_repeated_late_peer_application_settings_close_the_connection
+     }
+ }
+ 
++/// Encodes a SETTINGS frame with `entries` in order.
++fn settings_frame(entries: &[(u64, u64)]) -> Vec<u8> {
++    let mut frame = Vec::new();
++    Settings::from_ordered(entries).unwrap().encode(&mut frame);
++    frame
++}
++
++/// Remembered SETTINGS with a QPACK table capacity, a blocked-stream limit, a
++/// field-section limit, and extended CONNECT.
++const REMEMBERED: &[(u64, u64)] = &[(0x01, 32), (0x07, 2), (0x06, 100), (0x08, 1)];
++
++#[tokio::test]
++async fn remembered_settings_apply_until_compatible_control_settings_replace_them() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++    let control_settings = settings_frame(&[(0x01, 32), (0x07, 3), (0x06, 200), (0x08, 1)]);
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder
++            .remembered_peer_settings(&settings_frame(REMEMBERED))
++            .unwrap();
++        let (mut driver, send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++        let settings = tokio::time::timeout(Duration::from_secs(1), send.peer_settings().ready())
++            .await
++            .expect("remembered settings are known before the control stream")
++            .unwrap();
++        assert_eq!(settings.qpack_max_table_capacity, 32);
++        assert_eq!(settings.qpack_blocked_streams, 2);
++        assert_eq!(settings.max_field_section_size, 100);
++        assert!(settings.enable_extended_connect());
++        assert_eq!(driver.peer_settings_to_remember(), None);
++
++        let result = future::poll_fn(|cx| driver.poll_close(cx)).await;
++        assert_matches!(
++            result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose {
++                error_code: code,
++                ..
++            }) if code == 0
++        );
++        let settings = driver.settings();
++        assert_eq!(settings.qpack_blocked_streams, 3);
++        assert_eq!(settings.max_field_section_size, 200);
++        assert_eq!(
++            driver.peer_settings_to_remember().as_deref(),
++            Some(&control_settings[..])
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        control.write_all(&[0x00]).await.unwrap();
++        control.write_all(&control_settings).await.unwrap();
++        tokio::time::sleep(Duration::from_millis(50)).await;
++        connection.close(0_u32.into(), b"test complete");
++    };
++
++    tokio::join!(server_fut, client_fut);
++}
++
++#[tokio::test]
++async fn control_settings_incompatible_with_remembered_settings_are_rejected() {
++    for control in [
++        // A remembered nonzero QPACK capacity must be repeated exactly.
++        &[(0x01, 64), (0x07, 2), (0x06, 100), (0x08, 1)][..],
++        &[(0x07, 2), (0x06, 100), (0x08, 1)][..],
++        // Limits the early data relied on must be neither reduced nor omitted.
++        &[(0x01, 32), (0x07, 1), (0x06, 100), (0x08, 1)][..],
++        &[(0x01, 32), (0x06, 100), (0x08, 1)][..],
++        &[(0x01, 32), (0x07, 2), (0x06, 99), (0x08, 1)][..],
++        &[(0x01, 32), (0x07, 2), (0x08, 1)][..],
++        // An enabled extension must stay enabled.
++        &[(0x01, 32), (0x07, 2), (0x06, 100), (0x08, 0)][..],
++        &[(0x01, 32), (0x07, 2), (0x06, 100)][..],
++    ] {
++        let mut pair = Pair::default();
++        let server = pair.server_inner();
++
++        let client_fut = async {
++            let connection = pair.client_inner().await;
++            let mut builder = client::builder();
++            builder
++                .remembered_peer_settings(&settings_frame(REMEMBERED))
++                .unwrap();
++            let (mut driver, _send) = builder
++                .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++                .await
++                .unwrap();
++            assert_matches!(
++                future::poll_fn(|cx| driver.poll_close(cx)).await,
++                ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_SETTINGS_ERROR,
++                        ..
++                    }
++                },
++                "control settings {control:?}"
++            );
++            assert_eq!(driver.peer_settings_to_remember(), None);
++        };
++
++        let server_fut = async {
++            let connection = server.accept().await.unwrap().await.unwrap();
++            let mut stream = connection.open_uni().await.unwrap();
++            stream.write_all(&[0x00]).await.unwrap();
++            stream.write_all(&settings_frame(control)).await.unwrap();
++            tokio::time::sleep(Duration::from_secs(10)).await;
++        };
++
++        tokio::select! {
++            _ = client_fut => (),
++            _ = server_fut => panic!("server resolved first"),
++        }
++    }
++}
++
++#[tokio::test]
++async fn late_application_settings_incompatible_with_remembered_settings_are_rejected() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++    let (done, finished) = oneshot::channel::<()>();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder
++            .remembered_peer_settings(&settings_frame(REMEMBERED))
++            .unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++        assert_matches!(
++            driver.apply_peer_application_settings(&settings_frame(&[
++                (0x01, 32),
++                (0x07, 1),
++                (0x06, 100),
++                (0x08, 1),
++            ])),
++            Err(ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_SETTINGS_ERROR,
++                    ..
++                }
++            })
++        );
++        done.send(()).unwrap();
++    };
++
++    let server_fut = async {
++        let _connection = server.accept().await.unwrap().await.unwrap();
++        finished.await.unwrap();
++    };
++
++    tokio::join!(server_fut, client_fut);
++}
++
++#[tokio::test]
++async fn remembered_settings_do_not_stand_in_for_the_control_stream_settings() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let mut builder = client::builder();
++        builder
++            .remembered_peer_settings(&settings_frame(REMEMBERED))
++            .unwrap();
++        let (mut driver, _send) = builder
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++        assert_matches!(
++            future::poll_fn(|cx| driver.poll_close(cx)).await,
++            ConnectionError::Local {
++                error: LocalError::Application {
++                    code: Code::H3_MISSING_SETTINGS,
++                    ..
++                }
++            }
++        );
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        let mut control = connection.open_uni().await.unwrap();
++        // A GOAWAY frame first, where the SETTINGS frame must be.
++        control.write_all(&[0x00, 0x07, 0x01, 0x00]).await.unwrap();
++        tokio::time::sleep(Duration::from_secs(10)).await;
++    };
++
++    tokio::select! {
++        _ = client_fut => (),
++        _ = server_fut => panic!("server resolved first"),
++    }
++}
++
+ #[tokio::test]
+ async fn graceful_shutdown_server_rejects() {
+     init_tracing();
+diff --git a/h3/src/tests/qpack_request.rs b/h3/src/tests/qpack_request.rs
+index 391e4464..6c7d9b2b 100644
+--- a/h3/src/tests/qpack_request.rs
++++ b/h3/src/tests/qpack_request.rs
+@@ -207,6 +207,73 @@ async fn dynamic_request_emits_the_encoder_and_field_section_bytes() {
+     .expect("dynamic request did not complete");
+ }
+ 
++#[tokio::test]
++async fn dynamic_request_uses_remembered_settings_before_any_peer_settings() {
++    let mut pair = Pair::default();
++    let endpoint = pair.server_inner();
++    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
++        endpoint.accept().await.unwrap().await.unwrap()
++    });
++    let (expected_instructions, expected_block) =
++        dynamic_request_bytes("https://localhost/remembered");
++    let (captured, captured_rx) = oneshot::channel();
++
++    // The server sends no SETTINGS, so the encoder can only use the
++    // remembered table capacity and blocked-stream limit.
++    let server = async move {
++        let mut critical = accept_client_critical_streams(&server_connection).await;
++        let mut instructions = vec![0; expected_instructions.len()];
++        critical
++            .encoder
++            .read_exact(&mut instructions)
++            .await
++            .unwrap();
++        assert_eq!(instructions, expected_instructions);
++
++        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
++        let (frame_type, payload) = read_frame(&mut request).await;
++        assert_eq!(frame_type, 0x01);
++        assert_eq!(payload, expected_block);
++
++        captured.send(()).unwrap();
++        server_connection.close(0_u32.into(), b"test complete");
++        drop(critical);
++    };
++
++    let client = async move {
++        let mut builder = client::builder();
++        builder
++            .send_grease(false)
++            .enable_dynamic_qpack(true)
++            .remembered_peer_settings(PEER_DYNAMIC_APPLICATION_SETTINGS)
++            .unwrap();
++        let (mut driver, mut sender) = builder
++            .build::<_, _, Bytes>(client_connection)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = sender
++                .send_request(
++                    Request::get("https://localhost/remembered")
++                        .body(())
++                        .unwrap(),
++                )
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++            captured_rx.await.unwrap();
++        };
++        let ((), _) = tokio::join!(request, drive);
++    };
++
++    tokio::time::timeout(TEST_TIMEOUT, async {
++        tokio::join!(server, client);
++    })
++    .await
++    .expect("request waited for peer SETTINGS despite remembered settings");
++}
++
+ fn stateless_request_block(uri: &'static str) -> Vec<u8> {
+     let request = Request::get(uri).body(()).unwrap();
+     let (parts, ()) = request.into_parts();

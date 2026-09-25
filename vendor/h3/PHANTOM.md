@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.2`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.2`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.2`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.3`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.3`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.3`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -214,6 +214,41 @@ connection-owned outbound QPACK command path as the initial request section,
 including publication and cancellation accounting for multiple sections on one
 request stream. Stateless configurations keep their existing encoder path.
 
+## Remembered SETTINGS for early data
+
+RFC 9114 section 7.2.4.2 lets a client that sends 0-RTT data start from the
+server SETTINGS of the connection that issued its session ticket, and
+Chromium does. Upstream has no way to seed peer SETTINGS before the control
+stream delivers them, or to read the control-stream frame back.
+
+`h3::client::Connection::peer_settings_to_remember` returns the SETTINGS
+frame received on the peer's control stream, encoded, once the connection
+has applied it. It holds only the settings the engine understands.
+`h3::client::Builder::remembered_peer_settings` accepts that frame, with the
+payload validation of `peer_application_settings`, on a later connection.
+The remembered values initialize the peer semantic view and the dynamic
+QPACK encoder's table capacity and blocked-stream limit, and mark peer
+SETTINGS ready, so a dynamic request encodes at once and its encoder
+instructions precede its HEADERS. They do not count as the control stream's
+SETTINGS: a control stream whose first frame is not SETTINGS still fails
+with `H3_MISSING_SETTINGS`.
+
+SETTINGS that arrive later, on the control stream or through late
+application settings, must stay compatible with the remembered ones. A
+remembered nonzero QPACK table capacity must be repeated exactly (RFC 9204,
+section 3.2.3); a remembered blocked-stream limit, field-section limit, or
+WebTransport session limit must be neither omitted nor reduced; and a
+remembered enabled extended CONNECT, HTTP Datagram, or WebTransport setting
+must be neither omitted nor disabled. A violation closes the connection with
+`H3_SETTINGS_ERROR` and nothing is offered to remember. Chromium's quiche
+checks the first three and not the extension settings. The engine does not
+know whether the server accepted the early data, so it applies these checks
+either way; its caller does not reuse a connection whose early data was
+rejected.
+
+`patches/remembered-settings.patch` contains this delta and its regression
+tests.
+
 ## Extended CONNECT readiness
 
 RFC 9220 section 3 reuses RFC 8441's `SETTINGS_ENABLE_CONNECT_PROTOCOL`
@@ -321,6 +356,7 @@ cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 client::builder::t
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::frame::tests
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack::
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack_
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 remembered_settings
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::headers::tests
 cargo clippy --manifest-path vendor/h3/Cargo.toml --workspace --all-targets --all-features -- -D warnings
 cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn --all-features

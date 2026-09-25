@@ -676,7 +676,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3"
-version = "0.0.8-phantom.2"
+version = "0.0.8-phantom.3"
 dependencies = [
  "assert_matches",
  "bytes",
@@ -699,7 +699,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-datagram"
-version = "0.0.2-phantom.2"
+version = "0.0.2-phantom.3"
 dependencies = [
  "bytes",
  "phantom-h3",
@@ -708,7 +708,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-quinn"
-version = "0.0.10-phantom.2"
+version = "0.0.10-phantom.3"
 dependencies = [
  "bytes",
  "futures-util",

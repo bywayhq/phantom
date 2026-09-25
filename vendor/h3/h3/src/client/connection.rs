@@ -588,6 +588,20 @@ where
         }
     }
 
+    /// Returns the SETTINGS frame received on the peer's control stream,
+    /// encoded, once it has been received and applied.
+    ///
+    /// A client that keeps session tickets stores this value with the tickets
+    /// the connection receives, and passes it to
+    /// [`super::Builder::remembered_peer_settings`] when it resumes with early
+    /// data. Only settings this implementation understands are included.
+    pub fn peer_settings_to_remember(&self) -> Option<Vec<u8>> {
+        let settings = self.inner.peer_control_settings()?;
+        let mut encoded = Vec::new();
+        settings.encode(&mut encoded);
+        Some(encoded)
+    }
+
     /// Wait until the connection is closed
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub async fn wait_idle(&mut self) -> ConnectionError

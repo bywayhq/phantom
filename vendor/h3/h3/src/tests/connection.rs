@@ -1816,6 +1816,209 @@ async fn invalid_or_repeated_late_peer_application_settings_close_the_connection
     }
 }
 
+/// Encodes a SETTINGS frame with `entries` in order.
+fn settings_frame(entries: &[(u64, u64)]) -> Vec<u8> {
+    let mut frame = Vec::new();
+    Settings::from_ordered(entries).unwrap().encode(&mut frame);
+    frame
+}
+
+/// Remembered SETTINGS with a QPACK table capacity, a blocked-stream limit, a
+/// field-section limit, and extended CONNECT.
+const REMEMBERED: &[(u64, u64)] = &[(0x01, 32), (0x07, 2), (0x06, 100), (0x08, 1)];
+
+#[tokio::test]
+async fn remembered_settings_apply_until_compatible_control_settings_replace_them() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+    let control_settings = settings_frame(&[(0x01, 32), (0x07, 3), (0x06, 200), (0x08, 1)]);
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let mut builder = client::builder();
+        builder
+            .remembered_peer_settings(&settings_frame(REMEMBERED))
+            .unwrap();
+        let (mut driver, send) = builder
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        let settings = tokio::time::timeout(Duration::from_secs(1), send.peer_settings().ready())
+            .await
+            .expect("remembered settings are known before the control stream")
+            .unwrap();
+        assert_eq!(settings.qpack_max_table_capacity, 32);
+        assert_eq!(settings.qpack_blocked_streams, 2);
+        assert_eq!(settings.max_field_section_size, 100);
+        assert!(settings.enable_extended_connect());
+        assert_eq!(driver.peer_settings_to_remember(), None);
+
+        let result = future::poll_fn(|cx| driver.poll_close(cx)).await;
+        assert_matches!(
+            result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose {
+                error_code: code,
+                ..
+            }) if code == 0
+        );
+        let settings = driver.settings();
+        assert_eq!(settings.qpack_blocked_streams, 3);
+        assert_eq!(settings.max_field_section_size, 200);
+        assert_eq!(
+            driver.peer_settings_to_remember().as_deref(),
+            Some(&control_settings[..])
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        control.write_all(&[0x00]).await.unwrap();
+        control.write_all(&control_settings).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        connection.close(0_u32.into(), b"test complete");
+    };
+
+    tokio::join!(server_fut, client_fut);
+}
+
+#[tokio::test]
+async fn control_settings_incompatible_with_remembered_settings_are_rejected() {
+    for control in [
+        // A remembered nonzero QPACK capacity must be repeated exactly.
+        &[(0x01, 64), (0x07, 2), (0x06, 100), (0x08, 1)][..],
+        &[(0x07, 2), (0x06, 100), (0x08, 1)][..],
+        // Limits the early data relied on must be neither reduced nor omitted.
+        &[(0x01, 32), (0x07, 1), (0x06, 100), (0x08, 1)][..],
+        &[(0x01, 32), (0x06, 100), (0x08, 1)][..],
+        &[(0x01, 32), (0x07, 2), (0x06, 99), (0x08, 1)][..],
+        &[(0x01, 32), (0x07, 2), (0x08, 1)][..],
+        // An enabled extension must stay enabled.
+        &[(0x01, 32), (0x07, 2), (0x06, 100), (0x08, 0)][..],
+        &[(0x01, 32), (0x07, 2), (0x06, 100)][..],
+    ] {
+        let mut pair = Pair::default();
+        let server = pair.server_inner();
+
+        let client_fut = async {
+            let connection = pair.client_inner().await;
+            let mut builder = client::builder();
+            builder
+                .remembered_peer_settings(&settings_frame(REMEMBERED))
+                .unwrap();
+            let (mut driver, _send) = builder
+                .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+                .await
+                .unwrap();
+            assert_matches!(
+                future::poll_fn(|cx| driver.poll_close(cx)).await,
+                ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_SETTINGS_ERROR,
+                        ..
+                    }
+                },
+                "control settings {control:?}"
+            );
+            assert_eq!(driver.peer_settings_to_remember(), None);
+        };
+
+        let server_fut = async {
+            let connection = server.accept().await.unwrap().await.unwrap();
+            let mut stream = connection.open_uni().await.unwrap();
+            stream.write_all(&[0x00]).await.unwrap();
+            stream.write_all(&settings_frame(control)).await.unwrap();
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        };
+
+        tokio::select! {
+            _ = client_fut => (),
+            _ = server_fut => panic!("server resolved first"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn late_application_settings_incompatible_with_remembered_settings_are_rejected() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+    let (done, finished) = oneshot::channel::<()>();
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let mut builder = client::builder();
+        builder
+            .remembered_peer_settings(&settings_frame(REMEMBERED))
+            .unwrap();
+        let (mut driver, _send) = builder
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        assert_matches!(
+            driver.apply_peer_application_settings(&settings_frame(&[
+                (0x01, 32),
+                (0x07, 1),
+                (0x06, 100),
+                (0x08, 1),
+            ])),
+            Err(ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::H3_SETTINGS_ERROR,
+                    ..
+                }
+            })
+        );
+        done.send(()).unwrap();
+    };
+
+    let server_fut = async {
+        let _connection = server.accept().await.unwrap().await.unwrap();
+        finished.await.unwrap();
+    };
+
+    tokio::join!(server_fut, client_fut);
+}
+
+#[tokio::test]
+async fn remembered_settings_do_not_stand_in_for_the_control_stream_settings() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let mut builder = client::builder();
+        builder
+            .remembered_peer_settings(&settings_frame(REMEMBERED))
+            .unwrap();
+        let (mut driver, _send) = builder
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        assert_matches!(
+            future::poll_fn(|cx| driver.poll_close(cx)).await,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::H3_MISSING_SETTINGS,
+                    ..
+                }
+            }
+        );
+    };
+
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        // A GOAWAY frame first, where the SETTINGS frame must be.
+        control.write_all(&[0x00, 0x07, 0x01, 0x00]).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    };
+
+    tokio::select! {
+        _ = client_fut => (),
+        _ = server_fut => panic!("server resolved first"),
+    }
+}
+
 #[tokio::test]
 async fn graceful_shutdown_server_rejects() {
     init_tracing();

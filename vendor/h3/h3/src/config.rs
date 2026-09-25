@@ -43,6 +43,10 @@ pub struct Config {
 
     /// Peer SETTINGS received through TLS application settings.
     pub(crate) peer_settings: Option<frame::Settings>,
+
+    /// Peer SETTINGS remembered from the connection that issued the session
+    /// ticket this connection resumes with early data.
+    pub(crate) remembered_settings: Option<frame::Settings>,
 }
 
 /// HTTP/3 Settings
@@ -134,6 +138,7 @@ impl TryFrom<Config> for frame::Settings {
                 },
             ordered_settings: _,
             peer_settings: _,
+            remembered_settings: _,
         } = value;
 
         if send_grease {
@@ -242,6 +247,7 @@ impl Default for Config {
             settings: Default::default(),
             ordered_settings: None,
             peer_settings: None,
+            remembered_settings: None,
         }
     }
 }

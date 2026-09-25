@@ -336,6 +336,8 @@ case "${1:-}" in
       --locked proto::headers::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack::
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack_
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
+      --locked remembered_settings
     cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn \
       --all-features --locked
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport \
