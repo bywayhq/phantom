@@ -130,6 +130,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `QuicClientConfig::new`. To keep full handshakes instead, set
   `session_tickets = false` on the recipe's `TlsSettings` before calling
   `with_tls_profile`.
+- A `ws://` WebSocket through an HTTP proxy sends `CONNECT host:port` and
+  then the direct origin-form Upgrade inside the tunnel, as Chrome 154,
+  Edge 153, and Firefox 156 do, instead of an absolute-form Upgrade to the
+  proxy. The HTTP/1.1 proxy transport uses a CONNECT tunnel and the HTTP/2
+  transport a CONNECT stream, with the route's CONNECT fields and Basic
+  retry, so `ws://` now works through an HTTP/2 proxy too. A refused
+  CONNECT, including a `407` without configured credentials, fails with
+  `WebSocketErrorKind::Proxy` and no response, as for `wss://`; it used to
+  return `WebSocketErrorKind::HandshakeRejected` with the proxy's response.
+  `phantom_net::http1::Http1TlsConnector` gains
+  `upgrade_get_plaintext_http_connect` and
+  `upgrade_get_plaintext_https_connect`, each with a `_with_basic_auth`
+  variant. (`93f1675`)
+  Migrate: the proxy must allow CONNECT to the origin's port. Where you read
+  a proxy's refusal of a `ws://` opening with `WebSocketError::into_response`,
+  match `WebSocketErrorKind::Proxy` instead and find the status in the
+  error's `HttpConnectError::Rejected` source.
 
 ### Added
 
@@ -273,6 +290,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   number of origins. Proxy routes and IP-literal origins send no query. A
   record's `ech` value is kept as bytes but not used for Encrypted Client
   Hello. (`11b01d9`, `74fa7b9`, `ed5cb93`, `f3fa2e3`, `2fc3144`)
+- `http://` requests through an HTTP proxy with `with_http2_transport` are
+  forwarded as HTTP/2 requests with `:scheme` `http` and the origin in
+  `:authority`, as Chrome 154, Edge 153, and Firefox 156 send them. Exact
+  HTTP/2 and negotiated requests use it; requests to one origin share one
+  pooled proxy connection with the profile's HTTP/2 settings and
+  pseudo-header order, and the response reports `HttpProtocol::Http2`.
+  Exact HTTP/1.1 on that route now fails before I/O with
+  `RequestErrorKind::UnsupportedRoute` instead of `RequestErrorKind::Proxy`,
+  and a proxy with `with_basic_auth` fails the same way, because HTTP/2
+  forwarding has no challenge retry. `phantom_net` gains
+  `HttpsProxyConnector::connect_forward_http2`,
+  `Http2Connection::send_forward_request_body_with_trailers`, and
+  `HttpConnectError::ForwardingRequiresHttp2`. (`e99940b`)
 
 ### Changed
 
