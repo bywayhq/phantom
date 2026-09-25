@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.3`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.4`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -363,6 +363,64 @@ The patch changes `src/ext.rs`, `src/hpack/{encoder,table}.rs`,
 `src/codec/{framed_write,mod}.rs`, and `src/client.rs`, and adds encoder unit
 tests plus a client regression proving the builder option reaches the first
 HEADERS block on the wire.
+
+## Cookie crumbs
+
+RFC 9113 section 8.2.3 lets a client split the `cookie` field into one field
+per cookie so that each can be indexed on its own. Upstream sends `cookie`
+whole and, following nghttp2, never inserts it into the dynamic table. The
+retained two-request captures under `fixtures/cookies/` show both observed
+encoders splitting it, with different rules:
+
+- Chrome 154 and Edge 153 send each crumb as a literal with incremental
+  indexing naming static entry 32, and as an index on the next request. This
+  is quiche `HpackEncoder::CookieToCrumbs`, which trims spaces and tabs at
+  both ends, splits at every `;`, and skips one space after it, followed by
+  its default indexing policy, which indexes every ordinary field.
+- Firefox 156 sends a crumb shorter than 20 bytes as a never-indexed literal
+  and indexes a longer one; the captures straddle the boundary with crumbs
+  of 19 and 20 bytes. `Http2Compressor::EncodeHeaderBlock` splits at every
+  `"; "` and passes `neverIndex` for a crumb shorter than 20 bytes.
+
+Sources, at quiche `535a2730e77d` and mozilla-central `4d5216592535`:
+
+- <https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/hpack/hpack_encoder.cc#L253-L283>
+- <https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/hpack/hpack_encoder.cc#L72-L83>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Compression.cpp#l1140>
+
+`cookie-crumbs.patch` adds `http2::ext::CookieCrumbs` (`Whole`, `IndexAll`,
+`NeverIndexShort`) and `HpackEncoderProfile::cookie_crumbs`. The encoder
+splits each `cookie` value, including a further nameless value of the same
+field, and encodes the crumbs in order at the field's position. For a crumb,
+the `cookie` entry on the nghttp2-derived never-index list is lifted, and the
+crumb's sensitivity comes from the rule rather than from the field: `IndexAll`
+never marks a crumb sensitive, and `NeverIndexShort` marks exactly the crumbs
+shorter than 20 bytes. A slice of a valid field value is always a valid
+value; should a crumb still fail to convert, a debug assertion fires and the
+field is sent once, whole. The default `Whole` encodes byte for byte as
+before.
+
+Two Firefox choices are not reproduced, because they belong to the encoder as
+a whole rather than to crumbs. Firefox names a literal with the
+highest-numbered table entry whose name matches, which after a crumb enters
+the dynamic table is the oldest dynamic `cookie` entry. This encoder names
+static entry 32 in an incrementally indexed literal and the newest dynamic
+`cookie` entry in a never-indexed one; the Firefox replay in
+`crates/phantom/tests/cookie_crumbs.rs` shows both differences. Firefox also
+stops indexing an entry larger than half the table, where this encoder stops
+at three quarters.
+
+Chromium has no such limit. quiche `HpackHeaderTable::TryAddEntry` evicts
+entries to make room for any incrementally indexed field, and empties the
+table without inserting when the entry exceeds it, so a crumb whose entry
+exceeds three quarters of the table is an incrementally indexed literal in
+Chrome and a literal without indexing here. The limit belongs to the whole
+encoder, and no capture holds a crumb that large:
+<https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/hpack/hpack_header_table.cc#L140-L153>.
+
+The patch changes `src/ext.rs` and `src/hpack/{encoder,table}.rs`, and adds
+encoder unit tests for both split rules, the indexing of each crumb, the
+sensitivity override, a nameless further value, and the unchanged default.
 
 ## Refreshing the vendor copy
 
