@@ -94,22 +94,18 @@ not resent over HTTP/1.1 or HTTP/2.
 
 To behave like Chrome, send negotiated requests with Alt-Svc racing, so the
 origin connection wins when QUIC fails
-([Race the alternative against the origin](http3.md#race-the-alternative-against-the-origin)).
+([Race the alternative against the origin](http3-discovery.md#race-the-alternative-against-the-origin)).
 To fall back yourself, catch the error and send a new request on another
 protocol; that request has a different fingerprint.
 
 ## A negotiated request is rejected on a proxy route
 
 `get_negotiated` and `request_negotiated` fail with `UnsupportedRoute` on a
-CONNECT-UDP route: negotiation needs a TLS stream to the origin, and that
-route carries only QUIC. Exact H3 on an HTTP proxy fails the same way, because
-a CONNECT tunnel carries only TCP. Use a direct, SOCKS5, or HTTP proxy route
-for negotiated requests, or an exact protocol the route carries
-([route matrix](../reference/route-matrix.md)).
-
-Negotiated requests through an HTTP proxy succeed but always use H1 or H2:
-the tunnel cannot carry QUIC, so Phantom learns no Alt-Svc alternative there.
-For the H3 upgrade through a proxy, use SOCKS5.
+CONNECT-UDP route, which carries only QUIC, and exact H3 fails the same way
+on an HTTP proxy, whose tunnel carries only TCP. Use a route that carries the
+protocol ([route matrix](../reference/route-matrix.md)). Negotiated requests
+through an HTTP proxy stay on H1 or H2 and learn no Alt-Svc alternative; for
+the H3 upgrade through a proxy, use SOCKS5.
 
 `ProtocolUnavailable` means the profile lacks a component the request needs:
 HTTP/3 settings for H3, or both HTTP/1.1 and HTTP/2 for a negotiated request.
@@ -118,17 +114,15 @@ Add the recipe to the profile.
 ## A request or redirect is rejected
 
 `UnsupportedScheme` means a scheme other than `http` or `https`, or an
-`http://` URI with exact H2 or H3. Send plaintext requests with
-`HttpProtocol::Http1` or `get_negotiated`, which uses H1 for them. Through an
-HTTP proxy with `with_http2_transport`, use `HttpProtocol::Http2` or
-`get_negotiated`; exact H1 there fails with `UnsupportedRoute`. An
-`http://` request through CONNECT-UDP fails with `UnsupportedRoute`;
-plaintext goes direct, through an HTTP proxy, or through SOCKS5. `Redirect`
-means a target that is not `http://` or `https://`, more than one
-`Location`, or an exhausted limit, and the redirect response is not
-returned. Raise the limit, or use
-`RedirectPolicy::none()` and follow the hop yourself
-([Follow redirects](connections-and-state.md#follow-redirects)).
+`http://` URI with exact H2 or H3. Send plaintext with `HttpProtocol::Http1`
+or `get_negotiated`, except through an HTTP proxy with
+`with_http2_transport`, which needs `HttpProtocol::Http2` or
+`get_negotiated`. CONNECT-UDP carries no plaintext (`UnsupportedRoute`).
+
+`Redirect` means a target that is not `http://` or `https://`, more than one
+`Location`, or an exhausted limit; the redirect response is not returned.
+Raise the limit, or use `RedirectPolicy::none()` and follow the hop yourself
+([Follow redirects](redirects.md#follow-redirects)).
 
 ## A streaming body cannot be sent again
 
@@ -186,22 +180,21 @@ or corrupt data. Browsers pass unknown codings through; Phantom does not
 
 ## The connection is not reused
 
-A response body dropped before its end can close an H1 connection, so read
-bodies to the end. Pools are keyed by origin and the complete route, and
-separately built clients share nothing: clone one client instead
+A body dropped before its end can close an H1 connection, so read bodies to
+the end. Pools are keyed by origin and complete route, retain 32 entries by
+default, and belong to one client: clone it instead of building another
 ([Share a client between tasks](connections-and-state.md#share-a-client-between-tasks)).
-Each pool retains 32 entries by default and evicts the least recently used.
 
 ## A WebSocket connect ignores the client's timeout
 
 WebSocket connects apply none of the client's timeouts, retries, or
 redirects. Wrap the connect in `tokio::time::timeout`
 ([Bound a connect with a timeout](websocket.md#bound-a-connect-with-a-timeout)).
-WebSocket, SSE, cookie, and proxy-configuration errors have their own kinds,
-listed in each feature's guide.
+WebSocket, SSE, cookie, and proxy errors have their own kinds.
 
 ## Next
 
-- [Using the client](client.md#handle-errors): sort errors by kind in code.
+- [Responses and errors](responses.md#handle-errors): sort errors by kind in
+  code.
 - [Defaults and limits](../reference/limits.md): every bound and default.
 - [Route matrix](../reference/route-matrix.md): what each route carries.

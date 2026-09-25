@@ -332,7 +332,7 @@ Supported requests and routes:
   whose server authenticates as the public name, as Chrome 154 does
   ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
   Requires the `https-records` feature. See
-  [Find HTTP/3 through HTTPS DNS records](../guides/http3.md#find-http3-through-https-dns-records).
+  [Find HTTP/3 through HTTPS DNS records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
 
 Supported wire behavior:
 
@@ -373,7 +373,7 @@ Supported lifecycle:
   - Broken alternatives back off as in Chromium 153: 300 seconds, doubling,
     capped at two days.
 
-  See [Racing](../guides/http3.md#race-the-alternative-against-the-origin).
+  See [Racing](../guides/http3-discovery.md#race-the-alternative-against-the-origin).
 
 Supported in `phantom-net` only (`phantom-http` does not expose it):
 
@@ -422,7 +422,7 @@ Supported:
   - the captured H2 HEADERS priority for its request kind.
 
   Recipes cover address-bar navigations and same-origin no-store `fetch`
-  GETs. See [Request templates](../guides/profiles.md#apply-a-captured-request-template).
+  GETs. See [Request templates](../guides/request-templates.md#apply-a-captured-request-template).
 - One WHATWG/IDNA endpoint boundary, shared by the wire authority and state
   keys.
 - Separate TLS settings for TCP and QUIC.
@@ -513,13 +513,13 @@ Supported:
     replaces a held cookie, or evicts one. The optional `serde` feature
     serializes snapshots.
 
-  See [Cookies](../guides/connections-and-state.md#keep-cookies-between-requests).
+  See [Cookies](../guides/cookies.md#keep-cookies-between-requests).
 - [Client-hint](glossary.md#client-hints) fields defined by the profile, with
   bounded `Accept-CH` state per exact origin from responses,
   connection-scoped H2/H3 ALPS `ACCEPT_CH`, and one bounded `Critical-CH`
   retry for safe methods. A request template places the hints at its captured
   slots. Without one, they precede the caller's fields. See
-  [Client hints](../guides/profiles.md#send-client-hints).
+  [Client hints](../guides/request-templates.md#send-client-hints).
 - Opt-in finite redirects: WHATWG URL resolution, `http://` and `https://`
   targets, browser method and body transitions, and removal of credentials
   and client hints on cross-origin hops, including a change of scheme. Each

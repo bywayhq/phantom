@@ -19,26 +19,38 @@ that means. This index lists every page by what you want to do.
 
 Task guides for using Phantom in an application.
 
-- [Using the client](guides/client.md): clients, protocols, bodies,
-  trailers, timeouts, responses, and errors.
-- [Browser profiles](guides/profiles.md): built-in recipes, request
-  templates, custom profiles, and client hints.
-- [Routes and proxies](guides/routes-and-proxies.md): HTTP, SOCKS5, and
-  CONNECT-UDP proxies, authentication, and trust roots.
+- [Using the client](guides/client.md): clients, protocols, fields, bodies,
+  trailers, and timeouts.
+- [Responses and errors](guides/responses.md): response fields in wire
+  order, bounded bodies, and error kinds.
+- [Browser profiles](guides/profiles.md): built-in recipes and custom
+  profiles.
+- [Request templates and client hints](guides/request-templates.md): a
+  browser's request fields in its order, and its client hints.
+- [Routes and proxies](guides/routes-and-proxies.md): routes, HTTP proxies,
+  proxy authentication, and trust roots.
+- [SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md): SOCKS5
+  tunnels, and HTTP/3 through SOCKS5 or CONNECT-UDP.
 - [Retries and replays](guides/retries.md): when Phantom may send a request
   again, and when it never will.
-- [Connections, redirects, and cookies](guides/connections-and-state.md):
-  pools, redirects, cookies, and other client-owned state.
-- [HTTP/3 and Alt-Svc](guides/http3.md): exact HTTP/3 and opt-in Alt-Svc
-  upgrade.
+- [Connections and client state](guides/connections-and-state.md): pools,
+  the address cache, sessions, and clearing learned state.
+- [Redirects](guides/redirects.md): follow a bounded number of redirects.
+- [Cookies](guides/cookies.md): keep, save, and place cookies.
+- [HTTP/3 and Alt-Svc](guides/http3.md): exact HTTP/3, early data, and
+  opt-in Alt-Svc upgrade.
+- [HTTP/3 discovery](guides/http3-discovery.md): Alt-Svc racing, HTTPS DNS
+  records, and Alt-Svc state across restarts.
 - [Content decoding](guides/content-decoding.md): opt-in decompression of
   response bodies.
 - [Tune throughput and latency](guides/performance.md): per-origin
   concurrency, extra HTTP/2 connections, shorter waits, and what a server
   can observe for each.
 - [Server-sent events](guides/sse.md): the `sse` feature.
-- [WebSocket](guides/websocket.md): the `websocket` and `websocket-deflate`
-  features.
+- [WebSocket](guides/websocket.md): the `websocket` feature over HTTP/1.1
+  and HTTP/2.
+- [WebSocket fields and compression](guides/websocket-fields.md):
+  caller-ordered openings and the `websocket-deflate` feature.
 - [Adding Phantom to a project](guides/downstream.md): git and path
   dependencies, and why another crate cannot swap out Phantom's patched
   dependencies.

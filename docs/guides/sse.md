@@ -147,7 +147,7 @@ async fn firefox_like(
   browser does: 10th of 16 fields in Chrome, 6th of 14 in Firefox.
 - `Cookie` goes after every caller field, where Chrome sends it. For
   Firefox's position, use a profile with `firefox::v156_cookie_placement`;
-  see [Cookie field position](connections-and-state.md#place-the-cookie-field-where-a-browser-does).
+  see [Cookie field position](cookies.md#place-the-cookie-field-where-a-browser-does).
 
 ## Limits
 

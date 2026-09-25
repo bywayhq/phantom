@@ -22,7 +22,7 @@ server can observe each choice
 | `cookie_store(true)` (`cookies` feature) | `ClientBuilder::cookies()` (`cookies` feature) |
 | `gzip(true)`, on when the `gzip` feature is on | `ContentDecoding::advertised(max)` per request |
 | `Response::text`, `bytes`, `json` | `ResponseBody::collect_with_limit(max)`, which returns `Bytes` |
-| `Error::is_timeout`, `is_connect` | [`RequestError::kind()`](client.md#handle-errors), a non-exhaustive `RequestErrorKind` |
+| `Error::is_timeout`, `is_connect` | [`RequestError::kind()`](responses.md#handle-errors), a non-exhaustive `RequestErrorKind` |
 
 ## Send a GET request
 
@@ -79,7 +79,7 @@ fn fields(client: &Client) -> Result<RequestBuilder, Box<dyn std::error::Error>>
   fingerprint. Without a template, fields go out in the order you add them.
 - Phantom adds no `User-Agent`, `Accept`, or `Sec-Fetch-*` field. A template
   supplies them; use one from the profile's browser
-  ([Apply a captured request template](profiles.md#apply-a-captured-request-template)).
+  ([Apply a captured request template](request-templates.md#apply-a-captured-request-template)).
 
 ## POST a body
 
@@ -144,17 +144,17 @@ fn build(profile: ClientProfile) -> Result<Client, Box<dyn std::error::Error>> {
 - Without a redirect policy, Phantom returns every redirect response to you.
   With one, it follows `http://` and `https://` targets but never changes the
   request's protocol or route to reach one
-  ([Follow redirects](connections-and-state.md#follow-redirects)).
+  ([Follow redirects](redirects.md#follow-redirects)).
 - `RequestBuilder::timeouts` replaces the timeouts for one request. The
   `pool_admission` and `response_head` phases are in
   [Configure the client](client.md#configure-the-client).
 - The [route](../reference/glossary.md#route) you set is the only route: a
   proxy failure is an error, never a direct connection. An HTTP proxy route
-  carries `get_negotiated` but never upgrades it to H3 through Alt-Svc.
-  SOCKS5 and CONNECT-UDP are in [Routes and proxies](routes-and-proxies.md).
+  carries `get_negotiated` but never upgrades it to H3 through Alt-Svc
+  ([SOCKS5 and CONNECT-UDP proxies](socks-and-connect-udp.md)).
 - For a browser's cookie position, build the profile with
   `with_cookie_placement(chromium::v154_cookie_placement())`
-  ([Place the cookie field](connections-and-state.md#place-the-cookie-field-where-a-browser-does)).
+  ([Place the cookie field](cookies.md#place-the-cookie-field-where-a-browser-does)).
 
 ## Read the body
 

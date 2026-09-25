@@ -230,7 +230,7 @@ Details are in [HTTP/3 internals](../internals/http3.md#connect-udp-masque).
 ## Next
 
 - [Coverage](coverage.md): what each layer supports.
-- [Connections, redirects, and cookies](../guides/connections-and-state.md):
+- [Connections and client state](../guides/connections-and-state.md):
   how the pools and the cookie jar behave.
 - [Tune throughput and latency](../guides/performance.md): which bounds to
   raise, and what a server sees.

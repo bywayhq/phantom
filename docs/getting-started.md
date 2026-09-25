@@ -147,9 +147,10 @@ async fn navigate(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
 The template fills in `user-agent`, `accept`, the `sec-fetch-*` fields, and
 the rest in Chrome's order, and places the profile's client hints in their
-slots. A template must describe the same browser as the profile; Phantom
-rejects a request whose `User-Agent` or `sec-ch-ua` names another browser or
-version. [Browser profiles](guides/profiles.md) lists every template.
+slots. Use a template, client hints, and `User-Agent` of one browser and
+version: Phantom does not compare them.
+[Request templates and client hints](guides/request-templates.md) covers
+every template.
 
 ## Optional features
 
@@ -178,7 +179,7 @@ the repository.
 
 ## Next
 
-- [Using the client](guides/client.md): timeouts, bodies, errors, and
+- [Using the client](guides/client.md): timeouts, bodies, and
   `get_negotiated`, which lets the server choose HTTP/1.1 or HTTP/2.
 - [HTTP/3 and Alt-Svc](guides/http3.md): send the same request over QUIC.
 - [Browser profiles](guides/profiles.md): Edge and Firefox, and custom

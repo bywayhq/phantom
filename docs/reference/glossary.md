@@ -15,7 +15,7 @@ A response field in which a
 [client hints](#client-hints) on later requests. Phantom keeps bounded
 `Accept-CH` state per exact [origin](#origin). An H2 or H3 server can make the
 same request for a whole connection with an `ACCEPT_CH` setting sent through
-[ALPS](#alps). See [Client hints](../guides/profiles.md#send-client-hints).
+[ALPS](#alps). See [Client hints](../guides/request-templates.md#send-client-hints).
 
 ## ALPN
 
@@ -62,7 +62,7 @@ compare [recipes](#recipe) with them. See
 Request fields, such as `sec-ch-ua`, that describe the browser and platform.
 A browser sends some by default, and a server can ask for more with
 [Accept-CH](#accept-ch). Firefox sends no user-agent client hints. See
-[Client hints](../guides/profiles.md#send-client-hints).
+[Client hints](../guides/request-templates.md#send-client-hints).
 
 ## ClientHello
 
@@ -168,7 +168,7 @@ A DNS resource record (RFC 9460, type 65) through which an origin
 advertises how to connect to it, such as the ALPN protocols it supports,
 before the client has contacted it. With the `https-records` feature, an
 HTTPS record that lists `h3` lets a negotiated request use H3. See
-[Find HTTP/3 through HTTPS DNS records](../guides/http3.md#find-http3-through-https-dns-records).
+[Find HTTP/3 through HTTPS DNS records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
 
 ## JA3, JA4
 
@@ -255,7 +255,7 @@ A `RequestTemplate`: for one kind of browser request, the captured field
 order and values for each protocol, slots for caller fields and client hints,
 and the captured H2 priority. `PreparedRequestTemplate::new` validates one
 for use with `RequestBuilder::template`. See
-[Request templates](../guides/profiles.md#apply-a-captured-request-template).
+[Request templates](../guides/request-templates.md#apply-a-captured-request-template).
 
 ## Route
 
@@ -274,7 +274,7 @@ browsers. See [HTTP/2](../fingerprinting.md#http2).
 A value holding a client's cookies (`CookieSnapshot`) or learned Alt-Svc
 alternatives (`AltSvcSnapshot`), for storage you own. Import revalidates
 every entry. See [Snapshots](cookies.md#snapshots) and
-[Keep Alt-Svc state across restarts](../guides/http3.md#keep-alt-svc-state-across-restarts).
+[Keep Alt-Svc state across restarts](../guides/http3-discovery.md#keep-alt-svc-state-across-restarts).
 
 ## SNI
 
@@ -285,7 +285,7 @@ Alt-Svc upgrade keeps the origin's SNI, and a CONNECT-UDP proxy has its own.
 
 The RFC 1928 proxy protocol. `socks5://` resolves the origin locally and
 `socks5h://` lets the proxy resolve it. H3 runs over its UDP ASSOCIATE
-command. See [Routes and proxies](../guides/routes-and-proxies.md).
+command. See [SOCKS5 and CONNECT-UDP proxies](../guides/socks-and-connect-udp.md).
 
 ## Trailers
 

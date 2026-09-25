@@ -22,7 +22,7 @@ policy, so no browser recipe includes them.
 Two more replays sit outside `RetryPolicy`: one after a proxy's Basic `407`
 challenge ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy))
 and one `Critical-CH` retry when the profile has client hints
-([Send client hints](profiles.md#send-client-hints)).
+([Send client hints](request-templates.md#send-client-hints)).
 
 ## Retry when a connection fails to open
 

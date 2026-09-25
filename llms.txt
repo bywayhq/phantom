@@ -28,16 +28,23 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 
 ## Guides
 
-- [Using the client](docs/guides/client.md): protocols, fields, bodies, trailers, timeouts, responses, errors
-- [Browser profiles](docs/guides/profiles.md): choose a built-in profile, build a custom one, request templates, client hints
-- [Routes and proxies](docs/guides/routes-and-proxies.md): HTTP, SOCKS5, and CONNECT-UDP proxies and trust roots
+- [Using the client](docs/guides/client.md): client policies, protocols, fields, bodies, trailers, timeouts
+- [Responses and errors](docs/guides/responses.md): ordered response fields, `ResponseInfo`, bounded bodies, error kinds
+- [Browser profiles](docs/guides/profiles.md): choose a built-in profile, build a custom one
+- [Request templates and client hints](docs/guides/request-templates.md): a browser's request fields in its order, and client hints
+- [Routes and proxies](docs/guides/routes-and-proxies.md): routes, HTTP proxies, proxy authentication, trust roots
+- [SOCKS5 and CONNECT-UDP proxies](docs/guides/socks-and-connect-udp.md): SOCKS5 tunnels and UDP ASSOCIATE, and HTTP/3 through CONNECT-UDP
 - [Retries and replays](docs/guides/retries.md): when Phantom sends a request again
-- [Connections, redirects, and cookies](docs/guides/connections-and-state.md): pools, redirects, cookies
-- [HTTP/3 and Alt-Svc](docs/guides/http3.md): exact HTTP/3 and opt-in upgrade
+- [Connections and client state](docs/guides/connections-and-state.md): pools, the address cache, sessions, clearing learned state
+- [Redirects](docs/guides/redirects.md): opt-in bounded redirects
+- [Cookies](docs/guides/cookies.md): the `cookies` feature, snapshots, and cookie-field placement
+- [HTTP/3 and Alt-Svc](docs/guides/http3.md): exact HTTP/3, early data, and opt-in Alt-Svc upgrade
+- [HTTP/3 discovery](docs/guides/http3-discovery.md): Alt-Svc racing, HTTPS DNS records, and Alt-Svc snapshots
 - [Content decoding](docs/guides/content-decoding.md): opt-in decompression
 - [Tune throughput and latency](docs/guides/performance.md): concurrency bounds, extra HTTP/2 connections per origin, wait limits, and what each lets a server observe; Phantom does no request pacing
 - [Server-sent events](docs/guides/sse.md): the `sse` feature
-- [WebSocket](docs/guides/websocket.md): the `websocket` and `websocket-deflate` features
+- [WebSocket](docs/guides/websocket.md): the `websocket` feature over HTTP/1.1 and HTTP/2
+- [WebSocket fields and compression](docs/guides/websocket-fields.md): caller-ordered openings, and the `websocket-deflate` feature
 - [Adding Phantom to a project](docs/guides/downstream.md): git and path dependencies
 - [Coming from reqwest](docs/guides/coming-from-reqwest.md): reqwest concepts mapped to Phantom, and behaviors that differ
 - [Troubleshooting](docs/guides/troubleshooting.md): error kinds mapped to causes and fixes

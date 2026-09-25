@@ -1,8 +1,8 @@
 # WebSocket
 
-Open a WebSocket over HTTP/1.1 (H1) or HTTP/2 (H2), shape its opening request
-like a browser's, and compress messages. You need the optional `websocket`
-feature; compression also needs `websocket-deflate`.
+Open a WebSocket over HTTP/1.1 (H1) or HTTP/2 (H2), send its opening request
+the way a browser does, and bound the connect with a timeout. You need the
+optional `websocket` feature.
 
 > For builders who have read [Getting started](../getting-started.md).
 
@@ -98,45 +98,6 @@ async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
   [origin trust](../reference/websocket.md#browser-recipes); a `header` with
   the same name replaces the value.
 
-## Order the opening request fields
-
-`headers` replaces the opening request with your own ordered template of
-literal fields and placeholders for values Phantom manages:
-
-```rust
-use phantom::{Client, RequestHeader, WebSocketHeader};
-
-async fn open_ordered(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    let field = |n: &str, v: &str| WebSocketHeader::field(RequestHeader::new(n, v));
-    let socket = client
-        .websocket("wss://example.com/events")?
-        .headers(vec![
-            WebSocketHeader::authority("Host"),
-            field("Connection", "Upgrade"),
-            field("Upgrade", "websocket"),
-            WebSocketHeader::caller_field("User-Agent"),
-            field("Sec-WebSocket-Version", "13"),
-            WebSocketHeader::key("Sec-WebSocket-Key"),
-            WebSocketHeader::client_cookies("Cookie"),
-        ])
-        .header(RequestHeader::new("User-Agent", "ExampleAgent/1.0"))
-        .connect()
-        .await?;
-    println!("{:?}", socket.handshake_response().status());
-    Ok(())
-}
-```
-
-- Without `headers`, Phantom uses the profile's `WebSocketSettings`
-  templates, or built-in ones.
-- `header` fills the first `caller_field` slot of the same name (compared
-  case-insensitively) in the slot's spelling, or appends. Unfilled slots emit
-  nothing.
-- A template that breaks the
-  [opening template rules](../reference/websocket.md#opening-templates) fails
-  before I/O. An H1 template needs the authority and key placeholders; an H2
-  template rejects them.
-
 ## Bound a connect with a timeout
 
 A WebSocket connect ignores the client's `RequestTimeouts`, so wrap it in
@@ -162,34 +123,6 @@ async fn open_within(client: &Client) -> Result<(), Box<dyn std::error::Error>> 
   `chromium::v154_websocket`), once after a `REFUSED_STREAM` reset on a pooled
   H2 session.
 
-## Compress WebSocket messages
-
-With the `websocket-deflate` feature, `permessage_deflate` offers RFC 7692
-compression on one connection:
-
-```rust
-use phantom::{Client, PerMessageDeflate};
-
-async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    let socket = client
-        .websocket("wss://example.com/events")?
-        .permessage_deflate(PerMessageDeflate::new())
-        .connect()
-        .await?;
-    println!("{:?}", socket.negotiated_permessage_deflate());
-    Ok(())
-}
-```
-
-- `new()` offers `permessage-deflate; client_max_window_bits`.
-  `offer_parameters` sets any RFC-valid ordered offer.
-- After negotiation every text and binary message is compressed; control
-  frames never are.
-- Empty messages are compressed with RSV1 set by default, as Chrome 154 and
-  Edge 153 do. `compress_empty_messages(false)` sends them uncompressed, as
-  Firefox 156 does. `PerMessageDeflate::from_profile` takes the offer and
-  this rule from a recipe.
-
 ## Limits
 
 - A message over the frame, message, or frame-count limit fails with
@@ -201,9 +134,6 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 - A WebSocket on a pooled H2 session holds one of the origin's
   `max_concurrent_http2_requests_per_origin` slots for its life, and fails
   with `WebSocketErrorKind::Capacity` when the wait queue is full.
-- A response with a wrong accept value, an unoffered extension, or an
-  unoffered subprotocol fails the connect
-  ([response checks](../reference/websocket.md#response-checks)).
 - The recipes do not reproduce Firefox's leading dynamic-table size update,
   some stream and reset behavior, or Chrome's message fragmentation
   ([differences](../reference/websocket.md#differences-from-the-captures)).
@@ -212,7 +142,8 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 
 ## Next
 
+- [WebSocket fields and compression](websocket-fields.md): order the opening
+  request yourself and compress messages.
 - [Browser profiles](profiles.md): add a WebSocket recipe to a profile.
-- [Routes and proxies](routes-and-proxies.md): configure a proxy.
 - [WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence):
   the captures behind the recipes.

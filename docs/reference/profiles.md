@@ -20,7 +20,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
 | `with_proxy_connect(template)` | Fields of the CONNECT request that opens an HTTP proxy tunnel ([details](#proxy-connect-fields)) |
-| `with_cookie_placement(placement)` | Where the cookie jar's `Cookie` field goes; last by default ([details](../guides/connections-and-state.md#place-the-cookie-field-where-a-browser-does)) |
+| `with_cookie_placement(placement)` | Where the cookie jar's `Cookie` field goes; last by default ([details](../guides/cookies.md#place-the-cookie-field-where-a-browser-does)) |
 
 A request fails before any network I/O if the profile lacks a component it
 needs.
@@ -421,8 +421,8 @@ built.
 
 ## Next
 
-- [Browser profiles](../guides/profiles.md): build a profile and apply a
-  template.
+- [Browser profiles](../guides/profiles.md): build a profile, then
+  [apply a template](../guides/request-templates.md) to a request.
 - [Coverage](coverage.md#browser-profiles): exact builds behind each recipe.
 - [Validation](../explanation/validation.md#browser-recipes): the captures
   behind each recipe.

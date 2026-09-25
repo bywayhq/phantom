@@ -4,7 +4,7 @@ The rules the optional cookie jar applies when it stores and sends cookies:
 request context, trustworthy origins, rejections, eviction, and snapshots.
 
 > For builders looking up a cookie rule. Setup is in
-> [Keep cookies between requests](../guides/connections-and-state.md#keep-cookies-between-requests).
+> [Keep cookies between requests](../guides/cookies.md#keep-cookies-between-requests).
 
 The count and size limits are in
 [Defaults and limits](limits.md#cookies). Chromium behavior the jar does not
@@ -75,7 +75,7 @@ same 150 and 3,000, with three differences:
 `Client::export_cookies` returns a `CookieSnapshot` of the jar's unexpired
 cookies, or `None` when the client has no jar. `Client::import_cookies` loads
 one into a client. Setup is in
-[Save and restore cookies](../guides/connections-and-state.md#save-and-restore-cookies).
+[Save and restore cookies](../guides/cookies.md#save-and-restore-cookies).
 
 ### What an entry holds
 
@@ -131,7 +131,7 @@ A valid snapshot merges without removing held cookies.
 
 ## Next
 
-- [Connections, redirects, and cookies](../guides/connections-and-state.md):
+- [Cookies](../guides/cookies.md):
   enable the jar and place its field.
 - [Defaults and limits](limits.md#cookies): the jar's size and count limits.
 - [Coverage](coverage.md#cross-request-state): cookie behavior not modeled.

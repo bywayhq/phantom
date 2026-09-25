@@ -4,7 +4,7 @@ Raise the bounds on how many requests one client runs at once and shorten
 the waits Phantom copies from browsers, knowing what each change lets a
 server see.
 
-> For builders who have read [Connections, redirects, and cookies](connections-and-state.md).
+> For builders who have read [Connections and client state](connections-and-state.md).
 
 Every default is a browser's value, or a Phantom bound where no browser value
 applies. Some changes are invisible on the wire; others make the client look

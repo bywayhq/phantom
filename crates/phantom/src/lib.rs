@@ -76,21 +76,37 @@ struct GettingStartedDoctests;
 struct ClientGuideDoctests;
 
 #[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/responses.md")]
+struct ResponsesGuideDoctests;
+
+#[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/profiles.md")]
 struct ProfilesGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/request-templates.md")]
+struct RequestTemplatesGuideDoctests;
 
 #[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/routes-and-proxies.md")]
 struct RoutesGuideDoctests;
 
 #[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/socks-and-connect-udp.md")]
+struct SocksGuideDoctests;
+
+#[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/retries.md")]
 struct RetriesGuideDoctests;
 
-// The guide's HTTPS-record example needs the `https-records` feature.
-#[cfg(all(doctest, feature = "https-records"))]
+#[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/http3.md")]
 struct Http3GuideDoctests;
+
+// The guide's HTTPS-record example needs the `https-records` feature.
+#[cfg(all(doctest, feature = "https-records"))]
+#[doc = include_str!("../../../docs/guides/http3-discovery.md")]
+struct Http3DiscoveryGuideDoctests;
 
 #[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/content-decoding.md")]
@@ -99,6 +115,14 @@ struct ContentDecodingGuideDoctests;
 #[cfg(all(doctest, feature = "cookies"))]
 #[doc = include_str!("../../../docs/guides/connections-and-state.md")]
 struct ConnectionsGuideDoctests;
+
+#[cfg(all(doctest, feature = "cookies"))]
+#[doc = include_str!("../../../docs/guides/cookies.md")]
+struct CookiesGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/redirects.md")]
+struct RedirectsGuideDoctests;
 
 #[cfg(all(doctest, feature = "cookies"))]
 #[doc = include_str!("../../../docs/guides/coming-from-reqwest.md")]
@@ -116,10 +140,14 @@ struct PerformanceGuideDoctests;
 #[doc = include_str!("../../../docs/guides/sse.md")]
 struct SseGuideDoctests;
 
-// The WebSocket guide includes a compression example.
-#[cfg(all(doctest, feature = "websocket-deflate"))]
+#[cfg(all(doctest, feature = "websocket"))]
 #[doc = include_str!("../../../docs/guides/websocket.md")]
 struct WebSocketGuideDoctests;
+
+// The guide includes a compression example.
+#[cfg(all(doctest, feature = "websocket-deflate"))]
+#[doc = include_str!("../../../docs/guides/websocket-fields.md")]
+struct WebSocketFieldsGuideDoctests;
 
 mod authority;
 mod body;

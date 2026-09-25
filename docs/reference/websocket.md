@@ -205,8 +205,9 @@ support; each connection opts in with
 
 ## Next
 
-- [WebSocket guide](../guides/websocket.md): open, shape, and compress a
-  WebSocket.
+- [WebSocket guide](../guides/websocket.md): open and shape a WebSocket;
+  [compression](../guides/websocket-fields.md#compress-websocket-messages) has
+  its own guide.
 - [WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence):
   the captures behind the recipes.
 - [Design](../explanation/design.md#websocket-and-sse): why the connection
