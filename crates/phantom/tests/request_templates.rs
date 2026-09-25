@@ -177,9 +177,10 @@ struct Observed {
 
 /// Sends one templated request and returns what the origin received.
 ///
-/// Caller values come from the capture itself for fields a template leaves
-/// to the caller: `Referer` always, and `User-Agent` when the template has
-/// no captured value.
+/// Caller values come from the capture itself for every field a template
+/// leaves to the caller: `Referer` always, `User-Agent` when the template has
+/// no captured value, and Brave's `Accept-Language`, whose `q` value Brave
+/// draws per session.
 async fn send(
     browser: &Browser,
     template: RequestTemplate,

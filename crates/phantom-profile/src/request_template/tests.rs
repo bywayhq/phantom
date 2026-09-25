@@ -70,6 +70,29 @@ const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
 const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/153.0.4234.48");
 const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/156.0");
 const BRAVE_WEBSOCKET: [&str; 9] = websocket_set!("brave/154.1.96.59");
+/// Every Brave proxy route scenario, three runs each.
+const BRAVE_PROXY: [&str; 20] = [
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/direct-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/direct-loopback.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-auth-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-auth-loopback.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-auth-nostore-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-auth-nostore-loopback.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-auth-remembered-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-auth-secure-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-loopback.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/http-proxy-secure-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-auth-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-auth-loopback.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-auth-nostore-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-auth-nostore-loopback.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-auth-remembered-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-auth-secure-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-hostname.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-loopback.txt"),
+    fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-secure-hostname.txt"),
+];
 const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/135.0.5973.92");
 const CHROME_HEADFUL_SSE: &str =
     fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headful.txt");
@@ -84,6 +107,8 @@ const CHROME_CLIENT_HINTS: &str =
     fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
 const EDGE_CLIENT_HINTS: &str =
     fixture!("client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt");
+const BRAVE_CLIENT_HINTS: &str =
+    fixture!("client-hints/brave/154.1.96.59/windows-11-26200/navigation.txt");
 const OPERA_CLIENT_HINTS: &str =
     fixture!("client-hints/opera/135.0.5973.92/windows-11-26200/navigation.txt");
 /// Which protocol list of a template a capture is compared with.
@@ -430,8 +455,9 @@ fn opera_135_navigation_matches_every_captured_page_request() -> CaptureResult<(
 }
 
 /// Brave draws the `q` value of its second `Accept-Language` entry per
-/// browser session, so its templates leave the field to the caller. Every
-/// request of one capture run carries one value, drawn from five.
+/// browser session, so its templates leave the field to the caller. In the
+/// 87 WebSocket and proxy route runs, every request of one run carries one
+/// value, and the runs together show all five values.
 #[test]
 fn brave_154_accept_language_is_one_drawn_value_per_session() -> CaptureResult<()> {
     use std::collections::BTreeSet;
@@ -441,13 +467,16 @@ fn brave_154_accept_language_is_one_drawn_value_per_session() -> CaptureResult<(
         .map(|q| format!("en-US,en;q={q}"))
         .collect();
     let mut seen = BTreeSet::new();
-    for fixture in BRAVE_WEBSOCKET {
+    let mut runs = 0;
+    for fixture in BRAVE_WEBSOCKET.iter().chain(&BRAVE_PROXY) {
         for run in Capture::parse(fixture)?.accept_language_by_run()? {
-            assert!(run.len() <= 1, "{run:?}");
+            assert_eq!(run.len(), 1, "{run:?}");
             seen.extend(run);
+            runs += 1;
         }
     }
-    assert!(seen.len() > 1 && seen.is_subset(&allowed), "{seen:?}");
+    assert_eq!(runs, 87);
+    assert_eq!(seen, allowed);
     for template in [
         brave::v154_windows_navigation_template(),
         brave::v154_windows_fetch_no_store_template(),
@@ -646,10 +675,29 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
 
 #[test]
 fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> CaptureResult<()> {
-    for (fixture, hints) in [
-        (CHROME_CLIENT_HINTS, chromium::v154_windows_client_hints()),
-        (EDGE_CLIENT_HINTS, edge::v153_windows_client_hints()),
-        (OPERA_CLIENT_HINTS, opera::v135_windows_client_hints()),
+    // Each capture is compared with its own browser's template, so Brave's
+    // `Sec-GPC` after `Accept` is part of the expected order.
+    for (fixture, hints, template) in [
+        (
+            CHROME_CLIENT_HINTS,
+            chromium::v154_windows_client_hints(),
+            chromium::v154_windows_navigation_template(),
+        ),
+        (
+            EDGE_CLIENT_HINTS,
+            edge::v153_windows_client_hints(),
+            edge::v153_windows_navigation_template(),
+        ),
+        (
+            BRAVE_CLIENT_HINTS,
+            brave::v154_windows_client_hints(),
+            brave::v154_windows_navigation_template(),
+        ),
+        (
+            OPERA_CLIENT_HINTS,
+            opera::v135_windows_client_hints(),
+            opera::v135_windows_navigation_template(),
+        ),
     ] {
         use crate::ClientHintDelivery::Default;
 
@@ -666,7 +714,6 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
             }));
             names
         };
-        let template = edge::v153_windows_navigation_template();
         let runs: usize = capture.value("repeat_count")?.parse()?;
         for run in 0..runs {
             // The first navigation is the full template on a fresh origin.
