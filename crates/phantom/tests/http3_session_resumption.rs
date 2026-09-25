@@ -664,7 +664,7 @@ struct CryptoStream {
 impl CryptoStream {
     /// Adds CRYPTO frames and returns the ClientHello's extension types the
     /// first time the whole message is present.
-    fn add(&mut self, frames: Vec<(u64, Vec<u8>)>) -> Option<Vec<u16>> {
+    fn add(&mut self, frames: CryptoFrames) -> Option<Vec<u16>> {
         if self.complete {
             return None;
         }
@@ -689,9 +689,12 @@ impl CryptoStream {
     }
 }
 
+/// CRYPTO frame data with its stream offsets, in packet order.
+type CryptoFrames = Vec<(u64, Vec<u8>)>;
+
 /// Decrypts the Initial packet that starts `datagram` and returns its
 /// Destination Connection ID and CRYPTO frames.
-fn initial_crypto_frames(datagram: &[u8]) -> Option<(Vec<u8>, Vec<(u64, Vec<u8>)>)> {
+fn initial_crypto_frames(datagram: &[u8]) -> Option<(Vec<u8>, CryptoFrames)> {
     use rustls::quic::{Keys, Version};
 
     let first = *datagram.first()?;
