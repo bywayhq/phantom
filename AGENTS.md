@@ -119,6 +119,9 @@ Use a sibling worktree only when independent work can proceed concurrently.
 - Windows reserves UDP ports 49841 to 50959 on the development host
   (`netsh int ipv4 show excludedportrange protocol=udp`). Bind port 0 in
   tests and captures rather than a fixed port.
+- Tests bind loopback addresses only, so Windows Defender Firewall does not
+  prompt for each rebuilt test binary. A test that binds `0.0.0.0` or `::`,
+  directly or through a client socket aimed at a loopback peer, is a bug.
 - A refused loopback TCP connect takes about two seconds on Windows instead of
   failing at once. Allow for it in timeouts and retry tests.
 - A peer that goes away can surface as `ConnectionAborted`, not only
