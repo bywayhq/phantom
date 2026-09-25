@@ -10,8 +10,8 @@ the documentation that makes claims about it.
 A [recipe](../reference/glossary.md#recipe) is the wire data for one browser
 build at one protocol layer, returned by a function such as
 `chromium::v154_tls`. The browser's layers together make its row in the
-[profile reference](../reference/profiles.md). The matrix is meant to grow:
-Brave and Opera are queued in the [roadmap](../roadmap.md).
+[profile reference](../reference/profiles.md). The matrix is meant to grow;
+the [roadmap](../roadmap.md) queues the browsers still missing.
 
 ## Rules that shape every step
 
@@ -53,6 +53,10 @@ changed from the previous build and why each difference is in the recipe.
 For a Chromium fork, the closer model is Edge 153: `eb883a2` retained its
 captures, and `4a01b7f` added `crates/phantom-profile/src/edge.rs`, which
 reuses the Chromium recipes and changes only what the captures show differs.
+`brave.rs` and `opera.rs` follow the same pattern. Brave's request templates
+are the Chromium templates with its field changes applied, and Opera, built
+on Chromium 151, is compared with the Chrome 154 recipes because Phantom
+carries one Chromium version.
 
 ## Step 1: capture each area
 
@@ -72,10 +76,16 @@ has the exact Chrome 154 commands and launch arguments to repeat.
 | Alt-Svc racing | `scripts/capture/alt_svc_race.py` | One file per scenario |
 
 - The Python tools launch browsers through `browser_launch.py`, which knows
-  `chrome`, `edge`, and `firefox`. For another browser, add it to
-  `CHROMIUM_BROWSERS` or `BROWSERS` and to `CLIENT_NAMES`, with a case in
-  `scripts/capture/tests/test_browser_launch.py`, or capture with
+  `chrome`, `edge`, `brave`, `opera`, and `firefox`. For another browser,
+  add it to `CHROMIUM_BROWSERS` or `BROWSERS` and to `CLIENT_NAMES`, with a
+  case in `scripts/capture/tests/test_browser_launch.py`, or capture with
   `--browser manual`.
+- The raw H2 and QUIC tools serve only the first connection. A browser
+  that abandons its startup connections, as Opera 135 does, sends its
+  request on a later one; start it on `about:blank` and navigate over
+  DevTools, as
+  [Brave 154 and Opera 135 recipes](../explanation/validation.md#brave-154-and-opera-135-recipes)
+  describes.
 - Take several fresh processes per layer. The Chrome 154 set used 61 TLS
   processes, 3 for H2 and QUIC, and 2 to 10 runs per scenario elsewhere, and
   Validation reports each count.
@@ -146,7 +156,7 @@ the recipe through the same public path users take. Name tests
 | HTTP/3 | `crates/phantom-profile/src/chromium/http3_tests.rs` | `edge_153_h3_capture_matches_the_chromium_recipe` |
 | Client hints | `crates/phantom-profile/src/<browser>/tests.rs` | `edge_153_windows_client_hints_match_navigation_capture` |
 | Request templates | `crates/phantom-profile/src/request_template/tests.rs` | `edge_153_navigation_matches_every_captured_page_request` |
-| WebSocket | `crates/phantom-profile/src/websocket/tests.rs` | `chromium_154_websocket_recipe_matches_chrome_and_edge_captures` |
+| WebSocket | `crates/phantom-profile/src/websocket/tests.rs` | `chromium_154_websocket_recipe_matches_chromium_family_captures` |
 | SSE reconnect | `crates/phantom/tests/sse_browser_reconnect.rs` | Replays the SSE fixtures against the client |
 
 - Where a fork shares a Chromium layer, add a test that replays the fork's

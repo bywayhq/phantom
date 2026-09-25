@@ -42,7 +42,8 @@ is a better choice in these cases:
   [Coverage](reference/coverage.md#at-a-glance)); use a browser automation
   tool such as Playwright.
 - You need a browser Phantom has no recipe for. Phantom ships Chrome 154,
-  Edge 153, and Firefox 156, one build each, all captured on Windows 11. It
+  Edge 153, Brave 154, Opera 135, and Firefox 156, one build each, all
+  captured on Windows 11. It
   has no Safari, mobile, macOS, or Linux captures, and no Firefox HTTP/3
   recipe. [Coverage](reference/coverage.md#browser-profiles) has the details.
 - You need many browser versions or operating systems. Phantom retires a
@@ -64,7 +65,7 @@ The table records what each project's own documentation states, as of
 
 | Project | Language | Layers its documentation names | Browser targets its documentation lists |
 | --- | --- | --- | --- |
-| Phantom | Rust | TCP socket options, TLS, HTTP/1.1, HTTP/2, QUIC, HTTP/3, client hints, request templates, WebSocket openings | 3 builds: Chrome 154, Edge 153, Firefox 156 |
+| Phantom | Rust | TCP socket options, TLS, HTTP/1.1, HTTP/2, QUIC, HTTP/3, client hints, request templates, WebSocket openings | 5 builds: Chrome 154, Edge 153, Brave 154, Opera 135, Firefox 156 |
 | [curl-impersonate](https://github.com/lexiforest/curl-impersonate) | C (a curl fork) | TLS, HTTP/2, HTTP/3 | Chrome, Edge, Safari, Firefox, and Tor targets |
 | [curl_cffi](https://github.com/lexiforest/curl_cffi) | Python (bindings to curl-impersonate) | TLS, HTTP/2, HTTP/3 | Preset fingerprints in the open-source release |
 | [wreq](https://github.com/0x676e67/wreq) | Rust | TLS, HTTP/2 | Emulation profiles, kept in the separate `wreq-util` crate |

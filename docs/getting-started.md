@@ -182,5 +182,5 @@ the repository.
 - [Using the client](guides/client.md): timeouts, bodies, and
   `get_negotiated`, which lets the server choose HTTP/1.1 or HTTP/2.
 - [HTTP/3 and Alt-Svc](guides/http3.md): send the same request over QUIC.
-- [Browser profiles](guides/profiles.md): Edge and Firefox, and custom
-  profiles.
+- [Browser profiles](guides/profiles.md): Edge, Brave, Opera, and Firefox,
+  and custom profiles.

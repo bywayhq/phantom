@@ -18,6 +18,8 @@ presented as a complete client match.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Edge 153 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
+| Brave 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
+| Opera 135 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Firefox 156 | Browser source, partial | Captured | Captured | Captured | Not covered | Not covered | Not sent by Firefox | Captured | Captured |
 
 - **Captured**: a [recipe](glossary.md#recipe) or
@@ -34,12 +36,15 @@ Read the matrix with these conditions:
 - H1's captured part is the request field order that request templates
   carry. The Chrome and Firefox recipes set a connection bound
   (`Http1Settings`) of 6 per origin and route, from browser source; without
-  them the bound is 1. Edge has no H1 connection recipe.
-- Edge's H2, QUIC, H3, and WebSocket layers use the Chromium recipes, which
-  equal Edge's captures on every compared field.
+  them the bound is 1. Edge, Brave, and Opera have no H1 connection recipe.
+- Edge's, Brave's, and Opera's H2, QUIC, H3, and WebSocket layers use the
+  Chromium recipes, which equal their captures on every compared field.
+  Opera 135 is built on Chromium 151 and is compared with the Chrome 154
+  recipes, the only Chromium version Phantom carries.
 - Firefox's H2 recipe rests on H2 session captures, not on raw startup bytes.
-- Navigation templates cover H1, H2, and H3 for Chrome and Edge, and H1 and H2
-  for Firefox. Fetch templates cover H1 and H2 for all three.
+- Navigation templates cover H1, H2, and H3 for Chrome, Edge, Brave, and
+  Opera, and H1 and H2 for Firefox. Fetch templates cover H1 and H2 for all
+  five.
 - Server-sent events (SSE) reconnects are captured for Chrome 154 and Firefox
   156 over plaintext H1 only.
 
@@ -115,7 +120,8 @@ Not modeled:
 - Racing for HTTP/3. Chromium's QUIC job connects only to the first resolved
   address. Phantom's H3 connector tries the resolved addresses in order after
   a connection failure.
-- An Edge TCP recipe. No public source or capture shows Edge's options.
+- An Edge, Brave, or Opera TCP recipe. No capture shows their options, and
+  no browser source has been read for them.
 - The TCP SYN itself (window, MSS, options, TTL). The host OS decides it.
 
 ## TLS over TCP
@@ -123,8 +129,8 @@ Not modeled:
 Supported:
 
 - Typed, ordered profiles.
-- Recipes backed by retained captures: Chrome 154, Edge 153, and Firefox 156,
-  all from Windows captures. Phantom carries one version per browser, the
+- Recipes backed by retained captures: Chrome 154, Edge 153, Brave 154,
+  Opera 135, and Firefox 156, all from Windows captures. Phantom carries one version per browser, the
   current stable build on the capture host. See
   [Browser profiles](#browser-profiles).
 - Certificate and hostname verification.
@@ -391,7 +397,8 @@ Planned:
 - Datagram APIs for specific extensions.
 - Alt-Svc racing across multiple alternatives, and a racing delay derived
   from RTT.
-- Encrypted Client Hello from a record's `ech` value on H3, and for Edge.
+- Encrypted Client Hello from a record's `ech` value on H3, and for Edge and
+  Opera.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does; Phantom's address lookups go through the operating system.
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.
@@ -764,8 +771,9 @@ the naming rules.
 Each recipe records the platform its captures came from, and no recipe
 shares component data with a capture from another platform:
 
-- Chrome 154 (154.0.8037.58), Edge 153 (153.0.4234.48), and Firefox 156
-  (156.0) recipes come from Windows 11 captures only. No macOS or Linux
+- Chrome 154 (154.0.8037.58), Edge 153 (153.0.4234.48), Brave 154
+  (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0) recipes
+  come from Windows 11 captures only. No macOS or Linux
   capture of these builds exists, so platform independence is not claimed
   for them. The retired Chrome 152 and Firefox 154 captures, which did
   compare two platforms, are no longer in the tree.
@@ -786,6 +794,18 @@ How the recipes differ:
 - Edge 153 matches the Chromium H2, QUIC, and H3 recipes and omits
   trust-anchor IDs. So `edge::` carries only `v153_tls`, `v153_http3_tls`,
   `v153_windows_client_hints`, and its request templates.
+- Brave 154 matches the Chromium H2, QUIC, H3, WebSocket, and proxy CONNECT
+  recipes and omits trust-anchor IDs. `brave::` carries `v154_tls`, which
+  keeps Chrome's ECH from HTTPS records, `v154_http3_tls`,
+  `v154_windows_client_hints`, and its request templates. Its client hints
+  omit `sec-ch-ua-full-version` and `sec-ch-ua-form-factors` and reduce every
+  version to `.0.0.0`. Its templates drop signed exchanges from the
+  navigation `Accept`, add `Sec-GPC: 1`, and leave `Accept-Language` to the
+  caller, because Brave draws its `q` value per session.
+- Opera 135 matches the same Chromium recipes and omits trust-anchor IDs, and
+  its TCP ClientHello has no GREASE signature algorithm. `opera::` carries
+  `v135_tls`, `v135_http3_tls`, `v135_windows_client_hints`, and its request
+  templates, which equal the Chromium templates apart from `User-Agent`.
 - `firefox::v156_*` covers TLS, TCP, H2, WebSocket, cookie placement, and the
   request templates. Firefox sends no user-agent client hints, so it has no
   client-hint recipe, and no Firefox QUIC or H3 capture exists.
@@ -795,20 +815,21 @@ Request templates:
 - The navigation templates match every retained page request:
   - Chrome 154 over H1 (the SSE, WebSocket, and client-hint captures), H2 (the
     WebSocket captures), and H3 (the H3 startup capture);
-  - Edge 153 over H1, H2, and H3; and
+  - Edge 153, Brave 154, and Opera 135 over H1, H2, and H3; and
   - Firefox 156 over H1 and H2.
 
   The fetch templates match every retained no-store report `fetch` in the
   WebSocket captures, over H1 and H2.
 - Each template carries the captured H2 HEADERS priority for its request kind,
   sent on that stream only. Navigations use weight 256 exclusive (Chrome,
-  Edge) and 42 (Firefox), which equal the H2 recipes' connection priority.
+  Edge, Brave, Opera) and 42 (Firefox), which equal the H2 recipes' connection priority.
   Fetches use weight 220 exclusive and 22. The dependency is always stream 0,
   as in every capture. Chrome's dependency on another open stream of equal or
   higher priority is not reproduced.
 - The Chrome `User-Agent` value comes from the SSE capture, which ran in
-  headful launch mode. The other Chrome and Edge captures ran headless. Edge
-  templates leave `User-Agent` to the caller.
+  headful launch mode. The other Chrome captures and every Edge, Brave, and
+  Opera capture ran headless, so the Edge, Brave, and Opera templates leave
+  `User-Agent` to the caller.
 - The H1 template captures used plaintext loopback origins. The proxy route
   captures show what the browsers send to a named plaintext origin instead:
   no `Sec-Fetch-*` fields, no client hints, and `Accept-Encoding: gzip,
@@ -833,9 +854,9 @@ Randomized fields:
   and differed between processes, a hash-iteration order rather than a
   per-connection permutation; see
   [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
-- The Chrome 154 and Edge 153 recipes leave the ECH GREASE AEAD list empty and
-  emit HKDF-SHA256 with AES-128-GCM on every connection, as every observed
-  Chrome and Edge connection does. Tests compare it exactly.
+- The Chrome 154, Edge 153, Brave 154, and Opera 135 recipes leave the ECH
+  GREASE AEAD list empty and emit HKDF-SHA256 with AES-128-GCM on every
+  connection, as every observed connection of those browsers does. Tests compare it exactly.
 - Firefox 156 chooses its ECH GREASE AEAD per connection, between AES-128-GCM
   and ChaCha20-Poly1305. The recipe lists both, and the backend draws one
   uniformly for each connection. A 200-connection distribution test bounds

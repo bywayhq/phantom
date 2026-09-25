@@ -35,6 +35,8 @@ build that can be recaptured and reverified.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints` | `v154_websocket` | Windows |
 | Edge 153 | `edge::v153_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v153_windows_client_hints` | Chromium | Windows |
+| Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
+| Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints` | Chromium | Windows |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
 
 - "Captured on" lists the platforms whose retained captures back the recipe.
@@ -52,7 +54,8 @@ build that can be recaptured and reverified.
   `firefox::v156_dns_cache` come from browser source
   ([Address cache](#address-cache)).
 - Proxy CONNECT recipes are not in the table: `chromium::v154_proxy_connect`
-  serves Chrome and Edge, and `firefox::v156_proxy_connect` serves Firefox
+  serves Chrome, Edge, Brave, and Opera, and `firefox::v156_proxy_connect`
+  serves Firefox
   ([Proxy CONNECT fields](#proxy-connect-fields)).
 - H2 WebSocket needs a captured pseudo-header order for extended CONNECT.
   Only `chromium::v154_http2` and `firefox::v156_http2` carry one
@@ -83,7 +86,7 @@ resolved addresses.
 | None (no `with_tcp`) | OS default | OS default | One at a time, resolver order |
 | `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
 | `firefox::v156_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
-| Edge | Not covered | Not covered | Not covered |
+| Edge, Brave, Opera | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a
@@ -92,7 +95,8 @@ resolved addresses.
 - Chromium on macOS sets only the idle time; for that platform, set
   `TcpKeepalive::interval` to `None`.
 - Firefox's keepalive schedule and address selection are not modeled.
-- No public source or capture shows Edge's socket options.
+- No capture shows Edge's, Brave's, or Opera's socket options, and no
+  browser source has been read for them.
 
 | Rule | Value or outcome |
 | --- | --- |
@@ -120,7 +124,7 @@ for each origin and route.
 | None (no `with_http1`) | 1; requests run one after another | Not a browser value |
 | `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
 | `firefox::v156_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
-| Edge | Not covered | Edge 153's value has not been read from a source or a capture |
+| Edge, Brave, Opera | Not covered | Their values have not been read from a source or a capture |
 
 - Idle connections, and connections still being established, count toward
   the limit.
@@ -165,7 +169,7 @@ never resolved locally.
 | None (no `with_dns_cache`) | 0; every new connection resolves its host | Not kept | Not kept |
 | `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
 | `firefox::v156_dns_cache` | 1,600 | 60 s | 60 s |
-| Edge | Not covered | Not covered | Not covered |
+| Edge, Brave, Opera | Not covered | Not covered | Not covered |
 
 - Phantom resolves through the operating system, which reports no record
   TTL. Both recipes use the browser's value for an answer without one:
@@ -196,6 +200,10 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `chromium::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
 | `edge::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `edge::v153_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
+| `brave::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
+| `brave::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
+| `opera::v135_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
+| `opera::v135_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
 
@@ -206,7 +214,12 @@ Each recipe's rustdoc cites the source lines. Evidence:
 - A caller slot has no captured value; you supply the field. A request that
   leaves a required caller slot empty fails before any I/O.
 - Every template was captured on Windows 11 and carries the capture machine's
-  `en-US` `Accept-Language`.
+  `en-US` `Accept-Language`, except Brave's, which leave it to you: Brave
+  draws the `q` value of its second language per session.
+- The Brave templates are the Chromium templates with three changes: `Accept`
+  on a navigation omits `application/signed-exchange;v=b3;q=0.7`,
+  `Sec-GPC: 1` follows `Accept`, and `Accept-Language` is a
+  required caller slot.
 
 ### Template assembly
 
@@ -218,9 +231,9 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | Extra fields | Fields the template does not name follow its last field, in your order. They are sent, not rejected. |
 | Cookies | Templates cannot contain `Cookie`. The profile's `CookiePlacement` inserts the jar's field; a `Cookie` field of your own replaces it. |
 | Client hints | The profile's client hints fill the template's hint slots. |
-| Forwarding | When an HTTP/1.1 proxy forwards the request in absolute form, the Chrome and Edge templates send `Proxy-Connection: keep-alive` in the position of `Connection: keep-alive`, as those browsers do. Firefox's templates send the same fields on every route. A field of yours named `Connection` or `Proxy-Connection` keeps its value at that entry's position. |
-| Proxy credentials | On a forwarded request that carries `HttpProxy::with_basic_auth` credentials, the generated `Proxy-Authorization` field takes the template's slot for the attempt. Chrome and Edge: after `Proxy-Connection` on HTTP/1.1 and first on HTTP/2, on every attempt, except that a no-store `fetch` puts `Pragma` and `Cache-Control` before it. Firefox: with remembered credentials, before `Connection` on HTTP/1.1 and in the same place on HTTP/2 (after `referer` on a `fetch`, after `accept-encoding` on a navigation); on the replay after a `407`, last on HTTP/1.1 and before `te` on HTTP/2. Without a slot it follows every other field. On a route without configured credentials, your own `Proxy-Authorization` field on a forwarded request takes the slot for remembered credentials. |
-| Origin trust | `Sec-Fetch-*` and `Accept-Encoding` depend on whether the URL is [potentially trustworthy](glossary.md#potentially-trustworthy). To such a URL a built-in template sends its captured fields; to any other `http://` URL it leaves out `Sec-Fetch-*` and sends `Accept-Encoding: gzip, deflate`. The other fields keep their order. |
+| Forwarding | When an HTTP/1.1 proxy forwards the request in absolute form, the Chromium-family templates (Chrome, Edge, Brave, and Opera) send `Proxy-Connection: keep-alive` in the position of `Connection: keep-alive`, as those browsers do. Firefox's templates send the same fields on every route. A field of yours named `Connection` or `Proxy-Connection` keeps its value at that entry's position. |
+| Proxy credentials | On a forwarded request that carries `HttpProxy::with_basic_auth` credentials, the generated `Proxy-Authorization` field takes the template's slot for the attempt. Chrome, Edge, Brave, and Opera: after `Proxy-Connection` on HTTP/1.1 and first on HTTP/2, on every attempt, except that a no-store `fetch` puts `Pragma` and `Cache-Control` before it. Firefox: with remembered credentials, before `Connection` on HTTP/1.1 and in the same place on HTTP/2 (after `referer` on a `fetch`, after `accept-encoding` on a navigation); on the replay after a `407`, last on HTTP/1.1 and before `te` on HTTP/2. Without a slot it follows every other field. On a route without configured credentials, your own `Proxy-Authorization` field on a forwarded request takes the slot for remembered credentials. |
+| Origin trust | `Sec-Fetch-*` and `Accept-Encoding` depend on whether the URL is [potentially trustworthy](glossary.md#potentially-trustworthy). To such a URL a built-in template sends its captured fields; to any other `http://` URL it leaves out `Sec-Fetch-*` and sends `Accept-Encoding: gzip, deflate`. The other fields keep their order; Brave's `Sec-GPC` goes to both. |
 | HTTP/2 priority | The template's HEADERS priority replaces the connection's priority for that stream only. A peer that disables RFC 7540 priorities still suppresses it. |
 | Redirects | Every hop uses the same template. Origin trust is decided per hop, so a redirect to a named `http://` origin drops `Sec-Fetch-*` and the `br` and `zstd` codings. Values such as `Sec-Fetch-Site` are not adjusted. |
 | `Referer` on a navigation | Navigation templates have no `Referer` slot, so an added `Referer` goes last: after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on their HTTP/2 and HTTP/3 lists, and after `Priority` and `te` on Firefox's. No capture shows that position. |
@@ -237,6 +250,8 @@ template and caller fields, not client hints, which are added afterward.
 | `firefox::v156_cookie_placement` | Firefox navigation | Before `Upgrade-Insecure-Requests` |
 | `chromium::v154_cookie_placement` | Chrome or Edge, HTTP/1.1 | Last |
 | `chromium::v154_cookie_placement` | Chrome or Edge, HTTP/2 and HTTP/3 | Before the final `priority` |
+
+No capture or source reading backs a cookie placement for Brave or Opera.
 
 ### Client hints in templates
 
@@ -280,14 +295,14 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 - The templates always depend on stream 0, as every capture did. Chrome can
   depend on another open stream of equal or higher priority; Phantom does not
   reproduce that.
-- Every Edge capture ran headless, so the Edge templates leave `User-Agent`
-  to you. The Firefox value comes from headless captures; Firefox sent no
+- Every Edge, Brave, and Opera capture ran headless, so their templates
+  leave `User-Agent` to you. The Firefox value comes from headless captures; Firefox sent no
   headless marker, but no headful Firefox capture confirms the value.
 - Firefox has no HTTP/3 recipe, so its templates have no HTTP/3 list.
 
 | Browser | HTTP/2 HEADERS priority, navigation | `fetch` |
 | --- | --- | --- |
-| Chrome, Edge | Weight 256, exclusive | Weight 220, exclusive |
+| Chrome, Edge, Brave, Opera | Weight 256, exclusive | Weight 220, exclusive |
 | Firefox | Weight 42, non-exclusive | Weight 22, non-exclusive |
 
 The template's priority replaces the H2 recipe's connection priority, which
@@ -304,7 +319,7 @@ replace it.
 | Recipe | HTTP/1.1 proxy | HTTP/2 proxy, after `:method` and `:authority` |
 | --- | --- | --- |
 | None (no `with_proxy_connect`) | `Host`, then `Proxy-Authorization` | `proxy-authorization` |
-| `chromium::v154_proxy_connect` (Chrome 154 and Edge 153) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
+| `chromium::v154_proxy_connect` (Chrome 154, Edge 153, Brave 154, and Opera 135) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 | `firefox::v156_proxy_connect` | `User-Agent`, `Proxy-Connection: keep-alive`, `Connection: keep-alive`, `Host`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 
 - `Proxy-Authorization` is sent only with `HttpProxy::with_basic_auth`
@@ -325,10 +340,12 @@ Evidence: [Proxy route browser evidence](../explanation/validation.md#proxy-rout
 
 ## Required caller fields
 
-The Edge templates mark `User-Agent` as a required caller slot, because no
-headful Edge capture backs a literal value. A request with such a template
-and no field of that name fails before any I/O. Phantom does not read the
-value you supply.
+The Edge, Brave, and Opera templates mark `User-Agent` as a required caller
+slot, because no headful capture of those browsers backs a literal value.
+The Brave templates also mark `Accept-Language`, because Brave draws its
+value per session; send one of `en-US,en;q=0.5` to `en-US,en;q=0.9` and keep
+it for the session. A request with such a template and no field of that name
+fails before any I/O. Phantom does not read the value you supply.
 
 Phantom does not compare your `User-Agent` or `sec-ch-ua` with the template's
 browser. Use the template, client-hint recipe, and `User-Agent` of one browser

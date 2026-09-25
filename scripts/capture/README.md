@@ -44,9 +44,16 @@ path replaced by `<temporary-profile>`.
 
 | `--browser` | How it starts |
 | --- | --- |
-| `chrome`, `edge` | `--headless=new` unless `--headful`, `--user-data-dir`, the flags in `CHROMIUM_FLAGS`, then the page URL |
+| `chrome`, `edge`, `brave`, `opera` | `--headless=new` unless `--headful`, `--user-data-dir`, the flags in `CHROMIUM_FLAGS`, then the page URL |
 | `firefox` | `--headless` unless `--headful`, `--wait-for-browser`, `--no-remote --profile`, then the page URL |
 | `manual` | Starts no process. Each run prints its URL on standard error for a person to open. Use it for Safari and any browser that cannot be launched from the command line |
+
+Every tool that takes `--browser chrome` also takes `brave` and `opera`. On
+the capture host their executables are
+`C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe` and
+`%LOCALAPPDATA%/Programs/Opera/<version>/opera.exe`. Use Opera's versioned
+executable rather than the `opera.exe` launcher beside the version
+directories, so the version under test is the one that runs.
 
 `CHROMIUM_FLAGS` suppresses background requests from a fresh profile: first
 run and default-browser checks, background networking, component updates,
@@ -262,17 +269,23 @@ lists its retained fixtures and launch commands, and
 what it retains. Pass `--client-hello <path>` to also write the QUIC
 ClientHello.
 
-Known defect, to fix before the next Chrome capture: the tool opens
-`client-startup.txt` in text mode, so on Windows it writes CRLF where every
-other tool writes LF.
-`fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt` is
-therefore the one CRLF file under `fixtures/`. Its bytes and the SHA-256 that
-`scripts/capture/tests/test_chrome_http3.py` pins are stable in the
-repository, because `.gitattributes` marks `fixtures/**` as `-text`, and every
-parser strips the carriage return. A rerun on a non-Windows host would write
-LF and a different hash. Open the output path in binary mode, or with
-`newline=""`, before the next capture. Do not rewrite the retained file's line
-endings.
+Pass `--output <path>` to write the startup fixture; the tool then writes it
+with LF line endings. Without `--output` the fixture goes to standard output,
+which Python opens in text mode, so on Windows it carries CRLF.
+`fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt` was
+written that way and is the one CRLF file under `fixtures/`. Its bytes and the
+SHA-256 that `scripts/capture/tests/test_chrome_http3.py` pins are stable in
+the repository, because `.gitattributes` marks `fixtures/**` as `-text`, and
+every parser strips the carriage return. Do not rewrite its line endings.
+
+The tool serves only the first QUIC connection it receives. Opera 135 opens a
+preconnect session at startup and abandons it when its certificate verifier
+changes, so its request arrives on a later connection that the tool ignores.
+The Opera fixtures were therefore taken by starting Opera on `about:blank`
+with `--remote-debugging-port=0` and navigating over the DevTools protocol
+five seconds later; their `launch_mode` is `devtools-navigate`.
+[Validation](../../docs/explanation/validation.md#brave-154-and-opera-135-recipes)
+records the comparison with a command-line launch.
 
 ## QUIC resumption and 0-RTT
 
@@ -601,7 +614,7 @@ record also carries `proxy_authorization:none`, `capture-credential`, or
 
 ## Encrypted Client Hello
 
-`chrome_ech.py` records the ClientHellos Chrome or Edge sends when the
+`chrome_ech.py` records the ClientHellos a Chromium browser sends when the
 origin's HTTPS record carries `ech`, and writes one
 `format=phantom-ech-client-hello-v1` fixture per run. It runs the
 `capture_ech_client_hello` example, which serves `https://server.phantom.test/`
@@ -639,8 +652,8 @@ Each connection records its ClientHello records, extension order, outer
 server name, the outer extension's fields, whether the origin decrypted the
 inner ClientHello, and the inner server name. Queries for names other than
 the origin are counted, not listed; they are the fresh profile's background
-requests. Edge 153 sent no DNS-over-HTTPS query with these preferences, so
-it has no fixture.
+requests. Edge 153 and Opera 135 sent no DNS-over-HTTPS query with these
+preferences, so they have no fixture.
 
 ## Next
 
